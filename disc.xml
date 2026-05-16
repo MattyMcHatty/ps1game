@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iso_project image_name="HORROR.bin" cue_sheet="HORROR.cue">
+    <track type="data">
+        <identifiers
+            system="PlayStation"
+            application="PlayStation"
+            volume="HORROR"
+            volume_set="HORROR"
+            publisher="YOU"
+        />
+        <directory_tree>
+            <file name="HORROR.BIN" type="data"
+                source="C:\Users\virtu\Documents\ps1game\build\HORROR2.BIN"/>
+            <file name="SYSTEM.CNF" type="data"
+                source="C:\Users\virtu\Documents\ps1game\system.cnf"/>
+        </directory_tree>
+    </track>
+</iso_project>

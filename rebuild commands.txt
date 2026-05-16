@@ -1,0 +1,5 @@
+cd C:\Users\virtu\Documents\ps1game\build
+ninja
+"C:\Users\virtu\Documents\PSn00bSDK\bin\elf2x.exe" HORROR.exe HORROR2.BIN
+cd ..
+"C:\Users\virtu\Documents\PSn00bSDK\bin\mkpsxiso.exe" disc.xml

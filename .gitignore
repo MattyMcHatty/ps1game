@@ -1,0 +1,12 @@
+# Build output
+build/
+
+# Compiled binaries
+*.exe
+*.bin
+*.BIN
+
+# Disc images (large binary files)
+*.cue
+HORROR.cue
+HORROR.bin
