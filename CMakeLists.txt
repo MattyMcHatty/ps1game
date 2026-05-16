@@ -18,7 +18,10 @@ project(horror_game LANGUAGES C ASM)
 set(PSN00BSDK_LIBS "${PSN00BSDK}/lib/libpsn00b")
 set(PSN00BSDK_INCLUDE "${PSN00BSDK}/include")
 
-add_executable(horror_game src/main.c)
+add_executable(horror_game
+    src/main.c
+    src/spi.c
+)
 
 target_include_directories(horror_game PRIVATE
     "${CMAKE_SOURCE_DIR}/src"
