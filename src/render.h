@@ -1,0 +1,31 @@
+#ifndef RENDER_H
+#define RENDER_H
+
+#include <stdint.h>
+#include <psxgpu.h>
+#include <psxgte.h>
+
+#define OT_LENGTH     2048
+#define BUFFER_LENGTH 32768
+#define SCREEN_XRES   320
+#define SCREEN_YRES   240
+
+typedef struct {
+    DISPENV  disp_env;
+    DRAWENV  draw_env;
+    uint32_t ot[OT_LENGTH];
+    uint8_t  buffer[BUFFER_LENGTH];
+} RenderBuffer;
+
+typedef struct {
+    RenderBuffer buffers[2];
+    uint8_t     *next_packet;
+    int          active_buffer;
+} RenderContext;
+
+void setup_context(RenderContext *ctx, int w, int h, int r, int g, int b);
+void flip_buffers(RenderContext *ctx);
+void draw_faces(RenderContext *ctx, SVECTOR *verts, int faces[][4],
+                uint8_t colors[][3], int face_count, int depth_bias);
+
+#endif

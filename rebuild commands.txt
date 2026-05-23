@@ -1,5 +1,5 @@
-cd C:\Users\virtu\Documents\ps1game\build
-ninja
-"C:\Users\virtu\Documents\PSn00bSDK\bin\elf2x.exe" HORROR.exe HORROR2.BIN
+cd "C:\Users\virtu\Documents\PS1 Horror Game\build"
+"C:\Users\virtu\Documents\PSn00bSDK-0.24-win32\bin\ninja.exe"
+"C:\Users\virtu\Documents\PSn00bSDK-0.24-win32\bin\elf2x.exe" HORROR.exe HORROR2.BIN
 cd ..
-"C:\Users\virtu\Documents\PSn00bSDK\bin\mkpsxiso.exe" disc.xml
+"C:\Users\virtu\Downloads\mkpsxiso-2.20-win64\mkpsxiso-2.20-win64\mkpsxiso.exe" disc.xml

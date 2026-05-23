@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-set(PSN00BSDK "C:/Users/virtu/Documents/PSn00bSDK")
+set(PSN00BSDK "C:/Users/virtu/Documents/PSn00bSDK-0.24-win32")
 
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR mips)
@@ -20,6 +20,13 @@ set(PSN00BSDK_INCLUDE "${PSN00BSDK}/include")
 
 add_executable(horror_game
     src/main.c
+    src/camera.c
+    src/render.c
+    src/level.c
+    src/player.c
+    src/vampire.c
+    src/bat.c
+    src/medipac.c
     src/spi.c
 )
 
