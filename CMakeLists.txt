@@ -28,6 +28,7 @@ add_executable(horror_game
     src/bat.c
     src/medipac.c
     src/particles.c
+    src/title.c
     src/spi.c
 )
 

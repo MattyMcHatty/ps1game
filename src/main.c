@@ -14,6 +14,9 @@
 #include "bat.h"
 #include "medipac.h"
 #include "particles.h"
+#include "title.h"
+
+GameState game_state = STATE_TITLE;
 
 volatile uint8_t pad_buff[2][34];
 volatile size_t  pad_buff_len[2];
@@ -61,28 +64,34 @@ int main(int argc, const char **argv) {
     FntOpen(40, 104, 240, 32, 0, 128);
 
     for (;;) {
-        if (!game_over) {
-            update_camera();
-            apply_collision();
-            update_vampire();
-            update_bat();
-            update_medipac();
-            update_particles();
-            draw_scene(&ctx);
+        if (game_state == STATE_TITLE) {
+            update_title();
+            draw_title(&ctx);
         } else {
-            uint8_t r;
-            if (flash_timer > 0) {
-                flash_timer--;
-                r = (flash_timer / 6) % 2 == 0 ? 200 : 0;
-                setRGB0(&ctx.buffers[ctx.active_buffer].draw_env, r, 0, 0);
+            if (!game_over) {
+                update_camera();
+                apply_collision();
+                update_vampire();
+                update_bat();
+                update_medipac();
+                update_particles();
+                draw_scene(&ctx);
             } else {
-                if (pad_buff_len[0] &&
-                    (~((PadResponse *)pad_buff[0])->btn & PAD_START)) {
-                    reset_game(&ctx);
+                uint8_t r;
+                if (flash_timer > 0) {
+                    flash_timer--;
+                    r = (flash_timer / 6) % 2 == 0 ? 200 : 0;
+                    setRGB0(&ctx.buffers[ctx.active_buffer].draw_env, r, 0, 0);
                 } else {
-                    setRGB0(&ctx.buffers[ctx.active_buffer].draw_env, 80, 0, 0);
-                    FntPrint(-1, "          GAME OVER\n    PRESS START TO RESTART");
-                    FntFlush(-1);
+                    if (pad_buff_len[0] &&
+                        (~((PadResponse *)pad_buff[0])->btn & PAD_START)) {
+                        reset_game(&ctx);
+                        game_state = STATE_TITLE;
+                    } else {
+                        setRGB0(&ctx.buffers[ctx.active_buffer].draw_env, 80, 0, 0);
+                        FntPrint(-1, "          GAME OVER\n    PRESS START TO RESTART");
+                        FntFlush(-1);
+                    }
                 }
             }
         }
