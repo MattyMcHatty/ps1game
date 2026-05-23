@@ -7,6 +7,7 @@
 #include "render.h"
 #include "camera.h"
 #include "vampire.h"
+#include "particles.h"
 #include "bat.h"
 
 int swing_timer    = 0;
@@ -36,6 +37,9 @@ void update_bat(void) {
                     vampire_kb_vx    = (dx * KNOCKBACK_SPEED) / dist;
                     vampire_kb_vz    = (dz * KNOCKBACK_SPEED) / dist;
                     vampire_health--;
+                    if (vampire_health <= 0)
+                        spawn_blood_burst(vampire_x, 0, vampire_z);
+                    vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
                     hit_this_swing = 1;
                 }
             }

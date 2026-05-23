@@ -13,6 +13,7 @@
 #include "vampire.h"
 #include "bat.h"
 #include "medipac.h"
+#include "particles.h"
 
 volatile uint8_t pad_buff[2][34];
 volatile size_t  pad_buff_len[2];
@@ -37,7 +38,9 @@ void reset_game(RenderContext *ctx) {
     vampire_kb_vx    = 0;
     vampire_kb_vz    = 0;
     vampire_health   = VAMPIRE_MAX_HEALTH;
+    vampire_hit_timer = 0;
     reset_medipac();
+    reset_particles();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
 }
@@ -64,6 +67,7 @@ int main(int argc, const char **argv) {
             update_vampire();
             update_bat();
             update_medipac();
+            update_particles();
             draw_scene(&ctx);
         } else {
             uint8_t r;

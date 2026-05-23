@@ -10,6 +10,7 @@
 #include "player.h"
 #include "bat.h"
 #include "medipac.h"
+#include "particles.h"
 
 static void draw_panel(
     RenderContext *ctx,
@@ -125,6 +126,7 @@ void draw_scene(RenderContext *ctx) {
 
     draw_room(ctx);
     draw_vampire(ctx);
+    draw_particles(ctx);
     draw_medipac(ctx);
     draw_bat(ctx);
     draw_hud(ctx);
