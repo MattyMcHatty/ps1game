@@ -7,13 +7,15 @@
 #include "player.h"
 #include "vampire.h"
 
-int32_t vampire_x      = 1200;
-int32_t vampire_z      = 1200;
-int     vampire_health = VAMPIRE_MAX_HEALTH;
-int32_t vampire_kb_vx  = 0;
-int32_t vampire_kb_vz  = 0;
+int32_t vampire_x         = 1200;
+int32_t vampire_z         = 1200;
+int     vampire_health    = VAMPIRE_MAX_HEALTH;
+int32_t vampire_kb_vx     = 0;
+int32_t vampire_kb_vz     = 0;
+int     vampire_hit_timer = 0;
 
 void update_vampire(void) {
+    if (vampire_hit_timer > 0) vampire_hit_timer--;
     if (vampire_health <= 0) return;
 
     if (vampire_kb_vx != 0 || vampire_kb_vz != 0) {
@@ -113,4 +115,32 @@ void draw_vampire(RenderContext *ctx) {
 
     addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
     ctx->next_packet += sizeof(POLY_F4);
+
+    if (vampire_hit_timer <= 0) return;
+
+    int16_t bar_cx  = (sv[0].vx + sv[1].vx) / 2;
+    int16_t bar_top = (sv[0].vy < sv[1].vy ? sv[0].vy : sv[1].vy) - 8;
+    int16_t bar_x   = bar_cx - 25;
+    int32_t bar_otz = otz > 0 ? otz - 1 : 0;
+
+    if (ctx->next_packet + sizeof(TILE) <= buf_end) {
+        TILE *bg = (TILE *)ctx->next_packet;
+        setTile(bg);
+        setRGB0(bg, 40, 40, 40);
+        setXY0(bg, bar_x, bar_top);
+        setWH(bg, 50, 5);
+        addPrim(&ctx->buffers[ctx->active_buffer].ot[bar_otz + 1], bg);
+        ctx->next_packet += sizeof(TILE);
+    }
+
+    int16_t fill_w = (int16_t)((vampire_health * 50) / VAMPIRE_MAX_HEALTH);
+    if (fill_w > 0 && ctx->next_packet + sizeof(TILE) <= buf_end) {
+        TILE *fill = (TILE *)ctx->next_packet;
+        setTile(fill);
+        setRGB0(fill, 200, 20, 20);
+        setXY0(fill, bar_x, bar_top);
+        setWH(fill, fill_w, 5);
+        addPrim(&ctx->buffers[ctx->active_buffer].ot[bar_otz], fill);
+        ctx->next_packet += sizeof(TILE);
+    }
 }

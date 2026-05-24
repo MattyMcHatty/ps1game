@@ -10,13 +10,15 @@
 #define VAMPIRE_Y        100
 #define CATCH_DIST       200
 #define DAMAGE_INTERVAL  2
-#define VAMPIRE_MAX_HEALTH 5
+#define VAMPIRE_MAX_HEALTH   5
+#define VAMPIRE_BAR_TIMER_MAX 120
 
 extern int32_t vampire_x;
 extern int32_t vampire_z;
 extern int     vampire_health;
 extern int32_t vampire_kb_vx;
 extern int32_t vampire_kb_vz;
+extern int     vampire_hit_timer;
 
 void update_vampire(void);
 void draw_vampire(RenderContext *ctx);

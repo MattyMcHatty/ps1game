@@ -6,7 +6,7 @@
 #include <psxgte.h>
 
 #define OT_LENGTH     2048
-#define BUFFER_LENGTH 32768
+#define BUFFER_LENGTH 65536
 #define SCREEN_XRES   320
 #define SCREEN_YRES   240
 

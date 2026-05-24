@@ -24,9 +24,7 @@ void draw_hud(RenderContext *ctx) {
         if (ctx->next_packet + sizeof(TILE) > buf_end) return;
         TILE *bar = (TILE *)ctx->next_packet;
         setTile(bar);
-        uint8_t r = (uint8_t)((200 * (MAX_HEALTH - player_health)) / MAX_HEALTH);
-        uint8_t g = (uint8_t)((200 * player_health) / MAX_HEALTH);
-        setRGB0(bar, r, g, 0);
+        setRGB0(bar, 0, 0, 200);
         setXY0(bar, 5, 5);
         setWH(bar, (uint16_t)player_health, 8);
         addPrim(&ctx->buffers[ctx->active_buffer].ot[0], bar);

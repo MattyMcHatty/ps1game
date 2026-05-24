@@ -59,6 +59,8 @@ target_link_libraries(horror_game PRIVATE
     "${PSN00BSDK_LIBS}/release/libpsxetc_exe_nogprel.a"
     "${PSN00BSDK_LIBS}/release/libpsxspu_exe_nogprel.a"
     "${PSN00BSDK_LIBS}/release/libpsxapi_exe_nogprel.a"
+    "${PSN00BSDK_LIBS}/release/libpsxcd_exe_nogprel.a"
+    "${PSN00BSDK_LIBS}/release/libsmd_exe_nogprel.a"
     "${PSN00BSDK_LIBS}/release/libc_exe_nogprel.a"
 )
 

@@ -3,6 +3,7 @@
 
 #include "render.h"
 
+void level_init(void);
 void draw_scene(RenderContext *ctx);
 
 #endif

@@ -57,6 +57,7 @@ int main(int argc, const char **argv) {
     InitGeom();
     gte_SetGeomScreen(160);
     gte_SetGeomOffset(160, 120);
+    level_init();
 
     SPI_Init(&poll_cb);
 

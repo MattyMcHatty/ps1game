@@ -10,9 +10,11 @@
         />
         <directory_tree>
             <file name="HORROR.BIN" type="data"
-                source="C:\Users\virtu\Documents\ps1game\build\HORROR2.BIN"/>
+                source="C:\Users\virtu\Documents\PS1 Horror Game\build\HORROR2.BIN"/>
             <file name="SYSTEM.CNF" type="data"
-                source="C:\Users\virtu\Documents\ps1game\system.cnf"/>
+                source="C:\Users\virtu\Documents\PS1 Horror Game\system.cnf"/>
+            <file name="TRMQ.SMD" type="data"
+                source="C:\Users\virtu\Documents\PS1 Horror Game\assets\testroom_flipped3.smd"/>
         </directory_tree>
     </track>
 </iso_project>
