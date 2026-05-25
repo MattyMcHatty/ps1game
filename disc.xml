@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<iso_project image_name="HORROR.bin" cue_sheet="HORROR.cue">
+<iso_project image_name="build\HORROR.bin" cue_sheet="build\HORROR.cue">
     <track type="data">
         <identifiers
             system="PlayStation"
@@ -10,11 +10,11 @@
         />
         <directory_tree>
             <file name="HORROR.BIN" type="data"
-                source="C:\Users\virtu\Documents\PS1 Horror Game\build\HORROR2.BIN"/>
+                source="C:\Users\virtu\Documents\ps1game\build\HORROR2.BIN"/>
             <file name="SYSTEM.CNF" type="data"
-                source="C:\Users\virtu\Documents\PS1 Horror Game\system.cnf"/>
+                source="C:\Users\virtu\Documents\ps1game\system.cnf"/>
             <file name="TRMQ.SMD" type="data"
-                source="C:\Users\virtu\Documents\PS1 Horror Game\assets\testroom_flipped3.smd"/>
+                source="C:\Users\virtu\Documents\ps1game\assets\testroom_flipped3.smd"/>
         </directory_tree>
     </track>
 </iso_project>

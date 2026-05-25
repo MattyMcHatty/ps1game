@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-set(PSN00BSDK "C:/Users/virtu/Documents/PSn00bSDK-0.24-win32")
+set(PSN00BSDK "C:/Users/virtu/Documents/PSn00bSDK")
 
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR mips)
@@ -43,7 +43,7 @@ target_compile_options(horror_game PRIVATE
     -march=r3000 -mabi=32 -mfp32
     -fno-builtin -fdata-sections -ffunction-sections
     -O2 -G0
-    -isystem "C:/Users/virtu/Documents/PSn00bSDK/lib/gcc/mipsel-none-elf/12.3.0/include"
+    -isystem "${PSN00BSDK}/lib/gcc/mipsel-none-elf/12.3.0/include"
 )
 
 target_link_options(horror_game PRIVATE
