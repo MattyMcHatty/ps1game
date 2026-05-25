@@ -11,7 +11,7 @@
 #define MEDIPAC_SW           60      /* half-width  (long axis) */
 #define MEDIPAC_SD           20      /* half-depth  (short axis) */
 #define MEDIPAC_HEIGHT       40      /* full box height — half the original */
-#define MEDIPAC_BASE_TOP_Y   170     /* higher hover: ~90 units above floor */
+#define MEDIPAC_BASE_TOP_Y   20      /* hover: ~90 units above floor (floor at y=150) */
 #define MEDIPAC_COLLECT_DIST 200
 
 #define SPIN_RATE  6

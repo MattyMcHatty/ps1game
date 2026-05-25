@@ -86,6 +86,7 @@ void draw_vampire(RenderContext *ctx) {
 
     gte_avsz4();
     gte_stotz(&otz);
+    otz -= 3;
 
     if (otz <= 0 || otz >= OT_LENGTH) return;
 

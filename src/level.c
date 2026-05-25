@@ -106,6 +106,7 @@ static void draw_smd_room(RenderContext *ctx) {
         }
 
         gte_stotz(&otz);
+        otz += 200;
         if (otz <= 0) { p += stride; continue; }
         if (otz >= OT_LENGTH) otz = OT_LENGTH - 1;
 
