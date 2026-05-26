@@ -6,6 +6,7 @@
 #include "camera.h"
 #include "player.h"
 #include "vampire.h"
+#include "collision.h"
 
 int32_t vampire_x         = 1200;
 int32_t vampire_z         = 1200;
@@ -50,6 +51,7 @@ void update_vampire(void) {
     if (dist < VAMPIRE_SPEED) return;
     vampire_x += (dx * VAMPIRE_SPEED) / dist;
     vampire_z += (dz * VAMPIRE_SPEED) / dist;
+    apply_vampire_collision();
 }
 
 void draw_vampire(RenderContext *ctx) {

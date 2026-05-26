@@ -65,6 +65,13 @@ static void draw_smd_room(RenderContext *ctx) {
         SVECTOR *v1 = &room_smd->p_verts[vi[1]];
         SVECTOR *v2 = &room_smd->p_verts[vi[2]];
 
+        {
+            int32_t dx = (int32_t)v0->vx - cam_x;
+            int32_t dz = (int32_t)v0->vz - cam_z;
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 2500)
+                { p += stride; continue; }
+        }
+
         DVECTOR sv[4];
         int32_t sz[4];
         int32_t otz, nclip;
@@ -106,8 +113,8 @@ static void draw_smd_room(RenderContext *ctx) {
         }
 
         gte_stotz(&otz);
-        otz += 200;
         if (otz <= 0) { p += stride; continue; }
+        otz += 200;
         if (otz >= OT_LENGTH) otz = OT_LENGTH - 1;
 
         uint8_t *col = p + 16;

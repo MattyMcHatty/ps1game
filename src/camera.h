@@ -9,5 +9,6 @@ extern int32_t cam_rot;
 
 void update_camera(void);
 void apply_collision(void);
+void apply_vampire_collision(void);
 
 #endif

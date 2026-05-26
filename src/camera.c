@@ -3,9 +3,10 @@
 #include <psxgte.h>
 #include <psxpad.h>
 #include "camera.h"
+#include "collision.h"
 
 int32_t cam_x   = 0;
-int32_t cam_z   = -500;
+int32_t cam_z   = 0;
 int32_t cam_rot = 0;
 
 extern volatile uint8_t pad_buff[2][34];
@@ -31,11 +32,3 @@ void update_camera(void) {
     }
 }
 
-void apply_collision(void) {
-    int32_t margin = 400;
-
-    if (cam_x < -1800 + margin) cam_x = -1800 + margin;
-    if (cam_x >  1800 - margin) cam_x =  1800 - margin;
-    if (cam_z < -1800 + margin) cam_z = -1800 + margin;
-    if (cam_z >  1800 - margin) cam_z =  1800 - margin;
-}

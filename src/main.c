@@ -15,6 +15,7 @@
 #include "medipac.h"
 #include "particles.h"
 #include "title.h"
+#include "collision.h"
 
 GameState game_state = STATE_TITLE;
 
@@ -58,6 +59,7 @@ int main(int argc, const char **argv) {
     gte_SetGeomScreen(160);
     gte_SetGeomOffset(160, 120);
     level_init();
+    collision_init();
 
     SPI_Init(&poll_cb);
 
