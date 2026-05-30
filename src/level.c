@@ -69,7 +69,7 @@ static void draw_smd_room(RenderContext *ctx) {
         {
             int32_t dx = (int32_t)v0->vx - cam_x;
             int32_t dz = (int32_t)v0->vz - cam_z;
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 2500)
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 2250)
                 { p += stride; continue; }
         }
 
@@ -84,9 +84,9 @@ static void draw_smd_room(RenderContext *ctx) {
         /* Reject only GTE-saturated vertices (overflow causes GPU raster glitches).
            GTE clamps SXY to 11-bit signed +-1023; legitimate off-screen vertices
            can project well outside the screen rect without saturating. */
-        if (sv[0].vx < -960 || sv[0].vx > 960 || sv[0].vy < -960 || sv[0].vy > 960 ||
-            sv[1].vx < -960 || sv[1].vx > 960 || sv[1].vy < -960 || sv[1].vy > 960 ||
-            sv[2].vx < -960 || sv[2].vx > 960 || sv[2].vy < -960 || sv[2].vy > 960) {
+        if (sv[0].vx <= -1023 || sv[0].vx >= 1023 || sv[0].vy <= -1023 || sv[0].vy >= 1023 ||
+            sv[1].vx <= -1023 || sv[1].vx >= 1023 || sv[1].vy <= -1023 || sv[1].vy >= 1023 ||
+            sv[2].vx <= -1023 || sv[2].vx >= 1023 || sv[2].vy <= -1023 || sv[2].vy >= 1023) {
             p += stride; continue;
         }
 
@@ -99,7 +99,7 @@ static void draw_smd_room(RenderContext *ctx) {
         /* After gte_rtpt(), SZ FIFO = [stale, v0, v1, v2] stored as sz[0..3].
            sz[0] is the discarded oldest value — only check sz[1]/sz[2]/sz[3]. */
         gte_stsz4c(sz);
-        if (sz[1] < 8 || sz[2] < 8 || sz[3] < 8) { p += stride; continue; }
+        if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) { p += stride; continue; }
 
         if (is_quad) {
             SVECTOR *v3 = &room_smd->p_verts[vi[3]];
@@ -107,7 +107,8 @@ static void draw_smd_room(RenderContext *ctx) {
             gte_rtps();
             gte_stsxy(&sv[3]);
             gte_stsz(&sz[3]);
-            if (sz[3] < 8) { p += stride; continue; }
+            if (sv[3].vx <= -1023 || sv[3].vx >= 1023 || sv[3].vy <= -1023 || sv[3].vy >= 1023) { p += stride; continue; }
+            if (sz[3] == 0) { p += stride; continue; }
             gte_avsz4();
         } else {
             gte_avsz3();
@@ -124,7 +125,7 @@ static void draw_smd_room(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog_start = 500, fog_end = 3000;
+        int32_t fog_start = 500, fog_end = 2200;
         int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
         int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
 

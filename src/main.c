@@ -64,7 +64,7 @@ int main(int argc, const char **argv) {
     setup_context(&ctx, SCREEN_XRES, SCREEN_YRES, 0, 0, 0);
 
     InitGeom();
-    gte_SetGeomScreen(160);
+    gte_SetGeomScreen(256);
     gte_SetGeomOffset(160, 120);
     level_init();
     collision_init();
