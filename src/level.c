@@ -115,7 +115,7 @@ static void draw_smd_room(RenderContext *ctx) {
 
         gte_stotz(&otz);
         if (otz <= 0) { p += stride; continue; }
-        otz += 200;
+        otz += 40;
         if (otz >= OT_LENGTH) otz = OT_LENGTH - 1;
 
         uint8_t *col = p + 16;
