@@ -130,11 +130,22 @@ def extract_walls(vertices, primitives):
     walls  = []
     floors = []
 
-    # In PS1 Y-down space the floor is at the most-positive Y in the mesh.
-    # We use this to reject wall faces that exist entirely above the ceiling
-    # (geometry like stairwell overhangs, roof panels, etc.) which have no
-    # vertices at floor level and would otherwise create phantom walls.
-    level_floor_y = max(v[1] for v in vertices)
+    # First pass: collect every floor-level Y value from horizontal faces.
+    # In PS1 Y-down space each floor level has its own Y coordinate, so a
+    # multi-level map (ramp + upper floor) produces several distinct values.
+    # We use these to reject wall faces whose top vertex is NOT within 20
+    # units of any real floor level — e.g. ceiling panels or structural
+    # geometry above the ceiling that would create phantom collision walls.
+    floor_ys = []
+    for face in primitives:
+        if len(face) < 3:
+            continue
+        n = face_normal(vertices, face)
+        if abs(n[1]) > FLOOR_THRESHOLD:
+            floor_ys.append(max(vertices[i][1] for i in face))
+
+    if not floor_ys:
+        floor_ys = [max(v[1] for v in vertices)]  # fallback: use mesh max Y
 
     for face in primitives:
         if len(face) < 3:
@@ -148,11 +159,13 @@ def extract_walls(vertices, primitives):
         abs_ny = abs(n[1])
 
         if abs_ny < WALL_THRESHOLD:
-            # Skip faces whose highest vertex (most floor-ward in Y-down) is
-            # more than 10 units above the detected floor. These are geometry
-            # that lives above the ceiling and would create phantom collision.
+            # Only include wall faces whose highest vertex (most floor-ward in
+            # Y-down) lands within 20 units of a known floor level.  This
+            # rejects faces that exist entirely above the ceiling of every
+            # floor (e.g. structural overhangs) while correctly including
+            # walls that belong to elevated floors on multi-level maps.
             face_max_y = max(vertices[i][1] for i in face)
-            if face_max_y < level_floor_y - 10:
+            if not any(abs(face_max_y - fy) <= 20 for fy in floor_ys):
                 continue
 
             # --- WALL ---

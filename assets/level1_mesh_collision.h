@@ -9,8 +9,8 @@
 
 #include "collision.h"
 
-#define ROOM_WALL_COUNT  13
-#define ROOM_FLOOR_COUNT 3
+#define ROOM_WALL_COUNT  14
+#define ROOM_FLOOR_COUNT 5
 
 void room_collision_init(CollisionRoom *r);
 

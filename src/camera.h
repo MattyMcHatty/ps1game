@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 extern int32_t cam_x;
+extern int32_t cam_y;
+extern int32_t cam_vy;
 extern int32_t cam_z;
 extern int32_t cam_rot;
 

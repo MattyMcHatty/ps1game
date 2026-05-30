@@ -78,7 +78,7 @@ void draw_bat(RenderContext *ctx) {
 
 #define CORNER(sv, lx, ly, lz) \
     (sv).vx  = (int16_t)(cam_x + (((lx)*right_x + (lz)*fwd_x) >> 12)); \
-    (sv).vy  = (int16_t)(ly); \
+    (sv).vy  = (int16_t)(cam_y + (ly)); \
     (sv).vz  = (int16_t)(cam_z + (((lx)*right_z + (lz)*fwd_z) >> 12)); \
     (sv).pad = 0
 

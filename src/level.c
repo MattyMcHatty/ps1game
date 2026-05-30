@@ -8,6 +8,7 @@
 #include "render.h"
 #include "camera.h"
 #include "level.h"
+#include "collision.h"
 
 #include "vampire.h"
 #include "player.h"
@@ -262,7 +263,7 @@ void draw_scene(RenderContext *ctx) {
 
     VECTOR trans;
     trans.vx = -cam_x;
-    trans.vy = 0;
+    trans.vy = -cam_y;
     trans.vz = -cam_z;
 
     ApplyMatrixLV(&rot_matrix, &trans, &trans);
@@ -284,4 +285,9 @@ void draw_scene(RenderContext *ctx) {
     draw_medipac(ctx);
     draw_bat(ctx);
     draw_hud(ctx);
+
+#ifdef DEBUG_COLLISION
+    debug_draw_walls(ctx);
+    debug_draw_coords(ctx);
+#endif
 }

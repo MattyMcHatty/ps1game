@@ -19,6 +19,10 @@
 
 GameState game_state = STATE_TITLE;
 
+#ifdef DEBUG_COLLISION
+int debug_mode = 0;
+#endif
+
 volatile uint8_t pad_buff[2][34];
 volatile size_t  pad_buff_len[2];
 
@@ -30,7 +34,9 @@ void poll_cb(uint32_t port, const volatile uint8_t *buff, size_t rx_len) {
 
 void reset_game(RenderContext *ctx) {
     cam_x   = 0;
-    cam_z   = -500;
+    cam_y   = 0;
+    cam_vy  = 0;
+    cam_z   = 0;
     cam_rot = 0;
     vampire_x = 1200;
     vampire_z = 1200;
@@ -60,6 +66,7 @@ int main(int argc, const char **argv) {
     gte_SetGeomOffset(160, 120);
     level_init();
     collision_init();
+    floor_zones_init();
 
     SPI_Init(&poll_cb);
 
@@ -74,6 +81,7 @@ int main(int argc, const char **argv) {
             if (!game_over) {
                 update_camera();
                 apply_collision();
+                apply_height();
                 update_vampire();
                 update_bat();
                 update_medipac();
