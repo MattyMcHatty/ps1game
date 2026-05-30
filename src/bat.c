@@ -26,19 +26,21 @@ void update_bat(void) {
     }
 
     if (swing_timer > 0) {
-        if (swing_timer <= SWING_DURATION && !hit_this_swing) {
-            int32_t dx   = vampire_x - cam_x;
-            int32_t dz   = vampire_z - cam_z;
-            int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-            if (dist < SWING_RANGE) {
+        if (swing_timer <= SWING_DURATION && !hit_this_swing && vampire_health > 0) {
+            int32_t dx     = vampire_x - cam_x;
+            int32_t dy     = vampire_y - cam_y;
+            int32_t dz     = vampire_z - cam_z;
+            int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+            int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
+            if (dist3d < SWING_RANGE) {
                 int32_t dot = ((int32_t)dx * isin(cam_rot) +
                                (int32_t)dz * icos(cam_rot)) >> 12;
                 if (dot > 0) {
-                    vampire_kb_vx    = (dx * KNOCKBACK_SPEED) / dist;
-                    vampire_kb_vz    = (dz * KNOCKBACK_SPEED) / dist;
+                    vampire_kb_vx    = dist2d > 0 ? (dx * KNOCKBACK_SPEED) / dist2d : 0;
+                    vampire_kb_vz    = dist2d > 0 ? (dz * KNOCKBACK_SPEED) / dist2d : 0;
                     vampire_health--;
                     if (vampire_health <= 0)
-                        spawn_blood_burst(vampire_x, 0, vampire_z);
+                        spawn_blood_burst(vampire_x, vampire_y, vampire_z);
                     vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
                     hit_this_swing = 1;
                 }

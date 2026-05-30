@@ -222,10 +222,20 @@ void debug_draw_coords(RenderContext *ctx) {
 void apply_vampire_collision(void) {
     CollisionRoom *r = &current_collision_room;
     int32_t radius = 100;
-    int i;
+    int i, pass;
 
-    for (i = 0; i < r->wall_count; i++)
-        collide_wall(&r->walls[i], &vampire_x, &vampire_z, radius);
+    /* Mirror the player's floor-conditional wall logic using the vampire's
+     * own floor state (set each frame by apply_vampire_height). */
+    for (pass = 0; pass < 2; pass++) {
+        for (i = 0; i < 13; i++)
+            collide_wall(&r->walls[i], &vampire_x, &vampire_z, radius);
+        if (vampire_on_upper_floor)
+            collide_wall(&r->walls[13], &vampire_x, &vampire_z, radius);
+        if (!vampire_on_ramp && !vampire_on_upper_floor) {
+            collide_wall(&r->walls[14], &vampire_x, &vampire_z, radius);
+            collide_wall(&r->walls[15], &vampire_x, &vampire_z, radius);
+        }
+    }
 }
 
 /* -----------------------------------------------------------------------
@@ -247,6 +257,8 @@ FloorZone floor_zones[MAX_FLOOR_ZONES];
 int       floor_zone_count      = 0;
 int       player_on_upper_floor = 0;
 int       player_on_ramp        = 0;
+int       vampire_on_upper_floor = 0;
+int       vampire_on_ramp        = 0;
 
 void floor_zones_init(void) {
     int i = 0;
@@ -301,9 +313,6 @@ void floor_zones_init(void) {
 
     floor_zone_count = i;
 }
-
-#define GRAVITY      1
-#define MAX_FALL_VEL 20
 
 void apply_height(void) {
     int i;
@@ -363,5 +372,51 @@ void apply_height(void) {
     if (cam_y >= target) {
         cam_y  = target;
         cam_vy = 0;
+    }
+}
+
+void apply_vampire_height(void) {
+    int i;
+    int32_t target = 0;
+
+    vampire_on_upper_floor = 0;
+    vampire_on_ramp        = 0;
+
+    for (i = 0; i < floor_zone_count; i++) {
+        FloorZone *z = &floor_zones[i];
+        if (vampire_x < z->min_x || vampire_x > z->max_x) continue;
+        if (vampire_z < z->min_z || vampire_z > z->max_z) continue;
+
+        if (z->type == FLOOR_FLAT || z->type == FLOOR_UPPER) {
+            int32_t zone_target = z->y - GROUND_FLOOR_Y;
+            if (zone_target < vampire_y - 2) continue;
+            target = zone_target;
+            if (z->type == FLOOR_UPPER) vampire_on_upper_floor = 1;
+            break;
+        } else if (z->type == FLOOR_RAMP) {
+            int32_t ramp_len = z->ramp_axis_end - z->ramp_axis_start;
+            int32_t pos      = z->ramp_along_x ? vampire_x : vampire_z;
+            int32_t t, dy, floor_y, ramp_target;
+            if (ramp_len == 0) { target = z->ramp_y_start - GROUND_FLOOR_Y; vampire_on_ramp = 1; break; }
+            t = ((pos - z->ramp_axis_start) << 12) / ramp_len;
+            if (t <    0) t =    0;
+            if (t > 4096) t = 4096;
+            dy          = z->ramp_y_end - z->ramp_y_start;
+            floor_y     = z->ramp_y_start + ((dy * t) >> 12);
+            ramp_target = floor_y - GROUND_FLOOR_Y;
+            if (vampire_y > -50 && ramp_target < vampire_y - 150) continue;
+            target = ramp_target;
+            vampire_on_ramp = 1;
+            break;
+        }
+    }
+
+    vampire_vy += GRAVITY;
+    if (vampire_vy > MAX_FALL_VEL) vampire_vy = MAX_FALL_VEL;
+    vampire_y += vampire_vy;
+
+    if (vampire_y >= target) {
+        vampire_y  = target;
+        vampire_vy = 0;
     }
 }

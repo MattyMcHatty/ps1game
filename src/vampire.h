@@ -14,6 +14,8 @@
 #define VAMPIRE_BAR_TIMER_MAX 120
 
 extern int32_t vampire_x;
+extern int32_t vampire_y;
+extern int32_t vampire_vy;
 extern int32_t vampire_z;
 extern int     vampire_health;
 extern int32_t vampire_kb_vx;

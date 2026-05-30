@@ -72,14 +72,19 @@ typedef struct {
 
 /* Ground floor Y in world space — cam_y=0 corresponds to this level */
 #define GROUND_FLOOR_Y 149
+#define GRAVITY        1
+#define MAX_FALL_VEL   20
 
 extern FloorZone floor_zones[MAX_FLOOR_ZONES];
 extern int       floor_zone_count;
-extern int       player_on_upper_floor; /* 1 when player_zone == upper floor */
+extern int       player_on_upper_floor; /* 1 when player is on the upper floor */
 extern int       player_on_ramp;        /* 1 when ramp zone is active this frame */
+extern int       vampire_on_upper_floor;
+extern int       vampire_on_ramp;
 
 void floor_zones_init(void);
 void apply_height(void);
+void apply_vampire_height(void);
 
 #ifdef DEBUG_COLLISION
 void debug_draw_walls(RenderContext *ctx);

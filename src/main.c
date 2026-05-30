@@ -38,8 +38,10 @@ void reset_game(RenderContext *ctx) {
     cam_vy  = 0;
     cam_z   = 0;
     cam_rot = 0;
-    vampire_x = 1200;
-    vampire_z = 1200;
+    vampire_x  = 1200;
+    vampire_y  = 0;
+    vampire_vy = 0;
+    vampire_z  = 1200;
     game_over     = 0;
     flash_timer   = 0;
     damage_timer  = 0;
@@ -83,6 +85,7 @@ int main(int argc, const char **argv) {
                 apply_collision();
                 apply_height();
                 update_vampire();
+                apply_vampire_height();
                 update_bat();
                 update_medipac();
                 update_particles();
