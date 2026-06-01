@@ -1,0 +1,42 @@
+LEVEL POLYGON SIZE GUIDELINES
+==============================
+Scale: 1 Blender unit = 100 PS1 units
+
+FLOORS AND CEILINGS
+-------------------
+Keep polygon edges to a maximum of 300 PS1 units (3 Blender units).
+
+Larger floor/ceiling polygons cause near-plane clipping artefacts when
+the player walks over them, because a far vertex can end up behind the
+camera. The subdivision script (subdivide_smx.py) will automatically
+split any floor/ceiling polygon over 300 units when you run it before
+converting the SMX to SMD, so this is a safety net rather than a hard
+rule -- but modelling within the limit avoids surprises.
+
+WALLS
+-----
+Wall polygons have a different problem. No matter how small you make
+them, when the player stands next to a wall and looks along it (camera
+parallel to the wall surface), a vertex on the near end of the segment
+goes behind the camera. This is a fundamental PS1 near-plane limitation
+and cannot be fixed by polygon size alone.
+
+The current walls at roughly 400 x 300 PS1 units (4 x 3 Blender units)
+are a reasonable trade-off. Making them significantly larger will make
+the artefact more noticeable; making them much smaller will increase the
+polygon count and can hurt performance without fully eliminating the issue.
+
+GENERAL RULES
+-------------
+- Floors/ceilings: max ~300 PS1 units (3 Blender units) per edge
+- Walls: aim for ~400 PS1 units (4 Blender units) wide or less
+- Run subdivide_smx.py on assets/level1.smx after any geometry change,
+  then reconvert with smxlink before building
+
+WORKFLOW REMINDER
+-----------------
+1. Export SMX from Blender
+2. python subdivide_smx.py        (splits large floor/ceiling polys)
+3. smxlink -o assets/level1.smd assets/level1.smx
+4. python gen_collision.py        (only if wall layout changed)
+5. Build with ninja + elf2x + mkpsxiso

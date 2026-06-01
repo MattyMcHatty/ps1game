@@ -41,7 +41,7 @@ int collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius) {
 
 void apply_collision(void) {
     CollisionRoom *r = &current_collision_room;
-    int32_t radius = 120;
+    int32_t radius = 175;
     int i, pass;
 
     /* Wall layout (see level1_mesh_collision.c):

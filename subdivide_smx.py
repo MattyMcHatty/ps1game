@@ -7,9 +7,10 @@ Each oversized quad is split into 4 sub-quads preserving this ordering.
 """
 import xml.etree.ElementTree as ET
 import math
+import sys
 
-SMX_IN  = 'assets/level1.smx'
-SMX_OUT = 'assets/level1.smx'
+SMX_IN  = sys.argv[1] if len(sys.argv) > 1 else 'assets/level1.smx'
+SMX_OUT = SMX_IN
 THRESHOLD = 300
 
 tree = ET.parse(SMX_IN)
