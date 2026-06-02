@@ -4,6 +4,8 @@ Subdivide large quads in an SMX file to reduce near-plane clipping.
 PS1/SMD quad vertex order is Z-pattern:  v0(TL) v1(TR) v2(BL) v3(BR)
 Edges are: v0-v1 (top), v0-v2 (left), v1-v3 (right), v2-v3 (bottom).
 Each oversized quad is split into 4 sub-quads preserving this ordering.
+Only floor/ceiling polys (Y-dominant normal) are subdivided.
+type and texture attributes are preserved on all polys.
 """
 import xml.etree.ElementTree as ET
 import math
@@ -19,8 +21,6 @@ root = tree.getroot()
 verts = [(float(v.get('x')), float(v.get('y')), float(v.get('z')))
          for v in root.find('vertices').findall('v')]
 
-# Only split floor/ceiling polys (normal primarily Y). Walls are a near-plane
-# problem that subdivision can't fix, so leave their polygon count unchanged.
 normals = [(float(n.get('x')), float(n.get('y')), float(n.get('z')))
            for n in root.find('normals').findall('v')]
 
@@ -48,7 +48,6 @@ def edge_len(i, j):
     return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2)
 
 def needs_split(v0, v1, v2, v3):
-    # Z-pattern edges: top(v0-v1), left(v0-v2), right(v1-v3), bottom(v2-v3)
     return (edge_len(v0, v1) > THRESHOLD or
             edge_len(v0, v2) > THRESHOLD or
             edge_len(v1, v3) > THRESHOLD or
@@ -61,47 +60,44 @@ for p in old_prims:
 
 queue = []
 for p in old_prims:
-    vis = [int(p.get(f'v{i}')) for i in range(4)]
-    queue.append((vis, p.get('n0'), p.get('r0','128'), p.get('g0','128'), p.get('b0','128')))
+    vis  = [int(p.get(f'v{i}')) for i in range(4)]
+    tex  = p.get('texture', None)   # None = untextured (F4)
+    ptype = p.get('type', 'F4')
+    queue.append((vis, p.get('n0'), p.get('r0','128'), p.get('g0','128'), p.get('b0','128'), tex, ptype))
 
 new_prims = []
 while queue:
-    vis, n0, r, g, b = queue.pop()
+    vis, n0, r, g, b, tex, ptype = queue.pop()
     v0, v1, v2, v3 = vis
 
     if not is_floor_or_ceiling(n0) or not needs_split(v0, v1, v2, v3):
-        new_prims.append((vis, n0, r, g, b))
+        new_prims.append((vis, n0, r, g, b, tex, ptype))
         continue
 
-    # Z-pattern midpoints:
-    #   m_top   = mid of top edge   (v0-v1)
-    #   m_left  = mid of left edge  (v0-v2)
-    #   m_right = mid of right edge (v1-v3)
-    #   m_bot   = mid of bottom edge(v2-v3)
-    #   mc      = centre
     m_top   = mid(v0, v1)
     m_left  = mid(v0, v2)
     m_right = mid(v1, v3)
     m_bot   = mid(v2, v3)
     mc      = mid(m_top, m_bot)
 
-    # 4 sub-quads, each in Z-pattern (TL, TR, BL, BR):
     for sq in (
-        [v0,     m_top,   m_left,  mc     ],   # top-left
-        [m_top,  v1,      mc,      m_right],   # top-right
-        [m_left, mc,      v2,      m_bot  ],   # bottom-left
-        [mc,     m_right, m_bot,   v3     ],   # bottom-right
+        [v0,     m_top,   m_left,  mc     ],
+        [m_top,  v1,      mc,      m_right],
+        [m_left, mc,      v2,      m_bot  ],
+        [mc,     m_right, m_bot,   v3     ],
     ):
-        queue.append((sq, n0, r, g, b))
+        queue.append((sq, n0, r, g, b, tex, ptype))
 
-for vis, n0, r, g, b in new_prims:
+for vis, n0, r, g, b, tex, ptype in new_prims:
     el = ET.Element('poly')
     for i, vi in enumerate(vis):
         el.set(f'v{i}', str(vi))
     el.set('n0', n0)
     el.set('shading', 'F')
     el.set('r0', r); el.set('g0', g); el.set('b0', b)
-    el.set('type', 'F4')
+    if tex is not None:
+        el.set('texture', tex)
+    el.set('type', ptype)
     prims_elem.append(el)
 
 prims_elem.set('count', str(len(new_prims)))
