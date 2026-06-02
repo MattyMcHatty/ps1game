@@ -106,6 +106,6 @@ def convert(src_path, dst_path):
     print(f"Written: {dst_path}")
 
 if __name__ == '__main__':
-    src = sys.argv[1] if len(sys.argv) > 1 else r'C:\Users\virtu\Documents\PS1 Horror Game\assets\testroom_flipped2.smd'
-    dst = sys.argv[2] if len(sys.argv) > 2 else r'C:\Users\virtu\Documents\PS1 Horror Game\assets\testroom_quads.smd'
+    src = sys.argv[1] if len(sys.argv) > 1 else r'C:\Users\virtu\Documents\ps1game\assets\testroom_flipped2.smd'
+    dst = sys.argv[2] if len(sys.argv) > 2 else r'C:\Users\virtu\Documents\ps1game\assets\testroom_quads.smd'
     convert(src, dst)

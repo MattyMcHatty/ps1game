@@ -39,6 +39,24 @@ void flip_buffers(RenderContext *ctx) {
     ClearOTagR(disp_buffer->ot, OT_LENGTH);
 }
 
+void draw_sky_gradient(RenderContext *ctx) {
+    POLY_G3 *t0 = (POLY_G3 *)ctx->next_packet;
+    setPolyG3(t0);
+    setRGB0(t0, 40,  0, 46); t0->x0 =   0; t0->y0 =   0;
+    setRGB1(t0, 40,  0, 46); t0->x1 = 320; t0->y1 =   0;
+    setRGB2(t0, 25,  0, 29); t0->x2 =   0; t0->y2 = 240;
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], t0);
+    ctx->next_packet += sizeof(POLY_G3);
+
+    POLY_G3 *t1 = (POLY_G3 *)ctx->next_packet;
+    setPolyG3(t1);
+    setRGB0(t1, 40,  0, 46); t1->x0 = 320; t1->y0 =   0;
+    setRGB1(t1, 25,  0, 29); t1->x1 = 320; t1->y1 = 240;
+    setRGB2(t1, 25,  0, 29); t1->x2 =   0; t1->y2 = 240;
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], t1);
+    ctx->next_packet += sizeof(POLY_G3);
+}
+
 void draw_faces(
     RenderContext *ctx,
     SVECTOR *verts,
@@ -85,9 +103,9 @@ void draw_faces(
         int32_t range = fog_end - fog_start;
         int32_t fog_factor = ((fog_end - fog) << 8) / range;
 
-        uint8_t r = (uint8_t)((colors[i][0] * fog_factor) >> 8);
-        uint8_t g = (uint8_t)((colors[i][1] * fog_factor) >> 8);
-        uint8_t b = (uint8_t)((colors[i][2] * fog_factor) >> 8);
+        uint8_t r = (uint8_t)(((int32_t)colors[i][0] * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8);
+        uint8_t g = (uint8_t)(((int32_t)colors[i][1] * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8);
+        uint8_t b = (uint8_t)(((int32_t)colors[i][2] * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8);
 
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
         if (ctx->next_packet + sizeof(POLY_F4) > buf_end) continue;

@@ -61,7 +61,7 @@ int main(int argc, const char **argv) {
     ResetGraph(0);
 
     RenderContext ctx;
-    setup_context(&ctx, SCREEN_XRES, SCREEN_YRES, 0, 0, 0);
+    setup_context(&ctx, SCREEN_XRES, SCREEN_YRES, 25, 0, 29);
 
     InitGeom();
     gte_SetGeomScreen(256);

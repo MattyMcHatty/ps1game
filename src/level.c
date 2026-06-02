@@ -194,9 +194,9 @@ static void draw_smd_room(RenderContext *ctx) {
             POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
             setPolyFT4(poly);
             setRGB0(poly,
-                (uint8_t)((col[0] * fog_factor) >> 8),
-                (uint8_t)((col[1] * fog_factor) >> 8),
-                (uint8_t)((col[2] * fog_factor) >> 8));
+                (uint8_t)(((int32_t)col[0] * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8),
+                (uint8_t)(((int32_t)col[1] * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8),
+                (uint8_t)(((int32_t)col[2] * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8));
             poly->tpage = tex_tpage[tex_idx];
             poly->clut  = tex_clut[tex_idx];
             poly->u0=u0; poly->v0=uv0;
@@ -214,9 +214,9 @@ static void draw_smd_room(RenderContext *ctx) {
             POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
             setPolyF4(poly);
             setRGB0(poly,
-                (uint8_t)((col[0] * fog_factor) >> 8),
-                (uint8_t)((col[1] * fog_factor) >> 8),
-                (uint8_t)((col[2] * fog_factor) >> 8));
+                (uint8_t)(((int32_t)col[0] * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8),
+                (uint8_t)(((int32_t)col[1] * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8),
+                (uint8_t)(((int32_t)col[2] * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8));
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
             poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
@@ -228,9 +228,9 @@ static void draw_smd_room(RenderContext *ctx) {
             POLY_F3 *poly = (POLY_F3 *)ctx->next_packet;
             setPolyF3(poly);
             setRGB0(poly,
-                (uint8_t)((col[0] * fog_factor) >> 8),
-                (uint8_t)((col[1] * fog_factor) >> 8),
-                (uint8_t)((col[2] * fog_factor) >> 8));
+                (uint8_t)(((int32_t)col[0] * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8),
+                (uint8_t)(((int32_t)col[1] * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8),
+                (uint8_t)(((int32_t)col[2] * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8));
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
             poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
@@ -303,9 +303,9 @@ static void draw_panel(
             if (fog > fog_end)   fog = fog_end;
             int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
 
-            uint8_t r = (uint8_t)((cr * fog_factor) >> 8);
-            uint8_t g = (uint8_t)((cg * fog_factor) >> 8);
-            uint8_t b = (uint8_t)((cb * fog_factor) >> 8);
+            uint8_t r = (uint8_t)(((int32_t)cr * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8);
+            uint8_t g = (uint8_t)(((int32_t)cg * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8);
+            uint8_t b = (uint8_t)(((int32_t)cb * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8);
 
             uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
             if (ctx->next_packet + sizeof(POLY_F4) > buf_end) continue;
@@ -335,6 +335,8 @@ static void draw_room(RenderContext *ctx) {
 }
 
 void draw_scene(RenderContext *ctx) {
+    draw_sky_gradient(ctx);
+
     MATRIX rot_matrix;
     SVECTOR neg_rot = {0, -cam_rot, 0, 0};
 
