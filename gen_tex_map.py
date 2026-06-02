@@ -3,7 +3,8 @@ gen_tex_map.py  —  generate src/level1_tex_map.h from a subdivided SMX.
 
 Reads the texture="N" attribute on each poly (in primitive order, which
 matches the SMD primitive order after smxlink conversion) and writes a
-C header with a uint8_t array: 0xFF = untextured, 0 = gravel, 1 = rusty fence.
+C header with a uint8_t array:
+  0xFF = untextured, 0 = gravel, 1 = rusty fence, 2 = brick_wall, 3 = double_door
 
 Usage:
     python gen_tex_map.py assets/level1_front_entrance.smx

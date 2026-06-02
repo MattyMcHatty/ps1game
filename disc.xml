@@ -19,6 +19,10 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\gravel_texture.tim"/>
             <file name="FENCE.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\rusty_fence.tim"/>
+            <file name="BRIKWLL.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\brick_wall.tim"/>
+            <file name="DBLDOOR.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\double_door.tim"/>
         </directory_tree>
     </track>
 </iso_project>

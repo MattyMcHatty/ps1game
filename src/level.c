@@ -15,16 +15,14 @@
 #include "bat.h"
 #include "medipac.h"
 #include "particles.h"
-/* Height span threshold (PS1 units): quads taller than this get gravel,
-   shorter quads get the fence texture. Tune to match your level geometry. */
-#define TALL_WALL_THRESHOLD 189
+#include "level1_tex_map.h"
 
 static SMD  *room_smd  = NULL;
 static void *room_buff = NULL;
 
-/* tpage/clut for each texture: [0]=gravel, [1]=rusty fence */
-static uint16_t tex_tpage[2] = {0, 0};
-static uint16_t tex_clut[2]  = {0, 0};
+/* tpage/clut for each texture: [0]=gravel [1]=rusty fence [2]=brick_wall [3]=double_door */
+static uint16_t tex_tpage[4] = {0, 0, 0, 0};
+static uint16_t tex_clut[4]  = {0, 0, 0, 0};
 
 static void *load_file_from_cd(const char *filename, int *size_out) {
     CdlFILE file;
@@ -69,8 +67,10 @@ static void load_tim_to_vram(const char *filename, int slot) {
 void level_init(void) {
     CdInit();
 
-    load_tim_to_vram("\\GRAVEL.TIM;1", 0);
-    load_tim_to_vram("\\FENCE.TIM;1",  1);
+    load_tim_to_vram("\\GRAVEL.TIM;1",  0);
+    load_tim_to_vram("\\FENCE.TIM;1",   1);
+    load_tim_to_vram("\\BRIKWLL.TIM;1", 2);
+    load_tim_to_vram("\\DBLDOOR.TIM;1", 3);
 
     room_buff = load_file_from_cd("\\TRMQ.SMD", NULL);
     if (room_buff) {
@@ -78,10 +78,10 @@ void level_init(void) {
     }
 }
 
-/* SMD F4 layout, stride=20:
+/* SMD FT4 layout, stride=32:
    [0-3] SMD_PRI_TYPE  [4-11] v0..v3 uint16  [12-13] n0  [14-15] pad
-   [16-18] r,g,b  [19] code
-   Texture index per primitive from level1_tex_map.h (0xFF = untextured). */
+   [16-18] r,g,b  [19] code  [20-27] UVs (ignored)  [28-31] tpage/clut (ignored)
+   Texture per primitive from level1_tex_map.h (0xFF = untextured). */
 
 /* World-space UV projection: floor uses XZ, walls use along-wall + Y. */
 static void compute_uv(SVECTOR *v, SVECTOR *norm,
@@ -90,8 +90,7 @@ static void compute_uv(SVECTOR *v, SVECTOR *norm,
     int32_t abs_ny = norm->vy < 0 ? -norm->vy : norm->vy;
     int32_t abs_nz = norm->vz < 0 ? -norm->vz : norm->vz;
 
-    /* Mask to 0-127: both textures share one tpage (gravel V=0-127, fence V=128-255).
-       The fence V offset (+128) is applied in the drawing code after this call. */
+    /* Mask to 0-127: each texture has its own tpage, so V stays in 0-127. */
     if (abs_ny > abs_nx && abs_ny > abs_nz) {
         *u_out = (uint8_t)((v->vx >> 1) & 0x7F);
         *v_out = (uint8_t)((v->vz >> 1) & 0x7F);
@@ -181,25 +180,7 @@ static void draw_smd_room(RenderContext *ctx) {
 
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
-        /* Derive texture from geometry: floor (Y-dominant normal) → gravel.
-           Wall quads taller than TALL_WALL_THRESHOLD → gravel, shorter → fence. */
-        uint8_t tex_idx = 0xFF;
-        if (is_quad) {
-            SVECTOR *norm_g = &room_smd->p_norms[vi[4]];
-            int32_t anx = norm_g->vx<0?-norm_g->vx:norm_g->vx;
-            int32_t any = norm_g->vy<0?-norm_g->vy:norm_g->vy;
-            int32_t anz = norm_g->vz<0?-norm_g->vz:norm_g->vz;
-            if (any > anx && any > anz) {
-                tex_idx = 0;   /* floor/ceiling → gravel */
-            } else {
-                SVECTOR *v3g = &room_smd->p_verts[vi[3]];
-                int16_t vy_min = v0->vy, vy_max = v0->vy;
-                if (v1->vy < vy_min) vy_min=v1->vy; if (v1->vy > vy_max) vy_max=v1->vy;
-                if (v2->vy < vy_min) vy_min=v2->vy; if (v2->vy > vy_max) vy_max=v2->vy;
-                if (v3g->vy < vy_min) vy_min=v3g->vy; if (v3g->vy > vy_max) vy_max=v3g->vy;
-                tex_idx = ((int32_t)(vy_max-vy_min) > TALL_WALL_THRESHOLD) ? 0 : 1;
-            }
-        }
+        uint8_t tex_idx = (i < LEVEL1_PRIM_COUNT) ? level1_tex_map[i] : 0xFF;
 
         if (is_quad && tex_idx != 0xFF) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
@@ -210,15 +191,13 @@ static void draw_smd_room(RenderContext *ctx) {
             compute_uv(v1, norm, &u1, &uv1);
             compute_uv(v2, norm, &u2, &uv2);
             compute_uv(v3, norm, &u3, &uv3);
-            /* Fence lives at V=128-255 in the same tpage as gravel (V=0-127). */
-            if (tex_idx == 1) { uv0+=128; uv1+=128; uv2+=128; uv3+=128; }
             POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
             setPolyFT4(poly);
             setRGB0(poly,
                 (uint8_t)((col[0] * fog_factor) >> 8),
                 (uint8_t)((col[1] * fog_factor) >> 8),
                 (uint8_t)((col[2] * fog_factor) >> 8));
-            poly->tpage = tex_tpage[0];   /* both textures share one tpage */
+            poly->tpage = tex_tpage[tex_idx];
             poly->clut  = tex_clut[tex_idx];
             poly->u0=u0; poly->v0=uv0;
             poly->u1=u1; poly->v1=uv1;

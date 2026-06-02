@@ -333,9 +333,9 @@ void apply_height(void) {
         if (z->type == FLOOR_FLAT || z->type == FLOOR_UPPER) {
             int32_t zone_target = z->y - GROUND_FLOOR_Y;
             /* Floor is above the player — keep searching for one below.
-             * 2-unit tolerance absorbs the 1-unit gravity drift on the
-             * frame the player transitions off the ramp top. */
-            if (zone_target < cam_y - 2) continue;
+             * 10-unit tolerance covers the max ramp-edge discrepancy
+             * (~4.4 units at slope 0.37 × max step 12) plus gravity tick. */
+            if (zone_target < cam_y - 10) continue;
             target = zone_target;
             if (z->type == FLOOR_UPPER) player_on_upper_floor = 1;
             break;
