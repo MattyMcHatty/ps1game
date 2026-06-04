@@ -9,9 +9,11 @@
 #include "vampire.h"
 #include "particles.h"
 #include "bat.h"
+#include "crate.h"
 
 int swing_timer    = 0;
-static int hit_this_swing = 0;
+static int hit_this_swing       = 0;
+static int crate_hit_this_swing = 0;
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -20,8 +22,9 @@ void update_bat(void) {
     if (swing_timer == 0 && pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
         if (~pad->btn & PAD_SQUARE) {
-            swing_timer    = 1;
-            hit_this_swing = 0;
+            swing_timer         = 1;
+            hit_this_swing      = 0;
+            crate_hit_this_swing = 0;
         }
     }
 
@@ -46,6 +49,12 @@ void update_bat(void) {
                 }
             }
         }
+        /* Crate smash — checked independently of vampire hit */
+        if (swing_timer <= SWING_DURATION && !crate_hit_this_swing) {
+            if (crate_try_smash())
+                crate_hit_this_swing = 1;
+        }
+
         if (++swing_timer > SWING_TOTAL)
             swing_timer = 0;
     }

@@ -32,6 +32,7 @@ add_executable(horror_game
     src/spi.c
     src/collision.c
     src/level1_mesh_collision.c
+    src/crate.c
 )
 
 target_include_directories(horror_game PRIVATE

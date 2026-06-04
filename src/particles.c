@@ -21,7 +21,8 @@ static int32_t rng_range(int32_t range) {
     return (int32_t)(rng_next() % (uint32_t)(range * 2 + 1)) - range;
 }
 
-void spawn_blood_burst(int32_t x, int32_t y, int32_t z) {
+void spawn_burst(int32_t x, int32_t y, int32_t z,
+                 uint8_t r, uint8_t g, uint8_t b) {
     int i;
     for (i = 0; i < MAX_PARTICLES; i++) {
         Particle *p = &particles[i];
@@ -34,8 +35,15 @@ void spawn_blood_burst(int32_t x, int32_t y, int32_t z) {
         p->life     = 45 + (int32_t)(rng_next() % 30);
         p->max_life = p->life;
         p->size     = 4 + (uint8_t)(rng_next() % 8);
+        p->r0       = r;
+        p->g0       = g;
+        p->b0       = b;
     }
     particle_count = MAX_PARTICLES;
+}
+
+void spawn_blood_burst(int32_t x, int32_t y, int32_t z) {
+    spawn_burst(x, y, z, 220, 55, 0);
 }
 
 void update_particles(void) {
@@ -80,13 +88,14 @@ void draw_particles(RenderContext *ctx) {
         if (ctx->next_packet + sizeof(TILE) > buf_end) continue;
 
         int32_t t = (p->life << 8) / p->max_life;
-        uint8_t r = (uint8_t)((220 * t) >> 8);
-        if (r < 10) r = 10;
-        uint8_t g = r >> 2;
+        uint8_t r = (uint8_t)(((int32_t)p->r0 * t) >> 8);
+        uint8_t g = (uint8_t)(((int32_t)p->g0 * t) >> 8);
+        uint8_t b = (uint8_t)(((int32_t)p->b0 * t) >> 8);
+        if (r < 8 && g < 8 && b < 8) r = 8;
 
         TILE *tile = (TILE *)ctx->next_packet;
         setTile(tile);
-        setRGB0(tile, r, g, 0);
+        setRGB0(tile, r, g, b);
         setXY0(tile, screen.vx - p->size / 2, screen.vy - p->size / 2);
         setWH(tile, p->size, p->size);
         addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], tile);

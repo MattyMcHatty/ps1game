@@ -15,6 +15,7 @@
 #include "bat.h"
 #include "medipac.h"
 #include "particles.h"
+#include "crate.h"
 #include "level1_tex_map.h"
 
 static SMD  *room_smd  = NULL;
@@ -66,6 +67,7 @@ static void load_tim_to_vram(const char *filename, int slot) {
 
 void level_init(void) {
     CdInit();
+    scSetClipRect(0, 0, SCREEN_XRES, SCREEN_YRES);
 
     load_tim_to_vram("\\GRAVEL.TIM;1",  0);
     load_tim_to_vram("\\FENCE.TIM;1",   1);
@@ -361,6 +363,11 @@ void draw_scene(RenderContext *ctx) {
     } else {
         draw_room(ctx);
     }
+    crates_draw(ctx);
+    /* crates_draw sets a per-crate GTE matrix — restore the view matrix
+       so all subsequent world-space draws project correctly. */
+    gte_SetRotMatrix(&rot_matrix);
+    gte_SetTransMatrix(&rot_matrix);
     draw_vampire(ctx);
     draw_particles(ctx);
     draw_medipac(ctx);

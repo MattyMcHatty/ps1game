@@ -23,6 +23,10 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\brick_wall.tim"/>
             <file name="DBLDOOR.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\double_door.tim"/>
+            <file name="CRATE.SMD" type="data"
+                source="C:\Users\virtu\Documents\ps1game\assets\props\wdcrate.smd"/>
+            <file name="WCRATE.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\wdcrate.tim"/>
         </directory_tree>
     </track>
 </iso_project>

@@ -7,6 +7,7 @@ int32_t player_health = MAX_HEALTH;
 int     game_over     = 0;
 int     flash_timer   = 0;
 int     damage_timer  = 0;
+int     player_has_key = 0;
 
 void draw_hud(RenderContext *ctx) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;

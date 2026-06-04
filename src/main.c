@@ -16,6 +16,7 @@
 #include "particles.h"
 #include "title.h"
 #include "collision.h"
+#include "crate.h"
 
 GameState game_state = STATE_TITLE;
 
@@ -53,6 +54,7 @@ void reset_game(RenderContext *ctx) {
     vampire_hit_timer = 0;
     reset_medipac();
     reset_particles();
+    crates_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
 }
@@ -69,6 +71,7 @@ int main(int argc, const char **argv) {
     level_init();
     collision_init();
     floor_zones_init();
+    crates_init();
 
     SPI_Init(&poll_cb);
 
@@ -89,6 +92,7 @@ int main(int argc, const char **argv) {
                 update_bat();
                 update_medipac();
                 update_particles();
+                crates_update();
                 draw_scene(&ctx);
             } else {
                 uint8_t r;
