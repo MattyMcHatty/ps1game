@@ -52,17 +52,22 @@ void crates_init(void) {
        All Z values are positive (ahead of player spawn, which faces +Z). */
     int i = 0;
 
+    /* y=37: bottom face (model +112) sits at GROUND_FLOOR_Y=149.
+       half_w/half_d match the model's XZ half-extents (160). */
     crates[i].x = 0;    crates[i].y = 37; crates[i].z = 500;
     crates[i].rot_y = 256; crates[i].state = CRATE_INTACT;
-    crates[i].item = ITEM_MEDIPAC; crates[i].active = 1; i++;
+    crates[i].item = ITEM_MEDIPAC; crates[i].active = 1;
+    crates[i].half_w = 160; crates[i].half_d = 160; i++;
 
-    crates[i].x = -300; crates[i].y = 93; crates[i].z = 600;
+    crates[i].x = -300; crates[i].y = 37; crates[i].z = 600;
     crates[i].rot_y = 0; crates[i].state = CRATE_INTACT;
-    crates[i].item = ITEM_NONE; crates[i].active = 1; i++;
+    crates[i].item = ITEM_NONE; crates[i].active = 1;
+    crates[i].half_w = 160; crates[i].half_d = 160; i++;
 
-    crates[i].x = 300;  crates[i].y = 93; crates[i].z = 700;
+    crates[i].x = 300;  crates[i].y = 37; crates[i].z = 700;
     crates[i].rot_y = 512; crates[i].state = CRATE_INTACT;
-    crates[i].item = ITEM_KEY; crates[i].active = 1; i++;
+    crates[i].item = ITEM_KEY; crates[i].active = 1;
+    crates[i].half_w = 160; crates[i].half_d = 160; i++;
 
     crate_count = i;
 
@@ -80,6 +85,38 @@ void crates_reset(void) {
 
 void crates_update(void) {
     /* Reserved for smash animation timer, item pickup range, etc. */
+}
+
+void crates_collide(int32_t *px, int32_t *pz, int32_t radius) {
+    int i;
+    for (i = 0; i < crate_count; i++) {
+        Crate *c = &crates[i];
+        if (!c->active || c->state != CRATE_INTACT) continue;
+
+        /* Minkowski-expanded AABB plus push margin so the player's camera
+           stops well clear of the visible model faces. */
+        int32_t min_x = c->x - c->half_w - radius - CRATE_PUSH_MARGIN;
+        int32_t max_x = c->x + c->half_w + radius + CRATE_PUSH_MARGIN;
+        int32_t min_z = c->z - c->half_d - radius - CRATE_PUSH_MARGIN;
+        int32_t max_z = c->z + c->half_d + radius + CRATE_PUSH_MARGIN;
+
+        if (*px <= min_x || *px >= max_x) continue;
+        if (*pz <= min_z || *pz >= max_z) continue;
+
+        /* Push out along the axis with the smallest penetration. */
+        int32_t push_l = *px - min_x;
+        int32_t push_r = max_x - *px;
+        int32_t push_f = *pz - min_z;
+        int32_t push_b = max_z - *pz;
+
+        int32_t min_push = push_l, px_delta = -push_l, pz_delta = 0;
+        if (push_r < min_push) { min_push = push_r; px_delta =  push_r; pz_delta = 0; }
+        if (push_f < min_push) { min_push = push_f; px_delta = 0; pz_delta = -push_f; }
+        if (push_b < min_push) {                    px_delta = 0; pz_delta =  push_b; }
+
+        *px += px_delta;
+        *pz += pz_delta;
+    }
 }
 
 void crates_draw(RenderContext *ctx) {
@@ -140,23 +177,25 @@ void crates_draw(RenderContext *ctx) {
 }
 
 int crate_try_smash(void) {
-    int i;
+    int i, smashed_any = 0;
+
     for (i = 0; i < crate_count; i++) {
         Crate *c = &crates[i];
         if (!c->active || c->state != CRATE_INTACT) continue;
 
-        int32_t dx   = c->x - cam_x;
-        int32_t dz   = c->z - cam_z;
-        int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        if (dist > CRATE_SMASH_RADIUS) continue;
+        /* AABB proximity: expand each face outward by BAT_SMASH_RANGE.
+           If the player's centre falls inside this expanded box they can
+           hit any face — no directional projection needed. */
+        int32_t min_x = c->x - c->half_w - BAT_SMASH_RANGE;
+        int32_t max_x = c->x + c->half_w + BAT_SMASH_RANGE;
+        int32_t min_z = c->z - c->half_d - BAT_SMASH_RANGE;
+        int32_t max_z = c->z + c->half_d + BAT_SMASH_RANGE;
 
-        /* Must be roughly in front of the player */
-        int32_t dot = ((isin(cam_rot) >> 6) * (dx >> 6) +
-                       (icos(cam_rot) >> 6) * (dz >> 6));
-        if (dot <= 0) continue;
+        if (cam_x < min_x || cam_x > max_x) continue;
+        if (cam_z < min_z || cam_z > max_z) continue;
 
         c->state = CRATE_SMASHED;
-        spawn_burst(c->x, c->y - 30, c->z, 120, 80, 20);
+        spawn_wood_burst(c->x, c->y - 30, c->z);
 
         switch (c->item) {
             case ITEM_MEDIPAC:
@@ -171,7 +210,7 @@ int crate_try_smash(void) {
                 break;
         }
 
-        return 1;
+        smashed_any = 1;
     }
-    return 0;
+    return smashed_any;
 }

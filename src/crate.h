@@ -4,8 +4,9 @@
 #include <stdint.h>
 #include "render.h"
 
-#define MAX_CRATES       16
-#define CRATE_SMASH_RADIUS 250
+#define MAX_CRATES          16
+#define BAT_SMASH_RANGE     300
+#define CRATE_PUSH_MARGIN    80  /* extra gap between player and crate face */
 
 typedef enum {
     CRATE_INTACT,
@@ -24,6 +25,8 @@ typedef struct {
     CrateState state;
     CrateItem  item;
     int32_t    active;
+    int32_t    half_w;   /* XZ collision half-widths */
+    int32_t    half_d;
 } Crate;
 
 extern Crate crates[MAX_CRATES];
@@ -33,6 +36,7 @@ void crates_init(void);
 void crates_reset(void);
 void crates_update(void);
 void crates_draw(RenderContext *ctx);
+void crates_collide(int32_t *px, int32_t *pz, int32_t radius);
 int  crate_try_smash(void);
 
 #endif

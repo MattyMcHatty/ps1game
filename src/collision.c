@@ -5,6 +5,7 @@
 #include "camera.h"
 #include "vampire.h"
 #include "level1_mesh_collision.h"
+#include "crate.h"
 
 CollisionRoom current_collision_room;
 
@@ -60,6 +61,7 @@ void apply_collision(void) {
             collide_wall(&r->walls[15], &cam_x, &cam_z, radius);
         }
     }
+    crates_collide(&cam_x, &cam_z, radius);
 }
 
 #ifdef DEBUG_COLLISION

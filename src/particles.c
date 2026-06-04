@@ -34,7 +34,8 @@ void spawn_burst(int32_t x, int32_t y, int32_t z,
         p->vz       = rng_range(40);
         p->life     = 45 + (int32_t)(rng_next() % 30);
         p->max_life = p->life;
-        p->size     = 4 + (uint8_t)(rng_next() % 8);
+        p->sw       = 4 + (uint8_t)(rng_next() % 8);
+        p->sh       = p->sw;
         p->r0       = r;
         p->g0       = g;
         p->b0       = b;
@@ -44,6 +45,27 @@ void spawn_burst(int32_t x, int32_t y, int32_t z,
 
 void spawn_blood_burst(int32_t x, int32_t y, int32_t z) {
     spawn_burst(x, y, z, 220, 55, 0);
+}
+
+void spawn_wood_burst(int32_t x, int32_t y, int32_t z) {
+    int i;
+    for (i = 0; i < MAX_PARTICLES; i++) {
+        Particle *p = &particles[i];
+        p->x        = x;
+        p->y        = y;
+        p->z        = z;
+        p->vx       = rng_range(40);
+        p->vy       = -(int32_t)(rng_next() % 18) - 8;   /* 8–26 up, ~60–170 world units */
+        p->vz       = rng_range(40);
+        p->life     = 35 + (int32_t)(rng_next() % 30);
+        p->max_life = p->life;
+        p->sw       = 16 + (uint8_t)(rng_next() % 14);   /* 16–30 px wide plank */
+        p->sh       =  4 + (uint8_t)(rng_next() %  5);   /* 4–9 px tall */
+        p->r0       = 130;
+        p->g0       = 85;
+        p->b0       = 25;
+    }
+    particle_count = MAX_PARTICLES;
 }
 
 void update_particles(void) {
@@ -96,8 +118,8 @@ void draw_particles(RenderContext *ctx) {
         TILE *tile = (TILE *)ctx->next_packet;
         setTile(tile);
         setRGB0(tile, r, g, b);
-        setXY0(tile, screen.vx - p->size / 2, screen.vy - p->size / 2);
-        setWH(tile, p->size, p->size);
+        setXY0(tile, screen.vx - p->sw / 2, screen.vy - p->sh / 2);
+        setWH(tile, p->sw, p->sh);
         addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], tile);
         ctx->next_packet += sizeof(TILE);
     }
