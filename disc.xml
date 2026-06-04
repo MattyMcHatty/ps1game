@@ -27,6 +27,8 @@
                 source="C:\Users\virtu\Documents\ps1game\assets\props\wdcrate.smd"/>
             <file name="WCRATE.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\wdcrate.tim"/>
+            <file name="KEY.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\key.tim"/>
         </directory_tree>
     </track>
 </iso_project>

@@ -17,6 +17,7 @@
 #include "title.h"
 #include "collision.h"
 #include "crate.h"
+#include "key.h"
 
 GameState game_state = STATE_TITLE;
 
@@ -72,6 +73,7 @@ int main(int argc, const char **argv) {
     collision_init();
     floor_zones_init();
     crates_init();
+    keys_init();
 
     SPI_Init(&poll_cb);
 
@@ -93,6 +95,7 @@ int main(int argc, const char **argv) {
                 update_medipac();
                 update_particles();
                 crates_update();
+                keys_update();
                 draw_scene(&ctx);
             } else {
                 uint8_t r;

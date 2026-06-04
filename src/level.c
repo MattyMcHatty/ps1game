@@ -16,6 +16,7 @@
 #include "medipac.h"
 #include "particles.h"
 #include "crate.h"
+#include "key.h"
 #include "level1_tex_map.h"
 
 static SMD  *room_smd  = NULL;
@@ -371,6 +372,7 @@ void draw_scene(RenderContext *ctx) {
     draw_vampire(ctx);
     draw_particles(ctx);
     draw_medipac(ctx);
+    keys_draw(ctx);
     draw_bat(ctx);
     draw_hud(ctx);
 

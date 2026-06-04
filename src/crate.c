@@ -10,6 +10,7 @@
 #include "player.h"
 #include "particles.h"
 #include "crate.h"
+#include "key.h"
 
 Crate crates[MAX_CRATES];
 int   crate_count = 0;
@@ -52,20 +53,22 @@ void crates_init(void) {
        All Z values are positive (ahead of player spawn, which faces +Z). */
     int i = 0;
 
-    /* y=37: bottom face (model +112) sits at GROUND_FLOOR_Y=149.
-       half_w/half_d match the model's XZ half-extents (160). */
-    crates[i].x = 0;    crates[i].y = 37; crates[i].z = 500;
-    crates[i].rot_y = 256; crates[i].state = CRATE_INTACT;
+    /* Three crates under the upper floor at the far north of the big room.
+       Upper floor footprint: x(-5483 to -4143), big room z(2557 to 5426).
+       Spaced 500 units apart in X, centred on the overhang at z=5000.
+       y=37: bottom face (model +112) sits at GROUND_FLOOR_Y=149. */
+    crates[i].x = -5300; crates[i].y = 37; crates[i].z = 5000;
+    crates[i].rot_y = 128; crates[i].state = CRATE_INTACT;
     crates[i].item = ITEM_MEDIPAC; crates[i].active = 1;
     crates[i].half_w = 160; crates[i].half_d = 160; i++;
 
-    crates[i].x = -300; crates[i].y = 37; crates[i].z = 600;
+    crates[i].x = -4800; crates[i].y = 37; crates[i].z = 5000;
     crates[i].rot_y = 0; crates[i].state = CRATE_INTACT;
     crates[i].item = ITEM_NONE; crates[i].active = 1;
     crates[i].half_w = 160; crates[i].half_d = 160; i++;
 
-    crates[i].x = 300;  crates[i].y = 37; crates[i].z = 700;
-    crates[i].rot_y = 512; crates[i].state = CRATE_INTACT;
+    crates[i].x = -4300; crates[i].y = 37; crates[i].z = 5000;
+    crates[i].rot_y = 896; crates[i].state = CRATE_INTACT;
     crates[i].item = ITEM_KEY; crates[i].active = 1;
     crates[i].half_w = 160; crates[i].half_d = 160; i++;
 
@@ -80,6 +83,7 @@ void crates_reset(void) {
     int i;
     for (i = 0; i < crate_count; i++)
         crates[i] = crate_defaults[i];
+    keys_reset();
     player_has_key = 0;
 }
 
@@ -204,7 +208,7 @@ int crate_try_smash(void) {
                     player_health = MAX_HEALTH;
                 break;
             case ITEM_KEY:
-                player_has_key = 1;
+                key_spawn(c->x, c->y, c->z);
                 break;
             default:
                 break;
