@@ -12,7 +12,7 @@
 #include "player.h"
 #include "vampire.h"
 #include "bat.h"
-#include "medipac.h"
+#include "sml_med.h"
 #include "particles.h"
 #include "title.h"
 #include "collision.h"
@@ -53,7 +53,6 @@ void reset_game(RenderContext *ctx) {
     vampire_kb_vz    = 0;
     vampire_health   = VAMPIRE_MAX_HEALTH;
     vampire_hit_timer = 0;
-    reset_medipac();
     reset_particles();
     crates_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
@@ -74,6 +73,7 @@ int main(int argc, const char **argv) {
     floor_zones_init();
     crates_init();
     keys_init();
+    sml_meds_init();
 
     SPI_Init(&poll_cb);
 
@@ -92,10 +92,10 @@ int main(int argc, const char **argv) {
                 update_vampire();
                 apply_vampire_height();
                 update_bat();
-                update_medipac();
                 update_particles();
                 crates_update();
                 keys_update();
+                sml_meds_update();
                 draw_scene(&ctx);
             } else {
                 uint8_t r;

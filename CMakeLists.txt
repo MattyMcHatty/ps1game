@@ -26,7 +26,7 @@ add_executable(horror_game
     src/player.c
     src/vampire.c
     src/bat.c
-    src/medipac.c
+    src/sml_med.c
     src/particles.c
     src/title.c
     src/spi.c

@@ -13,7 +13,7 @@
 #include "vampire.h"
 #include "player.h"
 #include "bat.h"
-#include "medipac.h"
+#include "sml_med.h"
 #include "particles.h"
 #include "crate.h"
 #include "key.h"
@@ -371,7 +371,7 @@ void draw_scene(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
     draw_vampire(ctx);
     draw_particles(ctx);
-    draw_medipac(ctx);
+    sml_meds_draw(ctx);
     keys_draw(ctx);
     draw_bat(ctx);
     draw_hud(ctx);

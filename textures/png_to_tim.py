@@ -131,22 +131,56 @@ def build_clut_4bit(image):
 
 
 def build_clut_8bit(image):
-    """Build a 256-colour palette from an image."""
-    # Convert to palette mode with 256 colours
-    img_p = image.convert('RGB').quantize(colors=256)
-    palette = img_p.getpalette()  # flat list [r,g,b, r,g,b, ...]
+    """Build a 256-colour palette from an image.
 
-    # Build 256-entry CLUT
+    Transparent pixels (alpha < 128) are mapped to CLUT entry 0x0000, which
+    the PS1 GPU treats as transparent (pixel not drawn).  All other pixels are
+    quantised normally.
+    """
+    img_rgba = image.convert('RGBA')
+    w, h    = img_rgba.width, img_rgba.height
+
+    # Replace transparent pixels with a bright-magenta sentinel before
+    # quantising so they get their own palette slot rather than collapsing
+    # into whatever opaque colour they happen to be nearest to.
+    SENTINEL    = (255, 0, 255)
+    img_rgb     = img_rgba.convert('RGB')
+    pix_rgb     = img_rgb.load()
+    pix_rgba    = img_rgba.load()
+    has_alpha   = False
+
+    for y in range(h):
+        for x in range(w):
+            if pix_rgba[x, y][3] < 128:
+                pix_rgb[x, y] = SENTINEL
+                has_alpha = True
+
+    img_p   = img_rgb.quantize(colors=256)
+    palette = img_p.getpalette()
+    while len(palette) < 768:
+        palette.append(0)
+
+    # Find which palette index the sentinel colour landed on.
+    sentinel_idx = -1
+    if has_alpha:
+        best_dist = 999999
+        for i in range(256):
+            r, g, b = palette[i*3], palette[i*3+1], palette[i*3+2]
+            d = (r - 255)**2 + g**2 + (b - 255)**2
+            if d < best_dist:
+                best_dist    = d
+                sentinel_idx = i
+
+    # Build CLUT: sentinel index → 0x0000 (PS1 transparent), rest normal.
     clut_bytes = b''
     for i in range(256):
-        r = palette[i*3]
-        g = palette[i*3+1]
-        b = palette[i*3+2]
-        clut_bytes += struct.pack('<H', rgb_to_ps1(r, g, b))
-
-    # Index function: get palette index for each pixel
-    def get_index(px_idx):
-        return px_idx
+        if i == sentinel_idx:
+            clut_bytes += struct.pack('<H', 0x0000)
+        else:
+            r = palette[i*3]
+            g = palette[i*3+1]
+            b = palette[i*3+2]
+            clut_bytes += struct.pack('<H', rgb_to_ps1(r, g, b))
 
     return clut_bytes, img_p
 

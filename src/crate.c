@@ -11,6 +11,7 @@
 #include "particles.h"
 #include "crate.h"
 #include "key.h"
+#include "sml_med.h"
 
 Crate crates[MAX_CRATES];
 int   crate_count = 0;
@@ -64,7 +65,7 @@ void crates_init(void) {
 
     crates[i].x = -4800; crates[i].y = 37; crates[i].z = 5000;
     crates[i].rot_y = 0; crates[i].state = CRATE_INTACT;
-    crates[i].item = ITEM_NONE; crates[i].active = 1;
+    crates[i].item = ITEM_MEDIPAC; crates[i].active = 1;
     crates[i].half_w = 160; crates[i].half_d = 160; i++;
 
     crates[i].x = -4300; crates[i].y = 37; crates[i].z = 5000;
@@ -84,6 +85,7 @@ void crates_reset(void) {
     for (i = 0; i < crate_count; i++)
         crates[i] = crate_defaults[i];
     keys_reset();
+    sml_meds_reset();
     player_has_key = 0;
 }
 
@@ -203,9 +205,7 @@ int crate_try_smash(void) {
 
         switch (c->item) {
             case ITEM_MEDIPAC:
-                player_health += 30;
-                if (player_health > MAX_HEALTH)
-                    player_health = MAX_HEALTH;
+                sml_med_spawn(c->x, c->y, c->z);
                 break;
             case ITEM_KEY:
                 key_spawn(c->x, c->y, c->z);

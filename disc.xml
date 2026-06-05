@@ -29,6 +29,8 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\wdcrate.tim"/>
             <file name="KEY.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\key.tim"/>
+            <file name="SML_MED.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\sml_med.tim"/>
         </directory_tree>
     </track>
 </iso_project>
