@@ -10,6 +10,8 @@ int32_t cam_y   = 0;
 int32_t cam_vy  = 0;
 int32_t cam_z   = 0;
 int32_t cam_rot = 0;
+int sprint_stamina  = SPRINT_STAMINA_MAX;
+int sprint_cooldown = 0;
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -23,7 +25,37 @@ void update_camera(void) {
     if (btn & PAD_LEFT)  cam_rot = (cam_rot - 32) & 4095;
     if (btn & PAD_RIGHT) cam_rot = (cam_rot + 32) & 4095;
 
-    int32_t speed = 12;
+    /* Sprint state machine ------------------------------------------------
+       sprint_cooldown is a lock flag (0/1), not a countdown.
+       Stamina refills at half rate (1 per 2 frames) whenever not sprinting;
+       the bar is visible throughout. Sprint stays locked until bar is full. */
+    static int sprint_regen_tick = 0;
+    int sprinting = 0;
+    /* Sprint only valid moving forward or turning — not backward or strafing */
+    int sprint_dir_ok = (btn & (PAD_UP | PAD_LEFT | PAD_RIGHT)) &&
+                        !(btn & PAD_DOWN) &&
+                        !(btn & PAD_L1) &&
+                        !(btn & PAD_R1);
+
+    if ((btn & PAD_CROSS) && !sprint_cooldown && sprint_stamina > 0 && sprint_dir_ok) {
+        sprinting = 1;
+        sprint_stamina--;
+        if (sprint_stamina == 0)
+            sprint_cooldown = 1;   /* lock sprint — bar exhausted */
+    } else {
+        sprint_regen_tick++;
+        if (sprint_regen_tick >= 2) {
+            sprint_regen_tick = 0;
+            if (sprint_stamina < SPRINT_STAMINA_MAX) {
+                sprint_stamina++;
+                if (sprint_stamina == SPRINT_STAMINA_MAX)
+                    sprint_cooldown = 0;  /* unlock sprint — bar full */
+            }
+        }
+    }
+
+    int32_t speed = sprinting ? 20 : 12;
+
     if (btn & PAD_UP) {
         cam_x += (isin(cam_rot) * speed) >> 12;
         cam_z += (icos(cam_rot) * speed) >> 12;
@@ -31,6 +63,14 @@ void update_camera(void) {
     if (btn & PAD_DOWN) {
         cam_x -= (isin(cam_rot) * speed) >> 12;
         cam_z -= (icos(cam_rot) * speed) >> 12;
+    }
+    if (btn & PAD_L1) {
+        cam_x -= (icos(cam_rot) * speed) >> 12;
+        cam_z += (isin(cam_rot) * speed) >> 12;
+    }
+    if (btn & PAD_R1) {
+        cam_x += (icos(cam_rot) * speed) >> 12;
+        cam_z -= (isin(cam_rot) * speed) >> 12;
     }
 
     {

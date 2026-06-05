@@ -2,6 +2,7 @@
 #include <psxgpu.h>
 #include "render.h"
 #include "player.h"
+#include "camera.h"
 
 int32_t player_health = MAX_HEALTH;
 int     game_over     = 0;
@@ -49,6 +50,32 @@ void draw_hud(RenderContext *ctx) {
         setXY0(bar, 5, 5);
         setWH(bar, (uint16_t)player_health, 8);
         addPrim(&ctx->buffers[ctx->active_buffer].ot[0], bar);
+        ctx->next_packet += sizeof(TILE);
+    }
+
+    /* Stamina bar background */
+    if (ctx->next_packet + sizeof(TILE) > buf_end) return;
+    TILE *sbg = (TILE *)ctx->next_packet;
+    setTile(sbg);
+    setRGB0(sbg, 40, 40, 40);
+    setXY0(sbg, 4, 16);
+    setWH(sbg, 102, 10);
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[1], sbg);
+    ctx->next_packet += sizeof(TILE);
+
+    /* Stamina bar fill — width proportional to remaining sprint stamina */
+    uint16_t stamina_w = (uint16_t)((sprint_stamina * 100) / SPRINT_STAMINA_MAX);
+    if (stamina_w > 0) {
+        if (ctx->next_packet + sizeof(TILE) > buf_end) return;
+        TILE *sbar = (TILE *)ctx->next_packet;
+        setTile(sbar);
+        if (sprint_cooldown)
+            setRGB0(sbar, 200, 0, 0);   /* red while locked and refilling */
+        else
+            setRGB0(sbar, 0, 200, 0);   /* green when sprint is available */
+        setXY0(sbar, 5, 17);
+        setWH(sbar, stamina_w, 8);
+        addPrim(&ctx->buffers[ctx->active_buffer].ot[0], sbar);
         ctx->next_packet += sizeof(TILE);
     }
 }
