@@ -6,9 +6,10 @@
 /* Comment out this line for release builds */
 #define DEBUG_COLLISION 1
 
+extern int debug_mode;  /* toggled by Select; always available */
+
 #ifdef DEBUG_COLLISION
 #include "render.h"
-extern int debug_mode;
 #endif
 
 /* -----------------------------------------------------------------------

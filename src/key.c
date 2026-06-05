@@ -12,6 +12,10 @@
 KeyPickup keys[MAX_KEYS];
 int       key_count = 0;
 
+const char * const key_type_names[MAX_KEY_TYPES] = {
+    "Front Door Key",  /* KEY_FRONT_DOOR */
+};
+
 #define KEY_FLOAT_Y    50   /* units below crate origin — floats above ground */
 #define KEY_BOB_RATE   16   /* vertical bob speed */
 #define KEY_BOB_AMP    18   /* bob amplitude in world units */
@@ -67,18 +71,20 @@ void keys_reset(void) {
     int i;
     for (i = 0; i < MAX_KEYS; i++)
         keys[i].active = 0;
-    key_count = 0;
+    key_count  = 0;
+    player_keys = 0;
 }
 
-void key_spawn(int32_t x, int32_t y, int32_t z) {
+void key_spawn(int32_t x, int32_t y, int32_t z, KeyType type) {
     int i;
     for (i = 0; i < MAX_KEYS; i++) {
         if (!keys[i].active) {
-            keys[i].x           = x;
-            keys[i].y           = y + KEY_FLOAT_Y;
-            keys[i].z           = z;
-            keys[i].spin_angle  = 0;
-            keys[i].active      = 1;
+            keys[i].x          = x;
+            keys[i].y          = y + KEY_FLOAT_Y;
+            keys[i].z          = z;
+            keys[i].spin_angle = 0;
+            keys[i].key_type   = type;
+            keys[i].active     = 1;
             if (i >= key_count) key_count = i + 1;
             return;
         }
@@ -97,8 +103,9 @@ void keys_update(void) {
         int32_t dz   = k->z - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
         if (dist < KEY_PICKUP_RADIUS) {
-            k->active = 0;
-            player_has_key++;
+            k->active    = 0;
+            player_keys |= (1 << k->key_type);
+            show_pickup_msg(key_type_names[k->key_type]);
         }
     }
 }

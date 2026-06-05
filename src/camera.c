@@ -33,13 +33,11 @@ void update_camera(void) {
         cam_z -= (icos(cam_rot) * speed) >> 12;
     }
 
-#ifdef DEBUG_COLLISION
     {
         static int select_prev = 0;
         int select_held = (btn & PAD_SELECT) ? 1 : 0;
         if (select_held && !select_prev) debug_mode ^= 1;
         select_prev = select_held;
     }
-#endif
 }
 

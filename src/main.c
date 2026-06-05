@@ -20,10 +20,7 @@
 #include "key.h"
 
 GameState game_state = STATE_TITLE;
-
-#ifdef DEBUG_COLLISION
-int debug_mode = 0;
-#endif
+int       debug_mode = 0;
 
 volatile uint8_t pad_buff[2][34];
 volatile size_t  pad_buff_len[2];
@@ -54,6 +51,10 @@ void reset_game(RenderContext *ctx) {
     vampire_health   = VAMPIRE_MAX_HEALTH;
     vampire_hit_timer = 0;
     reset_particles();
+    {
+        int k;
+        for (k = 0; k < PICKUP_MSG_COUNT; k++) pickup_log[k].timer = 0;
+    }
     crates_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
@@ -78,7 +79,9 @@ int main(int argc, const char **argv) {
     SPI_Init(&poll_cb);
 
     FntLoad(960, 0);
-    FntOpen(40, 104, 240, 32, 0, 128);
+    int gameover_fnt = FntOpen(40,  104, 240, 32, 0, 128);
+    int hud_fnt      = FntOpen(4,   16,  120, 16, 0, 64);
+    int notify_fnt   = FntOpen(116, 210, 200, 28, 0, 192);
 
     for (;;) {
         if (game_state == STATE_TITLE) {
@@ -97,6 +100,25 @@ int main(int argc, const char **argv) {
                 keys_update();
                 sml_meds_update();
                 draw_scene(&ctx);
+                {
+                    int k, any = 0;
+                    for (k = 0; k < PICKUP_MSG_COUNT; k++) {
+                        if (pickup_log[k].timer > 0) {
+                            FntPrint(notify_fnt, "%s\n", pickup_log[k].msg);
+                            pickup_log[k].timer--;
+                            any = 1;
+                        }
+                    }
+                    if (any) FntFlush(notify_fnt);
+                }
+                if (debug_mode) {
+                    int k;
+                    for (k = 0; k < MAX_KEY_TYPES; k++) {
+                        if (player_keys & (1 << k))
+                            FntPrint(hud_fnt, "%s\n", key_type_names[k]);
+                    }
+                    FntFlush(hud_fnt);
+                }
             } else {
                 uint8_t r;
                 if (flash_timer > 0) {
@@ -110,8 +132,8 @@ int main(int argc, const char **argv) {
                         game_state = STATE_TITLE;
                     } else {
                         setRGB0(&ctx.buffers[ctx.active_buffer].draw_env, 80, 0, 0);
-                        FntPrint(-1, "          GAME OVER\n    PRESS START TO RESTART");
-                        FntFlush(-1);
+                        FntPrint(gameover_fnt, "          GAME OVER\n    PRESS START TO RESTART");
+                        FntFlush(gameover_fnt);
                     }
                 }
             }

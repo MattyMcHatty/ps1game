@@ -84,9 +84,8 @@ void crates_reset(void) {
     int i;
     for (i = 0; i < crate_count; i++)
         crates[i] = crate_defaults[i];
-    keys_reset();
+    keys_reset();      /* also clears player_keys */
     sml_meds_reset();
-    player_has_key = 0;
 }
 
 void crates_update(void) {
@@ -208,7 +207,7 @@ int crate_try_smash(void) {
                 sml_med_spawn(c->x, c->y, c->z);
                 break;
             case ITEM_KEY:
-                key_spawn(c->x, c->y, c->z);
+                key_spawn(c->x, c->y, c->z, KEY_FRONT_DOOR);
                 break;
             default:
                 break;

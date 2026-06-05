@@ -99,6 +99,7 @@ void sml_meds_update(void) {
             player_health += MAX_HEALTH / 4;
             if (player_health > MAX_HEALTH)
                 player_health = MAX_HEALTH;
+            show_pickup_msg("Small Medipac");
         }
     }
 }
