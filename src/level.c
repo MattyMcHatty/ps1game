@@ -17,6 +17,7 @@
 #include "particles.h"
 #include "crate.h"
 #include "key.h"
+#include "door.h"
 #include "level1_tex_map.h"
 
 static SMD  *room_smd  = NULL;
@@ -373,6 +374,7 @@ void draw_scene(RenderContext *ctx) {
     draw_particles(ctx);
     sml_meds_draw(ctx);
     keys_draw(ctx);
+    door_draw(ctx);
     draw_bat(ctx);
     draw_hud(ctx);
 

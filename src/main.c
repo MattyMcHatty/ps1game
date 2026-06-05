@@ -18,6 +18,7 @@
 #include "collision.h"
 #include "crate.h"
 #include "key.h"
+#include "door.h"
 
 GameState game_state = STATE_TITLE;
 int       debug_mode = 0;
@@ -55,6 +56,9 @@ void reset_game(RenderContext *ctx) {
         int k;
         for (k = 0; k < PICKUP_MSG_COUNT; k++) pickup_log[k].timer = 0;
     }
+    sprint_stamina  = SPRINT_STAMINA_MAX;
+    sprint_cooldown = 0;
+    door_init();
     crates_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
@@ -75,6 +79,7 @@ int main(int argc, const char **argv) {
     crates_init();
     keys_init();
     sml_meds_init();
+    door_init();
 
     SPI_Init(&poll_cb);
 
@@ -82,6 +87,7 @@ int main(int argc, const char **argv) {
     int gameover_fnt = FntOpen(40,  104, 240, 32, 0, 128);
     int hud_fnt      = FntOpen(4,   16,  120, 16, 0, 64);
     int notify_fnt   = FntOpen(116, 210, 200, 28, 0, 192);
+    int debug_fnt    = FntOpen(4,   210, 180, 28, 0, 128);
 
     for (;;) {
         if (game_state == STATE_TITLE) {
@@ -99,6 +105,7 @@ int main(int argc, const char **argv) {
                 crates_update();
                 keys_update();
                 sml_meds_update();
+                door_update();
                 draw_scene(&ctx);
                 {
                     int k, any = 0;
@@ -118,8 +125,22 @@ int main(int argc, const char **argv) {
                             FntPrint(hud_fnt, "%s\n", key_type_names[k]);
                     }
                     FntFlush(hud_fnt);
+                    FntPrint(debug_fnt, "X:%d\nY:%d\nZ:%d",
+                             cam_x, cam_y, cam_z);
+                    FntFlush(debug_fnt);
+                }
+            } else if (game_over == 2) {
+                /* Win screen */
+                setRGB0(&ctx.buffers[ctx.active_buffer].draw_env, 0, 30, 0);
+                FntPrint(gameover_fnt, "\n\n       YOU ESCAPED!\n\n    PRESS START");
+                FntFlush(gameover_fnt);
+                if (pad_buff_len[0] &&
+                    (~((PadResponse *)pad_buff[0])->btn & PAD_START)) {
+                    reset_game(&ctx);
+                    game_state = STATE_TITLE;
                 }
             } else {
+                /* Lose screen */
                 uint8_t r;
                 if (flash_timer > 0) {
                     flash_timer--;
