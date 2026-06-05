@@ -130,9 +130,8 @@ void sml_meds_draw(RenderContext *ctx) {
         gte_stsxy(&screen);
         gte_avsz3();
         gte_stotz(&otz);
-        otz -= 32; /* bias forward: in front of crate geometry, depth-correct between pickups */
-        if (otz < 2)          otz = 2;
-        if (otz >= OT_LENGTH) otz = OT_LENGTH - 1;
+        otz >>= 2; /* compress to 0-512: always below world geometry, pickups still depth-sorted */
+        if (otz < 2) otz = 2;
         if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) continue;
 
         int32_t wdist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
