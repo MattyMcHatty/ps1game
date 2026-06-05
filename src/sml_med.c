@@ -123,13 +123,15 @@ void sml_meds_draw(RenderContext *ctx) {
         DVECTOR screen;
         int32_t otz;
 
-        gte_ldv0(&sv);
-        gte_rtps();
+        gte_ldv0(&sv); gte_rtps();
+        gte_ldv0(&sv); gte_rtps();
+        gte_ldv0(&sv); gte_rtps();
         gte_stsxy(&screen);
         gte_avsz3();
         gte_stotz(&otz);
-
-        if (otz <= 0 || otz >= OT_LENGTH) continue;
+        otz -= 32; /* bias forward: in front of crate geometry, depth-correct between pickups */
+        if (otz < 2)          otz = 2;
+        if (otz >= OT_LENGTH) otz = OT_LENGTH - 1;
         if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) continue;
 
         int32_t wdist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
