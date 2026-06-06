@@ -25,7 +25,7 @@ add_executable(horror_game
     src/level.c
     src/player.c
     src/vampire.c
-    src/bat.c
+    src/crucifaxe.c
     src/sml_med.c
     src/particles.c
     src/title.c

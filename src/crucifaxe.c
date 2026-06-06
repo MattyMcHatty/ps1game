@@ -11,7 +11,7 @@
 #include "camera.h"
 #include "vampire.h"
 #include "particles.h"
-#include "bat.h"
+#include "crucifaxe.h"
 #include "crate.h"
 #include "demondog.h"
 
@@ -23,7 +23,7 @@ static int hit_this_swing       = 0;
 static int crate_hit_this_swing = 0;
 static int ddog_hit_this_swing  = 0;
 
-void bat_init(void) {
+void crucifaxe_init(void) {
     CdlFILE file;
     if (!CdSearchFile(&file, "\\CRFAXE.SMD;1")) return;
     int sectors    = (file.size + 2047) / 2048;
@@ -38,7 +38,7 @@ void bat_init(void) {
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
-void update_bat(void) {
+void update_crucifaxe(void) {
     if (swing_timer == 0 && pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
         if (~pad->btn & PAD_SQUARE) {
@@ -111,7 +111,7 @@ void update_bat(void) {
     }
 }
 
-void draw_bat(RenderContext *ctx) {
+void draw_crucifaxe(RenderContext *ctx) {
     if (!crucifaxe_smd) return;
 
     int32_t t;

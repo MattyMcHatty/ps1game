@@ -11,7 +11,7 @@
 #include "level.h"
 #include "player.h"
 #include "vampire.h"
-#include "bat.h"
+#include "crucifaxe.h"
 #include "sml_med.h"
 #include "particles.h"
 #include "title.h"
@@ -83,7 +83,7 @@ int main(int argc, const char **argv) {
     sml_meds_init();
     door_init();
     demon_dogs_init();
-    bat_init();
+    crucifaxe_init();
 
     SPI_Init(&poll_cb);
 
@@ -105,7 +105,7 @@ int main(int argc, const char **argv) {
                 /* update_vampire(); */       /* disabled — kept for later */
                 /* apply_vampire_height(); */ /* disabled — kept for later */
                 update_demon_dogs();
-                update_bat();
+                update_crucifaxe();
                 update_particles();
                 crates_update();
                 keys_update();

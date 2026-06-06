@@ -193,10 +193,10 @@ int crate_try_smash(void) {
 
         if (cam_y < c->y - CRATE_HALF_H || cam_y > c->y + CRATE_HALF_H) continue;
 
-        int32_t min_x = c->x - c->half_w - BAT_SMASH_RANGE;
-        int32_t max_x = c->x + c->half_w + BAT_SMASH_RANGE;
-        int32_t min_z = c->z - c->half_d - BAT_SMASH_RANGE;
-        int32_t max_z = c->z + c->half_d + BAT_SMASH_RANGE;
+        int32_t min_x = c->x - c->half_w - SMASH_RANGE;
+        int32_t max_x = c->x + c->half_w + SMASH_RANGE;
+        int32_t min_z = c->z - c->half_d - SMASH_RANGE;
+        int32_t max_z = c->z + c->half_d + SMASH_RANGE;
 
         if (cam_x < min_x || cam_x > max_x) continue;
         if (cam_z < min_z || cam_z > max_z) continue;

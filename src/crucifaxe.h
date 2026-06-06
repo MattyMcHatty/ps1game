@@ -1,5 +1,5 @@
-#ifndef BAT_H
-#define BAT_H
+#ifndef CRUCIFAXE_H
+#define CRUCIFAXE_H
 
 #include "render.h"
 
@@ -11,8 +11,8 @@
 
 extern int swing_timer;
 
-void bat_init(void);
-void update_bat(void);
-void draw_bat(RenderContext *ctx);
+void crucifaxe_init(void);
+void update_crucifaxe(void);
+void draw_crucifaxe(RenderContext *ctx);
 
 #endif

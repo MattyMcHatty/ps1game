@@ -12,7 +12,7 @@
 
 #include "vampire.h"
 #include "player.h"
-#include "bat.h"
+#include "crucifaxe.h"
 #include "sml_med.h"
 #include "particles.h"
 #include "crate.h"
@@ -377,7 +377,7 @@ void draw_scene(RenderContext *ctx) {
     sml_meds_draw(ctx);
     keys_draw(ctx);
     door_draw(ctx);
-    draw_bat(ctx);
+    draw_crucifaxe(ctx);
     draw_hud(ctx);
 
 #ifdef DEBUG_COLLISION
