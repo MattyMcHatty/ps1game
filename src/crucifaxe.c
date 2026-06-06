@@ -186,7 +186,11 @@ void draw_crucifaxe(RenderContext *ctx) {
                 gte_avsz3();
             }
             gte_stotz(&otz);
-            if (otz <= 0 || otz >= OT_LENGTH) { p += stride; continue; }
+            /* Compress to a very low OT range so the weapon always renders
+               in front of dogs, items and geometry (which are all at higher
+               OT indices). Faces still sort relative to each other. */
+            otz >>= 4;
+            if (otz < 2) otz = 2;
 
             /* Per-face normal shading: 40% ambient + primary + dim fill */
             uint16_t n0_idx = *(uint16_t *)(p + 12);
