@@ -11,6 +11,7 @@
 
 extern int swing_timer;
 
+void bat_init(void);
 void update_bat(void);
 void draw_bat(RenderContext *ctx);
 

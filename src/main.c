@@ -83,6 +83,7 @@ int main(int argc, const char **argv) {
     sml_meds_init();
     door_init();
     demon_dogs_init();
+    bat_init();
 
     SPI_Init(&poll_cb);
 
