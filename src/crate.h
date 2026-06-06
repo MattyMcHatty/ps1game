@@ -5,7 +5,7 @@
 #include "render.h"
 
 #define MAX_CRATES          16
-#define BAT_SMASH_RANGE     300
+#define BAT_SMASH_RANGE     260
 #define CRATE_PUSH_MARGIN    80  /* extra gap between player and crate face */
 #define CRATE_HALF_H        112  /* half-height of crate model in world units */
 

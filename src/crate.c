@@ -191,17 +191,21 @@ int crate_try_smash(void) {
         Crate *c = &crates[i];
         if (!c->active || c->state != CRATE_INTACT) continue;
 
-        /* AABB proximity: expand each face outward by BAT_SMASH_RANGE.
-           If the player's centre falls inside this expanded box they can
-           hit any face — no directional projection needed. */
+        if (cam_y < c->y - CRATE_HALF_H || cam_y > c->y + CRATE_HALF_H) continue;
+
         int32_t min_x = c->x - c->half_w - BAT_SMASH_RANGE;
         int32_t max_x = c->x + c->half_w + BAT_SMASH_RANGE;
         int32_t min_z = c->z - c->half_d - BAT_SMASH_RANGE;
         int32_t max_z = c->z + c->half_d + BAT_SMASH_RANGE;
 
-        if (cam_y < c->y - CRATE_HALF_H || cam_y > c->y + CRATE_HALF_H) continue;
         if (cam_x < min_x || cam_x > max_x) continue;
         if (cam_z < min_z || cam_z > max_z) continue;
+
+        /* Reject if crate is behind the player */
+        int32_t cdx = (c->x - cam_x) >> 4;
+        int32_t cdz = (c->z - cam_z) >> 4;
+        int32_t dot = cdx * (isin(cam_rot) >> 4) + cdz * (icos(cam_rot) >> 4);
+        if (dot <= 0) continue;
 
         c->state = CRATE_SMASHED;
         spawn_wood_burst(c->x, c->y - 30, c->z);
