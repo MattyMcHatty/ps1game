@@ -20,6 +20,7 @@ static DemonDog ddog_defaults[MAX_DEMON_DOGS];
 static uint16_t sleep_tpage  = 0, sleep_clut  = 0;
 static uint16_t alert_tpage  = 0, alert_clut  = 0;
 static uint16_t alert2_tpage = 0, alert2_clut = 0;
+static uint16_t shadow_tpage = 0, shadow_clut = 0;
 
 static void load_tim(const char *filename, uint16_t *tpage_out, uint16_t *clut_out) {
     CdlFILE file;
@@ -47,6 +48,7 @@ void demon_dogs_init(void) {
     load_tim("\\DDSLEEP.TIM;1", &sleep_tpage,  &sleep_clut);
     load_tim("\\DDALERT.TIM;1", &alert_tpage,  &alert_clut);
     load_tim("\\DDALRT2.TIM;1", &alert2_tpage, &alert2_clut);
+    load_tim("\\SHADOW.TIM;1",  &shadow_tpage, &shadow_clut);
 
     int i = 0;
 
@@ -130,6 +132,70 @@ void update_demon_dogs(void) {
         apply_ddog_collision(&d->x, &d->z, d->on_upper_floor, d->on_ramp);
         crates_collide(&d->x, d->y, &d->z, 80);
     }
+}
+
+static void draw_ddog_shadow(RenderContext *ctx, DemonDog *d) {
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    if (ctx->next_packet + sizeof(DR_TPAGE) + sizeof(POLY_FT4) > buf_end) return;
+
+    int32_t rx  = icos(cam_rot);
+    int32_t rz  = -isin(cam_rot);
+    int16_t dwx = (int16_t)((DDOG_SHADOW_W * rx) >> 12);
+    int16_t dwz = (int16_t)((DDOG_SHADOW_W * rz) >> 12);
+
+    int32_t fx  = isin(cam_rot);
+    int32_t fz  = icos(cam_rot);
+    int16_t ddx = (int16_t)((DDOG_SHADOW_D * fx) >> 12);
+    int16_t ddz = (int16_t)((DDOG_SHADOW_D * fz) >> 12);
+
+    int32_t shadow_y = d->y + DDOG_Y_OFFSET + DDOG_HALF_H - 2;
+
+    SVECTOR sv[4];
+    sv[0].vx = (int16_t)(d->x - dwx - ddx); sv[0].vy = (int16_t)shadow_y; sv[0].vz = (int16_t)(d->z - dwz - ddz); sv[0].pad = 0;
+    sv[1].vx = (int16_t)(d->x + dwx - ddx); sv[1].vy = (int16_t)shadow_y; sv[1].vz = (int16_t)(d->z + dwz - ddz); sv[1].pad = 0;
+    sv[2].vx = (int16_t)(d->x - dwx + ddx); sv[2].vy = (int16_t)shadow_y; sv[2].vz = (int16_t)(d->z - dwz + ddz); sv[2].pad = 0;
+    sv[3].vx = (int16_t)(d->x + dwx + ddx); sv[3].vy = (int16_t)shadow_y; sv[3].vz = (int16_t)(d->z + dwz + ddz); sv[3].pad = 0;
+
+    DVECTOR ssv[4];
+    int32_t otz;
+
+    gte_ldv0(&sv[0]); gte_rtps(); gte_stsxy(&ssv[0]);
+    gte_ldv0(&sv[1]); gte_rtps(); gte_stsxy(&ssv[1]);
+    gte_ldv0(&sv[2]); gte_rtps(); gte_stsxy(&ssv[2]);
+    gte_ldv0(&sv[3]); gte_rtps(); gte_stsxy(&ssv[3]);
+
+    gte_avsz4();
+    gte_stotz(&otz);
+
+    if (otz <= 0 || otz >= OT_LENGTH) return;
+
+    int32_t shadow_otz = otz + 2 < OT_LENGTH ? otz + 2 : OT_LENGTH - 1;
+
+    DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
+    setDrawTPage(tp, 0, 1, shadow_tpage);
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[shadow_otz + 1], tp);
+    ctx->next_packet += sizeof(DR_TPAGE);
+
+    POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
+    setPolyFT4(poly);
+    setRGB0(poly, 128, 128, 128);
+
+    poly->x0 = ssv[0].vx; poly->y0 = ssv[0].vy;
+    poly->x1 = ssv[1].vx; poly->y1 = ssv[1].vy;
+    poly->x2 = ssv[2].vx; poly->y2 = ssv[2].vy;
+    poly->x3 = ssv[3].vx; poly->y3 = ssv[3].vy;
+
+    /* Texture at VRAM (640,160): tpage base y=0, so V offset = 160 */
+    poly->u0 =  0; poly->v0 = 160;
+    poly->u1 = 63; poly->v1 = 160;
+    poly->u2 =  0; poly->v2 = 191;
+    poly->u3 = 63; poly->v3 = 191;
+
+    poly->clut  = shadow_clut;
+    poly->tpage = shadow_tpage;
+
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[shadow_otz], poly);
+    ctx->next_packet += sizeof(POLY_FT4);
 }
 
 static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
@@ -245,6 +311,8 @@ void draw_demon_dogs(RenderContext *ctx) {
         int32_t dx = d->x - cam_x;
         int32_t dz = d->z - cam_z;
         if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 4000) continue;
+
+        draw_ddog_shadow(ctx, d);
 
         if (d->state == DDOG_DORMANT) {
             draw_ddog_sprite(ctx, d, sleep_tpage, sleep_clut, 128, 0);

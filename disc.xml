@@ -37,6 +37,8 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\ddog_alert.tim"/>
             <file name="DDALRT2.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\ddog_alert2.tim"/>
+            <file name="SHADOW.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\shadow.tim"/>
         </directory_tree>
     </track>
 </iso_project>
