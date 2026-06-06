@@ -58,7 +58,7 @@ void update_vampire(void) {
     vampire_x += (dx * VAMPIRE_SPEED) / dist2d;
     vampire_z += (dz * VAMPIRE_SPEED) / dist2d;
     apply_vampire_collision();
-    crates_collide(&vampire_x, &vampire_z, 100);
+    crates_collide(&vampire_x, vampire_y, &vampire_z, 100);
 }
 
 void draw_vampire(RenderContext *ctx) {

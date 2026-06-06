@@ -31,6 +31,12 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\key.tim"/>
             <file name="SML_MED.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\sml_med.tim"/>
+            <file name="DDSLEEP.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\ddog_sleep.tim"/>
+            <file name="DDALERT.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\ddog_alert.tim"/>
+            <file name="DDALRT2.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\ddog_alert2.tim"/>
         </directory_tree>
     </track>
 </iso_project>

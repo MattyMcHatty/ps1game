@@ -7,6 +7,7 @@
 #define MAX_CRATES          16
 #define BAT_SMASH_RANGE     300
 #define CRATE_PUSH_MARGIN    80  /* extra gap between player and crate face */
+#define CRATE_HALF_H        112  /* half-height of crate model in world units */
 
 typedef enum {
     CRATE_INTACT,
@@ -36,7 +37,7 @@ void crates_init(void);
 void crates_reset(void);
 void crates_update(void);
 void crates_draw(RenderContext *ctx);
-void crates_collide(int32_t *px, int32_t *pz, int32_t radius);
+void crates_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 int  crate_try_smash(void);
 
 #endif

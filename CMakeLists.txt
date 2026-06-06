@@ -35,6 +35,7 @@ add_executable(horror_game
     src/crate.c
     src/key.c
     src/door.c
+    src/demondog.c
 )
 
 target_include_directories(horror_game PRIVATE

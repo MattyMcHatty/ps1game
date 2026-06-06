@@ -18,6 +18,7 @@
 #include "crate.h"
 #include "key.h"
 #include "door.h"
+#include "demondog.h"
 #include "level1_tex_map.h"
 
 static SMD  *room_smd  = NULL;
@@ -370,7 +371,8 @@ void draw_scene(RenderContext *ctx) {
        so all subsequent world-space draws project correctly. */
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
-    draw_vampire(ctx);
+    /* draw_vampire(ctx); */ /* disabled — kept for later */
+    draw_demon_dogs(ctx);
     draw_particles(ctx);
     sml_meds_draw(ctx);
     keys_draw(ctx);

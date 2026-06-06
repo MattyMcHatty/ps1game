@@ -10,10 +10,12 @@
 #include "particles.h"
 #include "bat.h"
 #include "crate.h"
+#include "demondog.h"
 
 int swing_timer    = 0;
 static int hit_this_swing       = 0;
 static int crate_hit_this_swing = 0;
+static int ddog_hit_this_swing  = 0;
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -22,9 +24,10 @@ void update_bat(void) {
     if (swing_timer == 0 && pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
         if (~pad->btn & PAD_SQUARE) {
-            swing_timer         = 1;
-            hit_this_swing      = 0;
+            swing_timer          = 1;
+            hit_this_swing       = 0;
             crate_hit_this_swing = 0;
+            ddog_hit_this_swing  = 0;
         }
     }
 
@@ -49,6 +52,36 @@ void update_bat(void) {
                 }
             }
         }
+        /* Demon dog hit — checked independently of vampire hit */
+        if (swing_timer <= SWING_DURATION && !ddog_hit_this_swing) {
+            int di;
+            for (di = 0; di < demon_dog_count; di++) {
+                DemonDog *d = &demon_dogs[di];
+                if (!d->active || d->state == DDOG_DEAD) continue;
+                int32_t dx     = d->x - cam_x;
+                int32_t dy     = d->y - cam_y;
+                int32_t dz     = d->z - cam_z;
+                int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+                int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
+                if (dist3d < SWING_RANGE) {
+                    int32_t dot = ((int32_t)dx * isin(cam_rot) +
+                                   (int32_t)dz * icos(cam_rot)) >> 12;
+                    if (dot > 0) {
+                        d->kb_vx = dist2d > 0 ? (dx * DDOG_KNOCKBACK) / dist2d : 0;
+                        d->kb_vz = dist2d > 0 ? (dz * DDOG_KNOCKBACK) / dist2d : 0;
+                        d->health--;
+                        d->hit_timer = DDOG_BAR_TIMER_MAX;
+                        if (d->health <= 0) {
+                            d->state = DDOG_DEAD;
+                            spawn_blood_burst(d->x, d->y, d->z);
+                        }
+                        ddog_hit_this_swing = 1;
+                        break;
+                    }
+                }
+            }
+        }
+
         /* Crate smash — checked independently of vampire hit */
         if (swing_timer <= SWING_DURATION && !crate_hit_this_swing) {
             if (crate_try_smash())

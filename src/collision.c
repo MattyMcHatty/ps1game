@@ -61,7 +61,7 @@ void apply_collision(void) {
             collide_wall(&r->walls[15], &cam_x, &cam_z, radius);
         }
     }
-    crates_collide(&cam_x, &cam_z, radius);
+    crates_collide(&cam_x, cam_y, &cam_z, radius);
 }
 
 #ifdef DEBUG_COLLISION
@@ -420,5 +420,69 @@ void apply_vampire_height(void) {
     if (vampire_y >= target) {
         vampire_y  = target;
         vampire_vy = 0;
+    }
+}
+
+void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ramp) {
+    CollisionRoom *r = &current_collision_room;
+    int32_t radius = 80;
+    int i, pass;
+
+    for (pass = 0; pass < 2; pass++) {
+        for (i = 0; i < 13; i++)
+            collide_wall(&r->walls[i], x, z, radius);
+        if (on_upper_floor)
+            collide_wall(&r->walls[13], x, z, radius);
+        if (!on_ramp && !on_upper_floor) {
+            collide_wall(&r->walls[14], x, z, radius);
+            collide_wall(&r->walls[15], x, z, radius);
+        }
+    }
+}
+
+void apply_ddog_height(int32_t *px, int32_t *py, int32_t *pz,
+                       int32_t *vy, int *on_upper_floor, int *on_ramp) {
+    int i;
+    int32_t target = 0;
+
+    *on_upper_floor = 0;
+    *on_ramp        = 0;
+
+    for (i = 0; i < floor_zone_count; i++) {
+        FloorZone *z = &floor_zones[i];
+        if (*px < z->min_x || *px > z->max_x) continue;
+        if (*pz < z->min_z || *pz > z->max_z) continue;
+
+        if (z->type == FLOOR_FLAT || z->type == FLOOR_UPPER) {
+            int32_t zone_target = z->y - GROUND_FLOOR_Y;
+            if (zone_target < *py - 2) continue;
+            target = zone_target;
+            if (z->type == FLOOR_UPPER) *on_upper_floor = 1;
+            break;
+        } else if (z->type == FLOOR_RAMP) {
+            int32_t ramp_len = z->ramp_axis_end - z->ramp_axis_start;
+            int32_t pos      = z->ramp_along_x ? *px : *pz;
+            int32_t t, dy, floor_y, ramp_target;
+            if (ramp_len == 0) { target = z->ramp_y_start - GROUND_FLOOR_Y; *on_ramp = 1; break; }
+            t = ((pos - z->ramp_axis_start) << 12) / ramp_len;
+            if (t <    0) t =    0;
+            if (t > 4096) t = 4096;
+            dy          = z->ramp_y_end - z->ramp_y_start;
+            floor_y     = z->ramp_y_start + ((dy * t) >> 12);
+            ramp_target = floor_y - GROUND_FLOOR_Y;
+            if (*py > -50 && ramp_target < *py - 150) continue;
+            target = ramp_target;
+            *on_ramp = 1;
+            break;
+        }
+    }
+
+    *vy += GRAVITY;
+    if (*vy > MAX_FALL_VEL) *vy = MAX_FALL_VEL;
+    *py += *vy;
+
+    if (*py >= target) {
+        *py = target;
+        *vy = 0;
     }
 }

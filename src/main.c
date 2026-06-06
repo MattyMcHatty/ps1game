@@ -19,6 +19,7 @@
 #include "crate.h"
 #include "key.h"
 #include "door.h"
+#include "demondog.h"
 
 GameState game_state = STATE_TITLE;
 int       debug_mode = 0;
@@ -60,6 +61,7 @@ void reset_game(RenderContext *ctx) {
     sprint_cooldown = 0;
     door_init();
     crates_reset();
+    demon_dogs_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
 }
@@ -80,6 +82,7 @@ int main(int argc, const char **argv) {
     keys_init();
     sml_meds_init();
     door_init();
+    demon_dogs_init();
 
     SPI_Init(&poll_cb);
 
@@ -98,8 +101,9 @@ int main(int argc, const char **argv) {
                 update_camera();
                 apply_collision();
                 apply_height();
-                update_vampire();
-                apply_vampire_height();
+                /* update_vampire(); */       /* disabled — kept for later */
+                /* apply_vampire_height(); */ /* disabled — kept for later */
+                update_demon_dogs();
                 update_bat();
                 update_particles();
                 crates_update();

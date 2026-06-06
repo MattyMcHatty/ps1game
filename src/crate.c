@@ -92,11 +92,14 @@ void crates_update(void) {
     /* Reserved for smash animation timer, item pickup range, etc. */
 }
 
-void crates_collide(int32_t *px, int32_t *pz, int32_t radius) {
+void crates_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     int i;
     for (i = 0; i < crate_count; i++) {
         Crate *c = &crates[i];
         if (!c->active || c->state != CRATE_INTACT) continue;
+
+        /* Skip if the mover is on a different floor level to the crate. */
+        if (py < c->y - CRATE_HALF_H || py > c->y + CRATE_HALF_H) continue;
 
         /* Minkowski-expanded AABB plus push margin so the player's camera
            stops well clear of the visible model faces. */
@@ -196,6 +199,7 @@ int crate_try_smash(void) {
         int32_t min_z = c->z - c->half_d - BAT_SMASH_RANGE;
         int32_t max_z = c->z + c->half_d + BAT_SMASH_RANGE;
 
+        if (cam_y < c->y - CRATE_HALF_H || cam_y > c->y + CRATE_HALF_H) continue;
         if (cam_x < min_x || cam_x > max_x) continue;
         if (cam_z < min_z || cam_z > max_z) continue;
 

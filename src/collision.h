@@ -40,6 +40,7 @@ int  collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius);
 void collision_init(void);
 void apply_collision(void);
 void apply_vampire_collision(void);
+void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ramp);
 
 /* -----------------------------------------------------------------------
  * Floor / height zones
@@ -86,6 +87,7 @@ extern int       vampire_on_ramp;
 void floor_zones_init(void);
 void apply_height(void);
 void apply_vampire_height(void);
+void apply_ddog_height(int32_t *px, int32_t *py, int32_t *pz, int32_t *vy, int *on_upper_floor, int *on_ramp);
 
 #ifdef DEBUG_COLLISION
 void debug_draw_walls(RenderContext *ctx);
