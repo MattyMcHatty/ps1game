@@ -9,7 +9,8 @@
 #define DDOG_SPEED           10
 #define DDOG_WAKE_RADIUS      2400
 #define DDOG_CATCH_DIST       180
-#define DDOG_DAMAGE_INTERVAL  3
+#define DDOG_DAMAGE_AMOUNT    10
+#define DDOG_DAMAGE_COOLDOWN  60
 #define DDOG_HALF_W           60
 #define DDOG_HALF_H           50
 #define DDOG_Y_OFFSET        100

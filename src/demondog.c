@@ -80,7 +80,8 @@ void update_demon_dogs(void) {
         DemonDog *d = &demon_dogs[i];
         if (!d->active || d->state == DDOG_DEAD) continue;
 
-        if (d->hit_timer > 0) d->hit_timer--;
+        if (d->hit_timer    > 0) d->hit_timer--;
+        if (d->damage_timer > 0) d->damage_timer--;
         if (d->state == DDOG_ALERT) d->anim_tick++;
 
         apply_ddog_height(&d->x, &d->y, &d->z, &d->vy,
@@ -95,7 +96,6 @@ void update_demon_dogs(void) {
             else               d->kb_vx = -((-d->kb_vx * 7) >> 3);
             if (d->kb_vz > 0) d->kb_vz =  (  d->kb_vz * 7) >> 3;
             else               d->kb_vz = -((-d->kb_vz * 7) >> 3);
-            d->damage_timer = 0;
             continue;
         }
 
@@ -112,18 +112,14 @@ void update_demon_dogs(void) {
                 continue;
         }
 
-        if (!game_over && dist3d < DDOG_CATCH_DIST) {
-            if (++d->damage_timer >= DDOG_DAMAGE_INTERVAL) {
-                d->damage_timer = 0;
-                player_health--;
-                if (player_health <= 0) {
-                    player_health = 0;
-                    game_over     = 1;
-                    flash_timer   = 90;
-                }
+        if (!game_over && dist3d < DDOG_CATCH_DIST && d->damage_timer == 0) {
+            d->damage_timer = DDOG_DAMAGE_COOLDOWN;
+            player_health  -= DDOG_DAMAGE_AMOUNT;
+            if (player_health <= 0) {
+                player_health = 0;
+                game_over     = 1;
+                flash_timer   = 90;
             }
-        } else {
-            d->damage_timer = 0;
         }
 
         if (dist2d < DDOG_CATCH_DIST) continue;
