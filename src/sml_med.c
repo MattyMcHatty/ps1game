@@ -8,6 +8,7 @@
 #include "camera.h"
 #include "player.h"
 #include "sml_med.h"
+#include "sound.h"
 
 SmlMed sml_meds[MAX_SML_MEDS];
 int    sml_med_count = 0;
@@ -99,6 +100,7 @@ void sml_meds_update(void) {
             player_health += MAX_HEALTH / 4;
             if (player_health > MAX_HEALTH)
                 player_health = MAX_HEALTH;
+            sound_play(SFX_PICKUP);
             show_pickup_msg("Small Medipac");
         }
     }

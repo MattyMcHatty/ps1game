@@ -8,6 +8,7 @@
 #include "player.h"
 #include "key.h"
 #include "door.h"
+#include "sound.h"
 
 DoorState door_state = DOOR_LOCKED;
 
@@ -222,6 +223,7 @@ void door_update(void) {
         if (o_just_pressed && (player_keys & (1 << KEY_FRONT_DOOR))) {
             player_keys &= ~(1 << KEY_FRONT_DOOR);
             door_state = DOOR_UNLOCKED;
+            sound_play(SFX_UNLOCK);
             /* Add message to log without "Picked up " prefix */
             pickup_log[0] = pickup_log[1];
             pickup_log[1] = pickup_log[2];

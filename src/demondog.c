@@ -11,6 +11,7 @@
 #include "crate.h"
 #include "particles.h"
 #include "demondog.h"
+#include "sound.h"
 
 DemonDog demon_dogs[MAX_DEMON_DOGS];
 int      demon_dog_count = 0;
@@ -75,7 +76,9 @@ void demon_dogs_reset(void) {
 }
 
 void update_demon_dogs(void) {
+    static int hurt_sfx_cooldown = 0;
     int i;
+    if (hurt_sfx_cooldown > 0) hurt_sfx_cooldown--;
     for (i = 0; i < demon_dog_count; i++) {
         DemonDog *d = &demon_dogs[i];
         if (!d->active || d->state == DDOG_DEAD) continue;
@@ -106,15 +109,21 @@ void update_demon_dogs(void) {
         int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
 
         if (d->state == DDOG_DORMANT) {
-            if (dist2d < DDOG_WAKE_RADIUS)
+            if (dist2d < DDOG_WAKE_RADIUS) {
                 d->state = DDOG_ALERT;
-            else
+                sound_play(SFX_DOGBARK);
+            } else {
                 continue;
+            }
         }
 
         if (!game_over && dist3d < DDOG_CATCH_DIST && d->damage_timer == 0) {
             d->damage_timer = DDOG_DAMAGE_COOLDOWN;
             player_health  -= DDOG_DAMAGE_AMOUNT;
+            if (hurt_sfx_cooldown == 0) {
+                sound_play(SFX_HURT);
+                hurt_sfx_cooldown = 30;
+            }
             if (player_health <= 0) {
                 player_health = 0;
                 game_over     = 1;

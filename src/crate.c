@@ -12,6 +12,7 @@
 #include "crate.h"
 #include "key.h"
 #include "sml_med.h"
+#include "sound.h"
 
 Crate crates[MAX_CRATES];
 int   crate_count = 0;
@@ -209,6 +210,7 @@ int crate_try_smash(void) {
 
         c->state = CRATE_SMASHED;
         spawn_wood_burst(c->x, c->y - 30, c->z);
+        sound_play(SFX_SMASH);
 
         switch (c->item) {
             case ITEM_MEDIPAC:

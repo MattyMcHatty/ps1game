@@ -14,6 +14,7 @@
 #include "crucifaxe.h"
 #include "crate.h"
 #include "demondog.h"
+#include "sound.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -46,6 +47,7 @@ void update_crucifaxe(void) {
             hit_this_swing       = 0;
             crate_hit_this_swing = 0;
             ddog_hit_this_swing  = 0;
+            sound_play(SFX_SWING);
         }
     }
 
@@ -92,6 +94,9 @@ void update_crucifaxe(void) {
                         if (d->health <= 0) {
                             d->state = DDOG_DEAD;
                             spawn_blood_burst(d->x, d->y, d->z);
+                            sound_play(SFX_DOGDIE);
+                        } else {
+                            sound_play(SFX_DOGHURT);
                         }
                         ddog_hit_this_swing = 1;
                         break;

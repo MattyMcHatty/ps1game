@@ -8,6 +8,7 @@
 #include "camera.h"
 #include "player.h"
 #include "key.h"
+#include "sound.h"
 
 KeyPickup keys[MAX_KEYS];
 int       key_count = 0;
@@ -105,6 +106,7 @@ void keys_update(void) {
         if (dist < KEY_PICKUP_RADIUS) {
             k->active    = 0;
             player_keys |= (1 << k->key_type);
+            sound_play(SFX_PICKUP);
             show_pickup_msg(key_type_names[k->key_type]);
         }
     }
