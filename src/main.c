@@ -12,6 +12,8 @@
 #include "player.h"
 #include "vampire.h"
 #include "crucifaxe.h"
+#include "sound.h"
+#include "cdaudio.h"
 #include "sml_med.h"
 #include "particles.h"
 #include "title.h"
@@ -84,6 +86,8 @@ int main(int argc, const char **argv) {
     door_init();
     demon_dogs_init();
     crucifaxe_init();
+    sound_init();
+    cdaudio_init();
 
     SPI_Init(&poll_cb);
 
@@ -92,6 +96,8 @@ int main(int argc, const char **argv) {
     int hud_fnt      = FntOpen(4,   16,  120, 16, 0, 64);
     int notify_fnt   = FntOpen(116, 210, 200, 28, 0, 192);
     int debug_fnt    = FntOpen(4,   210, 180, 28, 0, 128);
+
+    GameState prev_state = STATE_TITLE;
 
     for (;;) {
         if (game_state == STATE_TITLE) {
@@ -164,6 +170,16 @@ int main(int argc, const char **argv) {
                 }
             }
         }
+
+        /* Handle CD audio state transitions */
+        if (prev_state == STATE_TITLE && game_state == STATE_GAME) {
+            cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
+        }
+        if (prev_state != STATE_TITLE && game_state == STATE_TITLE) {
+            cdaudio_stop();
+        }
+        prev_state = game_state;
+
         flip_buffers(&ctx);
     }
 

@@ -41,6 +41,19 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\ddog_alert2.tim"/>
             <file name="SHADOW.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\shadow.tim"/>
+            <file name="SWING.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\swing.vag"/>
+            <file name="HURT.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\hurt.vag"/>
+            <file name="PICKUP.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\pickup.vag"/>
+            <file name="SMASH.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\smash.vag"/>
+            <file name="DOGBARK.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dogbark.vag"/>
+            <file name="DOGHURT.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\doghurt.vag"/>
+            <file name="DOGDIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dogdie.vag"/>
+            <file name="UNLOCK.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\unlock.vag"/>
         </directory_tree>
     </track>
+
+    <!-- Track 2: CD audio music -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\YuraSoop_Ambient_Dark_Music.wav"/>
+
+
 </iso_project>

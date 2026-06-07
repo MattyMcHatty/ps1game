@@ -36,6 +36,8 @@ add_executable(horror_game
     src/key.c
     src/door.c
     src/demondog.c
+    src/sound.c
+    src/cdaudio.c
 )
 
 target_include_directories(horror_game PRIVATE
