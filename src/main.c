@@ -96,6 +96,7 @@ int main(int argc, const char **argv) {
     int hud_fnt      = FntOpen(4,   16,  120, 16, 0, 64);
     int notify_fnt   = FntOpen(116, 210, 200, 28, 0, 192);
     int debug_fnt    = FntOpen(4,   210, 180, 28, 0, 128);
+    int compass_fnt  = FntOpen(0,   0,   320, 16, 0, 48);
 
     GameState prev_state = STATE_TITLE;
 
@@ -139,6 +140,21 @@ int main(int argc, const char **argv) {
                     FntPrint(debug_fnt, "X:%d\nY:%d\nZ:%d",
                              cam_x, cam_y, cam_z);
                     FntFlush(debug_fnt);
+                    /* scrolling compass tape: 80 chars = 360deg, 10 chars per 45deg
+                       tape order N->NE->E->SE->S->SW->W->NW matches CW / increasing cam_rot */
+                    {
+                        static const char tape[] =
+                            "N         NE        E         SE        S         SW        W         NW        ";
+                        int rot   = ((cam_rot % 4096) + 4096) % 4096;
+                        int pos   = rot * 80 / 4096;
+                        int start = ((pos - 20) % 80 + 80) % 80;
+                        char cbuf[41];
+                        for (k = 0; k < 40; k++)
+                            cbuf[k] = tape[(start + k) % 80];
+                        cbuf[40] = '\0';
+                        FntPrint(compass_fnt, cbuf);
+                        FntFlush(compass_fnt);
+                    }
                 }
             } else if (game_over == 2) {
                 /* Win screen */
