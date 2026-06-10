@@ -36,11 +36,11 @@ void poll_cb(uint32_t port, const volatile uint8_t *buff, size_t rx_len) {
 }
 
 void reset_game(RenderContext *ctx) {
-    cam_x   = 0;
+    cam_x   = 1600;     /* back against the east wall (x=1800, radius 175) */
     cam_y   = 0;
     cam_vy  = 0;
-    cam_z   = 0;
-    cam_rot = 0;
+    cam_z   = 0;        /* centred north-south in the first room */
+    cam_rot = 3072;     /* facing west (-X), across the room */
     vampire_x  = 1200;
     vampire_y  = 0;
     vampire_vy = 0;
@@ -173,6 +173,7 @@ int main(int argc, const char **argv) {
 
         /* Handle CD audio state transitions */
         if (prev_state == STATE_TITLE && game_state == STATE_GAME) {
+            reset_game(&ctx);   /* apply spawn position/state on a fresh start */
             cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
         }
         if (prev_state != STATE_TITLE && game_state == STATE_TITLE) {
