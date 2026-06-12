@@ -141,10 +141,131 @@ void update_demon_dogs(void) {
         }
 
         if (dist2d < DDOG_CATCH_DIST) continue;
-        d->x += (dx * DDOG_SPEED) / dist2d;
-        d->z += (dz * DDOG_SPEED) / dist2d;
+
+        /* --- Separation: soft push away from nearby dogs --- */
+        int32_t sep_x = 0, sep_z = 0;
+        int j;
+        for (j = 0; j < demon_dog_count; j++) {
+            if (j == i) continue;
+            DemonDog *other = &demon_dogs[j];
+            if (!other->active || other->state == DDOG_DEAD) continue;
+            int32_t odx   = d->x - other->x;
+            int32_t odz   = d->z - other->z;
+            int32_t odist = (odx < 0 ? -odx : odx) + (odz < 0 ? -odz : odz);
+            if (odist < DDOG_SEP_RADIUS && odist > 0) {
+                int32_t push = DDOG_SEP_RADIUS - odist;   /* stronger when closer */
+                sep_x += (odx * push) / odist;
+                sep_z += (odz * push) / odist;
+            }
+        }
+
+        /* --- Desired direction: toward player, biased by separation --- */
+        int32_t desired_x = dx + sep_x * DDOG_SEP_WEIGHT;
+        int32_t desired_z = dz + sep_z * DDOG_SEP_WEIGHT;
+        int32_t desired_dist = (desired_x < 0 ? -desired_x : desired_x) +
+                               (desired_z < 0 ? -desired_z : desired_z);
+        if (desired_dist == 0) desired_dist = 1;
+
+        /* --- Obstacle feeler: probe ahead in the desired direction --- */
+        int32_t feeler_x = d->x + (desired_x * DDOG_FEELER_LEN) / desired_dist;
+        int32_t feeler_z = d->z + (desired_z * DDOG_FEELER_LEN) / desired_dist;
+        int32_t fx = feeler_x, fz = feeler_z;
+        crates_collide(&fx, d->y, &fz, 80);
+        apply_ddog_collision(&fx, &fz, d->on_upper_floor, d->on_ramp);
+        int blocked = (fx != feeler_x || fz != feeler_z);
+
+        /* Perpendiculars to the player direction — the two ways to slide
+           along a wall. */
+        int32_t pl_x = -dz, pl_z =  dx;   /* left  */
+        int32_t pr_x =  dz, pr_z = -dx;   /* right */
+
+        if (blocked && d->steer_timer <= 0) {
+            /* Newly blocked: probe BOTH sides and commit to one for a while so
+               the dog follows the wall consistently instead of flip-flopping
+               and drifting off (which sent it up the ramp before). */
+            int32_t pl_dist = (pl_x < 0 ? -pl_x : pl_x) + (pl_z < 0 ? -pl_z : pl_z);
+            int32_t pr_dist = (pr_x < 0 ? -pr_x : pr_x) + (pr_z < 0 ? -pr_z : pr_z);
+            if (pl_dist == 0) pl_dist = 1;
+            if (pr_dist == 0) pr_dist = 1;
+
+            int32_t lx = d->x + (pl_x * DDOG_FEELER_LEN) / pl_dist;
+            int32_t lz = d->z + (pl_z * DDOG_FEELER_LEN) / pl_dist;
+            int32_t rx = d->x + (pr_x * DDOG_FEELER_LEN) / pr_dist;
+            int32_t rz = d->z + (pr_z * DDOG_FEELER_LEN) / pr_dist;
+
+            int32_t tlx = lx, tlz = lz;
+            crates_collide(&tlx, d->y, &tlz, 80);
+            apply_ddog_collision(&tlx, &tlz, d->on_upper_floor, d->on_ramp);
+            int left_blocked = (tlx != lx || tlz != lz);
+
+            int32_t trx = rx, trz = rz;
+            crates_collide(&trx, d->y, &trz, 80);
+            apply_ddog_collision(&trx, &trz, d->on_upper_floor, d->on_ramp);
+            int right_blocked = (trx != rx || trz != rz);
+
+            if (left_blocked && !right_blocked) {
+                d->steer_dir = +1;
+            } else if (right_blocked && !left_blocked) {
+                d->steer_dir = -1;
+            } else {
+                /* Both open (or both blocked): pick the side whose probe ends
+                   closer to the player, so the dog hugs the wall toward the
+                   opening rather than away from it. */
+                int32_t ld = (cam_x - lx < 0 ? lx - cam_x : cam_x - lx) +
+                             (cam_z - lz < 0 ? lz - cam_z : cam_z - lz);
+                int32_t rd = (cam_x - rx < 0 ? rx - cam_x : cam_x - rx) +
+                             (cam_z - rz < 0 ? rz - cam_z : cam_z - rz);
+                d->steer_dir = (ld <= rd) ? -1 : +1;
+            }
+            d->steer_timer = DDOG_STEER_COMMIT;
+        }
+
+        /* While committed, follow the chosen wall side regardless of small
+           changes, so the dog slides past corners cleanly. */
+        if (d->steer_timer > 0) {
+            if (d->steer_dir < 0) { desired_x = pl_x; desired_z = pl_z; }
+            else                  { desired_x = pr_x; desired_z = pr_z; }
+            desired_dist = (desired_x < 0 ? -desired_x : desired_x) +
+                           (desired_z < 0 ? -desired_z : desired_z);
+            if (desired_dist == 0) desired_dist = 1;
+            d->steer_timer--;
+        }
+
+        /* --- Smooth turning: blend new direction with previous (in facing) --- */
+        int32_t move_x = (desired_x * DDOG_SPEED) / desired_dist;
+        int32_t move_z = (desired_z * DDOG_SPEED) / desired_dist;
+        int32_t prev_mx = (int16_t)(d->facing >> 16);
+        int32_t prev_mz = (int16_t)(d->facing & 0xFFFF);
+        int32_t blend_x = (prev_mx * (8 - DDOG_TURN_RATE) + move_x * DDOG_TURN_RATE) >> 3;
+        int32_t blend_z = (prev_mz * (8 - DDOG_TURN_RATE) + move_z * DDOG_TURN_RATE) >> 3;
+        d->facing = ((int32_t)(int16_t)blend_x << 16) | (uint16_t)(int16_t)blend_z;
+
+        d->x += blend_x;
+        d->z += blend_z;
         apply_ddog_collision(&d->x, &d->z, d->on_upper_floor, d->on_ramp);
         crates_collide(&d->x, d->y, &d->z, 80);
+    }
+
+    /* --- Dog vs dog hard collision (after every dog has moved) --- */
+    int a, b;
+    for (a = 0; a < demon_dog_count; a++) {
+        DemonDog *da = &demon_dogs[a];
+        if (!da->active || da->state == DDOG_DEAD) continue;
+        for (b = a + 1; b < demon_dog_count; b++) {
+            DemonDog *db = &demon_dogs[b];
+            if (!db->active || db->state == DDOG_DEAD) continue;
+            int32_t cdx  = da->x - db->x;
+            int32_t cdz  = da->z - db->z;
+            int32_t dist = (cdx < 0 ? -cdx : cdx) + (cdz < 0 ? -cdz : cdz);
+            int32_t min_dist = DDOG_BODY_RADIUS * 2;
+            if (dist < min_dist && dist > 0) {
+                int32_t push    = (min_dist - dist) / 2;
+                int32_t push_ax = (cdx * push) / dist;
+                int32_t push_az = (cdz * push) / dist;
+                da->x += push_ax; da->z += push_az;
+                db->x -= push_ax; db->z -= push_az;
+            }
+        }
     }
 }
 
