@@ -16,6 +16,7 @@
 #define DDOG_Y_OFFSET        100
 #define DDOG_KNOCKBACK        40
 #define DDOG_BAR_TIMER_MAX    120
+#define DDOG_BARK_INTERVAL    100   /* frames between repeated barks while alert (~1.7s) */
 
 #define DDOG_SHADOW_W          70
 #define DDOG_SHADOW_D          30
@@ -41,6 +42,7 @@ typedef struct {
     int       on_upper_floor;
     int       on_ramp;
     int       anim_tick;
+    int       bark_timer;
 } DemonDog;
 
 extern DemonDog demon_dogs[MAX_DEMON_DOGS];

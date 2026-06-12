@@ -110,10 +110,19 @@ void update_demon_dogs(void) {
 
         if (d->state == DDOG_DORMANT) {
             if (dist2d < DDOG_WAKE_RADIUS) {
-                d->state = DDOG_ALERT;
+                d->state      = DDOG_ALERT;
+                d->bark_timer = DDOG_BARK_INTERVAL;
                 sound_play(SFX_DOGBARK);
             } else {
                 continue;
+            }
+        }
+
+        /* Keep barking on an interval while alert and alive. */
+        if (d->state == DDOG_ALERT) {
+            if (--d->bark_timer <= 0) {
+                d->bark_timer = DDOG_BARK_INTERVAL;
+                sound_play(SFX_DOGBARK);
             }
         }
 
