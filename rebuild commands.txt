@@ -1,5 +1,90 @@
-cd "C:\Users\virtu\Documents\ps1game\build"
-"C:\Users\virtu\Documents\PSn00bSDK\bin\ninja.exe"
-"C:\Users\virtu\Documents\PSn00bSDK\bin\elf2x.exe" "C:\Users\virtu\Documents\ps1game\build\HORROR.exe" "C:\Users\virtu\Documents\ps1game\build\HORROR2.BIN"
-cd "C:\Users\virtu\Documents\ps1game"
-"C:\Users\virtu\Documents\mkpsxiso-2.20-win64\mkpsxiso-2.20-win64\mkpsxiso.exe" -y disc.xml
+PS1 HORROR GAME — BUILD INSTRUCTIONS
+=====================================
+
+PROJECT ROOT: C:\Users\virtu\Documents\ps1game
+BUILD DIR:    C:\Users\virtu\Documents\ps1game\build
+SDK:          C:\Users\virtu\Documents\PSn00bSDK
+
+
+HOW THE BUILD PIPELINE WORKS
+-----------------------------
+1. CMake/Ninja compiles the C sources and links them into HORROR.exe
+   This is an ELF binary (MIPS) — NOT a valid PS1 executable on its own.
+
+2. elf2x converts HORROR.exe (ELF) into HORROR2.BIN (raw PS-EXE).
+   HORROR2.BIN is the actual file the PS1 boots. disc.xml packs this file
+   as HORROR.BIN on the disc (see disc.xml line: source="...HORROR2.BIN").
+
+3. mkpsxiso reads disc.xml and produces build\HORROR.bin + build\HORROR.cue
+   (the final disc image ready to load in an emulator or burn).
+
+CRITICAL: If elf2x is skipped, the disc image will contain a stale
+HORROR2.BIN and code changes will have NO effect at runtime. This has
+caused confusion before — always confirm elf2x ran after a code change.
+
+AS OF CURRENT BUILD: CMakeLists.txt has a post-build hook that runs
+elf2x automatically every time the project links. You should NOT need
+to run elf2x manually. If something seems wrong, verify the timestamp
+on build\HORROR2.BIN matches or is newer than build\HORROR.exe.
+
+
+STANDARD REBUILD (recommended — runs from project root in PowerShell)
+----------------------------------------------------------------------
+Step 1 — Compile, link, and auto-convert to PS-EXE:
+    cmake --build build --target horror_game
+
+    This single command: compiles changed sources → links HORROR.exe →
+    post-build hook runs elf2x → HORROR2.BIN is updated automatically.
+
+Step 2 — Build disc image:
+    Set-Location "C:\Users\virtu\Documents\ps1game"
+    mkpsxiso -y disc.xml
+
+    Output: build\HORROR.bin and build\HORROR.cue
+
+
+MANUAL REBUILD (if cmake --build is unavailable or ninja is used directly)
+---------------------------------------------------------------------------
+    cd "C:\Users\virtu\Documents\ps1game\build"
+    "C:\Users\virtu\Documents\PSn00bSDK\bin\ninja.exe"
+
+    NOTE: Ninja also runs the post-build elf2x hook via CMake's generated
+    rules, so HORROR2.BIN should still be updated. If it is not, run
+    elf2x manually (see below).
+
+    cd "C:\Users\virtu\Documents\ps1game"
+    "C:\Users\virtu\Documents\mkpsxiso-2.20-win64\mkpsxiso-2.20-win64\mkpsxiso.exe" -y disc.xml
+
+
+MANUAL elf2x (only needed if the post-build hook somehow did not run)
+----------------------------------------------------------------------
+    "C:\Users\virtu\Documents\PSn00bSDK\bin\elf2x.exe" ^
+        "C:\Users\virtu\Documents\ps1game\build\HORROR.exe" ^
+        "C:\Users\virtu\Documents\ps1game\build\HORROR2.BIN"
+
+    Run this BEFORE mkpsxiso if you suspect HORROR2.BIN is stale.
+    Confirm by checking that HORROR2.BIN's timestamp is newer than HORROR.exe.
+
+
+RECONFIGURE (only needed if CMakeLists.txt itself changes)
+----------------------------------------------------------
+    cmake -S "C:\Users\virtu\Documents\ps1game" ^
+          -B "C:\Users\virtu\Documents\ps1game\build" ^
+          -G Ninja
+
+
+DISC OUTPUT
+-----------
+    build\HORROR.bin   — binary disc image (load this in emulator)
+    build\HORROR.cue   — cue sheet (points to HORROR.bin)
+
+
+DISC CONTENTS (from disc.xml)
+------------------------------
+    HORROR.BIN    — game executable (sourced from build\HORROR2.BIN)
+    SYSTEM.CNF    — boot config (BOOT=cdrom:\HORROR.BIN;1)
+    TRMQ.SMD      — level 1 mesh
+    *.TIM         — textures (gravel, fence, brickwall, door, crate, key,
+                    small med, demon dog states, shadow, crucifaxe icon)
+    *.VAG         — sound effects (swing, hurt, pickup, smash, dog sounds, unlock)
+    Track 2       — CD audio (YuraSoop ambient music, loops via CdlDataEnd callback)

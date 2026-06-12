@@ -243,6 +243,7 @@ int main(int argc, const char **argv) {
         if (prev_state != STATE_TITLE && game_state == STATE_TITLE) {
             cdaudio_stop();
         }
+        cdaudio_update();
         prev_state = game_state;
 
         flip_buffers(&ctx);
