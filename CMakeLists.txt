@@ -38,6 +38,7 @@ add_executable(horror_game
     src/demondog.c
     src/sound.c
     src/cdaudio.c
+    src/menu.c
 )
 
 target_include_directories(horror_game PRIVATE
@@ -75,4 +76,14 @@ target_link_libraries(horror_game PRIVATE
 set_target_properties(horror_game PROPERTIES
     OUTPUT_NAME "HORROR"
     SUFFIX ".exe"
+)
+
+# Convert the ELF to a raw PS-EXE (HORROR2.BIN) that the disc boots.
+# Without this the disc keeps packing a stale executable and code changes
+# never reach the game.
+add_custom_command(TARGET horror_game POST_BUILD
+    COMMAND "${PSN00BSDK}/bin/elf2x.exe"
+            "$<TARGET_FILE:horror_game>"
+            "${CMAKE_BINARY_DIR}/HORROR2.BIN"
+    COMMENT "Converting ELF to PS-EXE (HORROR2.BIN)"
 )

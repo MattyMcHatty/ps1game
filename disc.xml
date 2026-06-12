@@ -41,6 +41,8 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\ddog_alert2.tim"/>
             <file name="SHADOW.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\shadow.tim"/>
+            <file name="CRFXICON.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\crucifaxe.tim"/>
             <file name="SWING.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\swing.vag"/>
             <file name="HURT.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\hurt.vag"/>
             <file name="PICKUP.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\pickup.vag"/>

@@ -4,6 +4,7 @@
 #include <psxpad.h>
 #include "camera.h"
 #include "collision.h"
+#include "title.h"
 
 int32_t cam_x   = 0;
 int32_t cam_y   = 0;
@@ -17,6 +18,7 @@ extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
 void update_camera(void) {
+    if (game_state == STATE_MENU) return;
     if (!pad_buff_len[0]) return;
 
     PadResponse *pad = (PadResponse *)pad_buff[0];

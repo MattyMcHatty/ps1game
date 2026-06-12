@@ -173,6 +173,7 @@ static void draw_ddog_shadow(RenderContext *ctx, DemonDog *d) {
     gte_stotz(&otz);
 
     if (otz <= 0 || otz >= OT_LENGTH) return;
+    if (otz < SCENE_OT_MIN) otz = SCENE_OT_MIN;
 
     int32_t shadow_otz = otz + 2 < OT_LENGTH ? otz + 2 : OT_LENGTH - 1;
 
@@ -241,7 +242,7 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
     gte_avsz4();
     gte_stotz(&otz);
     otz >>= 2;
-    if (otz < 2) otz = 2;
+    if (otz < SCENE_OT_MIN) otz = SCENE_OT_MIN;
     if (otz >= OT_LENGTH) return;
 
     int32_t fdx        = d->x - cam_x;

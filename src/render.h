@@ -7,6 +7,9 @@
 
 #define OT_LENGTH     2048
 #define BUFFER_LENGTH 65536
+/* OT indices 0-15 are reserved for menu UI — always rendered on top.
+   All scene/entity geometry must use indices >= SCENE_OT_MIN. */
+#define SCENE_OT_MIN  16
 #define SCREEN_XRES   320
 #define SCREEN_YRES   240
 

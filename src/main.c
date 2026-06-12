@@ -22,6 +22,7 @@
 #include "key.h"
 #include "door.h"
 #include "demondog.h"
+#include "menu.h"
 
 GameState game_state = STATE_TITLE;
 int       debug_mode = 0;
@@ -98,14 +99,61 @@ int main(int argc, const char **argv) {
     int debug_fnt    = FntOpen(4,   210, 180, 28, 0, 128);
     int compass_fnt  = FntOpen(0,   0,   320, 16, 0, 48);
 
+    /* menu_init opens its own font streams, so call it after FntLoad above. */
+    menu_init();
+
     GameState prev_state = STATE_TITLE;
 
     for (;;) {
         if (game_state == STATE_TITLE) {
             update_title();
             draw_title(&ctx);
+        } else if (game_state == STATE_MENU) {
+            /* Game runs fully in background — enemies move, damage applies.
+               Player controls are locked by hiding pad input from game systems. */
+            if (game_over) {
+                game_state = STATE_GAME; /* death closes menu, shows game over */
+            } else {
+                update_camera();
+                apply_collision();
+                apply_height();
+                update_demon_dogs();
+                update_crucifaxe();
+                update_particles();
+                crates_update();
+                keys_update();
+                sml_meds_update();
+                door_update();
+                draw_scene(&ctx);
+                {
+                    int k, any = 0;
+                    for (k = 0; k < PICKUP_MSG_COUNT; k++) {
+                        if (pickup_log[k].timer > 0) {
+                            FntPrint(notify_fnt, "%s\n", pickup_log[k].msg);
+                            pickup_log[k].timer--;
+                            any = 1;
+                        }
+                    }
+                    if (any) FntFlush(notify_fnt);
+                }
+
+                menu_update();
+                menu_draw(&ctx);
+            }
         } else {
             if (!game_over) {
+                /* Check for Start to open menu */
+                if (pad_buff_len[0]) {
+                    PadResponse *pad = (PadResponse *)pad_buff[0];
+                    static int start_prev = 1; /* treat Start as already held on first frame, swallows title-screen press */
+                    int start_held = (~pad->btn & PAD_START) ? 1 : 0;
+                    if (start_held && !start_prev) {
+                        game_state = STATE_MENU;
+                        menu_open();
+                    }
+                    start_prev = start_held;
+                }
+
                 update_camera();
                 apply_collision();
                 apply_height();

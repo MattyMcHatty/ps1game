@@ -13,6 +13,7 @@
 #include "particles.h"
 #include "crucifaxe.h"
 #include "crate.h"
+#include "title.h"
 #include "demondog.h"
 #include "sound.h"
 
@@ -40,7 +41,7 @@ extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
 void update_crucifaxe(void) {
-    if (swing_timer == 0 && pad_buff_len[0]) {
+    if (game_state != STATE_MENU && swing_timer == 0 && pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
         if (~pad->btn & PAD_SQUARE) {
             swing_timer          = 1;
@@ -195,7 +196,7 @@ void draw_crucifaxe(RenderContext *ctx) {
                in front of dogs, items and geometry (which are all at higher
                OT indices). Faces still sort relative to each other. */
             otz >>= 4;
-            if (otz < 2) otz = 2;
+            if (otz < SCENE_OT_MIN) otz = SCENE_OT_MIN;
 
             /* Per-face normal shading: 40% ambient + primary + dim fill */
             uint16_t n0_idx = *(uint16_t *)(p + 12);

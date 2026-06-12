@@ -3,6 +3,7 @@
 #include "render.h"
 #include "player.h"
 #include "camera.h"
+#include "title.h"
 
 int32_t player_health = MAX_HEALTH;
 int     game_over     = 0;
@@ -29,6 +30,7 @@ void show_pickup_msg(const char *item_name) {
 }
 
 void draw_hud(RenderContext *ctx) {
+    if (game_state == STATE_MENU) return;
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
     /* Health bar background */

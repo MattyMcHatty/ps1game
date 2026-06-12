@@ -87,6 +87,7 @@ void draw_faces(
 
         otz += depth_bias;
         if (otz <= 0) continue;
+        if (otz < SCENE_OT_MIN) otz = SCENE_OT_MIN;
         if (otz >= OT_LENGTH) otz = OT_LENGTH - 1;
 
         int32_t face_cx = ((int32_t)verts[faces[i][0]].vx + verts[faces[i][2]].vx) / 2;

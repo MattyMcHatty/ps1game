@@ -5,7 +5,8 @@
 
 typedef enum {
     STATE_TITLE,
-    STATE_GAME
+    STATE_GAME,
+    STATE_MENU
 } GameState;
 
 extern GameState game_state;
