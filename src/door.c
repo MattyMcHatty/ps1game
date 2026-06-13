@@ -9,6 +9,7 @@
 #include "key.h"
 #include "door.h"
 #include "sound.h"
+#include "title.h"
 
 DoorState door_state = DOOR_LOCKED;
 
@@ -236,7 +237,7 @@ void door_update(void) {
     } else if (door_state == DOOR_UNLOCKED) {
         if (o_just_pressed) {
             door_state = DOOR_OPEN;
-            game_over  = 2;  /* win */
+            game_state = STATE_LOADING;
         }
     }
 }

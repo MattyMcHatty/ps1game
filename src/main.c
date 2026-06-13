@@ -78,6 +78,16 @@ int main(int argc, const char **argv) {
     InitGeom();
     gte_SetGeomScreen(256);
     gte_SetGeomOffset(160, 120);
+
+    SPI_Init(&poll_cb);
+
+    /* Show loading screen while CD assets initialise.
+       Two flips fill both double-buffer framebuffers before blocking reads begin. */
+    draw_loading_screen(&ctx);
+    flip_buffers(&ctx);
+    draw_loading_screen(&ctx);
+    flip_buffers(&ctx);
+
     level_init();
     collision_init();
     floor_zones_init();
@@ -89,8 +99,6 @@ int main(int argc, const char **argv) {
     crucifaxe_init();
     sound_init();
     cdaudio_init();
-
-    SPI_Init(&poll_cb);
 
     FntLoad(960, 0);
     int gameover_fnt = FntOpen(40,  104, 240, 32, 0, 128);
@@ -140,6 +148,10 @@ int main(int argc, const char **argv) {
                 menu_update();
                 menu_draw(&ctx);
             }
+        } else if (game_state == STATE_LOADING) {
+            draw_loading_screen(&ctx);
+        } else if (game_state == STATE_LEVEL2) {
+            /* placeholder — level 2 game loop goes here */
         } else {
             if (!game_over) {
                 /* Check for Start to open menu */
@@ -203,16 +215,6 @@ int main(int argc, const char **argv) {
                         FntPrint(compass_fnt, cbuf);
                         FntFlush(compass_fnt);
                     }
-                }
-            } else if (game_over == 2) {
-                /* Win screen */
-                setRGB0(&ctx.buffers[ctx.active_buffer].draw_env, 0, 30, 0);
-                FntPrint(gameover_fnt, "\n\n       YOU ESCAPED!\n\n    PRESS START");
-                FntFlush(gameover_fnt);
-                if (pad_buff_len[0] &&
-                    (~((PadResponse *)pad_buff[0])->btn & PAD_START)) {
-                    reset_game(&ctx);
-                    game_state = STATE_TITLE;
                 }
             } else {
                 /* Lose screen */
