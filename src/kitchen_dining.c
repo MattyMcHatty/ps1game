@@ -64,12 +64,11 @@ void kitchen_dining_init(void) {
     kitchen_dining_collision_init(&current_collision_room);
     kitchen_dining_floor_zones_init();
 
-    /* Dead center of the big empty kitchen room: x(-2196..-419) z(-800..800) */
-    cam_x   = -1300;
+    cam_x   = 381;
     cam_y   = -149;   /* floor at world y=0 → target = 0 - GROUND_FLOOR_Y = -149 */
     cam_vy  = 0;
-    cam_z   = 0;
-    cam_rot = 1024;   /* facing east toward the doorway to the dining room */
+    cam_z   = 676;
+    cam_rot = 3072;   /* facing west (-X) */
 
     kitchen_buff = load_file_from_cd("\\KITCHN.SMD;1");
     if (kitchen_buff)
@@ -215,9 +214,6 @@ void kitchen_dining_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_kitchen_smd(ctx);
-
-#ifdef DEBUG_COLLISION
-    debug_draw_walls(ctx);
-    debug_draw_coords(ctx);
-#endif
+    /* Player overlays + debug collision view are drawn by the shared
+       draw_player_systems step in main (applies to every area). */
 }

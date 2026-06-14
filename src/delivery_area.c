@@ -373,15 +373,10 @@ void delivery_area_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
     /* draw_vampire(ctx); */ /* disabled — kept for later */
     draw_demon_dogs(ctx);
-    draw_particles(ctx);
     sml_meds_draw(ctx);
     keys_draw(ctx);
     door_draw(ctx);
-    draw_crucifaxe(ctx);
-    draw_hud(ctx);
-
-#ifdef DEBUG_COLLISION
-    debug_draw_walls(ctx);
-    debug_draw_coords(ctx);
-#endif
+    /* Player overlays (particles, weapon, HUD) and the debug collision view
+       are drawn by the shared draw_player_systems step in main, so they
+       apply uniformly to every area. */
 }

@@ -217,9 +217,9 @@ void menu_update(void) {
     uint16_t pressed = btn & ~dpad_prev;
     dpad_prev        = btn;
 
-    /* Close menu on Start */
+    /* Close menu on Start — return to whichever area opened it */
     if (pressed & PAD_START) {
-        game_state = STATE_DELIVERY_AREA;
+        game_state = current_area;
         return;
     }
 

@@ -25,8 +25,12 @@
 #include "menu.h"
 #include "kitchen_dining.h"
 
-GameState game_state = STATE_TITLE;
-int       debug_mode = 0;
+GameState game_state   = STATE_TITLE;
+GameState current_area = STATE_DELIVERY_AREA;  /* last playable area; menu returns here */
+int       debug_mode   = 0;
+
+/* HUD/debug font streams (opened in main() after FntLoad). */
+static int gameover_fnt, hud_fnt, notify_fnt, debug_fnt, compass_fnt;
 
 volatile uint8_t pad_buff[2][34];
 volatile size_t  pad_buff_len[2];
@@ -70,6 +74,122 @@ void reset_game(RenderContext *ctx) {
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
 }
 
+/* ---- Shared per-frame helpers, used by every playable area ---- */
+
+/* Open the inventory menu on a fresh Start press, remembering the area. */
+static void handle_menu_open(void) {
+    if (!pad_buff_len[0]) return;
+    PadResponse *pad = (PadResponse *)pad_buff[0];
+    static int start_prev = 1; /* held on the first frame swallows the title-screen press */
+    int start_held = (~pad->btn & PAD_START) ? 1 : 0;
+    if (start_held && !start_prev) {
+        current_area = game_state;
+        menu_open();
+        game_state = STATE_MENU;
+    }
+    start_prev = start_held;
+}
+
+/* Advance one area: player movement + the area's own geometry/entities,
+   then the shared weapon and particle systems. */
+static void update_current_area(GameState area) {
+    update_camera();
+    if (area == STATE_KITCHEN_DINING) {
+        apply_collision_kitchen_dining();
+        apply_height();
+    } else {
+        apply_collision();
+        apply_height();
+        update_demon_dogs();
+        crates_update();
+        keys_update();
+        sml_meds_update();
+        door_update();
+    }
+    update_crucifaxe();
+    update_particles();
+}
+
+/* Draw an area's world + entities only (player overlays come separately). */
+static void draw_current_area(RenderContext *ctx, GameState area) {
+    if (area == STATE_KITCHEN_DINING)
+        kitchen_dining_draw(ctx);
+    else
+        delivery_area_draw(ctx);
+}
+
+/* Player overlays shared by every area: blood particles, the swingable
+   weapon, the health/stamina HUD, and the debug collision view. */
+static void draw_player_systems(RenderContext *ctx) {
+    draw_particles(ctx);
+    draw_crucifaxe(ctx);
+    draw_hud(ctx);
+#ifdef DEBUG_COLLISION
+    debug_draw_walls(ctx);
+    debug_draw_coords(ctx);
+#endif
+}
+
+/* On-screen item pickup notifications. */
+static void draw_pickup_messages(void) {
+    int k, any = 0;
+    for (k = 0; k < PICKUP_MSG_COUNT; k++) {
+        if (pickup_log[k].timer > 0) {
+            FntPrint(notify_fnt, "%s\n", pickup_log[k].msg);
+            pickup_log[k].timer--;
+            any = 1;
+        }
+    }
+    if (any) FntFlush(notify_fnt);
+}
+
+/* Debug overlay: held items, coordinates, and the scrolling compass. */
+static void draw_debug_overlay(void) {
+    if (!debug_mode) return;
+    int k;
+
+    for (k = 0; k < MAX_KEY_TYPES; k++)
+        if (player_keys & (1 << k))
+            FntPrint(hud_fnt, "%s\n", key_type_names[k]);
+    FntFlush(hud_fnt);
+
+    FntPrint(debug_fnt, "X:%d\nY:%d\nZ:%d", cam_x, cam_y, cam_z);
+    FntFlush(debug_fnt);
+
+    /* Scrolling compass tape: 80 chars = 360deg, 10 chars per 45deg,
+       order N->NE->E->SE->S->SW->W->NW matches increasing cam_rot (CW). */
+    {
+        static const char tape[] =
+            "N         NE        E         SE        S         SW        W         NW        ";
+        int rot   = ((cam_rot % 4096) + 4096) % 4096;
+        int pos   = rot * 80 / 4096;
+        int start = ((pos - 20) % 80 + 80) % 80;
+        char cbuf[41];
+        for (k = 0; k < 40; k++)
+            cbuf[k] = tape[(start + k) % 80];
+        cbuf[40] = '\0';
+        FntPrint(compass_fnt, cbuf);
+        FntFlush(compass_fnt);
+    }
+}
+
+/* Game-over / restart screen (area-agnostic). */
+static void draw_lose_screen(RenderContext *ctx) {
+    if (flash_timer > 0) {
+        flash_timer--;
+        uint8_t r = (flash_timer / 6) % 2 == 0 ? 200 : 0;
+        setRGB0(&ctx->buffers[ctx->active_buffer].draw_env, r, 0, 0);
+    } else if (pad_buff_len[0] &&
+               (~((PadResponse *)pad_buff[0])->btn & PAD_START)) {
+        reset_game(ctx);
+        game_state = STATE_TITLE;
+    } else {
+        setRGB0(&ctx->buffers[ctx->active_buffer].draw_env, 80, 0, 0);
+        FntPrint(gameover_fnt, "          GAME OVER\n    PRESS START TO RESTART");
+        FntFlush(gameover_fnt);
+    }
+}
+
 int main(int argc, const char **argv) {
     ResetGraph(0);
 
@@ -102,11 +222,11 @@ int main(int argc, const char **argv) {
     cdaudio_init();
 
     FntLoad(960, 0);
-    int gameover_fnt = FntOpen(40,  104, 240, 32, 0, 128);
-    int hud_fnt      = FntOpen(4,   16,  120, 16, 0, 64);
-    int notify_fnt   = FntOpen(116, 210, 200, 28, 0, 192);
-    int debug_fnt    = FntOpen(4,   210, 180, 28, 0, 128);
-    int compass_fnt  = FntOpen(0,   0,   320, 16, 0, 48);
+    gameover_fnt = FntOpen(40,  104, 240, 32, 0, 128);
+    hud_fnt      = FntOpen(4,   16,  120, 16, 0, 64);
+    notify_fnt   = FntOpen(116, 210, 200, 28, 0, 192);
+    debug_fnt    = FntOpen(4,   210, 180, 28, 0, 128);
+    compass_fnt  = FntOpen(0,   0,   320, 16, 0, 48);
 
     /* menu_init and title_init open their own font streams, so call them
        after FntLoad above. */
@@ -120,34 +240,16 @@ int main(int argc, const char **argv) {
             update_title();
             draw_title(&ctx);
         } else if (game_state == STATE_MENU) {
-            /* Game runs fully in background — enemies move, damage applies.
-               Player controls are locked by hiding pad input from game systems. */
+            /* The area keeps running in the background (enemies move, gravity
+               applies); update_camera and weapon input self-disable while in
+               STATE_MENU, so the player is effectively frozen. */
             if (game_over) {
-                game_state = STATE_DELIVERY_AREA; /* death closes menu, shows game over */
+                game_state = current_area; /* death closes menu, shows game over */
             } else {
-                update_camera();
-                apply_collision();
-                apply_height();
-                update_demon_dogs();
-                update_crucifaxe();
-                update_particles();
-                crates_update();
-                keys_update();
-                sml_meds_update();
-                door_update();
-                delivery_area_draw(&ctx);
-                {
-                    int k, any = 0;
-                    for (k = 0; k < PICKUP_MSG_COUNT; k++) {
-                        if (pickup_log[k].timer > 0) {
-                            FntPrint(notify_fnt, "%s\n", pickup_log[k].msg);
-                            pickup_log[k].timer--;
-                            any = 1;
-                        }
-                    }
-                    if (any) FntFlush(notify_fnt);
-                }
-
+                update_current_area(current_area);
+                draw_current_area(&ctx, current_area);
+                draw_player_systems(&ctx);
+                draw_pickup_messages();
                 menu_update();
                 menu_draw(&ctx);
             }
@@ -155,111 +257,23 @@ int main(int argc, const char **argv) {
             draw_loading_screen(&ctx);
             kitchen_dining_init();
             game_state = STATE_KITCHEN_DINING;
-        } else if (game_state == STATE_KITCHEN_DINING) {
-            update_camera();
-            apply_collision_kitchen_dining();
-            apply_height();
-            kitchen_dining_draw(&ctx);
-            if (debug_mode) {
-                int k;
-                FntPrint(debug_fnt, "X:%d\nY:%d\nZ:%d", cam_x, cam_y, cam_z);
-                FntFlush(debug_fnt);
-                {
-                    static const char tape[] =
-                        "N         NE        E         SE        S         SW        W         NW        ";
-                    int rot   = ((cam_rot % 4096) + 4096) % 4096;
-                    int pos   = rot * 80 / 4096;
-                    int start = ((pos - 20) % 80 + 80) % 80;
-                    char cbuf[41];
-                    for (k = 0; k < 40; k++)
-                        cbuf[k] = tape[(start + k) % 80];
-                    cbuf[40] = '\0';
-                    FntPrint(compass_fnt, cbuf);
-                    FntFlush(compass_fnt);
-                }
-            }
-        } else {
-            if (!game_over) {
-                /* Check for Start to open menu */
-                if (pad_buff_len[0]) {
-                    PadResponse *pad = (PadResponse *)pad_buff[0];
-                    static int start_prev = 1; /* treat Start as already held on first frame, swallows title-screen press */
-                    int start_held = (~pad->btn & PAD_START) ? 1 : 0;
-                    if (start_held && !start_prev) {
-                        game_state = STATE_MENU;
-                        menu_open();
-                    }
-                    start_prev = start_held;
-                }
-
-                update_camera();
-                apply_collision();
-                apply_height();
-                /* update_vampire(); */       /* disabled — kept for later */
-                /* apply_vampire_height(); */ /* disabled — kept for later */
-                update_demon_dogs();
-                update_crucifaxe();
-                update_particles();
-                crates_update();
-                keys_update();
-                sml_meds_update();
-                door_update();
-                delivery_area_draw(&ctx);
-                {
-                    int k, any = 0;
-                    for (k = 0; k < PICKUP_MSG_COUNT; k++) {
-                        if (pickup_log[k].timer > 0) {
-                            FntPrint(notify_fnt, "%s\n", pickup_log[k].msg);
-                            pickup_log[k].timer--;
-                            any = 1;
-                        }
-                    }
-                    if (any) FntFlush(notify_fnt);
-                }
-                if (debug_mode) {
-                    int k;
-                    for (k = 0; k < MAX_KEY_TYPES; k++) {
-                        if (player_keys & (1 << k))
-                            FntPrint(hud_fnt, "%s\n", key_type_names[k]);
-                    }
-                    FntFlush(hud_fnt);
-                    FntPrint(debug_fnt, "X:%d\nY:%d\nZ:%d",
-                             cam_x, cam_y, cam_z);
-                    FntFlush(debug_fnt);
-                    /* scrolling compass tape: 80 chars = 360deg, 10 chars per 45deg
-                       tape order N->NE->E->SE->S->SW->W->NW matches CW / increasing cam_rot */
-                    {
-                        static const char tape[] =
-                            "N         NE        E         SE        S         SW        W         NW        ";
-                        int rot   = ((cam_rot % 4096) + 4096) % 4096;
-                        int pos   = rot * 80 / 4096;
-                        int start = ((pos - 20) % 80 + 80) % 80;
-                        char cbuf[41];
-                        for (k = 0; k < 40; k++)
-                            cbuf[k] = tape[(start + k) % 80];
-                        cbuf[40] = '\0';
-                        FntPrint(compass_fnt, cbuf);
-                        FntFlush(compass_fnt);
-                    }
-                }
+        } else if (game_state == STATE_DELIVERY_AREA ||
+                   game_state == STATE_KITCHEN_DINING) {
+            if (game_over) {
+                draw_lose_screen(&ctx);
             } else {
-                /* Lose screen */
-                uint8_t r;
-                if (flash_timer > 0) {
-                    flash_timer--;
-                    r = (flash_timer / 6) % 2 == 0 ? 200 : 0;
-                    setRGB0(&ctx.buffers[ctx.active_buffer].draw_env, r, 0, 0);
-                } else {
-                    if (pad_buff_len[0] &&
-                        (~((PadResponse *)pad_buff[0])->btn & PAD_START)) {
-                        reset_game(&ctx);
-                        game_state = STATE_TITLE;
-                    } else {
-                        setRGB0(&ctx.buffers[ctx.active_buffer].draw_env, 80, 0, 0);
-                        FntPrint(gameover_fnt, "          GAME OVER\n    PRESS START TO RESTART");
-                        FntFlush(gameover_fnt);
-                    }
-                }
+                /* Capture the area first: handle_menu_open may switch game_state
+                   to STATE_MENU mid-frame, but the rest of this frame must keep
+                   using the real area so the correct collision runs (otherwise
+                   the kitchen would fall through to delivery-area collision and
+                   its back-face push would catapult the player). */
+                GameState area = game_state;
+                handle_menu_open();
+                update_current_area(area);
+                draw_current_area(&ctx, area);
+                draw_player_systems(&ctx);
+                draw_pickup_messages();
+                draw_debug_overlay();
             }
         }
 
