@@ -32,6 +32,8 @@ add_executable(horror_game
     src/spi.c
     src/collision.c
     src/level1_mesh_collision.c
+    src/kitchen_dining_mesh_collision.c
+    src/level2.c
     src/crate.c
     src/key.c
     src/door.c

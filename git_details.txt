@@ -75,6 +75,9 @@ locally using mkpsxiso — it does not need to be in version control.
 
 NOTES FOR CLAUDE
 ----------------
+- IMPORTANT: Never stage, commit, or push anything unless the user explicitly
+  says "commit" or "commit and push". Do not commit as part of completing a
+  task unless directly instructed.
 - The repo is on GitHub at https://github.com/MattyMcHatty/ps1game.git
 - Branch is always "master" — do not create new branches unless asked.
 - When asked to "commit and push", stage all changed and new files from

@@ -16,7 +16,7 @@ extern int debug_mode;  /* toggled by Select; always available */
  * Wall collision
  * ----------------------------------------------------------------------- */
 
-#define MAX_WALLS_PER_ROOM 32
+#define MAX_WALLS_PER_ROOM 40
 
 typedef struct {
     int32_t x1, z1;
@@ -39,6 +39,7 @@ extern CollisionRoom current_collision_room;
 int  collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius);
 void collision_init(void);
 void apply_collision(void);
+void apply_collision_level2(void);
 void apply_vampire_collision(void);
 void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ramp);
 

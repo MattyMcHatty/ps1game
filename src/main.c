@@ -23,6 +23,7 @@
 #include "door.h"
 #include "demondog.h"
 #include "menu.h"
+#include "level2.h"
 
 GameState game_state = STATE_TITLE;
 int       debug_mode = 0;
@@ -150,8 +151,31 @@ int main(int argc, const char **argv) {
             }
         } else if (game_state == STATE_LOADING) {
             draw_loading_screen(&ctx);
+            level2_init();
+            game_state = STATE_LEVEL2;
         } else if (game_state == STATE_LEVEL2) {
-            /* placeholder — level 2 game loop goes here */
+            update_camera();
+            apply_collision_level2();
+            apply_height();
+            level2_draw(&ctx);
+            if (debug_mode) {
+                int k;
+                FntPrint(debug_fnt, "X:%d\nY:%d\nZ:%d", cam_x, cam_y, cam_z);
+                FntFlush(debug_fnt);
+                {
+                    static const char tape[] =
+                        "N         NE        E         SE        S         SW        W         NW        ";
+                    int rot   = ((cam_rot % 4096) + 4096) % 4096;
+                    int pos   = rot * 80 / 4096;
+                    int start = ((pos - 20) % 80 + 80) % 80;
+                    char cbuf[41];
+                    for (k = 0; k < 40; k++)
+                        cbuf[k] = tape[(start + k) % 80];
+                    cbuf[40] = '\0';
+                    FntPrint(compass_fnt, cbuf);
+                    FntFlush(compass_fnt);
+                }
+            }
         } else {
             if (!game_over) {
                 /* Check for Start to open menu */

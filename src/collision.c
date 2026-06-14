@@ -5,6 +5,7 @@
 #include "camera.h"
 #include "vampire.h"
 #include "level1_mesh_collision.h"
+#include "kitchen_dining_mesh_collision.h"
 #include "crate.h"
 
 CollisionRoom current_collision_room;
@@ -220,6 +221,46 @@ void debug_draw_coords(RenderContext *ctx) {
 }
 
 #endif /* DEBUG_COLLISION */
+
+/* Front-side-only wall collision for level 2.
+ * Identical to collide_wall but with NO back-face rescue: a player who is
+ * behind the wall (negative dot) is never pushed. Level 2's interior partitions
+ * have coincident two-sided faces; the back-face rescue in collide_wall would
+ * catapult the player across the partition and trap them oscillating between
+ * the two faces. Each face here only blocks from its own (normal) side. */
+static int collide_wall_frontonly(Wall *w, int32_t *px, int32_t *pz, int32_t radius) {
+    int32_t dx = *px - w->x1;
+    int32_t dz = *pz - w->z1;
+
+    int32_t dot = ((dx >> 4) * (w->nx >> 4) + (dz >> 4) * (w->nz >> 4)) >> 4;
+    if (dot >= radius) return 0;
+    if (dot < 0)       return 0;  /* behind the wall — never push */
+
+    int32_t wx      = (w->x2 - w->x1) >> 4;
+    int32_t wz      = (w->z2 - w->z1) >> 4;
+    int32_t dx_s    = dx >> 4;
+    int32_t dz_s    = dz >> 4;
+    int32_t along   = dx_s * wx + dz_s * wz;
+    int32_t wlen_sq = wx * wx + wz * wz;
+    if (along < 0 || along > wlen_sq) return 0;
+
+    int32_t push = radius - dot;
+    *px += (push * w->nx) >> 12;
+    *pz += (push * w->nz) >> 12;
+    return 1;
+}
+
+void apply_collision_level2(void) {
+    CollisionRoom *r = &current_collision_room;
+    /* radius 75 (vs level 1's 175): the kitchen model's door opening is only
+     * 201 units wide, so a 175-radius player can't fit. 75 leaves a ~51-unit
+     * clearance band through the door — matching level 1's corridor feel. */
+    int32_t radius = 75;
+    int i, pass;
+    for (pass = 0; pass < 2; pass++)
+        for (i = 0; i < r->wall_count; i++)
+            collide_wall_frontonly(&r->walls[i], &cam_x, &cam_z, radius);
+}
 
 void apply_vampire_collision(void) {
     CollisionRoom *r = &current_collision_room;
