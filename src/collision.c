@@ -4,14 +4,14 @@
 #include "collision.h"
 #include "camera.h"
 #include "vampire.h"
-#include "level1_mesh_collision.h"
+#include "delivery_area_mesh_collision.h"
 #include "kitchen_dining_mesh_collision.h"
 #include "crate.h"
 
 CollisionRoom current_collision_room;
 
 void collision_init(void) {
-    room_collision_init(&current_collision_room);
+    delivery_area_collision_init(&current_collision_room);
 }
 
 int collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius) {
@@ -46,7 +46,7 @@ void apply_collision(void) {
     int32_t radius = 175;
     int i, pass;
 
-    /* Wall layout (see level1_mesh_collision.c):
+    /* Wall layout (see delivery_area_mesh_collision.c):
      *   0-12  regular room walls — always active
      *   13    upper-floor bannister — only when player_on_upper_floor
      *   14    under-ramp barrier along Z (at ramp midpoint X=-3208)
@@ -250,7 +250,7 @@ static int collide_wall_frontonly(Wall *w, int32_t *px, int32_t *pz, int32_t rad
     return 1;
 }
 
-void apply_collision_level2(void) {
+void apply_collision_kitchen_dining(void) {
     CollisionRoom *r = &current_collision_room;
     /* radius 75 (vs level 1's 175): the kitchen model's door opening is only
      * 201 units wide, so a 175-radius player can't fit. 75 leaves a ~51-unit
@@ -285,7 +285,7 @@ void apply_vampire_collision(void) {
  * Floor zones
  *
  * Coordinates taken from the script-detected floor data in
- * level1_mesh_collision.c comments:
+ * delivery_area_mesh_collision.c comments:
  *   FLOOR 0: y=149  x(-5451 to -238)   z(2557 to 5426)  big room
  *   FLOOR 1: y=149  x(-1400 to -1000)  z(1800 to 2557)  corridor
  *   FLOOR 2: y=149  x(-1800 to 1800)   z(-1799 to 1800) first room
@@ -293,7 +293,7 @@ void apply_vampire_collision(void) {
  *   FLOOR 4: y=-544 x(-5483 to -4143)  z(2527 to 5447)  upper floor
  *
  * cam_y = floor_surface_y - GROUND_FLOOR_Y  (0 = default camera height)
- * trans.vy in draw_scene = -cam_y
+ * trans.vy in delivery_area_draw = -cam_y
  * ----------------------------------------------------------------------- */
 
 FloorZone floor_zones[MAX_FLOOR_ZONES];

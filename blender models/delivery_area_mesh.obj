@@ -1,6 +1,6 @@
 # Blender 5.1.2
 # www.blender.org
-mtllib level1_mesh.mtl
+mtllib delivery_area_mesh.mtl
 o Cube
 v -18.000000 -1.500000 18.000000
 v -18.000000 1.500000 18.000000

@@ -5,14 +5,15 @@
 
 typedef enum {
     STATE_TITLE,
-    STATE_GAME,
+    STATE_DELIVERY_AREA,
     STATE_MENU,
     STATE_LOADING,
-    STATE_LEVEL2,
+    STATE_KITCHEN_DINING,
 } GameState;
 
 extern GameState game_state;
 
+void title_init(void);
 void update_title(void);
 void draw_title(RenderContext *ctx);
 void draw_loading_screen(RenderContext *ctx);

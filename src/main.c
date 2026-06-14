@@ -8,7 +8,7 @@
 #include "spi.h"
 #include "camera.h"
 #include "render.h"
-#include "level.h"
+#include "delivery_area.h"
 #include "player.h"
 #include "vampire.h"
 #include "crucifaxe.h"
@@ -23,7 +23,7 @@
 #include "door.h"
 #include "demondog.h"
 #include "menu.h"
-#include "level2.h"
+#include "kitchen_dining.h"
 
 GameState game_state = STATE_TITLE;
 int       debug_mode = 0;
@@ -89,7 +89,7 @@ int main(int argc, const char **argv) {
     draw_loading_screen(&ctx);
     flip_buffers(&ctx);
 
-    level_init();
+    delivery_area_init();
     collision_init();
     floor_zones_init();
     crates_init();
@@ -108,8 +108,10 @@ int main(int argc, const char **argv) {
     int debug_fnt    = FntOpen(4,   210, 180, 28, 0, 128);
     int compass_fnt  = FntOpen(0,   0,   320, 16, 0, 48);
 
-    /* menu_init opens its own font streams, so call it after FntLoad above. */
+    /* menu_init and title_init open their own font streams, so call them
+       after FntLoad above. */
     menu_init();
+    title_init();
 
     GameState prev_state = STATE_TITLE;
 
@@ -121,7 +123,7 @@ int main(int argc, const char **argv) {
             /* Game runs fully in background — enemies move, damage applies.
                Player controls are locked by hiding pad input from game systems. */
             if (game_over) {
-                game_state = STATE_GAME; /* death closes menu, shows game over */
+                game_state = STATE_DELIVERY_AREA; /* death closes menu, shows game over */
             } else {
                 update_camera();
                 apply_collision();
@@ -133,7 +135,7 @@ int main(int argc, const char **argv) {
                 keys_update();
                 sml_meds_update();
                 door_update();
-                draw_scene(&ctx);
+                delivery_area_draw(&ctx);
                 {
                     int k, any = 0;
                     for (k = 0; k < PICKUP_MSG_COUNT; k++) {
@@ -151,13 +153,13 @@ int main(int argc, const char **argv) {
             }
         } else if (game_state == STATE_LOADING) {
             draw_loading_screen(&ctx);
-            level2_init();
-            game_state = STATE_LEVEL2;
-        } else if (game_state == STATE_LEVEL2) {
+            kitchen_dining_init();
+            game_state = STATE_KITCHEN_DINING;
+        } else if (game_state == STATE_KITCHEN_DINING) {
             update_camera();
-            apply_collision_level2();
+            apply_collision_kitchen_dining();
             apply_height();
-            level2_draw(&ctx);
+            kitchen_dining_draw(&ctx);
             if (debug_mode) {
                 int k;
                 FntPrint(debug_fnt, "X:%d\nY:%d\nZ:%d", cam_x, cam_y, cam_z);
@@ -202,7 +204,7 @@ int main(int argc, const char **argv) {
                 keys_update();
                 sml_meds_update();
                 door_update();
-                draw_scene(&ctx);
+                delivery_area_draw(&ctx);
                 {
                     int k, any = 0;
                     for (k = 0; k < PICKUP_MSG_COUNT; k++) {
@@ -262,8 +264,14 @@ int main(int argc, const char **argv) {
         }
 
         /* Handle CD audio state transitions */
-        if (prev_state == STATE_TITLE && game_state == STATE_GAME) {
+        if (prev_state == STATE_TITLE && game_state == STATE_DELIVERY_AREA) {
             reset_game(&ctx);   /* apply spawn position/state on a fresh start */
+            cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
+        }
+        /* Jumping straight to the kitchen via the debug level-select goes
+           through STATE_LOADING; start the music here too (the in-game door
+           path keeps the already-playing track). */
+        if (prev_state == STATE_TITLE && game_state == STATE_LOADING) {
             cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
         }
         if (prev_state != STATE_TITLE && game_state == STATE_TITLE) {

@@ -7,6 +7,26 @@
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
+/* ---- Debug level-select menu (opened with Select on the title screen) ---- */
+
+static int debug_menu_open   = 0;
+static int debug_menu_cursor = 0;
+static int level_select_fnt  = -1;
+
+static const char *const level_names[] = {
+    "DELIVERY AREA",
+    "KITCHEN DINING",
+};
+#define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
+
+/* Target game state for each entry (index matches level_names). The kitchen
+   loads via STATE_LOADING, which runs kitchen_dining_init then switches to
+   STATE_KITCHEN_DINING. */
+static const GameState level_states[LEVEL_SELECT_COUNT] = {
+    STATE_DELIVERY_AREA,
+    STATE_LOADING,
+};
+
 /* ---- Letter bitmasks: 7 rows x 5 cols, row 0 = top ---- */
 
 static const uint8_t LETTER_H[7][5] = {
@@ -268,16 +288,60 @@ void draw_title(RenderContext *ctx) {
                     tile_size, red, 0, 0);
     }
 
-    title_flash++;
-    if ((title_flash & 63) < 40)
-        draw_press_start(ctx);
+    if (debug_menu_open) {
+        int k;
+        FntPrint(level_select_fnt, "LEVEL SELECT\n\n");
+        for (k = 0; k < LEVEL_SELECT_COUNT; k++) {
+            if (k == debug_menu_cursor)
+                FntPrint(level_select_fnt, "* %s\n", level_names[k]);
+            else
+                FntPrint(level_select_fnt, "  %s\n", level_names[k]);
+        }
+        FntPrint(level_select_fnt, "\nX:LOAD  SEL:BACK");
+        FntFlush(level_select_fnt);
+    } else {
+        title_flash++;
+        if ((title_flash & 63) < 40)
+            draw_press_start(ctx);
+    }
+}
+
+void title_init(void) {
+    /* Font window for the level-select list (8x16 glyphs), below the title. */
+    level_select_fnt = FntOpen(96, 120, 160, 96, 0, 256);
 }
 
 void update_title(void) {
     if (!pad_buff_len[0]) return;
     PadResponse *pad = (PadResponse *)pad_buff[0];
-    if (~pad->btn & PAD_START)
-        game_state = STATE_GAME;
+
+    /* Edge-detect newly pressed buttons (pad bits are active-low). */
+    static uint16_t prev_held = 0;
+    uint16_t held    = ~pad->btn;
+    uint16_t pressed = held & ~prev_held;
+    prev_held = held;
+
+    if (!debug_menu_open) {
+        if (pressed & PAD_SELECT) {
+            debug_menu_open   = 1;
+            debug_menu_cursor = 0;
+        } else if (pressed & PAD_START) {
+            game_state = STATE_DELIVERY_AREA;
+        }
+        return;
+    }
+
+    /* Menu open: D-pad moves the cursor, X loads, Select backs out. */
+    if (pressed & PAD_UP)
+        debug_menu_cursor = (debug_menu_cursor + LEVEL_SELECT_COUNT - 1) % LEVEL_SELECT_COUNT;
+    if (pressed & PAD_DOWN)
+        debug_menu_cursor = (debug_menu_cursor + 1) % LEVEL_SELECT_COUNT;
+    if (pressed & PAD_SELECT)
+        debug_menu_open = 0;
+    if (pressed & PAD_CROSS) {
+        debug_menu_open = 0;
+        game_state = level_states[debug_menu_cursor];
+    }
 }
 
 void draw_loading_screen(RenderContext *ctx) {

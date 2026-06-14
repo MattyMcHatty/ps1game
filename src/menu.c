@@ -219,7 +219,7 @@ void menu_update(void) {
 
     /* Close menu on Start */
     if (pressed & PAD_START) {
-        game_state = STATE_GAME;
+        game_state = STATE_DELIVERY_AREA;
         return;
     }
 

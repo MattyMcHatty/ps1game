@@ -7,7 +7,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "camera.h"
-#include "level2.h"
+#include "kitchen_dining.h"
 #include "collision.h"
 #include "kitchen_dining_mesh_collision.h"
 
@@ -26,7 +26,7 @@ static void *load_file_from_cd(const char *filename) {
     return buff;
 }
 
-static void level2_floor_zones_init(void) {
+static void kitchen_dining_floor_zones_init(void) {
     int i = 0;
 
     /* Large kitchen room (FLOOR 7) */
@@ -60,9 +60,9 @@ static void level2_floor_zones_init(void) {
     floor_zone_count = i;
 }
 
-void level2_init(void) {
-    level2_collision_init(&current_collision_room);
-    level2_floor_zones_init();
+void kitchen_dining_init(void) {
+    kitchen_dining_collision_init(&current_collision_room);
+    kitchen_dining_floor_zones_init();
 
     /* Dead center of the big empty kitchen room: x(-2196..-419) z(-800..800) */
     cam_x   = -1300;
@@ -185,7 +185,7 @@ static void draw_kitchen_smd(RenderContext *ctx) {
     }
 }
 
-void level2_draw(RenderContext *ctx) {
+void kitchen_dining_draw(RenderContext *ctx) {
     /* Dark interior background */
     TILE *bg = (TILE *)ctx->next_packet;
     setTile(bg);

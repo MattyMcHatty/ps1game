@@ -9,8 +9,8 @@
 
 #include "kitchen_dining_mesh_collision.h"
 
-void level2_collision_init(CollisionRoom *r) {
-    r->wall_count = LEVEL2_WALL_COUNT;
+void kitchen_dining_collision_init(CollisionRoom *r) {
+    r->wall_count = KITCHEN_DINING_WALL_COUNT;
     r->min_x = -3294;
     r->max_x = 600;
     r->min_z = -1699;
@@ -193,7 +193,7 @@ void level2_collision_init(CollisionRoom *r) {
 #ifdef DEBUG_COLLISION
     {
         int i;
-        for (i = 0; i < LEVEL2_WALL_COUNT; i++) {
+        for (i = 0; i < KITCHEN_DINING_WALL_COUNT; i++) {
             r->walls[i].y_floor = -375;
             r->walls[i].y_ceil  = -600;
         }

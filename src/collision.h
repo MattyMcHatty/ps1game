@@ -39,7 +39,7 @@ extern CollisionRoom current_collision_room;
 int  collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius);
 void collision_init(void);
 void apply_collision(void);
-void apply_collision_level2(void);
+void apply_collision_kitchen_dining(void);
 void apply_vampire_collision(void);
 void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ramp);
 

@@ -22,7 +22,7 @@ add_executable(horror_game
     src/main.c
     src/camera.c
     src/render.c
-    src/level.c
+    src/delivery_area.c
     src/player.c
     src/vampire.c
     src/crucifaxe.c
@@ -31,9 +31,9 @@ add_executable(horror_game
     src/title.c
     src/spi.c
     src/collision.c
-    src/level1_mesh_collision.c
+    src/delivery_area_mesh_collision.c
     src/kitchen_dining_mesh_collision.c
-    src/level2.c
+    src/kitchen_dining.c
     src/crate.c
     src/key.c
     src/door.c

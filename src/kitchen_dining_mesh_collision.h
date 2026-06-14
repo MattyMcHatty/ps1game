@@ -9,9 +9,9 @@
 
 #include "collision.h"
 
-#define LEVEL2_WALL_COUNT  32
-#define LEVEL2_FLOOR_COUNT 8
+#define KITCHEN_DINING_WALL_COUNT  32
+#define KITCHEN_DINING_FLOOR_COUNT 8
 
-void level2_collision_init(CollisionRoom *r);
+void kitchen_dining_collision_init(CollisionRoom *r);
 
 #endif /* KITCHEN_DINING_MESH_COLLISION_H */

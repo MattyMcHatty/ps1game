@@ -7,7 +7,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "camera.h"
-#include "level.h"
+#include "delivery_area.h"
 #include "collision.h"
 
 #include "vampire.h"
@@ -19,7 +19,7 @@
 #include "key.h"
 #include "door.h"
 #include "demondog.h"
-#include "level1_tex_map.h"
+#include "delivery_area_tex_map.h"
 
 static SMD  *room_smd  = NULL;
 static void *room_buff = NULL;
@@ -68,7 +68,7 @@ static void load_tim_to_vram(const char *filename, int slot) {
     free(buf);
 }
 
-void level_init(void) {
+void delivery_area_init(void) {
     CdInit();
     scSetClipRect(0, 0, SCREEN_XRES, SCREEN_YRES);
 
@@ -77,7 +77,7 @@ void level_init(void) {
     load_tim_to_vram("\\BRIKWLL.TIM;1", 2);
     load_tim_to_vram("\\DBLDOOR.TIM;1", 3);
 
-    room_buff = load_file_from_cd("\\TRMQ.SMD", NULL);
+    room_buff = load_file_from_cd("\\DELIVERY.SMD", NULL);
     if (room_buff) {
         room_smd = smdInitData(room_buff);
     }
@@ -86,7 +86,7 @@ void level_init(void) {
 /* SMD FT4 layout, stride=32:
    [0-3] SMD_PRI_TYPE  [4-11] v0..v3 uint16  [12-13] n0  [14-15] pad
    [16-18] r,g,b  [19] code  [20-27] UVs (ignored)  [28-31] tpage/clut (ignored)
-   Texture per primitive from level1_tex_map.h (0xFF = untextured). */
+   Texture per primitive from delivery_area_tex_map.h (0xFF = untextured). */
 
 /* World-space UV projection: floor uses XZ, walls use along-wall + Y. */
 static void compute_uv(SVECTOR *v, SVECTOR *norm,
@@ -185,7 +185,7 @@ static void draw_smd_room(RenderContext *ctx) {
 
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
-        uint8_t tex_idx = (i < LEVEL1_PRIM_COUNT) ? level1_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < DELIVERY_AREA_PRIM_COUNT) ? delivery_area_tex_map[i] : 0xFF;
 
         if (is_quad && tex_idx != 0xFF) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
@@ -339,7 +339,7 @@ static void draw_room(RenderContext *ctx) {
     draw_panel(ctx, -1800, 300,-1800,  0,0,300,  300,0,0,   12,12,  50,50,70,  400);
 }
 
-void draw_scene(RenderContext *ctx) {
+void delivery_area_draw(RenderContext *ctx) {
     draw_sky_gradient(ctx);
 
     MATRIX rot_matrix;

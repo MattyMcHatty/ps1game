@@ -131,7 +131,7 @@ void crates_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
 void crates_draw(RenderContext *ctx) {
     if (!crate_smd) return;
 
-    /* Build the camera view matrix (same computation as draw_scene).
+    /* Build the camera view matrix (same computation as delivery_area_draw).
        CompMatrixLV needs this to combine view + per-crate world transforms. */
     MATRIX view;
     SVECTOR neg_rot = {0, -cam_rot, 0, 0};
@@ -182,7 +182,7 @@ void crates_draw(RenderContext *ctx) {
         ctx->next_packet = smdSortModel(&sc_ot, ctx->next_packet, crate_smd);
     }
     /* NOTE: GTE matrix is NOT restored here.
-       draw_scene re-sets it after this call returns. */
+       delivery_area_draw re-sets it after this call returns. */
 }
 
 int crate_try_smash(void) {
