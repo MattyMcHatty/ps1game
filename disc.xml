@@ -45,6 +45,22 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\shadow.tim"/>
             <file name="CRFXICON.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\crucifaxe.tim"/>
+            <file name="INRDBLDR.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\inr_dbl_dr.tim"/>
+            <file name="REDWLPPR.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\red_wlppr.tim"/>
+            <file name="STNSTL.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\stn_stl.tim"/>
+            <file name="KCHNTILE.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\kchn_tile.tim"/>
+            <file name="WDFLR.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\wd_flr.tim"/>
+            <file name="REDCRPT.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\red_crpt.tim"/>
+            <file name="STOVE.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\stove.tim"/>
+            <file name="DINCL.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\din_cl.tim"/>
             <file name="SWING.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\swing.vag"/>
             <file name="HURT.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\hurt.vag"/>
             <file name="PICKUP.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\pickup.vag"/>

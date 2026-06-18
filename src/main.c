@@ -210,6 +210,8 @@ int main(int argc, const char **argv) {
     flip_buffers(&ctx);
 
     delivery_area_init();
+    kitchen_load_textures();   /* load kitchen textures at startup — LoadImage
+                                  is only safe before the main render loop */
     collision_init();
     floor_zones_init();
     crates_init();
@@ -254,8 +256,13 @@ int main(int argc, const char **argv) {
                 menu_draw(&ctx);
             }
         } else if (game_state == STATE_LOADING) {
+            /* Stop CD-DA before issuing CD data reads — the drive can't play
+               audio and read data at once, and mixing them mid-playback hard
+               crashes. Resume the track once all assets are loaded. */
+            cdaudio_stop();
             draw_loading_screen(&ctx);
             kitchen_dining_init();
+            cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
             game_state = STATE_KITCHEN_DINING;
         } else if (game_state == STATE_DELIVERY_AREA ||
                    game_state == STATE_KITCHEN_DINING) {
