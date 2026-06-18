@@ -144,7 +144,7 @@ static void draw_smd_room(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        if (!pt->nocull && !is_quad) {
+        if (!pt->nocull) {
             gte_nclip();
             gte_stopz(&nclip);
             if (nclip <= 0) { p += stride; continue; }
