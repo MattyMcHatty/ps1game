@@ -24,6 +24,7 @@
 #include "demondog.h"
 #include "menu.h"
 #include "kitchen_dining.h"
+#include "world.h"
 
 GameState game_state   = STATE_TITLE;
 GameState current_area = STATE_DELIVERY_AREA;  /* last playable area; menu returns here */
@@ -266,6 +267,9 @@ int main(int argc, const char **argv) {
                does no CD reads — the music keeps playing and there's no real
                load delay; the loading screen just covers the one-frame switch. */
             draw_loading_screen(&ctx);
+            /* Snapshot the room we're leaving so its progress (defeated enemies,
+               smashed crates, collected pickups, door state) persists. */
+            world_leave(current_area);
             if (pending_area == STATE_KITCHEN_DINING) {
                 kitchen_dining_init();
                 kitchen_door_arm();
@@ -282,6 +286,8 @@ int main(int argc, const char **argv) {
                 cam_rot = 1024;           /* face +X, into the delivery area */
                 door_arm();
             }
+            /* Restore the entered room's entities into the live arrays. */
+            world_enter(pending_area);
             current_area = pending_area;
             game_state   = pending_area;
         } else if (game_state == STATE_DELIVERY_AREA ||
@@ -310,6 +316,7 @@ int main(int argc, const char **argv) {
         if (prev_state == STATE_TITLE && game_state != STATE_TITLE) {
             if (game_state == STATE_DELIVERY_AREA)
                 reset_game(&ctx);   /* fresh-start spawn/state */
+            world_new_game();       /* reset rooms; capture the fresh starting room */
             cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
         }
         if (prev_state != STATE_TITLE && game_state == STATE_TITLE) {
