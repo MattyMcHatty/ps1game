@@ -94,7 +94,7 @@ static void draw_kitchen_smd(RenderContext *ctx) {
         {
             int32_t dx = (int32_t)v0->vx - cam_x;
             int32_t dz = (int32_t)v0->vz - cam_z;
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 5000)
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 3500)
                 { p += stride; continue; }
         }
 
