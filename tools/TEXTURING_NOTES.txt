@@ -1,0 +1,174 @@
+PS1 HORROR GAME — TEXTURING A LEVEL: WHAT WE LEARNED
+=====================================================
+Written after texturing kitchen_dining. This documents the problems we hit and
+the working pipeline, so we don't have to rediscover any of it.
+
+Files involved (kitchen example):
+  tools/io_export_smx_v3.py            - the Blender SMX exporter (master copy)
+  assets/kitchen_dining.smx/.smd       - mesh (XML export -> binary)
+  src/kitchen_dining_tex_map.h         - per-primitive texture index table
+  src/kitchen_dining.c                 - loads textures + renders them
+  textures/*.png -> *.tim              - the textures
+  disc.xml                             - packs the .tim/.smd onto the disc
+
+
+==========================================================================
+PART 1 — THE TWO HARD PROBLEMS (and the fixes)
+==========================================================================
+
+PROBLEM A: The level hard-crashed the moment it tried to load.
+--------------------------------------------------------------
+Symptom: emulator crashed entering the kitchen (both via the door and the
+debug menu), before the loading screen even appeared.
+
+How we found it: bisection. We isolated that:
+  - The new SMD was fine (rendered flat with no textures = OK).
+  - 1, 2, 3 texture loads worked; the 4th crashed.
+  - It crashed regardless of WHICH texture, its VRAM coords, or the CD audio
+    callback. Loading the SAME texture 4x still crashed.
+  - KEY CLUE: delivery_area loads 4 textures (8 LoadImage calls) at STARTUP and
+    works fine — the exact same operation count that crashed mid-game.
+
+ROOT CAUSE:
+  LoadImage() (uploading a texture to VRAM) is only safe at STARTUP, before the
+  main render loop begins. Once the per-frame VSync/draw cycle is running,
+  flip_buffers() kicks off DrawOTagEnv asynchronously, and calling LoadImage
+  while drawing is in flight collides on the GPU and hard-crashes after a few
+  calls. delivery_area only gets away with it because it loads before the loop.
+
+THE FIX:
+  Load ALL of a level's textures ONCE AT STARTUP, never during the level
+  transition. We added kitchen_load_textures(), called from main() right after
+  delivery_area_init(), before the main loop. kitchen_dining_init() (run on the
+  transition) now only loads GEOMETRY (a CD read, no LoadImage), which is safe.
+
+  Because each level's textures live in non-overlapping VRAM regions, every
+  level's textures can be resident at the same time — so loading them all up
+  front is fine.
+
+  >>> RULE: every new level needs a <level>_load_textures() called at startup in
+      main(). Do NOT call LoadImage mid-game.
+
+
+PROBLEM B: Textures didn't match the Blender UV mapping (looked wrong/smeared).
+-------------------------------------------------------------------------------
+Symptom: the level loaded with textures, but surfaces didn't look like Blender —
+the engine was ignoring the Blender UVs.
+
+Two sub-issues:
+
+  B1) The old renderer (copied from delivery_area) used PROCEDURAL UVs: it
+      projected UVs from world position + face normal and ignored the model's
+      real UVs entirely. Fine for plain tiled floors/walls, wrong for anything
+      mapped deliberately (furniture, doors).
+
+  B2) PS1 stores texture coordinates as 8-BIT (0-255). Blender UVs tile heavily,
+      so the raw exported values are large/negative (e.g. -497, -1004). When
+      those get truncated to 8 bits, any polygon whose UVs cross a 256-texel
+      boundary gets DISTORTED (coords wrap mid-polygon and interpolate wrong).
+
+THE FIX (two parts):
+
+  1) EXPORTER (io_export_smx_v3.py): output 8-bit-safe UVs.
+     - Scale UVs to a fixed target texel size (exp_tex_size, default 128) rather
+       than the Blender image resolution. UVs are normalized per tile, so the
+       source image's pixel size is irrelevant; 1 UV tile = 128 texels.
+     - For each polygon, shift its UVs DOWN by whole tiles (multiples of 128) so
+       the minimum lands in [0,128). This keeps values 8-bit-safe AND preserves
+       the sub-tile phase (multiples of 128), so tiling stays continuous across
+       adjacent faces.
+
+  2) RENDERER (kitchen_dining.c): use the real UVs + a hardware texture window.
+     - Read the per-poly UVs straight from the SMD primitive (FT4 stride 32:
+       tu0,tv0..tu3,tv3 at byte offsets 20-27) into the POLY_FT4.
+     - Add a 128x128 TEXTURE WINDOW (DR_TWIN) so UV values past the texture edge
+       WRAP (tile) within the texture's page instead of reading neighbouring
+       VRAM. Mask value = texels>>3 (128>>3 = 16); SDK RECT is {0,0,16,16}.
+     - The DR_TWIN is sorted at OT_LENGTH-1 and the textured polys are clamped to
+       OT_LENGTH-2, so the window is applied by the GPU before any textured poly.
+
+  REMAINING LIMIT: a single face that tiles a texture MORE than once across
+  itself (UV span > 1 tile on one polygon) can still show a seam — that's the
+  8-bit hardware limit. Fix by mapping such faces to <= 1 tile in Blender.
+
+
+==========================================================================
+PART 2 — VRAM / TEXTURE FORMAT RULES (learned the hard way)
+==========================================================================
+
+- 8bpp textures: a texture PAGE is only 128 texels wide. A 256-wide 8bpp
+  texture spills across page boundaries and renders wrong / can crash. So:
+  >>> Keep textures 128x128 (8bpp). We resized the oversized ones down.
+
+- Texture page X must be a multiple of 64; page Y must be 0 or 256.
+  >>> Place textures at x in {320,384,448,576,...} (64-aligned) and y in {0,256}
+      (page-aligned), or UVs sample the wrong region.
+
+- CLUTs (256-colour, 256 words wide x 1) go in the VRAM scratch area below the
+  framebuffers (y >= 480), away from the framebuffers (x<320, y<480), the font
+  (x>=960), and all other textures.
+
+- VRAM map at the time of writing (avoid overlap when adding more):
+    Framebuffers: x[0,320)  y[0,480)
+    Font:         x[960,1024)
+    Delivery/props textures: x[512,960) (gravel, fence, brick, door, crucifaxe,
+                  dogs, key, shadow, sml_med, crate, etc.) — see each TIM's coords
+    Kitchen textures (this work): images x[320,640) y{0,256}; CLUTs x=0 y489-496
+
+
+==========================================================================
+PART 3 — STEP-BY-STEP: TEXTURING A NEW LEVEL
+==========================================================================
+
+In Blender:
+  1. UV-map the mesh. Keep each face's UV span to about ONE texture tile to
+     avoid PS1 seams (tiling across many faces is fine; tiling within one face
+     past 1x is not).
+  2. Assign textures via materials (image texture node).
+  3. Export with tools/io_export_smx_v3.py (File > Export > Scarlet SMX v3).
+     Leave "Texture Size" = 128. Save as assets/<level>.smx.
+
+Convert + register the textures:
+  4. For each texture PNG, make a 128x128 8bpp TIM at a free, page-aligned VRAM
+     slot (64-aligned X, Y in {0,256}), CLUT in the y>=480 scratch area:
+       python textures/png_to_tim.py NAME.png --bpp 8 --tx <X> --ty <Y> \
+              --cx <CX> --cy <CY> --out NAME.tim
+  5. Add each TIM to disc.xml (8.3 uppercase name -> source path).
+
+Convert the mesh:
+  6. smxlink -tp textures -o assets/<level>.smd assets/<level>.smx
+     (the -tp lets it resolve the texture references).
+
+Generate the texture map (per-primitive texture index), e.g.:
+  7. A small Python script reads each <poly>'s texture="N" from the .smx in
+     order and writes src/<level>_tex_map.h (uint8 array, 0xFF = untextured).
+     See how kitchen_dining_tex_map.h was generated.
+
+Engine code (model on kitchen_dining.c):
+  8. tex_tpage[]/tex_clut[] arrays; load_tim_buf() loads each TIM via a single
+     shared scratch buffer.
+  9. <level>_load_textures() loads them ALL — call it at STARTUP in main(),
+     NOT in the level's init. (See PROBLEM A.)
+ 10. In the SMD draw loop, for textured quads: read UVs from the prim (offset
+     20-27), set tpage/clut from the slot, emit POLY_FT4.
+ 11. In the level's draw(): sort a 128x128 DR_TWIN texture window at OT_LENGTH-1
+     and clamp poly OT indices to <= OT_LENGTH-2.
+
+Build:
+ 12. cmake --build build --target horror_game   (auto-runs elf2x)
+     mkpsxiso -y disc.xml
+     (See "rebuild commands.txt".)
+
+
+==========================================================================
+PART 4 — DEBUGGING TIPS THAT WORKED
+==========================================================================
+
+- A hard crash with NO loading screen = the crash is in the level's init
+  (the loading screen is drawn but only shown by the flip AFTER init returns).
+- To localize a load/render crash, bisect: render flat (ignore textures) vs
+  load textures; load 1 vs many; same texture vs different; with/without the
+  SMD load. Each isolates one variable.
+- "Looks identical after a rebuild" usually means a STALE binary — verify
+  build/HORROR2.BIN and build/HORROR.bin timestamps are newer than the source.
+  (elf2x must run to turn HORROR.exe into the HORROR2.BIN the disc boots.)
