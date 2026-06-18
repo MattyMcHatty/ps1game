@@ -3,6 +3,7 @@
 #include <psxgpu.h>
 #include <psxgte.h>
 #include <psxcd.h>
+#include <psxpad.h>
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
@@ -11,6 +12,24 @@
 #include "collision.h"
 #include "kitchen_dining_mesh_collision.h"
 #include "kitchen_dining_tex_map.h"
+#include "door.h"
+
+extern volatile uint8_t pad_buff[2][34];
+extern volatile size_t  pad_buff_len[2];
+
+/* Kitchen door back to the delivery area (the "double_door" mesh: YZ plane at
+   X=600, Z centered on 583). Text floats just above eye level (cam_y ~ -149),
+   same look as the delivery-area door sign. Viewed from the -X interior side,
+   so the text is mirrored. */
+#define KDOOR_X            600
+#define KDOOR_Z            583
+#define KDOOR_TEXT_Y      (-186)
+#define KDOOR_TEXT_RADIUS    1500
+#define KDOOR_FADE_NEAR      1000   /* fully opaque within this distance */
+#define KDOOR_TRIGGER_RADIUS  500   /* distance at which Circle activates the door */
+
+/* Circle edge-detect for the kitchen door; seeded by kitchen_door_arm(). */
+static int kdoor_circle_prev = 1;
 
 static SMD  *kitchen_smd  = NULL;
 static void *kitchen_buff = NULL;
@@ -94,26 +113,34 @@ static void kitchen_dining_floor_zones_init(void) {
     floor_zone_count = i;
 }
 
-/* Load all kitchen textures into VRAM. MUST be called at startup (before the
-   main render loop begins), NOT mid-game: LoadImage is unreliable once the
-   per-frame VSync/draw cycle is running — it hard-crashes after a few uploads —
-   but is safe at startup, exactly how delivery_area loads its textures. Kitchen
-   textures occupy VRAM regions that don't overlap delivery-area or prop
+/* Load all kitchen CD assets (textures + geometry) at STARTUP, before the main
+   render loop begins. This MUST happen at startup, not mid-game:
+   - LoadImage is unreliable once the per-frame VSync/draw cycle is running
+     (it hard-crashes after a few uploads), but is safe at startup.
+   - Doing it at startup also means there are NO CD reads during gameplay, so
+     area transitions never have to stop the CD-DA music.
+   Kitchen textures occupy VRAM regions that don't overlap delivery-area or prop
    textures, so all stay resident together. */
-void kitchen_load_textures(void) {
+void kitchen_load_assets(void) {
     const int TBUF_CAP = 32 * 1024;
     uint8_t *tbuf = malloc(TBUF_CAP);
-    if (!tbuf) return;
-    load_tim_buf("\\STNSTL.TIM;1",   0, tbuf, TBUF_CAP);
-    load_tim_buf("\\KCHNTILE.TIM;1", 1, tbuf, TBUF_CAP);
-    load_tim_buf("\\WDFLR.TIM;1",    2, tbuf, TBUF_CAP);
-    load_tim_buf("\\REDWLPPR.TIM;1", 3, tbuf, TBUF_CAP);
-    load_tim_buf("\\DBLDOOR.TIM;1",  4, tbuf, TBUF_CAP);
-    load_tim_buf("\\INRDBLDR.TIM;1", 5, tbuf, TBUF_CAP);
-    load_tim_buf("\\REDCRPT.TIM;1",  6, tbuf, TBUF_CAP);
-    load_tim_buf("\\STOVE.TIM;1",    7, tbuf, TBUF_CAP);
-    load_tim_buf("\\DINCL.TIM;1",    8, tbuf, TBUF_CAP);
-    free(tbuf);
+    if (tbuf) {
+        load_tim_buf("\\STNSTL.TIM;1",   0, tbuf, TBUF_CAP);
+        load_tim_buf("\\KCHNTILE.TIM;1", 1, tbuf, TBUF_CAP);
+        load_tim_buf("\\WDFLR.TIM;1",    2, tbuf, TBUF_CAP);
+        load_tim_buf("\\REDWLPPR.TIM;1", 3, tbuf, TBUF_CAP);
+        load_tim_buf("\\DBLDOOR.TIM;1",  4, tbuf, TBUF_CAP);
+        load_tim_buf("\\INRDBLDR.TIM;1", 5, tbuf, TBUF_CAP);
+        load_tim_buf("\\REDCRPT.TIM;1",  6, tbuf, TBUF_CAP);
+        load_tim_buf("\\STOVE.TIM;1",    7, tbuf, TBUF_CAP);
+        load_tim_buf("\\DINCL.TIM;1",    8, tbuf, TBUF_CAP);
+        free(tbuf);
+    }
+
+    /* Geometry, kept resident so entering the kitchen needs no CD read. */
+    kitchen_buff = load_file_from_cd("\\KITCHN.SMD;1");
+    if (kitchen_buff)
+        kitchen_smd = smdInitData(kitchen_buff);
 }
 
 void kitchen_dining_init(void) {
@@ -125,12 +152,35 @@ void kitchen_dining_init(void) {
     cam_vy  = 0;
     cam_z   = 676;
     cam_rot = 3072;   /* facing west (-X) */
+    /* Assets (textures + geometry) are already loaded by kitchen_load_assets(). */
+}
 
-    /* Textures are uploaded once at startup via kitchen_load_textures(). Only
-       geometry is loaded here (a CD read, no LoadImage), which is safe mid-game. */
-    kitchen_buff = load_file_from_cd("\\KITCHN.SMD;1");
-    if (kitchen_buff)
-        kitchen_smd = smdInitData(kitchen_buff);
+/* Seed the Circle edge state on entering the kitchen, so a press held from the
+   delivery door doesn't immediately bounce the player back. */
+void kitchen_door_arm(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    kdoor_circle_prev = held;
+}
+
+/* Returns 1 when Circle is freshly pressed within range of the kitchen door. */
+int kitchen_door_triggered(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    int just = held && !kdoor_circle_prev;
+    kdoor_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - KDOOR_X;
+    int32_t dz = cam_z - KDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < KDOOR_TRIGGER_RADIUS;
 }
 
 static void draw_kitchen_smd(RenderContext *ctx) {
@@ -280,6 +330,30 @@ static void draw_kitchen_smd(RenderContext *ctx) {
     }
 }
 
+/* Floating "Press O to enter" sign at the kitchen door, shown when the player
+   is within range, fading in from KDOOR_TEXT_RADIUS to KDOOR_FADE_NEAR.
+   The view matrix set in kitchen_dining_draw is still active here. */
+static void kitchen_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - KDOOR_X;
+    int32_t dz = cam_z - KDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= KDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > KDOOR_FADE_NEAR) {
+        int range = KDOOR_TEXT_RADIUS - KDOOR_FADE_NEAR;
+        int prog  = xz - KDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    /* world_z is offset by -200: door_draw_string_3d adds 200 internally, so
+       this centres the text on KDOOR_Z. mirror=1 for the -X viewing side. */
+    door_draw_string_3d(ctx, "Press O to enter",
+                        KDOOR_X, KDOOR_TEXT_Y, KDOOR_Z - 200,
+                        50, 255, 50, fade, 1);
+}
+
 void kitchen_dining_draw(RenderContext *ctx) {
     /* Dark interior background */
     TILE *bg = (TILE *)ctx->next_packet;
@@ -322,6 +396,7 @@ void kitchen_dining_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_kitchen_smd(ctx);
+    kitchen_door_text(ctx);
     /* Player overlays + debug collision view are drawn by the shared
        draw_player_systems step in main (applies to every area). */
 }

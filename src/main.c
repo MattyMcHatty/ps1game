@@ -27,6 +27,7 @@
 
 GameState game_state   = STATE_TITLE;
 GameState current_area = STATE_DELIVERY_AREA;  /* last playable area; menu returns here */
+GameState pending_area = STATE_KITCHEN_DINING; /* area STATE_LOADING will switch to */
 int       debug_mode   = 0;
 
 /* HUD/debug font streams (opened in main() after FntLoad). */
@@ -97,6 +98,10 @@ static void update_current_area(GameState area) {
     if (area == STATE_KITCHEN_DINING) {
         apply_collision_kitchen_dining();
         apply_height();
+        if (kitchen_door_triggered()) {
+            pending_area = STATE_DELIVERY_AREA;
+            game_state   = STATE_LOADING;
+        }
     } else {
         apply_collision();
         apply_height();
@@ -210,8 +215,9 @@ int main(int argc, const char **argv) {
     flip_buffers(&ctx);
 
     delivery_area_init();
-    kitchen_load_textures();   /* load kitchen textures at startup — LoadImage
-                                  is only safe before the main render loop */
+    kitchen_load_assets();     /* load kitchen textures + geometry at startup —
+                                  LoadImage is only safe before the main render
+                                  loop, and this keeps gameplay CD-read-free */
     collision_init();
     floor_zones_init();
     crates_init();
@@ -256,14 +262,28 @@ int main(int argc, const char **argv) {
                 menu_draw(&ctx);
             }
         } else if (game_state == STATE_LOADING) {
-            /* Stop CD-DA before issuing CD data reads — the drive can't play
-               audio and read data at once, and mixing them mid-playback hard
-               crashes. Resume the track once all assets are loaded. */
-            cdaudio_stop();
+            /* Switch areas. All assets are resident (loaded at startup), so this
+               does no CD reads — the music keeps playing and there's no real
+               load delay; the loading screen just covers the one-frame switch. */
             draw_loading_screen(&ctx);
-            kitchen_dining_init();
-            cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
-            game_state = STATE_KITCHEN_DINING;
+            if (pending_area == STATE_KITCHEN_DINING) {
+                kitchen_dining_init();
+                kitchen_door_arm();
+            } else {
+                /* Return to the delivery area: restore its collision/floor and
+                   place the player just inside the front door, facing in, armed
+                   so a held Circle won't bounce them straight back. */
+                collision_init();
+                floor_zones_init();
+                cam_x   = DOOR_X + 150;   /* delivery side of the door */
+                cam_y   = DOOR_Y;         /* upper-floor eye level */
+                cam_vy  = 0;
+                cam_z   = DOOR_Z;
+                cam_rot = 1024;           /* face +X, into the delivery area */
+                door_arm();
+            }
+            current_area = pending_area;
+            game_state   = pending_area;
         } else if (game_state == STATE_DELIVERY_AREA ||
                    game_state == STATE_KITCHEN_DINING) {
             if (game_over) {
@@ -284,15 +304,12 @@ int main(int argc, const char **argv) {
             }
         }
 
-        /* Handle CD audio state transitions */
-        if (prev_state == STATE_TITLE && game_state == STATE_DELIVERY_AREA) {
-            reset_game(&ctx);   /* apply spawn position/state on a fresh start */
-            cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
-        }
-        /* Jumping straight to the kitchen via the debug level-select goes
-           through STATE_LOADING; start the music here too (the in-game door
-           path keeps the already-playing track). */
-        if (prev_state == STATE_TITLE && game_state == STATE_LOADING) {
+        /* CD-DA music: start once when leaving the title for gameplay, stop
+           when returning to the title. In-game area transitions never touch it
+           (all assets are resident, so no CD read competes with playback). */
+        if (prev_state == STATE_TITLE && game_state != STATE_TITLE) {
+            if (game_state == STATE_DELIVERY_AREA)
+                reset_game(&ctx);   /* fresh-start spawn/state */
             cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
         }
         if (prev_state != STATE_TITLE && game_state == STATE_TITLE) {

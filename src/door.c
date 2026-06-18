@@ -17,6 +17,10 @@ extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 extern PickupEntry pickup_log[PICKUP_MSG_COUNT];
 
+/* Circle edge-detect state, file-scope so door_arm() can seed it. Starts
+   "held" so a press carried in from another screen isn't seen as fresh. */
+static int door_circle_prev = 1;
+
 /* -----------------------------------------------------------------------
  * 5x7 pixel font — same bitmask format as the old HUD font.
  * Index 0-9: digits, 10-35: A-Z, 36: space, 37: !, 38-63: a-z,
@@ -113,14 +117,15 @@ static int char_to_glyph(char c) {
 #define DOOR_PIXEL_SIZE 4           /* text size — half the normal PIXEL_SIZE */
 #define CHAR_W  (6 * DOOR_PIXEL_SIZE)   /* 5 pixel cols + 1 gap */
 
-static void door_draw_string_3d(
+void door_draw_string_3d(
     RenderContext *ctx,
     const char    *str,
     int32_t        world_x,
     int32_t        world_y,
     int32_t        world_z,
     uint8_t        r, uint8_t g, uint8_t b,
-    int             fade_factor  /* 0-256, applied as (color * fade) >> 8 */
+    int             fade_factor, /* 0-256, applied as (color * fade) >> 8 */
+    int             mirror       /* 1 = flip horizontally for viewing from -X */
 ) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
@@ -136,8 +141,11 @@ static void door_draw_string_3d(
 
     int ci;
     for (ci = 0; ci < len; ci++) {
+        /* When mirrored, reverse character order along Z so the text reads
+           correctly from the opposite side of the plane. */
+        int eff_ci = mirror ? (len - 1 - ci) : ci;
         const uint8_t *glyph = door_glyphs[char_to_glyph(str[ci])];
-        int32_t char_z = start_z + ci * CHAR_W;
+        int32_t char_z = start_z + eff_ci * CHAR_W;
 
         int row, col;
         for (row = 0; row < 7; row++) {
@@ -145,7 +153,9 @@ static void door_draw_string_3d(
                 if (!(glyph[row] & (0x01 << col))) continue;
                 if (ctx->next_packet + sizeof(POLY_F4) > buf_end) return;
 
-                int32_t pz = char_z + col * DOOR_PIXEL_SIZE;
+                /* Mirror flips columns within each glyph too. */
+                int eff_col = mirror ? (4 - col) : col;
+                int32_t pz = char_z + eff_col * DOOR_PIXEL_SIZE;
                 int32_t py = world_y + row * DOOR_PIXEL_SIZE;
 
                 /* Quad on wall: Z varies per char (left-right), Y varies per row (top-bottom), X fixed
@@ -207,16 +217,25 @@ void door_init(void) {
     door_state = DOOR_LOCKED;
 }
 
-void door_update(void) {
-    static int x_prev = 0;
+/* Seed the Circle edge state to the current button so a press held from the
+   previous screen/door doesn't immediately re-trigger this door on arrival. */
+void door_arm(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    door_circle_prev = held;
+}
 
+void door_update(void) {
     int o_held = 0;
     if (pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
         o_held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
     }
-    int o_just_pressed = o_held && !x_prev;
-    x_prev = o_held;
+    int o_just_pressed = o_held && !door_circle_prev;
+    door_circle_prev = o_held;
 
     if (!player_near_door()) return;
 
@@ -236,8 +255,9 @@ void door_update(void) {
         }
     } else if (door_state == DOOR_UNLOCKED) {
         if (o_just_pressed) {
-            door_state = DOOR_OPEN;
-            game_state = STATE_LOADING;
+            /* Stay UNLOCKED so the door is reusable for repeated trips. */
+            pending_area = STATE_KITCHEN_DINING;
+            game_state   = STATE_LOADING;
         }
     }
 }
@@ -274,17 +294,17 @@ void door_draw(RenderContext *ctx) {
             door_draw_string_3d(ctx,
                 "Press O to unlock",
                 SIGN_X, SIGN_Y, SIGN_Z,
-                50, 255, 50, fade_factor);
+                50, 255, 50, fade_factor, 0);
         } else {
             door_draw_string_3d(ctx,
                 "Front Door Key required",
                 SIGN_X, SIGN_Y, SIGN_Z,
-                255, 50, 50, fade_factor);
+                255, 50, 50, fade_factor, 0);
         }
     } else if (door_state == DOOR_UNLOCKED) {
         door_draw_string_3d(ctx,
             "Press O to enter",
             SIGN_X, SIGN_Y, SIGN_Z,
-            50, 255, 50, fade_factor);
+            50, 255, 50, fade_factor, 0);
     }
 }

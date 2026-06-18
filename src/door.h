@@ -36,5 +36,13 @@ extern DoorState door_state;
 void door_init(void);
 void door_update(void);
 void door_draw(RenderContext *ctx);
+void door_arm(void);   /* seed Circle edge state on (re)entering the delivery area */
+
+/* Reusable world-space text in the YZ plane at fixed X (used for door signs).
+   mirror=1 flips it horizontally for viewing from the -X side. */
+void door_draw_string_3d(RenderContext *ctx, const char *str,
+                         int32_t world_x, int32_t world_y, int32_t world_z,
+                         uint8_t r, uint8_t g, uint8_t b,
+                         int fade_factor, int mirror);
 
 #endif

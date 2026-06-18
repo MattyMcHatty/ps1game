@@ -13,6 +13,7 @@ typedef enum {
 
 extern GameState game_state;
 extern GameState current_area;   /* last playable area entered; the menu returns here */
+extern GameState pending_area;   /* area STATE_LOADING will switch to once set up */
 
 void title_init(void);
 void update_title(void);

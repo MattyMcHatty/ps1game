@@ -340,7 +340,10 @@ void update_title(void) {
         debug_menu_open = 0;
     if (pressed & PAD_CROSS) {
         debug_menu_open = 0;
-        game_state = level_states[debug_menu_cursor];
+        GameState target = level_states[debug_menu_cursor];
+        /* The kitchen entry loads via STATE_LOADING; tell it where to go. */
+        if (target == STATE_LOADING) pending_area = STATE_KITCHEN_DINING;
+        game_state = target;
     }
 }
 
