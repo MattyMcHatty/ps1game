@@ -1,0 +1,196 @@
+PS1 HORROR GAME — AREAS, DOORS & WORLD STATE
+=============================================
+How rooms, the transitions between them, and per-room persistent state fit
+together. Read this before adding a new room or wiring a new door. Texturing a
+room's mesh is covered separately in TEXTURING_NOTES.txt.
+
+Files involved:
+  src/title.h            - GameState enum; current_area / pending_area externs
+  src/main.c             - the main loop, STATE_LOADING transition, music
+  src/world.c / world.h  - per-room persistent entity state (snapshot/restore)
+  src/door.c / door.h    - the delivery front door + the shared world-text drawer
+  src/kitchen_dining.c   - the kitchen, its door, and its startup asset load
+  src/delivery_area.c    - the delivery area
+
+
+==========================================================================
+PART 1 — THE AREA / STATE MODEL
+==========================================================================
+
+GameState (title.h) drives the main loop:
+    STATE_TITLE           - title screen + debug level select
+    STATE_MENU            - inventory menu (overlays a paused-ish game)
+    STATE_LOADING         - transient: set up the target area, then switch
+    STATE_DELIVERY_AREA   - playable area
+    STATE_KITCHEN_DINING  - playable area
+
+Two globals (main.c, extern in title.h):
+    current_area   the playable area the player is in right now. The inventory
+                   menu returns here.
+    pending_area   the area STATE_LOADING will switch to. Set this BEFORE
+                   setting game_state = STATE_LOADING.
+
+Every area switch goes through STATE_LOADING. That single choke point avoids
+"wrong-area-for-one-frame" flicker and is where per-room state is swapped.
+
+
+==========================================================================
+PART 2 — HOW A TRANSITION WORKS
+==========================================================================
+
+1. A door interaction sets the destination and kicks off loading:
+       pending_area = STATE_<target>;
+       game_state   = STATE_LOADING;
+
+2. The STATE_LOADING handler in main.c (run next frame) does, in order:
+       draw_loading_screen(&ctx);          // covers the 1-frame switch
+       world_leave(current_area);          // snapshot the room we're leaving
+       <set up the target area>            // collision room, floor zones, spawn
+       world_enter(pending_area);          // restore the target room's entities
+       current_area = pending_area;
+       game_state   = pending_area;
+
+   "Set up the target area" differs per area:
+     - kitchen:   kitchen_dining_init() (collision + floor zones + spawn cam)
+                  then kitchen_door_arm()
+     - delivery:  collision_init() + floor_zones_init(), then place the camera
+                  just inside the front door, then door_arm()
+
+3. Because all area assets are resident (see PART 5), this does NO CD reads:
+   the switch is instant and the CD-DA music keeps playing.
+
+GOTCHA — bounce-back: if the player arrives within the destination door's
+trigger radius with Circle still held, the door could fire immediately and send
+them back. Two defenses, use either/both:
+  - Spawn OUTSIDE the door's trigger radius (delivery return spawns at
+    DOOR_X + 150, just inside but the camera faces away), OR
+  - "Arm" the door on arrival: door_arm() / kitchen_door_arm() seed the Circle
+    edge-detect state to the current button, so a held press isn't seen as a
+    fresh press. The player must release and re-press to trigger.
+
+
+==========================================================================
+PART 3 — DOORS
+==========================================================================
+
+A door has two halves: the floating sign (text) and the interaction.
+
+FLOATING TEXT (shared renderer in door.c):
+    door_draw_string_3d(ctx, str, world_x, world_y, world_z,
+                        r, g, b, fade_factor, mirror);
+  - Draws the string as world-space pixel quads in the YZ plane at fixed X
+    (i.e. a sign on a wall that faces along the X axis).
+  - fade_factor 0-256 fades the text in with distance (see how door_draw and
+    kitchen_door_text compute it: opaque within ~1000 units, gone by ~1500).
+  - mirror = 1 flips it horizontally for viewing from the -X side. The delivery
+    door is viewed from +X (mirror 0); the kitchen door from -X (mirror 1). If
+    your door's text comes out backwards, flip this.
+  - Internally it adds 200 to world_z before centring, so pass
+    (door_center_z - 200) to centre the text on the door.
+
+DELIVERY DOOR (door.c): a LOCKED -> UNLOCKED door.
+  - Needs KEY_FRONT_DOOR to unlock; Circle unlocks it (consumes the key).
+  - Once UNLOCKED it STAYS unlocked and is reusable for repeated trips (it does
+    NOT advance to a one-shot "open" state).
+  - door_update() runs only while in the delivery area; it edge-detects Circle
+    (file-scope door_circle_prev, seeded by door_arm()).
+
+KITCHEN DOOR (kitchen_dining.c): an always-usable door back to delivery.
+  - Found from the mesh: the "double_door" prims sit in the YZ plane at X=600,
+    Z centred ~583. (The other door, inr_dbl_dr at X=-3294, leads deeper in.)
+  - kitchen_door_text() draws the "Press O to enter" sign (mirror=1).
+  - kitchen_door_triggered() returns 1 on a fresh Circle press within
+    KDOOR_TRIGGER_RADIUS; main.c then sets pending_area + STATE_LOADING.
+  - kitchen_door_arm() seeds its Circle edge state on entry.
+
+Finding a door's coordinates: extract them from the mesh by reading the door
+texture's prim vertices from the .smx (that's how X=600 / Z=583 were found), or
+walk to it in debug mode (Select) and read cam_x/y/z off the overlay.
+
+
+==========================================================================
+PART 4 — PER-ROOM WORLD STATE (world.c)
+==========================================================================
+
+The live entity arrays — demon_dogs[], crates[], keys[], sml_meds[] and the
+delivery door_state — always hold the CURRENT room's entities. world.c keeps a
+saved RoomState slot per room and swaps them on transition:
+
+    world_new_game()     reset all rooms; snapshot the fresh starting room.
+                         Called when leaving the title for gameplay.
+    world_leave(area)    copy the live arrays into 'area's slot (persists
+                         smashed crates, defeated enemies, pickups, door state).
+    world_enter(area)    copy 'area's slot back into the live arrays. A room's
+                         FIRST visit starts empty (arrays cleared).
+
+This is behavior-preserving: entity code is unchanged; the live arrays are just
+the working set for the current room now.
+
+Player inventory/health (player_keys, player_health) are NOT room-scoped — they
+stay live across rooms and are saved separately.
+
+
+==========================================================================
+PART 5 — ASSET LOADING RULE (critical)
+==========================================================================
+
+Load ALL of an area's CD assets (textures AND geometry) ONCE AT STARTUP, before
+the main render loop — see kitchen_load_assets(), called from main() init.
+
+Why:
+  - LoadImage (texture -> VRAM) HARD-CRASHES if called mid-game, once the
+    per-frame draw loop is running. It is only safe at startup. (See
+    TEXTURING_NOTES.txt PART 1 for the full debugging story.)
+  - Loading at startup also means NO CD reads happen during gameplay, so area
+    transitions never have to stop the CD-DA music (CD can't read data and play
+    audio at once) and switches are instant.
+
+Each area's textures live in non-overlapping VRAM regions, so every area's
+assets stay resident together. An area's *_init() (run on entry) only sets up
+collision, floor zones and the spawn camera — never loads assets.
+
+
+==========================================================================
+PART 6 — ADDING A NEW ROOM (checklist)
+==========================================================================
+
+Mesh & textures (see TEXTURING_NOTES.txt):
+  [ ] Model + UV-map + export the .smx; convert to .smd; make 128x128 TIMs at
+      free VRAM slots; add them to disc.xml; generate the room's tex_map.h.
+
+Code:
+  [ ] New src/<room>.c / .h modelled on kitchen_dining.c:
+        <room>_load_assets()  - load textures + geometry at STARTUP
+        <room>_init()         - collision room, floor zones, spawn cam
+        <room>_draw()         - draw the SMD (+ any door text)
+  [ ] Add <room>_load_assets() to main()'s startup inits.
+  [ ] Add the GameState enum value (title.h) and handle it in
+      update_current_area(), draw_current_area(), and the STATE_LOADING setup.
+  [ ] Doors: give each door a target (pending_area) and route through
+      STATE_LOADING; add the floating sign + a *_door_triggered()/*_door_arm()
+      pair; place spawns to avoid bounce-back (PART 2 gotcha).
+  [ ] World state: add the room to room_index() in world.c and bump
+      WORLD_NUM_ROOMS. If the room has its own enemies/crates/pickups, populate
+      the live arrays on first visit inside world_enter() (then they snapshot
+      on the next world_leave()).
+
+Test:
+  [ ] Round-trip in and out; confirm progress persists (smash a crate, leave,
+      return, still smashed). Confirm music is uninterrupted and no bounce.
+
+
+==========================================================================
+PART 7 — SAVE SYSTEM READINESS (not implemented yet)
+==========================================================================
+
+When the save feature is built, the payload is:
+  - player state:  player_keys, player_health  (and current_area to resume)
+  - world state:   the rooms[] array from world.c (every room's RoomState)
+
+Recommendations for that work:
+  - Marshal into a dedicated compact SaveData struct, NOT the live runtime
+    structs (DemonDog etc. carry transient timers and may change shape; a stable
+    save layout keeps old saves valid).
+  - Size is tiny (a few KB) — fits one 8KB memory-card block easily.
+  - Init order is deterministic, so an entity's array index is a stable ID
+    (e.g. "crate 3 is smashed"); no explicit IDs needed.
