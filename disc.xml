@@ -35,6 +35,8 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\wdcrate.tim"/>
             <file name="WDDR.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\wd_dr.tim"/>
+            <file name="WDDRCRK.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\wd_dr_crk.tim"/>
             <file name="KEY.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\key.tim"/>
             <file name="SML_MED.TIM" type="data"

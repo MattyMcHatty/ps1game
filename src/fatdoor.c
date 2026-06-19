@@ -18,6 +18,14 @@ static FatDoor fatdoor_defaults[MAX_FATDOORS];
 static SMD  *fatdoor_smd    = NULL;
 static void *fatdoor_buffer = NULL;
 
+/* Cracked-door texture (wd_dr_crk.tim), swapped in for a door on its last hit.
+   It is 8bpp+CLUT (the intact wd_dr.tim baked into the SMD is 16bpp, no CLUT),
+   but both are 128x128 so the texel-based UVs and the shared 128 texture window
+   map either one correctly — we only override the per-poly tpage/clut. 0 = not
+   loaded, in which case we fall back to the baked intact texture. */
+static uint16_t fatdoor_crk_tpage = 0;
+static uint16_t fatdoor_crk_clut  = 0;
+
 static void load_file(const char *name, void **buf_out) {
     CdlFILE file;
     if (!CdSearchFile(&file, name)) { *buf_out = NULL; return; }
@@ -45,6 +53,25 @@ void fatdoors_load_assets(void) {
         LoadImage(tim.prect, tim.paddr);
         DrawSync(0);
         free(tim_buf);
+    }
+
+    /* Cracked variant (8bpp + CLUT) — loaded to its own VRAM slot so both
+       textures stay resident. Capture its tpage/clut to override per-poly when
+       a door reaches its last hit point. */
+    void *crk_buf = NULL;
+    load_file("\\WDDRCRK.TIM;1", &crk_buf);
+    if (crk_buf) {
+        TIM_IMAGE tim;
+        GetTimInfo((uint32_t *)crk_buf, &tim);
+        LoadImage(tim.prect, tim.paddr);
+        DrawSync(0);
+        if (tim.mode & 0x8) {
+            LoadImage(tim.crect, tim.caddr);
+            DrawSync(0);
+            fatdoor_crk_clut = getClut(tim.crect->x, tim.crect->y);
+        }
+        fatdoor_crk_tpage = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
+        free(crk_buf);
     }
 }
 
@@ -229,8 +256,15 @@ void fatdoors_draw(RenderContext *ctx) {
                 POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
                 setPolyFT4(poly);
                 setRGB0(poly, r, g, b);
-                poly->tpage = *(uint16_t *)(p + 28);
-                poly->clut  = *(uint16_t *)(p + 30);
+                /* On its final hit point, swap the baked intact texture for the
+                   cracked one (if it loaded). UVs/texture window are unchanged. */
+                if (door->health <= 1 && fatdoor_crk_tpage) {
+                    poly->tpage = fatdoor_crk_tpage;
+                    poly->clut  = fatdoor_crk_clut;
+                } else {
+                    poly->tpage = *(uint16_t *)(p + 28);
+                    poly->clut  = *(uint16_t *)(p + 30);
+                }
                 poly->u0=uv[0]; poly->v0=uv[1];
                 poly->u1=uv[2]; poly->v1=uv[3];
                 poly->u2=uv[4]; poly->v2=uv[5];
