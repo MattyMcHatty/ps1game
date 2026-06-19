@@ -76,8 +76,10 @@ void fatdoors_init(void) {
     fatdoor_count = i;
 
     int j;
-    for (j = 0; j < fatdoor_count; j++)
+    for (j = 0; j < fatdoor_count; j++) {
+        fatdoors[j].health = FATDOOR_MAX_HEALTH;
         fatdoor_defaults[j] = fatdoors[j];
+    }
 }
 
 void fatdoors_reset(void) {
@@ -295,9 +297,16 @@ int fatdoors_try_smash(void) {
         int32_t dot = cdx * (isin(cam_rot) >> 4) + cdz * (icos(cam_rot) >> 4);
         if (dot <= 0) continue;
 
-        d->state = FATDOOR_SMASHED;
+        /* One hit per swing (caller guards re-entry). Wood chips every hit;
+           the hit/hurt sound on a non-destroying hit, smash only on the last. */
+        d->health--;
         spawn_wood_burst(d->x, d->y, d->z);
-        sound_play(SFX_SMASH);
+        if (d->health <= 0) {
+            d->state = FATDOOR_SMASHED;
+            sound_play(SFX_SMASH);
+        } else {
+            sound_play(SFX_DOGHURT);
+        }
         smashed_any = 1;
     }
     return smashed_any;

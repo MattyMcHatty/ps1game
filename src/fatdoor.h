@@ -9,6 +9,7 @@
    crucifaxe). While intact they block the doorway; once smashed the gap opens. */
 
 #define MAX_FATDOORS         8
+#define FATDOOR_MAX_HEALTH   2     /* hits to destroy a door (no health bar) */
 #define FATDOOR_SMASH_RANGE  300
 #define FATDOOR_PUSH_MARGIN   55   /* keep the camera well clear of the thin door
                                       face so it never near-plane clips */
@@ -23,6 +24,7 @@ typedef struct {
     int32_t      x, y, z;
     int32_t      rot_y;
     int32_t      half_x, half_z;  /* world-axis collision half-widths */
+    int32_t      health;          /* hits remaining before it smashes */
     FatDoorState state;
     int32_t      active;
 } FatDoor;

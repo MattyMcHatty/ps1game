@@ -83,31 +83,37 @@ static void load_tim_buf(const char *filename, int slot,
 static void kitchen_dining_floor_zones_init(void) {
     int i = 0;
 
-    /* Large kitchen room (FLOOR 7) */
+    /* Zones are flat at y=0 and EXTENDED past their true edges so adjacent
+       zones OVERLAP across each doorway threshold — otherwise the gaps where
+       the doors sit fall between zones and the player drops through. Overlap is
+       harmless since every zone is the same height. */
+
+    /* Large kitchen room (FLOOR 7) — +X edge -629 -> -590 (overlap dining). */
     floor_zones[i].type  = FLOOR_FLAT;
-    floor_zones[i].min_x = -3294; floor_zones[i].max_x = -629;
+    floor_zones[i].min_x = -3294; floor_zones[i].max_x = -590;
     floor_zones[i].min_z = -1000; floor_zones[i].max_z =  1000;
     floor_zones[i].y     = 0;
     i++;
 
-    /* Dining / entry area (FLOOR 8) */
+    /* Dining / entry area (FLOOR 8) — -X -600 -> -640 (overlap big room),
+       -Z -1000 -> -1040 (overlap corridor + SE room). */
     floor_zones[i].type  = FLOOR_FLAT;
-    floor_zones[i].min_x = -600; floor_zones[i].max_x = 600;
-    floor_zones[i].min_z = -1000; floor_zones[i].max_z = 1000;
+    floor_zones[i].min_x = -640; floor_zones[i].max_x = 600;
+    floor_zones[i].min_z = -1040; floor_zones[i].max_z = 1000;
     floor_zones[i].y     = 0;
     i++;
 
-    /* South corridor (FLOOR 9) */
+    /* South corridor (FLOOR 9) — +Z -1025 -> -980 (overlap dining). */
     floor_zones[i].type  = FLOOR_FLAT;
     floor_zones[i].min_x = -581; floor_zones[i].max_x = -8;
-    floor_zones[i].min_z = -1699; floor_zones[i].max_z = -1025;
+    floor_zones[i].min_z = -1699; floor_zones[i].max_z = -980;
     floor_zones[i].y     = 0;
     i++;
 
-    /* Southeast little room (FLOOR 7) */
+    /* Southeast little room (FLOOR 7) — +Z -1025 -> -980 (overlap dining). */
     floor_zones[i].type  = FLOOR_FLAT;
     floor_zones[i].min_x =  18; floor_zones[i].max_x = 591;
-    floor_zones[i].min_z = -1699; floor_zones[i].max_z = -1025;
+    floor_zones[i].min_z = -1699; floor_zones[i].max_z = -980;
     floor_zones[i].y     = 0;
     i++;
 
