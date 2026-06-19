@@ -16,6 +16,7 @@
 #include "title.h"
 #include "demondog.h"
 #include "sound.h"
+#include "fatdoor.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -24,6 +25,7 @@ int swing_timer    = 0;
 static int hit_this_swing       = 0;
 static int crate_hit_this_swing = 0;
 static int ddog_hit_this_swing  = 0;
+static int fatdoor_hit_this_swing = 0;
 
 void crucifaxe_init(void) {
     CdlFILE file;
@@ -44,10 +46,11 @@ void update_crucifaxe(void) {
     if (game_state != STATE_MENU && swing_timer == 0 && pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
         if (~pad->btn & PAD_SQUARE) {
-            swing_timer          = 1;
-            hit_this_swing       = 0;
-            crate_hit_this_swing = 0;
-            ddog_hit_this_swing  = 0;
+            swing_timer            = 1;
+            hit_this_swing         = 0;
+            crate_hit_this_swing   = 0;
+            ddog_hit_this_swing    = 0;
+            fatdoor_hit_this_swing = 0;
             sound_play(SFX_SWING);
         }
     }
@@ -110,6 +113,12 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !crate_hit_this_swing) {
             if (crate_try_smash())
                 crate_hit_this_swing = 1;
+        }
+
+        /* Breakable door smash (kitchen entryways) */
+        if (swing_timer <= SWING_DURATION && !fatdoor_hit_this_swing) {
+            if (fatdoors_try_smash())
+                fatdoor_hit_this_swing = 1;
         }
 
         if (++swing_timer > SWING_TOTAL)

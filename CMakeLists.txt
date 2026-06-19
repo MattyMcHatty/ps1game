@@ -42,6 +42,7 @@ add_executable(horror_game
     src/cdaudio.c
     src/menu.c
     src/world.c
+    src/fatdoor.c
 )
 
 target_include_directories(horror_game PRIVATE

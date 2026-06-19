@@ -7,6 +7,7 @@
 #include "delivery_area_mesh_collision.h"
 #include "kitchen_dining_mesh_collision.h"
 #include "crate.h"
+#include "fatdoor.h"
 
 CollisionRoom current_collision_room;
 
@@ -260,6 +261,7 @@ void apply_collision_kitchen_dining(void) {
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly(&r->walls[i], &cam_x, &cam_z, radius);
+    fatdoors_collide(&cam_x, cam_y, &cam_z, radius);
 }
 
 void apply_vampire_collision(void) {

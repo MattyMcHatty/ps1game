@@ -25,6 +25,7 @@
 #include "menu.h"
 #include "kitchen_dining.h"
 #include "world.h"
+#include "fatdoor.h"
 
 GameState game_state   = STATE_TITLE;
 GameState current_area = STATE_DELIVERY_AREA;  /* last playable area; menu returns here */
@@ -72,6 +73,7 @@ void reset_game(RenderContext *ctx) {
     door_init();
     crates_reset();
     demon_dogs_reset();
+    fatdoors_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
 }
@@ -219,6 +221,8 @@ int main(int argc, const char **argv) {
     kitchen_load_assets();     /* load kitchen textures + geometry at startup —
                                   LoadImage is only safe before the main render
                                   loop, and this keeps gameplay CD-read-free */
+    fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
+    fatdoors_init();
     collision_init();
     floor_zones_init();
     crates_init();

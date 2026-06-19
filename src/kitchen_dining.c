@@ -13,6 +13,7 @@
 #include "kitchen_dining_mesh_collision.h"
 #include "kitchen_dining_tex_map.h"
 #include "door.h"
+#include "fatdoor.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -397,6 +398,7 @@ void kitchen_dining_draw(RenderContext *ctx) {
 
     draw_kitchen_smd(ctx);
     kitchen_door_text(ctx);
+    fatdoors_draw(ctx);   /* breakable entryway doors (restores view matrix) */
     /* Player overlays + debug collision view are drawn by the shared
        draw_player_systems step in main (applies to every area). */
 }

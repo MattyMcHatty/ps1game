@@ -27,10 +27,14 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\double_door.tim"/>
             <file name="CRATE.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\props\wdcrate.smd"/>
+            <file name="FATDOOR.SMD" type="data"
+                source="C:\Users\virtu\Documents\ps1game\assets\props\fat_door.smd"/>
             <file name="CRFAXE.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\props\Crucifaxe.smd"/>
             <file name="WCRATE.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\wdcrate.tim"/>
+            <file name="WDDR.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\wd_dr.tim"/>
             <file name="KEY.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\key.tim"/>
             <file name="SML_MED.TIM" type="data"
