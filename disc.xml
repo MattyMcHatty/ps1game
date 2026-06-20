@@ -67,6 +67,8 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\stove.tim"/>
             <file name="DINCL.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\din_cl.tim"/>
+            <file name="STNGLS.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\stn_gls.tim"/>
             <file name="DBLDRHLF.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\dbl_dr_hlf.tim"/>
             <!-- Sound effects live in a subdirectory so the ROOT directory stays

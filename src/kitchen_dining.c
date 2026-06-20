@@ -36,9 +36,9 @@ static SMD  *kitchen_smd  = NULL;
 static void *kitchen_buff = NULL;
 
 /* tpage/clut per texture slot, indexed by the SMX texture order:
-   0=stn_stl 1=kchn_tile 2=wd_flr 3=red_wlppr 4=double_door
-   5=inr_dbl_dr 6=red_crpt 7=stove 8=din_cl */
-#define KITCHEN_TEX_COUNT 9
+   0=stn_stl 1=kchn_tile 2=wd_flr 3=red_wlppr 4=inr_dbl_dr
+   5=red_crpt 6=stn_gls 7=stove 8=din_cl 9=double_door */
+#define KITCHEN_TEX_COUNT 10
 static uint16_t tex_tpage[KITCHEN_TEX_COUNT];
 static uint16_t tex_clut[KITCHEN_TEX_COUNT];
 
@@ -136,11 +136,12 @@ void kitchen_load_assets(void) {
         load_tim_buf("\\KCHNTILE.TIM;1", 1, tbuf, TBUF_CAP);
         load_tim_buf("\\WDFLR.TIM;1",    2, tbuf, TBUF_CAP);
         load_tim_buf("\\REDWLPPR.TIM;1", 3, tbuf, TBUF_CAP);
-        load_tim_buf("\\DBLDOOR.TIM;1",  4, tbuf, TBUF_CAP);
-        load_tim_buf("\\INRDBLDR.TIM;1", 5, tbuf, TBUF_CAP);
-        load_tim_buf("\\REDCRPT.TIM;1",  6, tbuf, TBUF_CAP);
+        load_tim_buf("\\INRDBLDR.TIM;1", 4, tbuf, TBUF_CAP);
+        load_tim_buf("\\REDCRPT.TIM;1",  5, tbuf, TBUF_CAP);
+        load_tim_buf("\\STNGLS.TIM;1",   6, tbuf, TBUF_CAP);
         load_tim_buf("\\STOVE.TIM;1",    7, tbuf, TBUF_CAP);
         load_tim_buf("\\DINCL.TIM;1",    8, tbuf, TBUF_CAP);
+        load_tim_buf("\\DBLDOOR.TIM;1",  9, tbuf, TBUF_CAP);
         free(tbuf);
     }
 
