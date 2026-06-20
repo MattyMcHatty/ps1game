@@ -67,14 +67,24 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\stove.tim"/>
             <file name="DINCL.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\din_cl.tim"/>
-            <file name="SWING.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\swing.vag"/>
-            <file name="HURT.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\hurt.vag"/>
-            <file name="PICKUP.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\pickup.vag"/>
-            <file name="SMASH.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\smash.vag"/>
-            <file name="DOGBARK.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dogbark.vag"/>
-            <file name="DOGHURT.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\doghurt.vag"/>
-            <file name="DOGDIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dogdie.vag"/>
-            <file name="UNLOCK.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\unlock.vag"/>
+            <file name="DBLDRHLF.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\dbl_dr_hlf.tim"/>
+            <!-- Sound effects live in a subdirectory so the ROOT directory stays
+                 within one 2048-byte sector. The PS1 boot ROM only reads the first
+                 root-directory sector to find SYSTEM.CNF/HORROR.BIN; if too many
+                 files push those records into a second sector the disc won't boot
+                 (freezes at the BIOS logo). Keep the root file list short. -->
+            <dir name="SND">
+                <file name="SWING.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\swing.vag"/>
+                <file name="HURT.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\hurt.vag"/>
+                <file name="PICKUP.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\pickup.vag"/>
+                <file name="SMASH.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\smash.vag"/>
+                <file name="DOGBARK.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dogbark.vag"/>
+                <file name="DOGHURT.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\doghurt.vag"/>
+                <file name="DOGDIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dogdie.vag"/>
+                <file name="UNLOCK.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\unlock.vag"/>
+                <file name="DROPEN.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dropen.vag"/>
+            </dir>
         </directory_tree>
     </track>
 

@@ -26,6 +26,7 @@
 #include "kitchen_dining.h"
 #include "world.h"
 #include "fatdoor.h"
+#include "door_anim.h"
 
 GameState game_state   = STATE_TITLE;
 GameState current_area = STATE_DELIVERY_AREA;  /* last playable area; menu returns here */
@@ -103,7 +104,8 @@ static void update_current_area(GameState area) {
         apply_height();
         if (kitchen_door_triggered()) {
             pending_area = STATE_DELIVERY_AREA;
-            game_state   = STATE_LOADING;
+            door_anim_start();
+            game_state   = STATE_DOOR_ANIM;
         }
     } else {
         apply_collision();
@@ -223,6 +225,7 @@ int main(int argc, const char **argv) {
                                   loop, and this keeps gameplay CD-read-free */
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
     fatdoors_init();
+    door_anim_load_assets();   /* level-transition door panel (texture) */
     collision_init();
     floor_zones_init();
     crates_init();
@@ -268,9 +271,18 @@ int main(int argc, const char **argv) {
             }
         } else if (game_state == STATE_LOADING) {
             /* Switch areas. All assets are resident (loaded at startup), so this
-               does no CD reads — the music keeps playing and there's no real
-               load delay; the loading screen just covers the one-frame switch. */
-            draw_loading_screen(&ctx);
+               does no CD reads — the music keeps playing and there's no real load
+               delay. The door animation already faded to black, so we just hold a
+               black screen for this one-frame switch (no LOADING screen). */
+            {
+                TILE *bg = (TILE *)ctx.next_packet;
+                setTile(bg);
+                setXY0(bg, 0, 0);
+                setWH(bg, SCREEN_XRES, SCREEN_YRES);
+                setRGB0(bg, 0, 0, 0);
+                addPrim(&ctx.buffers[ctx.active_buffer].ot[OT_LENGTH - 1], bg);
+                ctx.next_packet += sizeof(TILE);
+            }
             /* Snapshot the room we're leaving so its progress (defeated enemies,
                smashed crates, collected pickups, door state) persists. */
             world_leave(current_area);
@@ -294,6 +306,14 @@ int main(int argc, const char **argv) {
             world_enter(pending_area);
             current_area = pending_area;
             game_state   = pending_area;
+        } else if (game_state == STATE_DOOR_ANIM) {
+            /* RE-style door transition: a black screen with the door swinging
+               open, then a fade to black. Draws nothing of the live room — when
+               it finishes we hand off to STATE_LOADING, which switches areas. */
+            door_anim_update();
+            door_anim_draw(&ctx);
+            if (door_anim_finished())
+                game_state = STATE_LOADING;
         } else if (game_state == STATE_DELIVERY_AREA ||
                    game_state == STATE_KITCHEN_DINING) {
             if (game_over) {

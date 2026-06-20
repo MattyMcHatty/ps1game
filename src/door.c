@@ -8,6 +8,7 @@
 #include "player.h"
 #include "key.h"
 #include "door.h"
+#include "door_anim.h"
 #include "sound.h"
 #include "title.h"
 
@@ -255,9 +256,11 @@ void door_update(void) {
         }
     } else if (door_state == DOOR_UNLOCKED) {
         if (o_just_pressed) {
-            /* Stay UNLOCKED so the door is reusable for repeated trips. */
+            /* Stay UNLOCKED so the door is reusable for repeated trips. Play the
+               door-opening transition; it hands off to STATE_LOADING when done. */
             pending_area = STATE_KITCHEN_DINING;
-            game_state   = STATE_LOADING;
+            door_anim_start();
+            game_state   = STATE_DOOR_ANIM;
         }
     }
 }

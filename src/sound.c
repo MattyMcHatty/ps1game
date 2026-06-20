@@ -17,15 +17,19 @@ typedef struct {
 static SfxSlot sfx_slots[SFX_COUNT];
 static int     next_spu_addr = ALLOC_START;
 
+/* VAGs live in the \SND subdirectory (see disc.xml): keeping them out of the
+   root directory stops it spilling into a second sector, which the PS1 boot ROM
+   can't follow to find SYSTEM.CNF (the disc would freeze at the BIOS logo). */
 static const char *sfx_files[SFX_COUNT] = {
-    "\\SWING.VAG;1",
-    "\\HURT.VAG;1",
-    "\\PICKUP.VAG;1",
-    "\\SMASH.VAG;1",
-    "\\DOGBARK.VAG;1",
-    "\\DOGHURT.VAG;1",
-    "\\DOGDIE.VAG;1",
-    "\\UNLOCK.VAG;1",
+    "\\SND\\SWING.VAG;1",
+    "\\SND\\HURT.VAG;1",
+    "\\SND\\PICKUP.VAG;1",
+    "\\SND\\SMASH.VAG;1",
+    "\\SND\\DOGBARK.VAG;1",
+    "\\SND\\DOGHURT.VAG;1",
+    "\\SND\\DOGDIE.VAG;1",
+    "\\SND\\UNLOCK.VAG;1",
+    "\\SND\\DROPEN.VAG;1",
 };
 
 static void load_vag(SfxID id) {

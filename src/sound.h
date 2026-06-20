@@ -12,7 +12,8 @@ typedef enum {
     SFX_DOGHURT = 5,
     SFX_DOGDIE  = 6,
     SFX_UNLOCK  = 7,
-    SFX_COUNT   = 8,
+    SFX_DOOR    = 8,   /* double-door open/close, used by the level transition */
+    SFX_COUNT   = 9,
 } SfxID;
 
 void sound_init(void);
