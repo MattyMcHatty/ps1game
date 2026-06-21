@@ -39,4 +39,9 @@ void fatdoors_draw(RenderContext *ctx);
 void fatdoors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 int  fatdoors_try_smash(void);
 
+/* Damage the first intact door whose collision box (expanded by `reach`)
+   contains (x,z). Used by enemies that batter the doors. Returns 0 = none in
+   range, 1 = damaged, 2 = that hit smashed it. */
+int  fatdoors_damage_at(int32_t x, int32_t z, int32_t reach, int amount);
+
 #endif

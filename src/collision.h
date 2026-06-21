@@ -43,6 +43,11 @@ void apply_collision_kitchen_dining(void);
 void apply_vampire_collision(void);
 void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ramp);
 
+/* Wall collision for a free-roaming entity in a single-level (flat) room such
+   as the kitchen: collides against every wall in the current room, front faces
+   only — the same scheme apply_collision_kitchen_dining() uses for the player. */
+void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius);
+
 /* -----------------------------------------------------------------------
  * Floor / height zones
  * ----------------------------------------------------------------------- */

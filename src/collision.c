@@ -264,6 +264,14 @@ void apply_collision_kitchen_dining(void) {
     fatdoors_collide(&cam_x, cam_y, &cam_z, radius);
 }
 
+void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {
+    CollisionRoom *r = &current_collision_room;
+    int i, pass;
+    for (pass = 0; pass < 2; pass++)
+        for (i = 0; i < r->wall_count; i++)
+            collide_wall_frontonly(&r->walls[i], x, z, radius);
+}
+
 void apply_vampire_collision(void) {
     CollisionRoom *r = &current_collision_room;
     int32_t radius = 100;

@@ -14,6 +14,7 @@
 #include "kitchen_dining_tex_map.h"
 #include "door.h"
 #include "fatdoor.h"
+#include "zombie.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -406,6 +407,14 @@ void kitchen_dining_draw(RenderContext *ctx) {
     draw_kitchen_smd(ctx);
     kitchen_door_text(ctx);
     fatdoors_draw(ctx);   /* breakable entryway doors (restores view matrix) */
+
+    /* Tell the zombie renderer about our texture window (set above at
+       OT_LENGTH-1) so it can draw its sprites unmasked and then restore it. */
+    {
+        RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+        zombies_set_texwindow(&tw);
+    }
+    draw_zombies(ctx);
     /* Player overlays + debug collision view are drawn by the shared
        draw_player_systems step in main (applies to every area). */
 }

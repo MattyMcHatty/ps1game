@@ -22,6 +22,7 @@
 #include "key.h"
 #include "door.h"
 #include "demondog.h"
+#include "zombie.h"
 #include "menu.h"
 #include "kitchen_dining.h"
 #include "world.h"
@@ -74,6 +75,7 @@ void reset_game(RenderContext *ctx) {
     door_init();
     crates_reset();
     demon_dogs_reset();
+    zombies_reset();
     fatdoors_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
@@ -102,6 +104,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_KITCHEN_DINING) {
         apply_collision_kitchen_dining();
         apply_height();
+        update_zombies();
         if (kitchen_door_triggered()) {
             pending_area = STATE_DELIVERY_AREA;
             door_anim_start();
@@ -111,6 +114,7 @@ static void update_current_area(GameState area) {
         apply_collision();
         apply_height();
         update_demon_dogs();
+        update_zombies();
         crates_update();
         keys_update();
         sml_meds_update();
@@ -233,6 +237,8 @@ int main(int argc, const char **argv) {
     sml_meds_init();
     door_init();
     demon_dogs_init();
+    zombies_load_textures();   /* LoadImage at startup only (see TEXTURING_NOTES) */
+    zombies_init();            /* capture spawn defaults (none placed yet) */
     crucifaxe_init();
     sound_init();
     cdaudio_init();

@@ -345,3 +345,30 @@ int fatdoors_try_smash(void) {
     }
     return smashed_any;
 }
+
+int fatdoors_damage_at(int32_t x, int32_t z, int32_t reach, int amount) {
+    int i;
+    for (i = 0; i < fatdoor_count; i++) {
+        FatDoor *d = &fatdoors[i];
+        if (!d->active || d->state != FATDOOR_INTACT) continue;
+
+        int32_t min_x = d->x - d->half_x - reach;
+        int32_t max_x = d->x + d->half_x + reach;
+        int32_t min_z = d->z - d->half_z - reach;
+        int32_t max_z = d->z + d->half_z + reach;
+
+        if (x < min_x || x > max_x) continue;
+        if (z < min_z || z > max_z) continue;
+
+        d->health -= amount;
+        spawn_wood_burst(d->x, d->y, d->z);
+        if (d->health <= 0) {
+            d->state = FATDOOR_SMASHED;
+            sound_play(SFX_SMASH);
+            return 2;
+        }
+        sound_play(SFX_DOGHURT);
+        return 1;
+    }
+    return 0;
+}

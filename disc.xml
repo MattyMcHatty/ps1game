@@ -71,6 +71,10 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\stn_gls.tim"/>
             <file name="DBLDRHLF.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\dbl_dr_hlf.tim"/>
+            <file name="ZSLEEP.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\zombie_sleep.tim"/>
+            <file name="ZALERT.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\zombie_alert.tim"/>
             <!-- Sound effects live in a subdirectory so the ROOT directory stays
                  within one 2048-byte sector. The PS1 boot ROM only reads the first
                  root-directory sector to find SYSTEM.CNF/HORROR.BIN; if too many
@@ -86,6 +90,8 @@
                 <file name="DOGDIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dogdie.vag"/>
                 <file name="UNLOCK.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\unlock.vag"/>
                 <file name="DROPEN.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dropen.vag"/>
+                <file name="ZOMBIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\zombie.vag"/>
+                <file name="ZOMBIEDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\ZOMBIEDIE.vag"/>
             </dir>
         </directory_tree>
     </track>

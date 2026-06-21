@@ -1,0 +1,89 @@
+#ifndef ZOMBIE_H
+#define ZOMBIE_H
+
+#include <stdint.h>
+#include "render.h"
+
+#define MAX_ZOMBIES           8
+#define ZMB_MAX_HEALTH        5
+#define ZMB_SPEED             5
+#define ZMB_WAKE_RADIUS     900    /* Manhattan; reaches the player at the
+                                      adjacent fat door, but no further */
+#define ZMB_CATCH_DIST      180
+#define ZMB_DAMAGE_AMOUNT    15
+#define ZMB_DAMAGE_COOLDOWN  60
+#define ZMB_DOOR_COOLDOWN    90    /* frames between hits on a fat door (~1.5s) */
+#define ZMB_DOOR_CLEARANCE  100    /* movement-collision radius vs fat doors; bigger
+                                      than the body radius so the sprite is held far
+                                      enough back not to clip through the thin door */
+#define ZMB_HALF_W           62    /* sprite half width (world units), ~1/4 wider */
+#define ZMB_HALF_H          125    /* half height (half the earlier height bump) */
+#define ZMB_Y_OFFSET         25    /* feet stay planted: y_offset + half_h = 150 */
+#define ZMB_KNOCKBACK        40
+#define ZMB_BAR_TIMER_MAX   120
+#define ZMB_GROAN_INTERVAL  400    /* frames between repeated groans while alert; set
+                                      just under the ~7s clip length so it re-triggers
+                                      before the end with no silent gap (continuous) */
+
+/* --- Steering / flocking tuning (mirrors the demon dog) --- */
+#define ZMB_SEP_RADIUS      150    /* zombies try to stay this far apart (soft push) */
+#define ZMB_SEP_WEIGHT        2    /* separation strength vs. pursuit */
+#define ZMB_BODY_RADIUS      60    /* hard collision radius (~half sprite width) */
+#define ZMB_FEELER_LEN      150    /* obstacle look-ahead distance */
+#define ZMB_TURN_RATE         3    /* turn smoothing: 1=sluggish .. 8=instant snap */
+#define ZMB_STEER_COMMIT     30    /* frames to commit to a wall-follow side once blocked */
+
+#define ZMB_SHADOW_W         70
+#define ZMB_SHADOW_D         30
+#define ZMB_SHADOW_R          0
+#define ZMB_SHADOW_G          0
+#define ZMB_SHADOW_B          0
+
+typedef enum {
+    ZMB_DORMANT,
+    ZMB_ALERT,
+    ZMB_DEAD,
+} ZombieState;
+
+typedef struct {
+    int32_t     x, y, z;
+    int32_t     vy;
+    int32_t     kb_vx, kb_vz;
+    int         health;
+    int         damage_timer;
+    int         door_timer;     /* cooldown between battering a fat door */
+    int         hit_timer;
+    ZombieState state;
+    int32_t     active;
+    int         on_upper_floor;
+    int         on_ramp;
+    int         anim_tick;
+    int         groan_timer;
+    int32_t     facing;         /* last move dir, packed: hi16 = X, lo16 = Z */
+    int         steer_timer;    /* frames left committed to a wall-follow side */
+    int         steer_dir;      /* committed side: -1 = left, +1 = right */
+} Zombie;
+
+extern Zombie zombies[MAX_ZOMBIES];
+extern int    zombie_count;
+
+/* Load the zombie sprite TIMs into VRAM. Call ONCE at startup (LoadImage is
+   only safe before the main render loop begins). */
+void zombies_load_textures(void);
+
+/* Place a zombie at a world position into the live array. Returns its index,
+   or -1 if full. The world system (world.c) seeds each room's zombies and
+   persists them across area transitions. */
+int  zombie_add(int32_t x, int32_t y, int32_t z);
+
+void zombies_init(void);
+void zombies_reset(void);
+void update_zombies(void);
+void draw_zombies(RenderContext *ctx);
+
+/* Tell the zombie renderer which texture window the current area has active, so
+   each sprite can be drawn unmasked and then the area's window restored. Pass
+   NULL for areas that use no texture window. */
+void zombies_set_texwindow(const RECT *tw);
+
+#endif

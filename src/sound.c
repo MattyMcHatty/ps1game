@@ -30,7 +30,18 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\DOGDIE.VAG;1",
     "\\SND\\UNLOCK.VAG;1",
     "\\SND\\DROPEN.VAG;1",
+    "\\SND\\ZOMBIE.VAG;1",
+    "\\SND\\ZOMBIEDIE.VAG;1",
 };
+
+/* Which SPU voice a sound plays on. Short one-shot effects share a small pool
+   (FIRST_VOICE + id%8). The zombie groan is a long, continuous ambience that
+   must NOT be cut by a one-shot (e.g. the player's hurt sound shares its slot
+   under id%8), so it gets a dedicated voice clear of that pool. */
+static int sfx_channel(SfxID id) {
+    if (id == SFX_ZOMBIE) return 16;
+    return FIRST_VOICE + (id % 8);
+}
 
 static void load_vag(SfxID id) {
     CdlFILE file;
@@ -93,7 +104,7 @@ void sound_play(SfxID id) {
     SfxSlot *s = &sfx_slots[id];
     if (!s->loaded) return;
 
-    int ch = FIRST_VOICE + (id % 8);
+    int ch = sfx_channel(id);
 
     /* Stop the channel before reconfiguring */
     SpuSetKey(0, 1 << ch);
@@ -107,4 +118,12 @@ void sound_play(SfxID id) {
     SPU_CH_ADSR2(ch) = 0x0000;
 
     SpuSetKey(1, 1 << ch);
+}
+
+void sound_stop(SfxID id) {
+    if (id < 0 || id >= SFX_COUNT) return;
+    /* Same channel mapping as sound_play(): key the voice off so the sample
+       stops immediately instead of playing out to its end. */
+    int ch = sfx_channel(id);
+    SpuSetKey(0, 1 << ch);
 }

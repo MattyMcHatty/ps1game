@@ -12,11 +12,14 @@ typedef enum {
     SFX_DOGHURT = 5,
     SFX_DOGDIE  = 6,
     SFX_UNLOCK  = 7,
-    SFX_DOOR    = 8,   /* double-door open/close, used by the level transition */
-    SFX_COUNT   = 9,
+    SFX_DOOR     = 8,   /* double-door open/close, used by the level transition */
+    SFX_ZOMBIE   = 9,   /* zombie groan, looped while a zombie is alert */
+    SFX_ZOMBIEDIE = 10, /* zombie death */
+    SFX_COUNT    = 11,
 } SfxID;
 
 void sound_init(void);
 void sound_play(SfxID id);
+void sound_stop(SfxID id);
 
 #endif

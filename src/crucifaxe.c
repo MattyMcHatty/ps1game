@@ -15,6 +15,7 @@
 #include "crate.h"
 #include "title.h"
 #include "demondog.h"
+#include "zombie.h"
 #include "sound.h"
 #include "fatdoor.h"
 
@@ -25,6 +26,7 @@ int swing_timer    = 0;
 static int hit_this_swing       = 0;
 static int crate_hit_this_swing = 0;
 static int ddog_hit_this_swing  = 0;
+static int zomb_hit_this_swing  = 0;
 static int fatdoor_hit_this_swing = 0;
 
 void crucifaxe_init(void) {
@@ -50,6 +52,7 @@ void update_crucifaxe(void) {
             hit_this_swing         = 0;
             crate_hit_this_swing   = 0;
             ddog_hit_this_swing    = 0;
+            zomb_hit_this_swing    = 0;
             fatdoor_hit_this_swing = 0;
             sound_play(SFX_SWING);
         }
@@ -103,6 +106,38 @@ void update_crucifaxe(void) {
                             sound_play(SFX_DOGHURT);
                         }
                         ddog_hit_this_swing = 1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        /* Zombie hit — checked independently of vampire and dog hits */
+        if (swing_timer <= SWING_DURATION && !zomb_hit_this_swing) {
+            int zi;
+            for (zi = 0; zi < zombie_count; zi++) {
+                Zombie *z = &zombies[zi];
+                if (!z->active || z->state == ZMB_DEAD) continue;
+                int32_t dx     = z->x - cam_x;
+                int32_t dy     = z->y - cam_y;
+                int32_t dz     = z->z - cam_z;
+                int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+                int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
+                if (dist3d < SWING_RANGE) {
+                    int32_t dot = ((int32_t)dx * isin(cam_rot) +
+                                   (int32_t)dz * icos(cam_rot)) >> 12;
+                    if (dot > 0) {
+                        z->kb_vx = dist2d > 0 ? (dx * ZMB_KNOCKBACK) / dist2d : 0;
+                        z->kb_vz = dist2d > 0 ? (dz * ZMB_KNOCKBACK) / dist2d : 0;
+                        z->health--;
+                        z->hit_timer = ZMB_BAR_TIMER_MAX;
+                        if (z->health <= 0) {
+                            z->state = ZMB_DEAD;
+                            spawn_blood_burst(z->x, z->y, z->z);
+                            sound_stop(SFX_ZOMBIE);     /* cut the groan immediately */
+                            sound_play(SFX_ZOMBIEDIE);  /* play the death sound */
+                        }
+                        zomb_hit_this_swing = 1;
                         break;
                     }
                 }
