@@ -19,6 +19,7 @@
 #include "title.h"
 #include "collision.h"
 #include "crate.h"
+#include "dining_table.h"
 #include "key.h"
 #include "door.h"
 #include "demondog.h"
@@ -233,6 +234,7 @@ int main(int argc, const char **argv) {
     collision_init();
     floor_zones_init();
     crates_init();
+    dining_tables_init();      /* static kitchen props (loads DINTABLE.SMD) */
     keys_init();
     sml_meds_init();
     door_init();

@@ -15,6 +15,7 @@
 #include "door.h"
 #include "fatdoor.h"
 #include "zombie.h"
+#include "dining_table.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -405,6 +406,10 @@ void kitchen_dining_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_kitchen_smd(ctx);
+    /* Static dining tables — drawn with the wd_flr texture (slot 2) the kitchen
+       keeps resident, reusing the 128 texture window set above. Restores the
+       view matrix before returning. */
+    dining_tables_draw(ctx, tex_tpage[2], tex_clut[2]);
     kitchen_door_text(ctx);
     fatdoors_draw(ctx);   /* breakable entryway doors (restores view matrix) */
 

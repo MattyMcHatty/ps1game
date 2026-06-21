@@ -6,7 +6,7 @@
 
 #define MAX_ZOMBIES           8
 #define ZMB_MAX_HEALTH        5
-#define ZMB_SPEED             5
+#define ZMB_SPEED             8    /* 5 + ~half (1.5x) */
 #define ZMB_WAKE_RADIUS     900    /* Manhattan; reaches the player at the
                                       adjacent fat door, but no further */
 #define ZMB_CATCH_DIST      180
@@ -16,10 +16,12 @@
 #define ZMB_DOOR_CLEARANCE  100    /* movement-collision radius vs fat doors; bigger
                                       than the body radius so the sprite is held far
                                       enough back not to clip through the thin door */
+#define ZMB_DOOR_CLEAR_DIST  80    /* how close to a doorway clearance point counts as
+                                      "stepped clear of the opening" */
 #define ZMB_HALF_W           62    /* sprite half width (world units), ~1/4 wider */
 #define ZMB_HALF_H          125    /* half height (half the earlier height bump) */
 #define ZMB_Y_OFFSET         25    /* feet stay planted: y_offset + half_h = 150 */
-#define ZMB_KNOCKBACK        40
+#define ZMB_KNOCKBACK        20
 #define ZMB_BAR_TIMER_MAX   120
 #define ZMB_GROAN_INTERVAL  400    /* frames between repeated groans while alert; set
                                       just under the ~7s clip length so it re-triggers
@@ -62,6 +64,8 @@ typedef struct {
     int32_t     facing;         /* last move dir, packed: hi16 = X, lo16 = Z */
     int         steer_timer;    /* frames left committed to a wall-follow side */
     int         steer_dir;      /* committed side: -1 = left, +1 = right */
+    int         nav_clear;      /* doorway node whose far side we must step clear
+                                   of before chasing again (-1 = none) */
 } Zombie;
 
 extern Zombie zombies[MAX_ZOMBIES];

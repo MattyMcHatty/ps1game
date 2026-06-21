@@ -70,6 +70,7 @@ int zombie_add(int32_t x, int32_t y, int32_t z) {
     z0->health = ZMB_MAX_HEALTH;
     z0->state  = ZMB_DORMANT;
     z0->active = 1;
+    z0->nav_clear = -1;
     return i;
 }
 
@@ -104,7 +105,12 @@ void zombies_reset(void) {
 #define NAV_NODE_COUNT 3
 
 typedef struct { int32_t min_x, max_x, min_z, max_z; } NavZone;
-typedef struct { int32_t x, z; int za, zb; }           NavNode;
+typedef struct {
+    int32_t x, z;        /* door centre (where a closed door is bashed) */
+    int     za, zb;      /* zones the doorway bridges */
+    int32_t ax, az;      /* clearance point a little inside zone za */
+    int32_t bx, bz;      /* clearance point a little inside zone zb */
+} NavNode;
 
 static const NavZone nav_zones[NAV_ZONE_COUNT] = {
     { -3294, -590, -1000,  1000 },  /* 0: big kitchen room       */
@@ -114,9 +120,10 @@ static const NavZone nav_zones[NAV_ZONE_COUNT] = {
 };
 
 static const NavNode nav_nodes[NAV_NODE_COUNT] = {
-    { -596,  -371, 0, 1 },   /* big-room <-> dining fat door */
-    { -300, -1013, 1, 2 },   /* dining   <-> corridor fat door */
-    {  300, -1013, 1, 3 },   /* dining   <-> SE-room fat door */
+    /* door x   z    za zb   za-clearance   zb-clearance  */
+    { -596,  -371, 0, 1,  -785, -371,  -445, -371 },  /* big-room <-> dining   */
+    { -300, -1013, 1, 2,  -300, -843,  -300, -1183 }, /* dining   <-> corridor */
+    {  300, -1013, 1, 3,   300, -843,   300, -1183 }, /* dining   <-> SE-room  */
 };
 
 static int nav_zone_at(int32_t x, int32_t z) {
@@ -240,13 +247,28 @@ void update_zombies(void) {
             }
         }
 
-        /* --- Pick a goal: the player when we share a room, otherwise the
-           doorway waypoint that leads toward the player's room. --- */
+        /* --- Pick a goal. Same room as the player: chase directly. Different
+           room: head for the doorway leading toward them. Just came THROUGH a
+           doorway: first step to a clearance point inside the room so we get out
+           of the opening before turning to chase, otherwise an off-axis player
+           drags us into the door frame and we snag. --- */
         int zfrom = nav_zone_at(d->x, d->z);
         int zto   = nav_zone_at(cam_x, cam_z);
         int node  = nav_next_node(zfrom, zto);
         int32_t goal_x = cam_x, goal_z = cam_z;
-        if (node >= 0) { goal_x = nav_nodes[node].x; goal_z = nav_nodes[node].z; }
+        if (node >= 0) {
+            goal_x = nav_nodes[node].x;
+            goal_z = nav_nodes[node].z;
+            d->nav_clear = node;          /* remember to clear this door's far side */
+        } else if (d->nav_clear >= 0) {
+            const NavNode *N = &nav_nodes[d->nav_clear];
+            int32_t ex = (zfrom == N->za) ? N->ax : N->bx;
+            int32_t ez = (zfrom == N->za) ? N->az : N->bz;
+            int32_t cd = (ex - d->x < 0 ? d->x - ex : ex - d->x) +
+                         (ez - d->z < 0 ? d->z - ez : ez - d->z);
+            if (cd > ZMB_DOOR_CLEAR_DIST) { goal_x = ex; goal_z = ez; }
+            else d->nav_clear = -1;       /* stepped clear of the opening — chase now */
+        }
         int32_t gdx = goal_x - d->x;
         int32_t gdz = goal_z - d->z;
 

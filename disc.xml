@@ -31,6 +31,8 @@
                 source="C:\Users\virtu\Documents\ps1game\assets\props\fat_door.smd"/>
             <file name="CRFAXE.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\props\Crucifaxe.smd"/>
+            <file name="DINTABLE.SMD" type="data"
+                source="C:\Users\virtu\Documents\ps1game\assets\props\dining_table.smd"/>
             <file name="WCRATE.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\wdcrate.tim"/>
             <file name="WDDR.TIM" type="data"
@@ -91,7 +93,7 @@
                 <file name="UNLOCK.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\unlock.vag"/>
                 <file name="DROPEN.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dropen.vag"/>
                 <file name="ZOMBIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\zombie.vag"/>
-                <file name="ZOMBIEDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\ZOMBIEDIE.vag"/>
+                <file name="ZOMBDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\ZOMBIEDIE.vag"/>
             </dir>
         </directory_tree>
     </track>
