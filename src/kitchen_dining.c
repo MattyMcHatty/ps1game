@@ -16,6 +16,7 @@
 #include "fatdoor.h"
 #include "zombie.h"
 #include "dining_table.h"
+#include "sml_med.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -410,6 +411,10 @@ void kitchen_dining_draw(RenderContext *ctx) {
        keeps resident, reusing the 128 texture window set above. Restores the
        view matrix before returning. */
     dining_tables_draw(ctx, tex_tpage[2], tex_clut[2]);
+    /* Floating pickups. Draws billboards in the active view matrix (restored by
+       dining_tables_draw); the 64x64 sprite's UVs sit inside the 128 texture
+       window so no bracketing is needed. */
+    sml_meds_draw(ctx);
     kitchen_door_text(ctx);
     fatdoors_draw(ctx);   /* breakable entryway doors (restores view matrix) */
 

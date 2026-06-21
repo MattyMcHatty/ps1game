@@ -38,20 +38,23 @@ void dining_tables_init(void) {
     /* Five tables across the large kitchen room. y=-149 is the kitchen
        "standing on the floor" reference (matches the player/zombie); the draw
        adds GROUND_FLOOR_Y so the model's feet rest on the floor at world y=0.
-       Footprint ~306x200 (tabletop X ±153, Z ±100). */
-    static const int32_t pos[][2] = {
-        { -1262, -536 },
-        { -1418,  556 },
-        { -2035, -107 },
-        { -2577, -520 },
-        { -2456,  525 },
+       Footprint ~306x200 (tabletop X ±153, Z ±100).
+       Each gets its own Y rotation (0..4096 = full turn) so the tables face
+       different directions and look haphazardly arranged. */
+    static const int32_t pos[][3] = {
+        /*   x      z    rot_y */
+        { -1262, -536,   412 },
+        { -1418,  556,  1730 },
+        { -2035, -107,  2950 },
+        { -2577, -520,   880 },
+        { -2456,  525,  3580 },
     };
     int i;
     for (i = 0; i < (int)(sizeof(pos) / sizeof(pos[0])); i++) {
         dining_tables[i].x      = pos[i][0];
         dining_tables[i].y      = -149;
         dining_tables[i].z      = pos[i][1];
-        dining_tables[i].rot_y  = 0;
+        dining_tables[i].rot_y  = pos[i][2];
         dining_tables[i].active = 1;
         dining_tables[i].half_w = 153;   /* tabletop footprint: X ±153, Z ±100 */
         dining_tables[i].half_d = 100;

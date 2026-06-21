@@ -106,6 +106,7 @@ static void update_current_area(GameState area) {
         apply_collision_kitchen_dining();
         apply_height();
         update_zombies();
+        sml_meds_update();
         if (kitchen_door_triggered()) {
             pending_area = STATE_DELIVERY_AREA;
             door_anim_start();

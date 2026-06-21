@@ -132,8 +132,12 @@ void sml_meds_draw(RenderContext *ctx) {
         gte_stsxy(&screen);
         gte_avsz3();
         gte_stotz(&otz);
-        otz >>= 2; /* compress to 0-512: always below world geometry, pickups still depth-sorted */
-        if (otz < 2) otz = 2;
+        /* Sort at true scene depth so the pickup is occluded by walls/doors in
+           front of it (e.g. the kitchen fat_doors). World geometry is biased
+           +40 into the OT, so an unbiased pickup still draws over the floor /
+           surface it floats above without z-fighting. */
+        if (otz < SCENE_OT_MIN)   otz = SCENE_OT_MIN;
+        if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
         if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) continue;
 
         int32_t wdist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);

@@ -94,6 +94,13 @@ void world_enter(GameState area) {
         if (area == STATE_KITCHEN_DINING) {
             zombie_add(-309, -149, -1275);
             zombie_add(-892, -149,  -384);
+            zombie_add(-2064, -149, -663);
+            zombie_add(-2969, -149,  -13);
+            zombie_add(-1997, -149,  830);
+
+            /* Floating small medipac. sml_med_spawn adds SML_MED_FLOAT_Y, so
+               this floats just above the floor at the requested spot. */
+            sml_med_spawn(293, -149, -1399);
         }
 
         r->visited = 1;
