@@ -115,9 +115,6 @@ static int char_to_glyph(char c) {
  * Draw a string as world-space pixel quads on the wall (YZ plane at fixed X).
  * Text extends left-to-right in Z, and top-to-bottom in Y.
  * ----------------------------------------------------------------------- */
-#define DOOR_PIXEL_SIZE 4           /* text size — half the normal PIXEL_SIZE */
-#define CHAR_W  (6 * DOOR_PIXEL_SIZE)   /* 5 pixel cols + 1 gap */
-
 void door_draw_string_3d(
     RenderContext *ctx,
     const char    *str,
@@ -126,8 +123,11 @@ void door_draw_string_3d(
     int32_t        world_z,
     uint8_t        r, uint8_t g, uint8_t b,
     int             fade_factor, /* 0-256, applied as (color * fade) >> 8 */
-    int             mirror       /* 1 = flip horizontally for viewing from -X */
+    int             mirror,      /* 1 = flip horizontally for viewing from the far side */
+    TextPlane       plane,       /* TEXT_PLANE_YZ (fixed X) or TEXT_PLANE_XY (fixed Z) */
+    int             pixel        /* world units per font pixel (DOOR_PIXEL_SIZE = default) */
 ) {
+    int char_w = 6 * pixel;   /* 5 pixel cols + 1 gap */
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
     /* Apply fade to color */
@@ -138,15 +138,18 @@ void door_draw_string_3d(
     int len = 0;
     while (str[len]) len++;
 
-    int32_t start_z = world_z + 200 - (len * CHAR_W) / 2;
+    /* The reading axis is Z (YZ plane) or X (XY plane); centre on that world
+       coord. The +200 nudge matches the door-sign callers (which pass coord-200). */
+    int32_t read_coord = (plane == TEXT_PLANE_XY) ? world_x : world_z;
+    int32_t read_start = read_coord + 200 - (len * char_w) / 2;
 
     int ci;
     for (ci = 0; ci < len; ci++) {
-        /* When mirrored, reverse character order along Z so the text reads
-           correctly from the opposite side of the plane. */
+        /* When mirrored, reverse character order along the reading axis so the
+           text reads correctly from the opposite side of the plane. */
         int eff_ci = mirror ? (len - 1 - ci) : ci;
         const uint8_t *glyph = door_glyphs[char_to_glyph(str[ci])];
-        int32_t char_z = start_z + eff_ci * CHAR_W;
+        int32_t char_read = read_start + eff_ci * char_w;
 
         int row, col;
         for (row = 0; row < 7; row++) {
@@ -156,16 +159,26 @@ void door_draw_string_3d(
 
                 /* Mirror flips columns within each glyph too. */
                 int eff_col = mirror ? (4 - col) : col;
-                int32_t pz = char_z + eff_col * DOOR_PIXEL_SIZE;
-                int32_t py = world_y + row * DOOR_PIXEL_SIZE;
+                int32_t pr = char_read + eff_col * pixel; /* reading-axis pos */
+                int32_t py = world_y + row * pixel;
 
-                /* Quad on wall: Z varies per char (left-right), Y varies per row (top-bottom), X fixed
-                   Flipped winding: v0=TL, v1=BL, v2=TR, v3=BR (CCW from south)          */
+                /* Quad on the wall: the reading axis varies per char/col
+                   (left-right), Y varies per row (top-bottom), the third axis is
+                   fixed. v0=TL, v1=BL, v2=TR, v3=BR. */
                 SVECTOR verts[4];
-                verts[0].vx = (int16_t)world_x; verts[0].vy = (int16_t)py;                    verts[0].vz = (int16_t)pz;               verts[0].pad = 0;
-                verts[1].vx = (int16_t)world_x; verts[1].vy = (int16_t)(py + DOOR_PIXEL_SIZE); verts[1].vz = (int16_t)pz;               verts[1].pad = 0;
-                verts[2].vx = (int16_t)world_x; verts[2].vy = (int16_t)py;                    verts[2].vz = (int16_t)(pz + DOOR_PIXEL_SIZE); verts[2].pad = 0;
-                verts[3].vx = (int16_t)world_x; verts[3].vy = (int16_t)(py + DOOR_PIXEL_SIZE); verts[3].vz = (int16_t)(pz + DOOR_PIXEL_SIZE); verts[3].pad = 0;
+                if (plane == TEXT_PLANE_XY) {
+                    /* Fixed Z; reading axis is X (90deg from the YZ door signs). */
+                    verts[0].vx = (int16_t)pr;             verts[0].vy = (int16_t)py;             verts[0].vz = (int16_t)world_z; verts[0].pad = 0;
+                    verts[1].vx = (int16_t)pr;             verts[1].vy = (int16_t)(py + pixel); verts[1].vz = (int16_t)world_z; verts[1].pad = 0;
+                    verts[2].vx = (int16_t)(pr + pixel); verts[2].vy = (int16_t)py;             verts[2].vz = (int16_t)world_z; verts[2].pad = 0;
+                    verts[3].vx = (int16_t)(pr + pixel); verts[3].vy = (int16_t)(py + pixel); verts[3].vz = (int16_t)world_z; verts[3].pad = 0;
+                } else {
+                    /* Fixed X; reading axis is Z (door signs). */
+                    verts[0].vx = (int16_t)world_x; verts[0].vy = (int16_t)py;             verts[0].vz = (int16_t)pr;             verts[0].pad = 0;
+                    verts[1].vx = (int16_t)world_x; verts[1].vy = (int16_t)(py + pixel); verts[1].vz = (int16_t)pr;             verts[1].pad = 0;
+                    verts[2].vx = (int16_t)world_x; verts[2].vy = (int16_t)py;             verts[2].vz = (int16_t)(pr + pixel); verts[2].pad = 0;
+                    verts[3].vx = (int16_t)world_x; verts[3].vy = (int16_t)(py + pixel); verts[3].vz = (int16_t)(pr + pixel); verts[3].pad = 0;
+                }
 
                 DVECTOR sv[4];
                 int32_t otz;
@@ -297,17 +310,17 @@ void door_draw(RenderContext *ctx) {
             door_draw_string_3d(ctx,
                 "Press O to unlock",
                 SIGN_X, SIGN_Y, SIGN_Z,
-                50, 255, 50, fade_factor, 0);
+                50, 255, 50, fade_factor, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
         } else {
             door_draw_string_3d(ctx,
                 "Front Door Key required",
                 SIGN_X, SIGN_Y, SIGN_Z,
-                255, 50, 50, fade_factor, 0);
+                255, 50, 50, fade_factor, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
         }
     } else if (door_state == DOOR_UNLOCKED) {
         door_draw_string_3d(ctx,
             "Press O to enter",
             SIGN_X, SIGN_Y, SIGN_Z,
-            50, 255, 50, fade_factor, 0);
+            50, 255, 50, fade_factor, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
     }
 }

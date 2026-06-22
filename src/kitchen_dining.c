@@ -32,6 +32,19 @@ extern volatile size_t  pad_buff_len[2];
 #define KDOOR_FADE_NEAR      1000   /* fully opaque within this distance */
 #define KDOOR_TRIGGER_RADIUS  500   /* distance at which Circle activates the door */
 
+/* Stove sign ("Press O to ignite"), rotated 90deg CCW (XY plane, fixed Z).
+   TODO: set X/Z over the stove — walk there in debug mode (Select) and read
+   cam_x/cam_z. Flip STOVE_TEXT_MIRROR (0/1) if the text reads backwards. */
+#define STOVE_TEXT_X         13
+#define STOVE_TEXT_Z        980
+#define STOVE_TEXT_MIRROR    0
+#define STOVE_TEXT_PIXEL     2   /* half the default sign size (DOOR_PIXEL_SIZE=4) */
+
+/* "to reception" door sign ("Press O to enter"), rotated 180deg (YZ plane,
+   mirror=0) from the kitchen door sign. */
+#define TO_RECEPTION_TEXT_X (-3255)
+#define TO_RECEPTION_TEXT_Z  (-26)
+
 /* Circle edge-detect for the kitchen door; seeded by kitchen_door_arm(). */
 static int kdoor_circle_prev = 1;
 
@@ -362,7 +375,53 @@ static void kitchen_door_text(RenderContext *ctx) {
        this centres the text on KDOOR_Z. mirror=1 for the -X viewing side. */
     door_draw_string_3d(ctx, "Press O to enter",
                         KDOOR_X, KDOOR_TEXT_Y, KDOOR_Z - 200,
-                        50, 255, 50, fade, 1);
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
+/* Floating "Press O to ignite" sign over the stove. Rotated 90deg CCW from the
+   door signs: it lies in the XY plane (fixed Z) so it reads along X and faces
+   along Z. mirror flips reading direction for the side the player approaches. */
+static void stove_text(RenderContext *ctx) {
+    int32_t dx = cam_x - STOVE_TEXT_X;
+    int32_t dz = cam_z - STOVE_TEXT_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= KDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > KDOOR_FADE_NEAR) {
+        int range = KDOOR_TEXT_RADIUS - KDOOR_FADE_NEAR;
+        int prog  = xz - KDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    /* XY plane: door_draw_string_3d centres the reading axis (X) on world_x
+       after adding 200, so pass STOVE_TEXT_X - 200 to centre on the stove. */
+    door_draw_string_3d(ctx, "Press O to ignite",
+                        STOVE_TEXT_X - 200, KDOOR_TEXT_Y, STOVE_TEXT_Z,
+                        50, 255, 50, fade, STOVE_TEXT_MIRROR, TEXT_PLANE_XY, STOVE_TEXT_PIXEL);
+}
+
+/* Floating "Press O to enter" sign at the "to reception" door, rotated 180deg
+   from the kitchen door sign: same YZ plane, opposite facing side, so mirror=0
+   (vs. 1 for the kitchen door). */
+static void to_reception_text(RenderContext *ctx) {
+    int32_t dx = cam_x - TO_RECEPTION_TEXT_X;
+    int32_t dz = cam_z - TO_RECEPTION_TEXT_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= KDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > KDOOR_FADE_NEAR) {
+        int range = KDOOR_TEXT_RADIUS - KDOOR_FADE_NEAR;
+        int prog  = xz - KDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press O to enter",
+                        TO_RECEPTION_TEXT_X, KDOOR_TEXT_Y, TO_RECEPTION_TEXT_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
 void kitchen_dining_draw(RenderContext *ctx) {
@@ -416,6 +475,8 @@ void kitchen_dining_draw(RenderContext *ctx) {
        window so no bracketing is needed. */
     sml_meds_draw(ctx);
     kitchen_door_text(ctx);
+    stove_text(ctx);
+    to_reception_text(ctx);
     fatdoors_draw(ctx);   /* breakable entryway doors (restores view matrix) */
 
     /* Tell the zombie renderer about our texture window (set above at

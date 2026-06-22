@@ -33,16 +33,30 @@ extern DoorState door_state;
 /* World units per font pixel — reduce if text is too wide on screen */
 #define PIXEL_SIZE  8
 
+/* Default world units per font pixel for door_draw_string_3d signs. */
+#define DOOR_PIXEL_SIZE 4
+
 void door_init(void);
 void door_update(void);
 void door_draw(RenderContext *ctx);
 void door_arm(void);   /* seed Circle edge state on (re)entering the delivery area */
 
-/* Reusable world-space text in the YZ plane at fixed X (used for door signs).
-   mirror=1 flips it horizontally for viewing from the -X side. */
+/* Plane the text lies in (its reading direction runs along the first axis,
+   the fixed wall coordinate is the second):
+     TEXT_PLANE_YZ — reading along Z, fixed X (door signs facing +/-X).
+     TEXT_PLANE_XY — reading along X, fixed Z (90deg-rotated signs facing +/-Z). */
+typedef enum {
+    TEXT_PLANE_YZ = 0,
+    TEXT_PLANE_XY = 1,
+} TextPlane;
+
+/* Reusable world-space pixel-font text on a wall.
+   mirror=1 flips it horizontally (reverses reading order) for viewing from the
+   opposite side; combined with the plane this gives 90/180deg orientations.
+   pixel = world units per font pixel (use DOOR_PIXEL_SIZE for the default size). */
 void door_draw_string_3d(RenderContext *ctx, const char *str,
                          int32_t world_x, int32_t world_y, int32_t world_z,
                          uint8_t r, uint8_t g, uint8_t b,
-                         int fade_factor, int mirror);
+                         int fade_factor, int mirror, TextPlane plane, int pixel);
 
 #endif
