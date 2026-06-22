@@ -272,7 +272,7 @@ void door_update(void) {
             /* Stay UNLOCKED so the door is reusable for repeated trips. Play the
                door-opening transition; it hands off to STATE_LOADING when done. */
             pending_area = STATE_KITCHEN_DINING;
-            door_anim_start();
+            door_anim_start(DOOR_PANEL_OUTER);
             game_state   = STATE_DOOR_ANIM;
         }
     }

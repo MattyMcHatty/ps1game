@@ -75,6 +75,8 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\stn_gls.tim"/>
             <file name="DBLDRHLF.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\dbl_dr_hlf.tim"/>
+            <file name="INRDRHLF.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\inr_dbl_dr_half.tim"/>
             <file name="ZSLEEP.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\zombie_sleep.tim"/>
             <file name="ZALERT.TIM" type="data"

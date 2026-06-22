@@ -37,31 +37,39 @@
 #define DOOR_HALF_H     100     /* half the door height on screen */
 #define PERSP_D         220     /* fake-perspective focal distance (bigger = flatter) */
 
-/* dbl_dr_hlf.tim was placed at VRAM x=512 y=128, so within its page the texels
- * span U[0,63] V[128,255]. U=0 is the inner edge (door handle / centre seam). */
+/* Both door TIMs are 64x128 and were placed so that within their page the texels
+ * span U[0,63] V[128,255] (dbl_dr_hlf at VRAM x=512 y=128, inr_dbl_dr_half at
+ * x=576 y=128). U=0 is the inner edge (door handle / centre seam). Because the
+ * in-page texel offsets match, the same UV constants serve every variant. */
 #define DOOR_U_INNER    0
 #define DOOR_U_OUTER   63
 #define DOOR_V_TOP    128
 #define DOOR_V_BOT    255
 
+#define DOOR_PANEL_COUNT  2
+
 static int32_t  anim_timer  = 0;
 static int      anim_active = 0;
+static int      anim_variant = DOOR_PANEL_OUTER;   /* which door texture to draw */
 
-static uint16_t panel_tpage = 0;
-static uint16_t panel_clut  = 0;
+/* One tpage/clut pair per variant (indexed by DOOR_PANEL_*). */
+static uint16_t panel_tpage[DOOR_PANEL_COUNT] = { 0, 0 };
+static uint16_t panel_clut [DOOR_PANEL_COUNT] = { 0, 0 };
 static int      tex_loaded  = 0;
 
 /* ------------------------------------------------------------ asset loading */
 /* Mirrors fatdoors_load_assets: a CD read + LoadImage, done ONCE at startup.
  * LoadImage is only safe before the per-frame draw loop begins (see
  * tools/TEXTURING_NOTES.txt) — never call this mid-game. */
-void door_anim_load_assets(void) {
+/* Load one door-panel TIM into VRAM and record its tpage/clut in slot `variant`.
+ * Returns 1 on success. */
+static int load_panel(const char *path, int variant) {
     CdlFILE file;
-    if (!CdSearchFile(&file, "\\DBLDRHLF.TIM;1")) return;
+    if (!CdSearchFile(&file, (char *)path)) return 0;
 
     int   sectors = (file.size + 2047) / 2048;
     void *buf     = malloc(sectors * 2048);
-    if (!buf) return;
+    if (!buf) return 0;
 
     CdControl(CdlSetloc, &file.pos, NULL);
     CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
@@ -74,18 +82,27 @@ void door_anim_load_assets(void) {
     if (tim.mode & 0x8) {
         LoadImage(tim.crect, tim.caddr);
         DrawSync(0);
-        panel_clut = getClut(tim.crect->x, tim.crect->y);
+        panel_clut[variant] = getClut(tim.crect->x, tim.crect->y);
     }
-    panel_tpage = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
+    panel_tpage[variant] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
 
     free(buf);
-    tex_loaded = 1;
+    return 1;
+}
+
+void door_anim_load_assets(void) {
+    int ok = load_panel("\\DBLDRHLF.TIM;1", DOOR_PANEL_OUTER);
+    load_panel("\\INRDRHLF.TIM;1", DOOR_PANEL_INNER);
+    /* The outer door is the default/fallback; require at least it to draw. */
+    if (ok) tex_loaded = 1;
 }
 
 /* ------------------------------------------------------------- state machine */
-void door_anim_start(void) {
-    anim_timer  = 0;
-    anim_active = 1;
+void door_anim_start(int variant) {
+    anim_timer   = 0;
+    anim_active  = 1;
+    anim_variant = (variant >= 0 && variant < DOOR_PANEL_COUNT) ? variant
+                                                                : DOOR_PANEL_OUTER;
     /* The door sound starts when the fade-in finishes (see door_anim_update),
        so it lines up with the door becoming fully visible, not with the black. */
 }
@@ -153,8 +170,8 @@ static void emit_panel(RenderContext *ctx, uint8_t *buf_end,
     poly->u1 = (uint8_t)u1; poly->v1 = (uint8_t)v1;
     poly->u2 = (uint8_t)u2; poly->v2 = (uint8_t)v2;
     poly->u3 = (uint8_t)u3; poly->v3 = (uint8_t)v3;
-    poly->tpage = panel_tpage;
-    poly->clut  = panel_clut;
+    poly->tpage = panel_tpage[anim_variant];
+    poly->clut  = panel_clut[anim_variant];
     addPrim(&ctx->buffers[ctx->active_buffer].ot[200], poly);
     ctx->next_packet += sizeof(POLY_FT4);
 }

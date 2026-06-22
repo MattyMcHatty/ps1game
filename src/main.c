@@ -112,11 +112,11 @@ static void update_current_area(GameState area) {
         kitchen_stove_update();
         if (kitchen_door_triggered()) {
             pending_area = STATE_DELIVERY_AREA;
-            door_anim_start();
+            door_anim_start(DOOR_PANEL_OUTER);
             game_state   = STATE_DOOR_ANIM;
         } else if (to_reception_door_triggered()) {
             pending_area = STATE_RECEPTION;
-            door_anim_start();
+            door_anim_start(DOOR_PANEL_INNER);
             game_state   = STATE_DOOR_ANIM;
         }
     } else if (area == STATE_RECEPTION) {
