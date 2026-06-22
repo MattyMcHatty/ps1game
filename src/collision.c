@@ -254,16 +254,23 @@ static int collide_wall_frontonly(Wall *w, int32_t *px, int32_t *pz, int32_t rad
 
 void apply_collision_kitchen_dining(void) {
     CollisionRoom *r = &current_collision_room;
-    /* radius 75 (vs level 1's 175): the kitchen model's door opening is only
-     * 201 units wide, so a 175-radius player can't fit. 75 leaves a ~51-unit
-     * clearance band through the door — matching level 1's corridor feel. */
-    int32_t radius = 75;
+    /* radius 125 (vs level 1's 175): holds the player well off the walls to
+     * avoid near-plane poly clipping. Doorways stay passable because the wall
+     * push only applies while the player projects onto a jamb segment (see the
+     * along-segment reject in collide_wall_frontonly), not when crossing the
+     * gap between jambs. */
+    int32_t radius = 125;
+    /* Props (tables) use a tighter radius than the walls: the big wall standoff
+     * exists to keep the camera off large flat surfaces (near-plane clipping),
+     * but tables are things you walk right up to. A smaller radius lets the
+     * player get close and squeeze between tables placed near each other. */
+    int32_t table_radius = 75;
     int i, pass;
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly(&r->walls[i], &cam_x, &cam_z, radius);
     fatdoors_collide(&cam_x, cam_y, &cam_z, radius);
-    dining_tables_collide(&cam_x, cam_y, &cam_z, radius);
+    dining_tables_collide(&cam_x, cam_y, &cam_z, table_radius);
 }
 
 /* Front-side, Y-aware wall collision: like collide_wall_frontonly but only
