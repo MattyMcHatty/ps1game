@@ -17,6 +17,12 @@ int    sml_med_count = 0;
 #define SML_MED_BOB_RATE   16
 #define SML_MED_BOB_AMP    18
 #define SML_MED_WORLD_HALF 80   /* half-size in world units for depth scaling */
+/* Forward OT bias (subtracted from true depth). Crates sort at true depth
+   (zoff=0), so an unbiased pickup spawned at a crate's centre z-fights with
+   and loses to neighbouring crates. A small forward nudge pulls the pickup in
+   front of co-located crates. Kept well under the doors' +40 bias so a
+   fat_door genuinely in front of the pickup still occludes it. */
+#define SML_MED_OT_BIAS    24
 
 static uint16_t sml_med_tpage = 0;
 static uint16_t sml_med_clut  = 0;
@@ -136,6 +142,13 @@ void sml_meds_draw(RenderContext *ctx) {
            front of it (e.g. the kitchen fat_doors). World geometry is biased
            +40 into the OT, so an unbiased pickup still draws over the floor /
            surface it floats above without z-fighting. */
+        /* otz == 0 means the point projected at/behind the camera's near
+           plane. Without this reject the clamp below would force a sprite
+           that's behind the player up to the front of the OT, drawing it
+           through the floor in front of the camera. Mirrors the behind-camera
+           cull in the demondog/crucifaxe billboards. */
+        if (otz <= 0) continue;
+        otz -= SML_MED_OT_BIAS;   /* draw in front of co-located crates */
         if (otz < SCENE_OT_MIN)   otz = SCENE_OT_MIN;
         if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
         if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) continue;
