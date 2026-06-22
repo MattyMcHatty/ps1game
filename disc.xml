@@ -61,6 +61,8 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\red_wlppr.tim"/>
             <file name="STNSTL.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\stn_stl.tim"/>
+            <file name="KCHNWL.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\kchn_wl.tim"/>
             <file name="KCHNTILE.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\kchn_tile.tim"/>
             <file name="WDFLR.TIM" type="data"

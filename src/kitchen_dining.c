@@ -72,9 +72,9 @@ static SMD  *kitchen_smd  = NULL;
 static void *kitchen_buff = NULL;
 
 /* tpage/clut per texture slot, indexed by the SMX texture order:
-   0=stn_stl 1=kchn_tile 2=wd_flr 3=red_wlppr 4=inr_dbl_dr
-   5=red_crpt 6=stn_gls 7=stove 8=din_cl 9=double_door */
-#define KITCHEN_TEX_COUNT 10
+   0=stn_stl 1=kchn_wl 2=kchn_tile 3=wd_flr 4=red_wlppr 5=inr_dbl_dr
+   6=red_crpt 7=stn_gls 8=stove 9=din_cl 10=double_door */
+#define KITCHEN_TEX_COUNT 11
 static uint16_t tex_tpage[KITCHEN_TEX_COUNT];
 static uint16_t tex_clut[KITCHEN_TEX_COUNT];
 
@@ -169,15 +169,16 @@ void kitchen_load_assets(void) {
     uint8_t *tbuf = malloc(TBUF_CAP);
     if (tbuf) {
         load_tim_buf("\\STNSTL.TIM;1",   0, tbuf, TBUF_CAP);
-        load_tim_buf("\\KCHNTILE.TIM;1", 1, tbuf, TBUF_CAP);
-        load_tim_buf("\\WDFLR.TIM;1",    2, tbuf, TBUF_CAP);
-        load_tim_buf("\\REDWLPPR.TIM;1", 3, tbuf, TBUF_CAP);
-        load_tim_buf("\\INRDBLDR.TIM;1", 4, tbuf, TBUF_CAP);
-        load_tim_buf("\\REDCRPT.TIM;1",  5, tbuf, TBUF_CAP);
-        load_tim_buf("\\STNGLS.TIM;1",   6, tbuf, TBUF_CAP);
-        load_tim_buf("\\STOVE.TIM;1",    7, tbuf, TBUF_CAP);
-        load_tim_buf("\\DINCL.TIM;1",    8, tbuf, TBUF_CAP);
-        load_tim_buf("\\DBLDOOR.TIM;1",  9, tbuf, TBUF_CAP);
+        load_tim_buf("\\KCHNWL.TIM;1",   1, tbuf, TBUF_CAP);
+        load_tim_buf("\\KCHNTILE.TIM;1", 2, tbuf, TBUF_CAP);
+        load_tim_buf("\\WDFLR.TIM;1",    3, tbuf, TBUF_CAP);
+        load_tim_buf("\\REDWLPPR.TIM;1", 4, tbuf, TBUF_CAP);
+        load_tim_buf("\\INRDBLDR.TIM;1", 5, tbuf, TBUF_CAP);
+        load_tim_buf("\\REDCRPT.TIM;1",  6, tbuf, TBUF_CAP);
+        load_tim_buf("\\STNGLS.TIM;1",   7, tbuf, TBUF_CAP);
+        load_tim_buf("\\STOVE.TIM;1",    8, tbuf, TBUF_CAP);
+        load_tim_buf("\\DINCL.TIM;1",    9, tbuf, TBUF_CAP);
+        load_tim_buf("\\DBLDOOR.TIM;1", 10, tbuf, TBUF_CAP);
         free(tbuf);
     }
 
@@ -538,7 +539,7 @@ void kitchen_dining_draw(RenderContext *ctx) {
     /* Static dining tables — drawn with the wd_flr texture (slot 2) the kitchen
        keeps resident, reusing the 128 texture window set above. Restores the
        view matrix before returning. */
-    dining_tables_draw(ctx, tex_tpage[2], tex_clut[2]);
+    dining_tables_draw(ctx, tex_tpage[3], tex_clut[3]);
     /* Floating pickups. Draws billboards in the active view matrix (restored by
        dining_tables_draw); the 64x64 sprite's UVs sit inside the 128 texture
        window so no bracketing is needed. */
