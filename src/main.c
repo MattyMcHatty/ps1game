@@ -67,6 +67,7 @@ void reset_game(RenderContext *ctx) {
     vampire_health   = VAMPIRE_MAX_HEALTH;
     vampire_hit_timer = 0;
     reset_particles();
+    kitchen_stove_reset();
     {
         int k;
         for (k = 0; k < PICKUP_MSG_COUNT; k++) pickup_log[k].timer = 0;
@@ -107,6 +108,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();
         sml_meds_update();
+        kitchen_stove_update();
         if (kitchen_door_triggered()) {
             pending_area = STATE_DELIVERY_AREA;
             door_anim_start();

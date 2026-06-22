@@ -17,6 +17,7 @@
 #include "zombie.h"
 #include "dining_table.h"
 #include "sml_med.h"
+#include "particles.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -40,6 +41,15 @@ extern volatile size_t  pad_buff_len[2];
 #define STOVE_TEXT_MIRROR    0
 #define STOVE_TEXT_PIXEL     2   /* half the default sign size (DOOR_PIXEL_SIZE=4) */
 
+/* Stove flame: where it burns and how close the player must stand to toggle it.
+   FIRE_Y is the burner height the flame rises from (negative Y = up; floor ~0,
+   eye level -149). Tune FIRE_Y/RADIUS/RATE to taste. */
+#define STOVE_FIRE_X        (-107)   /* moved 120 toward the dining room (-X) */
+#define STOVE_FIRE_Z        1080
+#define STOVE_FIRE_Y        (-105)
+#define STOVE_TRIGGER_RADIUS  500
+#define STOVE_FIRE_RATE        2   /* new flame particles emitted per frame */
+
 /* "to reception" door sign ("Press O to enter"), rotated 180deg (YZ plane,
    mirror=0) from the kitchen door sign. */
 #define TO_RECEPTION_TEXT_X (-3255)
@@ -47,6 +57,11 @@ extern volatile size_t  pad_buff_len[2];
 
 /* Circle edge-detect for the kitchen door; seeded by kitchen_door_arm(). */
 static int kdoor_circle_prev = 1;
+
+/* Stove flame toggle + its own Circle edge-detect (independent of the door's,
+   so a single press near the stove only toggles the flame). */
+static int stove_lit         = 0;
+static int stove_circle_prev = 1;
 
 static SMD  *kitchen_smd  = NULL;
 static void *kitchen_buff = NULL;
@@ -188,6 +203,7 @@ void kitchen_door_arm(void) {
         held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
     }
     kdoor_circle_prev = held;
+    stove_circle_prev = held;
 }
 
 /* Returns 1 when Circle is freshly pressed within range of the kitchen door. */
@@ -205,6 +221,35 @@ int kitchen_door_triggered(void) {
     int32_t dz = cam_z - KDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     return xz < KDOOR_TRIGGER_RADIUS;
+}
+
+/* Toggle the stove flame on a fresh Circle press near the stove, then keep it
+   fed while lit. update_fire() runs regardless so a just-extinguished flame
+   finishes rising out instead of vanishing. Called each frame in the kitchen. */
+void kitchen_stove_update(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    int just = held && !stove_circle_prev;
+    stove_circle_prev = held;
+
+    if (just) {
+        int32_t dx = cam_x - STOVE_FIRE_X;
+        int32_t dz = cam_z - STOVE_FIRE_Z;
+        int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        if (xz < STOVE_TRIGGER_RADIUS) stove_lit = !stove_lit;
+    }
+
+    if (stove_lit) fire_emit(STOVE_FIRE_X, STOVE_FIRE_Y, STOVE_FIRE_Z, STOVE_FIRE_RATE);
+    update_fire();
+}
+
+/* Extinguish the stove and clear any lingering flame particles (new game). */
+void kitchen_stove_reset(void) {
+    stove_lit = 0;
+    reset_fire();
 }
 
 static void draw_kitchen_smd(RenderContext *ctx) {
@@ -397,7 +442,7 @@ static void stove_text(RenderContext *ctx) {
 
     /* XY plane: door_draw_string_3d centres the reading axis (X) on world_x
        after adding 200, so pass STOVE_TEXT_X - 200 to centre on the stove. */
-    door_draw_string_3d(ctx, "Press O to ignite",
+    door_draw_string_3d(ctx, stove_lit ? "Press O to extinguish" : "Press O to ignite",
                         STOVE_TEXT_X - 200, KDOOR_TEXT_Y, STOVE_TEXT_Z,
                         50, 255, 50, fade, STOVE_TEXT_MIRROR, TEXT_PLANE_XY, STOVE_TEXT_PIXEL);
 }
@@ -477,6 +522,7 @@ void kitchen_dining_draw(RenderContext *ctx) {
     kitchen_door_text(ctx);
     stove_text(ctx);
     to_reception_text(ctx);
+    draw_fire(ctx);       /* stove flame billboards in the active view matrix */
     fatdoors_draw(ctx);   /* breakable entryway doors (restores view matrix) */
 
     /* Tell the zombie renderer about our texture window (set above at
