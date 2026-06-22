@@ -10,6 +10,7 @@ typedef enum {
     STATE_LOADING,
     STATE_KITCHEN_DINING,
     STATE_DOOR_ANIM,   /* RE-style door-opening transition; runs before STATE_LOADING */
+    STATE_RECEPTION,
 } GameState;
 
 extern GameState game_state;

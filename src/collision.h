@@ -16,15 +16,17 @@ extern int debug_mode;  /* toggled by Select; always available */
  * Wall collision
  * ----------------------------------------------------------------------- */
 
-#define MAX_WALLS_PER_ROOM 40
+#define MAX_WALLS_PER_ROOM 128  /* large enough for the detailed reception collision mesh */
 
 typedef struct {
     int32_t x1, z1;
     int32_t x2, z2;
     int32_t nx, nz;  /* inward-facing normal, fixed-point: 4096 = 1.0 */
-#ifdef DEBUG_COLLISION
-    int32_t y_floor, y_ceil;  /* debug visualisation extents only */
-#endif
+    /* Vertical extent of the wall face in world Y (-Y is up, so y_min is the
+       wall's TOP and y_max its bottom/floor). Set by the SMX collision
+       generator; enables per-face Y-aware collision so a wall only blocks on
+       its own floor. y_min == y_max means "no Y data" -> treated as full height. */
+    int32_t y_min, y_max;
 } Wall;
 
 typedef struct {
@@ -40,6 +42,7 @@ int  collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius);
 void collision_init(void);
 void apply_collision(void);
 void apply_collision_kitchen_dining(void);
+void apply_collision_reception(void);
 void apply_vampire_collision(void);
 void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ramp);
 

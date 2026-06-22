@@ -34,6 +34,8 @@ add_executable(horror_game
     src/delivery_area_mesh_collision.c
     src/kitchen_dining_mesh_collision.c
     src/kitchen_dining.c
+    src/reception_mesh_collision.c
+    src/reception.c
     src/crate.c
     src/dining_table.c
     src/key.c

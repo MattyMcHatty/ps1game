@@ -11,13 +11,9 @@
 
 #include "delivery_area_mesh_collision.h"
 
-/* Shorthand for setting per-wall debug height extents.
-   y_floor = bottom edge (positive = below camera), y_ceil = top edge. */
-#ifdef DEBUG_COLLISION
-#define WY(i, f, c)  r->walls[i].y_floor = (f); r->walls[i].y_ceil = (c)
-#else
-#define WY(i, f, c)
-#endif
+/* Shorthand for setting per-wall vertical extents.
+   f = bottom edge (y_max, least negative), c = top edge (y_min, most negative). */
+#define WY(i, f, c)  r->walls[i].y_max = (f); r->walls[i].y_min = (c)
 
 void delivery_area_collision_init(CollisionRoom *r) {
     r->wall_count = DELIVERY_AREA_WALL_COUNT;

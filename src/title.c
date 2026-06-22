@@ -16,15 +16,23 @@ static int level_select_fnt  = -1;
 static const char *const level_names[] = {
     "DELIVERY AREA",
     "KITCHEN DINING",
+    "RECEPTION",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
-/* Target game state for each entry (index matches level_names). The kitchen
-   loads via STATE_LOADING, which runs kitchen_dining_init then switches to
-   STATE_KITCHEN_DINING. */
+/* Target game state for each entry (index matches level_names). Rooms set up by
+   STATE_LOADING use level_pending[] below to say which area to switch to. */
 static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_DELIVERY_AREA,
     STATE_LOADING,
+    STATE_LOADING,
+};
+
+/* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
+static const GameState level_pending[LEVEL_SELECT_COUNT] = {
+    STATE_DELIVERY_AREA,    /* unused (not a STATE_LOADING entry) */
+    STATE_KITCHEN_DINING,
+    STATE_RECEPTION,
 };
 
 /* ---- Letter bitmasks: 7 rows x 5 cols, row 0 = top ---- */
@@ -341,8 +349,8 @@ void update_title(void) {
     if (pressed & PAD_CROSS) {
         debug_menu_open = 0;
         GameState target = level_states[debug_menu_cursor];
-        /* The kitchen entry loads via STATE_LOADING; tell it where to go. */
-        if (target == STATE_LOADING) pending_area = STATE_KITCHEN_DINING;
+        /* STATE_LOADING entries (kitchen, reception) need the area to switch to. */
+        if (target == STATE_LOADING) pending_area = level_pending[debug_menu_cursor];
         game_state = target;
     }
 }

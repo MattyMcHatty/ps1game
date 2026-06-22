@@ -79,8 +79,8 @@ void debug_draw_walls(RenderContext *ctx) {
     for (i = 0; i < r->wall_count; i++) {
         Wall *w = &r->walls[i];
 
-        int32_t floor_y   = w->y_floor;
-        int32_t ceiling_y = w->y_ceil;
+        int32_t floor_y   = w->y_max;   /* bottom (least negative) */
+        int32_t ceiling_y = w->y_min;   /* top (most negative)     */
 
         SVECTOR verts[4];
         verts[0].vx = (int16_t)w->x1; verts[0].vy = (int16_t)floor_y;   verts[0].vz = (int16_t)w->z1; verts[0].pad = 0;
@@ -264,6 +264,57 @@ void apply_collision_kitchen_dining(void) {
             collide_wall_frontonly(&r->walls[i], &cam_x, &cam_z, radius);
     fatdoors_collide(&cam_x, cam_y, &cam_z, radius);
     dining_tables_collide(&cam_x, cam_y, &cam_z, radius);
+}
+
+/* Front-side, Y-aware wall collision: like collide_wall_frontonly but only
+ * pushes when the body's vertical span overlaps the wall's. body_top is the
+ * head (most negative), body_bot the feet. Used by the multi-level reception so
+ * a wall only blocks on its own floor (no full-Y-plane collision). */
+static int collide_wall_frontonly_y(Wall *w, int32_t *px, int32_t *pz,
+                                     int32_t body_top, int32_t body_bot,
+                                     int32_t radius) {
+    /* Vertical gate. y_min = wall top (most -ve), y_max = bottom. Intervals
+     * overlap iff body_top <= y_max && y_min <= body_bot. A wall with no Y data
+     * (y_min == y_max) is treated as full height (always overlaps). */
+    if (w->y_min != w->y_max && (body_top > w->y_max || w->y_min > body_bot))
+        return 0;
+
+    int32_t dx = *px - w->x1;
+    int32_t dz = *pz - w->z1;
+
+    int32_t dot = ((dx >> 4) * (w->nx >> 4) + (dz >> 4) * (w->nz >> 4)) >> 4;
+    if (dot >= radius) return 0;
+    if (dot < 0)       return 0;  /* behind the wall — never push */
+
+    int32_t wx      = (w->x2 - w->x1) >> 4;
+    int32_t wz      = (w->z2 - w->z1) >> 4;
+    int32_t dx_s    = dx >> 4;
+    int32_t dz_s    = dz >> 4;
+    int32_t along   = dx_s * wx + dz_s * wz;
+    int32_t wlen_sq = wx * wx + wz * wz;
+    if (along < 0 || along > wlen_sq) return 0;
+
+    int32_t push = radius - dot;
+    *px += (push * w->nx) >> 12;
+    *pz += (push * w->nz) >> 12;
+    return 1;
+}
+
+/* Reception: walls only, Y-aware (multi-level room). Does NOT collide the
+ * kitchen's dining-table/fat-door props (those entities are global, not
+ * room-scoped, so they'd otherwise act as invisible colliders here). */
+void apply_collision_reception(void) {
+    CollisionRoom *r = &current_collision_room;
+    int32_t radius = 75;
+    /* Body vertical span: feet at the floor (cam_y + GROUND_FLOOR_Y), head a
+     * little above the eye (cam_y). */
+    int32_t body_bot = cam_y + GROUND_FLOOR_Y;
+    int32_t body_top = cam_y - 30;
+    int i, pass;
+    for (pass = 0; pass < 2; pass++)
+        for (i = 0; i < r->wall_count; i++)
+            collide_wall_frontonly_y(&r->walls[i], &cam_x, &cam_z,
+                                     body_top, body_bot, radius);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

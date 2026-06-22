@@ -7,7 +7,7 @@
 #include "sml_med.h"
 #include "door.h"
 
-#define WORLD_NUM_ROOMS 2   /* delivery_area, kitchen_dining */
+#define WORLD_NUM_ROOMS 3   /* delivery_area, kitchen_dining, reception */
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below; this
    is the per-room unit a save file would store. */
@@ -37,6 +37,7 @@ static int room_index(GameState area) {
     switch (area) {
         case STATE_DELIVERY_AREA:  return 0;
         case STATE_KITCHEN_DINING: return 1;
+        case STATE_RECEPTION:      return 2;
         default:                   return 0;
     }
 }

@@ -17,6 +17,8 @@
                 source="C:\Users\virtu\Documents\ps1game\assets\delivery_area.smd"/>
             <file name="KITCHN.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\kitchen_dining.smd"/>
+            <file name="RECEPT.SMD" type="data"
+                source="C:\Users\virtu\Documents\ps1game\assets\Reception.smd"/>
             <file name="GRAVEL.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\gravel_texture.tim"/>
             <file name="FENCE.TIM" type="data"

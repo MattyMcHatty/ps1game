@@ -51,9 +51,11 @@ extern volatile size_t  pad_buff_len[2];
 #define STOVE_FIRE_RATE        2   /* new flame particles emitted per frame */
 
 /* "to reception" door sign ("Press O to enter"), rotated 180deg (YZ plane,
-   mirror=0) from the kitchen door sign. */
+   mirror=0) from the kitchen door sign. Circle within the trigger radius opens
+   it and loads the Reception area. */
 #define TO_RECEPTION_TEXT_X (-3255)
 #define TO_RECEPTION_TEXT_Z  (-26)
+#define TO_RECEPTION_TRIGGER_RADIUS  500
 
 /* Circle edge-detect for the kitchen door; seeded by kitchen_door_arm(). */
 static int kdoor_circle_prev = 1;
@@ -62,6 +64,9 @@ static int kdoor_circle_prev = 1;
    so a single press near the stove only toggles the flame). */
 static int stove_lit         = 0;
 static int stove_circle_prev = 1;
+
+/* "to reception" door has its own Circle edge-detect too. */
+static int rdoor_circle_prev = 1;
 
 static SMD  *kitchen_smd  = NULL;
 static void *kitchen_buff = NULL;
@@ -204,6 +209,7 @@ void kitchen_door_arm(void) {
     }
     kdoor_circle_prev = held;
     stove_circle_prev = held;
+    rdoor_circle_prev = held;
 }
 
 /* Returns 1 when Circle is freshly pressed within range of the kitchen door. */
@@ -221,6 +227,24 @@ int kitchen_door_triggered(void) {
     int32_t dz = cam_z - KDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     return xz < KDOOR_TRIGGER_RADIUS;
+}
+
+/* Returns 1 when Circle is freshly pressed within range of the "to reception"
+   door (same scheme as the kitchen door, separate edge state). */
+int to_reception_door_triggered(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    int just = held && !rdoor_circle_prev;
+    rdoor_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - TO_RECEPTION_TEXT_X;
+    int32_t dz = cam_z - TO_RECEPTION_TEXT_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < TO_RECEPTION_TRIGGER_RADIUS;
 }
 
 /* Toggle the stove flame on a fresh Circle press near the stove, then keep it

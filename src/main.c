@@ -26,6 +26,7 @@
 #include "zombie.h"
 #include "menu.h"
 #include "kitchen_dining.h"
+#include "reception.h"
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
@@ -113,7 +114,16 @@ static void update_current_area(GameState area) {
             pending_area = STATE_DELIVERY_AREA;
             door_anim_start();
             game_state   = STATE_DOOR_ANIM;
+        } else if (to_reception_door_triggered()) {
+            pending_area = STATE_RECEPTION;
+            door_anim_start();
+            game_state   = STATE_DOOR_ANIM;
         }
+    } else if (area == STATE_RECEPTION) {
+        /* Placeholder room: walkable, flat-shaded. Walls-only collision (no
+           kitchen props, which are global and would collide invisibly here). */
+        apply_collision_reception();
+        apply_height();
     } else {
         apply_collision();
         apply_height();
@@ -132,6 +142,8 @@ static void update_current_area(GameState area) {
 static void draw_current_area(RenderContext *ctx, GameState area) {
     if (area == STATE_KITCHEN_DINING)
         kitchen_dining_draw(ctx);
+    else if (area == STATE_RECEPTION)
+        reception_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -231,6 +243,7 @@ int main(int argc, const char **argv) {
     kitchen_load_assets();     /* load kitchen textures + geometry at startup —
                                   LoadImage is only safe before the main render
                                   loop, and this keeps gameplay CD-read-free */
+    reception_load_assets();   /* placeholder reception geometry (no textures) */
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
     fatdoors_init();
     door_anim_load_assets();   /* level-transition door panel (texture) */
@@ -300,6 +313,8 @@ int main(int argc, const char **argv) {
             if (pending_area == STATE_KITCHEN_DINING) {
                 kitchen_dining_init();
                 kitchen_door_arm();
+            } else if (pending_area == STATE_RECEPTION) {
+                reception_init();
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
@@ -326,7 +341,8 @@ int main(int argc, const char **argv) {
             if (door_anim_finished())
                 game_state = STATE_LOADING;
         } else if (game_state == STATE_DELIVERY_AREA ||
-                   game_state == STATE_KITCHEN_DINING) {
+                   game_state == STATE_KITCHEN_DINING ||
+                   game_state == STATE_RECEPTION) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

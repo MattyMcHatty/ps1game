@@ -198,6 +198,12 @@ def extract_walls(vertices, primitives):
 
             # Average Y of the face for reference
             avg_y = sum(vertices[i][1] for i in face) / len(face)
+            # Vertical extent of the face (world Y). In this engine -Y is up, so
+            # y_min is the wall's TOP and y_max its bottom/floor. Used for
+            # per-face Y-aware collision.
+            face_ys = [vertices[i][1] for i in face]
+            y_min = int(min(face_ys))
+            y_max = int(max(face_ys))
 
             walls.append({
                 'x1': int(start[0]),
@@ -207,6 +213,8 @@ def extract_walls(vertices, primitives):
                 'nx': norm_nx,
                 'nz': norm_nz,
                 'avg_y': int(avg_y),
+                'y_min': y_min,
+                'y_max': y_max,
             })
 
         elif abs_ny > FLOOR_THRESHOLD:
@@ -301,7 +309,8 @@ def generate_c(walls, floors, output_base, smx_filename):
             f.write("    /* Wall %d (avg Y: %d) */\n" % (i, w['avg_y']))
             f.write("    r->walls[%d].x1 = %7d;  r->walls[%d].z1 = %7d;\n" % (i, w['x1'], i, w['z1']))
             f.write("    r->walls[%d].x2 = %7d;  r->walls[%d].z2 = %7d;\n" % (i, w['x2'], i, w['z2']))
-            f.write("    r->walls[%d].nx = %7d;  r->walls[%d].nz = %7d;\n\n" % (i, w['nx'], i, w['nz']))
+            f.write("    r->walls[%d].nx = %7d;  r->walls[%d].nz = %7d;\n" % (i, w['nx'], i, w['nz']))
+            f.write("    r->walls[%d].y_min = %7d;  r->walls[%d].y_max = %7d;\n\n" % (i, w['y_min'], i, w['y_max']))
 
         if floors:
             f.write("    /*\n")

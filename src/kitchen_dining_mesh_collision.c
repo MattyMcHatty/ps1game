@@ -194,8 +194,8 @@ void kitchen_dining_collision_init(CollisionRoom *r) {
     {
         int i;
         for (i = 0; i < KITCHEN_DINING_WALL_COUNT; i++) {
-            r->walls[i].y_floor = -375;
-            r->walls[i].y_ceil  = -600;
+            r->walls[i].y_max = -375;   /* bottom (debug viz only; kitchen is flat) */
+            r->walls[i].y_min = -600;   /* top */
         }
     }
 #endif
