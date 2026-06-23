@@ -298,7 +298,7 @@ static void draw_kitchen_smd(RenderContext *ctx) {
             int32_t dz = (int32_t)v0->vz - cam_z;
             /* Distance cull (Manhattan), just past where fog fully saturates
                (fog_end below) so culled polys are already invisible. */
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 2600)
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 2300)
                 { p += stride; continue; }
             /* Behind-camera cull: dot of (poly-cam) with the camera forward
                vector (isin,icos, scaled by 4096). Skip polys clearly behind the
@@ -358,7 +358,7 @@ static void draw_kitchen_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog_start = 500, fog_end = 2200;
+        int32_t fog_start = 350, fog_end = 2200;
         int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
         int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
 

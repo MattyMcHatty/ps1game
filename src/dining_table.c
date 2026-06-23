@@ -120,7 +120,7 @@ void dining_tables_draw(RenderContext *ctx, uint16_t tpage, uint16_t clut) {
         if (!t->active) continue;
 
         int32_t dcx = t->x - cam_x, dcz = t->z - cam_z;
-        if ((dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz) > 2600) continue;
+        if ((dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz) > 2300) continue;
 
         /* Combine the view matrix with this table's world transform. */
         MATRIX table_m, combined;
@@ -189,7 +189,7 @@ void dining_tables_draw(RenderContext *ctx, uint16_t tpage, uint16_t clut) {
 
             /* Distance fog from the table centre — cheap and consistent with
                the room (the model is small relative to the fog band). */
-            int32_t fog_start = 500, fog_end = 2200;
+            int32_t fog_start = 350, fog_end = 2200;
             int32_t dist = (dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz);
             int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
             int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
