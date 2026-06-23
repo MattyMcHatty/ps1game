@@ -312,7 +312,10 @@ static int collide_wall_frontonly_y(Wall *w, int32_t *px, int32_t *pz,
  * room-scoped, so they'd otherwise act as invisible colliders here). */
 void apply_collision_reception(void) {
     CollisionRoom *r = &current_collision_room;
-    int32_t radius = 75;
+    /* radius 195: holds the player well off the walls (stopped from farther
+     * away) to avoid near-plane poly clipping. Doorways stay passable via the
+     * along-segment reject in collide_wall_frontonly_y. */
+    int32_t radius = 195;
     /* Body vertical span: feet at the floor (cam_y + GROUND_FLOOR_Y), head a
      * little above the eye (cam_y). */
     int32_t body_bot = cam_y + GROUND_FLOOR_Y;
@@ -475,6 +478,11 @@ void apply_height(void) {
         }
     }
     /* target == 0 when no zone found: fall to ground floor */
+
+    /* Floor standoff: rest the eye 40 units ABOVE the floor surface (-Y is up)
+     * so the player floats a touch off every floor. Applied to the final target
+     * for all zone types; player only (NPCs use their own height functions). */
+    target -= 40;
 
     /* Gravity — cam_y increases toward 0 (down in PS1 Y-down space). */
     cam_vy += GRAVITY;

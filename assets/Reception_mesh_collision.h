@@ -9,7 +9,7 @@
 
 #include "collision.h"
 
-#define RECEPTION_WALL_COUNT  40
+#define RECEPTION_WALL_COUNT  39
 #define RECEPTION_FLOOR_COUNT 10
 
 void reception_collision_init(CollisionRoom *r);
