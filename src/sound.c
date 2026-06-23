@@ -26,12 +26,13 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\PICKUP.VAG;1",
     "\\SND\\SMASH.VAG;1",
     "\\SND\\DOGBARK.VAG;1",
-    "\\SND\\DOGHURT.VAG;1",
+    "\\SND\\AXEHIT.VAG;1",
     "\\SND\\DOGDIE.VAG;1",
     "\\SND\\UNLOCK.VAG;1",
     "\\SND\\DROPEN.VAG;1",
     "\\SND\\ZOMBIE.VAG;1",
     "\\SND\\ZOMBDIE.VAG;1",
+    "\\SND\\DIE.VAG;1",
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool

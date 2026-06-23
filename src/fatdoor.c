@@ -339,7 +339,7 @@ int fatdoors_try_smash(void) {
             d->state = FATDOOR_SMASHED;
             sound_play(SFX_SMASH);
         } else {
-            sound_play(SFX_DOGHURT);
+            sound_play(SFX_AXEHIT);
         }
         smashed_any = 1;
     }
@@ -367,7 +367,7 @@ int fatdoors_damage_at(int32_t x, int32_t z, int32_t reach, int amount) {
             sound_play(SFX_SMASH);
             return 2;
         }
-        sound_play(SFX_DOGHURT);
+        sound_play(SFX_AXEHIT);
         return 1;
     }
     return 0;

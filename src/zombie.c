@@ -244,6 +244,7 @@ void update_zombies(void) {
                 player_health = 0;
                 game_over     = 1;
                 flash_timer   = 90;
+                sound_play(SFX_DIE);
             }
         }
 

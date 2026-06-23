@@ -9,13 +9,14 @@ typedef enum {
     SFX_PICKUP  = 2,
     SFX_SMASH   = 3,
     SFX_DOGBARK = 4,
-    SFX_DOGHURT = 5,
+    SFX_AXEHIT  = 5,   /* crucifaxe connects with an enemy (non-fatal hit) */
     SFX_DOGDIE  = 6,
     SFX_UNLOCK  = 7,
     SFX_DOOR     = 8,   /* double-door open/close, used by the level transition */
     SFX_ZOMBIE   = 9,   /* zombie groan, looped while a zombie is alert */
     SFX_ZOMBIEDIE = 10, /* zombie death */
-    SFX_COUNT    = 11,
+    SFX_DIE       = 11, /* player death */
+    SFX_COUNT    = 12,
 } SfxID;
 
 void sound_init(void);

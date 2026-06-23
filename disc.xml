@@ -94,12 +94,13 @@
                 <file name="PICKUP.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\pickup.vag"/>
                 <file name="SMASH.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\smash.vag"/>
                 <file name="DOGBARK.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dogbark.vag"/>
-                <file name="DOGHURT.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\doghurt.vag"/>
+                <file name="AXEHIT.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\axehit.vag"/>
                 <file name="DOGDIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dogdie.vag"/>
                 <file name="UNLOCK.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\unlock.vag"/>
                 <file name="DROPEN.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dropen.vag"/>
                 <file name="ZOMBIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\zombie.vag"/>
                 <file name="ZOMBDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\ZOMBIEDIE.vag"/>
+                <file name="DIE.VAG"     type="data" source="C:\Users\virtu\Documents\ps1game\sounds\DIE.vag"/>
             </dir>
         </directory_tree>
     </track>

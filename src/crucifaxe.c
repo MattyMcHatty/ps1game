@@ -103,7 +103,7 @@ void update_crucifaxe(void) {
                             spawn_blood_burst(d->x, d->y, d->z);
                             sound_play(SFX_DOGDIE);
                         } else {
-                            sound_play(SFX_DOGHURT);
+                            sound_play(SFX_AXEHIT);
                         }
                         ddog_hit_this_swing = 1;
                         break;
@@ -136,6 +136,8 @@ void update_crucifaxe(void) {
                             spawn_blood_burst(z->x, z->y, z->z);
                             sound_stop(SFX_ZOMBIE);     /* cut the groan immediately */
                             sound_play(SFX_ZOMBIEDIE);  /* play the death sound */
+                        } else {
+                            sound_play(SFX_AXEHIT);    /* non-fatal hit */
                         }
                         zomb_hit_this_swing = 1;
                         break;
