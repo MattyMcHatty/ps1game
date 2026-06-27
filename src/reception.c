@@ -10,6 +10,7 @@
 #include "reception.h"
 #include "collision.h"
 #include "reception_mesh_collision.h"
+#include "reception_tex_map.h"
 
 /* Placeholder reception room: untextured geometry rendered flat-shaded with the
    same distance fog as the kitchen, so it blends with the dark interior until
@@ -100,6 +101,62 @@ void reception_load_assets(void) {
     reception_buff = load_file_from_cd("\\RECEPT.SMD;1");
     if (reception_buff)
         reception_smd = smdInitData(reception_buff);
+}
+
+/* ---- Per-room texture streaming -------------------------------------------
+   Uploads reception's nine mesh textures into VRAM during the STATE_LOADING
+   transition (NOT at startup). Historically everything loaded at startup because
+   LoadImage hard-crashes when issued while the per-frame draw is in flight
+   (TEXTURING_NOTES PROBLEM A — it died on the 4th mid-loop upload). The caller
+   idles the GPU with DrawSync(0) first and kicks no DrawOTagEnv until the next
+   flip_buffers, so these uploads run with the GPU quiescent (validated by the
+   original 6-texture spike). Streaming lets rooms share VRAM: reception's new
+   textures reuse slots the kitchen also uses, and the kitchen re-streams its own
+   textures when re-entered (see kitchen_stream_textures). */
+#define RECEPTION_TEX_COUNT 9
+static uint16_t tex_tpage[RECEPTION_TEX_COUNT];
+static uint16_t tex_clut[RECEPTION_TEX_COUNT];
+
+static void load_tim_buf(const char *filename, int slot, uint8_t *buf, int bufcap) {
+    CdlFILE file;
+    if (!CdSearchFile(&file, filename)) return;
+    int sectors = (file.size + 2047) / 2048;
+    if (sectors * 2048 > bufcap) return;
+    CdControl(CdlSetloc, &file.pos, NULL);
+    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
+    CdReadSync(0, NULL);
+
+    TIM_IMAGE tim;
+    GetTimInfo((uint32_t *)buf, &tim);
+    LoadImage(tim.prect, tim.paddr);
+    DrawSync(0);
+    if (tim.mode & 0x8) {
+        LoadImage(tim.crect, tim.caddr);
+        DrawSync(0);
+        tex_clut[slot] = getClut(tim.crect->x, tim.crect->y);
+    }
+    tex_tpage[slot] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
+}
+
+void reception_stream_textures(void) {
+    /* Static scratch buffer instead of a mid-game malloc: the heap is tighter
+       once all rooms' geometry is resident, and a mid-game malloc here returned
+       bad memory (LoadImage then crashed). TEMP test of that theory. */
+    static uint8_t tbuf[32 * 1024];
+    const int TBUF_CAP = sizeof(tbuf);
+    /* Slots match reception_tex_map indices. The three NEW textures (strs,
+       bnnstr, frnt_dr) stream into page-aligned VRAM that the kitchen also uses
+       (stn_stl/kchn_tile/red_crpt slots) — kitchen re-streams its own textures
+       when re-entered, so the two rooms share that VRAM. */
+    load_tim_buf("\\TEX\\STRS.TIM;1",   0, tbuf, TBUF_CAP);
+    load_tim_buf("\\REDWLPPR.TIM;1", 1, tbuf, TBUF_CAP);
+    load_tim_buf("\\WDFLR.TIM;1",    2, tbuf, TBUF_CAP);
+    load_tim_buf("\\TEX\\BNNSTR.TIM;1", 3, tbuf, TBUF_CAP);
+    load_tim_buf("\\DINCL.TIM;1",    4, tbuf, TBUF_CAP);
+    load_tim_buf("\\TEX\\FRNTDR.TIM;1", 5, tbuf, TBUF_CAP);
+    load_tim_buf("\\WDDR.TIM;1",     6, tbuf, TBUF_CAP);
+    load_tim_buf("\\INRDBLDR.TIM;1", 7, tbuf, TBUF_CAP);
+    load_tim_buf("\\STNGLS.TIM;1",   8, tbuf, TBUF_CAP);
 }
 
 void reception_init(void) {
@@ -196,28 +253,66 @@ static void draw_reception_smd(RenderContext *ctx) {
 
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
-        if (is_quad) {
+        /* Per-prim texture index (SMD prim order matches the tex map). Reception
+           textures every face (no 0xFF), but keep the guard for safety. UVs come
+           straight from the SMD primitive (offset 20+) and wrap via the 128
+           texture window set in reception_draw, reproducing the Blender UVs. */
+        uint8_t tex_idx = (i < RECEPTION_PRIM_COUNT) ? reception_tex_map[i] : 0xFF;
+        int     textured = (tex_idx != 0xFF && tex_idx < RECEPTION_TEX_COUNT);
+        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
+        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);
+        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + 10 * (256 - fog_factor)) >> 8);
+
+        if (is_quad && textured) {
+            if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
+            uint8_t *uv = p + 20;
+            POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
+            setPolyFT4(poly);
+            setRGB0(poly, r, g, b);
+            poly->tpage = tex_tpage[tex_idx];
+            poly->clut  = tex_clut[tex_idx];
+            poly->u0=uv[0]; poly->v0=uv[1];
+            poly->u1=uv[2]; poly->v1=uv[3];
+            poly->u2=uv[4]; poly->v2=uv[5];
+            poly->u3=uv[6]; poly->v3=uv[7];
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_FT4);
+        } else if (is_quad) {
             if (ctx->next_packet + sizeof(POLY_F4) > buf_end) { p += stride; continue; }
             POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
             setPolyF4(poly);
-            setRGB0(poly,
-                (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8),
-                (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8),
-                (uint8_t)(((int32_t)col[2] * fog_factor + 10 * (256 - fog_factor)) >> 8));
+            setRGB0(poly, r, g, b);
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
             poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
             poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
             addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
             ctx->next_packet += sizeof(POLY_F4);
+        } else if (textured) {
+            if (ctx->next_packet + sizeof(POLY_FT3) > buf_end) { p += stride; continue; }
+            uint8_t *uv = p + 20;
+            POLY_FT3 *poly = (POLY_FT3 *)ctx->next_packet;
+            setPolyFT3(poly);
+            setRGB0(poly, r, g, b);
+            poly->tpage = tex_tpage[tex_idx];
+            poly->clut  = tex_clut[tex_idx];
+            poly->u0=uv[0]; poly->v0=uv[1];
+            poly->u1=uv[2]; poly->v1=uv[3];
+            poly->u2=uv[4]; poly->v2=uv[5];
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_FT3);
         } else {
             if (ctx->next_packet + sizeof(POLY_F3) > buf_end) { p += stride; continue; }
             POLY_F3 *poly = (POLY_F3 *)ctx->next_packet;
             setPolyF3(poly);
-            setRGB0(poly,
-                (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8),
-                (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8),
-                (uint8_t)(((int32_t)col[2] * fog_factor + 10 * (256 - fog_factor)) >> 8));
+            setRGB0(poly, r, g, b);
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
             poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
@@ -238,6 +333,18 @@ void reception_draw(RenderContext *ctx) {
     setRGB0(bg, 20, 15, 10);
     addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], bg);
     ctx->next_packet += sizeof(TILE);
+
+    /* 128x128 texture window so per-poly UVs wrap (tile) within each texture's
+       page. Sorted at OT_LENGTH-1 so the GPU applies it before any textured poly
+       (those are clamped to OT_LENGTH-2). Mask = texels>>3 (128>>3 = 16). All
+       reception textures sit at page-top (V 0-127), so one window serves them. */
+    {
+        RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+        DR_TWIN *twin = (DR_TWIN *)ctx->next_packet;
+        setTexWindow(twin, &tw);
+        addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], twin);
+        ctx->next_packet += sizeof(DR_TWIN);
+    }
 
     /* View matrix from the camera (same construction as kitchen_dining_draw). */
     MATRIX rot_matrix;

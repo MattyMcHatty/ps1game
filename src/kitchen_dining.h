@@ -4,6 +4,7 @@
 #include "render.h"
 
 void kitchen_load_assets(void);     /* load textures + geometry once at startup */
+void kitchen_stream_textures(void); /* re-upload kitchen textures on re-entry (GPU idle) */
 void kitchen_dining_init(void);
 void kitchen_dining_draw(RenderContext *ctx);
 void kitchen_door_arm(void);        /* seed Circle edge state on entering the kitchen */

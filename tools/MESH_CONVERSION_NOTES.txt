@@ -1,0 +1,123 @@
+PS1 HORROR GAME — MESH CONVERSION NOTES (SMX -> SMD / collision)
+================================================================
+How to turn a Blender-exported .smx file into the binary data the game
+actually loads. Read this before "reconverting" a level after a model change.
+
+There are TWO separate, independent pipelines. A level usually has both:
+  1. The VISUAL mesh   (what you see)        -> .smd     via smxlink
+  2. The COLLISION mesh (what stops you)     -> .c / .h  via smx_to_collision.py
+
+They come from DIFFERENT .smx files and use DIFFERENT tools. Converting one
+does NOT update the other. Only re-run the pipeline whose source .smx changed.
+
+
+--------------------------------------------------------------------------
+THE GOLDEN RULE — USE smxlink FOR THE VISUAL MESH, NOT A PYTHON SCRIPT
+--------------------------------------------------------------------------
+The visual .smd MUST be produced by the PSn00bSDK tool `smxlink`. It outputs
+the "NEW revision 1" SMD format that the engine's SMD loader (smd/smd.h)
+expects.
+
+There used to be a home-grown smx_to_smd.py script. It produced a subtly
+different file that the engine could NOT render correctly (geometry appeared
+broken / invisible). That script has been DELETED. Do not recreate it. If you
+ever see a .smd that won't render, suspect it was made by the wrong tool —
+reconvert with smxlink.
+
+  smxlink path: C:\Users\virtu\Documents\PSn00bSDK\bin\smxlink.exe
+
+
+--------------------------------------------------------------------------
+PIPELINE 1 — VISUAL MESH  (<level>.smx  ->  <level>.smd)
+--------------------------------------------------------------------------
+Run from project root: C:\Users\virtu\Documents\ps1game
+
+  Untextured mesh (e.g. Reception.smx — carries no texture references):
+      smxlink -o assets\Reception.smd assets\Reception.smx
+
+  Textured mesh (e.g. kitchen_dining — has per-poly texture refs):
+      smxlink -tp textures -o assets\<level>.smd assets\<level>.smx
+      (-tp lets smxlink resolve the texture references)
+
+The .smd is packed onto the disc by disc.xml (e.g. RECEPT.SMD <- Reception.smd),
+and loaded at runtime from the CD. After converting, you only need to rebuild
+the DISC IMAGE (mkpsxiso) — no C recompile, because no source changed.
+
+If the mesh is textured you may also need to regenerate the per-poly texture
+map (src/<level>_tex_map.h). See tools\TEXTURING_NOTES.txt step 7.
+
+
+--------------------------------------------------------------------------
+PIPELINE 2 — COLLISION MESH  (<level>_mesh.smx  ->  *_collision.c / .h)
+--------------------------------------------------------------------------
+The collision mesh is a SEPARATE, simpler model (the *_mesh.smx file). It is
+converted by the project's own Python script, NOT smxlink:
+
+      python assets\smx_to_collision.py assets\Reception_mesh.smx --room reception
+
+  --room NAME  controls the C identifiers it generates, e.g. --room reception
+               produces reception_collision_init() and RECEPTION_WALL_COUNT.
+               This MUST match what the engine code calls. (Reception uses
+               "reception"; check the existing *_collision.c header for others.)
+
+The script:
+  - reads vertices/primitives from the .smx,
+  - classifies faces by normal: vertical -> walls, horizontal -> floors,
+  - writes assets\<name>_collision.c and assets\<name>_collision.h.
+
+IMPORTANT — copy the generated files into src\ (that is the compiled copy):
+      copy assets\Reception_mesh_collision.c  src\reception_mesh_collision.c
+      copy assets\Reception_mesh_collision.h  src\reception_mesh_collision.h
+  (src\ uses lowercase filenames; contents are byte-identical to assets\.)
+
+Because this changes C source, a collision change DOES require a recompile
+(cmake --build) as well as a disc rebuild.
+
+Watch the script output:
+  - "Walls after dedup: N" must stay under MAX_WALLS (64). If higher, simplify
+    the collision mesh or raise MAX_WALLS_PER_ROOM in collision.h.
+  - Floor Y values are listed as comments — used to wire up apply_height()
+    floor zones (see the floor_zones tables in the level's .c file).
+
+
+--------------------------------------------------------------------------
+COMMON GOTCHA — EXPORTING TO THE WRONG FOLDER
+--------------------------------------------------------------------------
+Before reconverting, VERIFY the .smx you think you edited actually changed.
+Exports sometimes land in the wrong folder, so the .smx in assets\ is stale
+and the "reconvert" silently does nothing useful.
+
+  Quick check (PowerShell): compare timestamps / sizes
+      Get-ChildItem assets\Reception.smx, assets\Reception.smd |
+          Select-Object Name, Length, LastWriteTime
+  The .smx should be NEWER than the .smd, and its size should reflect your
+  poly-count change. `git status` should also show the .smx as modified.
+
+
+--------------------------------------------------------------------------
+FULL REBUILD AFTER A CONVERSION
+--------------------------------------------------------------------------
+(See "rebuild commands.txt" for the authoritative build steps.)
+
+  1. Convert whichever pipeline(s) changed (above).
+  2. If collision changed, copy generated .c/.h into src\ (above).
+  3. Compile + link + auto-elf2x:
+         cmake --build build --target horror_game
+     (Skips if no C changed — that's fine for a visual-only .smd change.)
+  4. Build the disc image:
+         mkpsxiso -y disc.xml
+     Output: build\HORROR.bin + build\HORROR.cue
+
+  Visual mesh only changed   -> step 1 + step 4 (no recompile needed).
+  Collision changed          -> steps 1-4 (recompile required).
+
+
+--------------------------------------------------------------------------
+QUICK REFERENCE
+--------------------------------------------------------------------------
+  Visual SMD (no textures): smxlink -o assets\<lvl>.smd assets\<lvl>.smx
+  Visual SMD (textured):    smxlink -tp textures -o assets\<lvl>.smd assets\<lvl>.smx
+  Collision:                python assets\smx_to_collision.py assets\<lvl>_mesh.smx --room <name>
+                            then copy generated *_collision.c/.h into src\
+  Disc:                     mkpsxiso -y disc.xml
+  Recompile (if C changed): cmake --build build --target horror_game

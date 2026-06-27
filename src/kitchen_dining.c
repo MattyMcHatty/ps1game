@@ -164,23 +164,32 @@ static void kitchen_dining_floor_zones_init(void) {
      area transitions never have to stop the CD-DA music.
    Kitchen textures occupy VRAM regions that don't overlap delivery-area or prop
    textures, so all stay resident together. */
-void kitchen_load_assets(void) {
+/* Upload the kitchen's 11 textures into VRAM. Called at startup AND on every
+   transition into the kitchen, because the reception room streams its own
+   textures over some of these VRAM slots (stn_stl/kchn_tile/red_crpt) — so they
+   must be restored when the player returns. Safe mid-game only when the caller
+   has idled the GPU first (see main STATE_LOADING). */
+void kitchen_stream_textures(void) {
     const int TBUF_CAP = 32 * 1024;
     uint8_t *tbuf = malloc(TBUF_CAP);
     if (tbuf) {
-        load_tim_buf("\\STNSTL.TIM;1",   0, tbuf, TBUF_CAP);
-        load_tim_buf("\\KCHNWL.TIM;1",   1, tbuf, TBUF_CAP);
-        load_tim_buf("\\KCHNTILE.TIM;1", 2, tbuf, TBUF_CAP);
+        load_tim_buf("\\TEX\\STNSTL.TIM;1",   0, tbuf, TBUF_CAP);
+        load_tim_buf("\\TEX\\KCHNWL.TIM;1",   1, tbuf, TBUF_CAP);
+        load_tim_buf("\\TEX\\KCHNTILE.TIM;1", 2, tbuf, TBUF_CAP);
         load_tim_buf("\\WDFLR.TIM;1",    3, tbuf, TBUF_CAP);
         load_tim_buf("\\REDWLPPR.TIM;1", 4, tbuf, TBUF_CAP);
         load_tim_buf("\\INRDBLDR.TIM;1", 5, tbuf, TBUF_CAP);
-        load_tim_buf("\\REDCRPT.TIM;1",  6, tbuf, TBUF_CAP);
+        load_tim_buf("\\TEX\\REDCRPT.TIM;1",  6, tbuf, TBUF_CAP);
         load_tim_buf("\\STNGLS.TIM;1",   7, tbuf, TBUF_CAP);
-        load_tim_buf("\\STOVE.TIM;1",    8, tbuf, TBUF_CAP);
+        load_tim_buf("\\TEX\\STOVE.TIM;1",    8, tbuf, TBUF_CAP);
         load_tim_buf("\\DINCL.TIM;1",    9, tbuf, TBUF_CAP);
         load_tim_buf("\\DBLDOOR.TIM;1", 10, tbuf, TBUF_CAP);
         free(tbuf);
     }
+}
+
+void kitchen_load_assets(void) {
+    kitchen_stream_textures();   /* initial upload at startup */
 
     /* Geometry, kept resident so entering the kitchen needs no CD read. */
     kitchen_buff = load_file_from_cd("\\KITCHN.SMD;1");

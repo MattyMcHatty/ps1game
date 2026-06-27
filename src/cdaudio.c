@@ -257,6 +257,26 @@ void cdaudio_update(void) {
     last_sector = cur;
 }
 
+/* Temporarily halt CD-DA so the drive is free for data reads (CdRead) mid-game.
+   The original design loaded all assets at startup precisely to avoid competing
+   with CD-DA; per-room texture streaming needs mid-game reads, so it must bracket
+   them with suspend/resume or the drive hangs (reading data while audio streams).
+   cd_audio_playing stays set so resume knows to restart. No-op if not playing. */
+void cdaudio_suspend(void) {
+    if (cd_audio_playing) {
+        /* BLOCKING stop: CdControlB waits for the command to complete, so the
+           drive is actually halted before we issue data reads. A non-blocking
+           CdControl(CdlStop) returns immediately and the still-streaming drive
+           corrupts the subsequent CdRead (garbage TIM -> LoadImage crash). */
+        CdControlB(CdlStop, NULL, NULL);
+    }
+}
+
+void cdaudio_resume(void) {
+    if (cd_audio_playing)
+        issue_play();   /* re-seek to the track and restart DA playback */
+}
+
 void cdaudio_stop(void) {
     if (!cd_audio_playing) return;
     cd_loop_mode     = 0;

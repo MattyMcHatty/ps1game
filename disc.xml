@@ -59,18 +59,8 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\inr_dbl_dr.tim"/>
             <file name="REDWLPPR.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\red_wlppr.tim"/>
-            <file name="STNSTL.TIM" type="data"
-                source="C:\Users\virtu\Documents\ps1game\textures\stn_stl.tim"/>
-            <file name="KCHNWL.TIM" type="data"
-                source="C:\Users\virtu\Documents\ps1game\textures\kchn_wl.tim"/>
-            <file name="KCHNTILE.TIM" type="data"
-                source="C:\Users\virtu\Documents\ps1game\textures\kchn_tile.tim"/>
             <file name="WDFLR.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\wd_flr.tim"/>
-            <file name="REDCRPT.TIM" type="data"
-                source="C:\Users\virtu\Documents\ps1game\textures\red_crpt.tim"/>
-            <file name="STOVE.TIM" type="data"
-                source="C:\Users\virtu\Documents\ps1game\textures\stove.tim"/>
             <file name="DINCL.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\din_cl.tim"/>
             <file name="STNGLS.TIM" type="data"
@@ -101,6 +91,22 @@
                 <file name="ZOMBIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\zombie.vag"/>
                 <file name="ZOMBDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\ZOMBIEDIE.vag"/>
                 <file name="DIE.VAG"     type="data" source="C:\Users\virtu\Documents\ps1game\sounds\DIE.vag"/>
+            </dir>
+            <!-- Room textures live in a subdirectory too (same reason as SND):
+                 adding them to the ROOT pushed its directory records past one
+                 2048-byte sector and the disc stopped booting. Only textures
+                 loaded by code we control (kitchen_stream_textures /
+                 reception_stream_textures) are moved here; props/delivery TIMs
+                 that other modules load by root path stay in the root. -->
+            <dir name="TEX">
+                <file name="STRS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\strs.tim"/>
+                <file name="BNNSTR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\bnnstr.tim"/>
+                <file name="FRNTDR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\frnt_dr.tim"/>
+                <file name="STNSTL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\stn_stl.tim"/>
+                <file name="KCHNWL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\kchn_wl.tim"/>
+                <file name="KCHNTILE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\kchn_tile.tim"/>
+                <file name="REDCRPT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\red_crpt.tim"/>
+                <file name="STOVE.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\stove.tim"/>
             </dir>
         </directory_tree>
     </track>

@@ -298,6 +298,22 @@ int main(int argc, const char **argv) {
                does no CD reads — the music keeps playing and there's no real load
                delay. The door animation already faded to black, so we just hold a
                black screen for this one-frame switch (no LOADING screen). */
+
+            /* Per-room texture streaming. Idle the GPU first so the previous
+               frame's async DrawOTagEnv is finished, then upload the incoming
+               room's textures while quiescent (no draw is kicked until
+               flip_buffers at the loop bottom). CD-DA must be suspended around
+               the reads: streaming uses CdRead, which hangs the drive if it runs
+               while CD-DA audio is playing (the original design loaded at startup
+               to avoid exactly this). */
+            DrawSync(0);
+            /* TEMP DIAGNOSTIC: reception only (6 root reads), now WITH a blocking
+               CD-DA suspend around the reads to test the corrupt-read theory. */
+            if (pending_area == STATE_RECEPTION) {
+                cdaudio_suspend();
+                reception_stream_textures();
+                cdaudio_resume();
+            }
             {
                 TILE *bg = (TILE *)ctx.next_packet;
                 setTile(bg);

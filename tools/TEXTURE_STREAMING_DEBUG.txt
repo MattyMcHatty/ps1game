@@ -1,0 +1,170 @@
+PER-ROOM TEXTURE STREAMING — WORK LOG & DEBUG STATE
+====================================================
+Written to hand off mid-debug (moving dev to a laptop). This documents the goal,
+everything built, the two crashes hit, every diagnostic tried and its RESULT, the
+confirmed conclusions, the current leading hypothesis, and the EXACT state of the
+code (which still has TEMP diagnostics in it). Read this before continuing.
+
+Baseline commit before this work: 0ea5634
+The build that BOOTS and is fully playable is that commit (reception untextured/flat).
+
+
+==========================================================================
+THE GOAL
+==========================================================================
+Reception was remade in Blender WITH textures (9 of them). We want reception
+rendered textured. VRAM is full (the page-aligned rows are packed), so we adopted
+a PER-ROOM VRAM STREAMING design: each room uploads its own textures into VRAM
+during the room transition, so rooms can share the same VRAM slots. Reception's 3
+NEW textures reuse slots the kitchen uses; the kitchen re-streams its own textures
+when you walk back into it.
+
+Reception's 9 textures (index -> file -> VRAM slot):
+  0 strs      (TEX/STRS.TIM)    (320,0)   <- overwrites kitchen stn_stl
+  1 red_wlppr (REDWLPPR.TIM)    (576,0)   shared with kitchen
+  2 wd_flr    (WDFLR.TIM)       (448,0)   shared
+  3 bnnstr    (TEX/BNNSTR.TIM)  (384,0)   <- overwrites kitchen kchn_tile
+  4 din_cl    (DINCL.TIM)       (448,256) shared
+  5 frnt_dr   (TEX/FRNTDR.TIM)  (320,256) <- overwrites kitchen red_crpt
+  6 wd_dr     (WDDR.TIM)        (768,256) shared, **16bpp** (all others 8bpp!)
+  7 inr_dbl_dr(INRDBLDR.TIM)    (576,256) shared
+  8 stn_gls   (STNGLS.TIM)      (896,256) shared
+
+
+==========================================================================
+WHAT WAS BUILT (all present in the working tree)
+==========================================================================
+- 3 new TIMs created with png_to_tim.py from existing PNGs:
+    strs.tim   -> tx320 ty0   clut(0,504)
+    bnnstr.tim -> tx384 ty0   clut(0,505)   (source was 64x64 RGBA; upscaled to
+                                             128x128 RGB for the TIM, rendered opaque)
+    frnt_dr.tim-> tx320 ty256 clut(0,506)
+- disc.xml: a new TEX/ SUBDIRECTORY holds 8 TIMs (the 3 new + 5 kitchen-only:
+  stn_stl, kchn_wl, kchn_tile, red_crpt, stove). See the BOOT CRASH fix below.
+- assets/Reception.smd: textured, via `smxlink -tp textures -o ...`.
+- src/reception_tex_map.h: per-prim texture index table (951 prims), generated
+  from the SMX poly order (matches SMD prim order).
+- src/reception.c: a TEXTURED renderer (FT4 + FT3 paths + a 128 DR_TWIN texture
+  window), reception_stream_textures(), and a static load_tim_buf().
+- src/kitchen_dining.c: kitchen_stream_textures() extracted from kitchen_load_assets;
+  kitchen's stn_stl/kchn_wl/kchn_tile/red_crpt/stove now load from \TEX\.
+- src/cdaudio.c/.h: cdaudio_suspend()/cdaudio_resume() (blocking CdlStop / re-play).
+- src/main.c: STATE_LOADING calls the per-room stream (GPU idled + CD-DA suspend).
+- smd_ft3_to_ft4.py: converts FT3 prims to degenerate FT4 (used during a wrong
+  theory; NOT currently applied — see below).
+
+
+==========================================================================
+CRASH #1 — "no boot / no title" — *** SOLVED ***
+==========================================================================
+SYMPTOM: after adding the 3 new TIMs, the disc froze at the BIOS logo (no title).
+CAUSE:   adding 3 files to the disc ROOT directory pushed its directory records
+         past ONE 2048-byte sector. The PS1 boot ROM only reads the first root
+         sector to find SYSTEM.CNF/HORROR.BIN; overflow = won't boot. (This is
+         exactly what the existing disc.xml comment warns about — sounds were
+         already in a SND/ subdir for the same reason.)
+FIX:     moved 8 TIMs out of root into a TEX/ subdirectory (load paths -> \TEX\..).
+         Root went from 1808 bytes (boots) -> 1944 (broke) -> ~1614 (fixed).
+         NOTE: our byte math under-counts vs mkpsxiso, so the rule of thumb is
+         KEEP ROOT SMALLER THAN THE LAST KNOWN-BOOTING ROOT. Don't add root files.
+RESULT:  title boots, delivery area fine.
+
+
+==========================================================================
+CRASH #2 — kitchen AND reception crash on entry — *** NOT YET SOLVED ***
+==========================================================================
+Delivery area (no streaming) is fine. Both rooms that STREAM crash on entry.
+
+BISECTION (each line = one build the user tested; result is what they reported):
+  1. Streaming fully disabled (#if 0 the stream calls)............ BOTH LOAD, no crash
+     (kitchen correct from startup residency; reception garbled). => streaming is the crash.
+  2. reception streams 6 root-path textures, no CD suspend........ CRASHES
+     (this is the SAME pattern the earlier "spike" used and it worked THEN —
+      the only environmental change since is the textured SMD + textured renderer).
+  3. reception does CdRead but LoadImage/GetTimInfo SKIPPED........ LOADS, no crash
+     => the CdRead itself is NOT the crash.
+  4. blocking CD-DA suspend (CdControlB CdlStop) + 6 root + LoadImage CRASHES
+     => corrupt-read-during-CD-DA theory is WRONG; suspend doesn't help.
+  5. static scratch buffer instead of mid-game malloc............. CRASHES
+     => mid-game malloc returning bad memory theory is WRONG.
+  6. LoadImage RUNS (uploads to VRAM) but tex_tpage/tex_clut left 0 LOADS, no crash
+     => the VRAM UPLOAD is fine. The crash is the FIRST RENDER FRAME WITH REAL
+        TEXTURE-PAGE VALUES.
+  7. reverted SMD to proper FT3 (no degenerate-FT4 conversion) + real tpage CRASHES
+     => degenerate-quad theory is WRONG; prim type (FT3 vs FT4) doesn't matter.
+
+CONFIRMED CONCLUSION:
+  The crash is RENDERING reception's textured SMD with REAL poly->tpage/poly->clut
+  values. With those fields = 0 it renders (garbled) fine; with the real values it
+  crashes the emulator. Streaming/upload/CD/malloc are all RULED OUT.
+
+LEADING HYPOTHESIS (untested when we stopped):
+  Slot 6 = wd_dr is the ONLY 16bpp texture (mode bpp=2); every other room texture
+  is 8bpp. Reception is the FIRST mesh to render a 16bpp texture through the
+  windowed SMD path (the kitchen never renders wd_dr — it's a fatdoor prop tex).
+  A 16bpp tpage from getTPage(2,0,768,256) combined with the 8bpp-tuned 128 texture
+  window {0,0,16,16} is a strong suspect for the GPU crash.
+
+NEXT TEST TO RUN:
+  In reception_stream_textures, COMMENT OUT the wd_dr load (slot 6 stays tpage 0),
+  rebuild, enter reception.
+    - If it LOADS -> 16bpp wd_dr rendering is the crash. Fix options:
+        (a) make a dedicated 8bpp door texture for reception, or
+        (b) re-export wd_dr as 8bpp (careful: fatdoor.c also loads WDDR.TIM and may
+            rely on 16bpp), or
+        (c) special-case 16bpp in the reception renderer (own tpage/window).
+    - If it STILL crashes -> not the 16bpp tex. Then diff reception's renderer
+      against kitchen's draw_kitchen_smd line by line; suspect the texture-window
+      placement/OT order, or a tpage/clut value for a y=256-page texture.
+
+OTHER THINGS RULED OUT ALONG THE WAY:
+  - FT3 prims crashing smdInitData at load -> WRONG (that was Crash #1, the disc).
+    smd_ft3_to_ft4.py was written for that wrong theory; it is NOT needed. The SMD
+    is currently the plain `smxlink -tp` output (has 32 FT3 + 919 FT4).
+  - TEX/ subdirectory CdSearchFile being unsupported -> WRONG (sounds load from
+    SND/ the same way; subdir reads work).
+
+
+==========================================================================
+EXACT CURRENT STATE OF THE CODE (has TEMP diagnostics — NOT a finished state)
+==========================================================================
+src/main.c  (STATE_LOADING, ~line 309):
+  - DrawSync(0); then streams ONLY for STATE_RECEPTION, wrapped in
+    cdaudio_suspend()/cdaudio_resume(). KITCHEN streaming is currently NOT called
+    (the `else if (... KITCHEN) kitchen_stream_textures();` was removed for the
+    isolation tests). The TEMP comment says "6 root reads" but that is STALE —
+    reception_stream_textures now loads all 9 again.
+
+src/reception.c:
+  - reception_stream_textures(): uses a STATIC 32KB buffer (not malloc); loads all
+    9 textures (3 via \TEX\..). This is the intended final content EXCEPT the
+    static buffer was a diagnostic (can stay; it's fine).
+  - load_tim_buf(): real tpage/clut restored (the diagnostic that zeroed them is
+    reverted). This is the normal version.
+  - The textured renderer (draw_reception_smd) + DR_TWIN window are in place.
+
+src/cdaudio.c: cdaudio_suspend() uses BLOCKING CdControlB(CdlStop); cdaudio_resume()
+  re-issues play. (These didn't fix the crash but are harmless and arguably correct
+  to keep for when streaming works.)
+
+assets/Reception.smd: plain `smxlink -tp` output (FT3+FT4). smd_ft3_to_ft4.py NOT
+  applied.
+
+TO RESTORE A KNOWN-GOOD BOOTING/PLAYABLE BUILD QUICKLY:
+  In src/main.c, wrap the reception stream call in `#if 0 ... #endif`. Then
+  reception loads but is garbled/untextured (no crash); kitchen is fine. That
+  matches bisection line 1.
+
+
+==========================================================================
+BUILD / CONVERT QUICK REFERENCE (see also MESH_CONVERSION_NOTES.txt)
+==========================================================================
+  Visual SMD:  smxlink -tp textures -o assets\Reception.smd assets\Reception.smx
+  Tex map:     regenerate src\reception_tex_map.h from the SMX poly order if the
+               mesh changes (uint8 array, one entry per prim).
+  Build:       cmake --build build --target horror_game   (auto elf2x)
+  Disc:        mkpsxiso -y disc.xml
+  TIM:         python textures\png_to_tim.py NAME.png --bpp 8 --tx X --ty Y
+                      --cx CX --cy CY --out NAME.tim
+  RULE:        new TIMs go in the TEX/ subdir in disc.xml, NOT the root, and load
+               with a \TEX\NAME.TIM;1 path. Never grow the root file list.
