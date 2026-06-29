@@ -188,13 +188,58 @@ void kitchen_stream_textures(void) {
     }
 }
 
+/* The three kitchen textures whose VRAM slots reception overwrites with its own
+   (stn_stl, kchn_tile, red_crpt — slots 0/2/6). Their TIM data is preloaded into
+   resident RAM at startup so they can be re-uploaded with a pure LoadImage (no CD
+   read) when the player returns to the kitchen from reception. */
+#define KITCHEN_SHARED_TEX 3
+static uint8_t  *shared_tim_buf[KITCHEN_SHARED_TEX];
+static TIM_IMAGE shared_tim[KITCHEN_SHARED_TEX];
+static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
+    "\\TEX\\STNSTL.TIM;1",
+    "\\TEX\\KCHNTILE.TIM;1",
+    "\\TEX\\REDCRPT.TIM;1",
+};
+
 void kitchen_load_assets(void) {
     kitchen_stream_textures();   /* initial upload at startup */
+
+    /* Preload the reception-shared textures into resident RAM for re-upload on
+       kitchen re-entry (their tpage/clut are already captured above; only the
+       VRAM pixels need restoring). */
+    for (int i = 0; i < KITCHEN_SHARED_TEX; i++) {
+        CdlFILE file;
+        if (!CdSearchFile(&file, shared_tex_file[i])) continue;
+        int sectors = (file.size + 2047) / 2048;
+        shared_tim_buf[i] = malloc(sectors * 2048);
+        if (!shared_tim_buf[i]) continue;
+        CdControl(CdlSetloc, &file.pos, NULL);
+        CdRead(sectors, (uint32_t *)shared_tim_buf[i], CdlModeSpeed);
+        CdReadSync(0, NULL);
+        GetTimInfo((uint32_t *)shared_tim_buf[i], &shared_tim[i]);
+    }
 
     /* Geometry, kept resident so entering the kitchen needs no CD read. */
     kitchen_buff = load_file_from_cd("\\KITCHN.SMD;1");
     if (kitchen_buff)
         kitchen_smd = smdInitData(kitchen_buff);
+}
+
+/* Restore the reception-shared kitchen textures into VRAM from their resident RAM
+   copies. Pure LoadImage — no CD access — safe to call mid-game on kitchen entry
+   (the caller idles the GPU with DrawSync first). A no-op-equivalent on the first
+   entry (the pixels are already correct), it undoes reception's VRAM overwrite on
+   later returns. */
+void kitchen_restore_textures(void) {
+    for (int i = 0; i < KITCHEN_SHARED_TEX; i++) {
+        if (!shared_tim_buf[i]) continue;
+        LoadImage(shared_tim[i].prect, shared_tim[i].paddr);
+        DrawSync(0);
+        if (shared_tim[i].mode & 0x8) {
+            LoadImage(shared_tim[i].crect, shared_tim[i].caddr);
+            DrawSync(0);
+        }
+    }
 }
 
 void kitchen_dining_init(void) {

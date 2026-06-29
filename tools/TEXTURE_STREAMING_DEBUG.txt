@@ -1,9 +1,46 @@
 PER-ROOM TEXTURE STREAMING — WORK LOG & DEBUG STATE
 ====================================================
-Written to hand off mid-debug (moving dev to a laptop). This documents the goal,
-everything built, the two crashes hit, every diagnostic tried and its RESULT, the
-confirmed conclusions, the current leading hypothesis, and the EXACT state of the
-code (which still has TEMP diagnostics in it). Read this before continuing.
+
+==========================================================================
+*** RESOLVED (2026-06-29) — read this first ***
+==========================================================================
+ROOT CAUSE of Crash #2: a mid-game CdRead. The old streaming path did
+CdSearchFile + CdRead at the room transition to fetch each TIM. A CdRead issued
+mid-game competes with the CD-DA drive and the psxcd library hangs (DrawSync /
+the read never returns) — this is what froze the emulator on entering reception.
+It was NOT the renderer, NOT the tpage/clut values, NOT 16bpp wd_dr, NOT oversized
+polys, and NOT mid-game LoadImage. The earlier "it's rendering with real tpage"
+conclusion (below) was wrong — it came from unreliable hand-run tests.
+
+HOW IT WAS ISOLATED (clean, reproducible builds):
+  - streaming ON + render forced FLAT  -> still crashed  => not the renderer.
+  - streaming OFF + render flat         -> no crash       => streaming is the cause.
+  - preload TIM bytes to RAM at startup, then on entry do a PURE LoadImage from
+    RAM (no CdRead, no CD-DA suspend) -> renders textured, NO crash
+                                        => mid-game LoadImage is fine; the CdRead
+                                           was the hang.
+
+THE FIX (implemented):
+  - reception.c: reception_load_assets() preloads the 3 reception-only textures
+    (strs/bnnstr/frnt_dr) into resident RAM at startup and captures all 9
+    tpage/clut. reception_upload_textures() does a pure LoadImage from RAM on
+    each reception entry (called from main STATE_LOADING). No CD, no cdaudio.
+  - kitchen_dining.c: same pattern — kitchen_restore_textures() re-uploads the 3
+    reception-shared kitchen textures (stn_stl/kchn_tile/red_crpt) from RAM on
+    kitchen entry, undoing reception's VRAM overwrite when returning.
+  - All TEMP diagnostics removed; reception renders textured.
+  - cdaudio_suspend/resume are no longer used by the transition (kept in cdaudio.c).
+  NOTE: reception has no exit door back to the kitchen yet, so the kitchen restore
+  is currently exercised only on the first (delivery->kitchen) entry as a no-op;
+  it becomes load-bearing once a reception->kitchen door exists.
+
+GENERAL RULE for future per-room streaming: do ALL CD reads at startup. Mid-game,
+only ever LoadImage from RAM. Never CdRead while CD-DA is playing.
+
+--------------------------------------------------------------------------
+Original mid-debug handoff notes follow (kept for history; the leading
+hypothesis in CRASH #2 is now known to be WRONG — see RESOLVED above).
+--------------------------------------------------------------------------
 
 Baseline commit before this work: 0ea5634
 The build that BOOTS and is fully playable is that commit (reception untextured/flat).

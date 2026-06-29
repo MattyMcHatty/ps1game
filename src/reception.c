@@ -95,68 +95,104 @@ static void reception_floor_zones_init(void) {
     floor_zone_count = i;
 }
 
-/* Load geometry at STARTUP (a CD read only — no LoadImage, so it's safe and
-   leaves gameplay CD-read-free, like the kitchen). */
-void reception_load_assets(void) {
-    reception_buff = load_file_from_cd("\\RECEPT.SMD;1");
-    if (reception_buff)
-        reception_smd = smdInitData(reception_buff);
-}
+/* ---- Per-room textures -----------------------------------------------------
+   Reception's nine mesh textures. Six are resident from startup (shared with the
+   kitchen / fatdoor); three are UNIQUE to reception (strs, bnnstr, frnt_dr) and
+   occupy VRAM slots the kitchen also uses, so they must be (re)uploaded into VRAM
+   each time reception is entered.
 
-/* ---- Per-room texture streaming -------------------------------------------
-   Uploads reception's nine mesh textures into VRAM during the STATE_LOADING
-   transition (NOT at startup). Historically everything loaded at startup because
-   LoadImage hard-crashes when issued while the per-frame draw is in flight
-   (TEXTURING_NOTES PROBLEM A — it died on the 4th mid-loop upload). The caller
-   idles the GPU with DrawSync(0) first and kicks no DrawOTagEnv until the next
-   flip_buffers, so these uploads run with the GPU quiescent (validated by the
-   original 6-texture spike). Streaming lets rooms share VRAM: reception's new
-   textures reuse slots the kitchen also uses, and the kitchen re-streams its own
-   textures when re-entered (see kitchen_stream_textures). */
+   The unique textures' TIM data is held resident in RAM (preloaded at startup),
+   so the entry-time upload is a PURE LoadImage with NO CD access. The old design
+   did a CdRead at transition time, which hung: a mid-game CdRead competes with
+   the CD-DA drive and the psxcd library gets into a bad state. Preloading the
+   bytes at startup removes the only CD access from the transition. */
 #define RECEPTION_TEX_COUNT 9
 static uint16_t tex_tpage[RECEPTION_TEX_COUNT];
 static uint16_t tex_clut[RECEPTION_TEX_COUNT];
 
-static void load_tim_buf(const char *filename, int slot, uint8_t *buf, int bufcap) {
+/* The reception-only textures, with their reception_tex_map slot indices. Their
+   data + parsed TIM headers stay resident so reception_upload_textures() needs no
+   CD read. */
+#define RECEPTION_NEW_TEX 3
+static uint8_t  *new_tim_buf[RECEPTION_NEW_TEX];
+static TIM_IMAGE new_tim[RECEPTION_NEW_TEX];
+static const struct { const char *file; int slot; } new_tex[RECEPTION_NEW_TEX] = {
+    { "\\TEX\\STRS.TIM;1",   0 },
+    { "\\TEX\\BNNSTR.TIM;1", 3 },
+    { "\\TEX\\FRNTDR.TIM;1", 5 },
+};
+
+/* Read a whole TIM into a freshly malloc'd buffer (caller owns it). NULL on fail. */
+static uint8_t *read_tim(const char *filename) {
     CdlFILE file;
-    if (!CdSearchFile(&file, filename)) return;
+    if (!CdSearchFile(&file, filename)) return NULL;
     int sectors = (file.size + 2047) / 2048;
-    if (sectors * 2048 > bufcap) return;
+    uint8_t *buf = malloc(sectors * 2048);
+    if (!buf) return NULL;
     CdControl(CdlSetloc, &file.pos, NULL);
     CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
     CdReadSync(0, NULL);
-
-    TIM_IMAGE tim;
-    GetTimInfo((uint32_t *)buf, &tim);
-    LoadImage(tim.prect, tim.paddr);
-    DrawSync(0);
-    if (tim.mode & 0x8) {
-        LoadImage(tim.crect, tim.caddr);
-        DrawSync(0);
-        tex_clut[slot] = getClut(tim.crect->x, tim.crect->y);
-    }
-    tex_tpage[slot] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
+    return buf;
 }
 
-void reception_stream_textures(void) {
-    /* Static scratch buffer instead of a mid-game malloc: the heap is tighter
-       once all rooms' geometry is resident, and a mid-game malloc here returned
-       bad memory (LoadImage then crashed). TEMP test of that theory. */
-    static uint8_t tbuf[32 * 1024];
-    const int TBUF_CAP = sizeof(tbuf);
-    /* Slots match reception_tex_map indices. The three NEW textures (strs,
-       bnnstr, frnt_dr) stream into page-aligned VRAM that the kitchen also uses
-       (stn_stl/kchn_tile/red_crpt slots) — kitchen re-streams its own textures
-       when re-entered, so the two rooms share that VRAM. */
-    load_tim_buf("\\TEX\\STRS.TIM;1",   0, tbuf, TBUF_CAP);
-    load_tim_buf("\\REDWLPPR.TIM;1", 1, tbuf, TBUF_CAP);
-    load_tim_buf("\\WDFLR.TIM;1",    2, tbuf, TBUF_CAP);
-    load_tim_buf("\\TEX\\BNNSTR.TIM;1", 3, tbuf, TBUF_CAP);
-    load_tim_buf("\\DINCL.TIM;1",    4, tbuf, TBUF_CAP);
-    load_tim_buf("\\TEX\\FRNTDR.TIM;1", 5, tbuf, TBUF_CAP);
-    load_tim_buf("\\WDDR.TIM;1",     6, tbuf, TBUF_CAP);
-    load_tim_buf("\\INRDBLDR.TIM;1", 7, tbuf, TBUF_CAP);
-    load_tim_buf("\\STNGLS.TIM;1",   8, tbuf, TBUF_CAP);
+/* Capture tpage/clut for a texture that is ALREADY resident in VRAM (shared with
+   another room): read its header only, no LoadImage. */
+static void capture_tpage(const char *filename, int slot) {
+    uint8_t *buf = read_tim(filename);
+    if (!buf) return;
+    TIM_IMAGE tim;
+    GetTimInfo((uint32_t *)buf, &tim);
+    if (tim.mode & 0x8) tex_clut[slot] = getClut(tim.crect->x, tim.crect->y);
+    tex_tpage[slot] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
+    free(buf);
+}
+
+/* Load geometry AND preload textures at STARTUP. Geometry and the six shared
+   textures need only their headers/data read here (no mid-game CD); the three
+   unique textures are kept resident in RAM for entry-time upload. All CD access
+   happens here, at startup, where it is safe. */
+void reception_load_assets(void) {
+    reception_buff = load_file_from_cd("\\RECEPT.SMD;1");
+    if (reception_buff)
+        reception_smd = smdInitData(reception_buff);
+
+    /* Preload the 3 reception-only textures into resident RAM; capture their
+       tpage/clut now (they are uploaded to VRAM on each reception entry). */
+    for (int i = 0; i < RECEPTION_NEW_TEX; i++) {
+        new_tim_buf[i] = read_tim(new_tex[i].file);
+        if (!new_tim_buf[i]) continue;
+        GetTimInfo((uint32_t *)new_tim_buf[i], &new_tim[i]);
+        int slot = new_tex[i].slot;
+        if (new_tim[i].mode & 0x8)
+            tex_clut[slot] = getClut(new_tim[i].crect->x, new_tim[i].crect->y);
+        tex_tpage[slot] = getTPage(new_tim[i].mode & 0x3, 0,
+                                   new_tim[i].prect->x, new_tim[i].prect->y);
+    }
+
+    /* The other 6 are resident from startup (kitchen + fatdoor); just capture
+       their tpage/clut for reception's renderer. */
+    capture_tpage("\\REDWLPPR.TIM;1", 1);
+    capture_tpage("\\WDFLR.TIM;1",    2);
+    capture_tpage("\\DINCL.TIM;1",    4);
+    capture_tpage("\\WDDR.TIM;1",     6);
+    capture_tpage("\\INRDBLDR.TIM;1", 7);
+    capture_tpage("\\STNGLS.TIM;1",   8);
+}
+
+/* Upload reception's 3 unique textures into VRAM from their resident RAM copies.
+   Pure LoadImage — no CD access — so it is safe during the room transition (the
+   caller idles the GPU with DrawSync first, and kicks no draw until the next
+   flip_buffers). */
+void reception_upload_textures(void) {
+    for (int i = 0; i < RECEPTION_NEW_TEX; i++) {
+        if (!new_tim_buf[i]) continue;
+        LoadImage(new_tim[i].prect, new_tim[i].paddr);
+        DrawSync(0);
+        if (new_tim[i].mode & 0x8) {
+            LoadImage(new_tim[i].crect, new_tim[i].caddr);
+            DrawSync(0);
+        }
+    }
 }
 
 void reception_init(void) {

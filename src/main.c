@@ -307,12 +307,15 @@ int main(int argc, const char **argv) {
                while CD-DA audio is playing (the original design loaded at startup
                to avoid exactly this). */
             DrawSync(0);
-            /* TEMP DIAGNOSTIC: reception only (6 root reads), now WITH a blocking
-               CD-DA suspend around the reads to test the corrupt-read theory. */
+            /* Upload reception's unique textures into VRAM from their resident RAM
+               copies. Pure LoadImage, no CD access (the bytes were preloaded at
+               startup), so no CD-DA suspend is needed and the drive never hangs. */
             if (pending_area == STATE_RECEPTION) {
-                cdaudio_suspend();
-                reception_stream_textures();
-                cdaudio_resume();
+                reception_upload_textures();
+            } else if (pending_area == STATE_KITCHEN_DINING) {
+                /* Restore the kitchen textures reception overwrote (no-op on the
+                   first visit; corrects VRAM when returning from reception). */
+                kitchen_restore_textures();
             }
             {
                 TILE *bg = (TILE *)ctx.next_packet;
