@@ -312,11 +312,13 @@ int main(int argc, const char **argv) {
                startup), so no CD-DA suspend is needed and the drive never hangs. */
             if (pending_area == STATE_RECEPTION) {
                 reception_upload_textures();
-            } else if (pending_area == STATE_KITCHEN_DINING) {
-                /* Restore the kitchen textures reception overwrote (no-op on the
-                   first visit; corrects VRAM when returning from reception). */
-                kitchen_restore_textures();
             }
+            /* NOTE: when a reception->kitchen door is added, the kitchen will need
+               its reception-shared textures (stn_stl/kchn_tile/red_crpt) restored
+               here on kitchen entry, via the same preload-to-RAM + LoadImage
+               pattern. A first attempt (kitchen_restore_textures) regressed
+               reception entry and was reverted; debug it when the door exists and
+               the path is actually testable. */
             {
                 TILE *bg = (TILE *)ctx.next_packet;
                 setTile(bg);
