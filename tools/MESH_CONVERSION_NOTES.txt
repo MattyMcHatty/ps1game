@@ -43,8 +43,26 @@ The .smd is packed onto the disc by disc.xml (e.g. RECEPT.SMD <- Reception.smd),
 and loaded at runtime from the CD. After converting, you only need to rebuild
 the DISC IMAGE (mkpsxiso) — no C recompile, because no source changed.
 
-If the mesh is textured you may also need to regenerate the per-poly texture
-map (src/<level>_tex_map.h). See tools\TEXTURING_NOTES.txt step 7.
+If the mesh is textured you MUST also regenerate the per-poly texture map
+(src/<level>_tex_map.h) whenever the texturing changed. For Reception:
+
+      python gen_reception_tex_map.py
+
+  (defaults: assets\Reception.smx -> src\reception_tex_map.h)
+
+This is a HEADER included by the level's .c, so regenerating it requires a
+recompile (cmake --build), not just a disc rebuild.
+
+CRITICAL — map by texture NAME, not raw index:
+  Each <poly> stores texture="N", where N indexes the SMX's own <textures>
+  list. The Blender exporter RENUMBERS that list whenever the material set
+  changes — e.g. dropping one texture shifts every later index down by one.
+  A raw-index map then silently mis-assigns textures (symptom: ceiling art on
+  the front door, double doors on the stained glass, etc. — everything past the
+  removed slot is shifted). gen_reception_tex_map.py avoids this by resolving
+  N -> name via the SMX <textures> list, then name -> engine VRAM slot via its
+  NAME_TO_SLOT table. That table MUST match the slot load order in
+  src\reception.c (reception_load_assets). See tools\TEXTURING_NOTES.txt step 7.
 
 
 --------------------------------------------------------------------------
@@ -117,6 +135,7 @@ QUICK REFERENCE
 --------------------------------------------------------------------------
   Visual SMD (no textures): smxlink -o assets\<lvl>.smd assets\<lvl>.smx
   Visual SMD (textured):    smxlink -tp textures -o assets\<lvl>.smd assets\<lvl>.smx
+  Tex map (Reception):      python gen_reception_tex_map.py   (then cmake --build)
   Collision:                python assets\smx_to_collision.py assets\<lvl>_mesh.smx --room <name>
                             then copy generated *_collision.c/.h into src\
   Disc:                     mkpsxiso -y disc.xml
