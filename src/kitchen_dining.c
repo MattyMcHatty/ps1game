@@ -188,13 +188,59 @@ void kitchen_stream_textures(void) {
     }
 }
 
+/* The three kitchen textures whose VRAM slots reception overwrites with its own
+   (stn_stl, kchn_tile, red_crpt). Their TIM data is preloaded into resident RAM
+   at startup so they can be re-uploaded with a pure LoadImage — NO mid-game CD
+   read (which would hang the drive) — when the player returns from reception.
+   Same approach reception uses for its own textures (reception_upload_textures);
+   their tpage/clut are unchanged (same VRAM slots), so only the pixels need
+   restoring. */
+#define KITCHEN_SHARED_TEX 3
+static uint8_t  *shared_tim_buf[KITCHEN_SHARED_TEX];
+static TIM_IMAGE shared_tim[KITCHEN_SHARED_TEX];
+static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
+    "\\TEX\\STNSTL.TIM;1",
+    "\\TEX\\KCHNTILE.TIM;1",
+    "\\TEX\\REDCRPT.TIM;1",
+};
+
 void kitchen_load_assets(void) {
     kitchen_stream_textures();   /* initial upload at startup */
+
+    /* Preload the reception-shared textures into resident RAM for re-upload on
+       return from reception. All CD access happens here, at startup. */
+    for (int i = 0; i < KITCHEN_SHARED_TEX; i++) {
+        CdlFILE file;
+        if (!CdSearchFile(&file, shared_tex_file[i])) continue;
+        int sectors = (file.size + 2047) / 2048;
+        shared_tim_buf[i] = malloc(sectors * 2048);
+        if (!shared_tim_buf[i]) continue;
+        CdControl(CdlSetloc, &file.pos, NULL);
+        CdRead(sectors, (uint32_t *)shared_tim_buf[i], CdlModeSpeed);
+        CdReadSync(0, NULL);
+        GetTimInfo((uint32_t *)shared_tim_buf[i], &shared_tim[i]);
+    }
 
     /* Geometry, kept resident so entering the kitchen needs no CD read. */
     kitchen_buff = load_file_from_cd("\\KITCHN.SMD;1");
     if (kitchen_buff)
         kitchen_smd = smdInitData(kitchen_buff);
+}
+
+/* Re-upload the reception-shared textures into VRAM from their resident RAM
+   copies. Pure LoadImage, no CD access — safe to call mid-game on the room
+   transition (the caller idles the GPU with DrawSync first), exactly like
+   reception_upload_textures. Call only when returning from reception. */
+void kitchen_restore_textures(void) {
+    for (int i = 0; i < KITCHEN_SHARED_TEX; i++) {
+        if (!shared_tim_buf[i]) continue;
+        LoadImage(shared_tim[i].prect, shared_tim[i].paddr);
+        DrawSync(0);
+        if (shared_tim[i].mode & 0x8) {
+            LoadImage(shared_tim[i].crect, shared_tim[i].caddr);
+            DrawSync(0);
+        }
+    }
 }
 
 void kitchen_dining_init(void) {

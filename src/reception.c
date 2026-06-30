@@ -3,6 +3,7 @@
 #include <psxgpu.h>
 #include <psxgte.h>
 #include <psxcd.h>
+#include <psxpad.h>
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
@@ -11,6 +12,10 @@
 #include "collision.h"
 #include "reception_mesh_collision.h"
 #include "reception_tex_map.h"
+#include "door.h"
+
+extern volatile uint8_t pad_buff[2][34];
+extern volatile size_t  pad_buff_len[2];
 
 /* Placeholder reception room: untextured geometry rendered flat-shaded with the
    same distance fog as the kitchen, so it blends with the dark interior until
@@ -195,17 +200,79 @@ void reception_upload_textures(void) {
     }
 }
 
+/* ---- Door back to the kitchen ---------------------------------------------
+   The double door on the bottom floor (where the player spawns). Mirrors the
+   kitchen's "to reception" door: a floating "Press O to enter" sign, and a fresh
+   Circle press within range starts the transition back. */
+#define RDOOR_X                  1450
+#define RDOOR_Z                 (-414)
+#define RDOOR_TEXT_Y            (-186)
+#define RDOOR_TEXT_RADIUS        1500
+#define RDOOR_FADE_NEAR          1000   /* fully opaque within this distance */
+#define RDOOR_TRIGGER_RADIUS      500   /* distance at which Circle activates */
+
+/* Circle edge-detect, seeded by reception_door_arm(). Starts "held" so a press
+   carried in from the kitchen-side transition doesn't immediately bounce back. */
+static int rdoor_circle_prev = 1;
+
+void reception_door_arm(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    rdoor_circle_prev = held;
+}
+
+int reception_door_triggered(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    int just = held && !rdoor_circle_prev;
+    rdoor_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - RDOOR_X;
+    int32_t dz = cam_z - RDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < RDOOR_TRIGGER_RADIUS;
+}
+
+/* Floating "Press O to enter" sign on the double door, in the YZ plane (faces
+   along X). The player approaches from the -X (room) side, so mirror=1. */
+static void reception_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - RDOOR_X;
+    int32_t dz = cam_z - RDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= RDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > RDOOR_FADE_NEAR) {
+        int range = RDOOR_TEXT_RADIUS - RDOOR_FADE_NEAR;
+        int prog  = xz - RDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press O to enter",
+                        RDOOR_X, RDOOR_TEXT_Y, RDOOR_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
 void reception_init(void) {
     reception_collision_init(&current_collision_room);
     reception_floor_zones_init();
 
-    /* Spawn near the room centre, facing +X. Tune once the connecting doorway
-       art is finalised. */
-    cam_x   = 0;
-    cam_y   = -149;   /* floor at world y=0 -> eye target 0 - GROUND_FLOOR_Y */
+    /* Spawn by the double door on the bottom floor, facing west (-X). */
+    cam_x   = 1306;
+    cam_y   = -189;
     cam_vy  = 0;
-    cam_z   = 0;
-    cam_rot = 1024;   /* facing +X */
+    cam_z   = -414;
+    cam_rot = 3072;   /* facing west (-X) */
+
+    reception_door_arm();   /* don't re-trigger on a held Circle from the entry */
 }
 
 static void draw_reception_smd(RenderContext *ctx) {
@@ -400,4 +467,5 @@ void reception_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_reception_smd(ctx);
+    reception_door_text(ctx);
 }

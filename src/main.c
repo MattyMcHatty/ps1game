@@ -125,6 +125,11 @@ static void update_current_area(GameState area) {
            kitchen props, which are global and would collide invisibly here). */
         apply_collision_reception();
         apply_height();
+        if (reception_door_triggered()) {
+            pending_area = STATE_KITCHEN_DINING;
+            door_anim_start(DOOR_PANEL_INNER);   /* same interior double door */
+            game_state   = STATE_DOOR_ANIM;
+        }
     } else {
         apply_collision();
         apply_height();
@@ -328,13 +333,12 @@ int main(int argc, const char **argv) {
                startup), so no CD-DA suspend is needed and the drive never hangs. */
             if (pending_area == STATE_RECEPTION) {
                 reception_upload_textures();
+            } else if (pending_area == STATE_KITCHEN_DINING &&
+                       current_area == STATE_RECEPTION) {
+                /* Returning from reception, which overwrote the kitchen's
+                   stn_stl/kchn_tile/red_crpt VRAM slots — restore them. */
+                kitchen_restore_textures();
             }
-            /* NOTE: when a reception->kitchen door is added, the kitchen will need
-               its reception-shared textures (stn_stl/kchn_tile/red_crpt) restored
-               here on kitchen entry, via the same preload-to-RAM + LoadImage
-               pattern. A first attempt (kitchen_restore_textures) regressed
-               reception entry and was reverted; debug it when the door exists and
-               the path is actually testable. */
             {
                 TILE *bg = (TILE *)ctx.next_packet;
                 setTile(bg);
@@ -349,6 +353,16 @@ int main(int argc, const char **argv) {
             world_leave(current_area);
             if (pending_area == STATE_KITCHEN_DINING) {
                 kitchen_dining_init();
+                /* Coming back from reception: spawn at the kitchen's "to
+                   reception" door (far west wall), facing east into the kitchen,
+                   instead of the default delivery-side spawn. */
+                if (current_area == STATE_RECEPTION) {
+                    cam_x   = -3100;
+                    cam_y   = -149;
+                    cam_vy  = 0;
+                    cam_z   = -26;
+                    cam_rot = 1024;   /* face +X, into the kitchen */
+                }
                 kitchen_door_arm();
             } else if (pending_area == STATE_RECEPTION) {
                 reception_init();
