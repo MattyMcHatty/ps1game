@@ -38,7 +38,7 @@ GameState pending_area = STATE_KITCHEN_DINING; /* area STATE_LOADING will switch
 int       debug_mode   = 0;
 
 /* HUD/debug font streams (opened in main() after FntLoad). */
-static int gameover_fnt, hud_fnt, notify_fnt, debug_fnt, compass_fnt;
+static int gameover_fnt, notify_fnt;
 
 volatile uint8_t pad_buff[2][34];
 volatile size_t  pad_buff_len[2];
@@ -282,10 +282,7 @@ int main(int argc, const char **argv) {
 
     FntLoad(960, 0);
     gameover_fnt = FntOpen(40,  104, 240, 32, 0, 128);
-    hud_fnt      = FntOpen(4,   16,  120, 16, 0, 64);
     notify_fnt   = FntOpen(116, 210, 200, 28, 0, 192);
-    debug_fnt    = FntOpen(4,   210, 180, 28, 0, 128);
-    compass_fnt  = FntOpen(0,   0,   320, 16, 0, 48);
 
     /* menu_init and title_init open their own font streams, so call them
        after FntLoad above. */
