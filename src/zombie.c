@@ -213,7 +213,6 @@ void update_zombies(void) {
         int32_t dy     = cam_y - d->y;
         int32_t dz     = cam_z - d->z;
         int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
 
         if (d->state == ZMB_DORMANT) {
             if (dist2d < ZMB_WAKE_RADIUS) {
@@ -233,7 +232,15 @@ void update_zombies(void) {
             }
         }
 
-        if (!game_over && dist3d < ZMB_CATCH_DIST && d->damage_timer == 0) {
+        /* Damage on contact. Check horizontal and vertical reach SEPARATELY
+           instead of as a combined |dx|+|dz|+|dy| budget: the player's eye sits
+           above the zombie's body, so that vertical term kept the sum over
+           ZMB_CATCH_DIST even when the zombie had stopped right next to a
+           stationary player — it only landed a hit once the player stepped in
+           and shrank the horizontal part. Horizontal reach now matches where the
+           zombie stops, while the vertical check still prevents cross-floor hits. */
+        if (!game_over && dist2d < ZMB_CATCH_DIST &&
+            (dy < 0 ? -dy : dy) < ZMB_CATCH_DIST && d->damage_timer == 0) {
             d->damage_timer = ZMB_DAMAGE_COOLDOWN;
             player_health  -= ZMB_DAMAGE_AMOUNT;
             if (hurt_sfx_cooldown == 0) {
