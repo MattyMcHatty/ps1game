@@ -23,6 +23,7 @@ static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
 
 int swing_timer    = 0;
+static int square_prev          = 0;   /* Square state last frame, for edge-detect */
 static int hit_this_swing       = 0;
 static int crate_hit_this_swing = 0;
 static int ddog_hit_this_swing  = 0;
@@ -45,17 +46,26 @@ extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
 void update_crucifaxe(void) {
-    if (game_state != STATE_MENU && swing_timer == 0 && pad_buff_len[0]) {
+    /* Edge-detect Square so the axe swings ONCE per press — holding it no longer
+       auto-repeats. The swing_timer==0 gate already blocks a new swing until the
+       current swing+return animation finishes (SWING_TOTAL frames), so that whole
+       animation doubles as the cooldown: a fresh press is required after it. */
+    int square_held = 0;
+    if (pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
-        if (~pad->btn & PAD_SQUARE) {
-            swing_timer            = 1;
-            hit_this_swing         = 0;
-            crate_hit_this_swing   = 0;
-            ddog_hit_this_swing    = 0;
-            zomb_hit_this_swing    = 0;
-            fatdoor_hit_this_swing = 0;
-            sound_play(SFX_SWING);
-        }
+        square_held = (~pad->btn & PAD_SQUARE) ? 1 : 0;
+    }
+    int square_just = square_held && !square_prev;
+    square_prev = square_held;
+
+    if (game_state != STATE_MENU && swing_timer == 0 && square_just) {
+        swing_timer            = 1;
+        hit_this_swing         = 0;
+        crate_hit_this_swing   = 0;
+        ddog_hit_this_swing    = 0;
+        zomb_hit_this_swing    = 0;
+        fatdoor_hit_this_swing = 0;
+        sound_play(SFX_SWING);
     }
 
     if (swing_timer > 0) {
