@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdio.h>
 #include <psxgpu.h>
 #include <psxgte.h>
 #include <psxpad.h>
@@ -173,21 +174,22 @@ static void draw_pickup_messages(void) {
     if (any) FntFlush(notify_fnt);
 }
 
-/* Debug overlay: held items, coordinates, and the scrolling compass. */
-static void draw_debug_overlay(void) {
+/* Debug overlay: held items + the scrolling compass.
+   Uses FntSort (sorts the font into the render OT, drawn by the single
+   DrawOTagEnv in flip_buffers) rather than FntFlush. FntFlush draws IMMEDIATELY
+   on its own — which races/hangs the GPU when it overlays a heavy scene still
+   being drawn (Reception's ~951 prims), freezing the game while the music plays.
+   FntSort has no immediate draw, so it composes safely with any scene.
+   Coordinates are already shown by debug_draw_coords (the top panel), so they
+   are not repeated here. */
+static void draw_debug_overlay(RenderContext *ctx) {
     if (!debug_mode) return;
+    uint32_t *ot = ctx->buffers[ctx->active_buffer].ot;
     int k;
 
-    for (k = 0; k < MAX_KEY_TYPES; k++)
-        if (player_keys & (1 << k))
-            FntPrint(hud_fnt, "%s\n", key_type_names[k]);
-    FntFlush(hud_fnt);
-
-    FntPrint(debug_fnt, "X:%d\nY:%d\nZ:%d", cam_x, cam_y, cam_z);
-    FntFlush(debug_fnt);
-
-    /* Scrolling compass tape: 80 chars = 360deg, 10 chars per 45deg,
-       order N->NE->E->SE->S->SW->W->NW matches increasing cam_rot (CW). */
+    /* Scrolling compass tape, just below the coordinate panel.
+       80 chars = 360deg, 10 chars per 45deg; N->NE->E->SE->S->SW->W->NW matches
+       increasing cam_rot (CW). */
     {
         static const char tape[] =
             "N         NE        E         SE        S         SW        W         NW        ";
@@ -198,8 +200,25 @@ static void draw_debug_overlay(void) {
         for (k = 0; k < 40; k++)
             cbuf[k] = tape[(start + k) % 80];
         cbuf[40] = '\0';
-        FntPrint(compass_fnt, cbuf);
-        FntFlush(compass_fnt);
+        ctx->next_packet = FntSort(&ot[1], ctx->next_packet, 0, 32, cbuf);
+    }
+
+    /* Held keys down the left side. */
+    {
+        int y = 44;
+        for (k = 0; k < MAX_KEY_TYPES; k++)
+            if (player_keys & (1 << k)) {
+                ctx->next_packet = FntSort(&ot[1], ctx->next_packet, 4, y,
+                                           key_type_names[k]);
+                y += 10;
+            }
+    }
+
+    /* Camera coordinates, bottom-left (as before). */
+    {
+        char cbuf[32];
+        snprintf(cbuf, sizeof(cbuf), "X:%d\nY:%d\nZ:%d", cam_x, cam_y, cam_z);
+        ctx->next_packet = FntSort(&ot[1], ctx->next_packet, 4, 210, cbuf);
     }
 }
 
@@ -378,7 +397,7 @@ int main(int argc, const char **argv) {
                 draw_current_area(&ctx, area);
                 draw_player_systems(&ctx);
                 draw_pickup_messages();
-                draw_debug_overlay();
+                draw_debug_overlay(&ctx);
             }
         }
 

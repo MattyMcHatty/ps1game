@@ -89,12 +89,29 @@ void debug_draw_walls(RenderContext *ctx) {
         verts[3].vx = (int16_t)w->x2; verts[3].vy = (int16_t)ceiling_y; verts[3].vz = (int16_t)w->z2; verts[3].pad = 0;
 
         DVECTOR sv[4];
+        int32_t sz[4];
         int32_t otz;
 
-        gte_ldv0(&verts[0]); gte_rtps(); gte_stsxy(&sv[0]);
-        gte_ldv0(&verts[1]); gte_rtps(); gte_stsxy(&sv[1]);
-        gte_ldv0(&verts[2]); gte_rtps(); gte_stsxy(&sv[2]);
-        gte_ldv0(&verts[3]); gte_rtps(); gte_stsxy(&sv[3]);
+        gte_ldv0(&verts[0]); gte_rtps(); gte_stsxy(&sv[0]); gte_stsz(&sz[0]);
+        gte_ldv0(&verts[1]); gte_rtps(); gte_stsxy(&sv[1]); gte_stsz(&sz[1]);
+        gte_ldv0(&verts[2]); gte_rtps(); gte_stsxy(&sv[2]); gte_stsz(&sz[2]);
+        gte_ldv0(&verts[3]); gte_rtps(); gte_stsxy(&sv[3]); gte_stsz(&sz[3]);
+
+        /* Skip walls that cross the near plane or project off-screen. An
+           unclamped POLY_F4 with wild / out-of-range screen coords LOCKS the GPU
+           (DrawSync never returns and the whole game freezes). The level renderer
+           guards its geometry the same way; debug walls need it too because
+           Reception's tall multi-level walls are the first to get close enough to
+           trigger it — delivery/kitchen walls never do. */
+        {
+            int bad = 0, k;
+            for (k = 0; k < 4; k++) {
+                if (sz[k] == 0 ||
+                    sv[k].vx <= -1023 || sv[k].vx >= 1023 ||
+                    sv[k].vy <= -1023 || sv[k].vy >= 1023) { bad = 1; break; }
+            }
+            if (bad) continue;
+        }
 
         gte_avsz4();
         gte_stotz(&otz);
