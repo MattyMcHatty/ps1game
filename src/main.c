@@ -21,6 +21,7 @@
 #include "collision.h"
 #include "crate.h"
 #include "dining_table.h"
+#include "save_point.h"
 #include "key.h"
 #include "door.h"
 #include "demondog.h"
@@ -279,6 +280,7 @@ int main(int argc, const char **argv) {
     floor_zones_init();
     crates_init();
     dining_tables_init();      /* static kitchen props (loads DINTABLE.SMD) */
+    save_points_init();        /* reusable save-point prop (loads SAVEPT.SMD) */
     keys_init();
     sml_meds_init();
     door_init();

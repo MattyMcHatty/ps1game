@@ -13,6 +13,7 @@
 #include "reception_mesh_collision.h"
 #include "reception_tex_map.h"
 #include "door.h"
+#include "save_point.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -273,6 +274,11 @@ void reception_init(void) {
     cam_rot = 3072;   /* facing west (-X) */
 
     reception_door_arm();   /* don't re-trigger on a held Circle from the entry */
+
+    /* Place reception's props. */
+    save_points_clear();
+    /* rot 512 = 45 deg (4096 = 360); scale 2048 = half size (4096 = full). */
+    save_point_add(78, -300, -67, 512, 2048);
 }
 
 static void draw_reception_smd(RenderContext *ctx) {
@@ -467,5 +473,6 @@ void reception_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_reception_smd(ctx);
+    save_points_draw(ctx);
     reception_door_text(ctx);
 }

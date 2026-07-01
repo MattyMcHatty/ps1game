@@ -38,6 +38,7 @@ add_executable(horror_game
     src/reception.c
     src/crate.c
     src/dining_table.c
+    src/save_point.c
     src/key.c
     src/door.c
     src/demondog.c

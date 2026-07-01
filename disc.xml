@@ -35,6 +35,8 @@
                 source="C:\Users\virtu\Documents\ps1game\assets\props\Crucifaxe.smd"/>
             <file name="DINTABLE.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\props\dining_table.smd"/>
+            <file name="SAVEPT.SMD" type="data"
+                source="C:\Users\virtu\Documents\ps1game\assets\props\save_point.smd"/>
             <file name="WCRATE.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\wdcrate.tim"/>
             <file name="WDDR.TIM" type="data"
