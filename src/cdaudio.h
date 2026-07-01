@@ -2,7 +2,8 @@
 #define CDAUDIO_H
 
 /* CD audio track — Track 1 is data, Track 2+ are audio */
-#define CDAUDIO_MUSIC_TRACK 2
+#define CDAUDIO_MUSIC_TRACK     2   /* default music (kitchen / delivery) */
+#define CDAUDIO_RECEPTION_TRACK 3   /* reception music */
 
 void cdaudio_init(void);
 void cdaudio_play(int track, int loop);

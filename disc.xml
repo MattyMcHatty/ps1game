@@ -111,8 +111,11 @@
         </directory_tree>
     </track>
 
-    <!-- Track 2: CD audio music -->
+    <!-- Track 2: CD audio music (default / kitchen / delivery) -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\YuraSoop_Ambient_Dark_Music.wav"/>
+
+    <!-- Track 3: reception music -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\alex-morgan-dark-suspense-thriller.wav"/>
 
 
 </iso_project>

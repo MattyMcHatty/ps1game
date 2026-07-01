@@ -119,6 +119,8 @@ static void update_current_area(GameState area) {
             pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_INNER);
             game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();   /* silence during the transition; reception music
+                                 starts when reception finishes loading */
         }
     } else if (area == STATE_RECEPTION) {
         /* Placeholder room: walkable, flat-shaded. Walls-only collision (no
@@ -129,6 +131,8 @@ static void update_current_area(GameState area) {
             pending_area = STATE_KITCHEN_DINING;
             door_anim_start(DOOR_PANEL_INNER);   /* same interior double door */
             game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();   /* silence during the transition; kitchen music
+                                 resumes when the kitchen finishes loading */
         }
     } else {
         apply_collision();
@@ -355,17 +359,20 @@ int main(int argc, const char **argv) {
                 kitchen_dining_init();
                 /* Coming back from reception: spawn at the kitchen's "to
                    reception" door (far west wall), facing east into the kitchen,
-                   instead of the default delivery-side spawn. */
+                   instead of the default delivery-side spawn, and restore the
+                   default music (reception swapped it for its own track). */
                 if (current_area == STATE_RECEPTION) {
                     cam_x   = -3100;
                     cam_y   = -149;
                     cam_vy  = 0;
                     cam_z   = -26;
                     cam_rot = 1024;   /* face +X, into the kitchen */
+                    cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
                 }
                 kitchen_door_arm();
             } else if (pending_area == STATE_RECEPTION) {
                 reception_init();
+                cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);   /* reception music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
