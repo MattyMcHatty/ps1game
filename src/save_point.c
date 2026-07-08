@@ -107,7 +107,7 @@ void save_points_draw(RenderContext *ctx) {
             SVECTOR *v2 = &sp_smd->p_verts[vi[2]];
 
             DVECTOR sv[4];
-            int32_t sz[4], otz, nclip;
+            int32_t sz[4], otz;
 
             gte_ldv3(v0, v1, v2);
             gte_rtpt();
@@ -119,11 +119,10 @@ void save_points_draw(RenderContext *ctx) {
                 p += stride; continue;
             }
 
-            if (!pt->nocull) {
-                gte_nclip();
-                gte_stopz(&nclip);
-                if (nclip <= 0) { p += stride; continue; }
-            }
+            /* No backface cull: the save-point model is built entirely from
+               triangle-shaped (degenerate) quads whose first-triangle winding is
+               unreliable. It's a tiny model, so just draw every face rather than
+               risk the flicker/disappear glitch. */
 
             gte_stsz4c(sz);
             if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) { p += stride; continue; }

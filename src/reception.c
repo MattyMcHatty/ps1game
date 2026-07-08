@@ -323,7 +323,14 @@ static void draw_reception_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        if (!pt->nocull) {
+        /* Backface cull exactly like the baseline, EXCEPT the handful of
+           triangle-shaped (degenerate) quads flagged at build time in
+           reception_nocull: their first triangle is collinear so gte_nclip is
+           ~0 and the plain <=0 test flickered them in and out. Everything else
+           (normal quads AND real triangles) uses the original test, so there is
+           no extra back-face over-draw — perf matches the baseline. */
+        int nocull = (i < RECEPTION_PRIM_COUNT) && reception_nocull[i];
+        if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
             if (nclip <= 0) { p += stride; continue; }

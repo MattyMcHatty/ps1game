@@ -44,17 +44,39 @@ root = ET.parse(SMX).getroot()
 smx_tex = [t.get('file') for t in root.find('textures').findall('texture')]
 print("SMX textures: " + ", ".join(f"{i}={n}" for i, n in enumerate(smx_tex)))
 
-entries = []
+verts = [(float(v.get('x')), float(v.get('y')), float(v.get('z')))
+         for v in root.find('vertices').findall('v')]
+
+def _collinear(a, b, c):
+    ux, uy, uz = b[0]-a[0], b[1]-a[1], b[2]-a[2]
+    vx, vy, vz = c[0]-a[0], c[1]-a[1], c[2]-a[2]
+    cx, cy, cz = uy*vz-uz*vy, uz*vx-ux*vz, ux*vy-uy*vx
+    return (cx*cx + cy*cy + cz*cz) < 1e-3
+
+entries = []   # tex slot per prim
+nocull  = []   # 1 = do NOT backface-cull (degenerate "triangle-shaped" quad)
 for p in root.find('primitives').findall('poly'):
     n = p.get('texture')
     if n is None:
         entries.append(UNTEXTURED)
-        continue
-    name = smx_tex[int(n)]
-    if name not in NAME_TO_SLOT:
-        sys.exit(f"ERROR: SMX texture '{name}' has no engine slot in NAME_TO_SLOT "
-                 f"(update both this script and src/reception.c).")
-    entries.append(NAME_TO_SLOT[name])
+    else:
+        name = smx_tex[int(n)]
+        if name not in NAME_TO_SLOT:
+            sys.exit(f"ERROR: SMX texture '{name}' has no engine slot in NAME_TO_SLOT "
+                     f"(update both this script and src/reception.c).")
+        entries.append(NAME_TO_SLOT[name])
+
+    # A quad with three collinear verts renders as a triangle; gte_nclip on its
+    # degenerate first triangle is ~0 and flickers the backface cull. Flag it so
+    # the renderer never culls it. Triangles (no v3) are handled by the renderer's
+    # is_quad check, so leave them 0.
+    deg = 0
+    if p.get('v3') is not None:
+        q = [verts[int(p.get(f'v{k}'))] for k in range(4)]
+        if any(_collinear(q[a], q[b], q[c])
+               for a, b, c in ((0, 1, 2), (0, 1, 3), (0, 2, 3), (1, 2, 3))):
+            deg = 1
+    nocull.append(deg)
 
 inv = {v: k for k, v in NAME_TO_SLOT.items()}
 counts = {}
@@ -79,6 +101,17 @@ for i, e in enumerate(entries):
         lines.append("    " + ",".join(row) + ",")
         row = []
 lines.append("};")
+
+lines.append("/* 1 = triangle-shaped (degenerate) quad: never backface-cull it. */")
+lines.append(f"static const uint8_t reception_nocull[{len(nocull)}] = {{")
+row = []
+for i, e in enumerate(nocull):
+    row.append(str(e))
+    if len(row) == 32 or i == len(nocull) - 1:
+        lines.append("    " + ",".join(row) + ",")
+        row = []
+lines.append("};")
+print(f"degenerate (never-cull) quads: {sum(nocull)}")
 
 with open(OUT, 'w') as f:
     f.write('\n'.join(lines) + '\n')
