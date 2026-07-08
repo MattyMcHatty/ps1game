@@ -37,6 +37,8 @@
                 source="C:\Users\virtu\Documents\ps1game\assets\props\dining_table.smd"/>
             <file name="SAVEPT.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\props\save_point.smd"/>
+            <file name="DRESSER.SMD" type="data"
+                source="C:\Users\virtu\Documents\ps1game\assets\props\dresser.smd"/>
             <file name="WCRATE.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\wdcrate.tim"/>
             <file name="WDDR.TIM" type="data"
@@ -109,6 +111,7 @@
                 <file name="KCHNTILE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\kchn_tile.tim"/>
                 <file name="REDCRPT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\red_crpt.tim"/>
                 <file name="STOVE.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\stove.tim"/>
+                <file name="DRESSER.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\dresser.tim"/>
             </dir>
         </directory_tree>
     </track>

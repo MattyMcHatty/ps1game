@@ -22,6 +22,7 @@
 #include "crate.h"
 #include "dining_table.h"
 #include "save_point.h"
+#include "dresser.h"
 #include "key.h"
 #include "door.h"
 #include "demondog.h"
@@ -281,6 +282,8 @@ int main(int argc, const char **argv) {
     crates_init();
     dining_tables_init();      /* static kitchen props (loads DINTABLE.SMD) */
     save_points_init();        /* reusable save-point prop (loads SAVEPT.SMD) */
+    dresser_load_assets();     /* reusable dresser prop: geometry + preload its
+                                  streamed texture (uploaded on reception entry) */
     keys_init();
     sml_meds_init();
     door_init();
@@ -339,10 +342,12 @@ int main(int argc, const char **argv) {
                startup), so no CD-DA suspend is needed and the drive never hangs. */
             if (pending_area == STATE_RECEPTION) {
                 reception_upload_textures();
+                dresser_upload_texture();   /* dresser prop texture -> kchn_wl slot */
             } else if (pending_area == STATE_KITCHEN_DINING &&
                        current_area == STATE_RECEPTION) {
                 /* Returning from reception, which overwrote the kitchen's
-                   stn_stl/kchn_tile/red_crpt VRAM slots — restore them. */
+                   stn_stl/kchn_tile/red_crpt slots AND (via the dresser prop)
+                   kchn_wl — restore them all. */
                 kitchen_restore_textures();
             }
             {

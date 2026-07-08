@@ -195,13 +195,17 @@ void kitchen_stream_textures(void) {
    Same approach reception uses for its own textures (reception_upload_textures);
    their tpage/clut are unchanged (same VRAM slots), so only the pixels need
    restoring. */
-#define KITCHEN_SHARED_TEX 3
+/* kchn_wl is stomped by the dresser prop's texture while the player is in
+   reception (the dresser streams into kchn_wl's VRAM slot, x512 y0), so it must
+   be restored on return alongside the three reception overwrites. */
+#define KITCHEN_SHARED_TEX 4
 static uint8_t  *shared_tim_buf[KITCHEN_SHARED_TEX];
 static TIM_IMAGE shared_tim[KITCHEN_SHARED_TEX];
 static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
     "\\TEX\\STNSTL.TIM;1",
     "\\TEX\\KCHNTILE.TIM;1",
     "\\TEX\\REDCRPT.TIM;1",
+    "\\TEX\\KCHNWL.TIM;1",
 };
 
 void kitchen_load_assets(void) {

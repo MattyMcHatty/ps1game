@@ -8,6 +8,7 @@
 #include "kitchen_dining_mesh_collision.h"
 #include "crate.h"
 #include "dining_table.h"
+#include "dresser.h"
 #include "fatdoor.h"
 
 CollisionRoom current_collision_room;
@@ -342,6 +343,9 @@ void apply_collision_reception(void) {
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly_y(&r->walls[i], &cam_x, &cam_z,
                                      body_top, body_bot, radius);
+    /* Props use a tighter radius than the walls (walk right up to them), same as
+       the kitchen's dining tables. */
+    dressers_collide(&cam_x, cam_y, &cam_z, 75);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

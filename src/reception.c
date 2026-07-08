@@ -14,6 +14,7 @@
 #include "reception_tex_map.h"
 #include "door.h"
 #include "save_point.h"
+#include "dresser.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -279,6 +280,11 @@ void reception_init(void) {
     save_points_clear();
     /* rot 512 = 45 deg (4096 = 360); scale 2048 = half size (4096 = full). */
     save_point_add(78, -300, -67, 512, 2048);
+
+    dressers_clear();
+    /* Dresser in the ground-floor room tucked under the upper floor (bottom-floor
+       standing reference -189). rot_y is 0..4096 = a full turn. */
+    dresser_add(580, -189, 958, 1024);
 }
 
 static void draw_reception_smd(RenderContext *ctx) {
@@ -480,6 +486,10 @@ void reception_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_reception_smd(ctx);
+    /* Dresser props — reuse reception's resident wd_flr (slot 2) for their
+       non-drawer faces and the room's 128 texture window set above; the module
+       owns the drawer texture. Restores the view matrix before returning. */
+    dressers_draw(ctx, tex_tpage[2], tex_clut[2]);
     save_points_draw(ctx);
     reception_door_text(ctx);
 }
