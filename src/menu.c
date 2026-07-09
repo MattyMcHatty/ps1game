@@ -255,6 +255,7 @@ void menu_update(void) {
 #define OT_BG        15
 #define OT_BOX       12
 #define OT_FILL      10
+#define OT_TEXWIN     8   /* above OT_ICON: reset the texture window before icons */
 #define OT_ICON       7
 #define OT_RETICULE   3
 
@@ -281,6 +282,26 @@ void menu_draw(RenderContext *ctx) {
             setDrawTPage(dp, 0, 0, getTPage(0, 0, 0, 0)); /* abr=0 = 50% blend */
             addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_BG], dp);
             ctx->next_packet += sizeof(DR_TPAGE);
+        }
+    }
+
+    /* Reset the texture window before the icons. The menu draws over the live
+       area, and kitchen/reception sort a 128x128 texture window at OT_LENGTH-1
+       that (being at the top of the OT) stays active down into the menu. That
+       window wraps the icons' UVs mod-128, so the crucifaxe/key icons — whose
+       texture sits at VRAM y>=384 (V offset 128 within its page) — sample the
+       texture ABOVE them instead (red_crpt in the kitchen, frnt_dr in reception,
+       hence a different corruption per room; delivery sets no window so it's
+       fine). RECT{0,0,0,0} = full page, no masking. Sorted at OT_TEXWIN (>OT_ICON)
+       so the GPU applies it before the icons. */
+    {
+        uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+        if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
+            RECT full = {0, 0, 0, 0};
+            DR_TWIN *tw = (DR_TWIN *)ctx->next_packet;
+            setTexWindow(tw, &full);
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_TEXWIN], tw);
+            ctx->next_packet += sizeof(DR_TWIN);
         }
     }
 
