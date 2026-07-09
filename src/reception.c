@@ -15,6 +15,7 @@
 #include "door.h"
 #include "save_point.h"
 #include "dresser.h"
+#include "texmgr.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -117,12 +118,11 @@ static void reception_floor_zones_init(void) {
 static uint16_t tex_tpage[RECEPTION_TEX_COUNT];
 static uint16_t tex_clut[RECEPTION_TEX_COUNT];
 
-/* The reception-only textures, with their reception_tex_map slot indices. Their
-   data + parsed TIM headers stay resident so reception_upload_textures() needs no
-   CD read. */
+/* The reception-only textures, with their reception_tex_map slot indices. The
+   texture manager keeps them RAM-resident so reception_upload_textures() needs
+   no CD read; new_tex_id[] holds the manager ids captured at startup. */
 #define RECEPTION_NEW_TEX 3
-static uint8_t  *new_tim_buf[RECEPTION_NEW_TEX];
-static TIM_IMAGE new_tim[RECEPTION_NEW_TEX];
+static int new_tex_id[RECEPTION_NEW_TEX];
 static const struct { const char *file; int slot; } new_tex[RECEPTION_NEW_TEX] = {
     { "\\TEX\\STRS.TIM;1",   0 },
     { "\\TEX\\BNNSTR.TIM;1", 3 },
@@ -163,17 +163,14 @@ void reception_load_assets(void) {
     if (reception_buff)
         reception_smd = smdInitData(reception_buff);
 
-    /* Preload the 3 reception-only textures into resident RAM; capture their
-       tpage/clut now (they are uploaded to VRAM on each reception entry). */
+    /* Register the 3 reception-only textures with the texture manager (RAM-
+       resident, uploaded to VRAM on each reception entry) and capture their
+       tpage/clut into the renderer's slot table. */
     for (int i = 0; i < RECEPTION_NEW_TEX; i++) {
-        new_tim_buf[i] = read_tim(new_tex[i].file);
-        if (!new_tim_buf[i]) continue;
-        GetTimInfo((uint32_t *)new_tim_buf[i], &new_tim[i]);
         int slot = new_tex[i].slot;
-        if (new_tim[i].mode & 0x8)
-            tex_clut[slot] = getClut(new_tim[i].crect->x, new_tim[i].crect->y);
-        tex_tpage[slot] = getTPage(new_tim[i].mode & 0x3, 0,
-                                   new_tim[i].prect->x, new_tim[i].prect->y);
+        new_tex_id[i]   = texmgr_register(new_tex[i].file);
+        tex_tpage[slot] = texmgr_tpage(new_tex_id[i]);
+        tex_clut[slot]  = texmgr_clut(new_tex_id[i]);
     }
 
     /* The other 6 are resident from startup (kitchen + fatdoor); just capture
@@ -191,15 +188,8 @@ void reception_load_assets(void) {
    caller idles the GPU with DrawSync first, and kicks no draw until the next
    flip_buffers). */
 void reception_upload_textures(void) {
-    for (int i = 0; i < RECEPTION_NEW_TEX; i++) {
-        if (!new_tim_buf[i]) continue;
-        LoadImage(new_tim[i].prect, new_tim[i].paddr);
-        DrawSync(0);
-        if (new_tim[i].mode & 0x8) {
-            LoadImage(new_tim[i].crect, new_tim[i].caddr);
-            DrawSync(0);
-        }
-    }
+    for (int i = 0; i < RECEPTION_NEW_TEX; i++)
+        texmgr_upload(new_tex_id[i]);
 }
 
 /* ---- Door back to the kitchen ---------------------------------------------

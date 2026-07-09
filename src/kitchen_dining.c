@@ -8,6 +8,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "camera.h"
+#include "texmgr.h"
 #include "kitchen_dining.h"
 #include "collision.h"
 #include "kitchen_dining_mesh_collision.h"
@@ -197,10 +198,11 @@ void kitchen_stream_textures(void) {
    restoring. */
 /* kchn_wl is stomped by the dresser prop's texture while the player is in
    reception (the dresser streams into kchn_wl's VRAM slot, x512 y0), so it must
-   be restored on return alongside the three reception overwrites. */
+   be restored on return alongside the three reception overwrites. The texture
+   manager keeps these RAM-resident for a pure-LoadImage restore; shared_id[]
+   holds the manager ids captured at startup. */
 #define KITCHEN_SHARED_TEX 4
-static uint8_t  *shared_tim_buf[KITCHEN_SHARED_TEX];
-static TIM_IMAGE shared_tim[KITCHEN_SHARED_TEX];
+static int shared_id[KITCHEN_SHARED_TEX];
 static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
     "\\TEX\\STNSTL.TIM;1",
     "\\TEX\\KCHNTILE.TIM;1",
@@ -211,19 +213,11 @@ static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
 void kitchen_load_assets(void) {
     kitchen_stream_textures();   /* initial upload at startup */
 
-    /* Preload the reception-shared textures into resident RAM for re-upload on
-       return from reception. All CD access happens here, at startup. */
-    for (int i = 0; i < KITCHEN_SHARED_TEX; i++) {
-        CdlFILE file;
-        if (!CdSearchFile(&file, shared_tex_file[i])) continue;
-        int sectors = (file.size + 2047) / 2048;
-        shared_tim_buf[i] = malloc(sectors * 2048);
-        if (!shared_tim_buf[i]) continue;
-        CdControl(CdlSetloc, &file.pos, NULL);
-        CdRead(sectors, (uint32_t *)shared_tim_buf[i], CdlModeSpeed);
-        CdReadSync(0, NULL);
-        GetTimInfo((uint32_t *)shared_tim_buf[i], &shared_tim[i]);
-    }
+    /* Register the reception-shared textures with the texture manager (RAM-
+       resident) so they can be re-uploaded on return from reception with no
+       mid-game CD read. All CD access happens here, at startup. */
+    for (int i = 0; i < KITCHEN_SHARED_TEX; i++)
+        shared_id[i] = texmgr_register(shared_tex_file[i]);
 
     /* Geometry, kept resident so entering the kitchen needs no CD read. */
     kitchen_buff = load_file_from_cd("\\KITCHN.SMD;1");
@@ -233,18 +227,11 @@ void kitchen_load_assets(void) {
 
 /* Re-upload the reception-shared textures into VRAM from their resident RAM
    copies. Pure LoadImage, no CD access — safe to call mid-game on the room
-   transition (the caller idles the GPU with DrawSync first), exactly like
-   reception_upload_textures. Call only when returning from reception. */
+   transition (the caller idles the GPU with DrawSync first). Call only when
+   returning from reception. */
 void kitchen_restore_textures(void) {
-    for (int i = 0; i < KITCHEN_SHARED_TEX; i++) {
-        if (!shared_tim_buf[i]) continue;
-        LoadImage(shared_tim[i].prect, shared_tim[i].paddr);
-        DrawSync(0);
-        if (shared_tim[i].mode & 0x8) {
-            LoadImage(shared_tim[i].crect, shared_tim[i].caddr);
-            DrawSync(0);
-        }
-    }
+    for (int i = 0; i < KITCHEN_SHARED_TEX; i++)
+        texmgr_upload(shared_id[i]);
 }
 
 void kitchen_dining_init(void) {

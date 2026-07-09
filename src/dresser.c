@@ -8,6 +8,7 @@
 #include "render.h"
 #include "camera.h"
 #include "collision.h"      /* GROUND_FLOOR_Y */
+#include "texmgr.h"
 #include "dresser.h"
 #include "dresser_tex_map.h"
 
@@ -17,14 +18,10 @@ int     dresser_count = 0;
 static SMD  *dresser_smd    = NULL;
 static void *dresser_buffer = NULL;
 
-/* The dresser's OWN texture, streamed into a spare VRAM slot on room entry. Its
-   TIM bytes + parsed header stay resident (preloaded at startup) so the entry
-   upload is a pure LoadImage with NO mid-game CD read — same scheme reception
-   uses for its unique textures. */
-static uint8_t  *dresser_tim_buf = NULL;
-static TIM_IMAGE dresser_tim;
-static uint16_t  dresser_tpage = 0;
-static uint16_t  dresser_clut  = 0;
+/* The dresser's OWN texture, streamed into a spare VRAM slot on room entry.
+   Owned by the texture manager (RAM-resident, re-uploadable via a pure LoadImage
+   with NO mid-game CD read). */
+static int dresser_tex = -1;
 
 static void *read_file(const char *name) {
     CdlFILE file;
@@ -47,27 +44,13 @@ void dresser_load_assets(void) {
     if (dresser_buffer)
         dresser_smd = smdInitData(dresser_buffer);
 
-    dresser_tim_buf = read_file("\\TEX\\DRESSER.TIM;1");
-    if (dresser_tim_buf) {
-        GetTimInfo((uint32_t *)dresser_tim_buf, &dresser_tim);
-        if (dresser_tim.mode & 0x8)
-            dresser_clut = getClut(dresser_tim.crect->x, dresser_tim.crect->y);
-        dresser_tpage = getTPage(dresser_tim.mode & 0x3, 0,
-                                 dresser_tim.prect->x, dresser_tim.prect->y);
-    }
+    dresser_tex = texmgr_register("\\TEX\\DRESSER.TIM;1");
 }
 
-/* Room entry: upload the dresser texture from its resident RAM copy. Pure
-   LoadImage, no CD access — safe during the room transition (the caller idles
-   the GPU with DrawSync first), exactly like reception_upload_textures. */
+/* Room entry: upload the dresser texture from its resident RAM copy (pure
+   LoadImage, no CD access — safe once the caller has idled the GPU). */
 void dresser_upload_texture(void) {
-    if (!dresser_tim_buf) return;
-    LoadImage(dresser_tim.prect, dresser_tim.paddr);
-    DrawSync(0);
-    if (dresser_tim.mode & 0x8) {
-        LoadImage(dresser_tim.crect, dresser_tim.caddr);
-        DrawSync(0);
-    }
+    texmgr_upload(dresser_tex);
 }
 
 void dressers_clear(void) {
@@ -238,8 +221,8 @@ void dressers_draw(RenderContext *ctx, uint16_t wdflr_tpage, uint16_t wdflr_clut
                dresser's own texture. Both sit at page-top (V 0-127), so the
                room's single 128 texture window serves them. */
             uint8_t slot = (pi < DRESSER_PRIM_COUNT) ? dresser_tex_map[pi] : 0;
-            uint16_t tp = slot ? dresser_tpage : wdflr_tpage;
-            uint16_t cl = slot ? dresser_clut  : wdflr_clut;
+            uint16_t tp = slot ? texmgr_tpage(dresser_tex) : wdflr_tpage;
+            uint16_t cl = slot ? texmgr_clut(dresser_tex)  : wdflr_clut;
 
             if (is_quad) {
                 if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
