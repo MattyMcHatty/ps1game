@@ -172,3 +172,37 @@ PART 4 — DEBUGGING TIPS THAT WORKED
 - "Looks identical after a rebuild" usually means a STALE binary — verify
   build/HORROR2.BIN and build/HORROR.bin timestamps are newer than the source.
   (elf2x must run to turn HORROR.exe into the HORROR2.BIN the disc boots.)
+
+
+==========================================================================
+PART 5 — TEXTURE-WINDOW HYGIENE  (the "wrong texture in one room" class of bug)
+==========================================================================
+The texture window is PERSISTENT GPU state: a DR_TWIN sorted into the OT stays
+in effect for every later primitive (and every later FRAME) until another DR_TWIN
+changes it. Kitchen and reception sort a 128x128 window at OT_LENGTH-1; that
+window then applies to everything drawn below it AND leaks into whatever is drawn
+next unless reset — including overlays (the menu) and, across a room change, the
+next area (delivery uses no window of its own).
+
+WHY IT BITES: a 128 window wraps texture coords mod-128. Any texture whose VRAM y
+puts it at V-offset >= 128 within its 256-tall tpage (see the "Voff" column in
+tools/VRAM_MAP.txt) then samples 128 texels too high — i.e. the WRONG texture
+sitting above it in the page. Symptom: an icon/sprite looks fine in the delivery
+area but wrong (and DIFFERENT) in each windowed room, depending on what art
+happens to sit above it in VRAM. (This was the crucifaxe/key menu-icon bug and
+the reason delivery must reset the window on return from a room.)
+
+RULES:
+  1. Every area's draw() OWNS its texture-window state — set it explicitly, never
+     inherit it. Windowed rooms sort the 128 window at OT_LENGTH-1; delivery (no
+     window) sorts a full-reset RECT{0,0,0,0} so a stale room window can't leak in.
+  2. Any overlay or sprite drawn OVER a windowed room (menu icons, entity
+     sprites/shadows) that uses a Voff>=128 texture must reset/bracket the window
+     it needs. Menu: one full-reset DR_TWIN above the icons. Zombies: bracket each
+     sprite with a full-window reset + restore (zombie.c add_ft4_windowed).
+     door_anim: sets its own RECT{0,0,0,0} for its Voff-128 half-door panels.
+  3. Demon dogs currently draw WITHOUT a bracket, so they are only safe in the
+     delivery area (no window). Moving them into a windowed room requires the
+     zombie-style bracket first (noted in demondog.c).
+  4. Keep new window-sensitive art at Voff 0 (VRAM y 0 or 256) when you can — it
+     sidesteps the whole issue. Check tools/VRAM_MAP.txt after placing a texture.

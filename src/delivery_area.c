@@ -379,4 +379,22 @@ void delivery_area_draw(RenderContext *ctx) {
     /* Player overlays (particles, weapon, HUD) and the debug collision view
        are drawn by the shared draw_player_systems step in main, so they
        apply uniformly to every area. */
+
+    /* Reset the texture window to full-page. The window is persistent GPU state:
+       delivery uses no window (its startup state), but returning here from the
+       kitchen/reception — which sort a 128x128 window at OT_LENGTH-1 — would
+       otherwise leave that window active and wrap the Voff>=128 sprites (demon
+       dogs at V128/192, their shadow at V160) to the wrong VRAM region. Added
+       LAST so LIFO puts it at the head of the OT_LENGTH-1 bucket, i.e. the first
+       GPU command, ahead of every delivery primitive. RECT{0,0,0,0} = no wrap. */
+    {
+        uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+        if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
+            RECT full = {0, 0, 0, 0};
+            DR_TWIN *tw = (DR_TWIN *)ctx->next_packet;
+            setTexWindow(tw, &full);
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], tw);
+            ctx->next_packet += sizeof(DR_TWIN);
+        }
+    }
 }

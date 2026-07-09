@@ -438,6 +438,12 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
     }
 }
 
+/* NOTE: the dog sprites (VRAM Voff 128/192) and shadow (Voff 160) are drawn with
+   NO texture-window bracket, so they are only correct where no 128x128 texture
+   window is active — i.e. the delivery area (which resets the window to full).
+   If demon dogs are ever placed in a windowed room (kitchen/reception), their
+   sprites will wrap to the wrong texels; bracket each sprite with a full-window
+   reset + restore like zombie.c's add_ft4_windowed. See tools/VRAM_MAP.txt. */
 void draw_demon_dogs(RenderContext *ctx) {
     int i;
     for (i = 0; i < demon_dog_count; i++) {
