@@ -10,3 +10,7 @@ build/
 *.cue
 HORROR.cue
 HORROR.bin
+
+# Generated artifacts (regenerable from tools/)
+__pycache__/
+tools/preview_4bpp.png

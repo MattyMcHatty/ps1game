@@ -85,49 +85,68 @@ def rgb_to_ps1(r, g, b, a=255):
 # CLUT (palette) builder
 # -----------------------------------------------------------------------
 
-def build_clut_4bit(image):
-    """Build a 16-colour palette from an image, return (clut_bytes, index_fn).
-    Image must be palette mode with <= 16 colours."""
-    img = image.convert('RGBA')
+def _fs_dither():
+    """Floyd-Steinberg dither constant, compatible with old and new Pillow."""
+    try:
+        return Image.Dither.FLOYDSTEINBERG
+    except AttributeError:
+        return Image.FLOYDSTEINBERG
 
-    # Get all unique colours
-    colours = []
-    seen = set()
-    for y in range(img.height):
-        for x in range(img.width):
-            px = img.getpixel((x, y))
-            key = (px[0]>>3, px[1]>>3, px[2]>>3)
-            if key not in seen:
-                seen.add(key)
-                colours.append(px)
-            if len(colours) >= 16:
-                break
-        if len(colours) >= 16:
-            break
 
-    # Pad to 16 colours
-    while len(colours) < 16:
-        colours.append((0, 0, 0, 255))
+def build_clut_4bit(image, dither=True):
+    """Build a 16-colour palette using median-cut quantisation (optionally with
+    Floyd-Steinberg dithering), mirroring build_clut_8bit. Transparent pixels
+    (alpha < 128) map to CLUT entry 0 (0x0000 = PS1 transparent). Returns
+    (clut_bytes, img_p) where img_p is a 16-colour palette image.
 
-    # Build CLUT bytes
-    clut_bytes = b''
-    for c in colours:
-        clut_bytes += struct.pack('<H', rgb_to_ps1(c[0], c[1], c[2], c[3]))
+    This replaces the old "first 16 unique colours" grab, which produced poor
+    palettes; median cut + dithering makes 4bpp viable for real textures."""
+    img_rgba = image.convert('RGBA')
+    w, h     = img_rgba.width, img_rgba.height
 
-    # Build lookup: quantise each pixel to nearest palette entry
-    def nearest(px):
-        r, g, b = px[0]>>3, px[1]>>3, px[2]>>3
-        best = 0
+    # Mark transparent pixels with a magenta sentinel so they claim their own
+    # palette slot instead of collapsing into the nearest opaque colour. When
+    # there is alpha we skip dithering (it would bleed the sentinel into
+    # neighbours); opaque textures dither for smoother gradients.
+    SENTINEL  = (255, 0, 255)
+    img_rgb   = img_rgba.convert('RGB')
+    pix_rgb   = img_rgb.load()
+    pix_rgba  = img_rgba.load()
+    has_alpha = False
+    for y in range(h):
+        for x in range(w):
+            if pix_rgba[x, y][3] < 128:
+                pix_rgb[x, y] = SENTINEL
+                has_alpha = True
+
+    pal = img_rgb.quantize(colors=16)                       # median-cut palette
+    if dither and not has_alpha:
+        img_p = img_rgb.quantize(palette=pal, dither=_fs_dither())
+    else:
+        img_p = pal
+    palette = img_p.getpalette() or []
+    while len(palette) < 48:
+        palette.append(0)
+
+    sentinel_idx = -1
+    if has_alpha:
         best_dist = 999999
-        for i, c in enumerate(colours):
-            cr, cg, cb = c[0]>>3, c[1]>>3, c[2]>>3
-            dist = (r-cr)**2 + (g-cg)**2 + (b-cb)**2
-            if dist < best_dist:
-                best_dist = dist
-                best = i
-        return best
+        for i in range(16):
+            r, g, b = palette[i*3], palette[i*3+1], palette[i*3+2]
+            d = (r - 255)**2 + g**2 + (b - 255)**2
+            if d < best_dist:
+                best_dist    = d
+                sentinel_idx = i
 
-    return clut_bytes, nearest
+    clut_bytes = b''
+    for i in range(16):
+        if i == sentinel_idx:
+            clut_bytes += struct.pack('<H', 0x0000)
+        else:
+            r = palette[i*3]; g = palette[i*3+1]; b = palette[i*3+2]
+            clut_bytes += struct.pack('<H', rgb_to_ps1(r, g, b))
+
+    return clut_bytes, img_p
 
 
 def build_clut_8bit(image):
@@ -189,20 +208,17 @@ def build_clut_8bit(image):
 # Pixel data builders
 # -----------------------------------------------------------------------
 
-def build_pixels_4bit(image, index_fn):
-    """Pack 4-bit palette indices, two per byte."""
-    img = image.convert('RGBA')
-    w, h = img.width, img.height
+def build_pixels_4bit(img_p):
+    """Pack 4-bit palette indices from a 16-colour palette image, two per byte
+    (low nibble = left pixel, matching the PS1's 4bpp texel order)."""
+    w, h = img_p.width, img_p.height
+    px   = img_p.load()
     data = bytearray()
-
     for y in range(h):
-        row = bytearray()
         for x in range(0, w, 2):
-            lo = index_fn(img.getpixel((x,   y))) & 0xF
-            hi = index_fn(img.getpixel((x+1, y))) & 0xF if x+1 < w else 0
-            row.append(lo | (hi << 4))
-        data.extend(row)
-
+            lo = px[x, y] & 0xF
+            hi = (px[x+1, y] & 0xF) if x + 1 < w else 0
+            data.append(lo | (hi << 4))
     return bytes(data)
 
 
@@ -354,8 +370,8 @@ def main():
     pixel_data  = b''
 
     if bpp == 4:
-        clut_data, index_fn = build_clut_4bit(image)
-        pixel_data = build_pixels_4bit(image, index_fn)
+        clut_data, img_p = build_clut_4bit(image)
+        pixel_data = build_pixels_4bit(img_p)
         print("  Palette: 16 colours")
 
     elif bpp == 8:
