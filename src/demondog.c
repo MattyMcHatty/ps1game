@@ -106,7 +106,6 @@ void update_demon_dogs(void) {
         int32_t dy     = cam_y - d->y;
         int32_t dz     = cam_z - d->z;
         int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
 
         if (d->state == DDOG_DORMANT) {
             if (dist2d < DDOG_WAKE_RADIUS) {
@@ -126,7 +125,15 @@ void update_demon_dogs(void) {
             }
         }
 
-        if (!game_over && dist3d < DDOG_CATCH_DIST && d->damage_timer == 0) {
+        /* Gate damage on horizontal and vertical proximity SEPARATELY, not as a
+           combined |dx|+|dz|+|dy| budget: the player's eye rides 40 units above
+           the floor (apply_height's standoff) while the dog's body is on it, so
+           that vertical term kept the sum over DDOG_CATCH_DIST even when the dog
+           had stopped right next to the player — it could close in but never bite.
+           |dy| < DDOG_CATCH_DIST still blocks a dog biting across a floor gap.
+           (Same fix as the zombie's damage check.) */
+        if (!game_over && dist2d < DDOG_CATCH_DIST &&
+            (dy < 0 ? -dy : dy) < DDOG_CATCH_DIST && d->damage_timer == 0) {
             d->damage_timer = DDOG_DAMAGE_COOLDOWN;
             player_health  -= DDOG_DAMAGE_AMOUNT;
             if (hurt_sfx_cooldown == 0) {
