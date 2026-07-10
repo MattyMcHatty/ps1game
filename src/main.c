@@ -13,6 +13,7 @@
 #include "player.h"
 #include "vampire.h"
 #include "crucifaxe.h"
+#include "weapon.h"
 #include "sound.h"
 #include "cdaudio.h"
 #include "sml_med.h"
@@ -148,7 +149,7 @@ static void update_current_area(GameState area) {
         sml_meds_update();
         door_update();
     }
-    update_crucifaxe();
+    weapons_update();
     update_particles();
 }
 
@@ -166,7 +167,7 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
    weapon, the health/stamina HUD, and the debug collision view. */
 static void draw_player_systems(RenderContext *ctx) {
     draw_particles(ctx);
-    draw_crucifaxe(ctx);
+    weapons_draw(ctx);
     draw_hud(ctx);
 #ifdef DEBUG_COLLISION
     debug_draw_walls(ctx);
@@ -293,7 +294,7 @@ int main(int argc, const char **argv) {
     demon_dogs_init();
     zombies_load_textures();   /* LoadImage at startup only (see TEXTURING_NOTES) */
     zombies_init();            /* capture spawn defaults (none placed yet) */
-    crucifaxe_init();
+    weapons_init();
     sound_init();
     cdaudio_init();
 

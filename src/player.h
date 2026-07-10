@@ -22,6 +22,7 @@ typedef enum {
 
 extern int player_weapons;     /* bitmask — bit WEAPON_* set means it is owned */
 extern int player_rounds;      /* count of standard rounds held (Grave-olver ammo) */
+extern WeaponType current_weapon;  /* the equipped weapon; L2 cycles owned ones */
 
 #define ROUNDS_PER_PICKUP 6    /* rounds granted by one Standard Rounds pickup */
 

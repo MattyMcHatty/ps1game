@@ -87,6 +87,7 @@ void item_pickups_reset(void) {
     item_pickup_count = 0;
     player_weapons = (1 << WEAPON_CRUCIFAXE);
     player_rounds  = 0;
+    current_weapon = WEAPON_CRUCIFAXE;
 }
 
 int item_pickup_spawn(int32_t x, int32_t y, int32_t z, PickupKind kind) {
@@ -108,7 +109,10 @@ int item_pickup_spawn(int32_t x, int32_t y, int32_t z, PickupKind kind) {
 
 static void collect(ItemPickup *p) {
     switch (p->kind) {
-        case PICKUP_GRAVEOLVER: player_weapons |= (1 << WEAPON_GRAVEOLVER); break;
+        case PICKUP_GRAVEOLVER:
+            player_weapons |= (1 << WEAPON_GRAVEOLVER);
+            current_weapon  = WEAPON_GRAVEOLVER;   /* auto-equip on pickup */
+            break;
         case PICKUP_ROUNDS:     player_rounds  += ROUNDS_PER_PICKUP;        break;
         default: break;
     }

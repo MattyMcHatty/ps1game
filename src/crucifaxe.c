@@ -12,6 +12,7 @@
 #include "vampire.h"
 #include "particles.h"
 #include "crucifaxe.h"
+#include "weapon.h"
 #include "crate.h"
 #include "title.h"
 #include "demondog.h"
@@ -211,104 +212,7 @@ void draw_crucifaxe(RenderContext *ctx) {
     weapon_vs.t[1] = vs_y;
     weapon_vs.t[2] = vs_z;
 
-    gte_SetRotMatrix(&weapon_vs);
-    gte_SetTransMatrix(&weapon_vs);
-
-    /* Manual render — skips NCLIP so all faces draw regardless of winding.
-       Applies diffuse shading via dot product of face normal with a fixed
-       light direction, giving visible angle variation across faces. */
-    {
-        /* Light direction in model space: upper-right-front.
-           (1,-1,1)/sqrt(3) * 4096 ≈ (2365,-2365,2365) */
-        const int32_t lx =  2365, ly = -2365, lz = 2365;
-
-        uint8_t *p       = (uint8_t *)crucifaxe_smd->p_prims;
-        uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-        int pi;
-        for (pi = 0; pi < crucifaxe_smd->n_prims; pi++) {
-            SMD_PRI_TYPE *pt     = (SMD_PRI_TYPE *)p;
-            uint8_t       stride = pt->len;
-            int           is_quad = (pt->type >= 2);
-            uint16_t     *vi = (uint16_t *)(p + 4);
-            SVECTOR *v0 = &crucifaxe_smd->p_verts[vi[0]];
-            SVECTOR *v1 = &crucifaxe_smd->p_verts[vi[1]];
-            SVECTOR *v2 = &crucifaxe_smd->p_verts[vi[2]];
-
-            DVECTOR sv[4];
-            int32_t sz[4], otz;
-
-            gte_ldv3(v0, v1, v2);
-            gte_rtpt();
-            gte_stsxy3c(sv);
-            gte_stsz4c(sz);
-            if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) { p += stride; continue; }
-
-            if (is_quad) {
-                SVECTOR *v3 = &crucifaxe_smd->p_verts[vi[3]];
-                gte_ldv0(v3); gte_rtps(); gte_stsxy(&sv[3]);
-                gte_avsz4();
-            } else {
-                gte_avsz3();
-            }
-            gte_stotz(&otz);
-            /* Compress to a very low OT range so the weapon always renders
-               in front of dogs, items and geometry (which are all at higher
-               OT indices). Faces still sort relative to each other. */
-            otz >>= 4;
-            if (otz < SCENE_OT_MIN) otz = SCENE_OT_MIN;
-
-            /* Per-face normal shading: 40% ambient + primary + dim fill */
-            uint16_t n0_idx = *(uint16_t *)(p + 12);
-            SVECTOR *norm   = &crucifaxe_smd->p_norms[n0_idx];
-            int32_t dot = ((int32_t)norm->vx * lx +
-                           (int32_t)norm->vy * ly +
-                           (int32_t)norm->vz * lz) >> 12;
-            int32_t dot2 = -dot;  /* fill light from opposite direction */
-            if (dot  < 0) dot  = 0;
-            if (dot2 < 0) dot2 = 0;
-            /* primary: 0-60%, fill: 0-20%, ambient: 40% — total 40-100% */
-            int32_t shade = 1638 + ((dot * 2458) >> 12) + ((dot2 * 820) >> 12);
-            if (shade > 4096) shade = 4096;
-
-            uint8_t r = (uint8_t)(((int32_t)p[16] * shade) >> 12);
-            uint8_t g = (uint8_t)(((int32_t)p[17] * shade) >> 12);
-            uint8_t b = (uint8_t)(((int32_t)p[18] * shade) >> 12);
-
-            if (is_quad) {
-                if (ctx->next_packet + sizeof(POLY_F4) > buf_end) { p += stride; continue; }
-                POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
-                setPolyF4(poly);
-                setRGB0(poly, r, g, b);
-                poly->x0=sv[0].vx; poly->y0=sv[0].vy;
-                poly->x1=sv[1].vx; poly->y1=sv[1].vy;
-                poly->x2=sv[2].vx; poly->y2=sv[2].vy;
-                poly->x3=sv[3].vx; poly->y3=sv[3].vy;
-                addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
-                ctx->next_packet += sizeof(POLY_F4);
-            } else {
-                if (ctx->next_packet + sizeof(POLY_F3) > buf_end) { p += stride; continue; }
-                POLY_F3 *poly = (POLY_F3 *)ctx->next_packet;
-                setPolyF3(poly);
-                setRGB0(poly, r, g, b);
-                poly->x0=sv[0].vx; poly->y0=sv[0].vy;
-                poly->x1=sv[1].vx; poly->y1=sv[1].vy;
-                poly->x2=sv[2].vx; poly->y2=sv[2].vy;
-                addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
-                ctx->next_packet += sizeof(POLY_F3);
-            }
-            p += stride;
-        }
-    }
-
-    /* Restore view matrix */
-    MATRIX view;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &view);
-    VECTOR vt = {-cam_x, -cam_y, -cam_z};
-    ApplyMatrixLV(&view, &vt, &vt);
-    view.t[0] = vt.vx;
-    view.t[1] = vt.vy;
-    view.t[2] = vt.vz;
-    gte_SetRotMatrix(&view);
-    gte_SetTransMatrix(&view);
+    /* Flat-shaded view-space render (shared with the grave-olver); restores the
+       camera view matrix before returning. */
+    weapon_render_model(ctx, crucifaxe_smd, &weapon_vs, 4096 /* 1.0x */);
 }

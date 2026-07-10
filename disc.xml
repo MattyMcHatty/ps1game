@@ -33,6 +33,8 @@
                 source="C:\Users\virtu\Documents\ps1game\assets\props\fat_door.smd"/>
             <file name="CRFAXE.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\props\Crucifaxe.smd"/>
+            <file name="GRAVOLVR.SMD" type="data"
+                source="C:\Users\virtu\Documents\ps1game\assets\props\grave-olver.smd"/>
             <file name="DINTABLE.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\props\dining_table.smd"/>
             <file name="SAVEPT.SMD" type="data"
