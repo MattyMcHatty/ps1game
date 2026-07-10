@@ -15,6 +15,7 @@
 #include "door.h"
 #include "save_point.h"
 #include "dresser.h"
+#include "fatdoor.h"
 #include "texmgr.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -480,6 +481,10 @@ void reception_draw(RenderContext *ctx) {
        non-drawer faces and the room's 128 texture window set above; the module
        owns the drawer texture. Restores the view matrix before returning. */
     dressers_draw(ctx, tex_tpage[2], tex_clut[2]);
+    /* Breakable door in the small-room doorway. Draws with reception's active
+       128 texture window (its UVs are 0-127, so wrapping is a no-op) and restores
+       the view matrix before returning. */
+    fatdoors_draw(ctx);
     save_points_draw(ctx);
     reception_door_text(ctx);
 }

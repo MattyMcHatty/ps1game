@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "render.h"
+#include "title.h"   /* GameState — each door is tagged with the area it lives in */
 
 /* Breakable doors that fill the kitchen entryways. They render like crates
    (instanced SMD via smdSortModel) and smash like crates (hit with the
@@ -27,6 +28,9 @@ typedef struct {
     int32_t      health;          /* hits remaining before it smashes */
     FatDoorState state;
     int32_t      active;
+    GameState    area;            /* which room this door belongs to; the doors are
+                                     a single global array, so draw/collide/smash all
+                                     skip doors whose area != the current game_state */
 } FatDoor;
 
 extern FatDoor fatdoors[MAX_FATDOORS];

@@ -162,10 +162,10 @@ void update_crucifaxe(void) {
                 crate_hit_this_swing = 1;
         }
 
-        /* Breakable door smash — kitchen entryways only. The fat doors are
-           global (not room-scoped), so without this gate a swing in another
-           area would "hit" them at their kitchen coords (splinters + sound). */
-        if (game_state == STATE_KITCHEN_DINING &&
+        /* Breakable door smash — only in areas that have fat doors. The doors
+           are a single global array (fatdoors_try_smash already skips doors whose
+           area != game_state), but menu/delivery have none, so gate here too. */
+        if ((game_state == STATE_KITCHEN_DINING || game_state == STATE_RECEPTION) &&
             swing_timer <= SWING_DURATION && !fatdoor_hit_this_swing) {
             if (fatdoors_try_smash())
                 fatdoor_hit_this_swing = 1;

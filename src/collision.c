@@ -346,6 +346,10 @@ void apply_collision_reception(void) {
     /* Props use a tighter radius than the walls (walk right up to them), same as
        the kitchen's dining tables. */
     dressers_collide(&cam_x, cam_y, &cam_z, 75);
+    /* Breakable door in the small-room doorway. Radius 125 (like the kitchen's
+       doors) rather than the wide wall radius, so the player can walk up close
+       enough to smash it. fatdoors_collide skips doors of other areas. */
+    fatdoors_collide(&cam_x, cam_y, &cam_z, 125);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

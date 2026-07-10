@@ -9,7 +9,10 @@
 #include "camera.h"
 #include "particles.h"
 #include "sound.h"
+#include "title.h"
 #include "fatdoor.h"
+
+extern GameState game_state;   /* current area; doors of other areas are skipped */
 
 FatDoor fatdoors[MAX_FATDOORS];
 int     fatdoor_count = 0;
@@ -88,17 +91,28 @@ void fatdoors_init(void) {
        stopped well clear of the door face (avoids near-plane clipping). */
     fatdoors[i].x = 300;  fatdoors[i].y = -188; fatdoors[i].z = -1013;
     fatdoors[i].rot_y = 0;    fatdoors[i].half_x = 150; fatdoors[i].half_z = 30;
-    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1; i++;
+    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
+    fatdoors[i].area = STATE_KITCHEN_DINING; i++;
 
     /* South wall, west opening — thin axis along Z, no rotation. */
     fatdoors[i].x = -300; fatdoors[i].y = -188; fatdoors[i].z = -1013;
     fatdoors[i].rot_y = 0;    fatdoors[i].half_x = 150; fatdoors[i].half_z = 30;
-    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1; i++;
+    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
+    fatdoors[i].area = STATE_KITCHEN_DINING; i++;
 
     /* Big-room/dining partition doorway — rotated 90°, thin axis along X. */
     fatdoors[i].x = -615; fatdoors[i].y = -188; fatdoors[i].z = -375;
     fatdoors[i].rot_y = 1024; fatdoors[i].half_x = 30;  fatdoors[i].half_z = 150;
-    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1; i++;
+    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
+    fatdoors[i].area = STATE_KITCHEN_DINING; i++;
+
+    /* Reception: the small room behind the stairs. The doorway is the opening in
+       the z~=512 wall between the x=900 and x=1200 jambs, so the door fills it
+       along X (thin in Z), like the kitchen's south doors. */
+    fatdoors[i].x = 1045; fatdoors[i].y = -189; fatdoors[i].z = 500;
+    fatdoors[i].rot_y = 0;    fatdoors[i].half_x = 150; fatdoors[i].half_z = 30;
+    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
+    fatdoors[i].area = STATE_RECEPTION; i++;
 
     fatdoor_count = i;
 
@@ -120,6 +134,7 @@ void fatdoors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     for (i = 0; i < fatdoor_count; i++) {
         FatDoor *d = &fatdoors[i];
         if (!d->active || d->state != FATDOOR_INTACT) continue;
+        if (d->area != game_state) continue;
 
         /* Skip if the player is on a different vertical level to the door. */
         if (py < d->y - FATDOOR_HALF_H || py > d->y + FATDOOR_HALF_H) continue;
@@ -167,6 +182,7 @@ void fatdoors_draw(RenderContext *ctx) {
     for (d = 0; d < fatdoor_count; d++) {
         FatDoor *door = &fatdoors[d];
         if (!door->active || door->state == FATDOOR_SMASHED) continue;
+        if (door->area != game_state) continue;
 
         int32_t ddx = door->x - cam_x, ddz = door->z - cam_z;
         int32_t ddist = (ddx < 0 ? -ddx : ddx) + (ddz < 0 ? -ddz : ddz);
@@ -314,6 +330,7 @@ int fatdoors_try_smash(void) {
     for (i = 0; i < fatdoor_count; i++) {
         FatDoor *d = &fatdoors[i];
         if (!d->active || d->state != FATDOOR_INTACT) continue;
+        if (d->area != game_state) continue;
 
         if (cam_y < d->y - FATDOOR_HALF_H || cam_y > d->y + FATDOOR_HALF_H) continue;
 
@@ -351,6 +368,7 @@ int fatdoors_damage_at(int32_t x, int32_t z, int32_t reach, int amount) {
     for (i = 0; i < fatdoor_count; i++) {
         FatDoor *d = &fatdoors[i];
         if (!d->active || d->state != FATDOOR_INTACT) continue;
+        if (d->area != game_state) continue;
 
         int32_t min_x = d->x - d->half_x - reach;
         int32_t max_x = d->x + d->half_x + reach;
