@@ -15,6 +15,21 @@
 #define DDOG_HALF_H           50
 #define DDOG_Y_OFFSET        100
 #define DDOG_KNOCKBACK        40
+/* Bite "lunge": on a damage hit the sprite snaps to a fixed spot in front of the
+   camera and STAYS there (a bite in the face) until the dog is knocked back or the
+   player retreats out of catch range. Purely visual — position/collision are
+   unaffected. Size is controlled by LUNGE_HALF_W/H (not by getting closer, which
+   would clip), so make them BIGGER here rather than reducing DIST. Framing is
+   controlled relative to the camera: SIDE shifts along the view's right axis
+   (+ = right), DROP shifts down in world Y (+ = down) so the body falls below the
+   frame and only the head/upper body shows. Keep DROP+HALF_H modest so the sprite
+   doesn't project past the ~1023 vertex-coord limit. */
+#define DDOG_LUNGE_DIST      100    /* depth in front of camera (safe, no clip)   */
+#define DDOG_LUNGE_HALF_W     85    /* on-screen half width  (normal is 60)       */
+#define DDOG_LUNGE_HALF_H     70    /* on-screen half height (normal is 50)       */
+#define DDOG_LUNGE_SIDE       50    /* + = to the right of the view centre         */
+#define DDOG_LUNGE_DROP       45    /* + = downward (drop the body below frame)    */
+#define DDOG_LUNGE_FLIP        0    /* fixed facing during a bite (0/1); 0 = face  */
 #define DDOG_BAR_TIMER_MAX    120
 #define DDOG_BARK_INTERVAL    100   /* frames between repeated barks while alert (~1.7s) */
 
@@ -45,6 +60,7 @@ typedef struct {
     int       health;
     int       damage_timer;
     int       hit_timer;
+    int       lunging;        /* 1 = latched into the player's face after a bite */
     DDogState state;
     int32_t   active;
     int       on_upper_floor;

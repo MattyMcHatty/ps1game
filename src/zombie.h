@@ -22,6 +22,22 @@
 #define ZMB_HALF_H          125    /* half height (half the earlier height bump) */
 #define ZMB_Y_OFFSET         25    /* feet stay planted: y_offset + half_h = 150 */
 #define ZMB_KNOCKBACK        20
+/* Bite "lunge": on a damage hit the sprite snaps to a fixed spot in front of the
+   camera and STAYS there (a bite in the face) until knocked back or the player
+   retreats out of catch range. Purely visual. Rather than scaling the whole
+   full-body sprite up and dropping it (a giant poly the GPU won't draw), the UVs
+   are CROPPED to the top FACE_ROWS texels of the sprite (the head + shoulders),
+   drawn at LUNGE_HALF_W/H. SIDE shifts along the view's right axis (+ = right);
+   DROP nudges it down in world Y (+ = down). Make FACE_ROWS smaller to show less
+   of the body, HALF_W/H bigger to fill more of the screen. (Mirrors the demon
+   dog, which uses the position approach since its sprite is short enough.) */
+#define ZMB_LUNGE_DIST      100
+#define ZMB_LUNGE_HALF_W    120    /* on-screen half width of the cropped face  */
+#define ZMB_LUNGE_HALF_H     95    /* on-screen half height of the cropped face */
+#define ZMB_LUNGE_FACE_ROWS  30    /* texels from the sprite top to show (of 128) */
+#define ZMB_LUNGE_SIDE        0    /* + = to the right of the view centre        */
+#define ZMB_LUNGE_DROP        0    /* + = downward nudge                          */
+#define ZMB_LUNGE_FLIP        0    /* fixed facing during a bite (0/1)            */
 #define ZMB_BAR_TIMER_MAX   120
 #define ZMB_GROAN_INTERVAL  400    /* frames between repeated groans while alert; set
                                       just under the ~7s clip length so it re-triggers
@@ -55,6 +71,7 @@ typedef struct {
     int         damage_timer;
     int         door_timer;     /* cooldown between battering a fat door */
     int         hit_timer;
+    int         lunging;        /* 1 = latched into the player's face after a bite */
     ZombieState state;
     int32_t     active;
     int         on_upper_floor;

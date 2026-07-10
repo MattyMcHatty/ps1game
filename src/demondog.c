@@ -91,6 +91,7 @@ void update_demon_dogs(void) {
                           &d->on_upper_floor, &d->on_ramp);
 
         if (d->kb_vx != 0 || d->kb_vz != 0) {
+            d->lunging = 0;   /* knocked back off the player's face */
             d->x += d->kb_vx;
             d->z += d->kb_vz;
             apply_ddog_collision(&d->x, &d->z, d->on_upper_floor, d->on_ramp);
@@ -106,6 +107,10 @@ void update_demon_dogs(void) {
         int32_t dy     = cam_y - d->y;
         int32_t dz     = cam_z - d->z;
         int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+
+        /* Release the bite latch once the player retreats out of catch range
+           (matches where the dog stops advancing, so it resumes the chase). */
+        if (d->lunging && dist2d >= DDOG_CATCH_DIST) d->lunging = 0;
 
         if (d->state == DDOG_DORMANT) {
             if (dist2d < DDOG_WAKE_RADIUS) {
@@ -135,6 +140,7 @@ void update_demon_dogs(void) {
         if (!game_over && dist2d < DDOG_CATCH_DIST &&
             (dy < 0 ? -dy : dy) < DDOG_CATCH_DIST && d->damage_timer == 0) {
             d->damage_timer = DDOG_DAMAGE_COOLDOWN;
+            d->lunging      = 1;   /* latch into the player's face */
             player_health  -= DDOG_DAMAGE_AMOUNT;
             if (hurt_sfx_cooldown == 0) {
                 sound_play(SFX_HURT);
@@ -345,17 +351,37 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
                               uint16_t tpage, uint16_t clut, uint8_t v_start, int flip) {
     int32_t rx  = icos(cam_rot);
     int32_t rz  = -isin(cam_rot);
-    int16_t dwx = (int16_t)((DDOG_HALF_W * rx) >> 12);
-    int16_t dwz = (int16_t)((DDOG_HALF_W * rz) >> 12);
 
-    int16_t vy_top = (int16_t)(d->y + DDOG_Y_OFFSET - DDOG_HALF_H);
-    int16_t vy_bot = (int16_t)(d->y + DDOG_Y_OFFSET + DDOG_HALF_H);
+    /* During a bite, ignore the position/walk-cycle facing and show a fixed side
+       so the player always sees the dog's face, not its rear. */
+    if (d->lunging) flip = DDOG_LUNGE_FLIP;
+
+    /* Bite lunge: while latched, snap the sprite to a fixed spot in front of the
+       camera (DIST), sized by LUNGE_HALF_W/H and framed by SIDE (along the view's
+       right axis rx/rz) and DROP (down in world Y). Holds until update_demon_dogs
+       clears d->lunging. Purely visual — d->x/y/z are untouched. */
+    int32_t hw = DDOG_HALF_W, hh = DDOG_HALF_H;
+    int32_t cx = d->x, cz = d->z, cy = d->y + DDOG_Y_OFFSET;
+    if (d->lunging) {
+        hw = DDOG_LUNGE_HALF_W;
+        hh = DDOG_LUNGE_HALF_H;
+        cx = cam_x + ((isin(cam_rot) * DDOG_LUNGE_DIST) >> 12)
+                   + ((rx * DDOG_LUNGE_SIDE) >> 12);
+        cz = cam_z + ((icos(cam_rot) * DDOG_LUNGE_DIST) >> 12)
+                   + ((rz * DDOG_LUNGE_SIDE) >> 12);
+        cy = cam_y + DDOG_LUNGE_DROP;
+    }
+
+    int16_t dwx = (int16_t)((hw * rx) >> 12);
+    int16_t dwz = (int16_t)((hw * rz) >> 12);
+    int16_t vy_top = (int16_t)(cy - hh);
+    int16_t vy_bot = (int16_t)(cy + hh);
 
     SVECTOR v[4];
-    v[0].vx = d->x - dwx; v[0].vy = vy_top; v[0].vz = d->z - dwz; v[0].pad = 0;
-    v[1].vx = d->x + dwx; v[1].vy = vy_top; v[1].vz = d->z + dwz; v[1].pad = 0;
-    v[2].vx = d->x + dwx; v[2].vy = vy_bot; v[2].vz = d->z + dwz; v[2].pad = 0;
-    v[3].vx = d->x - dwx; v[3].vy = vy_bot; v[3].vz = d->z - dwz; v[3].pad = 0;
+    v[0].vx = cx - dwx; v[0].vy = vy_top; v[0].vz = cz - dwz; v[0].pad = 0;
+    v[1].vx = cx + dwx; v[1].vy = vy_top; v[1].vz = cz + dwz; v[1].pad = 0;
+    v[2].vx = cx + dwx; v[2].vy = vy_bot; v[2].vz = cz + dwz; v[2].pad = 0;
+    v[3].vx = cx - dwx; v[3].vy = vy_bot; v[3].vz = cz - dwz; v[3].pad = 0;
 
     DVECTOR sv[4];
     int32_t sz[4];
@@ -381,6 +407,9 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
     otz >>= 2;
     if (otz < SCENE_OT_MIN) otz = SCENE_OT_MIN;
     if (otz >= OT_LENGTH) return;
+    /* A bite is a foreground overlay: draw it in front of all room geometry so
+       nearby walls/props can't occlude the in-your-face sprite. */
+    if (d->lunging) otz = SCENE_OT_MIN;
 
     int32_t fdx        = d->x - cam_x;
     int32_t fdz        = d->z - cam_z;

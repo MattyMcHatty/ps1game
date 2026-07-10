@@ -197,6 +197,7 @@ void update_zombies(void) {
                           &d->on_upper_floor, &d->on_ramp);
 
         if (d->kb_vx != 0 || d->kb_vz != 0) {
+            d->lunging = 0;   /* knocked back off the player's face */
             d->x += d->kb_vx;
             d->z += d->kb_vz;
             apply_flat_entity_collision(&d->x, &d->z, ZMB_BODY_RADIUS);
@@ -213,6 +214,10 @@ void update_zombies(void) {
         int32_t dy     = cam_y - d->y;
         int32_t dz     = cam_z - d->z;
         int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+
+        /* Release the bite latch once the player retreats out of catch range
+           (matches where the zombie stops advancing, so it resumes the chase). */
+        if (d->lunging && dist2d >= ZMB_CATCH_DIST) d->lunging = 0;
 
         if (d->state == ZMB_DORMANT) {
             if (dist2d < ZMB_WAKE_RADIUS) {
@@ -242,6 +247,7 @@ void update_zombies(void) {
         if (!game_over && dist2d < ZMB_CATCH_DIST &&
             (dy < 0 ? -dy : dy) < ZMB_CATCH_DIST && d->damage_timer == 0) {
             d->damage_timer = ZMB_DAMAGE_COOLDOWN;
+            d->lunging      = 1;   /* latch into the player's face */
             player_health  -= ZMB_DAMAGE_AMOUNT;
             if (hurt_sfx_cooldown == 0) {
                 sound_play(SFX_HURT);
@@ -536,17 +542,36 @@ static void draw_zmb_sprite(RenderContext *ctx, Zombie *d,
                             uint16_t tpage, uint16_t clut, uint8_t v_start, int flip) {
     int32_t rx  = icos(cam_rot);
     int32_t rz  = -isin(cam_rot);
-    int16_t dwx = (int16_t)((ZMB_HALF_W * rx) >> 12);
-    int16_t dwz = (int16_t)((ZMB_HALF_W * rz) >> 12);
 
-    int16_t vy_top = (int16_t)(d->y + ZMB_Y_OFFSET - ZMB_HALF_H);
-    int16_t vy_bot = (int16_t)(d->y + ZMB_Y_OFFSET + ZMB_HALF_H);
+    /* During a bite, use a fixed facing (ignore the position/walk-cycle flip). */
+    if (d->lunging) flip = ZMB_LUNGE_FLIP;
+
+    /* Bite lunge: while latched, snap the sprite to a fixed spot in front of the
+       camera (DIST), sized by LUNGE_HALF_W/H and framed by SIDE (along the view's
+       right axis rx/rz) and DROP (down in world Y, dropping the body below frame).
+       Holds until update_zombies clears d->lunging. Visual only — d->x/y/z stay. */
+    int32_t hw = ZMB_HALF_W, hh = ZMB_HALF_H;
+    int32_t cx = d->x, cz = d->z, cy = d->y + ZMB_Y_OFFSET;
+    if (d->lunging) {
+        hw = ZMB_LUNGE_HALF_W;
+        hh = ZMB_LUNGE_HALF_H;
+        cx = cam_x + ((isin(cam_rot) * ZMB_LUNGE_DIST) >> 12)
+                   + ((rx * ZMB_LUNGE_SIDE) >> 12);
+        cz = cam_z + ((icos(cam_rot) * ZMB_LUNGE_DIST) >> 12)
+                   + ((rz * ZMB_LUNGE_SIDE) >> 12);
+        cy = cam_y + ZMB_LUNGE_DROP;
+    }
+
+    int16_t dwx = (int16_t)((hw * rx) >> 12);
+    int16_t dwz = (int16_t)((hw * rz) >> 12);
+    int16_t vy_top = (int16_t)(cy - hh);
+    int16_t vy_bot = (int16_t)(cy + hh);
 
     SVECTOR v[4];
-    v[0].vx = d->x - dwx; v[0].vy = vy_top; v[0].vz = d->z - dwz; v[0].pad = 0;
-    v[1].vx = d->x + dwx; v[1].vy = vy_top; v[1].vz = d->z + dwz; v[1].pad = 0;
-    v[2].vx = d->x + dwx; v[2].vy = vy_bot; v[2].vz = d->z + dwz; v[2].pad = 0;
-    v[3].vx = d->x - dwx; v[3].vy = vy_bot; v[3].vz = d->z - dwz; v[3].pad = 0;
+    v[0].vx = cx - dwx; v[0].vy = vy_top; v[0].vz = cz - dwz; v[0].pad = 0;
+    v[1].vx = cx + dwx; v[1].vy = vy_top; v[1].vz = cz + dwz; v[1].pad = 0;
+    v[2].vx = cx + dwx; v[2].vy = vy_bot; v[2].vz = cz + dwz; v[2].pad = 0;
+    v[3].vx = cx - dwx; v[3].vy = vy_bot; v[3].vz = cz - dwz; v[3].pad = 0;
 
     DVECTOR sv[4];
     int32_t sz[4];
@@ -577,6 +602,10 @@ static void draw_zmb_sprite(RenderContext *ctx, Zombie *d,
     if (otz <= 0) return;
     if (otz < SCENE_OT_MIN) otz = SCENE_OT_MIN;
     if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
+    /* A bite is a foreground overlay: draw it in front of all room geometry (the
+       zombie normally sorts on raw avgZ so walls occlude it, which was hiding the
+       in-your-face sprite behind nearby kitchen/doorway geometry). */
+    if (d->lunging) otz = SCENE_OT_MIN;
 
     int32_t fdx        = d->x - cam_x;
     int32_t fdz        = d->z - cam_z;
@@ -603,12 +632,16 @@ static void draw_zmb_sprite(RenderContext *ctx, Zombie *d,
        the magnified quad's edge pixels can't sample the neighbouring textures in
        VRAM. The row directly below the sleep frame is the demon dog's open-mouth
        texture, which otherwise bled in as a red/white strip along the bottom. */
+    /* While biting, crop to the top FACE_ROWS texels (head + shoulders) so the
+       quad stays small instead of a giant full-body poly the GPU won't draw. */
+    uint8_t v_bot   = d->lunging ? (uint8_t)(v_start + ZMB_LUNGE_FACE_ROWS)
+                                 : (uint8_t)(v_start + 126);
     uint8_t u_left  = flip ? 62 : 1;
     uint8_t u_right = flip ?  1 : 62;
     poly->u0 = u_left;  poly->v0 = v_start + 1;
     poly->u1 = u_right; poly->v1 = v_start + 1;
-    poly->u2 = u_left;  poly->v2 = v_start + 126;
-    poly->u3 = u_right; poly->v3 = v_start + 126;
+    poly->u2 = u_left;  poly->v2 = v_bot;
+    poly->u3 = u_right; poly->v3 = v_bot;
 
     poly->tpage = tpage;
     poly->clut  = clut;
