@@ -12,6 +12,7 @@
 #include "crate.h"
 #include "key.h"
 #include "sml_med.h"
+#include "item_pickup.h"
 #include "sound.h"
 
 Crate crates[MAX_CRATES];
@@ -87,6 +88,7 @@ void crates_reset(void) {
         crates[i] = crate_defaults[i];
     keys_reset();      /* also clears player_keys */
     sml_meds_reset();
+    item_pickups_reset();  /* also resets player_weapons / player_rounds */
 }
 
 void crates_update(void) {

@@ -6,6 +6,11 @@
 
 #define MAX_DRESSERS      8
 #define DRESSER_PUSH_MARGIN 30   /* extra gap between player and dresser edge */
+#define DRESSER_HALF_H     200   /* vertical collision reach around the dresser's
+                                    floor reference (d->y). Less than a floor's
+                                    height (>=150 step, ~600 to the upper floor) so
+                                    the player can't collide with a dresser on the
+                                    floor below/above them. */
 
 /* A reusable, static, indestructible prop (like the dining table): the player
    collides with it but it has no state. It is textured with TWO textures:

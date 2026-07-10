@@ -24,6 +24,7 @@
 #include "save_point.h"
 #include "dresser.h"
 #include "key.h"
+#include "item_pickup.h"
 #include "door.h"
 #include "demondog.h"
 #include "zombie.h"
@@ -129,6 +130,7 @@ static void update_current_area(GameState area) {
            kitchen props, which are global and would collide invisibly here). */
         apply_collision_reception();
         apply_height();
+        item_pickups_update();
         if (reception_door_triggered()) {
             pending_area = STATE_KITCHEN_DINING;
             door_anim_start(DOOR_PANEL_INNER);   /* same interior double door */
@@ -286,6 +288,7 @@ int main(int argc, const char **argv) {
                                   streamed texture (uploaded on reception entry) */
     keys_init();
     sml_meds_init();
+    item_pickups_load_textures();  /* Grave-olver + rounds sprites (LoadImage: startup only) */
     door_init();
     demon_dogs_init();
     zombies_load_textures();   /* LoadImage at startup only (see TEXTURING_NOTES) */

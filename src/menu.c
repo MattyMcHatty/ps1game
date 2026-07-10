@@ -58,19 +58,27 @@ static uint8_t  key_u0, key_v0, key_u1, key_v1;
 static uint16_t crfx_tpage   = 0;
 static uint16_t crfx_clut    = 0;
 static uint8_t  crfx_u0, crfx_v0, crfx_u1, crfx_v1;
+static uint16_t grav_tpage   = 0;
+static uint16_t grav_clut    = 0;
+static uint8_t  grav_u0, grav_v0, grav_u1, grav_v1;
+static uint16_t rnds_tpage   = 0;
+static uint16_t rnds_clut    = 0;
+static uint8_t  rnds_u0, rnds_v0, rnds_u1, rnds_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
 static int items_fnt   = -1;   /* "ITEMS" header */
 static int weapons_fnt = -1;   /* "WEAPONS" header */
 
-/* Item descriptions */
+/* Item descriptions — indexed by the item's grid slot */
 static const char *item_descriptions[] = {
     "Front Door Key\n\nUnlocks the\nmansion's\nfront entrance",
+    "Rounds\n\nAmmunition\nfor the\nGrave-olver",
 };
 
 static const char *weapon_descriptions[] = {
     "Crucifaxe\n\nA crucifix\nforged into\nan axe head.\nThe quintessential\nweapon of a\nDemon Hunter",
+    "Grave-olver\n\nA revolver\nforged to lay\nthe risen dead\nback in their\ngraves",
 };
 
 /* Load TIM from disc, computing tpage/clut and the UV rect within the tpage. */
@@ -104,9 +112,14 @@ static void load_icon_tim(const char *filename,
     int px_mult  = (bpp_mode == 0) ? 4 : (bpp_mode == 1) ? 2 : 1;
     int tex_w    = tim.prect->w * px_mult;
     int tex_h    = tim.prect->h;
-    *u0 = 0;
+    /* U0 = the texture's x offset WITHIN its 64-word tpage, so an icon that sits
+       in the right half of a page (VRAM x not a multiple of 64) still maps: the
+       tpage snaps to the page's left edge and U0 indexes into it. Page-aligned
+       icons (key, crucifaxe) yield U0=0 as before. */
+    int u_off = (tim.prect->x & 63) * px_mult;
+    *u0 = (uint8_t)u_off;
     *v0 = (uint8_t)(tim.prect->y % 256);
-    *u1 = (uint8_t)(tex_w - 1);
+    *u1 = (uint8_t)(u_off + tex_w - 1);
     *v1 = (uint8_t)(*v0 + tex_h - 1);
 
     free(buf);
@@ -167,16 +180,75 @@ static void draw_icon(RenderContext *ctx, int x, int y, int size,
     ctx->next_packet += sizeof(POLY_FT4);
 }
 
+/* 3x5 bitmap font for digits 0-9. Each row's low 3 bits are the pixels,
+   bit2 = left column. Used for the little ammo count over the rounds icon. */
+static const uint8_t digit_font[10][5] = {
+    {7,5,5,5,7}, /*0*/
+    {2,6,2,2,7}, /*1*/
+    {7,1,7,4,7}, /*2*/
+    {7,1,7,1,7}, /*3*/
+    {5,5,7,1,1}, /*4*/
+    {7,4,7,1,7}, /*5*/
+    {7,4,7,5,7}, /*6*/
+    {7,1,2,4,4}, /*7*/
+    {7,5,7,5,7}, /*8*/
+    {7,5,7,1,7}, /*9*/
+};
+
+/* Draw an unsigned number as scaled bitmap pixels, left-aligned so its
+   left/bottom edge sits at (left_x, bottom_y). Rendered in yellow over a 1px
+   black shadow for legibility against the sprite behind it. */
+static void draw_number(RenderContext *ctx, int left_x, int bottom_y,
+                         int value, int scale, int ot_idx) {
+    char buf[8];
+    int  n = 0;
+    if (value < 0) value = 0;
+    /* itoa into buf (no stdio dependency) */
+    if (value == 0) {
+        buf[n++] = 0;
+    } else {
+        int v = value;
+        while (v > 0 && n < 7) { buf[n++] = (char)(v % 10); v /= 10; }
+    }
+    /* buf holds digits least-significant first. */
+    int digit_w = 3 * scale;
+    int gap     = scale;
+    int y0      = bottom_y - 5 * scale;
+
+    int i;
+    for (i = 0; i < n; i++) {
+        int digit = buf[i];                       /* i=0 is the rightmost digit */
+        int x0    = left_x + (n - 1 - i) * (digit_w + gap);
+        int row, col;
+        for (row = 0; row < 5; row++) {
+            uint8_t bits = digit_font[digit][row];
+            for (col = 0; col < 3; col++) {
+                if (bits & (4 >> col)) {
+                    int px = x0 + col * scale;
+                    int py = y0 + row * scale;
+                    /* Shadow one OT step behind (higher index = drawn first), the
+                       yellow glyph in front (lower index = drawn last, on top). */
+                    draw_rect(ctx, px + 1, py + 1, scale, scale, 0, 0, 0, ot_idx + 1);
+                    draw_rect(ctx, px,     py,     scale, scale, 255, 255, 0, ot_idx);
+                }
+            }
+        }
+    }
+}
+
 /* Helper to get item count */
 static int items_count(void) {
     int count = 0;
     if (player_keys & (1 << KEY_FRONT_DOOR)) count++;
+    if (player_rounds > 0)                   count++;
     return count;
 }
 
 /* Helper to get weapon count */
 static int weapons_count(void) {
-    return 1;  /* crucifaxe always present */
+    int count = 1;  /* crucifaxe always present */
+    if (player_weapons & (1 << WEAPON_GRAVEOLVER)) count++;
+    return count;
 }
 
 static int col_count(int col) {
@@ -190,6 +262,10 @@ void menu_init(void) {
                   &key_u0, &key_v0, &key_u1, &key_v1);
     load_icon_tim("\\CRFXICON.TIM;1", &crfx_tpage, &crfx_clut,
                   &crfx_u0, &crfx_v0, &crfx_u1, &crfx_v1);
+    load_icon_tim("\\TEX\\GRAVOLVR.TIM;1", &grav_tpage, &grav_clut,
+                  &grav_u0, &grav_v0, &grav_u1, &grav_v1);
+    load_icon_tim("\\TEX\\STNDRNDS.TIM;1", &rnds_tpage, &rnds_clut,
+                  &rnds_u0, &rnds_v0, &rnds_u1, &rnds_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * 2, 14, 0, 64);
@@ -257,6 +333,7 @@ void menu_update(void) {
 #define OT_FILL      10
 #define OT_TEXWIN     8   /* above OT_ICON: reset the texture window before icons */
 #define OT_ICON       7
+#define OT_COUNT      5   /* ammo count over an icon (yellow at 5, shadow at 6) */
 #define OT_RETICULE   3
 
 void menu_draw(RenderContext *ctx) {
@@ -329,6 +406,13 @@ void menu_draw(RenderContext *ctx) {
                 draw_icon(ctx, ix, iy, ICON_SIZE, key_tpage, key_clut,
                           key_u0, key_v0, key_u1, key_v1, OT_ICON);
             }
+            if (i == 1 && player_rounds > 0) {
+                draw_icon(ctx, ix, iy, ICON_SIZE, rnds_tpage, rnds_clut,
+                          rnds_u0, rnds_v0, rnds_u1, rnds_v1, OT_ICON);
+                /* Ammo count, yellow, tucked into the icon's bottom-left. */
+                draw_number(ctx, ix, iy + ICON_SIZE,
+                            player_rounds, 2, OT_COUNT);
+            }
         }
     }
 
@@ -347,6 +431,10 @@ void menu_draw(RenderContext *ctx) {
             if (i == 0) {
                 draw_icon(ctx, wx, wy, ICON_SIZE, crfx_tpage, crfx_clut,
                           crfx_u0, crfx_v0, crfx_u1, crfx_v1, OT_ICON);
+            }
+            if (i == 1 && (player_weapons & (1 << WEAPON_GRAVEOLVER))) {
+                draw_icon(ctx, wx, wy, ICON_SIZE, grav_tpage, grav_clut,
+                          grav_u0, grav_v0, grav_u1, grav_v1, OT_ICON);
             }
         }
     }
@@ -375,11 +463,16 @@ void menu_draw(RenderContext *ctx) {
         int slot = cursor_row * 2 + cursor_subcol;
         const char *desc = "Empty";
         if (cursor_col == 0) {
-            if (slot == 0 && (player_keys & (1 << KEY_FRONT_DOOR)))
+            if (slot == 0 && (player_keys & (1 << KEY_FRONT_DOOR))) {
                 desc = item_descriptions[0];
+            } else if (slot == 1 && player_rounds > 0) {
+                desc = item_descriptions[1];
+            }
         } else {
             if (slot == 0)
                 desc = weapon_descriptions[0];
+            else if (slot == 1 && (player_weapons & (1 << WEAPON_GRAVEOLVER)))
+                desc = weapon_descriptions[1];
         }
         FntPrint(menu_fnt, desc);
         FntFlush(menu_fnt);

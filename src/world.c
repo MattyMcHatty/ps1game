@@ -5,6 +5,7 @@
 #include "crate.h"
 #include "key.h"
 #include "sml_med.h"
+#include "item_pickup.h"
 #include "door.h"
 
 #define WORLD_NUM_ROOMS 3   /* delivery_area, kitchen_dining, reception */
@@ -16,10 +17,11 @@ typedef struct {
 
     DemonDog  dogs[MAX_DEMON_DOGS];   int dog_count;
     Zombie    zombs[MAX_ZOMBIES];     int zomb_count;
-    Crate     crates[MAX_CRATES];     int crate_count;
-    KeyPickup keys[MAX_KEYS];         int key_count;
-    SmlMed    meds[MAX_SML_MEDS];     int med_count;
-    DoorState door_state;
+    Crate      crates[MAX_CRATES];         int crate_count;
+    KeyPickup  keys[MAX_KEYS];             int key_count;
+    SmlMed     meds[MAX_SML_MEDS];         int med_count;
+    ItemPickup items[MAX_ITEM_PICKUPS];    int item_count;
+    DoorState  door_state;
 } RoomState;
 
 static RoomState rooms[WORLD_NUM_ROOMS];
@@ -31,6 +33,7 @@ extern Zombie    zombies[MAX_ZOMBIES];         extern int zombie_count;
 extern Crate     crates[MAX_CRATES];           extern int crate_count;
 extern KeyPickup keys[MAX_KEYS];               extern int key_count;
 extern SmlMed    sml_meds[MAX_SML_MEDS];       extern int sml_med_count;
+extern ItemPickup item_pickups[MAX_ITEM_PICKUPS]; extern int item_pickup_count;
 extern DoorState door_state;
 
 static int room_index(GameState area) {
@@ -49,6 +52,7 @@ static void snapshot(RoomState *r) {
     memcpy(r->crates, crates,     sizeof crates);     r->crate_count = crate_count;
     memcpy(r->keys,   keys,       sizeof keys);       r->key_count   = key_count;
     memcpy(r->meds,   sml_meds,   sizeof sml_meds);   r->med_count   = sml_med_count;
+    memcpy(r->items,  item_pickups, sizeof item_pickups); r->item_count = item_pickup_count;
     r->door_state = door_state;
 }
 
@@ -59,6 +63,7 @@ static void restore(const RoomState *r) {
     memcpy(crates,     r->crates, sizeof crates);     crate_count     = r->crate_count;
     memcpy(keys,       r->keys,   sizeof keys);       key_count       = r->key_count;
     memcpy(sml_meds,   r->meds,   sizeof sml_meds);   sml_med_count   = r->med_count;
+    memcpy(item_pickups, r->items, sizeof item_pickups); item_pickup_count = r->item_count;
     door_state = r->door_state;
 }
 
@@ -88,6 +93,7 @@ void world_enter(GameState area) {
         memset(crates,     0, sizeof crates);     crate_count     = 0;
         memset(keys,       0, sizeof keys);       key_count       = 0;
         memset(sml_meds,   0, sizeof sml_meds);   sml_med_count   = 0;
+        memset(item_pickups, 0, sizeof item_pickups); item_pickup_count = 0;
         door_state = DOOR_LOCKED;
 
         /* Seed each room's resident enemies on first entry; they are then
@@ -102,6 +108,14 @@ void world_enter(GameState area) {
             /* Floating small medipac. sml_med_spawn adds SML_MED_FLOAT_Y, so
                this floats just above the floor at the requested spot. */
             sml_med_spawn(293, -149, -1399);
+        }
+
+        /* Reception: the Grave-olver gun and a box of Standard Rounds sit on top
+           of the dresser (at x=580, z=958, rotated 90° so its long axis runs
+           along Z), spaced 120 apart along that length and centred on it. */
+        if (area == STATE_RECEPTION) {
+            item_pickup_spawn(580, -149, 898,  PICKUP_GRAVEOLVER);
+            item_pickup_spawn(580, -149, 1018, PICKUP_ROUNDS);
         }
 
         r->visited = 1;

@@ -112,6 +112,8 @@
                 <file name="REDCRPT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\red_crpt.tim"/>
                 <file name="STOVE.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\stove.tim"/>
                 <file name="DRESSER.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\dresser.tim"/>
+                <file name="GRAVOLVR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\graveolver.tim"/>
+                <file name="STNDRNDS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\stnd_rnds.tim"/>
             </dir>
         </directory_tree>
     </track>

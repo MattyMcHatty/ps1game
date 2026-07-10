@@ -71,11 +71,16 @@ int dresser_add(int32_t x, int32_t y, int32_t z, int32_t rot_y) {
 }
 
 void dressers_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
-    (void)py;   /* placed on a single floor level per instance — no vertical gate */
     int i;
     for (i = 0; i < dresser_count; i++) {
         Dresser *d = &dressers[i];
         if (!d->active) continue;
+
+        /* Vertical gate: only collide when the player is on the dresser's floor.
+           Without this the player collides with a dresser on the level below/above
+           them (its footprint spans the whole vertical column). */
+        int32_t dy = py - d->y;
+        if ((dy < 0 ? -dy : dy) > DRESSER_HALF_H) continue;
 
         /* The dresser is elongated (390x100), so account for its Y rotation:
            the axis-aligned bound of the rotated footprint is

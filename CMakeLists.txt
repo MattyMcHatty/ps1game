@@ -42,6 +42,7 @@ add_executable(horror_game
     src/dresser.c
     src/texmgr.c
     src/key.c
+    src/item_pickup.c
     src/door.c
     src/demondog.c
     src/zombie.c

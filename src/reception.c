@@ -16,6 +16,7 @@
 #include "save_point.h"
 #include "dresser.h"
 #include "fatdoor.h"
+#include "item_pickup.h"
 #include "texmgr.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -477,6 +478,10 @@ void reception_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_reception_smd(ctx);
+    /* Floating collectibles (Grave-olver + rounds) in the room behind the fat
+       door. Billboards drawn in the active view matrix; their 64x64 sprites sit
+       at VRAM Voff 0 so the room's 128 texture window leaves their UVs intact. */
+    item_pickups_draw(ctx);
     /* Dresser props — reuse reception's resident wd_flr (slot 2) for their
        non-drawer faces and the room's 128 texture window set above; the module
        owns the drawer texture. Restores the view matrix before returning. */
