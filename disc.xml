@@ -116,6 +116,7 @@
                 <file name="DRESSER.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\dresser.tim"/>
                 <file name="GRAVOLVR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\graveolver.tim"/>
                 <file name="STNDRNDS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\stnd_rnds.tim"/>
+                <file name="GHIT.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\ghit.tim"/>
             </dir>
         </directory_tree>
     </track>

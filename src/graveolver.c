@@ -17,6 +17,7 @@
 #include "vampire.h"
 #include "particles.h"
 #include "sound.h"
+#include "bullet_hit.h"
 #include "graveolver.h"
 #include "weapon.h"
 
@@ -35,6 +36,8 @@ extern volatile size_t  pad_buff_len[2];
 #define GUN_DAMAGE         1   /* one crucifaxe hit                           */
 #define GUN_FLASH_FRAMES   4   /* white screen-flash duration                */
 #define GUN_INFINITE_AMMO  1   /* 1 = fire freely without spending rounds     */
+#define GUN_HIT_STEP      40   /* aim-ray march resolution for a wall impact  */
+#define GUN_HIT_BACKOFF   30   /* pull the hit sprite toward the camera a bit */
 
 /* Front OT layers for the screen-space overlays (lower = nearer the front;
    HUD owns 0/1, scene/weapon are >=16, so these sit between). */
@@ -134,6 +137,20 @@ static int under_reticule(int32_t ex, int32_t ey, int32_t ez,
     return 1;
 }
 
+/* March the aim ray forward and return the depth of the first wall/prop it hits
+   (or > GUN_RANGE if it reaches open space). Used to place the hit sprite when
+   no enemy is struck. */
+static int32_t ray_wall_depth(int32_t fx, int32_t fz) {
+    int32_t d;
+    for (d = GUN_HIT_STEP; d <= GUN_RANGE; d += GUN_HIT_STEP) {
+        int32_t px = cam_x + ((fx * d) >> 12);
+        int32_t pz = cam_z + ((fz * d) >> 12);
+        int32_t py = cam_y + (GUN_RETICULE_Y_OFF * d) / 256;
+        if (collision_point_blocked(px, py, pz, 8)) return d;
+    }
+    return GUN_RANGE + 1;
+}
+
 /* Fire one round: flash + hitscan the nearest enemy under the reticule. Returns
    1 if a round was spent. */
 static int graveolver_fire(void) {
@@ -168,15 +185,37 @@ static int graveolver_fire(void) {
         best_kind = 2;
     }
 
-    if (best_kind == 0) {
-        damage_dog(&demon_dogs[best_idx]);
-    } else if (best_kind == 1) {
-        damage_zombie(&zombies[best_idx]);
-    } else if (best_kind == 2) {
-        vampire_health   -= GUN_DAMAGE;
-        vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
-        if (vampire_health <= 0)
-            spawn_blood_burst(vampire_x, vampire_y, vampire_z);
+    int32_t hit_depth;
+    if (best_kind >= 0) {
+        /* An enemy under the reticule (LOS already clear, so it's in front of any
+           wall behind it). Apply damage; the impact is at the enemy's depth. */
+        if (best_kind == 0) {
+            damage_dog(&demon_dogs[best_idx]);
+        } else if (best_kind == 1) {
+            damage_zombie(&zombies[best_idx]);
+        } else {
+            vampire_health   -= GUN_DAMAGE;
+            vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
+            if (vampire_health <= 0)
+                spawn_blood_burst(vampire_x, vampire_y, vampire_z);
+        }
+        hit_depth = best_depth;
+    } else {
+        /* No enemy — the shot lands on the first wall/prop, or flies off into the
+           open (no impact sprite in that case). */
+        hit_depth = ray_wall_depth(fx, fz);
+        if (hit_depth > GUN_RANGE) return 1;
+    }
+
+    /* Spawn the hit sprite at the impact, pulled slightly toward the camera so it
+       sits in front of the struck surface rather than inside it. */
+    {
+        int32_t d = hit_depth - GUN_HIT_BACKOFF;
+        if (d < 1) d = 1;
+        int32_t hx = cam_x + ((fx * d) >> 12);
+        int32_t hz = cam_z + ((fz * d) >> 12);
+        int32_t hy = cam_y + (GUN_RETICULE_Y_OFF * d) / 256;
+        bullet_hit_spawn(hx, hy, hz);
     }
     return 1;
 }

@@ -26,6 +26,7 @@
 #include "dresser.h"
 #include "key.h"
 #include "item_pickup.h"
+#include "bullet_hit.h"
 #include "door.h"
 #include "demondog.h"
 #include "zombie.h"
@@ -73,6 +74,7 @@ void reset_game(RenderContext *ctx) {
     vampire_health   = VAMPIRE_MAX_HEALTH;
     vampire_hit_timer = 0;
     reset_particles();
+    bullet_hits_reset();
     kitchen_stove_reset();
     {
         int k;
@@ -151,6 +153,7 @@ static void update_current_area(GameState area) {
     }
     weapons_update();
     update_particles();
+    bullet_hits_update();
 }
 
 /* Draw an area's world + entities only (player overlays come separately). */
@@ -167,6 +170,7 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
    weapon, the health/stamina HUD, and the debug collision view. */
 static void draw_player_systems(RenderContext *ctx) {
     draw_particles(ctx);
+    bullet_hits_draw(ctx);  /* brief impact sprites (world-space billboards) */
     weapons_draw(ctx);
     draw_hud(ctx);
 #ifdef DEBUG_COLLISION
@@ -290,6 +294,7 @@ int main(int argc, const char **argv) {
     keys_init();
     sml_meds_init();
     item_pickups_load_textures();  /* Grave-olver + rounds sprites (LoadImage: startup only) */
+    bullet_hits_load_texture();    /* bullet-impact sprite (resident, all levels) */
     door_init();
     demon_dogs_init();
     zombies_load_textures();   /* LoadImage at startup only (see TEXTURING_NOTES) */
