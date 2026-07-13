@@ -44,6 +44,40 @@ int collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius) {
     return 1;
 }
 
+int collision_point_blocked(int32_t x, int32_t y, int32_t z, int32_t radius) {
+    CollisionRoom *r = &current_collision_room;
+    int i;
+
+    /* Room bounds — a projectile that leaves the level is blocked. */
+    if (x < r->min_x || x > r->max_x || z < r->min_z || z > r->max_z)
+        return 1;
+
+    /* Walls, Y-aware: skip walls whose vertical span (y_min = top, y_max =
+       bottom) doesn't contain the point, so a shot isn't stopped by a wall on a
+       different floor. collide_wall returns 1 when the point is within `radius`
+       of the wall's front face (and along its length). */
+    for (i = 0; i < r->wall_count; i++) {
+        Wall *w = &r->walls[i];
+        if (w->y_min != w->y_max && (y < w->y_min || y > w->y_max)) continue;
+        int32_t tx = x, tz = z;
+        if (collide_wall(w, &tx, &tz, radius)) return 1;
+    }
+
+    /* Solid props: reuse each prop's push-collision as a hit test — if the
+       point gets pushed, it was inside the prop. These are destructible or
+       static objects (crates, fat doors, dressers, tables); the caller decides
+       whether to damage them (a round does not). */
+    {
+        int32_t tx, tz;
+        tx = x; tz = z; crates_collide(&tx, y, &tz, radius);        if (tx != x || tz != z) return 1;
+        tx = x; tz = z; fatdoors_collide(&tx, y, &tz, radius);      if (tx != x || tz != z) return 1;
+        tx = x; tz = z; dressers_collide(&tx, y, &tz, radius);      if (tx != x || tz != z) return 1;
+        tx = x; tz = z; dining_tables_collide(&tx, y, &tz, radius); if (tx != x || tz != z) return 1;
+    }
+
+    return 0;
+}
+
 void apply_collision(void) {
     CollisionRoom *r = &current_collision_room;
     int32_t radius = 175;

@@ -51,6 +51,11 @@ void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ram
    only — the same scheme apply_collision_kitchen_dining() uses for the player. */
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius);
 
+/* Point-vs-world test for projectiles: returns 1 if (x,y,z) is inside/near a
+   wall or any solid prop (crate, fat door, dresser, table) within `radius`, or
+   outside the room bounds. Does NOT modify anything or deal damage. */
+int  collision_point_blocked(int32_t x, int32_t y, int32_t z, int32_t radius);
+
 /* -----------------------------------------------------------------------
  * Floor / height zones
  * ----------------------------------------------------------------------- */

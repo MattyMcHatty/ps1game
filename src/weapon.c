@@ -48,10 +48,12 @@ void weapons_update(void) {
     l2_prev = l2_held;
 
     /* Route to the equipped weapon's update. The crucifaxe's melee swing only
-       runs while it is equipped (a gun can't chop crates/doors). The grave-olver
-       has no update yet — firing comes next. */
+       runs while it is equipped (a gun can't chop crates/doors); the grave-olver
+       fires rounds. */
     if (current_weapon == WEAPON_CRUCIFAXE)
         update_crucifaxe();
+    else if (current_weapon == WEAPON_GRAVEOLVER)
+        graveolver_update();
 }
 
 void weapons_draw(RenderContext *ctx) {

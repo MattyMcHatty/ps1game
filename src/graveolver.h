@@ -7,6 +7,7 @@
    (flat-shaded SMD in view space). Firing/recoil is not implemented yet — for
    now it just holds the model in a rest pose so weapon switching can be tested. */
 void graveolver_init(void);              /* load the model (startup) */
+void graveolver_update(void);            /* Square fires a round (while equipped) */
 void draw_graveolver(RenderContext *ctx);
 
 #endif
