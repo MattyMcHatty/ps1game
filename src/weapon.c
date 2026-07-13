@@ -78,6 +78,41 @@ void weapon_render_model(RenderContext *ctx, SMD *smd, MATRIX *weapon_vs,
     uint8_t *p       = (uint8_t *)smd->p_prims;
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     int pi;
+
+    /* Pass 1 — find this model's near/far OT range. The weapon has no depth
+       buffer, so correct occlusion depends entirely on spreading its faces
+       across OT buckets by depth. It must also stay in FRONT of world geometry
+       (min OT ~41 = raw +40), which leaves too few buckets to use raw depth
+       directly, and simply clamping to one bucket makes a solid model look
+       see-through (back faces draw over front faces). So we measure the range
+       here and remap it into a dedicated front band below. Same validity check
+       as the emit pass. */
+    int32_t min_otz = 0x7fffffff, max_otz = 0;
+    for (pi = 0; pi < smd->n_prims; pi++) {
+        SMD_PRI_TYPE *pt     = (SMD_PRI_TYPE *)p;
+        uint8_t       stride = pt->len;
+        uint16_t     *vi     = (uint16_t *)(p + 4);
+        int32_t sz[4], otz;
+        gte_ldv3(&smd->p_verts[vi[0]], &smd->p_verts[vi[1]], &smd->p_verts[vi[2]]);
+        gte_rtpt();
+        gte_stsz4c(sz);
+        if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) { p += stride; continue; }
+        if (pt->type >= 2) { gte_ldv0(&smd->p_verts[vi[3]]); gte_rtps(); gte_avsz4(); }
+        else               { gte_avsz3(); }
+        gte_stotz(&otz);
+        if (otz < min_otz) min_otz = otz;
+        if (otz > max_otz) max_otz = otz;
+        p += stride;
+    }
+    int32_t otz_span = max_otz - min_otz;
+    if (otz_span < 1) otz_span = 1;
+
+    /* Pass 2 — project again and emit, remapping each face's depth linearly into
+       the front band [SCENE_OT_MIN, SCENE_OT_MIN + WEAPON_OT_SPAN]. Nearest face
+       -> lowest index (drawn last, on top); band max stays below world geometry
+       so the weapon is always in front. */
+    #define WEAPON_OT_SPAN 24   /* band 16..40; world geometry starts at ~41 */
+    p = (uint8_t *)smd->p_prims;
     for (pi = 0; pi < smd->n_prims; pi++) {
         SMD_PRI_TYPE *pt      = (SMD_PRI_TYPE *)p;
         uint8_t       stride  = pt->len;
@@ -104,11 +139,9 @@ void weapon_render_model(RenderContext *ctx, SMD *smd, MATRIX *weapon_vs,
             gte_avsz3();
         }
         gte_stotz(&otz);
-        /* Compress to a very low OT range so the weapon always renders in front
-           of dogs, items and geometry (all at higher OT indices). Faces still
-           sort relative to each other. */
-        otz >>= 4;
-        if (otz < SCENE_OT_MIN) otz = SCENE_OT_MIN;
+        otz = SCENE_OT_MIN + ((otz - min_otz) * WEAPON_OT_SPAN) / otz_span;
+        if (otz < SCENE_OT_MIN)                    otz = SCENE_OT_MIN;
+        if (otz > SCENE_OT_MIN + WEAPON_OT_SPAN)   otz = SCENE_OT_MIN + WEAPON_OT_SPAN;
 
         /* Per-face normal shading: 40% ambient + primary + dim fill. */
         uint16_t n0_idx = *(uint16_t *)(p + 12);
