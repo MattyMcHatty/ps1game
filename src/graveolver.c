@@ -178,6 +178,7 @@ static int crosshair_clear(int32_t fx, int32_t fz, int32_t depth) {
    caller has already confirmed a round is chambered and spends it. */
 static void graveolver_fire(void) {
     muzzle_flash = GUN_FLASH_FRAMES;
+    sound_play(SFX_GR_SHOT);
 
     int32_t fx = isin(cam_rot), fz = icos(cam_rot);
     int      best_kind = -1, best_idx = -1;
@@ -273,6 +274,7 @@ void graveolver_update(void) {
     } else if (player_rounds > 0) {
         /* Empty cylinder + trigger pull with rounds in reserve: start reloading. */
         reload_timer = GRAV_RELOAD_FRAMES;
+        sound_play(SFX_GR_RELOAD);
     }
 }
 

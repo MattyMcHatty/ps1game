@@ -97,6 +97,8 @@
                 <file name="ZOMBIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\zombie.vag"/>
                 <file name="ZOMBDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\ZOMBIEDIE.vag"/>
                 <file name="DIE.VAG"     type="data" source="C:\Users\virtu\Documents\ps1game\sounds\DIE.vag"/>
+                <file name="GRSHOT.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\gr_shot.vag"/>
+                <file name="GRRELOAD.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\gr_reload.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

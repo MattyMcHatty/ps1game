@@ -16,7 +16,9 @@ typedef enum {
     SFX_ZOMBIE   = 9,   /* zombie groan, looped while a zombie is alert */
     SFX_ZOMBIEDIE = 10, /* zombie death */
     SFX_DIE       = 11, /* player death */
-    SFX_COUNT    = 12,
+    SFX_GR_SHOT   = 12, /* grave-olver gunshot */
+    SFX_GR_RELOAD = 13, /* grave-olver reload */
+    SFX_COUNT    = 14,
 } SfxID;
 
 void sound_init(void);
