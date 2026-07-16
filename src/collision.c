@@ -76,6 +76,12 @@ int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
        thousand units, so the 2D cross products fit comfortably in 32 bits. */
     for (i = 0; i < r->wall_count; i++) {
         Wall *w = &r->walls[i];
+
+        /* Low walls the gun shoots over (e.g. the kitchen counter): the player
+           still collides with them, but a shot passes so enemies on the far
+           side are hittable. */
+        if (i < 32 && ((r->shoot_over_mask >> i) & 1u)) continue;
+
         int32_t sx = w->x2 - w->x1;
         int32_t sz = w->z2 - w->z1;
 

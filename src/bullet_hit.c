@@ -11,7 +11,7 @@
 static BulletHit hits[MAX_BULLET_HITS];
 
 #define BULLET_HIT_LIFE   10   /* frames the sprite shows (brief) */
-#define BULLET_HIT_HALF   45   /* world-space half size for depth scaling */
+#define BULLET_HIT_HALF   22   /* world-space half size for depth scaling */
 
 /* VRAM sprite handle (ghit.tim). */
 static uint16_t ghit_tpage = 0;
@@ -98,8 +98,8 @@ void bullet_hits_draw(RenderContext *ctx) {
         int32_t wdist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
         if (wdist < 1) wdist = 1;
         int32_t half = (BULLET_HIT_HALF * 256) / wdist;
-        if (half < 2)  half = 2;
-        if (half > 48) half = 48;
+        if (half < 1)  half = 1;
+        if (half > 24) half = 24;
 
         POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
         setPolyFT4(poly);

@@ -12,6 +12,7 @@ int     damage_timer  = 0;
 int     player_keys   = 0;
 int     player_weapons = (1 << WEAPON_CRUCIFAXE);  /* crucifaxe always owned */
 int     player_rounds  = 0;
+int     graveolver_loaded = GRAVEOLVER_CAPACITY;   /* cylinder starts loaded */
 WeaponType current_weapon = WEAPON_CRUCIFAXE;
 
 PickupEntry pickup_log[PICKUP_MSG_COUNT] = {{{""},0},{{""},0},{{""},0}};
@@ -30,6 +31,40 @@ void show_pickup_msg(const char *item_name) {
     while (item_name[j] && i < 63)  { pickup_log[2].msg[i++] = item_name[j++]; }
     pickup_log[2].msg[i] = '\0';
     pickup_log[2].timer  = PICKUP_MSG_DURATION;
+}
+
+/* 3x5 bitmap digits (bit2 = leftmost pixel of each row). */
+static const uint8_t hud_digit_font[10][5] = {
+    {7,5,5,5,7},{2,6,2,2,7},{7,1,7,4,7},{7,1,7,1,7},{5,5,7,1,1},
+    {7,4,7,1,7},{7,4,7,5,7},{7,1,2,4,4},{7,5,7,5,7},{7,5,7,1,7},
+};
+
+/* Draw an unsigned number as scaled pixels, top-left at (x, y). */
+static void hud_draw_number(RenderContext *ctx, int value, int x, int y, int scale,
+                            uint8_t r, uint8_t g, uint8_t b) {
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    char buf[8];
+    int  n = 0, i, digit_w = 3 * scale, gap = scale;
+    if (value < 0) value = 0;
+    if (value == 0) buf[n++] = 0;
+    else { int v = value; while (v > 0 && n < 7) { buf[n++] = (char)(v % 10); v /= 10; } }
+    for (i = 0; i < n; i++) {
+        int digit = buf[i];
+        int x0 = x + (n - 1 - i) * (digit_w + gap);
+        int row, col;
+        for (row = 0; row < 5; row++)
+            for (col = 0; col < 3; col++)
+                if (hud_digit_font[digit][row] & (4 >> col)) {
+                    if (ctx->next_packet + sizeof(TILE) > buf_end) return;
+                    TILE *t = (TILE *)ctx->next_packet;
+                    setTile(t);
+                    setRGB0(t, r, g, b);
+                    setXY0(t, x0 + col * scale, y + row * scale);
+                    setWH(t, scale, scale);
+                    addPrim(&ctx->buffers[ctx->active_buffer].ot[0], t);
+                    ctx->next_packet += sizeof(TILE);
+                }
+    }
 }
 
 void draw_hud(RenderContext *ctx) {
@@ -83,4 +118,8 @@ void draw_hud(RenderContext *ctx) {
         addPrim(&ctx->buffers[ctx->active_buffer].ot[0], sbar);
         ctx->next_packet += sizeof(TILE);
     }
+
+    /* Grave-olver cylinder count, under the bars (only once the gun is owned). */
+    if (player_weapons & (1 << WEAPON_GRAVEOLVER))
+        hud_draw_number(ctx, graveolver_loaded, 5, 29, 2, 255, 220, 0);
 }

@@ -39,6 +39,10 @@ typedef struct {
        by geometry on a different level. 0 for flat rooms (kitchen), whose per-
        wall Y values are debug-visualisation only and must not gate shots. */
     int     multi_level;
+    /* Bitmask of low walls (indices 0-31) the gun shoots OVER: they still block
+       the player, but a hitscan ignores them so you can fire across a low
+       counter and hit enemies on the far side. */
+    uint32_t shoot_over_mask;
 } CollisionRoom;
 
 extern CollisionRoom current_collision_room;

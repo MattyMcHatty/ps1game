@@ -37,8 +37,9 @@ extern volatile size_t  pad_buff_len[2];
 #define GUN_PROJ_H        256  /* projection distance — matches gte_SetGeomScreen*/
 #define GUN_DAMAGE         1   /* one crucifaxe hit                           */
 #define GUN_FLASH_FRAMES   4   /* white screen-flash duration                */
-#define GUN_INFINITE_AMMO  1   /* 1 = fire freely without spending rounds     */
 #define GUN_HIT_BACKOFF   30   /* pull the hit sprite toward the camera a bit */
+#define GRAV_RELOAD_FRAMES 180 /* 3 s at 60 fps                               */
+#define GRAV_RELOAD_DROP  260  /* view-space Y the model drops off-screen     */
 
 /* Front OT layers for the screen-space overlays (lower = nearer the front;
    HUD owns 0/1, scene/weapon are >=16, so these sit between). */
@@ -49,6 +50,7 @@ extern volatile size_t  pad_buff_len[2];
 static SMD  *graveolver_smd  = NULL;
 static void *graveolver_buff = NULL;
 static int   muzzle_flash     = 0;
+static int   reload_timer     = 0;   /* counts down GRAV_RELOAD_FRAMES while reloading */
 
 /* --- Hold pose (view space), all easily tunable ------------------------------
    The model's long axis is X (the barrel), so a ~90 deg yaw points it into the
@@ -172,13 +174,9 @@ static int crosshair_clear(int32_t fx, int32_t fz, int32_t depth) {
     return !collision_segment_blocked(cam_x, cam_y, cam_z, px, py, pz);
 }
 
-/* Fire one round: flash + hitscan the nearest enemy under the reticule. Returns
-   1 if a round was spent. */
-static int graveolver_fire(void) {
-#if !GUN_INFINITE_AMMO
-    if (player_rounds <= 0) return 0;
-    player_rounds--;
-#endif
+/* Fire one round: flash + hitscan the nearest enemy under the reticule. The
+   caller has already confirmed a round is chambered and spends it. */
+static void graveolver_fire(void) {
     muzzle_flash = GUN_FLASH_FRAMES;
 
     int32_t fx = isin(cam_rot), fz = icos(cam_rot);
@@ -212,7 +210,7 @@ static int graveolver_fire(void) {
     /* Nothing hittable in the circle (or a wall/prop was the nearest thing under
        it): no damage, no impact sprite — ghit only marks enemy hits. */
     if (best_kind < 0)
-        return 1;
+        return;
 
     if (best_kind == 0) {
         damage_dog(&demon_dogs[best_idx]);
@@ -235,7 +233,6 @@ static int graveolver_fire(void) {
         int32_t hy = cam_y + (GUN_RETICULE_Y_OFF * d) / 256;
         bullet_hit_spawn(hx, hy, hz);
     }
-    return 1;
 }
 
 void graveolver_update(void) {
@@ -253,9 +250,29 @@ void graveolver_update(void) {
     int square_just = square_held && !square_prev;
     square_prev = square_held;
 
-    if (game_state != STATE_MENU && square_just && cooldown == 0) {
-        if (graveolver_fire())
-            cooldown = GRAV_FIRE_COOLDOWN;
+    /* A reload is running: count it down and, when finished, top the cylinder up
+       from the reserve. No firing until it completes. */
+    if (reload_timer > 0) {
+        reload_timer--;
+        if (reload_timer == 0) {
+            int need = GRAVEOLVER_CAPACITY - graveolver_loaded;
+            int take = need < player_rounds ? need : player_rounds;
+            graveolver_loaded += take;
+            player_rounds     -= take;
+        }
+        return;
+    }
+
+    if (game_state == STATE_MENU || !square_just || cooldown != 0)
+        return;
+
+    if (graveolver_loaded > 0) {
+        graveolver_fire();
+        graveolver_loaded--;
+        cooldown = GRAV_FIRE_COOLDOWN;
+    } else if (player_rounds > 0) {
+        /* Empty cylinder + trigger pull with rounds in reserve: start reloading. */
+        reload_timer = GRAV_RELOAD_FRAMES;
     }
 }
 
@@ -276,12 +293,25 @@ static void screen_tile(RenderContext *ctx, int x, int y, int w, int h,
 void draw_graveolver(RenderContext *ctx) {
     if (!graveolver_smd) return;
 
+    /* Reload dip: over the reload the model drops off the bottom of the screen
+       (first third), stays down (middle third), then rises back (last third).
+       +Y is down in view space, so add the drop to the hold-pose Y. */
+    int32_t drop = 0;
+    if (reload_timer > 0) {
+        int32_t third   = GRAV_RELOAD_FRAMES / 3;
+        int32_t elapsed = GRAV_RELOAD_FRAMES - reload_timer;
+        if (elapsed < third)          drop = (GRAV_RELOAD_DROP * elapsed) / third;
+        else if (elapsed < 2 * third) drop = GRAV_RELOAD_DROP;
+        else                          drop = (GRAV_RELOAD_DROP *
+                                              (GRAV_RELOAD_FRAMES - elapsed)) / third;
+    }
+
     /* The held model. */
     SVECTOR rot = {GRAV_ROT_X, GRAV_ROT_Y, GRAV_ROT_Z, 0};
     MATRIX  weapon_vs;
     RotMatrix(&rot, &weapon_vs);
     weapon_vs.t[0] = GRAV_VS_X;
-    weapon_vs.t[1] = GRAV_VS_Y;
+    weapon_vs.t[1] = GRAV_VS_Y + drop;
     weapon_vs.t[2] = GRAV_VS_Z;
     weapon_render_model(ctx, graveolver_smd, &weapon_vs, GRAV_BRIGHTNESS);
 

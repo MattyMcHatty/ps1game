@@ -12,6 +12,10 @@
 void kitchen_dining_collision_init(CollisionRoom *r) {
     r->wall_count = KITCHEN_DINING_WALL_COUNT;
     r->multi_level = 0;   /* flat room; per-wall Y is debug-viz only */
+    /* Walls 0-3 are the central counter box (FLOOR 0 at y=-208 is its raised
+       top). It's low, so the gun shoots over it — exempt those walls from the
+       hitscan while they still block the player. */
+    r->shoot_over_mask = 0x0F;
     r->min_x = -3294;
     r->max_x = 600;
     r->min_z = -1699;

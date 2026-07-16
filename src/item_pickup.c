@@ -87,6 +87,7 @@ void item_pickups_reset(void) {
     item_pickup_count = 0;
     player_weapons = (1 << WEAPON_CRUCIFAXE);
     player_rounds  = 0;
+    graveolver_loaded = GRAVEOLVER_CAPACITY;
     current_weapon = WEAPON_CRUCIFAXE;
 }
 

@@ -18,6 +18,7 @@
 void delivery_area_collision_init(CollisionRoom *r) {
     r->wall_count = DELIVERY_AREA_WALL_COUNT;
     r->multi_level = 1;   /* real per-wall Y data; ramp + upper floor */
+    r->shoot_over_mask = 0;   /* no shoot-over walls here */
     r->min_x = -5451;
     r->max_x = 1800;
     r->min_z = -1799;

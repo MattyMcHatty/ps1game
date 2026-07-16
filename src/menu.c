@@ -435,6 +435,10 @@ void menu_draw(RenderContext *ctx) {
             if (i == 1 && (player_weapons & (1 << WEAPON_GRAVEOLVER))) {
                 draw_icon(ctx, wx, wy, ICON_SIZE, grav_tpage, grav_clut,
                           grav_u0, grav_v0, grav_u1, grav_v1, OT_ICON);
+                /* Loaded-round count, yellow, tucked into the icon's bottom-right
+                   (single digit: cylinder holds at most GRAVEOLVER_CAPACITY). */
+                draw_number(ctx, wx + ICON_SIZE - 3 * 2, wy + ICON_SIZE,
+                            graveolver_loaded, 2, OT_COUNT);
             }
         }
     }

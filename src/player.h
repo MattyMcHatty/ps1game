@@ -21,10 +21,12 @@ typedef enum {
 } WeaponType;
 
 extern int player_weapons;     /* bitmask — bit WEAPON_* set means it is owned */
-extern int player_rounds;      /* count of standard rounds held (Grave-olver ammo) */
+extern int player_rounds;      /* reserve rounds held (used to reload the cylinder) */
+extern int graveolver_loaded;  /* rounds currently in the Grave-olver cylinder (0..6) */
 extern WeaponType current_weapon;  /* the equipped weapon; L2 cycles owned ones */
 
-#define ROUNDS_PER_PICKUP 6    /* rounds granted by one Standard Rounds pickup */
+#define ROUNDS_PER_PICKUP  100  /* rounds granted by one Standard Rounds pickup */
+#define GRAVEOLVER_CAPACITY  6  /* rounds the Grave-olver cylinder holds at once */
 
 #define PICKUP_MSG_DURATION 120  /* frames (~2 seconds at 60fps) */
 #define PICKUP_MSG_COUNT    3
