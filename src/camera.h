@@ -14,6 +14,9 @@ extern int32_t cam_rot;
 extern int sprint_stamina;        /* remaining sprint frames; 0 = exhausted      */
 extern int sprint_cooldown;       /* 1 = sprint locked until bar fully refills   */
 
+extern int     aiming;            /* 1 while L2 aiming (player movement frozen)   */
+extern int32_t aim_x, aim_y;      /* crosshair screen position (moves while aiming) */
+
 void update_camera(void);
 void camera_set_view_matrix(void);   /* load GTE with the camera view (for debug overlays) */
 void apply_collision(void);

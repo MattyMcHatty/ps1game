@@ -43,12 +43,16 @@ extern volatile size_t  pad_buff_len[2];
 #define GRAV_RELOAD_PITCH 800  /* muzzle-down tilt at full reload dip (angle)  */
 #define GRAV_RECOIL_FRAMES  7  /* recoil kick duration in frames              */
 #define GRAV_RECOIL_PITCH 320  /* muzzle-up tilt at the instant of firing      */
+#define GRAV_AIM_YAW      110  /* model yaw per 100px of LEFT aim offset         */
+#define GRAV_AIM_YAW_R    420  /* stronger yaw per 100px of RIGHT offset: the
+                                  rest pose already angles left, so aiming right
+                                  needs extra rotation to compensate            */
+#define GRAV_AIM_PITCH    110  /* model pitch per 100px of vertical aim offset  */
 
 /* Front OT layers for the screen-space overlays (lower = nearer the front;
    HUD owns 0/1, scene/weapon are >=16, so these sit between). */
 #define OT_GUN_FLASH     2
 #define OT_GUN_RETICULE  3
-#define GUN_RETICULE_Y_OFF 20   /* pixels below screen centre (~an inch) */
 
 static SMD  *graveolver_smd  = NULL;
 static void *graveolver_buff = NULL;
@@ -108,9 +112,22 @@ static void damage_zombie(Zombie *z) {
     }
 }
 
-/* Crosshair centre in screen pixels (below screen centre by the reticule drop). */
-static int gun_crosshair_x(void) { return SCREEN_XRES / 2; }
-static int gun_crosshair_y(void) { return SCREEN_YRES / 2 + GUN_RETICULE_Y_OFF; }
+/* Crosshair centre in screen pixels — its live position (moves while aiming). */
+static int gun_crosshair_x(void) { return aim_x; }
+static int gun_crosshair_y(void) { return aim_y; }
+
+/* World point along the crosshair line at forward distance `depth`. Back-projects
+   the crosshair's screen offset from centre into view X (perp) and view Y, then
+   places it: forward*depth + right*viewX, with viewY straight down. Generalises
+   the aim ray for an off-centre (aimed) crosshair. */
+static void crosshair_ray_point(int32_t fx, int32_t fz, int32_t depth,
+                                int32_t *px, int32_t *py, int32_t *pz) {
+    int32_t view_x = ((aim_x - SCREEN_XRES / 2) * depth) / GUN_PROJ_H;
+    int32_t view_y = ((aim_y - SCREEN_YRES / 2) * depth) / GUN_PROJ_H;
+    *px = cam_x + ((fx * depth) >> 12) + ((fz * view_x) >> 12);   /* right = (fz,-fx) */
+    *pz = cam_z + ((fz * depth) >> 12) - ((fx * view_x) >> 12);
+    *py = cam_y + view_y;
+}
 
 /* Squared pixel distance from the crosshair to the screen-space segment A-B. */
 static int32_t crosshair_seg_dist2(int ax, int ay, int bx, int by) {
@@ -172,9 +189,8 @@ static int enemy_in_circle(int32_t ex, int32_t cyc, int32_t ez, int32_t hh,
    sits nearer than the target under the crosshair (so a closer table blocks the
    shot even when the enemy is still inside the circle). */
 static int crosshair_clear(int32_t fx, int32_t fz, int32_t depth) {
-    int32_t px = cam_x + ((fx * depth) >> 12);
-    int32_t pz = cam_z + ((fz * depth) >> 12);
-    int32_t py = cam_y + (GUN_RETICULE_Y_OFF * depth) / 256;
+    int32_t px, py, pz;
+    crosshair_ray_point(fx, fz, depth, &px, &py, &pz);
     return !collision_segment_blocked(cam_x, cam_y, cam_z, px, py, pz);
 }
 
@@ -234,11 +250,14 @@ static void graveolver_fire(void) {
     {
         int32_t d = best_depth - GUN_HIT_BACKOFF;
         if (d < 1) d = 1;
-        int32_t hx = cam_x + ((fx * d) >> 12);
-        int32_t hz = cam_z + ((fz * d) >> 12);
-        int32_t hy = cam_y + (GUN_RETICULE_Y_OFF * d) / 256;
+        int32_t hx, hy, hz;
+        crosshair_ray_point(fx, fz, d, &hx, &hy, &hz);
         bullet_hit_spawn(hx, hy, hz);
     }
+}
+
+int graveolver_is_reloading(void) {
+    return reload_timer > 0;
 }
 
 void graveolver_update(void) {
@@ -326,9 +345,20 @@ void draw_graveolver(RenderContext *ctx) {
     int32_t reload_pitch = -(GRAV_RELOAD_PITCH * pitch_drop) / GRAV_RELOAD_DROP;
     int32_t recoil_pitch =  (GRAV_RECOIL_PITCH * recoil_timer) / GRAV_RECOIL_FRAMES;
 
+    /* Aim-follow: while aiming, angle the model toward the crosshair — yaw with
+       its horizontal offset from centre, pitch with its vertical offset (down
+       crosshair => muzzle down, matching the reload/recoil pitch sign). */
+    int32_t aim_yaw = 0, aim_pitch = 0;
+    if (aiming) {
+        int32_t dx = aim_x - SCREEN_XRES / 2;
+        int32_t yaw_gain = (dx > 0) ? GRAV_AIM_YAW_R : GRAV_AIM_YAW;
+        aim_yaw   =  (dx * yaw_gain) / 100;
+        aim_pitch = -((aim_y - SCREEN_YRES / 2) * GRAV_AIM_PITCH) / 100;
+    }
+
     /* The held model. */
-    SVECTOR rot = {GRAV_ROT_X + (int16_t)(reload_pitch + recoil_pitch),
-                   GRAV_ROT_Y, GRAV_ROT_Z, 0};
+    SVECTOR rot = {GRAV_ROT_X + (int16_t)(reload_pitch + recoil_pitch + aim_pitch),
+                   GRAV_ROT_Y + (int16_t)aim_yaw, GRAV_ROT_Z, 0};
     MATRIX  weapon_vs;
     RotMatrix(&rot, &weapon_vs);
     weapon_vs.t[0] = GRAV_VS_X;
@@ -339,9 +369,9 @@ void draw_graveolver(RenderContext *ctx) {
     /* Overlays are hidden behind the inventory menu, so skip them there. */
     if (game_state == STATE_MENU) return;
 
-    /* Aiming reticule: a white cross with a centre gap, nudged below centre. */
+    /* Aiming reticule: a white cross with a centre gap at the crosshair. */
     {
-        int cx = SCREEN_XRES / 2, cy = SCREEN_YRES / 2 + GUN_RETICULE_Y_OFF;
+        int cx = aim_x, cy = aim_y;
         screen_tile(ctx, cx - 14, cy - 1, 8, 2, 255, 255, 255, OT_GUN_RETICULE);
         screen_tile(ctx, cx +  6, cy - 1, 8, 2, 255, 255, 255, OT_GUN_RETICULE);
         screen_tile(ctx, cx - 1, cy - 14, 2, 8, 255, 255, 255, OT_GUN_RETICULE);

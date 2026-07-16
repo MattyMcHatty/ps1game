@@ -5,6 +5,8 @@
 #include <inline_c.h>
 #include "camera.h"
 #include "collision.h"
+#include "player.h"    /* current_weapon, SCREEN_* (via render.h) */
+#include "graveolver.h"  /* graveolver_is_reloading */
 #include "title.h"
 
 int32_t cam_x   = 0;
@@ -14,6 +16,19 @@ int32_t cam_z   = 0;
 int32_t cam_rot = 0;
 int sprint_stamina  = SPRINT_STAMINA_MAX;
 int sprint_cooldown = 0;
+
+/* Aiming: hold L2 with the grave-olver to reposition the crosshair. While
+   aiming the player is rooted (walk + turn disabled) and the d-pad drives the
+   crosshair; releasing L2 recentres it and frees movement. aim_x/aim_y are the
+   crosshair's live screen position, read by the gun's hitscan and reticule. */
+#define AIM_REST_X     (SCREEN_XRES / 2)
+#define AIM_REST_Y     (SCREEN_YRES / 2 + 20)   /* rests a touch below centre */
+#define AIM_MOVE_SPEED 3     /* crosshair pixels per frame                     */
+#define AIM_MARGIN     10    /* keep the crosshair this far from screen edges  */
+#define AIM_MAX_Y   ((SCREEN_YRES * 4) / 5)  /* lowest crosshair: 20% up from bottom */
+int     aiming = 0;
+int32_t aim_x  = AIM_REST_X;
+int32_t aim_y  = AIM_REST_Y;
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -39,6 +54,38 @@ void update_camera(void) {
 
     PadResponse *pad = (PadResponse *)pad_buff[0];
     uint16_t btn = ~pad->btn;
+
+    /* Aiming mode: the d-pad drives the crosshair and the player is frozen.
+       Starting a reload cancels aiming, and a reload can't be aimed through — you
+       must release L2 and press it again after it finishes (edge-triggered start,
+       so holding L2 across the whole reload does not re-arm the aim). */
+    static int aim_prev_held = 0;
+    int aim_held  = (btn & PAD_L2) ? 1 : 0;
+    int has_gun   = (current_weapon == WEAPON_GRAVEOLVER);
+    int reloading = graveolver_is_reloading();
+
+    if (aiming) {
+        if (reloading || !has_gun || !aim_held) {
+            aiming = 0;
+            aim_x  = AIM_REST_X;
+            aim_y  = AIM_REST_Y;
+        }
+    } else if (has_gun && !reloading && aim_held && !aim_prev_held) {
+        aiming = 1;
+    }
+    aim_prev_held = aim_held;
+
+    if (aiming) {
+        if (btn & PAD_UP)    aim_y -= AIM_MOVE_SPEED;
+        if (btn & PAD_DOWN)  aim_y += AIM_MOVE_SPEED;
+        if (btn & PAD_LEFT)  aim_x -= AIM_MOVE_SPEED;
+        if (btn & PAD_RIGHT) aim_x += AIM_MOVE_SPEED;
+        if (aim_x < AIM_MARGIN)                aim_x = AIM_MARGIN;
+        if (aim_x > SCREEN_XRES - AIM_MARGIN)  aim_x = SCREEN_XRES - AIM_MARGIN;
+        if (aim_y < AIM_MARGIN)                aim_y = AIM_MARGIN;
+        if (aim_y > AIM_MAX_Y)                 aim_y = AIM_MAX_Y;
+        goto debug_toggle;   /* skip all walk/turn/sprint while aiming */
+    }
 
     if (btn & PAD_LEFT)  cam_rot = (cam_rot - 32) & 4095;
     if (btn & PAD_RIGHT) cam_rot = (cam_rot + 32) & 4095;
@@ -91,6 +138,7 @@ void update_camera(void) {
         cam_z -= (isin(cam_rot) * speed) >> 12;
     }
 
+debug_toggle:
     {
         static int select_prev = 0;
         int select_held = (btn & PAD_SELECT) ? 1 : 0;

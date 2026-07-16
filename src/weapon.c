@@ -36,16 +36,16 @@ static void cycle_weapon(void) {
 }
 
 void weapons_update(void) {
-    /* Edge-detect L2 so one press cycles once. */
-    static int l2_prev = 0;
-    int l2_held = 0;
+    /* Edge-detect Triangle so one press cycles once (L2 is now aiming). */
+    static int tri_prev = 0;
+    int tri_held = 0;
     if (pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
-        l2_held = (~pad->btn & PAD_L2) ? 1 : 0;
+        tri_held = (~pad->btn & PAD_TRIANGLE) ? 1 : 0;
     }
-    if (l2_held && !l2_prev && game_state != STATE_MENU)
+    if (tri_held && !tri_prev && game_state != STATE_MENU)
         cycle_weapon();
-    l2_prev = l2_held;
+    tri_prev = tri_held;
 
     /* Route to the equipped weapon's update. The crucifaxe's melee swing only
        runs while it is equipped (a gun can't chop crates/doors); the grave-olver
