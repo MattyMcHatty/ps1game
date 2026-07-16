@@ -40,6 +40,9 @@ extern volatile size_t  pad_buff_len[2];
 #define GUN_HIT_BACKOFF   30   /* pull the hit sprite toward the camera a bit */
 #define GRAV_RELOAD_FRAMES 180 /* 3 s at 60 fps                               */
 #define GRAV_RELOAD_DROP  260  /* view-space Y the model drops off-screen     */
+#define GRAV_RELOAD_PITCH 800  /* muzzle-down tilt at full reload dip (angle)  */
+#define GRAV_RECOIL_FRAMES  7  /* recoil kick duration in frames              */
+#define GRAV_RECOIL_PITCH 320  /* muzzle-up tilt at the instant of firing      */
 
 /* Front OT layers for the screen-space overlays (lower = nearer the front;
    HUD owns 0/1, scene/weapon are >=16, so these sit between). */
@@ -51,6 +54,7 @@ static SMD  *graveolver_smd  = NULL;
 static void *graveolver_buff = NULL;
 static int   muzzle_flash     = 0;
 static int   reload_timer     = 0;   /* counts down GRAV_RELOAD_FRAMES while reloading */
+static int   recoil_timer     = 0;   /* counts down GRAV_RECOIL_FRAMES after a shot   */
 
 /* --- Hold pose (view space), all easily tunable ------------------------------
    The model's long axis is X (the barrel), so a ~90 deg yaw points it into the
@@ -178,6 +182,7 @@ static int crosshair_clear(int32_t fx, int32_t fz, int32_t depth) {
    caller has already confirmed a round is chambered and spends it. */
 static void graveolver_fire(void) {
     muzzle_flash = GUN_FLASH_FRAMES;
+    recoil_timer = GRAV_RECOIL_FRAMES;
     sound_play(SFX_GR_SHOT);
 
     int32_t fx = isin(cam_rot), fz = icos(cam_rot);
@@ -242,6 +247,7 @@ void graveolver_update(void) {
     static int cooldown    = 0;
     if (cooldown > 0)    cooldown--;
     if (muzzle_flash > 0) muzzle_flash--;
+    if (recoil_timer > 0) recoil_timer--;
 
     int square_held = 0;
     if (pad_buff_len[0]) {
@@ -308,8 +314,21 @@ void draw_graveolver(RenderContext *ctx) {
                                               (GRAV_RELOAD_FRAMES - elapsed)) / third;
     }
 
+    /* Pitch (about the barrel-cross axis):
+       - Reload: tilt the muzzle DOWN as it sinks and level off as it rises. The
+         tilt ramps 3x faster than the drop so it reaches full angle while the
+         gun is still on screen (a drop-proportional tilt peaks only once it's
+         fully off screen, where you can't see it).
+       - Recoil: a sharp muzzle-UP kick the instant a shot fires, decaying back
+         to the rest pose over GRAV_RECOIL_FRAMES. */
+    int32_t pitch_drop = 3 * drop;
+    if (pitch_drop > GRAV_RELOAD_DROP) pitch_drop = GRAV_RELOAD_DROP;
+    int32_t reload_pitch = -(GRAV_RELOAD_PITCH * pitch_drop) / GRAV_RELOAD_DROP;
+    int32_t recoil_pitch =  (GRAV_RECOIL_PITCH * recoil_timer) / GRAV_RECOIL_FRAMES;
+
     /* The held model. */
-    SVECTOR rot = {GRAV_ROT_X, GRAV_ROT_Y, GRAV_ROT_Z, 0};
+    SVECTOR rot = {GRAV_ROT_X + (int16_t)(reload_pitch + recoil_pitch),
+                   GRAV_ROT_Y, GRAV_ROT_Z, 0};
     MATRIX  weapon_vs;
     RotMatrix(&rot, &weapon_vs);
     weapon_vs.t[0] = GRAV_VS_X;
