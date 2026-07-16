@@ -15,6 +15,7 @@ extern int sprint_stamina;        /* remaining sprint frames; 0 = exhausted     
 extern int sprint_cooldown;       /* 1 = sprint locked until bar fully refills   */
 
 void update_camera(void);
+void camera_set_view_matrix(void);   /* load GTE with the camera view (for debug overlays) */
 void apply_collision(void);
 void apply_vampire_collision(void);
 

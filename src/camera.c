@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <psxgte.h>
 #include <psxpad.h>
+#include <inline_c.h>
 #include "camera.h"
 #include "collision.h"
 #include "title.h"
@@ -16,6 +17,21 @@ int sprint_cooldown = 0;
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
+
+/* Load the GTE with the current camera view matrix (rotation about Y by
+   -cam_rot, then translate by -cam). Any world-space GTE projection (gte_rtps)
+   done afterwards uses the camera view — used by the debug overlays, which run
+   after the weapon/HUD draws have left their own matrices in the GTE. */
+void camera_set_view_matrix(void) {
+    MATRIX  m;
+    SVECTOR neg_rot = {0, (short)-cam_rot, 0, 0};
+    VECTOR  trans   = {-cam_x, -cam_y, -cam_z};
+    RotMatrix(&neg_rot, &m);
+    ApplyMatrixLV(&m, &trans, &trans);
+    m.t[0] = trans.vx; m.t[1] = trans.vy; m.t[2] = trans.vz;
+    gte_SetRotMatrix(&m);
+    gte_SetTransMatrix(&m);
+}
 
 void update_camera(void) {
     if (game_state == STATE_MENU) return;

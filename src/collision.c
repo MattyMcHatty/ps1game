@@ -44,35 +44,96 @@ int collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius) {
     return 1;
 }
 
-int collision_point_blocked(int32_t x, int32_t y, int32_t z, int32_t radius) {
+/* Hitscan-only prop test: 1 if (x,y,z) lies inside any prop's REAL solid volume
+   (true footprint + real height, no player push margin). Every prop is height-
+   aware, so the gun respects verticality — a shot passing over a low table or
+   under an overhang isn't blocked, but a shot into the body is. This is separate
+   from the player push-collide (which keeps its comfort standoff and its own
+   height handling); a bullet wants the geometry, not the walking clearance. */
+#define SHOT_PROP_SLACK  12   /* bullet half-width added to each prop footprint */
+#define SHOT_PROP_STEP   30   /* segment sample spacing; < thinnest prop depth   */
+static int props_block_point(int32_t x, int32_t y, int32_t z) {
+    if (crates_point_solid(x, y, z, SHOT_PROP_SLACK))        return 1;
+    if (fatdoors_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
+    if (dressers_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
+    if (dining_tables_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
+    return 0;
+}
+
+int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
+                              int32_t bx, int32_t by, int32_t bz) {
     CollisionRoom *r = &current_collision_room;
     int i;
 
-    /* Room bounds — a projectile that leaves the level is blocked. */
-    if (x < r->min_x || x > r->max_x || z < r->min_z || z > r->max_z)
-        return 1;
+    /* Shot direction in the XZ plane. */
+    int32_t rx = bx - ax;
+    int32_t rz = bz - az;
 
-    /* Walls, Y-aware: skip walls whose vertical span (y_min = top, y_max =
-       bottom) doesn't contain the point, so a shot isn't stopped by a wall on a
-       different floor. collide_wall returns 1 when the point is within `radius`
-       of the wall's front face (and along its length). */
+    /* Exact ray/segment crossing against every wall. A wall blocks the shot if
+       the segment A->B crosses the wall segment within both extents. Because
+       this is a true crossing test (not point-sampling) a wall can never be
+       stepped over, at any distance, near or far. Coordinates stay within a few
+       thousand units, so the 2D cross products fit comfortably in 32 bits. */
     for (i = 0; i < r->wall_count; i++) {
         Wall *w = &r->walls[i];
-        if (w->y_min != w->y_max && (y < w->y_min || y > w->y_max)) continue;
-        int32_t tx = x, tz = z;
-        if (collide_wall(w, &tx, &tz, radius)) return 1;
+        int32_t sx = w->x2 - w->x1;
+        int32_t sz = w->z2 - w->z1;
+
+        int32_t denom = rx * sz - rz * sx;   /* r x s; 0 => parallel */
+        if (denom == 0) continue;
+
+        int32_t qx = w->x1 - ax;
+        int32_t qz = w->z1 - az;
+        int32_t tn = qx * sz - qz * sx;      /* t*denom: pos along the shot   */
+        int32_t un = qx * rz - qz * rx;      /* u*denom: pos along the wall    */
+
+        /* Normalise sign so both parameters can be range-checked in [0,denom]
+           without dividing. */
+        int32_t d = denom;
+        if (d < 0) { d = -d; tn = -tn; un = -un; }
+        if (tn < 0 || tn > d) continue;      /* crossing behind A or past B    */
+        if (un < 0 || un > d) continue;      /* crossing off the wall's ends   */
+
+        /* Multi-level rooms: gate by height so a shot isn't blocked by a wall on
+           another floor. The shot's world Y at the crossing is
+             world_y = base + (by-ay)*t,   t = tn/d,  base = ay + GROUND_FLOOR_Y
+           (camera-offset Y -> world Y to match the wall's world-space y_min/
+           y_max). Test y_min <= world_y <= y_max without dividing by multiplying
+           through by d (>0 after the sign-normalise above): 64-bit products keep
+           the (Y-range * d) terms exact, and there's no 64-bit divide (which the
+           -nostdlib toolchain can't link). Flat rooms carry only debug Y values,
+           so they never gate. */
+        if (r->multi_level && w->y_min != w->y_max) {
+            int32_t base = ay + GROUND_FLOOR_Y;
+            int64_t proj = (int64_t)(by - ay) * tn;          /* (world_y-base)*d */
+            int64_t lo   = (int64_t)(w->y_min - base) * d;
+            int64_t hi   = (int64_t)(w->y_max - base) * d;
+            if (proj < lo || proj > hi) continue;
+        }
+
+        return 1;   /* a wall lies between the shot origin and the target */
     }
 
-    /* Solid props: reuse each prop's push-collision as a hit test — if the
-       point gets pushed, it was inside the prop. These are destructible or
-       static objects (crates, fat doors, dressers, tables); the caller decides
-       whether to damage them (a round does not). */
+    /* Volumetric props (crates, doors, dressers, tables): sample the segment.
+       Step at a FIXED distance, not a fixed count — a long shot with few samples
+       would space them hundreds of units apart and skip a thin prop (e.g. a
+       ~60-unit-deep door). SHOT_PROP_STEP < the thinnest prop's depth guarantees
+       at least one sample lands inside. Firing is infrequent, so the extra
+       samples are free. */
     {
-        int32_t tx, tz;
-        tx = x; tz = z; crates_collide(&tx, y, &tz, radius);        if (tx != x || tz != z) return 1;
-        tx = x; tz = z; fatdoors_collide(&tx, y, &tz, radius);      if (tx != x || tz != z) return 1;
-        tx = x; tz = z; dressers_collide(&tx, y, &tz, radius);      if (tx != x || tz != z) return 1;
-        tx = x; tz = z; dining_tables_collide(&tx, y, &tz, radius); if (tx != x || tz != z) return 1;
+        int32_t adx = rx < 0 ? -rx : rx;
+        int32_t adz = rz < 0 ? -rz : rz;
+        int32_t span = adx > adz ? adx : adz;   /* dominant horizontal extent */
+        int steps = span / SHOT_PROP_STEP;
+        int k;
+        if (steps < 2)   steps = 2;
+        if (steps > 256) steps = 256;
+        for (k = 1; k < steps; k++) {
+            int32_t px = ax + (rx * k) / steps;
+            int32_t py = ay + ((by - ay) * k) / steps;
+            int32_t pz = az + (rz * k) / steps;
+            if (props_block_point(px, py, pz)) return 1;
+        }
     }
 
     return 0;
@@ -104,9 +165,124 @@ void apply_collision(void) {
 
 #ifdef DEBUG_COLLISION
 
+extern GameState game_state;   /* current area — matches a fat door's tag */
+
+#define DBG_BLOCK_R 190   /* purple: everything that stops a shot */
+#define DBG_BLOCK_G  40
+#define DBG_BLOCK_B 220
+
+/* Draw a solid box (4 sides + top) given its four footprint corners (world XZ,
+   in ring order) and world top/bottom Y. Used to show the exact volumes the gun
+   treats as solid. Projects like debug_draw_walls and shares its near-plane
+   guard (a wild POLY_F4 locks the GPU). */
+static void debug_fill_box(RenderContext *ctx,
+                           const int32_t *cx, const int32_t *cz,
+                           int32_t y_top, int32_t y_bot,
+                           uint8_t r, uint8_t g, uint8_t b) {
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    SVECTOR v[8];
+    DVECTOR sv[8];
+    int32_t sz[8];
+    int i, f;
+    /* 0-3 bottom ring, 4-7 top ring. */
+    for (i = 0; i < 4; i++) {
+        v[i].vx   = (int16_t)cx[i]; v[i].vy   = (int16_t)y_bot; v[i].vz   = (int16_t)cz[i]; v[i].pad   = 0;
+        v[i+4].vx = (int16_t)cx[i]; v[i+4].vy = (int16_t)y_top; v[i+4].vz = (int16_t)cz[i]; v[i+4].pad = 0;
+    }
+    for (i = 0; i < 8; i++) {
+        gte_ldv0(&v[i]); gte_rtps(); gte_stsxy(&sv[i]); gte_stsz(&sz[i]);
+        if (sz[i] == 0 ||
+            sv[i].vx <= -1023 || sv[i].vx >= 1023 ||
+            sv[i].vy <= -1023 || sv[i].vy >= 1023) return;   /* near/off-screen: skip box */
+    }
+    {
+        static const uint8_t faces[5][4] = {
+            {0,1,4,5}, {1,2,5,6}, {2,3,6,7}, {3,0,7,4},   /* four sides */
+            {4,5,7,6},                                    /* top */
+        };
+        for (f = 0; f < 5; f++) {
+            const uint8_t *q = faces[f];
+            int32_t otz;
+            gte_ldv0(&v[q[0]]); gte_rtps();
+            gte_ldv0(&v[q[1]]); gte_rtps();
+            gte_ldv0(&v[q[2]]); gte_rtps();
+            gte_ldv0(&v[q[3]]); gte_rtps();
+            gte_avsz4(); gte_stotz(&otz);
+            if (otz <= 0 || otz >= OT_LENGTH) continue;
+            if (ctx->next_packet + sizeof(POLY_F4) > buf_end) return;
+            POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
+            setPolyF4(poly);
+            setRGB0(poly, r, g, b);
+            poly->x0 = sv[q[0]].vx; poly->y0 = sv[q[0]].vy;
+            poly->x1 = sv[q[1]].vx; poly->y1 = sv[q[1]].vy;
+            poly->x2 = sv[q[2]].vx; poly->y2 = sv[q[2]].vy;
+            poly->x3 = sv[q[3]].vx; poly->y3 = sv[q[3]].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_F4);
+        }
+    }
+}
+
+/* Axis-aligned box corners in ring order (helper for the AABB props). */
+static void dbg_aabb_corners(int32_t x, int32_t z, int32_t hx, int32_t hz,
+                             int32_t *cx, int32_t *cz) {
+    cx[0] = x - hx; cz[0] = z - hz;
+    cx[1] = x + hx; cz[1] = z - hz;
+    cx[2] = x + hx; cz[2] = z + hz;
+    cx[3] = x - hx; cz[3] = z + hz;
+}
+
+/* Draw every shot-blocking prop as a purple box, matching each prop's
+   *_point_solid volume exactly (real footprint + SHOT_PROP_SLACK, real height,
+   world-space Y). Keep in lock-step with the point-solid tests in the prop
+   modules — if one changes, change the other. */
+static void debug_draw_shot_props(RenderContext *ctx) {
+    int i;
+    int32_t cx[4], cz[4];
+
+    for (i = 0; i < crate_count; i++) {
+        Crate *c = &crates[i];
+        if (!c->active || c->state != CRATE_INTACT) continue;
+        dbg_aabb_corners(c->x, c->z, c->half_w + SHOT_PROP_SLACK, c->half_d + SHOT_PROP_SLACK, cx, cz);
+        debug_fill_box(ctx, cx, cz, c->y - CRATE_HALF_H, c->y + CRATE_HALF_H,
+                       DBG_BLOCK_R, DBG_BLOCK_G, DBG_BLOCK_B);
+    }
+    for (i = 0; i < fatdoor_count; i++) {
+        FatDoor *d = &fatdoors[i];
+        if (!d->active || d->state != FATDOOR_INTACT || d->area != game_state) continue;
+        dbg_aabb_corners(d->x, d->z, d->half_x + SHOT_PROP_SLACK, d->half_z + SHOT_PROP_SLACK, cx, cz);
+        debug_fill_box(ctx, cx, cz, d->y - FATDOOR_HALF_H, d->y + FATDOOR_HALF_H,
+                       DBG_BLOCK_R, DBG_BLOCK_G, DBG_BLOCK_B);
+    }
+    for (i = 0; i < dresser_count; i++) {
+        Dresser *d = &dressers[i];
+        if (!d->active) continue;
+        int32_t c = icos(d->rot_y), s = isin(d->rot_y);
+        if (c < 0) c = -c;
+        if (s < 0) s = -s;
+        int32_t hw = (d->half_w * c + d->half_d * s) >> 12;
+        int32_t hd = (d->half_w * s + d->half_d * c) >> 12;
+        int32_t base = d->y + GROUND_FLOOR_Y;
+        dbg_aabb_corners(d->x, d->z, hw + SHOT_PROP_SLACK, hd + SHOT_PROP_SLACK, cx, cz);
+        debug_fill_box(ctx, cx, cz, base - DRESSER_SOLID_H, base,
+                       DBG_BLOCK_R, DBG_BLOCK_G, DBG_BLOCK_B);
+    }
+    for (i = 0; i < dining_table_count; i++) {
+        DiningTable *t = &dining_tables[i];
+        if (!t->active) continue;
+        int32_t base = t->y + GROUND_FLOOR_Y;
+        dbg_aabb_corners(t->x, t->z, t->half_w + SHOT_PROP_SLACK, t->half_d + SHOT_PROP_SLACK, cx, cz);
+        debug_fill_box(ctx, cx, cz, base - DTABLE_TOP_REACH, base,
+                       DBG_BLOCK_R, DBG_BLOCK_G, DBG_BLOCK_B);
+    }
+}
+
 void debug_draw_walls(RenderContext *ctx) {
     if (!debug_mode) return;
 
+    /* Called from draw_player_systems right after the bullet-hit sprites, so the
+       GTE still holds the scene's camera view matrix — project world coords
+       directly, exactly as bullet_hits_draw does. */
     CollisionRoom *r = &current_collision_room;
     int i;
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
@@ -157,11 +333,8 @@ void debug_draw_walls(RenderContext *ctx) {
         POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
         setPolyF4(poly);
 
-        if      (w->nx >  2048) setRGB0(poly, 255,  50,  50);
-        else if (w->nx < -2048) setRGB0(poly,  50,  50, 255);
-        else if (w->nz >  2048) setRGB0(poly,  50, 255,  50);
-        else if (w->nz < -2048) setRGB0(poly, 255, 255,   0);
-        else                    setRGB0(poly, 200, 200, 200);
+        /* Purple: every collision wall is a shot blocker. */
+        setRGB0(poly, DBG_BLOCK_R, DBG_BLOCK_G, DBG_BLOCK_B);
 
         poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
         poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
@@ -171,6 +344,10 @@ void debug_draw_walls(RenderContext *ctx) {
         addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
         ctx->next_packet += sizeof(POLY_F4);
     }
+
+    /* Props that stop a shot, drawn as purple boxes matching the gun's solid
+       tests. */
+    debug_draw_shot_props(ctx);
 }
 
 static void debug_draw_digit(RenderContext *ctx, int digit, int sx, int sy) {

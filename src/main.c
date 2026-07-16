@@ -14,6 +14,7 @@
 #include "vampire.h"
 #include "crucifaxe.h"
 #include "weapon.h"
+#include "graveolver.h"
 #include "sound.h"
 #include "cdaudio.h"
 #include "sml_med.h"
@@ -171,11 +172,20 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
 static void draw_player_systems(RenderContext *ctx) {
     draw_particles(ctx);
     bullet_hits_draw(ctx);  /* brief impact sprites (world-space billboards) */
+#ifdef DEBUG_COLLISION
+    /* Debug world-space overlays run HERE, right after the bullet-hit sprites and
+       BEFORE weapons_draw: at this point the GTE still holds the scene's camera
+       view matrix (same as bullet_hits_draw relies on). weapons_draw replaces it
+       with the held weapon's view-space matrix, which is why these must precede
+       it — running them after left every projected vertex in the wrong space and
+       nothing showed. */
+    debug_draw_walls(ctx);       /* purple: walls + props that block a shot */
+    graveolver_debug_draw(ctx);  /* yellow: the gun's hit cone              */
+#endif
     weapons_draw(ctx);
     draw_hud(ctx);
 #ifdef DEBUG_COLLISION
-    debug_draw_walls(ctx);
-    debug_draw_coords(ctx);
+    debug_draw_coords(ctx);      /* 2D panel — safe after the HUD */
 #endif
 }
 

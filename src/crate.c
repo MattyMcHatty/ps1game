@@ -130,6 +130,21 @@ void crates_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     }
 }
 
+int crates_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
+    int i;
+    for (i = 0; i < crate_count; i++) {
+        Crate *c = &crates[i];
+        if (!c->active || c->state != CRATE_INTACT) continue;
+        /* Real solid box: true footprint + model half-height, no player push
+           margin (that standoff is for camera comfort, not for a bullet). */
+        if (y < c->y - CRATE_HALF_H || y > c->y + CRATE_HALF_H)   continue;
+        if (x < c->x - c->half_w - slack || x > c->x + c->half_w + slack) continue;
+        if (z < c->z - c->half_d - slack || z > c->z + c->half_d + slack) continue;
+        return 1;
+    }
+    return 0;
+}
+
 void crates_draw(RenderContext *ctx) {
     if (!crate_smd) return;
 

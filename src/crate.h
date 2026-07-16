@@ -38,6 +38,9 @@ void crates_reset(void);
 void crates_update(void);
 void crates_draw(RenderContext *ctx);
 void crates_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
+/* Hitscan solid test: 1 if (x,y,z) is inside a crate's real solid volume
+   (true footprint + height, no player push margin). For gun line-of-sight. */
+int  crates_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
 int  crate_try_smash(void);
 
 #endif

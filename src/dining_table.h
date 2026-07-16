@@ -6,6 +6,11 @@
 
 #define MAX_DINING_TABLES     8
 #define DTABLE_PUSH_MARGIN    30   /* extra gap between player and table edge */
+/* Height of the tabletop above the table's floor base, used by the gun's
+   height-aware line-of-sight: a shot within this is blocked, one aimed above it
+   passes over. Measured from the model (Dining Table.smx spans y=0 base to
+   y=-115 top). */
+#define DTABLE_TOP_REACH     115
 
 /* A static, indestructible prop: the player collides with it but it has no
    state to change (no smashing, no items). Modelled on Crate, minus the
@@ -25,5 +30,9 @@ extern int         dining_table_count;
 void dining_tables_init(void);
 void dining_tables_draw(RenderContext *ctx, uint16_t tpage, uint16_t clut);
 void dining_tables_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
+/* Hitscan solid test: 1 if (x,y,z) is inside a table's real solid volume
+   (true footprint + height, no push margin). Height-aware, so a torso-height
+   shot clears a low table but a low/angled shot strikes it. For gun LOS. */
+int  dining_tables_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
 
 #endif

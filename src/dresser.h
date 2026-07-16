@@ -11,6 +11,9 @@
                                     height (>=150 step, ~600 to the upper floor) so
                                     the player can't collide with a dresser on the
                                     floor below/above them. */
+#define DRESSER_SOLID_H    100   /* real model height above its floor base, used by
+                                    the height-aware gun LOS (Dresser.smx spans
+                                    y=0 base to y=-100 top). Tune to the model. */
 
 /* A reusable, static, indestructible prop (like the dining table): the player
    collides with it but it has no state. It is textured with TWO textures:
@@ -50,5 +53,8 @@ int  dresser_add(int32_t x, int32_t y, int32_t z, int32_t rot_y);
    reuses for its non-drawer faces). The dresser's own texture is module-owned. */
 void dressers_draw(RenderContext *ctx, uint16_t wdflr_tpage, uint16_t wdflr_clut);
 void dressers_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
+/* Hitscan solid test: 1 if (x,y,z) is inside a dresser's real solid volume
+   (rotated footprint + height, no push margin). For gun line-of-sight. */
+int  dressers_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
 
 #endif

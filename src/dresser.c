@@ -118,6 +118,31 @@ void dressers_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     }
 }
 
+int dressers_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
+    int i;
+    for (i = 0; i < dresser_count; i++) {
+        Dresser *d = &dressers[i];
+        if (!d->active) continue;
+        /* Vertical span in WORLD Y to match the shot's y. The dresser stores y in
+           offset space (drawn at d->y + GROUND_FLOOR_Y), so its base rests on the
+           floor at world (d->y + GROUND_FLOOR_Y) and its body reaches DRESSER_SOLID_H
+           above that. A shot above the top clears it; one in the body is blocked. */
+        int32_t base = d->y + GROUND_FLOOR_Y;
+        if (y < base - DRESSER_SOLID_H || y > base) continue;
+        /* Axis-aligned bound of the rotated footprint (same maths as the push
+           collide), real size + a little bullet slack, no player push margin. */
+        int32_t c = icos(d->rot_y), s = isin(d->rot_y);
+        if (c < 0) c = -c;
+        if (s < 0) s = -s;
+        int32_t hw = (d->half_w * c + d->half_d * s) >> 12;
+        int32_t hd = (d->half_w * s + d->half_d * c) >> 12;
+        if (x < d->x - hw - slack || x > d->x + hw + slack) continue;
+        if (z < d->z - hd - slack || z > d->z + hd + slack) continue;
+        return 1;
+    }
+    return 0;
+}
+
 /* Render all active dressers using the same textured-prim path as the room
    geometry (per-poly UVs from the SMD, the 128 texture window the room sets, and
    matching distance fog). Each face is drawn with either the room's wd_flr

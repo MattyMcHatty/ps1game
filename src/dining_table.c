@@ -95,6 +95,26 @@ void dining_tables_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius)
     }
 }
 
+int dining_tables_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
+    int i;
+    for (i = 0; i < dining_table_count; i++) {
+        DiningTable *t = &dining_tables[i];
+        if (!t->active) continue;
+        /* Vertical span, in WORLD Y to match the shot's y (cam_y / enemy Y).
+           The table stores y in offset space (drawn at t->y + GROUND_FLOOR_Y),
+           so convert: the base rests on the floor at world (t->y + GROUND_FLOOR_Y)
+           and the tabletop reaches DTABLE_TOP_REACH above it (-Y is up). A shot
+           above the top clears the table; one within the body is blocked. */
+        int32_t base = t->y + GROUND_FLOOR_Y;
+        if (y < base - DTABLE_TOP_REACH || y > base) continue;
+        /* Real tabletop footprint (no player push margin), small bullet slack. */
+        if (x < t->x - t->half_w - slack || x > t->x + t->half_w + slack) continue;
+        if (z < t->z - t->half_d - slack || z > t->z + t->half_d + slack) continue;
+        return 1;
+    }
+    return 0;
+}
+
 /* Render the tables using the SAME textured-prim path as the kitchen geometry
    (per-poly UVs from the SMD, the 128 texture window set in kitchen_dining_draw,
    and matching distance fog) so they blend in with the room. The caller passes

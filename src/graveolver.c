@@ -26,17 +26,18 @@ extern volatile size_t  pad_buff_len[2];
 
 #define GRAV_FIRE_COOLDOWN 12   /* frames between shots (revolver cadence) */
 
-/* Hitscan aim. A target is "under the reticule" if, projected onto the camera's
-   forward axis, its perpendicular offset stays within a tolerance that grows
-   with distance (an aim cone), and nothing solid blocks the line to it. */
-#define GUN_RANGE       4000
-#define GUN_AIM_BASE      70   /* horizontal tolerance at point-blank        */
-#define GUN_AIM_VBASE    150   /* vertical tolerance (enemies are tall)       */
-#define GUN_AIM_SPREAD   300   /* cone growth per unit of depth (/4096)       */
+/* Hitscan aim, screen-space. Picture a fixed circle around the crosshair: a shot
+   hits the CLOSEST thing whose on-screen silhouette falls inside that circle.
+   Depth and height don't widen the aim — a constant pixel radius at any range —
+   they only decide which candidate is nearer. An enemy is a candidate when any
+   part of its body projects inside the circle AND the crosshair line to its
+   depth isn't blocked by a nearer wall/prop. */
+#define GUN_RANGE        4000  /* max forward distance a shot reaches           */
+#define GUN_AIM_RADIUS     14  /* crosshair hit circle, in screen pixels        */
+#define GUN_PROJ_H        256  /* projection distance — matches gte_SetGeomScreen*/
 #define GUN_DAMAGE         1   /* one crucifaxe hit                           */
 #define GUN_FLASH_FRAMES   4   /* white screen-flash duration                */
 #define GUN_INFINITE_AMMO  1   /* 1 = fire freely without spending rounds     */
-#define GUN_HIT_STEP      40   /* aim-ray march resolution for a wall impact  */
 #define GUN_HIT_BACKOFF   30   /* pull the hit sprite toward the camera a bit */
 
 /* Front OT layers for the screen-space overlays (lower = nearer the front;
@@ -74,8 +75,6 @@ void graveolver_init(void) {
     graveolver_smd = smdInitData(graveolver_buff);
 }
 
-static int32_t iabs32(int32_t v) { return v < 0 ? -v : v; }
-
 /* --- enemy damage (mirrors the crucifaxe's per-enemy handling, no knockback) --- */
 
 static void damage_dog(DemonDog *d) {
@@ -103,52 +102,74 @@ static void damage_zombie(Zombie *z) {
     }
 }
 
-/* Line-of-sight: sample points between the camera and the target; blocked if a
-   wall or solid prop lies in the way (so you can't shoot through walls). */
-static int los_clear(int32_t dx, int32_t dy, int32_t dz) {
-    const int steps = 8;
-    int k;
-    for (k = 1; k < steps; k++) {
-        int32_t sx = cam_x + (dx * k) / steps;
-        int32_t sy = cam_y + (dy * k) / steps;
-        int32_t sz = cam_z + (dz * k) / steps;
-        if (collision_point_blocked(sx, sy, sz, 8)) return 0;
+/* Crosshair centre in screen pixels (below screen centre by the reticule drop). */
+static int gun_crosshair_x(void) { return SCREEN_XRES / 2; }
+static int gun_crosshair_y(void) { return SCREEN_YRES / 2 + GUN_RETICULE_Y_OFF; }
+
+/* Squared pixel distance from the crosshair to the screen-space segment A-B. */
+static int32_t crosshair_seg_dist2(int ax, int ay, int bx, int by) {
+    int px = gun_crosshair_x() - ax, py = gun_crosshair_y() - ay;
+    int dx = bx - ax,               dy = by - ay;
+    int len2 = dx * dx + dy * dy;
+    int qx, qy;
+    if (len2 <= 0) {
+        qx = ax; qy = ay;                         /* degenerate: A==B */
+    } else {
+        int32_t t = ((int32_t)(px * dx + py * dy) << 12) / len2;   /* fixed 0..4096 */
+        if (t < 0)    t = 0;
+        if (t > 4096) t = 4096;
+        qx = ax + ((dx * t) >> 12);
+        qy = ay + ((dy * t) >> 12);
     }
+    int ex = gun_crosshair_x() - qx, ey = gun_crosshair_y() - qy;
+    return ex * ex + ey * ey;
+}
+
+/* Project a world point to screen pixels by hand (no GTE state needed, so this
+   is safe in the update phase where firing runs). Rotation is Y-only, so the
+   view X is the point's perpendicular offset from the aim axis and the view Z is
+   its forward depth; the perspective divide uses the renderer's H and centre. */
+static int project_world(int32_t x, int32_t y, int32_t z,
+                         int32_t fx, int32_t fz, int *sx, int *sy) {
+    int32_t dx = x - cam_x, dy = y - cam_y, dz = z - cam_z;
+    int32_t depth = (dx * fx + dz * fz) >> 12;        /* view Z (forward) */
+    if (depth <= 0) return 0;
+    int32_t vx = (dx * fz - dz * fx) >> 12;           /* view X (perp)    */
+    *sx = SCREEN_XRES / 2 + (vx * GUN_PROJ_H) / depth;
+    *sy = SCREEN_YRES / 2 + (dy * GUN_PROJ_H) / depth;
     return 1;
 }
 
-/* 1 if (ex,ey,ez) is under the reticule, in range, and unobscured; out_depth
-   receives its forward distance so the caller can pick the nearest target. */
-static int under_reticule(int32_t ex, int32_t ey, int32_t ez,
-                          int32_t fx, int32_t fz, int32_t *out_depth) {
-    int32_t dx = ex - cam_x, dy = ey - cam_y, dz = ez - cam_z;
-    int32_t depth = (dx * fx + dz * fz) >> 12;         /* along the aim ray */
+/* 1 if the enemy's body silhouette passes within the crosshair circle. The body
+   is the sprite's vertical extent (centre cyc, half-height hh); we project its
+   top and bottom and measure the crosshair's distance to that on-screen line, so
+   there are no gaps and it works at any range. out_depth = forward distance for
+   nearest-first ordering. */
+static int enemy_in_circle(int32_t ex, int32_t cyc, int32_t ez, int32_t hh,
+                           int32_t fx, int32_t fz, int32_t *out_depth) {
+    int32_t depth = ((ex - cam_x) * fx + (ez - cam_z) * fz) >> 12;
     if (depth <= 0 || depth > GUN_RANGE) return 0;
-    int32_t cone = ((depth * GUN_AIM_SPREAD) >> 12);
-    int32_t perp = iabs32((dx * fz - dz * fx) >> 12);  /* off-axis (horizontal) */
-    if (perp > GUN_AIM_BASE + cone) return 0;
-    /* The crosshair sits GUN_RETICULE_Y_OFF pixels below screen centre; project
-       that back to a world-Y drop at this depth (screen_y = world_y * h / depth,
-       h = 256 from gte_SetGeomScreen) so the aim point tracks the crosshair. */
-    int32_t aim_dy = (depth * GUN_RETICULE_Y_OFF) / 256;
-    if (iabs32(dy - aim_dy) > GUN_AIM_VBASE + cone) return 0;
-    if (!los_clear(dx, dy, dz)) return 0;
-    *out_depth = depth;
-    return 1;
+
+    int tx, ty, bx, by;
+    if (!project_world(ex, cyc - hh, ez, fx, fz, &tx, &ty)) return 0;
+    if (!project_world(ex, cyc + hh, ez, fx, fz, &bx, &by)) return 0;
+
+    if (crosshair_seg_dist2(tx, ty, bx, by)
+            <= (int32_t)GUN_AIM_RADIUS * GUN_AIM_RADIUS) {
+        *out_depth = depth;
+        return 1;
+    }
+    return 0;
 }
 
-/* March the aim ray forward and return the depth of the first wall/prop it hits
-   (or > GUN_RANGE if it reaches open space). Used to place the hit sprite when
-   no enemy is struck. */
-static int32_t ray_wall_depth(int32_t fx, int32_t fz) {
-    int32_t d;
-    for (d = GUN_HIT_STEP; d <= GUN_RANGE; d += GUN_HIT_STEP) {
-        int32_t px = cam_x + ((fx * d) >> 12);
-        int32_t pz = cam_z + ((fz * d) >> 12);
-        int32_t py = cam_y + (GUN_RETICULE_Y_OFF * d) / 256;
-        if (collision_point_blocked(px, py, pz, 8)) return d;
-    }
-    return GUN_RANGE + 1;
+/* 1 if the crosshair line is clear out to `depth` — i.e. no wall or solid prop
+   sits nearer than the target under the crosshair (so a closer table blocks the
+   shot even when the enemy is still inside the circle). */
+static int crosshair_clear(int32_t fx, int32_t fz, int32_t depth) {
+    int32_t px = cam_x + ((fx * depth) >> 12);
+    int32_t pz = cam_z + ((fz * depth) >> 12);
+    int32_t py = cam_y + (GUN_RETICULE_Y_OFF * depth) / 256;
+    return !collision_segment_blocked(cam_x, cam_y, cam_z, px, py, pz);
 }
 
 /* Fire one round: flash + hitscan the nearest enemy under the reticule. Returns
@@ -168,49 +189,46 @@ static int graveolver_fire(void) {
     for (i = 0; i < demon_dog_count; i++) {
         DemonDog *d = &demon_dogs[i];
         if (!d->active || d->state == DDOG_DEAD) continue;
-        if (under_reticule(d->x, d->y, d->z, fx, fz, &depth) && depth < best_depth) {
+        if (enemy_in_circle(d->x, d->y + DDOG_Y_OFFSET, d->z, DDOG_HALF_H, fx, fz, &depth) &&
+            depth < best_depth && crosshair_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 0; best_idx = i;
         }
     }
     for (i = 0; i < zombie_count; i++) {
         Zombie *z = &zombies[i];
         if (!z->active || z->state == ZMB_DEAD) continue;
-        if (under_reticule(z->x, z->y, z->z, fx, fz, &depth) && depth < best_depth) {
+        if (enemy_in_circle(z->x, z->y + ZMB_Y_OFFSET, z->z, ZMB_HALF_H, fx, fz, &depth) &&
+            depth < best_depth && crosshair_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 1; best_idx = i;
         }
     }
     if (vampire_health > 0 &&
-        under_reticule(vampire_x, vampire_y, vampire_z, fx, fz, &depth) &&
-        depth < best_depth) {
+        enemy_in_circle(vampire_x, vampire_y + VAMPIRE_Y, vampire_z, VAMPIRE_HALF_H,
+                        fx, fz, &depth) &&
+        depth < best_depth && crosshair_clear(fx, fz, depth)) {
         best_kind = 2;
     }
 
-    int32_t hit_depth;
-    if (best_kind >= 0) {
-        /* An enemy under the reticule (LOS already clear, so it's in front of any
-           wall behind it). Apply damage; the impact is at the enemy's depth. */
-        if (best_kind == 0) {
-            damage_dog(&demon_dogs[best_idx]);
-        } else if (best_kind == 1) {
-            damage_zombie(&zombies[best_idx]);
-        } else {
-            vampire_health   -= GUN_DAMAGE;
-            vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
-            if (vampire_health <= 0)
-                spawn_blood_burst(vampire_x, vampire_y, vampire_z);
-        }
-        hit_depth = best_depth;
+    /* Nothing hittable in the circle (or a wall/prop was the nearest thing under
+       it): no damage, no impact sprite — ghit only marks enemy hits. */
+    if (best_kind < 0)
+        return 1;
+
+    if (best_kind == 0) {
+        damage_dog(&demon_dogs[best_idx]);
+    } else if (best_kind == 1) {
+        damage_zombie(&zombies[best_idx]);
     } else {
-        /* No enemy — the shot lands on the first wall/prop, or flies off into the
-           open (no impact sprite in that case). */
-        hit_depth = ray_wall_depth(fx, fz);
-        if (hit_depth > GUN_RANGE) return 1;
+        vampire_health   -= GUN_DAMAGE;
+        vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
+        if (vampire_health <= 0)
+            spawn_blood_burst(vampire_x, vampire_y, vampire_z);
     }
 
-    /* Spawn the hit sprite at the impact, pulled slightly toward the camera so it
-       sits in front of the struck surface rather than inside it. */
+    /* Impact sprite on the struck enemy, pulled a touch toward the camera so it
+       sits in front of the body rather than inside it. */
     {
-        int32_t d = hit_depth - GUN_HIT_BACKOFF;
+        int32_t d = best_depth - GUN_HIT_BACKOFF;
         if (d < 1) d = 1;
         int32_t hx = cam_x + ((fx * d) >> 12);
         int32_t hz = cam_z + ((fz * d) >> 12);
@@ -300,5 +318,32 @@ void draw_graveolver(RenderContext *ctx) {
             addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_GUN_FLASH], dp);
             ctx->next_packet += sizeof(DR_TPAGE);
         }
+    }
+}
+
+/* Debug overlay: the crosshair hit circle itself, a yellow ring of exactly
+   GUN_AIM_RADIUS pixels drawn in 2D at the crosshair. This is the actual hit
+   field — an enemy is struck only when part of its body projects inside this
+   ring — so you can see directly how much aim slop there is. */
+void graveolver_debug_draw(RenderContext *ctx) {
+    if (!debug_mode) return;
+
+    const int SEGS = 20;
+    int cx = gun_crosshair_x(), cy = gun_crosshair_y();
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    int prev_x = cx + GUN_AIM_RADIUS, prev_y = cy;   /* isin/icos: angle 0 -> +X */
+    int s;
+    for (s = 1; s <= SEGS; s++) {
+        int32_t ang = (s * 4096) / SEGS;             /* 0..4096 = full turn */
+        int nx = cx + ((icos(ang) * GUN_AIM_RADIUS) >> 12);
+        int ny = cy + ((isin(ang) * GUN_AIM_RADIUS) >> 12);
+        if (ctx->next_packet + sizeof(LINE_F2) > buf_end) return;
+        LINE_F2 *ln = (LINE_F2 *)ctx->next_packet;
+        setLineF2(ln);
+        setRGB0(ln, 255, 240, 0);
+        setXY2(ln, prev_x, prev_y, nx, ny);
+        addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_GUN_RETICULE], ln);
+        ctx->next_packet += sizeof(LINE_F2);
+        prev_x = nx; prev_y = ny;
     }
 }

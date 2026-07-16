@@ -163,6 +163,21 @@ void fatdoors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     }
 }
 
+int fatdoors_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
+    int i;
+    for (i = 0; i < fatdoor_count; i++) {
+        FatDoor *d = &fatdoors[i];
+        if (!d->active || d->state != FATDOOR_INTACT) continue;
+        if (d->area != game_state) continue;
+        /* Real solid box: true footprint + model half-height, no push margin. */
+        if (y < d->y - FATDOOR_HALF_H || y > d->y + FATDOOR_HALF_H) continue;
+        if (x < d->x - d->half_x - slack || x > d->x + d->half_x + slack) continue;
+        if (z < d->z - d->half_z - slack || z > d->z + d->half_z + slack) continue;
+        return 1;
+    }
+    return 0;
+}
+
 void fatdoors_draw(RenderContext *ctx) {
     if (!fatdoor_smd) return;
 

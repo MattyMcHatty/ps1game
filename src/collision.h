@@ -34,6 +34,11 @@ typedef struct {
     int     wall_count;
     int32_t min_x, max_x;
     int32_t min_z, max_z;
+    /* 1 for rooms with real per-wall Y data spanning more than one floor
+       (delivery, reception): the hitscan Y-gates walls so a shot isn't blocked
+       by geometry on a different level. 0 for flat rooms (kitchen), whose per-
+       wall Y values are debug-visualisation only and must not gate shots. */
+    int     multi_level;
 } CollisionRoom;
 
 extern CollisionRoom current_collision_room;
@@ -51,10 +56,14 @@ void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ram
    only — the same scheme apply_collision_kitchen_dining() uses for the player. */
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius);
 
-/* Point-vs-world test for projectiles: returns 1 if (x,y,z) is inside/near a
-   wall or any solid prop (crate, fat door, dresser, table) within `radius`, or
-   outside the room bounds. Does NOT modify anything or deal damage. */
-int  collision_point_blocked(int32_t x, int32_t y, int32_t z, int32_t radius);
+/* Hitscan line-of-sight test: returns 1 if the straight segment from
+   (ax,ay,az) to (bx,by,bz) is blocked by a wall or solid prop — i.e. a wall
+   polygon lies between the two points. Uses an exact ray/segment crossing test
+   for walls (no point-sampling, so thin walls can never be skipped at any
+   distance) and marches the segment for volumetric props. Y coordinates are in
+   camera-offset space, matching cam_y / enemy coordinates. */
+int  collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
+                               int32_t bx, int32_t by, int32_t bz);
 
 /* -----------------------------------------------------------------------
  * Floor / height zones

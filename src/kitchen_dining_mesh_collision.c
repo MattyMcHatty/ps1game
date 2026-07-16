@@ -11,6 +11,7 @@
 
 void kitchen_dining_collision_init(CollisionRoom *r) {
     r->wall_count = KITCHEN_DINING_WALL_COUNT;
+    r->multi_level = 0;   /* flat room; per-wall Y is debug-viz only */
     r->min_x = -3294;
     r->max_x = 600;
     r->min_z = -1699;

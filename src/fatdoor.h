@@ -41,6 +41,9 @@ void fatdoors_init(void);          /* place the kitchen doors */
 void fatdoors_reset(void);
 void fatdoors_draw(RenderContext *ctx);
 void fatdoors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
+/* Hitscan solid test: 1 if (x,y,z) is inside an intact door's real solid volume
+   (true footprint + height, no push margin). For gun line-of-sight. */
+int  fatdoors_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
 int  fatdoors_try_smash(void);
 
 /* Damage the first intact door whose collision box (expanded by `reach`)
