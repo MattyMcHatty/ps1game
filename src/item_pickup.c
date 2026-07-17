@@ -157,6 +157,11 @@ void item_pickups_draw(RenderContext *ctx) {
         int32_t wdist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
         if (wdist > 3000) continue;
 
+        /* Reject pickups behind the camera. Without this the GTE projects a
+           behind-camera point mirrored to the front and the OTZ clamp below
+           forces it into view, so it appears floating in front of you. */
+        if (((dx * isin(cam_rot) + dz * icos(cam_rot)) >> 12) <= 0) continue;
+
         int32_t bob = (isin(p->bob_angle) * IP_BOB_AMP) >> 12;
         SVECTOR sv = {(int16_t)p->x, (int16_t)(p->y + bob), (int16_t)p->z, 0};
 

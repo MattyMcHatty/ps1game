@@ -126,6 +126,10 @@ void keys_draw(RenderContext *ctx) {
         int32_t dz = k->z - cam_z;
         if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 3000) continue;
 
+        /* Reject keys behind the camera — otherwise the GTE projects them
+           mirrored to the front and the OTZ clamp draws them floating ahead. */
+        if (((dx * isin(cam_rot) + dz * icos(cam_rot)) >> 12) <= 0) continue;
+
         /* Vertical bob using spin_angle */
         int32_t bob = (isin(k->spin_angle) * KEY_BOB_AMP) >> 12;
         SVECTOR sv = {(int16_t)k->x, (int16_t)(k->y + bob), (int16_t)k->z, 0};
