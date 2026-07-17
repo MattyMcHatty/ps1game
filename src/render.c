@@ -24,11 +24,48 @@ void setup_context(RenderContext *ctx, int w, int h, int r, int g, int b) {
     SetDispMask(1);
 }
 
+/* Perf counters, refreshed every flip and read by the debug overlay:
+   perf_frame_vblanks — frame period in vblanks (1 = full 60/50fps, 2 = half, ...)
+   perf_packet_bytes  — bytes of the packet buffer used this frame (scene load proxy)
+   perf_gpu_busy      — 1 if the GPU was still drawing the previous frame at flip
+                        time, i.e. the frame is GPU/fill-bound rather than CPU-bound. */
+int perf_frame_vblanks = 1;
+int perf_packet_bytes  = 0;
+int perf_gpu_busy      = 0;
+
+/* Distance fog shared by the room mesh and the entities/sprites drawn in it, so
+   enemies and pickups fade (and vanish) together with the walls around them
+   instead of standing out un-fogged behind faded geometry. Each area's draw sets
+   these to match its own room fog. render_fog_scale returns 256 at/inside
+   fog_near (full colour) down to 0 at/beyond fog_far (fully fogged). */
+int32_t g_fog_near = 350;
+int32_t g_fog_far  = 1500;
+
+int render_fog_scale(int32_t dist) {
+    if (dist <= g_fog_near) return 256;
+    if (dist >= g_fog_far)  return 0;
+    return ((g_fog_far - dist) << 8) / (g_fog_far - g_fog_near);
+}
+
 void flip_buffers(RenderContext *ctx) {
+    static uint32_t prev_vb = 0;
+
+    RenderBuffer *draw_buffer = &ctx->buffers[ctx->active_buffer];
+
+    /* Sample BEFORE the sync: how much geometry we queued, and whether the GPU
+       is still chewing the previous frame (GPU-bound) or already idle (CPU-bound). */
+    perf_packet_bytes = (int)(ctx->next_packet - draw_buffer->buffer);
+    perf_gpu_busy     = IsIdleGPU(0) ? 0 : 1;
+
     DrawSync(0);
     VSync(0);
 
-    RenderBuffer *draw_buffer = &ctx->buffers[ctx->active_buffer];
+    /* Free-running vblank counter (VSync(-1)); diff = vblanks this frame took. */
+    uint32_t now = (uint32_t)VSync(-1);
+    perf_frame_vblanks = (int)(now - prev_vb);
+    if (perf_frame_vblanks < 1) perf_frame_vblanks = 1;
+    prev_vb = now;
+
     RenderBuffer *disp_buffer = &ctx->buffers[ctx->active_buffer ^ 1];
 
     PutDispEnv(&disp_buffer->disp_env);

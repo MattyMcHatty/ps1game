@@ -284,7 +284,7 @@ static void debug_draw_shot_props(RenderContext *ctx) {
 }
 
 void debug_draw_walls(RenderContext *ctx) {
-    if (!debug_mode) return;
+    if (debug_mode < 2) return;   /* heavy overdraw — only in full-debug (level 2) */
 
     /* Called from draw_player_systems right after the bullet-hit sprites, so the
        GTE still holds the scene's camera view matrix — project world coords

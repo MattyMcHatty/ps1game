@@ -414,11 +414,11 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
     int32_t fdx        = d->x - cam_x;
     int32_t fdz        = d->z - cam_z;
     int32_t dist       = (fdx < 0 ? -fdx : fdx) + (fdz < 0 ? -fdz : fdz);
-    int32_t fog_start  = 500;
-    int32_t fog_end    = 3000;
-    int32_t fog        = dist < fog_start ? fog_start : dist > fog_end ? fog_end : dist;
-    int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
-    uint8_t fog8       = fog_factor > 255 ? 255 : (uint8_t)fog_factor;
+    /* Fog with the room mesh (was a private 500..3000 mismatched with the area
+       fog); cull past fog_far except while lunging (a fixed foreground overlay). */
+    if (!d->lunging && dist >= g_fog_far) return;
+    int32_t fs   = render_fog_scale(dist);
+    uint8_t fog8 = fs > 255 ? 255 : (uint8_t)fs;
 
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) return;

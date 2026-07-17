@@ -141,9 +141,12 @@ void update_camera(void) {
 
 debug_toggle:
     {
+        /* SELECT cycles debug: 0 = off, 1 = light overlay (perf/coords/compass —
+           cheap, so VB reflects the real game), 2 = adds the heavy collision
+           visualisation (purple walls etc., which itself costs GPU fill). */
         static int select_prev = 0;
         int select_held = (btn & PAD_SELECT) ? 1 : 0;
-        if (select_held && !select_prev) debug_mode ^= 1;
+        if (select_held && !select_prev) debug_mode = (debug_mode + 1) % 3;
         select_prev = select_held;
     }
 }

@@ -298,9 +298,10 @@ static void draw_reception_smd(RenderContext *ctx) {
         {
             int32_t dx = (int32_t)v0->vx - cam_x;
             int32_t dz = (int32_t)v0->vz - cam_z;
-            /* Distance cull (Manhattan), just past where fog fully saturates
-               (fog_end below) so culled polys are already invisible. */
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 2300)
+            /* Distance cull (Manhattan) at the fog-out distance so culled polys
+               are already invisible. 1500 keeps the room GPU-fill within a 60fps
+               frame (was 2300, which pushed the fill to VB2/30fps). */
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 1500)
                 { p += stride; continue; }
             int32_t fwd = dx * isin(cam_rot) + dz * icos(cam_rot);
             if (fwd < -(700 << 12))
@@ -361,7 +362,7 @@ static void draw_reception_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog_start = 350, fog_end = 2200;
+        int32_t fog_start = 350, fog_end = 1500;   /* fog fully saturates at the cull distance */
         int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
         int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
 
@@ -439,6 +440,9 @@ static void draw_reception_smd(RenderContext *ctx) {
 }
 
 void reception_draw(RenderContext *ctx) {
+    /* Entities in this room fog with the same near/far as the mesh below. */
+    g_fog_near = 350; g_fog_far = 1500;
+
     /* Dark interior background, same as the kitchen. */
     TILE *bg = (TILE *)ctx->next_packet;
     setTile(bg);

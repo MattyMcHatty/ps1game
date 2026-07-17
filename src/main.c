@@ -215,6 +215,20 @@ static void draw_debug_overlay(RenderContext *ctx) {
     uint32_t *ot = ctx->buffers[ctx->active_buffer].ot;
     int k;
 
+    /* Performance readout (right side): effective FPS, vblanks/frame (1 = full
+       rate), GPU vs cpu bound, and packet bytes queued (~scene load; est. prims
+       at ~28 B each). */
+    {
+        char pbuf[48];
+        int vb  = perf_frame_vblanks < 1 ? 1 : perf_frame_vblanks;
+        int fps = 60 / vb;   /* assumes 60Hz NTSC; VB is region-independent */
+        snprintf(pbuf, sizeof(pbuf), "FPS%d VB%d\n%s\n%dB ~%dp",
+                 fps, vb,
+                 perf_gpu_busy ? "GPU-bound" : "cpu-bound",
+                 perf_packet_bytes, perf_packet_bytes / 28);
+        ctx->next_packet = FntSort(&ot[1], ctx->next_packet, 196, 140, pbuf);
+    }
+
     /* Scrolling compass tape, just below the coordinate panel.
        80 chars = 360deg, 10 chars per 45deg; N->NE->E->SE->S->SW->W->NW matches
        increasing cam_rot (CW). */

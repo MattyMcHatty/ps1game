@@ -124,7 +124,7 @@ void keys_draw(RenderContext *ctx) {
 
         int32_t dx = k->x - cam_x;
         int32_t dz = k->z - cam_z;
-        if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 3000) continue;
+        if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= g_fog_far) continue;
 
         /* Reject keys behind the camera — otherwise the GTE projects them
            mirrored to the front and the OTZ clamp draws them floating ahead. */
@@ -158,7 +158,10 @@ void keys_draw(RenderContext *ctx) {
         /* POLY_FT4 screen-space billboard — maps the full texture correctly */
         POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
         setPolyFT4(poly);
-        setRGB0(poly, 128, 128, 128);  /* neutral: texture at full brightness */
+        {   /* distance fog to match the room mesh */
+            uint8_t fc = (uint8_t)((128 * render_fog_scale(wdist)) >> 8);
+            setRGB0(poly, fc, fc, fc);
+        }
 
         poly->x0 = (int16_t)(screen.vx - half); poly->y0 = (int16_t)(screen.vy - half);
         poly->x1 = (int16_t)(screen.vx + half); poly->y1 = (int16_t)(screen.vy - half);

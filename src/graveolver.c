@@ -419,7 +419,7 @@ void draw_graveolver(RenderContext *ctx) {
    field — an enemy is struck only when part of its body projects inside this
    ring — so you can see directly how much aim slop there is. */
 void graveolver_debug_draw(RenderContext *ctx) {
-    if (!debug_mode) return;
+    if (debug_mode < 2) return;   /* aim-circle viz only in full-debug (level 2) */
 
     const int SEGS = 20;
     int cx = gun_crosshair_x(), cy = gun_crosshair_y();
