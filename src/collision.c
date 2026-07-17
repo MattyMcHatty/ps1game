@@ -10,6 +10,7 @@
 #include "dining_table.h"
 #include "dresser.h"
 #include "fatdoor.h"
+#include "save_point.h"
 
 CollisionRoom current_collision_room;
 
@@ -567,6 +568,8 @@ void apply_collision_reception(void) {
        doors) rather than the wide wall radius, so the player can walk up close
        enough to smash it. fatdoors_collide skips doors of other areas. */
     fatdoors_collide(&cam_x, cam_y, &cam_z, 125);
+    /* Save point: solid, using its own mesh footprint (radius = player standoff). */
+    save_points_collide(&cam_x, cam_y, &cam_z, 55);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

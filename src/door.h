@@ -59,4 +59,11 @@ void door_draw_string_3d(RenderContext *ctx, const char *str,
                          uint8_t r, uint8_t g, uint8_t b,
                          int fade_factor, int mirror, TextPlane plane, int pixel);
 
+/* Camera-facing (billboard) variant of the pixel-font text, centred on
+   (wx,wy,wz). Caller must have the camera view matrix loaded in the GTE. */
+void door_draw_string_billboard(RenderContext *ctx, const char *str,
+                                int32_t wx, int32_t wy, int32_t wz,
+                                uint8_t r, uint8_t g, uint8_t b,
+                                int fade_factor, int pixel);
+
 #endif

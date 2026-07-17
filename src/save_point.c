@@ -8,6 +8,7 @@
 #include "render.h"
 #include "camera.h"
 #include "collision.h"      /* GROUND_FLOOR_Y */
+#include "door.h"           /* door_draw_string_billboard (shared pixel font) */
 #include "save_point.h"
 
 SavePoint save_points[MAX_SAVE_POINTS];
@@ -15,6 +16,17 @@ int       save_point_count = 0;
 
 static SMD  *sp_smd    = NULL;
 static void *sp_buffer = NULL;
+
+/* Model-space XZ half-extents, captured from the mesh at load; the per-instance
+   footprint is these scaled by the instance's `scale` and rotated by rot_y. */
+static int32_t sp_half_w = 0, sp_half_d = 0;
+
+/* "Save" prompt tuning. */
+#define SAVE_TEXT_RADIUS  1100   /* show the label within this XZ distance      */
+#define SAVE_TEXT_FADE     700   /* start fading out past this distance         */
+#define SAVE_TEXT_PIXEL      5   /* world units per font pixel                  */
+#define SAVE_TEXT_RISE     140   /* label height above the model's floor base   */
+#define SAVE_SPIN_SPEED      8   /* rot_y units/frame (4096 = full turn ~8.5s)  */
 
 static void load_file(const char *name, void **buf_out) {
     CdlFILE file;
@@ -31,10 +43,64 @@ void save_points_init(void) {
     load_file("\\SAVEPT.SMD;1", &sp_buffer);
     if (sp_buffer)
         sp_smd = smdInitData(sp_buffer);
+
+    /* Capture the mesh's XZ half-extents for collision (assumes the model is
+       centred on its origin, as the other props are). */
+    if (sp_smd) {
+        int i;
+        for (i = 0; i < sp_smd->n_verts; i++) {
+            int32_t ax = sp_smd->p_verts[i].vx; if (ax < 0) ax = -ax;
+            int32_t az = sp_smd->p_verts[i].vz; if (az < 0) az = -az;
+            if (ax > sp_half_w) sp_half_w = ax;
+            if (az > sp_half_d) sp_half_d = az;
+        }
+    }
+}
+
+/* Player collision against each save point: an axis-aligned box the size of the
+   mesh footprint (scaled + rotated per instance), pushed out like the other
+   props. Single-level placement, so no Y gate. */
+void save_points_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
+    (void)py;
+    int i;
+    for (i = 0; i < save_point_count; i++) {
+        SavePoint *s = &save_points[i];
+        if (!s->active) continue;
+
+        int32_t hw = (sp_half_w * s->scale) >> 12;
+        int32_t hd = (sp_half_d * s->scale) >> 12;
+        /* Axis-aligned bound of the rotated footprint (same maths as the dresser). */
+        int32_t c = icos(s->rot_y), sn = isin(s->rot_y);
+        if (c  < 0) c  = -c;
+        if (sn < 0) sn = -sn;
+        int32_t bw = (hw * c + hd * sn) >> 12;
+        int32_t bd = (hw * sn + hd * c) >> 12;
+
+        int32_t min_x = s->x - bw - radius, max_x = s->x + bw + radius;
+        int32_t min_z = s->z - bd - radius, max_z = s->z + bd + radius;
+        if (*px <= min_x || *px >= max_x) continue;
+        if (*pz <= min_z || *pz >= max_z) continue;
+
+        int32_t pl = *px - min_x, pr = max_x - *px;
+        int32_t pf = *pz - min_z, pb = max_z - *pz;
+        int32_t m = pl, ddx = -pl, ddz = 0;
+        if (pr < m) { m = pr; ddx =  pr; ddz = 0; }
+        if (pf < m) { m = pf; ddx = 0; ddz = -pf; }
+        if (pb < m) {         ddx = 0; ddz =  pb; }
+        *px += ddx; *pz += ddz;
+    }
 }
 
 void save_points_clear(void) {
     save_point_count = 0;
+}
+
+/* Spin every save point slowly about its Y axis, forever. */
+void save_points_update(void) {
+    int i;
+    for (i = 0; i < save_point_count; i++)
+        if (save_points[i].active)
+            save_points[i].rot_y = (save_points[i].rot_y + SAVE_SPIN_SPEED) & 4095;
 }
 
 int save_point_add(int32_t x, int32_t y, int32_t z, int32_t rot_y, int32_t scale) {
@@ -185,4 +251,26 @@ void save_points_draw(RenderContext *ctx) {
 
     gte_SetRotMatrix(&view);
     gte_SetTransMatrix(&view);
+
+    /* Floating purple "Save" label above each nearby save point (billboarded so
+       it faces the player), fading out with distance like the door prompts. */
+    for (i = 0; i < save_point_count; i++) {
+        SavePoint *s = &save_points[i];
+        if (!s->active) continue;
+
+        int32_t dx = cam_x - s->x, dz = cam_z - s->z;
+        int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        if (dist >= SAVE_TEXT_RADIUS) continue;
+
+        int fade = 256;
+        if (dist > SAVE_TEXT_FADE) {
+            int range = SAVE_TEXT_RADIUS - SAVE_TEXT_FADE;
+            fade = 256 - (((dist - SAVE_TEXT_FADE) * 256) / range);
+        }
+
+        int32_t base_y = s->y + GROUND_FLOOR_Y;   /* model's floor level, world Y */
+        door_draw_string_billboard(ctx, "Save",
+                                   s->x, base_y - SAVE_TEXT_RISE, s->z,
+                                   170, 40, 230, fade, SAVE_TEXT_PIXEL);
+    }
 }

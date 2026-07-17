@@ -132,6 +132,7 @@ static void update_current_area(GameState area) {
     } else if (area == STATE_RECEPTION) {
         /* Placeholder room: walkable, flat-shaded. Walls-only collision (no
            kitchen props, which are global and would collide invisibly here). */
+        save_points_update();
         apply_collision_reception();
         apply_height();
         item_pickups_update();

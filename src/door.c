@@ -56,7 +56,7 @@ static const uint8_t door_glyphs[][7] = {
     {0x1F,0x11,0x11,0x1F,0x01,0x01,0x01}, /* P */
     {0x0E,0x11,0x11,0x11,0x15,0x09,0x16}, /* Q */
     {0x1F,0x11,0x11,0x1F,0x05,0x09,0x11}, /* R */
-    {0x0F,0x10,0x10,0x0E,0x01,0x01,0x1E}, /* S */
+    {0x1E,0x01,0x01,0x0E,0x10,0x10,0x0F}, /* S (LSB-first, matches the rest) */
     {0x1F,0x04,0x04,0x04,0x04,0x04,0x04}, /* T */
     {0x11,0x11,0x11,0x11,0x11,0x11,0x0E}, /* U */
     {0x11,0x11,0x11,0x11,0x11,0x0A,0x04}, /* V */
@@ -66,7 +66,7 @@ static const uint8_t door_glyphs[][7] = {
     {0x1F,0x10,0x08,0x04,0x02,0x01,0x1F}, /* Z */
     {0x00,0x00,0x00,0x00,0x00,0x00,0x00}, /* space */
     {0x00,0x04,0x04,0x04,0x00,0x04,0x00}, /* ! */
-    {0x00,0x00,0x0E,0x11,0x1F,0x01,0x0E}, /* a */
+    {0x00,0x00,0x0E,0x10,0x1E,0x11,0x1E}, /* a (LSB-first, matches the rest) */
     {0x01,0x01,0x0F,0x11,0x11,0x11,0x0F}, /* b */
     {0x00,0x00,0x0E,0x10,0x10,0x11,0x0E}, /* c */
     {0x10,0x10,0x1E,0x11,0x11,0x11,0x1E}, /* d */
@@ -193,6 +193,80 @@ void door_draw_string_3d(
                 gte_avsz4();
                 gte_stotz(&otz);
 
+                if (otz <= 0 || otz >= OT_LENGTH) continue;
+
+                POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
+                setPolyF4(poly);
+                setRGB0(poly, r, g, b);
+                poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+                poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+                poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+                poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
+                addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+                ctx->next_packet += sizeof(POLY_F4);
+            }
+        }
+    }
+}
+
+/* -----------------------------------------------------------------------
+ * Camera-facing (billboard) variant: draws the string as pixel quads centred on
+ * (wx,wy,wz), always facing the player. Text extends along the camera's world
+ * right axis and downward in Y. Used for free-standing labels (e.g. the save
+ * point) where a fixed wall plane would sit edge-on from some angles. The caller
+ * must have the camera view matrix loaded in the GTE.
+ * ----------------------------------------------------------------------- */
+void door_draw_string_billboard(
+    RenderContext *ctx, const char *str,
+    int32_t wx, int32_t wy, int32_t wz,
+    uint8_t r, uint8_t g, uint8_t b,
+    int fade_factor, int pixel
+) {
+    int32_t rx = icos(cam_rot), rz = -isin(cam_rot);   /* world screen-right */
+    int      char_w = 6 * pixel;
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+
+    r = (uint8_t)((r * fade_factor) >> 8);
+    g = (uint8_t)((g * fade_factor) >> 8);
+    b = (uint8_t)((b * fade_factor) >> 8);
+
+    int len = 0;
+    while (str[len]) len++;
+
+    int32_t start_h = -(len * char_w) / 2;          /* centre the line horizontally */
+    int32_t hx = (rx * pixel) >> 12, hz = (rz * pixel) >> 12;  /* one pixel right */
+
+    int ci;
+    for (ci = 0; ci < len; ci++) {
+        const uint8_t *glyph = door_glyphs[char_to_glyph(str[ci])];
+        int32_t char_h = start_h + ci * char_w;
+        int row, col;
+        for (row = 0; row < 7; row++) {
+            for (col = 0; col < 5; col++) {
+                if (!(glyph[row] & (0x01 << col))) continue;   /* same bit order as door_draw_string_3d */
+                if (ctx->next_packet + sizeof(POLY_F4) > buf_end) return;
+
+                int32_t h  = char_h + col * pixel;
+                int32_t bx = wx + ((rx * h) >> 12);
+                int32_t bz = wz + ((rz * h) >> 12);
+                int32_t by = wy + row * pixel;
+
+                SVECTOR verts[4];
+                verts[0].vx = (int16_t)bx;      verts[0].vy = (int16_t)by;           verts[0].vz = (int16_t)bz;      verts[0].pad = 0;
+                verts[1].vx = (int16_t)bx;      verts[1].vy = (int16_t)(by + pixel);  verts[1].vz = (int16_t)bz;      verts[1].pad = 0;
+                verts[2].vx = (int16_t)(bx+hx); verts[2].vy = (int16_t)by;           verts[2].vz = (int16_t)(bz+hz); verts[2].pad = 0;
+                verts[3].vx = (int16_t)(bx+hx); verts[3].vy = (int16_t)(by + pixel);  verts[3].vz = (int16_t)(bz+hz); verts[3].pad = 0;
+
+                DVECTOR sv[4];
+                int32_t otz;
+                gte_ldv3(&verts[0], &verts[1], &verts[2]);
+                gte_rtpt();
+                gte_stsxy3c(sv);
+                gte_ldv0(&verts[3]);
+                gte_rtps();
+                gte_stsxy(&sv[3]);
+                gte_avsz4();
+                gte_stotz(&otz);
                 if (otz <= 0 || otz >= OT_LENGTH) continue;
 
                 POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;

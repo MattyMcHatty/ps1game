@@ -27,8 +27,11 @@ extern int       save_point_count;
 
 void save_points_init(void);   /* load geometry once at startup (CD read only) */
 void save_points_clear(void);  /* remove all instances (call in an area's init) */
+void save_points_update(void); /* slow indefinite Y-axis spin */
 /* scale is fixed-point with 4096 = 1.0 (use 4096 for full size, 2048 for half). */
 int  save_point_add(int32_t x, int32_t y, int32_t z, int32_t rot_y, int32_t scale);
 void save_points_draw(RenderContext *ctx);
+/* Player collision against the save-point meshes (call from apply_collision_*). */
+void save_points_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 
 #endif
