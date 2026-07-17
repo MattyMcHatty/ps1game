@@ -79,6 +79,9 @@ void weapons_update(void) {
     if (tri_held && !tri_prev && game_state != STATE_MENU) {
         int target = next_owned_weapon();
         if (target != current_weapon) {
+            /* Switching away mid-reload interrupts it — the cylinder stays empty
+               and the reload must be restarted after switching back. */
+            graveolver_cancel_reload();
             switch_target = target;
             switch_phase  = 1;
             switch_timer  = 0;

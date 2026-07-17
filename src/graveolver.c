@@ -260,6 +260,16 @@ int graveolver_is_reloading(void) {
     return reload_timer > 0;
 }
 
+/* Abort an in-progress reload WITHOUT topping up the cylinder (the refill only
+   happens when the timer counts down to 0 on its own). The cylinder is left at
+   its current count, so an interrupted reload must be started again from scratch. */
+void graveolver_cancel_reload(void) {
+    if (reload_timer > 0) {
+        reload_timer = 0;
+        sound_stop(SFX_GR_RELOAD);
+    }
+}
+
 void graveolver_update(void) {
     /* Edge-detect Square so one press fires once; a short cooldown paces taps. */
     static int square_prev = 0;
