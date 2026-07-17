@@ -13,8 +13,14 @@
  * current_weapon / player_weapons).
  */
 void weapons_init(void);            /* load every weapon's model (startup) */
-void weapons_update(void);          /* L2 cycle + the equipped weapon's update */
+void weapons_update(void);          /* Triangle switch + the equipped weapon's update */
 void weapons_draw(RenderContext *ctx);
+
+/* Weapon-switch animation, shared by each weapon's draw: the outgoing weapon
+   slides off the bottom, the incoming one rises up. Returns the view-space Y
+   offset (0 = in place, positive = lowered) to add to the model's hold pose. */
+int  weapon_switch_offset(void);
+int  weapon_switching(void);        /* 1 while a switch animation is in progress */
 
 /* Shared flat-shaded, view-space weapon-model renderer used by each weapon's
    draw. weapon_vs is the fully-built view-space transform for the model; the

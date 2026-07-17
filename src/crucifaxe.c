@@ -190,9 +190,10 @@ void draw_crucifaxe(RenderContext *ctx) {
         t = 256 - (ret * 256) / SWING_RETURN;
     }
 
-    /* Weapon position in view/camera space — fixed offset from camera centre */
+    /* Weapon position in view/camera space — fixed offset from camera centre,
+       plus the weapon-switch slide (off the bottom when swapping). */
     int32_t vs_x =  40;
-    int32_t vs_y =  80 + (( 7 * t) >> 8);
+    int32_t vs_y =  80 + (( 7 * t) >> 8) + weapon_switch_offset();
     int32_t vs_z = 125;
 
     /* Swing: reversed (away from camera), axis at 35° to match weapon yaw.

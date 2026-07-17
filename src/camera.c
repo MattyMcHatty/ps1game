@@ -7,6 +7,7 @@
 #include "collision.h"
 #include "player.h"    /* current_weapon, SCREEN_* (via render.h) */
 #include "graveolver.h"  /* graveolver_is_reloading */
+#include "weapon.h"      /* weapon_switching */
 #include "title.h"
 
 int32_t cam_x   = 0;
@@ -62,7 +63,7 @@ void update_camera(void) {
     static int aim_prev_held = 0;
     int aim_held  = (btn & PAD_L2) ? 1 : 0;
     int has_gun   = (current_weapon == WEAPON_GRAVEOLVER);
-    int reloading = graveolver_is_reloading();
+    int reloading = graveolver_is_reloading() || weapon_switching();
 
     if (aiming) {
         if (reloading || !has_gun || !aim_held) {

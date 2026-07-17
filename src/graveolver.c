@@ -322,8 +322,10 @@ void draw_graveolver(RenderContext *ctx) {
 
     /* Reload dip: over the reload the model drops off the bottom of the screen
        (first third), stays down (middle third), then rises back (last third).
-       +Y is down in view space, so add the drop to the hold-pose Y. */
-    int32_t drop = 0;
+       +Y is down in view space, so add the drop to the hold-pose Y. The weapon-
+       switch slide feeds the same `drop`, so switching in/out mirrors the reload
+       motion (dip + tilt) — just without the reload sound. */
+    int32_t drop = weapon_switch_offset();
     if (reload_timer > 0) {
         int32_t third   = GRAV_RELOAD_FRAMES / 3;
         int32_t elapsed = GRAV_RELOAD_FRAMES - reload_timer;

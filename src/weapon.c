@@ -21,31 +21,71 @@ void weapons_init(void) {
     graveolver_init();
 }
 
-/* Cycle the equipped weapon to the next OWNED one (wrapping). */
-static void cycle_weapon(void) {
-    int w = current_weapon;
-    int i;
+/* Weapon-switch animation. Phase 1 lowers the outgoing weapon off the bottom;
+   at the bottom current_weapon swaps to the target; phase 2 raises the new one
+   back up. Input (fire/aim) is suppressed for the duration. */
+#define WEAPON_SWITCH_FRAMES 14   /* frames per phase (down, then up)          */
+#define WEAPON_SWITCH_DROP  260   /* view-space Y the model travels off screen  */
+static int switch_phase  = 0;     /* 0 none, 1 lowering, 2 raising              */
+static int switch_timer  = 0;
+static int switch_target = 0;
+
+int weapon_switch_offset(void) {
+    if (switch_phase == 1)
+        return (WEAPON_SWITCH_DROP * switch_timer) / WEAPON_SWITCH_FRAMES;
+    if (switch_phase == 2)
+        return (WEAPON_SWITCH_DROP * (WEAPON_SWITCH_FRAMES - switch_timer)) /
+               WEAPON_SWITCH_FRAMES;
+    return 0;
+}
+
+int weapon_switching(void) { return switch_phase != 0; }
+
+/* The next OWNED weapon after current_weapon (wrapping), or current if it's the
+   only one. */
+static int next_owned_weapon(void) {
+    int w = current_weapon, i;
     for (i = 0; i < MAX_WEAPON_TYPES; i++) {
         w = (w + 1) % MAX_WEAPON_TYPES;
-        if (player_weapons & (1 << w)) break;
+        if (player_weapons & (1 << w)) return w;
     }
-    if (w != current_weapon) {
-        current_weapon = (WeaponType)w;
-        swing_timer = 0;   /* abort any in-progress crucifaxe swing */
-    }
+    return current_weapon;
 }
 
 void weapons_update(void) {
-    /* Edge-detect Triangle so one press cycles once (L2 is now aiming). */
+    /* Drive an in-progress switch; block all weapon input until it finishes. */
+    if (switch_phase) {
+        switch_timer++;
+        if (switch_timer >= WEAPON_SWITCH_FRAMES) {
+            switch_timer = 0;
+            if (switch_phase == 1) {
+                current_weapon = (WeaponType)switch_target;  /* swap off screen */
+                swing_timer    = 0;   /* abort any in-progress crucifaxe swing */
+                switch_phase   = 2;
+            } else {
+                switch_phase = 0;
+            }
+        }
+        return;
+    }
+
+    /* Edge-detect Triangle so one press starts one switch (L2 is now aiming). */
     static int tri_prev = 0;
     int tri_held = 0;
     if (pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
         tri_held = (~pad->btn & PAD_TRIANGLE) ? 1 : 0;
     }
-    if (tri_held && !tri_prev && game_state != STATE_MENU)
-        cycle_weapon();
+    if (tri_held && !tri_prev && game_state != STATE_MENU) {
+        int target = next_owned_weapon();
+        if (target != current_weapon) {
+            switch_target = target;
+            switch_phase  = 1;
+            switch_timer  = 0;
+        }
+    }
     tri_prev = tri_held;
+    if (switch_phase) return;   /* a switch just started this frame */
 
     /* Route to the equipped weapon's update. The crucifaxe's melee swing only
        runs while it is equipped (a gun can't chop crates/doors); the grave-olver
