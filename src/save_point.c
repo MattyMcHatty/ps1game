@@ -1,8 +1,10 @@
 #include <stdint.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <psxgpu.h>
 #include <psxgte.h>
 #include <psxcd.h>
+#include <psxpad.h>
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
@@ -10,6 +12,9 @@
 #include "collision.h"      /* GROUND_FLOOR_Y */
 #include "door.h"           /* door_draw_string_billboard (shared pixel font) */
 #include "save_point.h"
+
+extern volatile uint8_t pad_buff[2][34];
+extern volatile size_t  pad_buff_len[2];
 
 SavePoint save_points[MAX_SAVE_POINTS];
 int       save_point_count = 0;
@@ -101,6 +106,44 @@ void save_points_update(void) {
     for (i = 0; i < save_point_count; i++)
         if (save_points[i].active)
             save_points[i].rot_y = (save_points[i].rot_y + SAVE_SPIN_SPEED) & 4095;
+}
+
+/* ---- Circle-to-save interaction -------------------------------------------
+   Same edge-detected Circle pattern as the room doors: a fresh press (not a held
+   one carried in from a transition) while within SAVE_TRIGGER_RADIUS of any
+   active save point opens the save flow. */
+#define SAVE_TRIGGER_RADIUS 500
+
+static int save_circle_prev = 1;   /* start "held" so an entry press won't fire */
+
+void save_point_arm(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    save_circle_prev = held;
+}
+
+int save_point_triggered(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    int just = held && !save_circle_prev;
+    save_circle_prev = held;
+    if (!just) return 0;
+
+    int i;
+    for (i = 0; i < save_point_count; i++) {
+        SavePoint *s = &save_points[i];
+        if (!s->active) continue;
+        int32_t dx = cam_x - s->x, dz = cam_z - s->z;
+        int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        if (xz < SAVE_TRIGGER_RADIUS) return 1;
+    }
+    return 0;
 }
 
 int save_point_add(int32_t x, int32_t y, int32_t z, int32_t rot_y, int32_t scale) {

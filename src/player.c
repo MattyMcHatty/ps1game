@@ -13,6 +13,7 @@ int     player_keys   = 0;
 int     player_weapons = (1 << WEAPON_CRUCIFAXE);  /* crucifaxe always owned */
 int     player_rounds  = 0;
 int     graveolver_loaded = GRAVEOLVER_CAPACITY;   /* cylinder starts loaded */
+int     player_save_count = 0;   /* bumps on every successful save, any slot/card */
 WeaponType current_weapon = WEAPON_CRUCIFAXE;
 
 PickupEntry pickup_log[PICKUP_MSG_COUNT] = {{{""},0},{{""},0},{{""},0}};

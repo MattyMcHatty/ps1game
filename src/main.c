@@ -32,6 +32,7 @@
 #include "demondog.h"
 #include "zombie.h"
 #include "menu.h"
+#include "save_menu.h"
 #include "kitchen_dining.h"
 #include "reception.h"
 #include "world.h"
@@ -69,6 +70,7 @@ void reset_game(RenderContext *ctx) {
     flash_timer   = 0;
     damage_timer  = 0;
     player_health = MAX_HEALTH;
+    player_save_count = 0;   /* fresh playthrough: no saves recorded yet */
     swing_timer    = 0;
     vampire_kb_vx    = 0;
     vampire_kb_vz    = 0;
@@ -136,7 +138,12 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         item_pickups_update();
-        if (reception_door_triggered()) {
+        if (save_point_triggered()) {
+            /* Stand at the save point and press Circle to open the save flow.
+               current_area is already STATE_RECEPTION, so the menu returns here. */
+            save_menu_open();
+            game_state = STATE_SAVE_MENU;
+        } else if (reception_door_triggered()) {
             pending_area = STATE_KITCHEN_DINING;
             door_anim_start(DOOR_PANEL_INNER);   /* same interior double door */
             game_state   = STATE_DOOR_ANIM;
@@ -356,6 +363,19 @@ int main(int argc, const char **argv) {
                 draw_pickup_messages();
                 menu_update();
                 menu_draw(&ctx);
+            }
+        } else if (game_state == STATE_SAVE_MENU) {
+            if (game_over) {
+                game_state = current_area;   /* death cancels the save flow */
+            } else {
+                /* Frozen room backdrop (drawn, not updated: player, gravity and
+                   enemies all hold still during the save flow) + the menu on top.
+                   save_menu_update() defers the blocking card write by one frame
+                   so the "SAVING" screen is already on-screen when it runs. */
+                draw_current_area(&ctx, current_area);
+                draw_player_systems(&ctx);
+                save_menu_update();
+                save_menu_draw(&ctx);
             }
         } else if (game_state == STATE_LOADING) {
             /* Switch areas. All assets are resident (loaded at startup), so this

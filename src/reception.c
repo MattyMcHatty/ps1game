@@ -267,6 +267,7 @@ void reception_init(void) {
     cam_rot = 3072;   /* facing west (-X) */
 
     reception_door_arm();   /* don't re-trigger on a held Circle from the entry */
+    save_point_arm();       /* same, for the Circle-to-save interaction */
 
     /* Place reception's props. */
     save_points_clear();

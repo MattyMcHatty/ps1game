@@ -11,6 +11,7 @@ typedef enum {
     STATE_KITCHEN_DINING,
     STATE_DOOR_ANIM,   /* RE-style door-opening transition; runs before STATE_LOADING */
     STATE_RECEPTION,
+    STATE_SAVE_MENU,   /* memory-card save flow, opened at a save point */
 } GameState;
 
 extern GameState game_state;

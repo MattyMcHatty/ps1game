@@ -34,4 +34,11 @@ void save_points_draw(RenderContext *ctx);
 /* Player collision against the save-point meshes (call from apply_collision_*). */
 void save_points_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 
+/* Circle-to-save interaction. save_point_arm() seeds the button edge detector
+   (call on room entry and when a save flow closes) so a held Circle doesn't fire;
+   save_point_triggered() returns 1 on a fresh Circle press while standing next to
+   any active save point. */
+void save_point_arm(void);
+int  save_point_triggered(void);
+
 #endif

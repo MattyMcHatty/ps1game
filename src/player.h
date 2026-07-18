@@ -23,6 +23,7 @@ typedef enum {
 extern int player_weapons;     /* bitmask — bit WEAPON_* set means it is owned */
 extern int player_rounds;      /* reserve rounds held (used to reload the cylinder) */
 extern int graveolver_loaded;  /* rounds currently in the Grave-olver cylinder (0..6) */
+extern int player_save_count;  /* total successful saves this playthrough (any slot/card) */
 extern WeaponType current_weapon;  /* the equipped weapon; L2 cycles owned ones */
 
 #define ROUNDS_PER_PICKUP  100  /* rounds granted by one Standard Rounds pickup */

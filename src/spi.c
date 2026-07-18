@@ -165,6 +165,42 @@ void SPI_SetPollRate(uint32_t value) {
 		TIMER_RELOAD(2) = (F_CPU / 8) / value;
 }
 
+void SPI_Acquire(void) {
+	// Mask the poll-timer (IRQ6) and /ACK (IRQ7) interrupts so neither handler
+	// runs while the caller drives the SIO port directly. The timer keeps
+	// counting; its latched IRQ is cleared on release.
+	EnterCriticalSection();
+	IRQ_MASK &= ~((1 << 6) | (1 << 7));
+	ExitCriticalSection();
+
+	// Let any in-flight pad byte finish clocking out, then abandon that
+	// transaction: deselect, drain the RX FIFO and clear stale IRQ latches.
+	for (uint32_t i = 0; i < 4000; i++)
+		__asm__ volatile("");
+	while (SIO_STAT(0) & 0x0002)
+		SIO_DATA(0);
+	SIO_CTRL(0) = 0x0010;
+	IRQ_STAT = (uint16_t)~((1 << 6) | (1 << 7));
+}
+
+void SPI_Release(void) {
+	// Drop whatever the caller's (or the abandoned pad) transaction left in
+	// the FIFO so the first tick after release doesn't misread it.
+	while (SIO_STAT(0) & 0x0002)
+		SIO_DATA(0);
+	SIO_CTRL(0) = 0x0010;
+
+	EnterCriticalSection();
+	// Neutralise the interrupted context: no callback fires for it and no
+	// partial pad response reaches the poll callback.
+	_context.callback = 0;
+	_context.rx_len   = 0;
+	_context.tx_len   = 0;
+	IRQ_STAT = (uint16_t)~((1 << 6) | (1 << 7));
+	IRQ_MASK |= (1 << 6) | (1 << 7);
+	ExitCriticalSection();
+}
+
 void SPI_Init(SPI_Callback callback) {
 	// Disable the BIOS timer handler (which for some stupid reason is enabled
 	// by default, even though it does nothing) and set up custom interrupt

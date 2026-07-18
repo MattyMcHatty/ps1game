@@ -92,6 +92,21 @@ void SPI_SetPollRate(uint32_t value);
  */
 void SPI_Init(SPI_Callback callback);
 
+/**
+ * @brief Suspends the driver (masks its timer and /ACK IRQs) and hands the SIO
+ * port to the caller for direct synchronous access. Used for memory card
+ * transactions, whose 140-byte transfers cannot fit between two poll ticks —
+ * the tick-driven completion model only works for small pad packets. Pad
+ * polling stops until SPI_Release() is called.
+ */
+void SPI_Acquire(void);
+
+/**
+ * @brief Resumes normal driver operation after SPI_Acquire(): clears any state
+ * left by the interrupted transaction and unmasks the driver's IRQs.
+ */
+void SPI_Release(void);
+
 #ifdef __cplusplus
 }
 #endif
