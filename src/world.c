@@ -7,6 +7,7 @@
 #include "sml_med.h"
 #include "item_pickup.h"
 #include "door.h"
+#include "fatdoor.h"
 
 #define WORLD_NUM_ROOMS 3   /* delivery_area, kitchen_dining, reception */
 
@@ -24,7 +25,18 @@ typedef struct {
     DoorState  door_state;
 } RoomState;
 
-static RoomState rooms[WORLD_NUM_ROOMS];
+/* Everything the save system persists in one contiguous blob: the per-room
+   snapshots plus global (non-room-swapped) state. The fatdoors are one global
+   array tagged by area — they never pass through world_leave/enter's swapping,
+   so they get their own section, mirrored on every leave and restored wholesale
+   on install. */
+typedef struct {
+    RoomState rooms[WORLD_NUM_ROOMS];
+    FatDoor   fatdoors[MAX_FATDOORS];
+    int       fatdoor_count;
+} WorldState;
+
+static WorldState world;
 
 /* Live entity arrays (owned by their modules) — the "working set" for the
    room the player is currently in. */
@@ -67,21 +79,45 @@ static void restore(const RoomState *r) {
     door_state = r->door_state;
 }
 
+void *world_blob(void)      { return &world; }
+int   world_blob_size(void) { return (int)sizeof world; }
+
+void world_install(const void *blob) {
+    memcpy(&world, blob, sizeof world);
+    /* The fatdoor section is global (not per-room-swapped), so restore the live
+       array immediately rather than waiting for a world_enter. */
+    memcpy(fatdoors, world.fatdoors, sizeof fatdoors);
+    fatdoor_count = world.fatdoor_count;
+}
+
+/* Mirror the live (global) fatdoor array into the blob's section. */
+static void snapshot_fatdoors(void) {
+    memcpy(world.fatdoors, fatdoors, sizeof fatdoors);
+    world.fatdoor_count = fatdoor_count;
+}
+
 void world_new_game(void) {
-    memset(rooms, 0, sizeof rooms);
+    memset(&world, 0, sizeof world);
     /* The starting room (delivery) already has its entities set up by the
        startup inits + reset_game, so capture that as its initial state. */
     int d = room_index(STATE_DELIVERY_AREA);
-    snapshot(&rooms[d]);
-    rooms[d].visited = 1;
+    snapshot(&world.rooms[d]);
+    world.rooms[d].visited = 1;
+    snapshot_fatdoors();
 }
 
 void world_leave(GameState area) {
-    snapshot(&rooms[room_index(area)]);
+    /* Enemy wake/chase state never persists: leaving a room — and saving, which
+       also snapshots via this function — puts every still-living enemy back at
+       its spawn point, asleep, at full health. Deaths stick. */
+    zombies_rest();
+    demon_dogs_rest();
+    snapshot(&world.rooms[room_index(area)]);
+    snapshot_fatdoors();
 }
 
 void world_enter(GameState area) {
-    RoomState *r = &rooms[room_index(area)];
+    RoomState *r = &world.rooms[room_index(area)];
     if (r->visited) {
         restore(r);
     } else {

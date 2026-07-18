@@ -6,6 +6,7 @@
 #include "player.h"
 #include "camera.h"
 #include "title.h"
+#include "world.h"
 
 /* ---- PlayStation memory-card directory format ------------------------------
    Block 0 is the directory. Frame 0 is the card header ("MC" magic). Frames
@@ -25,9 +26,13 @@
 #define SAVE_PREFIX      "BESLES-00000GRV"
 
 /* Layout within a save block. */
-#define TITLE_FRAME       0     /* "SC" + title + icon clut */
+#define TITLE_FRAME       0     /* "SC" + title + icon clut  */
 #define ICON_FRAME        1     /* 16x16 4bpp icon bitmap    */
 #define DATA_FRAME        2     /* our SaveData              */
+#define WORLD_FRAME0      3     /* per-room world blob, ceil(world_size/128) frames */
+
+/* Frames left in a block for the world blob; world_blob_size() must fit. */
+#define WORLD_MAX_BYTES  ((MC_FRAMES_PER_BLOCK - WORLD_FRAME0) * MC_FRAME_SIZE)
 
 /* ---- Save-block icon (cosmetic; shown in the console card manager) ---------
    16 colours, BGR555. 0 = transparent black, 1 = purple, 2 = white. */
@@ -52,6 +57,11 @@ static void build_icon(uint8_t *frame) {
 }
 
 void savegame_capture(SaveData *sd) {
+    /* The current room's live entities are normally only snapshotted into its
+       rooms[] slot when the player LEAVES it — flush them now so the world blob
+       serialised alongside this capture reflects the moment of saving. */
+    world_leave(current_area);
+
     memset(sd, 0, sizeof(*sd));
     sd->magic   = SAVE_MAGIC;
     sd->version = SAVE_VERSION;
@@ -66,6 +76,7 @@ void savegame_capture(SaveData *sd) {
     sd->weapons = player_weapons;
     sd->keys    = player_keys;
     sd->counter = 0;
+    sd->world_size = (uint32_t)world_blob_size();
 }
 
 /* True if a directory frame is one of ours (used, with our filename prefix). */
@@ -154,6 +165,82 @@ static int format_card(int port) {
     return MC_OK;
 }
 
+/* World blob staging: savegame_read parks the loaded rooms[] image here; it is
+   installed by savegame_apply_pending once the destination area is set up. */
+static uint8_t staged_world[WORLD_MAX_BYTES];
+static int     world_staged = 0;
+
+int savegame_read(int port, int block, SaveData *sd) {
+    uint8_t frame[128];
+    if (block < 1 || block > SAVE_MAX_SLOTS) return MC_BAD_DATA;
+
+    world_staged = 0;
+    memcard_begin();
+
+    int rc = memcard_read_frame(port, block * MC_FRAMES_PER_BLOCK + DATA_FRAME, frame);
+    if (rc != MC_OK) { memcard_end(); return rc; }
+    memcpy(sd, frame, sizeof(*sd));
+    /* world_size must match the CURRENT rooms[] layout: a save from an older
+       build (different entity structs) cannot be installed safely. */
+    if (sd->magic != SAVE_MAGIC || sd->version != SAVE_VERSION ||
+        sd->world_size != (uint32_t)world_blob_size()) {
+        memcard_end(); return MC_BAD_DATA;
+    }
+
+    int total = (int)sd->world_size;
+    int nf    = (total + MC_FRAME_SIZE - 1) / MC_FRAME_SIZE;
+    for (int f = 0; f < nf; f++) {
+        rc = memcard_read_frame(port,
+                 block * MC_FRAMES_PER_BLOCK + WORLD_FRAME0 + f, frame);
+        if (rc != MC_OK) { memcard_end(); return rc; }
+        int off = f * MC_FRAME_SIZE;
+        int n   = total - off;
+        if (n > MC_FRAME_SIZE) n = MC_FRAME_SIZE;
+        memcpy(staged_world + off, frame, n);
+    }
+
+    memcard_end();
+    world_staged = 1;
+    return MC_OK;
+}
+
+/* ---- Staged load (see savegame.h) ------------------------------------------ */
+static SaveData staged_load;
+static int      load_pending = 0;
+
+void savegame_stage_load(const SaveData *sd) {
+    staged_load  = *sd;
+    load_pending = 1;
+}
+
+void savegame_apply_pending(void) {
+    if (!load_pending) return;
+    load_pending = 0;
+
+    SaveData *sd = &staged_load;
+    cam_x   = sd->cam_x;
+    cam_y   = sd->cam_y;
+    cam_z   = sd->cam_z;
+    cam_rot = sd->cam_rot;
+    cam_vy  = 0;
+    player_health     = sd->health;
+    player_rounds     = sd->rounds;
+    graveolver_loaded = sd->loaded;
+    player_weapons    = sd->weapons;
+    player_keys       = sd->keys;
+    player_save_count = (int)sd->counter;
+
+    /* Install the saved per-room world state over the fresh rooms[] the new-game
+       path just built, then re-enter the saved area so the live entity arrays
+       (enemies, crates, pickups, door state) come from the LOADED slot rather
+       than the room init's defaults. */
+    if (world_staged) {
+        world_install(staged_world);
+        world_staged = 0;
+        world_enter((GameState)sd->area);
+    }
+}
+
 int savegame_write(int port, int block, const SaveData *sd, const char *title) {
     uint8_t frame[128];
     char    filename[21];
@@ -204,6 +291,25 @@ int savegame_write(int port, int block, const SaveData *sd, const char *title) {
     memcpy(frame, sd, sizeof(*sd));
     if (memcard_write_frame(port, block * MC_FRAMES_PER_BLOCK + DATA_FRAME, frame) != MC_OK) {
         memcard_end(); return MC_BAD_DATA;
+    }
+
+    /* --- Per-room world blob, 128 bytes per frame from WORLD_FRAME0 --- */
+    {
+        const uint8_t *wb    = (const uint8_t *)world_blob();
+        int            total = (int)sd->world_size;
+        if (total > WORLD_MAX_BYTES) { memcard_end(); return MC_BAD_DATA; }
+        int nf = (total + MC_FRAME_SIZE - 1) / MC_FRAME_SIZE;
+        for (int f = 0; f < nf; f++) {
+            int off = f * MC_FRAME_SIZE;
+            int n   = total - off;
+            if (n > MC_FRAME_SIZE) n = MC_FRAME_SIZE;
+            memset(frame, 0, sizeof(frame));
+            memcpy(frame, wb + off, n);
+            if (memcard_write_frame(port,
+                    block * MC_FRAMES_PER_BLOCK + WORLD_FRAME0 + f, frame) != MC_OK) {
+                memcard_end(); return MC_BAD_DATA;
+            }
+        }
     }
 
     memcard_end();

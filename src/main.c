@@ -33,6 +33,7 @@
 #include "zombie.h"
 #include "menu.h"
 #include "save_menu.h"
+#include "savegame.h"
 #include "kitchen_dining.h"
 #include "reception.h"
 #include "world.h"
@@ -451,6 +452,11 @@ int main(int argc, const char **argv) {
             world_enter(pending_area);
             current_area = pending_area;
             game_state   = pending_area;
+            /* If this transition came from a title-screen Load Game, overwrite
+               the room's default spawn/player state with the saved one (no-op
+               otherwise). Must run after the area init above, which sets its
+               own spawn position. */
+            savegame_apply_pending();
         } else if (game_state == STATE_DOOR_ANIM) {
             /* RE-style door transition: a black screen with the door swinging
                open, then a fade to black. Draws nothing of the live room — when
@@ -487,6 +493,12 @@ int main(int argc, const char **argv) {
             if (game_state == STATE_DELIVERY_AREA)
                 reset_game(&ctx);   /* fresh-start spawn/state */
             world_new_game();       /* reset rooms; capture the fresh starting room */
+            /* Loading into the delivery area enters it directly (no
+               STATE_LOADING pass), so apply the staged save here, after
+               reset_game's defaults. STATE_LOADING targets apply theirs at the
+               end of the loading branch instead; no-op when not loading. */
+            if (game_state != STATE_LOADING)
+                savegame_apply_pending();
             cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
         }
         if (prev_state != STATE_TITLE && game_state == STATE_TITLE) {

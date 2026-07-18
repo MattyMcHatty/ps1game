@@ -9,7 +9,7 @@
    SaveData frame later. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   1
+#define SAVE_VERSION   2             /* v2: per-room world state follows the data frame */
 #define SAVE_MAX_SLOTS 15            /* blocks 1..15 are usable for saves */
 
 typedef struct {
@@ -24,6 +24,10 @@ typedef struct {
     int32_t  keys;                  /* held-key bitmask */
     uint32_t counter;               /* playthrough save count INCLUDING this save
                                        (mirrors player_save_count; restored on load) */
+    uint32_t world_size;            /* byte size of the world blob stored in the
+                                       frames after this one; must equal
+                                       world_blob_size() for the save to load
+                                       (a layout change invalidates old saves) */
 } SaveData;                          /* well under 128 bytes */
 
 typedef struct {
@@ -45,5 +49,17 @@ int  savegame_free_block(int port);
 /* Write sd into `block` (1..15) with the given display title.
    Returns MC_OK or a negative MC_* error. */
 int  savegame_write(int port, int block, const SaveData *sd, const char *title);
+
+/* Read the SaveData stored in `block` (1..15), validating magic/version.
+   Returns MC_OK or a negative MC_* error. */
+int  savegame_read(int port, int block, SaveData *sd);
+
+/* Loading happens in two steps because entering an area overwrites the camera
+   and player state: stage_load() stashes a SaveData at selection time (title
+   screen), then apply_pending() — called by main.c once the destination area
+   is fully initialised — copies it over the live game state. apply_pending()
+   is a no-op when nothing is staged, so normal transitions are unaffected. */
+void savegame_stage_load(const SaveData *sd);
+void savegame_apply_pending(void);
 
 #endif

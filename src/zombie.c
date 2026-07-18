@@ -67,11 +67,29 @@ int zombie_add(int32_t x, int32_t y, int32_t z) {
     Zombie *z0 = &zombies[i];
     *z0 = (Zombie){0};
     z0->x = x; z0->y = y; z0->z = z;
+    z0->spawn_x = x; z0->spawn_y = y; z0->spawn_z = z;
     z0->health = ZMB_MAX_HEALTH;
     z0->state  = ZMB_DORMANT;
     z0->active = 1;
     z0->nav_clear = -1;
     return i;
+}
+
+void zombies_rest(void) {
+    int i;
+    for (i = 0; i < zombie_count; i++) {
+        Zombie *z0 = &zombies[i];
+        if (!z0->active || z0->state == ZMB_DEAD) continue;
+        /* Rebuild exactly as zombie_add left it, at the recorded spawn. */
+        int32_t sx = z0->spawn_x, sy = z0->spawn_y, sz = z0->spawn_z;
+        *z0 = (Zombie){0};
+        z0->x = sx; z0->y = sy; z0->z = sz;
+        z0->spawn_x = sx; z0->spawn_y = sy; z0->spawn_z = sz;
+        z0->health = ZMB_MAX_HEALTH;
+        z0->state  = ZMB_DORMANT;
+        z0->active = 1;
+        z0->nav_clear = -1;
+    }
 }
 
 void zombies_init(void) {

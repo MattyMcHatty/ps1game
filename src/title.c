@@ -3,6 +3,8 @@
 #include <psxpad.h>
 #include "render.h"
 #include "title.h"
+#include "memcard.h"
+#include "savegame.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -12,6 +14,19 @@ extern volatile size_t  pad_buff_len[2];
 static int debug_menu_open   = 0;
 static int debug_menu_cursor = 0;
 static int level_select_fnt  = -1;
+
+/* ---- Start menu (opened with Start): New Game / Load Game ------------------
+   Load Game walks card slot -> save file, reads the chosen SaveData, stages it
+   (savegame_stage_load) and routes into the saved area exactly like the level
+   select does; main.c applies the staged state once the area is initialised. */
+enum { TM_CLOSED, TM_MAIN, TM_CARD, TM_FILE };
+static int tmenu        = TM_CLOSED;
+static int tmenu_cursor = 0;
+static int tmenu_port   = 0;                 /* chosen card slot (0/1) */
+static const char *tmenu_msg = 0;            /* inline error line, if any */
+static SaveSlotInfo tmenu_slots[SAVE_MAX_SLOTS];
+static int tmenu_slot_count = 0;
+static int load_list_fnt    = -1;            /* wider stream for save titles */
 
 static const char *const level_names[] = {
     "DELIVERY AREA",
@@ -307,6 +322,35 @@ void draw_title(RenderContext *ctx) {
         }
         FntPrint(level_select_fnt, "\nX:LOAD  SEL:BACK");
         FntFlush(level_select_fnt);
+    } else if (tmenu == TM_MAIN) {
+        FntPrint(level_select_fnt, "%s NEW GAME\n%s LOAD GAME\n",
+                 tmenu_cursor == 0 ? "*" : " ",
+                 tmenu_cursor == 1 ? "*" : " ");
+        FntPrint(level_select_fnt, "\nO:SELECT X:BACK");
+        FntFlush(level_select_fnt);
+    } else if (tmenu == TM_CARD) {
+        FntPrint(level_select_fnt, "LOAD GAME\n\n");
+        FntPrint(level_select_fnt, "%s MEMORY CARD 1\n%s MEMORY CARD 2\n",
+                 tmenu_cursor == 0 ? "*" : " ",
+                 tmenu_cursor == 1 ? "*" : " ");
+        if (tmenu_msg)
+            FntPrint(level_select_fnt, "\n%s\n", tmenu_msg);
+        FntPrint(level_select_fnt, "\nO:SELECT X:BACK");
+        FntFlush(level_select_fnt);
+    } else if (tmenu == TM_FILE) {
+        /* Wider window: save titles run up to 32 characters. Scroll a 10-entry
+           window so a full card (15 saves) stays reachable. */
+        int fnt = load_list_fnt >= 0 ? load_list_fnt : level_select_fnt;
+        int first = (tmenu_cursor > 9) ? tmenu_cursor - 9 : 0;
+        int k;
+        FntPrint(fnt, "SELECT SAVE\n\n");
+        for (k = first; k < tmenu_slot_count && k < first + 10; k++)
+            FntPrint(fnt, "%s %s\n",
+                     k == tmenu_cursor ? "*" : " ", tmenu_slots[k].title);
+        if (tmenu_msg)
+            FntPrint(fnt, "%s\n", tmenu_msg);
+        FntPrint(fnt, "\nO:LOAD  X:BACK");
+        FntFlush(fnt);
     } else {
         title_flash++;
         if ((title_flash & 63) < 40)
@@ -317,6 +361,8 @@ void draw_title(RenderContext *ctx) {
 void title_init(void) {
     /* Font window for the level-select list (8x16 glyphs), below the title. */
     level_select_fnt = FntOpen(96, 120, 160, 96, 0, 256);
+    /* Wider window for the save-file list (32-char titles + cursor). */
+    load_list_fnt = FntOpen(28, 118, 264, 112, 0, 512);
 }
 
 void update_title(void) {
@@ -329,29 +375,95 @@ void update_title(void) {
     uint16_t pressed = held & ~prev_held;
     prev_held = held;
 
-    if (!debug_menu_open) {
+    if (!debug_menu_open && tmenu == TM_CLOSED) {
         if (pressed & PAD_SELECT) {
             debug_menu_open   = 1;
             debug_menu_cursor = 0;
         } else if (pressed & PAD_START) {
-            game_state = STATE_DELIVERY_AREA;
+            tmenu        = TM_MAIN;   /* New Game / Load Game */
+            tmenu_cursor = 0;
+            tmenu_msg    = 0;
         }
         return;
     }
 
-    /* Menu open: D-pad moves the cursor, X loads, Select backs out. */
-    if (pressed & PAD_UP)
-        debug_menu_cursor = (debug_menu_cursor + LEVEL_SELECT_COUNT - 1) % LEVEL_SELECT_COUNT;
-    if (pressed & PAD_DOWN)
-        debug_menu_cursor = (debug_menu_cursor + 1) % LEVEL_SELECT_COUNT;
-    if (pressed & PAD_SELECT)
-        debug_menu_open = 0;
-    if (pressed & PAD_CROSS) {
-        debug_menu_open = 0;
-        GameState target = level_states[debug_menu_cursor];
-        /* STATE_LOADING entries (kitchen, reception) need the area to switch to. */
-        if (target == STATE_LOADING) pending_area = level_pending[debug_menu_cursor];
-        game_state = target;
+    if (debug_menu_open) {
+        /* Level select: D-pad moves the cursor, X loads, Select backs out. */
+        if (pressed & PAD_UP)
+            debug_menu_cursor = (debug_menu_cursor + LEVEL_SELECT_COUNT - 1) % LEVEL_SELECT_COUNT;
+        if (pressed & PAD_DOWN)
+            debug_menu_cursor = (debug_menu_cursor + 1) % LEVEL_SELECT_COUNT;
+        if (pressed & PAD_SELECT)
+            debug_menu_open = 0;
+        if (pressed & PAD_CROSS) {
+            debug_menu_open = 0;
+            GameState target = level_states[debug_menu_cursor];
+            /* STATE_LOADING entries (kitchen, reception) need the area to switch to. */
+            if (target == STATE_LOADING) pending_area = level_pending[debug_menu_cursor];
+            game_state = target;
+        }
+        return;
+    }
+
+    /* ---- Start menu ----
+       Circle = select, X = back: matches the in-game save menu's convention. */
+    int confirm = (pressed & PAD_CIRCLE) ? 1 : 0;
+    int back    = (pressed & PAD_CROSS)  ? 1 : 0;
+
+    if (tmenu == TM_MAIN) {
+        if (pressed & (PAD_UP | PAD_DOWN)) tmenu_cursor ^= 1;
+        if (back) { tmenu = TM_CLOSED; return; }
+        if (confirm) {
+            if (tmenu_cursor == 0) {
+                tmenu      = TM_CLOSED;             /* New Game — as before */
+                game_state = STATE_DELIVERY_AREA;
+            } else {
+                tmenu        = TM_CARD;             /* Load Game */
+                tmenu_cursor = 0;
+                tmenu_msg    = 0;
+            }
+        }
+    } else if (tmenu == TM_CARD) {
+        if (pressed & (PAD_UP | PAD_DOWN)) { tmenu_cursor ^= 1; tmenu_msg = 0; }
+        if (back) { tmenu = TM_MAIN; tmenu_cursor = 1; tmenu_msg = 0; return; }
+        if (confirm) {
+            tmenu_port = tmenu_cursor;
+            memcard_begin();
+            int present = memcard_present(tmenu_port);
+            memcard_end();
+            if (!present) { tmenu_msg = "NO MEMORY CARD"; return; }
+            int n = savegame_list(tmenu_port, tmenu_slots, SAVE_MAX_SLOTS);
+            if (n < 0)       { tmenu_msg = "CARD READ ERROR"; return; }
+            if (n == 0)      { tmenu_msg = "NO SAVES ON CARD"; return; }
+            tmenu_slot_count = n;
+            tmenu        = TM_FILE;
+            tmenu_cursor = 0;
+            tmenu_msg    = 0;
+        }
+    } else if (tmenu == TM_FILE) {
+        if (pressed & PAD_UP)
+            tmenu_cursor = (tmenu_cursor + tmenu_slot_count - 1) % tmenu_slot_count;
+        if (pressed & PAD_DOWN)
+            tmenu_cursor = (tmenu_cursor + 1) % tmenu_slot_count;
+        if (back) { tmenu = TM_CARD; tmenu_cursor = tmenu_port; tmenu_msg = 0; return; }
+        if (confirm) {
+            SaveData sd;
+            if (savegame_read(tmenu_port, tmenu_slots[tmenu_cursor].block, &sd) != MC_OK) {
+                tmenu_msg = "LOAD FAILED";
+                return;
+            }
+            /* Stage the state for main.c to apply once the area is set up, then
+               route into the saved area exactly like the level select. */
+            savegame_stage_load(&sd);
+            tmenu = TM_CLOSED;
+            if (sd.area == (int32_t)STATE_KITCHEN_DINING ||
+                sd.area == (int32_t)STATE_RECEPTION) {
+                pending_area = (GameState)sd.area;
+                game_state   = STATE_LOADING;
+            } else {
+                game_state = STATE_DELIVERY_AREA;
+            }
+        }
     }
 }
 

@@ -75,6 +75,14 @@ void demon_dogs_reset(void) {
         demon_dogs[i] = ddog_defaults[i];
 }
 
+void demon_dogs_rest(void) {
+    int i;
+    for (i = 0; i < demon_dog_count; i++) {
+        if (!demon_dogs[i].active || demon_dogs[i].state == DDOG_DEAD) continue;
+        demon_dogs[i] = ddog_defaults[i];   /* spawn spot, dormant, full health */
+    }
+}
+
 void update_demon_dogs(void) {
     static int hurt_sfx_cooldown = 0;
     int i;

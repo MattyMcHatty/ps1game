@@ -24,4 +24,11 @@ void world_new_game(void);          /* reset all rooms; capture the starting roo
 void world_leave(GameState area);   /* live entities  -> the area's saved slot */
 void world_enter(GameState area);   /* the area's saved slot -> live entities   */
 
+/* Raw access to the whole rooms[] array for the save system: savegame.c writes
+   the blob into the save block and installs a loaded one over it. After
+   world_install, call world_enter(saved area) to refresh the live arrays. */
+void *world_blob(void);
+int   world_blob_size(void);
+void  world_install(const void *blob);
+
 #endif

@@ -65,6 +65,8 @@ typedef enum {
 
 typedef struct {
     int32_t     x, y, z;
+    int32_t     spawn_x, spawn_y, spawn_z;   /* where zombie_add placed it; used
+                                                by zombies_rest() */
     int32_t     vy;
     int32_t     kb_vx, kb_vz;
     int         health;
@@ -99,6 +101,9 @@ int  zombie_add(int32_t x, int32_t y, int32_t z);
 
 void zombies_init(void);
 void zombies_reset(void);
+/* Put every still-living zombie back at its spawn point, asleep, at full
+   health (deaths stick). Called when leaving a room and when saving. */
+void zombies_rest(void);
 void update_zombies(void);
 void draw_zombies(RenderContext *ctx);
 

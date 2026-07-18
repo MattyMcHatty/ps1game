@@ -77,6 +77,9 @@ extern int      demon_dog_count;
 
 void demon_dogs_init(void);
 void demon_dogs_reset(void);
+/* Put every still-living dog back at its spawn point, asleep, at full health
+   (deaths stick). Called when leaving a room and when saving. */
+void demon_dogs_rest(void);
 void update_demon_dogs(void);
 void draw_demon_dogs(RenderContext *ctx);
 
