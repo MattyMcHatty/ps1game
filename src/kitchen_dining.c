@@ -13,6 +13,7 @@
 #include "collision.h"
 #include "kitchen_dining_mesh_collision.h"
 #include "kitchen_dining_tex_map.h"
+#include "btn_glyph.h"
 #include "door.h"
 #include "fatdoor.h"
 #include "zombie.h"
@@ -34,7 +35,7 @@ extern volatile size_t  pad_buff_len[2];
 #define KDOOR_FADE_NEAR      1000   /* fully opaque within this distance */
 #define KDOOR_TRIGGER_RADIUS  500   /* distance at which Circle activates the door */
 
-/* Stove sign ("Press O to ignite"), rotated 90deg CCW (XY plane, fixed Z).
+/* Stove sign ("Press " BTN_CIRCLE " to ignite"), rotated 90deg CCW (XY plane, fixed Z).
    TODO: set X/Z over the stove — walk there in debug mode (Select) and read
    cam_x/cam_z. Flip STOVE_TEXT_MIRROR (0/1) if the text reads backwards. */
 #define STOVE_TEXT_X         13
@@ -51,7 +52,7 @@ extern volatile size_t  pad_buff_len[2];
 #define STOVE_TRIGGER_RADIUS  500
 #define STOVE_FIRE_RATE        2   /* new flame particles emitted per frame */
 
-/* "to reception" door sign ("Press O to enter"), rotated 180deg (YZ plane,
+/* "to reception" door sign ("Press " BTN_CIRCLE " to enter"), rotated 180deg (YZ plane,
    mirror=0) from the kitchen door sign. Circle within the trigger radius opens
    it and loads the Reception area. */
 #define TO_RECEPTION_TEXT_X (-3255)
@@ -471,7 +472,7 @@ static void draw_kitchen_smd(RenderContext *ctx) {
     }
 }
 
-/* Floating "Press O to enter" sign at the kitchen door, shown when the player
+/* Floating "Press " BTN_CIRCLE " to enter" sign at the kitchen door, shown when the player
    is within range, fading in from KDOOR_TEXT_RADIUS to KDOOR_FADE_NEAR.
    The view matrix set in kitchen_dining_draw is still active here. */
 static void kitchen_door_text(RenderContext *ctx) {
@@ -490,12 +491,12 @@ static void kitchen_door_text(RenderContext *ctx) {
 
     /* world_z is offset by -200: door_draw_string_3d adds 200 internally, so
        this centres the text on KDOOR_Z. mirror=1 for the -X viewing side. */
-    door_draw_string_3d(ctx, "Press O to enter",
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
                         KDOOR_X, KDOOR_TEXT_Y, KDOOR_Z - 200,
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
-/* Floating "Press O to ignite" sign over the stove. Rotated 90deg CCW from the
+/* Floating "Press " BTN_CIRCLE " to ignite" sign over the stove. Rotated 90deg CCW from the
    door signs: it lies in the XY plane (fixed Z) so it reads along X and faces
    along Z. mirror flips reading direction for the side the player approaches. */
 static void stove_text(RenderContext *ctx) {
@@ -514,12 +515,12 @@ static void stove_text(RenderContext *ctx) {
 
     /* XY plane: door_draw_string_3d centres the reading axis (X) on world_x
        after adding 200, so pass STOVE_TEXT_X - 200 to centre on the stove. */
-    door_draw_string_3d(ctx, stove_lit ? "Press O to extinguish" : "Press O to ignite",
+    door_draw_string_3d(ctx, stove_lit ? "Press " BTN_CIRCLE " to extinguish" : "Press " BTN_CIRCLE " to ignite",
                         STOVE_TEXT_X - 200, KDOOR_TEXT_Y, STOVE_TEXT_Z,
                         50, 255, 50, fade, STOVE_TEXT_MIRROR, TEXT_PLANE_XY, STOVE_TEXT_PIXEL);
 }
 
-/* Floating "Press O to enter" sign at the "to reception" door, rotated 180deg
+/* Floating "Press " BTN_CIRCLE " to enter" sign at the "to reception" door, rotated 180deg
    from the kitchen door sign: same YZ plane, opposite facing side, so mirror=0
    (vs. 1 for the kitchen door). */
 static void to_reception_text(RenderContext *ctx) {
@@ -536,7 +537,7 @@ static void to_reception_text(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
 
-    door_draw_string_3d(ctx, "Press O to enter",
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
                         TO_RECEPTION_TEXT_X, KDOOR_TEXT_Y, TO_RECEPTION_TEXT_Z - 200,
                         50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }

@@ -6,6 +6,7 @@
 #include <psxpad.h>
 #include "save_menu.h"
 #include "render.h"
+#include "btn_glyph.h"
 #include "camera.h"
 #include "player.h"
 #include "title.h"
@@ -286,7 +287,8 @@ void save_menu_draw(RenderContext *ctx) {
                 draw_rect(ctx, PANEL_X + 8, y - 2, PANEL_W - 16, 12, 70, 55, 110, OT_HILITE);
             draw_text(ctx, PANEL_X + 14, y, cards[i]);
         }
-        draw_text(ctx, PANEL_X + 10, PANEL_Y + PANEL_H - 14, "O SELECT   X BACK");
+        btn_prompt_draw(ctx, PANEL_X + 10, PANEL_Y + PANEL_H - 14,
+                        BTN_CIRCLE " SELECT   " BTN_CROSS " BACK", OT_TEXT);
         break;
     }
     case SM_FILE_SELECT: {
@@ -300,14 +302,16 @@ void save_menu_draw(RenderContext *ctx) {
         }
         if (sm_opt_count == 0)
             draw_text(ctx, PANEL_X + 14, OPT_Y0, "CARD FULL");
-        draw_text(ctx, PANEL_X + 10, PANEL_Y + PANEL_H - 14, "O SAVE   X BACK");
+        btn_prompt_draw(ctx, PANEL_X + 10, PANEL_Y + PANEL_H - 14,
+                        BTN_CIRCLE " SAVE   " BTN_CROSS " BACK", OT_TEXT);
         break;
     }
     case SM_CONFIRM: {
         draw_text(ctx, PANEL_X + 10, PANEL_Y + 8, "OVERWRITE?");
         draw_text(ctx, PANEL_X + 14, OPT_Y0,          sm_label[sm_cursor]);
         draw_text(ctx, PANEL_X + 14, OPT_Y0 + OPT_DY, "This will be replaced.");
-        draw_text(ctx, PANEL_X + 10, PANEL_Y + PANEL_H - 14, "O YES   X NO");
+        btn_prompt_draw(ctx, PANEL_X + 10, PANEL_Y + PANEL_H - 14,
+                        BTN_CIRCLE " YES   " BTN_CROSS " NO", OT_TEXT);
         break;
     }
     case SM_SAVING: {
@@ -323,7 +327,8 @@ void save_menu_draw(RenderContext *ctx) {
         else                              { msg1 = "SAVE FAILED";    msg2 = "The card may be full/bad."; }
         draw_text(ctx, PANEL_X + 10, PANEL_Y + 8, msg1);
         draw_text(ctx, PANEL_X + 14, OPT_Y0, msg2);
-        draw_text(ctx, PANEL_X + 10, PANEL_Y + PANEL_H - 14, "O OK");
+        btn_prompt_draw(ctx, PANEL_X + 10, PANEL_Y + PANEL_H - 14,
+                        BTN_CIRCLE " OK", OT_TEXT);
         break;
     }
     default: break;

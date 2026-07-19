@@ -3,6 +3,7 @@
 #include <psxpad.h>
 #include "render.h"
 #include "title.h"
+#include "btn_glyph.h"
 #include "memcard.h"
 #include "savegame.h"
 
@@ -320,14 +321,16 @@ void draw_title(RenderContext *ctx) {
             else
                 FntPrint(level_select_fnt, "  %s\n", level_names[k]);
         }
-        FntPrint(level_select_fnt, "\nX:LOAD  SEL:BACK");
         FntFlush(level_select_fnt);
+        /* Footer with the coloured Cross button glyph (the Fnt streams can't
+           hold coloured glyphs, so footers are drawn separately at a fixed y). */
+        btn_prompt_draw(ctx, 96, 176, BTN_CROSS ":LOAD  SEL:BACK", 1);
     } else if (tmenu == TM_MAIN) {
         FntPrint(level_select_fnt, "%s NEW GAME\n%s LOAD GAME\n",
                  tmenu_cursor == 0 ? "*" : " ",
                  tmenu_cursor == 1 ? "*" : " ");
-        FntPrint(level_select_fnt, "\nO:SELECT X:BACK");
         FntFlush(level_select_fnt);
+        btn_prompt_draw(ctx, 96, 176, BTN_CIRCLE ":SELECT " BTN_CROSS ":BACK", 1);
     } else if (tmenu == TM_CARD) {
         FntPrint(level_select_fnt, "LOAD GAME\n\n");
         FntPrint(level_select_fnt, "%s MEMORY CARD 1\n%s MEMORY CARD 2\n",
@@ -335,8 +338,8 @@ void draw_title(RenderContext *ctx) {
                  tmenu_cursor == 1 ? "*" : " ");
         if (tmenu_msg)
             FntPrint(level_select_fnt, "\n%s\n", tmenu_msg);
-        FntPrint(level_select_fnt, "\nO:SELECT X:BACK");
         FntFlush(level_select_fnt);
+        btn_prompt_draw(ctx, 96, 176, BTN_CIRCLE ":SELECT " BTN_CROSS ":BACK", 1);
     } else if (tmenu == TM_FILE) {
         /* Wider window: save titles run up to 32 characters. Scroll a 10-entry
            window so a full card (15 saves) stays reachable. */
@@ -349,8 +352,8 @@ void draw_title(RenderContext *ctx) {
                      k == tmenu_cursor ? "*" : " ", tmenu_slots[k].title);
         if (tmenu_msg)
             FntPrint(fnt, "%s\n", tmenu_msg);
-        FntPrint(fnt, "\nO:LOAD  X:BACK");
         FntFlush(fnt);
+        btn_prompt_draw(ctx, 28, 222, BTN_CIRCLE ":LOAD  " BTN_CROSS ":BACK", 1);
     } else {
         title_flash++;
         if ((title_flash & 63) < 40)

@@ -52,6 +52,7 @@ add_executable(horror_game
     src/sound.c
     src/cdaudio.c
     src/menu.c
+    src/btn_glyph.c
     src/save_menu.c
     src/memcard.c
     src/savegame.c

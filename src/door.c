@@ -7,6 +7,7 @@
 #include "camera.h"
 #include "player.h"
 #include "key.h"
+#include "btn_glyph.h"
 #include "door.h"
 #include "door_anim.h"
 #include "sound.h"
@@ -148,7 +149,22 @@ void door_draw_string_3d(
         /* When mirrored, reverse character order along the reading axis so the
            text reads correctly from the opposite side of the plane. */
         int eff_ci = mirror ? (len - 1 - ci) : ci;
-        const uint8_t *glyph = door_glyphs[char_to_glyph(str[ci])];
+        /* Button control codes draw the button's shape in its OWN colour
+           (fade still applies); everything else uses the string colour. */
+        uint8_t cr = r, cg = g, cb = b;
+        const uint8_t *glyph;
+        {
+            uint8_t br_, bg_, bb_;
+            const uint8_t *bglyph = btn_glyph_lookup(str[ci], &br_, &bg_, &bb_);
+            if (bglyph) {
+                glyph = bglyph;
+                cr = (uint8_t)((br_ * fade_factor) >> 8);
+                cg = (uint8_t)((bg_ * fade_factor) >> 8);
+                cb = (uint8_t)((bb_ * fade_factor) >> 8);
+            } else {
+                glyph = door_glyphs[char_to_glyph(str[ci])];
+            }
+        }
         int32_t char_read = read_start + eff_ci * char_w;
 
         int row, col;
@@ -197,7 +213,7 @@ void door_draw_string_3d(
 
                 POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
                 setPolyF4(poly);
-                setRGB0(poly, r, g, b);
+                setRGB0(poly, cr, cg, cb);
                 poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
                 poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
                 poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
@@ -238,7 +254,21 @@ void door_draw_string_billboard(
 
     int ci;
     for (ci = 0; ci < len; ci++) {
-        const uint8_t *glyph = door_glyphs[char_to_glyph(str[ci])];
+        /* Button control codes: own shape + colour, as in door_draw_string_3d. */
+        uint8_t cr = r, cg = g, cb = b;
+        const uint8_t *glyph;
+        {
+            uint8_t br_, bg_, bb_;
+            const uint8_t *bglyph = btn_glyph_lookup(str[ci], &br_, &bg_, &bb_);
+            if (bglyph) {
+                glyph = bglyph;
+                cr = (uint8_t)((br_ * fade_factor) >> 8);
+                cg = (uint8_t)((bg_ * fade_factor) >> 8);
+                cb = (uint8_t)((bb_ * fade_factor) >> 8);
+            } else {
+                glyph = door_glyphs[char_to_glyph(str[ci])];
+            }
+        }
         int32_t char_h = start_h + ci * char_w;
         int row, col;
         for (row = 0; row < 7; row++) {
@@ -271,7 +301,7 @@ void door_draw_string_billboard(
 
                 POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
                 setPolyF4(poly);
-                setRGB0(poly, r, g, b);
+                setRGB0(poly, cr, cg, cb);
                 poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
                 poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
                 poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
@@ -382,7 +412,7 @@ void door_draw(RenderContext *ctx) {
     if (door_state == DOOR_LOCKED) {
         if (player_keys & (1 << KEY_FRONT_DOOR)) {
             door_draw_string_3d(ctx,
-                "Press O to unlock",
+                "Press " BTN_CIRCLE " to unlock",
                 SIGN_X, SIGN_Y, SIGN_Z,
                 50, 255, 50, fade_factor, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
         } else {
@@ -393,7 +423,7 @@ void door_draw(RenderContext *ctx) {
         }
     } else if (door_state == DOOR_UNLOCKED) {
         door_draw_string_3d(ctx,
-            "Press O to enter",
+            "Press " BTN_CIRCLE " to enter",
             SIGN_X, SIGN_Y, SIGN_Z,
             50, 255, 50, fade_factor, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
     }

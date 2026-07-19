@@ -12,6 +12,7 @@
 #include "collision.h"
 #include "reception_mesh_collision.h"
 #include "reception_tex_map.h"
+#include "btn_glyph.h"
 #include "door.h"
 #include "save_point.h"
 #include "dresser.h"
@@ -196,7 +197,7 @@ void reception_upload_textures(void) {
 
 /* ---- Door back to the kitchen ---------------------------------------------
    The double door on the bottom floor (where the player spawns). Mirrors the
-   kitchen's "to reception" door: a floating "Press O to enter" sign, and a fresh
+   kitchen's "to reception" door: a floating "Press " BTN_CIRCLE " to enter" sign, and a fresh
    Circle press within range starts the transition back. */
 #define RDOOR_X                  1450
 #define RDOOR_Z                 (-414)
@@ -234,7 +235,7 @@ int reception_door_triggered(void) {
     return xz < RDOOR_TRIGGER_RADIUS;
 }
 
-/* Floating "Press O to enter" sign on the double door, in the YZ plane (faces
+/* Floating "Press " BTN_CIRCLE " to enter" sign on the double door, in the YZ plane (faces
    along X). The player approaches from the -X (room) side, so mirror=1. */
 static void reception_door_text(RenderContext *ctx) {
     int32_t dx = cam_x - RDOOR_X;
@@ -250,7 +251,7 @@ static void reception_door_text(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
 
-    door_draw_string_3d(ctx, "Press O to enter",
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
                         RDOOR_X, RDOOR_TEXT_Y, RDOOR_Z - 200,
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
