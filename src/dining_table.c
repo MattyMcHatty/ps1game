@@ -187,8 +187,10 @@ void dining_tables_draw(RenderContext *ctx, uint16_t tpage, uint16_t clut) {
             gte_stsz4c(sz);
             if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) { p += stride; continue; }
 
+            SVECTOR *v3    = 0;
+            int32_t  v2_sz = sz[3];   /* v2's SZ, before the quad path reuses sz[3] */
             if (is_quad) {
-                SVECTOR *v3 = &table_smd->p_verts[vi[3]];
+                v3 = &table_smd->p_verts[vi[3]];
                 gte_ldv0(v3);
                 gte_rtps();
                 gte_stsxy(&sv[3]);
@@ -201,6 +203,10 @@ void dining_tables_draw(RenderContext *ctx, uint16_t tpage, uint16_t clut) {
             }
 
             gte_stotz(&otz);
+            /* Horizontal polys sort by their farthest corner (see render.h). */
+            if (poly_is_flat_y(v0, v1, v2, v3))
+                otz = is_quad ? otz_far4(sz[1], sz[2], v2_sz, sz[3])
+                              : otz_far3(sz[1], sz[2], sz[3]);
             if (otz <= 0) { p += stride; continue; }
             otz += 40;
             /* Stay below the texture-window primitive at OT_LENGTH-1 so it is

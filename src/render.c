@@ -121,6 +121,15 @@ void draw_faces(
 
         gte_avsz4();
         gte_stotz(&otz);
+        /* Horizontal faces (crate tops etc.) sort by their farthest corner so
+           vertical faces standing against them win the seam (see render.h).
+           After 4 RTPS the SZ FIFO holds all four corners. */
+        if (poly_is_flat_y(&verts[faces[i][0]], &verts[faces[i][1]],
+                           &verts[faces[i][2]], &verts[faces[i][3]])) {
+            int32_t sz[4];
+            gte_stsz4c(sz);
+            otz = otz_far4(sz[0], sz[1], sz[2], sz[3]);
+        }
 
         otz += depth_bias;
         if (otz <= 0) continue;

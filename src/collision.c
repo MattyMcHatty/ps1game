@@ -11,6 +11,7 @@
 #include "dresser.h"
 #include "fatdoor.h"
 #include "save_point.h"
+#include "piano_props.h"
 
 CollisionRoom current_collision_room;
 
@@ -58,6 +59,7 @@ static int props_block_point(int32_t x, int32_t y, int32_t z) {
     if (fatdoors_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
     if (dressers_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
     if (dining_tables_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
+    if (piano_props_point_solid(x, y, z, SHOT_PROP_SLACK))   return 1;
     return 0;
 }
 
@@ -570,6 +572,9 @@ void apply_collision_reception(void) {
     fatdoors_collide(&cam_x, cam_y, &cam_z, 125);
     /* Save point: solid, using its own mesh footprint (radius = player standoff). */
     save_points_collide(&cam_x, cam_y, &cam_z, 55);
+    /* Piano-room props (this routine is shared with the piano room); the module
+       gates itself to that area, so this is a no-op in reception. */
+    piano_props_collide(&cam_x, cam_y, &cam_z, 75);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

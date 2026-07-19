@@ -155,8 +155,10 @@ static void draw_smd_room(RenderContext *ctx) {
         gte_stsz4c(sz);
         if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) { p += stride; continue; }
 
+        SVECTOR *v3    = 0;
+        int32_t  v2_sz = sz[3];   /* v2's SZ, before the quad path reuses sz[3] */
         if (is_quad) {
-            SVECTOR *v3 = &room_smd->p_verts[vi[3]];
+            v3 = &room_smd->p_verts[vi[3]];
             gte_ldv0(v3);
             gte_rtps();
             gte_stsxy(&sv[3]);
@@ -169,6 +171,11 @@ static void draw_smd_room(RenderContext *ctx) {
         }
 
         gte_stotz(&otz);
+        /* Horizontal polys sort by their farthest corner, not their average,
+           so floors stay behind whatever stands on them (see render.h). */
+        if (poly_is_flat_y(v0, v1, v2, v3))
+            otz = is_quad ? otz_far4(sz[1], sz[2], v2_sz, sz[3])
+                          : otz_far3(sz[1], sz[2], sz[3]);
         if (otz <= 0) { p += stride; continue; }
         otz += 40;
         if (otz >= OT_LENGTH) otz = OT_LENGTH - 1;
@@ -290,6 +297,10 @@ static void draw_panel(
 
             gte_avsz4();
             gte_stotz(&otz);
+            /* Horizontal quads (the ground grid) sort by their farthest corner
+               so props/walls standing on them always win the seam (render.h). */
+            if (poly_is_flat_y(&v[0], &v[1], &v[2], &v[3]))
+                otz = otz_far4(sz[0], sz[1], sz[2], sz[3]);
 
             otz += depth_bias;
             if (otz <= 0) continue;

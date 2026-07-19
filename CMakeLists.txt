@@ -40,6 +40,7 @@ add_executable(horror_game
     src/reception.c
     src/piano_room_mesh_collision.c
     src/piano_room.c
+    src/piano_props.c
     src/crate.c
     src/dining_table.c
     src/save_point.c

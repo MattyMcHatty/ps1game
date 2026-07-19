@@ -37,6 +37,7 @@
 #include "kitchen_dining.h"
 #include "reception.h"
 #include "piano_room.h"
+#include "piano_props.h"
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
@@ -163,6 +164,7 @@ static void update_current_area(GameState area) {
            this room's bounds, so their collide calls are no-ops here). */
         apply_collision_reception();
         apply_height();
+        piano_props_update();   /* Circle-to-examine the piano */
         if (pdoor_triggered()) {
             pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
@@ -335,6 +337,7 @@ int main(int argc, const char **argv) {
                                   loop, and this keeps gameplay CD-read-free */
     reception_load_assets();   /* placeholder reception geometry (no textures) */
     piano_room_load_assets();  /* piano room geometry + textures (prpl_wlppr streamed) */
+    piano_props_load_assets(); /* piano + bookcase props (streamed textures) */
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
     fatdoors_init();
     door_anim_load_assets();   /* level-transition door panel (texture) */
@@ -420,12 +423,15 @@ int main(int argc, const char **argv) {
                 reception_upload_textures();
                 dresser_upload_texture();   /* dresser prop texture -> kchn_wl slot */
             } else if (pending_area == STATE_PIANO_ROOM) {
-                piano_room_upload_textures();   /* prpl_wlppr -> stove slot */
-            } else if (pending_area == STATE_KITCHEN_DINING &&
-                       current_area == STATE_RECEPTION) {
-                /* Returning from reception, which overwrote the kitchen's
-                   stn_stl/kchn_tile/red_crpt slots AND (via the dresser prop)
-                   kchn_wl — restore them all. */
+                piano_room_upload_textures();   /* prpl_wlppr -> stove slot,
+                                                   props -> stn_stl/kchn_tile */
+            } else if (pending_area == STATE_KITCHEN_DINING) {
+                /* Reception overwrites the kitchen's stn_stl/kchn_tile/red_crpt
+                   slots (plus kchn_wl via the dresser), and the piano room
+                   overwrites stove/stn_stl/kchn_tile — restore them all. Done
+                   unconditionally: a title-screen load into the kitchen can
+                   arrive from ANY current_area, and a redundant re-upload from
+                   RAM is harmless (pure LoadImage, GPU idled above). */
                 kitchen_restore_textures();
             }
             {

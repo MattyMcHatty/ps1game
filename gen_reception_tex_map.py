@@ -30,7 +30,7 @@ NAME_TO_SLOT = {
     'strs':       0,
     'red_wlppr':  1,
     'wd_flr':     2,
-    'bnnstr':     3,
+    # slot 3 retired (was bnnstr, the banister — no longer referenced)
     'din_cl':     4,
     'frnt_dr':    5,
     'wd_dr':      6,

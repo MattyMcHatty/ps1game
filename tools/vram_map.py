@@ -29,10 +29,12 @@ TEXDIR = os.path.join(os.path.dirname(__file__), "..", "textures")
 # The map flags overlaps between these as expected rather than a collision.
 KNOWN_STREAM_PAIRS = [
     ("stn_stl.tim",  "strs.tim"),      # reception streams strs over stn_stl
-    ("kchn_tile.tim","bnnstr.tim"),    # reception streams bnnstr over kchn_tile
     ("red_crpt.tim", "frnt_dr.tim"),   # reception streams frnt_dr over red_crpt
     ("kchn_wl.tim",  "dresser.tim"),   # dresser prop streams over kchn_wl in reception
     ("stove.tim",    "prpl_wlppr.tim"),# piano room streams prpl_wlppr over stove
+    ("stn_stl.tim",  "bookshelf.tim"), # piano room streams bookshelf over stn_stl...
+    ("strs.tim",     "bookshelf.tim"), # ...which reception also time-shares (strs)
+    ("kchn_tile.tim","piano_keys.tim"),# piano room streams piano_keys over kchn_tile
 ]
 
 def read_tim(path):

@@ -15,6 +15,7 @@
 #include "btn_glyph.h"
 #include "door.h"
 #include "texmgr.h"
+#include "piano_props.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -111,6 +112,7 @@ void piano_room_load_assets(void) {
    DrawSyncs first, as main's STATE_LOADING does). */
 void piano_room_upload_textures(void) {
     texmgr_upload(prpl_tex_id);
+    piano_props_upload_textures();   /* bookshelf/piano_keys -> stn_stl/kchn_tile slots */
 }
 
 /* ---- Door back to reception -----------------------------------------------
@@ -189,6 +191,8 @@ void piano_room_init(void) {
     cam_rot = 3072;   /* facing west (-X) */
 
     pdoor_arm();   /* don't re-trigger on a held Circle from the entry */
+
+    piano_props_place();   /* piano (north wall) + bookcase (halfway divider) */
 }
 
 static void draw_piano_room_smd(RenderContext *ctx) {
@@ -245,8 +249,10 @@ static void draw_piano_room_smd(RenderContext *ctx) {
         gte_stsz4c(sz);
         if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) { p += stride; continue; }
 
+        SVECTOR *v3    = 0;
+        int32_t  v2_sz = sz[3];   /* v2's SZ, before the quad path reuses sz[3] */
         if (is_quad) {
-            SVECTOR *v3 = &piano_room_smd->p_verts[vi[3]];
+            v3 = &piano_room_smd->p_verts[vi[3]];
             gte_ldv0(v3);
             gte_rtps();
             gte_stsxy(&sv[3]);
@@ -259,6 +265,11 @@ static void draw_piano_room_smd(RenderContext *ctx) {
         }
 
         gte_stotz(&otz);
+        /* Horizontal polys sort by their farthest corner, not their average,
+           so floors stay behind whatever stands on them (see render.h). */
+        if (poly_is_flat_y(v0, v1, v2, v3))
+            otz = is_quad ? otz_far4(sz[1], sz[2], v2_sz, sz[3])
+                          : otz_far3(sz[1], sz[2], sz[3]);
         if (otz <= 0) { p += stride; continue; }
         otz += 40;
         if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
@@ -387,5 +398,9 @@ void piano_room_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_piano_room_smd(ctx);
+    /* Static props (piano + bookcase). Their textures sit at page-top (V 0-127)
+       so the room's 128 texture window serves them; restores the view matrix. */
+    piano_props_draw(ctx);
     pdoor_text(ctx);
+    piano_props_text(ctx);   /* floating "examine" sign above the piano */
 }

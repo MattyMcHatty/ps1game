@@ -124,11 +124,13 @@ static uint16_t tex_clut[RECEPTION_TEX_COUNT];
 /* The reception-only textures, with their reception_tex_map slot indices. The
    texture manager keeps them RAM-resident so reception_upload_textures() needs
    no CD read; new_tex_id[] holds the manager ids captured at startup. */
-#define RECEPTION_NEW_TEX 3
+/* Slot 3 (formerly bnnstr, the banister) is retired: the mesh no longer
+   references it, so nothing streams into the kchn_tile slot for reception —
+   the piano room's piano_keys texture time-shares it instead. */
+#define RECEPTION_NEW_TEX 2
 static int new_tex_id[RECEPTION_NEW_TEX];
 static const struct { const char *file; int slot; } new_tex[RECEPTION_NEW_TEX] = {
     { "\\TEX\\STRS.TIM;1",   0 },
-    { "\\TEX\\BNNSTR.TIM;1", 3 },
     { "\\TEX\\FRNTDR.TIM;1", 5 },
 };
 
@@ -396,8 +398,10 @@ static void draw_reception_smd(RenderContext *ctx) {
         gte_stsz4c(sz);
         if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) { p += stride; continue; }
 
+        SVECTOR *v3    = 0;
+        int32_t  v2_sz = sz[3];   /* v2's SZ, before the quad path reuses sz[3] */
         if (is_quad) {
-            SVECTOR *v3 = &reception_smd->p_verts[vi[3]];
+            v3 = &reception_smd->p_verts[vi[3]];
             gte_ldv0(v3);
             gte_rtps();
             gte_stsxy(&sv[3]);
@@ -410,6 +414,11 @@ static void draw_reception_smd(RenderContext *ctx) {
         }
 
         gte_stotz(&otz);
+        /* Horizontal polys sort by their farthest corner, not their average,
+           so floors stay behind whatever stands on them (see render.h). */
+        if (poly_is_flat_y(v0, v1, v2, v3))
+            otz = is_quad ? otz_far4(sz[1], sz[2], v2_sz, sz[3])
+                          : otz_far3(sz[1], sz[2], sz[3]);
         if (otz <= 0) { p += stride; continue; }
         otz += 40;
         if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
