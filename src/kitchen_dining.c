@@ -203,9 +203,10 @@ void kitchen_stream_textures(void) {
    manager keeps these RAM-resident for a pure-LoadImage restore; shared_id[]
    holds the manager ids captured at startup. */
 /* stove is stomped by the piano room's prpl_wlppr (streamed into stove's VRAM
-   slot, x384 y256); the only route back to the kitchen is through reception,
-   so restoring it here covers that case too. */
-#define KITCHEN_SHARED_TEX 5
+   slot, x384 y256), and double_door by the conservatory's con_tile; the only
+   route back to the kitchen is through reception, so restoring them here
+   covers those cases too. */
+#define KITCHEN_SHARED_TEX 6
 static int shared_id[KITCHEN_SHARED_TEX];
 static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
     "\\TEX\\STNSTL.TIM;1",
@@ -213,6 +214,7 @@ static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
     "\\TEX\\REDCRPT.TIM;1",
     "\\TEX\\KCHNWL.TIM;1",
     "\\TEX\\STOVE.TIM;1",
+    "\\DBLDOOR.TIM;1",
 };
 
 void kitchen_load_assets(void) {

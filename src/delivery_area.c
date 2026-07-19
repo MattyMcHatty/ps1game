@@ -9,6 +9,7 @@
 #include "camera.h"
 #include "delivery_area.h"
 #include "collision.h"
+#include "texmgr.h"
 
 #include "vampire.h"
 #include "player.h"
@@ -68,6 +69,27 @@ static void load_tim_to_vram(const char *filename, int slot) {
     free(buf);
 }
 
+/* The conservatory streams its four textures over these VRAM slots
+   (gravel/fence/brick <- trees/upstairs/grss, double_door <- con_tile), so
+   they must be re-uploadable on return here with no mid-game CD read. The
+   texture manager keeps them RAM-resident; ids captured at startup. */
+#define DELIVERY_SHARED_TEX 4
+static int shared_id[DELIVERY_SHARED_TEX];
+static const char *shared_tex_file[DELIVERY_SHARED_TEX] = {
+    "\\GRAVEL.TIM;1",
+    "\\FENCE.TIM;1",
+    "\\BRIKWLL.TIM;1",
+    "\\DBLDOOR.TIM;1",
+};
+
+/* Re-upload the shared textures from their resident RAM copies. Pure
+   LoadImage, no CD access — safe mid-game once the caller has idled the GPU
+   (DrawSync), as main's loading/title paths do. */
+void delivery_restore_textures(void) {
+    for (int i = 0; i < DELIVERY_SHARED_TEX; i++)
+        texmgr_upload(shared_id[i]);
+}
+
 void delivery_area_init(void) {
     CdInit();
     scSetClipRect(0, 0, SCREEN_XRES, SCREEN_YRES);
@@ -76,6 +98,10 @@ void delivery_area_init(void) {
     load_tim_to_vram("\\FENCE.TIM;1",   1);
     load_tim_to_vram("\\BRIKWLL.TIM;1", 2);
     load_tim_to_vram("\\DBLDOOR.TIM;1", 3);
+
+    /* Startup-only (CD reads): keep RAM copies for the mid-game restores. */
+    for (int i = 0; i < DELIVERY_SHARED_TEX; i++)
+        shared_id[i] = texmgr_register(shared_tex_file[i]);
 
     room_buff = load_file_from_cd("\\DELIVERY.SMD", NULL);
     if (room_buff) {

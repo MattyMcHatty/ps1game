@@ -38,8 +38,12 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   kchn_wl.tim          8       512     0   128   128     0   0,503
   red_wlppr.tim        4       576     0   128   128     0   0,492
   gravel_texture.tim   4       640     0   128   128     0   0,480
+  trees.tim            4       640     0   128   128     0   48,511
   rusty_fence.tim      4       704     0   128   128     0   256,480
+  upstairs.tim         4       704     0   128   128     0   64,511
   brick_wall.tim       4       768     0   128   128     0   0,501
+  grss.tim             4       768     0   128   128     0   80,511
+  con_tile.tim         4       832     0   128   128     0   96,511
   double_door.tim      4       832     0   128   128     0   768,480
   wdcrate.tim          16      896     0    64    64     0   -
   ghit.tim             8       896    64    16    16    64   0,510
@@ -100,16 +104,24 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=509  x[0,256)  stnd_rnds.tim
   y=510  x[0,256)  ghit.tim
   y=511  x[16,32)  bookshelf.tim
+  y=511  x[96,112)  con_tile.tim
+  y=511  x[80,96)  grss.tim
   y=511  x[32,48)  piano_keys.tim
   y=511  x[0,16)  prpl_wlppr.tim
+  y=511  x[48,64)  trees.tim
+  y=511  x[64,80)  upstairs.tim
 
 OVERLAP CHECK
   bookshelf.tim                            stn_stl.tim          time-shared (streaming)
   bookshelf.tim                            strs.tim             time-shared (streaming)
+  brick_wall.tim                           grss.tim             time-shared (streaming)
+  con_tile.tim                             double_door.tim      time-shared (streaming)
   dresser.tim                              kchn_wl.tim          time-shared (streaming)
   frnt_dr.tim                              red_crpt.tim         time-shared (streaming)
+  gravel_texture.tim                       trees.tim            time-shared (streaming)
   kchn_tile.tim                            piano_keys.tim       time-shared (streaming)
   prpl_wlppr.tim                           stove.tim            time-shared (streaming)
+  rusty_fence.tim                          upstairs.tim         time-shared (streaming)
   stn_stl.tim                              strs.tim             time-shared (streaming)
   No unexpected pixel collisions.
 

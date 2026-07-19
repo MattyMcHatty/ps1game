@@ -38,6 +38,7 @@
 #include "reception.h"
 #include "piano_room.h"
 #include "piano_props.h"
+#include "conservatory.h"
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
@@ -157,6 +158,23 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (cdoor_triggered()) {
+            pending_area = STATE_CONSERVATORY;
+            door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_CONSERVATORY) {
+        /* Flat single-floor room; the shared wall/prop collision routine is
+           generic over current_collision_room (other rooms' props gate
+           themselves out). */
+        apply_collision_reception();
+        apply_height();
+        if (condoor_triggered()) {
+            pending_area = STATE_RECEPTION;
+            door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_PIANO_ROOM) {
         /* Flat single-floor room; the reception wall/prop collision routine is
@@ -194,6 +212,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         reception_draw(ctx);
     else if (area == STATE_PIANO_ROOM)
         piano_room_draw(ctx);
+    else if (area == STATE_CONSERVATORY)
+        conservatory_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -338,6 +358,7 @@ int main(int argc, const char **argv) {
     reception_load_assets();   /* placeholder reception geometry (no textures) */
     piano_room_load_assets();  /* piano room geometry + textures (prpl_wlppr streamed) */
     piano_props_load_assets(); /* piano + bookcase props (streamed textures) */
+    conservatory_load_assets();/* conservatory geometry + streamed textures */
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
     fatdoors_init();
     door_anim_load_assets();   /* level-transition door panel (texture) */
@@ -425,6 +446,13 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_PIANO_ROOM) {
                 piano_room_upload_textures();   /* prpl_wlppr -> stove slot,
                                                    props -> stn_stl/kchn_tile */
+            } else if (pending_area == STATE_CONSERVATORY) {
+                conservatory_upload_textures(); /* 6 streamed slots (see module) */
+            } else if (pending_area == STATE_DELIVERY_AREA) {
+                /* The conservatory streams over gravel/fence/brick/double_door
+                   — restore them. Unconditional for the same reason as the
+                   kitchen's restore below. */
+                delivery_restore_textures();
             } else if (pending_area == STATE_KITCHEN_DINING) {
                 /* Reception overwrites the kitchen's stn_stl/kchn_tile/red_crpt
                    slots (plus kchn_wl via the dresser), and the piano room
@@ -463,20 +491,29 @@ int main(int argc, const char **argv) {
                 kitchen_door_arm();
             } else if (pending_area == STATE_RECEPTION) {
                 reception_init();
-                /* Coming back from the piano room: spawn at reception's west
-                   single door (ground floor under the upper-west strip), facing
-                   east into the room, instead of the default east-door spawn. */
+                /* Coming back from the piano room or conservatory: spawn at the
+                   matching west-wall door, facing east into the room, instead
+                   of the default east-door spawn. */
                 if (current_area == STATE_PIANO_ROOM) {
                     cam_x   = -1290;
                     cam_y   = -189;
                     cam_vy  = 0;
                     cam_z   = -756;
                     cam_rot = 1024;   /* face +X, into reception */
+                } else if (current_area == STATE_CONSERVATORY) {
+                    cam_x   = -1290;
+                    cam_y   = -189;
+                    cam_vy  = 0;
+                    cam_z   = 757;
+                    cam_rot = 1024;   /* face +X, into reception */
                 }
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);   /* reception music */
             } else if (pending_area == STATE_PIANO_ROOM) {
                 piano_room_init();
                 cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* piano room music */
+            } else if (pending_area == STATE_CONSERVATORY) {
+                conservatory_init();
+                cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* shares the piano room music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
@@ -510,7 +547,8 @@ int main(int argc, const char **argv) {
         } else if (game_state == STATE_DELIVERY_AREA ||
                    game_state == STATE_KITCHEN_DINING ||
                    game_state == STATE_RECEPTION ||
-                   game_state == STATE_PIANO_ROOM) {
+                   game_state == STATE_PIANO_ROOM ||
+                   game_state == STATE_CONSERVATORY) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {
@@ -533,8 +571,15 @@ int main(int argc, const char **argv) {
            when returning to the title. In-game area transitions never touch it
            (all assets are resident, so no CD read competes with playback). */
         if (prev_state == STATE_TITLE && game_state != STATE_TITLE) {
-            if (game_state == STATE_DELIVERY_AREA)
+            if (game_state == STATE_DELIVERY_AREA) {
+                /* This path enters delivery directly (no STATE_LOADING pass),
+                   so restore the slots the conservatory may have streamed over
+                   in a previous session segment. GPU idled first (pure
+                   LoadImage from RAM, same rule as the loading branch). */
+                DrawSync(0);
+                delivery_restore_textures();
                 reset_game(&ctx);   /* fresh-start spawn/state */
+            }
             world_new_game();       /* reset rooms; capture the fresh starting room */
             /* Loading into the delivery area enters it directly (no
                STATE_LOADING pass), so apply the staged save here, after

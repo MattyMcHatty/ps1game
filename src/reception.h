@@ -13,5 +13,7 @@ void reception_door_arm(void);      /* seed Circle edge state on entering recept
 int  reception_door_triggered(void);/* 1 when Circle pressed within range of the door */
 void wdoor_arm(void);               /* same pair for the west single door */
 int  wdoor_triggered(void);         /* 1 when Circle pressed within its range */
+void cdoor_arm(void);               /* same pair for the conservatory door */
+int  cdoor_triggered(void);         /* 1 when Circle pressed within its range */
 
 #endif

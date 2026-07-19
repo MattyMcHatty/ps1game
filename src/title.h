@@ -12,7 +12,8 @@ typedef enum {
     STATE_DOOR_ANIM,   /* RE-style door-opening transition; runs before STATE_LOADING */
     STATE_RECEPTION,
     STATE_SAVE_MENU,   /* memory-card save flow, opened at a save point */
-    STATE_PIANO_ROOM,  /* keep at the end: saves store GameState values */
+    STATE_PIANO_ROOM,  /* keep new states at the end: saves store GameState values */
+    STATE_CONSERVATORY,
 } GameState;
 
 extern GameState game_state;

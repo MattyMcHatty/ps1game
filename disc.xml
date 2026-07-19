@@ -127,6 +127,11 @@
                 <file name="BOOKCSE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Bookcase.smd"/>
                 <file name="PIANOKEY.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\piano_keys.tim"/>
                 <file name="BOOKSHLF.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\bookshelf.tim"/>
+                <file name="CONSRV.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\Conservatory.smd"/>
+                <file name="CONTILE.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\con_tile.tim"/>
+                <file name="TREES.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\trees.tim"/>
+                <file name="GRSS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\grss.tim"/>
+                <file name="UPSTAIRS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\upstairs.tim"/>
             </dir>
         </directory_tree>
     </track>

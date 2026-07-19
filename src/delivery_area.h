@@ -5,5 +5,6 @@
 
 void delivery_area_init(void);
 void delivery_area_draw(RenderContext *ctx);
+void delivery_restore_textures(void);   /* re-upload slots the conservatory streams over */
 
 #endif

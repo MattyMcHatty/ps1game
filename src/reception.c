@@ -313,6 +313,60 @@ static void wdoor_text(RenderContext *ctx) {
                         50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* ---- Door to the conservatory ---------------------------------------------
+   Also on the west wall (bottom floor), north of the piano-room door; same
+   facing, so the sign is again YZ-plane with mirror=0. Shares the fade radii
+   and text height with the other reception doors. */
+#define CDOOR_X                (-1435)
+#define CDOOR_Z                  757
+
+/* Circle edge-detect for the conservatory door, seeded by cdoor_arm(). */
+static int cdoor_circle_prev = 1;
+
+void cdoor_arm(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    cdoor_circle_prev = held;
+}
+
+int cdoor_triggered(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    int just = held && !cdoor_circle_prev;
+    cdoor_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - CDOOR_X;
+    int32_t dz = cam_z - CDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < RDOOR_TRIGGER_RADIUS;
+}
+
+static void cdoor_text(RenderContext *ctx) {
+    int32_t dx = cam_x - CDOOR_X;
+    int32_t dz = cam_z - CDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= RDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > RDOOR_FADE_NEAR) {
+        int range = RDOOR_TEXT_RADIUS - RDOOR_FADE_NEAR;
+        int prog  = xz - RDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        CDOOR_X, RDOOR_TEXT_Y, CDOOR_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
 void reception_init(void) {
     reception_collision_init(&current_collision_room);
     reception_floor_zones_init();
@@ -326,6 +380,7 @@ void reception_init(void) {
 
     reception_door_arm();   /* don't re-trigger on a held Circle from the entry */
     wdoor_arm();            /* same, for the west single door */
+    cdoor_arm();            /* same, for the conservatory door */
     save_point_arm();       /* same, for the Circle-to-save interaction */
 
     /* Place reception's props. */
@@ -564,4 +619,5 @@ void reception_draw(RenderContext *ctx) {
     save_points_draw(ctx);
     reception_door_text(ctx);
     wdoor_text(ctx);
+    cdoor_text(ctx);
 }

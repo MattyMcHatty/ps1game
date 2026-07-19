@@ -35,6 +35,10 @@ KNOWN_STREAM_PAIRS = [
     ("stn_stl.tim",  "bookshelf.tim"), # piano room streams bookshelf over stn_stl...
     ("strs.tim",     "bookshelf.tim"), # ...which reception also time-shares (strs)
     ("kchn_tile.tim","piano_keys.tim"),# piano room streams piano_keys over kchn_tile
+    ("gravel_texture.tim", "trees.tim"),   # conservatory streams over delivery slots...
+    ("rusty_fence.tim",    "upstairs.tim"),
+    ("brick_wall.tim",     "grss.tim"),
+    ("double_door.tim",    "con_tile.tim"),# ...double_door is kitchen+delivery
 ]
 
 def read_tim(path):
