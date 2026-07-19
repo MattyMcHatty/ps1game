@@ -9,6 +9,7 @@
 #include "player.h"
 #include "collision.h"
 #include "crate.h"
+#include "dining_table.h"
 #include "particles.h"
 #include "zombie.h"
 #include "fatdoor.h"
@@ -220,6 +221,7 @@ void update_zombies(void) {
             d->z += d->kb_vz;
             apply_flat_entity_collision(&d->x, &d->z, ZMB_BODY_RADIUS);
             crates_collide(&d->x, d->y, &d->z, 80);
+            dining_tables_collide(&d->x, d->y, &d->z, 75);   /* same radius as the player */
             fatdoors_collide(&d->x, d->y, &d->z, ZMB_DOOR_CLEARANCE);
             if (d->kb_vx > 0) d->kb_vx =  (  d->kb_vx * 7) >> 3;
             else               d->kb_vx = -((-d->kb_vx * 7) >> 3);
@@ -353,6 +355,7 @@ void update_zombies(void) {
         int32_t feeler_z = d->z + (desired_z * ZMB_FEELER_LEN) / desired_dist;
         int32_t fx = feeler_x, fz = feeler_z;
         crates_collide(&fx, d->y, &fz, 80);
+        dining_tables_collide(&fx, d->y, &fz, 75);
         /* Deliberately NOT probing fat doors here: doors only ever fill the
            doorways a zombie wants to pass, so they must not trigger wall-follow
            (which steered the zombie away before it could reach and batter one).
@@ -380,11 +383,13 @@ void update_zombies(void) {
 
             int32_t tlx = lx, tlz = lz;
             crates_collide(&tlx, d->y, &tlz, 80);
+            dining_tables_collide(&tlx, d->y, &tlz, 75);
             apply_flat_entity_collision(&tlx, &tlz, ZMB_BODY_RADIUS);
             int left_blocked = (tlx != lx || tlz != lz);
 
             int32_t trx = rx, trz = rz;
             crates_collide(&trx, d->y, &trz, 80);
+            dining_tables_collide(&trx, d->y, &trz, 75);
             apply_flat_entity_collision(&trx, &trz, ZMB_BODY_RADIUS);
             int right_blocked = (trx != rx || trz != rz);
 
@@ -429,6 +434,7 @@ void update_zombies(void) {
         d->z += blend_z;
         apply_flat_entity_collision(&d->x, &d->z, ZMB_BODY_RADIUS);
         crates_collide(&d->x, d->y, &d->z, 80);
+        dining_tables_collide(&d->x, d->y, &d->z, 75);   /* same radius as the player */
         fatdoors_collide(&d->x, d->y, &d->z, ZMB_DOOR_CLEARANCE);
     }
 

@@ -202,13 +202,17 @@ void kitchen_stream_textures(void) {
    be restored on return alongside the three reception overwrites. The texture
    manager keeps these RAM-resident for a pure-LoadImage restore; shared_id[]
    holds the manager ids captured at startup. */
-#define KITCHEN_SHARED_TEX 4
+/* stove is stomped by the piano room's prpl_wlppr (streamed into stove's VRAM
+   slot, x384 y256); the only route back to the kitchen is through reception,
+   so restoring it here covers that case too. */
+#define KITCHEN_SHARED_TEX 5
 static int shared_id[KITCHEN_SHARED_TEX];
 static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
     "\\TEX\\STNSTL.TIM;1",
     "\\TEX\\KCHNTILE.TIM;1",
     "\\TEX\\REDCRPT.TIM;1",
     "\\TEX\\KCHNWL.TIM;1",
+    "\\TEX\\STOVE.TIM;1",
 };
 
 void kitchen_load_assets(void) {

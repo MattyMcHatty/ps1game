@@ -256,6 +256,61 @@ static void reception_door_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* ---- Door to the new west room --------------------------------------------
+   On the west wall; the player approaches from the +X (room) side, so the
+   sign is in the YZ plane with mirror=0 (same facing as the kitchen's
+   "to reception" sign). Shares the fade radii and text height with RDOOR. */
+#define WDOOR_X                (-1435)
+#define WDOOR_Z                 (-756)
+
+/* Circle edge-detect for the west door, seeded by wdoor_arm() (same pattern
+   as rdoor_circle_prev above). */
+static int wdoor_circle_prev = 1;
+
+void wdoor_arm(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    wdoor_circle_prev = held;
+}
+
+int wdoor_triggered(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    int just = held && !wdoor_circle_prev;
+    wdoor_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - WDOOR_X;
+    int32_t dz = cam_z - WDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < RDOOR_TRIGGER_RADIUS;
+}
+
+static void wdoor_text(RenderContext *ctx) {
+    int32_t dx = cam_x - WDOOR_X;
+    int32_t dz = cam_z - WDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= RDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > RDOOR_FADE_NEAR) {
+        int range = RDOOR_TEXT_RADIUS - RDOOR_FADE_NEAR;
+        int prog  = xz - RDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        WDOOR_X, RDOOR_TEXT_Y, WDOOR_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
 void reception_init(void) {
     reception_collision_init(&current_collision_room);
     reception_floor_zones_init();
@@ -268,6 +323,7 @@ void reception_init(void) {
     cam_rot = 3072;   /* facing west (-X) */
 
     reception_door_arm();   /* don't re-trigger on a held Circle from the entry */
+    wdoor_arm();            /* same, for the west single door */
     save_point_arm();       /* same, for the Circle-to-save interaction */
 
     /* Place reception's props. */
@@ -498,4 +554,5 @@ void reception_draw(RenderContext *ctx) {
     fatdoors_draw(ctx);
     save_points_draw(ctx);
     reception_door_text(ctx);
+    wdoor_text(ctx);
 }

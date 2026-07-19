@@ -14,11 +14,16 @@
    block's own frame 0 is a "title frame" ("SC" magic + a Shift-JIS title + a
    16x16 icon) that the console's card manager displays.
 
-   We keep our saves to a single block each (our data is tiny), so every
-   directory entry is a self-contained "first and only block". */
+   A save spans TWO chained blocks when the world blob outgrows one (it did at
+   4 rooms: sizeof(WorldState) > 61 frames). The chain uses the card's native
+   directory format — first block state 0x51 with the next-block field pointing
+   at a state-0x53 tail block — so the console's card manager sees one 2-block
+   file. Only the first block carries the filename/title/icon; savegame_list
+   naturally skips tail blocks (no filename prefix). */
 
 /* Directory-entry state byte (frame[0]). */
-#define DIR_STATE_USED   0x51   /* in use, first & only block of a file */
+#define DIR_STATE_USED   0x51   /* in use, first block of a file */
+#define DIR_STATE_LAST   0x53   /* in use, last block of a chained file */
 #define DIR_STATE_FREE   0xA0   /* available */
 
 /* All our files share this product-code prefix so listing/overwrite only ever
@@ -31,8 +36,36 @@
 #define DATA_FRAME        2     /* our SaveData              */
 #define WORLD_FRAME0      3     /* per-room world blob, ceil(world_size/128) frames */
 
-/* Frames left in a block for the world blob; world_blob_size() must fit. */
-#define WORLD_MAX_BYTES  ((MC_FRAMES_PER_BLOCK - WORLD_FRAME0) * MC_FRAME_SIZE)
+/* World-blob capacity: the rest of the first block, then (when needed) a whole
+   chained second block. world_blob_size() must fit in WORLD_MAX_BYTES. */
+#define WORLD_BLOCKS      2
+#define WORLD_FRAMES_B0   (MC_FRAMES_PER_BLOCK - WORLD_FRAME0)   /* 61 frames  */
+#define WORLD_MAX_FRAMES  (WORLD_FRAMES_B0 + (WORLD_BLOCKS - 1) * MC_FRAMES_PER_BLOCK)
+#define WORLD_MAX_BYTES   (WORLD_MAX_FRAMES * MC_FRAME_SIZE)     /* 16000 bytes */
+
+/* LBA of world-blob frame f within the (block, block2) chain: frames fill the
+   first block from WORLD_FRAME0, then the second block from its frame 0. */
+static int world_frame_lba(int block, int block2, int f) {
+    if (f < WORLD_FRAMES_B0)
+        return block * MC_FRAMES_PER_BLOCK + WORLD_FRAME0 + f;
+    return block2 * MC_FRAMES_PER_BLOCK + (f - WORLD_FRAMES_B0);
+}
+
+/* Does the current world blob spill into a second block? */
+static int world_needs_block2(uint32_t world_size) {
+    int nf = ((int)world_size + MC_FRAME_SIZE - 1) / MC_FRAME_SIZE;
+    return nf > WORLD_FRAMES_B0;
+}
+
+/* Directory chain: bytes 8-9 of an entry hold the 0-based next block number
+   (block# - 1), 0xFFFF = end of chain. Returns the next block 1..15, or 0. */
+static int dir_next_block(const uint8_t *dir) {
+    int nxt = dir[8] | (dir[9] << 8);
+    if (nxt == 0xFFFF) return 0;
+    nxt += 1;
+    if (nxt < 1 || nxt > SAVE_MAX_SLOTS) return 0;
+    return nxt;
+}
 
 /* ---- Save-block icon (cosmetic; shown in the console card manager) ---------
    16 colours, BGR555. 0 = transparent black, 1 = purple, 2 = white. */
@@ -124,16 +157,24 @@ int savegame_list(int port, SaveSlotInfo *out, int max) {
 
 int savegame_free_block(int port) {
     uint8_t dir[128];
+    /* A new save claims a second block when the world blob spills past the
+       first, so only offer "new save" if enough free blocks exist. */
+    int needed = world_needs_block2((uint32_t)world_blob_size()) ? 2 : 1;
+    int found = 0, lowest = 0;
+
     memcard_begin();
     int b;
-    for (b = 1; b <= SAVE_MAX_SLOTS; b++) {
+    for (b = 1; b <= SAVE_MAX_SLOTS && found < needed; b++) {
         int rc = memcard_read_frame(port, b, dir);
         if (rc == MC_NO_CARD || rc == MC_TIMEOUT) { memcard_end(); return rc; }
         if (rc != MC_OK) continue;
-        if ((dir[0] & 0xF0) != 0x50) { memcard_end(); return b; }  /* free */
+        if ((dir[0] & 0xF0) != 0x50) {   /* free */
+            if (!lowest) lowest = b;
+            found++;
+        }
     }
     memcard_end();
-    return 0;   /* card full */
+    return (found >= needed) ? lowest : 0;   /* 0 = card full */
 }
 
 /* XOR checksum over bytes [0..126], stored at [127] (directory-frame format). */
@@ -187,11 +228,21 @@ int savegame_read(int port, int block, SaveData *sd) {
         memcard_end(); return MC_BAD_DATA;
     }
 
+    /* Find the chained tail block when the blob spans two (from the save's own
+       directory entry, so the chain travels with the file). */
+    int block2 = 0;
+    if (world_needs_block2(sd->world_size)) {
+        rc = memcard_read_frame(port, block, frame);
+        if (rc != MC_OK) { memcard_end(); return rc; }
+        if (!dir_is_ours(frame)) { memcard_end(); return MC_BAD_DATA; }
+        block2 = dir_next_block(frame);
+        if (!block2 || block2 == block) { memcard_end(); return MC_BAD_DATA; }
+    }
+
     int total = (int)sd->world_size;
     int nf    = (total + MC_FRAME_SIZE - 1) / MC_FRAME_SIZE;
     for (int f = 0; f < nf; f++) {
-        rc = memcard_read_frame(port,
-                 block * MC_FRAMES_PER_BLOCK + WORLD_FRAME0 + f, frame);
+        rc = memcard_read_frame(port, world_frame_lba(block, block2, f), frame);
         if (rc != MC_OK) { memcard_end(); return rc; }
         int off = f * MC_FRAME_SIZE;
         int n   = total - off;
@@ -254,15 +305,45 @@ int savegame_write(int port, int block, const SaveData *sd, const char *title) {
         if (format_card(port) != MC_OK) { memcard_end(); return MC_BAD_DATA; }
     }
 
+    /* --- Second (tail) block, when the world blob spills past the first ---
+       Overwriting one of our own chained saves reuses its existing tail block;
+       otherwise claim the lowest free block. No free block -> card full. */
+    int need2  = world_needs_block2(sd->world_size);
+    int block2 = 0;
+    if (need2) {
+        if (memcard_read_frame(port, block, frame) == MC_OK && dir_is_ours(frame))
+            block2 = dir_next_block(frame);
+        if (block2 == block) block2 = 0;
+        if (!block2) {
+            for (int b = 1; b <= SAVE_MAX_SLOTS && !block2; b++) {
+                if (b == block) continue;
+                if (memcard_read_frame(port, b, frame) != MC_OK) continue;
+                if ((frame[0] & 0xF0) != 0x50) block2 = b;   /* free */
+            }
+        }
+        if (!block2) { memcard_end(); return MC_BAD_DATA; }
+    }
+
     /* --- Directory entry (block 0, frame `block`) --- */
     memset(frame, 0, sizeof(frame));
     frame[0] = DIR_STATE_USED;
-    frame[4] = 0x00; frame[5] = 0x20; frame[6] = 0x00; frame[7] = 0x00;  /* size 0x2000 = 1 block */
-    frame[8] = 0xFF; frame[9] = 0xFF;                                    /* first & only block */
+    /* File size in bytes (0x2000 per block), little-endian at [4..7]. */
+    frame[4] = 0x00; frame[5] = need2 ? 0x40 : 0x20; frame[6] = 0x00; frame[7] = 0x00;
+    if (need2) { frame[8] = (uint8_t)(block2 - 1); frame[9] = 0x00; }    /* chain -> tail */
+    else       { frame[8] = 0xFF; frame[9] = 0xFF; }                     /* first & only */
     snprintf(filename, sizeof(filename), "%s%02d", SAVE_PREFIX, block);  /* e.g. BESLES-00000GRV03 */
     memcpy(frame + 10, filename, strlen(filename));                      /* NUL-terminated by memset */
     set_dir_checksum(frame);
     if (memcard_write_frame(port, block, frame) != MC_OK) { memcard_end(); return MC_BAD_DATA; }
+
+    /* --- Directory entry for the tail block: chained, no filename --- */
+    if (need2) {
+        memset(frame, 0, sizeof(frame));
+        frame[0] = DIR_STATE_LAST;
+        frame[8] = 0xFF; frame[9] = 0xFF;   /* end of chain */
+        set_dir_checksum(frame);
+        if (memcard_write_frame(port, block2, frame) != MC_OK) { memcard_end(); return MC_BAD_DATA; }
+    }
 
     /* --- Title frame (block, frame 0): "SC" magic + title + icon palette --- */
     memset(frame, 0, sizeof(frame));
@@ -293,7 +374,7 @@ int savegame_write(int port, int block, const SaveData *sd, const char *title) {
         memcard_end(); return MC_BAD_DATA;
     }
 
-    /* --- Per-room world blob, 128 bytes per frame from WORLD_FRAME0 --- */
+    /* --- Per-room world blob, 128 bytes per frame across the block chain --- */
     {
         const uint8_t *wb    = (const uint8_t *)world_blob();
         int            total = (int)sd->world_size;
@@ -306,7 +387,7 @@ int savegame_write(int port, int block, const SaveData *sd, const char *title) {
             memset(frame, 0, sizeof(frame));
             memcpy(frame, wb + off, n);
             if (memcard_write_frame(port,
-                    block * MC_FRAMES_PER_BLOCK + WORLD_FRAME0 + f, frame) != MC_OK) {
+                    world_frame_lba(block, block2, f), frame) != MC_OK) {
                 memcard_end(); return MC_BAD_DATA;
             }
         }

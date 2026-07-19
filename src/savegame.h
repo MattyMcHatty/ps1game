@@ -9,7 +9,8 @@
    SaveData frame later. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   2             /* v2: per-room world state follows the data frame */
+#define SAVE_VERSION   3             /* v3: world blob spans two chained blocks
+                                        (v2: single-block per-room world state) */
 #define SAVE_MAX_SLOTS 15            /* blocks 1..15 are usable for saves */
 
 typedef struct {

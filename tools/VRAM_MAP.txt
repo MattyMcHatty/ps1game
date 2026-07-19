@@ -51,6 +51,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   frnt_dr.tim          4       320   256   128   128     0   0,506
   red_crpt.tim         4       320   256   128   128     0   0,493
   graveolver.tim       8       352   256    64    64     0   0,508
+  prpl_wlppr.tim       4       384   256   128   128     0   0,511
   stove.tim            4       384   256   128   128     0   0,494
   stnd_rnds.tim        8       416   256    64    64     0   0,509
   din_cl.tim           4       448   256   128   128     0   0,495
@@ -98,11 +99,13 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=508  x[0,256)  graveolver.tim
   y=509  x[0,256)  stnd_rnds.tim
   y=510  x[0,256)  ghit.tim
+  y=511  x[0,16)  prpl_wlppr.tim
 
 OVERLAP CHECK
   bnnstr.tim                               kchn_tile.tim        time-shared (streaming)
   dresser.tim                              kchn_wl.tim          time-shared (streaming)
   frnt_dr.tim                              red_crpt.tim         time-shared (streaming)
+  prpl_wlppr.tim                           stove.tim            time-shared (streaming)
   stn_stl.tim                              strs.tim             time-shared (streaming)
   No unexpected pixel collisions.
 

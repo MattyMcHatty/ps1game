@@ -32,6 +32,7 @@ KNOWN_STREAM_PAIRS = [
     ("kchn_tile.tim","bnnstr.tim"),    # reception streams bnnstr over kchn_tile
     ("red_crpt.tim", "frnt_dr.tim"),   # reception streams frnt_dr over red_crpt
     ("kchn_wl.tim",  "dresser.tim"),   # dresser prop streams over kchn_wl in reception
+    ("stove.tim",    "prpl_wlppr.tim"),# piano room streams prpl_wlppr over stove
 ]
 
 def read_tim(path):

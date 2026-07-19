@@ -18,6 +18,8 @@
  * `variant` selects which door texture the panel is drawn with: */
 #define DOOR_PANEL_OUTER  0   /* dbl_dr_hlf       — standard door (default)     */
 #define DOOR_PANEL_INNER  1   /* inr_dbl_dr_half  — interior door (-> reception) */
+#define DOOR_PANEL_WOOD   2   /* wd_dr — SINGLE wooden door (reception west wall);
+                                 one leaf, the whole door swings open            */
 
 void door_anim_load_assets(void);   /* load the panel TIMs into VRAM (startup) */
 void door_anim_start(int variant);  /* begin the animation; plays the sound */

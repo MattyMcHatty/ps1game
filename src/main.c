@@ -36,6 +36,7 @@
 #include "savegame.h"
 #include "kitchen_dining.h"
 #include "reception.h"
+#include "piano_room.h"
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
@@ -150,6 +151,23 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();   /* silence during the transition; kitchen music
                                  resumes when the kitchen finishes loading */
+        } else if (wdoor_triggered()) {
+            pending_area = STATE_PIANO_ROOM;
+            door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_PIANO_ROOM) {
+        /* Flat single-floor room; the reception wall/prop collision routine is
+           generic over current_collision_room (reception's props are all out of
+           this room's bounds, so their collide calls are no-ops here). */
+        apply_collision_reception();
+        apply_height();
+        if (pdoor_triggered()) {
+            pending_area = STATE_RECEPTION;
+            door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else {
         apply_collision();
@@ -172,6 +190,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         kitchen_dining_draw(ctx);
     else if (area == STATE_RECEPTION)
         reception_draw(ctx);
+    else if (area == STATE_PIANO_ROOM)
+        piano_room_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -314,6 +334,7 @@ int main(int argc, const char **argv) {
                                   LoadImage is only safe before the main render
                                   loop, and this keeps gameplay CD-read-free */
     reception_load_assets();   /* placeholder reception geometry (no textures) */
+    piano_room_load_assets();  /* piano room geometry + textures (prpl_wlppr streamed) */
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
     fatdoors_init();
     door_anim_load_assets();   /* level-transition door panel (texture) */
@@ -398,6 +419,8 @@ int main(int argc, const char **argv) {
             if (pending_area == STATE_RECEPTION) {
                 reception_upload_textures();
                 dresser_upload_texture();   /* dresser prop texture -> kchn_wl slot */
+            } else if (pending_area == STATE_PIANO_ROOM) {
+                piano_room_upload_textures();   /* prpl_wlppr -> stove slot */
             } else if (pending_area == STATE_KITCHEN_DINING &&
                        current_area == STATE_RECEPTION) {
                 /* Returning from reception, which overwrote the kitchen's
@@ -434,7 +457,20 @@ int main(int argc, const char **argv) {
                 kitchen_door_arm();
             } else if (pending_area == STATE_RECEPTION) {
                 reception_init();
+                /* Coming back from the piano room: spawn at reception's west
+                   single door (ground floor under the upper-west strip), facing
+                   east into the room, instead of the default east-door spawn. */
+                if (current_area == STATE_PIANO_ROOM) {
+                    cam_x   = -1290;
+                    cam_y   = -189;
+                    cam_vy  = 0;
+                    cam_z   = -756;
+                    cam_rot = 1024;   /* face +X, into reception */
+                }
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);   /* reception music */
+            } else if (pending_area == STATE_PIANO_ROOM) {
+                piano_room_init();
+                cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* piano room music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
@@ -467,7 +503,8 @@ int main(int argc, const char **argv) {
                 game_state = STATE_LOADING;
         } else if (game_state == STATE_DELIVERY_AREA ||
                    game_state == STATE_KITCHEN_DINING ||
-                   game_state == STATE_RECEPTION) {
+                   game_state == STATE_RECEPTION ||
+                   game_state == STATE_PIANO_ROOM) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

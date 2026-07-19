@@ -119,6 +119,11 @@
                 <file name="GRAVOLVR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\graveolver.tim"/>
                 <file name="STNDRNDS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\stnd_rnds.tim"/>
                 <file name="GHIT.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\ghit.tim"/>
+                <file name="PRPLWLP.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\prpl_wlppr.tim"/>
+                <!-- Piano room geometry lives here too (not the root) so the
+                     root directory stays within one sector; loaded by our own
+                     code (piano_room_load_assets) via the \TEX\ path. -->
+                <file name="PIANORM.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\Piano_Room.smd"/>
             </dir>
         </directory_tree>
     </track>
@@ -128,6 +133,9 @@
 
     <!-- Track 3: reception music -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\alex-morgan-dark-suspense-thriller.wav"/>
+
+    <!-- Track 4: piano room music -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\universfield-eerie-horror-cinematic-background-145145.wav"/>
 
 
 </iso_project>

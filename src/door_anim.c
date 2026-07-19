@@ -46,15 +46,23 @@
 #define DOOR_V_TOP    128
 #define DOOR_V_BOT    255
 
-#define DOOR_PANEL_COUNT  2
+/* The wood variant (DOOR_PANEL_WOOD) is a SINGLE door: the full 128x128
+ * wd_dr.tim (16bpp, no CLUT, Voff 0) on one leaf that swings about its right
+ * hinge — same timing, sound, zoom and fades as the double doors. */
+#define WOOD_U_FREE     0
+#define WOOD_U_HINGE  127
+#define WOOD_V_TOP      0
+#define WOOD_V_BOT    127
+
+#define DOOR_PANEL_COUNT  3
 
 static int32_t  anim_timer  = 0;
 static int      anim_active = 0;
 static int      anim_variant = DOOR_PANEL_OUTER;   /* which door texture to draw */
 
 /* One tpage/clut pair per variant (indexed by DOOR_PANEL_*). */
-static uint16_t panel_tpage[DOOR_PANEL_COUNT] = { 0, 0 };
-static uint16_t panel_clut [DOOR_PANEL_COUNT] = { 0, 0 };
+static uint16_t panel_tpage[DOOR_PANEL_COUNT] = { 0, 0, 0 };
+static uint16_t panel_clut [DOOR_PANEL_COUNT] = { 0, 0, 0 };
 static int      tex_loaded  = 0;
 
 /* ------------------------------------------------------------ asset loading */
@@ -93,6 +101,9 @@ static int load_panel(const char *path, int variant) {
 void door_anim_load_assets(void) {
     int ok = load_panel("\\DBLDRHLF.TIM;1", DOOR_PANEL_OUTER);
     load_panel("\\INRDRHLF.TIM;1", DOOR_PANEL_INNER);
+    /* wd_dr is also loaded by fatdoors_load_assets (same VRAM rect, 768,256);
+       re-reading it here just records its tpage the same way as the others. */
+    load_panel("\\WDDR.TIM;1", DOOR_PANEL_WOOD);
     /* The outer door is the default/fallback; require at least it to draw. */
     if (ok) tex_loaded = 1;
 }
@@ -220,6 +231,29 @@ void door_anim_draw(RenderContext *ctx) {
     int32_t zoom = zoom_factor();
     int32_t top = DOOR_CENTER_Y - DOOR_HALF_H;
     int32_t bot = DOOR_CENTER_Y + DOOR_HALF_H;
+
+    /* Single wooden door: one quad, centred, hinged on its right edge. Same
+     * swing math as the double door's right leaf, but the leaf is the whole
+     * door and the hinge sits at centre + W/2 so the door stays centred. */
+    if (anim_variant == DOOR_PANEL_WOOD) {
+        int32_t swing  = swing_angle();
+        int32_t cos_t  = icos(swing);
+        int32_t sin_t  = isin(swing);
+        int32_t z      = PANEL_W * sin_t / 4096;
+        int32_t persp  = PERSP_D * 256 / (PERSP_D + z);
+        int32_t hinge_x = DOOR_CENTER_X + PANEL_W / 2;
+        int32_t xoff    = (-PANEL_W * cos_t / 4096) * persp / 256;
+        int32_t free_x  = hinge_x + xoff;
+        int32_t free_hh = DOOR_HALF_H * persp / 256;
+
+        emit_panel(ctx, buf_end,
+                   free_x,  DOOR_CENTER_Y - free_hh,  hinge_x, top,
+                   free_x,  DOOR_CENTER_Y + free_hh,  hinge_x, bot,
+                   WOOD_U_FREE, WOOD_V_TOP,  WOOD_U_HINGE, WOOD_V_TOP,
+                   WOOD_U_FREE, WOOD_V_BOT,  WOOD_U_HINGE, WOOD_V_BOT,
+                   intensity, zoom);
+        return;
+    }
 
     /* Left leaf: static, closed. Spans x[center-W, center]; mirrored so the
      * handle (U inner) sits at the centre seam (x = center). */
