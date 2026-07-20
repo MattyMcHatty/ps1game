@@ -15,6 +15,7 @@
 #include "btn_glyph.h"
 #include "door.h"
 #include "texmgr.h"
+#include "concrete_props.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -128,6 +129,7 @@ void conservatory_load_assets(void) {
 void conservatory_upload_textures(void) {
     for (int i = 0; i < CONSERVATORY_NEW_TEX; i++)
         texmgr_upload(new_tex_id[i]);
+    concrete_props_upload_textures();   /* cncrte -> kchn_tile slot (unused here) */
 }
 
 /* ---- Door back to reception -----------------------------------------------
@@ -205,6 +207,8 @@ void conservatory_init(void) {
     cam_rot = 3072;   /* facing west (-X) */
 
     condoor_arm();   /* don't re-trigger on a held Circle from the entry */
+
+    concrete_props_place();   /* 1 concrete block + 3 concrete chairs */
 }
 
 static void draw_conservatory_smd(RenderContext *ctx) {
@@ -410,5 +414,9 @@ void conservatory_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_conservatory_smd(ctx);
+    /* Static concrete props (block + chairs). Their texture sits at page-top
+       (V 0-127) so the room's 128 texture window serves it; restores the view
+       matrix before returning. */
+    concrete_props_draw(ctx);
     condoor_text(ctx);
 }

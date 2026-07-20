@@ -39,6 +39,7 @@
 #include "piano_room.h"
 #include "piano_props.h"
 #include "conservatory.h"
+#include "concrete_props.h"
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
@@ -359,6 +360,7 @@ int main(int argc, const char **argv) {
     piano_room_load_assets();  /* piano room geometry + textures (prpl_wlppr streamed) */
     piano_props_load_assets(); /* piano + bookcase props (streamed textures) */
     conservatory_load_assets();/* conservatory geometry + streamed textures */
+    concrete_props_load_assets();/* concrete block/chair props + shared texture */
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
     fatdoors_init();
     door_anim_load_assets();   /* level-transition door panel (texture) */

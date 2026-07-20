@@ -41,6 +41,7 @@ add_executable(horror_game
     src/piano_room_mesh_collision.c
     src/piano_room.c
     src/piano_props.c
+    src/concrete_props.c
     src/conservatory_mesh_collision.c
     src/conservatory.c
     src/crate.c
