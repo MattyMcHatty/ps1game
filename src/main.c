@@ -41,6 +41,7 @@
 #include "conservatory.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
+#include "tentacle.h"
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
@@ -174,6 +175,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* the small-room zombie */
         update_demon_dogs();   /* the three dogs at the far end of the hall */
+        update_tentacles();    /* the two tentacles near the copper pot */
         copper_pot_update();   /* proximity pickup of the copper pot */
         if (condoor_triggered()) {
             pending_area = STATE_RECEPTION;
@@ -368,6 +370,8 @@ int main(int argc, const char **argv) {
     copper_pot_load_assets();  /* copper pot collectible (texture deferred, key slot) */
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
     fatdoors_init();
+    tentacles_load_assets();   /* tentacle enemy sprites (resident) */
+    tentacles_init();          /* place the conservatory tentacles */
     door_anim_load_assets();   /* level-transition door panel (texture) */
     collision_init();
     floor_zones_init();

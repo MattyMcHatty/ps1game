@@ -35,6 +35,8 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\DIE.VAG;1",
     "\\SND\\GRSHOT.VAG;1",
     "\\SND\\GRRELOAD.VAG;1",
+    "\\SND\\TNTCLWRT.VAG;1",
+    "\\SND\\TNTCLDIE.VAG;1",
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -42,7 +44,8 @@ static const char *sfx_files[SFX_COUNT] = {
    must NOT be cut by a one-shot (e.g. the player's hurt sound shares its slot
    under id%8), so it gets a dedicated voice clear of that pool. */
 static int sfx_channel(SfxID id) {
-    if (id == SFX_ZOMBIE) return 16;
+    if (id == SFX_ZOMBIE)      return 16;
+    if (id == SFX_TNTCL_WRTH)  return 17;   /* continuous loop; own voice too */
     return FIRST_VOICE + (id % 8);
 }
 

@@ -9,8 +9,8 @@
    SaveData frame later. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   4             /* v4: adds the non-key item inventory
-                                        (v3: two chained blocks; v2: single block) */
+#define SAVE_VERSION   5             /* v5: world blob gains the tentacle array
+                                        (v4: item inventory; v3: two blocks) */
 #define SAVE_MAX_SLOTS 15            /* blocks 1..15 are usable for saves */
 
 typedef struct {

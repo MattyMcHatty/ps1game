@@ -12,6 +12,7 @@
 #include "crate.h"
 #include "key.h"
 #include "copper_pot.h"
+#include "tentacle.h"
 #include "sml_med.h"
 #include "item_pickup.h"
 #include "sound.h"
@@ -91,6 +92,7 @@ void crates_reset(void) {
     sml_meds_reset();
     item_pickups_reset();  /* also resets player_weapons / player_rounds */
     copper_pot_reset();    /* clears the copper pot from player_items */
+    tentacles_reset();     /* restore the tentacles to full health */
 }
 
 void crates_update(void) {

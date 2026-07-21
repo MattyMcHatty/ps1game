@@ -20,6 +20,7 @@
 #include "fatdoor.h"
 #include "zombie.h"
 #include "demondog.h"
+#include "tentacle.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -439,9 +440,11 @@ void conservatory_draw(RenderContext *ctx) {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
         demon_dogs_set_texwindow(&tw);
+        tentacles_set_texwindow(&tw);
     }
     draw_zombies(ctx);
     draw_demon_dogs(ctx);
+    draw_tentacles(ctx);
 
     condoor_text(ctx);
 }

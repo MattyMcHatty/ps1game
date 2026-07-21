@@ -119,9 +119,12 @@ def encode_adpcm_block(samples, prev1, prev2):
     return block, p1, p2
 
 
-def encode_vag(samples, sample_rate, name):
+def encode_vag(samples, sample_rate, name, loop=False):
     """Encode PCM samples to VAG format.
     samples: list of int16
+    loop: if True, the whole sample loops forever (first block = loop start,
+          last block = loop end + repeat); the SPU keeps playing it until the
+          voice is keyed off. Otherwise it is a one-shot.
     Returns VAG bytes.
     """
     # Pad samples to multiple of 28
@@ -136,16 +139,22 @@ def encode_vag(samples, sample_rate, name):
         block_samples = samples[i * 28:(i + 1) * 28]
         block, prev1, prev2 = encode_adpcm_block(block_samples, prev1, prev2)
 
-        # Set loop flags — last block gets end flag
-        if i == n_blocks - 1:
-            block = block[:1] + bytes([0x01]) + block[2:]  # end flag
+        # ADPCM block flag byte (2nd byte):
+        #   loop:      first = 0x06 (loop start), last = 0x03 (loop end+repeat)
+        #   one-shot:  last  = 0x01 (end)
+        if loop:
+            if   i == 0:            flag = 0x06
+            elif i == n_blocks - 1: flag = 0x03
+            else:                   flag = 0x00
         else:
-            block = block[:1] + bytes([0x00]) + block[2:]
+            flag = 0x01 if i == n_blocks - 1 else 0x00
+        block = block[:1] + bytes([flag]) + block[2:]
 
         blocks.append(block)
 
-    # Add silent end block
-    blocks.append(bytes([0x00, 0x07] + [0x00] * 14))
+    # One-shots get a trailing silent end block; a loop repeats instead.
+    if not loop:
+        blocks.append(bytes([0x00, 0x07] + [0x00] * 14))
 
     body = b''.join(blocks)
 
@@ -250,6 +259,7 @@ def main():
     target_rate = 22050
     out_file    = None
     vag_name    = None
+    loop        = False
 
     args = sys.argv[1:]
     if not args or args[0] in ('-h', '--help'):
@@ -273,6 +283,7 @@ def main():
         if args[i] == '--out'  and i+1 < len(args): out_file    = args[i+1]; i += 2
         elif args[i] == '--rate' and i+1 < len(args): target_rate = int(args[i+1]); i += 2
         elif args[i] == '--name' and i+1 < len(args): vag_name    = args[i+1]; i += 2
+        elif args[i] == '--loop': loop = True; i += 1
         else: i += 1
 
     if not os.path.exists(wav_file):
@@ -298,8 +309,8 @@ def main():
     print(f"  Duration: {duration:.2f} seconds")
     print(f"  SPU RAM needed: ~{len(samples) // 28 * 16 / 1024:.1f} KB")
 
-    print(f"Encoding to VAG (this may take a moment for longer sounds)...")
-    vag_data = encode_vag(samples, target_rate, vag_name)
+    print(f"Encoding to VAG{' (looping)' if loop else ''}...")
+    vag_data = encode_vag(samples, target_rate, vag_name, loop=loop)
 
     print(f"Writing: {out_file}")
     with open(out_file, 'wb') as f:

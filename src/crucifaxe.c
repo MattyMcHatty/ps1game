@@ -19,6 +19,7 @@
 #include "zombie.h"
 #include "sound.h"
 #include "fatdoor.h"
+#include "tentacle.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -30,6 +31,7 @@ static int crate_hit_this_swing = 0;
 static int ddog_hit_this_swing  = 0;
 static int zomb_hit_this_swing  = 0;
 static int fatdoor_hit_this_swing = 0;
+static int tent_hit_this_swing  = 0;
 
 void crucifaxe_init(void) {
     CdlFILE file;
@@ -66,6 +68,7 @@ void update_crucifaxe(void) {
         ddog_hit_this_swing    = 0;
         zomb_hit_this_swing    = 0;
         fatdoor_hit_this_swing = 0;
+        tent_hit_this_swing    = 0;
         sound_play(SFX_SWING);
     }
 
@@ -155,6 +158,12 @@ void update_crucifaxe(void) {
                     }
                 }
             }
+        }
+
+        /* Tentacle hit — checked independently of the other enemies */
+        if (swing_timer <= SWING_DURATION && !tent_hit_this_swing) {
+            if (tentacles_try_hit())
+                tent_hit_this_swing = 1;
         }
 
         /* Crate smash — checked independently of vampire hit */

@@ -31,6 +31,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   bookshelf.tim        4       320     0   128   128     0   16,511
   stn_stl.tim          4       320     0   128   128     0   0,489
   strs.tim             4       320     0   128   128     0   0,504
+  tntcl_actv.tim       4       352     0   128    64     0   144,511
   cncrte.tim           4       384     0   128   128     0   112,511
   kchn_tile.tim        4       384     0   128   128     0   0,490
   piano_keys.tim       4       384     0   128   128     0   32,511
@@ -47,6 +48,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   con_tile.tim         4       832     0   128   128     0   96,511
   double_door.tim      4       832     0   128   128     0   768,480
   wdcrate.tim          16      896     0    64    64     0   -
+  tntcl_idle.tim       4       352    64    64    64    64   128,511
   ghit.tim             8       896    64    16    16    64   0,510
   dbl_dr_hlf.tim       8       512   128    64   128   128   0,487  <-- Voff>=128
   inr_dbl_dr_half.tim  8       576   128    64   128   128   0,502  <-- Voff>=128
@@ -112,6 +114,8 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=511  x[80,96)  grss.tim
   y=511  x[32,48)  piano_keys.tim
   y=511  x[0,16)  prpl_wlppr.tim
+  y=511  x[144,160)  tntcl_actv.tim
+  y=511  x[128,144)  tntcl_idle.tim
   y=511  x[48,64)  trees.tim
   y=511  x[64,80)  upstairs.tim
 

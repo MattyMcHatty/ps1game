@@ -15,6 +15,19 @@ int32_t cam_y   = 0;
 int32_t cam_vy  = 0;
 int32_t cam_z   = 0;
 int32_t cam_rot = 0;
+int32_t cam_kb_vx = 0;
+int32_t cam_kb_vz = 0;
+
+/* Push the player away from (from_x, from_z) at `speed` units on the first
+   frame; update_camera decays it. */
+void player_knockback(int32_t from_x, int32_t from_z, int32_t speed) {
+    int32_t dx = cam_x - from_x;
+    int32_t dz = cam_z - from_z;
+    int32_t d  = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (d <= 0) { cam_kb_vx = speed; cam_kb_vz = 0; return; }
+    cam_kb_vx = (dx * speed) / d;
+    cam_kb_vz = (dz * speed) / d;
+}
 int sprint_stamina  = SPRINT_STAMINA_MAX;
 int sprint_cooldown = 0;
 
@@ -55,6 +68,17 @@ void update_camera(void) {
 
     PadResponse *pad = (PadResponse *)pad_buff[0];
     uint16_t btn = ~pad->btn;
+
+    /* Player knockback (tentacle hits): displace and decay before input, so it
+       stacks with walking and gets wall-resolved by the later apply_collision. */
+    if (cam_kb_vx != 0 || cam_kb_vz != 0) {
+        cam_x += cam_kb_vx;
+        cam_z += cam_kb_vz;
+        cam_kb_vx = (cam_kb_vx * 3) / 4;   /* ~0.75 decay per frame */
+        cam_kb_vz = (cam_kb_vz * 3) / 4;
+        if (cam_kb_vx > -2 && cam_kb_vx < 2) cam_kb_vx = 0;
+        if (cam_kb_vz > -2 && cam_kb_vz < 2) cam_kb_vz = 0;
+    }
 
     /* Aiming mode: the d-pad drives the crosshair and the player is frozen.
        Starting a reload cancels aiming, and a reload can't be aimed through — you

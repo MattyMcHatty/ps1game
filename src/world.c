@@ -8,6 +8,7 @@
 #include "item_pickup.h"
 #include "door.h"
 #include "fatdoor.h"
+#include "tentacle.h"
 
 #define WORLD_NUM_ROOMS 5   /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory */
@@ -35,6 +36,8 @@ typedef struct {
     RoomState rooms[WORLD_NUM_ROOMS];
     FatDoor   fatdoors[MAX_FATDOORS];
     int       fatdoor_count;
+    Tentacle  tentacles[MAX_TENTACLES];   /* also global + area-tagged, like fatdoors */
+    int       tentacle_count;
 } WorldState;
 
 static WorldState world;
@@ -87,16 +90,20 @@ int   world_blob_size(void) { return (int)sizeof world; }
 
 void world_install(const void *blob) {
     memcpy(&world, blob, sizeof world);
-    /* The fatdoor section is global (not per-room-swapped), so restore the live
-       array immediately rather than waiting for a world_enter. */
+    /* The fatdoor + tentacle sections are global (not room-swapped), so restore
+       the live arrays immediately rather than waiting for a world_enter. */
     memcpy(fatdoors, world.fatdoors, sizeof fatdoors);
     fatdoor_count = world.fatdoor_count;
+    memcpy(tentacles, world.tentacles, sizeof tentacles);
+    tentacle_count = world.tentacle_count;
 }
 
-/* Mirror the live (global) fatdoor array into the blob's section. */
+/* Mirror the live (global) fatdoor + tentacle arrays into the blob's sections. */
 static void snapshot_fatdoors(void) {
     memcpy(world.fatdoors, fatdoors, sizeof fatdoors);
     world.fatdoor_count = fatdoor_count;
+    memcpy(world.tentacles, tentacles, sizeof tentacles);
+    world.tentacle_count = tentacle_count;
 }
 
 void world_new_game(void) {

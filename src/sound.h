@@ -18,7 +18,9 @@ typedef enum {
     SFX_DIE       = 11, /* player death */
     SFX_GR_SHOT   = 12, /* grave-olver gunshot */
     SFX_GR_RELOAD = 13, /* grave-olver reload */
-    SFX_COUNT    = 14,
+    SFX_TNTCL_WRTH = 14, /* tentacle writhe, looped while a tentacle is alert */
+    SFX_TNTCL_DIE  = 15, /* tentacle death */
+    SFX_COUNT    = 16,
 } SfxID;
 
 void sound_init(void);
