@@ -37,6 +37,7 @@ KNOWN_STREAM_PAIRS = [
     ("kchn_tile.tim","piano_keys.tim"),# piano room streams piano_keys over kchn_tile
     ("kchn_tile.tim","cncrte.tim"),    # conservatory concrete props stream cncrte over kchn_tile
     ("piano_keys.tim","cncrte.tim"),   # ...same slot the piano room uses for piano_keys
+    ("key.tim",      "cppr_pt.tim"),   # copper pot time-shares the (spent) key slot
     ("gravel_texture.tim", "trees.tim"),   # conservatory streams over delivery slots...
     ("rusty_fence.tim",    "upstairs.tim"),
     ("brick_wall.tim",     "grss.tim"),

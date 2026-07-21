@@ -40,6 +40,7 @@
 #include "piano_props.h"
 #include "conservatory.h"
 #include "concrete_props.h"
+#include "copper_pot.h"
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
@@ -171,6 +172,7 @@ static void update_current_area(GameState area) {
            themselves out). */
         apply_collision_reception();
         apply_height();
+        copper_pot_update();   /* proximity pickup of the copper pot */
         if (condoor_triggered()) {
             pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
@@ -361,6 +363,7 @@ int main(int argc, const char **argv) {
     piano_props_load_assets(); /* piano + bookcase props (streamed textures) */
     conservatory_load_assets();/* conservatory geometry + streamed textures */
     concrete_props_load_assets();/* concrete block/chair props + shared texture */
+    copper_pot_load_assets();  /* copper pot collectible (texture deferred, key slot) */
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
     fatdoors_init();
     door_anim_load_assets();   /* level-transition door panel (texture) */
@@ -464,6 +467,13 @@ int main(int argc, const char **argv) {
                    RAM is harmless (pure LoadImage, GPU idled above). */
                 kitchen_restore_textures();
             }
+            /* Once the copper pot is owned, keep its texture resident in the
+               (spent) key slot on every room load so the menu icon is correct
+               in any room — not just the conservatory that streams it for the
+               world sprite. Harmless re-upload when the destination is the
+               conservatory (already done above). */
+            if (copper_pot_owned())
+                copper_pot_upload_texture();
             {
                 TILE *bg = (TILE *)ctx.next_packet;
                 setTile(bg);

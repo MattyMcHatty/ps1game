@@ -10,6 +10,7 @@ int     game_over     = 0;
 int     flash_timer   = 0;
 int     damage_timer  = 0;
 int     player_keys   = 0;
+int     player_items  = 0;
 int     player_weapons = (1 << WEAPON_CRUCIFAXE);  /* crucifaxe always owned */
 int     player_rounds  = 0;
 int     graveolver_loaded = GRAVEOLVER_CAPACITY;   /* cylinder starts loaded */

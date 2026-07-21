@@ -135,6 +135,7 @@
                 <file name="CONBLOCK.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Concrete Block.smd"/>
                 <file name="CONCHAIR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Concrete Chair.smd"/>
                 <file name="CNCRTE.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\cncrte.tim"/>
+                <file name="CPPRPOT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\cppr_pt.tim"/>
             </dir>
         </directory_tree>
     </track>

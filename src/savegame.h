@@ -9,8 +9,8 @@
    SaveData frame later. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   3             /* v3: world blob spans two chained blocks
-                                        (v2: single-block per-room world state) */
+#define SAVE_VERSION   4             /* v4: adds the non-key item inventory
+                                        (v3: two chained blocks; v2: single block) */
 #define SAVE_MAX_SLOTS 15            /* blocks 1..15 are usable for saves */
 
 typedef struct {
@@ -23,6 +23,7 @@ typedef struct {
     int32_t  loaded;                /* rounds in the Grave-olver cylinder */
     int32_t  weapons;               /* owned-weapon bitmask */
     int32_t  keys;                  /* held-key bitmask */
+    int32_t  items;                 /* held non-key item bitmask (player_items) */
     uint32_t counter;               /* playthrough save count INCLUDING this save
                                        (mirrors player_save_count; restored on load) */
     uint32_t world_size;            /* byte size of the world blob stored in the

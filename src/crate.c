@@ -11,6 +11,7 @@
 #include "particles.h"
 #include "crate.h"
 #include "key.h"
+#include "copper_pot.h"
 #include "sml_med.h"
 #include "item_pickup.h"
 #include "sound.h"
@@ -89,6 +90,7 @@ void crates_reset(void) {
     keys_reset();      /* also clears player_keys */
     sml_meds_reset();
     item_pickups_reset();  /* also resets player_weapons / player_rounds */
+    copper_pot_reset();    /* clears the copper pot from player_items */
 }
 
 void crates_update(void) {

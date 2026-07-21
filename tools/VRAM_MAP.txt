@@ -50,6 +50,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   ghit.tim             8       896    64    16    16    64   0,510
   dbl_dr_hlf.tim       8       512   128    64   128   128   0,487  <-- Voff>=128
   inr_dbl_dr_half.tim  8       576   128    64   128   128   0,502  <-- Voff>=128
+  cppr_pt.tim          8       640   128    32    32   128   0,505  <-- Voff>=128
   key.tim              8       640   128    32    32   128   0,481  <-- Voff>=128
   zombie_sleep.tim     8       704   128    64   128   128   0,498  <-- Voff>=128
   zombie_alert.tim     8       768   128    64   128   128   0,499  <-- Voff>=128
@@ -99,6 +100,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=502  x[0,256)  inr_dbl_dr_half.tim
   y=503  x[0,256)  kchn_wl.tim
   y=504  x[0,16)  strs.tim
+  y=505  x[0,256)  cppr_pt.tim
   y=506  x[0,16)  frnt_dr.tim
   y=507  x[0,256)  dresser.tim
   y=508  x[0,256)  graveolver.tim
@@ -120,6 +122,7 @@ OVERLAP CHECK
   cncrte.tim                               kchn_tile.tim        time-shared (streaming)
   cncrte.tim                               piano_keys.tim       time-shared (streaming)
   con_tile.tim                             double_door.tim      time-shared (streaming)
+  cppr_pt.tim                              key.tim              time-shared (streaming)
   dresser.tim                              kchn_wl.tim          time-shared (streaming)
   frnt_dr.tim                              red_crpt.tim         time-shared (streaming)
   gravel_texture.tim                       trees.tim            time-shared (streaming)

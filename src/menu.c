@@ -9,6 +9,7 @@
 #include "render.h"
 #include "player.h"
 #include "key.h"
+#include "copper_pot.h"
 #include "crucifaxe.h"
 #include "camera.h"
 #include "title.h"
@@ -74,6 +75,7 @@ static int weapons_fnt = -1;   /* "WEAPONS" header */
 static const char *item_descriptions[] = {
     "Front Door Key\n\nUnlocks the\nmansion's\nfront entrance",
     "Rounds\n\nAmmunition\nfor the\nGrave-olver",
+    "Copper Pot\n\nAn old copper\npot found in\nthe conservatory",
 };
 
 static const char *weapon_descriptions[] = {
@@ -149,17 +151,19 @@ static void draw_outline(RenderContext *ctx, int x, int y, int w, int h,
     draw_rect(ctx, x+w-1,     y,         1, h,     r, g, b, ot_idx);
 }
 
-/* Draw a textured icon using POLY_FT4 */
+/* Draw a textured icon using POLY_FT4. `bright` is the texture-modulation level
+   (128 = neutral / authored brightness, 255 ≈ 2x). Most icons are dark source
+   art drawn at 255; full-brightness art (e.g. the copper pot) uses 128. */
 static void draw_icon(RenderContext *ctx, int x, int y, int size,
                        uint16_t tpage, uint16_t clut,
                        uint8_t u0, uint8_t v0, uint8_t u1, uint8_t v1,
-                       int ot_idx) {
+                       uint8_t bright, int ot_idx) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) return;
 
     POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
     setPolyFT4(poly);
-    setRGB0(poly, 255, 255, 255);
+    setRGB0(poly, bright, bright, bright);
 
     /* Quad corners in screen space: TL, TR, BL, BR */
     poly->x0 = x;           poly->y0 = y;
@@ -239,8 +243,9 @@ static void draw_number(RenderContext *ctx, int left_x, int bottom_y,
 /* Helper to get item count */
 static int items_count(void) {
     int count = 0;
-    if (player_keys & (1 << KEY_FRONT_DOOR)) count++;
-    if (player_rounds > 0)                   count++;
+    if (player_keys & (1 << KEY_FRONT_DOOR))     count++;
+    if (player_rounds > 0)                       count++;
+    if (player_items & (1 << ITEM_COPPER_POT))   count++;
     return count;
 }
 
@@ -404,14 +409,21 @@ void menu_draw(RenderContext *ctx) {
                          CELL_W, CELL_H, 80, 70, 100, OT_FILL);
             if (i == 0 && (player_keys & (1 << KEY_FRONT_DOOR))) {
                 draw_icon(ctx, ix, iy, ICON_SIZE, key_tpage, key_clut,
-                          key_u0, key_v0, key_u1, key_v1, OT_ICON);
+                          key_u0, key_v0, key_u1, key_v1, 255, OT_ICON);
             }
             if (i == 1 && player_rounds > 0) {
                 draw_icon(ctx, ix, iy, ICON_SIZE, rnds_tpage, rnds_clut,
-                          rnds_u0, rnds_v0, rnds_u1, rnds_v1, OT_ICON);
+                          rnds_u0, rnds_v0, rnds_u1, rnds_v1, 255, OT_ICON);
                 /* Ammo count, yellow, tucked into the icon's bottom-left. */
                 draw_number(ctx, ix, iy + ICON_SIZE,
                             player_rounds, 2, OT_COUNT);
+            }
+            if (i == 2 && (player_items & (1 << ITEM_COPPER_POT))) {
+                uint16_t tp, cl; uint8_t u0, v0, u1, v1;
+                copper_pot_icon(&tp, &cl, &u0, &v0, &u1, &v1);
+                /* Full-brightness art — neutral 128 modulation, not the 2x the
+                   darker icons use. */
+                draw_icon(ctx, ix, iy, ICON_SIZE, tp, cl, u0, v0, u1, v1, 128, OT_ICON);
             }
         }
     }
@@ -430,11 +442,11 @@ void menu_draw(RenderContext *ctx) {
                          CELL_W, CELL_H, 80, 70, 100, OT_FILL);
             if (i == 0) {
                 draw_icon(ctx, wx, wy, ICON_SIZE, crfx_tpage, crfx_clut,
-                          crfx_u0, crfx_v0, crfx_u1, crfx_v1, OT_ICON);
+                          crfx_u0, crfx_v0, crfx_u1, crfx_v1, 255, OT_ICON);
             }
             if (i == 1 && (player_weapons & (1 << WEAPON_GRAVEOLVER))) {
                 draw_icon(ctx, wx, wy, ICON_SIZE, grav_tpage, grav_clut,
-                          grav_u0, grav_v0, grav_u1, grav_v1, OT_ICON);
+                          grav_u0, grav_v0, grav_u1, grav_v1, 255, OT_ICON);
                 /* Loaded-round count, yellow, tucked into the icon's bottom-right
                    (single digit: cylinder holds at most GRAVEOLVER_CAPACITY). */
                 draw_number(ctx, wx + ICON_SIZE - 3 * 2, wy + ICON_SIZE,
@@ -471,6 +483,8 @@ void menu_draw(RenderContext *ctx) {
                 desc = item_descriptions[0];
             } else if (slot == 1 && player_rounds > 0) {
                 desc = item_descriptions[1];
+            } else if (slot == 2 && (player_items & (1 << ITEM_COPPER_POT))) {
+                desc = item_descriptions[2];
             }
         } else {
             if (slot == 0)

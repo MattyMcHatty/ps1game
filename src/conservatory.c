@@ -16,6 +16,7 @@
 #include "door.h"
 #include "texmgr.h"
 #include "concrete_props.h"
+#include "copper_pot.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -130,6 +131,7 @@ void conservatory_upload_textures(void) {
     for (int i = 0; i < CONSERVATORY_NEW_TEX; i++)
         texmgr_upload(new_tex_id[i]);
     concrete_props_upload_textures();   /* cncrte -> kchn_tile slot (unused here) */
+    copper_pot_upload_texture();        /* copper pot -> key slot (world sprite) */
 }
 
 /* ---- Door back to reception -----------------------------------------------
@@ -418,5 +420,8 @@ void conservatory_draw(RenderContext *ctx) {
        (V 0-127) so the room's 128 texture window serves it; restores the view
        matrix before returning. */
     concrete_props_draw(ctx);
+    /* Copper pot collectible sprite (brackets its own texture window; the pot's
+       VRAM sits at Voff 128 so it must disable the room's 128 window). */
+    copper_pot_draw(ctx);
     condoor_text(ctx);
 }

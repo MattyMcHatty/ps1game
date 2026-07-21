@@ -12,6 +12,14 @@ extern int     flash_timer;
 extern int     damage_timer;
 extern int     player_keys;    /* bitmask — bit N set means KeyType N is held */
 
+/* Non-key collectible inventory items the player carries between rooms (kept in
+   a bitmask, saved alongside player_keys). Menu ITEMS column reads this. */
+typedef enum {
+    ITEM_COPPER_POT = 0,
+    MAX_ITEM_TYPES
+} ItemType;
+extern int     player_items;   /* bitmask — bit ItemType set means it is held */
+
 /* Weapons the player owns. The crucifaxe is always present (bit 0); other
    weapons are found in the world. Menu WEAPONS column reads this bitmask. */
 typedef enum {
