@@ -401,7 +401,7 @@ int fatdoors_try_smash(void) {
 }
 
 int fatdoors_damage_at(int32_t x, int32_t z, int32_t reach, int amount) {
-    int i;
+    int i, result = 0;
     for (i = 0; i < fatdoor_count; i++) {
         FatDoor *d = &fatdoors[i];
         if (!d->active || d->state != FATDOOR_INTACT) continue;
@@ -415,15 +415,17 @@ int fatdoors_damage_at(int32_t x, int32_t z, int32_t reach, int amount) {
         if (x < min_x || x > max_x) continue;
         if (z < min_z || z > max_z) continue;
 
+        /* Damage EVERY door covering this point, not just the first. A double
+           door (two leaves meeting at the point) then smashes together, opening
+           the full gap — otherwise the still-intact second leaf keeps blocking
+           and an enemy heading through gets stuck against it. */
         d->health -= amount;
         spawn_wood_burst(d->x, d->y, d->z);
-        if (d->health <= 0) {
-            d->state = FATDOOR_SMASHED;
-            sound_play(SFX_SMASH);
-            return 2;
-        }
-        sound_play(SFX_AXEHIT);
-        return 1;
+        if (d->health <= 0) { d->state = FATDOOR_SMASHED; result = 2; }
+        else if (result < 1) result = 1;
     }
-    return 0;
+    /* One sound per call, whatever was hit (avoids double-triggering it). */
+    if (result == 2)      sound_play(SFX_SMASH);
+    else if (result == 1) sound_play(SFX_AXEHIT);
+    return result;
 }

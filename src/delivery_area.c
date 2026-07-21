@@ -412,6 +412,9 @@ void delivery_area_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
     /* draw_vampire(ctx); */ /* disabled — kept for later */
+    /* Delivery uses no texture window; clear any left set by a windowed room
+       (the conservatory) so the dogs draw unbracketed here. */
+    demon_dogs_set_texwindow(NULL);
     draw_demon_dogs(ctx);
     sml_meds_draw(ctx);
     keys_draw(ctx);

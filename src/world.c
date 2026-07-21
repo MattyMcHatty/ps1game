@@ -157,6 +157,32 @@ void world_enter(GameState area) {
             item_pickup_spawn(580, -149, 1018, PICKUP_ROUNDS);
         }
 
+        if (area == STATE_CONSERVATORY) {
+            /* A zombie lurking in the small room behind the east fatdoor
+               (room x[-838,-333], z[385,997]). */
+            zombie_add(-585, -149, 750);
+
+            /* Three demon dogs at the far (west) end of the entrance hall,
+               past the conservatory doors. Fields set directly (no add helper,
+               same as demon_dogs_init); apply_ddog_height settles their y onto
+               the flat floor. */
+            static const int32_t dpos[3][2] = {
+                { -2450,   50 },
+                { -2350, -120 },
+                { -2480,  200 },
+            };
+            int di;
+            for (di = 0; di < 3; di++) {
+                demon_dogs[di].x      = dpos[di][0];
+                demon_dogs[di].y      = -149;
+                demon_dogs[di].z      = dpos[di][1];
+                demon_dogs[di].health = DDOG_MAX_HEALTH;
+                demon_dogs[di].state  = DDOG_DORMANT;
+                demon_dogs[di].active = 1;
+            }
+            demon_dog_count = 3;
+        }
+
         r->visited = 1;
     }
 }

@@ -801,6 +801,20 @@ void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ram
     int32_t radius = 80;
     int i, pass;
 
+    /* Flat single-floor room (e.g. the conservatory): collide EVERY wall, front
+       faces only, exactly like the zombies (apply_flat_entity_collision). The
+       multi-level branch below hand-picks delivery-area wall indices and would
+       ignore this room's other walls — letting a dog walk out through them and
+       drop below the floor. */
+    if (!r->multi_level) {
+        for (pass = 0; pass < 2; pass++)
+            for (i = 0; i < r->wall_count; i++)
+                collide_wall_frontonly(&r->walls[i], x, z, radius);
+        return;
+    }
+
+    /* Delivery area (multi-level): the original hand-tuned index logic — walls
+       0-12 always, 13 only upstairs, 14/15 only on the ground floor. */
     for (pass = 0; pass < 2; pass++) {
         for (i = 0; i < 13; i++)
             collide_wall(&r->walls[i], x, z, radius);

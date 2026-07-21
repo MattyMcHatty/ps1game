@@ -82,5 +82,8 @@ void demon_dogs_reset(void);
 void demon_dogs_rest(void);
 void update_demon_dogs(void);
 void draw_demon_dogs(RenderContext *ctx);
+/* Set the area's texture window so dog sprites/shadow can bracket it (their VRAM
+   sits at Voff>=128). Pass NULL for areas with no window (delivery). */
+void demon_dogs_set_texwindow(const RECT *tw);
 
 #endif

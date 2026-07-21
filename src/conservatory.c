@@ -18,6 +18,8 @@
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "fatdoor.h"
+#include "zombie.h"
+#include "demondog.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -427,6 +429,19 @@ void conservatory_draw(RenderContext *ctx) {
     /* Breakable doors filling the two north-wall openings. Draw with the room's
        active 128 window (their wd_dr UVs are 0-127, so wrapping is a no-op);
        restores the view matrix before returning. */
-    fatdoors_draw(ctx);
+    fatdoors_draw(ctx);   /* restores the camera view matrix, which the enemy
+                             sprite renderers below rely on being active */
+
+    /* Enemies: their sprites (VRAM Voff>=128) must bracket the room's 128
+       texture window, so hand it to both renderers before they draw. Drawn
+       before condoor_text, which leaves its own matrix. */
+    {
+        RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+        zombies_set_texwindow(&tw);
+        demon_dogs_set_texwindow(&tw);
+    }
+    draw_zombies(ctx);
+    draw_demon_dogs(ctx);
+
     condoor_text(ctx);
 }

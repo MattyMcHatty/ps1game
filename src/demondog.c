@@ -18,6 +18,44 @@ int      demon_dog_count = 0;
 
 static DemonDog ddog_defaults[MAX_DEMON_DOGS];
 
+/* Texture window the current area expects, restored around each dog sprite/
+   shadow (their VRAM sits at Voff 128/160/192, so a room's 128x128 window would
+   wrap them to the wrong texels). Set by demon_dogs_set_texwindow(); inactive by
+   default (the delivery area uses no window). Mirrors zombie.c. */
+static RECT ddog_tw_restore;
+static int  ddog_tw_active = 0;
+
+void demon_dogs_set_texwindow(const RECT *tw) {
+    if (tw) { ddog_tw_restore = *tw; ddog_tw_active = 1; }
+    else    { ddog_tw_active = 0; }
+}
+
+/* Add an already-filled POLY_FT4 to ot[otz], bracketing it with a full/unmasked
+   window and the area's restore window when one is active, so the sprite samples
+   its true VRAM region. addPrim prepends, so this yields draw order
+   disable -> poly -> restore. The poly's packet space must already be reserved. */
+static void add_ddog_ft4_windowed(RenderContext *ctx, int32_t otz, POLY_FT4 *poly) {
+    uint8_t  *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    uint32_t *ot      = ctx->buffers[ctx->active_buffer].ot;
+
+    if (ddog_tw_active && ctx->next_packet + 2 * sizeof(DR_TWIN) <= buf_end) {
+        DR_TWIN *restore = (DR_TWIN *)ctx->next_packet;
+        setTexWindow(restore, &ddog_tw_restore);
+        addPrim(&ot[otz], restore);
+        ctx->next_packet += sizeof(DR_TWIN);
+
+        addPrim(&ot[otz], poly);
+
+        RECT full = { 0, 0, 0, 0 };
+        DR_TWIN *disable = (DR_TWIN *)ctx->next_packet;
+        setTexWindow(disable, &full);
+        addPrim(&ot[otz], disable);
+        ctx->next_packet += sizeof(DR_TWIN);
+    } else {
+        addPrim(&ot[otz], poly);
+    }
+}
+
 static uint16_t sleep_tpage  = 0, sleep_clut  = 0;
 static uint16_t alert_tpage  = 0, alert_clut  = 0;
 static uint16_t alert2_tpage = 0, alert2_clut = 0;
@@ -351,8 +389,9 @@ static void draw_ddog_shadow(RenderContext *ctx, DemonDog *d) {
     poly->clut  = shadow_clut;
     poly->tpage = shadow_tpage;
 
-    addPrim(&ctx->buffers[ctx->active_buffer].ot[shadow_otz], poly);
+    /* Reserve the poly before the window bracket may allocate DR_TWINs. */
     ctx->next_packet += sizeof(POLY_FT4);
+    add_ddog_ft4_windowed(ctx, shadow_otz, poly);
 }
 
 static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
@@ -450,8 +489,10 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
     poly->tpage = tpage;
     poly->clut  = clut;
 
-    addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+    /* Reserve the sprite before the window bracket may allocate DR_TWINs (its
+       V 128..255 wraps under a room's 128 window without the bracket). */
     ctx->next_packet += sizeof(POLY_FT4);
+    add_ddog_ft4_windowed(ctx, otz, poly);
 
     if (d->hit_timer <= 0) return;
 

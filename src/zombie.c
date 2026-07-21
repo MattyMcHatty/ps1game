@@ -116,12 +116,11 @@ void zombies_reset(void) {
  * into the next room. This funnels them cleanly through openings (and drives
  * them squarely into closed doors so they batter through).
  *
- * NOTE: this table describes the kitchen_dining layout — the only place
- * zombies currently live. If they are ever placed in another area it needs to
- * describe that area (or be supplied by the area, like zombies_set_texwindow).
+ * Each area supplies its own zone/node tables (selected by game_state in
+ * select_nav, called from update_zombies), the same way it supplies the
+ * texture window. Zombies currently live in the kitchen and the conservatory.
  * -------------------------------------------------------------------------*/
-#define NAV_ZONE_COUNT 4
-#define NAV_NODE_COUNT 3
+#define NAV_MAX_ZONES 4   /* stack-array sizing in nav_next_node; >= any area's count */
 
 typedef struct { int32_t min_x, max_x, min_z, max_z; } NavZone;
 typedef struct {
@@ -131,23 +130,54 @@ typedef struct {
     int32_t bx, bz;      /* clearance point a little inside zone zb */
 } NavNode;
 
-static const NavZone nav_zones[NAV_ZONE_COUNT] = {
+static const NavZone kitchen_nav_zones[] = {
     { -3294, -590, -1000,  1000 },  /* 0: big kitchen room       */
     {  -640,  600, -1040,  1000 },  /* 1: dining / entry (hub)   */
     {  -581,   -8, -1699,  -980 },  /* 2: south corridor         */
     {    18,  591, -1699,  -980 },  /* 3: SE little room         */
 };
-
-static const NavNode nav_nodes[NAV_NODE_COUNT] = {
+static const NavNode kitchen_nav_nodes[] = {
     /* door x   z    za zb   za-clearance   zb-clearance  */
     { -596,  -371, 0, 1,  -785, -371,  -445, -371 },  /* big-room <-> dining   */
     { -300, -1013, 1, 2,  -300, -843,  -300, -1183 }, /* dining   <-> corridor */
     {  300, -1013, 1, 3,   300, -843,   300, -1183 }, /* dining   <-> SE-room  */
 };
 
+/* Conservatory: the small room (east single fatdoor) is one zone; the entrance
+   hall and the big room are treated as ONE zone, because the big room's opening
+   is a 600-wide double door — once smashed it is a wide gap the zombie can chase
+   straight through, so it needs no doorway node (a point-target there just makes
+   it grind against the jamb geometry trying to thread the exact seam). The small
+   room keeps its node so the zombie can batter that door to break out. The hall/
+   big-room zone overlaps the small-room rectangle, but zone 0 is tested first. */
+static const NavZone cons_nav_zones[] = {
+    { -838, -333,  356,  997 },  /* 0: small room (east), behind its door       */
+    { -2601,   0, -311, 1702 },  /* 1: hall + big room (open via the wide door) */
+};
+static const NavNode cons_nav_nodes[] = {
+    /* door x   z    za zb   za-clearance    zb-clearance  */
+    { -600, 356, 0, 1,  -600, 470,  -600, 240 },  /* small room <-> hall (single door) */
+};
+
+/* Active tables, selected per-area by select_nav(). Default: kitchen. */
+static const NavZone *nav_zones      = kitchen_nav_zones;
+static int            nav_zone_count = 4;
+static const NavNode *nav_nodes      = kitchen_nav_nodes;
+static int            nav_node_count = 3;
+
+static void select_nav(void) {
+    if (game_state == STATE_CONSERVATORY) {
+        nav_zones = cons_nav_zones; nav_zone_count = 2;
+        nav_nodes = cons_nav_nodes; nav_node_count = 1;
+    } else {
+        nav_zones = kitchen_nav_zones; nav_zone_count = 4;
+        nav_nodes = kitchen_nav_nodes; nav_node_count = 3;
+    }
+}
+
 static int nav_zone_at(int32_t x, int32_t z) {
     int i;
-    for (i = 0; i < NAV_ZONE_COUNT; i++) {
+    for (i = 0; i < nav_zone_count; i++) {
         const NavZone *zn = &nav_zones[i];
         if (x >= zn->min_x && x <= zn->max_x &&
             z >= zn->min_z && z <= zn->max_z)
@@ -161,20 +191,20 @@ static int nav_zone_at(int32_t x, int32_t z) {
 static int nav_next_node(int from, int to) {
     if (from < 0 || to < 0 || from == to) return -1;
 
-    int prev_zone[NAV_ZONE_COUNT];
-    int prev_node[NAV_ZONE_COUNT];
-    int visited[NAV_ZONE_COUNT];
-    int queue[NAV_ZONE_COUNT];
+    int prev_zone[NAV_MAX_ZONES];
+    int prev_node[NAV_MAX_ZONES];
+    int visited[NAV_MAX_ZONES];
+    int queue[NAV_MAX_ZONES];
     int qh = 0, qt = 0, i, z;
 
-    for (i = 0; i < NAV_ZONE_COUNT; i++) visited[i] = 0;
+    for (i = 0; i < nav_zone_count; i++) visited[i] = 0;
     visited[from] = 1; prev_zone[from] = -1; prev_node[from] = -1;
     queue[qt++] = from;
 
     while (qh < qt) {
         z = queue[qh++];
         if (z == to) break;
-        for (i = 0; i < NAV_NODE_COUNT; i++) {
+        for (i = 0; i < nav_node_count; i++) {
             int other = -1;
             if      (nav_nodes[i].za == z) other = nav_nodes[i].zb;
             else if (nav_nodes[i].zb == z) other = nav_nodes[i].za;
@@ -202,6 +232,7 @@ static int nav_next_node(int from, int to) {
 void update_zombies(void) {
     static int hurt_sfx_cooldown = 0;
     int i;
+    select_nav();   /* pick this area's zone/node tables (kitchen vs conservatory) */
     if (hurt_sfx_cooldown > 0) hurt_sfx_cooldown--;
     for (i = 0; i < zombie_count; i++) {
         Zombie *d = &zombies[i];
