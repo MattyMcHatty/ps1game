@@ -169,14 +169,15 @@ void world_enter(GameState area) {
                (room x[-838,-333], z[385,997]). */
             zombie_add(-585, -149, 750);
 
-            /* Three demon dogs at the far (west) end of the entrance hall,
-               past the conservatory doors. Fields set directly (no add helper,
-               same as demon_dogs_init); apply_ddog_height settles their y onto
-               the flat floor. */
+            /* Three demon dogs spread across the west end of the hall: one near
+               the south wall (z=-311), one just south of the west double door
+               (z=356), and one between them set further back (west). Fields set
+               directly (no add helper, same as demon_dogs_init); apply_ddog_height
+               settles their y onto the floor. */
             static const int32_t dpos[3][2] = {
-                { -2450,   50 },
-                { -2350, -120 },
-                { -2480,  200 },
+                { -1600, -250 },   /* near the south wall            */
+                { -1750,  315 },   /* near the west double door      */
+                { -1950,   40 },   /* between them, a bit further back */
             };
             int di;
             for (di = 0; di < 3; di++) {

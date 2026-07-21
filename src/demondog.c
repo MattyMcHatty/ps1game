@@ -12,6 +12,7 @@
 #include "particles.h"
 #include "demondog.h"
 #include "sound.h"
+#include "title.h"   /* game_state — conservatory dogs use a shorter wake range */
 
 DemonDog demon_dogs[MAX_DEMON_DOGS];
 int      demon_dog_count = 0;
@@ -159,7 +160,9 @@ void update_demon_dogs(void) {
         if (d->lunging && dist2d >= DDOG_CATCH_DIST) d->lunging = 0;
 
         if (d->state == DDOG_DORMANT) {
-            if (dist2d < DDOG_WAKE_RADIUS) {
+            int32_t wake = (game_state == STATE_CONSERVATORY)
+                           ? DDOG_WAKE_RADIUS_CONS : DDOG_WAKE_RADIUS;
+            if (dist2d < wake) {
                 d->state      = DDOG_ALERT;
                 d->bark_timer = DDOG_BARK_INTERVAL;
                 sound_play(SFX_DOGBARK);

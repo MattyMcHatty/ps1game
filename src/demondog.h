@@ -8,6 +8,8 @@
 #define DDOG_MAX_HEALTH       3
 #define DDOG_SPEED           10
 #define DDOG_WAKE_RADIUS      2400
+#define DDOG_WAKE_RADIUS_CONS 1800  /* conservatory dogs: at most the ~1880 gap
+                                       from their cluster to the entrance door */
 #define DDOG_CATCH_DIST       180
 #define DDOG_DAMAGE_AMOUNT    10
 #define DDOG_DAMAGE_COOLDOWN  60
