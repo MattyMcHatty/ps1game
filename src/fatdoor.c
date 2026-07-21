@@ -114,6 +114,28 @@ void fatdoors_init(void) {
     fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
     fatdoors[i].area = STATE_RECEPTION; i++;
 
+    /* Conservatory: the north wall at z=331 separates the entrance hall (z<331)
+       from the north rooms, with two openings. All doors fill their gap along X
+       (thin in Z, no rotation) and stand on the flat floor (world y=0). */
+
+    /* East opening (x[-750,-450], 300 wide) -> the small room. One door. */
+    fatdoors[i].x = -600; fatdoors[i].y = -188; fatdoors[i].z = 356;
+    fatdoors[i].rot_y = 0;    fatdoors[i].half_x = 150; fatdoors[i].half_z = 30;
+    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
+    fatdoors[i].area = STATE_CONSERVATORY; i++;
+
+    /* West opening (x[-2000,-1400], 600 wide) -> the big room. Two doors side by
+       side (meeting at x=-1700), like a double door. */
+    fatdoors[i].x = -1550; fatdoors[i].y = -188; fatdoors[i].z = 356;
+    fatdoors[i].rot_y = 0;    fatdoors[i].half_x = 150; fatdoors[i].half_z = 30;
+    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
+    fatdoors[i].area = STATE_CONSERVATORY; i++;
+
+    fatdoors[i].x = -1850; fatdoors[i].y = -188; fatdoors[i].z = 356;
+    fatdoors[i].rot_y = 0;    fatdoors[i].half_x = 150; fatdoors[i].half_z = 30;
+    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
+    fatdoors[i].area = STATE_CONSERVATORY; i++;
+
     fatdoor_count = i;
 
     int j;

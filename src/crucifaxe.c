@@ -166,7 +166,8 @@ void update_crucifaxe(void) {
         /* Breakable door smash — only in areas that have fat doors. The doors
            are a single global array (fatdoors_try_smash already skips doors whose
            area != game_state), but menu/delivery have none, so gate here too. */
-        if ((game_state == STATE_KITCHEN_DINING || game_state == STATE_RECEPTION) &&
+        if ((game_state == STATE_KITCHEN_DINING || game_state == STATE_RECEPTION ||
+             game_state == STATE_CONSERVATORY) &&
             swing_timer <= SWING_DURATION && !fatdoor_hit_this_swing) {
             if (fatdoors_try_smash())
                 fatdoor_hit_this_swing = 1;
