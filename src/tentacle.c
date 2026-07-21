@@ -257,20 +257,36 @@ static void draw_billboard(RenderContext *ctx, Tentacle *t, const Sprite *s,
     int32_t floor_y = t->y + GROUND_FLOOR_Y;
     int32_t cy      = floor_y - TENT_HALF_H;
 
-    /* Screen-space size scaled by distance (as the key / item pickups). */
-    if (wdist < 1) wdist = 1;
-    int32_t sw = (half_w * 256) / wdist;      if (sw < 4) sw = 4;
-    int32_t sh = (TENT_HALF_H * 256) / wdist; if (sh < 4) sh = 4;
+    /* Build the billboard as a WORLD-space quad along the camera's right axis and
+       project its corners, so the GTE gives true perspective scaling (like the
+       dogs). The old screen-space size (half_w * 256 / Manhattan-dist) made the
+       sprite grow/shrink as the player circled it at a constant distance. */
+    int32_t rx = icos(cam_rot);
+    int32_t rz = -isin(cam_rot);
+    int16_t dwx = (int16_t)((half_w * rx) >> 12);
+    int16_t dwz = (int16_t)((half_w * rz) >> 12);
+    int16_t vy_top = (int16_t)(cy - TENT_HALF_H);
+    int16_t vy_bot = (int16_t)(cy + TENT_HALF_H);
 
-    SVECTOR sv = {(int16_t)t->x, (int16_t)cy, (int16_t)t->z, 0};
-    DVECTOR screen;
-    int32_t otz;
-    gte_ldv0(&sv); gte_rtps();
-    gte_ldv0(&sv); gte_rtps();
-    gte_ldv0(&sv); gte_rtps();
-    gte_stsxy(&screen);
-    gte_avsz3();
+    SVECTOR v[4];
+    v[0].vx = (int16_t)(t->x - dwx); v[0].vy = vy_top; v[0].vz = (int16_t)(t->z - dwz); v[0].pad = 0;
+    v[1].vx = (int16_t)(t->x + dwx); v[1].vy = vy_top; v[1].vz = (int16_t)(t->z + dwz); v[1].pad = 0;
+    v[2].vx = (int16_t)(t->x + dwx); v[2].vy = vy_bot; v[2].vz = (int16_t)(t->z + dwz); v[2].pad = 0;
+    v[3].vx = (int16_t)(t->x - dwx); v[3].vy = vy_bot; v[3].vz = (int16_t)(t->z - dwz); v[3].pad = 0;
+
+    DVECTOR sv[4];
+    int32_t sz[4], otz;
+    gte_ldv3(&v[0], &v[1], &v[2]);
+    gte_rtpt();
+    gte_stsxy3c(sv);
+    gte_ldv0(&v[3]);
+    gte_rtps();
+    gte_stsxy(&sv[3]);
+    gte_stsz4c(sz);
+    if (!sz[1] || !sz[2] || !sz[3]) return;
+    gte_avsz4();
     gte_stotz(&otz);
+    if (otz <= 0) return;
     if (otz < SCENE_OT_MIN)  otz = SCENE_OT_MIN;
     if (otz > OT_LENGTH - 2)  otz = OT_LENGTH - 2;
 
@@ -281,10 +297,10 @@ static void draw_billboard(RenderContext *ctx, Tentacle *t, const Sprite *s,
         if (t->hit_timer > 0) setRGB0(poly, fc, fc >> 2, fc >> 2);
         else                  setRGB0(poly, fc, fc, fc);
     }
-    poly->x0 = (int16_t)(screen.vx - sw); poly->y0 = (int16_t)(screen.vy - sh);
-    poly->x1 = (int16_t)(screen.vx + sw); poly->y1 = (int16_t)(screen.vy - sh);
-    poly->x2 = (int16_t)(screen.vx - sw); poly->y2 = (int16_t)(screen.vy + sh);
-    poly->x3 = (int16_t)(screen.vx + sw); poly->y3 = (int16_t)(screen.vy + sh);
+    poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+    poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+    poly->x2 = sv[3].vx; poly->y2 = sv[3].vy;
+    poly->x3 = sv[2].vx; poly->y3 = sv[2].vy;
     /* Horizontal flip swaps the left/right U columns. */
     uint8_t ul = flip ? s->u1 : s->u0;
     uint8_t ur = flip ? s->u0 : s->u1;

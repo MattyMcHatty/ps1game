@@ -451,9 +451,13 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
 
     gte_avsz4();
     gte_stotz(&otz);
-    otz >>= 2;
+    /* Sort on the raw average depth (same scale as the room mesh and the zombie
+       sprites) so dogs interleave correctly with zombies and are occluded by
+       walls between them and the camera — previously an otz>>2 pinned dogs to a
+       tiny OT index that always drew on top of everything, including zombies. */
+    if (otz <= 0) return;
     if (otz < SCENE_OT_MIN) otz = SCENE_OT_MIN;
-    if (otz >= OT_LENGTH) return;
+    if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
     /* A bite is a foreground overlay: draw it in front of all room geometry so
        nearby walls/props can't occlude the in-your-face sprite. */
     if (d->lunging) otz = SCENE_OT_MIN;
