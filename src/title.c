@@ -15,6 +15,7 @@ extern volatile size_t  pad_buff_len[2];
 static int debug_menu_open   = 0;
 static int debug_menu_cursor = 0;
 static int level_select_fnt  = -1;
+static int debug_fnt         = -1;   /* full-screen level select, top-left */
 
 /* ---- Start menu (opened with Start): New Game / Load Game ------------------
    Load Game walks card slot -> save file, reads the chosen SaveData, stages it
@@ -33,6 +34,8 @@ static const char *const level_names[] = {
     "DELIVERY AREA",
     "KITCHEN DINING",
     "RECEPTION",
+    "PIANO ROOM",
+    "CONSERVATORY",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -42,6 +45,8 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_DELIVERY_AREA,
     STATE_LOADING,
     STATE_LOADING,
+    STATE_LOADING,
+    STATE_LOADING,
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -49,6 +54,8 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_DELIVERY_AREA,    /* unused (not a STATE_LOADING entry) */
     STATE_KITCHEN_DINING,
     STATE_RECEPTION,
+    STATE_PIANO_ROOM,
+    STATE_CONSERVATORY,
 };
 
 /* ---- Letter bitmasks: 7 rows x 5 cols, row 0 = top ---- */
@@ -306,25 +313,32 @@ void draw_title(RenderContext *ctx) {
     pulse = (pulse + 2) & 255;
     uint8_t red = (uint8_t)(180 + ((pulse < 128) ? pulse / 2 : (255 - pulse) / 2));
 
-    for (i = 0; i < 6; i++) {
-        draw_letter(ctx, horror[i],
-                    start_x + i * letter_width, start_y,
-                    tile_size, red, 0, 0);
+    /* The debug level select takes over the whole screen — hide the HORROR
+       title while it is open; it returns when Select backs out to PRESS START. */
+    if (!debug_menu_open) {
+        for (i = 0; i < 6; i++) {
+            draw_letter(ctx, horror[i],
+                        start_x + i * letter_width, start_y,
+                        tile_size, red, 0, 0);
+        }
     }
 
     if (debug_menu_open) {
         int k;
-        FntPrint(level_select_fnt, "LEVEL SELECT\n\n");
+        /* Full-screen list from the top-left (its own top-left font stream). */
+        FntPrint(debug_fnt, "LEVEL SELECT\n\n");
         for (k = 0; k < LEVEL_SELECT_COUNT; k++) {
             if (k == debug_menu_cursor)
-                FntPrint(level_select_fnt, "* %s\n", level_names[k]);
+                FntPrint(debug_fnt, "* %s\n", level_names[k]);
             else
-                FntPrint(level_select_fnt, "  %s\n", level_names[k]);
+                FntPrint(debug_fnt, "  %s\n", level_names[k]);
         }
-        FntFlush(level_select_fnt);
-        /* Footer with the coloured Cross button glyph (the Fnt streams can't
-           hold coloured glyphs, so footers are drawn separately at a fixed y). */
-        btn_prompt_draw(ctx, 96, 176, BTN_CROSS ":LOAD  SEL:BACK", 1);
+        FntFlush(debug_fnt);
+        /* Footer with the coloured Cross button glyph, below the list (the Fnt
+           streams can't hold coloured glyphs, so footers are drawn separately).
+           List is 2 + LEVEL_SELECT_COUNT lines of 8px from y=8. */
+        btn_prompt_draw(ctx, 8, 8 + (2 + LEVEL_SELECT_COUNT + 1) * 8,
+                        BTN_CROSS ":LOAD  SEL:BACK", 1);
     } else if (tmenu == TM_MAIN) {
         FntPrint(level_select_fnt, "%s NEW GAME\n%s LOAD GAME\n",
                  tmenu_cursor == 0 ? "*" : " ",
@@ -366,6 +380,8 @@ void title_init(void) {
     level_select_fnt = FntOpen(96, 120, 160, 96, 0, 256);
     /* Wider window for the save-file list (32-char titles + cursor). */
     load_list_fnt = FntOpen(28, 118, 264, 112, 0, 512);
+    /* Debug level-select takes over the whole screen from the top-left. */
+    debug_fnt = FntOpen(8, 8, 304, 224, 0, 256);
 }
 
 void update_title(void) {
@@ -459,12 +475,13 @@ void update_title(void) {
                route into the saved area exactly like the level select. */
             savegame_stage_load(&sd);
             tmenu = TM_CLOSED;
-            if (sd.area == (int32_t)STATE_KITCHEN_DINING ||
-                sd.area == (int32_t)STATE_RECEPTION) {
+            /* The delivery area is entered directly; every other area is set up
+               by STATE_LOADING (kitchen, reception, piano room, conservatory). */
+            if (sd.area == (int32_t)STATE_DELIVERY_AREA) {
+                game_state = STATE_DELIVERY_AREA;
+            } else {
                 pending_area = (GameState)sd.area;
                 game_state   = STATE_LOADING;
-            } else {
-                game_state = STATE_DELIVERY_AREA;
             }
         }
     }
