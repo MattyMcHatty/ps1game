@@ -21,6 +21,7 @@
 #include "zombie.h"
 #include "demondog.h"
 #include "tentacle.h"
+#include "sml_med.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -427,6 +428,9 @@ void conservatory_draw(RenderContext *ctx) {
     /* Copper pot collectible sprite (brackets its own texture window; the pot's
        VRAM sits at Voff 128 so it must disable the room's 128 window). */
     copper_pot_draw(ctx);
+    /* Small medipac in the zombie's room. Its sprite sits at VRAM Voff 0, so the
+       room's 128 window leaves its UVs intact (no bracket needed). */
+    sml_meds_draw(ctx);
     /* Breakable doors filling the two north-wall openings. Draw with the room's
        active 128 window (their wd_dr UVs are 0-127, so wrapping is a no-op);
        restores the view matrix before returning. */

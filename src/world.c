@@ -166,8 +166,10 @@ void world_enter(GameState area) {
 
         if (area == STATE_CONSERVATORY) {
             /* A zombie lurking in the small room behind the east fatdoor
-               (room x[-838,-333], z[385,997]). */
+               (room x[-838,-333], z[385,997]), with a small medipac deeper in
+               the room past it (sml_med_spawn floats it above the floor). */
             zombie_add(-585, -149, 750);
+            sml_med_spawn(-585, -149, 900);
 
             /* Three demon dogs spread across the west end of the hall: one near
                the south wall (z=-311), one just south of the west double door

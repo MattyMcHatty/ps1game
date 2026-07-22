@@ -176,6 +176,7 @@ static void update_current_area(GameState area) {
         update_zombies();      /* the small-room zombie */
         update_demon_dogs();   /* the three dogs at the far end of the hall */
         update_tentacles();    /* the two tentacles near the copper pot */
+        sml_meds_update();     /* the small-room medipac */
         copper_pot_update();   /* proximity pickup of the copper pot */
         if (condoor_triggered()) {
             pending_area = STATE_RECEPTION;

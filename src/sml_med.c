@@ -24,6 +24,12 @@ int    sml_med_count = 0;
    fat_door genuinely in front of the pickup still occludes it. */
 #define SML_MED_OT_BIAS    24
 
+/* Green screen flash on pickup — same mechanism as the grave-olver muzzle flash
+   (a brief semi-transparent full-screen wash at a front OT layer). */
+#define MED_FLASH_FRAMES   4
+#define OT_MED_FLASH       2   /* front overlay: HUD owns 0/1, scene is >=16 */
+static int med_flash = 0;
+
 static uint16_t sml_med_tpage = 0;
 static uint16_t sml_med_clut  = 0;
 static uint8_t  sml_med_u0, sml_med_v0, sml_med_u1, sml_med_v1;
@@ -73,6 +79,7 @@ void sml_meds_reset(void) {
     for (i = 0; i < MAX_SML_MEDS; i++)
         sml_meds[i].active = 0;
     sml_med_count = 0;
+    med_flash = 0;
 }
 
 void sml_med_spawn(int32_t x, int32_t y, int32_t z) {
@@ -92,6 +99,7 @@ void sml_med_spawn(int32_t x, int32_t y, int32_t z) {
 
 void sml_meds_update(void) {
     int i;
+    if (med_flash > 0) med_flash--;
     for (i = 0; i < sml_med_count; i++) {
         SmlMed *m = &sml_meds[i];
         if (!m->active) continue;
@@ -108,14 +116,39 @@ void sml_meds_update(void) {
                 player_health = MAX_HEALTH;
             sound_play(SFX_PICKUP);
             show_pickup_msg("Small Medipac");
+            med_flash = MED_FLASH_FRAMES;   /* green heal flash */
         }
     }
 }
 
 void sml_meds_draw(RenderContext *ctx) {
-    if (!sml_med_tpage) return;
-
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+
+    /* Green pickup flash: a brief semi-transparent green wash over the whole
+       screen (TILE added first, DR_TPAGE with abr=0/50% blend last, so the GPU
+       applies the blend mode before the tile — LIFO within the OT node). Same
+       as the grave-olver muzzle flash but green. Drawn even when no medipacs
+       remain (the one just collected set the timer). */
+    if (med_flash > 0) {
+        if (ctx->next_packet + sizeof(TILE) <= buf_end) {
+            TILE *t = (TILE *)ctx->next_packet;
+            setTile(t);
+            setSemiTrans(t, 1);
+            setRGB0(t, 30, 220, 30);
+            setXY0(t, 0, 0);
+            setWH(t, SCREEN_XRES, SCREEN_YRES);
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_MED_FLASH], t);
+            ctx->next_packet += sizeof(TILE);
+        }
+        if (ctx->next_packet + sizeof(DR_TPAGE) <= buf_end) {
+            DR_TPAGE *dp = (DR_TPAGE *)ctx->next_packet;
+            setDrawTPage(dp, 0, 0, getTPage(0, 0, 0, 0));
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_MED_FLASH], dp);
+            ctx->next_packet += sizeof(DR_TPAGE);
+        }
+    }
+
+    if (!sml_med_tpage) return;
 
     int i;
     for (i = 0; i < sml_med_count; i++) {
