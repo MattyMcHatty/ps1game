@@ -14,6 +14,7 @@
 #include "collision.h"
 #include "demondog.h"
 #include "zombie.h"
+#include "tentacle.h"
 #include "vampire.h"
 #include "particles.h"
 #include "sound.h"
@@ -222,6 +223,16 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 1; best_idx = i;
         }
     }
+    for (i = 0; i < tentacle_count; i++) {
+        Tentacle *t = &tentacles[i];
+        if (!t->active || t->health <= 0 || t->area != game_state) continue;
+        int32_t cyc, hh;
+        tentacle_body(t, &cyc, &hh);
+        if (enemy_in_circle(t->x, cyc, t->z, hh, fx, fz, &depth) &&
+            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 3; best_idx = i;
+        }
+    }
     if (vampire_health > 0 &&
         enemy_in_circle(vampire_x, vampire_y + VAMPIRE_Y, vampire_z, VAMPIRE_HALF_H,
                         fx, fz, &depth) &&
@@ -238,6 +249,8 @@ static void graveolver_fire(void) {
         damage_dog(&demon_dogs[best_idx]);
     } else if (best_kind == 1) {
         damage_zombie(&zombies[best_idx]);
+    } else if (best_kind == 3) {
+        tentacle_shoot(&tentacles[best_idx]);
     } else {
         vampire_health   -= GUN_DAMAGE;
         vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;

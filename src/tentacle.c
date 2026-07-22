@@ -201,6 +201,33 @@ void update_tentacles(void) {
     else if (!any_lively && wrath_on) { sound_stop(SFX_TNTCL_WRTH); wrath_on = 0; }
 }
 
+/* Apply `amount` damage to a tentacle (never knocked back — tentacles don't
+   move). Green blood + death sound on a kill, axe-hit on a non-fatal hit. */
+static void tentacle_take_damage(Tentacle *t, int amount) {
+    t->health   -= amount;
+    t->hit_timer = 30;
+    if (t->health <= 0) {
+        /* Light-green blood spray at mid-body height (as the other enemies). */
+        spawn_burst(t->x, t->y + GROUND_FLOOR_Y - TENT_HALF_H, t->z,
+                    TENT_BLOOD_R, TENT_BLOOD_G, TENT_BLOOD_B);
+        sound_play(SFX_TNTCL_DIE);
+        /* If this was the last alert tentacle the writhe stops next update. */
+    } else {
+        sound_play(SFX_AXEHIT);
+    }
+}
+
+/* Aim target for the gun's hitscan: sprite centre height and half-height. */
+void tentacle_body(const Tentacle *t, int32_t *cyc, int32_t *hh) {
+    *cyc = (t->y + GROUND_FLOOR_Y) - TENT_HALF_H;
+    *hh  = TENT_HALF_H;
+}
+
+/* A grave-olver round deals 1 HP. */
+void tentacle_shoot(Tentacle *t) {
+    tentacle_take_damage(t, 1);
+}
+
 int tentacles_try_hit(void) {
     int i;
     for (i = 0; i < tentacle_count; i++) {
@@ -221,19 +248,7 @@ int tentacles_try_hit(void) {
                        (int32_t)dz * icos(cam_rot)) >> 12;
         if (dot <= 0) continue;
 
-        /* Damaged but NOT knocked back — tentacles never move. */
-        t->health--;
-        t->hit_timer = 30;
-        if (t->health <= 0) {
-            /* Light-green blood spray, at mid-body height (as the other enemies). */
-            spawn_burst(t->x, t->y + GROUND_FLOOR_Y - TENT_HALF_H, t->z,
-                        TENT_BLOOD_R, TENT_BLOOD_G, TENT_BLOOD_B);
-            sound_play(SFX_TNTCL_DIE);
-            /* If this was the last alert tentacle the writhe stops next update;
-               nothing else keyed the death onto that voice, so it plays clean. */
-        } else {
-            sound_play(SFX_AXEHIT);
-        }
+        tentacle_take_damage(t, 1);
         return 1;
     }
     return 0;

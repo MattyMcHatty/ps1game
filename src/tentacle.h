@@ -42,4 +42,9 @@ void tentacles_set_texwindow(const RECT *tw);
    Returns 1 if one was hit (no knockback — tentacles never move). */
 int  tentacles_try_hit(void);
 
+/* Grave-olver hitscan support: aim target (sprite-centre Y + half-height) and a
+   shot that deals 1 HP. */
+void tentacle_body(const Tentacle *t, int32_t *cyc, int32_t *hh);
+void tentacle_shoot(Tentacle *t);
+
 #endif
