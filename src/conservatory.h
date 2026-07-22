@@ -13,5 +13,7 @@ void conservatory_draw(RenderContext *ctx);
 void condoor_arm(void);                  /* seed Circle edge state on entry */
 int  condoor_triggered(void);            /* 1 when Circle pressed within range of the
                                             east door (back to reception) */
+void stairs_arm(void);                   /* same pair for the stairs-ascend prompt */
+int  stairs_triggered(void);             /* 1 when Circle pressed near the stairs */
 
 #endif

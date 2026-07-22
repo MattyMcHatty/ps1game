@@ -201,6 +201,70 @@ static void condoor_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* ---- Stairs at the far (west) end of the hall ------------------------------
+   The model has stairs rising south/up from the hall's south wall (z=-311,
+   x[-2601,-2301]); collision wall 14 blocks the stairwell, so the upper room is
+   scenery. A floating "Press " BTN_CIRCLE " to ascend" sign sits in front of
+   them (XY plane, fixed Z, reads along X, faces north toward the player). A
+   fresh Circle press within range transitions upstairs. No upstairs room yet,
+   so main.c loops it back to the conservatory start for now. */
+#define STAIRS_X               (-2450)   /* centre of the stair width           */
+#define STAIRS_Z                (-311)   /* bottom of the stairs (south wall)   */
+#define STAIRS_TEXT_Y           (-186)
+#define STAIRS_TEXT_RADIUS       1500
+#define STAIRS_FADE_NEAR         1000
+#define STAIRS_TRIGGER_RADIUS     350
+#define STAIRS_TEXT_PIXEL           2    /* smaller so the line fits the stairs */
+
+static int stairs_circle_prev = 1;
+
+void stairs_arm(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    stairs_circle_prev = held;
+}
+
+int stairs_triggered(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    int just = held && !stairs_circle_prev;
+    stairs_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - STAIRS_X;
+    int32_t dz = cam_z - STAIRS_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < STAIRS_TRIGGER_RADIUS;
+}
+
+static void stairs_text(RenderContext *ctx) {
+    int32_t dx = cam_x - STAIRS_X;
+    int32_t dz = cam_z - STAIRS_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= STAIRS_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > STAIRS_FADE_NEAR) {
+        int range = STAIRS_TEXT_RADIUS - STAIRS_FADE_NEAR;
+        int prog  = xz - STAIRS_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    /* XY plane: door_draw_string_3d centres the reading axis (X) on world_x
+       after adding 200, so pass STAIRS_X - 200. Sits just north (z+11) of the
+       stairs so it floats in front of them. */
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to ascend",
+                        STAIRS_X - 200, STAIRS_TEXT_Y, STAIRS_Z + 11,
+                        50, 255, 50, fade, 1, TEXT_PLANE_XY, STAIRS_TEXT_PIXEL);
+}
+
 void conservatory_init(void) {
     conservatory_collision_init(&current_collision_room);
     conservatory_floor_zones_init();
@@ -214,6 +278,7 @@ void conservatory_init(void) {
     cam_rot = 3072;   /* facing west (-X) */
 
     condoor_arm();   /* don't re-trigger on a held Circle from the entry */
+    stairs_arm();    /* same for the stairs-ascend interaction */
 
     concrete_props_place();   /* 1 concrete block + 3 concrete chairs */
 }
@@ -451,4 +516,5 @@ void conservatory_draw(RenderContext *ctx) {
     draw_tentacles(ctx);
 
     condoor_text(ctx);
+    stairs_text(ctx);
 }

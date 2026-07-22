@@ -183,6 +183,14 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (stairs_triggered()) {
+            /* Ascend the stairs. PLACEHOLDER: no upstairs room yet, so loop
+               back to the conservatory start using the single wooden door
+               transition. Swap for the upstairs area's state once it exists. */
+            pending_area = STATE_CONSERVATORY;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_PIANO_ROOM) {
         /* Flat single-floor room; the reception wall/prop collision routine is
