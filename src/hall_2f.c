@@ -197,6 +197,64 @@ static void stairs_text(RenderContext *ctx) {
                         50, 255, 50, fade, 0, TEXT_PLANE_XY, STAIRS_TEXT_PIXEL);
 }
 
+/* ---- Far-east door out to the Reception -----------------------------------
+   A single wooden door in the hall's east wall (x=101), centred on z=-320 (from
+   the wd_dr polys in "2f Hall.smx"). Leads to Reception's 2nd-floor southerly
+   door. The player approaches from the -X (room) side, so the sign is in the YZ
+   plane with mirror=1, same as the conservatory's east door. */
+#define EDOOR_X                    101
+#define EDOOR_Z                 (-320)
+#define EDOOR_TEXT_Y            (-186)
+#define EDOOR_TEXT_RADIUS        1500
+#define EDOOR_FADE_NEAR          1000
+#define EDOOR_TRIGGER_RADIUS      500
+
+static int edoor_circle_prev = 1;
+
+void hall_2f_edoor_arm(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    edoor_circle_prev = held;
+}
+
+int hall_2f_edoor_triggered(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    int just = held && !edoor_circle_prev;
+    edoor_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - EDOOR_X;
+    int32_t dz = cam_z - EDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < EDOOR_TRIGGER_RADIUS;
+}
+
+static void edoor_text(RenderContext *ctx) {
+    int32_t dx = cam_x - EDOOR_X;
+    int32_t dz = cam_z - EDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= EDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > EDOOR_FADE_NEAR) {
+        int range = EDOOR_TEXT_RADIUS - EDOOR_FADE_NEAR;
+        int prog  = xz - EDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        EDOOR_X, EDOOR_TEXT_Y, EDOOR_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
 void hall_2f_init(void) {
     hall_2f_collision_init(&current_collision_room);
     hall_2f_floor_zones_init();
@@ -212,6 +270,7 @@ void hall_2f_init(void) {
     cam_rot = 2048;   /* facing -Z (down the corridor, stairwell behind) */
 
     hall_2f_stairs_arm();   /* don't re-trigger on a held Circle from the entry */
+    hall_2f_edoor_arm();    /* same for the far-east door out to reception */
     trick_drawers_place();  /* the static chest of drawers in the west room */
 }
 
@@ -424,4 +483,5 @@ void hall_2f_draw(RenderContext *ctx) {
     trick_drawers_draw(ctx);
 
     stairs_text(ctx);
+    edoor_text(ctx);
 }

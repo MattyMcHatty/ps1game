@@ -14,5 +14,7 @@ void hall_2f_init(void);             /* set collision/floor zones + spawn */
 void hall_2f_draw(RenderContext *ctx);
 void hall_2f_stairs_arm(void);       /* seed Circle edge state on entry */
 int  hall_2f_stairs_triggered(void); /* 1 when Circle pressed near the down-stairs */
+void hall_2f_edoor_arm(void);        /* same pair for the far-east door out to reception */
+int  hall_2f_edoor_triggered(void);  /* 1 when Circle pressed near the east door */
 
 #endif

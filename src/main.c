@@ -168,6 +168,11 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (hdoor_triggered()) {
+            pending_area = STATE_2F_HALL;
+            door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_CONSERVATORY) {
         /* Flat single-floor room; the shared wall/prop collision routine is
@@ -200,6 +205,12 @@ static void update_current_area(GameState area) {
         if (hall_2f_stairs_triggered()) {
             /* Descend the stairs back to the conservatory. */
             pending_area = STATE_CONSERVATORY;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (hall_2f_edoor_triggered()) {
+            /* Far-east door out to reception's 2nd floor. */
+            pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_WOOD);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -551,6 +562,15 @@ int main(int argc, const char **argv) {
                     cam_vy  = 0;
                     cam_z   = 757;
                     cam_rot = 1024;   /* face +X, into reception */
+                } else if (current_area == STATE_2F_HALL) {
+                    /* Arrive at the 2nd-floor south door (upper floor y=-600),
+                       facing +X into the room. apply_height settles cam_y. */
+                    cam_x   = -1290;
+                    cam_y   = -789;   /* upper-floor standing eye (-600 - 189) */
+                    cam_vy  = 0;
+                    cam_z   = -750;
+                    cam_rot = 1024;   /* face +X, into reception */
+                    hdoor_arm();      /* don't re-trigger on the held Circle */
                 }
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);   /* reception music */
             } else if (pending_area == STATE_PIANO_ROOM) {
@@ -572,6 +592,17 @@ int main(int argc, const char **argv) {
                 cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* shares the piano room music */
             } else if (pending_area == STATE_2F_HALL) {
                 hall_2f_init();
+                /* Coming in from reception's 2nd-floor door: spawn just inside the
+                   hall's east door, facing west (-X) into the corridor, instead of
+                   the default stairwell-top spawn. */
+                if (current_area == STATE_RECEPTION) {
+                    cam_x   = -120;
+                    cam_y   = -189;
+                    cam_vy  = 0;
+                    cam_z   = -320;
+                    cam_rot = 3072;   /* face -X, into the hall */
+                    hall_2f_edoor_arm();
+                }
                 cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* shares the piano room music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
