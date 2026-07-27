@@ -130,6 +130,9 @@
                 <file name="PIANOKEY.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\piano_keys.tim"/>
                 <file name="BOOKSHLF.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\bookshelf.tim"/>
                 <file name="CONSRV.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\Conservatory.smd"/>
+                <file name="HALL2F.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\2f_hall.smd"/>
+                <file name="TRKDRWR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\trick_drawers.smd"/>
+                <file name="CLSDDRWR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\clsd_drwr.tim"/>
                 <file name="CONTILE.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\con_tile.tim"/>
                 <file name="TREES.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\trees.tim"/>
                 <file name="GRSS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\grss.tim"/>

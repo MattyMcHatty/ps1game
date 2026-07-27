@@ -46,6 +46,9 @@ add_executable(horror_game
     src/tentacle.c
     src/conservatory_mesh_collision.c
     src/conservatory.c
+    src/hall_2f_mesh_collision.c
+    src/hall_2f.c
+    src/trick_drawers.c
     src/crate.c
     src/dining_table.c
     src/save_point.c

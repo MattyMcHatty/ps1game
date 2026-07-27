@@ -14,6 +14,7 @@ typedef enum {
     STATE_SAVE_MENU,   /* memory-card save flow, opened at a save point */
     STATE_PIANO_ROOM,  /* keep new states at the end: saves store GameState values */
     STATE_CONSERVATORY,
+    STATE_2F_HALL,     /* second-floor hall, up the conservatory stairs */
 } GameState;
 
 extern GameState game_state;

@@ -13,6 +13,7 @@
 #include "save_point.h"
 #include "piano_props.h"
 #include "concrete_props.h"
+#include "trick_drawers.h"
 
 CollisionRoom current_collision_room;
 
@@ -579,6 +580,8 @@ void apply_collision_reception(void) {
     piano_props_collide(&cam_x, cam_y, &cam_z, 75);
     /* Conservatory concrete props; likewise gated to that area. */
     concrete_props_collide(&cam_x, cam_y, &cam_z, 75);
+    /* 2F hall chest of drawers; likewise gated to that area. */
+    trick_drawers_collide(&cam_x, cam_y, &cam_z, 75);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

@@ -39,6 +39,8 @@
 #include "piano_room.h"
 #include "piano_props.h"
 #include "conservatory.h"
+#include "hall_2f.h"
+#include "trick_drawers.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "tentacle.h"
@@ -184,9 +186,19 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         } else if (stairs_triggered()) {
-            /* Ascend the stairs. PLACEHOLDER: no upstairs room yet, so loop
-               back to the conservatory start using the single wooden door
-               transition. Swap for the upstairs area's state once it exists. */
+            /* Ascend the stairs to the second-floor hall. */
+            pending_area = STATE_2F_HALL;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_2F_HALL) {
+        /* Flat single-floor room; the shared wall collision routine is generic
+           over current_collision_room (other rooms' props gate themselves out). */
+        apply_collision_reception();
+        apply_height();
+        if (hall_2f_stairs_triggered()) {
+            /* Descend the stairs back to the conservatory. */
             pending_area = STATE_CONSERVATORY;
             door_anim_start(DOOR_PANEL_WOOD);
             game_state   = STATE_DOOR_ANIM;
@@ -230,6 +242,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         piano_room_draw(ctx);
     else if (area == STATE_CONSERVATORY)
         conservatory_draw(ctx);
+    else if (area == STATE_2F_HALL)
+        hall_2f_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -375,6 +389,8 @@ int main(int argc, const char **argv) {
     piano_room_load_assets();  /* piano room geometry + textures (prpl_wlppr streamed) */
     piano_props_load_assets(); /* piano + bookcase props (streamed textures) */
     conservatory_load_assets();/* conservatory geometry + streamed textures */
+    hall_2f_load_assets();     /* 2F hall geometry + streamed textures */
+    trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
     concrete_props_load_assets();/* concrete block/chair props + shared texture */
     copper_pot_load_assets();  /* copper pot collectible (texture deferred, key slot) */
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
@@ -468,6 +484,8 @@ int main(int argc, const char **argv) {
                                                    props -> stn_stl/kchn_tile */
             } else if (pending_area == STATE_CONSERVATORY) {
                 conservatory_upload_textures(); /* 6 streamed slots (see module) */
+            } else if (pending_area == STATE_2F_HALL) {
+                hall_2f_upload_textures();       /* 4 streamed slots (see module) */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -540,6 +558,20 @@ int main(int argc, const char **argv) {
                 cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* piano room music */
             } else if (pending_area == STATE_CONSERVATORY) {
                 conservatory_init();
+                /* Coming back down from the 2F hall: spawn at the bottom of the
+                   conservatory stairs (south-west corner), facing north (+Z)
+                   into the room, instead of the default east-door spawn. */
+                if (current_area == STATE_2F_HALL) {
+                    cam_x   = -2450;
+                    cam_y   = -189;
+                    cam_vy  = 0;
+                    cam_z   = -230;
+                    cam_rot = 0;      /* face +Z, into the conservatory */
+                    stairs_arm();     /* don't re-trigger the ascend on a held Circle */
+                }
+                cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* shares the piano room music */
+            } else if (pending_area == STATE_2F_HALL) {
+                hall_2f_init();
                 cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* shares the piano room music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
@@ -575,7 +607,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_KITCHEN_DINING ||
                    game_state == STATE_RECEPTION ||
                    game_state == STATE_PIANO_ROOM ||
-                   game_state == STATE_CONSERVATORY) {
+                   game_state == STATE_CONSERVATORY ||
+                   game_state == STATE_2F_HALL) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

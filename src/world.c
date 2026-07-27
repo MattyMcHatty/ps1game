@@ -10,8 +10,8 @@
 #include "fatdoor.h"
 #include "tentacle.h"
 
-#define WORLD_NUM_ROOMS 5   /* delivery_area, kitchen_dining, reception, piano_room,
-                               conservatory */
+#define WORLD_NUM_ROOMS 6   /* delivery_area, kitchen_dining, reception, piano_room,
+                               conservatory, hall_2f */
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below; this
    is the per-room unit a save file would store. */
@@ -59,6 +59,7 @@ static int room_index(GameState area) {
         case STATE_RECEPTION:      return 2;
         case STATE_PIANO_ROOM:     return 3;
         case STATE_CONSERVATORY:   return 4;
+        case STATE_2F_HALL:        return 5;
         default:                   return 0;
     }
 }
