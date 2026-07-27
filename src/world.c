@@ -187,6 +187,9 @@ void world_enter(GameState area) {
                 demon_dogs[di].x      = dpos[di][0];
                 demon_dogs[di].y      = -149;
                 demon_dogs[di].z      = dpos[di][1];
+                demon_dogs[di].spawn_x = dpos[di][0];  /* rest back here on exit, */
+                demon_dogs[di].spawn_y = -149;         /* not the delivery-dog     */
+                demon_dogs[di].spawn_z = dpos[di][1];  /* defaults from init       */
                 demon_dogs[di].health = DDOG_MAX_HEALTH;
                 demon_dogs[di].state  = DDOG_DORMANT;
                 demon_dogs[di].active = 1;

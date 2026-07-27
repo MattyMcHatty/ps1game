@@ -57,6 +57,9 @@ typedef enum {
 
 typedef struct {
     int32_t   x, y, z;
+    int32_t   spawn_x, spawn_y, spawn_z;   /* where this dog rests back to on room
+                                              exit/save (its own start, per-dog —
+                                              NOT a global default; mirrors Zombie) */
     int32_t   vy;
     int32_t   kb_vx, kb_vz;
     int       health;

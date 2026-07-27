@@ -103,6 +103,14 @@ void demon_dogs_init(void) {
 
     demon_dog_count = i;
 
+    /* Record each dog's own spawn so demon_dogs_rest() returns it there (these are
+       the delivery-area dogs; other rooms set spawn_* where they seed theirs). */
+    for (int k = 0; k < demon_dog_count; k++) {
+        demon_dogs[k].spawn_x = demon_dogs[k].x;
+        demon_dogs[k].spawn_y = demon_dogs[k].y;
+        demon_dogs[k].spawn_z = demon_dogs[k].z;
+    }
+
     int j;
     for (j = 0; j < demon_dog_count; j++)
         ddog_defaults[j] = demon_dogs[j];
@@ -117,8 +125,19 @@ void demon_dogs_reset(void) {
 void demon_dogs_rest(void) {
     int i;
     for (i = 0; i < demon_dog_count; i++) {
-        if (!demon_dogs[i].active || demon_dogs[i].state == DDOG_DEAD) continue;
-        demon_dogs[i] = ddog_defaults[i];   /* spawn spot, dormant, full health */
+        DemonDog *d = &demon_dogs[i];
+        if (!d->active || d->state == DDOG_DEAD) continue;
+        /* Rebuild at THIS dog's recorded spawn (not a global default — the
+           conservatory's dogs live at different coords than the delivery
+           defaults, and using ddog_defaults[i] teleported them out of the room
+           so they vanished on return). Mirrors zombies_rest(). */
+        int32_t sx = d->spawn_x, sy = d->spawn_y, sz = d->spawn_z;
+        *d = (DemonDog){0};
+        d->x = sx; d->y = sy; d->z = sz;
+        d->spawn_x = sx; d->spawn_y = sy; d->spawn_z = sz;
+        d->health = DDOG_MAX_HEALTH;
+        d->state  = DDOG_DORMANT;
+        d->active = 1;
     }
 }
 
