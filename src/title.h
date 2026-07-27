@@ -15,6 +15,7 @@ typedef enum {
     STATE_PIANO_ROOM,  /* keep new states at the end: saves store GameState values */
     STATE_CONSERVATORY,
     STATE_2F_HALL,     /* second-floor hall, up the conservatory stairs */
+    STATE_STAIR_ANIM,  /* stair-climb transition between conservatory and 2F hall */
 } GameState;
 
 extern GameState game_state;

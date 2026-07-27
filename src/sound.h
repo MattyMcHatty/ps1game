@@ -20,7 +20,9 @@ typedef enum {
     SFX_GR_RELOAD = 13, /* grave-olver reload */
     SFX_TNTCL_WRTH = 14, /* tentacle writhe, looped while a tentacle is alert */
     SFX_TNTCL_DIE  = 15, /* tentacle death */
-    SFX_COUNT    = 16,
+    SFX_STEP1      = 16, /* footstep A, used by the conservatory<->2F stair transition */
+    SFX_STEP2      = 17, /* footstep B */
+    SFX_COUNT    = 18,
 } SfxID;
 
 void sound_init(void);

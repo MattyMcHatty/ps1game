@@ -101,6 +101,8 @@
                 <file name="GRRELOAD.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\gr_reload.vag"/>
                 <file name="TNTCLWRT.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\tntcl_wrth.vag"/>
                 <file name="TNTCLDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\tntcl_die.vag"/>
+                <file name="STEP1.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\step1.vag"/>
+                <file name="STEP2.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\step2.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

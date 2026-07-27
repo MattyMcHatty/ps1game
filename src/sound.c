@@ -37,6 +37,8 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\GRRELOAD.VAG;1",
     "\\SND\\TNTCLWRT.VAG;1",
     "\\SND\\TNTCLDIE.VAG;1",
+    "\\SND\\STEP1.VAG;1",
+    "\\SND\\STEP2.VAG;1",
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool

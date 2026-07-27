@@ -47,6 +47,7 @@
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
+#include "stair_anim.h"
 
 GameState game_state   = STATE_TITLE;
 GameState current_area = STATE_DELIVERY_AREA;  /* last playable area; menu returns here */
@@ -191,10 +192,10 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         } else if (stairs_triggered()) {
-            /* Ascend the stairs to the second-floor hall. */
+            /* Ascend the stairs to the second-floor hall (stair-climb transition). */
             pending_area = STATE_2F_HALL;
-            door_anim_start(DOOR_PANEL_WOOD);
-            game_state   = STATE_DOOR_ANIM;
+            stair_anim_start(STAIR_UP);
+            game_state   = STATE_STAIR_ANIM;
             cdaudio_stop();
         }
     } else if (area == STATE_2F_HALL) {
@@ -203,10 +204,10 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         if (hall_2f_stairs_triggered()) {
-            /* Descend the stairs back to the conservatory. */
+            /* Descend the stairs back to the conservatory (stair-climb transition). */
             pending_area = STATE_CONSERVATORY;
-            door_anim_start(DOOR_PANEL_WOOD);
-            game_state   = STATE_DOOR_ANIM;
+            stair_anim_start(STAIR_DOWN);
+            game_state   = STATE_STAIR_ANIM;
             cdaudio_stop();
         } else if (hall_2f_edoor_triggered()) {
             /* Far-east door out to reception's 2nd floor. */
@@ -409,6 +410,7 @@ int main(int argc, const char **argv) {
     tentacles_load_assets();   /* tentacle enemy sprites (resident) */
     tentacles_init();          /* place the conservatory tentacles */
     door_anim_load_assets();   /* level-transition door panel (texture) */
+    stair_anim_load_assets();  /* conservatory<->2F stair-climb transition (upstairs tex) */
     collision_init();
     floor_zones_init();
     crates_init();
@@ -633,6 +635,14 @@ int main(int argc, const char **argv) {
             door_anim_update();
             door_anim_draw(&ctx);
             if (door_anim_finished())
+                game_state = STATE_LOADING;
+        } else if (game_state == STATE_STAIR_ANIM) {
+            /* Stair-climb transition (conservatory <-> 2F hall): shows the
+               upstairs texture and lurches up/down three times with footstep
+               sounds, then fades to black and hands off to STATE_LOADING. */
+            stair_anim_update();
+            stair_anim_draw(&ctx);
+            if (stair_anim_finished())
                 game_state = STATE_LOADING;
         } else if (game_state == STATE_DELIVERY_AREA ||
                    game_state == STATE_KITCHEN_DINING ||
