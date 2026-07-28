@@ -35,6 +35,17 @@ void show_pickup_msg(const char *item_name) {
     pickup_log[2].timer  = PICKUP_MSG_DURATION;
 }
 
+/* Post a verbatim log line (no "Picked up " prefix) — used for puzzle/status
+   messages like "The drawer is locked". Same scrolling slot behaviour. */
+void show_pickup_msg_raw(const char *text) {
+    int i = 0;
+    pickup_log[0] = pickup_log[1];
+    pickup_log[1] = pickup_log[2];
+    while (text[i] && i < 63) { pickup_log[2].msg[i] = text[i]; i++; }
+    pickup_log[2].msg[i] = '\0';
+    pickup_log[2].timer  = PICKUP_MSG_DURATION;
+}
+
 /* 3x5 bitmap digits (bit2 = leftmost pixel of each row). */
 static const uint8_t hud_digit_font[10][5] = {
     {7,5,5,5,7},{2,6,2,2,7},{7,1,7,4,7},{7,1,7,1,7},{5,5,7,1,1},

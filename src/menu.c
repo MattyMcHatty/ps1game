@@ -65,6 +65,9 @@ static uint8_t  grav_u0, grav_v0, grav_u1, grav_v1;
 static uint16_t rnds_tpage   = 0;
 static uint16_t rnds_clut    = 0;
 static uint8_t  rnds_u0, rnds_v0, rnds_u1, rnds_v1;
+static uint16_t waxcb_tpage  = 0;
+static uint16_t waxcb_clut   = 0;
+static uint8_t  waxcb_u0, waxcb_v0, waxcb_u1, waxcb_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -76,6 +79,7 @@ static const char *item_descriptions[] = {
     "Front Door Key\n\nUnlocks the\nmansion's\nfront entrance",
     "Rounds\n\nAmmunition\nfor the\nGrave-olver",
     "Copper Pot\n\nAn old copper\npot found in\nthe conservatory",
+    "Wax Cube\n\nI think there's\nsomething inside...",
 };
 
 static const char *weapon_descriptions[] = {
@@ -246,6 +250,7 @@ static int items_count(void) {
     if (player_keys & (1 << KEY_FRONT_DOOR))     count++;
     if (player_rounds > 0)                       count++;
     if (player_items & (1 << ITEM_COPPER_POT))   count++;
+    if (player_items & (1 << ITEM_WAX_CUBE))     count++;
     return count;
 }
 
@@ -271,6 +276,8 @@ void menu_init(void) {
                   &grav_u0, &grav_v0, &grav_u1, &grav_v1);
     load_icon_tim("\\TEX\\STNDRNDS.TIM;1", &rnds_tpage, &rnds_clut,
                   &rnds_u0, &rnds_v0, &rnds_u1, &rnds_v1);
+    load_icon_tim("\\TEX\\WXCB.TIM;1", &waxcb_tpage, &waxcb_clut,
+                  &waxcb_u0, &waxcb_v0, &waxcb_u1, &waxcb_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * 2, 14, 0, 64);
@@ -425,6 +432,10 @@ void menu_draw(RenderContext *ctx) {
                    darker icons use. */
                 draw_icon(ctx, ix, iy, ICON_SIZE, tp, cl, u0, v0, u1, v1, 128, OT_ICON);
             }
+            if (i == 3 && (player_items & (1 << ITEM_WAX_CUBE))) {
+                draw_icon(ctx, ix, iy, ICON_SIZE, waxcb_tpage, waxcb_clut,
+                          waxcb_u0, waxcb_v0, waxcb_u1, waxcb_v1, 128, OT_ICON);
+            }
         }
     }
 
@@ -485,6 +496,8 @@ void menu_draw(RenderContext *ctx) {
                 desc = item_descriptions[1];
             } else if (slot == 2 && (player_items & (1 << ITEM_COPPER_POT))) {
                 desc = item_descriptions[2];
+            } else if (slot == 3 && (player_items & (1 << ITEM_WAX_CUBE))) {
+                desc = item_descriptions[3];
             }
         } else {
             if (slot == 0)

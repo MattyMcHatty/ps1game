@@ -16,6 +16,7 @@ extern int     player_keys;    /* bitmask — bit N set means KeyType N is held 
    a bitmask, saved alongside player_keys). Menu ITEMS column reads this. */
 typedef enum {
     ITEM_COPPER_POT = 0,
+    ITEM_WAX_CUBE,          /* awarded by solving the 2F hall trick-drawers puzzle */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */
@@ -48,6 +49,7 @@ typedef struct {
 extern PickupEntry pickup_log[PICKUP_MSG_COUNT];
 
 void show_pickup_msg(const char *item_name);
+void show_pickup_msg_raw(const char *text);   /* verbatim log line, no prefix */
 void draw_hud(RenderContext *ctx);
 
 #endif

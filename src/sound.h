@@ -22,7 +22,8 @@ typedef enum {
     SFX_TNTCL_DIE  = 15, /* tentacle death */
     SFX_STEP1      = 16, /* footstep A, used by the conservatory<->2F stair transition */
     SFX_STEP2      = 17, /* footstep B */
-    SFX_COUNT    = 18,
+    SFX_SLAM       = 18, /* drawers slam shut (trick-drawers puzzle fail) */
+    SFX_COUNT    = 19,
 } SfxID;
 
 void sound_init(void);

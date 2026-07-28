@@ -123,18 +123,28 @@ static void handle_menu_open(void) {
 /* Advance one area: player movement + the area's own geometry/entities,
    then the shared weapon and particle systems. */
 static void update_current_area(GameState area) {
+    /* Drawer puzzle owns the camera + input while active: no free movement,
+       collision, doors or weapons — just the puzzle's own update. */
+    if (area == STATE_2F_HALL && trick_drawers_puzzle_active()) {
+        trick_drawers_update();
+        return;
+    }
     update_camera();
+    /* Menu open: the area still ticks (enemies move, gravity applies) but every
+       player-driven level interaction — doors, stairs, the drawer puzzle, save
+       point, prop examines — is locked out until the menu closes. */
+    int lock = (game_state == STATE_MENU);
     if (area == STATE_KITCHEN_DINING) {
         apply_collision_kitchen_dining();
         apply_height();
         update_zombies();
         sml_meds_update();
         kitchen_stove_update();
-        if (kitchen_door_triggered()) {
+        if (!lock && kitchen_door_triggered()) {
             pending_area = STATE_DELIVERY_AREA;
             door_anim_start(DOOR_PANEL_OUTER);
             game_state   = STATE_DOOR_ANIM;
-        } else if (to_reception_door_triggered()) {
+        } else if (!lock && to_reception_door_triggered()) {
             pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_INNER);
             game_state   = STATE_DOOR_ANIM;
@@ -148,28 +158,28 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         item_pickups_update();
-        if (save_point_triggered()) {
+        if (!lock && save_point_triggered()) {
             /* Stand at the save point and press Circle to open the save flow.
                current_area is already STATE_RECEPTION, so the menu returns here. */
             save_menu_open();
             game_state = STATE_SAVE_MENU;
-        } else if (reception_door_triggered()) {
+        } else if (!lock && reception_door_triggered()) {
             pending_area = STATE_KITCHEN_DINING;
             door_anim_start(DOOR_PANEL_INNER);   /* same interior double door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();   /* silence during the transition; kitchen music
                                  resumes when the kitchen finishes loading */
-        } else if (wdoor_triggered()) {
+        } else if (!lock && wdoor_triggered()) {
             pending_area = STATE_PIANO_ROOM;
             door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
-        } else if (cdoor_triggered()) {
+        } else if (!lock && cdoor_triggered()) {
             pending_area = STATE_CONSERVATORY;
             door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
-        } else if (hdoor_triggered()) {
+        } else if (!lock && hdoor_triggered()) {
             pending_area = STATE_2F_HALL;
             door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
             game_state   = STATE_DOOR_ANIM;
@@ -186,12 +196,12 @@ static void update_current_area(GameState area) {
         update_tentacles();    /* the two tentacles near the copper pot */
         sml_meds_update();     /* the small-room medipac */
         copper_pot_update();   /* proximity pickup of the copper pot */
-        if (condoor_triggered()) {
+        if (!lock && condoor_triggered()) {
             pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
-        } else if (stairs_triggered()) {
+        } else if (!lock && stairs_triggered()) {
             /* Ascend the stairs to the second-floor hall (stair-climb transition). */
             pending_area = STATE_2F_HALL;
             stair_anim_start(STAIR_UP);
@@ -203,13 +213,14 @@ static void update_current_area(GameState area) {
            over current_collision_room (other rooms' props gate themselves out). */
         apply_collision_reception();
         apply_height();
-        if (hall_2f_stairs_triggered()) {
+        if (!lock) trick_drawers_update();   /* proximity "interact" prompt + puzzle trigger */
+        if (!lock && hall_2f_stairs_triggered()) {
             /* Descend the stairs back to the conservatory (stair-climb transition). */
             pending_area = STATE_CONSERVATORY;
             stair_anim_start(STAIR_DOWN);
             game_state   = STATE_STAIR_ANIM;
             cdaudio_stop();
-        } else if (hall_2f_edoor_triggered()) {
+        } else if (!lock && hall_2f_edoor_triggered()) {
             /* Far-east door out to reception's 2nd floor. */
             pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_WOOD);
@@ -222,8 +233,8 @@ static void update_current_area(GameState area) {
            this room's bounds, so their collide calls are no-ops here). */
         apply_collision_reception();
         apply_height();
-        piano_props_update();   /* Circle-to-examine the piano */
-        if (pdoor_triggered()) {
+        if (!lock) piano_props_update();   /* Circle-to-examine the piano */
+        if (!lock && pdoor_triggered()) {
             pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
             game_state   = STATE_DOOR_ANIM;
@@ -237,7 +248,7 @@ static void update_current_area(GameState area) {
         crates_update();
         keys_update();
         sml_meds_update();
-        door_update();
+        if (!lock) door_update();   /* Circle-to-open front door */
     }
     weapons_update();
     update_particles();
@@ -659,10 +670,13 @@ int main(int argc, const char **argv) {
                    the kitchen would fall through to delivery-area collision and
                    its back-face push would catapult the player). */
                 GameState area = game_state;
-                handle_menu_open();
+                /* While the drawer puzzle owns the screen, suppress the Start
+                   menu and the player weapon/HUD overlays. */
+                int puzzle = (area == STATE_2F_HALL && trick_drawers_puzzle_active());
+                if (!puzzle) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);
-                draw_player_systems(&ctx);
+                if (!puzzle) draw_player_systems(&ctx);
                 draw_pickup_messages();
                 draw_debug_overlay(&ctx);
             }

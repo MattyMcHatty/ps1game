@@ -103,6 +103,7 @@
                 <file name="TNTCLDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\tntcl_die.vag"/>
                 <file name="STEP1.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\step1.vag"/>
                 <file name="STEP2.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\step2.vag"/>
+                <file name="SLAM.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\slam.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -135,6 +136,8 @@
                 <file name="HALL2F.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\2f_hall.smd"/>
                 <file name="TRKDRWR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\trick_drawers.smd"/>
                 <file name="CLSDDRWR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\clsd_drwr.tim"/>
+                <file name="OPNDRWR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\opn_drwr.tim"/>
+                <file name="WXCB.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\wx_cb.tim"/>
                 <file name="CONTILE.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\con_tile.tim"/>
                 <file name="TREES.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\trees.tim"/>
                 <file name="GRSS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\grss.tim"/>
