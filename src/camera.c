@@ -8,6 +8,7 @@
 #include "player.h"    /* current_weapon, SCREEN_* (via render.h) */
 #include "graveolver.h"  /* graveolver_is_reloading */
 #include "weapon.h"      /* weapon_switching */
+#include "sound.h"       /* footstep SFX */
 #include "title.h"
 
 int32_t cam_x   = 0;
@@ -161,6 +162,26 @@ void update_camera(void) {
     if (btn & PAD_R1) {
         cam_x += (icos(cam_rot) * speed) >> 12;
         cam_z -= (isin(cam_rot) * speed) >> 12;
+    }
+
+    /* Footsteps: accumulate travelled distance while any translation key is
+       held, and play a step each stride. Alternating STEP1/STEP2 gives the
+       usual left/right gait; the accumulator ties cadence to speed, so a
+       sprint's longer strides trigger steps proportionally faster. */
+    {
+        static int32_t step_dist = 0;
+        static int     step_foot = 0;
+        const  int32_t STEP_STRIDE = 280;  /* world units per footstep */
+        if (btn & (PAD_UP | PAD_DOWN | PAD_L1 | PAD_R1)) {
+            step_dist += speed;
+            if (step_dist >= STEP_STRIDE) {
+                step_dist -= STEP_STRIDE;
+                sound_play(step_foot ? SFX_STEP2 : SFX_STEP1);
+                step_foot ^= 1;
+            }
+        } else {
+            step_dist = 0;   /* reset so the next move starts on a fresh step */
+        }
     }
 
 debug_toggle:
