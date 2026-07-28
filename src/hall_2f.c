@@ -18,6 +18,7 @@
 #include "trick_drawers.h"
 #include "fatdoor.h"
 #include "zombie.h"
+#include "sound.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -211,6 +212,10 @@ static void stairs_text(RenderContext *ctx) {
 #define EDOOR_FADE_NEAR          1000
 #define EDOOR_TRIGGER_RADIUS      500
 
+/* Shared lock state (declared in hall_2f.h). The door is locked from the
+   Reception side until the player unlocks it here in the Hall 2F. */
+int hall_2f_door_unlocked = 0;
+
 static int edoor_circle_prev = 1;
 
 void hall_2f_edoor_arm(void) {
@@ -235,7 +240,16 @@ int hall_2f_edoor_triggered(void) {
     int32_t dx = cam_x - EDOOR_X;
     int32_t dz = cam_z - EDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < EDOOR_TRIGGER_RADIUS;
+    if (xz >= EDOOR_TRIGGER_RADIUS) return 0;
+
+    /* First Circle press unlocks the door (no transition yet); once unlocked,
+       further presses enter Reception. The Reception side reads the same flag. */
+    if (!hall_2f_door_unlocked) {
+        hall_2f_door_unlocked = 1;
+        sound_play(SFX_UNLOCK);
+        return 0;
+    }
+    return 1;
 }
 
 static void edoor_text(RenderContext *ctx) {
@@ -252,7 +266,9 @@ static void edoor_text(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
 
-    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+    door_draw_string_3d(ctx,
+                        hall_2f_door_unlocked ? "Press " BTN_CIRCLE " to enter"
+                                              : "Press " BTN_CIRCLE " to unlock",
                         EDOOR_X, EDOOR_TEXT_Y, EDOOR_Z - 200,
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }

@@ -17,4 +17,10 @@ int  hall_2f_stairs_triggered(void); /* 1 when Circle pressed near the down-stai
 void hall_2f_edoor_arm(void);        /* same pair for the far-east door out to reception */
 int  hall_2f_edoor_triggered(void);  /* 1 when Circle pressed near the east door */
 
+/* Shared lock state for the Hall 2F <-> Reception door. Starts locked; the
+   Hall 2F side unlocks it (Circle) and both sides read it: the Reception side
+   stays "Locked from the other side" until this flips to 1. Persists across
+   room transitions (a plain global); reset to 0 on a new game. */
+extern int hall_2f_door_unlocked;
+
 #endif

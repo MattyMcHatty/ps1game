@@ -19,6 +19,7 @@
 #include "fatdoor.h"
 #include "item_pickup.h"
 #include "texmgr.h"
+#include "hall_2f.h"   /* hall_2f_door_unlocked: shared 2F-door lock state */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -401,6 +402,7 @@ int hdoor_triggered(void) {
     hdoor_circle_prev = held;
     if (!just) return 0;
     if (!player_on_upper_floor) return 0;   /* upper-floor door only */
+    if (!hall_2f_door_unlocked) return 0;   /* locked from the Hall 2F side */
 
     int32_t dx = cam_x - HDOOR_X;
     int32_t dz = cam_z - HDOOR_Z;
@@ -421,6 +423,15 @@ static void hdoor_text(RenderContext *ctx) {
         int prog  = xz - RDOOR_FADE_NEAR;
         if (prog > range) prog = range;
         fade = 256 - ((prog * 256) / range);
+    }
+
+    /* Until the Hall 2F side unlocks it, this door reads "Locked from the other
+       side" in red and does nothing; afterwards it's a normal entry door. */
+    if (!hall_2f_door_unlocked) {
+        door_draw_string_3d(ctx, "Locked from the other side",
+                            HDOOR_X, HDOOR_TEXT_Y, HDOOR_Z - 200,
+                            255, 50, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+        return;
     }
 
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",

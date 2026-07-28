@@ -96,6 +96,7 @@ void reset_game(RenderContext *ctx) {
     sprint_stamina  = SPRINT_STAMINA_MAX;
     sprint_cooldown = 0;
     door_init();
+    hall_2f_door_unlocked = 0;   /* Hall 2F <-> Reception door starts locked */
     crates_reset();
     demon_dogs_reset();
     zombies_reset();
