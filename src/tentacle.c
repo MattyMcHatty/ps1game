@@ -31,7 +31,7 @@ static int tent_flip[MAX_TENTACLES] = { 0 };
    reach's safe zone: the player can strike from beyond DAMAGE_RANGE (the axe
    reaches ~350) without being hit, but stepping inside DAMAGE_RANGE gets them
    lashed. */
-#define TENT_LIVE_RANGE      260   /* player within -> oscillates (a warning)     */
+#define TENT_LIVE_RANGE      520   /* player within -> oscillates (a warning)     */
 #define TENT_DAMAGE_RANGE    130   /* player within -> lashes out and damages     */
 #define TENT_DAMAGE_COOLDOWN  45   /* frames between hits (~0.75s)                */
 #define TENT_KNOCKBACK        90   /* player push-back speed on a hit             */
