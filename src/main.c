@@ -126,6 +126,7 @@ static void update_current_area(GameState area) {
     /* Drawer puzzle owns the camera + input while active: no free movement,
        collision, doors or weapons — just the puzzle's own update. */
     if (area == STATE_2F_HALL && trick_drawers_puzzle_active()) {
+        update_zombies();       /* enemies keep chasing/attacking during the puzzle */
         trick_drawers_update();
         return;
     }
@@ -213,6 +214,7 @@ static void update_current_area(GameState area) {
            over current_collision_room (other rooms' props gate themselves out). */
         apply_collision_reception();
         apply_height();
+        update_zombies();         /* the two hall zombies (enemies act even in menu) */
         if (!lock) trick_drawers_update();   /* proximity "interact" prompt + puzzle trigger */
         if (!lock && hall_2f_stairs_triggered()) {
             /* Descend the stairs back to the conservatory (stair-climb transition). */
@@ -676,7 +678,10 @@ int main(int argc, const char **argv) {
                 if (!puzzle) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);
+                /* During the puzzle hide the weapon/particles but still show the
+                   HUD, so the player sees zombies chipping their health away. */
                 if (!puzzle) draw_player_systems(&ctx);
+                else         draw_hud(&ctx);
                 draw_pickup_messages();
                 draw_debug_overlay(&ctx);
             }

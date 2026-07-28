@@ -18,6 +18,8 @@
                                       enough back not to clip through the thin door */
 #define ZMB_DOOR_CLEAR_DIST  80    /* how close to a doorway clearance point counts as
                                       "stepped clear of the opening" */
+#define ZMB_LOS_COMMIT       30    /* frames a zombie keeps charging straight after
+                                      last seeing the player (LOS-flicker hysteresis) */
 #define ZMB_HALF_W           62    /* sprite half width (world units), ~1/4 wider */
 #define ZMB_HALF_H          125    /* half height (half the earlier height bump) */
 #define ZMB_Y_OFFSET         25    /* feet stay planted: y_offset + half_h = 150 */
@@ -85,6 +87,8 @@ typedef struct {
     int         steer_dir;      /* committed side: -1 = left, +1 = right */
     int         nav_clear;      /* doorway node whose far side we must step clear
                                    of before chasing again (-1 = none) */
+    int         los_timer;      /* >0 = saw the player recently: chase straight and
+                                   ignore doorway routing (hysteresis vs LOS flicker) */
 } Zombie;
 
 extern Zombie zombies[MAX_ZOMBIES];

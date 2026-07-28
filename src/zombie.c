@@ -159,6 +159,45 @@ static const NavNode cons_nav_nodes[] = {
     { -600, 356, 0, 1,  -600, 470,  -600, 240 },  /* small room <-> hall (single door) */
 };
 
+/* 2F hall: an L. The zones must TILE the actual walkable floors (see
+   hall_2f_mesh_collision.c) with no gaps, or a zombie standing where the player
+   is gets zone -1 ("go straight") and charges into the corner wall instead of
+   routing round it. The three walkable slabs:
+     D  west room     x[-3797,-2801] z[-1398,500]
+     B  vertical hall x[-2770,-2124] z[-13,500]   (opens to the corridor's west end)
+     A  east corridor x[-2770, 101]  z[-656,0]    (reception door at the east end)
+   plus the west doorway C x[-2801,-2770] z[0,300] (the fatdoor), folded into B.
+   Zone 1 must reach x=-2124 to cover ALL of B (the earlier -2461 left the hall's
+   north-east half unzoned — the "stuck near the corner" bug). Zones 1 and 2 are
+   allowed to overlap in the corner strip z[-13,0]; zone_at tests 1 first, and the
+   body radius keeps corridor-hugging zombies at z<-13 so they stay zone 2. The
+   descending stairwell in the corridor is scenery (no collision), so nothing
+   routes around it. */
+static const NavZone hall_nav_zones[] = {
+    { -3797, -2801, -1398,  500 },  /* 0: west (trick-drawers) room, behind the fatdoor */
+    { -2801, -2124,   -13,  500 },  /* 1: vertical hall + west doorway (whole floor B)   */
+    { -2770,   101,  -656,    0 },  /* 2: east corridor (reception end)                  */
+};
+/* Placed waypoints (author-tuned), all landing inside the corrected zones. Both
+   columns share x=-2461: it lies in the B/A overlap [-2770,-2124] so a straight
+   run up/down it rounds the L cleanly, west of the x=-2124 inside corner.
+     Outside the Trick Room (-2461,  148)  — fatdoor hall-side clearance / turn approach
+     Corridor Turn          (-2461,   -6)  — corner node CENTRE, on the zone1/zone2
+                                             seam (z in [-13,0], the wide opening
+                                             between hall and corridor)
+     Corridor Approach      (-2461, -200)  — corner's corridor-side clearance
+   A turn node's centre MUST sit on the zone boundary it bridges: reaching it is
+   what flips nav_zone_at to the next zone and lets routing advance. The earlier
+   centre sat at z=-360, deep inside the corridor and identical to its zb-clearance,
+   so a zombie coming from the corridor parked on it and never crossed into the hall
+   (the "stops at the corner" bug). The fatdoor node's centre (-2785,148) likewise
+   sits in its doorway and lies on the straight Inside->Outside line. */
+static const NavNode hall_nav_nodes[] = {
+    /* pt x     z    za zb   za-clearance    zb-clearance  */
+    { -2785, 148, 0, 1,  -3194, 148,  -2461, 148 },  /* drawer room <-> west hall (fatdoor) */
+    { -2461,  -6, 1, 2,  -2461, 148,  -2461,-200 },  /* west hall <-> east corridor (Corridor Turn) */
+};
+
 /* Active tables, selected per-area by select_nav(). Default: kitchen. */
 static const NavZone *nav_zones      = kitchen_nav_zones;
 static int            nav_zone_count = 4;
@@ -169,6 +208,9 @@ static void select_nav(void) {
     if (game_state == STATE_CONSERVATORY) {
         nav_zones = cons_nav_zones; nav_zone_count = 2;
         nav_nodes = cons_nav_nodes; nav_node_count = 1;
+    } else if (game_state == STATE_2F_HALL) {
+        nav_zones = hall_nav_zones; nav_zone_count = 3;
+        nav_nodes = hall_nav_nodes; nav_node_count = 2;
     } else {
         nav_zones = kitchen_nav_zones; nav_zone_count = 4;
         nav_nodes = kitchen_nav_nodes; nav_node_count = 3;
@@ -320,10 +362,36 @@ void update_zombies(void) {
         int zfrom = nav_zone_at(d->x, d->z);
         int zto   = nav_zone_at(cam_x, cam_z);
         int node  = nav_next_node(zfrom, zto);
+        /* If the zombie can actually SEE the player (no wall or closed door in
+           the line between them), charge straight at them and drop ALL doorway
+           staging — otherwise a coarse zone boundary in open space (e.g. the 2F
+           corridor around the stairwell) makes it detour to a waypoint/clearance
+           and grind on the spot. A short commit timer keeps it charging for a
+           beat after the sightline flickers (which it does at that corner), so it
+           doesn't flip between "chase" and "stage" every frame. Nav still handles
+           the genuinely out-of-sight case: round the stairwell + batter the door. */
+        if (!collision_segment_blocked(d->x, d->y, d->z, cam_x, cam_y, cam_z))
+            d->los_timer = ZMB_LOS_COMMIT;
+        else if (d->los_timer > 0)
+            d->los_timer--;
         int32_t goal_x = cam_x, goal_z = cam_z;
+        if (d->los_timer > 0) {
+            node = -1;
+            d->nav_clear = -1;   /* seen recently: forget the doorway staging */
+        }
         if (node >= 0) {
-            goal_x = nav_nodes[node].x;
-            goal_z = nav_nodes[node].z;
+            /* Thread the doorway deliberately: first walk to the NEAR-side
+               staging point so we line up square with the opening, THEN step to
+               the door centre (and on to the far-side clearance below once
+               through). Approaching the door centre directly on a diagonal snags
+               the jamb. */
+            const NavNode *N = &nav_nodes[node];
+            int32_t nx = (zfrom == N->za) ? N->ax : N->bx;
+            int32_t nz = (zfrom == N->za) ? N->az : N->bz;
+            int32_t nd = (nx - d->x < 0 ? d->x - nx : nx - d->x) +
+                         (nz - d->z < 0 ? d->z - nz : nz - d->z);
+            if (nd > ZMB_DOOR_CLEAR_DIST) { goal_x = nx;    goal_z = nz;    }
+            else                         { goal_x = N->x;   goal_z = N->z;  }
             d->nav_clear = node;          /* remember to clear this door's far side */
         } else if (d->nav_clear >= 0) {
             const NavNode *N = &nav_nodes[d->nav_clear];
@@ -393,6 +461,13 @@ void update_zombies(void) {
            The door is still a solid obstacle in the real movement step below. */
         apply_flat_entity_collision(&fx, &fz, ZMB_BODY_RADIUS);
         int blocked = (fx != feeler_x || fz != feeler_z);
+        /* If the player is in view, never wall-follow. The sightline is clear
+           (exact segment test), so charging straight is safe — but the feeler's
+           point+radius proximity test still trips near a wall/corner and would
+           send the zombie into a wall-follow that deadlocks at concave corners
+           (the "stuck in the middle of the corridor" bug). The real move's own
+           collision push slides the body along any wall it grazes. */
+        if (d->los_timer > 0) { blocked = 0; d->steer_timer = 0; }
 
         /* Perpendiculars to the goal direction — the two ways to slide
            along a wall. */

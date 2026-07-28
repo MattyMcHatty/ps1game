@@ -16,6 +16,8 @@
 #include "door.h"
 #include "texmgr.h"
 #include "trick_drawers.h"
+#include "fatdoor.h"
+#include "zombie.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -481,6 +483,19 @@ void hall_2f_draw(RenderContext *ctx) {
        so the room's 128 texture window serves it; restores the view matrix
        before returning. */
     trick_drawers_draw(ctx);
+
+    /* Breakable door in the corridor<->drawer-room doorway. Draws with the
+       room's active 128 window (its wd_dr UVs are 0-127) and restores the view
+       matrix before returning, which the zombie renderer below relies on. */
+    fatdoors_draw(ctx);
+
+    /* The two hall zombies. Their sprites sit at VRAM Voff>=128, so hand them the
+       room's 128 texture window to bracket before they draw. */
+    {
+        RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+        zombies_set_texwindow(&tw);
+    }
+    draw_zombies(ctx);
 
     stairs_text(ctx);
     edoor_text(ctx);

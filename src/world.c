@@ -197,6 +197,13 @@ void world_enter(GameState area) {
             demon_dog_count = 3;
         }
 
+        if (area == STATE_2F_HALL) {
+            /* One guarding the reception exit door (east wall), one standing in
+               front of the trick drawers in the west room. */
+            zombie_add(-50,   -149, -320);
+            zombie_add(-3299, -149, -1120);
+        }
+
         r->visited = 1;
     }
 }

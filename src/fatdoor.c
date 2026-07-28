@@ -136,6 +136,14 @@ void fatdoors_init(void) {
     fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
     fatdoors[i].area = STATE_CONSERVATORY; i++;
 
+    /* 2F hall: the doorway between the corridor and the west (trick-drawers)
+       room — the opening in the x=-2801 wall at z[0,300]. Fills the gap along Z
+       (rotated 90°, thin in X), standing on the flat floor (world y=0). */
+    fatdoors[i].x = -2785; fatdoors[i].y = -188; fatdoors[i].z = 150;
+    fatdoors[i].rot_y = 1024; fatdoors[i].half_x = 30;  fatdoors[i].half_z = 150;
+    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
+    fatdoors[i].area = STATE_2F_HALL; i++;
+
     fatdoor_count = i;
 
     int j;

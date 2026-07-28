@@ -9,6 +9,7 @@
 #include "camera.h"
 #include "collision.h"      /* GROUND_FLOOR_Y */
 #include "dining_table.h"
+#include "title.h"          /* game_state / STATE_KITCHEN_DINING */
 
 DiningTable dining_tables[MAX_DINING_TABLES];
 int         dining_table_count = 0;
@@ -64,6 +65,12 @@ void dining_tables_init(void) {
 
 void dining_tables_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     (void)py;   /* kitchen is a single floor level — no vertical gating needed */
+    /* The tables live only in the kitchen, but the array is global (not part of
+       world.c's per-room entity swap) and never cleared, so without this gate its
+       fixed world coordinates would collide in every OTHER room too — e.g. the
+       table at (-1262,-536) sits invisibly in the 2F-hall corridor and stalls
+       zombies/players there. Draw is already kitchen-only; match it here. */
+    if (game_state != STATE_KITCHEN_DINING) return;
     int i;
     for (i = 0; i < dining_table_count; i++) {
         DiningTable *t = &dining_tables[i];
@@ -96,6 +103,7 @@ void dining_tables_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius)
 }
 
 int dining_tables_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
+    if (game_state != STATE_KITCHEN_DINING) return 0;   /* kitchen-only (see collide) */
     int i;
     for (i = 0; i < dining_table_count; i++) {
         DiningTable *t = &dining_tables[i];

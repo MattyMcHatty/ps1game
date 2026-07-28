@@ -176,7 +176,7 @@ void update_crucifaxe(void) {
            are a single global array (fatdoors_try_smash already skips doors whose
            area != game_state), but menu/delivery have none, so gate here too. */
         if ((game_state == STATE_KITCHEN_DINING || game_state == STATE_RECEPTION ||
-             game_state == STATE_CONSERVATORY) &&
+             game_state == STATE_CONSERVATORY || game_state == STATE_2F_HALL) &&
             swing_timer <= SWING_DURATION && !fatdoor_hit_this_swing) {
             if (fatdoors_try_smash())
                 fatdoor_hit_this_swing = 1;
