@@ -17,6 +17,7 @@ typedef enum {
     STATE_2F_HALL,     /* second-floor hall, up the conservatory stairs */
     STATE_STAIR_ANIM,  /* stair-climb transition between conservatory and 2F hall */
     STATE_MASTER_BEDROOM, /* master bedroom, off the 2F hall corridor */
+    STATE_EAST_HALL,   /* east hall, through the double door on reception's 2F east wall */
 } GameState;
 
 extern GameState game_state;

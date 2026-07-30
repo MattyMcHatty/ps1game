@@ -17,5 +17,7 @@ void cdoor_arm(void);               /* same pair for the conservatory door */
 int  cdoor_triggered(void);         /* 1 when Circle pressed within its range */
 void hdoor_arm(void);               /* same pair for the 2nd-floor door to the 2F hall */
 int  hdoor_triggered(void);         /* 1 when Circle pressed near the upper-floor south door */
+void edoor_arm(void);               /* same pair for the 2nd-floor east double door */
+int  edoor_triggered(void);         /* 1 when Circle pressed near the upper-floor east door */
 
 #endif

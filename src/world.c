@@ -12,8 +12,8 @@
 #include "tentacle.h"
 #include "savegame.h"
 
-#define WORLD_NUM_ROOMS 7   /* delivery_area, kitchen_dining, reception, piano_room,
-                               conservatory, hall_2f, master_bedroom */
+#define WORLD_NUM_ROOMS 8   /* delivery_area, kitchen_dining, reception, piano_room,
+                               conservatory, hall_2f, master_bedroom, east_hall */
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below; this
    is the per-room unit a save file would store. */
@@ -70,6 +70,7 @@ static int room_index(GameState area) {
         case STATE_CONSERVATORY:   return 4;
         case STATE_2F_HALL:        return 5;
         case STATE_MASTER_BEDROOM: return 6;
+        case STATE_EAST_HALL:      return 7;
         default:                   return 0;
     }
 }

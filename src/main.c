@@ -42,6 +42,7 @@
 #include "conservatory.h"
 #include "hall_2f.h"
 #include "master_bedroom.h"
+#include "east_hall.h"
 #include "trick_drawers.h"
 #include "stove_puzzle.h"
 #include "concrete_props.h"
@@ -207,6 +208,26 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (!lock && edoor_triggered()) {
+            /* Double door on the upper floor's east wall, into the East Hall. */
+            pending_area = STATE_EAST_HALL;
+            door_anim_start(DOOR_PANEL_INNER);   /* interior double door */
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_EAST_HALL) {
+        /* Flat single-floor room; the shared wall collision routine is generic
+           over current_collision_room (other rooms' props gate themselves out,
+           and east_hall_init clears the two that don't). */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed yet, but keeps the room uniform */
+        item_pickups_update();
+        if (!lock && east_hall_wdoor_triggered()) {
+            pending_area = STATE_RECEPTION;
+            door_anim_start(DOOR_PANEL_INNER);   /* same interior double door */
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_CONSERVATORY) {
         /* Flat single-floor room; the shared wall/prop collision routine is
@@ -328,6 +349,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         hall_2f_draw(ctx);
     else if (area == STATE_MASTER_BEDROOM)
         master_bedroom_draw(ctx);
+    else if (area == STATE_EAST_HALL)
+        east_hall_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -475,6 +498,7 @@ int main(int argc, const char **argv) {
     conservatory_load_assets();/* conservatory geometry + streamed textures */
     hall_2f_load_assets();     /* 2F hall geometry + streamed textures */
     master_bedroom_load_assets();/* master bedroom geometry + streamed textures */
+    east_hall_load_assets();   /* east hall geometry + texture headers */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
     concrete_props_load_assets();/* concrete block/chair props + shared texture */
     copper_pot_load_assets();  /* copper pot collectible (texture deferred, key slot) */
@@ -574,6 +598,8 @@ int main(int argc, const char **argv) {
                 hall_2f_upload_textures();       /* 4 streamed slots (see module) */
             } else if (pending_area == STATE_MASTER_BEDROOM) {
                 master_bedroom_upload_textures();/* red_crpt + bed + dresser */
+            } else if (pending_area == STATE_EAST_HALL) {
+                east_hall_upload_textures();     /* cncrte + dresser */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -648,6 +674,15 @@ int main(int argc, const char **argv) {
                     cam_z   = -750;
                     cam_rot = 1024;   /* face +X, into reception */
                     hdoor_arm();      /* don't re-trigger on the held Circle */
+                } else if (current_area == STATE_EAST_HALL) {
+                    /* Arrive at the 2nd-floor EAST double door (upper floor
+                       y=-600), facing -X back into the room. */
+                    cam_x   = 1290;
+                    cam_y   = -789;   /* upper-floor standing eye (-600 - 189) */
+                    cam_vy  = 0;
+                    cam_z   = 1071;
+                    cam_rot = 3072;   /* face -X, into reception */
+                    edoor_arm();      /* don't re-trigger on the held Circle */
                 }
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);   /* reception music */
             } else if (pending_area == STATE_PIANO_ROOM) {
@@ -694,6 +729,9 @@ int main(int argc, const char **argv) {
                 if (bedroom_door_west)
                     master_bedroom_spawn_west();
                 cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* shares the 2F music */
+            } else if (pending_area == STATE_EAST_HALL) {
+                east_hall_init();   /* one door so far: its spawn is the arrival */
+                cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* shares reception's music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
@@ -742,7 +780,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_PIANO_ROOM ||
                    game_state == STATE_CONSERVATORY ||
                    game_state == STATE_2F_HALL ||
-                   game_state == STATE_MASTER_BEDROOM) {
+                   game_state == STATE_MASTER_BEDROOM ||
+                   game_state == STATE_EAST_HALL) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

@@ -50,6 +50,8 @@ add_executable(horror_game
     src/hall_2f.c
     src/master_bedroom_mesh_collision.c
     src/master_bedroom.c
+    src/east_hall_mesh_collision.c
+    src/east_hall.c
     src/stair_anim.c
     src/trick_drawers.c
     src/stove_puzzle.c

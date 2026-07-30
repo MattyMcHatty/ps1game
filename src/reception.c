@@ -439,6 +439,65 @@ static void hdoor_text(RenderContext *ctx) {
                         50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* ---- 2nd-floor double door to the East Hall --------------------------------
+   On the UPPER floor's EAST wall (x=1500, z=1071, from the inr_dbl_dr polys in
+   Reception.smx). It sits well north of the ground-floor kitchen door at
+   z=-414, but is gated by player_on_upper_floor anyway so the two east-wall
+   doors can never cross-trigger. The player approaches from the -X (room) side,
+   so the sign is YZ-plane with mirror=1 — the same facing as the ground-floor
+   kitchen door — at the upper floor's eye height. */
+#define EDOOR_X                  1435
+#define EDOOR_Z                  1071
+#define EDOOR_TEXT_Y            (-786)   /* upper floor (y=-600) standing eye - 186 */
+
+static int edoor_circle_prev = 1;
+
+void edoor_arm(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    edoor_circle_prev = held;
+}
+
+int edoor_triggered(void) {
+    int held = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    }
+    int just = held && !edoor_circle_prev;
+    edoor_circle_prev = held;
+    if (!just) return 0;
+    if (!player_on_upper_floor) return 0;   /* upper-floor door only */
+
+    int32_t dx = cam_x - EDOOR_X;
+    int32_t dz = cam_z - EDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < RDOOR_TRIGGER_RADIUS;
+}
+
+static void edoor_text(RenderContext *ctx) {
+    if (!player_on_upper_floor) return;   /* only visible from the upper floor */
+    int32_t dx = cam_x - EDOOR_X;
+    int32_t dz = cam_z - EDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= RDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > RDOOR_FADE_NEAR) {
+        int range = RDOOR_TEXT_RADIUS - RDOOR_FADE_NEAR;
+        int prog  = xz - RDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        EDOOR_X, EDOOR_TEXT_Y, EDOOR_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
 void reception_init(void) {
     reception_collision_init(&current_collision_room);
     reception_floor_zones_init();
@@ -454,6 +513,7 @@ void reception_init(void) {
     wdoor_arm();            /* same, for the west single door */
     cdoor_arm();            /* same, for the conservatory door */
     hdoor_arm();            /* same, for the 2nd-floor door to the 2F hall */
+    edoor_arm();            /* same, for the 2nd-floor door to the East Hall */
     save_point_arm();       /* same, for the Circle-to-save interaction */
 
     /* Place reception's props. */
@@ -694,4 +754,5 @@ void reception_draw(RenderContext *ctx) {
     wdoor_text(ctx);
     cdoor_text(ctx);
     hdoor_text(ctx);
+    edoor_text(ctx);
 }
