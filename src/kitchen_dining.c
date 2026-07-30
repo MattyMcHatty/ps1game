@@ -20,6 +20,7 @@
 #include "dining_table.h"
 #include "sml_med.h"
 #include "particles.h"
+#include "stove_puzzle.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -43,13 +44,12 @@ extern volatile size_t  pad_buff_len[2];
 #define STOVE_TEXT_MIRROR    0
 #define STOVE_TEXT_PIXEL     2   /* half the default sign size (DOOR_PIXEL_SIZE=4) */
 
-/* Stove flame: where it burns and how close the player must stand to toggle it.
-   FIRE_Y is the burner height the flame rises from (negative Y = up; floor ~0,
-   eye level -149). Tune FIRE_Y/RADIUS/RATE to taste. */
+/* Stove flame: where it burns. FIRE_Y is the burner height the flame rises from
+   (negative Y = up; floor ~0, eye level -149). The puzzle lights it for the
+   cook (see stove_puzzle.c); nothing else does. */
 #define STOVE_FIRE_X        (-107)   /* moved 120 toward the dining room (-X) */
 #define STOVE_FIRE_Z        1080
 #define STOVE_FIRE_Y        (-105)
-#define STOVE_TRIGGER_RADIUS  500
 #define STOVE_FIRE_RATE        2   /* new flame particles emitted per frame */
 
 /* "to reception" door sign ("Press " BTN_CIRCLE " to enter"), rotated 180deg (YZ plane,
@@ -62,10 +62,8 @@ extern volatile size_t  pad_buff_len[2];
 /* Circle edge-detect for the kitchen door; seeded by kitchen_door_arm(). */
 static int kdoor_circle_prev = 1;
 
-/* Stove flame toggle + its own Circle edge-detect (independent of the door's,
-   so a single press near the stove only toggles the flame). */
+/* Stove flame: lit only by the stove puzzle's cook step (kitchen_stove_set_lit). */
 static int stove_lit         = 0;
-static int stove_circle_prev = 1;
 
 /* "to reception" door has its own Circle edge-detect too. */
 static int rdoor_circle_prev = 1;
@@ -262,8 +260,8 @@ void kitchen_door_arm(void) {
         held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
     }
     kdoor_circle_prev = held;
-    stove_circle_prev = held;
     rdoor_circle_prev = held;
+    stove_puzzle_arm();
 }
 
 /* Returns 1 when Circle is freshly pressed within range of the kitchen door. */
@@ -301,28 +299,16 @@ int to_reception_door_triggered(void) {
     return xz < TO_RECEPTION_TRIGGER_RADIUS;
 }
 
-/* Toggle the stove flame on a fresh Circle press near the stove, then keep it
-   fed while lit. update_fire() runs regardless so a just-extinguished flame
-   finishes rising out instead of vanishing. Called each frame in the kitchen. */
+/* Keep the burner fed while lit. The flame is no longer player-toggled: the
+   stove puzzle lights it for its three-second cook (kitchen_stove_set_lit).
+   update_fire() runs regardless so a just-extinguished flame finishes rising
+   out instead of vanishing. Called each frame in the kitchen. */
 void kitchen_stove_update(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
-    int just = held && !stove_circle_prev;
-    stove_circle_prev = held;
-
-    if (just) {
-        int32_t dx = cam_x - STOVE_FIRE_X;
-        int32_t dz = cam_z - STOVE_FIRE_Z;
-        int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        if (xz < STOVE_TRIGGER_RADIUS) stove_lit = !stove_lit;
-    }
-
     if (stove_lit) fire_emit(STOVE_FIRE_X, STOVE_FIRE_Y, STOVE_FIRE_Z, STOVE_FIRE_RATE);
     update_fire();
 }
+
+void kitchen_stove_set_lit(int lit) { stove_lit = lit; }
 
 /* Extinguish the stove and clear any lingering flame particles (new game). */
 void kitchen_stove_reset(void) {
@@ -509,10 +495,13 @@ static void kitchen_door_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
-/* Floating "Press " BTN_CIRCLE " to ignite" sign over the stove. Rotated 90deg CCW from the
-   door signs: it lies in the XY plane (fixed Z) so it reads along X and faces
-   along Z. mirror flips reading direction for the side the player approaches. */
+/* Floating "Press " BTN_CIRCLE " to interact" sign over the stove. Rotated 90deg CCW from
+   the door signs: it lies in the XY plane (fixed Z) so it reads along X and
+   faces along Z. mirror flips reading direction for the side the player
+   approaches. Hidden once the puzzle owns the screen, and for good once the
+   Green Key Stone has been cooked. */
 static void stove_text(RenderContext *ctx) {
+    if (stove_puzzle_active() || stove_puzzle_solved()) return;
     int32_t dx = cam_x - STOVE_TEXT_X;
     int32_t dz = cam_z - STOVE_TEXT_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
@@ -528,7 +517,7 @@ static void stove_text(RenderContext *ctx) {
 
     /* XY plane: door_draw_string_3d centres the reading axis (X) on world_x
        after adding 200, so pass STOVE_TEXT_X - 200 to centre on the stove. */
-    door_draw_string_3d(ctx, stove_lit ? "Press " BTN_CIRCLE " to extinguish" : "Press " BTN_CIRCLE " to ignite",
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to interact",
                         STOVE_TEXT_X - 200, KDOOR_TEXT_Y, STOVE_TEXT_Z,
                         50, 255, 50, fade, STOVE_TEXT_MIRROR, TEXT_PLANE_XY, STOVE_TEXT_PIXEL);
 }
@@ -580,21 +569,10 @@ void kitchen_dining_draw(RenderContext *ctx) {
         ctx->next_packet += sizeof(DR_TWIN);
     }
 
+    /* Pitch-aware view matrix: gameplay pitch is 0 (plain yaw view), but the
+       stove puzzle tilts the fixed camera down over the hob. */
     MATRIX rot_matrix;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-
-    RotMatrix(&neg_rot, &rot_matrix);
-
-    VECTOR trans;
-    trans.vx = -cam_x;
-    trans.vy = -cam_y;
-    trans.vz = -cam_z;
-
-    ApplyMatrixLV(&rot_matrix, &trans, &trans);
-
-    rot_matrix.t[0] = trans.vx;
-    rot_matrix.t[1] = trans.vy;
-    rot_matrix.t[2] = trans.vz;
+    camera_build_view(&rot_matrix);
 
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
@@ -621,6 +599,9 @@ void kitchen_dining_draw(RenderContext *ctx) {
         zombies_set_texwindow(&tw);
     }
     draw_zombies(ctx);
+    /* Stove puzzle: 2D board/picker overlay, drawn in the menu OT range so it
+       sits on top of the room. Nothing when the puzzle is idle. */
+    stove_puzzle_draw(ctx);
     /* Player overlays + debug collision view are drawn by the shared
        draw_player_systems step in main (applies to every area). */
 }

@@ -43,6 +43,7 @@
 #include "hall_2f.h"
 #include "master_bedroom.h"
 #include "trick_drawers.h"
+#include "stove_puzzle.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "tentacle.h"
@@ -97,6 +98,8 @@ void reset_game(RenderContext *ctx) {
     reset_particles();
     bullet_hits_reset();
     kitchen_stove_reset();
+    stove_puzzle_arm();      /* drop any in-progress cook, clear the board */
+    cam_pitch = 0;           /* a puzzle camera never survives a reset */
     {
         int k;
         for (k = 0; k < PICKUP_MSG_COUNT; k++) pickup_log[k].timer = 0;
@@ -139,6 +142,15 @@ static void update_current_area(GameState area) {
         trick_drawers_update();
         return;
     }
+    /* Same deal for the kitchen's stove puzzle — plus the flame update, since
+       the cook step burns the stove for three seconds while it owns the view. */
+    if (area == STATE_KITCHEN_DINING && stove_puzzle_active()) {
+        update_zombies();
+        kitchen_stove_update();
+        stove_puzzle_update();
+        update_particles();
+        return;
+    }
     update_camera();
     /* Menu open: the area still ticks (enemies move, gravity applies) but every
        player-driven level interaction — doors, stairs, the drawer puzzle, save
@@ -150,6 +162,7 @@ static void update_current_area(GameState area) {
         update_zombies();
         sml_meds_update();
         kitchen_stove_update();
+        if (!lock) stove_puzzle_update();   /* stove prompt + puzzle trigger */
         if (!lock && kitchen_door_triggered()) {
             pending_area = STATE_DELIVERY_AREA;
             door_anim_start(DOOR_PANEL_OUTER);
@@ -739,9 +752,11 @@ int main(int argc, const char **argv) {
                    the kitchen would fall through to delivery-area collision and
                    its back-face push would catapult the player). */
                 GameState area = game_state;
-                /* While the drawer puzzle owns the screen, suppress the Start
-                   menu and the player weapon/HUD overlays. */
-                int puzzle = (area == STATE_2F_HALL && trick_drawers_puzzle_active());
+                /* While a camera-locked puzzle (drawers / stove) owns the
+                   screen, suppress the Start menu and the player weapon/HUD
+                   overlays. */
+                int puzzle = (area == STATE_2F_HALL && trick_drawers_puzzle_active()) ||
+                             (area == STATE_KITCHEN_DINING && stove_puzzle_active());
                 if (!puzzle) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);

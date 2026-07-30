@@ -17,8 +17,23 @@ int32_t cam_y   = 0;
 int32_t cam_vy  = 0;
 int32_t cam_z   = 0;
 int32_t cam_rot = 0;
+int32_t cam_pitch = 0;
 int32_t cam_kb_vx = 0;
 int32_t cam_kb_vz = 0;
+
+/* Player anchor (see camera.h): held position while a puzzle owns the camera. */
+static int32_t anchor_x = 0, anchor_y = 0, anchor_z = 0;
+static int     anchored = 0;
+
+void camera_anchor_player(int32_t x, int32_t y, int32_t z) {
+    anchor_x = x; anchor_y = y; anchor_z = z;
+    anchored = 1;
+}
+void camera_release_player(void) { anchored = 0; }
+
+int32_t player_x(void) { return anchored ? anchor_x : cam_x; }
+int32_t player_y(void) { return anchored ? anchor_y : cam_y; }
+int32_t player_z(void) { return anchored ? anchor_z : cam_z; }
 
 /* Push the player away from (from_x, from_z) at `speed` units on the first
    frame; update_camera decays it. */
@@ -53,13 +68,31 @@ extern volatile size_t  pad_buff_len[2];
    -cam_rot, then translate by -cam). Any world-space GTE projection (gte_rtps)
    done afterwards uses the camera view — used by the debug overlays, which run
    after the weapon/HUD draws have left their own matrices in the GTE. */
+/* Yaw, then pitch, then translate: R = Rx(pitch) * Ry(-yaw), t = R * (-cam).
+   The two rotations are composed explicitly (rather than handed to RotMatrix as
+   one SVECTOR) so the order is unambiguous — pitch must be applied in VIEW
+   space, after the world has been yawed to face the camera. With cam_pitch = 0
+   the pitch matrix is the identity and this is exactly the old yaw-only view. */
+void camera_build_view(MATRIX *out) {
+    MATRIX  yaw, pitch;
+    SVECTOR neg_rot   = {0, (short)-cam_rot, 0, 0};
+    SVECTOR pitch_rot = {(short)cam_pitch, 0, 0, 0};
+    VECTOR  trans     = {-cam_x, -cam_y, -cam_z};
+
+    RotMatrix(&neg_rot, &yaw);
+    if (cam_pitch) {
+        RotMatrix(&pitch_rot, &pitch);
+        MulMatrix0(&pitch, &yaw, out);
+    } else {
+        *out = yaw;
+    }
+    ApplyMatrixLV(out, &trans, &trans);
+    out->t[0] = trans.vx; out->t[1] = trans.vy; out->t[2] = trans.vz;
+}
+
 void camera_set_view_matrix(void) {
-    MATRIX  m;
-    SVECTOR neg_rot = {0, (short)-cam_rot, 0, 0};
-    VECTOR  trans   = {-cam_x, -cam_y, -cam_z};
-    RotMatrix(&neg_rot, &m);
-    ApplyMatrixLV(&m, &trans, &trans);
-    m.t[0] = trans.vx; m.t[1] = trans.vy; m.t[2] = trans.vz;
+    MATRIX m;
+    camera_build_view(&m);
     gte_SetRotMatrix(&m);
     gte_SetTransMatrix(&m);
 }

@@ -17,6 +17,7 @@ extern int     player_keys;    /* bitmask — bit N set means KeyType N is held 
 typedef enum {
     ITEM_COPPER_POT = 0,
     ITEM_WAX_CUBE,          /* awarded by solving the 2F hall trick-drawers puzzle */
+    ITEM_GREEN_KEY_STONE,   /* awarded by cooking the pot + cube on the kitchen stove */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */

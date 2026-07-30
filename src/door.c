@@ -387,13 +387,7 @@ void door_draw(RenderContext *ctx) {
 
     /* Rebuild view matrix — same pattern as crates_draw */
     MATRIX view;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &view);
-    VECTOR vt = {-cam_x, -cam_y, -cam_z};
-    ApplyMatrixLV(&view, &vt, &vt);
-    view.t[0] = vt.vx;
-    view.t[1] = vt.vy;
-    view.t[2] = vt.vz;
+    camera_build_view(&view);
     gte_SetRotMatrix(&view);
     gte_SetTransMatrix(&view);
 

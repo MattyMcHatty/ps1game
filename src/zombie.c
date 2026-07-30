@@ -303,9 +303,12 @@ void update_zombies(void) {
             continue;
         }
 
-        int32_t dx     = cam_x - d->x;
-        int32_t dy     = cam_y - d->y;
-        int32_t dz     = cam_z - d->z;
+        /* Target the PLAYER, not the camera: a camera-locked puzzle parks the
+           camera elsewhere while the player stands still (see camera.h). */
+        int32_t px     = player_x(), py = player_y(), pz = player_z();
+        int32_t dx     = px - d->x;
+        int32_t dy     = py - d->y;
+        int32_t dz     = pz - d->z;
         int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
 
         /* Release the bite latch once the player retreats out of catch range
@@ -360,7 +363,7 @@ void update_zombies(void) {
            of the opening before turning to chase, otherwise an off-axis player
            drags us into the door frame and we snag. --- */
         int zfrom = nav_zone_at(d->x, d->z);
-        int zto   = nav_zone_at(cam_x, cam_z);
+        int zto   = nav_zone_at(px, pz);
         int node  = nav_next_node(zfrom, zto);
         /* If the zombie can actually SEE the player (no wall or closed door in
            the line between them), charge straight at them and drop ALL doorway
@@ -370,11 +373,11 @@ void update_zombies(void) {
            beat after the sightline flickers (which it does at that corner), so it
            doesn't flip between "chase" and "stage" every frame. Nav still handles
            the genuinely out-of-sight case: round the stairwell + batter the door. */
-        if (!collision_segment_blocked(d->x, d->y, d->z, cam_x, cam_y, cam_z))
+        if (!collision_segment_blocked(d->x, d->y, d->z, px, py, pz))
             d->los_timer = ZMB_LOS_COMMIT;
         else if (d->los_timer > 0)
             d->los_timer--;
-        int32_t goal_x = cam_x, goal_z = cam_z;
+        int32_t goal_x = px, goal_z = pz;
         if (d->los_timer > 0) {
             node = -1;
             d->nav_clear = -1;   /* seen recently: forget the doorway staging */

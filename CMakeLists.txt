@@ -52,6 +52,7 @@ add_executable(horror_game
     src/master_bedroom.c
     src/stair_anim.c
     src/trick_drawers.c
+    src/stove_puzzle.c
     src/crate.c
     src/dining_table.c
     src/save_point.c

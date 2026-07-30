@@ -68,6 +68,9 @@ static uint8_t  rnds_u0, rnds_v0, rnds_u1, rnds_v1;
 static uint16_t waxcb_tpage  = 0;
 static uint16_t waxcb_clut   = 0;
 static uint8_t  waxcb_u0, waxcb_v0, waxcb_u1, waxcb_v1;
+static uint16_t gkst_tpage   = 0;
+static uint16_t gkst_clut    = 0;
+static uint8_t  gkst_u0, gkst_v0, gkst_u1, gkst_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -80,6 +83,7 @@ static const char *item_descriptions[] = {
     "Rounds\n\nAmmunition\nfor the\nGrave-olver",
     "Copper Pot\n\nAn old copper\npot found in\nthe conservatory",
     "Wax Cube\n\nI think there's\nsomething inside...",
+    "Green Key Stone\n\nA green jewel\nwith a key\nprotruding from\nthe back",
 };
 
 static const char *weapon_descriptions[] = {
@@ -251,7 +255,73 @@ static int items_count(void) {
     if (player_rounds > 0)                       count++;
     if (player_items & (1 << ITEM_COPPER_POT))   count++;
     if (player_items & (1 << ITEM_WAX_CUBE))     count++;
+    if (player_items & (1 << ITEM_GREEN_KEY_STONE)) count++;
     return count;
+}
+
+/* ---- Shared inventory-slot accessors -------------------------------------
+   The stove puzzle's item picker shows the SAME items as this column, so the
+   slot table below is the single description of what lives in each grid cell
+   (order matches item_descriptions[] and the draw loop's i == n cases). */
+int menu_item_held(int slot) {
+    switch (slot) {
+        case MENU_SLOT_FRONT_DOOR_KEY: return (player_keys & (1 << KEY_FRONT_DOOR)) != 0;
+        case MENU_SLOT_ROUNDS:         return player_rounds > 0;
+        case MENU_SLOT_COPPER_POT:     return (player_items & (1 << ITEM_COPPER_POT)) != 0;
+        case MENU_SLOT_WAX_CUBE:       return (player_items & (1 << ITEM_WAX_CUBE)) != 0;
+        case MENU_SLOT_GREEN_KEY_STONE:return (player_items & (1 << ITEM_GREEN_KEY_STONE)) != 0;
+        default: return 0;
+    }
+}
+
+const char *menu_item_name(int slot) {
+    switch (slot) {
+        case MENU_SLOT_FRONT_DOOR_KEY: return "Front Door Key";
+        case MENU_SLOT_ROUNDS:         return "Rounds";
+        case MENU_SLOT_COPPER_POT:     return "Copper Pot";
+        case MENU_SLOT_WAX_CUBE:       return "Wax Cube";
+        case MENU_SLOT_GREEN_KEY_STONE:return "Green Key Stone";
+        default: return "";
+    }
+}
+
+/* Draw the icon for an inventory slot anywhere on screen (the stove puzzle's
+   picker and its ingredient boxes). No-op for a slot the player doesn't hold.
+   The caller is responsible for resetting the texture window first — see the
+   note in menu_draw. */
+void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
+                         int ot_idx) {
+    switch (slot) {
+        case MENU_SLOT_FRONT_DOOR_KEY:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, key_tpage, key_clut,
+                      key_u0, key_v0, key_u1, key_v1, 255, ot_idx);
+            break;
+        case MENU_SLOT_ROUNDS:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, rnds_tpage, rnds_clut,
+                      rnds_u0, rnds_v0, rnds_u1, rnds_v1, 255, ot_idx);
+            break;
+        case MENU_SLOT_COPPER_POT: {
+            if (!menu_item_held(slot)) return;
+            uint16_t tp, cl; uint8_t u0, v0, u1, v1;
+            copper_pot_icon(&tp, &cl, &u0, &v0, &u1, &v1);
+            /* Full-brightness art — neutral 128 modulation (see draw_icon). */
+            draw_icon(ctx, x, y, size, tp, cl, u0, v0, u1, v1, 128, ot_idx);
+            break;
+        }
+        case MENU_SLOT_WAX_CUBE:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, waxcb_tpage, waxcb_clut,
+                      waxcb_u0, waxcb_v0, waxcb_u1, waxcb_v1, 128, ot_idx);
+            break;
+        case MENU_SLOT_GREEN_KEY_STONE:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, gkst_tpage, gkst_clut,
+                      gkst_u0, gkst_v0, gkst_u1, gkst_v1, 128, ot_idx);
+            break;
+        default: break;
+    }
 }
 
 /* Helper to get weapon count */
@@ -278,6 +348,8 @@ void menu_init(void) {
                   &rnds_u0, &rnds_v0, &rnds_u1, &rnds_v1);
     load_icon_tim("\\TEX\\WXCB.TIM;1", &waxcb_tpage, &waxcb_clut,
                   &waxcb_u0, &waxcb_v0, &waxcb_u1, &waxcb_v1);
+    load_icon_tim("\\TEX\\GRNKYSTN.TIM;1", &gkst_tpage, &gkst_clut,
+                  &gkst_u0, &gkst_v0, &gkst_u1, &gkst_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * 2, 14, 0, 64);
@@ -436,6 +508,10 @@ void menu_draw(RenderContext *ctx) {
                 draw_icon(ctx, ix, iy, ICON_SIZE, waxcb_tpage, waxcb_clut,
                           waxcb_u0, waxcb_v0, waxcb_u1, waxcb_v1, 128, OT_ICON);
             }
+            if (i == 4 && (player_items & (1 << ITEM_GREEN_KEY_STONE))) {
+                draw_icon(ctx, ix, iy, ICON_SIZE, gkst_tpage, gkst_clut,
+                          gkst_u0, gkst_v0, gkst_u1, gkst_v1, 128, OT_ICON);
+            }
         }
     }
 
@@ -498,6 +574,8 @@ void menu_draw(RenderContext *ctx) {
                 desc = item_descriptions[2];
             } else if (slot == 3 && (player_items & (1 << ITEM_WAX_CUBE))) {
                 desc = item_descriptions[3];
+            } else if (slot == 4 && (player_items & (1 << ITEM_GREEN_KEY_STONE))) {
+                desc = item_descriptions[4];
             }
         } else {
             if (slot == 0)
