@@ -18,6 +18,7 @@
 #include "trick_drawers.h"
 #include "fatdoor.h"
 #include "zombie.h"
+#include "spider.h"
 #include "sound.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -366,6 +367,7 @@ void hall_2f_spawn_bdoor_w(void) { hall_2f_spawn_bdoor(BDOOR_W_X); }
 
 void hall_2f_init(void) {
     hall_2f_collision_init(&current_collision_room);
+    collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     hall_2f_floor_zones_init();
 
     /* Spawn just north of the stairwell lip, facing -Z down the corridor with
@@ -602,8 +604,10 @@ void hall_2f_draw(RenderContext *ctx) {
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
+        spiders_set_texwindow(&tw);
     }
     draw_zombies(ctx);
+    draw_spiders(ctx);
 
     stairs_text(ctx);
     edoor_text(ctx);

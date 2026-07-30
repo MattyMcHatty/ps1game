@@ -79,6 +79,10 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\zombie_sleep.tim"/>
             <file name="ZALERT.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\zombie_alert.tim"/>
+            <file name="SPDRRST.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\spdr_rst.tim"/>
+            <file name="SPDRWK.TIM" type="data"
+                source="C:\Users\virtu\Documents\ps1game\textures\spdr_wk.tim"/>
             <!-- Sound effects live in a subdirectory so the ROOT directory stays
                  within one 2048-byte sector. The PS1 boot ROM only reads the first
                  root-directory sector to find SYSTEM.CNF/HORROR.BIN; if too many

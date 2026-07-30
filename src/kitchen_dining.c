@@ -17,6 +17,7 @@
 #include "door.h"
 #include "fatdoor.h"
 #include "zombie.h"
+#include "spider.h"
 #include "dining_table.h"
 #include "sml_med.h"
 #include "particles.h"
@@ -241,6 +242,7 @@ void kitchen_restore_textures(void) {
 
 void kitchen_dining_init(void) {
     kitchen_dining_collision_init(&current_collision_room);
+    collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     kitchen_dining_floor_zones_init();
 
     cam_x   = 381;
@@ -597,8 +599,10 @@ void kitchen_dining_draw(RenderContext *ctx) {
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
+        spiders_set_texwindow(&tw);
     }
     draw_zombies(ctx);
+    draw_spiders(ctx);
     /* Stove puzzle: 2D board/picker overlay, drawn in the menu OT range so it
        sits on top of the room. Nothing when the puzzle is idle. */
     stove_puzzle_draw(ctx);

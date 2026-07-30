@@ -17,6 +17,7 @@
 #include "title.h"
 #include "demondog.h"
 #include "zombie.h"
+#include "spider.h"
 #include "sound.h"
 #include "fatdoor.h"
 #include "tentacle.h"
@@ -30,6 +31,7 @@ static int hit_this_swing       = 0;
 static int crate_hit_this_swing = 0;
 static int ddog_hit_this_swing  = 0;
 static int zomb_hit_this_swing  = 0;
+static int spdr_hit_this_swing  = 0;
 static int fatdoor_hit_this_swing = 0;
 static int tent_hit_this_swing  = 0;
 
@@ -67,6 +69,7 @@ void update_crucifaxe(void) {
         crate_hit_this_swing   = 0;
         ddog_hit_this_swing    = 0;
         zomb_hit_this_swing    = 0;
+        spdr_hit_this_swing    = 0;
         fatdoor_hit_this_swing = 0;
         tent_hit_this_swing    = 0;
         sound_play(SFX_SWING);
@@ -154,6 +157,38 @@ void update_crucifaxe(void) {
                             sound_play(SFX_AXEHIT);    /* non-fatal hit */
                         }
                         zomb_hit_this_swing = 1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        /* Spider hit — checked independently of the other enemies. One
+           damage per swing, and spider_damage drops a ceiling spider that gets
+           hit before it has noticed the player. Knockback only applies once it
+           is on the floor; shoving a hanging or falling one sideways would slide
+           it away from the ceiling it is dropping off. */
+        if (swing_timer <= SWING_DURATION && !spdr_hit_this_swing) {
+            int si;
+            for (si = 0; si < spider_count; si++) {
+                Spider *s = &spiders[si];
+                if (!s->active || s->state == SPD_DEAD ||
+                    s->area != game_state) continue;
+                int32_t dx     = s->x - cam_x;
+                int32_t dy     = s->y - cam_y;
+                int32_t dz     = s->z - cam_z;
+                int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+                int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
+                if (dist3d < SWING_RANGE) {
+                    int32_t dot = ((int32_t)dx * isin(cam_rot) +
+                                   (int32_t)dz * icos(cam_rot)) >> 12;
+                    if (dot > 0) {
+                        if (s->state == SPD_ALERT) {
+                            s->kb_vx = dist2d > 0 ? (dx * SPD_KNOCKBACK) / dist2d : 0;
+                            s->kb_vz = dist2d > 0 ? (dz * SPD_KNOCKBACK) / dist2d : 0;
+                        }
+                        spider_damage(s, 1);
+                        spdr_hit_this_swing = 1;
                         break;
                     }
                 }

@@ -19,6 +19,7 @@ CollisionRoom current_collision_room;
 
 void collision_init(void) {
     delivery_area_collision_init(&current_collision_room);
+    collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
 }
 
 int collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius) {
@@ -590,6 +591,51 @@ void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly(&r->walls[i], x, z, radius);
+}
+
+/* Squared XZ distance from (px,pz) to the wall segment w. Coordinates stay
+   within a few thousand units, so the products fit an int32 comfortably. */
+static int32_t wall_dist2(const Wall *w, int32_t px, int32_t pz) {
+    int32_t ex = w->x2 - w->x1, ez = w->z2 - w->z1;
+    int32_t qx = w->x1,         qz = w->z1;
+    int32_t len2 = ex * ex + ez * ez;
+    if (len2 > 0) {
+        int32_t t = (((px - w->x1) * ex + (pz - w->z1) * ez) << 12) / len2;
+        if (t < 0)    t = 0;
+        if (t > 4096) t = 4096;
+        qx += (ex * t) >> 12;
+        qz += (ez * t) >> 12;
+    }
+    int32_t dx = px - qx, dz = pz - qz;
+    return dx * dx + dz * dz;
+}
+
+void collision_set_ceiling_y(int32_t y) {
+    current_collision_room.ceiling_y = y;
+}
+
+int32_t collision_ceiling_y(int32_t x, int32_t z) {
+    CollisionRoom *r = &current_collision_room;
+    int32_t near_top = 0, room_top = 0;
+    int     have_near = 0, have_room = 0;
+    int     i;
+
+    /* The room knows its own drawn ceiling: trust it over the proxy walls. */
+    if (r->ceiling_y != 0) return r->ceiling_y;
+
+    for (i = 0; i < r->wall_count; i++) {
+        const Wall *w = &r->walls[i];
+        /* y_min == y_max means the generator emitted no Y data for this face. */
+        if (w->y_min == w->y_max) continue;
+        if (!have_room || w->y_min < room_top) { room_top = w->y_min; have_room = 1; }
+        if (wall_dist2(w, x, z) <= (int32_t)CEILING_PROBE_R * CEILING_PROBE_R) {
+            if (!have_near || w->y_min < near_top) { near_top = w->y_min; have_near = 1; }
+        }
+    }
+
+    if (have_near) return near_top;
+    if (have_room) return room_top;
+    return CEILING_DEFAULT_Y;
 }
 
 void apply_vampire_collision(void) {

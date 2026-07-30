@@ -20,6 +20,7 @@
 #include "concrete_props.h"
 #include "save_point.h"
 #include "zombie.h"
+#include "spider.h"
 #include "item_pickup.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -203,6 +204,11 @@ void east_hall_spawn_west(void) {
 
 void east_hall_init(void) {
     east_hall_collision_init(&current_collision_room);
+    /* This room's proxy mesh (East Hall mesh.smx) tops its walls out at
+       y=-375, but the mesh actually DRAWN (East Hall.smx -> east_hall.smd)
+       has its ceiling at y=-520. State the drawn value so ceiling-mounted
+       enemies hang flush with the roof the player can see. */
+    collision_set_ceiling_y(-520);
     east_hall_floor_zones_init();
 
     /* Only one wired door so far, so this is also the arrival spawn. */
@@ -421,14 +427,17 @@ void east_hall_draw(RenderContext *ctx) {
 
     draw_east_hall_smd(ctx);
 
-    /* No enemies placed here yet; the room's 128 texture window is still handed
-       to the zombie renderer so a future spawn brackets its Voff>=128 sprite
-       correctly (see tools/TEXTURING_NOTES.txt PART 5). */
+    /* One spider hangs from the hall ceiling (placed in world.c); no zombies
+       yet. Both renderers are handed the room's 128 texture window either way,
+       so their Voff>=128 sprites are bracketed correctly (see
+       tools/TEXTURING_NOTES.txt PART 5). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
+        spiders_set_texwindow(&tw);
     }
     draw_zombies(ctx);
+    draw_spiders(ctx);
     item_pickups_draw(ctx);
 
     /* Breakable door filling the connector to the south offshoot room. Draws

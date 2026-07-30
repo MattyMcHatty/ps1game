@@ -1,0 +1,408 @@
+PS1 HORROR GAME — ADDING A NEW ENEMY: THE COMPLETE RUNBOOK
+============================================================
+This is the authoritative, step-by-step procedure for adding a reusable sprite
+enemy. It was written immediately after the Spider was added (July 2026) and
+records every step that was actually performed, in order, with real commands —
+including the two things that were got WRONG first time (see the last section).
+
+Companion docs (read them for the *why*; this file is the *how*):
+  tools/ADDING_A_ROOM.txt           - the room runbook; this file mirrors it
+  tools/TEXTURING_NOTES.txt         - VRAM rules, LoadImage timing, tex windows
+  tools/AREAS_AND_WORLD_NOTES.txt   - the area/state model and world.c
+  tools/VRAM_MAP.txt                - generated; who owns which VRAM slot
+  rebuild commands.txt              - authoritative build steps
+
+
+##########################################################################
+ HOW TO KICK THIS OFF (what the user provides)
+##########################################################################
+To start an enemy addition, the user only needs to say:
+
+  1. "Follow tools/ADDING_AN_ENEMY.txt"
+  2. The enemy's name, e.g. "Spider" -> slug `spider`.
+  3. The texture names, already dropped in textures/ as PNGs,
+     e.g. spdr_rst.png (at rest) and spdr_wk.png (moving).
+  4. Its behaviour in prose: sprite shape/scale, health, what wakes it,
+     how it moves and attacks, what each weapon does to it.
+  5. Where to place it: room + x/z coordinates.
+
+Everything else — VRAM slots, CLUT lines, sprite half-extents, ceiling/floor
+heights, nav wiring — is DERIVED by the steps below. Do not ask the user for
+heights; mine them out of the .smx (STEP 2).
+
+Naming: a lowercase C slug (spider) for src/<slug>.c/.h and a SHORT uppercase
+prefix for the constants (SPD_). Keep the prefix distinct from the existing ones
+(ZMB_, DDOG_, VAMPIRE_, TENTACLE_).
+
+NOTE ON PYTHON: the `python` on PATH is the Windows Store stub and fails. Use
+`py` (works, has Pillow) or the real interpreter explicitly:
+    C:\Users\virtu\AppData\Local\Python\bin\python.exe
+
+
+##########################################################################
+ STEP 1 — READ THE ENEMY YOU ARE COPYING
+##########################################################################
+There are two enemy archetypes. Pick the one whose PERSISTENCE model fits, then
+copy the other's behaviour code as needed.
+
+  src/zombie.c    <- THE reference enemy. Full-featured: DORMANT/ALERT/DEAD,
+                     feeler steering with wall-follow commit, separation,
+                     body-vs-body push, knockback, fat-door battering, a room
+                     nav graph, health bar, fog, texture-window bracketing.
+                     Copy its update/draw structure verbatim and delete what
+                     the new enemy does not need.
+  src/tentacle.c  <- the cheap archetype: ONE global array tagged by area, no
+                     movement. Copy its PERSISTENCE model (see STEP 6).
+  src/demondog.c  <- the delivery-area dog; note it does NOT bracket the
+                     texture window and is only safe in windowless rooms.
+
+What is load-bearing in the zombie's draw path and must be copied, not
+redesigned: the avgZ OT sorting with the SCENE_OT_MIN clamp, the fog cull
+against g_fog_far, the packet-space checks against buf_end, the one-texel UV
+inset, and add_ft4_windowed().
+
+The Spider kept: the state machine shape, steering, separation, knockback,
+health bar, shadow, windowed draw. It dropped: the nav graph (it fights in the
+room it lands in) and the lunge/bite overlay.
+
+
+##########################################################################
+ STEP 2 — MINE THE MESH FOR ANY HEIGHT THE ENEMY NEEDS
+##########################################################################
+Only needed for an enemy that attaches to level geometry (a ceiling-dweller, a
+wall-crawler). A plain floor enemy skips to STEP 3.
+
+>>> READ THE MESH THAT IS ACTUALLY DRAWN, NOT THE COLLISION PROXY. <<<
+Every room has two meshes and they DO NOT AGREE on height:
+    assets/<Name>.smx        the VISUAL mesh -> <slug>.smd -> what you see
+    assets/<Name> mesh.smx   the COLLISION proxy -> src/<slug>_mesh_collision.c
+The proxy is simplified; its wall tops are only a LOWER BOUND on the ceiling.
+For the East Hall the proxy tops out at y=-375 while the drawn ceiling is at
+y=-520 — a 145-unit error, which is more than a spider's body length.
+
+Find the real ceiling over a point with a throwaway script:
+
+  import re
+  s=open('assets/East Hall.smx',encoding='utf-8',errors='replace').read()
+  vb=s.split('<vertices')[1].split('</vertices>')[0]
+  vs=[(float(a),float(b),float(c)) for a,b,c in
+      re.findall(r'x="([-\d.]+)" y="([-\d.]+)" z="([-\d.]+)"',vb)]
+  P=(2132.0,354.0)
+  for m in re.finditer(r'<poly ([^/]*)/>',s):
+      at=dict(re.findall(r'(\w+)="([^"]*)"',m.group(1)))
+      ids=[int(at[k]) for k in ('v0','v1','v2','v3') if k in at]
+      pts=[vs[i] for i in ids]; ys=[p[1] for p in pts]
+      if max(ys)-min(ys)>1: continue          # horizontal planes only
+      xs=[p[0] for p in pts]; zs=[p[2] for p in pts]
+      if min(xs)<=P[0]<=max(xs) and min(zs)<=P[1]<=max(zs):
+          print('plane y=%.0f'%ys[0], 'x[%.0f,%.0f]'%(min(xs),max(xs)),
+                                      'z[%.0f,%.0f]'%(min(zs),max(zs)))
+
+Then record the value on the ROOM, next to its collision init:
+
+  src/<room>.c:  <room>_collision_init(&current_collision_room);
+                 collision_set_ceiling_y(-520);   /* drawn ceiling; proxy
+                                                     walls stop at -375 */
+
+Every other room must call collision_set_ceiling_y(0) at the same place —
+0 means "derive it from the wall tops" (collision_ceiling_y falls back to the
+highest wall top within CEILING_PROBE_R). The generated *_collision_init() does
+NOT touch the field, so a room that stays silent inherits the previous room's
+ceiling. This is exactly the r->multi_level / r->shoot_over_mask trap from the
+room runbook, one field along.
+
+COORDINATE CONVENTIONS (get these wrong and the enemy floats or sinks):
+  east = +X, west = -X, north = +Z, south = -Z.  -Y is UP.
+  Mesh floors are at y=0; ceilings are negative.
+  Entity x/y/z are drawn as raw MESH coordinates — an entity y of -149 is a
+    point 149 above the mesh floor. Sprite vertices and mesh vertices share
+    one space, so a ceiling at mesh y=-520 is at entity y=-520. Do NOT apply
+    GROUND_FLOOR_Y to it.
+  GROUND_FLOOR_Y (149) converts a FloorZone's SURFACE into an entity's standing
+    ANCHOR: apply_ddog_height() computes target = zone->y - GROUND_FLOOR_Y.
+    That is a different job from a coordinate-space change. Applying it to a
+    ceiling height is a bug (it was made — see the last section).
+
+
+##########################################################################
+ STEP 3 — TEXTURES
+##########################################################################
+Sprites are much easier than mesh art: they are drawn one quad at a time and
+bracket their own texture window, so unlike room textures they MAY live at
+Voff >= 128. That is where the free space is.
+
+3a. Check the source PNGs. 8bpp is the norm for sprites. Power-of-two, and the
+    art should fill the frame — transparent padding shows up as the sprite
+    floating away from whatever it is attached to.
+
+      py -c "from PIL import Image; im=Image.open('textures/spdr_rst.png'); \
+             print(im.size, im.mode, im.getbbox())"
+
+3b. Find VRAM slots in tools/VRAM_MAP.txt. A slot needs x a multiple of 64 and
+    enough free rows. For two 128x128 8bpp sprites that is 64 words wide x 128
+    tall each. The Spider took x[320,448) y[128,256), which was empty.
+    Confirm the band is clear yourself; do not trust a stale map.
+
+3c. CLUT lines: 8bpp needs 256 words, one line tall, at y >= 480. Look for a
+    line whose only occupant is a 16-word 4bpp CLUT at x[0,16) and take
+    x[256,512). The Spider used (256,492) and (256,493).
+
+3d. Convert:
+
+      Set-Location "c:\Users\virtu\Documents\ps1game\textures"
+      py png_to_tim.py spdr_rst.png --bpp 8 --tx 320 --ty 128 --cx 256 --cy 492
+      py png_to_tim.py spdr_wk.png  --bpp 8 --tx 384 --ty 128 --cx 256 --cy 493
+
+3e. Regenerate the map and CHECK IT:
+
+      py tools\vram_map.py | Out-File -Encoding utf8 tools\VRAM_MAP.txt
+      Select-String tools\VRAM_MAP.txt -Pattern "UNEXPECTED|No unexpected"
+
+    Want "No unexpected pixel collisions." plus your two textures listed with
+    the CLUT coordinates you asked for.
+
+
+##########################################################################
+ STEP 4 — THE ENEMY MODULE (src/<slug>.c / .h)
+##########################################################################
+Copy src/zombie.c/.h and rename. The header is the tuning sheet: every constant
+gets a comment saying what it is in world units and why it has that value.
+
+  Sprite extents
+      <PFX>_HALF_W / <PFX>_HALF_H are HALF-extents in world units. The zombie is
+      62 x 125 (a 1x2 body). The Spider is 93 x 62 (a 3x2 body) at "roughly the
+      same scale". Pick <PFX>_Y_OFFSET so that Y_OFFSET + HALF_H equals the
+      zombie's 150 — that is the distance from the entity anchor down to the
+      feet, so the new enemy stands on the floor like every other one.
+
+  load_tim() / <slug>s_load_textures()
+      Copied verbatim. LoadImage is STARTUP ONLY (see TEXTURING_NOTES) — call
+      it from main() before the render loop, never on a transition.
+
+  State machine
+      DORMANT / ALERT / DEAD at minimum. Add states for anything with a
+      transition animation (the Spider adds CEILING and DROPPING).
+
+  update_<slug>s()
+      Order matters: tick timers, then apply_ddog_height() for gravity/floor,
+      then the knockback branch (which `continue`s), then wake test, then the
+      contact-damage test, then `if (dist2d < CATCH_DIST) continue;`, then
+      steering, then the move + collision calls. Finish with the
+      enemy-vs-enemy separation pass AFTER every instance has moved.
+
+      Contact damage: test horizontal and vertical reach SEPARATELY. A combined
+      |dx|+|dz|+|dy| budget never fires, because the player's eye sits above the
+      enemy's body and eats the whole budget. This bug has been fixed twice.
+
+      Collision calls, in this order, after moving:
+        apply_flat_entity_collision(&x,&z, BODY_RADIUS);
+        crates_collide(&x,y,&z, 80);
+        dining_tables_collide(&x,y,&z, 75);
+        fatdoors_collide(&x,y,&z, DOOR_CLEARANCE);
+
+  draw_<slug>s() / draw_<pfx>_sprite()
+      Camera-facing billboard: right vector = (icos(cam_rot), -isin(cam_rot)),
+      up = world Y. isin/icos are 4096 = 360 degrees in this SDK (the header
+      doc claiming 131072 is wrong — cam_rot is masked & 4095 everywhere).
+
+      To ROLL a sprite in its own plane (the Spider's upside-down hang and its
+      turn on the way down), rotate the corner offsets before placing them:
+        ru = (u*icos(a) - v*isin(a)) >> 12;
+        rd = (u*isin(a) + v*icos(a)) >> 12;
+        vx = cx + ((ru*rx)>>12);  vy = cy + rd;  vz = cz + ((ru*rz)>>12);
+      Leave the UVs on the original corner indices — that is what makes the
+      texture flip with the quad. And DROP the gte_nclip() backface cull the
+      zombie does: past 90 degrees the winding reverses and the cull throws the
+      whole sprite away. A camera-facing quad has no back face to cull anyway.
+
+      A 180-degree roll is about the quad CENTRE, so it does not change the
+      sprite's extent. Anchoring a hanging enemy means putting its TOP edge on
+      the ceiling: y = ceiling - Y_OFFSET + HALF_H. Anchoring the centre buries
+      the top half in the roof.
+
+      Texture windows: any sprite whose VRAM Voff >= 128 MUST bracket its poly
+      with a full/unmasked DR_TWIN and then a restore of the area's window, in
+      the same OT bucket. Copy add_ft4_windowed() and the
+      <slug>s_set_texwindow() setter verbatim.
+
+
+##########################################################################
+ STEP 5 — WEAPONS
+##########################################################################
+Expose ONE damage entry point from the enemy header and let both weapons call
+it, so "wake on damage", the health-bar flash, death, particles and sound live
+in one place:
+
+    void <slug>_damage(<Slug> *s, int dmg);
+
+  src/crucifaxe.c   Add a `static int <pfx>_hit_this_swing = 0;` beside the
+                    others, clear it where the others are cleared, and add a
+                    hit block modelled on the zombie's: Manhattan dist3d <
+                    SWING_RANGE, then a `dot > 0` facing test, then knockback
+                    (only if the enemy is in a state where being shoved makes
+                    sense) and <slug>_damage(s, 1).
+
+  src/graveolver.c  Add a targeting loop beside the others using
+                    enemy_in_circle(x, y + <PFX>_Y_OFFSET, z, <PFX>_HALF_H,
+                    fx, fz, &depth), guarded by `depth < best_depth &&
+                    crosshair_clear(...)`. Claim the next free `best_kind`
+                    value and add the matching dispatch branch calling
+                    <slug>_damage(&<slug>s[best_idx], GUN_DAMAGE).
+
+Both loops must skip enemies whose area != game_state (see STEP 6).
+GUN_DAMAGE is 1 and a crucifaxe swing is 1, so "N hits to kill" == N health.
+
+
+##########################################################################
+ STEP 6 — PERSISTENCE: PICK THE RIGHT MODEL (THE SAVE BUDGET)
+##########################################################################
+>>> DECIDE THIS BEFORE WRITING world.c. IT IS EXPENSIVE TO GET WRONG. <<<
+
+Two models exist:
+
+  A. PER-ROOM (zombies, demon dogs, crates, pickups)
+     The array lives in world.c's RoomState and is swapped on every
+     world_leave/world_enter. Costs sizeof(array) x WORLD_NUM_ROOMS in the
+     on-card blob — a copy in EVERY room, even the empty ones.
+
+  B. GLOBAL + AREA-TAGGED (fat doors, tentacles, spiders)
+     ONE array in the WorldState's global section. Each instance carries a
+     `GameState area;` field and update/draw/weapon loops skip any instance
+     whose area != game_state. Costs sizeof(array) ONCE.
+
+Use B unless the enemy genuinely needs per-room isolation. The Spider was
+written with A first: MAX_SPIDERS=4 at ~88 bytes each cost 2848 bytes and left
+the blob's _Static_assert with 168 bytes of headroom — the next room added
+would have broken the build. Model B cost 484 bytes total. Check with:
+
+  mipsel-none-elf-nm.exe -S build\CMakeFiles\horror_game.dir\src\world.c.obj `
+      | Select-String " world$"
+
+The size is hex. The limit is SAVE_WORLD_MAX_BYTES (24192 with
+SAVE_WORLD_BLOCKS=3). Raising it costs one more memory-card block per save.
+
+For model B, wire world.c like this:
+  - add `<Slug> <slug>s[MAX_<PFX>S]; int <slug>_count;` to WorldState, beside
+    the tentacles, NOT to RoomState
+  - mirror it in snapshot_fatdoors() and restore it in world_install()
+  - call <slug>s_rest() in world_leave() next to zombies_rest()
+  - seed placements in world_enter()'s first-visit block (see STEP 7)
+
+<slug>s_rest() rebuilds every living instance at its spawn, asleep, at full
+health; deaths stick. Copy zombies_rest() — and remember to preserve the `area`
+field across the `*s = (<Slug>){0};` wipe.
+
+
+##########################################################################
+ STEP 7 — PLACEMENT AND THE REST OF THE WIRING
+##########################################################################
+  src/world.c        In world_enter()'s first-visit block:
+                         if (area == STATE_<ROOM>) <slug>_add(x, z, STATE_<ROOM>);
+                     TIMING: world_enter() runs AFTER the room's <room>_init(),
+                     so current_collision_room is already the new room and an
+                     add() that probes the mesh (ceiling height, floor) sees the
+                     right data. It runs BEFORE main.c assigns game_state =
+                     pending_area, so do NOT key anything in add() off
+                     game_state — pass the area in explicitly.
+
+  src/main.c         1. #include "<slug>.h"
+                     2. <slug>s_load_textures(); and <slug>s_init(); in the
+                        startup init block, beside zombies_*
+                     3. <slug>s_reset(); in reset_game()
+                     4. update_<slug>s(); at EVERY update_zombies() call site
+                        (there are 8, including the two camera-locked puzzle
+                        branches — enemies keep acting during a puzzle)
+
+  the room modules   draw_<slug>s(ctx); after draw_zombies(ctx), and
+                     <slug>s_set_texwindow(&tw); beside zombies_set_texwindow.
+                     Do this in EVERY room that draws enemies, not just the one
+                     with the placement — the area tag makes it free elsewhere
+                     and the enemy is then reusable without touching the room
+                     again. Today: conservatory, east_hall, hall_2f,
+                     kitchen_dining, master_bedroom.
+
+  CMakeLists.txt     Add src/<slug>.c.
+
+  disc.xml           Add the sprite TIMs, 8.3 uppercase names. Sprite TIMs sit
+                     in the ROOT (that is where ZSLEEP/ZALERT live), unlike room
+                     art which goes in <dir name="TEX">.
+
+  src/sound.h        Only if the enemy needs NEW sound effects — that means new
+                     .vag assets and a SND/ disc entry. The Spider reused
+                     SFX_AXEHIT (non-fatal hit) and SFX_DOGDIE (death) rather
+                     than shipping new audio; say so in a comment so it reads as
+                     a deliberate stand-in, not an oversight.
+
+
+##########################################################################
+ STEP 8 — BUILD
+##########################################################################
+  Set-Location "c:\Users\virtu\Documents\ps1game"
+  cmake --build build --target horror_game        # auto-runs elf2x
+  & "C:\Users\virtu\Documents\mkpsxiso-2.20-win64\mkpsxiso-2.20-win64\mkpsxiso.exe" `
+        -y disc.xml
+
+A new .c file means CMake must reconfigure; if ninja does not pick it up:
+  cmake -S . -B build -G Ninja
+
+Confirm the new TIMs were packed:
+  ... mkpsxiso.exe -y disc.xml | Select-String "spdr"
+
+
+##########################################################################
+ STEP 9 — VERIFY
+##########################################################################
+Code-level checks before handing over:
+  [ ] tools/VRAM_MAP.txt says "No unexpected pixel collisions" and both sprite
+      TIMs are listed at the slots you chose.
+  [ ] The _Static_assert in world.c compiled, and `nm -S` shows the blob still
+      has room for another room (~2560 bytes).
+  [ ] Every weapon loop and the update/draw loops skip `area != game_state`.
+  [ ] Arithmetic: recompute the sprite's world extent by hand from
+      cy = y + Y_OFFSET and cy +/- HALF_H, and check it against the mesh
+      heights you mined in STEP 2. Do this on paper — it is how both Spider
+      placement bugs would have been caught before the user saw them.
+  [ ] Any drop/fall animation completes before it lands: fall distance /
+      DROP_VEL frames must exceed the animation's frame count.
+
+In-game (needs an emulator; say so plainly if you have not run it):
+  [ ] The enemy sits flush against whatever it is attached to, in the room the
+      player actually sees — not the collision proxy.
+  [ ] It wakes at the intended distance. Wake radii read much smaller in-game
+      than they look in the numbers; expect to be asked to raise them.
+  [ ] Both textures alternate while it moves and the sprite faces the player.
+  [ ] Both weapons damage it, the health bar drains by the right fraction, and
+      it dies after exactly MAX_HEALTH hits.
+  [ ] Leave the room and come back: it is back at its spawn, at full health,
+      and anything killed stays dead. Save/load preserves that.
+  [ ] It does not grind on walls, walk through props, or stall in doorways.
+
+
+##########################################################################
+ THE MISTAKES THAT HAVE ACTUALLY BEEN MADE
+##########################################################################
+1. PROBING THE COLLISION PROXY FOR A HEIGHT THE PLAYER SEES. The proxy's wall
+   tops are a lower bound, not the ceiling. The Spider hung a body length below
+   the East Hall roof because the proxy stops at -375 and the drawn mesh is at
+   -520. Read the VISUAL .smx, and record the value with
+   collision_set_ceiling_y().
+
+2. APPLYING GROUND_FLOOR_Y TO A CEILING. That constant converts a floor SURFACE
+   into a standing ANCHOR; it is not a coordinate-space conversion. Subtracting
+   it from a wall top put the Spider 149 units up through the roof. Entity
+   coordinates and mesh coordinates are the same space.
+
+3. GIVING AN ENEMY A PER-ROOM ARRAY WITHOUT CHECKING THE SAVE BUDGET. Seven
+   empty copies of the array cost real memory-card space. Default to the global
+   area-tagged model (STEP 6).
+
+4. KEEPING THE ZOMBIE'S gte_nclip() BACKFACE CULL ON A SPRITE THAT ROLLS. Past
+   90 degrees the winding flips and the sprite vanishes entirely.
+
+5. ANCHORING A HANGING SPRITE BY ITS CENTRE OR ITS BOTTOM EDGE. Half in the
+   ceiling, or entirely inside it. Anchor the TOP edge.
+
+6. A TRANSITION ANIMATION LONGER THAN THE TRANSITION. The Spider's 18-frame
+   upright roll outlasted a 13-frame fall, so it landed still rotating. Tie the
+   frame count to the real distance and re-check it whenever that distance
+   changes.

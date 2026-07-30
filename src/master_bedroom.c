@@ -18,6 +18,7 @@
 #include "dresser.h"
 #include "save_point.h"
 #include "zombie.h"
+#include "spider.h"
 #include "item_pickup.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -239,6 +240,7 @@ void master_bedroom_spawn_east(void) {
 
 void master_bedroom_init(void) {
     master_bedroom_collision_init(&current_collision_room);
+    collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     master_bedroom_floor_zones_init();
 
     /* Default spawn: the east wing door (main.c overrides it for an arrival
@@ -464,8 +466,10 @@ void master_bedroom_draw(RenderContext *ctx) {
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
+        spiders_set_texwindow(&tw);
     }
     draw_zombies(ctx);
+    draw_spiders(ctx);
     item_pickups_draw(ctx);
 
     mbdoor_text(ctx, MBDOOR_W_X);

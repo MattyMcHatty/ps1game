@@ -180,6 +180,7 @@ static void pdoor_text(RenderContext *ctx) {
 
 void piano_room_init(void) {
     piano_room_collision_init(&current_collision_room);
+    collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     piano_room_floor_zones_init();
 
     /* Spawn just inside the east door (from reception), facing west (-X) into

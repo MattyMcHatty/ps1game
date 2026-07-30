@@ -31,6 +31,7 @@
 #include "door.h"
 #include "demondog.h"
 #include "zombie.h"
+#include "spider.h"
 #include "menu.h"
 #include "save_menu.h"
 #include "savegame.h"
@@ -112,6 +113,7 @@ void reset_game(RenderContext *ctx) {
     crates_reset();
     demon_dogs_reset();
     zombies_reset();
+    spiders_reset();
     fatdoors_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
@@ -140,6 +142,7 @@ static void update_current_area(GameState area) {
        collision, doors or weapons — just the puzzle's own update. */
     if (area == STATE_2F_HALL && trick_drawers_puzzle_active()) {
         update_zombies();       /* enemies keep chasing/attacking during the puzzle */
+        update_spiders();
         trick_drawers_update();
         return;
     }
@@ -147,6 +150,7 @@ static void update_current_area(GameState area) {
        the cook step burns the stove for three seconds while it owns the view. */
     if (area == STATE_KITCHEN_DINING && stove_puzzle_active()) {
         update_zombies();
+        update_spiders();
         kitchen_stove_update();
         stove_puzzle_update();
         update_particles();
@@ -161,6 +165,7 @@ static void update_current_area(GameState area) {
         apply_collision_kitchen_dining();
         apply_height();
         update_zombies();
+        update_spiders();
         sml_meds_update();
         kitchen_stove_update();
         if (!lock) stove_puzzle_update();   /* stove prompt + puzzle trigger */
@@ -222,6 +227,7 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
+        update_spiders();
         item_pickups_update();
         if (!lock && east_hall_wdoor_triggered()) {
             pending_area = STATE_RECEPTION;
@@ -236,6 +242,7 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         update_zombies();      /* the small-room zombie */
+        update_spiders();
         update_demon_dogs();   /* the three dogs at the far end of the hall */
         update_tentacles();    /* the two tentacles near the copper pot */
         sml_meds_update();     /* the small-room medipac */
@@ -258,6 +265,7 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         update_zombies();         /* the two hall zombies (enemies act even in menu) */
+        update_spiders();
         if (!lock) trick_drawers_update();   /* proximity "interact" prompt + puzzle trigger */
         if (!lock && hall_2f_stairs_triggered()) {
             /* Descend the stairs back to the conservatory (stair-climb transition). */
@@ -293,6 +301,7 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
+        update_spiders();
         item_pickups_update();  /* the box of rounds in front of the bed */
         if (!lock && master_bedroom_wdoor_triggered()) {
             bedroom_door_west = 1;
@@ -325,6 +334,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_demon_dogs();
         update_zombies();
+        update_spiders();
         crates_update();
         keys_update();
         sml_meds_update();
@@ -523,6 +533,8 @@ int main(int argc, const char **argv) {
     demon_dogs_init();
     zombies_load_textures();   /* LoadImage at startup only (see TEXTURING_NOTES) */
     zombies_init();            /* capture spawn defaults (none placed yet) */
+    spiders_load_textures();   /* same rule: sprite TIMs uploaded once, at startup */
+    spiders_init();
     weapons_init();
     sound_init();
     cdaudio_init();

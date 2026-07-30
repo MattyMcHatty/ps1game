@@ -2,6 +2,7 @@
 #include "world.h"
 #include "demondog.h"
 #include "zombie.h"
+#include "spider.h"
 #include "crate.h"
 #include "key.h"
 #include "sml_med.h"
@@ -40,6 +41,8 @@ typedef struct {
     int       fatdoor_count;
     Tentacle  tentacles[MAX_TENTACLES];   /* also global + area-tagged, like fatdoors */
     int       tentacle_count;
+    Spider    spiders[MAX_SPIDERS];       /* likewise: one global area-tagged array */
+    int       spider_count;
 } WorldState;
 
 /* The whole blob is written to the memory card frame by frame, so it must fit
@@ -55,6 +58,7 @@ static WorldState world;
    room the player is currently in. */
 extern DemonDog  demon_dogs[MAX_DEMON_DOGS];   extern int demon_dog_count;
 extern Zombie    zombies[MAX_ZOMBIES];         extern int zombie_count;
+extern Spider    spiders[MAX_SPIDERS];         extern int spider_count;
 extern Crate     crates[MAX_CRATES];           extern int crate_count;
 extern KeyPickup keys[MAX_KEYS];               extern int key_count;
 extern SmlMed    sml_meds[MAX_SML_MEDS];       extern int sml_med_count;
@@ -102,20 +106,26 @@ int   world_blob_size(void) { return (int)sizeof world; }
 
 void world_install(const void *blob) {
     memcpy(&world, blob, sizeof world);
-    /* The fatdoor + tentacle sections are global (not room-swapped), so restore
-       the live arrays immediately rather than waiting for a world_enter. */
+    /* The fatdoor/tentacle/spider sections are global (not room-swapped), so
+       restore the live arrays immediately rather than waiting for a
+       world_enter. */
     memcpy(fatdoors, world.fatdoors, sizeof fatdoors);
     fatdoor_count = world.fatdoor_count;
     memcpy(tentacles, world.tentacles, sizeof tentacles);
     tentacle_count = world.tentacle_count;
+    memcpy(spiders, world.spiders, sizeof spiders);
+    spider_count = world.spider_count;
 }
 
-/* Mirror the live (global) fatdoor + tentacle arrays into the blob's sections. */
+/* Mirror the live global (non-room-swapped) arrays — fat doors, tentacles,
+   spiders — into the blob's sections. */
 static void snapshot_fatdoors(void) {
     memcpy(world.fatdoors, fatdoors, sizeof fatdoors);
     world.fatdoor_count = fatdoor_count;
     memcpy(world.tentacles, tentacles, sizeof tentacles);
     world.tentacle_count = tentacle_count;
+    memcpy(world.spiders, spiders, sizeof spiders);
+    world.spider_count = spider_count;
 }
 
 void world_new_game(void) {
@@ -133,6 +143,7 @@ void world_leave(GameState area) {
        also snapshots via this function — puts every still-living enemy back at
        its spawn point, asleep, at full health. Deaths stick. */
     zombies_rest();
+    spiders_rest();
     demon_dogs_rest();
     snapshot(&world.rooms[room_index(area)]);
     snapshot_fatdoors();
@@ -221,6 +232,14 @@ void world_enter(GameState area) {
         if (area == STATE_MASTER_BEDROOM) {
             item_pickup_spawn_amount(0, -50, -200, PICKUP_ROUNDS,
                                      GRAVEOLVER_CAPACITY);
+        }
+
+        /* East Hall: a spider on the ceiling of the long east-west hall,
+           part way along it. spider_add reads the ceiling height out of the
+           room's collision mesh, which east_hall_init has already installed by
+           the time world_enter runs. */
+        if (area == STATE_EAST_HALL) {
+            spider_add(2132, 354, STATE_EAST_HALL);
         }
 
         if (area == STATE_2F_HALL) {

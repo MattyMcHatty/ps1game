@@ -500,6 +500,7 @@ static void edoor_text(RenderContext *ctx) {
 
 void reception_init(void) {
     reception_collision_init(&current_collision_room);
+    collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     reception_floor_zones_init();
 
     /* Spawn by the double door on the bottom floor, facing west (-X). */

@@ -43,6 +43,16 @@ typedef struct {
        the player, but a hitscan ignores them so you can fire across a low
        counter and hit enemies on the far side. */
     uint32_t shoot_over_mask;
+    /* Height of this room's DRAWN ceiling in mesh Y, or 0 for "derive it from
+       the wall tops". A room's collision data comes from a simplified proxy
+       mesh (*_mesh.smx), whose walls do not always reach as high as the ceiling
+       in the mesh actually rendered (*.smx): the East Hall's proxy walls stop at
+       -375 while its drawn ceiling is at -520. Wall tops are therefore only a
+       LOWER bound on the ceiling, and any room whose two meshes disagree must
+       state the real value here. Set via collision_set_ceiling_y() next to the
+       room's *_collision_init() call — the generated collision code does not
+       touch this field, so leaving it unset would inherit the previous room's. */
+    int32_t  ceiling_y;
 } CollisionRoom;
 
 extern CollisionRoom current_collision_room;
@@ -59,6 +69,29 @@ void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ram
    as the kitchen: collides against every wall in the current room, front faces
    only — the same scheme apply_collision_kitchen_dining() uses for the player. */
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius);
+
+/* Ceiling height above a world XZ point. When the room states its drawn ceiling
+   (CollisionRoom.ceiling_y) that value wins outright. Otherwise it is read out
+   of the mesh-generated collision data: a wall's y_min is the TOP edge of that
+   wall face, i.e. where the proxy mesh's walls stop. Returns the highest (most
+   negative) wall top among the walls within CEILING_PROBE_R of the point, so a
+   ceiling-dweller placed in a tall hall hangs from that hall's ceiling and not
+   from a low connector's soffit next door. Falls back to the room's highest
+   wall top, then to CEILING_DEFAULT_Y for a room with no usable Y data.
+
+   The result is the ceiling SURFACE in mesh/world Y — the same space sprite
+   vertices are drawn in, so a caller positions against it directly. Do NOT
+   subtract GROUND_FLOOR_Y: that conversion turns a FloorZone's surface into an
+   entity's standing anchor (see apply_ddog_height), which is a different job.
+   Subtracting it here put a ceiling-hanging spider a whole 149 units up through
+   the roof. */
+#define CEILING_PROBE_R   1200   /* how far around the point to look for walls */
+#define CEILING_DEFAULT_Y (-375)  /* typical room height above a y=0 floor */
+int32_t collision_ceiling_y(int32_t x, int32_t z);
+
+/* State the current room's drawn ceiling height (0 = derive it from the wall
+   tops). Call right after the room's *_collision_init(). */
+void    collision_set_ceiling_y(int32_t y);
 
 /* Hitscan line-of-sight test: returns 1 if the straight segment from
    (ax,ay,az) to (bx,by,bz) is blocked by a wall or solid prop — i.e. a wall

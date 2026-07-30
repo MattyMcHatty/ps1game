@@ -19,6 +19,7 @@
 #include "copper_pot.h"
 #include "fatdoor.h"
 #include "zombie.h"
+#include "spider.h"
 #include "demondog.h"
 #include "tentacle.h"
 #include "sml_med.h"
@@ -267,6 +268,7 @@ static void stairs_text(RenderContext *ctx) {
 
 void conservatory_init(void) {
     conservatory_collision_init(&current_collision_room);
+    collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     conservatory_floor_zones_init();
 
     /* Spawn just inside the east door (from reception), facing west (-X) into
@@ -508,10 +510,12 @@ void conservatory_draw(RenderContext *ctx) {
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
+        spiders_set_texwindow(&tw);
         demon_dogs_set_texwindow(&tw);
         tentacles_set_texwindow(&tw);
     }
     draw_zombies(ctx);
+    draw_spiders(ctx);
     draw_demon_dogs(ctx);
     draw_tentacles(ctx);
 

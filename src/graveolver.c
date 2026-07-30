@@ -14,6 +14,7 @@
 #include "collision.h"
 #include "demondog.h"
 #include "zombie.h"
+#include "spider.h"
 #include "tentacle.h"
 #include "vampire.h"
 #include "particles.h"
@@ -223,6 +224,14 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 1; best_idx = i;
         }
     }
+    for (i = 0; i < spider_count; i++) {
+        Spider *s = &spiders[i];
+        if (!s->active || s->state == SPD_DEAD || s->area != game_state) continue;
+        if (enemy_in_circle(s->x, s->y + SPD_Y_OFFSET, s->z, SPD_HALF_H, fx, fz, &depth) &&
+            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 4; best_idx = i;
+        }
+    }
     for (i = 0; i < tentacle_count; i++) {
         Tentacle *t = &tentacles[i];
         if (!t->active || t->health <= 0 || t->area != game_state) continue;
@@ -251,6 +260,8 @@ static void graveolver_fire(void) {
         damage_zombie(&zombies[best_idx]);
     } else if (best_kind == 3) {
         tentacle_shoot(&tentacles[best_idx]);
+    } else if (best_kind == 4) {
+        spider_damage(&spiders[best_idx], GUN_DAMAGE);   /* one round, one point */
     } else {
         vampire_health   -= GUN_DAMAGE;
         vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
