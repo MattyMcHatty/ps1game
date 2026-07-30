@@ -16,6 +16,7 @@
 #include "door.h"
 #include "texmgr.h"
 #include "dresser.h"
+#include "fatdoor.h"
 #include "concrete_props.h"
 #include "save_point.h"
 #include "zombie.h"
@@ -429,6 +430,11 @@ void east_hall_draw(RenderContext *ctx) {
     }
     draw_zombies(ctx);
     item_pickups_draw(ctx);
+
+    /* Breakable door filling the connector to the south offshoot room. Draws
+       with the room's active 128 texture window (its UVs are 0-127, so the
+       wrap is a no-op) and restores the view matrix before returning. */
+    fatdoors_draw(ctx);
 
     ehdoor_text(ctx);
 }

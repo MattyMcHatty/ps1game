@@ -172,12 +172,14 @@ void update_crucifaxe(void) {
                 crate_hit_this_swing = 1;
         }
 
-        /* Breakable door smash — only in areas that have fat doors. The doors
-           are a single global array (fatdoors_try_smash already skips doors whose
-           area != game_state), but menu/delivery have none, so gate here too. */
-        if ((game_state == STATE_KITCHEN_DINING || game_state == STATE_RECEPTION ||
-             game_state == STATE_CONSERVATORY || game_state == STATE_2F_HALL) &&
-            swing_timer <= SWING_DURATION && !fatdoor_hit_this_swing) {
+        /* Breakable door smash. The doors are a single global array and
+           fatdoors_try_smash already skips every door whose area != game_state,
+           so areas with no doors (menu/delivery) fall out of its loop for free.
+           There used to be an explicit allowlist of door-bearing areas here as
+           well; it was a second source of truth that had to be hand-updated per
+           room, and the East Hall's door was dead on arrival because it was
+           missed. Don't reintroduce it — let the area tag be the only gate. */
+        if (swing_timer <= SWING_DURATION && !fatdoor_hit_this_swing) {
             if (fatdoors_try_smash())
                 fatdoor_hit_this_swing = 1;
         }

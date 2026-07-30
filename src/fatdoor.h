@@ -9,7 +9,8 @@
    (instanced SMD via smdSortModel) and smash like crates (hit with the
    crucifaxe). While intact they block the doorway; once smashed the gap opens. */
 
-#define MAX_FATDOORS         8
+#define MAX_FATDOORS        10   /* 9 placed; the array is part of the save blob,
+                                    so raising this grows every save file */
 #define FATDOOR_MAX_HEALTH   2     /* hits to destroy a door (no health bar) */
 #define FATDOOR_SMASH_RANGE  300
 #define FATDOOR_PUSH_MARGIN   55   /* keep the camera well clear of the thin door

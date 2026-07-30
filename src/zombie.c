@@ -198,6 +198,24 @@ static const NavNode hall_nav_nodes[] = {
     { -2461,  -6, 1, 2,  -2461, 148,  -2461,-200 },  /* west hall <-> east corridor (Corridor Turn) */
 };
 
+/* East Hall: two zones split on the fatdoor's own line. The main hall is the
+   long east-west slab z[21,721]; the offshoot room and everything south of it
+   is the second. The 54-deep connector between them (x[900,1200], z[-33,21])
+   must be covered or a zombie standing in the doorway gets zone -1, so the two
+   rectangles meet at z=-6 — the door centre — and each swallows half of it.
+   Putting the seam there also satisfies the rule that a node's centre must sit
+   ON the boundary it bridges (see the 2F hall's "Corridor Turn" note above).
+   Zone 0 over-covers the walled-off south-east corner; that is harmless — zones
+   must leave no GAP over walkable floor, but may cover unreachable space. */
+static const NavZone east_hall_nav_zones[] = {
+    {   31, 1290, -992,  -6 },  /* 0: south offshoot room, behind the fatdoor */
+    {   19, 2671,   -6, 721 },  /* 1: main east-west hall + the doorway       */
+};
+static const NavNode east_hall_nav_nodes[] = {
+    /* door x   z   za zb   za-clearance   zb-clearance  */
+    { 1050,   -6, 0, 1,  1050, -176,  1050, 164 },  /* offshoot <-> hall (fatdoor) */
+};
+
 /* Active tables, selected per-area by select_nav(). Default: kitchen. */
 static const NavZone *nav_zones      = kitchen_nav_zones;
 static int            nav_zone_count = 4;
@@ -211,6 +229,9 @@ static void select_nav(void) {
     } else if (game_state == STATE_2F_HALL) {
         nav_zones = hall_nav_zones; nav_zone_count = 3;
         nav_nodes = hall_nav_nodes; nav_node_count = 2;
+    } else if (game_state == STATE_EAST_HALL) {
+        nav_zones = east_hall_nav_zones; nav_zone_count = 2;
+        nav_nodes = east_hall_nav_nodes; nav_node_count = 1;
     } else {
         nav_zones = kitchen_nav_zones; nav_zone_count = 4;
         nav_nodes = kitchen_nav_nodes; nav_node_count = 3;
