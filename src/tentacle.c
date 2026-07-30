@@ -183,7 +183,7 @@ void update_tentacles(void) {
         /* Lash out when the player is too close (and not on cooldown). */
         if (!game_over && dist < TENT_DAMAGE_RANGE && t->damage_timer == 0) {
             t->damage_timer = TENT_DAMAGE_COOLDOWN;
-            player_health  -= DDOG_DAMAGE_AMOUNT;
+            player_hurt(DDOG_DAMAGE_AMOUNT);
             player_knockback(t->x, t->z, TENT_KNOCKBACK);
             sound_play(SFX_HURT);
             if (player_health <= 0) {

@@ -6,16 +6,35 @@
 #include "btn_glyph.h"
 #include "memcard.h"
 #include "savegame.h"
+#include "debug_opts.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
-/* ---- Debug level-select menu (opened with Select on the title screen) ---- */
+/* ---- Debug menu (opened with Select on the title screen) -------------------
+   Two columns side by side: rooms to jump to on the left, cheat toggles on the
+   right (see debug_opts.h). Left/Right switches column and each keeps its own
+   cursor, so moving across never loses your place in the room list. */
+
+enum { DBG_COL_LEVELS = 0, DBG_COL_OPTS };
 
 static int debug_menu_open   = 0;
-static int debug_menu_cursor = 0;
+static int debug_menu_cursor = 0;    /* row in the left (level) column  */
+static int debug_opt_cursor  = 0;    /* row in the right (option) column */
+static int debug_col         = DBG_COL_LEVELS;
 static int level_select_fnt  = -1;
-static int debug_fnt         = -1;   /* full-screen level select, top-left */
+static int debug_fnt         = -1;   /* left column, top-left  */
+
+/* The right column is drawn with btn_prompt_draw (FntSort straight into the OT)
+   rather than a font stream of its own. FntOpen is capped at EIGHT streams
+   SDK-wide and does not bounds-check: the project already opens exactly eight
+   (gameover, notify, items, weapons, menu, level_select, load_list, debug), so a
+   ninth silently writes a stream struct past the end of its array and corrupts
+   whatever bss follows. Do not add another FntOpen without freeing one first. */
+#define DBG_OPT_X       144   /* left edge of the options column   */
+#define DBG_OPT_BOX_X   152   /* the [ ] checkbox                  */
+#define DBG_OPT_NAME_X  184   /* the label                         */
+#define DBG_OPT_TOP_Y    24   /* first row: below "OPTIONS" + blank */
 
 /* ---- Start menu (opened with Start): New Game / Load Game ------------------
    Load Game walks card slot -> save file, reads the chosen SaveData, stages it
@@ -330,21 +349,37 @@ void draw_title(RenderContext *ctx) {
     }
 
     if (debug_menu_open) {
-        int k;
-        /* Full-screen list from the top-left (its own top-left font stream). */
+        int k, rows;
+        /* Left column: rooms. The cursor only shows while this column is active,
+           so it is always clear which one Cross will act on. */
         FntPrint(debug_fnt, "LEVEL SELECT\n\n");
-        for (k = 0; k < LEVEL_SELECT_COUNT; k++) {
-            if (k == debug_menu_cursor)
-                FntPrint(debug_fnt, "* %s\n", level_names[k]);
-            else
-                FntPrint(debug_fnt, "  %s\n", level_names[k]);
-        }
+        for (k = 0; k < LEVEL_SELECT_COUNT; k++)
+            FntPrint(debug_fnt, "%s %s\n",
+                     (debug_col == DBG_COL_LEVELS && k == debug_menu_cursor)
+                         ? "*" : " ",
+                     level_names[k]);
         FntFlush(debug_fnt);
-        /* Footer with the coloured Cross button glyph, below the list (the Fnt
-           streams can't hold coloured glyphs, so footers are drawn separately).
-           List is 2 + LEVEL_SELECT_COUNT lines of 8px from y=8. */
-        btn_prompt_draw(ctx, 8, 8 + (2 + LEVEL_SELECT_COUNT + 1) * 8,
-                        BTN_CROSS ":LOAD  SEL:BACK", 1);
+
+        /* Right column: cheat toggles, as "*[X] NAME" — cursor, then a checkbox
+           carrying the on/off state. Drawn piece by piece at fixed columns (no
+           string building, and no font stream — see the cap noted above); the
+           8px advance matches the left column's line height. */
+        btn_prompt_draw(ctx, DBG_OPT_X, 8, "OPTIONS", 1);
+        for (k = 0; k < DEBUG_OPT_COUNT; k++) {
+            int oy = DBG_OPT_TOP_Y + k * 8;
+            if (debug_col == DBG_COL_OPTS && k == debug_opt_cursor)
+                btn_prompt_draw(ctx, DBG_OPT_X, oy, "*", 1);
+            btn_prompt_draw(ctx, DBG_OPT_BOX_X,  oy, debug_opts[k] ? "[X]" : "[ ]", 1);
+            btn_prompt_draw(ctx, DBG_OPT_NAME_X, oy, debug_opt_names[k], 1);
+        }
+
+        /* Footer with the coloured Cross button glyph, below the taller of the
+           two lists (the Fnt streams can't hold coloured glyphs, so footers are
+           drawn separately). Each list is 2 + entries lines of 8px from y=8. */
+        rows = (LEVEL_SELECT_COUNT > DEBUG_OPT_COUNT)
+                   ? LEVEL_SELECT_COUNT : DEBUG_OPT_COUNT;
+        btn_prompt_draw(ctx, 8, 8 + (2 + rows + 1) * 8,
+                        BTN_CROSS ":LOAD/TOGGLE  SEL:BACK", 1);
     } else if (tmenu == TM_MAIN) {
         FntPrint(level_select_fnt, "%s NEW GAME\n%s LOAD GAME\n",
                  tmenu_cursor == 0 ? "*" : " ",
@@ -386,8 +421,11 @@ void title_init(void) {
     level_select_fnt = FntOpen(96, 120, 160, 96, 0, 256);
     /* Wider window for the save-file list (32-char titles + cursor). */
     load_list_fnt = FntOpen(28, 118, 264, 112, 0, 512);
-    /* Debug level-select takes over the whole screen from the top-left. */
-    debug_fnt = FntOpen(8, 8, 304, 224, 0, 256);
+    /* Debug menu's LEFT column only — 128px is 16 characters, and "* MASTER
+       BEDROOM" is exactly 16. The right column needs no stream (see the eight-
+       stream cap documented at the top of this file). This is the eighth and
+       last FntOpen in the project. */
+    debug_fnt = FntOpen(8, 8, 128, 224, 0, 256);
 }
 
 void update_title(void) {
@@ -413,19 +451,40 @@ void update_title(void) {
     }
 
     if (debug_menu_open) {
-        /* Level select: D-pad moves the cursor, X loads, Select backs out. */
-        if (pressed & PAD_UP)
-            debug_menu_cursor = (debug_menu_cursor + LEVEL_SELECT_COUNT - 1) % LEVEL_SELECT_COUNT;
-        if (pressed & PAD_DOWN)
-            debug_menu_cursor = (debug_menu_cursor + 1) % LEVEL_SELECT_COUNT;
+        /* Up/Down moves within the active column, Left/Right switches column,
+           X loads (levels) or flips the toggle (options), Select backs out. */
+        if (pressed & (PAD_LEFT | PAD_RIGHT))
+            debug_col = (debug_col == DBG_COL_LEVELS) ? DBG_COL_OPTS : DBG_COL_LEVELS;
+
+        if (debug_col == DBG_COL_LEVELS) {
+            if (pressed & PAD_UP)
+                debug_menu_cursor = (debug_menu_cursor + LEVEL_SELECT_COUNT - 1) % LEVEL_SELECT_COUNT;
+            if (pressed & PAD_DOWN)
+                debug_menu_cursor = (debug_menu_cursor + 1) % LEVEL_SELECT_COUNT;
+        } else {
+            if (pressed & PAD_UP)
+                debug_opt_cursor = (debug_opt_cursor + DEBUG_OPT_COUNT - 1) % DEBUG_OPT_COUNT;
+            if (pressed & PAD_DOWN)
+                debug_opt_cursor = (debug_opt_cursor + 1) % DEBUG_OPT_COUNT;
+        }
+
         if (pressed & PAD_SELECT)
             debug_menu_open = 0;
         if (pressed & PAD_CROSS) {
-            debug_menu_open = 0;
-            GameState target = level_states[debug_menu_cursor];
-            /* STATE_LOADING entries (kitchen, reception) need the area to switch to. */
-            if (target == STATE_LOADING) pending_area = level_pending[debug_menu_cursor];
-            game_state = target;
+            if (debug_col == DBG_COL_OPTS) {
+                /* Toggling leaves the menu open so several can be set in a row. */
+                debug_opts[debug_opt_cursor] = !debug_opts[debug_opt_cursor];
+            } else {
+                debug_menu_open = 0;
+                GameState target = level_states[debug_menu_cursor];
+                /* STATE_LOADING entries (kitchen, reception) need the area to switch to. */
+                if (target == STATE_LOADING) pending_area = level_pending[debug_menu_cursor];
+                /* The inventory cheats can't be handed out yet — the destination
+                   room hasn't initialised. Arm them; main.c applies them once it
+                   has, alongside a staged save's player state. */
+                debug_opts_arm_grants();
+                game_state = target;
+            }
         }
         return;
     }

@@ -49,6 +49,13 @@ typedef struct {
 
 extern PickupEntry pickup_log[PICKUP_MSG_COUNT];
 
+/* Apply enemy damage. The single choke point for every attack in the game, so
+   the INFINITE LIFE debug toggle only has to be honoured here. Attacks still
+   land in every other respect — lunge, knockback, hurt cue — the health loss is
+   what gets suppressed. Callers keep their own death handling; with the toggle
+   on, health never drops, so it simply never triggers. */
+void player_hurt(int32_t amount);
+
 void show_pickup_msg(const char *item_name);
 void show_pickup_msg_raw(const char *text);   /* verbatim log line, no prefix */
 void draw_hud(RenderContext *ctx);

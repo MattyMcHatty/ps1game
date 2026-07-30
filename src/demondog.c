@@ -209,7 +209,7 @@ void update_demon_dogs(void) {
             (dy < 0 ? -dy : dy) < DDOG_CATCH_DIST && d->damage_timer == 0) {
             d->damage_timer = DDOG_DAMAGE_COOLDOWN;
             d->lunging      = 1;   /* latch into the player's face */
-            player_health  -= DDOG_DAMAGE_AMOUNT;
+            player_hurt(DDOG_DAMAGE_AMOUNT);
             if (hurt_sfx_cooldown == 0) {
                 sound_play(SFX_HURT);
                 hurt_sfx_cooldown = 30;

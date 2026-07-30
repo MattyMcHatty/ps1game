@@ -34,6 +34,7 @@
 #include "menu.h"
 #include "save_menu.h"
 #include "savegame.h"
+#include "debug_opts.h"
 #include "kitchen_dining.h"
 #include "reception.h"
 #include "piano_room.h"
@@ -702,6 +703,10 @@ int main(int argc, const char **argv) {
                otherwise). Must run after the area init above, which sets its
                own spawn position. */
             savegame_apply_pending();
+            /* Same timing requirement, so same place: hand out the debug menu's
+               inventory cheats now the room is up. Latched, so this fires only on
+               the jump that armed it, not on every door transition. */
+            debug_opts_apply_grants();
         } else if (game_state == STATE_DOOR_ANIM) {
             /* RE-style door transition: a black screen with the door swinging
                open, then a fade to black. Draws nothing of the live room — when
@@ -767,8 +772,12 @@ int main(int argc, const char **argv) {
                STATE_LOADING pass), so apply the staged save here, after
                reset_game's defaults. STATE_LOADING targets apply theirs at the
                end of the loading branch instead; no-op when not loading. */
-            if (game_state != STATE_LOADING)
+            if (game_state != STATE_LOADING) {
                 savegame_apply_pending();
+                /* Delivery is entered directly, so its debug grants land here —
+                   after reset_game() above, which clears the inventory. */
+                debug_opts_apply_grants();
+            }
             cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
         }
         if (prev_state != STATE_TITLE && game_state == STATE_TITLE) {

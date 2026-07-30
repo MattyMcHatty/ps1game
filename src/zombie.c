@@ -341,7 +341,7 @@ void update_zombies(void) {
             (dy < 0 ? -dy : dy) < ZMB_CATCH_DIST && d->damage_timer == 0) {
             d->damage_timer = ZMB_DAMAGE_COOLDOWN;
             d->lunging      = 1;   /* latch into the player's face */
-            player_health  -= ZMB_DAMAGE_AMOUNT;
+            player_hurt(ZMB_DAMAGE_AMOUNT);
             if (hurt_sfx_cooldown == 0) {
                 sound_play(SFX_HURT);
                 hurt_sfx_cooldown = 30;

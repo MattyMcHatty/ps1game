@@ -44,7 +44,7 @@ void update_vampire(void) {
     if (!game_over && dist3d < CATCH_DIST) {
         if (++damage_timer >= DAMAGE_INTERVAL) {
             damage_timer = 0;
-            player_health -= 1;
+            player_hurt(1);
             if (player_health <= 0) {
                 player_health = 0;
                 game_over   = 1;

@@ -10,6 +10,7 @@
 #include "weapon.h"      /* weapon_switching */
 #include "sound.h"       /* footstep SFX */
 #include "title.h"
+#include "debug_opts.h"
 
 int32_t cam_x   = 0;
 int32_t cam_y   = 0;
@@ -130,9 +131,13 @@ void update_camera(void) {
 
     if ((btn & PAD_CROSS) && !sprint_cooldown && sprint_stamina > 0 && sprint_dir_ok) {
         sprinting = 1;
-        sprint_stamina--;
-        if (sprint_stamina == 0)
-            sprint_cooldown = 1;   /* lock sprint — bar exhausted */
+        /* INFINITE STAMINA just skips the drain: the bar stays full, so it never
+           hits 0 and the cooldown lock below can never arm. */
+        if (!debug_opts[DBG_INFINITE_STAMINA]) {
+            sprint_stamina--;
+            if (sprint_stamina == 0)
+                sprint_cooldown = 1;   /* lock sprint — bar exhausted */
+        }
     } else {
         sprint_regen_tick++;
         if (sprint_regen_tick >= 2) {

@@ -4,6 +4,7 @@
 #include "player.h"
 #include "camera.h"
 #include "title.h"
+#include "debug_opts.h"
 
 int32_t player_health = MAX_HEALTH;
 int     game_over     = 0;
@@ -18,6 +19,11 @@ int     player_save_count = 0;   /* bumps on every successful save, any slot/car
 WeaponType current_weapon = WEAPON_CRUCIFAXE;
 
 PickupEntry pickup_log[PICKUP_MSG_COUNT] = {{{""},0},{{""},0},{{""},0}};
+
+void player_hurt(int32_t amount) {
+    if (debug_opts[DBG_INFINITE_LIFE]) return;
+    player_health -= amount;
+}
 
 void show_pickup_msg(const char *item_name) {
     const char *prefix = "Picked up ";

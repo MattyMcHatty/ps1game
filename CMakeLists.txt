@@ -73,6 +73,7 @@ add_executable(horror_game
     src/world.c
     src/fatdoor.c
     src/door_anim.c
+    src/debug_opts.c
 )
 
 target_include_directories(horror_game PRIVATE
