@@ -18,6 +18,7 @@
 #include "dresser.h"
 #include "save_point.h"
 #include "zombie.h"
+#include "item_pickup.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -465,6 +466,7 @@ void master_bedroom_draw(RenderContext *ctx) {
         zombies_set_texwindow(&tw);
     }
     draw_zombies(ctx);
+    item_pickups_draw(ctx);
 
     mbdoor_text(ctx, MBDOOR_W_X);
     mbdoor_text(ctx, MBDOOR_E_X);

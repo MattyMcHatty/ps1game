@@ -6,6 +6,7 @@
 #include "key.h"
 #include "sml_med.h"
 #include "item_pickup.h"
+#include "player.h"      /* GRAVEOLVER_CAPACITY */
 #include "door.h"
 #include "fatdoor.h"
 #include "tentacle.h"
@@ -204,6 +205,21 @@ void world_enter(GameState area) {
                 demon_dogs[di].active = 1;
             }
             demon_dog_count = 3;
+        }
+
+        /* Master Bedroom: a box of Standard Rounds in the middle of the bed
+           chamber (x[-500,500]) in front of the bed — the bed's front edge sits
+           behind the z=-379 wall, so this sits clear of it in open floor. One
+           cylinder's worth (GRAVEOLVER_CAPACITY), stated explicitly rather than
+           left to the ROUNDS_PER_PICKUP default.
+           Y hovers it just off the floor rather than at chest height like the
+           reception pair: the room's floor is world y=0, item_pickup_spawn
+           raises the anchor 50, and the sprite is drawn centred with a ~70-unit
+           half-height plus an 18-unit bob — so a centre at -100 keeps its bottom
+           edge between 12 and 48 above the floorboards through the whole bob. */
+        if (area == STATE_MASTER_BEDROOM) {
+            item_pickup_spawn_amount(0, -50, -200, PICKUP_ROUNDS,
+                                     GRAVEOLVER_CAPACITY);
         }
 
         if (area == STATE_2F_HALL) {

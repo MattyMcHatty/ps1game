@@ -258,6 +258,7 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
+        item_pickups_update();  /* the box of rounds in front of the bed */
         if (!lock && master_bedroom_wdoor_triggered()) {
             bedroom_door_west = 1;
             pending_area = STATE_2F_HALL;

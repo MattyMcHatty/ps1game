@@ -30,6 +30,7 @@ typedef struct {
     int32_t    bob_angle;
     int32_t    active;
     PickupKind kind;
+    int32_t    amount;   /* rounds granted (PICKUP_ROUNDS only; unused otherwise) */
 } ItemPickup;
 
 extern ItemPickup item_pickups[MAX_ITEM_PICKUPS];
@@ -39,8 +40,13 @@ extern int        item_pickup_count;
    only safe before the main render loop begins). */
 void item_pickups_load_textures(void);
 
-/* Place a collectible into the live array. Returns its index, or -1 if full. */
+/* Place a collectible into the live array. Returns its index, or -1 if full.
+   The plain form grants the kind's default (ROUNDS_PER_PICKUP for rounds); the
+   _amount form sets how many rounds this particular box carries, so a room can
+   hand out a token pickup (a single reload) without changing every other one. */
 int  item_pickup_spawn(int32_t x, int32_t y, int32_t z, PickupKind kind);
+int  item_pickup_spawn_amount(int32_t x, int32_t y, int32_t z, PickupKind kind,
+                              int32_t amount);
 
 void item_pickups_update(void);
 void item_pickups_draw(RenderContext *ctx);

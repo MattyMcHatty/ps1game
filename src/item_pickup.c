@@ -91,7 +91,8 @@ void item_pickups_reset(void) {
     current_weapon = WEAPON_CRUCIFAXE;
 }
 
-int item_pickup_spawn(int32_t x, int32_t y, int32_t z, PickupKind kind) {
+int item_pickup_spawn_amount(int32_t x, int32_t y, int32_t z, PickupKind kind,
+                             int32_t amount) {
     int i;
     for (i = 0; i < MAX_ITEM_PICKUPS; i++) {
         if (!item_pickups[i].active) {
@@ -100,6 +101,7 @@ int item_pickup_spawn(int32_t x, int32_t y, int32_t z, PickupKind kind) {
             item_pickups[i].z         = z;
             item_pickups[i].bob_angle = 0;
             item_pickups[i].kind      = kind;
+            item_pickups[i].amount    = amount;
             item_pickups[i].active    = 1;
             if (i >= item_pickup_count) item_pickup_count = i + 1;
             return i;
@@ -108,13 +110,17 @@ int item_pickup_spawn(int32_t x, int32_t y, int32_t z, PickupKind kind) {
     return -1;
 }
 
+int item_pickup_spawn(int32_t x, int32_t y, int32_t z, PickupKind kind) {
+    return item_pickup_spawn_amount(x, y, z, kind, ROUNDS_PER_PICKUP);
+}
+
 static void collect(ItemPickup *p) {
     switch (p->kind) {
         case PICKUP_GRAVEOLVER:
             player_weapons |= (1 << WEAPON_GRAVEOLVER);
             current_weapon  = WEAPON_GRAVEOLVER;   /* auto-equip on pickup */
             break;
-        case PICKUP_ROUNDS:     player_rounds  += ROUNDS_PER_PICKUP;        break;
+        case PICKUP_ROUNDS:     player_rounds  += p->amount;                break;
         default: break;
     }
     sound_play(SFX_PICKUP);

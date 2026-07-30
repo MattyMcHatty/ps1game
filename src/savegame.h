@@ -9,9 +9,10 @@
    SaveData frame later. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   6             /* v6: chain generalised to N blocks (the 7th
-                                        room outgrew two); v5: tentacle array;
-                                        v4: item inventory; v3: two blocks */
+#define SAVE_VERSION   7             /* v7: ItemPickup carries a per-pickup rounds
+                                        amount; v6: chain generalised to N blocks
+                                        (the 7th room outgrew two); v5: tentacle
+                                        array; v4: item inventory; v3: two blocks */
 #define SAVE_MAX_SLOTS 15            /* blocks 1..15 are usable for saves */
 
 /* Largest world blob the card layout can hold: the tail of the first block

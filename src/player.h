@@ -35,7 +35,8 @@ extern int graveolver_loaded;  /* rounds currently in the Grave-olver cylinder (
 extern int player_save_count;  /* total successful saves this playthrough (any slot/card) */
 extern WeaponType current_weapon;  /* the equipped weapon; L2 cycles owned ones */
 
-#define ROUNDS_PER_PICKUP  100  /* rounds granted by one Standard Rounds pickup */
+#define ROUNDS_PER_PICKUP    6  /* rounds granted by one Standard Rounds pickup —
+                                   one cylinder's worth (see GRAVEOLVER_CAPACITY) */
 #define GRAVEOLVER_CAPACITY  6  /* rounds the Grave-olver cylinder holds at once */
 
 #define PICKUP_MSG_DURATION 120  /* frames (~2 seconds at 60fps) */
