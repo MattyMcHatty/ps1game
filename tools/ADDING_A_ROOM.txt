@@ -1,0 +1,411 @@
+PS1 HORROR GAME — ADDING A NEW ROOM: THE COMPLETE RUNBOOK
+==========================================================
+This is the authoritative, step-by-step procedure for adding a playable room.
+It was written immediately after the Master Bedroom was added (July 2026) and
+records every step that was actually performed, in order, with real commands.
+
+Companion docs (read them for the *why*; this file is the *how*):
+  tools/MESH_CONVERSION_NOTES.txt   - the two mesh pipelines and their gotchas
+  tools/TEXTURING_NOTES.txt         - VRAM rules, LoadImage timing, tex windows
+  tools/AREAS_AND_WORLD_NOTES.txt   - the area/state model and world.c
+  tools/VRAM_MAP.txt                - generated; who owns which VRAM slot
+  rebuild commands.txt              - authoritative build steps
+
+
+##########################################################################
+ HOW TO KICK THIS OFF (what the user provides)
+##########################################################################
+To start a room addition, the user only needs to say three things:
+
+  1. "Follow tools/ADDING_A_ROOM.txt"
+  2. The .smx filenames, e.g. visual  = assets/Master Bedroom.smx
+                              collision = assets/Master Bedroom mesh.smx
+     (Convention: "<Name>.smx" is the visual mesh, "<Name> mesh.smx" is the
+      collision mesh. Both live in assets/.)
+  3. Which existing room(s) it connects to, and how many doors,
+     e.g. "two doors, both from the 2F Hall's corridor".
+
+Everything else — the room's slug, VRAM slot choice, door coordinates, spawn
+points, floor zones — is DERIVED from the meshes by the steps below. Do not ask
+the user for coordinates; extract them from the .smx (STEP 2).
+
+Naming: pick a lowercase C slug from the room name, e.g. "Master Bedroom" ->
+master_bedroom. It must be a valid C identifier — if the room name starts with a
+digit ("2f Hall"), reorder it (hall_2f). The slug is used for:
+  src/<slug>.c/.h, src/<slug>_mesh_collision.c/.h, src/<slug>_tex_map.h,
+  gen_<slug>_tex_map.py, <slug>_collision_init(), STATE_<SLUG_UPPER>,
+  assets/<slug>.smd, and an 8.3 disc name (MSTRBED.SMD).
+
+
+##########################################################################
+ STEP 0 — VERIFY THE EXPORTS ARE FRESH
+##########################################################################
+Exports land in the wrong folder often enough that this is step zero.
+
+  Get-ChildItem "assets\<Name>.smx","assets\<Name> mesh.smx" |
+      Select-Object Name,Length,LastWriteTime
+
+`git status` should show them as new/modified, and the timestamps should match
+when the user says they exported. If a .smd already exists, the .smx must be
+NEWER than it.
+
+NOTE ON PYTHON: the `python` on PATH is the Windows Store stub and fails. Use
+the real interpreter explicitly:
+    C:\Users\virtu\AppData\Local\Python\bin\python.exe
+Also `Set-Location "c:\Users\virtu\Documents\ps1game"` first — the shell does not
+reliably start in the project root.
+
+
+##########################################################################
+ STEP 1 — READ THE SOURCE ROOM YOU ARE COPYING
+##########################################################################
+Every textured room is the same ~500-line module. Copy the most recent one:
+
+  src/master_bedroom.c   <- newest (2 doors, XY-plane signs) — best template
+  src/hall_2f.c          <- L-shaped, a locked door, a stairwell
+  src/conservatory.c     <- has enemies/props/copper pot
+
+The SMD draw loop (draw_<slug>_smd) is copied VERBATIM apart from the
+identifiers. Do not redesign it: the culling, the flat-poly OT sorting, the fog
+maths and the packet-overflow guards are all load-bearing.
+
+
+##########################################################################
+ STEP 2 — MINE THE MESHES FOR COORDINATES
+##########################################################################
+You need: the room's bounds, every door's centre, and which side of each door
+the player stands on. Get them from the .smx, not by guessing.
+
+2a. Dump per-texture poly bounds from BOTH the new room and the room(s) it
+    connects to. Use a throwaway script in the scratchpad (this one worked):
+
+      import xml.etree.ElementTree as ET
+      r=ET.parse(f).getroot()
+      tex=[t.get('file') for t in r.find('textures').findall('texture')]
+      V=[(float(v.get('x')),float(v.get('y')),float(v.get('z')))
+         for v in r.find('vertices').findall('v')]
+      for p in r.find('primitives').findall('poly'):
+          n=p.get('texture')
+          idx=[int(p.get('v%d'%k)) for k in range(4) if p.get('v%d'%k) is not None]
+          # group by tex[int(n)], print min/max x,y,z per poly
+
+    Doors are the polys textured `wd_dr` (single wooden door), `double_door` or
+    `inr_dbl_dr`. A door in the XY plane (fixed Z) has all its verts at one Z —
+    that Z is the wall, and the poly's x-midpoint is the door centre. A door in
+    the YZ plane (fixed X) is the mirror case.
+
+2b. Read the CONNECTING room's collision .c to find which side of the door wall
+    the player walks on: locate the wall whose x1/z1..x2/z2 matches the door's
+    wall line and read its inward normal (nx/nz). A wall with nz = +4095 faces
+    +Z, so the walkable side is +Z, so the player approaches the door from +Z.
+
+2c. Pair the doors up. Rooms have INDEPENDENT coordinate spaces, but the meshes
+    are usually modelled in a shared world, so check for a constant offset:
+    for the Master Bedroom, MB_x ~= hall_x + 1169 mapped the hall corridor's
+    full x range onto the bedroom's bounds, which made the east<->east /
+    west<->west pairing unambiguous. If no offset fits, pair them by their
+    left-to-right order and say so in a comment.
+
+COORDINATE CONVENTIONS (memorise these):
+  east = +X, west = -X, north = +Z, south = -Z
+  -Y is UP. Floors are at y=0; ceilings are negative.
+  cam_rot: 0 = facing +Z, 1024 = +X, 2048 = -Z, 3072 = -X
+  Standing eye height = floor_y - 189 in the y=0 interior rooms
+    (reception/conservatory/hall_2f/master_bedroom). The kitchen uses -149.
+    GROUND_FLOOR_Y is 149; apply_height() settles cam_y anyway.
+
+
+##########################################################################
+ STEP 3 — TEXTURES
+##########################################################################
+3a. List the mesh's textures:
+      Set-Location "c:\Users\virtu\Documents\ps1game\assets"
+      # or read the <textures> block of the .smx directly
+    Every name must resolve to an engine VRAM slot. Most will already exist.
+
+3b. For each BRAND-NEW texture, find a slot. **THERE ARE NO FREE PAGE-ALIGNED
+    Voff-0 SLOTS LEFT.** Confirm this yourself against tools/VRAM_MAP.txt
+    rather than trusting it: a usable slot needs x a multiple of 64, y in
+    {0,256} (so Voff = y%256 is 0), and 128 free rows. Every such page start is
+    taken. Anything at Voff >= 128 is window-sensitive and will sample the wrong
+    art under the room's 128 texture window — do not put mesh art there.
+
+    So a new texture must TIME-SHARE a slot. Pick one that is:
+      - not used by the new room, AND
+      - already time-shared, so it needs no NEW restore code.
+    Good candidates (all delivery-only, Voff 0, already streamed over by the
+    conservatory): brick_wall/grss (x768 y0), gravel/trees (x640 y0),
+    rusty_fence/upstairs (x704 y0), double_door/con_tile (x832 y0).
+    `bed` took the brick_wall slot: delivery_restore_textures() puts brick_wall
+    back on delivery entry and conservatory_upload_textures() puts grss back on
+    conservatory entry, so nothing new was needed.
+
+    If you must take a slot that is NOT already shared, you owe every room that
+    needs the original a re-upload in its entry-time restore list
+    (delivery_restore_textures / kitchen_restore_textures / the room's own
+    *_upload_textures).
+
+3c. CLUT slot: 8bpp needs 256 words, 4bpp needs 16, one line tall, in the
+    scratch area y >= 480. Check the "CLUT SLOTS" table in VRAM_MAP.txt for a
+    gap, and remember ddog_alert occupies x[640,672) y[448,512) — that is NOT
+    free space. bed's CLUT went at (272,480), in the gap between rusty_fence's
+    CLUT at x[256,272) and double_door's at x[768,784).
+
+3d. Convert. Source MUST be 128x128 (the exporter maps 1 UV tile = 128 texels;
+    a 64x64 source sampled 0..128 reads past itself into neighbouring VRAM —
+    stretch it first and save as <name>_128.png, as clsd_drwr/dresser did):
+
+      Set-Location "c:\Users\virtu\Documents\ps1game\textures"
+      & <python> png_to_tim.py bed.png --bpp 8 --tx 768 --ty 0 `
+            --cx 272 --cy 480 --out bed.tim
+
+3e. Register the sharing in tools/vram_map.py KNOWN_STREAM_PAIRS (one entry per
+    pair that now overlaps), then regenerate the map and CHECK IT:
+
+      & <python> tools\vram_map.py | Out-File -Encoding utf8 tools\VRAM_MAP.txt
+      Select-String tools\VRAM_MAP.txt -Pattern "UNEXPECTED|No unexpected"
+
+    "No unexpected pixel collisions." and your texture showing Voff 0 are the
+    two things to confirm.
+
+
+##########################################################################
+ STEP 4 — CONVERT THE MESHES
+##########################################################################
+Two independent pipelines. Both are needed for a new room.
+
+4a. VISUAL — smxlink ONLY (never a Python script; see MESH_CONVERSION_NOTES):
+
+      Set-Location "c:\Users\virtu\Documents\ps1game"
+      & "C:\Users\virtu\Documents\PSn00bSDK\bin\smxlink.exe" `
+            -tp textures -o assets\<slug>.smd "assets\<Name>.smx"
+
+    -tp textures lets it resolve the per-poly texture references, so STEP 3d
+    must already have produced the new .tim.
+
+4b. COLLISION — the project's Python script:
+
+      & <python> "assets\smx_to_collision.py" "assets\<Name> mesh.smx" `
+            --room <slug>
+
+    Watch the output: "Walls after dedup: N" must stay under
+    MAX_WALLS_PER_ROOM (128, in collision.h). Note the printed FLOOR list — you
+    need its Y values and x/z extents for the floor zones in STEP 6.
+
+4c. Copy the generated pair into src/, LOWERCASED, then hand-edit two things
+    the generator does not emit — stale values here are a real bug:
+
+      Copy-Item "assets\<Name> mesh_collision.c" "src\<slug>_mesh_collision.c"
+      Copy-Item "assets\<Name> mesh_collision.h" "src\<slug>_mesh_collision.h"
+
+    In the .c:  - fix the #include to the lowercase header name
+                - add, right after r->wall_count:
+                      r->multi_level = 0;      /* 1 only for rooms with real
+                                                  multi-floor per-wall Y data */
+                      r->shoot_over_mask = 0;  /* bitmask of low walls the gun
+                                                  shoots over */
+    In the .h:  - the include guard is derived from the FILE name. If the room
+                  name starts with a digit the guard won't compile — hand-write
+                  a valid one. Note in the comment that src/ is not byte-
+                  identical to assets/.
+
+4d. Per-poly texture map. Copy gen_conservatory_tex_map.py (or the master
+    bedroom one) to gen_<slug>_tex_map.py and edit NAME_TO_SLOT + the three
+    identifier strings. NAME_TO_SLOT maps texture NAME -> engine slot index and
+    MUST match the load order in the room module (STEP 5). Never map by the raw
+    texture="N" index: the Blender exporter renumbers that list whenever the
+    material set changes.
+
+      & <python> gen_<slug>_tex_map.py
+
+    Read its output: it prints the SMX texture list, a per-slot poly count and
+    the prim count. A texture with no slot is a hard error by design.
+
+
+##########################################################################
+ STEP 5 — THE ROOM MODULE (src/<slug>.c / .h)
+##########################################################################
+Copy src/master_bedroom.c and rename. The parts that need real thought:
+
+  <slug>_floor_zones_init()
+      Usually one FLOOR_FLAT zone at y=0 spanning the collision bounds (all the
+      interior rooms so far are single-level). Take min/max x/z from the
+      collision .c's bounds comment. For a genuinely multi-level room, model it
+      on delivery_area's floor_zones (NOT kitchen_dining's single plane).
+
+  Texture slots
+      #define <SLUG>_TEX_COUNT N, and a NAME_TO_SLOT-matching load order:
+        - textures already resident from startup -> capture_tpage(path, slot)
+          (reads the TIM header only, no LoadImage — the pixels are already in
+          VRAM). Resident set today: wd_flr, red_wlppr, din_cl, stn_gls (kitchen)
+          and wd_dr (fatdoor).
+        - textures in a time-shared slot -> texmgr_register() at startup +
+          texmgr_upload() in <slug>_upload_textures(). Put them in the
+          new_tex[] table with their slot index.
+        - a texture whose upload another module owns (e.g. the dresser prop's)
+          -> capture_tpage() for the tpage/clut, and call that module's
+          upload fn from <slug>_upload_textures().
+      Upload rules: CD reads (texmgr_register, load_file_from_cd) are STARTUP
+      ONLY. LoadImage (texmgr_upload) is safe on the transition because main's
+      STATE_LOADING does DrawSync(0) first. Never CdRead mid-game.
+
+  Doors (one block per door)
+      A #define set for X/Z/text Y/text radius/fade/trigger radius, a per-door
+      `circle_prev` seeded by an *_arm(), a *_triggered() doing Manhattan
+      distance < trigger radius on a FRESH Circle press, and a *_text() drawing
+      the floating sign. With two or more doors, factor the shared body into a
+      static helper taking (door_x, &circle_prev) as master_bedroom.c does.
+
+      SIGN ORIENTATION — get this right or the text comes out backwards:
+        door in the YZ plane (fixed X): TEXT_PLANE_YZ, pass z as (door_z - 200);
+            mirror=1 approached from -X, mirror=0 from +X.
+        door in the XY plane (fixed Z): TEXT_PLANE_XY, pass x as (door_x - 200);
+            mirror=1 approached from +Z, mirror=0 from -Z.
+        (door_draw_string_3d adds 200 to the reading axis before centring, hence
+         the -200.) Offset the sign ~11 units off the wall toward the player.
+
+  Spawns
+      One helper per door: set cam_x/cam_y/cam_vy/cam_z/cam_rot then call the
+      arm(). Place the spawn at least 215 units off the door's wall — the wall
+      push radius in apply_collision_reception() is 195 — and face cam_rot along
+      the direction of travel through the door. Then ARM every interaction in
+      the room, because a Circle held through the transition would otherwise
+      fire the nearest trigger and bounce the player straight back.
+
+  <slug>_init()
+      *_collision_init(&current_collision_room); floor zones; default spawn
+      (main.c overrides it per arrival door); arm; place any props.
+      ALSO: clear any global prop array that is neither in world.c's RoomState
+      swap nor area-gated in its collide fn, if its instances fall inside this
+      room's bounds. Today that means save_points_clear() and dressers_clear()
+      — reception's save point at (78,-67) otherwise blocks invisibly. Safe to
+      clear: reception_init() re-places both on every reception entry.
+
+  <slug>_draw()
+      Set g_fog_near/g_fog_far, add the dark background TILE at OT_LENGTH-1,
+      sort the 128x128 DR_TWIN texture window at OT_LENGTH-1, build the view
+      matrix, call draw_<slug>_smd(), then props, then enemies, then the door
+      signs last. Any sprite drawn over the room whose VRAM Voff >= 128 must
+      bracket/reset the window — hand it the RECT via zombies_set_texwindow() /
+      demon_dogs_set_texwindow() / tentacles_set_texwindow(). Demon dogs do NOT
+      bracket and are only safe in windowless delivery.
+
+
+##########################################################################
+ STEP 6 — WIRE IT INTO THE GAME
+##########################################################################
+Touch these files, in this order:
+
+  src/title.h        Add STATE_<SLUG_UPPER> at the **END** of the GameState
+                     enum. Saves store raw enum values, so inserting in the
+                     middle silently corrupts old saves.
+
+  src/world.c        Bump WORLD_NUM_ROOMS (+1) and add a `case STATE_<X>:
+                     return <n>;` to room_index(). Seed any resident enemies /
+                     pickups for the room in world_enter()'s first-visit block.
+                     >>> CHECK THE SAVE BUDGET. RoomState is ~2560 bytes, so
+                     each room costs that much of the on-card world blob. The
+                     _Static_assert in world.c enforces the memory-card block
+                     chain's capacity (SAVE_WORLD_BLOCKS in savegame.h; 3 blocks
+                     = 24192 bytes ~= 9 rooms). If it fires, raise
+                     SAVE_WORLD_BLOCKS by one, bump SAVE_VERSION, and know that
+                     each extra block costs one more card block per save. The
+                     chain code in savegame.c is already generalised over N
+                     blocks (0x51 head -> 0x52 middle -> 0x53 tail).
+                     Any room addition invalidates existing saves — the
+                     world_size check rejects them cleanly, which is fine.
+
+  src/main.c         Five separate edits:
+                     1. #include "<slug>.h"
+                     2. <slug>_load_assets(); in main()'s startup init block
+                     3. update_current_area(): a new `else if (area ==
+                        STATE_<X>)` branch — apply_collision_reception() (it is
+                        generic over current_collision_room), apply_height(),
+                        entity updates, then one `if (!lock && *_triggered())`
+                        per door setting pending_area + door_anim_start(
+                        DOOR_PANEL_WOOD) + STATE_DOOR_ANIM + cdaudio_stop()
+                     4. STATE_LOADING: a texture-upload branch
+                        (`pending_area == STATE_<X>` -> <slug>_upload_textures())
+                        AND an init branch (<slug>_init() + music + the
+                        arrival-spawn override keyed on current_area)
+                     5. draw_current_area(): `else if (area == STATE_<X>)`
+                        and add STATE_<X> to the gameplay-state `if` at the
+                        bottom of the main loop
+                     If a room has multiple doors to the SAME neighbour, record
+                     which one was used in a file-scope flag at trigger time
+                     (see bedroom_door_west) and read it in the STATE_LOADING
+                     spawn override. Do not try to recover it from cam_x.
+
+  the neighbour's    Add the matching door(s): the #define block, arm/triggered
+  src/<other>.c/.h   pair, sign, spawn helper; call the new arm() from its
+                     _init(); call the new *_text() from its _draw(); export
+                     the arm/triggered/spawn functions in its header.
+
+  src/title.c        Add the room to level_names[], level_states[] (STATE_LOADING)
+                     and level_pending[] (STATE_<X>) so debug level select can
+                     jump straight in. All three arrays must stay the same length.
+
+  src/save_menu.c    Add a `case STATE_<X>: return "<NAME>";` to area_name().
+
+  CMakeLists.txt     Add src/<slug>.c and src/<slug>_mesh_collision.c.
+
+  disc.xml           Add the SMD and any new TIMs **inside the <dir name="TEX">
+                     block**, 8.3 uppercase names. The ROOT directory must stay
+                     within one 2048-byte sector or the disc will not boot
+                     (freezes at the BIOS logo).
+
+
+##########################################################################
+ STEP 7 — BUILD
+##########################################################################
+  Set-Location "c:\Users\virtu\Documents\ps1game"
+  cmake --build build --target horror_game        # auto-runs elf2x
+  & "C:\Users\virtu\Documents\mkpsxiso-2.20-win64\mkpsxiso-2.20-win64\mkpsxiso.exe" `
+        -y disc.xml
+
+Confirm build\HORROR2.BIN is newer than build\HORROR.exe (elf2x ran) and that
+build\HORROR.bin is newer still. A "nothing changed" result after a code edit
+almost always means a stale HORROR2.BIN.
+
+Visual-mesh-only change later on: reconvert + mkpsxiso, no recompile needed.
+Collision change: full recompile required.
+
+
+##########################################################################
+ STEP 8 — VERIFY
+##########################################################################
+Code-level checks to do before handing over:
+  [ ] tools/VRAM_MAP.txt says "No unexpected pixel collisions" and the new
+      texture is at Voff 0.
+  [ ] Every VRAM slot the room stomps is restored by whoever needs the
+      original. Walk the routes on paper: new room -> hall -> conservatory,
+      -> reception -> kitchen, -> delivery, and a title-screen load STRAIGHT
+      into each room (that path skips some restores).
+  [ ] The _Static_assert in world.c compiled (save blob still fits).
+  [ ] Each door's spawn is outside the wall push radius and every interaction
+      in the destination is armed.
+
+In-game (needs an emulator; say so plainly if you have not run it):
+  [ ] Round-trip through every door in both directions, no bounce-back.
+  [ ] Signs read forwards, not mirrored.
+  [ ] No invisible walls in open floor (a leaked global prop) and no falling
+      through the floor (a floor-zone rect that misses part of the room).
+  [ ] Textures match Blender; nothing is showing another room's art (a texture
+      window / Voff problem).
+  [ ] Music continues uninterrupted across the transition.
+  [ ] Save, reset, load: you come back in the right room with progress intact.
+
+
+##########################################################################
+ THE FIVE MISTAKES THAT HAVE ACTUALLY BEEN MADE
+##########################################################################
+1. Converting the visual mesh with something other than smxlink. The SMD looks
+   fine and renders as broken/invisible geometry.
+2. Reconverting from a stale .smx because the Blender export went to the wrong
+   folder. Always check timestamps first.
+3. Forgetting r->multi_level / r->shoot_over_mask after copying the generated
+   collision, inheriting the previous room's values.
+4. Putting new mesh art at a VRAM Voff >= 128, where the room's 128 texture
+   window makes it sample whatever sits above it in the page.
+5. A global prop array (dining tables, save points, dressers) colliding
+   invisibly in the new room because it is neither room-swapped nor area-gated.

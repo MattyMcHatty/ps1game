@@ -151,8 +151,12 @@ collision, floor zones and the spawn camera — never loads assets.
 
 
 ==========================================================================
-PART 6 — ADDING A NEW ROOM (checklist)
+PART 6 — ADDING A NEW ROOM (summary only)
 ==========================================================================
+>>> SUPERSEDED: tools/ADDING_A_ROOM.txt is the authoritative, step-by-step
+>>> runbook (real commands, VRAM slot selection, coordinate mining, all the
+>>> files to wire, build + verification). What follows is the short summary of
+>>> the same process; use the runbook to actually do the work.
 
 Mesh & textures (see TEXTURING_NOTES.txt):
   [ ] Model + UV-map + export the .smx; convert to .smd; make 128x128 TIMs at

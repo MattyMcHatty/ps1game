@@ -273,6 +273,97 @@ static void edoor_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* ---- The two doors into the Master Bedroom ---------------------------------
+   Both sit in the corridor's south wall (x from -2770 to 101 at z=-656, from
+   the wd_dr polys in "2f Hall.smx"): the east one centred on x=-400 and the
+   west one on x=-1889. The corridor is on the +Z side of that wall (collision
+   wall 5's normal points +Z), so the player approaches both from +Z and the
+   signs lie in the XY plane with mirror=1 — the opposite flip from the
+   "descend" sign above, which is read from -Z. */
+#define BDOOR_Z                 (-656)
+#define BDOOR_E_X                (-400)
+#define BDOOR_W_X               (-1889)
+#define BDOOR_TEXT_Y            (-186)
+#define BDOOR_TEXT_RADIUS        1500
+#define BDOOR_FADE_NEAR          1000
+#define BDOOR_TRIGGER_RADIUS      500
+/* Stand this far north of the wall on arrival: clear of the 195 push radius and
+   of the doors' own trigger radius is handled by arming them instead. */
+#define BDOOR_SPAWN_Z           (-436)
+
+static int bdoor_e_circle_prev = 1;
+static int bdoor_w_circle_prev = 1;
+
+static int hall_circle_held(void) {
+    if (!pad_buff_len[0]) return 0;
+    PadResponse *pad = (PadResponse *)pad_buff[0];
+    return (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+}
+
+void hall_2f_bdoors_arm(void) {
+    int held = hall_circle_held();
+    bdoor_e_circle_prev = held;
+    bdoor_w_circle_prev = held;
+}
+
+static int bdoor_triggered(int32_t door_x, int *circle_prev) {
+    int held = hall_circle_held();
+    int just = held && !*circle_prev;
+    *circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - BDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < BDOOR_TRIGGER_RADIUS;
+}
+
+int hall_2f_bdoor_e_triggered(void) {
+    return bdoor_triggered(BDOOR_E_X, &bdoor_e_circle_prev);
+}
+
+int hall_2f_bdoor_w_triggered(void) {
+    return bdoor_triggered(BDOOR_W_X, &bdoor_w_circle_prev);
+}
+
+/* XY plane: door_draw_string_3d centres the reading axis (X) on world_x after
+   adding 200, so pass door_x - 200. Sits just north (z+11) of the wall so it
+   floats in front of the door. */
+static void bdoor_text(RenderContext *ctx, int32_t door_x) {
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - BDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= BDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > BDOOR_FADE_NEAR) {
+        int range = BDOOR_TEXT_RADIUS - BDOOR_FADE_NEAR;
+        int prog  = xz - BDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        door_x - 200, BDOOR_TEXT_Y, BDOOR_Z + 11,
+                        50, 255, 50, fade, 1, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+}
+
+/* Coming back out of the bedroom: stand just north of the door the player used,
+   facing +Z out into the corridor (the direction of travel through it). */
+static void hall_2f_spawn_bdoor(int32_t door_x) {
+    cam_x   = door_x;
+    cam_y   = -189;
+    cam_vy  = 0;
+    cam_z   = BDOOR_SPAWN_Z;
+    cam_rot = 0;      /* facing +Z, into the corridor with the door behind */
+    hall_2f_bdoors_arm();
+    hall_2f_stairs_arm();
+    hall_2f_edoor_arm();
+}
+
+void hall_2f_spawn_bdoor_e(void) { hall_2f_spawn_bdoor(BDOOR_E_X); }
+void hall_2f_spawn_bdoor_w(void) { hall_2f_spawn_bdoor(BDOOR_W_X); }
+
 void hall_2f_init(void) {
     hall_2f_collision_init(&current_collision_room);
     hall_2f_floor_zones_init();
@@ -289,6 +380,7 @@ void hall_2f_init(void) {
 
     hall_2f_stairs_arm();   /* don't re-trigger on a held Circle from the entry */
     hall_2f_edoor_arm();    /* same for the far-east door out to reception */
+    hall_2f_bdoors_arm();   /* and the two south-wall doors into the bedroom */
     trick_drawers_place();  /* the static chest of drawers in the west room */
 }
 
@@ -515,4 +607,6 @@ void hall_2f_draw(RenderContext *ctx) {
 
     stairs_text(ctx);
     edoor_text(ctx);
+    bdoor_text(ctx, BDOOR_E_X);
+    bdoor_text(ctx, BDOOR_W_X);
 }

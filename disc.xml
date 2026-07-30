@@ -148,6 +148,8 @@
                 <file name="CPPRPOT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\cppr_pt.tim"/>
                 <file name="TNTCLIDL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\tntcl_idle.tim"/>
                 <file name="TNTCLACT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\tntcl_actv.tim"/>
+                <file name="MSTRBED.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\master_bedroom.smd"/>
+                <file name="BED.TIM"      type="data" source="C:\Users\virtu\Documents\ps1game\textures\bed.tim"/>
             </dir>
         </directory_tree>
     </track>

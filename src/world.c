@@ -9,9 +9,10 @@
 #include "door.h"
 #include "fatdoor.h"
 #include "tentacle.h"
+#include "savegame.h"
 
-#define WORLD_NUM_ROOMS 6   /* delivery_area, kitchen_dining, reception, piano_room,
-                               conservatory, hall_2f */
+#define WORLD_NUM_ROOMS 7   /* delivery_area, kitchen_dining, reception, piano_room,
+                               conservatory, hall_2f, master_bedroom */
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below; this
    is the per-room unit a save file would store. */
@@ -40,6 +41,13 @@ typedef struct {
     int       tentacle_count;
 } WorldState;
 
+/* The whole blob is written to the memory card frame by frame, so it must fit
+   the block chain savegame.c lays out. Adding a room grows it by one RoomState
+   (~2.5 KB) — if this fires, bump SAVE_WORLD_BLOCKS in savegame.h (each extra
+   block costs one more memory-card block per save). */
+_Static_assert(sizeof(WorldState) <= SAVE_WORLD_MAX_BYTES,
+               "world blob outgrew the memory-card block chain: raise SAVE_WORLD_BLOCKS");
+
 static WorldState world;
 
 /* Live entity arrays (owned by their modules) — the "working set" for the
@@ -60,6 +68,7 @@ static int room_index(GameState area) {
         case STATE_PIANO_ROOM:     return 3;
         case STATE_CONSERVATORY:   return 4;
         case STATE_2F_HALL:        return 5;
+        case STATE_MASTER_BEDROOM: return 6;
         default:                   return 0;
     }
 }

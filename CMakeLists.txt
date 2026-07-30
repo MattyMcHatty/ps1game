@@ -48,6 +48,8 @@ add_executable(horror_game
     src/conservatory.c
     src/hall_2f_mesh_collision.c
     src/hall_2f.c
+    src/master_bedroom_mesh_collision.c
+    src/master_bedroom.c
     src/stair_anim.c
     src/trick_drawers.c
     src/crate.c

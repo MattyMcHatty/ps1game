@@ -40,6 +40,7 @@
 #include "piano_props.h"
 #include "conservatory.h"
 #include "hall_2f.h"
+#include "master_bedroom.h"
 #include "trick_drawers.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
@@ -53,6 +54,12 @@ GameState game_state   = STATE_TITLE;
 GameState current_area = STATE_DELIVERY_AREA;  /* last playable area; menu returns here */
 GameState pending_area = STATE_KITCHEN_DINING; /* area STATE_LOADING will switch to */
 int       debug_mode   = 0;
+
+/* Which of the two Hall 2F <-> Master Bedroom doors the player is currently
+   walking through (1 = the west pair, 0 = the east pair). Set at the trigger,
+   read by the STATE_LOADING branch to place the arrival spawn on the matching
+   side. The rooms are linked in pairs, so one flag serves both directions. */
+static int bedroom_door_west = 0;
 
 /* HUD/debug font streams (opened in main() after FntLoad). */
 static int gameover_fnt, notify_fnt;
@@ -229,6 +236,40 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_WOOD);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (!lock && hall_2f_bdoor_e_triggered()) {
+            /* East south-wall door into the master bedroom (its east wing). */
+            bedroom_door_west = 0;
+            pending_area = STATE_MASTER_BEDROOM;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (!lock && hall_2f_bdoor_w_triggered()) {
+            /* West south-wall door into the master bedroom (its west wing). */
+            bedroom_door_west = 1;
+            pending_area = STATE_MASTER_BEDROOM;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_MASTER_BEDROOM) {
+        /* Flat single-floor room; the shared wall collision routine is generic
+           over current_collision_room (other rooms' props gate themselves out,
+           and master_bedroom_init clears the two that don't). */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed yet, but keeps the room uniform */
+        if (!lock && master_bedroom_wdoor_triggered()) {
+            bedroom_door_west = 1;
+            pending_area = STATE_2F_HALL;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (!lock && master_bedroom_edoor_triggered()) {
+            bedroom_door_west = 0;
+            pending_area = STATE_2F_HALL;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_PIANO_ROOM) {
         /* Flat single-floor room; the reception wall/prop collision routine is
@@ -270,6 +311,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         conservatory_draw(ctx);
     else if (area == STATE_2F_HALL)
         hall_2f_draw(ctx);
+    else if (area == STATE_MASTER_BEDROOM)
+        master_bedroom_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -416,6 +459,7 @@ int main(int argc, const char **argv) {
     piano_props_load_assets(); /* piano + bookcase props (streamed textures) */
     conservatory_load_assets();/* conservatory geometry + streamed textures */
     hall_2f_load_assets();     /* 2F hall geometry + streamed textures */
+    master_bedroom_load_assets();/* master bedroom geometry + streamed textures */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
     concrete_props_load_assets();/* concrete block/chair props + shared texture */
     copper_pot_load_assets();  /* copper pot collectible (texture deferred, key slot) */
@@ -513,6 +557,8 @@ int main(int argc, const char **argv) {
                 conservatory_upload_textures(); /* 6 streamed slots (see module) */
             } else if (pending_area == STATE_2F_HALL) {
                 hall_2f_upload_textures();       /* 4 streamed slots (see module) */
+            } else if (pending_area == STATE_MASTER_BEDROOM) {
+                master_bedroom_upload_textures();/* red_crpt + bed + dresser */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -618,8 +664,21 @@ int main(int argc, const char **argv) {
                     cam_z   = -320;
                     cam_rot = 3072;   /* face -X, into the hall */
                     hall_2f_edoor_arm();
+                } else if (current_area == STATE_MASTER_BEDROOM) {
+                    /* Coming back up out of the bedroom: stand just north of
+                       whichever south-wall door was used, facing into the
+                       corridor (the spawn helper arms all three interactions). */
+                    if (bedroom_door_west) hall_2f_spawn_bdoor_w();
+                    else                   hall_2f_spawn_bdoor_e();
                 }
                 cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* shares the piano room music */
+            } else if (pending_area == STATE_MASTER_BEDROOM) {
+                master_bedroom_init();
+                /* master_bedroom_init defaults to the east-wing door; override
+                   when the player came through the west one. */
+                if (bedroom_door_west)
+                    master_bedroom_spawn_west();
+                cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* shares the 2F music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
@@ -663,7 +722,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_RECEPTION ||
                    game_state == STATE_PIANO_ROOM ||
                    game_state == STATE_CONSERVATORY ||
-                   game_state == STATE_2F_HALL) {
+                   game_state == STATE_2F_HALL ||
+                   game_state == STATE_MASTER_BEDROOM) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

@@ -9,9 +9,18 @@
    SaveData frame later. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   5             /* v5: world blob gains the tentacle array
-                                        (v4: item inventory; v3: two blocks) */
+#define SAVE_VERSION   6             /* v6: chain generalised to N blocks (the 7th
+                                        room outgrew two); v5: tentacle array;
+                                        v4: item inventory; v3: two blocks */
 #define SAVE_MAX_SLOTS 15            /* blocks 1..15 are usable for saves */
+
+/* Largest world blob the card layout can hold: the tail of the first block
+   (64 frames minus the 3 header/data frames) plus SAVE_WORLD_BLOCKS-1 whole
+   blocks, at 128 bytes per frame. world.c static-asserts sizeof(WorldState)
+   against this — bump SAVE_WORLD_BLOCKS if a new room breaks it (each extra
+   block is one more memory-card block consumed per save). */
+#define SAVE_WORLD_BLOCKS  3
+#define SAVE_WORLD_MAX_BYTES ((61 + (SAVE_WORLD_BLOCKS - 1) * 64) * 128)
 
 typedef struct {
     uint32_t magic;
