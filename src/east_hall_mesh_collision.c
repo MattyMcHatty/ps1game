@@ -19,8 +19,8 @@ void east_hall_collision_init(CollisionRoom *r) {
     r->max_z = 721;
 
     /* Wall 0 (avg Y: -62) */
-    r->walls[0].x1 =     900;  r->walls[0].z1 =      21;
-    r->walls[0].x2 =     900;  r->walls[0].z2 =     -33;
+    r->walls[0].x1 =     879;  r->walls[0].z1 =      21;
+    r->walls[0].x2 =     879;  r->walls[0].z2 =     -33;
     r->walls[0].nx =    4096;  r->walls[0].nz =       0;
     r->walls[0].y_min =    -125;  r->walls[0].y_max =       0;
 
@@ -38,7 +38,7 @@ void east_hall_collision_init(CollisionRoom *r) {
 
     /* Wall 3 (avg Y: -62) */
     r->walls[3].x1 =    1290;  r->walls[3].z1 =     -33;
-    r->walls[3].x2 =    1200;  r->walls[3].z2 =     -33;
+    r->walls[3].x2 =    1219;  r->walls[3].z2 =     -33;
     r->walls[3].nx =       0;  r->walls[3].nz =   -4096;
     r->walls[3].y_min =    -125;  r->walls[3].y_max =       0;
 
@@ -68,12 +68,12 @@ void east_hall_collision_init(CollisionRoom *r) {
 
     /* Wall 8 (avg Y: -187) */
     r->walls[8].x1 =      19;  r->walls[8].z1 =      21;
-    r->walls[8].x2 =     900;  r->walls[8].z2 =      21;
+    r->walls[8].x2 =     880;  r->walls[8].z2 =      21;
     r->walls[8].nx =       0;  r->walls[8].nz =    4095;
     r->walls[8].y_min =    -375;  r->walls[8].y_max =       0;
 
     /* Wall 9 (avg Y: -187) */
-    r->walls[9].x1 =    1200;  r->walls[9].z1 =      21;
+    r->walls[9].x1 =    1219;  r->walls[9].z1 =      21;
     r->walls[9].x2 =    2671;  r->walls[9].z2 =      21;
     r->walls[9].nx =       0;  r->walls[9].nz =    4095;
     r->walls[9].y_min =    -375;  r->walls[9].y_max =       0;
@@ -85,8 +85,8 @@ void east_hall_collision_init(CollisionRoom *r) {
     r->walls[10].y_min =    -375;  r->walls[10].y_max =       0;
 
     /* Wall 11 (avg Y: -62) */
-    r->walls[11].x1 =    1200;  r->walls[11].z1 =     -33;
-    r->walls[11].x2 =    1200;  r->walls[11].z2 =      21;
+    r->walls[11].x1 =    1219;  r->walls[11].z1 =     -33;
+    r->walls[11].x2 =    1219;  r->walls[11].z2 =      21;
     r->walls[11].nx =   -4096;  r->walls[11].nz =       0;
     r->walls[11].y_min =    -125;  r->walls[11].y_max =       0;
 
@@ -98,14 +98,14 @@ void east_hall_collision_init(CollisionRoom *r) {
 
     /* Wall 13 (avg Y: -62) */
     r->walls[13].x1 =     139;  r->walls[13].z1 =    -992;
-    r->walls[13].x2 =     320;  r->walls[13].z2 =    -992;
+    r->walls[13].x2 =     345;  r->walls[13].z2 =    -992;
     r->walls[13].nx =       0;  r->walls[13].nz =    4096;
     r->walls[13].y_min =    -125;  r->walls[13].y_max =       0;
 
     /* Wall 14 (avg Y: -187) */
-    r->walls[14].x1 =      31;  r->walls[14].z1 =     -33;
-    r->walls[14].x2 =     900;  r->walls[14].z2 =     -33;
-    r->walls[14].nx =       0;  r->walls[14].nz =    4096;
+    r->walls[14].x1 =     880;  r->walls[14].z1 =     -33;
+    r->walls[14].x2 =      31;  r->walls[14].z2 =     -33;
+    r->walls[14].nx =       0;  r->walls[14].nz =   -4096;
     r->walls[14].y_min =    -375;  r->walls[14].y_max =       0;
 
     /* Wall 15 (avg Y: -163) */
@@ -121,14 +121,14 @@ void east_hall_collision_init(CollisionRoom *r) {
     r->walls[16].y_min =    -311;  r->walls[16].y_max =       0;
 
     /* Wall 17 (avg Y: -152) */
-    r->walls[17].x1 =     320;  r->walls[17].z1 =    -750;
+    r->walls[17].x1 =     340;  r->walls[17].z1 =    -750;
     r->walls[17].x2 =     495;  r->walls[17].z2 =    -730;
     r->walls[17].nx =       0;  r->walls[17].nz =    4095;
     r->walls[17].y_min =    -305;  r->walls[17].y_max =       0;
 
     /* Wall 18 (avg Y: -169) */
-    r->walls[18].x1 =     320;  r->walls[18].z1 =    -992;
-    r->walls[18].x2 =     337;  r->walls[18].z2 =    -740;
+    r->walls[18].x1 =     340;  r->walls[18].z1 =    -992;
+    r->walls[18].x2 =     358;  r->walls[18].z2 =    -740;
     r->walls[18].nx =   -4096;  r->walls[18].nz =       0;
     r->walls[18].y_min =    -375;  r->walls[18].y_max =       0;
 
@@ -136,7 +136,7 @@ void east_hall_collision_init(CollisionRoom *r) {
      * Floor/ceiling planes detected:
      * Use these in apply_height() for vertical movement.
      *
-     * FLOOR   0: y=     0  x(900 to 1200)  z(-33 to 21)
+     * FLOOR   0: y=     0  x(879 to 1219)  z(-33 to 21)
      * FLOOR   1: y=     0  x(31 to 139)  z(-992 to -800)
      * FLOOR   2: y=     0  x(1200 to 1290)  z(-608 to -417)
      * FLOOR   3: y=     0  x(31 to 139)  z(-608 to -417)
@@ -146,9 +146,9 @@ void east_hall_collision_init(CollisionRoom *r) {
      * FLOOR   7: y=     0  x(465 to 682)  z(-750 to -417)
      * FLOOR   8: y=     0  x(248 to 465)  z(-750 to -417)
      * FLOOR   9: y=     0  x(19 to 2671)  z(21 to 721)
-     * FLOOR   10: y=     0  x(139 to 320)  z(-800 to -608)
-     * FLOOR   11: y=     0  x(139 to 320)  z(-750 to -417)
+     * FLOOR   10: y=     0  x(139 to 345)  z(-800 to -608)
+     * FLOOR   11: y=     0  x(139 to 340)  z(-750 to -417)
      * FLOOR   12: y=     0  x(31 to 1290)  z(-417 to -33)
-     * FLOOR   13: y=     0  x(139 to 320)  z(-992 to -800)
+     * FLOOR   13: y=     0  x(139 to 345)  z(-992 to -800)
      */
 }

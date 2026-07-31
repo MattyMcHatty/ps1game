@@ -234,12 +234,16 @@ void world_enter(GameState area) {
                                      GRAVEOLVER_CAPACITY);
         }
 
-        /* East Hall: a spider on the ceiling of the long east-west hall,
-           part way along it. spider_add reads the ceiling height out of the
-           room's collision mesh, which east_hall_init has already installed by
-           the time world_enter runs. */
+        /* East Hall: three ceiling spiders — two spread along the main
+           east-west hall and one in the south offshoot room, behind the
+           connector's fat door. spider_add reads the ceiling height from the
+           room, which east_hall_init has already installed by the time
+           world_enter runs (it states y=-520, the DRAWN ceiling; the offshoot's
+           is -517, close enough not to warrant a per-point value). */
         if (area == STATE_EAST_HALL) {
-            spider_add(2132, 354, STATE_EAST_HALL);
+            spider_add(2132,  354, STATE_EAST_HALL);   /* east end of the hall  */
+            spider_add(1127,  252, STATE_EAST_HALL);   /* above the connector   */
+            spider_add( 598, -540, STATE_EAST_HALL);   /* south offshoot room   */
         }
 
         if (area == STATE_2F_HALL) {

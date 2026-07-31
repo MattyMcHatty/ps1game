@@ -145,11 +145,14 @@ void fatdoors_init(void) {
     fatdoors[i].area = STATE_2F_HALL; i++;
 
     /* East Hall: the connector between the main hall (z>=21) and the south
-       offshoot room (z<=-33) — the 300-wide gap between the x=900 and x=1200
+       offshoot room (z<=-33) — the 340-wide gap between the x=879 and x=1219
        jambs (walls 0 and 11 in east_hall_mesh_collision.c). One door fills it
-       along X (thin in Z, no rotation), standing on the flat floor (world y=0). */
-    fatdoors[i].x = 1050; fatdoors[i].y = -188; fatdoors[i].z = -6;
-    fatdoors[i].rot_y = 0;    fatdoors[i].half_x = 150; fatdoors[i].half_z = 30;
+       along X (thin in Z, no rotation), standing on the flat floor (world y=0).
+       Half-width tracks those jambs: the connector was widened from [900,1200]
+       when the collision mesh was re-exported, and a door still 300 wide would
+       have left a 20-unit slot at each jamb to squeeze through. */
+    fatdoors[i].x = 1049; fatdoors[i].y = -188; fatdoors[i].z = -6;
+    fatdoors[i].rot_y = 0;    fatdoors[i].half_x = 170; fatdoors[i].half_z = 30;
     fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
     fatdoors[i].area = STATE_EAST_HALL; i++;
 
