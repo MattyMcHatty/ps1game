@@ -20,6 +20,8 @@
  *     much larger wake radius uses) or when anything damages it.
  *   - Waking drops it fast, rotating from upside down to upright on the way,
  *     and it chases on the floor once it lands.
+ *   - Once landed it is a KITER, not a straight chaser. Three concentric bands
+ *     around the player decide what it does (see SPD_ATTACK_RADIUS below).
  *
  * The sprite is a 3-wide by 2-tall quad (SPD_HALF_W/SPD_HALF_H), roughly the
  * same scale as the zombie's 1x2 body.
@@ -40,6 +42,30 @@
 #define SPD_DAMAGE_AMOUNT    15    /* same bite as ZMB_DAMAGE_AMOUNT           */
 #define SPD_DAMAGE_COOLDOWN  60
 #define SPD_BAR_TIMER_MAX   120
+
+/* --- Ranged behaviour: three concentric bands around the player ---
+   A landed spider measures its TRUE radial XZ distance to the player (not the
+   Manhattan approximation used for the contact bite, which is a reach test and
+   wants to match the sprite's own footprint) and picks one of three modes:
+
+     d <= SPD_ATTACK_RADIUS   close in and bite, exactly as it always has
+     d <= SPD_SPIT_RADIUS     BACK OFF at half speed
+     d >  SPD_SPIT_RADIUS     close the gap at full speed until inside it
+
+   MOVEMENT and FIRING are separate decisions. The bands above choose only where
+   the spider walks; it spits at ANY range beyond SPD_ATTACK_RADIUS, so the
+   outermost band closes the gap and webs the player on the way in rather than
+   running at them silently. Only the melee band holds fire.
+
+   The effect is that it settles at arm's length around SPD_SPIT_RADIUS and
+   pelts the player from there, and only commits to melee once the player has
+   closed to SPD_ATTACK_RADIUS. Backing off is deliberately HALF speed so the
+   player can always win the chase and force the melee band. */
+#define SPD_ATTACK_RADIUS   500    /* inside this it closes in and bites, and
+                                      holds fire; outside it, it always spits  */
+#define SPD_SPIT_RADIUS     800    /* stand-off distance it retreats to        */
+#define SPD_RETREAT_SPEED     4    /* half of SPD_SPEED, backing away          */
+#define SPD_SPIT_INTERVAL   180    /* frames between webs                      */
 
 /* Sprite: 3 wide by 2 tall. Half-height is set so the feet land where a
    zombie's do — SPD_Y_OFFSET + SPD_HALF_H == 150, the zombie's 25 + 125. */
@@ -108,6 +134,7 @@ typedef struct {
     int32_t     facing;         /* last move dir, packed: hi16 = X, lo16 = Z */
     int         steer_timer;
     int         steer_dir;
+    int         spit_timer;     /* frames until the next web (spit band only) */
     GameState   area;
 } Spider;
 

@@ -162,7 +162,11 @@ void update_camera(void) {
                         !(btn & PAD_L1) &&
                         !(btn & PAD_R1);
 
-    if ((btn & PAD_CROSS) && !sprint_cooldown && sprint_stamina > 0 && sprint_dir_ok) {
+    /* Poison locks sprint outright, independently of the stamina bar: the bar
+       keeps refilling normally underneath so it is ready the moment the status
+       wears off. draw_hud paints it red meanwhile. */
+    if ((btn & PAD_CROSS) && !sprint_cooldown && !player_poisoned() &&
+        sprint_stamina > 0 && sprint_dir_ok) {
         sprinting = 1;
         /* INFINITE STAMINA just skips the drain: the bar stays full, so it never
            hits 0 and the cooldown lock below can never arm. */
@@ -183,7 +187,10 @@ void update_camera(void) {
         }
     }
 
+    /* Poison halves the walking pace. Sprint is already locked out above, so
+       the sprinting branch is unreachable while poisoned. */
     int32_t speed = sprinting ? 20 : 12;
+    if (player_poisoned()) speed /= 2;
 
     if (btn & PAD_UP) {
         cam_x += (isin(cam_rot) * speed) >> 12;

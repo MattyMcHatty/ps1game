@@ -23,7 +23,9 @@ typedef enum {
     SFX_STEP1      = 16, /* footstep A, used by the conservatory<->2F stair transition */
     SFX_STEP2      = 17, /* footstep B */
     SFX_SLAM       = 18, /* drawers slam shut (trick-drawers puzzle fail) */
-    SFX_COUNT    = 19,
+    SFX_SPDR_WLK   = 19, /* spider scuttle, HARDWARE-looped while any spider walks */
+    SFX_SPIT       = 20, /* spider fires a web (one-shot, once per web)            */
+    SFX_COUNT    = 21,
 } SfxID;
 
 void sound_init(void);

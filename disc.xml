@@ -107,6 +107,8 @@
                 <file name="TNTCLDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\tntcl_die.vag"/>
                 <file name="STEP1.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\step1.vag"/>
                 <file name="STEP2.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\step2.vag"/>
+                <file name="SPDRWLK.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\spdr_wlk.vag"/>
+                <file name="SPIT.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\spit.vag"/>
                 <file name="SLAM.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\slam.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):

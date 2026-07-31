@@ -227,6 +227,87 @@ gets a comment saying what it is in world units and why it has that value.
 
 
 ##########################################################################
+ STEP 4b — RANGED ATTACKS AND STATUS EFFECTS (optional)
+##########################################################################
+Only for an enemy that fights at range. The Spider added both together; either
+can be used on its own.
+
+BANDED AI. A kiting enemy picks its behaviour from its TRUE radial distance to
+the player (squares, no sqrt — coordinates stay in the low thousands so they fit
+an int32). Keep the Manhattan dist2d for the CONTACT reach test: that one wants
+to match the sprite's own footprint, not a stated radius. The Spider's bands:
+
+    d <= SPD_ATTACK_RADIUS (500)  close in and bite, full speed
+    d <= SPD_SPIT_RADIUS   (800)  back off at HALF speed
+    d >  SPD_SPIT_RADIUS          close the gap at full speed
+
+Keep MOVEMENT and FIRING as separate decisions. The bands pick only where the
+enemy walks; the Spider fires at any range beyond SPD_ATTACK_RADIUS, so both
+outer bands spit and only the melee band holds fire. Folding the fire control
+into one band's branch is the obvious first cut and it is wrong — it silently
+disarms the enemy in every other band.
+
+Restructure the steering to run off a goal VECTOR rather than the raw player
+delta, because a retreating enemy's goal is the opposite direction:
+    int32_t goal_dx = pursuing ?  dx : -dx;   /* and goal_dz */
+Everything downstream must use it: the desired direction, the wall-follow
+perpendiculars (pl_x = -goal_dz, not -dz), and the "which side gets me closer"
+tie-break, which needs a goal POINT (s->x + goal_dx) instead of the player's.
+
+>>> AND GATE THE LINE-OF-SIGHT SHORTCUT ON `pursuing`. <<<
+The zombie/spider steering switches wall-following OFF when the sightline to the
+player is clear. That reasoning only holds while moving TOWARD the player — the
+sightline says nothing about what is behind a retreating enemy, so leaving it
+ungated turns off wall-following exactly when the enemy is reversing blind into
+a wall.
+
+Bands are self-reinforcing and will not oscillate at the boundary: advancing
+while inside the melee band drives d down, retreating while outside it drives d
+up. Do not add hysteresis unless you have actually seen it flip.
+
+PROJECTILES live in their own module (src/web.c/.h), not in the enemy's:
+  - Fixed pool (MAX_WEBS), `life` frames as the free/used flag, tagged with a
+    GameState so a shot cannot follow the player through a door.
+  - TRANSIENT: no world.c wiring at all, exactly like the particles and
+    bullet-hit sprites. Add a *_reset() to reset_game and nothing else.
+  - Aim ONCE at spawn and travel straight. That is what makes it dodgeable:
+    walking toward or away keeps the player on the line, strafing does not.
+  - Normalise the aim with a real integer sqrt (isqrt32 in web.c). The Manhattan
+    divide used all over the steering code is fine for a direction that only has
+    to be roughly right, but it would make projectile speed vary ~40% with the
+    firing angle.
+  - Test the SEGMENT travelled each frame with collision_segment_blocked(), not
+    the new point, so a fast projectile cannot tunnel through a thin wall.
+  - Require a clear sightline before FIRING too, or an enemy will spit through
+    the wall it is standing behind.
+  - Drawing an untextured solid: transform the corners, emit POLY_F4s. If every
+    face is the same flat colour you can skip backface culling entirely and put
+    all faces at one OT depth — the silhouette is identical whichever face the
+    GPU lays down first, and you avoid depending on getting the winding right
+    for gte_nclip (see the mistakes list).
+
+STATUS EFFECTS belong to the player, in player.c, as a frame countdown:
+  - player_<effect>(void) applies/REFRESHES the timer (refresh, do not stack —
+    two projectiles landing together should not double the lockout).
+  - player_status_update() ticks it; call it beside weapons_update() in
+    update_current_area, INCLUDING the camera-locked puzzle branches that return
+    early, or the effect freezes mid-puzzle.
+  - Do NOT gate the effect on DBG_INFINITE_LIFE. That toggle suppresses health
+    loss only; attacks still land in every other respect.
+  - Clear it in reset_game alongside bullet_hits_reset().
+  - Movement hooks go in camera.c: halve `speed` after the sprint branch, and
+    add the effect to the sprint condition so the lockout is independent of the
+    stamina bar (which keeps refilling underneath, ready for when it wears off).
+  - FULL-SCREEN TINT: copy the Grave-olver muzzle flash's TILE + DR_TPAGE pair,
+    but use ADDITIVE blending (abr=1, as particles.c does) rather than the
+    flash's 50/50. A 50/50 blend halves the scene underneath — fine for a
+    two-frame flash, but over five seconds it reads as the lights going out
+    rather than a status. Additive tints without darkening. Draw it from the
+    player-systems pass BEFORE draw_hud so the HUD stays untinted, at an OT
+    index below SCENE_OT_MIN but above the HUD's (the Spider used 3).
+
+
+##########################################################################
  STEP 5 — WEAPONS
 ##########################################################################
 Expose ONE damage entry point from the enemy header and let both weapons call
@@ -327,11 +408,57 @@ field across the `*s = (<Slug>){0};` wipe.
                      in the ROOT (that is where ZSLEEP/ZALERT live), unlike room
                      art which goes in <dir name="TEX">.
 
-  src/sound.h        Only if the enemy needs NEW sound effects — that means new
-                     .vag assets and a SND/ disc entry. The Spider reused
-                     SFX_AXEHIT (non-fatal hit) and SFX_DOGDIE (death) rather
-                     than shipping new audio; say so in a comment so it reads as
-                     a deliberate stand-in, not an oversight.
+  src/sound.h        Only if the enemy needs NEW sound effects — see STEP 7b.
+                     Reusing an existing SfxID costs nothing; the Spider's death
+                     still borrows SFX_TNTCL_DIE. Say so in a comment when you do,
+                     so it reads as a deliberate stand-in, not an oversight.
+
+
+##########################################################################
+ STEP 7b — NEW SOUND EFFECTS
+##########################################################################
+>>> CHECK THE SPU BUDGET FIRST. IT IS THE BINDING CONSTRAINT, NOT DISC SPACE. <<<
+SPU RAM is 512 KB and it is nearly full. Measure the real footprint the way
+sound.c's load_vag does — audio_size from each VAG header, rounded up to 64 —
+and sum it from ALLOC_START (0x1010):
+
+  for each VAG in sfx_files[]:  dma = (int.from_bytes(d[12:16],'big') + 63) & ~63
+
+Adding the Spider's two clips (1.93 s + 1.44 s) needed ~40 KB against 6.4 KB
+free. The fix was re-encoding the single biggest sound at half rate: zombie.vag
+was 88 KB of low-frequency groan, and 11025 Hz freed 44 KB with no audible
+loss. Prefer that to butchering the new clip. When you re-encode an existing
+sound, keep its DURATION — the zombie's re-trigger interval (ZMB_GROAN_INTERVAL)
+is tuned to sit just under the clip length, and shortening it opens a silent gap.
+
+THE PIPELINE (mp3 -> wav -> vag), from sounds/:
+    ffmpeg -y -i spdr_wlk.mp3 -ac 1 -ar 22050 -sample_fmt s16 spdr_wlk.wav
+    py wav_to_vag.py spdr_wlk.wav --rate 22050 --loop    # looping ambience
+    py wav_to_vag.py spit.wav     --rate 22050           # one-shot
+sounds/mp3_to_wav.py is the documented first step but is BROKEN on Python 3.13+:
+it needs pydub, which imports the stdlib `audioop` module that PEP 594 removed.
+Call ffmpeg directly (as above) or install audioop-lts. wav_to_vag.py is pure
+stdlib and resamples properly, so --rate really does change the footprint.
+
+VERIFY THE LOOP FLAGS rather than trusting --loop. Byte 1 of each 16-byte ADPCM
+block is the flag: a looping sample reads 0x06 on the first block and 0x03 on
+the last; a one-shot reads 0x00 and 0x07.
+
+WIRING:
+  disc.xml       inside <dir name="SND">, 8.3 uppercase.
+  src/sound.h    append the SfxID before SFX_COUNT and bump it. The enum order
+                 MUST match sfx_files[] in sound.c.
+  src/sound.c    add the path, and give any CONTINUOUS loop its own SPU voice in
+                 sfx_channel(). The one-shot pool is FIRST_VOICE + (id % 8), so
+                 a loop left in it gets cut off the moment an unrelated one-shot
+                 lands on the same slot. Voices 16/17/18 are the zombie groan,
+                 tentacle writhe and spider scuttle.
+
+DRIVING A CONTINUOUS LOOP (copy the tentacle writhe, tentacle.c):
+  A file-scope `static int <x>_on` plus a per-frame `any_<x>` flag, flipped by
+  sound_play/sound_stop at the END of the update. ONE voice for all instances,
+  not one per instance. Force the flag off on game_over — the area update stops
+  running then, so the loop would otherwise stay keyed on forever.
 
 
 ##########################################################################
@@ -406,3 +533,11 @@ In-game (needs an emulator; say so plainly if you have not run it):
    upright roll outlasted a 13-frame fall, so it landed still rotating. Tie the
    frame count to the real distance and re-check it whenever that distance
    changes.
+
+7. LEAVING THE LINE-OF-SIGHT SHORTCUT ON WHILE AN ENEMY RETREATS. It disables
+   wall-following based on a sightline pointing the wrong way. Gate it on
+   whether the enemy is actually moving toward the player.
+
+8. A ZEROED COOLDOWN FIRING ON FRAME ONE. A fresh entity's timers are 0, so a
+   `if (--timer <= 0) fire();` cooldown attacks the instant it first enters
+   range. Arm the timer where the entity wakes.

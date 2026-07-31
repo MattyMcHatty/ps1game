@@ -18,6 +18,7 @@
 #include "fatdoor.h"
 #include "zombie.h"
 #include "spider.h"
+#include "web.h"
 #include "dining_table.h"
 #include "sml_med.h"
 #include "particles.h"
@@ -603,6 +604,7 @@ void kitchen_dining_draw(RenderContext *ctx) {
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
+    webs_draw(ctx);
     /* Stove puzzle: 2D board/picker overlay, drawn in the menu OT range so it
        sits on top of the room. Nothing when the puzzle is idle. */
     stove_puzzle_draw(ctx);

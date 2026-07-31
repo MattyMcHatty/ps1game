@@ -40,6 +40,8 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\STEP1.VAG;1",
     "\\SND\\STEP2.VAG;1",
     "\\SND\\SLAM.VAG;1",
+    "\\SND\\SPDRWLK.VAG;1",
+    "\\SND\\SPIT.VAG;1",
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -49,6 +51,7 @@ static const char *sfx_files[SFX_COUNT] = {
 static int sfx_channel(SfxID id) {
     if (id == SFX_ZOMBIE)      return 16;
     if (id == SFX_TNTCL_WRTH)  return 17;   /* continuous loop; own voice too */
+    if (id == SFX_SPDR_WLK)    return 18;   /* ditto: the spider scuttle loop  */
     return FIRST_VOICE + (id % 8);
 }
 

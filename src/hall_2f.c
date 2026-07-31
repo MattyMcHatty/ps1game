@@ -19,6 +19,7 @@
 #include "fatdoor.h"
 #include "zombie.h"
 #include "spider.h"
+#include "web.h"
 #include "sound.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -608,6 +609,7 @@ void hall_2f_draw(RenderContext *ctx) {
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
+    webs_draw(ctx);
 
     stairs_text(ctx);
     edoor_text(ctx);

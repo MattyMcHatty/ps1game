@@ -21,6 +21,7 @@
 #include "save_point.h"
 #include "zombie.h"
 #include "spider.h"
+#include "web.h"
 #include "item_pickup.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -438,6 +439,7 @@ void east_hall_draw(RenderContext *ctx) {
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
+    webs_draw(ctx);
     item_pickups_draw(ctx);
 
     /* Breakable door filling the connector to the south offshoot room. Draws

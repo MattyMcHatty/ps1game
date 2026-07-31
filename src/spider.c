@@ -12,6 +12,7 @@
 #include "dining_table.h"
 #include "particles.h"
 #include "spider.h"
+#include "web.h"
 #include "fatdoor.h"
 #include "sound.h"
 
@@ -119,9 +120,14 @@ void spiders_reset(void) {
    from the first frame rather than easing in under gravity. */
 static void spider_wake(Spider *s) {
     if (s->state != SPD_CEILING) return;
-    s->state     = SPD_DROPPING;
-    s->drop_tick = 0;
-    s->vy        = SPD_DROP_VEL;
+    s->state      = SPD_DROPPING;
+    s->drop_tick  = 0;
+    s->vy         = SPD_DROP_VEL;
+    /* Full cadence before the first web, so a spider that happens to land
+       already inside the spit band does not open with an instant hit — the
+       zeroed timer a fresh spider carries would otherwise fire on the frame it
+       touches down. */
+    s->spit_timer = SPD_SPIT_INTERVAL;
 }
 
 void spider_damage(Spider *s, int dmg) {
@@ -133,8 +139,8 @@ void spider_damage(Spider *s, int dmg) {
         s->health = 0;
         s->state  = SPD_DEAD;
         spawn_blood_burst(s->x, s->y, s->z);
-        sound_play(SFX_DOGDIE);     /* no spider clip yet; the dog's yelp is the
-                                       closest small-creature death we have */
+        sound_play(SFX_TNTCL_DIE);  /* no spider clip yet; shares the tentacle's
+                                       death cry */
     } else {
         sound_play(SFX_AXEHIT);
     }
@@ -152,6 +158,12 @@ static int32_t spider_angle(const Spider *s) {
 
 void update_spiders(void) {
     static int hurt_sfx_cooldown = 0;
+    /* Shared scuttle loop, driven exactly like the tentacle writhe: ONE voice
+       for every spider in the room, keyed on whether any of them actually moved
+       this frame. Per-spider voices would be three copies of the same sample
+       fighting over the SPU. */
+    static int walk_on = 0;
+    int any_walking = 0;
     int i;
     if (hurt_sfx_cooldown > 0) hurt_sfx_cooldown--;
 
@@ -170,8 +182,8 @@ void update_spiders(void) {
 
         /* --- Asleep on the ceiling --- */
         if (s->state == SPD_CEILING) {
-            /* A true radial test: "within 200" really means within a 200-unit
-               circle, not the Manhattan diamond the zombie's much coarser
+            /* A true radial test: SPD_WAKE_RADIUS really means a circle of that
+               radius, not the Manhattan diamond the zombie's much coarser
                900-unit wake radius can get away with. Coordinates stay in the
                low thousands, so the squares fit an int32. */
             if (dx * dx + dz * dz <= (int32_t)SPD_WAKE_RADIUS * SPD_WAKE_RADIUS)
@@ -233,6 +245,42 @@ void update_spiders(void) {
 
         if (dist2d < SPD_CATCH_DIST) continue;
 
+        /* --- Pick a band: melee, kite, or close the gap ---
+           Uses the TRUE radial distance, because the bands are specified as
+           radii; the Manhattan dist2d above is a reach test and stays as it is.
+           Squares stay well inside an int32 at these ranges. */
+        int32_t rad2      = dx * dx + dz * dz;
+        int     pursuing  = 1;              /* 0 = backing away from the player */
+        int32_t band_speed = SPD_SPEED;
+
+        if (rad2 <= (int32_t)SPD_ATTACK_RADIUS * SPD_ATTACK_RADIUS) {
+            /* Melee band: close in and bite, at full speed, holding fire. */
+            s->spit_timer = SPD_SPIT_INTERVAL;   /* re-arm for the next kite */
+        } else {
+            /* Anywhere beyond the attack radius the spider spits, whatever its
+               feet are doing — backing off inside the stand-off distance, or
+               running the gap down from outside it. Firing needs a clear
+               sightline, so a spider cannot spit through a wall it happens to
+               be standing behind. */
+            if (rad2 <= (int32_t)SPD_SPIT_RADIUS * SPD_SPIT_RADIUS) {
+                pursuing   = 0;                  /* give ground and kite */
+                band_speed = SPD_RETREAT_SPEED;
+            }
+            if (--s->spit_timer <= 0) {
+                s->spit_timer = SPD_SPIT_INTERVAL;
+                if (!collision_segment_blocked(s->x, s->y + SPD_Y_OFFSET, s->z,
+                                               px, py, pz)) {
+                    web_spawn(s->x, s->y + SPD_Y_OFFSET, s->z, px, py, pz,
+                              s->area);
+                    sound_play(SFX_SPIT);   /* one shot per web actually fired */
+                }
+            }
+        }
+
+        /* The direction we WANT to travel: at the player, or directly away. */
+        int32_t goal_dx = pursuing ?  dx : -dx;
+        int32_t goal_dz = pursuing ?  dz : -dz;
+
         /* --- Separation: soft push away from nearby spiders --- */
         int32_t sep_x = 0, sep_z = 0;
         int j;
@@ -251,9 +299,9 @@ void update_spiders(void) {
             }
         }
 
-        /* --- Desired direction: at the player, biased by separation --- */
-        int32_t desired_x = dx + sep_x * SPD_SEP_WEIGHT;
-        int32_t desired_z = dz + sep_z * SPD_SEP_WEIGHT;
+        /* --- Desired direction: along the band's goal, biased by separation --- */
+        int32_t desired_x = goal_dx + sep_x * SPD_SEP_WEIGHT;
+        int32_t desired_z = goal_dz + sep_z * SPD_SEP_WEIGHT;
         int32_t desired_dist = (desired_x < 0 ? -desired_x : desired_x) +
                                (desired_z < 0 ? -desired_z : desired_z);
         if (desired_dist == 0) desired_dist = 1;
@@ -269,16 +317,26 @@ void update_spiders(void) {
         /* Clear sightline: charge straight. The feeler's point+radius test also
            trips merely walking NEAR a wall, and wall-following on that deadlocks
            in concave corners; the real move's own collision push slides the body
-           along anything it grazes. */
-        if (!collision_segment_blocked(s->x, s->y, s->z, px, py, pz)) {
+           along anything it grazes.
+           ONLY while pursuing: the sightline runs toward the player, so it says
+           nothing about what is behind a retreating spider. Trusting it while
+           backing off would switch off wall-following exactly when the spider is
+           reversing into a wall it cannot see. */
+        if (pursuing &&
+            !collision_segment_blocked(s->x, s->y, s->z, px, py, pz)) {
             blocked        = 0;
             s->steer_timer = 0;
         }
 
-        /* Perpendiculars to the pursuit direction — the two ways to slide
+        /* Perpendiculars to the travel direction — the two ways to slide
            along a wall. */
-        int32_t pl_x = -dz, pl_z =  dx;   /* left  */
-        int32_t pr_x =  dz, pr_z = -dx;   /* right */
+        int32_t pl_x = -goal_dz, pl_z =  goal_dx;   /* left  */
+        int32_t pr_x =  goal_dz, pr_z = -goal_dx;   /* right */
+
+        /* Where "making progress" points: the player when closing in, the spot
+           directly opposite them when giving ground. */
+        int32_t goal_px = s->x + goal_dx;
+        int32_t goal_pz = s->z + goal_dz;
 
         if (blocked && s->steer_timer <= 0) {
             /* Newly blocked: probe BOTH sides and commit to one for a while so
@@ -311,11 +369,11 @@ void update_spiders(void) {
                 s->steer_dir = -1;
             } else {
                 /* Both open (or both blocked): take the side whose probe ends
-                   closer to the player. */
-                int32_t ld = (px - lx < 0 ? lx - px : px - lx) +
-                             (pz - lz < 0 ? lz - pz : pz - lz);
-                int32_t rd = (px - rx < 0 ? rx - px : px - rx) +
-                             (pz - rz < 0 ? rz - pz : pz - rz);
+                   closer to where this band wants to go. */
+                int32_t ld = (goal_px - lx < 0 ? lx - goal_px : goal_px - lx) +
+                             (goal_pz - lz < 0 ? lz - goal_pz : goal_pz - lz);
+                int32_t rd = (goal_px - rx < 0 ? rx - goal_px : goal_px - rx) +
+                             (goal_pz - rz < 0 ? rz - goal_pz : goal_pz - rz);
                 s->steer_dir = (ld <= rd) ? -1 : +1;
             }
             s->steer_timer = SPD_STEER_COMMIT;
@@ -331,13 +389,18 @@ void update_spiders(void) {
         }
 
         /* --- Smooth turning: blend the new direction with the previous one --- */
-        int32_t move_x  = (desired_x * SPD_SPEED) / desired_dist;
-        int32_t move_z  = (desired_z * SPD_SPEED) / desired_dist;
+        int32_t move_x  = (desired_x * band_speed) / desired_dist;
+        int32_t move_z  = (desired_z * band_speed) / desired_dist;
         int32_t prev_mx = (int16_t)(s->facing >> 16);
         int32_t prev_mz = (int16_t)(s->facing & 0xFFFF);
         int32_t blend_x = (prev_mx * (8 - SPD_TURN_RATE) + move_x * SPD_TURN_RATE) >> 3;
         int32_t blend_z = (prev_mz * (8 - SPD_TURN_RATE) + move_z * SPD_TURN_RATE) >> 3;
         s->facing = ((int32_t)(int16_t)blend_x << 16) | (uint16_t)(int16_t)blend_z;
+
+        /* Anything actually travelling this frame keeps the scuttle going. The
+           blend is integer-divided, so a spider pinned against a wall can end up
+           with a zero step and correctly falls silent. */
+        if (blend_x != 0 || blend_z != 0) any_walking = 1;
 
         s->x += blend_x;
         s->z += blend_z;
@@ -346,6 +409,13 @@ void update_spiders(void) {
         dining_tables_collide(&s->x, s->y, &s->z, 75);
         fatdoors_collide(&s->x, s->y, &s->z, SPD_DOOR_CLEARANCE);
     }
+
+    /* Start/stop the shared loop. Forced off on game-over, which stops the area
+       update running and would otherwise leave the scuttle keyed on forever —
+       the same guard the tentacle writhe needs. */
+    if (game_over) any_walking = 0;
+    if (any_walking && !walk_on)       { sound_play(SFX_SPDR_WLK); walk_on = 1; }
+    else if (!any_walking && walk_on)  { sound_stop(SFX_SPDR_WLK); walk_on = 0; }
 
     /* --- Spider vs spider hard collision (after every spider has moved) --- */
     int a, b;

@@ -20,6 +20,7 @@
 #include "fatdoor.h"
 #include "zombie.h"
 #include "spider.h"
+#include "web.h"
 #include "demondog.h"
 #include "tentacle.h"
 #include "sml_med.h"
@@ -516,6 +517,7 @@ void conservatory_draw(RenderContext *ctx) {
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
+    webs_draw(ctx);
     draw_demon_dogs(ctx);
     draw_tentacles(ctx);
 

@@ -32,6 +32,7 @@
 #include "demondog.h"
 #include "zombie.h"
 #include "spider.h"
+#include "web.h"
 #include "menu.h"
 #include "save_menu.h"
 #include "savegame.h"
@@ -99,6 +100,8 @@ void reset_game(RenderContext *ctx) {
     vampire_hit_timer = 0;
     reset_particles();
     bullet_hits_reset();
+    webs_reset();
+    player_poison_timer = 0;   /* status effects never survive a reset */
     kitchen_stove_reset();
     stove_puzzle_arm();      /* drop any in-progress cook, clear the board */
     cam_pitch = 0;           /* a puzzle camera never survives a reset */
@@ -143,6 +146,8 @@ static void update_current_area(GameState area) {
     if (area == STATE_2F_HALL && trick_drawers_puzzle_active()) {
         update_zombies();       /* enemies keep chasing/attacking during the puzzle */
         update_spiders();
+        webs_update();          /* ...and their webs keep flying */
+        player_status_update();
         trick_drawers_update();
         return;
     }
@@ -151,6 +156,8 @@ static void update_current_area(GameState area) {
     if (area == STATE_KITCHEN_DINING && stove_puzzle_active()) {
         update_zombies();
         update_spiders();
+        webs_update();
+        player_status_update();
         kitchen_stove_update();
         stove_puzzle_update();
         update_particles();
@@ -343,6 +350,9 @@ static void update_current_area(GameState area) {
     weapons_update();
     update_particles();
     bullet_hits_update();
+    webs_update();            /* spider webs in flight (area-tagged, so free
+                                 in rooms that have none) */
+    player_status_update();   /* ticks the web's poison timer down */
 }
 
 /* Draw an area's world + entities only (player overlays come separately). */
@@ -381,6 +391,7 @@ static void draw_player_systems(RenderContext *ctx) {
     graveolver_debug_draw(ctx);  /* yellow: the gun's hit cone              */
 #endif
     weapons_draw(ctx);
+    player_draw_status_overlay(ctx);   /* poison wash: over the scene, under the HUD */
     draw_hud(ctx);
 #ifdef DEBUG_COLLISION
     debug_draw_coords(ctx);      /* 2D panel — safe after the HUD */
