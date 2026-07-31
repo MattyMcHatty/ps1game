@@ -65,6 +65,9 @@ static uint8_t  grav_u0, grav_v0, grav_u1, grav_v1;
 static uint16_t rnds_tpage   = 0;
 static uint16_t rnds_clut    = 0;
 static uint8_t  rnds_u0, rnds_v0, rnds_u1, rnds_v1;
+static uint16_t flmr_tpage   = 0;
+static uint16_t flmr_clut    = 0;
+static uint8_t  flmr_u0, flmr_v0, flmr_u1, flmr_v1;
 static uint16_t waxcb_tpage  = 0;
 static uint16_t waxcb_clut   = 0;
 static uint8_t  waxcb_u0, waxcb_v0, waxcb_u1, waxcb_v1;
@@ -84,6 +87,7 @@ static const char *item_descriptions[] = {
     "Copper Pot\n\nAn old copper\npot found in\nthe conservatory",
     "Wax Cube\n\nI think there's\nsomething inside...",
     "Green Key Stone\n\nA green jewel\nwith a key\nprotruding from\nthe back",
+    "Flame Rounds\n\nIncendiary shot.\nBurns zombies\nand tentacles",
 };
 
 static const char *weapon_descriptions[] = {
@@ -252,10 +256,11 @@ static void draw_number(RenderContext *ctx, int left_x, int bottom_y,
 static int items_count(void) {
     int count = 0;
     if (player_keys & (1 << KEY_FRONT_DOOR))     count++;
-    if (player_rounds > 0)                       count++;
+    if (player_ammo[AMMO_STANDARD] > 0)          count++;
     if (player_items & (1 << ITEM_COPPER_POT))   count++;
     if (player_items & (1 << ITEM_WAX_CUBE))     count++;
     if (player_items & (1 << ITEM_GREEN_KEY_STONE)) count++;
+    if (player_ammo[AMMO_FLAME] > 0)             count++;
     return count;
 }
 
@@ -266,10 +271,11 @@ static int items_count(void) {
 int menu_item_held(int slot) {
     switch (slot) {
         case MENU_SLOT_FRONT_DOOR_KEY: return (player_keys & (1 << KEY_FRONT_DOOR)) != 0;
-        case MENU_SLOT_ROUNDS:         return player_rounds > 0;
+        case MENU_SLOT_ROUNDS:         return player_ammo[AMMO_STANDARD] > 0;
         case MENU_SLOT_COPPER_POT:     return (player_items & (1 << ITEM_COPPER_POT)) != 0;
         case MENU_SLOT_WAX_CUBE:       return (player_items & (1 << ITEM_WAX_CUBE)) != 0;
         case MENU_SLOT_GREEN_KEY_STONE:return (player_items & (1 << ITEM_GREEN_KEY_STONE)) != 0;
+        case MENU_SLOT_FLAME_ROUNDS:   return player_ammo[AMMO_FLAME] > 0;
         default: return 0;
     }
 }
@@ -281,6 +287,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_COPPER_POT:     return "Copper Pot";
         case MENU_SLOT_WAX_CUBE:       return "Wax Cube";
         case MENU_SLOT_GREEN_KEY_STONE:return "Green Key Stone";
+        case MENU_SLOT_FLAME_ROUNDS:   return "Flame Rounds";
         default: return "";
     }
 }
@@ -301,6 +308,11 @@ void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
             if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, rnds_tpage, rnds_clut,
                       rnds_u0, rnds_v0, rnds_u1, rnds_v1, 255, ot_idx);
+            break;
+        case MENU_SLOT_FLAME_ROUNDS:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, flmr_tpage, flmr_clut,
+                      flmr_u0, flmr_v0, flmr_u1, flmr_v1, 255, ot_idx);
             break;
         case MENU_SLOT_COPPER_POT: {
             if (!menu_item_held(slot)) return;
@@ -346,6 +358,8 @@ void menu_init(void) {
                   &grav_u0, &grav_v0, &grav_u1, &grav_v1);
     load_icon_tim("\\TEX\\STNDRNDS.TIM;1", &rnds_tpage, &rnds_clut,
                   &rnds_u0, &rnds_v0, &rnds_u1, &rnds_v1);
+    load_icon_tim("\\TEX\\FLMRNDS.TIM;1", &flmr_tpage, &flmr_clut,
+                  &flmr_u0, &flmr_v0, &flmr_u1, &flmr_v1);
     load_icon_tim("\\TEX\\WXCB.TIM;1", &waxcb_tpage, &waxcb_clut,
                   &waxcb_u0, &waxcb_v0, &waxcb_u1, &waxcb_v1);
     load_icon_tim("\\TEX\\GRNKYSTN.TIM;1", &gkst_tpage, &gkst_clut,
@@ -490,12 +504,18 @@ void menu_draw(RenderContext *ctx) {
                 draw_icon(ctx, ix, iy, ICON_SIZE, key_tpage, key_clut,
                           key_u0, key_v0, key_u1, key_v1, 255, OT_ICON);
             }
-            if (i == 1 && player_rounds > 0) {
+            if (i == 1 && player_ammo[AMMO_STANDARD] > 0) {
                 draw_icon(ctx, ix, iy, ICON_SIZE, rnds_tpage, rnds_clut,
                           rnds_u0, rnds_v0, rnds_u1, rnds_v1, 255, OT_ICON);
                 /* Ammo count, yellow, tucked into the icon's bottom-left. */
                 draw_number(ctx, ix, iy + ICON_SIZE,
-                            player_rounds, 2, OT_COUNT);
+                            player_ammo[AMMO_STANDARD], 2, OT_COUNT);
+            }
+            if (i == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0) {
+                draw_icon(ctx, ix, iy, ICON_SIZE, flmr_tpage, flmr_clut,
+                          flmr_u0, flmr_v0, flmr_u1, flmr_v1, 255, OT_ICON);
+                draw_number(ctx, ix, iy + ICON_SIZE,
+                            player_ammo[AMMO_FLAME], 2, OT_COUNT);
             }
             if (i == 2 && (player_items & (1 << ITEM_COPPER_POT))) {
                 uint16_t tp, cl; uint8_t u0, v0, u1, v1;
@@ -568,7 +588,7 @@ void menu_draw(RenderContext *ctx) {
         if (cursor_col == 0) {
             if (slot == 0 && (player_keys & (1 << KEY_FRONT_DOOR))) {
                 desc = item_descriptions[0];
-            } else if (slot == 1 && player_rounds > 0) {
+            } else if (slot == 1 && player_ammo[AMMO_STANDARD] > 0) {
                 desc = item_descriptions[1];
             } else if (slot == 2 && (player_items & (1 << ITEM_COPPER_POT))) {
                 desc = item_descriptions[2];
@@ -576,6 +596,8 @@ void menu_draw(RenderContext *ctx) {
                 desc = item_descriptions[3];
             } else if (slot == 4 && (player_items & (1 << ITEM_GREEN_KEY_STONE))) {
                 desc = item_descriptions[4];
+            } else if (slot == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0) {
+                desc = item_descriptions[MENU_SLOT_FLAME_ROUNDS];
             }
         } else {
             if (slot == 0)

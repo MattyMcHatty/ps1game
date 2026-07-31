@@ -18,6 +18,16 @@ int32_t vampire_kb_vx     = 0;
 int32_t vampire_kb_vz     = 0;
 int     vampire_hit_timer = 0;
 
+/* No weaknesses yet — add a { DMG_*, percent } line to give it one (damage.h). */
+static const Weakness vampire_weakness[] = {
+    { DMG_KINETIC, 100 },   /* placeholder: 100% = no change. Replace or append. */
+};
+
+int32_t vampire_scale_damage(int32_t base, DamageType type) {
+    return damage_scale(base, type, vampire_weakness,
+                        WEAKNESS_COUNT(vampire_weakness));
+}
+
 void update_vampire(void) {
     if (vampire_hit_timer > 0) vampire_hit_timer--;
     if (vampire_health <= 0) return;

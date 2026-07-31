@@ -128,6 +128,7 @@
                 <file name="DRESSER.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\dresser.tim"/>
                 <file name="GRAVOLVR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\graveolver.tim"/>
                 <file name="STNDRNDS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\stnd_rnds.tim"/>
+                <file name="FLMRNDS.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\flm_rnds.tim"/>
                 <file name="GHIT.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\ghit.tim"/>
                 <file name="PRPLWLP.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\prpl_wlppr.tim"/>
                 <!-- Piano room geometry lives here too (not the root) so the

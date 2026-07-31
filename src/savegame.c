@@ -109,8 +109,12 @@ void savegame_capture(SaveData *sd) {
     sd->cam_z   = cam_z;
     sd->cam_rot = cam_rot;
     sd->health  = player_health;
-    sd->rounds  = player_rounds;
-    sd->loaded  = graveolver_loaded;
+    {
+        int a;
+        for (a = 0; a < MAX_AMMO_TYPES; a++) sd->ammo[a] = player_ammo[a];
+    }
+    sd->loaded      = graveolver_loaded;
+    sd->loaded_type = (int32_t)graveolver_ammo;
     sd->weapons = player_weapons;
     sd->keys    = player_keys;
     sd->items   = player_items;
@@ -287,8 +291,15 @@ void savegame_apply_pending(void) {
     cam_rot = sd->cam_rot;
     cam_vy  = 0;
     player_health     = sd->health;
-    player_rounds     = sd->rounds;
+    {
+        int a;
+        for (a = 0; a < MAX_AMMO_TYPES; a++) player_ammo[a] = sd->ammo[a];
+    }
     graveolver_loaded = sd->loaded;
+    /* Clamp the chambered type: a corrupt or out-of-range value would index
+       ammo_info[] out of bounds every frame in the HUD. */
+    graveolver_ammo   = (sd->loaded_type >= 0 && sd->loaded_type < MAX_AMMO_TYPES)
+                        ? (AmmoType)sd->loaded_type : AMMO_STANDARD;
     player_weapons    = sd->weapons;
     player_keys       = sd->keys;
     player_items      = sd->items;

@@ -284,6 +284,15 @@ void world_enter(GameState area) {
                y=0-floor room uses; apply_zombie_height settles it onto the
                floorboards. */
             zombie_add(-839, -149, -621);
+
+            /* Flame Rounds, six of them (one full cylinder), on the floor
+               between the bookcases — directly under the first spider. Stated
+               explicitly rather than left to the ROUNDS_PER_PICKUP default so
+               the count survives any retune of that constant. y=-50 matches the
+               master bedroom's floor-level pickup: item_pickup_spawn raises the
+               anchor 50, putting the sprite just above this room's y=0 boards. */
+            item_pickup_spawn_amount(-909, -50, -1249, PICKUP_FLAME_ROUNDS,
+                                     GRAVEOLVER_CAPACITY);
         }
 
         if (area == STATE_2F_HALL) {

@@ -2,6 +2,7 @@
 #define SAVEGAME_H
 
 #include <stdint.h>
+#include "player.h"   /* MAX_AMMO_TYPES: the per-type reserve array below */
 
 /* The game's on-card save: what we serialise into one 128-byte data frame, plus
    the helpers that manage the PlayStation directory structure around it. This is
@@ -9,12 +10,14 @@
    SaveData frame later. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   8             /* v8: 4-block chain (the library, room 9,
-                                        outgrew three); v7: ItemPickup carries a
-                                        per-pickup rounds amount; v6: chain
-                                        generalised to N blocks (the 7th room
-                                        outgrew two); v5: tentacle array;
-                                        v4: item inventory; v3: two blocks */
+#define SAVE_VERSION   9             /* v9: per-type ammo reserves + chambered
+                                        type (Flame Rounds); v8: 4-block chain
+                                        (the library, room 9, outgrew three);
+                                        v7: ItemPickup carries a per-pickup
+                                        rounds amount; v6: chain generalised to N
+                                        blocks (the 7th room outgrew two);
+                                        v5: tentacle array; v4: item inventory;
+                                        v3: two blocks */
 #define SAVE_MAX_SLOTS 15            /* blocks 1..15 are usable for saves */
 
 /* Largest world blob the card layout can hold: the tail of the first block
@@ -31,8 +34,9 @@ typedef struct {
     int32_t  area;                  /* GameState of the room being saved in */
     int32_t  cam_x, cam_y, cam_z, cam_rot;
     int32_t  health;
-    int32_t  rounds;                /* reserve ammo */
+    int32_t  ammo[MAX_AMMO_TYPES];  /* reserve ammo, per AmmoType */
     int32_t  loaded;                /* rounds in the Grave-olver cylinder */
+    int32_t  loaded_type;           /* AmmoType currently chambered */
     int32_t  weapons;               /* owned-weapon bitmask */
     int32_t  keys;                  /* held-key bitmask */
     int32_t  items;                 /* held non-key item bitmask (player_items) */

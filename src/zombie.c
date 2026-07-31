@@ -76,6 +76,17 @@ int zombie_add(int32_t x, int32_t y, int32_t z) {
     return i;
 }
 
+/* Zombies burn: Flame Rounds do double damage. Add another line here to give
+   them a second weakness (see damage.h). */
+static const Weakness zombie_weakness[] = {
+    { DMG_FLAME, 200 },
+};
+
+int32_t zombie_scale_damage(int32_t base, DamageType type) {
+    return damage_scale(base, type, zombie_weakness,
+                        WEAKNESS_COUNT(zombie_weakness));
+}
+
 void zombies_rest(void) {
     int i;
     for (i = 0; i < zombie_count; i++) {

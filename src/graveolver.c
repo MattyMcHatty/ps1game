@@ -62,6 +62,24 @@ static int   muzzle_flash     = 0;
 static int   reload_timer     = 0;   /* counts down GRAV_RELOAD_FRAMES while reloading */
 static int   recoil_timer     = 0;   /* counts down GRAV_RECOIL_FRAMES after a shot   */
 
+/* Colour of the flash currently burning off — latched when the shot fires, so
+   it stays correct even if the chambered type somehow changed mid-flash. */
+static uint8_t flash_r = 255, flash_g = 255, flash_b = 255;
+
+/* --- Ammo swapping (R2) -----------------------------------------------------
+   Swapping the chambered type costs a FULL reload: the same timer, dip and
+   sound as a normal reload, with the type change applied only when the timer
+   reaches 0. reload_to is the type the cylinder will hold once it completes;
+   for an ordinary top-up it equals graveolver_ammo, so both cases share one
+   completion path.
+
+   swap_pending distinguishes the two so the "Loaded ..." log line is posted
+   only for a real type change, and only on completion — never at the moment
+   R2 is pressed. Cancelling (a weapon switch mid-reload) drops both, leaving
+   the cylinder exactly as it was. */
+static AmmoType reload_to     = AMMO_STANDARD;
+static int      swap_pending  = 0;
+
 /* --- Hold pose (view space), all easily tunable ------------------------------
    The model's long axis is X (the barrel), so a ~90 deg yaw points it into the
    screen. Position is an offset from the view centre: +X = right, +Y = down,
@@ -89,8 +107,8 @@ void graveolver_init(void) {
 
 /* --- enemy damage (mirrors the crucifaxe's per-enemy handling, no knockback) --- */
 
-static void damage_dog(DemonDog *d) {
-    d->health   -= GUN_DAMAGE;
+static void damage_dog(DemonDog *d, int32_t dmg) {
+    d->health   -= dmg;
     d->hit_timer = DDOG_BAR_TIMER_MAX;
     if (d->health <= 0) {
         d->state = DDOG_DEAD;
@@ -101,8 +119,8 @@ static void damage_dog(DemonDog *d) {
     }
 }
 
-static void damage_zombie(Zombie *z) {
-    z->health   -= GUN_DAMAGE;
+static void damage_zombie(Zombie *z, int32_t dmg) {
+    z->health   -= dmg;
     z->hit_timer = ZMB_BAR_TIMER_MAX;
     if (z->health <= 0) {
         z->state = ZMB_DEAD;
@@ -201,6 +219,11 @@ static int crosshair_clear(int32_t fx, int32_t fz, int32_t depth) {
 static void graveolver_fire(void) {
     muzzle_flash = GUN_FLASH_FRAMES;
     recoil_timer = GRAV_RECOIL_FRAMES;
+    /* The flash colour is the chambered ammo's — white for Standard, orange for
+       Flame. Latched here rather than read at draw time (see flash_r). */
+    flash_r = ammo_info[graveolver_ammo].flash_r;
+    flash_g = ammo_info[graveolver_ammo].flash_g;
+    flash_b = ammo_info[graveolver_ammo].flash_b;
     sound_play(SFX_GR_SHOT);
 
     int32_t fx = isin(cam_rot), fz = icos(cam_rot);
@@ -254,16 +277,25 @@ static void graveolver_fire(void) {
     if (best_kind < 0)
         return;
 
+    /* One round is one point of BASE damage; each enemy scales it by its own
+       weakness to the chambered ammo's damage type (see damage.h). Flame Rounds
+       are not stronger in general — only against what burns. */
+    DamageType dmg_type = ammo_info[graveolver_ammo].damage;
+
     if (best_kind == 0) {
-        damage_dog(&demon_dogs[best_idx]);
+        damage_dog(&demon_dogs[best_idx],
+                   demon_dog_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 1) {
-        damage_zombie(&zombies[best_idx]);
+        damage_zombie(&zombies[best_idx],
+                      zombie_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 3) {
-        tentacle_shoot(&tentacles[best_idx]);
+        tentacle_shoot(&tentacles[best_idx],
+                       tentacle_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 4) {
-        spider_damage(&spiders[best_idx], GUN_DAMAGE);   /* one round, one point */
+        spider_damage(&spiders[best_idx],
+                      spider_scale_damage(GUN_DAMAGE, dmg_type));
     } else {
-        vampire_health   -= GUN_DAMAGE;
+        vampire_health   -= vampire_scale_damage(GUN_DAMAGE, dmg_type);
         vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
         if (vampire_health <= 0)
             spawn_blood_burst(vampire_x, vampire_y, vampire_z);
@@ -286,52 +318,110 @@ int graveolver_is_reloading(void) {
 
 /* Abort an in-progress reload WITHOUT topping up the cylinder (the refill only
    happens when the timer counts down to 0 on its own). The cylinder is left at
-   its current count, so an interrupted reload must be started again from scratch. */
+   its current count AND its current type, so switching weapons part-way through
+   an ammo swap keeps whatever was already chambered — the swap simply never
+   happened, and no "Loaded ..." line is posted. */
 void graveolver_cancel_reload(void) {
     if (reload_timer > 0) {
         reload_timer = 0;
+        swap_pending = 0;
+        reload_to    = graveolver_ammo;
         sound_stop(SFX_GR_RELOAD);
+    }
+}
+
+/* The next ammo type the player can actually chamber: one they hold reserve
+   rounds of, skipping the current type. Returns the current type when there is
+   nothing else to switch to, which is how R2 stays inert with only one type. */
+static AmmoType next_available_ammo(void) {
+    int i;
+    for (i = 1; i < MAX_AMMO_TYPES; i++) {
+        AmmoType t = (AmmoType)((graveolver_ammo + i) % MAX_AMMO_TYPES);
+        if (player_ammo[t] > 0) return t;
+    }
+    return graveolver_ammo;
+}
+
+/* Finish a reload: empty whatever is chambered back into ITS OWN reserve, then
+   fill from the target type's. Unloading first means a swap never destroys
+   rounds — four Standard left in the cylinder go back to the Standard reserve
+   and can be re-chambered later. For an ordinary top-up reload_to equals the
+   chambered type, so the unload/reload pair is a no-op on the count. */
+static void reload_complete(void) {
+    player_ammo[graveolver_ammo] += graveolver_loaded;
+    graveolver_loaded             = 0;
+    graveolver_ammo               = reload_to;
+
+    int take = GRAVEOLVER_CAPACITY;
+    if (take > player_ammo[graveolver_ammo]) take = player_ammo[graveolver_ammo];
+    graveolver_loaded            += take;
+    player_ammo[graveolver_ammo] -= take;
+
+    /* Only a genuine type change announces itself, and only now that the
+       animation has played out. */
+    if (swap_pending) {
+        show_pickup_msg_raw(ammo_info[graveolver_ammo].load_msg);
+        swap_pending = 0;
     }
 }
 
 void graveolver_update(void) {
     /* Edge-detect Square so one press fires once; a short cooldown paces taps. */
     static int square_prev = 0;
+    static int r2_prev     = 0;
     static int cooldown    = 0;
     if (cooldown > 0)    cooldown--;
     if (muzzle_flash > 0) muzzle_flash--;
     if (recoil_timer > 0) recoil_timer--;
 
-    int square_held = 0;
+    int square_held = 0, r2_held = 0;
     if (pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
         square_held = (~pad->btn & PAD_SQUARE) ? 1 : 0;
+        r2_held     = (~pad->btn & PAD_R2)     ? 1 : 0;
     }
     int square_just = square_held && !square_prev;
+    int r2_just     = r2_held     && !r2_prev;
     square_prev = square_held;
+    r2_prev     = r2_held;
 
-    /* A reload is running: count it down and, when finished, top the cylinder up
-       from the reserve. No firing until it completes. */
+    /* A reload is running: count it down and settle the cylinder when it
+       finishes. No firing and no further swapping until it completes. */
     if (reload_timer > 0) {
         reload_timer--;
-        if (reload_timer == 0) {
-            int need = GRAVEOLVER_CAPACITY - graveolver_loaded;
-            int take = need < player_rounds ? need : player_rounds;
-            graveolver_loaded += take;
-            player_rounds     -= take;
-        }
+        if (reload_timer == 0) reload_complete();
         return;
     }
 
-    if (game_state == STATE_MENU || !square_just || cooldown != 0)
+    if (game_state == STATE_MENU)
+        return;
+
+    /* R2 swaps the chambered ammo type, at the cost of a full reload. Inert
+       unless there is another type in reserve to switch TO, so with only
+       Standard Rounds the button does nothing. */
+    if (r2_just) {
+        AmmoType target = next_available_ammo();
+        if (target != graveolver_ammo) {
+            reload_to    = target;
+            swap_pending = 1;
+            reload_timer = GRAV_RELOAD_FRAMES;
+            sound_play(SFX_GR_RELOAD);
+            return;
+        }
+    }
+
+    if (!square_just || cooldown != 0)
         return;
 
     if (graveolver_loaded > 0) {
         graveolver_fire();
         graveolver_loaded--;
         cooldown = GRAV_FIRE_COOLDOWN;
-    } else if (player_rounds > 0) {
-        /* Empty cylinder + trigger pull with rounds in reserve: start reloading. */
+    } else if (player_ammo[graveolver_ammo] > 0) {
+        /* Empty cylinder + trigger pull with rounds of the chambered type in
+           reserve: an ordinary top-up, so the target type is the current one. */
+        reload_to    = graveolver_ammo;
+        swap_pending = 0;
         reload_timer = GRAV_RELOAD_FRAMES;
         sound_play(SFX_GR_RELOAD);
     }
@@ -414,7 +504,8 @@ void draw_graveolver(RenderContext *ctx) {
         screen_tile(ctx, cx - 1, cy +  6, 2, 8, 255, 255, 255, OT_GUN_RETICULE);
     }
 
-    /* Muzzle flash: a brief semi-transparent white wash over the whole screen.
+    /* Muzzle flash: a brief semi-transparent wash over the whole screen, in the
+       fired ammo's colour — white for Standard Rounds, orange for Flame.
        The TILE is added first and the DR_TPAGE (abr=0, 50% blend) last so the
        GPU processes the blend mode before the tile (LIFO within the OT node). */
     if (muzzle_flash > 0) {
@@ -423,7 +514,7 @@ void draw_graveolver(RenderContext *ctx) {
             TILE *t = (TILE *)ctx->next_packet;
             setTile(t);
             setSemiTrans(t, 1);
-            setRGB0(t, 255, 255, 255);
+            setRGB0(t, flash_r, flash_g, flash_b);
             setXY0(t, 0, 0);
             setWH(t, SCREEN_XRES, SCREEN_YRES);
             addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_GUN_FLASH], t);

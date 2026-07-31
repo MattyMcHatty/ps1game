@@ -14,8 +14,9 @@
  */
 
 typedef enum {
-    PICKUP_GRAVEOLVER = 0,   /* the Grave-olver gun -> WEAPON_GRAVEOLVER */
-    PICKUP_ROUNDS,           /* standard rounds     -> player_rounds     */
+    PICKUP_GRAVEOLVER = 0,   /* the Grave-olver gun -> WEAPON_GRAVEOLVER      */
+    PICKUP_ROUNDS,           /* standard rounds -> player_ammo[AMMO_STANDARD] */
+    PICKUP_FLAME_ROUNDS,     /* flame rounds    -> player_ammo[AMMO_FLAME]    */
     PICKUP_KIND_COUNT
 } PickupKind;
 

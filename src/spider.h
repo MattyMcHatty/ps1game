@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "render.h"
+#include "damage.h"
 #include "title.h"   /* GameState — each spider is tagged with its area */
 
 /* -----------------------------------------------------------------------
@@ -170,6 +171,9 @@ void draw_spiders(RenderContext *ctx);
    ceiling — flashes its health bar, and handles death. Both the crucifaxe and
    a Grave-olver round pass 1. */
 void spider_damage(Spider *s, int dmg);
+
+/* Scale a hit by this enemy's weaknesses (see damage.h). */
+int32_t spider_scale_damage(int32_t base, DamageType type);
 
 /* Tell the spider renderer which texture window the current area has active, so
    each sprite can be drawn unmasked and then the area's window restored. Pass

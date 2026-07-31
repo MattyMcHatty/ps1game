@@ -28,12 +28,14 @@ static Sprite sprites[PICKUP_KIND_COUNT];
 
 /* Disc paths + display names, indexed by PickupKind. */
 static const char * const kind_tim[PICKUP_KIND_COUNT] = {
-    "\\TEX\\GRAVOLVR.TIM;1",   /* PICKUP_GRAVEOLVER */
-    "\\TEX\\STNDRNDS.TIM;1",   /* PICKUP_ROUNDS     */
+    "\\TEX\\GRAVOLVR.TIM;1",   /* PICKUP_GRAVEOLVER   */
+    "\\TEX\\STNDRNDS.TIM;1",   /* PICKUP_ROUNDS       */
+    "\\TEX\\FLMRNDS.TIM;1",    /* PICKUP_FLAME_ROUNDS */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
-    "Grave-olver",             /* PICKUP_GRAVEOLVER */
-    "Rounds",                  /* PICKUP_ROUNDS     */
+    "Grave-olver",             /* PICKUP_GRAVEOLVER   */
+    "Rounds",                  /* PICKUP_ROUNDS       */
+    "Flame Rounds",            /* PICKUP_FLAME_ROUNDS */
 };
 
 /* Load one TIM into VRAM and record its tpage/clut and UV rect. The UV's U0 is
@@ -86,7 +88,11 @@ void item_pickups_reset(void) {
         item_pickups[i].active = 0;
     item_pickup_count = 0;
     player_weapons = (1 << WEAPON_CRUCIFAXE);
-    player_rounds  = 0;
+    {
+        int a;
+        for (a = 0; a < MAX_AMMO_TYPES; a++) player_ammo[a] = 0;
+    }
+    graveolver_ammo   = AMMO_STANDARD;
     graveolver_loaded = GRAVEOLVER_CAPACITY;
     current_weapon = WEAPON_CRUCIFAXE;
 }
@@ -120,7 +126,8 @@ static void collect(ItemPickup *p) {
             player_weapons |= (1 << WEAPON_GRAVEOLVER);
             current_weapon  = WEAPON_GRAVEOLVER;   /* auto-equip on pickup */
             break;
-        case PICKUP_ROUNDS:     player_rounds  += p->amount;                break;
+        case PICKUP_ROUNDS:       player_ammo[AMMO_STANDARD] += p->amount;  break;
+        case PICKUP_FLAME_ROUNDS: player_ammo[AMMO_FLAME]    += p->amount;  break;
         default: break;
     }
     sound_play(SFX_PICKUP);

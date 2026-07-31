@@ -5,6 +5,7 @@
 #include "camera.h"
 #include "title.h"
 #include "debug_opts.h"
+#include "btn_glyph.h"   /* btn_prompt_draw: the ammo name beside the count */
 
 int32_t player_health = MAX_HEALTH;
 int     game_over     = 0;
@@ -13,8 +14,25 @@ int     damage_timer  = 0;
 int     player_keys   = 0;
 int     player_items  = 0;
 int     player_weapons = (1 << WEAPON_CRUCIFAXE);  /* crucifaxe always owned */
-int     player_rounds  = 0;
-int     graveolver_loaded = GRAVEOLVER_CAPACITY;   /* cylinder starts loaded */
+int      player_ammo[MAX_AMMO_TYPES] = {0};
+AmmoType graveolver_ammo = AMMO_STANDARD;          /* cylinder starts on lead  */
+int      graveolver_loaded = GRAVEOLVER_CAPACITY;  /* cylinder starts loaded   */
+
+/* One row per AmmoType (see player.h). The muzzle-flash colour is the whole
+   visual tell for which rounds are chambered, so keep them clearly distinct.
+   NOTE the load_msg for AMMO_FLAME says "Fire Rounds" while the item itself is
+   called "Flame Rounds" — that is the wording the log line was specified with,
+   not a typo. */
+const AmmoInfo ammo_info[MAX_AMMO_TYPES] = {
+    { "Standard Rounds", "Loaded Standard Rounds", DMG_KINETIC, 255, 255, 255 },
+    { "Flame Rounds",    "Loaded Fire Rounds",     DMG_FLAME,   255, 140,  20 },
+};
+
+int player_ammo_total(void) {
+    int i, total = 0;
+    for (i = 0; i < MAX_AMMO_TYPES; i++) total += player_ammo[i];
+    return total;
+}
 int     player_save_count = 0;   /* bumps on every successful save, any slot/card */
 int     player_poison_timer = 0; /* frames of spider-web poison left */
 WeaponType current_weapon = WEAPON_CRUCIFAXE;
@@ -183,7 +201,16 @@ void draw_hud(RenderContext *ctx) {
         ctx->next_packet += sizeof(TILE);
     }
 
-    /* Grave-olver cylinder count, under the bars (only once the gun is owned). */
-    if (player_weapons & (1 << WEAPON_GRAVEOLVER))
+    /* Grave-olver cylinder count and the chambered ammo's name, under the bars
+       (only once the gun is owned). The number is what is CHAMBERED, not the
+       reserve — the inventory menu carries the reserve totals.
+       The count is drawn with the chunky pixel font at scale 2 (3px glyphs, so
+       6px wide plus a 2px gap per digit); the label follows in the 8px debug
+       font, offset past however many digits were drawn. */
+    if (player_weapons & (1 << WEAPON_GRAVEOLVER)) {
         hud_draw_number(ctx, graveolver_loaded, 5, 29, 2, 255, 220, 0);
+        int digits = (graveolver_loaded >= 100) ? 3 : (graveolver_loaded >= 10) ? 2 : 1;
+        btn_prompt_draw(ctx, 5 + digits * 8 + 6, 28,
+                        ammo_info[graveolver_ammo].name, 0);
+    }
 }

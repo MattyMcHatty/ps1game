@@ -90,7 +90,7 @@ void crates_reset(void) {
         crates[i] = crate_defaults[i];
     keys_reset();      /* also clears player_keys */
     sml_meds_reset();
-    item_pickups_reset();  /* also resets player_weapons / player_rounds */
+    item_pickups_reset();  /* also resets player_weapons / player_ammo */
     copper_pot_reset();    /* clears the copper pot from player_items */
     tentacles_reset();     /* restore the tentacles to full health */
 }

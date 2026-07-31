@@ -17,7 +17,8 @@ void menu_draw(RenderContext *ctx);
 #define MENU_SLOT_COPPER_POT       2
 #define MENU_SLOT_WAX_CUBE         3
 #define MENU_SLOT_GREEN_KEY_STONE  4
-#define MENU_ITEM_SLOTS            5
+#define MENU_SLOT_FLAME_ROUNDS     5
+#define MENU_ITEM_SLOTS            6
 
 int         menu_item_held(int slot);   /* 1 if the player currently holds it */
 const char *menu_item_name(int slot);

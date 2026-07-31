@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "render.h"
+#include "damage.h"
 
 #define MAX_ZOMBIES           8
 #define ZMB_MAX_HEALTH        5
@@ -107,6 +108,10 @@ void zombies_init(void);
 void zombies_reset(void);
 /* Put every still-living zombie back at its spawn point, asleep, at full
    health (deaths stick). Called when leaving a room and when saving. */
+/* Scale a hit by this enemy's weaknesses (see damage.h). Every enemy has one of
+   these, even where the table is empty, so a weakness is a one-line addition. */
+int32_t zombie_scale_damage(int32_t base, DamageType type);
+
 void zombies_rest(void);
 void update_zombies(void);
 void draw_zombies(RenderContext *ctx);

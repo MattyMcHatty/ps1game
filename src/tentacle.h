@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "render.h"
+#include "damage.h"
 #include "title.h"   /* GameState — each tentacle is tagged with its area */
 
 /* A stationary tentacle enemy. It cannot move and is never knocked back. It
@@ -46,6 +47,9 @@ int  tentacles_try_hit(void);
 /* Grave-olver hitscan support: aim target (sprite-centre Y + half-height) and a
    shot that deals 1 HP. */
 void tentacle_body(const Tentacle *t, int32_t *cyc, int32_t *hh);
-void tentacle_shoot(Tentacle *t);
+void tentacle_shoot(Tentacle *t, int amount);
+
+/* Scale a hit by this enemy's weaknesses (see damage.h). */
+int32_t tentacle_scale_damage(int32_t base, DamageType type);
 
 #endif

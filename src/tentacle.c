@@ -230,9 +230,21 @@ void tentacle_body(const Tentacle *t, int32_t *cyc, int32_t *hh) {
     *hh  = TENT_HALF_H;
 }
 
-/* A grave-olver round deals 1 HP. */
-void tentacle_shoot(Tentacle *t) {
-    tentacle_take_damage(t, 1);
+/* Tentacles are the most flammable thing in the house: Flame Rounds do triple
+   damage. Add another line here for a second weakness (see damage.h). */
+static const Weakness tentacle_weakness[] = {
+    { DMG_FLAME, 300 },
+};
+
+int32_t tentacle_scale_damage(int32_t base, DamageType type) {
+    return damage_scale(base, type, tentacle_weakness,
+                        WEAKNESS_COUNT(tentacle_weakness));
+}
+
+/* A grave-olver round deals `amount` HP, already scaled by the caller for the
+   ammo type's damage type. */
+void tentacle_shoot(Tentacle *t, int amount) {
+    tentacle_take_damage(t, amount);
 }
 
 int tentacles_try_hit(void) {

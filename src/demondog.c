@@ -122,6 +122,16 @@ void demon_dogs_reset(void) {
         demon_dogs[i] = ddog_defaults[i];
 }
 
+/* No weaknesses yet — add a { DMG_*, percent } line to give it one (damage.h). */
+static const Weakness demon_dog_weakness[] = {
+    { DMG_KINETIC, 100 },   /* placeholder: 100% = no change. Replace or append. */
+};
+
+int32_t demon_dog_scale_damage(int32_t base, DamageType type) {
+    return damage_scale(base, type, demon_dog_weakness,
+                        WEAKNESS_COUNT(demon_dog_weakness));
+}
+
 void demon_dogs_rest(void) {
     int i;
     for (i = 0; i < demon_dog_count; i++) {

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "render.h"
+#include "damage.h"
 
 #define VAMPIRE_SPEED    4
 #define VAMPIRE_HALF_W   50
@@ -24,5 +25,8 @@ extern int     vampire_hit_timer;
 
 void update_vampire(void);
 void draw_vampire(RenderContext *ctx);
+
+/* Scale a hit by this enemy's weaknesses (see damage.h). */
+int32_t vampire_scale_damage(int32_t base, DamageType type);
 
 #endif

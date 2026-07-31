@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "render.h"
+#include "damage.h"
 
 #define MAX_DEMON_DOGS        8
 #define DDOG_MAX_HEALTH       3
@@ -84,6 +85,9 @@ void demon_dogs_init(void);
 void demon_dogs_reset(void);
 /* Put every still-living dog back at its spawn point, asleep, at full health
    (deaths stick). Called when leaving a room and when saving. */
+/* Scale a hit by this enemy's weaknesses (see damage.h). */
+int32_t demon_dog_scale_damage(int32_t base, DamageType type);
+
 void demon_dogs_rest(void);
 void update_demon_dogs(void);
 void draw_demon_dogs(RenderContext *ctx);

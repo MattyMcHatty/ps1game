@@ -146,6 +146,16 @@ static void spider_wake(Spider *s) {
     s->spit_timer = SPD_SPIT_INTERVAL;
 }
 
+/* No weaknesses yet — add a { DMG_*, percent } line to give it one (damage.h). */
+static const Weakness spider_weakness[] = {
+    { DMG_KINETIC, 100 },   /* placeholder: 100% = no change. Replace or append. */
+};
+
+int32_t spider_scale_damage(int32_t base, DamageType type) {
+    return damage_scale(base, type, spider_weakness,
+                        WEAKNESS_COUNT(spider_weakness));
+}
+
 void spider_damage(Spider *s, int dmg) {
     if (!s->active || s->state == SPD_DEAD) return;
     spider_wake(s);                 /* shot off the ceiling: drop and fight */

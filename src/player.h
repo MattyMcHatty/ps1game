@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "render.h"
+#include "damage.h"
 
 #define MAX_HEALTH 100
 
@@ -31,12 +32,40 @@ typedef enum {
 } WeaponType;
 
 extern int player_weapons;     /* bitmask — bit WEAPON_* set means it is owned */
-extern int player_rounds;      /* reserve rounds held (used to reload the cylinder) */
-extern int graveolver_loaded;  /* rounds currently in the Grave-olver cylinder (0..6) */
+
+/* --- Grave-olver ammunition -------------------------------------------------
+   The cylinder holds ONE type at a time; the reserve is counted per type. R2
+   swaps the chambered type, which costs a full reload (see graveolver.c).
+
+   ADDING AN AMMO TYPE: add an AmmoType before MAX_AMMO_TYPES, add its row to
+   ammo_info[] in player.c, add a PickupKind + TIM in item_pickup.c, and give it
+   a DamageType that enemy weakness tables can key on (see damage.h). */
+typedef enum {
+    AMMO_STANDARD = 0,
+    AMMO_FLAME,
+    MAX_AMMO_TYPES
+} AmmoType;
+
+typedef struct {
+    const char *name;       /* HUD label beside the count, e.g. "Flame Rounds" */
+    const char *load_msg;   /* pickup-log line posted when a swap completes    */
+    DamageType  damage;     /* what enemy weakness tables key on               */
+    uint8_t     flash_r, flash_g, flash_b;   /* muzzle-flash colour when fired */
+} AmmoInfo;
+
+extern const AmmoInfo ammo_info[MAX_AMMO_TYPES];
+
+extern int       player_ammo[MAX_AMMO_TYPES];  /* reserve rounds held, per type */
+extern AmmoType  graveolver_ammo;              /* type currently in the cylinder */
+extern int       graveolver_loaded;  /* rounds currently in the cylinder (0..6) */
 extern int player_save_count;  /* total successful saves this playthrough (any slot/card) */
 extern WeaponType current_weapon;  /* the equipped weapon; L2 cycles owned ones */
 
-#define ROUNDS_PER_PICKUP    6  /* rounds granted by one Standard Rounds pickup —
+/* Total reserve across every type — for "does the player have any ammo at all"
+   checks (the inventory menu's Rounds slot, mainly). */
+int player_ammo_total(void);
+
+#define ROUNDS_PER_PICKUP    6  /* rounds granted by one ammo pickup —
                                    one cylinder's worth (see GRAVEOLVER_CAPACITY) */
 #define GRAVEOLVER_CAPACITY  6  /* rounds the Grave-olver cylinder holds at once */
 
