@@ -24,6 +24,11 @@ void world_new_game(void);          /* reset all rooms; capture the starting roo
 void world_leave(GameState area);   /* live entities  -> the area's saved slot */
 void world_enter(GameState area);   /* the area's saved slot -> live entities   */
 
+/* Stop every monster sound at once, including the latched hardware loops (the
+   spider scuttle and tentacle writhe). Called by door_anim_start() and
+   stair_anim_start() so nothing carries over into the next room. */
+void world_silence_monsters(void);
+
 /* Raw access to the whole rooms[] array for the save system: savegame.c writes
    the blob into the save block and installs a loaded one over it. After
    world_install, call world_enter(saved area) to refresh the live arrays. */

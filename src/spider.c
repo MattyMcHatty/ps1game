@@ -105,6 +105,22 @@ void spiders_rest(void) {
     }
 }
 
+/* Shared scuttle loop latch, driven exactly like the tentacle writhe: ONE voice
+   for every spider in the room, keyed on whether any of them actually moved this
+   frame. Per-spider voices would be three copies of the same sample fighting
+   over the SPU. File-scope rather than local to update_spiders so a room
+   transition can clear it (spiders_silence). */
+static int walk_on = 0;
+
+/* Cut the scuttle loop dead and clear the latch. Clearing walk_on matters as
+   much as the sound_stop: update_spiders only issues sound_play on the 0->1
+   edge, so a stopped voice with the latch still set would stay silent forever
+   once the player came back. Called on every room transition (world.h). */
+void spiders_silence(void) {
+    sound_stop(SFX_SPDR_WLK);
+    walk_on = 0;
+}
+
 void spiders_init(void) {
     /* Placements are seeded on a room's first entry by the world system (see
        world_enter in world.c), where the room's collision mesh is loaded and
@@ -158,11 +174,6 @@ static int32_t spider_angle(const Spider *s) {
 
 void update_spiders(void) {
     static int hurt_sfx_cooldown = 0;
-    /* Shared scuttle loop, driven exactly like the tentacle writhe: ONE voice
-       for every spider in the room, keyed on whether any of them actually moved
-       this frame. Per-spider voices would be three copies of the same sample
-       fighting over the SPU. */
-    static int walk_on = 0;
     int any_walking = 0;
     int i;
     if (hurt_sfx_cooldown > 0) hurt_sfx_cooldown--;

@@ -158,6 +158,7 @@
                 <file name="MSTRBED.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\master_bedroom.smd"/>
                 <file name="BED.TIM"      type="data" source="C:\Users\virtu\Documents\ps1game\textures\bed.tim"/>
                 <file name="EASTHALL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\east_hall.smd"/>
+                <file name="LIBRARY.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\library.smd"/>
             </dir>
         </directory_tree>
     </track>

@@ -5,6 +5,7 @@
 #include <psxcd.h>
 #include "door_anim.h"
 #include "sound.h"
+#include "world.h"   /* world_silence_monsters */
 
 /* ------------------------------------------------------------------ timing */
 /* All in frames @ 60fps. The door fades in from black, holds closed briefly,
@@ -114,6 +115,10 @@ void door_anim_start(int variant) {
     anim_active  = 1;
     anim_variant = (variant >= 0 && variant < DOOR_PANEL_COUNT) ? variant
                                                                 : DOOR_PANEL_OUTER;
+    /* Kill every monster sound the moment the transition begins: from here the
+       area update stops running, so a looped scuttle/writhe would otherwise
+       follow the player into the next room. */
+    world_silence_monsters();
     /* The door sound starts when the fade-in finishes (see door_anim_update),
        so it lines up with the door becoming fully visible, not with the black. */
 }

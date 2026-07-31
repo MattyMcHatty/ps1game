@@ -75,6 +75,13 @@ void piano_props_upload_textures(void) {
     texmgr_upload(bookcase_tex);
 }
 
+/* Bookcase art ONLY (stn_stl slot, x320 y0). The library draws bookshelf but
+   NOT piano_keys, and piano_keys shares the kchn_tile slot (x384 y0) with the
+   cncrte the library does draw — so the library must not take the pair. */
+void piano_props_upload_bookcase_texture(void) {
+    texmgr_upload(bookcase_tex);
+}
+
 /* Position both props in the piano room (room x[-2301,0], z[-740,974], floor
    world y=0 -> standing reference -149). Called from piano_room_init. */
 void piano_props_place(void) {

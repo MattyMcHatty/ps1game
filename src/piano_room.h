@@ -8,6 +8,9 @@
    modelled on reception.c. */
 void piano_room_load_assets(void);     /* startup: geometry + texture registration */
 void piano_room_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
+/* prpl_wlppr alone, for other rooms (the library) that reuse the wallpaper
+   without the piano room's props. */
+void piano_room_upload_wallpaper(void);
 void piano_room_init(void);            /* set collision/floor zones + spawn */
 void piano_room_draw(RenderContext *ctx);
 void pdoor_arm(void);                  /* seed Circle edge state on entry */

@@ -33,6 +33,7 @@ extern int      tentacle_count;
 void tentacles_load_assets(void);   /* startup: load both sprite TIMs (resident) */
 void tentacles_init(void);          /* place the conservatory tentacles          */
 void tentacles_reset(void);         /* new game: restore the initial layout      */
+void tentacles_silence(void);       /* stop the writhe loop + clear its latch    */
 void update_tentacles(void);        /* proximity oscillate + damage the player   */
 void draw_tentacles(RenderContext *ctx);
 /* Set the area's texture window so sprites can bracket it (they sit at u-off

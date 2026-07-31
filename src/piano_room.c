@@ -111,8 +111,14 @@ void piano_room_load_assets(void) {
    Pure LoadImage — no CD access — safe during the room transition (the caller
    DrawSyncs first, as main's STATE_LOADING does). */
 void piano_room_upload_textures(void) {
-    texmgr_upload(prpl_tex_id);
+    piano_room_upload_wallpaper();
     piano_props_upload_textures();   /* bookshelf/piano_keys -> stn_stl/kchn_tile slots */
+}
+
+/* prpl_wlppr alone (stove slot, x384 y256). The library reuses this wallpaper
+   but not the piano room's props, so it uploads just this. */
+void piano_room_upload_wallpaper(void) {
+    texmgr_upload(prpl_tex_id);
 }
 
 /* ---- Door back to reception -----------------------------------------------

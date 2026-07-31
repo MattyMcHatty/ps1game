@@ -6,6 +6,7 @@
 #include <inline_c.h>
 #include "stair_anim.h"
 #include "sound.h"
+#include "world.h"   /* world_silence_monsters */
 
 /* ------------------------------------------------------------------ timing
    Fade in from black, hold ~1s, then three step-ups (~1s each), then a 1s fade
@@ -73,6 +74,9 @@ void stair_anim_start(int direction) {
     anim_timer  = 0;
     anim_active = 1;
     anim_dir    = (direction == STAIR_DOWN) ? STAIR_DOWN : STAIR_UP;
+    /* Same as the door transition: silence the monsters we are leaving behind
+       before the area update stops running. */
+    world_silence_monsters();
     /* No sound yet: the image fades in and holds for INTRO_FRAMES first. */
 }
 

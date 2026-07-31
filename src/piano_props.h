@@ -13,6 +13,9 @@
 
 void piano_props_load_assets(void);     /* startup: geometry + texture registration */
 void piano_props_upload_textures(void); /* piano-room entry: pure LoadImage from RAM */
+/* bookshelf alone — for rooms (the library) that draw bookcase art but must
+   keep piano_keys OUT of the kchn_tile slot they need for cncrte. */
+void piano_props_upload_bookcase_texture(void);
 void piano_props_place(void);           /* piano_room_init: position both props */
 void piano_props_update(void);          /* Circle-to-examine the piano */
 void piano_props_draw(RenderContext *ctx);

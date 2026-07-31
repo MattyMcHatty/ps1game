@@ -156,6 +156,8 @@ void spiders_reset(void);
 /* Put every still-living spider back on its ceiling perch, at rest, at full
    health (deaths stick). Called when leaving a room and when saving. */
 void spiders_rest(void);
+/* Stop the shared scuttle loop and clear its latch (room transitions). */
+void spiders_silence(void);
 void update_spiders(void);
 void draw_spiders(RenderContext *ctx);
 

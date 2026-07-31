@@ -12,9 +12,11 @@
 #include "fatdoor.h"
 #include "tentacle.h"
 #include "savegame.h"
+#include "sound.h"
 
-#define WORLD_NUM_ROOMS 8   /* delivery_area, kitchen_dining, reception, piano_room,
-                               conservatory, hall_2f, master_bedroom, east_hall */
+#define WORLD_NUM_ROOMS 9   /* delivery_area, kitchen_dining, reception, piano_room,
+                               conservatory, hall_2f, master_bedroom, east_hall,
+                               library */
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below; this
    is the per-room unit a save file would store. */
@@ -75,6 +77,7 @@ static int room_index(GameState area) {
         case STATE_2F_HALL:        return 5;
         case STATE_MASTER_BEDROOM: return 6;
         case STATE_EAST_HALL:      return 7;
+        case STATE_LIBRARY:        return 8;
         default:                   return 0;
     }
 }
@@ -136,6 +139,25 @@ void world_new_game(void) {
     snapshot(&world.rooms[d]);
     world.rooms[d].visited = 1;
     snapshot_fatdoors();
+}
+
+/* Cut every monster sound dead. Called the instant a room transition begins
+   (door and stair alike), because the area update stops running from that frame
+   on: a hardware-looped scuttle or writhe would otherwise keep sounding right
+   through the transition and into the next room, and an in-flight groan or bark
+   would ring out over it. The two looped sounds are latched inside their own
+   modules, so they get dedicated helpers that clear the latch as well — see
+   spiders_silence(). Player sounds (hurt, death, the gun) are deliberately left
+   alone; only the monsters are silenced. */
+void world_silence_monsters(void) {
+    spiders_silence();          /* SFX_SPDR_WLK   — looped, latched */
+    tentacles_silence();        /* SFX_TNTCL_WRTH — looped, latched */
+    sound_stop(SFX_ZOMBIE);     /* groan, retriggered on an interval while alert */
+    sound_stop(SFX_ZOMBIEDIE);
+    sound_stop(SFX_DOGBARK);
+    sound_stop(SFX_DOGDIE);
+    sound_stop(SFX_SPIT);
+    sound_stop(SFX_TNTCL_DIE);  /* also the spider's death cry (see spider.c) */
 }
 
 void world_leave(GameState area) {

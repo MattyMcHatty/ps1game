@@ -8,61 +8,70 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "camera.h"
-#include "east_hall.h"
+#include "library.h"
 #include "collision.h"
-#include "east_hall_mesh_collision.h"
-#include "east_hall_tex_map.h"
+#include "library_mesh_collision.h"
+#include "library_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
 #include "texmgr.h"
 #include "dresser.h"
-#include "fatdoor.h"
 #include "concrete_props.h"
+#include "piano_room.h"
+#include "piano_props.h"
 #include "save_point.h"
 #include "zombie.h"
-#include "spider.h"
-#include "web.h"
 #include "item_pickup.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
-/* East Hall: a long east-west corridor off reception's upper floor, rendered
-   the same way as the master bedroom / 2F hall (per-poly tex map + 128 texture
-   window + fog). The double door in its west wall leads back to reception. */
+/* Library: the reading room at the east end of the East Hall, rendered the same
+   way as the East Hall / master bedroom (per-poly tex map + 128 texture window
+   + fog). The double door in the entrance vestibule's west wall leads back to
+   the hall. */
 
-static SMD  *east_hall_smd  = NULL;
-static void *east_hall_buff = NULL;
+static SMD  *library_smd  = NULL;
+static void *library_buff = NULL;
 
-/* Single flat floor at y=0 across the walkable bounds (all fourteen floors
-   detected in east_hall_mesh_collision.c sit at y=0). The rect over-covers the
-   L-shape's empty south-east corner, which is harmless: the walls keep the
-   player out of it. */
-static void east_hall_floor_zones_init(void) {
+/* Single flat floor at y=0 (both floors detected in library_mesh_collision.c
+   sit at y=0). The rect over-covers the L-shape's empty north-west quarter
+   (x<-350, z>-349), which is harmless: wall 0 at z=-349 keeps the player out of
+   it. */
+static void library_floor_zones_init(void) {
     floor_zones[0].type  = FLOOR_FLAT;
-    floor_zones[0].min_x = 19;   floor_zones[0].max_x = 2671;
-    floor_zones[0].min_z = -992; floor_zones[0].max_z = 721;
+    floor_zones[0].min_x = -1780; floor_zones[0].max_x = 350;
+    floor_zones[0].min_z = -2080; floor_zones[0].max_z = 349;
     floor_zones[0].y     = 0;
     floor_zone_count = 1;
 }
 
 /* ---- Per-room textures -----------------------------------------------------
-   Five mesh textures, ALL already in the game — this room adds no new art and
-   therefore claims no new VRAM. Three are resident from startup (wd_flr and
-   inr_dbl_dr with the kitchen/reception, wd_dr with the fat door). Two live in
-   time-shared slots owned by other modules, so we just call their uploads on
+   Seven mesh textures, ALL already in the game — this room adds no new art and
+   therefore claims no new VRAM. Four are resident from startup (wd_flr, din_cl
+   and inr_dbl_dr with the kitchen/reception, wd_dr with the fat door). Three
+   live in time-shared slots owned by other modules, so we call their uploads on
    entry rather than duplicating the RAM copies:
-     - cncrte occupies the kchn_tile slot (x384 y0), the same slot the
-       conservatory streams it into via concrete_props_upload_textures();
-     - dresser occupies the kchn_wl slot (x512 y0), uploaded by the dresser
-       prop module for the dressers modelled into this room's mesh.
-   Both slots are already on kitchen_restore_textures()' list, so stomping them
-   here creates no NEW restore obligation. All five sit at Voff 0, so the one
-   128 texture window set in east_hall_draw serves them all. */
-#define EAST_HALL_TEX_COUNT 5
+     - cncrte     occupies the kchn_tile slot (x384 y0), the same slot the
+                  conservatory and East Hall stream it into via
+                  concrete_props_upload_textures();
+     - prpl_wlppr occupies the stove slot (x384 y256), streamed by the piano
+                  room;
+     - bookshelf  occupies the stn_stl slot (x320 y0), streamed by the piano
+                  room's bookcase prop.
+   NOTE the deliberate use of the narrow, single-texture upload entry points:
+   piano_room_upload_textures() would also drag in piano_keys, which shares the
+   kchn_tile slot with the cncrte this room needs.
 
-static uint16_t tex_tpage[EAST_HALL_TEX_COUNT];
-static uint16_t tex_clut[EAST_HALL_TEX_COUNT];
+   All three slots are already on kitchen_restore_textures()' list (and
+   reception/conservatory/hall_2f each re-upload their own strs over stn_stl on
+   entry), so stomping them here creates no NEW restore obligation. All seven
+   textures sit at Voff 0, so the one 128 texture window set in library_draw
+   serves them all. */
+#define LIBRARY_TEX_COUNT 7
+
+static uint16_t tex_tpage[LIBRARY_TEX_COUNT];
+static uint16_t tex_clut[LIBRARY_TEX_COUNT];
 
 /* Read a whole TIM into a freshly malloc'd buffer (caller owns it). NULL on fail. */
 static uint8_t *read_tim(const char *filename) {
@@ -105,57 +114,51 @@ static void capture_tpage(const char *filename, int slot) {
 /* Load geometry AND capture texture headers at STARTUP (the only time CD access
    is safe — see tools/TEXTURING_NOTES.txt). Every texture this room draws is
    registered by another module, so there is nothing to texmgr_register here. */
-void east_hall_load_assets(void) {
-    east_hall_buff = load_file_from_cd("\\TEX\\EASTHALL.SMD;1");
-    if (east_hall_buff)
-        east_hall_smd = smdInitData(east_hall_buff);
+void library_load_assets(void) {
+    library_buff = load_file_from_cd("\\TEX\\LIBRARY.SMD;1");
+    if (library_buff)
+        library_smd = smdInitData(library_buff);
 
-    /* Uploaded by concrete_props (cncrte) and the dresser prop (dresser), both
-       of which east_hall_upload_textures calls on entry. */
-    capture_tpage("\\TEX\\CNCRTE.TIM;1",  0);
-    capture_tpage("\\TEX\\DRESSER.TIM;1", 3);
+    /* Uploaded by concrete_props (cncrte), the piano room (prpl_wlppr) and the
+       bookcase prop (bookshelf), all of which library_upload_textures calls. */
+    capture_tpage("\\TEX\\CNCRTE.TIM;1",   0);
+    capture_tpage("\\TEX\\PRPLWLP.TIM;1",  1);
+    capture_tpage("\\TEX\\BOOKSHLF.TIM;1", 4);
 
     /* Resident from startup (kitchen/reception + fatdoor). */
-    capture_tpage("\\WDFLR.TIM;1",    1);
-    capture_tpage("\\INRDBLDR.TIM;1", 2);
-    capture_tpage("\\WDDR.TIM;1",     4);
+    capture_tpage("\\WDFLR.TIM;1",    2);
+    capture_tpage("\\DINCL.TIM;1",    3);
+    capture_tpage("\\INRDBLDR.TIM;1", 5);
+    capture_tpage("\\WDDR.TIM;1",     6);
 }
 
-/* Upload the two streamed textures from their owners' resident RAM copies.
+/* Upload the three streamed textures from their owners' resident RAM copies.
    Pure LoadImage — no CD access — safe during the room transition (the caller
    DrawSyncs first, as main's STATE_LOADING does). */
-void east_hall_upload_textures(void) {
-    concrete_props_upload_textures();   /* cncrte  -> kchn_tile slot */
-    dresser_upload_texture();           /* dresser -> kchn_wl slot   */
+void library_upload_textures(void) {
+    concrete_props_upload_textures();       /* cncrte     -> kchn_tile slot */
+    piano_room_upload_wallpaper();          /* prpl_wlppr -> stove slot     */
+    piano_props_upload_bookcase_texture();  /* bookshelf  -> stn_stl slot   */
 }
 
-/* ---- The two double doors at either end of the hall ------------------------
-   Both come from the inr_dbl_dr polys in "East Hall.smx", both centred on
-   z=372, and both are interior double doors:
+/* ---- The west double door back to the East Hall ----------------------------
+   In the entrance vestibule's west wall (x=-350, from the inr_dbl_dr polys in
+   "Library.smx"), centred on z=0. It maps to the double door at the EAST end of
+   the East Hall (east hall x=2672, z=372). The player approaches from the +X
+   (vestibule) side, so the sign lies in the YZ plane with mirror=0 — the same
+   orientation as the East Hall's own west-wall sign. The interaction point sits
+   65 units east of the wall so the sign floats in front of the door. */
+#define LDOOR_W_X                (-285)
+#define LDOOR_W_Z                    0
+#define LDOOR_TEXT_Y            (-186)
+#define LDOOR_TEXT_RADIUS         1500
+#define LDOOR_FADE_NEAR           1000
+#define LDOOR_TRIGGER_RADIUS       500
 
-     WEST  (x=20)   -> the double door on the EAST wall of reception's upper
-                       floor (reception x=1500, z=1071). Approached from the +X
-                       (room) side, so its sign is YZ-plane mirror=0 — the same
-                       orientation as reception's own west-wall signs.
-     EAST  (x=2672) -> the Library's entrance vestibule (library x=-350, z=0).
-                       Approached from the -X side, so its sign is YZ-plane
-                       mirror=1.
-
-   Each interaction point sits 65 units inside the wall so the sign floats in
-   front of its door. */
-#define EHDOOR_W_X                 85
-#define EHDOOR_E_X               2607
-#define EHDOOR_Z                  372
-#define EHDOOR_TEXT_Y           (-186)
-#define EHDOOR_TEXT_RADIUS       1500
-#define EHDOOR_FADE_NEAR         1000
-#define EHDOOR_TRIGGER_RADIUS     500
-
-/* Circle edge-detect, one per door, seeded by east_hall_doors_arm(). Both start
-   "held" so a press carried in through a transition doesn't bounce the player
-   straight back out. */
+/* Circle edge-detect, seeded by library_doors_arm(). Starts "held" so a press
+   carried in from the hall-side transition doesn't bounce the player straight
+   back out. */
 static int wdoor_circle_prev = 1;
-static int edoor_circle_prev = 1;
 
 static int circle_held(void) {
     if (!pad_buff_len[0]) return 0;
@@ -163,114 +166,93 @@ static int circle_held(void) {
     return (~pad->btn & PAD_CIRCLE) ? 1 : 0;
 }
 
-void east_hall_doors_arm(void) {
-    int held = circle_held();
-    wdoor_circle_prev = held;
-    edoor_circle_prev = held;
+void library_doors_arm(void) {
+    wdoor_circle_prev = circle_held();
 }
 
-/* Shared body: fresh Circle press within Manhattan range of (door_x, EHDOOR_Z).
-   Each door owns its own edge-detect state, passed in by pointer. */
-static int ehdoor_triggered(int32_t door_x, int *circle_prev) {
+int library_wdoor_triggered(void) {
     int held = circle_held();
-    int just = held && !*circle_prev;
-    *circle_prev = held;
+    int just = held && !wdoor_circle_prev;
+    wdoor_circle_prev = held;
     if (!just) return 0;
 
-    int32_t dx = cam_x - door_x;
-    int32_t dz = cam_z - EHDOOR_Z;
+    int32_t dx = cam_x - LDOOR_W_X;
+    int32_t dz = cam_z - LDOOR_W_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < EHDOOR_TRIGGER_RADIUS;
+    return xz < LDOOR_TRIGGER_RADIUS;
 }
 
-int east_hall_wdoor_triggered(void) {
-    return ehdoor_triggered(EHDOOR_W_X, &wdoor_circle_prev);
-}
-
-int east_hall_edoor_triggered(void) {
-    return ehdoor_triggered(EHDOOR_E_X, &edoor_circle_prev);
-}
-
-/* Floating "Press O to enter" sign. YZ plane: door_draw_string_3d centres the
-   reading axis (Z) on world_z after adding 200, so pass door_z - 200. mirror=0
-   for the west door (read from +X), 1 for the east door (read from -X). */
-static void ehdoor_text(RenderContext *ctx, int32_t door_x, int mirror) {
-    int32_t dx = cam_x - door_x;
-    int32_t dz = cam_z - EHDOOR_Z;
+/* Floating "Press O to enter" sign on the west door. YZ plane:
+   door_draw_string_3d centres the reading axis (Z) on world_z after adding 200,
+   so pass door_z - 200. mirror=0 because the player reads it from +X. */
+static void ldoor_text(RenderContext *ctx) {
+    int32_t dx = cam_x - LDOOR_W_X;
+    int32_t dz = cam_z - LDOOR_W_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    if (xz >= EHDOOR_TEXT_RADIUS) return;
+    if (xz >= LDOOR_TEXT_RADIUS) return;
 
     int fade = 256;
-    if (xz > EHDOOR_FADE_NEAR) {
-        int range = EHDOOR_TEXT_RADIUS - EHDOOR_FADE_NEAR;
-        int prog  = xz - EHDOOR_FADE_NEAR;
+    if (xz > LDOOR_FADE_NEAR) {
+        int range = LDOOR_TEXT_RADIUS - LDOOR_FADE_NEAR;
+        int prog  = xz - LDOOR_FADE_NEAR;
         if (prog > range) prog = range;
         fade = 256 - ((prog * 256) / range);
     }
 
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
-                        door_x, EHDOOR_TEXT_Y, EHDOOR_Z - 200,
-                        50, 255, 50, fade, mirror, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+                        LDOOR_W_X, LDOOR_TEXT_Y, LDOOR_W_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
-/* Spawn just inside the west door, far enough east of the x=20 wall to clear
-   the 195 push radius apply_collision_reception uses, facing +X into the hall. */
-void east_hall_spawn_west(void) {
-    cam_x   = 260;
+/* Spawn just inside the west door, far enough east of the x=-350 wall to clear
+   the 195 push radius apply_collision_reception uses, facing +X (east) along
+   the direction of travel through the door. */
+void library_spawn_west(void) {
+    cam_x   = -80;
     cam_y   = -189;
     cam_vy  = 0;
-    cam_z   = EHDOOR_Z;
-    cam_rot = 1024;   /* facing +X, into the hall */
-    east_hall_doors_arm();
+    cam_z   = LDOOR_W_Z;
+    cam_rot = 1024;   /* facing +X, into the vestibule */
+    library_doors_arm();
 }
 
-/* Spawn just inside the east door (x=2672 wall), facing -X into the hall. */
-void east_hall_spawn_east(void) {
-    cam_x   = 2412;
-    cam_y   = -189;
-    cam_vy  = 0;
-    cam_z   = EHDOOR_Z;
-    cam_rot = 3072;   /* facing -X, into the hall */
-    east_hall_doors_arm();
-}
+void library_init(void) {
+    library_collision_init(&current_collision_room);
+    /* This room's proxy mesh (Library mesh.smx) tops its walls out at y=-500,
+       but the mesh actually DRAWN (Library.smx -> library.smd) has the reading
+       room's ceiling at y=-730 (the entrance vestibule's is the lower -500).
+       State the drawn value of the room proper so ceiling-mounted enemies hang
+       flush with the roof the player can see. */
+    collision_set_ceiling_y(-730);
+    library_floor_zones_init();
 
-void east_hall_init(void) {
-    east_hall_collision_init(&current_collision_room);
-    /* This room's proxy mesh (East Hall mesh.smx) tops its walls out at
-       y=-375, but the mesh actually DRAWN (East Hall.smx -> east_hall.smd)
-       has its ceiling at y=-520. State the drawn value so ceiling-mounted
-       enemies hang flush with the roof the player can see. */
-    collision_set_ceiling_y(-520);
-    east_hall_floor_zones_init();
-
-    /* Default arrival spawn; main.c's STATE_LOADING overrides it with
-       east_hall_spawn_east() when the player came back from the library. */
-    east_hall_spawn_west();
+    /* Only one wired door, so this is also the arrival spawn. */
+    library_spawn_west();
 
     /* Reception's save point and dresser prop are global (not room-swapped) and
        neither is area-gated in its collide routine, so reception's instances
        would block the player invisibly inside this room's bounds — the save
-       point sits at (78,-67), just inside the hall's west end. Clearing them is
+       point sits at (78,-67), inside the entrance vestibule. Clearing them is
        safe: reception_init() re-places both on every reception entry. */
     save_points_clear();
     dressers_clear();
 }
 
-static void draw_east_hall_smd(RenderContext *ctx) {
-    if (!east_hall_smd) return;
+static void draw_library_smd(RenderContext *ctx) {
+    if (!library_smd) return;
 
-    uint8_t *p = (uint8_t *)east_hall_smd->p_prims;
+    uint8_t *p = (uint8_t *)library_smd->p_prims;
     int i;
 
-    for (i = 0; i < east_hall_smd->n_prims; i++) {
+    for (i = 0; i < library_smd->n_prims; i++) {
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
         uint8_t stride = pt->len;
         int is_quad = (pt->type >= 2);
 
         uint16_t *vi = (uint16_t *)(p + 4);
-        SVECTOR *v0 = &east_hall_smd->p_verts[vi[0]];
-        SVECTOR *v1 = &east_hall_smd->p_verts[vi[1]];
-        SVECTOR *v2 = &east_hall_smd->p_verts[vi[2]];
+        SVECTOR *v0 = &library_smd->p_verts[vi[0]];
+        SVECTOR *v1 = &library_smd->p_verts[vi[1]];
+        SVECTOR *v2 = &library_smd->p_verts[vi[2]];
 
         {
             int32_t dx = (int32_t)v0->vx - cam_x;
@@ -299,8 +281,8 @@ static void draw_east_hall_smd(RenderContext *ctx) {
         }
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
-           build time in east_hall_nocull — same scheme as the other rooms. */
-        int nocull = (i < EAST_HALL_PRIM_COUNT) && east_hall_nocull[i];
+           build time in library_nocull — same scheme as the other rooms. */
+        int nocull = (i < LIBRARY_PRIM_COUNT) && library_nocull[i];
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -313,7 +295,7 @@ static void draw_east_hall_smd(RenderContext *ctx) {
         SVECTOR *v3    = 0;
         int32_t  v2_sz = sz[3];   /* v2's SZ, before the quad path reuses sz[3] */
         if (is_quad) {
-            v3 = &east_hall_smd->p_verts[vi[3]];
+            v3 = &library_smd->p_verts[vi[3]];
             gte_ldv0(v3);
             gte_rtps();
             gte_stsxy(&sv[3]);
@@ -349,9 +331,9 @@ static void draw_east_hall_smd(RenderContext *ctx) {
 
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
-           texture window set in east_hall_draw. */
-        uint8_t tex_idx = (i < EAST_HALL_PRIM_COUNT) ? east_hall_tex_map[i] : 0xFF;
-        int     textured = (tex_idx != 0xFF && tex_idx < EAST_HALL_TEX_COUNT);
+           texture window set in library_draw. */
+        uint8_t tex_idx = (i < LIBRARY_PRIM_COUNT) ? library_tex_map[i] : 0xFF;
+        int     textured = (tex_idx != 0xFF && tex_idx < LIBRARY_TEX_COUNT);
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);
         uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + 10 * (256 - fog_factor)) >> 8);
@@ -417,7 +399,7 @@ static void draw_east_hall_smd(RenderContext *ctx) {
     }
 }
 
-void east_hall_draw(RenderContext *ctx) {
+void library_draw(RenderContext *ctx) {
     /* Entities in this room fog with the same near/far as the mesh below. */
     g_fog_near = 350; g_fog_far = 1500;
 
@@ -431,7 +413,7 @@ void east_hall_draw(RenderContext *ctx) {
     ctx->next_packet += sizeof(TILE);
 
     /* 128x128 texture window so per-poly UVs wrap (tile) within each texture's
-       page. All five East Hall textures sit at page-top (Voff 0), so one window
+       page. All seven Library textures sit at page-top (Voff 0), so one window
        serves them (see tools/VRAM_MAP.txt). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
@@ -458,27 +440,17 @@ void east_hall_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
 
-    draw_east_hall_smd(ctx);
+    draw_library_smd(ctx);
 
-    /* One spider hangs from the hall ceiling (placed in world.c); no zombies
-       yet. Both renderers are handed the room's 128 texture window either way,
-       so their Voff>=128 sprites are bracketed correctly (see
-       tools/TEXTURING_NOTES.txt PART 5). */
+    /* No enemies seeded here yet, but the renderer is handed the room's 128
+       texture window either way so any Voff>=128 sprite added later is
+       bracketed correctly (see tools/TEXTURING_NOTES.txt PART 5). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
-        spiders_set_texwindow(&tw);
     }
     draw_zombies(ctx);
-    draw_spiders(ctx);
-    webs_draw(ctx);
     item_pickups_draw(ctx);
 
-    /* Breakable door filling the connector to the south offshoot room. Draws
-       with the room's active 128 texture window (its UVs are 0-127, so the
-       wrap is a no-op) and restores the view matrix before returning. */
-    fatdoors_draw(ctx);
-
-    ehdoor_text(ctx, EHDOOR_W_X, 0);   /* west door, read from +X */
-    ehdoor_text(ctx, EHDOOR_E_X, 1);   /* east door, read from -X */
+    ldoor_text(ctx);
 }

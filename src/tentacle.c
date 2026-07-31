@@ -156,6 +156,13 @@ void tentacles_init(void) {
         tent_defaults[i] = tentacles[i];
 }
 
+/* Stop the writhe loop and clear its latch — see spiders_silence() for why the
+   latch must go too. Called on every room transition (world.h). */
+void tentacles_silence(void) {
+    sound_stop(SFX_TNTCL_WRTH);
+    wrath_on = 0;
+}
+
 void tentacles_reset(void) {
     int i;
     for (i = 0; i < tentacle_count; i++)
