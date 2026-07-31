@@ -54,6 +54,8 @@ add_executable(horror_game
     src/east_hall.c
     src/library_mesh_collision.c
     src/library.c
+    src/east_stairwell_mesh_collision.c
+    src/east_stairwell.c
     src/damage.c
     src/stair_anim.c
     src/trick_drawers.c

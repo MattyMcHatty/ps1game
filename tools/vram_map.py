@@ -49,6 +49,8 @@ KNOWN_STREAM_PAIRS = [
     ("double_door.tim",    "con_tile.tim"),# ...double_door is kitchen+delivery
     ("brick_wall.tim",     "bed.tim"),     # master bedroom streams bed over the...
     ("grss.tim",           "bed.tim"),     # ...same delivery slot the conservatory uses for grss
+    ("gravel_texture.tim", "chnlnk.tim"),  # east stairwell streams chnlnk over the...
+    ("trees.tim",          "chnlnk.tim"),  # ...same delivery slot the conservatory uses for trees
 ]
 
 def read_tim(path):

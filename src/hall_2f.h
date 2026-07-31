@@ -10,6 +10,11 @@
    conservatory's upstairs). Modelled on conservatory.c. */
 void hall_2f_load_assets(void);      /* startup: geometry + texture registration */
 void hall_2f_upload_textures(void);  /* room entry: pure LoadImage from RAM (no CD) */
+
+/* Narrow uploads of this module's strs / upstairs copies, for rooms that want
+   one without the rest of the hall's set (see the note in hall_2f.c). */
+void hall_2f_upload_strs(void);
+void hall_2f_upload_upstairs(void);
 void hall_2f_init(void);             /* set collision/floor zones + spawn */
 void hall_2f_draw(RenderContext *ctx);
 void hall_2f_stairs_arm(void);       /* seed Circle edge state on entry */

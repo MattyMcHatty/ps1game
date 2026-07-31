@@ -142,7 +142,11 @@ void east_hall_upload_textures(void) {
                        mirror=1.
 
    Each interaction point sits 65 units inside the wall so the sign floats in
-   front of its door. */
+   front of its door.
+
+   The SOUTH single wooden door (x=220, in the z=-992 wall at the bottom of the
+   south offshoot) is handled separately below: it lies in the XY plane, not the
+   YZ plane, and leads onto the East Stairwell's west landing. */
 #define EHDOOR_W_X                 85
 #define EHDOOR_E_X               2607
 #define EHDOOR_Z                  372
@@ -151,11 +155,19 @@ void east_hall_upload_textures(void) {
 #define EHDOOR_FADE_NEAR         1000
 #define EHDOOR_TRIGGER_RADIUS     500
 
-/* Circle edge-detect, one per door, seeded by east_hall_doors_arm(). Both start
+/* The south single door, at the far end of the south offshoot: x=220 in the
+   z=-992 wall (from the wd_dr polys in "East Hall.smx"). It maps to the East
+   Stairwell's WEST landing door (stairwell x=-1380, z=349). Interaction point
+   65 units north of the wall, same as the two double doors. */
+#define EHSDOOR_X                 220
+#define EHSDOOR_Z              (-927)
+
+/* Circle edge-detect, one per door, seeded by east_hall_doors_arm(). All start
    "held" so a press carried in through a transition doesn't bounce the player
    straight back out. */
 static int wdoor_circle_prev = 1;
 static int edoor_circle_prev = 1;
+static int sdoor_circle_prev = 1;
 
 static int circle_held(void) {
     if (!pad_buff_len[0]) return 0;
@@ -167,6 +179,7 @@ void east_hall_doors_arm(void) {
     int held = circle_held();
     wdoor_circle_prev = held;
     edoor_circle_prev = held;
+    sdoor_circle_prev = held;
 }
 
 /* Shared body: fresh Circle press within Manhattan range of (door_x, EHDOOR_Z).
@@ -191,6 +204,20 @@ int east_hall_edoor_triggered(void) {
     return ehdoor_triggered(EHDOOR_E_X, &edoor_circle_prev);
 }
 
+/* South door: same test, but its own (x, z) — it is in the opposite wall plane
+   so it cannot share ehdoor_triggered's fixed EHDOOR_Z. */
+int east_hall_sdoor_triggered(void) {
+    int held = circle_held();
+    int just = held && !sdoor_circle_prev;
+    sdoor_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - EHSDOOR_X;
+    int32_t dz = cam_z - EHSDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < EHDOOR_TRIGGER_RADIUS;
+}
+
 /* Floating "Press O to enter" sign. YZ plane: door_draw_string_3d centres the
    reading axis (Z) on world_z after adding 200, so pass door_z - 200. mirror=0
    for the west door (read from +X), 1 for the east door (read from -X). */
@@ -213,6 +240,28 @@ static void ehdoor_text(RenderContext *ctx, int32_t door_x, int mirror) {
                         50, 255, 50, fade, mirror, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* Floating sign on the south door. XY plane (fixed Z): door_draw_string_3d
+   centres the reading axis (X) on world_x after adding 200, so pass door_x-200.
+   mirror=1 because the player reads it from +Z. */
+static void ehsdoor_text(RenderContext *ctx) {
+    int32_t dx = cam_x - EHSDOOR_X;
+    int32_t dz = cam_z - EHSDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= EHDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > EHDOOR_FADE_NEAR) {
+        int range = EHDOOR_TEXT_RADIUS - EHDOOR_FADE_NEAR;
+        int prog  = xz - EHDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        EHSDOOR_X - 200, EHDOOR_TEXT_Y, EHSDOOR_Z,
+                        50, 255, 50, fade, 1, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+}
+
 /* Spawn just inside the west door, far enough east of the x=20 wall to clear
    the 195 push radius apply_collision_reception uses, facing +X into the hall. */
 void east_hall_spawn_west(void) {
@@ -231,6 +280,17 @@ void east_hall_spawn_east(void) {
     cam_vy  = 0;
     cam_z   = EHDOOR_Z;
     cam_rot = 3072;   /* facing -X, into the hall */
+    east_hall_doors_arm();
+}
+
+/* Spawn just inside the south door (z=-992 wall), 230 north of it to clear the
+   195 push radius, facing +Z back up the offshoot toward the hall. */
+void east_hall_spawn_south(void) {
+    cam_x   = EHSDOOR_X;
+    cam_y   = -189;
+    cam_vy  = 0;
+    cam_z   = -762;
+    cam_rot = 0;      /* facing +Z, up the offshoot */
     east_hall_doors_arm();
 }
 
@@ -481,4 +541,5 @@ void east_hall_draw(RenderContext *ctx) {
 
     ehdoor_text(ctx, EHDOOR_W_X, 0);   /* west door, read from +X */
     ehdoor_text(ctx, EHDOOR_E_X, 1);   /* east door, read from -X */
+    ehsdoor_text(ctx);                 /* south door, read from +Z */
 }

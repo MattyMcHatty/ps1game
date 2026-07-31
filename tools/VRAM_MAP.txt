@@ -40,6 +40,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   dresser.tim          8       512     0   128   128     0   0,507
   kchn_wl.tim          8       512     0   128   128     0   0,503
   red_wlppr.tim        4       576     0   128   128     0   0,492
+  chnlnk.tim           4       640     0   128   128     0   160,511
   gravel_texture.tim   4       640     0   128   128     0   0,480
   trees.tim            4       640     0   128   128     0   48,511
   rusty_fence.tim      4       704     0   128   128     0   256,480
@@ -123,6 +124,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=509  x[0,256)  stnd_rnds.tim
   y=510  x[0,256)  ghit.tim
   y=511  x[16,32)  bookshelf.tim
+  y=511  x[160,176)  chnlnk.tim
   y=511  x[112,128)  cncrte.tim
   y=511  x[96,112)  con_tile.tim
   y=511  x[208,224)  grn_ky_stn.tim
@@ -141,6 +143,8 @@ OVERLAP CHECK
   bookshelf.tim                            stn_stl.tim          time-shared (streaming)
   bookshelf.tim                            strs.tim             time-shared (streaming)
   brick_wall.tim                           grss.tim             time-shared (streaming)
+  chnlnk.tim                               gravel_texture.tim   time-shared (streaming)
+  chnlnk.tim                               trees.tim            time-shared (streaming)
   clsd_drwr.tim                            cncrte.tim           time-shared (streaming)
   clsd_drwr.tim                            kchn_tile.tim        time-shared (streaming)
   clsd_drwr.tim                            piano_keys.tim       time-shared (streaming)

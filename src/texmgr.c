@@ -4,7 +4,17 @@
 #include <psxcd.h>
 #include "texmgr.h"
 
-#define TEXMGR_MAX 32
+/* Registration cap. Overrunning it is a nasty failure: texmgr_register returns
+   -1, the caller stores tpage/clut 0, and the texture is then WRONG IN EVERY
+   ROOM that draws it — with no crash and no message. It has happened once (the
+   East Stairwell's duplicate upstairs/strs copies pushed cncrte and dresser off
+   the end, because both register AFTER it in main()). Two defences:
+     - prefer a narrow *_upload_x() on the module that already owns a texture
+       over registering a second RAM copy (see hall_2f_upload_strs);
+     - keep real headroom here. Each unused slot costs ~40 bytes of BSS; the TIM
+       buffers are malloc'd per registration, so raising this alone costs
+       nothing at runtime. */
+#define TEXMGR_MAX 48
 
 typedef struct {
     uint8_t  *buf;    /* resident RAM copy of the whole TIM (kept for re-upload) */

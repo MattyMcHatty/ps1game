@@ -14,9 +14,9 @@
 #include "savegame.h"
 #include "sound.h"
 
-#define WORLD_NUM_ROOMS 9   /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 10  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
-                               library */
+                               library, east_stairwell */
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below; this
    is the per-room unit a save file would store. */
@@ -78,6 +78,7 @@ static int room_index(GameState area) {
         case STATE_MASTER_BEDROOM: return 6;
         case STATE_EAST_HALL:      return 7;
         case STATE_LIBRARY:        return 8;
+        case STATE_EAST_STAIRWELL: return 9;
         default:                   return 0;
     }
 }
@@ -292,6 +293,19 @@ void world_enter(GameState area) {
                master bedroom's floor-level pickup: item_pickup_spawn raises the
                anchor 50, putting the sprite just above this room's y=0 boards. */
             item_pickup_spawn_amount(-909, -50, -1249, PICKUP_FLAME_ROUNDS,
+                                     GRAVEOLVER_CAPACITY);
+        }
+
+        /* East Stairwell: one full cylinder of Standard Rounds on the WEST
+           landing's floor (the one you arrive on from the East Hall), out in
+           open boards near the chain-link fence. Stated explicitly rather than
+           left to the ROUNDS_PER_PICKUP default so the count survives any
+           retune of that constant. y=-50 is the floor-level convention for a
+           y=0 room: item_pickup_spawn adds IP_FLOAT_Y=50, putting the sprite
+           just above the boards. The fence wall pushes the player back to
+           x=-239, only 53 from this spot — well inside ITEM_PICKUP_RADIUS. */
+        if (area == STATE_EAST_STAIRWELL) {
+            item_pickup_spawn_amount(-186, -50, -7, PICKUP_ROUNDS,
                                      GRAVEOLVER_CAPACITY);
         }
 

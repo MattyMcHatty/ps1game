@@ -136,6 +136,16 @@ void hall_2f_upload_textures(void) {
     trick_drawers_upload_texture();   /* clsd_drwr -> cncrte/kchn_tile slot (unused here) */
 }
 
+/* Narrow, single-texture uploads of this module's strs / upstairs RAM copies,
+   for rooms that need one of them but NOT the rest of the hall's set (the East
+   Stairwell needs both, but hall_2f_upload_textures would also drag in
+   red_crpt and clsd_drwr, the latter landing in the kchn_tile slot that room
+   needs for cncrte). Same pattern as piano_room_upload_wallpaper().
+   These exist so a room can reuse the resident copy instead of registering a
+   third one — texmgr has a hard TEXMGR_MAX and overruns fail SILENTLY. */
+void hall_2f_upload_strs(void)     { texmgr_upload(new_tex_id[1]); }
+void hall_2f_upload_upstairs(void) { texmgr_upload(new_tex_id[2]); }
+
 /* ---- Stairs down to the conservatory ---------------------------------------
    The mesh has an open stairwell descending south (+Z) from the hall floor at
    x[-1988,-1688], z[-13..486] (down to y=290). The player arrives at its north
