@@ -268,6 +268,24 @@ void world_enter(GameState area) {
             spider_add( 598, -540, STATE_EAST_HALL);   /* south offshoot room   */
         }
 
+        /* Library: three ceiling spiders spread across the reading room — one
+           mid-floor between the two bookcase dividers, one in the far south-west
+           corner past them, and one at the south-east end. All three sit in the
+           room proper (z < -349), so they take its -730 ceiling rather than the
+           entrance vestibule's -500; library_init has already installed it by
+           the time world_enter runs. */
+        if (area == STATE_LIBRARY) {
+            spider_add( -909, -1249, STATE_LIBRARY);   /* between the bookcases */
+            spider_add(-1531, -1784, STATE_LIBRARY);   /* south-west corner     */
+            spider_add(   -9, -1832, STATE_LIBRARY);   /* south-east end        */
+
+            /* One zombie in the northern strip, between the entrance and the
+               first bookcase divider — the y=-149 body reference every other
+               y=0-floor room uses; apply_zombie_height settles it onto the
+               floorboards. */
+            zombie_add(-839, -149, -621);
+        }
+
         if (area == STATE_2F_HALL) {
             /* One guarding the reception exit door (east wall), one standing in
                front of the trick drawers in the west room. */

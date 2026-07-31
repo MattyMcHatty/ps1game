@@ -21,6 +21,8 @@
 #include "piano_props.h"
 #include "save_point.h"
 #include "zombie.h"
+#include "spider.h"
+#include "web.h"
 #include "item_pickup.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -442,14 +444,18 @@ void library_draw(RenderContext *ctx) {
 
     draw_library_smd(ctx);
 
-    /* No enemies seeded here yet, but the renderer is handed the room's 128
-       texture window either way so any Voff>=128 sprite added later is
-       bracketed correctly (see tools/TEXTURING_NOTES.txt PART 5). */
+    /* Three spiders hang from the reading room's ceiling and one zombie walks
+       its northern strip (both placed in world.c). Each renderer is handed the
+       room's 128 texture window so its Voff>=128 sprites are bracketed
+       correctly (see tools/TEXTURING_NOTES.txt PART 5). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
+        spiders_set_texwindow(&tw);
     }
     draw_zombies(ctx);
+    draw_spiders(ctx);
+    webs_draw(ctx);
     item_pickups_draw(ctx);
 
     ldoor_text(ctx);

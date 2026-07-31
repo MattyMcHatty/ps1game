@@ -255,7 +255,8 @@ static void update_current_area(GameState area) {
            and library_init clears the two that don't). */
         apply_collision_reception();
         apply_height();
-        update_zombies();      /* none placed yet, but keeps the room uniform */
+        update_zombies();      /* one in the northern strip */
+        update_spiders();      /* three on the reading room's ceiling */
         item_pickups_update();
         if (!lock && library_wdoor_triggered()) {
             pending_area = STATE_EAST_HALL;

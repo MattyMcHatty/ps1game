@@ -29,12 +29,17 @@
  * Unlike the zombie's per-room array, spiders are ONE global array tagged by
  * area (update/draw/hit skip any spider whose area != game_state), the same way
  * the fat doors and tentacles work. That keeps them out of world.c's per-room
- * RoomState: a copy of the array in all eight rooms would have eaten almost all
- * the memory card blob's remaining headroom (see the _Static_assert in world.c)
- * to store seven empty copies.
+ * RoomState: a copy of the array in every room would have eaten almost all the
+ * memory card blob's remaining headroom (see the _Static_assert in world.c) to
+ * store empty copies.
+ *
+ * Because it IS one global array, MAX_SPIDERS is the budget for the WHOLE GAME,
+ * not per room — every placement in world_enter() draws on the same pool, and
+ * spider_add() returns -1 and silently places nothing once it is full. Raise it
+ * when adding placements: 3 in the East Hall + 3 in the Library = 6.
  * ----------------------------------------------------------------------- */
 
-#define MAX_SPIDERS           4
+#define MAX_SPIDERS           6
 #define SPD_MAX_HEALTH        6    /* six crucifaxe swings or six rounds       */
 #define SPD_SPEED             8    /* same ground speed as a zombie            */
 #define SPD_WAKE_RADIUS     600    /* true radial XZ distance to the player    */
