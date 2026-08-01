@@ -42,9 +42,12 @@
 #define ZMB_LUNGE_DROP        0    /* + = downward nudge                          */
 #define ZMB_LUNGE_FLIP        0    /* fixed facing during a bite (0/1)            */
 #define ZMB_BAR_TIMER_MAX   120
-#define ZMB_GROAN_INTERVAL  400    /* frames between repeated groans while alert; set
-                                      just under the ~7s clip length so it re-triggers
-                                      before the end with no silent gap (continuous) */
+#define ZMB_GROAN_INTERVAL  170    /* frames between repeated groans while alert; set
+                                      just under the 3.00s clip length (180 frames) so
+                                      it re-triggers before the end with no silent gap
+                                      (continuous). Re-cut zombie_2.vag and this has to
+                                      move with it — it is tuned to the clip, not to
+                                      how often a groan "should" be heard. */
 
 /* --- Steering / flocking tuning (mirrors the demon dog) --- */
 #define ZMB_SEP_RADIUS      150    /* zombies try to stay this far apart (soft push) */

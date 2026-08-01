@@ -19,7 +19,11 @@ int      tentacle_count = 0;
 
 static Tentacle tent_defaults[MAX_TENTACLES];
 
-/* One shared looping writhe SFX plays while ANY tentacle is alert. */
+/* One shared looping writhe SFX plays while ANY tentacle is alert. The repeat
+   is a HARDWARE loop in the SPU (tntcl_wrth_2.vag carries the 0x06/0x03 block
+   flags), not a re-trigger on a timer like the zombie's groan — so the loop
+   period is simply the clip length, currently 2.49 s, and re-cutting the VAG
+   changes it with no code change here. */
 static int wrath_on = 0;
 
 /* Per-instance horizontal sprite flip (cosmetic; set in tentacles_init, not
