@@ -10,9 +10,10 @@
  *   - Continuous (INFINITE LIFE / STAMINA): the systems that would spend the
  *     resource read the flag every frame, so they can be flipped between runs
  *     and take effect on the next jump with no extra plumbing.
- *   - One-shot grants (GRAVE-OLVER / WAX AND POT): they hand the player things,
- *     so they must fire exactly once, AFTER the destination room has finished
- *     initialising (a room init can reset the inventory). The debug menu arms
+ *   - One-shot grants (GRAVE-OLVER / WAX AND POT / PIANO KEY): they hand the
+ *     player things, so they must fire exactly once, AFTER the destination room
+ *     has finished initialising (a room init can reset the inventory, and
+ *     item_pickups_reset clears the piano key's bit). The debug menu arms
  *     them on the jump; main.c consumes the latch alongside savegame_apply_
  *     pending(), which has the same "after the room is up" requirement.
  */
@@ -20,6 +21,7 @@
 typedef enum {
     DBG_HAS_GRAVEOLVER = 0,  /* own the Grave-olver, loaded, with a deep reserve */
     DBG_HAS_WAX_AND_POT,     /* both non-key inventory items from the start      */
+    DBG_HAS_PIANO_KEY,       /* the Attic Stairwell altar's piano key            */
     DBG_INFINITE_LIFE,       /* enemy damage does not reduce health              */
     DBG_INFINITE_STAMINA,    /* sprinting never drains the bar                   */
     DEBUG_OPT_COUNT

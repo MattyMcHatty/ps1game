@@ -42,7 +42,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   red_wlppr.tim        4       576     0   128   128     0   0,492
   chnlnk.tim           4       640     0   128   128     0   160,511
   gravel_texture.tim   4       640     0   128   128     0   0,480
-  trck_clue.tim        8       640     0   128   128     0   512,481
+  trck_clue.tim        8       640     0   128   128     0   768,481
   trees.tim            4       640     0   128   128     0   48,511
   rusty_fence.tim      4       704     0   128   128     0   256,480
   upstairs.tim         4       704     0   128   128     0   64,511
@@ -77,7 +77,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   grn_ky_stn.tim       4       552   256    32    32     0   208,511
   inr_dbl_dr.tim       4       576   256   128   128     0   0,496
   pno_key.tim          8       608   256    32    32     0   256,482
-  bl_ky_stn.tim        8       624   256    32    32     0   512,482
+  bl_ky_stn.tim        8       624   256    32    32     0   768,482
   sml_med.tim          8       640   256    64    64     0   0,482
   ddog_alert2.tim      8       704   256    64    64     0   0,485
   wd_dr.tim            16      768   256   128   128     0   -
@@ -93,8 +93,8 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=480  x[256,272)  rusty_fence.tim
   y=481  x[256,512)  flm_rnds.tim
   y=481  x[0,256)  key.tim
-  y=481  x[512,768)  trck_clue.tim
-  y=482  x[512,768)  bl_ky_stn.tim
+  y=481  x[768,1024)  trck_clue.tim
+  y=482  x[768,1024)  bl_ky_stn.tim
   y=482  x[256,512)  pno_key.tim
   y=482  x[0,256)  sml_med.tim
   y=483  x[0,256)  ddog_sleep.tim
@@ -171,5 +171,8 @@ OVERLAP CHECK
   stn_stl.tim                              strs.tim             time-shared (streaming)
   trck_clue.tim                            trees.tim            time-shared (streaming)
   No unexpected pixel collisions.
+
+CLUT OVERLAP CHECK  (CLUT words landing in pixel data, or on each other)
+  No CLUT collisions.
 
 Regenerate with:  python tools/vram_map.py > tools/VRAM_MAP.txt

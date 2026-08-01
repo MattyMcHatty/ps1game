@@ -2,11 +2,12 @@
 #include "player.h"
 #include "copper_pot.h"
 
-int debug_opts[DEBUG_OPT_COUNT] = { 0, 0, 0, 0 };   /* all cheats off by default */
+int debug_opts[DEBUG_OPT_COUNT] = { 0, 0, 0, 0, 0 };   /* all cheats off by default */
 
 const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "HAS GRAVE-OLVER",
     "HAS WAX AND POT",
+    "HAS PIANO KEY",
     "INFINITE LIFE",
     "INFINITE STAMINA",
 };
@@ -44,5 +45,14 @@ void debug_opts_apply_grants(void) {
            whatever the key left behind. Pure LoadImage from a resident RAM copy;
            our callers have already idled the GPU. */
         copper_pot_upload_texture();
+    }
+
+    if (debug_opts[DBG_HAS_PIANO_KEY]) {
+        /* Same end state as walking over the pickup on the Attic Stairwell
+           altar. No texture upload to match the pot's above: pno_key.tim owns
+           its VRAM outright at (608,256) — item_pickups_load_textures and
+           menu_init both LoadImage it once at startup and no room streams over
+           it — so the menu icon is already correct on a direct jump. */
+        player_items |= (1 << ITEM_PIANO_KEY);
     }
 }

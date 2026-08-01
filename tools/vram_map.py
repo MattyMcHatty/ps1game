@@ -133,4 +133,37 @@ for i in range(len(names)):
 if not unexpected:
     print("  No unexpected pixel collisions.")
 print()
+
+# CLUT overlap detection. A CLUT is just words in VRAM: drop one on top of a
+# texture's pixels and those scanlines display the palette as image data — a
+# bright band across the sprite, in every room, with no crash and no warning.
+# This bit the demon dog once (trck_clue's and bl_ky_stn's 256-word CLUTs were
+# placed at x[512,768) on y=481/482, straight through ddog_alert's
+# x[640,672) y[448,512) body). Pixel-vs-pixel checking alone does NOT see it.
+print("CLUT OVERLAP CHECK  (CLUT words landing in pixel data, or on each other)")
+clut_bad = []
+for name, r in sorted(tims.items()):
+    if not r["clut"]: continue
+    cx, cy, cw, ch = r["clut"]
+    crect = (cx, cy, cw, ch)
+    for other, ro in sorted(tims.items()):
+        prect = (ro["x"], ro["y"], ro["cols"], ro["h"])
+        if rects_overlap(crect, prect):
+            print("  !! %s's CLUT x[%d,%d) y=%d lands in %s's PIXELS x[%d,%d) y[%d,%d)"
+                  % (name, cx, cx + cw, cy, other,
+                     ro["x"], ro["x"] + ro["cols"], ro["y"], ro["y"] + ro["h"]))
+            clut_bad.append((name, other))
+
+names_c = [n for n in sorted(tims) if tims[n]["clut"]]
+for i in range(len(names_c)):
+    for j in range(i + 1, len(names_c)):
+        a, b = names_c[i], names_c[j]
+        ca, cb = tims[a]["clut"], tims[b]["clut"]
+        if rects_overlap(ca, cb) and not pair_is_known(a, b):
+            print("  !! %s's CLUT overlaps %s's CLUT (both at y=%d)" % (a, b, ca[1]))
+            clut_bad.append((a, b))
+
+if not clut_bad:
+    print("  No CLUT collisions.")
+print()
 print("Regenerate with:  python tools/vram_map.py > tools/VRAM_MAP.txt")
