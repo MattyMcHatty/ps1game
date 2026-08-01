@@ -8,6 +8,7 @@
    only — the collision has a single y=0 floor). Modelled on piano_room.c. */
 void conservatory_load_assets(void);     /* startup: geometry + texture registration */
 void conservatory_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
+void conservatory_upload_con_tile(void); /* just con_tile, for rooms that want only that */
 void conservatory_init(void);            /* set collision/floor zones + spawn */
 void conservatory_draw(RenderContext *ctx);
 void condoor_arm(void);                  /* seed Circle edge state on entry */

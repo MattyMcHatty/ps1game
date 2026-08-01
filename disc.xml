@@ -162,6 +162,8 @@
                 <file name="LIBRARY.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\library.smd"/>
                 <file name="EASTSTRW.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\east_stairwell.smd"/>
                 <file name="CHNLNK.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\chnlnk.tim"/>
+                <file name="ATTCSTRW.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\attic_stairwell.smd"/>
+                <file name="TRCKCLUE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\trck_clue.tim"/>
             </dir>
         </directory_tree>
     </track>

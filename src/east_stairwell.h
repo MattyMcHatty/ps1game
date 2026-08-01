@@ -18,8 +18,9 @@
                    modelled stair alcove — three treads climbing east to
                    x=2106, then the "upstairs" image on the alcove's back wall
                    rising to y=-663. All of it is OUTSIDE the collision bounds
-                   (max_x 1750), so it is scenery seen through the opening;
-                   there is no upper floor and nothing to walk on.
+                   (max_x 1750), so it is scenery seen through the opening; the
+                   climb itself is the stair-climb transition (STATE_STAIR_ANIM)
+                   up to the Attic Stairwell, triggered at that wall.
 
    Both doors sit in the z=349 wall and are approached from -Z, so both signs
    lie in the XY plane with mirror=0 (same orientation as the master bedroom's).
@@ -34,8 +35,13 @@ void east_stairwell_doors_arm(void);         /* seed both doors' Circle edge sta
 int  east_stairwell_wdoor_triggered(void);   /* west landing -> East Hall */
 int  east_stairwell_edoor_triggered(void);   /* east landing -> Library   */
 
+/* The east landing's stairs up to the Attic Stairwell. Its Circle edge state is
+   seeded by east_stairwell_doors_arm() along with the two doors'. */
+int  east_stairwell_stairs_triggered(void);
+
 /* Spawn the player just inside one of the doors on arrival. */
 void east_stairwell_spawn_west(void);
 void east_stairwell_spawn_east(void);
+void east_stairwell_spawn_stairs(void);      /* back down from the attic */
 
 #endif

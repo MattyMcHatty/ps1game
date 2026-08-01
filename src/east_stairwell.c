@@ -203,6 +203,8 @@ void east_stairwell_upload_textures(void) {
    straight back out. */
 static int wdoor_circle_prev = 1;
 static int edoor_circle_prev = 1;
+/* Same for the east landing's stairs up to the attic (see further down). */
+static int esstairs_circle_prev = 1;
 
 static int circle_held(void) {
     if (!pad_buff_len[0]) return 0;
@@ -212,8 +214,9 @@ static int circle_held(void) {
 
 void east_stairwell_doors_arm(void) {
     int held = circle_held();
-    wdoor_circle_prev = held;
-    edoor_circle_prev = held;
+    wdoor_circle_prev    = held;
+    edoor_circle_prev    = held;
+    esstairs_circle_prev = held;   /* the east landing's stairs, defined below */
 }
 
 /* Shared body: fresh Circle press within Manhattan range of (door_x, ESDOOR_Z).
@@ -261,6 +264,58 @@ static void esdoor_text(RenderContext *ctx, int32_t door_x) {
                         50, 255, 50, fade, 0, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
 }
 
+/* ---- The stairs up to the Attic Stairwell ----------------------------------
+   The east landing's east wall (x=1750) backs onto the modelled stair alcove,
+   whose three treads climb east across z[-175,175] to the "upstairs" image on
+   its back wall. The player stands in the landing, on the -X side, so the
+   floating sign lies in the YZ plane with mirror=1 (the mirror image of the
+   attic's, which is read from +X). A fresh Circle press in range hands off to
+   the same stair-climb transition the conservatory and the 2F hall use. */
+#define ESSTAIRS_X                1750   /* the alcove wall (foot of the stairs) */
+#define ESSTAIRS_Z                   0   /* centre of the stair width            */
+#define ESSTAIRS_TEXT_Y          (-186)
+#define ESSTAIRS_TEXT_RADIUS      1500
+#define ESSTAIRS_FADE_NEAR        1000
+#define ESSTAIRS_TRIGGER_RADIUS    350
+#define ESSTAIRS_TEXT_PIXEL          2   /* smaller so the line fits the stairs */
+
+/* Its Circle edge-detect (esstairs_circle_prev) is declared with the two doors'
+   above and seeded by east_stairwell_doors_arm() along with them. */
+int east_stairwell_stairs_triggered(void) {
+    int held = circle_held();
+    int just = held && !esstairs_circle_prev;
+    esstairs_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - ESSTAIRS_X;
+    int32_t dz = cam_z - ESSTAIRS_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < ESSTAIRS_TRIGGER_RADIUS;
+}
+
+static void esstairs_text(RenderContext *ctx) {
+    int32_t dx = cam_x - ESSTAIRS_X;
+    int32_t dz = cam_z - ESSTAIRS_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= ESSTAIRS_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > ESSTAIRS_FADE_NEAR) {
+        int range = ESSTAIRS_TEXT_RADIUS - ESSTAIRS_FADE_NEAR;
+        int prog  = xz - ESSTAIRS_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    /* YZ plane: door_draw_string_3d centres the reading axis (Z) on world_z
+       after adding 200, so pass ESSTAIRS_Z - 200. Sits just west (x-11) of the
+       alcove wall so it floats in front of the climb. The player views it from
+       the -X (landing) side, so mirror=1. */
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to ascend",
+                        ESSTAIRS_X - 11, ESSTAIRS_TEXT_Y, ESSTAIRS_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ, ESSTAIRS_TEXT_PIXEL);
+}
+
 /* Spawn just inside a door, far enough south of the z=349 wall to clear the 195
    push radius apply_collision_reception uses, facing -Z into the landing. */
 void east_stairwell_spawn_west(void) {
@@ -278,6 +333,18 @@ void east_stairwell_spawn_east(void) {
     cam_vy  = 0;
     cam_z   = 110;
     cam_rot = 2048;   /* facing -Z, into the east landing */
+    east_stairwell_doors_arm();
+}
+
+/* Coming back DOWN out of the attic: stand west of the alcove wall, clear of
+   the 195 push radius, facing -X — the direction of travel out of the descent,
+   with the stairs behind. */
+void east_stairwell_spawn_stairs(void) {
+    cam_x   = 1500;
+    cam_y   = -189;
+    cam_vy  = 0;
+    cam_z   = ESSTAIRS_Z;
+    cam_rot = 3072;   /* facing -X, into the east landing */
     east_stairwell_doors_arm();
 }
 
@@ -522,4 +589,5 @@ void east_stairwell_draw(RenderContext *ctx) {
 
     esdoor_text(ctx, ESDOOR_W_X);
     esdoor_text(ctx, ESDOOR_E_X);
+    esstairs_text(ctx);
 }

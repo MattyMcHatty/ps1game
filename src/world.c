@@ -14,9 +14,9 @@
 #include "savegame.h"
 #include "sound.h"
 
-#define WORLD_NUM_ROOMS 10  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 11  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
-                               library, east_stairwell */
+                               library, east_stairwell, attic_stairwell */
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below; this
    is the per-room unit a save file would store. */
@@ -79,6 +79,7 @@ static int room_index(GameState area) {
         case STATE_EAST_HALL:      return 7;
         case STATE_LIBRARY:        return 8;
         case STATE_EAST_STAIRWELL: return 9;
+        case STATE_ATTIC_STAIRWELL:return 10;
         default:                   return 0;
     }
 }

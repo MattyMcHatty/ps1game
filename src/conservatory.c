@@ -141,6 +141,15 @@ void conservatory_upload_textures(void) {
     copper_pot_upload_texture();        /* copper pot -> key slot (world sprite) */
 }
 
+/* Narrow, single-texture upload of this module's con_tile RAM copy, for a room
+   that needs con_tile but NOT the rest of the conservatory's set (the Attic
+   Stairwell: conservatory_upload_textures would also drag in trees/grss, which
+   land in the gravel slot that room needs for trck_clue). Same pattern as
+   hall_2f_upload_strs — reuse the resident copy rather than registering a
+   second one, because texmgr has a hard TEXMGR_MAX and overruns fail
+   SILENTLY. */
+void conservatory_upload_con_tile(void) { texmgr_upload(new_tex_id[2]); }
+
 /* ---- Door back to reception -----------------------------------------------
    The single wooden door on the east wall (x=0), centred on z~10 (from the
    wd_dr polys in Conservatory.smx). Same pattern as the piano room's. */

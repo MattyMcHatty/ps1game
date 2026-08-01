@@ -21,6 +21,7 @@ typedef enum {
     STATE_LIBRARY,     /* library, through the double door at the east hall's east end */
     STATE_EAST_STAIRWELL, /* caged stairwell passage: east hall's single door (west
                              landing) and the library's single door (east landing) */
+    STATE_ATTIC_STAIRWELL, /* attic, up the stairs at the east landing's east wall */
 } GameState;
 
 extern GameState game_state;

@@ -47,6 +47,7 @@
 #include "east_hall.h"
 #include "library.h"
 #include "east_stairwell.h"
+#include "attic_stairwell.h"
 #include "trick_drawers.h"
 #include "stove_puzzle.h"
 #include "concrete_props.h"
@@ -300,6 +301,29 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (!lock && east_stairwell_stairs_triggered()) {
+            /* Climb the east landing's stairs to the attic (stair-climb
+               transition, the same one the conservatory <-> 2F hall pair use). */
+            pending_area = STATE_ATTIC_STAIRWELL;
+            stair_anim_start(STAIR_UP);
+            game_state   = STATE_STAIR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_ATTIC_STAIRWELL) {
+        /* Flat single-floor attic; the shared wall collision routine is generic
+           over current_collision_room (other rooms' props gate themselves out,
+           and attic_stairwell_init clears the two that don't). */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed yet, but keeps the room uniform */
+        update_spiders();
+        item_pickups_update();
+        if (!lock && attic_stairwell_stairs_triggered()) {
+            /* Back down to the East Stairwell's east landing. */
+            pending_area = STATE_EAST_STAIRWELL;
+            stair_anim_start(STAIR_DOWN);
+            game_state   = STATE_STAIR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_CONSERVATORY) {
         /* Flat single-floor room; the shared wall/prop collision routine is
@@ -434,6 +458,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         library_draw(ctx);
     else if (area == STATE_EAST_STAIRWELL)
         east_stairwell_draw(ctx);
+    else if (area == STATE_ATTIC_STAIRWELL)
+        attic_stairwell_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -585,6 +611,7 @@ int main(int argc, const char **argv) {
     east_hall_load_assets();   /* east hall geometry + texture headers */
     library_load_assets();     /* library geometry + texture headers */
     east_stairwell_load_assets();/* east stairwell geometry + streamed textures */
+    attic_stairwell_load_assets();/* attic stairwell geometry + streamed textures */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
     concrete_props_load_assets();/* concrete block/chair props + shared texture */
     copper_pot_load_assets();  /* copper pot collectible (texture deferred, key slot) */
@@ -692,6 +719,9 @@ int main(int argc, const char **argv) {
                 library_upload_textures();       /* cncrte + prpl_wlppr + bookshelf */
             } else if (pending_area == STATE_EAST_STAIRWELL) {
                 east_stairwell_upload_textures();/* upstairs + chnlnk + cncrte */
+            } else if (pending_area == STATE_ATTIC_STAIRWELL) {
+                attic_stairwell_upload_textures();/* trck_clue + cncrte + upstairs
+                                                     + strs + con_tile */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -839,9 +869,16 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_EAST_STAIRWELL) {
                 east_stairwell_init();  /* defaults to the west landing */
                 /* The two landings are separate rooms in practice: the Library
-                   door lands on the east one, the East Hall door on the west. */
+                   door lands on the east one, the East Hall door on the west,
+                   and the attic stairs land at the foot of the east landing's
+                   stair alcove. */
                 if (current_area == STATE_LIBRARY)
                     east_stairwell_spawn_east();
+                else if (current_area == STATE_ATTIC_STAIRWELL)
+                    east_stairwell_spawn_stairs();
+                cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* shares the east hall's music */
+            } else if (pending_area == STATE_ATTIC_STAIRWELL) {
+                attic_stairwell_init(); /* only one way in: the stair head */
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* shares the east hall's music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
@@ -894,7 +931,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_MASTER_BEDROOM ||
                    game_state == STATE_EAST_HALL ||
                    game_state == STATE_LIBRARY ||
-                   game_state == STATE_EAST_STAIRWELL) {
+                   game_state == STATE_EAST_STAIRWELL ||
+                   game_state == STATE_ATTIC_STAIRWELL) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {
