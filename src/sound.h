@@ -25,7 +25,10 @@ typedef enum {
     SFX_SLAM       = 18, /* drawers slam shut (trick-drawers puzzle fail) */
     SFX_SPDR_WLK   = 19, /* spider scuttle, HARDWARE-looped while any spider walks */
     SFX_SPIT       = 20, /* spider fires a web (one-shot, once per web)            */
-    SFX_COUNT    = 21,
+    SFX_MCHNE      = 21, /* grinding machinery — the piano room's sinking bookcase.
+                            2.80 s at 11025 Hz; piano_props.c plays it twice back
+                            to back and times the descent to match. */
+    SFX_COUNT    = 22,
 } SfxID;
 
 void sound_init(void);

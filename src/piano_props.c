@@ -14,6 +14,7 @@
 #include "player.h"         /* game_flag: FLAG_PIANO_SOLVED latches both props */
 #include "door.h"           /* door_draw_string_3d for the floating sign */
 #include "btn_glyph.h"
+#include "sound.h"          /* SFX_MCHNE: the bookcase's descent */
 #include "piano_puzzle.h"   /* piano_puzzle_active: hide the sign during the shot */
 #include "piano_props.h"
 
@@ -55,12 +56,24 @@ static int piano_keys_repaired = 0;
    Solving the puzzle drops the divider through the floor to open up the west
    half of the room. sink_off is added to the bookcase's y (down is +Y here), so
    it slides straight down; past PPROP_SINK_DIST the prop is retired outright —
-   deactivated, so it stops drawing AND stops colliding. */
-#define PPROP_SINK_DIST     620   /* solid_h 520 + clearance under the boards */
-#define PPROP_SINK_FRAMES   240   /* 4 s at 60 fps — "slowly", as specified   */
+   deactivated, so it stops drawing AND stops colliding.
+
+   The descent is timed to the machinery sound rather than the other way round:
+   mchne.vag is 2.80 s, and it plays TWICE back to back, so the travel lasts
+   exactly two clip lengths and the second trigger lands on the frame the first
+   one runs out. Re-encode that VAG at a different length and this constant has
+   to move with it or the audio and the movement come apart.
+
+   sink_off is recomputed from the frame counter each tick (not accumulated by a
+   rounded per-frame step) so the travel really does finish on frame
+   PPROP_SINK_FRAMES instead of whenever integer rounding gets there. */
+#define PPROP_SINK_DIST      620  /* solid_h 520 + clearance under the boards */
+#define PPROP_SINK_SFX      168   /* mchne.vag: 2.80 s at 60 fps              */
+#define PPROP_SINK_FRAMES   (PPROP_SINK_SFX * 2)   /* the clip, twice         */
 
 static int32_t sink_off   = 0;
 static int     sinking    = 0;
+static int32_t sink_t     = 0;   /* frames into the descent */
 
 static void *read_file(const char *name) {
     CdlFILE file;
@@ -114,8 +127,9 @@ void piano_props_place(void) {
        follows on room entry, so a loaded game walks in to repaired keys and a
        bookcase that is already gone. */
     piano_keys_repaired = game_flag(FLAG_PIANO_SOLVED);
-    sinking = 0;
-    sink_off = piano_keys_repaired ? PPROP_SINK_DIST : 0;
+    sinking  = 0;
+    sink_t   = piano_keys_repaired ? PPROP_SINK_FRAMES : 0;
+    sink_off = piano_keys_repaired ? PPROP_SINK_DIST   : 0;
 
     /* Piano against the north (+Z) wall on the door (east) side, keys facing
        south into the room (the model's keyboard faces -Z at rot 0). Model
@@ -161,7 +175,10 @@ void piano_props_repair_keys(void) {
 }
 
 void piano_props_bookcase_sink_start(void) {
-    if (props[1].active) sinking = 1;
+    if (!props[1].active) return;
+    sinking = 1;
+    sink_t  = 0;
+    sound_play(SFX_MCHNE);   /* first of two; the second is fired below */
 }
 
 int piano_props_bookcase_sinking(void) { return sinking; }
@@ -171,8 +188,13 @@ int piano_props_bookcase_sinking(void) { return sinking; }
 int piano_props_bookcase_update(void) {
     if (!sinking) return sink_off >= PPROP_SINK_DIST;
 
-    sink_off += PPROP_SINK_DIST / PPROP_SINK_FRAMES + 1;
-    if (sink_off >= PPROP_SINK_DIST) {
+    sink_t++;
+    /* Second play, on the frame the first clip runs out — back to back, so the
+       grind reads as one continuous machine rather than two hits. */
+    if (sink_t == PPROP_SINK_SFX) sound_play(SFX_MCHNE);
+
+    sink_off = (PPROP_SINK_DIST * sink_t) / PPROP_SINK_FRAMES;
+    if (sink_t >= PPROP_SINK_FRAMES) {
         sink_off        = PPROP_SINK_DIST;
         sinking         = 0;
         props[1].active = 0;   /* gone for good: stops drawing AND colliding */

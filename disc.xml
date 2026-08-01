@@ -110,6 +110,7 @@
                 <file name="SPDRWLK.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\spdr_wlk.vag"/>
                 <file name="SPIT.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\spit.vag"/>
                 <file name="SLAM.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\slam.vag"/>
+                <file name="MCHNE.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\mchne.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
