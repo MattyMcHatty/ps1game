@@ -40,4 +40,10 @@ void piano_props_bookcase_sink_start(void);
 int  piano_props_bookcase_update(void);
 int  piano_props_bookcase_sinking(void);
 
+/* ---- Anzu Tablet puzzle hook (anzu_puzzle.c) -------------------------------
+   Retire the Tablets prop the instant the puzzle is solved. piano_props_place
+   already keeps it hidden on later visits (it reads FLAG_ANZU_SOLVED), so this
+   only covers the frames between solving and leaving the room. */
+void piano_props_tablets_hide(void);
+
 #endif

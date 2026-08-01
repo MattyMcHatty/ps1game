@@ -42,6 +42,8 @@
 #include "piano_room.h"
 #include "piano_props.h"
 #include "piano_puzzle.h"
+#include "anzu_puzzle.h"
+#include "anzu_tex.h"
 #include "conservatory.h"
 #include "hall_2f.h"
 #include "master_bedroom.h"
@@ -173,6 +175,11 @@ static void update_current_area(GameState area) {
        there is no enemy tick to keep running alongside it. */
     if (area == STATE_PIANO_ROOM && piano_puzzle_active()) {
         piano_puzzle_update();
+        return;
+    }
+    /* ...and the same room's Anzu Tablet puzzle. */
+    if (area == STATE_PIANO_ROOM && anzu_puzzle_active()) {
+        anzu_puzzle_update();
         return;
     }
     update_camera();
@@ -421,7 +428,12 @@ static void update_current_area(GameState area) {
            this room's bounds, so their collide calls are no-ops here). */
         apply_collision_reception();
         apply_height();
+        /* The room had no collectibles until the Anzu Tablet started dropping
+           the Yellow Key Stone in front of the piano — without this tick it
+           would never bob or be pickable. */
+        item_pickups_update();
         if (!lock) piano_puzzle_update();  /* examine prompt + puzzle trigger */
+        if (!lock) anzu_puzzle_update();   /* Anzu frame prompt + puzzle trigger */
         if (!lock && pdoor_triggered()) {
             pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
@@ -639,6 +651,7 @@ int main(int argc, const char **argv) {
                                   streamed texture (uploaded on reception entry) */
     keys_init();
     sml_meds_init();
+    anzu_tex_load();               /* the six Anzu tiles (LoadImage: startup only) */
     item_pickups_load_textures();  /* Grave-olver + rounds sprites (LoadImage: startup only) */
     bullet_hits_load_texture();    /* bullet-impact sprite (resident, all levels) */
     door_init();
@@ -818,7 +831,9 @@ int main(int argc, const char **argv) {
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);   /* reception music */
             } else if (pending_area == STATE_PIANO_ROOM) {
                 piano_room_init();
-                cdaudio_play(CDAUDIO_PIANO_TRACK, 1);   /* piano room music */
+                /* This room's music depends on a saved flag, so it is chosen
+                   AFTER savegame_apply_pending() below rather than here — see
+                   the note there. */
             } else if (pending_area == STATE_CONSERVATORY) {
                 conservatory_init();
                 /* Coming back down from the 2F hall: spawn at the bottom of the
@@ -911,6 +926,17 @@ int main(int argc, const char **argv) {
                otherwise). Must run after the area init above, which sets its
                own spawn position. */
             savegame_apply_pending();
+            /* game_flags has only just been installed, so anything a room
+               DERIVES from a saved flag has to be re-derived here: the area
+               init above ran while the flags still held the pre-load values,
+               which on a "Load Game" straight into this room is the previous
+               playthrough's. */
+            if (pending_area == STATE_PIANO_ROOM) {
+                anzu_puzzle_place();   /* re-reads FLAG_ANZU_SOLVED */
+                if (game_flag(FLAG_ANZU_SOLVED)) piano_props_tablets_hide();
+                cdaudio_play(game_flag(FLAG_ANZU_SOLVED) ? CDAUDIO_ANZU_TRACK
+                                                         : CDAUDIO_PIANO_TRACK, 1);
+            }
             /* Same timing requirement, so same place: hand out the debug menu's
                inventory cheats now the room is up. Latched, so this fires only on
                the jump that armed it, not on every door transition. */
@@ -956,7 +982,8 @@ int main(int argc, const char **argv) {
                    overlays. */
                 int puzzle = (area == STATE_2F_HALL && trick_drawers_puzzle_active()) ||
                              (area == STATE_KITCHEN_DINING && stove_puzzle_active()) ||
-                             (area == STATE_PIANO_ROOM && piano_puzzle_active());
+                             (area == STATE_PIANO_ROOM && piano_puzzle_active()) ||
+                             (area == STATE_PIANO_ROOM && anzu_puzzle_active());
                 if (!puzzle) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);

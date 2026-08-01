@@ -171,6 +171,17 @@
                 <file name="TRCKCLUE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\trck_clue.tim"/>
                 <file name="PNOKEY.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\pno_key.tim"/>
                 <file name="BLKYSTN.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\bl_ky_stn.tim"/>
+                <!-- The Anzu Tablet puzzle (piano room). The six anzu tiles are
+                     the 3x2 jigsaw of the tablet relief; ANZU3 doubles as the
+                     Tablets prop's face texture. -->
+                <file name="TABLETS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\tablets.smd"/>
+                <file name="ANZU1.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu1.tim"/>
+                <file name="ANZU2.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu2.tim"/>
+                <file name="ANZU3.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu3.tim"/>
+                <file name="ANZU4.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu4.tim"/>
+                <file name="ANZU5.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu5.tim"/>
+                <file name="ANZU6.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu6.tim"/>
+                <file name="YLKYSTN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\ylw_ky_stn.tim"/>
             </dir>
         </directory_tree>
     </track>
@@ -183,6 +194,9 @@
 
     <!-- Track 4: piano room music -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\universfield-eerie-horror-cinematic-background-145145.wav"/>
+
+    <!-- Track 5: piano room music AFTER the Anzu Tablet puzzle is solved -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\farran_ez-minimal-piano-underscore-456148.wav"/>
 
 
 </iso_project>

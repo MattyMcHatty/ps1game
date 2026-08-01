@@ -16,9 +16,10 @@
 #include "btn_glyph.h"
 #include "sound.h"          /* SFX_MCHNE: the bookcase's descent */
 #include "piano_puzzle.h"   /* piano_puzzle_active: hide the sign during the shot */
+#include "anzu_tex.h"       /* the Tablets prop's face is the anzu3 tile */
 #include "piano_props.h"
 
-#define PPROP_COUNT        2
+#define PPROP_COUNT        4
 #define PPROP_PUSH_MARGIN 30   /* extra gap between player and prop edge (as tables) */
 
 /* One static prop. Placed axis-aligned (rot_y is draw-only decoration; the
@@ -28,16 +29,42 @@
 typedef struct {
     SMD     *smd;
     int      tex;                            /* texmgr id of the prop's texture */
+    /* Props whose art is an anzu tile take it from the anzu bank instead of the
+       texture manager (those tiles are resident, never streamed). >= 0 selects
+       a tile and overrides `tex`. */
+    int      anzu_tile;
+    /* UV remap, for a model whose UVs were authored against a 128x128 square but
+       whose texture is actually smaller:
+           u = uv_u0 + ((raw_u - uv_u0) * uv_span) / 128
+
+       The subtraction is the part that is easy to get wrong. `smxlink -tp`
+       already ADDS the texture's origin within its tpage to every baked UV, so
+       the tablets' face comes out of the .smd as u 64..192 / v 0..128, not
+       0..128 — it is the 128-wide SPAN that has to be scaled down to the tile,
+       about that origin, not the absolute value. Scaling the absolute value
+       instead lands the right half of the face outside the tile entirely, in
+       whatever texture sits in the next page.
+
+       uv_span 0 means "use the baked UVs unchanged" (every prop but the
+       tablets). Doing this here rather than rewriting the .smx keeps the asset
+       re-exportable from Blender without silently breaking the mapping. */
+    uint8_t  uv_u0, uv_v0, uv_span;
     int32_t  x, y, z, rot_y;
     int32_t  min_x, max_x, min_z, max_z;     /* world-space collision footprint */
     int32_t  solid_h;                        /* solid height above the floor    */
     int      active;
 } PianoProp;
 
-static PianoProp props[PPROP_COUNT];   /* [0] piano, [1] bookcase */
+/* [0] piano, [1] bookcase, [2] tablets, [3] the Anzu frame's collision box.
+   [3] carries no SMD: the frame is part of the room mesh and draws with it, but
+   the room's collision proxy is a plain box whose west wall sits at x=-2301,
+   40 units BEHIND the frame's face — so without this the player walks straight
+   into the panels they are supposed to stand in front of. piano_props_draw
+   skips a prop with no SMD; piano_props_collide does not. */
+static PianoProp props[PPROP_COUNT];
 
-static SMD  *piano_smd = NULL,    *bookcase_smd = NULL;
-static void *piano_buf = NULL,    *bookcase_buf = NULL;
+static SMD  *piano_smd = NULL,    *bookcase_smd = NULL,  *tablets_smd = NULL;
+static void *piano_buf = NULL,    *bookcase_buf = NULL,  *tablets_buf = NULL;
 static int   piano_tex = -1,       bookcase_tex = -1;
 
 /* The repaired keyboard. piano_keys_full.tim is built at the SAME VRAM rect and
@@ -94,6 +121,8 @@ void piano_props_load_assets(void) {
     if (piano_buf) piano_smd = smdInitData(piano_buf);
     bookcase_buf = read_file("\\TEX\\BOOKCSE.SMD;1");
     if (bookcase_buf) bookcase_smd = smdInitData(bookcase_buf);
+    tablets_buf = read_file("\\TEX\\TABLETS.SMD;1");
+    if (tablets_buf) tablets_smd = smdInitData(tablets_buf);
 
     piano_tex      = texmgr_register("\\TEX\\PIANOKEY.TIM;1");
     piano_full_tex = texmgr_register("\\TEX\\PIANOFUL.TIM;1");
@@ -136,6 +165,7 @@ void piano_props_place(void) {
        footprint x +/-195, z +/-50. */
     props[0].smd  = piano_smd;
     props[0].tex  = piano_keys_tex();
+    props[0].anzu_tile = -1;  props[0].uv_span = 0;
     props[0].x    = -420;  props[0].y = -149;  props[0].z = 850;
     props[0].rot_y = 0;
     props[0].min_x = -420 - 195;  props[0].max_x = -420 + 195;
@@ -148,6 +178,7 @@ void piano_props_place(void) {
        z=-8 centres it on the room's z span; the ends bury into the walls. */
     props[1].smd  = bookcase_smd;
     props[1].tex  = bookcase_tex;
+    props[1].anzu_tile = -1;  props[1].uv_span = 0;
     props[1].x    = -1150;  props[1].y = -149;  props[1].z = -8;
     props[1].rot_y = 0;
     /* Collision box widened past the model's 25-unit half-width so the player
@@ -156,7 +187,45 @@ void piano_props_place(void) {
     props[1].min_z =    -8 - 775; props[1].max_z =    -8 + 1025;
     props[1].solid_h = 520;
     props[1].active  = !piano_keys_repaired;   /* solved: already through the floor */
+
+    /* The Tablets: a stone slab standing against the back (west) wall, in front
+       of the Anzu frame and offset to its north side. The model is a cuboid
+       x +/-40, z +/-90, 180 tall, and only its +X face is textured — at rot 0
+       that face looks east, back into the room, so the player reads it on the
+       way to the frame. Retired for good once the puzzle is solved.
+
+       The face's UVs were authored against a 128x128 square; anzu3 is a 64x64
+       tile sitting at u64,v0 of its page, hence the uv remap. */
+    props[2].smd  = tablets_smd;
+    props[2].tex  = -1;
+    props[2].anzu_tile = 2;                    /* anzu3 */
+    props[2].uv_u0  = anzu_tex(2)->u0;
+    props[2].uv_v0  = anzu_tex(2)->v0;
+    props[2].uv_span = ANZU_TILE_PX - 1;       /* raw 0..128 -> 0..63 within the tile */
+    props[2].x    = -2200;  props[2].y = -149;  props[2].z = 350;
+    props[2].rot_y = 0;
+    props[2].min_x = -2200 - 40;  props[2].max_x = -2200 + 40;
+    props[2].min_z =   350 - 90;  props[2].max_z =   350 + 90;
+    props[2].solid_h = 180;
+    props[2].active  = !game_flag(FLAG_ANZU_SOLVED);
+
+    /* Invisible: the Anzu frame's protrusion off the back wall, straight off
+       Piano_Room.smx (x[-2301,-2261], z[-253,267], top y=-430). Always solid —
+       the frame stays put whether the puzzle is solved or not. */
+    props[3].smd  = NULL;
+    props[3].tex  = -1;
+    props[3].anzu_tile = -1;  props[3].uv_span = 0;
+    props[3].x    = -2281;  props[3].y = -149;  props[3].z = 7;
+    props[3].rot_y = 0;
+    props[3].min_x = -2301;  props[3].max_x = -2261;
+    props[3].min_z =  -253;  props[3].max_z =   267;
+    props[3].solid_h = 430;
+    props[3].active  = 1;
 }
+
+/* The tablet vanishes the moment the puzzle is solved — deactivating stops it
+   drawing AND drops its collision box, exactly as the sunk bookcase does. */
+void piano_props_tablets_hide(void) { props[2].active = 0; }
 
 /* ---- Puzzle hooks (called by piano_puzzle.c) ------------------------------ */
 
@@ -293,7 +362,18 @@ int piano_props_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
     return 0;
 }
 
-/* Render both props with the piano room's fog and texture window. Textured
+/* Baked UV -> the UV this prop's texture actually wants (see uv_span in
+   PianoProp). uv_span 0 is the identity, which is every prop but the tablets. */
+static inline uint8_t remap_u(const PianoProp *p, uint8_t u) {
+    return p->uv_span ? (uint8_t)(p->uv_u0 + (((int)u - p->uv_u0) * p->uv_span) / 128)
+                      : u;
+}
+static inline uint8_t remap_v(const PianoProp *p, uint8_t v) {
+    return p->uv_span ? (uint8_t)(p->uv_v0 + (((int)v - p->uv_v0) * p->uv_span) / 128)
+                      : v;
+}
+
+/* Render every prop with the piano room's fog and texture window. Textured
    prims (pt->texture, fatdoor-style flag) use the prop's own texture; the rest
    draw flat-shaded. Fog is computed per prim (the bookcase is 1800 long, so a
    single per-prop distance would fog its far end wrongly). Restores the camera
@@ -425,8 +505,14 @@ void piano_props_draw(RenderContext *ctx) {
             int textured = pt->texture != 0;
             uint16_t tp = 0, cl = 0;
             if (textured) {
-                tp = texmgr_tpage(pr->tex);
-                cl = texmgr_clut(pr->tex);
+                if (pr->anzu_tile >= 0) {
+                    const AnzuTex *a = anzu_tex(pr->anzu_tile);
+                    tp = a->tpage;
+                    cl = a->clut;
+                } else {
+                    tp = texmgr_tpage(pr->tex);
+                    cl = texmgr_clut(pr->tex);
+                }
             }
 
             if (is_quad && textured) {
@@ -437,10 +523,10 @@ void piano_props_draw(RenderContext *ctx) {
                 setRGB0(poly, r, g, b);
                 poly->tpage = tp;
                 poly->clut  = cl;
-                poly->u0=uv[0]; poly->v0=uv[1];
-                poly->u1=uv[2]; poly->v1=uv[3];
-                poly->u2=uv[4]; poly->v2=uv[5];
-                poly->u3=uv[6]; poly->v3=uv[7];
+                poly->u0=remap_u(pr,uv[0]); poly->v0=remap_v(pr,uv[1]);
+                poly->u1=remap_u(pr,uv[2]); poly->v1=remap_v(pr,uv[3]);
+                poly->u2=remap_u(pr,uv[4]); poly->v2=remap_v(pr,uv[5]);
+                poly->u3=remap_u(pr,uv[6]); poly->v3=remap_v(pr,uv[7]);
                 poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
                 poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
                 poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
@@ -466,9 +552,9 @@ void piano_props_draw(RenderContext *ctx) {
                 setRGB0(poly, r, g, b);
                 poly->tpage = tp;
                 poly->clut  = cl;
-                poly->u0=uv[0]; poly->v0=uv[1];
-                poly->u1=uv[2]; poly->v1=uv[3];
-                poly->u2=uv[4]; poly->v2=uv[5];
+                poly->u0=remap_u(pr,uv[0]); poly->v0=remap_v(pr,uv[1]);
+                poly->u1=remap_u(pr,uv[2]); poly->v1=remap_v(pr,uv[3]);
+                poly->u2=remap_u(pr,uv[4]); poly->v2=remap_v(pr,uv[5]);
                 poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
                 poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
                 poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;

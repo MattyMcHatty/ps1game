@@ -32,14 +32,16 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\STNDRNDS.TIM;1",   /* PICKUP_ROUNDS       */
     "\\TEX\\FLMRNDS.TIM;1",    /* PICKUP_FLAME_ROUNDS   */
     "\\TEX\\PNOKEY.TIM;1",     /* PICKUP_PIANO_KEY      */
-    "\\TEX\\BLKYSTN.TIM;1",    /* PICKUP_BLUE_KEY_STONE */
+    "\\TEX\\BLKYSTN.TIM;1",    /* PICKUP_BLUE_KEY_STONE   */
+    "\\TEX\\YLKYSTN.TIM;1",    /* PICKUP_YELLOW_KEY_STONE */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
     "Rounds",                  /* PICKUP_ROUNDS         */
     "Flame Rounds",            /* PICKUP_FLAME_ROUNDS   */
     "Piano Key",               /* PICKUP_PIANO_KEY      */
-    "Blue Key Stone",          /* PICKUP_BLUE_KEY_STONE */
+    "Blue Key Stone",          /* PICKUP_BLUE_KEY_STONE   */
+    "Yellow Key Stone",        /* PICKUP_YELLOW_KEY_STONE */
 };
 
 /* Load one TIM into VRAM and record its tpage/clut and UV rect. The UV's U0 is
@@ -139,6 +141,7 @@ static void collect(ItemPickup *p) {
            green key stone. Both are puzzle inputs; nothing consumes them yet. */
         case PICKUP_PIANO_KEY:      player_items |= (1 << ITEM_PIANO_KEY);      break;
         case PICKUP_BLUE_KEY_STONE: player_items |= (1 << ITEM_BLUE_KEY_STONE); break;
+        case PICKUP_YELLOW_KEY_STONE: player_items |= (1 << ITEM_YELLOW_KEY_STONE); break;
         default: break;
     }
     sound_play(SFX_PICKUP);

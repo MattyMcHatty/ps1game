@@ -20,8 +20,12 @@ void menu_draw(RenderContext *ctx);
 #define MENU_SLOT_FLAME_ROUNDS     5
 #define MENU_SLOT_PIANO_KEY        6
 #define MENU_SLOT_BLUE_KEY_STONE   7
-#define MENU_ITEM_SLOTS            8   /* == the grid's 8 cells; past this the
-                                          2x4 layout itself has to grow */
+#define MENU_SLOT_YELLOW_KEY_STONE 8
+#define MENU_ITEM_SLOTS            9   /* the ITEMS grid holds 3x4 = 12 cells, so
+                                          there are 3 free; past 12 the layout
+                                          itself has to grow again (it went from
+                                          2x4 to 3x4, with smaller icons, when
+                                          the Yellow Key Stone made a 9th item) */
 
 int         menu_item_held(int slot);   /* 1 if the player currently holds it */
 const char *menu_item_name(int slot);

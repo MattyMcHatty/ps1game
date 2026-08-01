@@ -22,21 +22,30 @@ extern volatile size_t  pad_buff_len[2];
 #define MENU_BG_G           0
 #define MENU_BG_B           0
 
-/* Two columns — each holds a 2-wide x 4-tall icon grid */
-#define COL_ITEMS_X         5
-#define COL_WEAPONS_X       97      /* 5 + 2*CELL_W + 8 gap */
+/* Two columns of icon cells. ITEMS is 3 wide x 4 tall (12 cells), WEAPONS 2
+   wide x 4 tall. The ITEMS column grew from 2 wide when the Yellow Key Stone
+   made a 9th item; the cell and icon both shrank to pay for the extra column,
+   which is what keeps the description box its original width. Widen the cells
+   again and DESC_W is what gives. */
+#define ITEM_COLS            3
+#define WEAPON_COLS          2
+#define GRID_ROWS            4
+#define COL_ITEMS_X          5
+#define COL_WEAPONS_X      115      /* 5 + ITEM_COLS*CELL_W + 8 gap */
 #define HEADER_Y            10
 #define COL_Y_START         26
-#define CELL_W              42      /* ICON_SIZE + 12 */
-#define CELL_H              42
-#define ICON_SIZE           30
-#define ICON_PADDING        6
+#define CELL_W              34      /* ICON_SIZE + 2*ICON_PADDING */
+#define CELL_H              34
+#define ICON_SIZE           24
+#define ICON_PADDING         5
 
 /* Description box (right side) — starts after both columns */
-#define DESC_X              189     /* COL_WEAPONS_X + 2*CELL_W + 8 */
+#define DESC_X             191      /* COL_WEAPONS_X + WEAPON_COLS*CELL_W + 8 */
 #define DESC_Y              10
-#define DESC_W              127     /* 320 - DESC_X - 4 */
-#define DESC_H              195     /* HBAR_Y - DESC_Y - 5 */
+#define DESC_W             125      /* 320 - DESC_X - 4 */
+#define DESC_H             195      /* HBAR_Y - DESC_Y - 5 */
+
+static int col_cols(int col) { return col == 0 ? ITEM_COLS : WEAPON_COLS; }
 
 /* Health bar */
 #define HBAR_X              20
@@ -44,7 +53,7 @@ extern volatile size_t  pad_buff_len[2];
 #define HBAR_W              180
 #define HBAR_H              12
 
-/* Cursor position — col=0/1 (items/weapons), subcol=0/1 (left/right within grid), row=0-3 */
+/* Cursor position — col=0/1 (items/weapons), subcol=0..col_cols(col)-1, row=0-3 */
 static int cursor_col    = 0;
 static int cursor_subcol = 0;
 static int cursor_row    = 0;
@@ -80,6 +89,9 @@ static uint8_t  pnok_u0, pnok_v0, pnok_u1, pnok_v1;
 static uint16_t bkst_tpage   = 0;
 static uint16_t bkst_clut    = 0;
 static uint8_t  bkst_u0, bkst_v0, bkst_u1, bkst_v1;
+static uint16_t ykst_tpage   = 0;
+static uint16_t ykst_clut    = 0;
+static uint8_t  ykst_u0, ykst_v0, ykst_u1, ykst_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -96,6 +108,7 @@ static const char *item_descriptions[] = {
     "Flame Rounds\n\nIncendiary shot.\nBurns zombies\nand tentacles",
     "Piano Key\n\nA white key\nfor a piano",
     "Blue Key Stone\n\nA blue jewel\nwith a key\nprotruding from\nthe back",
+    "Yellow Key Stone\n\nA yellow jewel\nwith a key\nprotruding from\nthe back",
 };
 
 static const char *weapon_descriptions[] = {
@@ -260,20 +273,6 @@ static void draw_number(RenderContext *ctx, int left_x, int bottom_y,
     }
 }
 
-/* Helper to get item count */
-static int items_count(void) {
-    int count = 0;
-    if (player_keys & (1 << KEY_FRONT_DOOR))     count++;
-    if (player_ammo[AMMO_STANDARD] > 0)          count++;
-    if (player_items & (1 << ITEM_COPPER_POT))   count++;
-    if (player_items & (1 << ITEM_WAX_CUBE))     count++;
-    if (player_items & (1 << ITEM_GREEN_KEY_STONE)) count++;
-    if (player_ammo[AMMO_FLAME] > 0)             count++;
-    if (player_items & (1 << ITEM_PIANO_KEY))    count++;
-    if (player_items & (1 << ITEM_BLUE_KEY_STONE)) count++;
-    return count;
-}
-
 /* ---- Shared inventory-slot accessors -------------------------------------
    The stove puzzle's item picker shows the SAME items as this column, so the
    slot table below is the single description of what lives in each grid cell
@@ -288,6 +287,8 @@ int menu_item_held(int slot) {
         case MENU_SLOT_FLAME_ROUNDS:   return player_ammo[AMMO_FLAME] > 0;
         case MENU_SLOT_PIANO_KEY:      return (player_items & (1 << ITEM_PIANO_KEY)) != 0;
         case MENU_SLOT_BLUE_KEY_STONE: return (player_items & (1 << ITEM_BLUE_KEY_STONE)) != 0;
+        case MENU_SLOT_YELLOW_KEY_STONE:
+                                       return (player_items & (1 << ITEM_YELLOW_KEY_STONE)) != 0;
         default: return 0;
     }
 }
@@ -302,6 +303,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_FLAME_ROUNDS:   return "Flame Rounds";
         case MENU_SLOT_PIANO_KEY:      return "Piano Key";
         case MENU_SLOT_BLUE_KEY_STONE: return "Blue Key Stone";
+        case MENU_SLOT_YELLOW_KEY_STONE:return "Yellow Key Stone";
         default: return "";
     }
 }
@@ -356,19 +358,13 @@ void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
             draw_icon(ctx, x, y, size, bkst_tpage, bkst_clut,
                       bkst_u0, bkst_v0, bkst_u1, bkst_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_YELLOW_KEY_STONE:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, ykst_tpage, ykst_clut,
+                      ykst_u0, ykst_v0, ykst_u1, ykst_v1, 128, ot_idx);
+            break;
         default: break;
     }
-}
-
-/* Helper to get weapon count */
-static int weapons_count(void) {
-    int count = 1;  /* crucifaxe always present */
-    if (player_weapons & (1 << WEAPON_GRAVEOLVER)) count++;
-    return count;
-}
-
-static int col_count(int col) {
-    return col == 0 ? items_count() : weapons_count();
 }
 
 /* Public API */
@@ -390,12 +386,14 @@ void menu_init(void) {
                   &gkst_u0, &gkst_v0, &gkst_u1, &gkst_v1);
     load_icon_tim("\\TEX\\PNOKEY.TIM;1", &pnok_tpage, &pnok_clut,
                   &pnok_u0, &pnok_v0, &pnok_u1, &pnok_v1);
+    load_icon_tim("\\TEX\\YLKYSTN.TIM;1", &ykst_tpage, &ykst_clut,
+                  &ykst_u0, &ykst_v0, &ykst_u1, &ykst_v1);
     load_icon_tim("\\TEX\\BLKYSTN.TIM;1", &bkst_tpage, &bkst_clut,
                   &bkst_u0, &bkst_v0, &bkst_u1, &bkst_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
-    items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * 2, 14, 0, 64);
-    weapons_fnt = FntOpen(COL_WEAPONS_X, HEADER_Y, CELL_W * 2, 14, 0, 64);
+    items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);
+    weapons_fnt = FntOpen(COL_WEAPONS_X, HEADER_Y, CELL_W * WEAPON_COLS, 14, 0, 64);
     menu_fnt    = FntOpen(DESC_X + 4, DESC_Y + 4, DESC_W - 8, DESC_H - 8, 0, 512);
 }
 
@@ -425,17 +423,19 @@ void menu_update(void) {
         return;
     }
 
-    /* Navigate within the 2-wide x 4-tall grid; crossing column edges switches column */
+    /* Navigate the current column's grid; crossing its edge switches column.
+       The two columns are different widths (ITEMS 3, WEAPONS 2), so the edge is
+       col_cols(cursor_col) rather than a hard-coded 1. */
     if (pressed & PAD_LEFT) {
         if (cursor_subcol > 0) {
             cursor_subcol--;
         } else if (cursor_col > 0) {
             cursor_col--;
-            cursor_subcol = 1;
+            cursor_subcol = col_cols(cursor_col) - 1;
         }
     }
     if (pressed & PAD_RIGHT) {
-        if (cursor_subcol < 1) {
+        if (cursor_subcol < col_cols(cursor_col) - 1) {
             cursor_subcol++;
         } else if (cursor_col < 1) {
             cursor_col++;
@@ -444,11 +444,11 @@ void menu_update(void) {
     }
     if (pressed & PAD_UP) {
         cursor_row--;
-        if (cursor_row < 0) cursor_row = 3;
+        if (cursor_row < 0) cursor_row = GRID_ROWS - 1;
     }
     if (pressed & PAD_DOWN) {
         cursor_row++;
-        if (cursor_row > 3) cursor_row = 0;
+        if (cursor_row > GRID_ROWS - 1) cursor_row = 0;
     }
 }
 
@@ -513,70 +513,42 @@ void menu_draw(RenderContext *ctx) {
     if (weapons_fnt >= 0) { FntPrint(weapons_fnt, "WEAPONS"); FntFlush(weapons_fnt); }
 
     /* Column header dividers */
-    draw_rect(ctx, COL_ITEMS_X,   HEADER_Y + 12, CELL_W * 2, 1, 80, 80, 80, OT_FILL);
-    draw_rect(ctx, COL_WEAPONS_X, HEADER_Y + 12, CELL_W * 2, 1, 80, 80, 80, OT_FILL);
+    draw_rect(ctx, COL_ITEMS_X,   HEADER_Y + 12, CELL_W * ITEM_COLS,   1, 80, 80, 80, OT_FILL);
+    draw_rect(ctx, COL_WEAPONS_X, HEADER_Y + 12, CELL_W * WEAPON_COLS, 1, 80, 80, 80, OT_FILL);
 
-    /* Items column — 2x4 grid (flat loop to avoid nested-loop variable issues) */
+    /* Items column — ITEM_COLS x GRID_ROWS grid. The icons come from
+       menu_draw_item_icon, the same accessor the stove and Anzu pickers use, so
+       a new item only ever has to be described in ONE place; only the two
+       counted slots need anything extra drawn over the top. */
     {
         int i;
-        for (i = 0; i < 8; i++) {
-            int row = i >> 1;
-            int sc  = i & 1;
+        for (i = 0; i < ITEM_COLS * GRID_ROWS; i++) {
+            int row = i / ITEM_COLS;
+            int sc  = i % ITEM_COLS;
             int ix = COL_ITEMS_X + sc * CELL_W + ICON_PADDING;
             int iy = COL_Y_START + row * CELL_H + ICON_PADDING;
             draw_rect(ctx, ix - ICON_PADDING, iy - ICON_PADDING,
                       CELL_W, CELL_H, 35, 30, 45, OT_BOX);
             draw_outline(ctx, ix - ICON_PADDING, iy - ICON_PADDING,
                          CELL_W, CELL_H, 80, 70, 100, OT_FILL);
-            if (i == 0 && (player_keys & (1 << KEY_FRONT_DOOR))) {
-                draw_icon(ctx, ix, iy, ICON_SIZE, key_tpage, key_clut,
-                          key_u0, key_v0, key_u1, key_v1, 255, OT_ICON);
-            }
-            if (i == 1 && player_ammo[AMMO_STANDARD] > 0) {
-                draw_icon(ctx, ix, iy, ICON_SIZE, rnds_tpage, rnds_clut,
-                          rnds_u0, rnds_v0, rnds_u1, rnds_v1, 255, OT_ICON);
-                /* Ammo count, yellow, tucked into the icon's bottom-left. */
+            if (i >= MENU_ITEM_SLOTS) continue;   /* trailing empty cells */
+            menu_draw_item_icon(ctx, i, ix, iy, ICON_SIZE, OT_ICON);
+            /* Ammo count, yellow, tucked into the icon's bottom-left. */
+            if (i == MENU_SLOT_ROUNDS && player_ammo[AMMO_STANDARD] > 0)
                 draw_number(ctx, ix, iy + ICON_SIZE,
                             player_ammo[AMMO_STANDARD], 2, OT_COUNT);
-            }
-            if (i == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0) {
-                draw_icon(ctx, ix, iy, ICON_SIZE, flmr_tpage, flmr_clut,
-                          flmr_u0, flmr_v0, flmr_u1, flmr_v1, 255, OT_ICON);
+            if (i == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0)
                 draw_number(ctx, ix, iy + ICON_SIZE,
                             player_ammo[AMMO_FLAME], 2, OT_COUNT);
-            }
-            if (i == 2 && (player_items & (1 << ITEM_COPPER_POT))) {
-                uint16_t tp, cl; uint8_t u0, v0, u1, v1;
-                copper_pot_icon(&tp, &cl, &u0, &v0, &u1, &v1);
-                /* Full-brightness art — neutral 128 modulation, not the 2x the
-                   darker icons use. */
-                draw_icon(ctx, ix, iy, ICON_SIZE, tp, cl, u0, v0, u1, v1, 128, OT_ICON);
-            }
-            if (i == 3 && (player_items & (1 << ITEM_WAX_CUBE))) {
-                draw_icon(ctx, ix, iy, ICON_SIZE, waxcb_tpage, waxcb_clut,
-                          waxcb_u0, waxcb_v0, waxcb_u1, waxcb_v1, 128, OT_ICON);
-            }
-            if (i == 4 && (player_items & (1 << ITEM_GREEN_KEY_STONE))) {
-                draw_icon(ctx, ix, iy, ICON_SIZE, gkst_tpage, gkst_clut,
-                          gkst_u0, gkst_v0, gkst_u1, gkst_v1, 128, OT_ICON);
-            }
-            if (i == MENU_SLOT_PIANO_KEY && (player_items & (1 << ITEM_PIANO_KEY))) {
-                draw_icon(ctx, ix, iy, ICON_SIZE, pnok_tpage, pnok_clut,
-                          pnok_u0, pnok_v0, pnok_u1, pnok_v1, 128, OT_ICON);
-            }
-            if (i == MENU_SLOT_BLUE_KEY_STONE && (player_items & (1 << ITEM_BLUE_KEY_STONE))) {
-                draw_icon(ctx, ix, iy, ICON_SIZE, bkst_tpage, bkst_clut,
-                          bkst_u0, bkst_v0, bkst_u1, bkst_v1, 128, OT_ICON);
-            }
         }
     }
 
-    /* Weapons column — 2x4 grid */
+    /* Weapons column — WEAPON_COLS x GRID_ROWS grid */
     {
         int i;
-        for (i = 0; i < 8; i++) {
-            int row = i >> 1;
-            int sc  = i & 1;
+        for (i = 0; i < WEAPON_COLS * GRID_ROWS; i++) {
+            int row = i / WEAPON_COLS;
+            int sc  = i % WEAPON_COLS;
             int wx = COL_WEAPONS_X + sc * CELL_W + ICON_PADDING;
             int wy = COL_Y_START + row * CELL_H + ICON_PADDING;
             draw_rect(ctx, wx - ICON_PADDING, wy - ICON_PADDING,
@@ -619,28 +591,14 @@ void menu_draw(RenderContext *ctx) {
     draw_rect(ctx, DESC_X + 1, DESC_Y + 1, DESC_W - 2, DESC_H - 2, 15, 12, 20, OT_BOX);
 
     if (menu_fnt >= 0) {
-        int slot = cursor_row * 2 + cursor_subcol;
+        int slot = cursor_row * col_cols(cursor_col) + cursor_subcol;
         const char *desc = "Empty";
         if (cursor_col == 0) {
-            if (slot == 0 && (player_keys & (1 << KEY_FRONT_DOOR))) {
-                desc = item_descriptions[0];
-            } else if (slot == 1 && player_ammo[AMMO_STANDARD] > 0) {
-                desc = item_descriptions[1];
-            } else if (slot == 2 && (player_items & (1 << ITEM_COPPER_POT))) {
-                desc = item_descriptions[2];
-            } else if (slot == 3 && (player_items & (1 << ITEM_WAX_CUBE))) {
-                desc = item_descriptions[3];
-            } else if (slot == 4 && (player_items & (1 << ITEM_GREEN_KEY_STONE))) {
-                desc = item_descriptions[4];
-            } else if (slot == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0) {
-                desc = item_descriptions[MENU_SLOT_FLAME_ROUNDS];
-            } else if (slot == MENU_SLOT_PIANO_KEY &&
-                       (player_items & (1 << ITEM_PIANO_KEY))) {
-                desc = item_descriptions[MENU_SLOT_PIANO_KEY];
-            } else if (slot == MENU_SLOT_BLUE_KEY_STONE &&
-                       (player_items & (1 << ITEM_BLUE_KEY_STONE))) {
-                desc = item_descriptions[MENU_SLOT_BLUE_KEY_STONE];
-            }
+            /* item_descriptions[] is indexed by MENU_SLOT_*, and menu_item_held
+               already knows what each slot needs, so this stays one line as
+               items are added. */
+            if (slot < MENU_ITEM_SLOTS && menu_item_held(slot))
+                desc = item_descriptions[slot];
         } else {
             if (slot == 0)
                 desc = weapon_descriptions[0];

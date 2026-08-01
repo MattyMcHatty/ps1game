@@ -21,6 +21,7 @@ typedef enum {
     ITEM_GREEN_KEY_STONE,   /* awarded by cooking the pot + cube on the kitchen stove */
     ITEM_PIANO_KEY,         /* found on the Attic Stairwell altar; puzzle input, TBD */
     ITEM_BLUE_KEY_STONE,    /* found on the Attic Stairwell altar; puzzle input, TBD */
+    ITEM_YELLOW_KEY_STONE,  /* awarded by solving the piano room's Anzu Tablet puzzle */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */
@@ -37,6 +38,7 @@ extern int     player_items;   /* bitmask — bit ItemType set means it is held 
    change is needed for a new bit (only for a 33rd one). */
 typedef enum {
     FLAG_PIANO_SOLVED = 0,   /* Piano Key placed: keys repaired, bookcase sunk */
+    FLAG_ANZU_SOLVED,        /* Anzu Tablet assembled: tablets gone, room music changed */
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

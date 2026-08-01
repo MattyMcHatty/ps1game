@@ -17,6 +17,8 @@
 #include "texmgr.h"
 #include "piano_props.h"
 #include "piano_puzzle.h"
+#include "anzu_puzzle.h"
+#include "item_pickup.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -202,6 +204,7 @@ void piano_room_init(void) {
 
     piano_props_place();   /* piano (north wall) + bookcase (halfway divider) */
     piano_puzzle_arm();    /* swallow a Circle held through the door transition */
+    anzu_puzzle_place();   /* reset/restore the Anzu Tablet, same swallow */
 }
 
 static void draw_piano_room_smd(RenderContext *ctx) {
@@ -400,10 +403,17 @@ void piano_room_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_piano_room_smd(ctx);
-    /* Static props (piano + bookcase). Their textures sit at page-top (V 0-127)
+    /* The Yellow Key Stone, once the Anzu Tablet has dropped it by the piano.
+       Its 32x32 sprite sits at VRAM Voff 0 with its U inside 128, so the room's
+       texture window leaves the UVs intact (see tools/ADDING_AN_ITEM.txt). */
+    item_pickups_draw(ctx);
+    /* Static props (piano + bookcase + tablets). Their textures sit at page-top (V 0-127)
        so the room's 128 texture window serves them; restores the view matrix. */
     piano_props_draw(ctx);
     pdoor_text(ctx);
     piano_props_text(ctx);   /* floating "examine" sign above the piano */
+    /* Anzu tiles sitting in the back-wall frame (3D, needs the view matrix
+       piano_props_draw restored) plus its own 2D board. */
+    anzu_puzzle_draw(ctx);
     piano_puzzle_draw(ctx);  /* 2D puzzle board, over everything above */
 }
