@@ -33,7 +33,8 @@ extern volatile size_t  pad_buff_len[2];
    Depth and height don't widen the aim — a constant pixel radius at any range —
    they only decide which candidate is nearer. An enemy is a candidate when any
    part of its body projects inside the circle AND the crosshair line to its
-   depth isn't blocked by a nearer wall/prop. */
+   depth isn't blocked by a nearer wall/prop. "Body" means the sprite's whole
+   on-screen rectangle, width included — see enemy_in_circle. */
 #define GUN_RANGE        4000  /* max forward distance a shot reaches           */
 #define GUN_AIM_RADIUS     14  /* crosshair hit circle, in screen pixels        */
 #define GUN_PROJ_H        256  /* projection distance — matches gte_SetGeomScreen*/
@@ -149,25 +150,6 @@ static void crosshair_ray_point(int32_t fx, int32_t fz, int32_t depth,
     *py = cam_y + view_y;
 }
 
-/* Squared pixel distance from the crosshair to the screen-space segment A-B. */
-static int32_t crosshair_seg_dist2(int ax, int ay, int bx, int by) {
-    int px = gun_crosshair_x() - ax, py = gun_crosshair_y() - ay;
-    int dx = bx - ax,               dy = by - ay;
-    int len2 = dx * dx + dy * dy;
-    int qx, qy;
-    if (len2 <= 0) {
-        qx = ax; qy = ay;                         /* degenerate: A==B */
-    } else {
-        int32_t t = ((int32_t)(px * dx + py * dy) << 12) / len2;   /* fixed 0..4096 */
-        if (t < 0)    t = 0;
-        if (t > 4096) t = 4096;
-        qx = ax + ((dx * t) >> 12);
-        qy = ay + ((dy * t) >> 12);
-    }
-    int ex = gun_crosshair_x() - qx, ey = gun_crosshair_y() - qy;
-    return ex * ex + ey * ey;
-}
-
 /* Project a world point to screen pixels by hand (no GTE state needed, so this
    is safe in the update phase where firing runs). Rotation is Y-only, so the
    view X is the point's perpendicular offset from the aim axis and the view Z is
@@ -184,25 +166,33 @@ static int project_world(int32_t x, int32_t y, int32_t z,
 }
 
 /* 1 if the enemy's body silhouette passes within the crosshair circle. The body
-   is the sprite's vertical extent (centre cyc, half-height hh); we project its
-   top and bottom and measure the crosshair's distance to that on-screen line, so
-   there are no gaps and it works at any range. out_depth = forward distance for
-   nearest-first ordering. */
-static int enemy_in_circle(int32_t ex, int32_t cyc, int32_t ez, int32_t hh,
+   is the sprite's full on-screen RECTANGLE — world half-width hw and half-height
+   hh about centre cyc — grown by the aim radius; a shot lands when the crosshair
+   falls inside that box. Every enemy is drawn as a camera-facing billboard, so
+   its width projects exactly like its height and one divide covers each axis.
+   Testing only the centre line (as this once did) left most of a wide sprite
+   unhittable: a tentacle is 262 units across, ~84px at close range against a
+   flat 14px of aim slop, so only the middle strip of the visible body scored.
+   out_depth = forward distance for nearest-first ordering. */
+static int enemy_in_circle(int32_t ex, int32_t cyc, int32_t ez,
+                           int32_t hw, int32_t hh,
                            int32_t fx, int32_t fz, int32_t *out_depth) {
     int32_t depth = ((ex - cam_x) * fx + (ez - cam_z) * fz) >> 12;
     if (depth <= 0 || depth > GUN_RANGE) return 0;
 
-    int tx, ty, bx, by;
-    if (!project_world(ex, cyc - hh, ez, fx, fz, &tx, &ty)) return 0;
-    if (!project_world(ex, cyc + hh, ez, fx, fz, &bx, &by)) return 0;
+    int cx, cy;
+    if (!project_world(ex, cyc, ez, fx, fz, &cx, &cy)) return 0;
 
-    if (crosshair_seg_dist2(tx, ty, bx, by)
-            <= (int32_t)GUN_AIM_RADIUS * GUN_AIM_RADIUS) {
-        *out_depth = depth;
-        return 1;
-    }
-    return 0;
+    /* World half-extents -> screen pixels at the body's depth, plus the slop. */
+    int32_t phw = (hw * GUN_PROJ_H) / depth + GUN_AIM_RADIUS;
+    int32_t phh = (hh * GUN_PROJ_H) / depth + GUN_AIM_RADIUS;
+
+    int32_t ax = gun_crosshair_x() - cx; if (ax < 0) ax = -ax;
+    int32_t ay = gun_crosshair_y() - cy; if (ay < 0) ay = -ay;
+    if (ax > phw || ay > phh) return 0;
+
+    *out_depth = depth;
+    return 1;
 }
 
 /* 1 if the crosshair line is clear out to `depth` — i.e. no wall or solid prop
@@ -234,7 +224,8 @@ static void graveolver_fire(void) {
     for (i = 0; i < demon_dog_count; i++) {
         DemonDog *d = &demon_dogs[i];
         if (!d->active || d->state == DDOG_DEAD) continue;
-        if (enemy_in_circle(d->x, d->y + DDOG_Y_OFFSET, d->z, DDOG_HALF_H, fx, fz, &depth) &&
+        if (enemy_in_circle(d->x, d->y + DDOG_Y_OFFSET, d->z,
+                            DDOG_HALF_W, DDOG_HALF_H, fx, fz, &depth) &&
             depth < best_depth && crosshair_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 0; best_idx = i;
         }
@@ -242,7 +233,8 @@ static void graveolver_fire(void) {
     for (i = 0; i < zombie_count; i++) {
         Zombie *z = &zombies[i];
         if (!z->active || z->state == ZMB_DEAD) continue;
-        if (enemy_in_circle(z->x, z->y + ZMB_Y_OFFSET, z->z, ZMB_HALF_H, fx, fz, &depth) &&
+        if (enemy_in_circle(z->x, z->y + ZMB_Y_OFFSET, z->z,
+                            ZMB_HALF_W, ZMB_HALF_H, fx, fz, &depth) &&
             depth < best_depth && crosshair_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 1; best_idx = i;
         }
@@ -250,7 +242,8 @@ static void graveolver_fire(void) {
     for (i = 0; i < spider_count; i++) {
         Spider *s = &spiders[i];
         if (!s->active || s->state == SPD_DEAD || s->area != game_state) continue;
-        if (enemy_in_circle(s->x, s->y + SPD_Y_OFFSET, s->z, SPD_HALF_H, fx, fz, &depth) &&
+        if (enemy_in_circle(s->x, s->y + SPD_Y_OFFSET, s->z,
+                            SPD_HALF_W, SPD_HALF_H, fx, fz, &depth) &&
             depth < best_depth && crosshair_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 4; best_idx = i;
         }
@@ -258,16 +251,16 @@ static void graveolver_fire(void) {
     for (i = 0; i < tentacle_count; i++) {
         Tentacle *t = &tentacles[i];
         if (!t->active || t->health <= 0 || t->area != game_state) continue;
-        int32_t cyc, hh;
-        tentacle_body(t, &cyc, &hh);
-        if (enemy_in_circle(t->x, cyc, t->z, hh, fx, fz, &depth) &&
+        int32_t cyc, hh, hw;
+        tentacle_body(t, &cyc, &hh, &hw);
+        if (enemy_in_circle(t->x, cyc, t->z, hw, hh, fx, fz, &depth) &&
             depth < best_depth && crosshair_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 3; best_idx = i;
         }
     }
     if (vampire_health > 0 &&
-        enemy_in_circle(vampire_x, vampire_y + VAMPIRE_Y, vampire_z, VAMPIRE_HALF_H,
-                        fx, fz, &depth) &&
+        enemy_in_circle(vampire_x, vampire_y + VAMPIRE_Y, vampire_z,
+                        VAMPIRE_HALF_W, VAMPIRE_HALF_H, fx, fz, &depth) &&
         depth < best_depth && crosshair_clear(fx, fz, depth)) {
         best_kind = 2;
     }

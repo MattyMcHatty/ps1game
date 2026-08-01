@@ -228,10 +228,14 @@ static void tentacle_take_damage(Tentacle *t, int amount) {
     }
 }
 
-/* Aim target for the gun's hitscan: sprite centre height and half-height. */
-void tentacle_body(const Tentacle *t, int32_t *cyc, int32_t *hh) {
+/* Aim target for the gun's hitscan: sprite centre height, half-height and
+   half-width. The width is always the IDLE sprite's even while the wider active
+   one is on screen: the two alternate every few frames, and a hitbox that
+   pulsed with them would let shots land on empty air half the time. */
+void tentacle_body(const Tentacle *t, int32_t *cyc, int32_t *hh, int32_t *hw) {
     *cyc = (t->y + GROUND_FLOOR_Y) - TENT_HALF_H;
     *hh  = TENT_HALF_H;
+    *hw  = TENT_IDLE_HALF_W;
 }
 
 /* Tentacles are the most flammable thing in the house: Flame Rounds do triple
