@@ -16,6 +16,7 @@
 #include "door.h"
 #include "texmgr.h"
 #include "piano_props.h"
+#include "piano_puzzle.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -200,6 +201,7 @@ void piano_room_init(void) {
     pdoor_arm();   /* don't re-trigger on a held Circle from the entry */
 
     piano_props_place();   /* piano (north wall) + bookcase (halfway divider) */
+    piano_puzzle_arm();    /* swallow a Circle held through the door transition */
 }
 
 static void draw_piano_room_smd(RenderContext *ctx) {
@@ -387,19 +389,12 @@ void piano_room_draw(RenderContext *ctx) {
         ctx->next_packet += sizeof(DR_TWIN);
     }
 
-    /* View matrix from the camera (same construction as reception_draw). */
+    /* View matrix from the camera. camera_build_view (not the hand-rolled
+       yaw-only matrix the other rooms use) because the piano puzzle's fixed
+       shots tilt the camera — with cam_pitch 0 this is identical to the old
+       construction, so ordinary play is unaffected. */
     MATRIX rot_matrix;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &rot_matrix);
-
-    VECTOR trans;
-    trans.vx = -cam_x;
-    trans.vy = -cam_y;
-    trans.vz = -cam_z;
-    ApplyMatrixLV(&rot_matrix, &trans, &trans);
-    rot_matrix.t[0] = trans.vx;
-    rot_matrix.t[1] = trans.vy;
-    rot_matrix.t[2] = trans.vz;
+    camera_build_view(&rot_matrix);
 
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
@@ -410,4 +405,5 @@ void piano_room_draw(RenderContext *ctx) {
     piano_props_draw(ctx);
     pdoor_text(ctx);
     piano_props_text(ctx);   /* floating "examine" sign above the piano */
+    piano_puzzle_draw(ctx);  /* 2D puzzle board, over everything above */
 }

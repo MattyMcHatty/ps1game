@@ -41,6 +41,7 @@
 #include "reception.h"
 #include "piano_room.h"
 #include "piano_props.h"
+#include "piano_puzzle.h"
 #include "conservatory.h"
 #include "hall_2f.h"
 #include "master_bedroom.h"
@@ -96,6 +97,7 @@ void reset_game(RenderContext *ctx) {
     damage_timer  = 0;
     player_health = MAX_HEALTH;
     player_save_count = 0;   /* fresh playthrough: no saves recorded yet */
+    game_flags        = 0;   /* ...and no puzzle has happened yet */
     swing_timer    = 0;
     vampire_kb_vx    = 0;
     vampire_kb_vz    = 0;
@@ -107,6 +109,7 @@ void reset_game(RenderContext *ctx) {
     player_poison_timer = 0;   /* status effects never survive a reset */
     kitchen_stove_reset();
     stove_puzzle_arm();      /* drop any in-progress cook, clear the board */
+    piano_puzzle_arm();      /* ...and any in-progress piano key placement  */
     cam_pitch = 0;           /* a puzzle camera never survives a reset */
     {
         int k;
@@ -164,6 +167,12 @@ static void update_current_area(GameState area) {
         kitchen_stove_update();
         stove_puzzle_update();
         update_particles();
+        return;
+    }
+    /* ...and the piano room's key puzzle. Nothing else lives in that room, so
+       there is no enemy tick to keep running alongside it. */
+    if (area == STATE_PIANO_ROOM && piano_puzzle_active()) {
+        piano_puzzle_update();
         return;
     }
     update_camera();
@@ -412,7 +421,7 @@ static void update_current_area(GameState area) {
            this room's bounds, so their collide calls are no-ops here). */
         apply_collision_reception();
         apply_height();
-        if (!lock) piano_props_update();   /* Circle-to-examine the piano */
+        if (!lock) piano_puzzle_update();  /* examine prompt + puzzle trigger */
         if (!lock && pdoor_triggered()) {
             pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
@@ -942,11 +951,12 @@ int main(int argc, const char **argv) {
                    the kitchen would fall through to delivery-area collision and
                    its back-face push would catapult the player). */
                 GameState area = game_state;
-                /* While a camera-locked puzzle (drawers / stove) owns the
-                   screen, suppress the Start menu and the player weapon/HUD
+                /* While a camera-locked puzzle (drawers / stove / piano) owns
+                   the screen, suppress the Start menu and the player weapon/HUD
                    overlays. */
                 int puzzle = (area == STATE_2F_HALL && trick_drawers_puzzle_active()) ||
-                             (area == STATE_KITCHEN_DINING && stove_puzzle_active());
+                             (area == STATE_KITCHEN_DINING && stove_puzzle_active()) ||
+                             (area == STATE_PIANO_ROOM && piano_puzzle_active());
                 if (!puzzle) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);

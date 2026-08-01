@@ -40,6 +40,13 @@ KNOWN_STREAM_PAIRS = [
     ("kchn_tile.tim","clsd_drwr.tim"), # 2F hall trick-drawers prop streams over kchn_tile...
     ("cncrte.tim",   "clsd_drwr.tim"), # ...the same slot the conservatory uses for cncrte
     ("piano_keys.tim","clsd_drwr.tim"),# ...and the piano room uses for piano_keys
+    # The repaired keyboard is a straight re-upload of the piano_keys slot (same
+    # rect AND same CLUT rect), swapped in when the piano puzzle is solved, so it
+    # inherits every one of piano_keys' sharing relationships.
+    ("piano_keys.tim","piano_keys_full.tim"),
+    ("kchn_tile.tim", "piano_keys_full.tim"),
+    ("cncrte.tim",    "piano_keys_full.tim"),
+    ("clsd_drwr.tim", "piano_keys_full.tim"),
     ("con_tile.tim", "opn_drwr.tim"),  # open-drawer texture streams over con_tile...
     ("double_door.tim","opn_drwr.tim"),# ...the same slot delivery/kitchen use for double_door
     ("key.tim",      "cppr_pt.tim"),   # copper pot time-shares the (spent) key slot

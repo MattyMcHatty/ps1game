@@ -138,6 +138,10 @@
                 <file name="PIANO.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Piano.smd"/>
                 <file name="BOOKCSE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Bookcase.smd"/>
                 <file name="PIANOKEY.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\piano_keys.tim"/>
+                <!-- The repaired keyboard: same VRAM slot and CLUT slot as
+                     PIANOKEY.TIM, so solving the piano puzzle just re-uploads
+                     over it and every baked UV/tpage/clut stays valid. -->
+                <file name="PIANOFUL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\piano_keys_full.tim"/>
                 <file name="BOOKSHLF.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\bookshelf.tim"/>
                 <file name="CONSRV.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\Conservatory.smd"/>
                 <file name="HALL2F.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\2f_hall.smd"/>

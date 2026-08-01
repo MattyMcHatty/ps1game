@@ -118,6 +118,7 @@ void savegame_capture(SaveData *sd) {
     sd->weapons = player_weapons;
     sd->keys    = player_keys;
     sd->items   = player_items;
+    sd->flags   = game_flags;
     sd->counter = 0;
     sd->world_size = (uint32_t)world_blob_size();
 }
@@ -303,6 +304,7 @@ void savegame_apply_pending(void) {
     player_weapons    = sd->weapons;
     player_keys       = sd->keys;
     player_items      = sd->items;
+    game_flags        = sd->flags;
     player_save_count = (int)sd->counter;
 
     /* Install the saved per-room world state over the fresh rooms[] the new-game

@@ -10,7 +10,9 @@
    SaveData frame later. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   9             /* v9: per-type ammo reserves + chambered
+#define SAVE_VERSION   10            /* v10: persistent puzzle/world flag word
+                                        (game_flags — the piano puzzle);
+                                        v9: per-type ammo reserves + chambered
                                         type (Flame Rounds); v8: 4-block chain
                                         (the library, room 9, outgrew three);
                                         v7: ItemPickup carries a per-pickup
@@ -40,6 +42,7 @@ typedef struct {
     int32_t  weapons;               /* owned-weapon bitmask */
     int32_t  keys;                  /* held-key bitmask */
     int32_t  items;                 /* held non-key item bitmask (player_items) */
+    int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     uint32_t counter;               /* playthrough save count INCLUDING this save
                                        (mirrors player_save_count; restored on load) */
     uint32_t world_size;            /* byte size of the world blob stored in the

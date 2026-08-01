@@ -25,6 +25,25 @@ typedef enum {
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */
 
+/* --- Persistent world/puzzle flags ------------------------------------------
+   One saved bitmask for "this has happened and must stay happened", for events
+   that award no item to hang the flag on. The stove puzzle does NOT use this
+   (owning the Green Key Stone is its own completion flag); the piano puzzle does
+   — it consumes the Piano Key and leaves nothing behind, so without a flag a
+   reloaded save would put the bookcase back.
+
+   ADDING A FLAG: add a GameFlag before MAX_GAME_FLAGS. The bits ride in
+   SaveData.flags, so the word is saved and restored wholesale — no save-format
+   change is needed for a new bit (only for a 33rd one). */
+typedef enum {
+    FLAG_PIANO_SOLVED = 0,   /* Piano Key placed: keys repaired, bookcase sunk */
+    MAX_GAME_FLAGS
+} GameFlag;
+extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */
+
+static inline int game_flag(GameFlag f) { return (game_flags & (1 << f)) != 0; }
+static inline void game_flag_set(GameFlag f) { game_flags |= (1 << f); }
+
 /* Weapons the player owns. The crucifaxe is always present (bit 0); other
    weapons are found in the world. Menu WEAPONS column reads this bitmask. */
 typedef enum {

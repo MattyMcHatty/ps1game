@@ -17,11 +17,27 @@ void piano_props_upload_textures(void); /* piano-room entry: pure LoadImage from
    keep piano_keys OUT of the kchn_tile slot they need for cncrte. */
 void piano_props_upload_bookcase_texture(void);
 void piano_props_place(void);           /* piano_room_init: position both props */
-void piano_props_update(void);          /* Circle-to-examine the piano */
 void piano_props_draw(RenderContext *ctx);
 void piano_props_text(RenderContext *ctx); /* floating "examine" sign (view matrix active) */
 void piano_props_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 /* Hitscan solid test for the gun's line of sight (dresser-style, height-aware). */
 int  piano_props_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
+
+/* ---- Piano puzzle hooks (piano_puzzle.c) ----------------------------------
+   Where the piano stands, so the puzzle can range-check the Circle press
+   against the same spot the examine sign floats over. */
+int32_t piano_prop_x(void);
+int32_t piano_prop_z(void);
+
+/* Fit the missing key: re-uploads the repaired keyboard over the piano_keys
+   VRAM slot. Idempotent, and a no-op if the repaired TIM never registered. */
+void piano_props_repair_keys(void);
+
+/* Drop the bookcase through the floor. sink_start begins it, _update advances
+   one frame and returns 1 once it is fully gone (deactivating the prop, which
+   also drops its collision box), _sinking reports whether it is still moving. */
+void piano_props_bookcase_sink_start(void);
+int  piano_props_bookcase_update(void);
+int  piano_props_bookcase_sinking(void);
 
 #endif

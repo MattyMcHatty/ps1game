@@ -41,6 +41,7 @@ add_executable(horror_game
     src/piano_room_mesh_collision.c
     src/piano_room.c
     src/piano_props.c
+    src/piano_puzzle.c
     src/concrete_props.c
     src/copper_pot.c
     src/tentacle.c

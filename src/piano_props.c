@@ -11,13 +11,11 @@
 #include "collision.h"      /* GROUND_FLOOR_Y */
 #include "texmgr.h"
 #include "title.h"          /* current_area gate: props only exist in the piano room */
-#include "player.h"         /* pickup_log: the examine message goes there */
+#include "player.h"         /* game_flag: FLAG_PIANO_SOLVED latches both props */
 #include "door.h"           /* door_draw_string_3d for the floating sign */
 #include "btn_glyph.h"
+#include "piano_puzzle.h"   /* piano_puzzle_active: hide the sign during the shot */
 #include "piano_props.h"
-
-extern volatile uint8_t pad_buff[2][34];
-extern volatile size_t  pad_buff_len[2];
 
 #define PPROP_COUNT        2
 #define PPROP_PUSH_MARGIN 30   /* extra gap between player and prop edge (as tables) */
@@ -41,10 +39,28 @@ static SMD  *piano_smd = NULL,    *bookcase_smd = NULL;
 static void *piano_buf = NULL,    *bookcase_buf = NULL;
 static int   piano_tex = -1,       bookcase_tex = -1;
 
-/* Circle edge-detect for the examine interaction; starts "held" so a press
-   carried in from the room entry doesn't immediately examine
-   (piano_props_place re-seeds it on entry). */
-static int examine_circle_prev = 1;
+/* The repaired keyboard. piano_keys_full.tim is built at the SAME VRAM rect and
+   the SAME CLUT rect as piano_keys.tim, so swapping it in is a plain
+   texmgr_upload over the top — every baked UV and the prop's tpage/clut stay
+   valid and the draw loop needs no branch (cf. the fat door's cracked texture,
+   which does have to override per-poly because it lives elsewhere in VRAM). */
+static int   piano_full_tex = -1;
+
+/* Which of the two the next upload (and the current VRAM contents) should be.
+   Latched from FLAG_PIANO_SOLVED on room entry so a loaded save comes back with
+   the repaired keys already fitted. */
+static int piano_keys_repaired = 0;
+
+/* ---- The sinking bookcase -------------------------------------------------
+   Solving the puzzle drops the divider through the floor to open up the west
+   half of the room. sink_off is added to the bookcase's y (down is +Y here), so
+   it slides straight down; past PPROP_SINK_DIST the prop is retired outright —
+   deactivated, so it stops drawing AND stops colliding. */
+#define PPROP_SINK_DIST     620   /* solid_h 520 + clearance under the boards */
+#define PPROP_SINK_FRAMES   240   /* 4 s at 60 fps — "slowly", as specified   */
+
+static int32_t sink_off   = 0;
+static int     sinking    = 0;
 
 static void *read_file(const char *name) {
     CdlFILE file;
@@ -66,12 +82,21 @@ void piano_props_load_assets(void) {
     bookcase_buf = read_file("\\TEX\\BOOKCSE.SMD;1");
     if (bookcase_buf) bookcase_smd = smdInitData(bookcase_buf);
 
-    piano_tex    = texmgr_register("\\TEX\\PIANOKEY.TIM;1");
-    bookcase_tex = texmgr_register("\\TEX\\BOOKSHLF.TIM;1");
+    piano_tex      = texmgr_register("\\TEX\\PIANOKEY.TIM;1");
+    piano_full_tex = texmgr_register("\\TEX\\PIANOFUL.TIM;1");
+    bookcase_tex   = texmgr_register("\\TEX\\BOOKSHLF.TIM;1");
+}
+
+/* The keyboard art the piano should be showing right now. Falls back to the
+   broken one if the repaired TIM failed to register (same defensive fallback
+   the fat door uses for its cracked texture). */
+static int piano_keys_tex(void) {
+    return (piano_keys_repaired && piano_full_tex >= 0) ? piano_full_tex
+                                                        : piano_tex;
 }
 
 void piano_props_upload_textures(void) {
-    texmgr_upload(piano_tex);
+    texmgr_upload(piano_keys_tex());
     texmgr_upload(bookcase_tex);
 }
 
@@ -85,11 +110,18 @@ void piano_props_upload_bookcase_texture(void) {
 /* Position both props in the piano room (room x[-2301,0], z[-740,974], floor
    world y=0 -> standing reference -149). Called from piano_room_init. */
 void piano_props_place(void) {
+    /* Latch the keyboard state from the save flag BEFORE the upload that
+       follows on room entry, so a loaded game walks in to repaired keys and a
+       bookcase that is already gone. */
+    piano_keys_repaired = game_flag(FLAG_PIANO_SOLVED);
+    sinking = 0;
+    sink_off = piano_keys_repaired ? PPROP_SINK_DIST : 0;
+
     /* Piano against the north (+Z) wall on the door (east) side, keys facing
        south into the room (the model's keyboard faces -Z at rot 0). Model
        footprint x +/-195, z +/-50. */
     props[0].smd  = piano_smd;
-    props[0].tex  = piano_tex;
+    props[0].tex  = piano_keys_tex();
     props[0].x    = -420;  props[0].y = -149;  props[0].z = 850;
     props[0].rot_y = 0;
     props[0].min_x = -420 - 195;  props[0].max_x = -420 + 195;
@@ -109,51 +141,55 @@ void piano_props_place(void) {
     props[1].min_x = -1150 - 90;  props[1].max_x = -1150 + 90;
     props[1].min_z =    -8 - 775; props[1].max_z =    -8 + 1025;
     props[1].solid_h = 520;
-    props[1].active  = 1;
-
-    /* Arm the examine Circle edge so a press held through the room transition
-       doesn't fire immediately (same pattern as the door arms). */
-    examine_circle_prev = 1;
+    props[1].active  = !piano_keys_repaired;   /* solved: already through the floor */
 }
 
-/* ---- Circle-to-examine the piano ------------------------------------------
-   A floating "Press " BTN_CIRCLE " to examine" sign slightly above the piano
-   (XY plane, facing -Z like the stove sign), and a fresh Circle press within
-   range pushes a flavour line into the pickup log. */
-#define PIANO_EXAMINE_RADIUS   400   /* Manhattan XZ distance for the trigger  */
+/* ---- Puzzle hooks (called by piano_puzzle.c) ------------------------------ */
+
+int32_t piano_prop_x(void) { return props[0].x; }
+int32_t piano_prop_z(void) { return props[0].z; }
+
+/* Fit the missing key. The upload is a pure LoadImage out of the texmgr's RAM
+   copy — no CD access — but it still touches VRAM the GPU may be reading, so
+   idle it first exactly as main's room-transition path does. */
+void piano_props_repair_keys(void) {
+    if (piano_keys_repaired) return;
+    piano_keys_repaired = 1;
+    props[0].tex = piano_keys_tex();
+    DrawSync(0);
+    texmgr_upload(props[0].tex);
+}
+
+void piano_props_bookcase_sink_start(void) {
+    if (props[1].active) sinking = 1;
+}
+
+int piano_props_bookcase_sinking(void) { return sinking; }
+
+/* One frame of the descent. Returns 1 on the frame it finishes (and every frame
+   after), so the caller can hold on the empty floor and then eject. */
+int piano_props_bookcase_update(void) {
+    if (!sinking) return sink_off >= PPROP_SINK_DIST;
+
+    sink_off += PPROP_SINK_DIST / PPROP_SINK_FRAMES + 1;
+    if (sink_off >= PPROP_SINK_DIST) {
+        sink_off        = PPROP_SINK_DIST;
+        sinking         = 0;
+        props[1].active = 0;   /* gone for good: stops drawing AND colliding */
+        return 1;
+    }
+    return 0;
+}
+
+/* ---- The "Press O to examine" sign -----------------------------------------
+   A floating sign slightly above the piano (XY plane, facing -Z like the stove
+   sign). The Circle press it advertises is handled by piano_puzzle.c, which
+   owns the interaction from here on — this module only draws the invitation. */
 #define PIANO_TEXT_Y         (-190)  /* just above the piano top (-152)        */
 #define PIANO_TEXT_Z_OFF      (-45)  /* sign plane just in front of the piano  */
 #define PIANO_TEXT_RADIUS     1500
 #define PIANO_TEXT_FADE_NEAR  1000
 #define PIANO_TEXT_PIXEL         2   /* small prop sign, as the stove's        */
-
-void piano_props_update(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
-    int just = held && !examine_circle_prev;
-    examine_circle_prev = held;
-    if (!just) return;
-
-    PianoProp *p = &props[0];
-    int32_t dx = cam_x - p->x;
-    int32_t dz = cam_z - p->z;
-    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= PIANO_EXAMINE_RADIUS) return;
-
-    /* Push into the pickup log without the "Picked up " prefix (same manual
-       shift door.c uses for its "Used ..." message). */
-    pickup_log[0] = pickup_log[1];
-    pickup_log[1] = pickup_log[2];
-    {
-        const char *msg = "A dusty old piano. There is a white key missing";
-        int i = 0;
-        while (msg[i] && i < 63) { pickup_log[2].msg[i] = msg[i]; i++; }
-        pickup_log[2].msg[i] = '\0';
-        pickup_log[2].timer  = PICKUP_MSG_DURATION;
-    }
-}
 
 /* Floating examine sign, drawn with the room's view matrix active. The XY
    plane reads along X and faces along Z; the player approaches from -Z, same
@@ -162,6 +198,9 @@ void piano_props_update(void) {
 void piano_props_text(RenderContext *ctx) {
     PianoProp *p = &props[0];
     if (!p->active) return;
+    /* Nothing left to examine once the key is in, and the puzzle's own fixed
+       camera should not be looking at a floating prompt. */
+    if (piano_keys_repaired || piano_puzzle_active()) return;
 
     int32_t dx = cam_x - p->x;
     int32_t dz = cam_z - p->z;
@@ -239,13 +278,7 @@ int piano_props_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
    view matrix before returning. */
 void piano_props_draw(RenderContext *ctx) {
     MATRIX view;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &view);
-    VECTOR vt = {-cam_x, -cam_y, -cam_z};
-    ApplyMatrixLV(&view, &vt, &vt);
-    view.t[0] = vt.vx;
-    view.t[1] = vt.vy;
-    view.t[2] = vt.vz;
+    camera_build_view(&view);   /* pitch-aware: the puzzle's fixed shots tilt */
 
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
@@ -258,7 +291,9 @@ void piano_props_draw(RenderContext *ctx) {
         MATRIX pm, combined;
         SVECTOR prot = {0, pr->rot_y, 0, 0};
         RotMatrix(&prot, &pm);
-        VECTOR pos = {pr->x, pr->y + GROUND_FLOOR_Y, pr->z};
+        /* Down is +Y, so the bookcase's sink offset just adds to its base. */
+        int32_t base_y = pr->y + GROUND_FLOOR_Y + (i == 1 ? sink_off : 0);
+        VECTOR pos = {pr->x, base_y, pr->z};
         TransMatrix(&pm, &pos);
         CompMatrixLV(&view, &pm, &combined);
 
@@ -275,9 +310,29 @@ void piano_props_draw(RenderContext *ctx) {
             int           is_quad = (pt->type >= 2);
 
             uint16_t *vi = (uint16_t *)(p + 4);
+            /* Below-the-floor cull for the sinking bookcase. The floor is world
+               y=0 and the props are sorted a little further back than the room
+               (otz += 40), so a submerged prim would normally be hidden by the
+               boards anyway — but the OT is a painter's sort with no depth
+               buffer, and at this camera the prim and the board over it land
+               within a bucket or two of each other. Dropping prims whose HIGHEST
+               vertex has already passed the floor line takes that coin flip out
+               of it. Only the sinking bookcase can trip this (sink_off is 0
+               otherwise), so nothing standing is ever affected. */
             SVECTOR *v0 = &pr->smd->p_verts[vi[0]];
             SVECTOR *v1 = &pr->smd->p_verts[vi[1]];
             SVECTOR *v2 = &pr->smd->p_verts[vi[2]];
+
+            if (sink_off && i == 1) {
+                int32_t top = v0->vy;                    /* most negative = highest */
+                if (v1->vy < top) top = v1->vy;
+                if (v2->vy < top) top = v2->vy;
+                if (is_quad) {
+                    int32_t y3 = pr->smd->p_verts[vi[3]].vy;
+                    if (y3 < top) top = y3;
+                }
+                if (base_y + top >= 0) { p += stride; continue; }
+            }
 
             /* Per-prim distance cull + fog at the room's budget, from the prim
                centre rotated/translated into world space. */

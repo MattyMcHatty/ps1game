@@ -13,6 +13,7 @@ int     flash_timer   = 0;
 int     damage_timer  = 0;
 int     player_keys   = 0;
 int     player_items  = 0;
+int     game_flags    = 0;
 int     player_weapons = (1 << WEAPON_CRUCIFAXE);  /* crucifaxe always owned */
 int      player_ammo[MAX_AMMO_TYPES] = {0};
 AmmoType graveolver_ammo = AMMO_STANDARD;          /* cylinder starts on lead  */
