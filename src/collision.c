@@ -14,6 +14,7 @@
 #include "piano_props.h"
 #include "concrete_props.h"
 #include "trick_drawers.h"
+#include "attic_stairwell.h"   /* the attic altar, collided as a prop */
 
 CollisionRoom current_collision_room;
 
@@ -64,6 +65,7 @@ static int props_block_point(int32_t x, int32_t y, int32_t z) {
     if (dining_tables_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
     if (piano_props_point_solid(x, y, z, SHOT_PROP_SLACK))   return 1;
     if (concrete_props_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
+    if (attic_stairwell_altar_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
     return 0;
 }
 
@@ -583,6 +585,9 @@ void apply_collision_reception(void) {
     concrete_props_collide(&cam_x, cam_y, &cam_z, 75);
     /* 2F hall chest of drawers; likewise gated to that area. */
     trick_drawers_collide(&cam_x, cam_y, &cam_z, 75);
+    /* Attic Stairwell altar; likewise gated. Prop radius rather than the wall
+       standoff so the player can reach the pickups on its top face. */
+    attic_stairwell_altar_collide(&cam_x, cam_y, &cam_z, 75);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

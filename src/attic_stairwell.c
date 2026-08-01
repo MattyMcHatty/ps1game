@@ -8,6 +8,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "camera.h"
+#include "title.h"          /* current_area gate: the altar only exists here */
 #include "attic_stairwell.h"
 #include "collision.h"
 #include "attic_stairwell_mesh_collision.h"
@@ -78,6 +79,84 @@ static void attic_stairwell_floor_zones_init(void) {
     floor_zones[5].y     = 0;
 
     floor_zone_count = 6;
+}
+
+/* ---- The altar (the con_tile block in the west room) -----------------------
+   Modelled as part of the room mesh, so it needs no geometry or texture of its
+   own here — only collision. It is collided as a PROP rather than as room walls:
+   the wall routine holds the player 195 clear of every face, and with
+   ITEM_PICKUP_RADIUS at 200 that put everything on the altar's top surface out
+   of reach. A prop radius of 75 — what dining tables, dressers and the
+   conservatory's concrete props already use for "things you walk right up to" —
+   lets the player lean over it and take the two pickups world.c places there.
+
+   Footprint is the collision mesh's (x[-2419,-2228], z[-542,-7]); the top face
+   is the DRAWN y=-117, one the player can see over. The generated collision
+   proxy claimed y[-346,0], nearly three times the drawn height, which would
+   have stopped shots in mid-air above it. */
+#define ALTAR_MIN_X   (-2419)
+#define ALTAR_MAX_X   (-2228)
+#define ALTAR_MIN_Z    (-542)
+#define ALTAR_MAX_Z      (-7)
+#define ALTAR_TOP_Y    (-117)   /* drawn top face; the base is the y=0 floor */
+#define ALTAR_SLACK        4    /* absorbs the +/-1 between drawn and collision verts */
+
+static int altar_rect_contains(int32_t x, int32_t z) {
+    return x >= ALTAR_MIN_X - ALTAR_SLACK && x <= ALTAR_MAX_X + ALTAR_SLACK &&
+           z >= ALTAR_MIN_Z - ALTAR_SLACK && z <= ALTAR_MAX_Z + ALTAR_SLACK;
+}
+
+/* Drop the altar's four faces out of the generated wall list, so only the prop
+   push below acts on it. Matched by GEOMETRY (both endpoints inside the altar
+   footprint), not by index: the generator renumbers walls whenever the mesh is
+   re-exported, and no other wall in this room lies within that rect. */
+static void altar_walls_remove(CollisionRoom *r) {
+    int src, dst = 0;
+    for (src = 0; src < r->wall_count; src++) {
+        Wall *w = &r->walls[src];
+        if (altar_rect_contains(w->x1, w->z1) && altar_rect_contains(w->x2, w->z2))
+            continue;
+        if (dst != src) r->walls[dst] = *w;
+        dst++;
+    }
+    r->wall_count = dst;
+}
+
+/* Player push-out (Minkowski AABB, as the concrete props do, minus the rotation
+   — the altar is axis-aligned). Gated to this room so the shared collision
+   routine can call it unconditionally. */
+void attic_stairwell_altar_collide(int32_t *px, int32_t py, int32_t *pz,
+                                   int32_t radius) {
+    (void)py;   /* single flat floor, and the altar is too tall to step onto */
+    if (current_area != STATE_ATTIC_STAIRWELL) return;
+
+    int32_t min_x = ALTAR_MIN_X - radius, max_x = ALTAR_MAX_X + radius;
+    int32_t min_z = ALTAR_MIN_Z - radius, max_z = ALTAR_MAX_Z + radius;
+    if (*px <= min_x || *px >= max_x) return;
+    if (*pz <= min_z || *pz >= max_z) return;
+
+    /* Push out along the axis with the smallest penetration. */
+    int32_t push_l = *px - min_x, push_r = max_x - *px;
+    int32_t push_f = *pz - min_z, push_b = max_z - *pz;
+
+    int32_t min_push = push_l, dx = -push_l, dz = 0;
+    if (push_r < min_push) { min_push = push_r; dx =  push_r; dz = 0; }
+    if (push_f < min_push) { min_push = push_f; dx = 0; dz = -push_f; }
+    if (push_b < min_push) {                    dx = 0; dz =  push_b; }
+
+    *px += dx;
+    *pz += dz;
+}
+
+/* Hitscan volume: the real block, no player standoff, height-aware — a shot
+   passing over the altar's top face is not blocked. */
+int attic_stairwell_altar_point_solid(int32_t x, int32_t y, int32_t z,
+                                      int32_t slack) {
+    if (current_area != STATE_ATTIC_STAIRWELL) return 0;
+    if (y < ALTAR_TOP_Y || y > 0) return 0;          /* -Y is up */
+    if (x < ALTAR_MIN_X - slack || x > ALTAR_MAX_X + slack) return 0;
+    if (z < ALTAR_MIN_Z - slack || z > ALTAR_MAX_Z + slack) return 0;
+    return 1;
 }
 
 /* ---- Per-room textures -----------------------------------------------------
@@ -278,6 +357,9 @@ void attic_stairwell_spawn_stairs(void) {
 
 void attic_stairwell_init(void) {
     attic_stairwell_collision_init(&current_collision_room);
+    /* The altar is collided as a prop (see above), not as room walls — take its
+       four faces back out of the freshly-installed wall list. */
+    altar_walls_remove(&current_collision_room);
     /* Proxy walls top out at y=-519, one unit shy of the drawn ceiling; state
        the DRAWN value so ceiling-mounted enemies hang flush with the roof the
        player can see. */

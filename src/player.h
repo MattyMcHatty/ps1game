@@ -19,6 +19,8 @@ typedef enum {
     ITEM_COPPER_POT = 0,
     ITEM_WAX_CUBE,          /* awarded by solving the 2F hall trick-drawers puzzle */
     ITEM_GREEN_KEY_STONE,   /* awarded by cooking the pot + cube on the kitchen stove */
+    ITEM_PIANO_KEY,         /* found on the Attic Stairwell altar; puzzle input, TBD */
+    ITEM_BLUE_KEY_STONE,    /* found on the Attic Stairwell altar; puzzle input, TBD */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */

@@ -310,6 +310,30 @@ void world_enter(GameState area) {
                                      GRAVEOLVER_CAPACITY);
         }
 
+        /* Attic Stairwell: the Piano Key and the Blue Key Stone, side by side at
+           the altar in the west room. Both are flag items — puzzle inputs with
+           nothing consuming them yet — so the amount is irrelevant; spawn_amount
+           is used anyway so the ROUNDS_PER_PICKUP default never applies.
+
+           x=-2280 sits ON the altar top: the altar is the con_tile block with
+           footprint x[-2420,-2229] z[-543,-7], top surface y=-117, so both
+           spawns are inside its footprint, a little east of its centre.
+           item_pickup_spawn subtracts IP_FLOAT_Y=50, so each sprite hovers just
+           above the altar's top face, 22 below the standing eye — well inside
+           ITEM_PICKUP_HEIGHT. The 160 Z gap clears the sprites' IP_WORLD_HALF=70
+           so they read as two objects side by side.
+
+           Reaching them depends on the altar being collided as a PROP (radius
+           75) rather than as room walls — see attic_stairwell_altar_collide.
+           With the wall standoff of 195 the nearest the player could stand was
+           x=-2033, 247 Manhattan away and so past ITEM_PICKUP_RADIUS (200); the
+           prop radius brings that to x=-2153 and 127. Move these east or shrink
+           that radius and they go out of reach again. */
+        if (area == STATE_ATTIC_STAIRWELL) {
+            item_pickup_spawn_amount(-2280, -117, -355, PICKUP_PIANO_KEY,      1);
+            item_pickup_spawn_amount(-2280, -117, -195, PICKUP_BLUE_KEY_STONE, 1);
+        }
+
         if (area == STATE_2F_HALL) {
             /* One guarding the reception exit door (east wall), one standing in
                front of the trick drawers in the west room. */

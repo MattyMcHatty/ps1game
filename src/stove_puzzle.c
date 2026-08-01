@@ -58,7 +58,13 @@ extern volatile size_t  pad_buff_len[2];
 #define PICK_CELL              42
 #define PICK_ICON              30
 #define PICK_PAD                6
-#define PICK_COLS               2
+/* 3 wide, NOT 2: the panel is only tall enough for three PICK_CELL rows (the
+   grid starts at PICK_GRID_Y=+22 and the item name sits at PICK_H-16), so at
+   MENU_ITEM_SLOTS=8 a 2-wide grid would need a 4th row and spill past the panel
+   onto the controls line. Widening keeps every slot on screen without resizing
+   the panel. The picker's grid is independent of the inventory menu's own 2x4
+   layout — only the slot NUMBERS are shared. */
+#define PICK_COLS               3
 #define PICK_ROWS  ((MENU_ITEM_SLOTS + PICK_COLS - 1) / PICK_COLS)
 /* Grid centred in the panel, under the header, with room for the item name
    along the bottom edge. */
@@ -249,8 +255,10 @@ void stove_puzzle_update(void) {
         return;
     }
 
-    /* SP_PICKER: 2-wide grid over every inventory slot. Choosing an item copies
-       it into the box — the player keeps it either way. */
+    /* SP_PICKER: PICK_COLS-wide grid over every inventory slot. Choosing an item
+       copies it into the box — the player keeps it either way. The trailing
+       cells of the last row may be past MENU_ITEM_SLOTS; the guard below keeps
+       the cursor out of them and the draw loop never paints them. */
     {
         int row = pick_cur / PICK_COLS, col = pick_cur % PICK_COLS;
         if (pressed & PAD_UP)    { if (row > 0) row--; }

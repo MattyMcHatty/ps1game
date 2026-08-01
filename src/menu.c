@@ -74,6 +74,12 @@ static uint8_t  waxcb_u0, waxcb_v0, waxcb_u1, waxcb_v1;
 static uint16_t gkst_tpage   = 0;
 static uint16_t gkst_clut    = 0;
 static uint8_t  gkst_u0, gkst_v0, gkst_u1, gkst_v1;
+static uint16_t pnok_tpage   = 0;
+static uint16_t pnok_clut    = 0;
+static uint8_t  pnok_u0, pnok_v0, pnok_u1, pnok_v1;
+static uint16_t bkst_tpage   = 0;
+static uint16_t bkst_clut    = 0;
+static uint8_t  bkst_u0, bkst_v0, bkst_u1, bkst_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -88,6 +94,8 @@ static const char *item_descriptions[] = {
     "Wax Cube\n\nI think there's\nsomething inside...",
     "Green Key Stone\n\nA green jewel\nwith a key\nprotruding from\nthe back",
     "Flame Rounds\n\nIncendiary shot.\nBurns zombies\nand tentacles",
+    "Piano Key\n\nA white key\nfor a piano",
+    "Blue Key Stone\n\nA blue jewel\nwith a key\nprotruding from\nthe back",
 };
 
 static const char *weapon_descriptions[] = {
@@ -261,6 +269,8 @@ static int items_count(void) {
     if (player_items & (1 << ITEM_WAX_CUBE))     count++;
     if (player_items & (1 << ITEM_GREEN_KEY_STONE)) count++;
     if (player_ammo[AMMO_FLAME] > 0)             count++;
+    if (player_items & (1 << ITEM_PIANO_KEY))    count++;
+    if (player_items & (1 << ITEM_BLUE_KEY_STONE)) count++;
     return count;
 }
 
@@ -276,6 +286,8 @@ int menu_item_held(int slot) {
         case MENU_SLOT_WAX_CUBE:       return (player_items & (1 << ITEM_WAX_CUBE)) != 0;
         case MENU_SLOT_GREEN_KEY_STONE:return (player_items & (1 << ITEM_GREEN_KEY_STONE)) != 0;
         case MENU_SLOT_FLAME_ROUNDS:   return player_ammo[AMMO_FLAME] > 0;
+        case MENU_SLOT_PIANO_KEY:      return (player_items & (1 << ITEM_PIANO_KEY)) != 0;
+        case MENU_SLOT_BLUE_KEY_STONE: return (player_items & (1 << ITEM_BLUE_KEY_STONE)) != 0;
         default: return 0;
     }
 }
@@ -288,6 +300,8 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_WAX_CUBE:       return "Wax Cube";
         case MENU_SLOT_GREEN_KEY_STONE:return "Green Key Stone";
         case MENU_SLOT_FLAME_ROUNDS:   return "Flame Rounds";
+        case MENU_SLOT_PIANO_KEY:      return "Piano Key";
+        case MENU_SLOT_BLUE_KEY_STONE: return "Blue Key Stone";
         default: return "";
     }
 }
@@ -332,6 +346,16 @@ void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
             draw_icon(ctx, x, y, size, gkst_tpage, gkst_clut,
                       gkst_u0, gkst_v0, gkst_u1, gkst_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_PIANO_KEY:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, pnok_tpage, pnok_clut,
+                      pnok_u0, pnok_v0, pnok_u1, pnok_v1, 128, ot_idx);
+            break;
+        case MENU_SLOT_BLUE_KEY_STONE:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, bkst_tpage, bkst_clut,
+                      bkst_u0, bkst_v0, bkst_u1, bkst_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -364,6 +388,10 @@ void menu_init(void) {
                   &waxcb_u0, &waxcb_v0, &waxcb_u1, &waxcb_v1);
     load_icon_tim("\\TEX\\GRNKYSTN.TIM;1", &gkst_tpage, &gkst_clut,
                   &gkst_u0, &gkst_v0, &gkst_u1, &gkst_v1);
+    load_icon_tim("\\TEX\\PNOKEY.TIM;1", &pnok_tpage, &pnok_clut,
+                  &pnok_u0, &pnok_v0, &pnok_u1, &pnok_v1);
+    load_icon_tim("\\TEX\\BLKYSTN.TIM;1", &bkst_tpage, &bkst_clut,
+                  &bkst_u0, &bkst_v0, &bkst_u1, &bkst_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * 2, 14, 0, 64);
@@ -532,6 +560,14 @@ void menu_draw(RenderContext *ctx) {
                 draw_icon(ctx, ix, iy, ICON_SIZE, gkst_tpage, gkst_clut,
                           gkst_u0, gkst_v0, gkst_u1, gkst_v1, 128, OT_ICON);
             }
+            if (i == MENU_SLOT_PIANO_KEY && (player_items & (1 << ITEM_PIANO_KEY))) {
+                draw_icon(ctx, ix, iy, ICON_SIZE, pnok_tpage, pnok_clut,
+                          pnok_u0, pnok_v0, pnok_u1, pnok_v1, 128, OT_ICON);
+            }
+            if (i == MENU_SLOT_BLUE_KEY_STONE && (player_items & (1 << ITEM_BLUE_KEY_STONE))) {
+                draw_icon(ctx, ix, iy, ICON_SIZE, bkst_tpage, bkst_clut,
+                          bkst_u0, bkst_v0, bkst_u1, bkst_v1, 128, OT_ICON);
+            }
         }
     }
 
@@ -598,6 +634,12 @@ void menu_draw(RenderContext *ctx) {
                 desc = item_descriptions[4];
             } else if (slot == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0) {
                 desc = item_descriptions[MENU_SLOT_FLAME_ROUNDS];
+            } else if (slot == MENU_SLOT_PIANO_KEY &&
+                       (player_items & (1 << ITEM_PIANO_KEY))) {
+                desc = item_descriptions[MENU_SLOT_PIANO_KEY];
+            } else if (slot == MENU_SLOT_BLUE_KEY_STONE &&
+                       (player_items & (1 << ITEM_BLUE_KEY_STONE))) {
+                desc = item_descriptions[MENU_SLOT_BLUE_KEY_STONE];
             }
         } else {
             if (slot == 0)

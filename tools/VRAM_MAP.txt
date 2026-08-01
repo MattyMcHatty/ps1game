@@ -76,6 +76,8 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   wx_cb.tim            4       544   256    32    32     0   192,511
   grn_ky_stn.tim       4       552   256    32    32     0   208,511
   inr_dbl_dr.tim       4       576   256   128   128     0   0,496
+  pno_key.tim          8       608   256    32    32     0   256,482
+  bl_ky_stn.tim        8       624   256    32    32     0   512,482
   sml_med.tim          8       640   256    64    64     0   0,482
   ddog_alert2.tim      8       704   256    64    64     0   0,485
   wd_dr.tim            16      768   256   128   128     0   -
@@ -92,6 +94,8 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=481  x[256,512)  flm_rnds.tim
   y=481  x[0,256)  key.tim
   y=481  x[512,768)  trck_clue.tim
+  y=482  x[512,768)  bl_ky_stn.tim
+  y=482  x[256,512)  pno_key.tim
   y=482  x[0,256)  sml_med.tim
   y=483  x[0,256)  ddog_sleep.tim
   y=484  x[0,256)  ddog_alert.tim

@@ -18,7 +18,10 @@ void menu_draw(RenderContext *ctx);
 #define MENU_SLOT_WAX_CUBE         3
 #define MENU_SLOT_GREEN_KEY_STONE  4
 #define MENU_SLOT_FLAME_ROUNDS     5
-#define MENU_ITEM_SLOTS            6
+#define MENU_SLOT_PIANO_KEY        6
+#define MENU_SLOT_BLUE_KEY_STONE   7
+#define MENU_ITEM_SLOTS            8   /* == the grid's 8 cells; past this the
+                                          2x4 layout itself has to grow */
 
 int         menu_item_held(int slot);   /* 1 if the player currently holds it */
 const char *menu_item_name(int slot);

@@ -1,6 +1,7 @@
 #ifndef ATTIC_STAIRWELL_H
 #define ATTIC_STAIRWELL_H
 
+#include <stdint.h>
 #include "render.h"
 
 /* Attic Stairwell: the floor above the East Stairwell, reached by the stairs at
@@ -38,5 +39,15 @@ int  attic_stairwell_stairs_triggered(void);/* 1 on a fresh Circle press in rang
 
 /* Spawn at the stair head on arrival from below. */
 void attic_stairwell_spawn_stairs(void);
+
+/* The altar (the con_tile block in the west room). It is drawn as part of the
+   room mesh but collided as a PROP, so the player can walk right up to it and
+   reach the pickups on its top face — the 195 wall standoff put them outside
+   ITEM_PICKUP_RADIUS. Both are gated to this room, so the shared collision
+   routine calls them unconditionally. */
+void attic_stairwell_altar_collide(int32_t *px, int32_t py, int32_t *pz,
+                                   int32_t radius);
+int  attic_stairwell_altar_point_solid(int32_t x, int32_t y, int32_t z,
+                                       int32_t slack);
 
 #endif
