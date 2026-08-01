@@ -23,6 +23,7 @@
 #include "spider.h"
 #include "web.h"
 #include "item_pickup.h"
+#include "sml_med.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -573,8 +574,9 @@ void east_stairwell_draw(RenderContext *ctx) {
 
     draw_east_stairwell_smd(ctx);
 
-    /* No enemies placed here yet (just the west landing's box of rounds, seeded
-       in world.c); the room's 128 texture window is still handed to the sprite
+    /* No enemies placed here yet (just the west landing's box of rounds and the
+       east landing's medipac, both seeded in world.c); the room's 128 texture
+       window is still handed to the sprite
        renderers so a future spawn brackets its Voff>=128 sprite correctly
        (see tools/TEXTURING_NOTES.txt PART 5). */
     {
@@ -586,6 +588,9 @@ void east_stairwell_draw(RenderContext *ctx) {
     draw_spiders(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
+    /* Small medipac. Its TIM sits at Voff 0 (VRAM y=256), so it is safe under
+       the 128 window set above without bracketing of its own. */
+    sml_meds_draw(ctx);
 
     esdoor_text(ctx, ESDOOR_W_X);
     esdoor_text(ctx, ESDOOR_E_X);

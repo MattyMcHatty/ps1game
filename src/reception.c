@@ -439,6 +439,36 @@ static void hdoor_text(RenderContext *ctx) {
                         50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* ---- 2nd-floor dead-end door (north end of the west wall) ------------------
+   The other UPPER-floor door on the west wall (x=-1500, z spans 857..1071 in
+   Reception.smx, so centre 964), north of HDOOR. It leads nowhere, so it only
+   ever shows the red "Locked from the other side" sign and has no trigger.
+   Same facing as HDOOR: approached from the +X (room) side, YZ-plane sign with
+   mirror=0, at the upper floor's eye height. */
+#define NDOOR_X                (-1435)
+#define NDOOR_Z                   964
+#define NDOOR_TEXT_Y            (-786)   /* upper floor (y=-600) standing eye - 186 */
+
+static void ndoor_text(RenderContext *ctx) {
+    if (!player_on_upper_floor) return;   /* only visible from the upper floor */
+    int32_t dx = cam_x - NDOOR_X;
+    int32_t dz = cam_z - NDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= RDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > RDOOR_FADE_NEAR) {
+        int range = RDOOR_TEXT_RADIUS - RDOOR_FADE_NEAR;
+        int prog  = xz - RDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Locked from the other side",
+                        NDOOR_X, NDOOR_TEXT_Y, NDOOR_Z - 200,
+                        255, 50, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
 /* ---- 2nd-floor double door to the East Hall --------------------------------
    On the UPPER floor's EAST wall (x=1500, z=1071, from the inr_dbl_dr polys in
    Reception.smx). It sits well north of the ground-floor kitchen door at
@@ -755,5 +785,6 @@ void reception_draw(RenderContext *ctx) {
     wdoor_text(ctx);
     cdoor_text(ctx);
     hdoor_text(ctx);
+    ndoor_text(ctx);
     edoor_text(ctx);
 }

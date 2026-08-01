@@ -308,6 +308,12 @@ void world_enter(GameState area) {
         if (area == STATE_EAST_STAIRWELL) {
             item_pickup_spawn_amount(-186, -50, -7, PICKUP_ROUNDS,
                                      GRAVEOLVER_CAPACITY);
+
+            /* Small medipac on the EAST landing (x>44), out in open boards.
+               y=-149 is the same body reference the kitchen/conservatory
+               medipacs use; sml_med_spawn adds SML_MED_FLOAT_Y=50, floating it
+               just above this room's y=0 floor. */
+            sml_med_spawn(289, -149, -139);
         }
 
         /* Attic Stairwell: the Piano Key and the Blue Key Stone, side by side at

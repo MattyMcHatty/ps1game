@@ -307,6 +307,7 @@ static void update_current_area(GameState area) {
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
         item_pickups_update();
+        sml_meds_update();     /* the east landing's medipac */
         if (!lock && east_stairwell_wdoor_triggered()) {
             pending_area = STATE_EAST_HALL;
             door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
