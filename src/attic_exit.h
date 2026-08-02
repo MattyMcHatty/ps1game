@@ -1,0 +1,36 @@
+#ifndef ATTIC_EXIT_H
+#define ATTIC_EXIT_H
+
+#include <stdint.h>
+#include "render.h"
+
+/* Attic Exit: the room north of the Attic Stairwell's west room, reached
+   through the single wooden door in that room's north wall. A plain rectangle,
+   x[-1500,1500] z[-999,999], flat floor at y=0 with a drawn ceiling at y=-560:
+
+     CAGE      a chainlink enclosure filling x[-543,544] z[31,999] against the
+               north wall, entered through the gap at x[-300,300], z~15. Its
+               fence panels are collision walls like any other, so the only way
+               in is that gap.
+     SOUTH     the wd_dr door at x[-500,-300], z=-1000 — back to the Attic
+     WALL      Stairwell's west room (its north-wall door at x=-1942, z=350).
+     NORTH     the xt_dr_lckd exit door at x[-225,225], z=1000, inside the cage.
+     WALL      It is SCENERY for now: the art is the locked state (the unlocked
+               xt_dr_cmplt variant exists but nothing swaps it in yet), and no
+               room is wired behind it.
+
+   Rendered the same way as the Attic Stairwell (per-poly tex map + 128 texture
+   window + fog). */
+void attic_exit_load_assets(void);     /* startup: geometry + texture registration */
+void attic_exit_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
+void attic_exit_init(void);            /* set collision/floor zones + spawn */
+void attic_exit_draw(RenderContext *ctx);
+
+/* The south-wall door back to the Attic Stairwell. */
+void attic_exit_door_arm(void);        /* seed the Circle edge state */
+int  attic_exit_door_triggered(void);  /* 1 on a fresh Circle press in range */
+
+/* Spawn just inside the south door on arrival from the Attic Stairwell. */
+void attic_exit_spawn_south(void);
+
+#endif

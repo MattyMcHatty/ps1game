@@ -21,12 +21,12 @@
      WEST ROOM x[-2611,-1655] z[-1400,349], through the doorway in the partition
                at x[-1655,-1608], z[-1200,-900]. It holds a con_tile block at
                x[-2420,-2229] z[-543,-7], and its north wall carries a wd_dr
-               door poly at x[-2037,-1846] z=350 that is SCENERY for now — no
-               room is wired to it yet.
+               door at x[-2037,-1846] z=350 (centre x=-1942) through to the
+               Attic Exit.
 
-   The one interaction is the stairs back down to the East Stairwell's east
-   landing, at the chamber's west wall. Rendered the same way as the East
-   Stairwell (per-poly tex map + 128 texture window + fog). */
+   Two interactions: the stairs back down to the East Stairwell's east landing
+   at the chamber's west wall, and that west-room door. Rendered the same way as
+   the East Stairwell (per-poly tex map + 128 texture window + fog). */
 void attic_stairwell_load_assets(void);     /* startup: geometry + texture registration */
 void attic_stairwell_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 void attic_stairwell_init(void);            /* set collision/floor zones + spawn */
@@ -37,8 +37,14 @@ void attic_stairwell_draw(RenderContext *ctx);
 void attic_stairwell_stairs_arm(void);      /* seed the Circle edge state */
 int  attic_stairwell_stairs_triggered(void);/* 1 on a fresh Circle press in range */
 
-/* Spawn at the stair head on arrival from below. */
+/* The west room's north-wall door through to the Attic Exit. */
+void attic_stairwell_exit_door_arm(void);       /* seed the Circle edge state */
+int  attic_stairwell_exit_door_triggered(void); /* 1 on a fresh Circle press in range */
+
+/* Spawn at the stair head on arrival from below, or just inside the west room's
+   north door on arrival from the Attic Exit. */
 void attic_stairwell_spawn_stairs(void);
+void attic_stairwell_spawn_exit_door(void);
 
 /* The altar (the con_tile block in the west room). It is drawn as part of the
    room mesh but collided as a PROP, so the player can walk right up to it and

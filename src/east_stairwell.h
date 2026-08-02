@@ -27,6 +27,9 @@
    Modelled on library.c / master_bedroom.c. */
 void east_stairwell_load_assets(void);     /* startup: geometry + texture registration */
 void east_stairwell_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
+/* Narrow upload of this module's chnlnk copy alone, for the Attic Exit's cage
+   (see the comment on the definition). */
+void east_stairwell_upload_chnlnk(void);
 void east_stairwell_init(void);            /* set collision/floor zones + spawn */
 void east_stairwell_draw(RenderContext *ctx);
 

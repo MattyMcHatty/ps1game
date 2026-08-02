@@ -1,4 +1,4 @@
-#include <stdint.h>
+﻿#include <stdint.h>
 #include <psxgpu.h>
 #include <psxpad.h>
 #include "render.h"
@@ -61,6 +61,7 @@ static const char *const level_names[] = {
     "LIBRARY",
     "EAST STAIRWELL",
     "ATTIC STAIRWELL",
+    "ATTIC EXIT",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -68,6 +69,7 @@ static const char *const level_names[] = {
    STATE_LOADING use level_pending[] below to say which area to switch to. */
 static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_DELIVERY_AREA,
+    STATE_LOADING,
     STATE_LOADING,
     STATE_LOADING,
     STATE_LOADING,
@@ -93,6 +95,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_LIBRARY,
     STATE_EAST_STAIRWELL,
     STATE_ATTIC_STAIRWELL,
+    STATE_ATTIC_EXIT,
 };
 
 /* ---- Letter bitmasks: 7 rows x 5 cols, row 0 = top ---- */
@@ -350,7 +353,7 @@ void draw_title(RenderContext *ctx) {
     pulse = (pulse + 2) & 255;
     uint8_t red = (uint8_t)(180 + ((pulse < 128) ? pulse / 2 : (255 - pulse) / 2));
 
-    /* The debug level select takes over the whole screen — hide the HORROR
+    /* The debug level select takes over the whole screen â€” hide the HORROR
        title while it is open; it returns when Select backs out to PRESS START. */
     if (!debug_menu_open) {
         for (i = 0; i < 6; i++) {
@@ -372,9 +375,9 @@ void draw_title(RenderContext *ctx) {
                      level_names[k]);
         FntFlush(debug_fnt);
 
-        /* Right column: cheat toggles, as "*[X] NAME" — cursor, then a checkbox
+        /* Right column: cheat toggles, as "*[X] NAME" â€” cursor, then a checkbox
            carrying the on/off state. Drawn piece by piece at fixed columns (no
-           string building, and no font stream — see the cap noted above); the
+           string building, and no font stream â€” see the cap noted above); the
            8px advance matches the left column's line height. */
         btn_prompt_draw(ctx, DBG_OPT_X, 8, "OPTIONS", 1);
         for (k = 0; k < DEBUG_OPT_COUNT; k++) {
@@ -433,7 +436,7 @@ void title_init(void) {
     level_select_fnt = FntOpen(96, 120, 160, 96, 0, 256);
     /* Wider window for the save-file list (32-char titles + cursor). */
     load_list_fnt = FntOpen(28, 118, 264, 112, 0, 512);
-    /* Debug menu's LEFT column only — 128px is 16 characters, and "* MASTER
+    /* Debug menu's LEFT column only â€” 128px is 16 characters, and "* MASTER
        BEDROOM" is exactly 16. The right column needs no stream (see the eight-
        stream cap documented at the top of this file). This is the eighth and
        last FntOpen in the project. */
@@ -491,7 +494,7 @@ void update_title(void) {
                 GameState target = level_states[debug_menu_cursor];
                 /* STATE_LOADING entries (kitchen, reception) need the area to switch to. */
                 if (target == STATE_LOADING) pending_area = level_pending[debug_menu_cursor];
-                /* The inventory cheats can't be handed out yet — the destination
+                /* The inventory cheats can't be handed out yet â€” the destination
                    room hasn't initialised. Arm them; main.c applies them once it
                    has, alongside a staged save's player state. */
                 debug_opts_arm_grants();
@@ -511,7 +514,7 @@ void update_title(void) {
         if (back) { tmenu = TM_CLOSED; return; }
         if (confirm) {
             if (tmenu_cursor == 0) {
-                tmenu      = TM_CLOSED;             /* New Game — as before */
+                tmenu      = TM_CLOSED;             /* New Game â€” as before */
                 game_state = STATE_DELIVERY_AREA;
             } else {
                 tmenu        = TM_CARD;             /* Load Game */

@@ -61,6 +61,9 @@ KNOWN_STREAM_PAIRS = [
     ("gravel_texture.tim", "trck_clue.tim"),# attic stairwell streams trck_clue over that
     ("trees.tim",          "trck_clue.tim"),# same slot (8bpp, so it covers x[640,704),
     ("chnlnk.tim",         "trck_clue.tim"),# a whole tpage — the 4bpp trio only use half)
+    ("brick_wall.tim",     "xt_dr_lckd.tim"),# attic exit streams its locked exit door
+    ("grss.tim",           "xt_dr_lckd.tim"),# over the same delivery slot that already
+    ("bed.tim",            "xt_dr_lckd.tim"),# holds brick_wall / grss / bed
 ]
 
 def read_tim(path):

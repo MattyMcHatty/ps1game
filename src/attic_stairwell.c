@@ -343,9 +343,69 @@ static void stairs_text(RenderContext *ctx) {
                         50, 255, 50, fade, 0, TEXT_PLANE_YZ, ASTAIRS_TEXT_PIXEL);
 }
 
+/* ---- The west room's north-wall door, through to the Attic Exit ------------
+   The wd_dr poly in "Attic Stairwell.smx" sits at x[-2037,-1846], z=350 (the
+   drawn wall; collision wall 4 behind it is at z=349, normal -Z). Its centre is
+   x=-1942. It maps to the Attic Exit's south-wall door at x=-400, z=-1000 —
+   the meshes share a world, offset by exit_x = stairwell_x + 1542.
+
+   The player approaches from the -Z (room) side, so the sign lies in the XY
+   plane with mirror=0, the same orientation as the Master Bedroom's. */
+#define AEXITDOOR_X           (-1942)
+#define AEXITDOOR_Z              350
+#define AEXITDOOR_TEXT_Y       (-186)
+#define AEXITDOOR_TEXT_RADIUS   1500
+#define AEXITDOOR_FADE_NEAR     1000
+#define AEXITDOOR_TRIGGER_RADIUS 500
+
+/* Circle edge-detect, seeded by attic_stairwell_exit_door_arm(). Starts "held"
+   so a press carried in through the transition doesn't bounce the player
+   straight back out. */
+static int exit_door_circle_prev = 1;
+
+void attic_stairwell_exit_door_arm(void) {
+    exit_door_circle_prev = circle_held();
+}
+
+int attic_stairwell_exit_door_triggered(void) {
+    int held = circle_held();
+    int just = held && !exit_door_circle_prev;
+    exit_door_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - AEXITDOOR_X;
+    int32_t dz = cam_z - AEXITDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < AEXITDOOR_TRIGGER_RADIUS;
+}
+
+/* Floating sign on that door. XY plane: door_draw_string_3d centres the reading
+   axis (X) on world_x after adding 200, so pass door_x - 200. Sits just south
+   (z-11) of the wall so it floats in front of the door. */
+static void exit_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - AEXITDOOR_X;
+    int32_t dz = cam_z - AEXITDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= AEXITDOOR_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > AEXITDOOR_FADE_NEAR) {
+        int range = AEXITDOOR_TEXT_RADIUS - AEXITDOOR_FADE_NEAR;
+        int prog  = xz - AEXITDOOR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        AEXITDOOR_X - 200, AEXITDOOR_TEXT_Y, AEXITDOOR_Z - 11,
+                        50, 255, 50, fade, 0, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+}
+
 /* Arriving at the top of the stairs: stand east of the alcove wall, far enough
    clear of the 195 push radius apply_collision_reception uses, facing +X — the
-   direction of travel out of the climb, with the stairs behind. */
+   direction of travel out of the climb, with the stairs behind. Both
+   interactions are armed, so a Circle held through the transition can't fire
+   the nearest trigger. */
 void attic_stairwell_spawn_stairs(void) {
     cam_x   = -120;
     cam_y   = -189;
@@ -353,6 +413,19 @@ void attic_stairwell_spawn_stairs(void) {
     cam_z   = 0;
     cam_rot = 1024;   /* facing +X, into the chamber */
     attic_stairwell_stairs_arm();
+    attic_stairwell_exit_door_arm();
+}
+
+/* Arriving back from the Attic Exit: stand south of the z=349 wall, clear of
+   the 195 push radius, facing -Z — the direction of travel through the door. */
+void attic_stairwell_spawn_exit_door(void) {
+    cam_x   = AEXITDOOR_X;
+    cam_y   = -189;
+    cam_vy  = 0;
+    cam_z   = 120;
+    cam_rot = 2048;   /* facing -Z, into the west room */
+    attic_stairwell_stairs_arm();
+    attic_stairwell_exit_door_arm();
 }
 
 void attic_stairwell_init(void) {
@@ -366,7 +439,8 @@ void attic_stairwell_init(void) {
     collision_set_ceiling_y(-520);
     attic_stairwell_floor_zones_init();
 
-    /* Only one way in, so no per-door override is needed in main.c. */
+    /* Default spawn: the stair head (main.c overrides it for an arrival through
+       the Attic Exit's door). */
     attic_stairwell_spawn_stairs();
 
     /* Reception's save point and dresser prop are global (not room-swapped) and
@@ -597,4 +671,5 @@ void attic_stairwell_draw(RenderContext *ctx) {
     item_pickups_draw(ctx);
 
     stairs_text(ctx);
+    exit_door_text(ctx);
 }

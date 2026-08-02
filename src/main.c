@@ -51,6 +51,7 @@
 #include "library.h"
 #include "east_stairwell.h"
 #include "attic_stairwell.h"
+#include "attic_exit.h"
 #include "trick_drawers.h"
 #include "stove_puzzle.h"
 #include "concrete_props.h"
@@ -341,6 +342,28 @@ static void update_current_area(GameState area) {
             stair_anim_start(STAIR_DOWN);
             game_state   = STATE_STAIR_ANIM;
             cdaudio_stop();
+        } else if (!lock && attic_stairwell_exit_door_triggered()) {
+            /* North through the west room's door into the Attic Exit. */
+            pending_area = STATE_ATTIC_EXIT;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_ATTIC_EXIT) {
+        /* Flat single-floor room; the shared wall collision routine is generic
+           over current_collision_room (other rooms' props gate themselves out,
+           and attic_exit_init clears the two that don't). */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed yet, but keeps the room uniform */
+        update_spiders();
+        item_pickups_update();
+        if (!lock && attic_exit_door_triggered()) {
+            /* South through the door, back into the Attic Stairwell. */
+            pending_area = STATE_ATTIC_STAIRWELL;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_CONSERVATORY) {
         /* Flat single-floor room; the shared wall/prop collision routine is
@@ -482,6 +505,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         east_stairwell_draw(ctx);
     else if (area == STATE_ATTIC_STAIRWELL)
         attic_stairwell_draw(ctx);
+    else if (area == STATE_ATTIC_EXIT)
+        attic_exit_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -634,6 +659,7 @@ int main(int argc, const char **argv) {
     library_load_assets();     /* library geometry + texture headers */
     east_stairwell_load_assets();/* east stairwell geometry + streamed textures */
     attic_stairwell_load_assets();/* attic stairwell geometry + streamed textures */
+    attic_exit_load_assets();  /* attic exit geometry + streamed textures */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
     concrete_props_load_assets();/* concrete block/chair props + shared texture */
     copper_pot_load_assets();  /* copper pot collectible (texture deferred, key slot) */
@@ -745,6 +771,8 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_ATTIC_STAIRWELL) {
                 attic_stairwell_upload_textures();/* trck_clue + cncrte + upstairs
                                                      + strs + con_tile */
+            } else if (pending_area == STATE_ATTIC_EXIT) {
+                attic_exit_upload_textures();    /* xt_dr_lckd + chnlnk */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -903,7 +931,14 @@ int main(int argc, const char **argv) {
                     east_stairwell_spawn_stairs();
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* shares the east hall's music */
             } else if (pending_area == STATE_ATTIC_STAIRWELL) {
-                attic_stairwell_init(); /* only one way in: the stair head */
+                attic_stairwell_init(); /* defaults to the stair head */
+                /* Coming back out of the Attic Exit, arrive at the west room's
+                   north door instead. */
+                if (current_area == STATE_ATTIC_EXIT)
+                    attic_stairwell_spawn_exit_door();
+                cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* shares the east hall's music */
+            } else if (pending_area == STATE_ATTIC_EXIT) {
+                attic_exit_init();  /* only one way in: the south-wall door */
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* shares the east hall's music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
@@ -968,7 +1003,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_EAST_HALL ||
                    game_state == STATE_LIBRARY ||
                    game_state == STATE_EAST_STAIRWELL ||
-                   game_state == STATE_ATTIC_STAIRWELL) {
+                   game_state == STATE_ATTIC_STAIRWELL ||
+                   game_state == STATE_ATTIC_EXIT) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

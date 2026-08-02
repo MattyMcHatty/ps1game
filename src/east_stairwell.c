@@ -178,6 +178,14 @@ void east_stairwell_upload_textures(void) {
     hall_2f_upload_strs();                  /* strs     -> stn_stl slot       */
 }
 
+/* Narrow, single-texture upload of this module's chnlnk RAM copy, for a room
+   that needs the fence art but NOT the rest of the stairwell's set (the Attic
+   Exit's cage; east_stairwell_upload_textures would also drag in cncrte,
+   upstairs and strs). Same pattern as hall_2f_upload_strs/upstairs — it exists
+   so that room can reuse the resident copy instead of registering a second one,
+   and texmgr has a hard TEXMGR_MAX whose overruns fail SILENTLY. */
+void east_stairwell_upload_chnlnk(void) { texmgr_upload(new_tex_id[0]); }
+
 /* ---- The two north-wall doors, one per landing -----------------------------
    Both come from the wd_dr polys in "East Stairwell.smx", both in the z=349
    wall (the collision wall behind the drawn z=350 face):
