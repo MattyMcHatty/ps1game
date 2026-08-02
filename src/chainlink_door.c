@@ -7,8 +7,9 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "camera.h"
-#include "collision.h"      /* GROUND_FLOOR_Y */
+#include "collision.h"      /* GROUND_FLOOR_Y, collision_ceiling_y */
 #include "title.h"          /* current_area gate */
+#include "sound.h"          /* SFX_MCHNE: the gate's winch */
 #include "chainlink_door.h"
 
 #define MAX_CHAINLINK_DOORS  4
@@ -32,6 +33,25 @@ typedef struct {
 
 static ChainlinkDoor doors[MAX_CHAINLINK_DOORS];
 static int           door_count = 0;
+
+/* ---- Raise animation (see the header) --------------------------------------
+   The travel has to clear the room's ceiling, not just the panel's own height:
+   the gate is 507 tall standing on a y=0 floor and the Attic Exit's drawn
+   ceiling is at -560, so 620 puts its bottom edge a clear 60 above the roof
+   before the prop is retired. -Y is up, so the offset is SUBTRACTED from the
+   base.
+
+   The frame count is the spec's 4 seconds; mchne.vag is 2.80 s (168 frames), so
+   it plays twice — the second on the frame the first runs out — and the tail of
+   the second overruns the end of the travel by half a second. Deliberate: the
+   machinery is still winding down as the camera cuts back. */
+#define CLDOOR_RAISE_DIST   620
+#define CLDOOR_RAISE_SFX    168   /* mchne.vag: 2.80 s at 60 fps */
+
+static int32_t raise_off   = 0;
+static int     raising     = 0;
+static int32_t raise_t     = 0;
+static int     raise_index = -1;   /* which instance is moving, or -1 */
 
 static SMD  *cldoor_smd = NULL;
 static void *cldoor_buf = NULL;
@@ -69,7 +89,13 @@ void chainlink_doors_load_assets(void) {
     }
 }
 
-void chainlink_doors_clear(void) { door_count = 0; }
+void chainlink_doors_clear(void) {
+    door_count  = 0;
+    raise_off   = 0;
+    raising     = 0;
+    raise_t     = 0;
+    raise_index = -1;
+}
 
 void chainlink_door_place(GameState area, int32_t x, int32_t y, int32_t z,
                           int32_t rot_y) {
@@ -104,6 +130,40 @@ void chainlink_door_place(GameState area, int32_t x, int32_t y, int32_t z,
             if (wz > d->max_z) d->max_z = wz;
         }
     }
+}
+
+void chainlink_door_raise_start(void) {
+    if (raising) return;
+    int i;
+    for (i = 0; i < door_count; i++)
+        if (doors[i].active && doors[i].area == current_area) break;
+    if (i >= door_count) return;
+
+    raise_index = i;
+    raising     = 1;
+    raise_t     = 0;
+    raise_off   = 0;
+    sound_play(SFX_MCHNE);   /* first of two; the second is fired below */
+}
+
+int chainlink_doors_raise_update(void) {
+    if (!raising) return raise_off >= CLDOOR_RAISE_DIST;
+
+    raise_t++;
+    /* Second play, on the frame the first clip runs out — back to back, so the
+       grind reads as one continuous winch rather than two hits. */
+    if (raise_t == CLDOOR_RAISE_SFX) sound_play(SFX_MCHNE);
+
+    /* Recomputed from the frame counter each tick (not accumulated by a rounded
+       per-frame step) so the travel really does finish on the last frame. */
+    raise_off = (CLDOOR_RAISE_DIST * raise_t) / CLDOOR_RAISE_FRAMES;
+    if (raise_t >= CLDOOR_RAISE_FRAMES) {
+        raise_off = CLDOOR_RAISE_DIST;
+        raising   = 0;
+        if (raise_index >= 0) doors[raise_index].active = 0;   /* gone for good */
+        return 1;
+    }
+    return 0;
 }
 
 /* Player push-out (dresser-style Minkowski AABB). Area-gated so the shared
@@ -187,12 +247,22 @@ void chainlink_doors_draw(RenderContext *ctx) {
         MATRIX pm, combined;
         SVECTOR prot = {0, dr->rot_y, 0, 0};
         RotMatrix(&prot, &pm);
-        VECTOR pos = {dr->x, dr->y + GROUND_FLOOR_Y, dr->z};
+        /* -Y is up, so the raise offset is subtracted from the base. */
+        int32_t lift   = (i == raise_index) ? raise_off : 0;
+        int32_t base_y = dr->y + GROUND_FLOOR_Y - lift;
+        VECTOR pos = {dr->x, base_y, dr->z};
         TransMatrix(&pm, &pos);
         CompMatrixLV(&view, &pm, &combined);
 
         gte_SetRotMatrix(&combined);
         gte_SetTransMatrix(&combined);
+
+        /* Above-the-ceiling cull for a rising gate, the mirror of the piano
+           room's below-the-floor cull. The OT is a painter's sort with no depth
+           buffer, so a prim that has passed through the roof would otherwise
+           coin-flip against the ceiling poly covering it. Only a rising gate can
+           trip this (lift is 0 otherwise). */
+        int32_t ceil_y = lift ? collision_ceiling_y(dr->x, dr->z) : 0;
 
         uint8_t *p = (uint8_t *)cldoor_smd->p_prims;
         int pi;
@@ -205,6 +275,19 @@ void chainlink_doors_draw(RenderContext *ctx) {
             SVECTOR *v0 = &cldoor_smd->p_verts[vi[0]];
             SVECTOR *v1 = &cldoor_smd->p_verts[vi[1]];
             SVECTOR *v2 = &cldoor_smd->p_verts[vi[2]];
+
+            /* Drop prims whose LOWEST vertex (least negative vy) has already
+               gone up through the roof. */
+            if (lift) {
+                int32_t bot = v0->vy;
+                if (v1->vy > bot) bot = v1->vy;
+                if (v2->vy > bot) bot = v2->vy;
+                if (is_quad) {
+                    int32_t y3 = cldoor_smd->p_verts[vi[3]].vy;
+                    if (y3 > bot) bot = y3;
+                }
+                if (base_y + bot <= ceil_y) { p += stride; continue; }
+            }
 
             DVECTOR sv[4];
             int32_t sz[4], otz, nclip;

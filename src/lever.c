@@ -22,9 +22,13 @@
 #define LEVER_MIN_Z_OFF (-75)
 #define LEVER_MAX_Z_OFF   75
 
+/* The blue cap's centre in model space — the point a thrown lever pivots on. */
+#define LEVER_PIVOT_Z    LEVER_MAX_Z_OFF
+
 typedef struct {
     GameState area;                          /* only collides/draws in this room */
     int32_t   x, y, z, rot_y;                /* centroid; world y = y+GROUND_FLOOR_Y */
+    int32_t   pitch;                         /* throw about local X at the blue cap */
     int32_t   min_x, max_x, min_z, max_z;    /* world AABB, baked at place time  */
     int       active;
 } Lever;
@@ -62,6 +66,7 @@ void lever_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y)
     l->area  = area;
     l->x = x;  l->y = y;  l->z = z;
     l->rot_y = rot_y;
+    l->pitch = 0;
     l->active = 1;
 
     /* World AABB = axis-aligned bound of the rotated local rect, corner by
@@ -86,6 +91,11 @@ void lever_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y)
             if (wz > l->max_z) l->max_z = wz;
         }
     }
+}
+
+void lever_set_pitch(int index, int32_t pitch) {
+    if (index < 0 || index >= lever_count) return;
+    levers[index].pitch = pitch;
 }
 
 /* Player push-out (dresser-style Minkowski AABB). Area-gated so the shared
@@ -180,7 +190,27 @@ void levers_draw(RenderContext *ctx) {
         RotMatrix(&prot, &pm);
         VECTOR pos = {lv->x, lv->y + GROUND_FLOOR_Y, lv->z};
         TransMatrix(&pm, &pos);
-        CompMatrixLV(&view, &pm, &combined);
+
+        /* A thrown lever gets an extra rotation about its LOCAL X, applied
+           BEFORE the yaw so "down" means the same on both walls. Rotating about
+           a pivot P rather than the origin is R with the translation
+           P - R*P baked in; here P = (0,0,LEVER_PIVOT_Z), so
+           R*P = (0, -P.z*sin, P.z*cos) and the offset falls out to
+           (0, P.z*sin, P.z*(1-cos)). */
+        if (lv->pitch) {
+            MATRIX px, model;
+            SVECTOR xrot = {(int16_t)lv->pitch, 0, 0, 0};
+            RotMatrix(&xrot, &px);
+            VECTOR pv;
+            pv.vx = 0;
+            pv.vy = (LEVER_PIVOT_Z * isin(lv->pitch)) >> 12;
+            pv.vz = LEVER_PIVOT_Z - ((LEVER_PIVOT_Z * icos(lv->pitch)) >> 12);
+            TransMatrix(&px, &pv);
+            CompMatrixLV(&pm, &px, &model);       /* pitch first, then the yaw  */
+            CompMatrixLV(&view, &model, &combined);
+        } else {
+            CompMatrixLV(&view, &pm, &combined);
+        }
 
         gte_SetRotMatrix(&combined);
         gte_SetTransMatrix(&combined);
@@ -235,8 +265,11 @@ void levers_draw(RenderContext *ctx) {
             }
 
             gte_stotz(&otz);
-            /* Horizontal polys sort by their farthest corner (see render.h). */
-            if (poly_is_flat_y(v0, v1, v2, v3))
+            /* Horizontal polys sort by their farthest corner (see render.h).
+               That test reads MODEL-space vy and is only valid while the prop
+               rotates about Y alone — a pitched lever's flat faces are no longer
+               flat in the world, so it is skipped for the throw. */
+            if (!lv->pitch && poly_is_flat_y(v0, v1, v2, v3))
                 otz = is_quad ? otz_far4(sz[1], sz[2], v2_sz, sz[3])
                               : otz_far3(sz[1], sz[2], sz[3]);
             if (otz <= 0) { p += stride; continue; }

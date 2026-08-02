@@ -65,6 +65,7 @@ add_executable(horror_game
     src/attic_exit.c
     src/chainlink_door.c
     src/lever.c
+    src/lightswitch_puzzle.c
     src/damage.c
     src/stair_anim.c
     src/trick_drawers.c

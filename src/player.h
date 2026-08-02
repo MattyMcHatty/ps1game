@@ -39,6 +39,7 @@ extern int     player_items;   /* bitmask — bit ItemType set means it is held 
 typedef enum {
     FLAG_PIANO_SOLVED = 0,   /* Piano Key placed: keys repaired, bookcase sunk */
     FLAG_ANZU_SOLVED,        /* Anzu Tablet assembled: tablets gone, room music changed */
+    FLAG_LIGHTS_SOLVED,      /* Attic Exit lightswitches set: the cage gate is winched away */
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

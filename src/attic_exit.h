@@ -24,6 +24,12 @@
 void attic_exit_load_assets(void);     /* startup: geometry + texture registration */
 void attic_exit_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 void attic_exit_init(void);            /* set collision/floor zones + spawn */
+
+/* Place the cage gate and the four lightswitch levers according to the CURRENT
+   game_flags. attic_exit_init calls it; main.c calls it again after a Load Game
+   installs the saved flags, since the init above ran on the pre-load values. */
+void attic_exit_apply_flags(void);
+
 void attic_exit_draw(RenderContext *ctx);
 
 /* The south-wall door back to the Attic Stairwell. */

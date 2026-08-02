@@ -19,6 +19,8 @@
 #include "east_stairwell.h"
 #include "chainlink_door.h"
 #include "lever.h"
+#include "lightswitch_puzzle.h"
+#include "player.h"          /* game_flag: has the cage already been opened? */
 #include "save_point.h"
 #include "zombie.h"
 #include "spider.h"
@@ -232,6 +234,22 @@ void attic_exit_spawn_south(void) {
     attic_exit_door_arm();
 }
 
+/* Everything in this room that is DERIVED from a saved GameFlag, in one place so
+   main.c can re-run it after a Load Game installs the real flags (the area init
+   below runs while game_flags still holds the pre-load values). */
+void attic_exit_apply_flags(void) {
+    chainlink_doors_clear();
+    if (!game_flag(FLAG_LIGHTS_SOLVED))
+        chainlink_door_place(STATE_ATTIC_EXIT, 0, -149, 0, 0);
+
+    /* One lever in each of the four brown wall boxes modelled into the room (the
+       rgb(129,49,3) clusters in "Attic Exit.smx"). lightswitch_place owns the
+       four placements as well as the deal of colours, so the lever <-> ceiling
+       light pairing has a single source of truth — see lightswitch_puzzle.c. */
+    levers_clear();
+    lightswitch_place();
+}
+
 void attic_exit_init(void) {
     attic_exit_collision_init(&current_collision_room);
     /* Proxy wall tops stop at y=-466, well short of the drawn y=-560 ceiling;
@@ -248,28 +266,11 @@ void attic_exit_init(void) {
        centred in X on its front face, so it drops in at the gap's own
        coordinates: x=0, z=0, unrotated. y=-149 seats a base-origin model on this
        room's y=0 floor (as the concrete props do). With it in place the cage is
-       sealed, so the locked exit door inside is scenery you can only look at. */
-    chainlink_doors_clear();
-    chainlink_door_place(STATE_ATTIC_EXIT, 0, -149, 0, 0);
+       sealed, so the locked exit door inside is scenery you can only look at.
 
-    /* One lever in each of the four brown wall boxes modelled into the room
-       (the rgb(129,49,3) clusters in "Attic Exit.smx"), each a 60x150x40 box
-       standing off its wall. x and y are the box's centre; y goes through the
-       standing-reference conversion, so world_y = y + GROUND_FLOOR_Y.
-
-       Z is NOT the box centre. The lever is 150 long against a box only 40
-       deep, so it has to be pushed along Z until its blue cap (local z=+75)
-       meets the wall — leaving the brown shaft crossing the box and the red tip
-       protruding into the room, which is the whole point of the fixture. Local
-       +Z is the blue end, so the north-wall pair sit unrotated and the
-       south-wall pair are turned 180deg (rot_y 2048). */
-    levers_clear();
-    /* North wall (z=+1000): blue cap at +Z, so rot_y 0. */
-    lever_place(STATE_ATTIC_EXIT, -1052, -354,  925, 0);
-    lever_place(STATE_ATTIC_EXIT,  1129, -354,  923, 0);
-    /* South wall (z=-1000): blue cap must face -Z, so rot_y 2048. */
-    lever_place(STATE_ATTIC_EXIT, -1051, -355, -925, 2048);
-    lever_place(STATE_ATTIC_EXIT,  1111, -355, -925, 2048);
+       The lightswitch puzzle winches it away for good, so a player who has
+       already solved it never gets one placed. */
+    attic_exit_apply_flags();
 
     /* Reception's save point and dresser prop are global (not room-swapped) and
        neither is area-gated in its collide routine, so reception's instances
@@ -485,6 +486,7 @@ void attic_exit_draw(RenderContext *ctx) {
     draw_attic_exit_smd(ctx);
     chainlink_doors_draw(ctx);   /* the cage gate; shares the room's texture window */
     levers_draw(ctx);            /* the four wall levers (flat-shaded, no texture) */
+    lightswitch_draw(ctx);       /* their light cones + the per-lever prompts */
 
     /* No enemies placed here yet; the room's 128 texture window is still handed
        to the sprite renderers so a future spawn brackets its Voff>=128 sprite

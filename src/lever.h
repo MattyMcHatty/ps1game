@@ -29,6 +29,21 @@ void levers_clear(void);         /* drop every placed instance */
    the room's north side), 2048 aims it at -Z (a south wall). */
 void lever_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y);
 
+/* Throw the Nth placed lever (0-based, in lever_place order). `pitch` is a
+   rotation about the model's LOCAL X axis in 4096ths of a turn, pivoting on the
+   centre of the BLUE cap (local 0,0,+75) — the point where the fixture meets the
+   wall — so the red tip swings while the mounting stays put. Positive pitch
+   swings the tip DOWN towards the floor (-Y is up in this engine).
+
+   The pitch is applied INSIDE the yaw, so it means the same thing for the north
+   wall pair (rot_y 0) and the south wall pair (rot_y 2048).
+
+   The collision AABB is NOT rebuilt: a thrown lever sweeps at most 75 units
+   through space its own wall recess already occupies, and levers_collide is
+   inert in the Attic Exit anyway (the 195 wall standoff holds the player
+   further out than the shaft ever reaches). */
+void lever_set_pitch(int index, int32_t pitch);
+
 /* Player push-out and hitscan volume; both no-op outside the placing area. */
 void levers_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 int  levers_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);

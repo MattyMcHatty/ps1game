@@ -52,6 +52,7 @@
 #include "east_stairwell.h"
 #include "attic_stairwell.h"
 #include "attic_exit.h"
+#include "lightswitch_puzzle.h"
 #include "chainlink_door.h"
 #include "lever.h"
 #include "trick_drawers.h"
@@ -183,6 +184,13 @@ static void update_current_area(GameState area) {
     /* ...and the same room's Anzu Tablet puzzle. */
     if (area == STATE_PIANO_ROOM && anzu_puzzle_active()) {
         anzu_puzzle_update();
+        return;
+    }
+    /* The Attic Exit's lightswitch puzzle only takes the camera for its PAYOFF —
+       the levers themselves are thrown in free play below. While the gate is
+       winching up, nothing else in the room runs. */
+    if (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) {
+        lightswitch_update();
         return;
     }
     update_camera();
@@ -360,7 +368,11 @@ static void update_current_area(GameState area) {
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
         item_pickups_update();
-        if (!lock && attic_exit_door_triggered()) {
+        if (!lock) lightswitch_update();   /* the four levers + their light cones */
+        /* A Circle that just tripped the payoff must not also be read as the
+           exit door: the cutscene has already flung the camera across the room
+           by the time this runs. */
+        if (!lock && !lightswitch_puzzle_active() && attic_exit_door_triggered()) {
             /* South through the door, back into the Attic Stairwell. */
             pending_area = STATE_ATTIC_STAIRWELL;
             door_anim_start(DOOR_PANEL_WOOD);
@@ -977,6 +989,8 @@ int main(int argc, const char **argv) {
                 cdaudio_play(game_flag(FLAG_ANZU_SOLVED) ? CDAUDIO_ANZU_TRACK
                                                          : CDAUDIO_PIANO_TRACK, 1);
             }
+            if (pending_area == STATE_ATTIC_EXIT)
+                attic_exit_apply_flags();   /* re-reads FLAG_LIGHTS_SOLVED */
             /* Same timing requirement, so same place: hand out the debug menu's
                inventory cheats now the room is up. Latched, so this fires only on
                the jump that armed it, not on every door transition. */
@@ -1024,7 +1038,8 @@ int main(int argc, const char **argv) {
                 int puzzle = (area == STATE_2F_HALL && trick_drawers_puzzle_active()) ||
                              (area == STATE_KITCHEN_DINING && stove_puzzle_active()) ||
                              (area == STATE_PIANO_ROOM && piano_puzzle_active()) ||
-                             (area == STATE_PIANO_ROOM && anzu_puzzle_active());
+                             (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
+                             (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active());
                 if (!puzzle) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);

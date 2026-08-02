@@ -26,6 +26,25 @@ void chainlink_doors_clear(void);         /* drop every placed instance */
 void chainlink_door_place(GameState area, int32_t x, int32_t y, int32_t z,
                           int32_t rot_y);
 
+/* ---- Raising the gate into the ceiling -------------------------------------
+   The Attic Exit's lightswitch puzzle opens its cage by winching the gate up out
+   of sight, so this is modelled on the piano room's sinking bookcase: one offset
+   applied to the drawn base, and the prop retired outright at the end of the
+   travel — deactivated, so it stops drawing AND stops colliding.
+
+   Only one gate can be raising at a time (there is only ever one cage), so the
+   animation state is module-global rather than per instance. */
+#define CLDOOR_RAISE_FRAMES 240   /* 4 s at 60 fps, as the puzzle's payoff wants */
+
+/* Begin raising the first active gate in the current area. No-op if there
+   isn't one. Fires SFX_MCHNE, and again as the clip runs out, so the grind
+   covers the whole travel. */
+void chainlink_door_raise_start(void);
+
+/* One frame of the raise. Returns 1 on the frame it finishes and every frame
+   after, so a caller can hold on the opened cage and then eject. */
+int  chainlink_doors_raise_update(void);
+
 /* Player push-out and hitscan volume; both no-op outside the placing area. */
 void chainlink_doors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 int  chainlink_doors_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
