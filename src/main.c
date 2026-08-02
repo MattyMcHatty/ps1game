@@ -940,10 +940,10 @@ int main(int argc, const char **argv) {
                    north door instead. */
                 if (current_area == STATE_ATTIC_EXIT)
                     attic_stairwell_spawn_exit_door();
-                cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* shares the east hall's music */
+                cdaudio_play(CDAUDIO_PIANO_TRACK, 1);      /* shares the conservatory's music */
             } else if (pending_area == STATE_ATTIC_EXIT) {
                 attic_exit_init();  /* only one way in: the south-wall door */
-                cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* shares the east hall's music */
+                cdaudio_play(CDAUDIO_PIANO_TRACK, 1);      /* shares the conservatory's music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
