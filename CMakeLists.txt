@@ -63,6 +63,8 @@ add_executable(horror_game
     src/attic_stairwell.c
     src/attic_exit_mesh_collision.c
     src/attic_exit.c
+    src/chainlink_door.c
+    src/lever.c
     src/damage.c
     src/stair_anim.c
     src/trick_drawers.c

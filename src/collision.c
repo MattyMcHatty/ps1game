@@ -15,6 +15,8 @@
 #include "concrete_props.h"
 #include "trick_drawers.h"
 #include "attic_stairwell.h"   /* the attic altar, collided as a prop */
+#include "chainlink_door.h"    /* placeable solid fence-gate prop */
+#include "lever.h"             /* placeable wall-lever prop */
 
 CollisionRoom current_collision_room;
 
@@ -66,6 +68,8 @@ static int props_block_point(int32_t x, int32_t y, int32_t z) {
     if (piano_props_point_solid(x, y, z, SHOT_PROP_SLACK))   return 1;
     if (concrete_props_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
     if (attic_stairwell_altar_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
+    if (chainlink_doors_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
+    if (levers_point_solid(x, y, z, SHOT_PROP_SLACK))          return 1;
     return 0;
 }
 
@@ -588,6 +592,15 @@ void apply_collision_reception(void) {
     /* Attic Stairwell altar; likewise gated. Prop radius rather than the wall
        standoff so the player can reach the pickups on its top face. */
     attic_stairwell_altar_collide(&cam_x, cam_y, &cam_z, 75);
+    /* Chainlink gate props; area-tagged, so this is a no-op elsewhere. Full wall
+       standoff rather than a prop radius: it seals a gap in a fence run whose own
+       panels are collision walls, and a tighter radius here would let the player
+       squeeze past its edge into the cage. */
+    chainlink_doors_collide(&cam_x, cam_y, &cam_z, 195);
+    /* Wall levers; likewise area-tagged. Prop radius, not the wall standoff, as
+       they are small chest-height fixtures; the module also gates them by the
+       player's vertical span. */
+    levers_collide(&cam_x, cam_y, &cam_z, 75);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

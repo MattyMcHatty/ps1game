@@ -52,6 +52,8 @@
 #include "east_stairwell.h"
 #include "attic_stairwell.h"
 #include "attic_exit.h"
+#include "chainlink_door.h"
+#include "lever.h"
 #include "trick_drawers.h"
 #include "stove_puzzle.h"
 #include "concrete_props.h"
@@ -660,6 +662,8 @@ int main(int argc, const char **argv) {
     east_stairwell_load_assets();/* east stairwell geometry + streamed textures */
     attic_stairwell_load_assets();/* attic stairwell geometry + streamed textures */
     attic_exit_load_assets();  /* attic exit geometry + streamed textures */
+    chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
+    levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
     concrete_props_load_assets();/* concrete block/chair props + shared texture */
     copper_pot_load_assets();  /* copper pot collectible (texture deferred, key slot) */

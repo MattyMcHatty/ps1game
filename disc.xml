@@ -171,6 +171,8 @@
                 <file name="TRCKCLUE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\trck_clue.tim"/>
                 <file name="ATTCEXIT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\attic_exit.smd"/>
                 <file name="XTDRLCKD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_lckd.tim"/>
+                <file name="CHNLNKDR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\chainlink_door.smd"/>
+                <file name="LEVER.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\lever.smd"/>
                 <file name="PNOKEY.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\pno_key.tim"/>
                 <file name="BLKYSTN.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\bl_ky_stn.tim"/>
                 <!-- The Anzu Tablet puzzle (piano room). The six anzu tiles are
