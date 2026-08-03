@@ -196,6 +196,16 @@
                      streamed slot. -->
                 <file name="XTDRCMPL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_cmplt.tim"/>
                 <file name="MGNKYSTN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\mgn_ky_stn.tim"/>
+                <!-- Garden Stairs: the caged switchback stairway behind the
+                     Attic Exit's unlocked door. XTDRCG/XTDROUTR are its two new
+                     mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the
+                     door-opening transition (DOOR_PANEL_EXIT), which unlike the
+                     other double doors uses a different image per leaf. -->
+                <file name="GRDNSTRS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\garden_stairs.smd"/>
+                <file name="XTDROUTR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_outr.tim"/>
+                <file name="XTDRCG.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_cg.tim"/>
+                <file name="XTDRLHLF.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_lft_hlf.tim"/>
+                <file name="XTDRRHLF.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_rt_hlf.tim"/>
             </dir>
         </directory_tree>
     </track>

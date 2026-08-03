@@ -7,4 +7,11 @@ void delivery_area_init(void);
 void delivery_area_draw(RenderContext *ctx);
 void delivery_restore_textures(void);   /* re-upload slots the conservatory streams over */
 
+/* Narrow, single-texture re-upload of this module's brick_wall RAM copy, for a
+   room that draws brick_wall but must NOT take the rest of the delivery set.
+   The Garden Stairs needs exactly that: it draws brick_wall, but its own chnlnk
+   lives in the gravel slot that delivery_restore_textures would stamp back.
+   Same pattern as hall_2f_upload_strs(). */
+void delivery_upload_brick_wall(void);
+
 #endif

@@ -20,6 +20,11 @@
 #define DOOR_PANEL_INNER  1   /* inr_dbl_dr_half  — interior door (-> reception) */
 #define DOOR_PANEL_WOOD   2   /* wd_dr — SINGLE wooden door (reception west wall);
                                  one leaf, the whole door swings open            */
+#define DOOR_PANEL_EXIT   3   /* xt_dr_lft_hlf + xt_dr_rt_hlf — the Attic Exit's
+                                 unlocked exit door onto the Garden Stairs. Unlike
+                                 the two above, BOTH leaves swing away from the
+                                 camera, and each has its OWN texture rather than
+                                 one leaf image used twice.                       */
 
 void door_anim_load_assets(void);   /* load the panel TIMs into VRAM (startup) */
 void door_anim_start(int variant);  /* begin the animation; plays the sound */

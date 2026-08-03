@@ -788,10 +788,17 @@ void apply_height(void) {
             floor_y     = z->ramp_y_start + ((dy * t) >> 12);
             ramp_target = floor_y - GROUND_FLOOR_Y;
 
-            /* If the player is at ground level and the ramp surface is more
-             * than 150 cam_y units above them, they are walking underneath
-             * the ramp — skip it and let the catch-all ground zone apply. */
-            if (cam_y > -50 && ramp_target < cam_y - 150) continue;
+            /* A ramp surface well above the player is one they are walking
+             * UNDERNEATH, not standing on — skip it and let a lower zone apply.
+             * This used to be gated on cam_y > -50 ("only at ground level"),
+             * which was enough when delivery's single ramp was the only one in
+             * the game. The Garden Stairs stacks FIVE flights over the same XZ
+             * strip, so the test has to work at any height; without it the first
+             * matching flight in the list always won and the player fell through
+             * to it. Delivery is unaffected: standing on a ramp puts its surface
+             * ~40 units BELOW the eye, nowhere near the 150 threshold, and
+             * walking under it still trips the skip exactly as before. */
+            if (ramp_target < cam_y - 150) continue;
 
             target = ramp_target;
             player_on_ramp = 1;

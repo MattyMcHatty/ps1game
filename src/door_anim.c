@@ -55,24 +55,50 @@
 #define WOOD_V_TOP      0
 #define WOOD_V_BOT    127
 
-#define DOOR_PANEL_COUNT  3
+/* DOOR_PANEL_EXIT is the odd one out. The Attic Exit's unlocked door onto the
+ * Garden Stairs is TWO separate 64x128 TIMs — xt_dr_lft_hlf and xt_dr_rt_hlf —
+ * rather than one leaf image drawn twice mirrored, and BOTH leaves swing away
+ * from the camera about their outer hinges. Each is page-aligned at Voff 128
+ * (x832 and x896, y128), so U spans 0..63 and V 128..255 exactly like the other
+ * double doors; only the U ENDS differ per leaf, because the two images are not
+ * mirrors of each other:
+ *   left  leaf: U 0 = outer edge,  U 63 = centre seam
+ *   right leaf: U 0 = centre seam, U 63 = outer edge  */
+#define EXIT_L_U_OUTER   0
+#define EXIT_L_U_SEAM   63
+#define EXIT_R_U_SEAM    0
+#define EXIT_R_U_OUTER  63
+
+/* The two leaves are drawn closer together than their own width, so the closed
+ * door has no hairline of background showing down the centre seam. EACH leaf
+ * crosses the centre line by 10% of its own width, making the overlapping strip
+ * 20% of a leaf. Each is translated inward by that amount, hinge and all, so the
+ * swing still pivots about its own outer edge and neither image is stretched. */
+#define EXIT_INSET       (PANEL_W / 10)
+
+#define DOOR_PANEL_COUNT  4
 
 static int32_t  anim_timer  = 0;
 static int      anim_active = 0;
 static int      anim_variant = DOOR_PANEL_OUTER;   /* which door texture to draw */
 
-/* One tpage/clut pair per variant (indexed by DOOR_PANEL_*). */
-static uint16_t panel_tpage[DOOR_PANEL_COUNT] = { 0, 0, 0 };
-static uint16_t panel_clut [DOOR_PANEL_COUNT] = { 0, 0, 0 };
+/* One tpage/clut pair per variant (indexed by DOOR_PANEL_*). For every variant
+ * but DOOR_PANEL_EXIT this is the whole story — one image serves both leaves. */
+static uint16_t panel_tpage[DOOR_PANEL_COUNT] = { 0, 0, 0, 0 };
+static uint16_t panel_clut [DOOR_PANEL_COUNT] = { 0, 0, 0, 0 };
+/* DOOR_PANEL_EXIT's right leaf, which has art of its own; its left leaf uses
+ * the panel_* entry above. */
+static uint16_t exit_r_tpage = 0;
+static uint16_t exit_r_clut  = 0;
 static int      tex_loaded  = 0;
 
 /* ------------------------------------------------------------ asset loading */
 /* Mirrors fatdoors_load_assets: a CD read + LoadImage, done ONCE at startup.
  * LoadImage is only safe before the per-frame draw loop begins (see
  * tools/TEXTURING_NOTES.txt) — never call this mid-game. */
-/* Load one door-panel TIM into VRAM and record its tpage/clut in slot `variant`.
- * Returns 1 on success. */
-static int load_panel(const char *path, int variant) {
+/* Load one door-panel TIM into VRAM and record its tpage/clut through the given
+ * pointers. Returns 1 on success. */
+static int load_panel_to(const char *path, uint16_t *tpage_out, uint16_t *clut_out) {
     CdlFILE file;
     if (!CdSearchFile(&file, (char *)path)) return 0;
 
@@ -91,12 +117,18 @@ static int load_panel(const char *path, int variant) {
     if (tim.mode & 0x8) {
         LoadImage(tim.crect, tim.caddr);
         DrawSync(0);
-        panel_clut[variant] = getClut(tim.crect->x, tim.crect->y);
+        *clut_out = getClut(tim.crect->x, tim.crect->y);
     }
-    panel_tpage[variant] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
+    *tpage_out = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
 
     free(buf);
     return 1;
+}
+
+/* Load into a variant's own slot — what every variant but the exit door's right
+ * leaf wants. */
+static int load_panel(const char *path, int variant) {
+    return load_panel_to(path, &panel_tpage[variant], &panel_clut[variant]);
 }
 
 void door_anim_load_assets(void) {
@@ -105,6 +137,11 @@ void door_anim_load_assets(void) {
     /* wd_dr is also loaded by fatdoors_load_assets (same VRAM rect, 768,256);
        re-reading it here just records its tpage the same way as the others. */
     load_panel("\\WDDR.TIM;1", DOOR_PANEL_WOOD);
+    /* The exit door's two leaves: the left in the variant's own slot, the right
+       in its own pair — this is the one variant whose leaves are different
+       images rather than one image drawn twice. */
+    load_panel("\\TEX\\XTDRLHLF.TIM;1", DOOR_PANEL_EXIT);
+    load_panel_to("\\TEX\\XTDRRHLF.TIM;1", &exit_r_tpage, &exit_r_clut);
     /* The outer door is the default/fallback; require at least it to draw. */
     if (ok) tex_loaded = 1;
 }
@@ -159,8 +196,11 @@ static int32_t zoom_factor(void) {
 
 /* ----------------------------------------------------------------- rendering */
 /* Emit one textured quad (TL, TR, BL, BR order) at OT index 200. All corners are
- * scaled by `zoom` (256 = 1.0x) about screen centre for the camera dolly. */
-static void emit_panel(RenderContext *ctx, uint8_t *buf_end,
+ * scaled by `zoom` (256 = 1.0x) about screen centre for the camera dolly.
+ * `tpage`/`clut` are passed rather than read from anim_variant because the exit
+ * door's two leaves come from different TIMs. */
+static void emit_panel_tex(RenderContext *ctx, uint8_t *buf_end,
+                       uint16_t tpage, uint16_t clut,
                        int32_t x0, int32_t y0, int32_t x1, int32_t y1,
                        int32_t x2, int32_t y2, int32_t x3, int32_t y3,
                        int u0, int v0, int u1, int v1,
@@ -186,11 +226,16 @@ static void emit_panel(RenderContext *ctx, uint8_t *buf_end,
     poly->u1 = (uint8_t)u1; poly->v1 = (uint8_t)v1;
     poly->u2 = (uint8_t)u2; poly->v2 = (uint8_t)v2;
     poly->u3 = (uint8_t)u3; poly->v3 = (uint8_t)v3;
-    poly->tpage = panel_tpage[anim_variant];
-    poly->clut  = panel_clut[anim_variant];
+    poly->tpage = tpage;
+    poly->clut  = clut;
     addPrim(&ctx->buffers[ctx->active_buffer].ot[200], poly);
     ctx->next_packet += sizeof(POLY_FT4);
 }
+
+/* The common case: draw with the current variant's own texture. */
+#define emit_panel(ctx, buf_end, ...) \
+    emit_panel_tex((ctx), (buf_end), panel_tpage[anim_variant], \
+                   panel_clut[anim_variant], __VA_ARGS__)
 
 void door_anim_draw(RenderContext *ctx) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
@@ -257,6 +302,47 @@ void door_anim_draw(RenderContext *ctx) {
                    WOOD_U_FREE, WOOD_V_TOP,  WOOD_U_HINGE, WOOD_V_TOP,
                    WOOD_U_FREE, WOOD_V_BOT,  WOOD_U_HINGE, WOOD_V_BOT,
                    intensity, zoom);
+        return;
+    }
+
+    /* Exit door: BOTH leaves swing away from the camera, each about its own
+     * outer hinge, so the doorway opens from the centre seam outwards. Same
+     * swing curve, perspective and foreshortening as the single-leaf cases —
+     * the left leaf is simply the right leaf's mirror, with its hinge at
+     * center-W and its free edge travelling to the RIGHT as it opens. */
+    if (anim_variant == DOOR_PANEL_EXIT) {
+        int32_t swing  = swing_angle();
+        int32_t cos_t  = icos(swing);
+        int32_t sin_t  = isin(swing);
+        int32_t z      = PANEL_W * sin_t / 4096;
+        int32_t persp  = PERSP_D * 256 / (PERSP_D + z);
+        int32_t free_hh = DOOR_HALF_H * persp / 256;
+        int32_t xoff    = (PANEL_W * cos_t / 4096) * persp / 256;
+
+        /* Left leaf: hinge on the left, free (seam) edge swinging right. */
+        {
+            int32_t hinge_x = DOOR_CENTER_X - PANEL_W + EXIT_INSET;
+            int32_t free_x  = hinge_x + xoff;
+            emit_panel(ctx, buf_end,
+                       hinge_x, top,  free_x, DOOR_CENTER_Y - free_hh,
+                       hinge_x, bot,  free_x, DOOR_CENTER_Y + free_hh,
+                       EXIT_L_U_OUTER, DOOR_V_TOP,  EXIT_L_U_SEAM, DOOR_V_TOP,
+                       EXIT_L_U_OUTER, DOOR_V_BOT,  EXIT_L_U_SEAM, DOOR_V_BOT,
+                       intensity, zoom);
+        }
+
+        /* Right leaf: hinge on the right, free (seam) edge swinging left. Its
+           own texture, hence emit_panel_tex rather than the macro. */
+        {
+            int32_t hinge_x = DOOR_CENTER_X + PANEL_W - EXIT_INSET;
+            int32_t free_x  = hinge_x - xoff;
+            emit_panel_tex(ctx, buf_end, exit_r_tpage, exit_r_clut,
+                       free_x, DOOR_CENTER_Y - free_hh,  hinge_x, top,
+                       free_x, DOOR_CENTER_Y + free_hh,  hinge_x, bot,
+                       EXIT_R_U_SEAM, DOOR_V_TOP,  EXIT_R_U_OUTER, DOOR_V_TOP,
+                       EXIT_R_U_SEAM, DOOR_V_BOT,  EXIT_R_U_OUTER, DOOR_V_BOT,
+                       intensity, zoom);
+        }
         return;
     }
 

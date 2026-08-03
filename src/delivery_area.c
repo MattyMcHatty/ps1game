@@ -90,6 +90,11 @@ void delivery_restore_textures(void) {
         texmgr_upload(shared_id[i]);
 }
 
+/* brick_wall ONLY (index 2 above). The Garden Stairs draws brick_wall but keeps
+   chnlnk in the gravel slot, so it cannot take the whole set — see the note in
+   delivery_area.h. */
+void delivery_upload_brick_wall(void) { texmgr_upload(shared_id[2]); }
+
 void delivery_area_init(void) {
     CdInit();
     scSetClipRect(0, 0, SCREEN_XRES, SCREEN_YRES);

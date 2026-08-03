@@ -8,20 +8,16 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "camera.h"
-#include "attic_exit.h"
+#include "garden_stairs.h"
 #include "collision.h"
-#include "attic_exit_mesh_collision.h"
-#include "attic_exit_tex_map.h"
+#include "garden_stairs_mesh_collision.h"
+#include "garden_stairs_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
 #include "texmgr.h"
 #include "dresser.h"
-#include "east_stairwell.h"
-#include "chainlink_door.h"
-#include "lever.h"
-#include "lightswitch_puzzle.h"
-#include "exit_door_puzzle.h"
-#include "player.h"          /* game_flag: has the cage already been opened? */
+#include "delivery_area.h"    /* delivery_upload_brick_wall */
+#include "east_stairwell.h"   /* east_stairwell_upload_chnlnk */
 #include "save_point.h"
 #include "zombie.h"
 #include "spider.h"
@@ -31,64 +27,113 @@
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
-/* Attic Exit: the room north of the Attic Stairwell's west room. See
-   attic_exit.h for the layout — a plain rectangle at y=0 with a chainlink cage
-   against its north wall and the locked exit door inside it. */
+/* Garden Stairs: the caged stairway behind the Attic Exit's exit door. See
+   garden_stairs.h for the layout. */
 
-static SMD  *attic_exit_smd  = NULL;
-static void *attic_exit_buff = NULL;
+static SMD  *garden_stairs_smd  = NULL;
+static void *garden_stairs_buff = NULL;
 
-/* One flat zone at y=0 over the whole footprint: the collision mesh detected a
-   single floor plane spanning the full bounds (attic_exit_mesh_collision.c),
-   and the cage is fenced off by walls, not by a floor gap. */
-static void attic_exit_floor_zones_init(void) {
-    floor_zones[0].type  = FLOOR_FLAT;
-    floor_zones[0].min_x = -1500; floor_zones[0].max_x = 1500;
-    floor_zones[0].min_z =  -999; floor_zones[0].max_z =  999;
-    floor_zones[0].y     = 0;
-    floor_zone_count = 1;
+/* ---- Floor zones -----------------------------------------------------------
+   A genuine multi-storey shaft: three landings stacked over the same west XZ
+   footprint, three over the same east one, and five flights over the same
+   middle strip. The floor-zone model has one Y per XZ box, so the levels are
+   told apart by apply_height's rule that a surface ABOVE the player is not the
+   one they are standing on — which means the zones must be listed HIGHEST
+   FIRST (most negative Y first). Reorder them and the player drops through to
+   the bottom of the shaft.
+
+   Eleven zones against MAX_FLOOR_ZONES=16. Values come straight from the FLOOR
+   list in garden_stairs_mesh_collision.c; each flight's two ends were read off
+   the collision mesh's sloped quads (west end -> east end). */
+static void gs_flat(int i, int32_t min_x, int32_t max_x,
+                    int32_t min_z, int32_t max_z, int32_t y) {
+    floor_zones[i].type  = FLOOR_FLAT;
+    floor_zones[i].min_x = min_x; floor_zones[i].max_x = max_x;
+    floor_zones[i].min_z = min_z; floor_zones[i].max_z = max_z;
+    floor_zones[i].y     = y;
+}
+
+/* A flight, always sloped along X between the flight strip's two edges. */
+static void gs_flight(int i, int32_t min_z, int32_t max_z,
+                      int32_t y_west, int32_t y_east) {
+    floor_zones[i].type            = FLOOR_RAMP;
+    floor_zones[i].min_x           = -1242; floor_zones[i].max_x = -267;
+    floor_zones[i].min_z           = min_z; floor_zones[i].max_z = max_z;
+    floor_zones[i].ramp_y_start    = y_west;
+    floor_zones[i].ramp_y_end      = y_east;
+    floor_zones[i].ramp_axis_start = -1242;
+    floor_zones[i].ramp_axis_end   =  -267;
+    floor_zones[i].ramp_along_x    = 1;
+}
+
+#define GS_WEST_X0   (-2140)
+#define GS_WEST_X1   (-1242)
+#define GS_EAST_X0     (-267)
+#define GS_EAST_X1       713
+#define GS_Z0           1117
+#define GS_Z1           2317
+#define GS_ZMID         1717   /* south flights below it, north flights above */
+
+static void garden_stairs_floor_zones_init(void) {
+    int i = 0;
+    /* --- top of the shaft --- */
+    gs_flat  (i++, GS_EAST_X0, GS_EAST_X1, GS_Z0,   GS_Z1,   -1500);
+    gs_flight(i++, GS_Z0,   GS_ZMID, -1200, -1500);   /* south, climbing east */
+    gs_flat  (i++, GS_WEST_X0, GS_WEST_X1, GS_Z0,   GS_Z1,   -1200);
+    gs_flight(i++, GS_ZMID, GS_Z1,   -1200,  -900);   /* north, climbing west */
+    gs_flat  (i++, GS_EAST_X0, GS_EAST_X1, GS_Z0,   GS_Z1,    -900);
+    gs_flight(i++, GS_Z0,   GS_ZMID,  -600,  -900);   /* south, climbing east */
+    gs_flat  (i++, GS_WEST_X0, GS_WEST_X1, GS_Z0,   GS_Z1,    -600);
+    gs_flight(i++, GS_ZMID, GS_Z1,    -600,  -300);   /* north, climbing west */
+    gs_flat  (i++, GS_EAST_X0, GS_EAST_X1, GS_Z0,   GS_Z1,    -300);
+    gs_flight(i++, GS_Z0,   GS_ZMID,     0,  -300);   /* south, climbing east */
+    gs_flat  (i++, GS_WEST_X0, GS_WEST_X1, GS_Z0,   GS_Z1,       0);
+    /* --- bottom of the shaft --- */
+    floor_zone_count = i;
 }
 
 /* ---- Per-room textures -----------------------------------------------------
-   Six mesh textures. FOUR are resident from startup (wd_flr/red_wlppr/din_cl
-   with the kitchen, wd_dr with the fatdoor) and just need their headers
-   captured. The other two are uploaded on every entry:
+   Four mesh textures, none resident from startup, so all four are uploaded on
+   every entry. TWO are owned by other modules and just need their headers
+   captured here; the other two are this room's new art:
 
-     - chnlnk (the cage) lives in the DELIVERY-only gravel slot (x640 y0), whose
-       RAM copy the East Stairwell owns. We call its narrow
-       east_stairwell_upload_chnlnk() rather than registering a second copy:
-       texmgr has a hard TEXMGR_MAX and a registration past it fails SILENTLY,
-       handing back tpage/clut 0 and breaking that texture in every room.
-       delivery_restore_textures() puts gravel back on delivery entry.
-     - xt_dr_lckd (the locked exit door) is this room's only NEW art. It
-       time-shares the DELIVERY-only brick_wall slot (x768 y0) that the
-       conservatory already streams grss over and the master bedroom bed over,
-       so it adds no new restore obligation: delivery_restore_textures() puts
-       brick_wall back, conservatory_upload_textures() puts grss back and
-       master_bedroom_upload_textures() puts bed back. It is 8bpp, so it covers
-       the whole x[768,832) tpage rather than the 4bpp pair's x[768,800) half —
-       the extra columns are bed's, which is 8bpp too.
+     - brick_wall (the south wall the exit door sits in) lives in the
+       DELIVERY-only slot at x768 y0. Delivery owns the RAM copy, so we call its
+       narrow delivery_upload_brick_wall() rather than registering a second copy
+       — texmgr has a hard TEXMGR_MAX and a registration past it fails SILENTLY,
+       breaking that texture in every room. delivery_restore_textures() would
+       have done it, but it also stamps gravel back over the chnlnk this room
+       needs, hence the narrow call.
+     - chnlnk (the cage, and most of this room) lives in the DELIVERY-only
+       gravel slot (x640 y0), whose RAM copy the East Stairwell owns.
 
-   All six sit at Voff 0, so the one 128 texture window set in attic_exit_draw
-   serves them all (see tools/VRAM_MAP.txt). */
-#define ATTIC_EXIT_TEX_COUNT 6
+     - xt_dr_outr (the exit door's outer face) time-shares the clsd_drwr page
+       (x384 y0). NOT the obvious delivery pages: this room draws brick_wall
+       (x768) and chnlnk (x640) itself, and the rusty_fence page's right half is
+       anzu3/anzu6, which are resident for the whole run and never re-uploaded.
+       Every consumer of that page re-uploads on its own entry —
+       trick_drawers_upload_texture (clsd_drwr, via the 2F hall),
+       kitchen_restore_textures (kchn_tile), the conservatory / east hall /
+       library / stairwells (cncrte) and the piano room (piano_keys) — so it
+       adds no new restore obligation.
+     - xt_dr_cg (the door at the bottom of the stairs) time-shares the opn_drwr
+       page (x832 y0), already shared with double_door (delivery/kitchen) and
+       con_tile (conservatory/attic stairwell). Same story: everyone restores.
 
-/* Streamed slots we own a RAM copy of: engine slot -> texmgr id. Only
-   xt_dr_lckd — chnlnk is registered by the module that owns it. */
-#define ATTIC_EXIT_NEW_TEX 1
-static int new_tex_id[ATTIC_EXIT_NEW_TEX];
-static const struct { const char *file; int slot; } new_tex[ATTIC_EXIT_NEW_TEX] = {
-    { "\\TEX\\XTDRLCKD.TIM;1", 5 },
+   All four sit at Voff 0, so the one 128 texture window set in
+   garden_stairs_draw serves them all (see tools/VRAM_MAP.txt). */
+#define GARDEN_STAIRS_TEX_COUNT 4
+
+/* Streamed slots we own a RAM copy of: engine slot -> texmgr id. */
+#define GARDEN_STAIRS_NEW_TEX 2
+static int new_tex_id[GARDEN_STAIRS_NEW_TEX];
+static const struct { const char *file; int slot; } new_tex[GARDEN_STAIRS_NEW_TEX] = {
+    { "\\TEX\\XTDRCG.TIM;1",   2 },
+    { "\\TEX\\XTDROUTR.TIM;1", 3 },
 };
 
-/* The UNLOCKED exit door. xt_dr_cmplt.tim is built at the SAME VRAM rect AND
-   the same CLUT slot as xt_dr_lckd, so solving the puzzle is a bare re-upload
-   over the top and every baked UV, tpage and clut in the tex map stays valid —
-   the trick the piano's repaired keyboard plays (see piano_props.c). */
-static int cmplt_tex_id = -1;
-
-static uint16_t tex_tpage[ATTIC_EXIT_TEX_COUNT];
-static uint16_t tex_clut[ATTIC_EXIT_TEX_COUNT];
+static uint16_t tex_tpage[GARDEN_STAIRS_TEX_COUNT];
+static uint16_t tex_clut[GARDEN_STAIRS_TEX_COUNT];
 
 /* Read a whole TIM into a freshly malloc'd buffer (caller owns it). NULL on fail. */
 static uint8_t *read_tim(const char *filename) {
@@ -115,9 +160,8 @@ static void *load_file_from_cd(const char *filename) {
     return buff;
 }
 
-/* Capture tpage/clut for a texture that is ALREADY resident in VRAM (shared
-   with another room), or whose upload another module owns: read its header
-   only, no LoadImage. */
+/* Capture tpage/clut for a texture whose upload another module owns: read its
+   header only, no LoadImage. */
 static void capture_tpage(const char *filename, int slot) {
     uint8_t *buf = read_tim(filename);
     if (!buf) return;
@@ -130,75 +174,59 @@ static void capture_tpage(const char *filename, int slot) {
 
 /* Load geometry AND register/capture textures at STARTUP (the only time CD
    access is safe — see tools/TEXTURING_NOTES.txt). */
-void attic_exit_load_assets(void) {
-    attic_exit_buff = load_file_from_cd("\\TEX\\ATTCEXIT.SMD;1");
-    if (attic_exit_buff)
-        attic_exit_smd = smdInitData(attic_exit_buff);
+void garden_stairs_load_assets(void) {
+    garden_stairs_buff = load_file_from_cd("\\TEX\\GRDNSTRS.SMD;1");
+    if (garden_stairs_buff)
+        garden_stairs_smd = smdInitData(garden_stairs_buff);
 
     /* Streamed slots we own: RAM-resident via the texture manager, uploaded on
        entry. */
-    for (int i = 0; i < ATTIC_EXIT_NEW_TEX; i++) {
+    for (int i = 0; i < GARDEN_STAIRS_NEW_TEX; i++) {
         int slot = new_tex[i].slot;
         new_tex_id[i]   = texmgr_register(new_tex[i].file);
         tex_tpage[slot] = texmgr_tpage(new_tex_id[i]);
         tex_clut[slot]  = texmgr_clut(new_tex_id[i]);
     }
-    cmplt_tex_id = texmgr_register("\\TEX\\XTDRCMPL.TIM;1");
 
-    /* Owned by the East Stairwell, whose narrow upload attic_exit_upload_textures
+    /* Owned by other modules, whose narrow uploads garden_stairs_upload_textures
        calls. Header only — no LoadImage, no second RAM copy. */
-    capture_tpage("\\TEX\\CHNLNK.TIM;1", 4);
-
-    /* Resident from startup (kitchen + fatdoor). */
-    capture_tpage("\\WDFLR.TIM;1",    0);
-    capture_tpage("\\REDWLPPR.TIM;1", 1);
-    capture_tpage("\\DINCL.TIM;1",    2);
-    capture_tpage("\\WDDR.TIM;1",     3);
+    capture_tpage("\\BRIKWLL.TIM;1",  0);
+    capture_tpage("\\TEX\\CHNLNK.TIM;1", 1);
 }
 
 /* Upload the streamed textures from their resident RAM copies. Pure LoadImage
    — no CD access — safe during the room transition (the caller DrawSyncs first,
    as main's STATE_LOADING does). */
-/* Which of the two door TIMs the next upload (and the current VRAM contents)
-   should be. Falls back to the locked art if the unlocked one failed to
-   register, the same defensive fallback the piano's repaired keyboard uses. */
-static int door_tex_id(void) {
-    return (game_flag(FLAG_EXIT_DOOR_UNLOCKED) && cmplt_tex_id >= 0)
-           ? cmplt_tex_id : new_tex_id[0];
+void garden_stairs_upload_textures(void) {
+    for (int i = 0; i < GARDEN_STAIRS_NEW_TEX; i++)
+        texmgr_upload(new_tex_id[i]);       /* xt_dr_cg, xt_dr_outr */
+    delivery_upload_brick_wall();           /* brick_wall -> its own slot   */
+    east_stairwell_upload_chnlnk();         /* chnlnk     -> gravel slot    */
 }
 
-void attic_exit_upload_textures(void) {
-    texmgr_upload(door_tex_id());           /* exit door  -> brick_wall slot */
-    east_stairwell_upload_chnlnk();         /* chnlnk     -> gravel slot     */
-}
-
-/* Solving the exit-door puzzle: put the unlocked art up NOW, mid-room. A pure
-   LoadImage out of the texmgr's RAM copy, so no CD access — safe during
-   gameplay (again, as piano_props_repair_keys is). The caller has already set
-   FLAG_EXIT_DOOR_UNLOCKED, so door_tex_id picks the new art here and on every
-   later entry. */
-void attic_exit_unlock_door(void) {
-    texmgr_upload(door_tex_id());
-}
-
-/* ---- The south-wall door back to the Attic Stairwell -----------------------
-   The wd_dr poly in "Attic Exit.smx" sits at x[-500,-300], z=-1000 (the drawn
-   wall; the collision wall behind it is at z=-999). It maps to the Attic
-   Stairwell's west-room north-wall door at x=-1942, z=350 — the meshes are
-   modelled in a shared world offset by attic_exit_x = stairwell_x + 1542.
+/* ---- The south-wall door back to the Attic Exit ----------------------------
+   The xt_dr_outr poly spans x[-104,386] at z=1117, on the TOP landing
+   (floor y=-1500). It is the OUTER face of the same door the exit-door puzzle
+   unlocked, so it maps to the Attic Exit's north-wall door at x=0, z=1000.
 
    The player approaches from the +Z (room) side, so the sign lies in the XY
-   plane with mirror=1 — the mirror image of the Master Bedroom's north-wall
-   signs, which are read from -Z. */
-#define AEXIT_DOOR_X            (-400)
-#define AEXIT_DOOR_Z           (-1000)
-#define AEXIT_TEXT_Y            (-186)
-#define AEXIT_TEXT_RADIUS        1500
-#define AEXIT_FADE_NEAR          1000
-#define AEXIT_TRIGGER_RADIUS      500
+   plane with mirror=1 — the mirror image of the signs read from -Z. */
+#define GS_DOOR_X                141    /* (-104 + 386) / 2 */
+#define GS_DOOR_Z               1117
+#define GS_TEXT_Y             (-1686)   /* eye level on the top landing */
+#define GS_TEXT_RADIUS          1500
+#define GS_FADE_NEAR            1000
+#define GS_TRIGGER_RADIUS        500
 
-/* Circle edge-detect, seeded by attic_exit_door_arm(). Starts "held" so a press
-   carried in through the transition doesn't bounce the player straight back. */
+/* Top-landing standing eye: floor y=-1500, less GROUND_FLOOR_Y and the 40-unit
+   floor standoff apply_height applies. Spawning at the shaft's default cam_y
+   would put the player under every landing and drop them to the bottom, so this
+   is set explicitly. */
+#define GS_TOP_EYE_Y   (-1500 - GROUND_FLOOR_Y - 40)
+
+/* Circle edge-detect, seeded by garden_stairs_door_arm(). Starts "held" so a
+   press carried in through the transition doesn't bounce the player straight
+   back. */
 static int door_circle_prev = 1;
 
 static int circle_held(void) {
@@ -207,20 +235,20 @@ static int circle_held(void) {
     return (~pad->btn & PAD_CIRCLE) ? 1 : 0;
 }
 
-void attic_exit_door_arm(void) {
+void garden_stairs_door_arm(void) {
     door_circle_prev = circle_held();
 }
 
-int attic_exit_door_triggered(void) {
+int garden_stairs_door_triggered(void) {
     int held = circle_held();
     int just = held && !door_circle_prev;
     door_circle_prev = held;
     if (!just) return 0;
 
-    int32_t dx = cam_x - AEXIT_DOOR_X;
-    int32_t dz = cam_z - AEXIT_DOOR_Z;
+    int32_t dx = cam_x - GS_DOOR_X;
+    int32_t dz = cam_z - GS_DOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < AEXIT_TRIGGER_RADIUS;
+    return xz < GS_TRIGGER_RADIUS;
 }
 
 /* Floating "Press O to enter" sign on the south-wall door. XY plane:
@@ -228,116 +256,72 @@ int attic_exit_door_triggered(void) {
    so pass door_x - 200. Sits just north (z+11) of the wall so it floats in
    front of the door. */
 static void door_text(RenderContext *ctx) {
-    int32_t dx = cam_x - AEXIT_DOOR_X;
-    int32_t dz = cam_z - AEXIT_DOOR_Z;
+    int32_t dx = cam_x - GS_DOOR_X;
+    int32_t dz = cam_z - GS_DOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    if (xz >= AEXIT_TEXT_RADIUS) return;
+    if (xz >= GS_TEXT_RADIUS) return;
 
     int fade = 256;
-    if (xz > AEXIT_FADE_NEAR) {
-        int range = AEXIT_TEXT_RADIUS - AEXIT_FADE_NEAR;
-        int prog  = xz - AEXIT_FADE_NEAR;
+    if (xz > GS_FADE_NEAR) {
+        int range = GS_TEXT_RADIUS - GS_FADE_NEAR;
+        int prog  = xz - GS_FADE_NEAR;
         if (prog > range) prog = range;
         fade = 256 - ((prog * 256) / range);
     }
 
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
-                        AEXIT_DOOR_X - 200, AEXIT_TEXT_Y, AEXIT_DOOR_Z + 11,
+                        GS_DOOR_X - 200, GS_TEXT_Y, GS_DOOR_Z + 11,
                         50, 255, 50, fade, 1, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
 }
 
-/* Arriving from the Attic Stairwell: stand north of the z=-999 wall, far enough
-   clear of the 195 push radius apply_collision_reception uses, facing +Z — the
-   direction of travel through the door, with the cage ahead. */
-void attic_exit_spawn_south(void) {
-    cam_x   = AEXIT_DOOR_X;
-    cam_y   = -189;
+/* Arriving from the Attic Exit: stand on the top landing north of the z=1117
+   wall, far enough clear of the 195 push radius apply_collision_reception uses,
+   facing +Z — the direction of travel through the door, with the stairs
+   dropping away ahead. */
+void garden_stairs_spawn_top(void) {
+    cam_x   = GS_DOOR_X;
+    cam_y   = GS_TOP_EYE_Y;
     cam_vy  = 0;
-    cam_z   = -770;
+    cam_z   = GS_DOOR_Z + 215;
     cam_rot = 0;      /* facing +Z, into the room */
-    attic_exit_door_arm();
+    garden_stairs_door_arm();
 }
 
-/* Arriving back from the Garden Stairs: stand south of the z=1000 exit door,
-   clear of the 195 push radius, facing -Z — the direction of travel back into
-   the room. Both the south door and the exit door's own Circle edge state are
-   re-armed so the press that opened the door doesn't immediately re-trigger. */
-void attic_exit_spawn_north(void) {
-    cam_x   = 0;
-    cam_y   = -189;
-    cam_vy  = 0;
-    cam_z   = 785;
-    cam_rot = 2048;   /* facing -Z, back down the room */
-    attic_exit_door_arm();
-    exit_door_puzzle_arm();
-}
-
-/* Everything in this room that is DERIVED from a saved GameFlag, in one place so
-   main.c can re-run it after a Load Game installs the real flags (the area init
-   below runs while game_flags still holds the pre-load values). */
-void attic_exit_apply_flags(void) {
-    chainlink_doors_clear();
-    if (!game_flag(FLAG_LIGHTS_SOLVED))
-        chainlink_door_place(STATE_ATTIC_EXIT, 0, -149, 0, 0);
-
-    /* One lever in each of the four brown wall boxes modelled into the room (the
-       rgb(129,49,3) clusters in "Attic Exit.smx"). lightswitch_place owns the
-       four placements as well as the deal of colours, so the lever <-> ceiling
-       light pairing has a single source of truth — see lightswitch_puzzle.c. */
-    levers_clear();
-    lightswitch_place();
-
-    /* The exit-door board never survives a room change: its own solved state
-       lives in FLAG_EXIT_DOOR_UNLOCKED, which this re-reads. */
-    exit_door_puzzle_arm();
-}
-
-void attic_exit_init(void) {
-    attic_exit_collision_init(&current_collision_room);
-    /* Proxy wall tops stop at y=-466, well short of the drawn y=-560 ceiling;
-       state the DRAWN value so ceiling-mounted enemies hang flush with the roof
-       the player can see (see tools/ADDING_A_ROOM.txt). */
-    collision_set_ceiling_y(-560);
-    attic_exit_floor_zones_init();
+void garden_stairs_init(void) {
+    garden_stairs_collision_init(&current_collision_room);
+    /* The drawn mesh's roof is y=-2100, well above the proxy wall tops; state
+       the DRAWN value so ceiling-mounted enemies hang flush with the roof the
+       player can see (see tools/ADDING_A_ROOM.txt). */
+    collision_set_ceiling_y(-2100);
+    garden_stairs_floor_zones_init();
 
     /* Only one way in, so no per-door override is needed in main.c. */
-    attic_exit_spawn_south();
-
-    /* The chainlink gate, filling the cage's entrance gap. The model is exactly
-       the size of that gap — 600 wide, front face 31 deep — and its origin is
-       centred in X on its front face, so it drops in at the gap's own
-       coordinates: x=0, z=0, unrotated. y=-149 seats a base-origin model on this
-       room's y=0 floor (as the concrete props do). With it in place the cage is
-       sealed, so the locked exit door inside is scenery you can only look at.
-
-       The lightswitch puzzle winches it away for good, so a player who has
-       already solved it never gets one placed. */
-    attic_exit_apply_flags();
+    garden_stairs_spawn_top();
 
     /* Reception's save point and dresser prop are global (not room-swapped) and
        neither is area-gated in its collide routine, so reception's instances
-       would block the player invisibly inside this room's bounds — the save
-       point sits at (78,-67), right in the cage's entrance gap. Clearing them is
-       safe: reception_init() re-places both on every reception entry. */
+       would block the player invisibly if they fell inside this room's bounds.
+       Clearing them is safe: reception_init() re-places both on every reception
+       entry. */
     save_points_clear();
     dressers_clear();
 }
 
-static void draw_attic_exit_smd(RenderContext *ctx) {
-    if (!attic_exit_smd) return;
+static void draw_garden_stairs_smd(RenderContext *ctx) {
+    if (!garden_stairs_smd) return;
 
-    uint8_t *p = (uint8_t *)attic_exit_smd->p_prims;
+    uint8_t *p = (uint8_t *)garden_stairs_smd->p_prims;
     int i;
 
-    for (i = 0; i < attic_exit_smd->n_prims; i++) {
+    for (i = 0; i < garden_stairs_smd->n_prims; i++) {
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
         uint8_t stride = pt->len;
         int is_quad = (pt->type >= 2);
 
         uint16_t *vi = (uint16_t *)(p + 4);
-        SVECTOR *v0 = &attic_exit_smd->p_verts[vi[0]];
-        SVECTOR *v1 = &attic_exit_smd->p_verts[vi[1]];
-        SVECTOR *v2 = &attic_exit_smd->p_verts[vi[2]];
+        SVECTOR *v0 = &garden_stairs_smd->p_verts[vi[0]];
+        SVECTOR *v1 = &garden_stairs_smd->p_verts[vi[1]];
+        SVECTOR *v2 = &garden_stairs_smd->p_verts[vi[2]];
 
         {
             int32_t dx = (int32_t)v0->vx - cam_x;
@@ -366,8 +350,8 @@ static void draw_attic_exit_smd(RenderContext *ctx) {
         }
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
-           build time in attic_exit_nocull — same scheme as the other rooms. */
-        int nocull = (i < ATTIC_EXIT_PRIM_COUNT) && attic_exit_nocull[i];
+           build time in garden_stairs_nocull — same scheme as the other rooms. */
+        int nocull = (i < GARDEN_STAIRS_PRIM_COUNT) && garden_stairs_nocull[i];
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -380,7 +364,7 @@ static void draw_attic_exit_smd(RenderContext *ctx) {
         SVECTOR *v3    = 0;
         int32_t  v2_sz = sz[3];   /* v2's SZ, before the quad path reuses sz[3] */
         if (is_quad) {
-            v3 = &attic_exit_smd->p_verts[vi[3]];
+            v3 = &garden_stairs_smd->p_verts[vi[3]];
             gte_ldv0(v3);
             gte_rtps();
             gte_stsxy(&sv[3]);
@@ -416,9 +400,9 @@ static void draw_attic_exit_smd(RenderContext *ctx) {
 
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
-           texture window set in attic_exit_draw. */
-        uint8_t tex_idx = (i < ATTIC_EXIT_PRIM_COUNT) ? attic_exit_tex_map[i] : 0xFF;
-        int     textured = (tex_idx != 0xFF && tex_idx < ATTIC_EXIT_TEX_COUNT);
+           texture window set in garden_stairs_draw. */
+        uint8_t tex_idx = (i < GARDEN_STAIRS_PRIM_COUNT) ? garden_stairs_tex_map[i] : 0xFF;
+        int     textured = (tex_idx != 0xFF && tex_idx < GARDEN_STAIRS_TEX_COUNT);
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);
         uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + 10 * (256 - fog_factor)) >> 8);
@@ -484,11 +468,11 @@ static void draw_attic_exit_smd(RenderContext *ctx) {
     }
 }
 
-void attic_exit_draw(RenderContext *ctx) {
+void garden_stairs_draw(RenderContext *ctx) {
     /* Entities in this room fog with the same near/far as the mesh below. */
     g_fog_near = 350; g_fog_far = 1500;
 
-    /* Dark interior background, same as the other rooms. */
+    /* Dark background, same as the other rooms. */
     TILE *bg = (TILE *)ctx->next_packet;
     setTile(bg);
     setXY0(bg, 0, 0);
@@ -498,8 +482,8 @@ void attic_exit_draw(RenderContext *ctx) {
     ctx->next_packet += sizeof(TILE);
 
     /* 128x128 texture window so per-poly UVs wrap (tile) within each texture's
-       page. All six attic-exit textures sit at page-top (Voff 0), so one window
-       serves them (see tools/VRAM_MAP.txt). */
+       page. All four garden-stairs textures sit at page-top (Voff 0), so one
+       window serves them (see tools/VRAM_MAP.txt). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         DR_TWIN *twin = (DR_TWIN *)ctx->next_packet;
@@ -525,10 +509,7 @@ void attic_exit_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
 
-    draw_attic_exit_smd(ctx);
-    chainlink_doors_draw(ctx);   /* the cage gate; shares the room's texture window */
-    levers_draw(ctx);            /* the four wall levers (flat-shaded, no texture) */
-    lightswitch_draw(ctx);       /* their light cones + the per-lever prompts */
+    draw_garden_stairs_smd(ctx);
 
     /* No enemies placed here yet; the room's 128 texture window is still handed
        to the sprite renderers so a future spawn brackets its Voff>=128 sprite
@@ -544,6 +525,4 @@ void attic_exit_draw(RenderContext *ctx) {
     item_pickups_draw(ctx);
 
     door_text(ctx);
-    exit_door_prompt_draw(ctx);  /* the north-wall exit door's own sign */
-    exit_door_puzzle_draw(ctx);  /* its 2D board, when the puzzle is open */
 }

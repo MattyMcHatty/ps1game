@@ -77,6 +77,7 @@ static const char *area_name(int area) {
         case STATE_EAST_STAIRWELL: return "EAST STAIRWELL";
         case STATE_ATTIC_STAIRWELL:return "ATTIC STAIRWELL";
         case STATE_ATTIC_EXIT:     return "ATTIC EXIT";
+        case STATE_GARDEN_STAIRS:  return "GARDEN STAIRS";
         default:                   return "MANSION";
     }
 }

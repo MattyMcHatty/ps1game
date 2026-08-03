@@ -72,6 +72,23 @@ KNOWN_STREAM_PAIRS = [
     ("brick_wall.tim",     "xt_dr_cmplt.tim"),
     ("grss.tim",           "xt_dr_cmplt.tim"),
     ("bed.tim",            "xt_dr_cmplt.tim"),
+    # Garden Stairs streams its two new door faces over slots that are already
+    # time-shared, so neither adds a restore obligation. Note it could NOT take
+    # the obvious delivery pages: it draws brick_wall itself (x768 y0) and chnlnk
+    # itself (x640 y0), and the rusty_fence page's right half is anzu3/anzu6,
+    # which are resident for the whole run and never re-uploaded.
+    #   xt_dr_outr -> the clsd_drwr page (x384 y0), shared with cncrte /
+    #   kchn_tile / piano_keys; every consumer re-uploads on room entry.
+    #   xt_dr_cg   -> the opn_drwr page (x832 y0), shared with double_door
+    #   (delivery/kitchen) and con_tile (conservatory/attic stairwell).
+    ("clsd_drwr.tim",      "xt_dr_outr.tim"),
+    ("cncrte.tim",         "xt_dr_outr.tim"),
+    ("kchn_tile.tim",      "xt_dr_outr.tim"),
+    ("piano_keys.tim",     "xt_dr_outr.tim"),
+    ("piano_keys_full.tim","xt_dr_outr.tim"),
+    ("double_door.tim",    "xt_dr_cg.tim"),
+    ("con_tile.tim",       "xt_dr_cg.tim"),
+    ("opn_drwr.tim",       "xt_dr_cg.tim"),
 ]
 
 def read_tim(path):

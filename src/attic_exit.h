@@ -44,5 +44,7 @@ int  attic_exit_door_triggered(void);  /* 1 on a fresh Circle press in range */
 
 /* Spawn just inside the south door on arrival from the Attic Stairwell. */
 void attic_exit_spawn_south(void);
+/* ...and just inside the north exit door on arrival back from the Garden Stairs. */
+void attic_exit_spawn_north(void);
 
 #endif

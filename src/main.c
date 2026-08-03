@@ -52,6 +52,7 @@
 #include "east_stairwell.h"
 #include "attic_stairwell.h"
 #include "attic_exit.h"
+#include "garden_stairs.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -391,10 +392,11 @@ static void update_current_area(GameState area) {
            they are at opposite ends of the room, so only the range check keeps
            them apart, but the puzzle's own Circle edge state is separate. */
         if (!lock && exit_door_exit_triggered()) {
-            /* TEMPORARY: nothing is built behind the exit door yet, so walking
-               through it drops the player back at this room's own entrance. */
-            pending_area = STATE_ATTIC_EXIT;
-            door_anim_start(DOOR_PANEL_WOOD);
+            /* North through the unlocked exit door, onto the Garden Stairs. Its
+               own transition: both leaves of the exit door swing away from the
+               camera before the player walks through. */
+            pending_area = STATE_GARDEN_STAIRS;
+            door_anim_start(DOOR_PANEL_EXIT);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         } else if (!lock && !lightswitch_puzzle_active() &&
@@ -402,6 +404,23 @@ static void update_current_area(GameState area) {
             /* South through the door, back into the Attic Stairwell. */
             pending_area = STATE_ATTIC_STAIRWELL;
             door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_GARDEN_STAIRS) {
+        /* A five-flight switchback shaft. The shared wall collision routine is
+           generic over current_collision_room, and apply_height picks the right
+           landing/flight out of the stacked floor zones (see the ordering note
+           in garden_stairs_floor_zones_init). */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed yet, but keeps the room uniform */
+        update_spiders();
+        item_pickups_update();
+        if (!lock && garden_stairs_door_triggered()) {
+            /* South through the exit door, back into the Attic Exit. */
+            pending_area = STATE_ATTIC_EXIT;
+            door_anim_start(DOOR_PANEL_EXIT);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -547,6 +566,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         attic_stairwell_draw(ctx);
     else if (area == STATE_ATTIC_EXIT)
         attic_exit_draw(ctx);
+    else if (area == STATE_GARDEN_STAIRS)
+        garden_stairs_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -701,6 +722,7 @@ int main(int argc, const char **argv) {
     attic_stairwell_load_assets();/* attic stairwell geometry + streamed textures */
     attic_exit_load_assets();  /* attic exit geometry + streamed textures */
     exit_door_puzzle_load_assets();/* the exit door's fixed magenta stone icon */
+    garden_stairs_load_assets();/* garden stairs geometry + streamed textures */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -816,6 +838,9 @@ int main(int argc, const char **argv) {
                                                      + strs + con_tile */
             } else if (pending_area == STATE_ATTIC_EXIT) {
                 attic_exit_upload_textures();    /* xt_dr_lckd + chnlnk */
+            } else if (pending_area == STATE_GARDEN_STAIRS) {
+                garden_stairs_upload_textures(); /* xt_dr_cg + xt_dr_outr
+                                                    + brick_wall + chnlnk */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -981,8 +1006,16 @@ int main(int argc, const char **argv) {
                     attic_stairwell_spawn_exit_door();
                 cdaudio_play(CDAUDIO_PIANO_TRACK, 1);      /* shares the conservatory's music */
             } else if (pending_area == STATE_ATTIC_EXIT) {
-                attic_exit_init();  /* only one way in: the south-wall door */
+                attic_exit_init();  /* defaults to the south-wall door */
+                /* Coming back down from the Garden Stairs, arrive at the north
+                   exit door instead. */
+                if (current_area == STATE_GARDEN_STAIRS)
+                    attic_exit_spawn_north();
                 cdaudio_play(CDAUDIO_PIANO_TRACK, 1);      /* shares the conservatory's music */
+            } else if (pending_area == STATE_GARDEN_STAIRS) {
+                garden_stairs_init();  /* only one way in: the exit door, at the
+                                          TOP of the stairs */
+                cdaudio_play(CDAUDIO_PIANO_TRACK, 1);      /* shares the attic music */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
@@ -1049,7 +1082,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_LIBRARY ||
                    game_state == STATE_EAST_STAIRWELL ||
                    game_state == STATE_ATTIC_STAIRWELL ||
-                   game_state == STATE_ATTIC_EXIT) {
+                   game_state == STATE_ATTIC_EXIT ||
+                   game_state == STATE_GARDEN_STAIRS) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

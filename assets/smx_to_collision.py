@@ -237,19 +237,35 @@ def extract_walls(vertices, primitives):
 
 
 def deduplicate_walls(walls, tolerance=50):
-    """Remove near-duplicate walls."""
+    """Collapse near-duplicate walls, UNIONING their vertical extents.
+
+    A room modelled storey by storey repeats the same wall line once per floor:
+    the Garden Stairs' shaft has five stacked quads on each outer wall. This used
+    to DISCARD the duplicates, which kept only the first one's y_min/y_max — so
+    with CollisionRoom.multi_level set (which Y-gates every wall) the wall existed
+    on exactly one storey and the player walked straight through it on all the
+    others. Merging the Y spans instead yields one full-height wall, which is
+    what a stack of quads sharing an XZ line physically is.
+
+    Flat rooms are unaffected: their duplicates already share a Y range, so the
+    union is a no-op and the output is byte-identical.
+    """
     unique = []
     for w in walls:
-        is_dup = False
+        dup = None
         for u in unique:
             if (abs(w['x1']-u['x1']) < tolerance and
                 abs(w['z1']-u['z1']) < tolerance and
                 abs(w['x2']-u['x2']) < tolerance and
                 abs(w['z2']-u['z2']) < tolerance):
-                is_dup = True
+                dup = u
                 break
-        if not is_dup:
+        if dup is None:
             unique.append(w)
+        else:
+            # y_min is the TOP (most negative), y_max the bottom.
+            dup['y_min'] = min(dup['y_min'], w['y_min'])
+            dup['y_max'] = max(dup['y_max'], w['y_max'])
     return unique
 
 

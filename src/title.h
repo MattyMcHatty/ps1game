@@ -23,6 +23,7 @@ typedef enum {
                              landing) and the library's single door (east landing) */
     STATE_ATTIC_STAIRWELL, /* attic, up the stairs at the east landing's east wall */
     STATE_ATTIC_EXIT,  /* caged attic room north of the attic stairwell's west room */
+    STATE_GARDEN_STAIRS, /* caged switchback stairway behind the attic exit's door */
 } GameState;
 
 extern GameState game_state;

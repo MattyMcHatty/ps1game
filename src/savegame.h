@@ -10,7 +10,9 @@
    SaveData frame later. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   10            /* v10: persistent puzzle/world flag word
+#define SAVE_VERSION   11            /* v11: 5-block chain (the garden stairs,
+                                        room 12, outgrew four);
+                                        v10: persistent puzzle/world flag word
                                         (game_flags — the piano puzzle);
                                         v9: per-type ammo reserves + chambered
                                         type (Flame Rounds); v8: 4-block chain
@@ -27,7 +29,7 @@
    blocks, at 128 bytes per frame. world.c static-asserts sizeof(WorldState)
    against this — bump SAVE_WORLD_BLOCKS if a new room breaks it (each extra
    block is one more memory-card block consumed per save). */
-#define SAVE_WORLD_BLOCKS  4
+#define SAVE_WORLD_BLOCKS  5
 #define SAVE_WORLD_MAX_BYTES ((61 + (SAVE_WORLD_BLOCKS - 1) * 64) * 128)
 
 typedef struct {
