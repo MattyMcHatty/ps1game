@@ -64,6 +64,14 @@ KNOWN_STREAM_PAIRS = [
     ("brick_wall.tim",     "xt_dr_lckd.tim"),# attic exit streams its locked exit door
     ("grss.tim",           "xt_dr_lckd.tim"),# over the same delivery slot that already
     ("bed.tim",            "xt_dr_lckd.tim"),# holds brick_wall / grss / bed
+    # The unlocked exit door is a straight re-upload of the xt_dr_lckd slot (same
+    # rect AND same CLUT rect), swapped in when the exit-door puzzle is solved,
+    # so it inherits every one of xt_dr_lckd's sharing relationships — exactly as
+    # piano_keys_full does for piano_keys above.
+    ("xt_dr_lckd.tim",     "xt_dr_cmplt.tim"),
+    ("brick_wall.tim",     "xt_dr_cmplt.tim"),
+    ("grss.tim",           "xt_dr_cmplt.tim"),
+    ("bed.tim",            "xt_dr_cmplt.tim"),
 ]
 
 def read_tim(path):

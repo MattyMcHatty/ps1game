@@ -109,10 +109,15 @@ static int      interact_prev = 1;      /* interact-Circle edge-detect          
 
 int stove_puzzle_active(void) { return state != SP_IDLE; }
 
-/* Owning the stone IS the completion flag — it rides along in the save file, so
-   a loaded game never re-opens a solved puzzle. */
+/* Owning the stone USED to be the completion flag on its own, but the Attic
+   Exit's door puzzle consumes it — so a cook that has happened is now recorded
+   in FLAG_STOVE_SOLVED, and spending the stone no longer re-opens the burner.
+   The stone is still accepted as proof: saves written before that flag existed
+   carry the stone but not the bit, and the debug menu's HAS KEY STONES grant
+   hands one out without ever lighting the stove. */
 int stove_puzzle_solved(void) {
-    return (player_items & (1 << ITEM_GREEN_KEY_STONE)) != 0;
+    return game_flag(FLAG_STOVE_SOLVED) ||
+           (player_items & (1 << ITEM_GREEN_KEY_STONE)) != 0;
 }
 
 void stove_puzzle_arm(void) {
@@ -186,6 +191,7 @@ static void try_cook(void) {
 
 static void finish_cook(void) {
     kitchen_stove_set_lit(0);
+    game_flag_set(FLAG_STOVE_SOLVED);
     player_items |= (1 << ITEM_GREEN_KEY_STONE);
     sound_play(SFX_PICKUP);
     show_pickup_msg_raw("Received Green Key Stone");

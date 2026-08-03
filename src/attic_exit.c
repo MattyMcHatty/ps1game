@@ -20,6 +20,7 @@
 #include "chainlink_door.h"
 #include "lever.h"
 #include "lightswitch_puzzle.h"
+#include "exit_door_puzzle.h"
 #include "player.h"          /* game_flag: has the cage already been opened? */
 #include "save_point.h"
 #include "zombie.h"
@@ -80,6 +81,12 @@ static const struct { const char *file; int slot; } new_tex[ATTIC_EXIT_NEW_TEX] 
     { "\\TEX\\XTDRLCKD.TIM;1", 5 },
 };
 
+/* The UNLOCKED exit door. xt_dr_cmplt.tim is built at the SAME VRAM rect AND
+   the same CLUT slot as xt_dr_lckd, so solving the puzzle is a bare re-upload
+   over the top and every baked UV, tpage and clut in the tex map stays valid —
+   the trick the piano's repaired keyboard plays (see piano_props.c). */
+static int cmplt_tex_id = -1;
+
 static uint16_t tex_tpage[ATTIC_EXIT_TEX_COUNT];
 static uint16_t tex_clut[ATTIC_EXIT_TEX_COUNT];
 
@@ -136,6 +143,7 @@ void attic_exit_load_assets(void) {
         tex_tpage[slot] = texmgr_tpage(new_tex_id[i]);
         tex_clut[slot]  = texmgr_clut(new_tex_id[i]);
     }
+    cmplt_tex_id = texmgr_register("\\TEX\\XTDRCMPL.TIM;1");
 
     /* Owned by the East Stairwell, whose narrow upload attic_exit_upload_textures
        calls. Header only — no LoadImage, no second RAM copy. */
@@ -151,10 +159,26 @@ void attic_exit_load_assets(void) {
 /* Upload the streamed textures from their resident RAM copies. Pure LoadImage
    — no CD access — safe during the room transition (the caller DrawSyncs first,
    as main's STATE_LOADING does). */
+/* Which of the two door TIMs the next upload (and the current VRAM contents)
+   should be. Falls back to the locked art if the unlocked one failed to
+   register, the same defensive fallback the piano's repaired keyboard uses. */
+static int door_tex_id(void) {
+    return (game_flag(FLAG_EXIT_DOOR_UNLOCKED) && cmplt_tex_id >= 0)
+           ? cmplt_tex_id : new_tex_id[0];
+}
+
 void attic_exit_upload_textures(void) {
-    for (int i = 0; i < ATTIC_EXIT_NEW_TEX; i++)
-        texmgr_upload(new_tex_id[i]);       /* xt_dr_lckd -> brick_wall slot */
+    texmgr_upload(door_tex_id());           /* exit door  -> brick_wall slot */
     east_stairwell_upload_chnlnk();         /* chnlnk     -> gravel slot     */
+}
+
+/* Solving the exit-door puzzle: put the unlocked art up NOW, mid-room. A pure
+   LoadImage out of the texmgr's RAM copy, so no CD access — safe during
+   gameplay (again, as piano_props_repair_keys is). The caller has already set
+   FLAG_EXIT_DOOR_UNLOCKED, so door_tex_id picks the new art here and on every
+   later entry. */
+void attic_exit_unlock_door(void) {
+    texmgr_upload(door_tex_id());
 }
 
 /* ---- The south-wall door back to the Attic Stairwell -----------------------
@@ -248,6 +272,10 @@ void attic_exit_apply_flags(void) {
        light pairing has a single source of truth — see lightswitch_puzzle.c. */
     levers_clear();
     lightswitch_place();
+
+    /* The exit-door board never survives a room change: its own solved state
+       lives in FLAG_EXIT_DOOR_UNLOCKED, which this re-reads. */
+    exit_door_puzzle_arm();
 }
 
 void attic_exit_init(void) {
@@ -502,4 +530,6 @@ void attic_exit_draw(RenderContext *ctx) {
     item_pickups_draw(ctx);
 
     door_text(ctx);
+    exit_door_prompt_draw(ctx);  /* the north-wall exit door's own sign */
+    exit_door_puzzle_draw(ctx);  /* its 2D board, when the puzzle is open */
 }

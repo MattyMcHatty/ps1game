@@ -53,6 +53,7 @@
 #include "attic_stairwell.h"
 #include "attic_exit.h"
 #include "lightswitch_puzzle.h"
+#include "exit_door_puzzle.h"
 #include "chainlink_door.h"
 #include "lever.h"
 #include "trick_drawers.h"
@@ -116,6 +117,7 @@ void reset_game(RenderContext *ctx) {
     kitchen_stove_reset();
     stove_puzzle_arm();      /* drop any in-progress cook, clear the board */
     piano_puzzle_arm();      /* ...and any in-progress piano key placement  */
+    exit_door_puzzle_arm();  /* ...and any keystones left in the exit door  */
     cam_pitch = 0;           /* a puzzle camera never survives a reset */
     {
         int k;
@@ -191,6 +193,17 @@ static void update_current_area(GameState area) {
        winching up, nothing else in the room runs. */
     if (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) {
         lightswitch_update();
+        return;
+    }
+    /* The same room's exit-door puzzle DOES take the camera and input for its
+       whole duration, like the stove board. Enemies keep running: the player is
+       stood at the door the whole time. */
+    if (area == STATE_ATTIC_EXIT && exit_door_puzzle_active()) {
+        update_zombies();
+        update_spiders();
+        webs_update();
+        player_status_update();
+        exit_door_puzzle_update();
         return;
     }
     update_camera();
@@ -369,10 +382,23 @@ static void update_current_area(GameState area) {
         update_spiders();
         item_pickups_update();
         if (!lock) lightswitch_update();   /* the four levers + their light cones */
+        /* The north-wall exit door: its keystone board, or — once unlocked —
+           the press that walks through it. */
+        if (!lock && !lightswitch_puzzle_active()) exit_door_puzzle_update();
         /* A Circle that just tripped the payoff must not also be read as the
            exit door: the cutscene has already flung the camera across the room
-           by the time this runs. */
-        if (!lock && !lightswitch_puzzle_active() && attic_exit_door_triggered()) {
+           by the time this runs. Nor may one press work both doors at once —
+           they are at opposite ends of the room, so only the range check keeps
+           them apart, but the puzzle's own Circle edge state is separate. */
+        if (!lock && exit_door_exit_triggered()) {
+            /* TEMPORARY: nothing is built behind the exit door yet, so walking
+               through it drops the player back at this room's own entrance. */
+            pending_area = STATE_ATTIC_EXIT;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (!lock && !lightswitch_puzzle_active() &&
+                   !exit_door_puzzle_active() && attic_exit_door_triggered()) {
             /* South through the door, back into the Attic Stairwell. */
             pending_area = STATE_ATTIC_STAIRWELL;
             door_anim_start(DOOR_PANEL_WOOD);
@@ -674,6 +700,7 @@ int main(int argc, const char **argv) {
     east_stairwell_load_assets();/* east stairwell geometry + streamed textures */
     attic_stairwell_load_assets();/* attic stairwell geometry + streamed textures */
     attic_exit_load_assets();  /* attic exit geometry + streamed textures */
+    exit_door_puzzle_load_assets();/* the exit door's fixed magenta stone icon */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -1039,7 +1066,8 @@ int main(int argc, const char **argv) {
                              (area == STATE_KITCHEN_DINING && stove_puzzle_active()) ||
                              (area == STATE_PIANO_ROOM && piano_puzzle_active()) ||
                              (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
-                             (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active());
+                             (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) ||
+                             (area == STATE_ATTIC_EXIT && exit_door_puzzle_active());
                 if (!puzzle) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);

@@ -2,12 +2,13 @@
 #include "player.h"
 #include "copper_pot.h"
 
-int debug_opts[DEBUG_OPT_COUNT] = { 0, 0, 0, 0, 0 };   /* all cheats off by default */
+int debug_opts[DEBUG_OPT_COUNT] = { 0, 0, 0, 0, 0, 0 };   /* all cheats off by default */
 
 const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "HAS GRAVE-OLVER",
     "HAS WAX AND POT",
     "HAS PIANO KEY",
+    "HAS KEY STONES",
     "INFINITE LIFE",
     "INFINITE STAMINA",
 };
@@ -54,5 +55,29 @@ void debug_opts_apply_grants(void) {
            menu_init both LoadImage it once at startup and no room streams over
            it — so the menu icon is already correct on a direct jump. */
         player_items |= (1 << ITEM_PIANO_KEY);
+    }
+
+    if (debug_opts[DBG_HAS_KEY_STONES]) {
+        /* All three stones the Attic Exit's door puzzle asks for, so a direct
+           jump into that room can be played end to end without first cooking the
+           green one on the kitchen stove, assembling the Anzu tablet for the
+           yellow, or collecting the blue off the Attic Stairwell altar.
+
+           Side effect worth knowing: this also retires the stove puzzle for the
+           session, and says so explicitly via FLAG_STOVE_SOLVED. Owning the
+           green stone alone would do it (stove_puzzle_solved still accepts the
+           stone as proof), but the exit-door puzzle SPENDS the stone — without
+           the flag the burner would come back to life the moment it did, ready
+           to cook a second one.
+
+           No texture upload to match the pot's above — for the same reason as
+           the piano key. grn_ky_stn (552,256), ylw_ky_stn (560,256) and
+           bl_ky_stn (624,256) each own their VRAM outright: nothing streams over
+           them, and menu_init LoadImages all three once at startup, so the menu
+           icons are already correct on a direct jump. */
+        player_items |= (1 << ITEM_GREEN_KEY_STONE)  |
+                        (1 << ITEM_YELLOW_KEY_STONE) |
+                        (1 << ITEM_BLUE_KEY_STONE);
+        game_flag_set(FLAG_STOVE_SOLVED);
     }
 }

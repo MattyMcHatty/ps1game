@@ -28,10 +28,11 @@ extern int     player_items;   /* bitmask — bit ItemType set means it is held 
 
 /* --- Persistent world/puzzle flags ------------------------------------------
    One saved bitmask for "this has happened and must stay happened", for events
-   that award no item to hang the flag on. The stove puzzle does NOT use this
-   (owning the Green Key Stone is its own completion flag); the piano puzzle does
-   — it consumes the Piano Key and leaves nothing behind, so without a flag a
-   reloaded save would put the bookcase back.
+   that award no item to hang the flag on, or whose award can later be spent.
+   The piano puzzle needs one because it consumes the Piano Key and leaves
+   nothing behind, so without a flag a reloaded save would put the bookcase back.
+   The stove puzzle used to hang off simply owning the Green Key Stone, but the
+   Attic Exit's door puzzle now CONSUMES that stone, so it needs a flag too.
 
    ADDING A FLAG: add a GameFlag before MAX_GAME_FLAGS. The bits ride in
    SaveData.flags, so the word is saved and restored wholesale — no save-format
@@ -40,6 +41,8 @@ typedef enum {
     FLAG_PIANO_SOLVED = 0,   /* Piano Key placed: keys repaired, bookcase sunk */
     FLAG_ANZU_SOLVED,        /* Anzu Tablet assembled: tablets gone, room music changed */
     FLAG_LIGHTS_SOLVED,      /* Attic Exit lightswitches set: the cage gate is winched away */
+    FLAG_EXIT_DOOR_UNLOCKED, /* Attic Exit keystones placed: the exit door is open */
+    FLAG_STOVE_SOLVED,       /* Kitchen stove cooked: the Green Key Stone was awarded */
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

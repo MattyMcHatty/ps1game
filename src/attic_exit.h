@@ -14,15 +14,21 @@
                in is that gap.
      SOUTH     the wd_dr door at x[-500,-300], z=-1000 — back to the Attic
      WALL      Stairwell's west room (its north-wall door at x=-1942, z=350).
-     NORTH     the xt_dr_lckd exit door at x[-225,225], z=1000, inside the cage.
-     WALL      It is SCENERY for now: the art is the locked state (the unlocked
-               xt_dr_cmplt variant exists but nothing swaps it in yet), and no
-               room is wired behind it.
+     NORTH     the xt_dr_lckd exit door at x[-225,225], y[-467,0], z=1000,
+     WALL      inside the cage. It carries the exit-door keystone puzzle (see
+               exit_door_puzzle.c); solving it swaps the art to xt_dr_cmplt. No
+               room is wired behind it yet — the open door TEMPORARILY sends the
+               player back to this room's own entrance.
 
    Rendered the same way as the Attic Stairwell (per-poly tex map + 128 texture
    window + fog). */
 void attic_exit_load_assets(void);     /* startup: geometry + texture registration */
 void attic_exit_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
+
+/* Exit-door puzzle solved: put the unlocked xt_dr_cmplt art up straight away.
+   The caller must have set FLAG_EXIT_DOOR_UNLOCKED first — that flag is what
+   picks the art on every subsequent room entry too. */
+void attic_exit_unlock_door(void);
 void attic_exit_init(void);            /* set collision/floor zones + spawn */
 
 /* Place the cage gate and the four lightswitch levers according to the CURRENT

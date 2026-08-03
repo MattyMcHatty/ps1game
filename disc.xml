@@ -186,6 +186,16 @@
                 <file name="ANZU5.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu5.tim"/>
                 <file name="ANZU6.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu6.tim"/>
                 <file name="YLKYSTN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\ylw_ky_stn.tim"/>
+                <!-- The Attic Exit's exit-door puzzle. XTDRCMPL.TIM is the
+                     UNLOCKED door art, built at the SAME VRAM slot and CLUT slot
+                     as XTDRLCKD.TIM above, so solving the puzzle just re-uploads
+                     over it and every baked UV/tpage/clut stays valid (the same
+                     trick PIANOFUL.TIM plays on PIANOKEY.TIM).
+                     MGNKYSTN.TIM is the fixed magenta stone in the board's
+                     bottom socket — a permanently resident 32x32 icon, not a
+                     streamed slot. -->
+                <file name="XTDRCMPL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_cmplt.tim"/>
+                <file name="MGNKYSTN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\mgn_ky_stn.tim"/>
             </dir>
         </directory_tree>
     </track>
