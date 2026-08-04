@@ -24,6 +24,7 @@ typedef enum {
     STATE_ATTIC_STAIRWELL, /* attic, up the stairs at the east landing's east wall */
     STATE_ATTIC_EXIT,  /* caged attic room north of the attic stairwell's west room */
     STATE_GARDEN_STAIRS, /* caged switchback stairway behind the attic exit's door */
+    STATE_GARDEN_COURTYARD, /* walled garden at the foot of the garden stairs */
 } GameState;
 
 extern GameState game_state;

@@ -65,6 +65,8 @@ add_executable(horror_game
     src/attic_exit.c
     src/garden_stairs_mesh_collision.c
     src/garden_stairs.c
+    src/garden_courtyard_mesh_collision.c
+    src/garden_courtyard.c
     src/chainlink_door.c
     src/lever.c
     src/lightswitch_puzzle.c

@@ -211,6 +211,12 @@
                      fills their own slots with brick_wall and chnlnk. -->
                 <file name="GRSSGS.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\grss_gs.tim"/>
                 <file name="GRAVELGS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gravel_gs.tim"/>
+
+                <!-- Garden Courtyard: the walled garden at the foot of the
+                     Garden Stairs. Geometry only — every one of its five
+                     textures is already on the disc for the Garden Stairs,
+                     whose uploads it reuses wholesale. -->
+                <file name="GRDNCRTY.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\garden_courtyard.smd"/>
             </dir>
         </directory_tree>
     </track>
@@ -226,6 +232,9 @@
 
     <!-- Track 5: piano room music AFTER the Anzu Tablet puzzle is solved -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\farran_ez-minimal-piano-underscore-456148.wav"/>
+
+    <!-- Track 6: garden courtyard music -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\33446737-the-vampires-monster-menu-games-236772.wav"/>
 
 
 </iso_project>

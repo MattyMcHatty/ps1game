@@ -6,6 +6,11 @@
 
 #define MAX_SML_MEDS          8
 #define SML_MED_PICKUP_RADIUS 200
+/* Vertical reach, paired with the radius above. Needed because the Garden
+   Stairs stacks landings over one XZ footprint: without it, walking the landing
+   two flights up collects the medipac on the floor below. Both bounds are
+   tight-ish, so do not retune casually — see the note in sml_meds_update(). */
+#define SML_MED_PICKUP_HEIGHT 300
 
 typedef struct {
     int32_t x, y, z;

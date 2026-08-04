@@ -106,6 +106,17 @@ void sml_meds_update(void) {
 
         m->bob_angle = (m->bob_angle + SML_MED_BOB_RATE) & 4095;
 
+        /* Vertical gate. SML_MED_PICKUP_HEIGHT (300) has to sit between two
+           real numbers, which is why it is neither generous nor tiny:
+             - it must EXCEED 127, the largest legitimate eye-to-medipac gap —
+               the one dropped by a smashed crate (crate y=37, so the medipac
+               lands at 87, while the player's eye on that floor is at -40);
+             - it must FALL SHORT of 690, the gap to the Garden Stairs landing
+               one flight above a floor-level medipac (eye -789 vs y -99).
+           A floor-level medipac on the player's own level reads 90. */
+        int32_t dy   = m->y - cam_y;
+        if ((dy < 0 ? -dy : dy) >= SML_MED_PICKUP_HEIGHT) continue;
+
         int32_t dx   = m->x - cam_x;
         int32_t dz   = m->z - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);

@@ -53,6 +53,7 @@
 #include "attic_stairwell.h"
 #include "attic_exit.h"
 #include "garden_stairs.h"
+#include "garden_courtyard.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -412,14 +413,46 @@ static void update_current_area(GameState area) {
            generic over current_collision_room, and apply_height picks the right
            landing/flight out of the stacked floor zones (see the ordering note
            in garden_stairs_floor_zones_init). */
+        save_points_update();
         apply_collision_reception();
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
         item_pickups_update();
-        if (!lock && garden_stairs_door_triggered()) {
+        sml_meds_update();     /* the bottom landing's medipac */
+        if (!lock && save_point_triggered()) {
+            /* Save point on the top east landing; current_area is already
+               STATE_GARDEN_STAIRS, so the menu returns here. */
+            save_menu_open();
+            game_state = STATE_SAVE_MENU;
+        } else if (!lock && garden_stairs_door_triggered()) {
             /* South through the exit door, back into the Attic Exit. */
             pending_area = STATE_ATTIC_EXIT;
+            door_anim_start(DOOR_PANEL_EXIT);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (!lock && garden_stairs_cg_door_triggered()) {
+            /* West through the cage door at the bottom, out into the Garden
+               Courtyard. Same two-leaf transition as the exit door above —
+               it is the same kind of caged double gate. */
+            pending_area = STATE_GARDEN_COURTYARD;
+            door_anim_start(DOOR_PANEL_EXIT);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_GARDEN_COURTYARD) {
+        /* Flat-ish walled garden: three terraces a step apart, so the shared
+           wall collision routine (generic over current_collision_room) and
+           apply_height's non-overlapping floor zones handle it between them. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed yet, but keeps the room uniform */
+        update_spiders();
+        item_pickups_update();
+        sml_meds_update();
+        if (!lock && garden_courtyard_door_triggered()) {
+            /* East through the cage door, back onto the Garden Stairs. */
+            pending_area = STATE_GARDEN_STAIRS;
             door_anim_start(DOOR_PANEL_EXIT);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -568,6 +601,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         attic_exit_draw(ctx);
     else if (area == STATE_GARDEN_STAIRS)
         garden_stairs_draw(ctx);
+    else if (area == STATE_GARDEN_COURTYARD)
+        garden_courtyard_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -723,6 +758,7 @@ int main(int argc, const char **argv) {
     attic_exit_load_assets();  /* attic exit geometry + streamed textures */
     exit_door_puzzle_load_assets();/* the exit door's fixed magenta stone icon */
     garden_stairs_load_assets();/* garden stairs geometry + streamed textures */
+    garden_courtyard_load_assets();/* garden courtyard geometry + texture headers */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -841,6 +877,9 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_GARDEN_STAIRS) {
                 garden_stairs_upload_textures(); /* xt_dr_cg + xt_dr_outr
                                                     + brick_wall + chnlnk */
+            } else if (pending_area == STATE_GARDEN_COURTYARD) {
+                garden_courtyard_upload_textures(); /* the same slot set — it
+                                                       delegates to the above */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -1017,13 +1056,20 @@ int main(int argc, const char **argv) {
                     attic_exit_spawn_north();
                 cdaudio_play(CDAUDIO_PIANO_TRACK, 1);      /* shares the conservatory's music */
             } else if (pending_area == STATE_GARDEN_STAIRS) {
-                garden_stairs_init();  /* only one way in: the exit door, at the
-                                          TOP of the stairs */
+                garden_stairs_init();  /* defaults to the exit door, at the TOP
+                                          of the stairs */
+                /* Coming back up out of the Garden Courtyard, arrive at the cage
+                   door on the BOTTOM landing instead. */
+                if (current_area == STATE_GARDEN_COURTYARD)
+                    garden_stairs_spawn_bottom();
                 /* NO music here — the stairway is silent by design. Stopped
                    rather than merely not started, so a title-screen load or a
                    debug level-select jump (neither of which passes through the
                    door transition's cdaudio_stop) also arrives in silence. */
                 cdaudio_stop();
+            } else if (pending_area == STATE_GARDEN_COURTYARD) {
+                garden_courtyard_init();  /* only one way in: the east cage door */
+                cdaudio_play(CDAUDIO_COURTYARD_TRACK, 1);  /* the garden's own track */
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
@@ -1091,7 +1137,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_EAST_STAIRWELL ||
                    game_state == STATE_ATTIC_STAIRWELL ||
                    game_state == STATE_ATTIC_EXIT ||
-                   game_state == STATE_GARDEN_STAIRS) {
+                   game_state == STATE_GARDEN_STAIRS ||
+                   game_state == STATE_GARDEN_COURTYARD) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

@@ -23,6 +23,7 @@
 #include "spider.h"
 #include "web.h"
 #include "item_pickup.h"
+#include "sml_med.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -279,10 +280,27 @@ void garden_stairs_upload_textures(void) {
    is set explicitly. */
 #define GS_TOP_EYE_Y   (-1500 - GROUND_FLOOR_Y - 40)
 
-/* Circle edge-detect, seeded by garden_stairs_door_arm(). Starts "held" so a
-   press carried in through the transition doesn't bounce the player straight
-   back. */
-static int door_circle_prev = 1;
+/* ---- The west-wall cage door onto the Garden Courtyard ---------------------
+   The xt_dr_cg poly spans z[1717,2167] at x=-2140, on the BOTTOM landing
+   (floor y=0), in the run of walls 6-9 whose normals face +X — so the player
+   approaches it from +X, and travels -X through it.
+
+   Was scenery when this room was added; it now opens onto the Garden Courtyard,
+   whose own east wall carries the identical leaf. */
+#define GS_CG_DOOR_X          (-2140)
+#define GS_CG_DOOR_Z            1942   /* (1717 + 2167) / 2 */
+#define GS_CG_TEXT_Y           (-186)  /* eye level on the bottom landing */
+
+/* Bottom-landing standing eye: floor y=0, less GROUND_FLOOR_Y and the 40-unit
+   floor standoff. Stated for the same reason GS_TOP_EYE_Y is — arriving with
+   the wrong cam_y drops the player through the stacked floor zones. */
+#define GS_BOTTOM_EYE_Y   (0 - GROUND_FLOOR_Y - 40)
+
+/* Circle edge-detect, one per door, seeded by the *_arm()s. Both start "held"
+   so a press carried in through the transition doesn't bounce the player
+   straight back. */
+static int door_circle_prev = 1;   /* south exit door, top landing    */
+static int cg_circle_prev   = 1;   /* west cage door, bottom landing  */
 
 static int circle_held(void) {
     if (!pad_buff_len[0]) return 0;
@@ -290,20 +308,52 @@ static int circle_held(void) {
     return (~pad->btn & PAD_CIRCLE) ? 1 : 0;
 }
 
+/* Shared body: a fresh Circle press with the player inside GS_TRIGGER_RADIUS
+   (Manhattan) of the door. Each door keeps its own edge state so one press can
+   never work both — they are at opposite ends of the shaft, but the two are
+   sampled independently regardless. */
+static int door_triggered_at(int32_t door_x, int32_t door_z, int *prev) {
+    int held = circle_held();
+    int just = held && !*prev;
+    *prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - door_z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < GS_TRIGGER_RADIUS;
+}
+
 void garden_stairs_door_arm(void) {
     door_circle_prev = circle_held();
 }
 
 int garden_stairs_door_triggered(void) {
-    int held = circle_held();
-    int just = held && !door_circle_prev;
-    door_circle_prev = held;
-    if (!just) return 0;
+    return door_triggered_at(GS_DOOR_X, GS_DOOR_Z, &door_circle_prev);
+}
 
-    int32_t dx = cam_x - GS_DOOR_X;
-    int32_t dz = cam_z - GS_DOOR_Z;
+void garden_stairs_cg_door_arm(void) {
+    cg_circle_prev = circle_held();
+}
+
+int garden_stairs_cg_door_triggered(void) {
+    return door_triggered_at(GS_CG_DOOR_X, GS_CG_DOOR_Z, &cg_circle_prev);
+}
+
+/* Distance fade shared by both door signs: full brightness inside
+   GS_FADE_NEAR, out to nothing at GS_TEXT_RADIUS. Returns -1 when the player is
+   too far away for the sign to be drawn at all. */
+static int door_text_fade(int32_t door_x, int32_t door_z) {
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - door_z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < GS_TRIGGER_RADIUS;
+    if (xz >= GS_TEXT_RADIUS) return -1;
+    if (xz <= GS_FADE_NEAR)   return 256;
+
+    int range = GS_TEXT_RADIUS - GS_FADE_NEAR;
+    int prog  = xz - GS_FADE_NEAR;
+    if (prog > range) prog = range;
+    return 256 - ((prog * 256) / range);
 }
 
 /* Floating "Press O to enter" sign on the south-wall door. XY plane:
@@ -311,22 +361,25 @@ int garden_stairs_door_triggered(void) {
    so pass door_x - 200. Sits just north (z+11) of the wall so it floats in
    front of the door. */
 static void door_text(RenderContext *ctx) {
-    int32_t dx = cam_x - GS_DOOR_X;
-    int32_t dz = cam_z - GS_DOOR_Z;
-    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    if (xz >= GS_TEXT_RADIUS) return;
-
-    int fade = 256;
-    if (xz > GS_FADE_NEAR) {
-        int range = GS_TEXT_RADIUS - GS_FADE_NEAR;
-        int prog  = xz - GS_FADE_NEAR;
-        if (prog > range) prog = range;
-        fade = 256 - ((prog * 256) / range);
-    }
+    int fade = door_text_fade(GS_DOOR_X, GS_DOOR_Z);
+    if (fade < 0) return;
 
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
                         GS_DOOR_X - 200, GS_TEXT_Y, GS_DOOR_Z + 11,
                         50, 255, 50, fade, 1, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+}
+
+/* Same sign on the west-wall cage door, but reading "to exit" — this is the way
+   OUT of the mansion, into the open garden. YZ plane: the reading axis is Z, so
+   pass door_z - 200; approached from +X, hence mirror=0, and offset +11 in X to
+   float it on the player's side of the wall. */
+static void cg_door_text(RenderContext *ctx) {
+    int fade = door_text_fade(GS_CG_DOOR_X, GS_CG_DOOR_Z);
+    if (fade < 0) return;
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to exit",
+                        GS_CG_DOOR_X + 11, GS_CG_TEXT_Y, GS_CG_DOOR_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
 /* Arriving from the Attic Exit: stand on the top landing north of the z=1117
@@ -340,6 +393,22 @@ void garden_stairs_spawn_top(void) {
     cam_z   = GS_DOOR_Z + GS_WALL_RADIUS + 25;
     cam_rot = 0;      /* facing +Z, into the room */
     garden_stairs_door_arm();
+    garden_stairs_cg_door_arm();
+    save_point_arm();
+}
+
+/* Arriving from the Garden Courtyard: stand on the bottom landing east of the
+   x=-2140 wall, clear of this room's GS_WALL_RADIUS push, facing +X — the
+   direction of travel through the door, with the first flight ahead. */
+void garden_stairs_spawn_bottom(void) {
+    cam_x   = GS_CG_DOOR_X + GS_WALL_RADIUS + 25;
+    cam_y   = GS_BOTTOM_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = GS_CG_DOOR_Z;
+    cam_rot = 1024;   /* facing +X, into the room */
+    garden_stairs_door_arm();
+    garden_stairs_cg_door_arm();
+    save_point_arm();
 }
 
 void garden_stairs_init(void) {
@@ -354,12 +423,22 @@ void garden_stairs_init(void) {
     /* Only one way in, so no per-door override is needed in main.c. */
     garden_stairs_spawn_top();
 
-    /* Reception's save point and dresser prop are global (not room-swapped) and
-       neither is area-gated in its collide routine, so reception's instances
-       would block the player invisibly if they fell inside this room's bounds.
-       Clearing them is safe: reception_init() re-places both on every reception
-       entry. */
+    save_point_arm();   /* don't re-trigger on a held Circle from the entry */
+
+    /* Save points and dresser props are global (not room-swapped) and neither is
+       area-gated in its collide routine, so reception's instances would block
+       the player invisibly if they fell inside this room's bounds. Clearing is
+       safe: reception_init() re-places both on every reception entry.
+
+       This room's own save point then goes on the TOP EAST landing (floor
+       y=-1500), a little west of the shaft's east wall and north of the exit
+       door, so it is neither in the doorway nor inside the wall standoff.
+       y is the floor less 300 and rot/scale are reception's, so it reads as the
+       identical prop; the -300 is what puts the model's base where reception's
+       sits relative to its own floor. */
     save_points_clear();
+    save_point_add(401, -1800, 1951, 512, 2048);
+
     dressers_clear();
 }
 
@@ -593,6 +672,15 @@ void garden_stairs_draw(RenderContext *ctx) {
     draw_spiders(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
+    /* Small medipac at the bottom of the shaft. Its TIM sits at Voff 0 (VRAM
+       y=256), so it is safe under the 128 window set above without bracketing
+       of its own. */
+    sml_meds_draw(ctx);
+    /* Save point on the top east landing. Untextured flat-shaded prims, so the
+       room's texture window is irrelevant to it; restores the view matrix before
+       returning, which is why the door prompt below still projects correctly. */
+    save_points_draw(ctx);
 
     door_text(ctx);
+    cg_door_text(ctx);
 }

@@ -14,10 +14,10 @@
 #include "savegame.h"
 #include "sound.h"
 
-#define WORLD_NUM_ROOMS 13  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 14  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
-                               attic_exit, garden_stairs */
+                               attic_exit, garden_stairs, garden_courtyard */
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below; this
    is the per-room unit a save file would store. */
@@ -83,6 +83,7 @@ static int room_index(GameState area) {
         case STATE_ATTIC_STAIRWELL:return 10;
         case STATE_ATTIC_EXIT:     return 11;
         case STATE_GARDEN_STAIRS:  return 12;
+        case STATE_GARDEN_COURTYARD: return 13;
         default:                   return 0;
     }
 }
@@ -341,6 +342,34 @@ void world_enter(GameState area) {
         if (area == STATE_ATTIC_STAIRWELL) {
             item_pickup_spawn_amount(-2280, -117, -355, PICKUP_PIANO_KEY,      1);
             item_pickup_spawn_amount(-2280, -117, -195, PICKUP_BLUE_KEY_STONE, 1);
+        }
+
+        /* Garden Stairs: two boxes of rounds on the MIDDLE WEST landing (floor
+           y=-600), the one you reach after two flights down. Both hug the
+           shaft's west wall (x=-2140) at x=-1867, one toward each end of the
+           landing, so they read as a pair without overlapping.
+
+           y=-650 is the floor-level convention: item_pickup_spawn subtracts
+           IP_FLOAT_Y=50, centring each sprite at -700 — 89 above the standing
+           eye of -789 on this landing, well inside ITEM_PICKUP_HEIGHT (150) and
+           far outside it from the landings 600 above and below.
+
+           Reach: the room's wide GS_WALL_RADIUS (260) stops the player at
+           x=-1880, only 13 from these, so both stay inside ITEM_PICKUP_RADIUS.
+           Widen that standoff and they go out of reach. One full cylinder each,
+           stated explicitly so a retune of ROUNDS_PER_PICKUP cannot change it. */
+        if (area == STATE_GARDEN_STAIRS) {
+            item_pickup_spawn_amount(-1867, -650, 1430, PICKUP_ROUNDS,
+                                     GRAVEOLVER_CAPACITY);
+            item_pickup_spawn_amount(-1867, -650, 1991, PICKUP_FLAME_ROUNDS,
+                                     GRAVEOLVER_CAPACITY);
+
+            /* Small medipac at the BOTTOM of the shaft — same west wall and z
+               as the Standard Rounds above, but on the y=0 landing two flights
+               further down, so the two never compete for a pickup. y=-149 is
+               the body reference every y=0-floor room uses; sml_med_spawn
+               lowers it 50, floating it just above the boards. */
+            sml_med_spawn(-1867, -149, 1430);
         }
 
         if (area == STATE_2F_HALL) {

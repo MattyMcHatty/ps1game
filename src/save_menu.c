@@ -14,6 +14,7 @@
 #include "savegame.h"
 #include "save_point.h"
 #include "reception.h"
+#include "garden_stairs.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -77,7 +78,8 @@ static const char *area_name(int area) {
         case STATE_EAST_STAIRWELL: return "EAST STAIRWELL";
         case STATE_ATTIC_STAIRWELL:return "ATTIC STAIRWELL";
         case STATE_ATTIC_EXIT:     return "ATTIC EXIT";
-        case STATE_GARDEN_STAIRS:  return "GARDEN STAIRS";
+        case STATE_GARDEN_STAIRS:  return "GARDEN";
+        case STATE_GARDEN_COURTYARD: return "COURTYARD";
         default:                   return "MANSION";
     }
 }
@@ -159,6 +161,11 @@ static void close_menu(void) {
        into the room and immediately re-open something. */
     save_point_arm();
     reception_door_arm();
+    /* Same for the Garden Stairs exit door — the other room a save point stands
+       in. Both arms are unconditional: arming a door in a room you are not in is
+       harmless, and the alternative (switching on current_area) has to be
+       remembered every time a save point is placed somewhere new. */
+    garden_stairs_door_arm();
     game_state = current_area;
 }
 

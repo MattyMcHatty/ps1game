@@ -33,6 +33,20 @@ static int32_t sp_half_w = 0, sp_half_d = 0;
 #define SAVE_TEXT_RISE     140   /* label height above the model's floor base   */
 #define SAVE_SPIN_SPEED      8   /* rot_y units/frame (4096 = full turn ~8.5s)  */
 
+/* Vertical reach. Every XZ test below is gated on it, because the Garden Stairs
+   stacks landings over the SAME XZ footprint: without a Y gate its save point
+   would block the player, show its label and answer Circle on all three east
+   landings at once. The shaft's landings are 600 apart and the player's eye sits
+   ~111 above a save point's own y, so 400 clears the former and admits the
+   latter with room to spare. */
+#define SAVE_POINT_Y_REACH 400
+
+/* Is `py` (a camera/eye Y) on the same level as this save point? */
+static int save_point_y_near(const SavePoint *s, int32_t py) {
+    int32_t dy = py - s->y;
+    return (dy < 0 ? -dy : dy) < SAVE_POINT_Y_REACH;
+}
+
 static void load_file(const char *name, void **buf_out) {
     CdlFILE file;
     if (!CdSearchFile(&file, name)) { *buf_out = NULL; return; }
@@ -64,13 +78,13 @@ void save_points_init(void) {
 
 /* Player collision against each save point: an axis-aligned box the size of the
    mesh footprint (scaled + rotated per instance), pushed out like the other
-   props. Single-level placement, so no Y gate. */
+   props, gated to the level the save point actually stands on. */
 void save_points_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
-    (void)py;
     int i;
     for (i = 0; i < save_point_count; i++) {
         SavePoint *s = &save_points[i];
         if (!s->active) continue;
+        if (!save_point_y_near(s, py)) continue;
 
         int32_t hw = (sp_half_w * s->scale) >> 12;
         int32_t hd = (sp_half_d * s->scale) >> 12;
@@ -139,6 +153,7 @@ int save_point_triggered(void) {
     for (i = 0; i < save_point_count; i++) {
         SavePoint *s = &save_points[i];
         if (!s->active) continue;
+        if (!save_point_y_near(s, cam_y)) continue;
         int32_t dx = cam_x - s->x, dz = cam_z - s->z;
         int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
         if (xz < SAVE_TRIGGER_RADIUS) return 1;
@@ -300,6 +315,8 @@ void save_points_draw(RenderContext *ctx) {
     for (i = 0; i < save_point_count; i++) {
         SavePoint *s = &save_points[i];
         if (!s->active) continue;
+        /* Same level only, else the label floats through the landing above. */
+        if (!save_point_y_near(s, cam_y)) continue;
 
         int32_t dx = cam_x - s->x, dz = cam_z - s->z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);

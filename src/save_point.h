@@ -31,7 +31,9 @@ void save_points_update(void); /* slow indefinite Y-axis spin */
 /* scale is fixed-point with 4096 = 1.0 (use 4096 for full size, 2048 for half). */
 int  save_point_add(int32_t x, int32_t y, int32_t z, int32_t rot_y, int32_t scale);
 void save_points_draw(RenderContext *ctx);
-/* Player collision against the save-point meshes (call from apply_collision_*). */
+/* Player collision against the save-point meshes (call from apply_collision_*).
+   Gated on py so a save point only blocks the level it stands on — the Garden
+   Stairs stacks landings over one XZ footprint. */
 void save_points_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 
 /* Circle-to-save interaction. save_point_arm() seeds the button edge detector

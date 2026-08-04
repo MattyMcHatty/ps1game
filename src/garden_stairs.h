@@ -25,8 +25,7 @@
      WALL    The OUTER face of the Attic Exit's exit door, and the only way in
              or out. The player arrives here, at the TOP of the stairs.
      WEST    the xt_dr_cg door at x=-2140, y[-573,0], z[1717,2167], on the
-     WALL    bottom landing. SCENERY for now — no room behind it yet, no
-             prompt and no trigger.
+     WALL    bottom landing, out into the Garden Courtyard.
 
    Rendered the same way as the Attic Exit (per-poly tex map + 128 texture
    window + fog). */
@@ -35,11 +34,16 @@ void garden_stairs_upload_textures(void); /* room entry: pure LoadImage from RAM
 void garden_stairs_init(void);            /* set collision/floor zones + spawn */
 void garden_stairs_draw(RenderContext *ctx);
 
-/* The south-wall door back to the Attic Exit. */
+/* The south-wall door back to the Attic Exit, at the TOP of the stairs. */
 void garden_stairs_door_arm(void);        /* seed the Circle edge state */
 int  garden_stairs_door_triggered(void);  /* 1 on a fresh Circle press in range */
 
-/* Spawn on the top landing, just inside the exit door. */
+/* The west-wall cage door onto the Garden Courtyard, at the BOTTOM. */
+void garden_stairs_cg_door_arm(void);
+int  garden_stairs_cg_door_triggered(void);
+
+/* Spawn just inside one of the two doors; each arms every interaction here. */
 void garden_stairs_spawn_top(void);
+void garden_stairs_spawn_bottom(void);
 
 #endif

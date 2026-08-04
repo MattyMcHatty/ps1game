@@ -6,6 +6,7 @@
 #define CDAUDIO_RECEPTION_TRACK 3   /* reception music */
 #define CDAUDIO_PIANO_TRACK     4   /* piano room music */
 #define CDAUDIO_ANZU_TRACK      5   /* piano room music once the Anzu Tablet is solved */
+#define CDAUDIO_COURTYARD_TRACK 6   /* garden courtyard music */
 
 void cdaudio_init(void);
 void cdaudio_play(int track, int loop);
