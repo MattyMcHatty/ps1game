@@ -93,6 +93,20 @@ int32_t collision_ceiling_y(int32_t x, int32_t z);
    tops). Call right after the room's *_collision_init(). */
 void    collision_set_ceiling_y(int32_t y);
 
+/* ---- Player wall standoff --------------------------------------------------
+   How far apply_collision_reception() holds the player off a wall. It is a
+   standoff, not a body radius: the player is stopped well back so wall polys
+   never reach the GTE's near-plane clamp and clip. 195 suits the ordinary
+   interior rooms; a room with tall wall faces the player can stand right under
+   needs more, so it is settable per room.
+
+   Call collision_set_wall_radius() from the room's *_init(), next to
+   collision_set_ceiling_y(). main.c resets it to the default before every room
+   init, so a room that says nothing gets 195 rather than inheriting whatever
+   the last room asked for. Pass 0 for the default. */
+#define COLLISION_WALL_RADIUS 195
+void    collision_set_wall_radius(int32_t r);
+
 /* Hitscan line-of-sight test: returns 1 if the straight segment from
    (ax,ay,az) to (bx,by,bz) is blocked by a wall or solid prop — i.e. a wall
    polygon lies between the two points. Uses an exact ray/segment crossing test

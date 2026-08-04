@@ -21,10 +21,15 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else 'src/garden_stairs_tex_map.h'
 
 # Engine VRAM slot for each texture name (must match src/garden_stairs.c load order).
 NAME_TO_SLOT = {
-    'brick_wall': 0,
-    'chnlnk':     1,
-    'xt_dr_cg':   2,
-    'xt_dr_outr': 3,
+    'brick_wall':     0,
+    'chnlnk':         1,
+    'xt_dr_cg':       2,
+    'xt_dr_outr':     3,
+    # The garden outside the cage. Both are drawn from CLONES at other pages
+    # (grss_gs / gravel_gs) because this room fills their own slots with
+    # brick_wall and chnlnk — see the texture notes in src/garden_stairs.c.
+    'gravel_texture': 4,
+    'grss':           5,
 }
 UNTEXTURED = 0xFF
 

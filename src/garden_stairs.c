@@ -33,6 +33,43 @@ extern volatile size_t  pad_buff_len[2];
 static SMD  *garden_stairs_smd  = NULL;
 static void *garden_stairs_buff = NULL;
 
+/* ---- View distance ---------------------------------------------------------
+   TWO budgets, split by whether a poly is inside the caged shaft or out in the
+   garden. Cull and fog-far are equal in both, which is the invariant that makes
+   culling invisible: nothing is dropped until the fog has already faded it into
+   the background.
+
+     INSIDE  the standard interior budget. The shaft is 2850 x 1200, so this has
+             to reach across it or the far wall pops out while still lit.
+     OUTSIDE only far enough to show the strip of garden immediately beyond the
+             chainlink — measured off the mesh: as close to the fence as
+             GS_WALL_RADIUS allows, the first ring of ground quads sits 275..571
+             away and the second ring starts at 832. 600 takes the first ring
+             and nothing more. Re-measure this if GS_WALL_RADIUS changes; at the
+             old 195 standoff the ring ended at 496 and 500 was enough.
+
+   The split is by POSITION, not by texture: this model floors the bottom of the
+   shaft with grss as well, so culling by texture would punch a hole in the floor
+   whenever the player looked down at it from a landing above. */
+#define GS_CULL_DIST      1500
+#define GS_FOG_NEAR        350
+#define GS_FOG_FAR        1500
+
+#define GS_OUT_CULL        600
+#define GS_OUT_FOG_NEAR    300
+#define GS_OUT_FOG_FAR     600
+
+/* Wall standoff, wider than the 195 the interior rooms use. The shaft's walls
+   run the full 2100 height of the room, so standing close to one puts its poly
+   corners far enough off-axis to hit the GTE's near-plane clamp and clip. */
+#define GS_WALL_RADIUS     260
+
+/* The caged shaft's XZ footprint; anything outside it is garden. */
+#define GS_SHAFT_X0     (-2140)
+#define GS_SHAFT_X1        713
+#define GS_SHAFT_Z0       1117
+#define GS_SHAFT_Z1       2317
+
 /* ---- Floor zones -----------------------------------------------------------
    A genuine multi-storey shaft: three landings stacked over the same west XZ
    footprint, three over the same east one, and five flights over the same
@@ -93,9 +130,9 @@ static void garden_stairs_floor_zones_init(void) {
 }
 
 /* ---- Per-room textures -----------------------------------------------------
-   Four mesh textures, none resident from startup, so all four are uploaded on
+   Six mesh textures, none resident from startup, so all six are uploaded on
    every entry. TWO are owned by other modules and just need their headers
-   captured here; the other two are this room's new art:
+   captured here; the other four are this room's own uploads:
 
      - brick_wall (the south wall the exit door sits in) lives in the
        DELIVERY-only slot at x768 y0. Delivery owns the RAM copy, so we call its
@@ -120,16 +157,33 @@ static void garden_stairs_floor_zones_init(void) {
        page (x832 y0), already shared with double_door (delivery/kitchen) and
        con_tile (conservatory/attic stairwell). Same story: everyone restores.
 
-   All four sit at Voff 0, so the one 128 texture window set in
+   The last two are the garden the cage looks out over — ground planes at
+   y=-50 reaching to z=3491, well past the walkable shaft. They are the SAME
+   art the delivery area and conservatory use, but this room cannot draw them
+   from their own slots: grss lives at x768, which this room fills with
+   brick_wall, and gravel_texture at x640, which it fills with chnlnk. So each
+   is a byte-for-byte CLONE at a page this room does not touch, produced by
+   tools/retarget_tim.py rather than re-quantised from the PNG (grss.png is
+   64x64 while grss.tim is 128x128 — a rebuild would read past itself):
+
+     - grss_gs   -> the stn_stl page (x320 y0), shared with strs / bookshelf.
+     - gravel_gs -> the rusty_fence page (x704 y0), shared with upstairs.
+
+   Both host pages are already time-shared and every consumer re-uploads on its
+   own entry, so neither clone adds a restore obligation.
+
+   All six sit at Voff 0, so the one 128 texture window set in
    garden_stairs_draw serves them all (see tools/VRAM_MAP.txt). */
-#define GARDEN_STAIRS_TEX_COUNT 4
+#define GARDEN_STAIRS_TEX_COUNT 6
 
 /* Streamed slots we own a RAM copy of: engine slot -> texmgr id. */
-#define GARDEN_STAIRS_NEW_TEX 2
+#define GARDEN_STAIRS_NEW_TEX 4
 static int new_tex_id[GARDEN_STAIRS_NEW_TEX];
 static const struct { const char *file; int slot; } new_tex[GARDEN_STAIRS_NEW_TEX] = {
     { "\\TEX\\XTDRCG.TIM;1",   2 },
     { "\\TEX\\XTDROUTR.TIM;1", 3 },
+    { "\\TEX\\GRAVELGS.TIM;1", 4 },
+    { "\\TEX\\GRSSGS.TIM;1",   5 },
 };
 
 static uint16_t tex_tpage[GARDEN_STAIRS_TEX_COUNT];
@@ -199,7 +253,8 @@ void garden_stairs_load_assets(void) {
    as main's STATE_LOADING does). */
 void garden_stairs_upload_textures(void) {
     for (int i = 0; i < GARDEN_STAIRS_NEW_TEX; i++)
-        texmgr_upload(new_tex_id[i]);       /* xt_dr_cg, xt_dr_outr */
+        texmgr_upload(new_tex_id[i]);       /* xt_dr_cg, xt_dr_outr,
+                                               gravel_gs, grss_gs */
     delivery_upload_brick_wall();           /* brick_wall -> its own slot   */
     east_stairwell_upload_chnlnk();         /* chnlnk     -> gravel slot    */
 }
@@ -275,14 +330,14 @@ static void door_text(RenderContext *ctx) {
 }
 
 /* Arriving from the Attic Exit: stand on the top landing north of the z=1117
-   wall, far enough clear of the 195 push radius apply_collision_reception uses,
-   facing +Z — the direction of travel through the door, with the stairs
-   dropping away ahead. */
+   wall, clear of this room's GS_WALL_RADIUS push (so the player isn't shoved on
+   their first frame), facing +Z — the direction of travel through the door,
+   with the stairs dropping away ahead. */
 void garden_stairs_spawn_top(void) {
     cam_x   = GS_DOOR_X;
     cam_y   = GS_TOP_EYE_Y;
     cam_vy  = 0;
-    cam_z   = GS_DOOR_Z + 215;
+    cam_z   = GS_DOOR_Z + GS_WALL_RADIUS + 25;
     cam_rot = 0;      /* facing +Z, into the room */
     garden_stairs_door_arm();
 }
@@ -293,6 +348,7 @@ void garden_stairs_init(void) {
        the DRAWN value so ceiling-mounted enemies hang flush with the roof the
        player can see (see tools/ADDING_A_ROOM.txt). */
     collision_set_ceiling_y(-2100);
+    collision_set_wall_radius(GS_WALL_RADIUS);
     garden_stairs_floor_zones_init();
 
     /* Only one way in, so no per-door override is needed in main.c. */
@@ -323,12 +379,18 @@ static void draw_garden_stairs_smd(RenderContext *ctx) {
         SVECTOR *v1 = &garden_stairs_smd->p_verts[vi[1]];
         SVECTOR *v2 = &garden_stairs_smd->p_verts[vi[2]];
 
+        /* Is this poly out in the garden or inside the cage? Decided once, from
+           v0, and reused for both the cull and the fog below. */
+        int outside = (v0->vx < GS_SHAFT_X0 || v0->vx > GS_SHAFT_X1 ||
+                       v0->vz < GS_SHAFT_Z0 || v0->vz > GS_SHAFT_Z1);
+
         {
             int32_t dx = (int32_t)v0->vx - cam_x;
             int32_t dz = (int32_t)v0->vz - cam_z;
             /* Distance cull (Manhattan) at the fog-out distance so culled polys
-               are already invisible (same budget as the other rooms). */
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 1500)
+               are already invisible — see the view-distance note above. */
+            int32_t cull = outside ? GS_OUT_CULL : GS_CULL_DIST;
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > cull)
                 { p += stride; continue; }
             int32_t fwd = dx * isin(cam_rot) + dz * icos(cam_rot);
             if (fwd < -(700 << 12))
@@ -392,7 +454,10 @@ static void draw_garden_stairs_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog_start = 350, fog_end = 1500;   /* fog saturates at the cull distance */
+        /* Each budget fogs out exactly where it culls, so the garden strip fades
+           into the background rather than popping at its edge. */
+        int32_t fog_start = outside ? GS_OUT_FOG_NEAR : GS_FOG_NEAR;
+        int32_t fog_end   = outside ? GS_OUT_FOG_FAR  : GS_FOG_FAR;
         int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
         int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
 
@@ -403,9 +468,12 @@ static void draw_garden_stairs_smd(RenderContext *ctx) {
            texture window set in garden_stairs_draw. */
         uint8_t tex_idx = (i < GARDEN_STAIRS_PRIM_COUNT) ? garden_stairs_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < GARDEN_STAIRS_TEX_COUNT);
-        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
-        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);
-        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + 10 * (256 - fog_factor)) >> 8);
+        /* Purple fog, the delivery area's SKY_FOG_* rather than the brown murk
+           the interior rooms use — this is the one stairway that opens onto the
+           outside, so it takes the outdoor palette. */
+        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8);
+        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8);
+        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8);
 
         if (is_quad && textured) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
@@ -470,19 +538,21 @@ static void draw_garden_stairs_smd(RenderContext *ctx) {
 
 void garden_stairs_draw(RenderContext *ctx) {
     /* Entities in this room fog with the same near/far as the mesh below. */
-    g_fog_near = 350; g_fog_far = 1500;
+    g_fog_near = GS_FOG_NEAR; g_fog_far = GS_FOG_FAR;
 
-    /* Dark background, same as the other rooms. */
+    /* Background in the SAME colour the fog saturates to, so a poly that has
+       faded out is indistinguishable from the void behind it and the cull never
+       shows a seam. Purple here, matching the delivery area. */
     TILE *bg = (TILE *)ctx->next_packet;
     setTile(bg);
     setXY0(bg, 0, 0);
     setWH(bg, SCREEN_XRES, SCREEN_YRES);
-    setRGB0(bg, 20, 15, 10);
+    setRGB0(bg, SKY_FOG_R, SKY_FOG_G, SKY_FOG_B);
     addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], bg);
     ctx->next_packet += sizeof(TILE);
 
     /* 128x128 texture window so per-poly UVs wrap (tile) within each texture's
-       page. All four garden-stairs textures sit at page-top (Voff 0), so one
+       page. All six garden-stairs textures sit at page-top (Voff 0), so one
        window serves them (see tools/VRAM_MAP.txt). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };

@@ -20,6 +20,11 @@
 
 CollisionRoom current_collision_room;
 
+/* Player wall standoff for the current room; see the note in collision.h.
+   Defined up here because apply_collision_reception() reads it well before
+   collision_set_wall_radius() appears further down. */
+static int32_t wall_radius = COLLISION_WALL_RADIUS;
+
 void collision_init(void) {
     delivery_area_collision_init(&current_collision_room);
     collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
@@ -560,10 +565,10 @@ static int collide_wall_frontonly_y(Wall *w, int32_t *px, int32_t *pz,
  * room-scoped, so they'd otherwise act as invisible colliders here). */
 void apply_collision_reception(void) {
     CollisionRoom *r = &current_collision_room;
-    /* radius 195: holds the player well off the walls (stopped from farther
-     * away) to avoid near-plane poly clipping. Doorways stay passable via the
-     * along-segment reject in collide_wall_frontonly_y. */
-    int32_t radius = 195;
+    /* Holds the player well off the walls (stopped from farther away) to avoid
+     * near-plane poly clipping. Doorways stay passable via the along-segment
+     * reject in collide_wall_frontonly_y. Per room — see collision.h. */
+    int32_t radius = wall_radius;
     /* Body vertical span: feet at the floor (cam_y + GROUND_FLOOR_Y), head a
      * little above the eye (cam_y). */
     int32_t body_bot = cam_y + GROUND_FLOOR_Y;
@@ -630,6 +635,10 @@ static int32_t wall_dist2(const Wall *w, int32_t px, int32_t pz) {
 
 void collision_set_ceiling_y(int32_t y) {
     current_collision_room.ceiling_y = y;
+}
+
+void collision_set_wall_radius(int32_t r) {
+    wall_radius = r > 0 ? r : COLLISION_WALL_RADIUS;
 }
 
 int32_t collision_ceiling_y(int32_t x, int32_t z) {

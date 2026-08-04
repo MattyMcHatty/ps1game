@@ -89,6 +89,17 @@ KNOWN_STREAM_PAIRS = [
     ("double_door.tim",    "xt_dr_cg.tim"),
     ("con_tile.tim",       "xt_dr_cg.tim"),
     ("opn_drwr.tim",       "xt_dr_cg.tim"),
+    # ...and the garden it looks out over needs grss and gravel_texture, whose
+    # OWN slots this room fills with brick_wall (x768) and chnlnk (x640). Both
+    # are byte-for-byte clones at pages the room does not touch (see
+    # tools/retarget_tim.py), so each inherits its host page's sharing:
+    #   grss_gs   -> the stn_stl page (x320 y0), shared with strs / bookshelf
+    #   gravel_gs -> the rusty_fence page (x704 y0), shared with upstairs
+    ("stn_stl.tim",        "grss_gs.tim"),
+    ("strs.tim",           "grss_gs.tim"),
+    ("bookshelf.tim",      "grss_gs.tim"),
+    ("rusty_fence.tim",    "gravel_gs.tim"),
+    ("upstairs.tim",       "gravel_gs.tim"),
 ]
 
 def read_tim(path):

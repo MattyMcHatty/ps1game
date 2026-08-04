@@ -874,6 +874,10 @@ int main(int argc, const char **argv) {
             /* Snapshot the room we're leaving so its progress (defeated enemies,
                smashed crates, collected pickups, door state) persists. */
             world_leave(current_area);
+            /* Back to the default wall standoff before the room sets itself up:
+               a room that wants more says so in its own _init(), and one that
+               says nothing must not inherit the last room's value. */
+            collision_set_wall_radius(0);
             if (pending_area == STATE_KITCHEN_DINING) {
                 kitchen_dining_init();
                 /* Coming back from reception: spawn at the kitchen's "to
@@ -1015,7 +1019,11 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_GARDEN_STAIRS) {
                 garden_stairs_init();  /* only one way in: the exit door, at the
                                           TOP of the stairs */
-                cdaudio_play(CDAUDIO_PIANO_TRACK, 1);      /* shares the attic music */
+                /* NO music here — the stairway is silent by design. Stopped
+                   rather than merely not started, so a title-screen load or a
+                   debug level-select jump (neither of which passes through the
+                   door transition's cdaudio_stop) also arrives in silence. */
+                cdaudio_stop();
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed

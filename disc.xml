@@ -206,6 +206,11 @@
                 <file name="XTDRCG.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_cg.tim"/>
                 <file name="XTDRLHLF.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_lft_hlf.tim"/>
                 <file name="XTDRRHLF.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_rt_hlf.tim"/>
+                <!-- The garden seen through the cage. Byte-for-byte clones of
+                     GRSS/GRAVEL at other VRAM pages, because the Garden Stairs
+                     fills their own slots with brick_wall and chnlnk. -->
+                <file name="GRSSGS.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\grss_gs.tim"/>
+                <file name="GRAVELGS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gravel_gs.tim"/>
             </dir>
         </directory_tree>
     </track>
