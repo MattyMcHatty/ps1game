@@ -63,6 +63,7 @@
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "tentacle.h"
+#include "rabisu.h"
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
@@ -133,6 +134,7 @@ void reset_game(RenderContext *ctx) {
     demon_dogs_reset();
     zombies_reset();
     spiders_reset();
+    rabisus_reset();
     fatdoors_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
@@ -162,6 +164,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_2F_HALL && trick_drawers_puzzle_active()) {
         update_zombies();       /* enemies keep chasing/attacking during the puzzle */
         update_spiders();
+        update_rabisus();
         webs_update();          /* ...and their webs keep flying */
         player_status_update();
         trick_drawers_update();
@@ -172,6 +175,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_KITCHEN_DINING && stove_puzzle_active()) {
         update_zombies();
         update_spiders();
+        update_rabisus();
         webs_update();
         player_status_update();
         kitchen_stove_update();
@@ -203,6 +207,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_ATTIC_EXIT && exit_door_puzzle_active()) {
         update_zombies();
         update_spiders();
+        update_rabisus();
         webs_update();
         player_status_update();
         exit_door_puzzle_update();
@@ -218,6 +223,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();
         update_spiders();
+        update_rabisus();
         sml_meds_update();
         kitchen_stove_update();
         if (!lock) stove_puzzle_update();   /* stove prompt + puzzle trigger */
@@ -280,6 +286,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_rabisus();
         item_pickups_update();
         if (!lock && east_hall_wdoor_triggered()) {
             pending_area = STATE_RECEPTION;
@@ -308,6 +315,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* one in the northern strip */
         update_spiders();      /* three on the reading room's ceiling */
+        update_rabisus();
         item_pickups_update();
         if (!lock && library_wdoor_triggered()) {
             pending_area = STATE_EAST_HALL;
@@ -332,6 +340,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_rabisus();
         item_pickups_update();
         sml_meds_update();     /* the east landing's medipac */
         if (!lock && east_stairwell_wdoor_triggered()) {
@@ -360,6 +369,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_rabisus();
         item_pickups_update();
         if (!lock && attic_stairwell_stairs_triggered()) {
             /* Back down to the East Stairwell's east landing. */
@@ -382,6 +392,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_rabisus();
         item_pickups_update();
         if (!lock) lightswitch_update();   /* the four levers + their light cones */
         /* The north-wall exit door: its keystone board, or — once unlocked —
@@ -418,6 +429,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_rabisus();
         item_pickups_update();
         sml_meds_update();     /* the bottom landing's medipac */
         if (!lock && save_point_triggered()) {
@@ -448,6 +460,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_rabisus();
         item_pickups_update();
         sml_meds_update();
         if (!lock && garden_courtyard_door_triggered()) {
@@ -465,6 +478,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* the small-room zombie */
         update_spiders();
+        update_rabisus();
         update_demon_dogs();   /* the three dogs at the far end of the hall */
         update_tentacles();    /* the two tentacles near the copper pot */
         sml_meds_update();     /* the small-room medipac */
@@ -488,6 +502,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();         /* the two hall zombies (enemies act even in menu) */
         update_spiders();
+        update_rabisus();
         if (!lock) trick_drawers_update();   /* proximity "interact" prompt + puzzle trigger */
         if (!lock && hall_2f_stairs_triggered()) {
             /* Descend the stairs back to the conservatory (stair-climb transition). */
@@ -524,6 +539,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_rabisus();
         item_pickups_update();  /* the box of rounds in front of the bed */
         if (!lock && master_bedroom_wdoor_triggered()) {
             bedroom_door_west = 1;
@@ -562,6 +578,7 @@ static void update_current_area(GameState area) {
         update_demon_dogs();
         update_zombies();
         update_spiders();
+        update_rabisus();
         crates_update();
         keys_update();
         sml_meds_update();
@@ -788,6 +805,11 @@ int main(int argc, const char **argv) {
     zombies_init();            /* capture spawn defaults (none placed yet) */
     spiders_load_textures();   /* same rule: sprite TIMs uploaded once, at startup */
     spiders_init();
+    rabisus_load_assets();     /* boss MODEL, not sprites: one CD read for
+                                  RABISU.SMD. Startup-only for the same reason —
+                                  CD access is unsafe once the render loop runs.
+                                  It owns no VRAM, so there is no upload step. */
+    rabisus_init();            /* array starts empty; world_enter places it */
     weapons_init();
     sound_init();
     cdaudio_init();

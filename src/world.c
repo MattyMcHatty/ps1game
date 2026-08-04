@@ -11,6 +11,7 @@
 #include "door.h"
 #include "fatdoor.h"
 #include "tentacle.h"
+#include "rabisu.h"
 #include "savegame.h"
 #include "sound.h"
 
@@ -46,6 +47,8 @@ typedef struct {
     int       tentacle_count;
     Spider    spiders[MAX_SPIDERS];       /* likewise: one global area-tagged array */
     int       spider_count;
+    Rabisu    rabisus[MAX_RABISUS];       /* the boss: same global area-tagged model */
+    int       rabisu_count;
 } WorldState;
 
 /* The whole blob is written to the memory card frame by frame, so it must fit
@@ -62,6 +65,7 @@ static WorldState world;
 extern DemonDog  demon_dogs[MAX_DEMON_DOGS];   extern int demon_dog_count;
 extern Zombie    zombies[MAX_ZOMBIES];         extern int zombie_count;
 extern Spider    spiders[MAX_SPIDERS];         extern int spider_count;
+extern Rabisu    rabisus[MAX_RABISUS];         extern int rabisu_count;
 extern Crate     crates[MAX_CRATES];           extern int crate_count;
 extern KeyPickup keys[MAX_KEYS];               extern int key_count;
 extern SmlMed    sml_meds[MAX_SML_MEDS];       extern int sml_med_count;
@@ -115,8 +119,8 @@ int   world_blob_size(void) { return (int)sizeof world; }
 
 void world_install(const void *blob) {
     memcpy(&world, blob, sizeof world);
-    /* The fatdoor/tentacle/spider sections are global (not room-swapped), so
-       restore the live arrays immediately rather than waiting for a
+    /* The fatdoor/tentacle/spider/rabisu sections are global (not room-swapped),
+       so restore the live arrays immediately rather than waiting for a
        world_enter. */
     memcpy(fatdoors, world.fatdoors, sizeof fatdoors);
     fatdoor_count = world.fatdoor_count;
@@ -124,10 +128,12 @@ void world_install(const void *blob) {
     tentacle_count = world.tentacle_count;
     memcpy(spiders, world.spiders, sizeof spiders);
     spider_count = world.spider_count;
+    memcpy(rabisus, world.rabisus, sizeof rabisus);
+    rabisu_count = world.rabisu_count;
 }
 
 /* Mirror the live global (non-room-swapped) arrays — fat doors, tentacles,
-   spiders — into the blob's sections. */
+   spiders, the boss — into the blob's sections. */
 static void snapshot_fatdoors(void) {
     memcpy(world.fatdoors, fatdoors, sizeof fatdoors);
     world.fatdoor_count = fatdoor_count;
@@ -135,6 +141,8 @@ static void snapshot_fatdoors(void) {
     world.tentacle_count = tentacle_count;
     memcpy(world.spiders, spiders, sizeof spiders);
     world.spider_count = spider_count;
+    memcpy(world.rabisus, rabisus, sizeof rabisus);
+    world.rabisu_count = rabisu_count;
 }
 
 void world_new_game(void) {
@@ -172,6 +180,7 @@ void world_leave(GameState area) {
        its spawn point, asleep, at full health. Deaths stick. */
     zombies_rest();
     spiders_rest();
+    rabisus_rest();
     demon_dogs_rest();
     snapshot(&world.rooms[room_index(area)]);
     snapshot_fatdoors();
@@ -377,6 +386,23 @@ void world_enter(GameState area) {
                front of the trick drawers in the west room. */
             zombie_add(-50,   -149, -320);
             zombie_add(-3299, -149, -1120);
+        }
+
+        /* Garden Courtyard: the Rabisu, the game's first boss, hovering in the
+           dead centre of the garden.
+
+           (-290, 0) is the mesh's own centre — the courtyard spans x[-2580,2000]
+           and z[-2000,2000], so the midpoint is west of the origin, not on it.
+           That point falls inside the sunken lawn zone (x[-1722,1142],
+           z[-857,2000]), whose surface is y=900; rabisu_add hovers the model's
+           underside RBS_HOVER (1 m) above that, at y=800.
+
+           900 is the floor SURFACE, exactly as garden_courtyard_floor_zones_init
+           states it. Do NOT pre-subtract GROUND_FLOOR_Y — that constant turns a
+           surface into a STANDING anchor and has no business in a hover height
+           (see mistake 2 in tools/ADDING_AN_ENEMY.txt). */
+        if (area == STATE_GARDEN_COURTYARD) {
+            rabisu_add(-290, 900, 0, STATE_GARDEN_COURTYARD);
         }
 
         r->visited = 1;

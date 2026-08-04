@@ -17,6 +17,7 @@
 #include "attic_stairwell.h"   /* the attic altar, collided as a prop */
 #include "chainlink_door.h"    /* placeable solid fence-gate prop */
 #include "lever.h"             /* placeable wall-lever prop */
+#include "rabisu.h"            /* the Rabisu boss is solid (area-tagged) */
 
 CollisionRoom current_collision_room;
 
@@ -606,6 +607,11 @@ void apply_collision_reception(void) {
        they are small chest-height fixtures; the module also gates them by the
        player's vertical span. */
     levers_collide(&cam_x, cam_y, &cam_z, 75);
+    /* The Rabisu boss: solid, area-tagged like the props above so this is a
+       no-op everywhere it is not placed. Prop radius rather than the wall
+       standoff — the crucifaxe has to be able to reach it, and its own
+       RBS_BODY_RADIUS already holds the player 170 off its centre. */
+    rabisus_collide(&cam_x, cam_y, &cam_z, 75);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

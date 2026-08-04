@@ -87,6 +87,7 @@ add_executable(horror_game
     src/demondog.c
     src/zombie.c
     src/spider.c
+    src/rabisu.c
     src/web.c
     src/sound.c
     src/cdaudio.c

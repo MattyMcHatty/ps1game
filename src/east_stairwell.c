@@ -21,6 +21,7 @@
 #include "save_point.h"
 #include "zombie.h"
 #include "spider.h"
+#include "rabisu.h"
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
@@ -594,6 +595,7 @@ void east_stairwell_draw(RenderContext *ctx) {
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
+    draw_rabisus(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
     /* Small medipac. Its TIM sits at Voff 0 (VRAM y=256), so it is safe under

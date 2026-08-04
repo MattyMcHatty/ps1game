@@ -16,6 +16,7 @@
 #include "zombie.h"
 #include "spider.h"
 #include "tentacle.h"
+#include "rabisu.h"
 #include "vampire.h"
 #include "particles.h"
 #include "sound.h"
@@ -258,6 +259,16 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 3; best_idx = i;
         }
     }
+    for (i = 0; i < rabisu_count; i++) {
+        Rabisu *rb = &rabisus[i];
+        if (!rb->active || rb->dead || rb->area != game_state) continue;
+        int32_t cyc, hh, hw;
+        rabisu_body(rb, &cyc, &hh, &hw);
+        if (enemy_in_circle(rb->x, cyc, rb->z, hw, hh, fx, fz, &depth) &&
+            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 5; best_idx = i;
+        }
+    }
     if (vampire_health > 0 &&
         enemy_in_circle(vampire_x, vampire_y + VAMPIRE_Y, vampire_z,
                         VAMPIRE_HALF_W, VAMPIRE_HALF_H, fx, fz, &depth) &&
@@ -287,6 +298,11 @@ static void graveolver_fire(void) {
     } else if (best_kind == 4) {
         spider_damage(&spiders[best_idx],
                       spider_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 5) {
+        /* Boss: 1 from a Standard Round, 2 from a Flame Round (its weakness
+           table doubles DMG_FLAME) — so 20 or 10 shots to kill. */
+        rabisu_damage(&rabisus[best_idx],
+                      rabisu_scale_damage(GUN_DAMAGE, dmg_type));
     } else {
         vampire_health   -= vampire_scale_damage(GUN_DAMAGE, dmg_type);
         vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;

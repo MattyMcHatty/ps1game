@@ -19,6 +19,7 @@
 #include "fatdoor.h"
 #include "zombie.h"
 #include "spider.h"
+#include "rabisu.h"
 #include "web.h"
 #include "sound.h"
 
@@ -619,6 +620,7 @@ void hall_2f_draw(RenderContext *ctx) {
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
+    draw_rabisus(ctx);
     webs_draw(ctx);
 
     stairs_text(ctx);

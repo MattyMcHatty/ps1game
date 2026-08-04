@@ -1,0 +1,466 @@
+PS1 HORROR GAME — ADDING A 3D-MODEL ENEMY: THE RUNBOOK
+=======================================================
+This is the DELTA against tools/ADDING_AN_ENEMY.txt. That file is still the
+authoritative runbook for everything an enemy does; read it FIRST. This one
+records only what changes when the enemy is a real 3D MODEL instead of a
+camera-facing textured quad.
+
+It was written immediately after the Rabisu was added (August 2026), the game's
+first boss and its first model enemy, and records every step that was actually
+performed.
+
+Companion docs:
+  tools/ADDING_AN_ENEMY.txt         - the sprite-enemy runbook; the base case
+  tools/MESH_CONVERSION_NOTES.txt   - the smx -> smd pipeline (STEP 2 below)
+  tools/ADDING_A_ROOM.txt           - the room runbook
+  tools/AREAS_AND_WORLD_NOTES.txt   - the area/state model and world.c
+  src/rabisu.c / .h                 - THE reference model enemy
+  src/concrete_props.c              - the reference ROTATABLE SMD prop; the
+                                      draw path in rabisu.c is its descendant
+
+
+##########################################################################
+ HOW TO KICK THIS OFF (what the user provides)
+##########################################################################
+  1. "Follow tools/ADDING_A_3D_ENEMY.txt"
+  2. The enemy's name, e.g. "Rabisu" -> slug `rabisu`, constant prefix RBS_.
+  3. The .smx, already exported, e.g. assets/bosses/Rabisu.smx.
+     Textures for it, IF it is textured (the Rabisu is not — see STEP 3).
+  4. Its behaviour in prose: health, what each weapon does to it, whether it
+     moves/attacks, whether it is solid.
+  5. Where to place it: room + roughly where + hover height if it floats.
+
+Everything else — extents, foot offset, hit box, save wiring — is DERIVED by
+the steps below, out of the .smx. Do not ask the user for measurements.
+
+>>> THREE THINGS ARE WORTH ASKING ABOUT, BECAUSE THE MESH CANNOT ANSWER THEM <<<
+  a. WHERE IS THE MODEL'S FLOOR? A character is often NOT authored standing on
+     its own origin. The Rabisu's lowest vertex sits 168 units ABOVE its origin,
+     so "put it 1 m up" has three defensible readings (origin on the floor and
+     hover on top / lowest vertex exactly 1 m up / the authored offset IS the
+     hover). Ask; the difference was 1.7 m.
+  b. SCALE. The .smx carries real units, so it may simply be right — but a
+     4.6 m model next to a 2.5 m zombie sprite is a decision, not an accident.
+     State the number you measured and let the user confirm it.
+  c. WHICH WAY IS FORWARD? See STEP 4's facing note. Guess from the silhouette,
+     then expose a one-line constant so the guess is cheap to flip.
+
+
+##########################################################################
+ STEP 1 — READ THE ENEMY YOU ARE COPYING
+##########################################################################
+Copy src/rabisu.c/.h. It is the only model enemy, and its draw path is the
+part that has no sprite-enemy equivalent.
+
+For BEHAVIOUR (steering, wake, contact damage, knockback, separation) nothing
+changes: copy src/zombie.c exactly as ADDING_AN_ENEMY.txt STEP 1 says. A model
+enemy walks the same way a sprite one does. Only the drawing differs.
+
+WHAT IS LOAD-BEARING IN THE MODEL DRAW PATH and must be copied, not redesigned:
+  - the composed model-view matrix (STEP 5) and the RESTORE of the plain view
+    matrix afterwards
+  - the per-poly +/-1023 screen-coordinate guard before every addPrim
+  - the packet-space check against buf_end on EVERY branch
+  - the poly_is_flat_y / otz_far4 far-corner sort for horizontal faces
+  - gte_nclip backface culling (see STEP 5 — a model KEEPS it; a rolling sprite
+    must not)
+
+
+##########################################################################
+ STEP 2 — CONVERT THE MESH
+##########################################################################
+The enemy's mesh goes through PIPELINE 1 of MESH_CONVERSION_NOTES.txt and
+NOTHING ELSE. There is no collision mesh: an enemy is a moving entity, so its
+solidity is a runtime shape (STEP 6), not baked walls.
+
+  Untextured:
+      smxlink -o assets\bosses\Rabisu.smd assets\bosses\Rabisu.smx
+  Textured:
+      smxlink -tp textures -o assets\bosses\<Name>.smd assets\bosses\<Name>.smx
+
+  smxlink path: C:\Users\virtu\Documents\PSn00bSDK\bin\smxlink.exe
+
+USE smxlink. The deleted home-grown smx_to_smd.py produced a file the engine
+could not render. See the GOLDEN RULE in MESH_CONVERSION_NOTES.txt.
+
+Then CHECK THE PRIM STREAM, because the draw loop's byte offsets depend on it:
+
+  py -c "import struct; d=open('assets/bosses/Rabisu.smd','rb').read(); \
+         nv,nn,npr=struct.unpack('<HHH',d[6:12]); \
+         pv,pn,pp=struct.unpack('<III',d[12:24]); p=pp; t=d[p:p+4]; \
+         print('prims',npr,'type',t[0]&3,'tex',(t[0]>>5)&1,'stride',t[3], \
+               'col',d[p+16:p+19].hex())"
+
+  type   2 or 3 = quad, 0 or 1 = tri  (the draw's `is_quad = pt->type >= 2`)
+  tex    1 = the prims carry UVs at offset 20 and a tpage/clut; 0 = flat only
+  stride 20 for a flat quad, more when textured
+  col    the baked RGB at offset 16 — the SAME offset whether textured or not
+
+The header is 24 bytes: id[3], version, flags, n_verts, n_norms, n_prims, then
+three uint32 OFFSETS (verts, norms, prims). Do not assume prims follow the
+vertices contiguously; read the offset.
+
+
+##########################################################################
+ STEP 3 — TEXTURES: USUALLY THERE ARE NONE
+##########################################################################
+>>> AN UNTEXTURED MODEL OWNS NO VRAM. SKIP STEP 3 OF ADDING_AN_ENEMY.TXT. <<<
+No TIM, no CLUT line, no VRAM slot, no VRAM_MAP regeneration, no texture
+window to bracket, and no *_upload_textures() on the room transition. The
+Rabisu's 476 quads are all one flat colour (33,18,204) baked into the SMD by
+the exporter, and it reads as a solid silhouette.
+
+That also removes the single biggest hazard of a sprite enemy: there is no
+Voff >= 128 sprite to wrap, so add_ft4_windowed() and <slug>s_set_texwindow()
+have no counterpart here. A room that draws ONLY a model enemy still hands its
+window to the sprite renderers, for the sprites' sake — say so in the comment
+so it does not read as a leftover.
+
+IF THE MODEL IS TEXTURED, it costs VRAM like any room art and STEP 3 of
+ADDING_AN_ENEMY.txt applies in full, with two changes:
+  - register through texmgr (texmgr_register / texmgr_upload), as
+    concrete_props.c does, NOT a private RAM copy. texmgr has a hard
+    TEXMGR_MAX and a registration past it fails SILENTLY.
+  - the per-poly UVs come from the SMD at offset 20; you do NOT write a
+    <slug>_tex_map.h unless the model uses more than one texture.
+
+Either way the enemy still needs a CD READ, and the startup-only rule binds for
+that just as hard as it does for LoadImage: call <slug>s_load_assets() from
+main() before the render loop, never on a transition.
+
+
+##########################################################################
+ STEP 4 — MINE THE MESH FOR THE FOUR NUMBERS
+##########################################################################
+Every model enemy needs exactly four measurements out of its .smx, and they go
+in the header as named constants with the measuring command beside them:
+
+  py -c "import re; s=open('assets/bosses/Rabisu.smx',encoding='utf-8', \
+         errors='replace').read(); vb=s.split('<vertices')[1]. \
+         split('</vertices>')[0]; vs=[(float(a),float(b),float(c)) for a,b,c \
+         in re.findall(r'x=\"([-\d.]+)\" y=\"([-\d.]+)\" z=\"([-\d.]+)\"',vb)]; \
+         print([(min(v[i] for v in vs),max(v[i] for v in vs)) for i in range(3)])"
+
+  <PFX>_FOOT_OFF   -(max mesh y).  -Y IS UP, so the model's UNDERSIDE is its
+                   LARGEST y. This is the number that cancels the model's
+                   authored offset, and it is applied in the DRAW ONLY.
+  <PFX>_HEIGHT     the mesh y span (max - min).
+  <PFX>_HALF_W     the larger of the x/z half-spans.
+  <PFX>_BODY_RADIUS  the solid cylinder — see STEP 6.
+
+>>> APPLY THE FOOT OFFSET IN EXACTLY ONE PLACE: THE DRAW'S TRANSLATION. <<<
+Fold it into the anchor at spawn time instead and every other consumer of the
+anchor — the hit box, the melee reach, the collision cylinder, the health bar —
+is silently wrong by that amount, in a way that looks like four unrelated bugs.
+
+The anchor (`r->y`) MEANS the model's underside. State that in the header. Then
+a hover height is a plain subtraction (`y = ground_y - RBS_HOVER`), and the
+placement in world.c can pass the FloorZone's surface y straight through.
+
+COORDINATE CONVENTIONS are unchanged from ADDING_AN_ENEMY.txt STEP 2, and the
+GROUND_FLOOR_Y trap is the same trap: it converts a floor SURFACE into a
+STANDING anchor. It has no business in a hover height or a ceiling.
+
+FACING. Nothing in the .smx says which way the model looks. Read it off the
+silhouette by histogramming the vertices in height bands:
+
+  the Rabisu's upper body spreads +/-168 along X (wings) and its low tail
+  trails to z=-189, so +Z is forward.
+
+Then make the guess CHEAP TO FLIP — one constant (RBS_FACE_BACKWARD) that
+negates the facing vector, and nothing else changes.
+
+
+##########################################################################
+ STEP 5 — THE DRAW: A COMPOSED MATRIX, NOT A BILLBOARD
+##########################################################################
+This is the whole of the difference. A sprite builds a world-space quad along
+the camera's right axis and projects four corners. A model instead loads a
+DIFFERENT GTE matrix and then projects its own vertices unchanged.
+
+  MATRIX view;                                  /* the room's own six lines */
+  SVECTOR neg_rot = {0, -cam_rot, 0, 0};
+  RotMatrix(&neg_rot, &view);
+  VECTOR vt = {-cam_x, -cam_y, -cam_z};
+  ApplyMatrixLV(&view, &vt, &vt);
+  view.t[0]=vt.vx; view.t[1]=vt.vy; view.t[2]=vt.vz;
+
+  /* per instance */
+  MATRIX pm, combined;
+  ...build pm's rotation...
+  VECTOR pos = { r->x, r->y + <PFX>_FOOT_OFF, r->z };
+  TransMatrix(&pm, &pos);
+  CompMatrixLV(&view, &pm, &combined);
+  gte_SetRotMatrix(&combined);
+  gte_SetTransMatrix(&combined);
+  ...prim loop...
+
+  /* AFTER the loop, ALWAYS: */
+  gte_SetRotMatrix(&view);
+  gte_SetTransMatrix(&view);
+
+>>> RESTORING THE VIEW MATRIX IS NOT OPTIONAL. <<<
+Everything the room draws after the enemy — the sprite enemies, the pickups,
+the webs, the floating door text, and the enemy's OWN health bar — projects
+world points and assumes the plain view matrix is loaded. Leave the composed
+one in the GTE and all of it renders inside the boss's local space. Restore it
+even on the early-out paths.
+
+The view matrix is rebuilt LOCALLY by the enemy module rather than passed in,
+so the module stays self-contained and a room only has to add one draw call.
+Six duplicated lines is the right price for that.
+
+BUILDING THE ROTATION WITHOUT AN ANGLE. The SDK has RotMatrix but no atan2, and
+"turn to face the player" naturally produces a DIRECTION, not an angle. Do not
+write an atan2: normalise the vector and drop its sine and cosine straight into
+the matrix. It is exact, and it is the identical matrix RotMatrix would build.
+
+  int32_t len = isqrt32(dx*dx + dz*dz);         /* a REAL sqrt, not Manhattan */
+  s = (dx << 12) / len;   c = (dz << 12) / len;
+
+  pm.m[0][0]= c;  pm.m[0][1]=0;    pm.m[0][2]= s;
+  pm.m[1][0]= 0;  pm.m[1][1]=ONE;  pm.m[1][2]= 0;
+  pm.m[2][0]=-s;  pm.m[2][1]=0;    pm.m[2][2]= c;
+
+That handedness matches RotMatrix's Y rotation and every rotated prop in the
+game (compare the footprint maths in chainlink_door.c). Store s and c on the
+entity: they persist through the save blob, they are what the draw wants, and
+they ARE the facing for whatever attack code comes later.
+
+The Manhattan divide the steering code gets away with is NOT good enough here.
+It skews the direction by up to ~40% off-axis, and on a model that visibly
+turns that reads as the boss looking past the player.
+
+>>> KEEP THE BACKFACE CULL. <<<
+Mistake 4 in ADDING_AN_ENEMY.txt says a rolling SPRITE must drop gte_nclip
+because past 90 degrees its winding flips. That reasoning does NOT transfer: a
+solid model genuinely has back faces, culling them halves what reaches the GPU,
+and the model is closed so nothing is lost. Honour the SMD's own `nocull` bit
+for the prims that ask to be exempt.
+
+FOG. Compute it ONCE PER MODEL from the entity's distance, not per poly. The
+gradient across a 3-4 m body is invisible and 476 divides a frame is not. Blend
+the baked colour toward the room's fog colour with the room's own
+g_fog_near/g_fog_far, which the room's draw has already set.
+
+DAMAGE FEEDBACK. A sprite tints its one quad red on a hit. A one-colour model
+has no other channel to carry it, so tint the WHOLE model — same idea, applied
+in the shared colour computation before the branch.
+
+THE HEALTH BAR has no billboard to hang off. Project one explicit world point a
+little above the model's top (r->y - HEIGHT - 60), with the PLAIN view matrix,
+after the model loop has restored it.
+
+
+##########################################################################
+ STEP 6 — SOLIDITY, AND WHY IT IS A CYLINDER
+##########################################################################
+A model enemy that turns must be collided as a CYLINDER, not as the rotated
+AABB the concrete props and the dresser use. Their footprint boxes are correct
+because those props never move; a box around something that re-aims every frame
+breathes in and out under the player's feet.
+
+  <PFX>_BODY_RADIUS = the largest horizontal extent from the origin.
+
+Push-out is then a radial normalise, guarded against d == 0 (dead centre):
+
+  if (d >= need) continue;
+  if (d == 0) { *px = r->x + need; continue; }
+  *px = r->x + (dx * need) / d;
+  *pz = r->z + (dz * need) / d;
+
+Gate it vertically against the player's body span even for something that
+obviously cannot be walked under — a floating enemy is exactly the case where
+that stops being obvious.
+
+Hook it into apply_collision_reception() in collision.c beside the other props,
+and AREA-GATE it inside the module so the call is a no-op everywhere else. That
+is the same contract concrete_props_collide and levers_collide honour.
+
+
+##########################################################################
+ STEP 7 — WEAPONS: MEASURE REACH TO THE SURFACE, NOT THE CENTRE
+##########################################################################
+The one-damage-entry-point rule (STEP 5 of ADDING_AN_ENEMY.txt) is unchanged:
+
+    void <slug>_damage(<Slug> *s, int dmg);
+
+THE GUN needs nothing special. enemy_in_circle takes a centre and half-extents
+and a model's are as good as a sprite's:
+
+    <slug>_body(r, &cyc, &hh, &hw)   ->  cyc = r->y - HALF_H, hh, hw
+
+Claim the next free best_kind value (the Rabisu took 5) and add the matching
+dispatch branch. Skip instances whose area != game_state.
+
+>>> THE CRUCIFAXE IS WHERE A BIG MODEL BREAKS THE SPRITE PATTERN. <<<
+Every existing melee block tests Manhattan dist3d from the camera to the
+enemy's CENTRE against SWING_RANGE (350). That works because those enemies are
+roughly axe-sized. For a 3.4 m x 4.6 m boss the closest the collision cylinder
+allows is ~275 horizontally, and its centre is another ~230 up: ~500 total,
+past SWING_RANGE, and the axe can NEVER connect no matter how the player
+stands. The bug looks like "the boss is invincible to melee".
+
+Measure to the body's SURFACE instead — 0 inside, the gap outside, on each axis
+separately (which is also what mistake in STEP 4 of ADDING_AN_ENEMY.txt asks
+for, for the same underlying reason):
+
+    horizontal:  d = isqrt32(dx*dx + dz*dz);  gh = d > RADIUS ? d - RADIUS : 0;
+    vertical:    clamp py into [top, bottom]; gv = the distance to that clamp
+    hit if       gh + gv < SWING_RANGE   and the facing dot > 0
+
+Put that in the ENEMY module as <slug>s_try_hit() — the way tentacles_try_hit
+already works — rather than inlining it in crucifaxe.c like the dog/zombie/
+spider blocks. The geometry is the enemy's business, and crucifaxe.c stays a
+two-line hook plus its own <pfx>_hit_this_swing latch (declare it, clear it
+where the others are cleared, set it on a hit).
+
+Derive the SAME gap from ONE helper shared with the collision push-out. If the
+two disagree about where the enemy's edges are, the player can be held at a
+distance the axe cannot cross.
+
+
+##########################################################################
+ STEP 8 — PERSISTENCE AND THE REST OF THE WIRING
+##########################################################################
+Identical to STEPS 6 and 7 of ADDING_AN_ENEMY.txt. Use the GLOBAL AREA-TAGGED
+model (B); a boss is a single instance and a per-room array would spend the
+blob's headroom on 13 empty copies.
+
+  src/world.c      <Slug> <slug>s[MAX] + count in WorldState beside the spiders
+                   (NOT RoomState); mirror in snapshot_fatdoors(); restore in
+                   world_install(); <slug>s_rest() in world_leave(); seed the
+                   placement in world_enter()'s first-visit block.
+  src/main.c       #include; <slug>s_load_assets() + <slug>s_init() in the
+                   startup block; <slug>s_reset() in reset_game();
+                   update_<slug>s() at EVERY update_spiders() call site — 15 of
+                   them, including the camera-locked puzzle branches.
+  the room modules draw_<slug>s(ctx) after draw_spiders(ctx) in EVERY room that
+                   draws enemies (11 today). The area tag makes it free
+                   elsewhere and the enemy is then reusable without touching
+                   the room again.
+  CMakeLists.txt   add src/<slug>.c
+  disc.xml         add the .SMD to <dir name="TEX">, 8.3 uppercase.
+
+                   >>> NOT THE ROOT, however much it looks like it belongs there
+                       beside CRFAXE.SMD and the other startup-resident models.
+                       THE ROOT DIRECTORY IS FULL. <<<
+                   The boot ROM reads only the FIRST 2048-byte sector of the root
+                   to find SYSTEM.CNF and HORROR.BIN. mkpsxiso sorts the root
+                   alphabetically, so a new record does not append — it INSERTS,
+                   shoving every later record forward. RABISU.SMD sorts before
+                   SYSTEM.CNF, and its 60-byte record pushed SYSTEM.CNF's record
+                   from offset 1952 to 2048: the first byte of the second sector.
+                   The console then hung at the PlayStation logo with no other
+                   symptom. As of this writing the root has THIRTY-SIX BYTES of
+                   slack, less than one directory record — treat it as closed.
+                   A file in TEX costs nothing but a "\\TEX\\" in its load path.
+
+                   VERIFY IT, do not eyeball it. Estimating the record sizes by
+                   hand said the root still fit; it did not. Read the real ISO
+                   (STEP 10).
+  src/sound.h      only for NEW sounds — STEP 7b of ADDING_AN_ENEMY.txt, and
+                   check the SPU budget first. Borrowing an existing SfxID is
+                   free; say so in a comment when you do.
+
+
+##########################################################################
+ STEP 9 — BUILD
+##########################################################################
+  cmake -S . -B build -G Ninja                  # a new .c needs a reconfigure
+  cmake --build build --target horror_game      # auto-runs elf2x
+  & "C:\Users\virtu\Documents\mkpsxiso-2.20-win64\mkpsxiso-2.20-win64\mkpsxiso.exe" `
+        -y disc.xml | Select-String "RABISU"
+
+
+##########################################################################
+ STEP 10 — VERIFY
+##########################################################################
+Code-level, before handing over:
+  [ ] The .SMD packed (the mkpsxiso grep above printed it).
+  [ ] >>> THE DISC STILL BOOTS. <<< Run this after ANY disc.xml change — the
+      only symptom of getting it wrong is a hang at the PlayStation logo:
+
+        py tools/check_disc_root.py
+
+      It reads the real ISO and reports whether SYSTEM.CNF's and HORROR.BIN's
+      directory records still end inside the first 2048-byte root sector, plus
+      how many bytes of slack are left. Non-zero exit = the disc is dead. Do
+      not estimate the record sizes by hand instead; doing that said the root
+      still fit when it did not.
+  [ ] world.c's _Static_assert compiled, and the blob still has room for
+      another room (~2560 bytes):
+        mipsel-none-elf-nm.exe -S build\CMakeFiles\horror_game.dir\src\world.c.obj `
+            | Select-String " world$"
+      The size is hex; the limit is SAVE_WORLD_MAX_BYTES.
+  [ ] Every weapon/update/draw loop skips `area != game_state`.
+  [ ] The view matrix is restored on every exit path from the draw.
+  [ ] ARITHMETIC, ON PAPER. Recompute the model's world Y span from
+      anchor + vy + FOOT_OFF at both mesh extremes and check it against the
+      room's floor zone and its DRAWN ceiling. For the Rabisu:
+        lawn surface 900, hover 100  -> anchor 800
+        translation  800 + 168 = 968
+        vy=-168 (underside) -> 800   = 100 above the lawn        [the 1 m ask]
+        vy=-629 (top)       -> 339   = 561 above the lawn
+        room's drawn ceiling -800, so the top clears it by 1139  [no clipping]
+        hit box cyc = 800-230 = 570, span [340,800]              [matches]
+        player eye 900-149-40 = 711, inside that span            [melee gv=0]
+        melee gh = (170+75+30) - 170 = 105 < SWING_RANGE 350     [axe reaches]
+      This is the check that catches a placement bug before the user sees it.
+
+In-game (needs an emulator; say so plainly if you have not run it):
+  [ ] It is at the intended spot and the intended height off the floor.
+  [ ] It faces the player from every angle — walk a full circle around it. If
+      it faces AWAY, flip the one facing constant.
+  [ ] The model does not flicker, invert or lose faces as the camera moves
+      (a backface-cull or winding problem).
+  [ ] Whatever is drawn AFTER it in the room still renders correctly — the
+      pickups, the sprite enemies, the door text. If any of them jump or vanish,
+      the view matrix was not restored.
+  [ ] Both weapons damage it, the bar drains by the right fraction, and it dies
+      after exactly MAX_HEALTH hits (half that with a weakness at 200).
+  [ ] The crucifaxe actually reaches it from where the collision stops you.
+  [ ] Leave the room and come back: it is back at full health; kills stick.
+      Save/load preserves that.
+
+
+##########################################################################
+ THE MISTAKES A MODEL ENEMY INVITES
+##########################################################################
+1. LEAVING THE COMPOSED MODEL-VIEW MATRIX IN THE GTE. Everything drawn after it
+   lands in the enemy's local space. Restore the plain view matrix, on every
+   path out of the draw.
+
+2. APPLYING THE FOOT OFFSET IN MORE THAN ONE PLACE. It belongs to the draw's
+   translation and nowhere else. Baking it into the anchor makes the hit box,
+   the melee reach, the collision and the health bar all wrong together, which
+   reads as four separate bugs.
+
+3. ASSUMING THE MODEL STANDS ON ITS OWN ORIGIN. Measure it. The Rabisu's
+   underside is 168 units above its origin, and a placement that trusted the
+   origin would have floated it 2.7 m instead of 1 m.
+
+4. TESTING MELEE REACH AGAINST THE CENTRE OF A LARGE MODEL. SWING_RANGE is 350
+   and a boss's centre is further than that from anywhere the player can stand.
+   Measure to the surface, from a helper shared with the collision push-out.
+
+5. COLLIDING A ROTATING MODEL AS A ROTATED AABB. The box changes size as the
+   enemy turns and the player gets shoved by a shape that is not there. Use a
+   cylinder.
+
+6. DROPPING gte_nclip BECAUSE THE SPRITE RUNBOOK SAYS TO. That rule is about a
+   rolling billboard, not a solid. A model keeps its backface cull.
+
+7. TREATING AN UNTEXTURED MODEL AS IF IT NEEDED VRAM. No TIM, no CLUT, no slot,
+   no texture window. The whole of STEP 3 of ADDING_AN_ENEMY.txt evaporates —
+   but the CD read still has to happen at STARTUP.
+
+8. FOGGING PER POLY. Once per model. 476 divides a frame is a real cost and the
+   gradient across one body is invisible.
+
+9. PUTTING THE .SMD IN THE DISC ROOT. It looks like it belongs there next to the
+   other startup-resident models, and it is the one mistake here that produced a
+   console that would not boot at all. The root directory's records must fit one
+   2048-byte sector and there are 36 bytes of slack; mkpsxiso sorts the root, so
+   a new name INSERTS and shoves SYSTEM.CNF over the edge. Put it in TEX and run
+   tools/check_disc_root.py. See STEP 8.

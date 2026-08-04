@@ -5,7 +5,13 @@ enemy. It was written immediately after the Spider was added (July 2026) and
 records every step that was actually performed, in order, with real commands —
 including the two things that were got WRONG first time (see the last section).
 
+>>> IF THE ENEMY IS A 3D MODEL RATHER THAN A SPRITE, read this file first and
+    then tools/ADDING_A_3D_ENEMY.txt, which records the delta (the composed
+    model-view matrix, the foot offset, the cylinder collision, the
+    surface-distance melee reach, and why STEP 3 below does not apply). <<<
+
 Companion docs (read them for the *why*; this file is the *how*):
+  tools/ADDING_A_3D_ENEMY.txt       - the MODEL-enemy delta against this file
   tools/ADDING_A_ROOM.txt           - the room runbook; this file mirrors it
   tools/TEXTURING_NOTES.txt         - VRAM rules, LoadImage timing, tex windows
   tools/AREAS_AND_WORLD_NOTES.txt   - the area/state model and world.c

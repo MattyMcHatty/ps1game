@@ -20,6 +20,7 @@
 #include "save_point.h"
 #include "zombie.h"
 #include "spider.h"
+#include "rabisu.h"
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
@@ -486,9 +487,11 @@ void garden_courtyard_draw(RenderContext *ctx) {
 
     draw_garden_courtyard_smd(ctx);
 
-    /* No enemies placed here yet; the room's 128 texture window is still handed
-       to the sprite renderers so a future spawn brackets its Voff>=128 sprite
-       correctly (see tools/TEXTURING_NOTES.txt PART 5). */
+    /* The Rabisu (this room's boss) is the only enemy placed here, and it is a
+       MODEL — untextured, so it owns no VRAM and needs no window bracket. The
+       room's 128 window is still handed to the sprite renderers so a future
+       SPRITE spawn brackets its Voff>=128 quad correctly (see
+       tools/TEXTURING_NOTES.txt PART 5). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
@@ -496,6 +499,7 @@ void garden_courtyard_draw(RenderContext *ctx) {
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
+    draw_rabisus(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);

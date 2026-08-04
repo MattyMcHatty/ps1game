@@ -87,7 +87,15 @@
                  within one 2048-byte sector. The PS1 boot ROM only reads the first
                  root-directory sector to find SYSTEM.CNF/HORROR.BIN; if too many
                  files push those records into a second sector the disc won't boot
-                 (freezes at the BIOS logo). Keep the root file list short. -->
+                 (freezes at the BIOS logo). Keep the root file list short.
+
+                 THE ROOT IS NOW FULL: SYSTEM.CNF's record ends at offset 2012,
+                 leaving 36 bytes — less than ONE directory record. Do not add
+                 anything here; put new files in SND or TEX. mkpsxiso sorts the
+                 root alphabetically, so a new name does not append, it INSERTS
+                 and shoves SYSTEM.CNF over the boundary. Adding RABISU.SMD here
+                 did exactly that and the console stopped booting.
+                 Verify after ANY change: py tools/check_disc_root.py -->
             <dir name="SND">
                 <file name="SWING.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\swing.vag"/>
                 <file name="HURT.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\hurt.vag"/>
@@ -119,6 +127,12 @@
                  reception_stream_textures) are moved here; props/delivery TIMs
                  that other modules load by root path stay in the root. -->
             <dir name="TEX">
+                <!-- Rabisu (boss model). In TEX, NOT the root, even though it is
+                     read once at startup like CRFAXE.SMD: adding a 60-byte record
+                     to the root pushed SYSTEM.CNF past the 2048-byte first-sector
+                     boundary and the console hung at the PlayStation logo. The
+                     root list is full — see the comment above it. -->
+                <file name="RABISU.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Rabisu.smd"/>
                 <file name="STRS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\strs.tim"/>
                 <file name="FRNTDR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\frnt_dr.tim"/>
                 <file name="STNSTL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\stn_stl.tim"/>
