@@ -67,6 +67,7 @@ add_executable(horror_game
     src/garden_stairs.c
     src/garden_courtyard_mesh_collision.c
     src/garden_courtyard.c
+    src/rabisu_boss.c
     src/chainlink_door.c
     src/lever.c
     src/lightswitch_puzzle.c

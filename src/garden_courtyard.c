@@ -21,6 +21,7 @@
 #include "zombie.h"
 #include "spider.h"
 #include "rabisu.h"
+#include "rabisu_boss.h"
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
@@ -264,6 +265,23 @@ void garden_courtyard_init(void) {
        player actually sees (see tools/ADDING_A_ROOM.txt). */
     collision_set_ceiling_y(-800);
     collision_set_wall_radius(GC_WALL_RADIUS);
+
+    /* >>> THE RETAINING LIPS MUST NOT BLOCK SHOTS. <<<
+       Four of this room's ten walls are the 100-unit terrace steps down to the
+       sunken lawn (the y 800..900 entries). They are real obstacles to the
+       PLAYER — that one-way lip is the boss arena's boundary — but they are
+       ankle-high, and this room's collision is flagged multi_level = 0, so the
+       hitscan's Y gate never runs and they were blocking everything fired
+       across them at any height. Standing on either terrace, the player could
+       not shoot the boss and the boss's fireballs died on the step: the fight
+       only worked from the middle of the lawn, and nothing said why.
+
+       Stated as a HEIGHT RULE rather than a list of wall indices, because the
+       wall list is generated and the indices move whenever the proxy mesh is
+       re-exported. 150 cleanly separates the four 100-tall steps from the six
+       perimeter walls, which are 686 and 786. */
+    collision_shoot_over_short_walls(150);
+
     garden_courtyard_floor_zones_init();
 
     /* Only one way in, so no per-door override is needed in main.c. */
@@ -277,6 +295,11 @@ void garden_courtyard_init(void) {
        this room's own; the nearest is on the Garden Stairs' top landing. */
     save_points_clear();
     dressers_clear();
+
+    /* Arm the boss encounter. It only PARKS the director — the reveal starts
+       itself on the first update that finds a living Rabisu, because the boss
+       is not placed until world_enter runs, which is after this. */
+    rabisu_boss_enter();
 }
 
 static void draw_garden_courtyard_smd(RenderContext *ctx) {
@@ -468,20 +491,15 @@ void garden_courtyard_draw(RenderContext *ctx) {
         ctx->next_packet += sizeof(DR_TWIN);
     }
 
-    /* View matrix from the camera (same construction as the other rooms). */
+    /* View matrix via camera_build_view rather than the hand-rolled yaw-only
+       block most rooms still use. This room NEEDS the pitch: the boss reveal
+       cranes the camera 400 up and tilts it down onto the middle of the garden
+       (src/rabisu_boss.c), and a yaw-only matrix drops cam_pitch on the floor
+       without a word — the shot would just be a high camera staring level at
+       the far wall. With pitch 0, which is every other frame the player spends
+       in here, this builds exactly the same matrix the old block did. */
     MATRIX rot_matrix;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &rot_matrix);
-
-    VECTOR trans;
-    trans.vx = -cam_x;
-    trans.vy = -cam_y;
-    trans.vz = -cam_z;
-    ApplyMatrixLV(&rot_matrix, &trans, &trans);
-    rot_matrix.t[0] = trans.vx;
-    rot_matrix.t[1] = trans.vy;
-    rot_matrix.t[2] = trans.vz;
-
+    camera_build_view(&rot_matrix);
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
 
@@ -500,9 +518,20 @@ void garden_courtyard_draw(RenderContext *ctx) {
     draw_zombies(ctx);
     draw_spiders(ctx);
     draw_rabisus(ctx);
+    /* Both of these want the PLAIN camera view matrix, which draw_rabisus puts
+       back after composing the boss's own — so they must come after it, not
+       before. The fireballs are the boss's projectiles; the encounter draw is
+       the lawn lights and the death glow. */
+    rbs_fireballs_draw(ctx);
+    rabisu_boss_draw(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);
 
-    door_text(ctx);
+    /* No door prompt while the encounter has the gate sealed: offering "Press O
+       to enter" on a door that will not answer is worse than offering nothing. */
+    if (!rabisu_boss_seals_door()) door_text(ctx);
+
+    /* Screen-space, so last: the two lines of scripture over the reveal. */
+    rabisu_boss_draw_overlay(ctx);
 }

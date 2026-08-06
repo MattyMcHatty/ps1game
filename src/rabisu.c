@@ -6,16 +6,23 @@
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
-#include "camera.h"
-#include "collision.h"      /* GROUND_FLOOR_Y */
-#include "crucifaxe.h"      /* SWING_RANGE */
+#include "camera.h"         /* player_x/y/z, player_knockback */
+#include "collision.h"      /* GROUND_FLOOR_Y, collision_segment_blocked */
+#include "crucifaxe.h"      /* swing_timer — the deflect windows read it */
+#include "player.h"         /* player_hurt, player_health, game_over */
 #include "particles.h"
 #include "sound.h"
 #include "title.h"          /* game_state */
 #include "rabisu.h"
 
 /* Rabisu — the first boss, and the first 3D-model enemy. See rabisu.h for the
-   tuning sheet and tools/ADDING_A_3D_ENEMY.txt for the procedure. */
+   tuning sheet and tools/ADDING_A_3D_ENEMY.txt for the procedure.
+
+   >>> EVERYTHING IN THIS FILE TARGETS player_x/y/z(), NEVER cam_*. <<< The
+   encounter's cutscenes fly the camera to a fixed vantage while the player
+   stands where they stood, so a boss that chased cam_* would spend the reveal
+   staring at an empty corner of the garden and the fight's first fireball
+   would be aimed at a camera. camera.h's anchor is exactly for this. */
 
 Rabisu rabisus[MAX_RABISUS];
 int    rabisu_count = 0;
@@ -125,14 +132,52 @@ static SVECTOR *rbs_verts(const Rabisu *r) {
     return rabisu_anim_frames + (f * rabisu_smd->n_verts);
 }
 
+/* Self-contained LCG, as the Anzu and lightswitch puzzles use — there is no
+   global PRNG in this project. It picks the number of traversals between
+   attacks and which attack follows, and it jitters the death shake. */
+static uint32_t rbs_rng = 0x9E3779B9u;
+static uint32_t rbs_rand(void) {
+    rbs_rng = rbs_rng * 1664525u + 1013904223u;
+    return rbs_rng >> 16;
+}
+
 void rabisus_init(void) {
     /* Placements are seeded on a room's first entry by the world system (see
        world_enter in world.c). The array starts empty. */
     rabisu_count = 0;
+    rbs_fireballs_reset();
 }
 
 void rabisus_reset(void) {
     rabisu_count = 0;
+    rbs_fireballs_reset();
+}
+
+/* Put a slot into its pristine, full-health, spawn-point state. The spawn and
+   the area tag are read out of the slot first and put back, so this is the one
+   routine both the initial placement and every later rest go through — there
+   is no second list of fields to keep in step. */
+static void rbs_reset_state(Rabisu *r) {
+    int32_t sx = r->spawn_x, sy = r->spawn_y, sz = r->spawn_z;
+    GameState area = r->area;
+
+    *r = (Rabisu){0};
+    r->x = sx; r->y = sy; r->z = sz;
+    r->spawn_x = sx; r->spawn_y = sy; r->spawn_z = sz;
+    r->health = RBS_MAX_HEALTH;
+    r->active = 1;
+    r->area   = area;
+    /* Facing +Z until the first update turns it toward the player. */
+    r->face_s = 0;
+    r->face_c = ONE;
+    /* Solid and unclipped. The zero-fill above would otherwise leave it fully
+       burnt out AND cut off at world y=0 — invisible twice over from the moment
+       it was placed. */
+    r->fade   = 256;
+    r->clip_y = RBS_NO_CLIP;
+    /* Dormant until the encounter director says otherwise: a boss must not
+       start throwing fireballs while its own reveal cutscene is playing. */
+    r->ai_state = RBS_AI_DORMANT;
 }
 
 int rabisu_add(int32_t x, int32_t ground_y, int32_t z, GameState area) {
@@ -146,16 +191,11 @@ int rabisu_add(int32_t x, int32_t ground_y, int32_t z, GameState area) {
        to the DRAW: folding it in here would make every other user of r->y (the
        hit box, the melee reach, the collision cylinder) silently wrong by that
        amount. */
-    int32_t y = ground_y - RBS_HOVER;
-    *r = (Rabisu){0};
-    r->x = x; r->y = y; r->z = z;
-    r->spawn_x = x; r->spawn_y = y; r->spawn_z = z;
-    r->health = RBS_MAX_HEALTH;
-    r->active = 1;
-    r->area   = area;
-    /* Facing +Z until the first update turns it toward the player. */
-    r->face_s = 0;
-    r->face_c = ONE;
+    r->spawn_x = x;
+    r->spawn_y = ground_y - RBS_HOVER;
+    r->spawn_z = z;
+    r->area    = area;
+    rbs_reset_state(r);
     return i;
 }
 
@@ -164,19 +204,48 @@ void rabisus_rest(void) {
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *r = &rabisus[i];
         if (!r->active || r->dead) continue;
-        /* Rebuild exactly as rabisu_add left it. Preserve the area tag across
-           the wipe — losing it would strand the boss in room 0. */
-        int32_t sx = r->spawn_x, sy = r->spawn_y, sz = r->spawn_z;
-        GameState area = r->area;
-        *r = (Rabisu){0};
-        r->x = sx; r->y = sy; r->z = sz;
-        r->spawn_x = sx; r->spawn_y = sy; r->spawn_z = sz;
-        r->health = RBS_MAX_HEALTH;
-        r->active = 1;
-        r->area   = area;
-        r->face_s = 0;
-        r->face_c = ONE;
+        rbs_reset_state(r);
     }
+    /* Fireballs are transient and area-scoped; a boss put back at its spawn
+       must not still have one of its shots in the air. */
+    rbs_fireballs_reset();
+}
+
+Rabisu *rabisu_boss_instance(void) {
+    int i;
+    for (i = 0; i < rabisu_count; i++) {
+        Rabisu *r = &rabisus[i];
+        if (r->active && !r->dead && r->area == game_state) return r;
+    }
+    return NULL;
+}
+
+void rabisu_go_dormant(Rabisu *r) {
+    r->ai_state = RBS_AI_DORMANT;
+    r->ai_timer = 0;
+    r->lean     = 0;
+    rbs_fireballs_reset();   /* nothing of its should still be in flight */
+}
+
+void rabisu_face_override(Rabisu *r, int on, int32_t x, int32_t z) {
+    r->face_ovr   = on ? 1 : 0;
+    r->face_ovr_x = x;
+    r->face_ovr_z = z;
+}
+
+void rabisu_fight_begin(Rabisu *r) {
+    if (r->dying || r->dead) return;
+    r->face_ovr     = 0;   /* eyes back on the player */
+    r->ai_state     = RBS_AI_MOVE;
+    r->ai_timer     = 0;
+    r->sweep        = 0;
+    r->lean         = 0;
+    r->moves_done   = 0;
+    r->moves_target = RBS_MOVES_MIN +
+                      (int32_t)(rbs_rand() % (RBS_MOVES_MAX - RBS_MOVES_MIN + 1));
+    /* First leg goes to one lip or the other — never "to the spawn", which is
+       where it already is. */
+    r->sweep_target = (rbs_rand() & 1) ? 4096 : -4096;
 }
 
 /* Flame Rounds do double damage; a standard round and a crucifaxe swing both do
@@ -192,12 +261,19 @@ int32_t rabisu_scale_damage(int32_t base, DamageType type) {
 }
 
 void rabisu_damage(Rabisu *r, int dmg) {
-    if (!r->active || r->dead) return;
+    if (!r->active || r->dead || r->dying) return;
     r->health   -= dmg;
     r->hit_timer = RBS_BAR_TIMER_MAX;
     if (r->health <= 0) {
         r->health = 0;
-        r->dead   = 1;
+        /* `dying`, NOT `dead`. The body has to stay drawable: the encounter
+           director now takes it over for a twelve-second death sequence and
+           only sets `dead` once it has finished burning away. Setting `dead`
+           here would blink the boss out of existence on the killing shot. */
+        r->dying    = 1;
+        r->ai_state = RBS_AI_DORMANT;
+        r->lean     = 0;
+        rbs_fireballs_reset();
         /* Burst at mid-body, not at the anchor: the anchor is the underside, so
            a burst there would spray from beneath its feet. */
         spawn_blood_burst(r->x, r->y - RBS_HALF_H, r->z);
@@ -214,6 +290,415 @@ void rabisu_body(const Rabisu *r, int32_t *cyc, int32_t *hh, int32_t *hw) {
     *hw  = RBS_HALF_W;
 }
 
+/* ===========================================================================
+ * FIREBALLS
+ * ===========================================================================
+ * The boss's projectile. Modelled on the spider's web (src/web.c) — same
+ * straight-line flight, same segment-based wall test so a fast shot cannot
+ * tunnel through a thin wall between frames — with the one behaviour a web
+ * never has: it can be turned around.
+ *
+ * Transient, so unlike the bosses themselves these are NOT in the save blob.
+ * A save taken mid-fight reloads with the air clear, which is the forgiving
+ * reading and the same one webs already get. */
+typedef struct {
+    int32_t   x, y, z;
+    int32_t   vx, vy, vz;
+    int32_t   life;        /* frames left before it fizzles; 0 = free slot     */
+    int32_t   age;         /* frames flown, so the parry window can be timed   */
+    int32_t   deflected;   /* 1 = turned around and hunting its owner          */
+    int32_t   owner;       /* index into rabisus[] — who eats it if deflected  */
+    GameState area;
+} RbsFireball;
+
+static RbsFireball rbs_fireballs[MAX_RBS_FIREBALLS];
+
+void rbs_fireballs_reset(void) {
+    int i;
+    for (i = 0; i < MAX_RBS_FIREBALLS; i++) rbs_fireballs[i].life = 0;
+}
+
+/* Is any of this boss's fireballs still in the air? RBS_AI_FIRE waits on it,
+   which is what makes the attack "fully resolve" before the sweep resumes —
+   including the extra second a deflected ball spends flying home. */
+static int rbs_fireball_in_flight(int owner) {
+    int i;
+    for (i = 0; i < MAX_RBS_FIREBALLS; i++)
+        if (rbs_fireballs[i].life > 0 && rbs_fireballs[i].owner == owner) return 1;
+    return 0;
+}
+
+static void rbs_fireball_spawn(int owner, int32_t x, int32_t y, int32_t z,
+                               int32_t tx, int32_t ty, int32_t tz,
+                               GameState area) {
+    int i;
+    for (i = 0; i < MAX_RBS_FIREBALLS; i++)
+        if (rbs_fireballs[i].life <= 0) break;
+    if (i >= MAX_RBS_FIREBALLS) return;
+
+    int32_t dx = tx - x, dy = ty - y, dz = tz - z;
+    int32_t len = isqrt32(dx * dx + dy * dy + dz * dz);
+    if (len <= 0) return;
+
+    RbsFireball *f = &rbs_fireballs[i];
+    f->x = x; f->y = y; f->z = z;
+    /* Speed is set by the FLIGHT TIME, not the other way round: the attack is
+       specified as half a second regardless of how far away the player is
+       standing, and the parry window is only fair if the arrival is
+       predictable. Dividing the whole distance by RBS_FB_FLIGHT gives that. */
+    f->vx = (dx / RBS_FB_FLIGHT);
+    f->vy = (dy / RBS_FB_FLIGHT);
+    f->vz = (dz / RBS_FB_FLIGHT);
+    /* Outlives the nominal arrival so a DODGED ball keeps sailing past and
+       fizzles in the open rather than vanishing at the player's shoulder. */
+    f->life      = RBS_FB_FLIGHT * 2;
+    f->age       = 0;
+    f->deflected = 0;
+    f->owner     = owner;
+    f->area      = area;
+    sound_play(SFX_SPIT);   /* stand-in: the spider's projectile hiss */
+}
+
+/* Turn a ball around: double speed, straight back at the chest of the thing
+   that threw it. It re-aims once, here, and then flies straight — a homing
+   return would make the deflect a guaranteed hit rather than a good one. */
+static void rbs_fireball_deflect(RbsFireball *f) {
+    Rabisu *r = &rabisus[f->owner];
+    VECTOR chest;
+    rabisu_anchor_world(r, RBS_A_CHEST_X, RBS_A_CHEST_Y, RBS_A_CHEST_Z, &chest);
+
+    int32_t dx = chest.vx - f->x, dy = chest.vy - f->y, dz = chest.vz - f->z;
+    int32_t len = isqrt32(dx * dx + dy * dy + dz * dz);
+    if (len <= 0) { f->life = 0; return; }
+
+    int32_t speed = (RBS_FB_FLIGHT / 2);   /* halve the frames = double the pace */
+    if (speed < 1) speed = 1;
+    f->vx = (dx / speed);
+    f->vy = (dy / speed);
+    f->vz = (dz / speed);
+    f->deflected = 1;
+    f->life      = speed * 3;   /* generous: it only has to cross once */
+    sound_play(SFX_AXEHIT);
+}
+
+void rbs_fireballs_update(void) {
+    int i;
+    for (i = 0; i < MAX_RBS_FIREBALLS; i++) {
+        RbsFireball *f = &rbs_fireballs[i];
+        if (f->life <= 0) continue;
+        if (f->area != game_state) { f->life = 0; continue; }
+        if (--f->life <= 0) continue;
+        f->age++;
+
+        int32_t ox = f->x, oy = f->y, oz = f->z;
+        f->x += f->vx;
+        f->y += f->vy;
+        f->z += f->vz;
+
+        if (collision_segment_blocked(ox, oy, oz, f->x, f->y, f->z)) {
+            f->life = 0;
+            continue;
+        }
+
+        if (f->deflected) {
+            /* Homeward leg: the only thing it can hit is its owner. */
+            Rabisu *r = &rabisus[f->owner];
+            if (r->active && !r->dead && !r->dying) {
+                int32_t hx = r->x - f->x;
+                int32_t hy = (r->y - RBS_HALF_H) - f->y;
+                int32_t hz = r->z - f->z;
+                int32_t d  = isqrt32(hx * hx + hy * hy + hz * hz);
+                if (d <= RBS_FB_RBS_RADIUS) {
+                    f->life = 0;
+                    spawn_blood_burst(f->x, f->y, f->z);
+                    rabisu_damage(r, 1);
+                }
+            } else {
+                f->life = 0;   /* it died to something else mid-return */
+            }
+            continue;
+        }
+
+        /* --- Outbound leg -----------------------------------------------
+           THE DEFLECT. Live only in the last RBS_FB_PARRY frames before the
+           nominal arrival, which is the window the player is being asked to
+           read: swing as it closes, not when it is halfway across the garden.
+           swing_timer counts 1..SWING_TOTAL from the frame Square was pressed
+           (crucifaxe.c), so "swing_timer is inside the window" is exactly
+           "a swing was started within 0.2 s of contact". It is only ever
+           non-zero with the axe equipped, so no weapon check is needed. */
+        if (f->age >= RBS_FB_FLIGHT - RBS_FB_PARRY &&
+            swing_timer > 0 && swing_timer <= RBS_FB_PARRY) {
+            rbs_fireball_deflect(f);
+            continue;
+        }
+
+        /* Contact. Radial in all three axes, as the web's is and for the same
+           reason: the shot was aimed at the player's anchor, so dy closes to
+           nothing on arrival and a flat XZ test would count a ball that sailed
+           over their head. Missing this sphere IS the dodge. */
+        if (!game_over) {
+            /* Tested against the SAME dropped point it was aimed at, so the
+               ball's flight and its hit sphere agree. Testing the eye while
+               aiming below it would quietly shrink the effective radius. */
+            int32_t hx = player_x() - f->x;
+            int32_t hy = (player_y() + RBS_FB_AIM_DROP) - f->y;
+            int32_t hz = player_z() - f->z;
+            if (hx * hx + hy * hy + hz * hz <=
+                (int32_t)RBS_FB_HIT_RADIUS * RBS_FB_HIT_RADIUS) {
+                f->life = 0;
+                player_hurt(RBS_FB_DAMAGE);
+                sound_play(SFX_HURT);
+                if (player_health <= 0) {
+                    player_health = 0;
+                    game_over     = 1;
+                    flash_timer   = 90;
+                    sound_play(SFX_DIE);
+                }
+            }
+        }
+    }
+}
+
+/* ===========================================================================
+ * COMBAT AI
+ * =========================================================================== */
+
+/* The world point the arc puts the boss at for a given sweep value.
+ *
+ * The sweep is a LATERAL offset, measured perpendicular to the line from the
+ * player to the boss's spawn, and +/-4096 maps to +/-RBS_SWEEP_RADIUS — the
+ * distance from the spawn to each retaining lip. What makes the path an ARC
+ * rather than a straight slide is the other component: the boss holds its
+ * DISTANCE from the player throughout, so the along-axis component shortens as
+ * the lateral one grows (a^2 + off^2 = base^2) and the path bows toward the
+ * player at its ends.
+ *
+ * Doing it this way, rather than bending a straight-line target back onto the
+ * circle, is what keeps the ends of the sweep exactly on the lips: the lateral
+ * offset is an input here, not something left over after a normalisation.
+ */
+static void rbs_arc_point(const Rabisu *r, int32_t sweep,
+                          int32_t *out_x, int32_t *out_z) {
+    int32_t px = player_x(), pz = player_z();
+    int32_t sx = r->spawn_x, sz = r->spawn_z;
+
+    int32_t bx = sx - px, bz = sz - pz;
+    int32_t base = isqrt32(bx * bx + bz * bz);
+    if (base <= 0) { *out_x = sx; *out_z = sz; return; }
+
+    int32_t off = (sweep * RBS_SWEEP_RADIUS) >> 12;
+    /* Stand close enough and the arc has nowhere to go: the lateral reach can
+       never exceed the radius of the circle it is measured on. Clamping here
+       degenerates the sweep into a tight orbit around the player, which is the
+       sensible thing for it to do when they have walked right up to it. */
+    if (off >  base) off =  base;
+    if (off < -base) off = -base;
+
+    int32_t along = isqrt32(base * base - off * off);
+
+    /* Unit basis: `b` toward the spawn, `perp` 90deg from it in XZ. */
+    int32_t tx = px + (bx * along) / base + ( bz * off) / base;
+    int32_t tz = pz + (bz * along) / base + (-bx * off) / base;
+
+    /* Never over a lip, and never off the lawn. The arc is sized so the centre
+       just touches each lip, but the player is free to stand somewhere that
+       swings it wide, and a boss parked over the one-way step would be a boss
+       the player has to jump down to shoot at. */
+    if (tx < RBS_ARENA_MIN_X) tx = RBS_ARENA_MIN_X;
+    if (tx > RBS_ARENA_MAX_X) tx = RBS_ARENA_MAX_X;
+    if (tz < RBS_ARENA_MIN_Z) tz = RBS_ARENA_MIN_Z;
+    if (tz > RBS_ARENA_MAX_Z) tz = RBS_ARENA_MAX_Z;
+
+    *out_x = tx;
+    *out_z = tz;
+}
+
+/* Pick the next stopping point. The three are the two lips and the spawn, and
+   it must differ from where it is standing — "moves from 1 spot to the other"
+   has no reading in which staying put counts as a move. */
+static void rbs_pick_target(Rabisu *r) {
+    static const int32_t STOP[3] = { -4096, 0, 4096 };
+    int32_t opts[2];
+    int i, n = 0;
+    for (i = 0; i < 3; i++)
+        if (STOP[i] != r->sweep_target && n < 2) opts[n++] = STOP[i];
+    /* Always exactly two: it is standing on one of the three. The n < 2 guard
+       is only there so a restored save that somehow held a fourth value could
+       not walk off the end of opts[]. */
+    r->sweep_target = opts[rbs_rand() & 1];
+}
+
+/* The stop is over: throw something. Fireball twice as often as foot slash. */
+static void rbs_begin_attack(Rabisu *r, int self) {
+    if (rbs_rand() % RBS_ATTACK_ROLL == RBS_SLASH_FACE) {
+        r->ai_state    = RBS_AI_SLASH_IN;
+        r->ai_timer    = 0;
+        r->slash_from_x = r->x;
+        r->slash_from_z = r->z;
+        return;
+    }
+
+    VECTOR chest;
+    rabisu_anchor_world(r, RBS_A_CHEST_X, RBS_A_CHEST_Y, RBS_A_CHEST_Z, &chest);
+    rbs_fireball_spawn(self, chest.vx, chest.vy, chest.vz,
+                       player_x(), player_y() + RBS_FB_AIM_DROP, player_z(),
+                       r->area);
+    r->ai_state = RBS_AI_FIRE;
+    /* A ceiling, not the schedule: the state really ends when the ball is gone
+       (see below). This only covers the case where the pool was full and no
+       ball was ever spawned, which would otherwise hang the boss forever. */
+    r->ai_timer = RBS_FB_FLIGHT * 4;
+}
+
+/* Attack resolved (damage taken, blocked, or turned back) — sweep again. */
+static void rbs_resume_sweep(Rabisu *r) {
+    r->ai_state     = RBS_AI_MOVE;
+    r->ai_timer     = 0;
+    r->lean         = 0;
+    r->moves_done   = 0;
+    r->moves_target = RBS_MOVES_MIN +
+                      (int32_t)(rbs_rand() % (RBS_MOVES_MAX - RBS_MOVES_MIN + 1));
+    rbs_pick_target(r);
+}
+
+static void rbs_slash_land(Rabisu *r) {
+    /* The 0.4 s block. Twice the fireball's window because unlike the fireball
+       this attack cannot be sidestepped — the charge re-aims every frame — so
+       the parry is the ONLY answer to it and has to be catchable. */
+    if (swing_timer > 0 && swing_timer <= RBS_SLASH_PARRY) {
+        /* A block, not a riposte: no damage either way. It still SHOVES,
+           though, and loudly — otherwise a blocked slash and a slash that
+           somehow whiffed look and sound identical, and the player cannot tell
+           that the parry is what saved them. */
+        sound_play(SFX_SMASH);
+        player_knockback(r->x, r->z, RBS_SLASH_KNOCKBACK / 2);
+    } else if (!game_over) {
+        player_hurt(RBS_SLASH_DAMAGE);
+        player_knockback(r->x, r->z, RBS_SLASH_KNOCKBACK);
+        sound_play(SFX_HURT);
+        if (player_health <= 0) {
+            player_health = 0;
+            game_over     = 1;
+            flash_timer   = 90;
+            sound_play(SFX_DIE);
+        }
+    }
+    r->ai_state = RBS_AI_SLASH_BACK;
+    r->ai_timer = 0;
+}
+
+static void rbs_update_ai(Rabisu *r, int self) {
+    switch (r->ai_state) {
+    case RBS_AI_DORMANT:
+        break;
+
+    case RBS_AI_MOVE: {
+        int32_t step = (4096 + RBS_SWEEP_FRAMES - 1) / RBS_SWEEP_FRAMES;
+        if (r->sweep < r->sweep_target) {
+            r->sweep += step;
+            if (r->sweep > r->sweep_target) r->sweep = r->sweep_target;
+        } else if (r->sweep > r->sweep_target) {
+            r->sweep -= step;
+            if (r->sweep < r->sweep_target) r->sweep = r->sweep_target;
+        }
+        rbs_arc_point(r, r->sweep, &r->x, &r->z);
+
+        if (r->sweep == r->sweep_target) {
+            /* Arrived at a stopping point. Either set off again, or — once the
+               quota is met — plant and wind up. */
+            if (++r->moves_done >= r->moves_target) {
+                r->ai_state = RBS_AI_PAUSE;
+                r->ai_timer = RBS_STOP_PAUSE;
+            } else {
+                rbs_pick_target(r);
+            }
+        }
+        break;
+    }
+
+    case RBS_AI_PAUSE:
+        /* Held dead still on the spot it arrived at. Keep re-solving the arc
+           point so it still tracks a player who walks around it — it is
+           stationary along its OWN arc, not pinned to a patch of grass. */
+        rbs_arc_point(r, r->sweep, &r->x, &r->z);
+        if (--r->ai_timer <= 0) rbs_begin_attack(r, self);
+        break;
+
+    case RBS_AI_FIRE:
+        rbs_arc_point(r, r->sweep, &r->x, &r->z);
+        /* The real exit: the shot is spent — it hit, it was dodged and
+           fizzled, or it came back and bit its owner. The timer is only the
+           backstop described in rbs_begin_attack. */
+        if (!rbs_fireball_in_flight(self) || --r->ai_timer <= 0)
+            rbs_resume_sweep(r);
+        break;
+
+    case RBS_AI_SLASH_IN: {
+        r->ai_timer++;
+        int32_t t = (r->ai_timer * 256) / RBS_SLASH_IN;
+        if (t > 256) t = 256;
+
+        /* Re-aimed every frame at a point RBS_SLASH_STANDOFF short of the
+           player, which is what "cannot be dodged" means mechanically: walking
+           aside moves the destination rather than escaping it. */
+        int32_t px = player_x(), pz = player_z();
+        int32_t ax = r->slash_from_x - px, az = r->slash_from_z - pz;
+        int32_t alen = isqrt32(ax * ax + az * az);
+        int32_t tx = px, tz = pz;
+        if (alen > 0) {
+            tx = px + (ax * RBS_SLASH_STANDOFF) / alen;
+            tz = pz + (az * RBS_SLASH_STANDOFF) / alen;
+        }
+        /* Ease-IN, the mirror of the camera glides' ease-out: it gathers pace
+           as it comes, so the last few frames — the ones the parry is timed
+           against — are the fastest and read as a strike, not a drift. */
+        int32_t e = (t * t) / 256;
+        r->x = r->slash_from_x + ((tx - r->slash_from_x) * e) / 256;
+        r->z = r->slash_from_z + ((tz - r->slash_from_z) * e) / 256;
+        /* Rise to meet them. Without this the charge holds its hover height —
+           underside on the terrace floor — and the feet arrive below the
+           bottom of the screen, which is the difference between an attack the
+           player sees coming and one that just takes 20% off the bar. */
+        {
+            int32_t ty = player_y() + RBS_SLASH_RISE_TO;
+            r->y = r->spawn_y + ((ty - r->spawn_y) * e) / 256;
+        }
+        r->lean = (RBS_SLASH_LEAN * e) / 256;
+
+        if (r->ai_timer >= RBS_SLASH_IN) rbs_slash_land(r);
+        break;
+    }
+
+    case RBS_AI_SLASH_BACK: {
+        r->ai_timer++;
+        int32_t t = (r->ai_timer * 256) / RBS_SLASH_BACK;
+        if (t > 256) t = 256;
+        int32_t inv = 256 - t;
+        int32_t e = 256 - (inv * inv / 256);          /* ease-out */
+
+        /* Home is the LIVE arc point for the sweep value it stopped on, not
+           the world spot it launched from. Those are the same place if the
+           player has not moved, and if they have, this is the one that leaves
+           no jump when the sweep picks up again. */
+        int32_t hx, hz;
+        rbs_arc_point(r, r->sweep, &hx, &hz);
+        if (r->ai_timer == 1) {
+            r->slash_from_x = r->x;
+            r->slash_from_y = r->y;   /* wherever the strike left it */
+            r->slash_from_z = r->z;
+        }
+        r->x = r->slash_from_x + ((hx - r->slash_from_x) * e) / 256;
+        r->z = r->slash_from_z + ((hz - r->slash_from_z) * e) / 256;
+        r->y = r->slash_from_y + ((r->spawn_y - r->slash_from_y) * e) / 256;
+        r->lean = (RBS_SLASH_LEAN * (256 - e)) / 256;
+
+        if (r->ai_timer >= RBS_SLASH_BACK) rbs_resume_sweep(r);
+        break;
+    }
+    }
+}
+
 void update_rabisus(void) {
     int i;
     for (i = 0; i < rabisu_count; i++) {
@@ -226,9 +711,17 @@ void update_rabisus(void) {
         /* Turn to face the player. The facing is kept as the normalised
            direction vector rather than an angle: that IS the sin/cos pair the
            draw's rotation matrix needs, so no atan2 (which this SDK does not
-           provide) and no trig lookup are involved. */
-        int32_t dx = cam_x - r->x;
-        int32_t dz = cam_z - r->z;
+           provide) and no trig lookup are involved.
+
+           This runs even while dying and while the director owns the body, and
+           deliberately: "maintains a forward gaze on the player" holds through
+           the reveal and through its own death — except that during a cutscene
+           the player is anchored off wherever they walked in, so the director
+           overrides the target with the camera (see rabisu_face_override). */
+        int32_t tgt_x = r->face_ovr ? r->face_ovr_x : player_x();
+        int32_t tgt_z = r->face_ovr ? r->face_ovr_z : player_z();
+        int32_t dx = tgt_x - r->x;
+        int32_t dz = tgt_z - r->z;
         int32_t len = isqrt32(dx * dx + dz * dz);
         if (len > 0) {
             r->face_s = (dx << 12) / len;
@@ -243,39 +736,29 @@ void update_rabisus(void) {
            frames each. The clock is per instance, and it only advances in the
            boss's own area because of the game_state gate above — which is what
            we want: an off-screen boss in another room should not be burning
-           frames of animation. */
-        if (rabisu_anim_count > 1 && ++r->anim_tick >= RBS_ANIM_TICKS) {
+           frames of animation. `frozen` is the death sequence holding the pose
+           for its two-second beat before the light starts. */
+        if (!r->frozen && rabisu_anim_count > 1 &&
+            ++r->anim_tick >= RBS_ANIM_TICKS) {
             r->anim_tick = 0;
             if (++r->anim_frame >= rabisu_anim_count) r->anim_frame = 0;
         }
 
-        /* No movement, wake or attack yet — the abilities come later. */
+        if (!r->dying) rbs_update_ai(r, i);
     }
-}
 
-/* Horizontal distance from (px,pz) to the body cylinder's SURFACE, and the
-   vertical distance from py to the body's span. Both are 0 when the point is
-   inside. Shared by the melee reach test and the collision push-out so the two
-   can never disagree about where the boss's edges are. */
-static void rabisu_gap(const Rabisu *r, int32_t px, int32_t py, int32_t pz,
-                       int32_t *out_h, int32_t *out_v) {
-    int32_t dx = px - r->x;
-    int32_t dz = pz - r->z;
-    int32_t d  = isqrt32(dx * dx + dz * dz);
-    *out_h = d > RBS_BODY_RADIUS ? d - RBS_BODY_RADIUS : 0;
-
-    int32_t top = r->y - RBS_HEIGHT;   /* -Y is up */
-    int32_t bot = r->y;
-    if      (py < top) *out_v = top - py;
-    else if (py > bot) *out_v = py - bot;
-    else               *out_v = 0;
+    rbs_fireballs_update();
 }
 
 void rabisus_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     int i;
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *r = &rabisus[i];
-        if (!r->active || r->dead) continue;
+        /* A dying boss stops being solid. It is drawn for another twelve
+           seconds while it comes apart, but it is finished as an obstacle —
+           and the death sequence walks it back to its spawn, which would shove
+           the player across the garden if the cylinder were still live. */
+        if (!r->active || r->dead || r->dying) continue;
         if (r->area != game_state) continue;
 
         /* Vertical gate: the player's body span (feet at py+GROUND_FLOOR_Y,
@@ -306,33 +789,32 @@ void rabisus_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     }
 }
 
-int rabisus_try_hit(void) {
-    int i;
-    for (i = 0; i < rabisu_count; i++) {
-        Rabisu *r = &rabisus[i];
-        if (!r->active || r->dead) continue;
-        if (r->area != game_state) continue;
+/* NOTE FOR ANYONE LOOKING FOR rabisus_try_hit(): there isn't one, on purpose.
+   The crucifaxe cannot damage this enemy (see the note on RBS_MAX_HEALTH in
+   rabisu.h) and crucifaxe.c has no rabisu block. The axe earns its place in
+   this fight as a PARRY instead — both deflect windows above read swing_timer
+   directly, so the swing matters without ever landing a hit. */
 
-        /* Reach measured to the body's SURFACE. The other enemies test their
-           centre because they are roughly axe-sized; this one is 3.4 m across
-           and 4.6 m tall, so its centre sits ~500 from the player's eye at the
-           closest the collision cylinder allows — past SWING_RANGE (350), and
-           the axe would never connect. */
-        int32_t gh, gv;
-        rabisu_gap(r, cam_x, cam_y, cam_z, &gh, &gv);
-        if (gh + gv >= SWING_RANGE) continue;
-
-        /* Facing test, as every other melee hit does. */
-        int32_t dx  = r->x - cam_x;
-        int32_t dz  = r->z - cam_z;
-        int32_t dot = ((int32_t)dx * isin(cam_rot) +
-                       (int32_t)dz * icos(cam_rot)) >> 12;
-        if (dot <= 0) continue;
-
-        rabisu_damage(r, 1);   /* no knockback: it hovers, and nothing moves it */
-        return 1;
+/* Turn a mesh-local point into the world point it currently occupies. This
+   MUST stay in step with the transform draw_rabisus builds, because that is
+   the whole contract: the death lights sit on the head and the wing tips only
+   for as long as the two agree. Order is lean (local X) first, then the facing
+   yaw, then the translate — identical to the CompMatrixLV chain below. */
+void rabisu_anchor_world(const Rabisu *r, int32_t lx, int32_t ly, int32_t lz,
+                         VECTOR *out) {
+    /* Lean about local X: y and z rotate, x is untouched. */
+    int32_t ry = ly, rz = lz;
+    if (r->lean) {
+        int32_t a = RBS_LEAN_BACKWARD ? r->lean : -r->lean;
+        int32_t s = isin(a & 4095), c = icos(a & 4095);
+        ry = (ly * c - lz * s) >> 12;
+        rz = (ly * s + lz * c) >> 12;
     }
-    return 0;
+
+    /* Facing yaw, from the stored sin/cos pair. */
+    out->vx = r->x + ((lx * r->face_c + rz * r->face_s) >> 12);
+    out->vy = r->y + RBS_FOOT_OFF + ry;
+    out->vz = r->z + ((-lx * r->face_s + rz * r->face_c) >> 12);
 }
 
 /* Health bar above the boss's head. Drawn with the plain camera view matrix
@@ -394,6 +876,29 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     uint8_t *p = (uint8_t *)rabisu_smd->p_prims;
 
+    /* THE FADE-OUT, at the end of the death sequence. A flat-shaded POLY_F4 has
+       no alpha channel, so "fade away" has to be a blend mode: every poly goes
+       ADDITIVE (ABR=1, the same blend the lightswitch beams and the stove flame
+       use) and its colour is scaled toward black. Additive black contributes
+       nothing, so at fade 0 the body is genuinely gone over ANY background —
+       which merely darkening the colour would not achieve, and which fogging it
+       toward the sky would only achieve against the sky.
+       It also reads right: the thing has spent six seconds pouring out light,
+       and it burns out rather than dissolving.
+       Additive needs a DR_TPAGE in FRONT of each poly in OT order, and the OT
+       is LIFO, so the tpage is added to the same bucket immediately AFTER its
+       poly. Costs 8 extra bytes per poly, and only while fading. */
+    int      burning = (r->fade < 256);
+    int32_t  fade    = r->fade < 0 ? 0 : r->fade;
+
+    /* The rise-through-the-lawn cut, expressed in MODEL space so the test is
+       one comparison per vertex rather than a transform. The draw translates
+       by (r->y + RBS_FOOT_OFF), and neither the yaw nor the lean is active
+       during the rise, so a vertex's world Y is just that plus its own vy —
+       which makes the world cut plane this model-space vy. */
+    int      clipping = (r->clip_y != RBS_NO_CLIP);
+    int32_t  clip_vy  = r->clip_y - (r->y + RBS_FOOT_OFF);
+
     /* THE animation hook. Topology (which vertices, what colour) still comes
        from the .smd's prim stream below; only the POSITIONS are swapped for
        this frame's baked block. That is the whole of playback. */
@@ -420,6 +925,17 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
         SVECTOR *v0 = &vp[vi[0]];
         SVECTOR *v1 = &vp[vi[1]];
         SVECTOR *v2 = &vp[vi[2]];
+
+        /* Drop the poly only when EVERY corner is under the cut. Dropping any
+           poly that merely straddles it would eat a visible band off the
+           silhouette; leaving the stragglers means a few small faces poke a
+           little way through the turf as it surfaces, which is the cheaper
+           error and, on a thing clawing its way out of the ground, the more
+           flattering one. */
+        if (clipping && v0->vy > clip_vy && v1->vy > clip_vy && v2->vy > clip_vy &&
+            (!is_quad || vp[vi[3]].vy > clip_vy)) {
+            p += stride; continue;
+        }
 
         DVECTOR sv[4];
         int32_t sz[4], otz, nclip;
@@ -472,31 +988,45 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
         uint8_t *col = p + 16;
         int32_t cr = col[0], cg = col[1], cb = col[2];
         if (hit) { cr = 255; cg = cg >> 2; cb = cb >> 2; }
-        uint8_t rr = (uint8_t)((cr * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8);
-        uint8_t gg = (uint8_t)((cg * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8);
-        uint8_t bb = (uint8_t)((cb * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8);
+        int32_t sr = (cr * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8;
+        int32_t sg = (cg * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8;
+        int32_t sb = (cb * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8;
+        if (burning) { sr = (sr * fade) >> 8; sg = (sg * fade) >> 8; sb = (sb * fade) >> 8; }
+        uint8_t rr = (uint8_t)sr, gg = (uint8_t)sg, bb = (uint8_t)sb;
+
+        int32_t   need = (is_quad ? (int32_t)sizeof(POLY_F4) : (int32_t)sizeof(POLY_F3)) +
+                         (burning ? (int32_t)sizeof(DR_TPAGE) : 0);
+        uint32_t *ot   = ctx->buffers[ctx->active_buffer].ot;
+        if (ctx->next_packet + need > buf_end) { p += stride; continue; }
 
         if (is_quad) {
-            if (ctx->next_packet + sizeof(POLY_F4) > buf_end) { p += stride; continue; }
             POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
             setPolyF4(poly);
             setRGB0(poly, rr, gg, bb);
+            if (burning) setSemiTrans(poly, 1);
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
             poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
             poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
-            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            addPrim(&ot[otz], poly);
             ctx->next_packet += sizeof(POLY_F4);
         } else {
-            if (ctx->next_packet + sizeof(POLY_F3) > buf_end) { p += stride; continue; }
             POLY_F3 *poly = (POLY_F3 *)ctx->next_packet;
             setPolyF3(poly);
             setRGB0(poly, rr, gg, bb);
+            if (burning) setSemiTrans(poly, 1);
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
             poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
-            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            addPrim(&ot[otz], poly);
             ctx->next_packet += sizeof(POLY_F3);
+        }
+
+        if (burning) {
+            DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
+            setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
+            addPrim(&ot[otz], tp);
+            ctx->next_packet += sizeof(DR_TPAGE);
         }
 
         p += stride;
@@ -506,25 +1036,27 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
 void draw_rabisus(RenderContext *ctx) {
     if (!rabisu_smd || rabisu_count == 0) return;
 
-    /* Rebuild the camera view matrix locally (the same six lines every room's
-       draw uses) so this module is self-contained, then compose the boss's own
-       rotation+translation onto it per instance. The caller's matrix is put
-       back at the end — the sprite enemies, pickups and door text drawn after
-       this all assume the plain view matrix is loaded. */
+    /* Rebuild the camera view matrix locally so this module is self-contained,
+       then compose the boss's own rotation+translation onto it per instance.
+       The caller's matrix is put back at the end — the sprite enemies, pickups
+       and door text drawn after this all assume the plain view matrix.
+
+       camera_build_view rather than the yaw-only block the sprite enemies use,
+       and it MATTERS here: the Rabisu's own reveal and death cutscenes pitch
+       the camera down over the garden, and a yaw-only matrix would silently
+       ignore that and draw the boss through a different projection than the
+       room it is standing in. Identical to the old block whenever pitch is 0. */
     MATRIX view;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &view);
-    VECTOR vt = {-cam_x, -cam_y, -cam_z};
-    ApplyMatrixLV(&view, &vt, &vt);
-    view.t[0] = vt.vx;
-    view.t[1] = vt.vy;
-    view.t[2] = vt.vz;
+    camera_build_view(&view);
 
     int i, drew_any = 0;
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *r = &rabisus[i];
         if (!r->active || r->dead) continue;
         if (r->area != game_state) continue;
+        /* Fully burnt out, or waiting under the lawn before its reveal: not
+           merely invisible but skipped, so neither case costs 476 polys. */
+        if (r->fade <= 0) continue;
 
         int32_t dcx = r->x - cam_x, dcz = r->z - cam_z;
         int32_t dist = (dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz);
@@ -534,15 +1066,46 @@ void draw_rabisus(RenderContext *ctx) {
            exactly the matrix RotMatrix({0,yaw,0}) would produce for the yaw
            whose sine and cosine those are — same handedness as every other
            rotated prop in the game (see chainlink_door.c's footprint maths). */
-        MATRIX pm, combined;
-        pm.m[0][0] = (int16_t)r->face_c; pm.m[0][1] = 0;          pm.m[0][2] = (int16_t)r->face_s;
-        pm.m[1][0] = 0;                  pm.m[1][1] = (int16_t)ONE; pm.m[1][2] = 0;
-        pm.m[2][0] = (int16_t)-r->face_s; pm.m[2][1] = 0;         pm.m[2][2] = (int16_t)r->face_c;
+        MATRIX yawm, pm, combined;
+        yawm.m[0][0] = (int16_t)r->face_c; yawm.m[0][1] = 0;           yawm.m[0][2] = (int16_t)r->face_s;
+        yawm.m[1][0] = 0;                  yawm.m[1][1] = (int16_t)ONE; yawm.m[1][2] = 0;
+        yawm.m[2][0] = (int16_t)-r->face_s; yawm.m[2][1] = 0;          yawm.m[2][2] = (int16_t)r->face_c;
+
+        /* The foot slash's backward lean, about the model's OWN X axis — so it
+           tips back relative to the direction it is charging, whichever way
+           that happens to be. Applied INSIDE the yaw (yaw * lean), and built by
+           hand rather than through RotMatrix for one reason: rabisu_anchor_world
+           has to reproduce this exact transform to keep the death lights stuck
+           to the head, and two hand-written matrices cannot disagree about a
+           sign convention the way a hand-written one and RotMatrix could. */
+        if (r->lean) {
+            int32_t a = RBS_LEAN_BACKWARD ? r->lean : -r->lean;
+            int32_t s = isin(a & 4095), c = icos(a & 4095);
+            MATRIX lean;
+            lean.m[0][0] = (int16_t)ONE; lean.m[0][1] = 0;           lean.m[0][2] = 0;
+            lean.m[1][0] = 0;            lean.m[1][1] = (int16_t)c;  lean.m[1][2] = (int16_t)-s;
+            lean.m[2][0] = 0;            lean.m[2][1] = (int16_t)s;  lean.m[2][2] = (int16_t)c;
+            MulMatrix0(&yawm, &lean, &pm);
+        } else {
+            pm = yawm;
+        }
 
         /* RBS_FOOT_OFF is applied HERE and nowhere else: it cancels the model's
-           authored offset so vertex y=-168 (its lowest) lands on the anchor.
-           Adding it moves the model DOWN, because -Y is up. */
-        VECTOR pos = { r->x, r->y + RBS_FOOT_OFF, r->z };
+           authored offset so its lowest vertex lands on the anchor. Adding it
+           moves the model DOWN, because -Y is up.
+
+           The death shake rides on the TRANSLATION only, never on r->x/r->z.
+           Jittering the entity itself would jitter its collision cylinder, its
+           health-bar anchor and the death lights' anchors with it — the body is
+           meant to vibrate on the spot, not to be somewhere different. */
+        int32_t jx = 0, jz = 0, jy = 0;
+        if (r->shake) {
+            int32_t a = r->shake;
+            jx = (int32_t)(rbs_rand() % (uint32_t)(2 * a + 1)) - a;
+            jy = (int32_t)(rbs_rand() % (uint32_t)(2 * a + 1)) - a;
+            jz = (int32_t)(rbs_rand() % (uint32_t)(2 * a + 1)) - a;
+        }
+        VECTOR pos = { r->x + jx, r->y + RBS_FOOT_OFF + jy, r->z + jz };
         TransMatrix(&pm, &pos);
         CompMatrixLV(&view, &pm, &combined);
 
@@ -562,7 +1125,101 @@ void draw_rabisus(RenderContext *ctx) {
 
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *r = &rabisus[i];
-        if (!r->active || r->dead || r->area != game_state) continue;
+        /* No bar over a corpse. The killing hit set hit_timer to its full two
+           seconds like any other, and an empty bar hanging over the death
+           sequence would be the one piece of HUD still insisting there is a
+           fight on. */
+        if (!r->active || r->dead || r->dying || r->area != game_state) continue;
         draw_rbs_bar(ctx, r);
+    }
+}
+
+/* ---- Fireball drawing ------------------------------------------------------
+   A solid cube, exactly as a web is drawn (src/web.c) and for the same reason:
+   all six faces at one flat colour and one OT depth means the result is the
+   silhouette filled, with no dependence on winding order for gte_nclip and no
+   sorting to get wrong. Only the colour differs — hot orange-red going out,
+   white-hot on the way back, so a deflected ball reads as the player's shot
+   rather than the boss's. */
+static void draw_rbs_fireball(RenderContext *ctx, const RbsFireball *f) {
+    static const int8_t corner[8][3] = {
+        { -1, -1, -1 }, {  1, -1, -1 }, {  1, -1,  1 }, { -1, -1,  1 },
+        { -1,  1, -1 }, {  1,  1, -1 }, {  1,  1,  1 }, { -1,  1,  1 },
+    };
+    static const uint8_t face[6][4] = {
+        { 0, 1, 2, 3 }, { 4, 5, 6, 7 }, { 0, 1, 5, 4 },
+        { 3, 2, 6, 7 }, { 0, 3, 7, 4 }, { 1, 2, 6, 5 },
+    };
+
+    int32_t fdx  = f->x - cam_x;
+    int32_t fdz  = f->z - cam_z;
+    int32_t dist = (fdx < 0 ? -fdx : fdx) + (fdz < 0 ? -fdz : fdz);
+    if (dist >= g_fog_far) return;
+    int32_t fs = render_fog_scale(dist);
+    if (fs > 255) fs = 255;
+
+    uint8_t cr, cg, cb;
+    if (f->deflected) { cr = 255; cg = 240; cb = 190; }
+    else              { cr = 255; cg =  70; cb =  20; }
+    cr = (uint8_t)((cr * fs) >> 8);
+    cg = (uint8_t)((cg * fs) >> 8);
+    cb = (uint8_t)((cb * fs) >> 8);
+
+    SVECTOR v[8];
+    int c;
+    for (c = 0; c < 8; c++) {
+        v[c].vx  = (int16_t)(f->x + corner[c][0] * RBS_FB_HALF);
+        v[c].vy  = (int16_t)(f->y + corner[c][1] * RBS_FB_HALF);
+        v[c].vz  = (int16_t)(f->z + corner[c][2] * RBS_FB_HALF);
+        v[c].pad = 0;
+    }
+
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    int fi;
+    for (fi = 0; fi < 6; fi++) {
+        if (ctx->next_packet + sizeof(POLY_F4) > buf_end) return;
+
+        DVECTOR sv[4];
+        int32_t sz[4], otz;
+
+        gte_ldv3(&v[face[fi][0]], &v[face[fi][1]], &v[face[fi][2]]);
+        gte_rtpt();
+        gte_stsxy3c(sv);
+        gte_ldv0(&v[face[fi][3]]);
+        gte_rtps();
+        gte_stsxy(&sv[3]);
+        gte_stsz4c(sz);
+        if (!sz[0] || !sz[1] || !sz[2] || !sz[3]) continue;
+
+        int k;
+        for (k = 0; k < 4; k++)
+            if (sv[k].vx <= -1023 || sv[k].vx >= 1023 ||
+                sv[k].vy <= -1023 || sv[k].vy >= 1023) break;
+        if (k < 4) continue;
+
+        gte_avsz4();
+        gte_stotz(&otz);
+        if (otz <= 0) continue;
+        if (otz < SCENE_OT_MIN)   otz = SCENE_OT_MIN;
+        if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
+
+        POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
+        setPolyF4(poly);
+        setRGB0(poly, cr, cg, cb);
+        poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+        poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+        poly->x2 = sv[3].vx; poly->y2 = sv[3].vy;
+        poly->x3 = sv[2].vx; poly->y3 = sv[2].vy;
+        addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+        ctx->next_packet += sizeof(POLY_F4);
+    }
+}
+
+void rbs_fireballs_draw(RenderContext *ctx) {
+    int i;
+    for (i = 0; i < MAX_RBS_FIREBALLS; i++) {
+        RbsFireball *f = &rbs_fireballs[i];
+        if (f->life <= 0 || f->area != game_state) continue;
+        draw_rbs_fireball(ctx, f);
     }
 }

@@ -107,6 +107,16 @@ void    collision_set_ceiling_y(int32_t y);
 #define COLLISION_WALL_RADIUS 195
 void    collision_set_wall_radius(int32_t r);
 
+/* Set shoot_over_mask by SCANNING the wall list: every wall whose Y span is at
+   most `max_height` tall becomes shoot-over. For rooms whose obstacles are a
+   mix of full-height walls and knee-high retaining steps, this states the rule
+   ("anything you could see over, you can shoot over") instead of hard-coding
+   wall indices — which matters because the wall list is GENERATED, and indices
+   shuffle every time the proxy mesh is re-exported.
+   Call from the room's *_init() AFTER its *_collision_init(), which zeroes the
+   mask. See garden_courtyard_init() for the worked case. */
+void    collision_shoot_over_short_walls(int32_t max_height);
+
 /* Hitscan line-of-sight test: returns 1 if the straight segment from
    (ax,ay,az) to (bx,by,bz) is blocked by a wall or solid prop — i.e. a wall
    polygon lies between the two points. Uses an exact ray/segment crossing test

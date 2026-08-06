@@ -647,6 +647,17 @@ void collision_set_wall_radius(int32_t r) {
     wall_radius = r > 0 ? r : COLLISION_WALL_RADIUS;
 }
 
+void collision_shoot_over_short_walls(int32_t max_height) {
+    CollisionRoom *r = &current_collision_room;
+    int i, n = r->wall_count > 32 ? 32 : r->wall_count;   /* the mask is 32 bits */
+    r->shoot_over_mask = 0;
+    for (i = 0; i < n; i++) {
+        int32_t h = r->walls[i].y_max - r->walls[i].y_min;
+        if (h < 0) h = -h;
+        if (h <= max_height) r->shoot_over_mask |= 1u << i;
+    }
+}
+
 int32_t collision_ceiling_y(int32_t x, int32_t z) {
     CollisionRoom *r = &current_collision_room;
     int32_t near_top = 0, room_top = 0;

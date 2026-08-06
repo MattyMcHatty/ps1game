@@ -12,6 +12,9 @@ including the two things that were got WRONG first time (see the last section).
 
 Companion docs (read them for the *why*; this file is the *how*):
   tools/ADDING_A_3D_ENEMY.txt       - the MODEL-enemy delta against this file
+  tools/ADDING_A_BOSS_ENCOUNTER.txt - what to do AFTER the enemy exists, if it
+                                      is a boss: camera, reveal, sealed arena,
+                                      death sequence
   tools/ADDING_A_ROOM.txt           - the room runbook; this file mirrors it
   tools/TEXTURING_NOTES.txt         - VRAM rules, LoadImage timing, tex windows
   tools/AREAS_AND_WORLD_NOTES.txt   - the area/state model and world.c

@@ -10,6 +10,11 @@ first boss and its first model enemy, and records every step that was actually
 performed.
 
 Companion docs:
+  tools/ADDING_A_BOSS_ENCOUNTER.txt - the NEXT step if this enemy is a boss.
+                                      Everything about a fight that is not the
+                                      enemy itself: camera takeover, the
+                                      reveal, the sealed arena, the death
+                                      sequence. It assumes THIS file is done.
   tools/ANIMATING_A_3D_MODEL.txt    - giving the model a SKELETAL ANIMATION;
                                       read it before rigging anything, it opens
                                       with why the console never sees the bones
@@ -322,6 +327,16 @@ where the others are cleared, set it on a hit).
 Derive the SAME gap from ONE helper shared with the collision push-out. If the
 two disagree about where the enemy's edges are, the player can be held at a
 distance the axe cannot cross.
+
+>>> NOTE, SINCE src/rabisu.c IS THE REFERENCE AND NO LONGER SHOWS THIS: <<<
+the Rabisu had exactly the surface-reach <slug>s_try_hit() described above
+until the boss encounter was built, at which point the axe was made unable to
+damage it at all and the whole block was deleted from both files. The pattern
+above is still the right one for any model enemy the crucifaxe CAN hurt — read
+it out of tentacles_try_hit() instead, or out of this file's git history. If
+you are deliberately making an enemy axe-proof, see the parry section of
+tools/ADDING_A_BOSS_ENCOUNTER.txt (STEP 6) before you leave the player with a
+dead button.
 
 
 ##########################################################################

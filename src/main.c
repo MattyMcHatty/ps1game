@@ -64,6 +64,7 @@
 #include "copper_pot.h"
 #include "tentacle.h"
 #include "rabisu.h"
+#include "rabisu_boss.h"
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
@@ -135,6 +136,7 @@ void reset_game(RenderContext *ctx) {
     zombies_reset();
     spiders_reset();
     rabisus_reset();
+    rabisu_boss_reset();   /* forget any half-played boss encounter */
     fatdoors_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
@@ -211,6 +213,18 @@ static void update_current_area(GameState area) {
         webs_update();
         player_status_update();
         exit_door_puzzle_update();
+        return;
+    }
+    /* The Garden Courtyard's boss encounter takes the camera and all input for
+       its reveal and for its death sequence — but NOT for the fight in between,
+       which is ordinary free play and falls through to the branch below.
+       update_rabisus still runs: the boss keeps facing the player throughout
+       both cutscenes, and the director poses the body through it. */
+    if (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()) {
+        update_rabisus();
+        player_status_update();
+        rabisu_boss_update();
+        update_particles();
         return;
     }
     update_camera();
@@ -461,9 +475,14 @@ static void update_current_area(GameState area) {
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
         update_rabisus();
+        rabisu_boss_update();  /* arms the reveal, then watches for the kill */
         item_pickups_update();
         sml_meds_update();
-        if (!lock && garden_courtyard_door_triggered()) {
+        /* The gate is sealed for the whole encounter — reveal, fight and death.
+           The seal is tested FIRST so the trigger is never even polled while it
+           holds; garden_courtyard_door_arm() is called when the seal lifts (see
+           rabisu_boss.c) so the Circle edge state is not left stale. */
+        if (!lock && !rabisu_boss_seals_door() && garden_courtyard_door_triggered()) {
             /* East through the cage door, back onto the Garden Stairs. */
             pending_area = STATE_GARDEN_STAIRS;
             door_anim_start(DOOR_PANEL_EXIT);
@@ -1091,7 +1110,15 @@ int main(int argc, const char **argv) {
                 cdaudio_stop();
             } else if (pending_area == STATE_GARDEN_COURTYARD) {
                 garden_courtyard_init();  /* only one way in: the east cage door */
-                cdaudio_play(CDAUDIO_COURTYARD_TRACK, 1);  /* the garden's own track */
+                /* NO music here. The courtyard's track is the BOSS's track, and
+                   src/rabisu_boss.c starts it at the moment the reveal's lights
+                   die back — not on walking in. The garden is silent from the
+                   cage door until then, and silent again once the boss is
+                   destroyed, which is why this is a cdaudio_stop rather than
+                   simply omitting the play: a debug level-select jump straight
+                   into this room does not pass through the door transition's
+                   own stop. */
+                cdaudio_stop();
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
@@ -1178,14 +1205,19 @@ int main(int argc, const char **argv) {
                              (area == STATE_PIANO_ROOM && piano_puzzle_active()) ||
                              (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) ||
-                             (area == STATE_ATTIC_EXIT && exit_door_puzzle_active());
+                             (area == STATE_ATTIC_EXIT && exit_door_puzzle_active()) ||
+                             (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene());
                 if (!puzzle) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);
                 /* During the puzzle hide the weapon/particles but still show the
-                   HUD, so the player sees zombies chipping their health away. */
+                   HUD, so the player sees zombies chipping their health away.
+                   The boss cutscenes are the exception: nothing can touch the
+                   player during the reveal or the death, so a health bar over
+                   them is a frame of UI insisting on a fight that isn't on. */
                 if (!puzzle) draw_player_systems(&ctx);
-                else         draw_hud(&ctx);
+                else if (!(area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()))
+                    draw_hud(&ctx);
                 draw_pickup_messages();
                 draw_debug_overlay(&ctx);
             }

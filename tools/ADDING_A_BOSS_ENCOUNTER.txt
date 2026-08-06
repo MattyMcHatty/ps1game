@@ -1,0 +1,793 @@
+PS1 HORROR GAME — ADDING A BOSS ENCOUNTER: THE RUNBOOK
+=======================================================
+An ENEMY is a thing in a room. An ENCOUNTER is a thing that happens TO the
+player: the camera is taken away, something is revealed, music starts, a fight
+is fought inside a sealed arena, and a death sequence plays. This file is the
+runbook for the second thing. It assumes the first is already done.
+
+It was written immediately after the Rabisu encounter was built (August 2026),
+the game's first boss fight, and records every step that was actually
+performed — including the two things that were wrong first.
+
+Companion docs, in the order you will want them:
+  tools/ADDING_A_3D_ENEMY.txt    - get the BODY in the room first. Nothing here
+                                   works until the boss exists, hovers, takes
+                                   damage and persists.
+  tools/ADDING_AN_ENEMY.txt      - the base enemy runbook underneath that one
+  tools/ADDING_A_ROOM.txt        - the arena had better exist too
+  tools/AREAS_AND_WORLD_NOTES.txt- the area/state model and world.c
+
+  src/rabisu_boss.c / .h         - THE reference encounter. Read it end to end.
+  src/rabisu.c / .h              - the body it drives
+  src/lightswitch_puzzle.c       - the reference for CAMERA CUTS and for
+                                   ADDITIVE LIGHT (its cones are the ancestor
+                                   of the lawn lights)
+  src/piano_puzzle.c             - the reference for CAMERA GLIDES and for a
+                                   multi-beat scripted payoff
+
+
+##########################################################################
+ HOW TO KICK THIS OFF (what the user provides)
+##########################################################################
+  1. "Follow tools/ADDING_A_BOSS_ENCOUNTER.txt"
+  2. Which boss, and which room is the arena.
+  3. The BEAT SHEET, in prose and in seconds. The Rabisu's was one paragraph
+     per phase: camera takes over, 2 s of watching, lights come on 2 at a time
+     over 3 s, 5 s rise, 2 s fade, music, two lines of text at 6 s each, fight,
+     then the death sequence.
+  4. The MOVEMENT RULE and the ATTACKS, with damage as a percentage of the
+     player's bar and every window in seconds.
+  5. Which weapons can hurt it, and which cannot.
+
+Everything else — the arena's bounds, the boss's movement radius, which polys
+the lights sit on, where the cameras go — is DERIVED (STEP 2). Do not ask the
+user for coordinates.
+
+>>> FOUR THINGS ARE WORTH ASKING ABOUT, BECAUSE NOTHING IN THE REPO ANSWERS
+    THEM AND GUESSING WRONG COSTS THE WHOLE ENCOUNTER <<<
+  a. "THE CAMERA MOVES TO A SPOT AND CONTROL IS GIVEN BACK" — does the PLAYER
+     move there, or does a detached camera watch them from there? In this
+     engine the camera IS the player and there is no avatar to render, so a
+     detached fight camera would show an empty arena. Confirm it; the answer
+     was "the player is moved there", and the whole handover (STEP 3) hangs
+     off it.
+  b. HIT POINTS, once you have removed a weapon. The Rabisu had 20 HP when the
+     crucifaxe did 1 a swing. Taking the axe away made 20 mean "twenty
+     Grave-olver rounds" against a scarce ammo economy. It went to 12. State
+     the arithmetic and let the user pick.
+  c. WHAT HAPPENS IF THE PLAYER LEAVES OR DIES mid-fight. Replay the whole
+     reveal? Skip it? Seal the room? The Rabisu seals the room, which is only
+     viable because that room has no save point — check that before offering
+     it (STEP 9).
+  d. WHETHER THE ARENA MUSIC IS THE BOSS'S MUSIC. If it is, it stops being
+     room music and the room is silent before and after (STEP 9).
+
+
+##########################################################################
+ STEP 1 — SPLIT THE DIRECTOR FROM THE BODY
+##########################################################################
+Two files, and the split is not cosmetic.
+
+  src/<slug>.c        THE BODY. Model, animation, damage, collision, and the
+                      combat AI: how it moves, what it throws, what its
+                      attacks do. All per-instance. Would work unchanged for a
+                      second one of these dropped in another room.
+
+  src/<slug>_boss.c   THE ENCOUNTER. Camera, lights, subtitles, the music cue,
+                      the sealed door, the phase machine, the death sequence.
+                      All one-off script bolted to one room.
+
+They talk through a small named API and nothing else. The Rabisu's is six
+functions, declared in a marked-off block at the foot of rabisu.h:
+
+    <Slug> *<slug>_boss_instance(void);   /* the live one here, or NULL      */
+    void    <slug>_go_dormant(<Slug> *);  /* park the AI; I'll pose the body */
+    void    <slug>_fight_begin(<Slug> *); /* take it, it's yours             */
+    void    <slug>_anchor_world(const <Slug> *, lx, ly, lz, VECTOR *out);
+
+plus three plain FIELDS the director writes directly (`frozen`, `shake`,
+`fade`, `clip_y` — STEP 5).
+
+>>> RESIST PUTTING THE CUTSCENE IN THE ENEMY FILE. <<< It is one file either
+way on the first boss and it is obviously one file. It stops being obviously
+one file on the second, at which point the movement AI and the fireballs are
+welded to a script about a specific lawn.
+
+
+##########################################################################
+ STEP 2 — MINE THE ARENA
+##########################################################################
+The fight's geometry is already in the repo. All of it. Read it out; do not
+invent numbers and do not ask for them.
+
+A. THE BOUNDS COME FROM THE COLLISION MESH.
+   src/<room>_mesh_collision.c lists every wall with its y_min/y_max and every
+   floor plane with its y. A "lip the player can fall down but cannot climb
+   back up" is a wall whose y band spans two adjacent floor heights.
+
+   The Garden Courtyard's are walls 0/5 (x = +1142) and wall 6 (x = -1722),
+   both y 800..900, separating the y=800 terrace from the y=900 sunken lawn.
+   The brief said "3 polys in from the east and west walls"; the terrace strips
+   are 858 and 857 wide against a ~286 poly, so three polys IS exactly those
+   two x values. The prose and the mesh agreed, which is the check you want.
+
+B. THE MOVEMENT RADIUS FALLS OUT OF THE SPAWN.
+   The boss spawns at x = -290 (world.c). To each lip is 1432. Symmetric, and
+   not by accident — but it is only true for THAT spawn, so say so next to the
+   constant. Move the placement and the radius is a lie.
+
+C. THE LIGHT POLYS COME FROM THE .smx, NOT FROM ARITHMETIC.
+   "The central 16 polys of the grassy part" is a real, countable set. Parse
+   the mesh and find them:
+
+     py -c "import xml.etree.ElementTree as ET; \
+       r=ET.parse('assets/Garden Courtyard.smx').getroot(); \
+       t=[x.get('file') for x in r.find('textures').findall('texture')]; \
+       v=[(float(a.get('x')),float(a.get('y')),float(a.get('z'))) \
+          for a in r.find('vertices').findall('v')]; \
+       c=[]; \
+       [c.append((min(p[0] for p in q),max(p[0] for p in q), \
+                  min(p[2] for p in q),max(p[2] for p in q))) \
+        for q in ([v[int(pp.get('v%d'%k))] for k in range(4) \
+                   if pp.get('v%d'%k) is not None] \
+                  for pp in r.find('primitives').findall('poly') \
+                  if pp.get('texture') is not None and \
+                     t[int(pp.get('texture'))]=='grss') \
+        if set(round(p[1]) for p in q)=={900}]; \
+       print(len(c)); print(sorted(set((a,b) for a,b,_,_ in c))); \
+       print(sorted(set((a,b) for _,_,a,b in c)))"
+
+   That printed 64 flat quads in an 8x8 grid, columns and rows ~286 apart. The
+   4x4 block straddling the spawn is x[-866,283] z[-571,571], whose centre is
+   (-291, 0) — the spawn, to within the mesh's own rounding. Sixteen polys,
+   and they are the RIGHT sixteen.
+
+   Store the 5 column edges and the 5 row edges as two arrays. Do NOT store a
+   cell size and multiply: the mesh's columns are 286, 286, 288, 289 and the
+   lights would drift off the grass.
+
+D. THE CAMERA SHOTS ARE COMPUTED, NOT EYEBALLED.
+   At gte_SetGeomScreen(256) on a 320x240 screen, the half-field at distance D
+   is D*160/256 horizontally and D*120/256 vertically. Pick a distance, work
+   out what the frame covers, and check the whole subject is inside it.
+
+   The Rabisu's crane shot, worked in the comment above the constants:
+     spawn (-290, 800, 0); model is RBS_HEIGHT (559) tall, so it occupies
+     y 800 down to 241 and the shot centres on y~570;
+     camera (-290, 200, -1500), yaw 0 (due north: forward is (sin,cos) of
+     cam_rot — see update_camera);
+     pitch = atan(370/1500) in 4096ths = 158;
+     frame at 1500 = y[-133,1273] x[-1227,647], which holds the turf (900),
+     the crown (241) and the whole 1149-wide light patch.
+
+   Write that derivation down. The next person to nudge the camera 200 units
+   has to redo the pitch, and they will not know that unless you say so.
+
+E. THE HANDOVER SPOT IS A STANDING POSITION AND OBEYS THE ROOM'S RULES.
+   Eye height = floor_surface - GROUND_FLOOR_Y - 40 (the standoff apply_height
+   applies), pitch 0, and NOT on a wall push-out boundary. The Rabisu's fight
+   spot sits 20 short of the room's GC_WALL_RADIUS limit: hand control back ON
+   the boundary and the player's first frame of free play is a shove.
+
+
+##########################################################################
+ STEP 3 — THE CAMERA
+##########################################################################
+Three mechanics, all of which already exist. Use them; do not invent a fourth.
+
+TAKEOVER. Save the camera, then ANCHOR THE PLAYER where they stood:
+
+    save_cx = cam_x; save_cy = cam_y; save_cz = cam_z;
+    save_crot = cam_rot; save_cvy = cam_vy;
+    camera_anchor_player(save_cx, save_cy, save_cz);
+
+camera.h explains why: the camera flies off, the PLAYER does not, and anything
+reading cam_* to find the player would spend the cutscene hunting an empty
+patch of garden. See STEP 6's rule about player_x/y/z().
+
+GLIDE. The piano puzzle's ease-out, factored into one helper because an
+encounter needs four of them and four inlined lerps is four chances to differ:
+
+    e = 256 - ((256-p)*(256-p) / 256);          /* p = t*256/frames */
+    cam_x = src.x + ((dst.x - src.x) * e) / 256;   /* ...y, z, pitch */
+    cam_rot = (src.rot + (turn_delta * e) / 256) & 4095;
+
+Interpolate the YAW THROUGH turn_delta() (the shortest signed turn), never by
+lerping the raw angle — a glide from 4000 to 100 would otherwise spin the
+camera the long way round.
+
+HANDOVER. This is the trick, and it is worth stating plainly:
+
+    glide the camera to the fight spot, then camera_release_player()
+
+Releasing the anchor makes player_x/y/z() read cam_* again — and the camera is
+standing at the fight spot. The player is now THERE. That is the whole of "the
+camera moves to a spot and control is given back to the player".
+
+Re-anchor to the DESTINATION at the START of that final glide, not at the end.
+Otherwise the boss spends the last second tracking the door the player came in
+by and then snaps its gaze across the arena the instant control returns.
+
+>>> THE PITCH TRAP. THIS COST A WHOLE SHOT. <<<
+Most rooms build their view matrix by hand:
+
+    SVECTOR neg_rot = {0, -cam_rot, 0, 0};      /* YAW ONLY */
+    RotMatrix(&neg_rot, &rot_matrix);
+
+That silently DISCARDS cam_pitch. camera.h says so, in as many words. A crane
+shot through such a room is not a tilted camera — it is a high camera staring
+level at the far wall, and nothing warns you.
+
+Any room that hosts an encounter with a pitched shot must build its view with
+camera_build_view(), and SO MUST THE BOSS'S OWN DRAW, which builds its own copy
+of the view before composing the model matrix onto it. Miss the second one and
+the boss renders through a different projection than the room it stands in.
+
+    MATRIX view;
+    camera_build_view(&view);      /* identical output when pitch == 0 */
+
+Both conversions are no-ops for every other frame the player spends in the
+room, so there is no reason not to do them.
+
+RESTORE ON THE WAY OUT. Every exit path — the good one and the "the boss
+vanished out from under the script" one — must put cam_pitch back to 0 and call
+camera_release_player(). Free-look gameplay never sets pitch and will never
+clear it for you.
+
+>>> THE BOSS MUST FACE THE CAMERA DURING A CUTSCENE, NOT THE PLAYER. <<<
+This one is a direct consequence of the anchor and it will bite you: the whole
+enemy layer targets player_x/y/z() (STEP 6, correctly), and during a cutscene
+that is a fixed point just inside whatever door the player walked in by. A boss
+whose only job is to look impressive therefore hauls itself out of the ground
+with its back three-quarters turned to the shot.
+
+Give the entity a facing OVERRIDE the director can switch on, and point it at
+the shot's FIXED position rather than the live cam_* — otherwise it swivels
+while the camera glides:
+
+    rabisu_face_override(r, 1, RBE_CAM_X, RBE_CAM_Z);   /* reveal AND death   */
+    ...
+    rabisu_fight_begin(r);                              /* drops it silently  */
+
+Do it for the death sequence too. It plays to the same crane shot, and dying
+while staring at the corner the last bullet came from looks like a bug.
+
+
+##########################################################################
+ STEP 4 — THE PHASE MACHINE
+##########################################################################
+One enum, one `phase_t` frame counter, one switch. Every duration a named
+constant in FRAMES with the brief's seconds in the comment, all in one block so
+the beat sheet can be read off the header:
+
+    #define RBE_T_CAM_IN        90   /* 1.5 s glide out to the crane shot */
+    #define RBE_T_WATCH        120   /* 2 s of nothing, as specified      */
+    #define RBE_T_LIGHTS_UP    180   /* 3 s, sixteen lights two at a time */
+    ...
+
+Phase changes go through ONE helper that also zeroes the counter:
+
+    static void enter_phase(RbeState s) { state = s; phase_t = 0; }
+
+ARM IT LAZILY. The room's init runs BEFORE world_enter() places the boss, so an
+init-time decision about whether there is a boss to reveal is made a frame too
+early. <slug>_boss_enter() therefore only PARKS the director, and the first
+update that finds a living boss starts the reveal:
+
+    if (state == RBE_IDLE) { if (r) begin_reveal(r); return; }
+
+That also gives the "already killed, player walked back in" case for free:
+<slug>_boss_instance() skips the dead, so it stays IDLE and nothing happens.
+
+TWO PHASES ARE NOT CUTSCENES. The FIGHT and DONE states are free play. Expose
+that distinction, because main.c needs it:
+
+    int <slug>_boss_cutscene(void)   { return state != IDLE && != FIGHT && != DONE; }
+    int <slug>_boss_seals_door(void) { return state != IDLE && != DONE; }
+
+BAIL OUT CLEANLY. A debug level-select jump or a load can pull the boss out
+from under a running script. If <slug>_boss_instance() returns NULL mid-phase,
+release the camera, zero the pitch, go to DONE — do not drive a NULL through
+the rest of the switch.
+
+
+##########################################################################
+ STEP 5 — POSING THE BODY: FOUR FIELDS AND TWO TRICKS
+##########################################################################
+The director moves the body by writing entity fields, not by calling into the
+AI. Four fields carry the whole death sequence and the reveal.
+
+  frozen   1 = hold the current animation frame. The idle flap stops dead.
+  shake    world units of jitter. >>> APPLY IT TO THE DRAW'S TRANSLATION
+           ONLY, NEVER TO r->x/r->z. <<< Jittering the entity jitters its
+           collision cylinder, its health bar and its light anchors with it;
+           the body is meant to vibrate on the spot, not to be somewhere
+           different every frame.
+  fade     256 solid, 0 gone — see TRICK 1.
+  clip_y   world Y below which polys are dropped — see TRICK 2.
+
+>>> TRICK 1: "FADE AWAY" IS A BLEND MODE, NOT A COLOUR. <<<
+A flat-shaded POLY_F4 has no alpha. Darkening the colour gives you a black
+silhouette; fogging it toward the sky only works against the sky. Neither is a
+fade. What works is ADDITIVE:
+
+    setSemiTrans(poly, 1);
+    /* colour scaled toward black by the fade */
+    /* then, into the SAME OT bucket immediately AFTER the poly: */
+    setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1 */, 320, 0));
+
+Additive black contributes nothing, so at fade 0 the body is genuinely gone
+over ANY background. The OT is LIFO, which is why the tpage goes in AFTER the
+poly it applies to — this is the same pattern lightswitch_puzzle.c's ls_quad
+uses and the reason is worth re-reading there.
+
+Use fade == 0 as a SKIP, not just an invisibility: it is also how the boss
+stays out of the draw entirely while it waits under the floor, and it saves 476
+polys a frame in both cases.
+
+>>> TRICK 2: RISING THROUGH THE FLOOR NEEDS AN EXPLICIT CLIP. <<<
+You cannot let the floor hide the buried half. Horizontal polys sort by their
+FARTHEST corner (render.h's otz_far4), which pushes the floor BACK in the OT,
+which means the still-underground model draws OVER the grass it is supposed to
+be under. It looks like the boss is sliding up a wall in front of the lawn.
+
+Drop the polys yourself. Convert the world cut plane into MODEL space once, so
+the per-vertex test is one comparison and no transform — legal because neither
+the yaw nor the lean changes a vertex's Y:
+
+    clip_vy = clip_y - (r->y + <PFX>_FOOT_OFF);
+    if (clipping && v0->vy > clip_vy && v1->vy > clip_vy && v2->vy > clip_vy &&
+        (!is_quad || vp[vi[3]].vy > clip_vy)) { skip; }
+
+Drop it only when EVERY corner is under the cut. Dropping anything that merely
+straddles the plane eats a visible band off the silhouette; leaving the
+stragglers lets a few small faces poke through the turf, which is the cheaper
+error and — on something clawing out of the ground — the better-looking one.
+
+Use a sentinel (RBS_NO_CLIP = 0x7FFFFFFF) for "off". Do not use 0: it is a
+legal world Y, and a zero-filled struct would then arrive pre-clipped.
+
+RISE LINEARLY, not eased. Five seconds of something hauling itself out of the
+ground at a constant rate is the read you want; an ease-out looks like it is
+being lifted on a wire. (The CAMERA still eases. Different thing, different
+reason.)
+
+
+##########################################################################
+ STEP 6 — THE FIGHT: MOVEMENT, ATTACKS, PARRIES
+##########################################################################
+>>> EVERYTHING IN THE COMBAT CODE TARGETS player_x/y/z(), NEVER cam_*. <<<
+The cutscenes anchor the player and fly the camera away. A boss that chases
+cam_* aims its first fireball at a camera. This is the single most likely bug
+in the whole feature and it is invisible until the cutscene runs.
+
+MOVEMENT: STORE A PARAMETER, NOT A POSITION.
+The Rabisu's `sweep` is a signed lateral offset in 4096ths, -4096 at one lip,
+0 at the spawn, +4096 at the other. The world point is DERIVED each frame,
+because the axis it is measured along is perpendicular to the player->spawn
+line and therefore swings as the player moves.
+
+"Moves side to side in an arc" means it holds its DISTANCE from the player, so
+solve for the along-axis component rather than bending a straight line back
+onto the circle:
+
+    base  = |spawn - player|
+    off   = (sweep * RADIUS) >> 12,  clamped to +/-base
+    along = isqrt(base*base - off*off)
+    pos   = player + unit(spawn-player)*along + perp(unit)*off
+
+Doing it in that order is what keeps the ends of the sweep exactly ON the lips.
+Normalising a straight-line target back onto the circle instead pulls the ends
+IN — with the Rabisu's geometry, to x=816 instead of x=1142 — and the boss
+quietly stops using a quarter of its arena.
+
+Clamp the result to the arena bounds anyway. The arc is sized for the boss's
+own spawn; the player is free to stand somewhere that swings it wide.
+
+STOPPING POINTS. Pick from a fixed set, always different from the current one,
+count the traversals, and stop when the quota is met:
+
+    moves_target = MIN + rand() % (MAX - MIN + 1);   /* 3..8 */
+
+Re-solve the arc point while STOPPED and while ATTACKING too. It is stationary
+along its own arc, not pinned to a patch of grass, so it still tracks a player
+who walks around it.
+
+PROJECTILES. Model them on src/web.c — same straight-line flight, same
+collision_segment_blocked() test on the SEGMENT JUST TRAVELLED (so a fast shot
+cannot tunnel a thin wall between frames), same radial 3-axis contact test
+(a flat XZ test counts a ball that sailed over the player's head).
+
+>>> BEFORE YOU SHIP: CHECK WHAT THE ARENA'S SHORT WALLS DO TO A HITSCAN. <<<
+collision_segment_blocked() only Y-gates walls in rooms flagged multi_level,
+and most arenas are flat rooms where that flag is 0 — which means EVERY wall
+blocks EVERY shot at EVERY height, including knee-high scenery.
+
+If the arena's boundary is a low retaining lip (and if it is a good arena, it
+probably is), that lip eats the boss's projectiles AND the player's bullets the
+moment either of them stands behind it. The Rabisu fight only worked from the
+middle of the lawn; from either terrace the fireballs died on a 100-unit step
+and the Grave-olver could not touch the boss. Nothing on screen said why, and
+it looks exactly like a range bug.
+
+The fix already exists — shoot_over_mask, which the kitchen counter uses. Set
+it from the room's *_init() AFTER the generated *_collision_init() (which
+zeroes it), and set it by HEIGHT RULE, not by wall index:
+
+    collision_shoot_over_short_walls(150);   /* in <room>_init() */
+
+Indices are worthless here: the wall list is generated from the proxy mesh and
+they shuffle on every re-export. A threshold that cleanly separates the steps
+from the walls does not. Pick it by reading the y spans out of
+src/<room>_mesh_collision.c — the courtyard's are 100 against 686 and 786, so
+almost any threshold in between works and 150 is not a tuning knob.
+
+Two things a web does not do:
+  - SPEED IS SET BY THE FLIGHT TIME. Divide the whole distance by the frame
+    count. The attack is specified as half a second regardless of range, and a
+    parry window is only fair if the arrival is predictable.
+  - IT CAN COME BACK. Give it an `owner` index and a `deflected` flag, and let
+    the attack state end when the projectile is GONE rather than on a timer —
+    that is what makes the attack "fully resolve" including the return leg.
+    Keep a timer anyway as a backstop for the pool-was-full case, or the boss
+    waits forever on a shot that never spawned.
+
+>>> PARRIES: READ swing_timer DIRECTLY. <<<
+crucifaxe.c counts swing_timer 1..SWING_TOTAL from the frame Square was
+pressed. So "the player swung within N frames of this landing" is exactly:
+
+    swing_timer > 0 && swing_timer <= N
+
+evaluated on each frame of the final approach. It is non-zero only while the
+axe is equipped, so no weapon check is needed. Note update_rabisus() runs
+BEFORE weapons_update(), so the value is one frame stale — irrelevant against a
+12-frame window, but know it.
+
+A BOSS THE AXE CANNOT CUT still needs the axe to matter. Do not just delete the
+melee path and leave the player with a dead button — make the swing the PARRY,
+and say so where someone would look for the hit block:
+
+  - remove the enemy's block from crucifaxe.c entirely, and leave a comment
+    there explaining that the omission is the design, not an oversight;
+  - remove <slug>s_try_hit() from the header too, with the same note. A stub
+    that returns 0 just invites someone to fill it in.
+
+Give the undodgeable attack the LONGER window. The Rabisu's foot slash re-aims
+every frame (that is what "cannot be dodged" means mechanically), so the parry
+is the only answer to it and gets 0.4 s against the fireball's 0.2 s.
+
+>>> A PARRY WIDER THAN SWING_TOTAL IS ALWAYS-ON, AND IT WILL BE READ AS A
+    BROKEN ATTACK. <<< SWING_TOTAL is 21 frames. A 24-frame window therefore
+triggers on ANY swing in flight, not on a timed one — so a player who taps
+Square out of habit blocks nearly every landing. The reported symptom was "the
+foot slash almost never lands", which sounds like a range or aim bug and is
+neither. If the brief asks for a window that wide, keep it and make the block
+UNMISTAKABLE (below); if it does not, do not round upward.
+
+MAKE A BLOCK LOOK DIFFERENT FROM A WHIFF. This is not polish. If a blocked hit
+plays a small tick and nothing else, the player has no way to learn that the
+parry exists, let alone that they are doing it — they conclude the attack is
+buggy. Give it its own heavier sound and a reduced knockback, so "I stopped it"
+and "it missed me" are never the same two frames.
+
+>>> AND CHECK THE ATTACK PHYSICALLY REACHES. <<< Contact damage from a scripted
+lunge is usually unconditional in code — the attack cannot be dodged, so the
+landing always applies. That makes it very easy to ship a strike that deals its
+damage from outside its own collision bubble, where nothing on screen touches
+anything. Two numbers to check against the room, not against taste:
+
+  - THE STANDOFF must be inside the push-out distance. rabisus_collide is
+    called with a player radius of 75, so contact is RBS_BODY_RADIUS + 75 + 30
+    = 360. An earlier 430 stopped the charge 70 clear of that: full damage,
+    zero contact.
+  - THE HEIGHT must be inside the frame. A hovering enemy holds its hover
+    height unless you say otherwise, and the Rabisu's underside sits ON the
+    terrace floor while the player's eye is 189 above it — so a "foot slash"
+    swung its feet in below the bottom of the screen. Lerp the attacker's Y
+    toward the player during the charge and back on the return.
+
+A LEAN, OR ANY SECOND ROTATION, must be composed INSIDE the yaw:
+
+    MulMatrix0(&yawm, &leanm, &pm);      /* pm = yaw * lean */
+
+and built BY HAND, not through RotMatrix — because <slug>_anchor_world() has to
+reproduce the identical transform (STEP 7), and two hand-written matrices
+cannot disagree about a sign convention the way a hand-written one and
+RotMatrix can. Expose the lean's direction as a one-line flip constant, the
+same way the facing already is.
+
+
+##########################################################################
+ STEP 7 — LIGHT
+##########################################################################
+Two kinds, one colour ramp. Sharing the ramp is the point: if the death is
+meant to read as the same phenomenon as the reveal, the colours have to BE the
+same colours.
+
+    static const uint8_t PULSE[3][3] = { white, orange, red };
+    leg = (t / STEP) % 3;  f = ((t % STEP) * 256) / STEP;
+    colour = lerp(PULSE[leg], PULSE[(leg+1)%3], f)  scaled by a 0..256 level
+
+Give each lamp its own clock offset (`pulse_t + cell*9`) or the whole bank
+strobes as one lamp.
+
+FADING AN ADDITIVE POLY MEANS SCALING TOWARD BLACK. There is nothing to blend
+toward, so the usual fog-colour lerp does not apply — distance fade, brightness
+and the master fade are all just multiplies on the level.
+
+A. GROUND LIGHTS are lightswitch_puzzle.c's cones, minus the cube. A pool quad
+   sitting a few units above the floor poly (or it z-fights), plus a shaft
+   above it. Band the shaft along its length so no single quad is large enough
+   to blow past the GTE's +/-1023 screen clamp if the player ever stands in one.
+
+   >>> WHICH END OF THE CONE IS WIDE IS THE WHOLE READ. <<< The lightswitch
+   cones hang from ceiling cubes and NARROW downward onto the floor, because
+   they are lamps shining down. Copy that geometry for light coming OUT OF the
+   ground and you get exactly the same picture — a spotlight in the sky picking
+   out each poly — no matter what the beat sheet says it is. Light emanating
+   from the ground FLARES as it rises: push each corner AWAY from its cell's
+   centre with height, not toward it. It is one sign, and it inverts the
+   meaning of the whole effect.
+
+   Shade it along its length too. A beam at a single brightness top to bottom
+   reads as a solid box; falling off with height puts the source at the ground,
+   which is the other half of the same read. Band count exists for the screen
+   clamp anyway, so the shading is free.
+
+   Keep the shaft FAINT (~60/256) and the pool BRIGHT (~210/256). Sixteen
+   overlapping beams at pool brightness white out the middle of the arena.
+
+   "Two at a time over 3 seconds" — spread the eight start times over
+   (3 s - one fade) rather than the full three seconds, so the last pair
+   finishes coming up exactly as the phase ends. Spread them over the full
+   duration and the last pair is still at three-quarter brightness when the
+   next phase starts, and pops.
+
+   Light them in a deliberate ORDER. The Rabisu's pairs each cell with its
+   diagonal opposite so the patch opens outward from the middle — which is
+   where the thing is about to come up — instead of filling in from a corner.
+
+B. LIGHTS ON THE MODEL are glow sprites hung on mesh-local anchors.
+
+   Get the anchors from the animation, not the bind pose, and from the FRAME
+   THE DEATH FREEZES ON so they are exact rather than average. Dump the .pva:
+   the highest cluster of vertices is the crown, the extreme +/-X are the wing
+   tips, the centre-line front face is the chest. Name them in the header as
+   <PFX>_A_* constants with the reasoning beside them.
+
+   Turn a local anchor into a world point through <slug>_anchor_world(), which
+   MUST apply lean, then yaw, then translate + FOOT_OFF — the same order and
+   the same matrices as the draw. That contract is the whole reason the lights
+   stay stuck to the head.
+
+   Draw each as concentric additive SCREEN-space squares around the projected
+   point (the same explicit-projection trick the health bar uses, since a model
+   has no billboard quad to hang anything off). Halve the size and raise the
+   level per ring: three rings give a soft falloff with a hot core, for no
+   texture, no VRAM and no sorting.
+
+   Size from the WORLD distance — half = world_half * 256 / dist, matching
+   gte_SetGeomScreen(256) — so the glow is the same physical size whatever the
+   shot. Clamp dist away from 0.
+
+   RAMP THE LIGHT ON over the phase and then let it ride the model's own fade
+   out, so the light never outlives the body it is pouring out of.
+
+
+##########################################################################
+ STEP 8 — TEXT
+##########################################################################
+btn_prompt_draw(ctx, x, y, s, ot_idx) is the screen-space text you want. It
+sorts via FntSort — never FntFlush, which draws IMMEDIATELY and races a scene
+still being laid down (see the note on main.c's debug overlay).
+
+The debug font advances 8 px a character on a 320-wide screen, so FORTY
+CHARACTERS IS THE HARD LIMIT. Both of the Rabisu's lines are past it. Wrap them
+BY HAND at their own commas and full stops — an automatic wrapper will break
+"Thou art but a servant. The cursed" in the wrong place — and centre each row
+with strlen*8.
+
+Sort into the menu-reserved range (OT 0..15) so the lines sit on top of
+everything, and draw them from the room's draw AFTER the world.
+
+
+##########################################################################
+ STEP 9 — MUSIC, THE SEAL, AND THE INPUT LOCK
+##########################################################################
+MUSIC. If the arena track is the boss's track, take it off the room entry in
+main.c's STATE_LOADING branch and start it from the phase machine at the beat
+the brief names. Replace it with cdaudio_stop(), NOT with nothing: a
+title-screen load or a debug level-select jump into that room does not pass
+through the door transition's own stop, and would arrive with the previous
+room's music still playing. Stop it again on the kill.
+
+THE SEAL. Test it BEFORE the door trigger, so the trigger is never polled:
+
+    if (!lock && !<slug>_boss_seals_door() && <room>_door_triggered()) { ... }
+
+and call <room>_door_arm() at the moment the seal LIFTS. The trigger routines
+hold their own Circle edge state, and one that has not been polled for four
+minutes is stale — without the re-arm the player's first press after the fight
+is swallowed or, worse, a press held through the whole death sequence fires
+instantly.
+
+Suppress the door's floating prompt for the same span. Offering "Press O to
+enter" on a door that will not answer is worse than offering nothing.
+
+>>> BEFORE PROMISING A SEALED ARENA, CHECK THE ROOM HAS NO SAVE POINT. <<<
+Sealing the door is only a real seal if there is no other way out of the state.
+The Garden Courtyard calls save_points_clear() and places none of its own, so
+the only exits are winning and dying — which is what makes "no re-entry
+handling needed" true rather than wishful.
+
+THE INPUT LOCK. Add an early-return branch in update_current_area(), beside the
+stove and lightswitch payoffs, gated on the CUTSCENE predicate (not the seal —
+the fight in the middle is free play and must fall through):
+
+    if (area == <ROOM> && <slug>_boss_cutscene()) {
+        update_<slug>s();        /* it keeps facing the player throughout */
+        player_status_update();
+        <slug>_boss_update();
+        update_particles();
+        return;                  /* no update_camera, no collision, no doors */
+    }
+
+Skipping update_camera is also what keeps the crane shot at its own height:
+apply_height() would otherwise drag cam_y down to the floor.
+
+Add the same predicate to main.c's `puzzle` flag so the Start menu and the
+weapon overlay are suppressed. Unlike the puzzles, ALSO suppress the HUD:
+nothing can touch the player during a reveal or a death, and a health bar over
+them is a frame of UI insisting on a fight that is not on.
+
+
+##########################################################################
+ STEP 10 — WIRING
+##########################################################################
+  src/<room>.c     #include; <slug>_boss_enter() at the END of <room>_init();
+                   <slug>_boss_draw(ctx) and the projectile draw AFTER
+                   draw_<slug>s(ctx) — both want the PLAIN view matrix, which
+                   the model draw only puts back at the end;
+                   <slug>_boss_draw_overlay(ctx) last of all (screen space);
+                   gate the door prompt on the seal;
+                   convert the view matrix to camera_build_view() (STEP 3).
+  src/main.c       #include; the cutscene branch in update_current_area();
+                   <slug>_boss_update() in the room's normal branch too;
+                   the seal on the door trigger; the `puzzle` flag and the HUD
+                   exception; <slug>_boss_reset() in reset_game() beside
+                   <slug>s_reset(); cdaudio_stop() in the loading branch.
+  src/<slug>.c/.h  the director API block; the `dying` flag (STEP 11);
+                   `frozen`/`shake`/`fade`/`clip_y`; the combat AI.
+  src/crucifaxe.c  REMOVE the boss's hit block if the axe cannot hurt it, and
+                   leave the comment saying why.
+  src/graveolver.c add `dying` to the boss's skip condition.
+  CMakeLists.txt   add src/<slug>_boss.c  (a new .c needs a reconfigure)
+
+  NO disc.xml CHANGE. An encounter ships no assets of its own — the model is
+  already packed by the enemy step, and the lights and text are code. If you do
+  add a file, the root directory is FULL: read STEP 8 of ADDING_A_3D_ENEMY.txt
+  before touching it.
+
+
+##########################################################################
+ STEP 11 — DEATH IS TWO FLAGS, NOT ONE
+##########################################################################
+>>> `dead` ALREADY MEANS "SKIPPED BY EVERYTHING". A DEATH SEQUENCE NEEDS THE
+    BODY TO STAY DRAWN. <<<
+Setting the existing flag on the killing blow blinks the boss out of existence
+at the exact moment the player is supposed to watch it come apart.
+
+Add a second flag and split the meanings:
+
+  dying   set by <slug>_damage() when health hits 0. Stops the AI, the
+          collision cylinder, the health bar and every weapon. The body is
+          STILL DRAWN. The director watches for this to start the sequence.
+  dead    set by the DIRECTOR at the very end of the fade. Gone: skipped by
+          update, draw, the gun, and world_enter's placement.
+
+Then audit every `if (... || r->dead ...) continue;` in the codebase and decide
+which of them also wants `|| r->dying`. The answer for the Rabisu:
+
+  update loop     no  — it keeps facing the player while it dies
+  draw loop       no  — that is the entire point
+  health bar      YES — an empty bar hanging over the death sequence is the
+                        one piece of HUD still insisting there is a fight on
+  collide         YES — and it MATTERS: the death sequence walks the body back
+                        to its spawn, which would shove the player across the
+                        arena if the cylinder were still live
+  graveolver      YES — a round spent into a corpse should miss
+
+
+##########################################################################
+ STEP 12 — BUILD AND VERIFY
+##########################################################################
+  cmake -S . -B build -G Ninja                  # a new .c needs a reconfigure
+  cmake --build build --target horror_game      # auto-runs elf2x
+  mkpsxiso -y disc.xml
+
+Code-level, before handing over:
+  [ ] Nothing in the encounter or the combat AI reads cam_* to find the player.
+      grep the two files for `cam_x` and justify every remaining hit (drawing
+      and distance culling are legitimate; targeting is not).
+  [ ] Every camera exit path restores cam_pitch = 0 AND calls
+      camera_release_player(). Including the boss-vanished bail-out.
+  [ ] The room's draw and the boss's draw BOTH use camera_build_view().
+  [ ] The seal covers the reveal AND the death, not just the fight, and the
+      door is re-armed when it lifts.
+  [ ] The phase machine cannot deadlock: every non-terminal phase has an exit
+      that fires on a frame count, not only on an external event.
+  [ ] The projectile pool being full cannot hang the attack state.
+  [ ] world.c's _Static_assert still compiled — the entity struct grew.
+
+In the emulator, in this order, because each depends on the last:
+  [ ] The reveal frames the subject: turf, crown and the light patch. (If the
+      shot is level rather than tilted, you missed a camera_build_view —
+      STEP 3.)
+  [ ] The boss FACES THE CAMERA through the reveal, not off toward the door.
+  [ ] The light cones are WIDE AT THE TOP. If they narrow upward they read as
+      spotlights from the sky, whatever the beat sheet intended.
+  [ ] The boss comes up THROUGH the grass, not in front of it.
+  [ ] Control returns with the player standing at the fight spot, facing the
+      boss, and NOT being shoved by a wall push-out.
+  [ ] The sweep reaches both lips and never crosses one.
+  [ ] >>> FIGHT IT FROM EVERY CORNER OF THE ARENA, NOT JUST THE MIDDLE. <<<
+      Stand behind each piece of low scenery in turn and confirm that the
+      boss's projectiles still arrive AND that your own shots still land. This
+      is the check that catches the shoot_over_mask problem, and standing in
+      the open never will.
+  [ ] Each melee/lunge attack visibly CONTACTS — in frame, and close enough to
+      shove you. Damage applying is not the same as the attack landing.
+  [ ] Both parry windows are catchable, a block is obviously distinct from a
+      miss, and the deflected projectile connects.
+  [ ] The door is dead for the whole encounter and works immediately after.
+  [ ] The boss faces the camera as it dies, and is genuinely invisible at the
+      end of the fade — against the geometry as well as against the sky.
+
+
+##########################################################################
+ MISTAKES ACTUALLY MADE, IN ORDER OF HOW LONG THEY WOULD HAVE TAKEN TO FIND
+##########################################################################
+1. THE YAW-ONLY VIEW MATRIX ATE THE CRANE SHOT'S PITCH.
+   Two places, both needing the same one-line fix, and the failure has no error
+   and no visual clue beyond "the shot is framed wrong". camera.h documents it;
+   nobody reads camera.h while writing a cutscene. STEP 3.
+
+2. THE ARENA'S OWN SCENERY ATE EVERY PROJECTILE CROSSING IT.
+   A flat room does not Y-gate hitscans, so the 100-unit retaining lip that
+   DEFINES the arena blocked fireballs and bullets alike at any height. The
+   fight worked from the middle of the lawn and nowhere else, and the symptom
+   ("the fireballs don't reach me over here") points at range, aim, lifetime
+   and speed — everything except a wall you cannot see from eye level.
+   STEP 6, shoot_over_mask.
+
+3. NORMALISING THE ARC TARGET INSTEAD OF SOLVING FOR IT.
+   Bending a straight-line offset back onto the player's circle looks like the
+   same thing and is not: it pulls the ends of the sweep in, and the boss
+   silently stops using a quarter of the arena it was given. STEP 6.
+
+4. A LUNGE THAT DEALT ITS DAMAGE FROM OUTSIDE ITS OWN COLLISION BUBBLE, AT
+   ANKLE HEIGHT, AND THEN GOT BLOCKED BY AN IDLE SWING.
+   Three separate causes, one symptom — "the foot slash almost never lands" —
+   and none of them is what that sentence sounds like. The damage was
+   unconditional the whole time. STEP 6.
+
+5. ONE `dead` FLAG FOR A TWELVE-SECOND DEATH.
+   STEP 11.
+
+6. THE CONE POINTED THE WRONG WAY UP.
+   Inherited wholesale from the lightswitch puzzle, whose cones hang from the
+   CEILING. One sign, and it turns "light pouring out of the ground" into
+   "spotlight shining onto the ground". STEP 7A.
+
+7. THE BOSS SPENT ITS REVEAL LOOKING AT THE DOOR.
+   Correct code — it targets the player, and the player is anchored by the door
+   during a cutscene. STEP 3.
+
+8. STOPPING SHORT OF THE PLAYER-ANCHOR RULE.
+   Tempting to leave the existing cam_* targeting alone because it works during
+   the fight — and it does. It only breaks during the cutscenes, which are the
+   part you test last. STEP 6.
+
+9. HANDING CONTROL BACK ON A PUSH-OUT BOUNDARY.
+   -1740 is exactly GC_WALL_RADIUS from the south wall, and "exactly" means the
+   first frame of free play may shove the player. Sit short of it. STEP 2E.

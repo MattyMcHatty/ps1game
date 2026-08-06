@@ -261,7 +261,9 @@ static void graveolver_fire(void) {
     }
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *rb = &rabisus[i];
-        if (!rb->active || rb->dead || rb->area != game_state) continue;
+        /* `dying` as well as `dead`: the boss stays on screen through its whole
+           death sequence, and a round spent into a corpse should miss. */
+        if (!rb->active || rb->dead || rb->dying || rb->area != game_state) continue;
         int32_t cyc, hh, hw;
         rabisu_body(rb, &cyc, &hh, &hw);
         if (enemy_in_circle(rb->x, cyc, rb->z, hw, hh, fx, fz, &depth) &&

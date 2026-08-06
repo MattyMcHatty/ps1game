@@ -21,7 +21,6 @@
 #include "sound.h"
 #include "fatdoor.h"
 #include "tentacle.h"
-#include "rabisu.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -35,7 +34,6 @@ static int zomb_hit_this_swing  = 0;
 static int spdr_hit_this_swing  = 0;
 static int fatdoor_hit_this_swing = 0;
 static int tent_hit_this_swing  = 0;
-static int rbs_hit_this_swing   = 0;
 
 void crucifaxe_init(void) {
     CdlFILE file;
@@ -74,7 +72,6 @@ void update_crucifaxe(void) {
         spdr_hit_this_swing    = 0;
         fatdoor_hit_this_swing = 0;
         tent_hit_this_swing    = 0;
-        rbs_hit_this_swing     = 0;
         sound_play(SFX_SWING);
     }
 
@@ -204,15 +201,12 @@ void update_crucifaxe(void) {
                 tent_hit_this_swing = 1;
         }
 
-        /* Rabisu (boss) hit — likewise independent. One damage per swing, so
-           20 HP is 20 swings. The reach and facing tests live in rabisu.c
-           rather than being inlined here like the dog/zombie/spider blocks:
-           the boss is far too big to test against its centre and needs a
-           surface-distance test, which is geometry only that module knows. */
-        if (swing_timer <= SWING_DURATION && !rbs_hit_this_swing) {
-            if (rabisus_try_hit())
-                rbs_hit_this_swing = 1;
-        }
+        /* >>> THERE IS DELIBERATELY NO RABISU BLOCK HERE. <<< The boss is the
+           one enemy the crucifaxe cannot damage (see RBS_MAX_HEALTH in
+           rabisu.h). The axe is not useless against it — it is the PARRY, and
+           rabisu.c reads swing_timer directly for both of its deflect windows,
+           so a swing still counts for everything without ever landing a hit.
+           Adding a hit block back here would quietly undo the whole fight. */
 
         /* Crate smash — checked independently of vampire hit */
         if (swing_timer <= SWING_DURATION && !crate_hit_this_swing) {
