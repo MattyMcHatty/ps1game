@@ -10,6 +10,9 @@ first boss and its first model enemy, and records every step that was actually
 performed.
 
 Companion docs:
+  tools/ANIMATING_A_3D_MODEL.txt    - giving the model a SKELETAL ANIMATION;
+                                      read it before rigging anything, it opens
+                                      with why the console never sees the bones
   tools/ADDING_AN_ENEMY.txt         - the sprite-enemy runbook; the base case
   tools/MESH_CONVERSION_NOTES.txt   - the smx -> smd pipeline (STEP 2 below)
   tools/ADDING_A_ROOM.txt           - the room runbook
@@ -35,7 +38,8 @@ the steps below, out of the .smx. Do not ask the user for measurements.
 
 >>> THREE THINGS ARE WORTH ASKING ABOUT, BECAUSE THE MESH CANNOT ANSWER THEM <<<
   a. WHERE IS THE MODEL'S FLOOR? A character is often NOT authored standing on
-     its own origin. The Rabisu's lowest vertex sits 168 units ABOVE its origin,
+     its own origin. The Rabisu's lowest vertex sat 168 units ABOVE its origin
+     before rigging (and 131 BELOW it after — see ANIMATING_A_3D_MODEL.txt),
      so "put it 1 m up" has three defensible readings (origin on the floor and
      hover on top / lowest vertex exactly 1 m up / the authored offset IS the
      hover). Ask; the difference was 1.7 m.
@@ -413,7 +417,10 @@ In-game (needs an emulator; say so plainly if you have not run it):
   [ ] It faces the player from every angle — walk a full circle around it. If
       it faces AWAY, flip the one facing constant.
   [ ] The model does not flicker, invert or lose faces as the camera moves
-      (a backface-cull or winding problem).
+      (a backface-cull or winding problem). Check this statically FIRST, per
+      shell, before ever launching:  py tools/check_model_winding.py <the .smd>
+      A mirrored mesh routinely has half its shells inverted while the
+      whole-model figure still looks right.
   [ ] Whatever is drawn AFTER it in the room still renders correctly — the
       pickups, the sprite enemies, the door text. If any of them jump or vanish,
       the view matrix was not restored.

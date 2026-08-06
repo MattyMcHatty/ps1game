@@ -57,17 +57,72 @@ static void *read_file(const char *name) {
     return buf;
 }
 
-/* Startup: load the model. CD access is only safe before the render loop
-   begins (tools/TEXTURING_NOTES.txt) — the same rule the sprite enemies'
-   LoadImage obeys, and it binds here too even though there is no VRAM upload:
-   this is a CD read. There is no *_upload_textures() counterpart because the
-   mesh is untextured and owns no VRAM at all. */
+/* ---- Baked vertex animation (.pva) ----------------------------------------
+   The rig smooth-skins up to THIRTEEN bones per vertex, so neither PS1-era
+   option was open: the mesh cannot be split into rigid per-bone pieces, and
+   evaluating that many weights over 496 vertices every frame is far outside the
+   GTE's budget. Blender therefore does the skinning at EXPORT time and ships
+   finished vertex positions, one set per frame (tools/io_export_pva.py).
+
+   Playback is then free: pick the frame's SVECTOR block and hand it to the same
+   prim loop. The .smd still owns the topology — the polygon vertex INDICES and
+   the baked colours — and only the positions come from here, which is why the
+   two files must be exported from the same mesh and why the vertex count is
+   checked below before a single frame is trusted.
+
+   Cost: 19 frames x 496 verts x 8 bytes = 73.6 KB resident. That is the price
+   of the approach and it scales linearly with every clip added — see
+   tools/ANIMATING_A_3D_MODEL.txt before adding the fourth or fifth. */
+#define PVA_HEADER_SIZE   12
+
+static void    *rabisu_anim_buff   = NULL;
+static SVECTOR *rabisu_anim_frames = NULL;   /* n_frames blocks of n_verts */
+static int      rabisu_anim_count  = 0;      /* 0 = play the bind pose */
+
+static void rabisus_load_anim(void) {
+    if (!rabisu_smd) return;
+    uint8_t *p = (uint8_t *)read_file("\\TEX\\RBSIDLE.PVA;1");
+    if (!p) return;
+
+    /* Fields read byte-wise rather than through a struct: the file is
+       little-endian and packed, and a struct would invite the compiler to pad
+       it. */
+    if (p[0] != 'P' || p[1] != 'V' || p[2] != 'A' || p[3] != '1') { free(p); return; }
+    int n_verts  = p[4] | (p[5] << 8);
+    int n_frames = p[6] | (p[7] << 8);
+
+    /* >>> The check that keeps a stale .pva from drawing garbage. <<< Positions
+       are indexed by the .smd's polygon indices, so a file baked from a mesh
+       with a different vertex count would read off the end of every frame.
+       Refuse it and fall back to the bind pose, which always renders. */
+    if (n_verts != rabisu_smd->n_verts || n_frames <= 0) { free(p); return; }
+
+    rabisu_anim_buff   = p;
+    rabisu_anim_frames = (SVECTOR *)(p + PVA_HEADER_SIZE);
+    rabisu_anim_count  = n_frames;
+}
+
+/* Startup: load the model and its idle clip. CD access is only safe before the
+   render loop begins (tools/TEXTURING_NOTES.txt) — the same rule the sprite
+   enemies' LoadImage obeys, and it binds here too even though there is no VRAM
+   upload: these are CD reads. There is no *_upload_textures() counterpart
+   because the mesh is untextured and owns no VRAM at all. */
 void rabisus_load_assets(void) {
     /* In TEX, not the disc root: the root directory records must all fit
        the first 2048-byte sector or the boot ROM cannot find SYSTEM.CNF
        and the console hangs at the logo. See the comment in disc.xml. */
     rabisu_buff = read_file("\\TEX\\RABISU.SMD;1");
     if (rabisu_buff) rabisu_smd = smdInitData(rabisu_buff);
+    rabisus_load_anim();
+}
+
+/* The vertex block this boss is posed on for this frame. Falls back to the
+   .smd's own bind pose whenever the animation is missing or was rejected. */
+static SVECTOR *rbs_verts(const Rabisu *r) {
+    if (!rabisu_anim_frames) return rabisu_smd->p_verts;
+    int f = r->anim_frame;
+    if (f < 0 || f >= rabisu_anim_count) f = 0;
+    return rabisu_anim_frames + (f * rabisu_smd->n_verts);
 }
 
 void rabisus_init(void) {
@@ -84,11 +139,13 @@ int rabisu_add(int32_t x, int32_t ground_y, int32_t z, GameState area) {
     if (rabisu_count >= MAX_RABISUS) return -1;
     int i = rabisu_count++;
     Rabisu *r = &rabisus[i];
-    /* The anchor is the model's UNDERSIDE, so the hover height is just a
-       subtraction (-Y is up). RBS_FOOT_OFF, which cancels the model's authored
-       1.7 m offset, belongs to the DRAW — folding it in here would make every
-       other user of r->y (the hit box, the melee reach, the collision cylinder)
-       silently wrong by that amount. */
+    /* The anchor is the model's UNDERSIDE — the lowest point it reaches across
+       the WHOLE animation, not in one pose — so the hover height is just a
+       subtraction (-Y is up) and the boss never dips below it mid-flap.
+       RBS_FOOT_OFF, which cancels the model's authored origin offset, belongs
+       to the DRAW: folding it in here would make every other user of r->y (the
+       hit box, the melee reach, the collision cylinder) silently wrong by that
+       amount. */
     int32_t y = ground_y - RBS_HOVER;
     *r = (Rabisu){0};
     r->x = x; r->y = y; r->z = z;
@@ -180,6 +237,16 @@ void update_rabisus(void) {
             r->face_s = -r->face_s;
             r->face_c = -r->face_c;
 #endif
+        }
+
+        /* Idle playback. One shared clip, looping, at RBS_ANIM_TICKS game
+           frames each. The clock is per instance, and it only advances in the
+           boss's own area because of the game_state gate above — which is what
+           we want: an off-screen boss in another room should not be burning
+           frames of animation. */
+        if (rabisu_anim_count > 1 && ++r->anim_tick >= RBS_ANIM_TICKS) {
+            r->anim_tick = 0;
+            if (++r->anim_frame >= rabisu_anim_count) r->anim_frame = 0;
         }
 
         /* No movement, wake or attack yet — the abilities come later. */
@@ -327,6 +394,11 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     uint8_t *p = (uint8_t *)rabisu_smd->p_prims;
 
+    /* THE animation hook. Topology (which vertices, what colour) still comes
+       from the .smd's prim stream below; only the POSITIONS are swapped for
+       this frame's baked block. That is the whole of playback. */
+    SVECTOR *vp = rbs_verts(r);
+
     /* Same fog the room's own mesh uses (g_fog_near/far are set by the room's
        draw), saturating to the sky colour. Computed once per model rather than
        per poly: the boss is ~4.6 m across and the fog gradient over that span is
@@ -345,9 +417,9 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
         int           is_quad = (pt->type >= 2);
 
         uint16_t *vi = (uint16_t *)(p + 4);
-        SVECTOR *v0 = &rabisu_smd->p_verts[vi[0]];
-        SVECTOR *v1 = &rabisu_smd->p_verts[vi[1]];
-        SVECTOR *v2 = &rabisu_smd->p_verts[vi[2]];
+        SVECTOR *v0 = &vp[vi[0]];
+        SVECTOR *v1 = &vp[vi[1]];
+        SVECTOR *v2 = &vp[vi[2]];
 
         DVECTOR sv[4];
         int32_t sz[4], otz, nclip;
@@ -377,7 +449,7 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
         SVECTOR *v3    = 0;
         int32_t  v2_sz = sz[3];   /* v2's SZ, before the quad path reuses sz[3] */
         if (is_quad) {
-            v3 = &rabisu_smd->p_verts[vi[3]];
+            v3 = &vp[vi[3]];
             gte_ldv0(v3);
             gte_rtps();
             gte_stsxy(&sv[3]);

@@ -133,6 +133,10 @@
                      boundary and the console hung at the PlayStation logo. The
                      root list is full — see the comment above it. -->
                 <file name="RABISU.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Rabisu.smd"/>
+                <!-- Idle animation: baked vertex positions, 19 frames.
+                     Must be re-baked whenever the mesh topology changes -
+                     see tools/ANIMATING_A_3D_MODEL.txt. -->
+                <file name="RBSIDLE.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Rabisu_idle.pva"/>
                 <file name="STRS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\strs.tim"/>
                 <file name="FRNTDR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\frnt_dr.tim"/>
                 <file name="STNSTL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\stn_stl.tim"/>

@@ -1,0 +1,266 @@
+PS1 HORROR GAME — ANIMATING A 3D MODEL: THE RUNBOOK
+====================================================
+How to get a skeletal animation out of Blender and onto the console. Written
+immediately after the Rabisu's idle flap was added (August 2026), and records
+every step that was actually performed, including the two real bugs it exposed
+in art that had already shipped.
+
+Read tools/ADDING_A_3D_ENEMY.txt first; this is the animation half of it.
+
+
+##########################################################################
+ THE APPROACH, AND WHY IT IS NOT SKELETAL AT RUNTIME
+##########################################################################
+The console does NOT get the skeleton. Blender evaluates the rig at export time
+and we ship the finished VERTEX POSITIONS, one full set per frame. Playback is
+then "index into an array" — no bone hierarchy, no matrix palette, no weights.
+
+That is forced, not lazy. There were three options:
+
+  1. RIGID PARTS, one matrix per bone, the classic PS1 approach. Needs every
+     vertex bound to exactly ONE bone. The Rabisu is smooth-skinned with up to
+     THIRTEEN influences per vertex; only 57 of its 496 vertices have a single
+     influence. Using this would mean re-rigging the model from scratch.
+  2. RUNTIME SKINNING, weights evaluated per frame. 496 vertices x up to 13
+     weighted matrix transforms, every frame, before projection even starts.
+     Not on this hardware.
+  3. BAKED VERTEX POSITIONS. Blender already does the work; the console reads
+     an array.
+
+So: 3. The consequence worth internalising is that RIG COMPLEXITY IS FREE.
+Bone count, IK, constraints, drivers, shape keys, any modifier at all — none of
+it reaches the console. Animate however you like. What you pay for instead is
+MEMORY, linear in frames (see THE BUDGET below).
+
+
+##########################################################################
+ WHAT SHIPS, AND WHICH FILE OWNS WHAT
+##########################################################################
+    <Name>.smx  --smxlink-->  <Name>.smd     TOPOLOGY + COLOUR + bind pose
+    <Name>.blend --io_export_pva.py-->  <clip>.pva   POSITIONS, per frame
+
+The .smd owns which vertices each polygon uses and what colour it is. The .pva
+owns only where those vertices are on a given frame. The draw loop walks the
+.smd's prim stream exactly as before and reads positions out of the .pva:
+
+    SVECTOR *vp = rbs_verts(r);        /* this frame's block */
+    SVECTOR *v0 = &vp[vi[0]];          /* .smd still supplies vi[] */
+
+>>> THE TWO FILES MUST COME FROM THE SAME MESH. <<<
+The .pva is indexed by the .smd's polygon indices, so the vertex COUNT and
+ORDER have to agree. They do automatically when both are exported from the same
+mesh object, because both walk `mesh.vertices` in order — verified for real:
+the .smx and .smd agree vertex-for-vertex through smxlink (0 differences across
+496), and the .pva's frame 1 matches the .smd's bind pose exactly (max delta 0).
+
+The loader checks it anyway. rabisus_load_anim() refuses a .pva whose vertex
+count disagrees with the .smd and falls back to the bind pose, so a stale clip
+gives you a motionless boss rather than exploded garbage.
+
+RE-EXPORT BOTH whenever the mesh topology changes. Only the .pva when just the
+animation changes.
+
+
+##########################################################################
+ STEP 1 — PREPARE THE BLEND
+##########################################################################
+1a. >>> RECALCULATE NORMALS OUTSIDE. DO THIS FIRST, EVERY TIME. <<<
+    Select the mesh, Tab into Edit Mode, A to select all, then
+        Mesh > Normals > Recalculate Outside      (Shift+N)
+    Back to Object Mode. Save.
+
+    This is not housekeeping. The draw loop backface-culls, so a backwards-wound
+    polygon is simply not drawn and you see the model's inside. It reads as
+    "odd shading" rather than "broken", which is exactly why it ships.
+
+    The Rabisu shipped that way. Its mesh was built by mirroring, and Blender's
+    mirror does not flip normals, so FOUR of its ten shells — one wing and one
+    set of legs — were inverted while the other six were correct. The whole-model
+    figure even averaged out to the right sign, so only a per-shell check found
+    it. Verify with:
+
+        py tools/check_model_winding.py assets/bosses/Rabisu.smd
+
+1b. Delete duplicate or empty ARMATURE modifiers. The Rabisu carried two: one
+    real, one with no object assigned. The empty one is inert today and will
+    silently double-deform the moment anything fills it in.
+
+1c. One ACTION per clip, named for what it is (idle / attack / death). The
+    exporter bakes the scene's current frame range; set frame_start/frame_end
+    around the clip you want, or pass --start/--end.
+
+1d. AUTHOR A SEAMLESS LOOP by making the last frame a copy of the first. The
+    exporter detects that (max drift < 0.5 PS1 units) and DROPS the duplicate,
+    so the loop does not hold that pose for an extra tick. The Rabisu's idle is
+    authored 1..20 and ships as 19 frames.
+
+1e. Keep the mesh's object transform at identity if you can. The exporter bakes
+    matrix_world, so it works either way, but a non-identity transform is one
+    more thing that has to match between the .smx and the .pva.
+
+
+##########################################################################
+ STEP 2 — EXPORT
+##########################################################################
+Both exports must come from the SAME .blend, at a frame inside the clip.
+
+2a. THE BIND-POSE MESH (topology). Frame 1, through the normal SMX route:
+
+      In Blender: select the mesh, File > Export > SMX, scale 100,
+                  Apply Modifiers ON, Normals ON.
+      Then:       smxlink -o assets\bosses\Rabisu.smd assets\bosses\Rabisu.smx
+
+    smxlink lives at C:\Users\virtu\Documents\PSn00bSDK\bin\smxlink.exe and is
+    still the only correct route for the visual mesh (MESH_CONVERSION_NOTES.txt).
+
+2b. THE ANIMATION. Install tools/io_export_pva.py as an add-on
+    (Edit > Preferences > Add-ons > Install...), select the MESH object — not
+    the armature — then File > Export > PS1 Vertex Animation (.pva).
+
+    Scale MUST be the same 100 used for the .smx.
+
+2c. OR DO BOTH HEADLESS, which is repeatable and what the build actually did:
+
+      cd C:\Users\virtu\Documents\ps1game
+      set BL="C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"
+
+      %BL% -b "blender models\Rabisu-animated.blend" -P tools\io_export_pva.py -- ^
+           --object "Cube.008" --out assets\bosses\Rabisu_idle.pva --scale 100
+
+    The bake prints the numbers STEP 4 needs. Options: --start/--end for a frame
+    range, --fps to stamp the header, --no-trim-loop to keep a duplicate last
+    frame (for a one-shot that genuinely ends where it began).
+
+
+##########################################################################
+ STEP 3 — VERIFY BEFORE WIRING
+##########################################################################
+      py tools\check_model_winding.py assets\bosses\Rabisu.smd
+
+    Wants "OK". Every model the game draws correctly has NEGATIVE signed volume;
+    that is an empirical fact about the exporter's quad reordering plus the GTE's
+    screen handedness, established from the crate, the concrete block and the
+    save point. Per-SHELL is what matters — see 1a.
+
+    Then confirm the two files register. The .pva's frame 1 must equal the .smd's
+    vertices, since both are the same pose of the same mesh:
+
+      py -c "import struct; d=open('assets/bosses/Rabisu_idle.pva','rb').read(); ^
+        nv,nf=struct.unpack('<HH',d[4:8]); ^
+        m=open('assets/bosses/Rabisu.smd','rb').read(); ^
+        mv=struct.unpack('<H',m[6:8])[0]; pv=struct.unpack('<I',m[12:16])[0]; ^
+        a=[struct.unpack('<hhh',d[12+i*8:12+i*8+6]) for i in range(nv)]; ^
+        b=[struct.unpack('<hhh',m[pv+i*8:pv+i*8+6]) for i in range(mv)]; ^
+        print('verts',nv,mv,'frames',nf,'max delta', ^
+              max(max(abs(x-y) for x,y in zip(p,q)) for p,q in zip(a,b)))"
+
+    Wants matching vertex counts and "max delta 0".
+
+
+##########################################################################
+ STEP 4 — RE-DERIVE THE EXTENTS FROM THE UNION BOX
+##########################################################################
+>>> A MOVING MODEL'S HIT BOX IS NOT ITS BIND POSE'S. <<<
+The bake prints the union bounding box over EVERY frame, and that is what the
+gun's aim box and the collision cylinder must cover. The Rabisu's idle spreads
+its wings to 505 wide against the bind pose's 336, and reaches 559 tall against
+461. Sizing off the static mesh leaves the wings unshootable and lets the player
+stand inside them.
+
+The bake's last lines hand you the constants directly:
+
+    -> RBS_FOOT_OFF -132, RBS_HEIGHT 559, RBS_HALF_W 254
+
+Copy them into <slug>.h and set <PFX>_BODY_RADIUS to the largest horizontal
+extent. Note RBS_FOOT_OFF went NEGATIVE after rigging: the posed model hangs
+below its own origin where the pre-rig mesh sat above it. The anchor still means
+"the model's underside", and taking it from the union box means the boss never
+dips below its stated hover height mid-flap.
+
+Then redo the placement arithmetic on paper (ADDING_A_3D_ENEMY.txt STEP 10).
+For the Rabisu, hovering RBS_HOVER=100 over the y=900 lawn:
+
+    anchor           900 - 100          = 800
+    draw translation 800 + (-132)       = 668
+    lowest point     668 + 131.5        = 799.5  -> 100 above the lawn   [the ask]
+    highest point    668 - 427.2        = 240.8  -> 659 above the lawn
+    room ceiling     -800, cleared by 1041                        [no clipping]
+    hit box          cyc 800-279 = 521, span [242,800]               [matches]
+    player eye       900-149-40 = 711, inside that span            [melee gv=0]
+    melee gap        (255+75+30) - 255  = 105 < SWING_RANGE 350  [axe reaches]
+
+
+##########################################################################
+ STEP 5 — WIRE IT
+##########################################################################
+  disc.xml     add the .pva to <dir name="TEX">, 8.3 uppercase. NOT the root —
+               it is full (36 bytes), and overflowing it stops the console
+               booting. Run py tools\check_disc_root.py after.
+  <slug>.c     load it beside the .smd in <slug>s_load_assets(), CHECKING the
+               vertex count against the .smd before trusting it; add the frame
+               clock to update_<slug>s(); point the draw's vertex reads at the
+               frame's block.
+  <slug>.h     <PFX>_ANIM_TICKS = game frames per animation frame, plus
+               anim_frame/anim_tick on the entity struct.
+
+PLAYBACK RATE. The game runs at 60, so the tick count is 60/target:
+    2 -> 30 fps    3 -> 20 fps    4 -> 15 fps
+The Rabisu's clip is authored at 24 and plays at 20 (RBS_ANIM_TICKS 3), a 0.95 s
+loop. Snapping between baked frames, no interpolation — it costs nothing and the
+stepping is period-correct.
+
+The clock is per instance so two of the same enemy do not move in lockstep, and
+it only advances inside the `area != game_state` gate, so an enemy in another
+room is not burning frames.
+
+INTERPOLATION, if you ever want it: lerp the two nearest frames into a scratch
+buffer before the prim loop. It costs 496 lerps and ~4 KB of scratch per drawn
+instance per frame, and it would let you bake fewer frames — trading RAM for
+CPU. Not currently done.
+
+
+##########################################################################
+ THE BUDGET — THE ONE THING THAT WILL BITE
+##########################################################################
+    bytes = n_frames * n_verts * 8        (SVECTOR: 3 x int16 + pad)
+
+The Rabisu's idle: 19 x 496 x 8 = 73.6 KB, resident from startup. That is for
+ONE clip. Four or five clips on one boss is 300-400 KB against 2 MB of main RAM
+that already holds the room mesh, the textures and the code.
+
+Levers to pull, cheapest first:
+  - FEWER FRAMES. Halve the frame count and interpolate (STEP 5).
+  - FEWER VERTICES. The cost is linear in vertex count, so decimating the mesh
+    pays on every clip at once.
+  - LOAD PER ROOM instead of at startup, the way rooms stream their own meshes.
+    A boss only exists in one room. This is the real fix when it comes to it,
+    and it is why the .pva is a separate file rather than glued onto the .smd.
+  - 6-byte vertices on disc. Saves disc, NOT memory, since it has to be expanded
+    to aligned SVECTORs to be usable. Not worth it.
+
+
+##########################################################################
+ THE MISTAKES THIS ALREADY CAUGHT
+##########################################################################
+1. MIRRORED GEOMETRY WITH INVERTED NORMALS. Four of the Rabisu's ten shells
+   were wound backwards, in exact mirror pairs (+-55199, +-181977, +-47039,
+   +-48029 — the give-away signature). Backface culling then hides them.
+   Recalculate Outside, and check PER SHELL: the whole-model signed volume
+   averaged out to the correct sign while nearly half the model was inverted.
+
+2. ASSUMING THE RIGGED FILE'S REST POSE IS THE SHIPPED BIND POSE. It was not:
+   frame 1 of the Rabisu's animation sat ~216 units lower than the .smx already
+   on disc, with per-vertex differences up to 303. Re-export the mesh from the
+   ANIMATED blend, or the first frame of playback snaps.
+
+3. SIZING THE HIT BOX OFF THE BIND POSE. See STEP 4. A flapping model is half
+   again as wide as a still one.
+
+4. SHIPPING THE DUPLICATE LOOP FRAME. A seamless loop's last frame is its
+   first; keeping both holds that pose an extra tick every cycle and reads as a
+   hitch. The exporter drops it automatically — do not defeat that for a loop.
+
+5. TRUSTING A .pva THAT NO LONGER MATCHES THE MESH. Positions are indexed by the
+   .smd's polygon indices; a clip baked from a different topology reads off the
+   end of every frame. The loader's vertex-count check turns that from garbage
+   into a motionless model.

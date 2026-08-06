@@ -56,33 +56,49 @@
 #define RBS_BAR_TIMER_MAX    120   /* frames the health bar stays up after a hit */
 
 /* --- Mesh-derived geometry ---------------------------------------------
-   All four numbers are measured from assets/bosses/Rabisu.smx and nothing
-   else may re-derive them. Re-export the model and these must be re-measured:
+   >>> THESE COME FROM THE UNION BOUNDING BOX OVER EVERY ANIMATION FRAME,
+       NOT FROM THE BIND POSE. <<<
+   The boss flaps: its silhouette at full wing-spread is 505 wide against the
+   bind pose's 336, and it reaches 559 tall against 461. Sizing the hit box and
+   the collision cylinder off the static mesh would leave the wings unshootable
+   and let the player stand inside them.
 
-     py -c "import re; s=open('assets/bosses/Rabisu.smx',encoding='utf-8',
-            errors='replace').read(); vb=s.split('<vertices')[1].
-            split('</vertices>')[0]; vs=[(float(a),float(b),float(c)) for
-            a,b,c in re.findall(r'x=\"([-\d.]+)\" y=\"([-\d.]+)\" z=\"([-\d.]+)\"',
-            vb)]; print([(min(v[i] for v in vs), max(v[i] for v in vs))
-            for i in range(3)])"
+   tools/io_export_pva.py prints exactly these three numbers at the end of every
+   bake, so re-deriving them is not a separate step — re-export the animation
+   and read them off. Current values are the 19-frame idle:
 
-   As authored the model does NOT sit on its own origin: its lowest vertex is
-   at mesh y=-168, i.e. 168 units ABOVE the origin plane (-Y is up). RBS_FOOT_OFF
-   cancels that, so the entity anchor means "the model's UNDERSIDE" and a
-   placement can state a hover height directly instead of carrying the
-   authored offset around. Get this wrong and the boss floats an extra 1.7 m. */
-#define RBS_FOOT_OFF         168   /* -(mesh max y): underside -> the anchor  */
-#define RBS_HEIGHT           461   /* mesh y span, -629 .. -168               */
-#define RBS_HALF_W           168   /* mesh x half-span, +/-168                */
+     x [-252.0, 253.8]   span 505.7
+     y [-427.2, 131.5]   span 558.7      (-Y is up)
+     z [-185.1,  37.6]   span 222.7
+
+   As authored the model does NOT sit on its own origin — and after rigging it
+   sits BELOW it: its lowest point is at mesh y=+131.5, i.e. 131 units below the
+   origin plane. RBS_FOOT_OFF cancels that (hence negative now, where the
+   pre-rig bind pose wanted +168), so the entity anchor means "the model's
+   UNDERSIDE" and a placement states a hover height directly. */
+#define RBS_FOOT_OFF        (-132)  /* -(max mesh y over all frames)           */
+#define RBS_HEIGHT           559    /* union y span                            */
+#define RBS_HALF_W           254    /* union x half-span, at full wing-spread  */
 #define RBS_HALF_H  (RBS_HEIGHT / 2)
 
 /* Body cylinder for the player push-out and the melee reach test. The model
    rotates, so an axis-aligned box (what the concrete props use) would swell
    and shrink as it turned; a cylinder of the largest horizontal extent is the
-   only shape that is stable under rotation. 170 covers the +/-168 wingspan;
-   the low tail reaches 189 back in -Z but is thin and below the player's eye,
-   so it is deliberately not part of the solid volume. */
-#define RBS_BODY_RADIUS      170
+   only shape that is stable under rotation. 255 covers the wings at full
+   spread, so the player cannot stand inside the wing sweep. Drop it toward the
+   ~90-unit torso if the wings should pass through the player instead — it is
+   only this one constant, and rabisu_gap() keeps the melee reach in step. */
+#define RBS_BODY_RADIUS      255
+
+/* --- Idle animation -----------------------------------------------------
+   Game frames per animation frame. The clip is authored at 24 fps and the game
+   runs at 60, so 3 gives 20 fps — the closest clean divisor. 19 frames at 20
+   fps is a 0.95 s loop.
+
+   The animation is BAKED VERTEX POSITIONS (assets/bosses/Rabisu_idle.pva), not
+   bones: the rig smooth-skins up to 13 influences per vertex, which no runtime
+   on this hardware could evaluate. See tools/ANIMATING_A_3D_MODEL.txt. */
+#define RBS_ANIM_TICKS         3
 
 /* How far the underside hovers above the floor it is placed over. 1 m. */
 #define RBS_HOVER            100
@@ -106,6 +122,10 @@ typedef struct {
        the draw wants exactly these two numbers to build its rotation matrix.
        Seeded facing +Z at spawn; update_rabisus turns it toward the player. */
     int32_t   face_s, face_c;
+    /* Idle playback clock. Per instance so two bosses in a room do not flap in
+       lockstep; persisted with the rest of the struct, which costs nothing and
+       means a reload does not snap the pose. */
+    int32_t   anim_frame, anim_tick;
     GameState area;
 } Rabisu;
 
