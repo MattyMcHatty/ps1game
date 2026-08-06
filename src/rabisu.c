@@ -221,10 +221,16 @@ Rabisu *rabisu_boss_instance(void) {
 }
 
 void rabisu_go_dormant(Rabisu *r) {
-    r->ai_state = RBS_AI_DORMANT;
-    r->ai_timer = 0;
-    r->lean     = 0;
-    rbs_fireballs_reset();   /* nothing of its should still be in flight */
+    r->ai_state   = RBS_AI_DORMANT;
+    r->ai_timer   = 0;
+    r->lean       = 0;
+    /* Every attack in flight is cancelled, not just the projectiles: a
+       shockwave still expanding through a death cutscene would carry on
+       damaging the player while the camera was somewhere else entirely. */
+    r->wave_t     = 0;
+    r->beam_cells = 0;
+    r->beam_step  = 0;
+    rbs_fireballs_reset();
 }
 
 void rabisu_face_override(Rabisu *r, int on, int32_t x, int32_t z) {
@@ -271,9 +277,10 @@ void rabisu_damage(Rabisu *r, int dmg) {
            only sets `dead` once it has finished burning away. Setting `dead`
            here would blink the boss out of existence on the killing shot. */
         r->dying    = 1;
-        r->ai_state = RBS_AI_DORMANT;
-        r->lean     = 0;
-        rbs_fireballs_reset();
+        /* Everything it had in the air dies with it — including a shockwave
+           mid-expansion, which would otherwise carry on hitting the player
+           through the first seconds of the death cutscene. */
+        rabisu_go_dormant(r);
         /* Burst at mid-body, not at the anchor: the anchor is the underside, so
            a burst there would spray from beneath its feet. */
         spawn_blood_burst(r->x, r->y - RBS_HALF_H, r->z);
@@ -288,6 +295,234 @@ void rabisu_body(const Rabisu *r, int32_t *cyc, int32_t *hh, int32_t *hw) {
     *cyc = r->y - RBS_HALF_H;   /* anchor is the underside; -Y is up */
     *hh  = RBS_HALF_H;
     *hw  = RBS_HALF_W;
+}
+
+/* ===========================================================================
+ * SHARED ADDITIVE-GLOW HELPERS
+ * ===========================================================================
+ * See the block comment in rabisu.h. Everything the encounter and the boss's
+ * attacks light up goes through these, so the reveal, the beam and the death
+ * cannot drift into looking like three different effects.
+ *
+ * The blend is ABR=1, additive, and the DR_TPAGE that selects it is added to
+ * the SAME OT bucket immediately AFTER its poly — the OT is LIFO, so "after"
+ * is what puts it in front. Same pattern as lightswitch_puzzle.c's ls_quad,
+ * which this is descended from. */
+
+int32_t rbs_glow_clock = 0;
+
+/* White -> orange -> red -> white, one leg per RBS_PULSE_STEP frames. */
+static const uint8_t RBS_PULSE_RGB[3][3] = {
+    { 255, 250, 235 },   /* white  */
+    { 255, 145,  30 },   /* orange */
+    { 255,  35,  10 },   /* red    */
+};
+#define RBS_PULSE_STEP        26
+
+void rbs_glow_pulse(int32_t clock, int32_t level,
+                    uint8_t *r, uint8_t *g, uint8_t *b) {
+    if (clock < 0) clock = -clock;
+    if (level < 0) level = 0;
+    if (level > 256) level = 256;
+    int32_t leg = (clock / RBS_PULSE_STEP) % 3;
+    int32_t f   = ((clock % RBS_PULSE_STEP) * 256) / RBS_PULSE_STEP;
+    const uint8_t *a = RBS_PULSE_RGB[leg];
+    const uint8_t *c = RBS_PULSE_RGB[(leg + 1) % 3];
+    int32_t rr = (a[0] * (256 - f) + c[0] * f) >> 8;
+    int32_t gg = (a[1] * (256 - f) + c[1] * f) >> 8;
+    int32_t bb = (a[2] * (256 - f) + c[2] * f) >> 8;
+    *r = (uint8_t)((rr * level) >> 8);
+    *g = (uint8_t)((gg * level) >> 8);
+    *b = (uint8_t)((bb * level) >> 8);
+}
+
+void rbs_glow_quad(RenderContext *ctx, const SVECTOR v[4],
+                   uint8_t r, uint8_t g, uint8_t b) {
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    if (ctx->next_packet + sizeof(POLY_F4) + sizeof(DR_TPAGE) > buf_end) return;
+
+    DVECTOR sv[4];
+    int32_t sz[4], otz;
+    int k;
+
+    gte_ldv3(&v[0], &v[1], &v[2]);
+    gte_rtpt();
+    gte_stsxy3c(sv);
+    gte_stsz4c(sz);
+    gte_ldv0(&v[3]);
+    gte_rtps();
+    gte_stsxy(&sv[3]);
+    gte_stsz(&sz[3]);
+    if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) return;
+
+    for (k = 0; k < 4; k++)
+        if (sv[k].vx <= -1023 || sv[k].vx >= 1023 ||
+            sv[k].vy <= -1023 || sv[k].vy >= 1023) return;
+
+    gte_avsz4();
+    gte_stotz(&otz);
+    if (otz <= SCENE_OT_MIN) return;
+    otz += 40;   /* the room mesh's own bias, so a wall in front still occludes */
+    if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
+
+    uint32_t *ot = ctx->buffers[ctx->active_buffer].ot;
+
+    POLY_F4 *p = (POLY_F4 *)ctx->next_packet;
+    setPolyF4(p);
+    setSemiTrans(p, 1);
+    setRGB0(p, r, g, b);
+    p->x0 = sv[0].vx; p->y0 = sv[0].vy;
+    p->x1 = sv[1].vx; p->y1 = sv[1].vy;
+    p->x2 = sv[2].vx; p->y2 = sv[2].vy;
+    p->x3 = sv[3].vx; p->y3 = sv[3].vy;
+    addPrim(&ot[otz], p);
+    ctx->next_packet += sizeof(POLY_F4);
+
+    DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
+    setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
+    addPrim(&ot[otz], tp);
+    ctx->next_packet += sizeof(DR_TPAGE);
+}
+
+#define RBS_GLOW_WORLD       230   /* world half-size of the outermost square */
+#define RBS_GLOW_RINGS         3
+
+void rbs_glow_point(RenderContext *ctx, const VECTOR *at, int32_t bright,
+                    int32_t clock) {
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+
+    SVECTOR pt;
+    pt.vx = (int16_t)at->vx; pt.vy = (int16_t)at->vy; pt.vz = (int16_t)at->vz;
+    pt.pad = 0;
+
+    DVECTOR sv;
+    int32_t sz;
+    gte_ldv0(&pt);
+    gte_rtps();
+    gte_stsxy(&sv);
+    gte_stsz(&sz);
+    if (sz == 0) return;
+    if (sv.vx <= -1023 || sv.vx >= 1023 || sv.vy <= -1023 || sv.vy >= 1023) return;
+
+    int32_t dx = at->vx - cam_x, dy = at->vy - cam_y, dz = at->vz - cam_z;
+    int32_t dist = isqrt32(dx * dx + dy * dy + dz * dz);
+    if (dist < 64) dist = 64;
+
+    int32_t otz = sz >> 2;
+    if (otz <= SCENE_OT_MIN) otz = SCENE_OT_MIN;
+    if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
+
+    uint32_t *ot = ctx->buffers[ctx->active_buffer].ot;
+
+    int ring;
+    for (ring = 0; ring < RBS_GLOW_RINGS; ring++) {
+        if (ctx->next_packet + sizeof(POLY_F4) + sizeof(DR_TPAGE) > buf_end) return;
+
+        /* Outermost ring is full width and dimmest; each step in halves the
+           square and raises the level, so the three add up to a soft falloff
+           with a hot core. */
+        int32_t world_half = RBS_GLOW_WORLD >> ring;
+        int32_t half = (world_half * 256) / dist;   /* gte_SetGeomScreen(256) */
+        if (half < 1)   half = 1;
+        if (half > 400) half = 400;
+
+        uint8_t r, g, b;
+        rbs_glow_pulse(clock + ring * 5, (bright * (60 + ring * 70)) >> 8,
+                       &r, &g, &b);
+
+        POLY_F4 *p = (POLY_F4 *)ctx->next_packet;
+        setPolyF4(p);
+        setSemiTrans(p, 1);
+        setRGB0(p, r, g, b);
+        p->x0 = (int16_t)(sv.vx - half); p->y0 = (int16_t)(sv.vy - half);
+        p->x1 = (int16_t)(sv.vx + half); p->y1 = (int16_t)(sv.vy - half);
+        p->x2 = (int16_t)(sv.vx - half); p->y2 = (int16_t)(sv.vy + half);
+        p->x3 = (int16_t)(sv.vx + half); p->y3 = (int16_t)(sv.vy + half);
+        addPrim(&ot[otz], p);
+        ctx->next_packet += sizeof(POLY_F4);
+
+        DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
+        setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
+        addPrim(&ot[otz], tp);
+        ctx->next_packet += sizeof(DR_TPAGE);
+    }
+}
+
+/* Brightness split between the pool on the ground and the shaft above it. The
+   shaft is faint because sixteen of them overlap during the reveal and would
+   otherwise white out the middle of the garden. */
+#define RBS_POOL_LEVEL       210
+#define RBS_SHAFT_LEVEL       60
+#define RBS_SHAFT_H          900   /* how far up the beam reaches               */
+#define RBS_SHAFT_FLARE      150   /* how far out each corner is pushed at the top */
+#define RBS_SHAFT_SEGS         3
+
+void rbs_glow_pillar(RenderContext *ctx, int32_t x0, int32_t x1,
+                     int32_t z0, int32_t z1, int32_t floor_y,
+                     int32_t bright, int32_t clock) {
+    uint8_t r, g, b;
+    SVECTOR v[4];
+    int k;
+    for (k = 0; k < 4; k++) v[k].pad = 0;
+
+    /* --- The pool, 4 above the surface so it never z-fights the floor poly --- */
+    rbs_glow_pulse(clock, (bright * RBS_POOL_LEVEL) >> 8, &r, &g, &b);
+    v[0].vx = (int16_t)x0; v[0].vy = (int16_t)(floor_y - 4); v[0].vz = (int16_t)z0;
+    v[1].vx = (int16_t)x1; v[1].vy = (int16_t)(floor_y - 4); v[1].vz = (int16_t)z0;
+    v[2].vx = (int16_t)x0; v[2].vy = (int16_t)(floor_y - 4); v[2].vz = (int16_t)z1;
+    v[3].vx = (int16_t)x1; v[3].vy = (int16_t)(floor_y - 4); v[3].vz = (int16_t)z1;
+    rbs_glow_quad(ctx, v, r, g, b);
+
+    /* --- The shaft: four walls, FLARING as it rises so the beam widens out of
+           the poly it is pouring from. Banded along its length both so no
+           single quad can blow past the GTE's +/-1023 screen clamp and so the
+           brightness can fall off with height — a beam lit evenly top to
+           bottom looks like a solid box, and the point is that its source is
+           the ground. --- */
+    {
+        const int32_t cx[4] = { x0, x1, x1, x0 };
+        const int32_t cz[4] = { z0, z0, z1, z1 };
+        const int32_t mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+        int s, t;
+        for (t = 0; t < RBS_SHAFT_SEGS; t++) {
+            int32_t e0 = t, e1 = t + 1;
+            int32_t y0 = floor_y - (RBS_SHAFT_H * e0) / RBS_SHAFT_SEGS;
+            int32_t y1 = floor_y - (RBS_SHAFT_H * e1) / RBS_SHAFT_SEGS;
+            int32_t o0 = (RBS_SHAFT_FLARE * e0) / RBS_SHAFT_SEGS;
+            int32_t o1 = (RBS_SHAFT_FLARE * e1) / RBS_SHAFT_SEGS;
+
+            int32_t drop = 256 - (170 * e0) / RBS_SHAFT_SEGS;
+            rbs_glow_pulse(clock, (((bright * RBS_SHAFT_LEVEL) >> 8) * drop) >> 8,
+                           &r, &g, &b);
+
+            for (s = 0; s < 4; s++) {
+                int n = (s + 1) & 3;
+                /* Away from the centre, not toward it: this is light coming
+                   OUT of the ground, and which end of a cone is wide is the
+                   whole read. */
+                #define PUSHX(c, o) ((c) + ((mx - (c)) > 0 ? -(o) : (o)))
+                #define PUSHZ(c, o) ((c) + ((mz - (c)) > 0 ? -(o) : (o)))
+                v[0].vx = (int16_t)PUSHX(cx[s], o0); v[0].vz = (int16_t)PUSHZ(cz[s], o0); v[0].vy = (int16_t)y0;
+                v[1].vx = (int16_t)PUSHX(cx[n], o0); v[1].vz = (int16_t)PUSHZ(cz[n], o0); v[1].vy = (int16_t)y0;
+                v[2].vx = (int16_t)PUSHX(cx[s], o1); v[2].vz = (int16_t)PUSHZ(cz[s], o1); v[2].vy = (int16_t)y1;
+                v[3].vx = (int16_t)PUSHX(cx[n], o1); v[3].vz = (int16_t)PUSHZ(cz[n], o1); v[3].vy = (int16_t)y1;
+                #undef PUSHX
+                #undef PUSHZ
+                rbs_glow_quad(ctx, v, r, g, b);
+            }
+        }
+    }
+}
+
+int32_t rbs_floor_y_at(int32_t x, int32_t z, int32_t fallback) {
+    int i;
+    for (i = 0; i < floor_zone_count; i++) {
+        FloorZone *f = &floor_zones[i];
+        if (x < f->min_x || x > f->max_x) continue;
+        if (z < f->min_z || z > f->max_z) continue;
+        return f->y;
+    }
+    return fallback;
 }
 
 /* ===========================================================================
@@ -529,13 +764,43 @@ static void rbs_pick_target(Rabisu *r) {
     r->sweep_target = opts[rbs_rand() & 1];
 }
 
-/* The stop is over: throw something. Fireball twice as often as foot slash. */
+/* How far the player is from the middle of the arena. The shockwave's trigger
+   and the wave's own reach are both measured from the SPAWN, not from the
+   boss: the boss is the thing that moves to the middle, so using its live
+   position would make the zone follow it around. */
+static int32_t rbs_player_from_centre(const Rabisu *r) {
+    int32_t dx = player_x() - r->spawn_x;
+    int32_t dz = player_z() - r->spawn_z;
+    return isqrt32(dx * dx + dz * dz);
+}
+
+/* Give up sweeping and go and sit in the middle: the player came inside. */
+static void rbs_begin_centre(Rabisu *r) {
+    r->ai_state     = RBS_AI_CENTRE;
+    r->ai_timer     = 0;
+    r->lean         = 0;
+    r->slash_from_x = r->x;
+    r->slash_from_z = r->z;
+}
+
+/* The stop is over: throw something. Fireball 2, foot slash 1, light beam 1. */
 static void rbs_begin_attack(Rabisu *r, int self) {
-    if (rbs_rand() % RBS_ATTACK_ROLL == RBS_SLASH_FACE) {
+    uint32_t roll = rbs_rand() % RBS_ATTACK_ROLL;
+
+    if (roll == RBS_SLASH_FACE) {
         r->ai_state    = RBS_AI_SLASH_IN;
         r->ai_timer    = 0;
         r->slash_from_x = r->x;
         r->slash_from_z = r->z;
+        return;
+    }
+
+    if (roll == RBS_BEAM_FACE) {
+        /* Charge only. The path is not drawn until the charge ENDS — a path
+           locked in now would be aimed at where the player stood 1.5 s before
+           the first poly lit, and the tell would be pointless. */
+        r->ai_state = RBS_AI_BEAM_CHARGE;
+        r->ai_timer = 0;
         return;
     }
 
@@ -551,11 +816,106 @@ static void rbs_begin_attack(Rabisu *r, int self) {
     r->ai_timer = RBS_FB_FLIGHT * 4;
 }
 
+/* ---- The light beam's path --------------------------------------------------
+   Laid out BACKWARD from the player at the lawn's own ~286 poly pitch, so the
+   LAST cell is centred exactly on where they stood and the rest march back
+   toward the boss. Doing it forward from the boss instead would leave the
+   final cell wherever the division happened to land, and "the last one lands
+   on the poly the player is standing on" is the whole point of the attack. */
+static void rbs_beam_draw_path(Rabisu *r) {
+    r->beam_px = player_x();
+    r->beam_pz = player_z();
+    r->beam_bx = r->x;
+    r->beam_bz = r->z;
+
+    int32_t dx = r->beam_px - r->beam_bx;
+    int32_t dz = r->beam_pz - r->beam_bz;
+    int32_t d  = isqrt32(dx * dx + dz * dz);
+
+    int32_t n = d / RBS_BEAM_CELL + 1;
+    if (n < 2)                  n = 2;
+    if (n > RBS_BEAM_MAX_CELLS) n = RBS_BEAM_MAX_CELLS;
+    r->beam_cells = n;
+    r->beam_step  = 0;
+    r->ai_state   = RBS_AI_BEAM_WALK;
+    r->ai_timer   = 0;
+}
+
+/* Centre of path cell k, in world XZ. k = beam_cells-1 is the player's own
+   cell; k counts back toward the boss from there. */
+static void rbs_beam_cell_centre(const Rabisu *r, int k,
+                                 int32_t *out_x, int32_t *out_z) {
+    int32_t dx = r->beam_bx - r->beam_px;
+    int32_t dz = r->beam_bz - r->beam_pz;
+    int32_t d  = isqrt32(dx * dx + dz * dz);
+    int32_t back = (int32_t)(r->beam_cells - 1 - k) * RBS_BEAM_CELL;
+    if (d <= 0) { *out_x = r->beam_px; *out_z = r->beam_pz; return; }
+    *out_x = r->beam_px + (dx * back) / d;
+    *out_z = r->beam_pz + (dz * back) / d;
+}
+
+/* One poly of the path ignites. It burns whoever is standing on it — which is
+   checked NOW, against the player's live position, not against where the path
+   was drawn. Stepping off the line beats it; running along it does not. */
+static void rbs_beam_ignite(Rabisu *r, int k) {
+    int32_t cx, cz;
+    rbs_beam_cell_centre(r, k, &cx, &cz);
+
+    int32_t px = player_x() - cx;
+    int32_t pz = player_z() - cz;
+    if (px < 0) px = -px;
+    if (pz < 0) pz = -pz;
+
+    if (!game_over && px <= RBS_BEAM_CELL / 2 && pz <= RBS_BEAM_CELL / 2) {
+        player_hurt(RBS_BEAM_DAMAGE);
+        sound_play(SFX_HURT);
+        if (player_health <= 0) {
+            player_health = 0;
+            game_over     = 1;
+            flash_timer   = 90;
+            sound_play(SFX_DIE);
+        }
+    }
+}
+
+/* ---- The shockwave ----------------------------------------------------------
+   Ticked every frame regardless of what the AI is doing, so a wave already in
+   the air still hunts the player down even if they have since left the zone
+   and the boss has gone back to sweeping. Launching it is the decision; once
+   it is out it is out. */
+static void rbs_shock_tick(Rabisu *r) {
+    if (r->wave_t <= 0) return;
+
+    r->wave_t++;
+    if (r->wave_t > RBS_SHOCK_EXPAND + RBS_SHOCK_LINGER) { r->wave_t = 0; return; }
+
+    if (r->wave_hit) return;
+
+    int32_t reach = r->wave_t >= RBS_SHOCK_EXPAND
+                  ? RBS_SWEEP_RADIUS
+                  : (RBS_SWEEP_RADIUS * r->wave_t) / RBS_SHOCK_EXPAND;
+    if (rbs_player_from_centre(r) > reach) return;
+
+    r->wave_hit = 1;
+    if (game_over) return;
+    player_hurt(RBS_SHOCK_DAMAGE);
+    player_knockback(r->spawn_x, r->spawn_z, RBS_SHOCK_KNOCKBACK);
+    sound_play(SFX_SMASH);
+    if (player_health <= 0) {
+        player_health = 0;
+        game_over     = 1;
+        flash_timer   = 90;
+        sound_play(SFX_DIE);
+    }
+}
+
 /* Attack resolved (damage taken, blocked, or turned back) — sweep again. */
 static void rbs_resume_sweep(Rabisu *r) {
     r->ai_state     = RBS_AI_MOVE;
     r->ai_timer     = 0;
     r->lean         = 0;
+    r->beam_cells   = 0;   /* the path is spent; stop drawing it */
+    r->beam_step    = 0;
     r->moves_done   = 0;
     r->moves_target = RBS_MOVES_MIN +
                       (int32_t)(rbs_rand() % (RBS_MOVES_MAX - RBS_MOVES_MIN + 1));
@@ -604,6 +964,11 @@ static void rbs_update_ai(Rabisu *r, int self) {
         }
         rbs_arc_point(r, r->sweep, &r->x, &r->z);
 
+        /* The player walked into the middle: abandon the sweep. Checked here
+           and in RBS_AI_PAUSE only, so a fireball or a charge already underway
+           gets to finish rather than being cut off mid-lunge. */
+        if (rbs_player_from_centre(r) < RBS_SWEEP_RADIUS) { rbs_begin_centre(r); break; }
+
         if (r->sweep == r->sweep_target) {
             /* Arrived at a stopping point. Either set off again, or — once the
                quota is met — plant and wind up. */
@@ -622,7 +987,73 @@ static void rbs_update_ai(Rabisu *r, int self) {
            point so it still tracks a player who walks around it — it is
            stationary along its OWN arc, not pinned to a patch of grass. */
         rbs_arc_point(r, r->sweep, &r->x, &r->z);
+        if (rbs_player_from_centre(r) < RBS_SWEEP_RADIUS) { rbs_begin_centre(r); break; }
         if (--r->ai_timer <= 0) rbs_begin_attack(r, self);
+        break;
+
+    case RBS_AI_CENTRE: {
+        r->ai_timer++;
+        int32_t t = (r->ai_timer * 256) / RBS_SHOCK_CENTRE_F; if (t > 256) t = 256;
+        int32_t inv = 256 - t;
+        int32_t e = 256 - (inv * inv / 256);          /* ease-out */
+        r->x = r->slash_from_x + ((r->spawn_x - r->slash_from_x) * e) / 256;
+        r->z = r->slash_from_z + ((r->spawn_z - r->slash_from_z) * e) / 256;
+        if (r->ai_timer >= RBS_SHOCK_CENTRE_F) {
+            r->x = r->spawn_x;
+            r->z = r->spawn_z;
+            r->sweep        = 0;   /* the middle IS sweep 0, so the sweep can
+                                      pick up cleanly if the player backs off */
+            r->sweep_target = 0;
+            r->ai_state     = RBS_AI_SHOCK;
+            r->shock_timer  = RBS_SHOCK_PERIOD;
+        }
+        break;
+    }
+
+    case RBS_AI_SHOCK:
+        /* Parked. Nothing moves it while the player is inside. */
+        r->x = r->spawn_x;
+        r->z = r->spawn_z;
+        /* Leaving needs the hysteresis or a player standing exactly on the
+           radius flips it between centring and sweeping every frame. */
+        if (rbs_player_from_centre(r) > RBS_SWEEP_RADIUS + RBS_SHOCK_HYST) {
+            rbs_resume_sweep(r);
+            break;
+        }
+        if (--r->shock_timer <= 0) {
+            r->shock_timer = RBS_SHOCK_PERIOD;
+            r->wave_t      = 1;
+            r->wave_hit    = 0;
+            sound_play(SFX_SLAM);
+        }
+        break;
+
+    case RBS_AI_BEAM_CHARGE:
+        /* Stopped, chest burning, telegraphing hard. Still tracks its arc so a
+           player circling it does not leave it facing a hedge. */
+        rbs_arc_point(r, r->sweep, &r->x, &r->z);
+        if (++r->ai_timer >= RBS_BEAM_CHARGE) rbs_beam_draw_path(r);
+        break;
+
+    case RBS_AI_BEAM_WALK:
+        rbs_arc_point(r, r->sweep, &r->x, &r->z);
+        /* ai_timer counts DOWN through the current poly's 0.3 s, and 0 means
+           "nothing is lit yet". That covers the entry frame and every step
+           boundary with the same two lines — an up-counter needed a separate
+           "have I already fired cell 0" flag, and without one the walk relit
+           the first poly every time the counter wrapped. */
+        if (r->ai_timer == 0) {
+            rbs_beam_ignite(r, r->beam_step);
+            r->ai_timer = RBS_BEAM_STEP;
+        }
+        if (--r->ai_timer == 0) {
+            if (++r->beam_step >= r->beam_cells) {
+                r->beam_step  = 0;
+                r->beam_cells = 0;
+                rbs_resume_sweep(r);
+            }
+            /* else: left at 0, so the next frame lights the new poly */
+        }
         break;
 
     case RBS_AI_FIRE:
@@ -745,8 +1176,13 @@ void update_rabisus(void) {
         }
 
         if (!r->dying) rbs_update_ai(r, i);
+        /* Outside the AI switch on purpose: a wave already in the air keeps
+           expanding whatever the boss has moved on to, including its own
+           death. Launching it was the commitment. */
+        rbs_shock_tick(r);
     }
 
+    rbs_glow_clock++;
     rbs_fireballs_update();
 }
 
@@ -1215,11 +1651,128 @@ static void draw_rbs_fireball(RenderContext *ctx, const RbsFireball *f) {
     }
 }
 
-void rbs_fireballs_draw(RenderContext *ctx) {
+/* ---- The shockwave ----------------------------------------------------------
+   A bright annulus racing outward across the ground, with a short vertical
+   skirt riding its leading edge. The ring says where the wave IS; the skirt is
+   the part the player actually sees coming, because in first person a flat
+   figure on the floor disappears the moment it is more than a few metres away.
+
+   Both are built as RBS_SHOCK_SEGS wedges around the arc, and every corner
+   looks up its own floor height — the wave crosses the sunken lawn, the tread
+   and the raised terraces, and a ring drawn at one Y would sink into two of
+   them. */
+#define RBS_SHOCK_BAND       210   /* radial width of the bright ring */
+
+static void draw_rbs_shockwave(RenderContext *ctx, const Rabisu *r) {
+    int32_t reach = r->wave_t >= RBS_SHOCK_EXPAND
+                  ? RBS_SWEEP_RADIUS
+                  : (RBS_SWEEP_RADIUS * r->wave_t) / RBS_SHOCK_EXPAND;
+    if (reach <= 0) return;
+
+    /* Full brightness while it is still travelling, then it dies back over the
+       linger rather than blinking out at full reach. */
+    int32_t bright = 256;
+    if (r->wave_t > RBS_SHOCK_EXPAND) {
+        int32_t k = r->wave_t - RBS_SHOCK_EXPAND;
+        bright = 256 - (k * 256) / RBS_SHOCK_LINGER;
+        if (bright < 0) bright = 0;
+    }
+    if (bright <= 0) return;
+
+    int32_t inner = reach - RBS_SHOCK_BAND;
+    if (inner < 0) inner = 0;
+
+    /* One clock for the whole ring: unlike the sixteen lawn lights, this is a
+       single object and shimmering its segments out of phase would break it up
+       into twenty separate flickers. */
+    uint8_t gr, gg, gb, wr, wg, wb;
+    rbs_glow_pulse(rbs_glow_clock, (bright * RBS_POOL_LEVEL) >> 8, &gr, &gg, &gb);
+    rbs_glow_pulse(rbs_glow_clock, (bright * 150) >> 8, &wr, &wg, &wb);
+
+    SVECTOR v[4];
+    int k, s;
+    for (k = 0; k < 4; k++) v[k].pad = 0;
+
+    for (s = 0; s < RBS_SHOCK_SEGS; s++) {
+        int32_t a0 = (s * 4096) / RBS_SHOCK_SEGS;
+        int32_t a1 = ((s + 1) * 4096) / RBS_SHOCK_SEGS;
+        int32_t s0 = isin(a0), c0 = icos(a0);
+        int32_t s1 = isin(a1), c1 = icos(a1);
+
+        int32_t ix0 = r->spawn_x + (s0 * inner >> 12), iz0 = r->spawn_z + (c0 * inner >> 12);
+        int32_t ix1 = r->spawn_x + (s1 * inner >> 12), iz1 = r->spawn_z + (c1 * inner >> 12);
+        int32_t ox0 = r->spawn_x + (s0 * reach >> 12), oz0 = r->spawn_z + (c0 * reach >> 12);
+        int32_t ox1 = r->spawn_x + (s1 * reach >> 12), oz1 = r->spawn_z + (c1 * reach >> 12);
+
+        int32_t iy0 = rbs_floor_y_at(ix0, iz0, r->spawn_y + RBS_HOVER) - 4;
+        int32_t iy1 = rbs_floor_y_at(ix1, iz1, r->spawn_y + RBS_HOVER) - 4;
+        int32_t oy0 = rbs_floor_y_at(ox0, oz0, r->spawn_y + RBS_HOVER) - 4;
+        int32_t oy1 = rbs_floor_y_at(ox1, oz1, r->spawn_y + RBS_HOVER) - 4;
+
+        /* The band on the ground. */
+        v[0].vx = (int16_t)ix0; v[0].vy = (int16_t)iy0; v[0].vz = (int16_t)iz0;
+        v[1].vx = (int16_t)ox0; v[1].vy = (int16_t)oy0; v[1].vz = (int16_t)oz0;
+        v[2].vx = (int16_t)ix1; v[2].vy = (int16_t)iy1; v[2].vz = (int16_t)iz1;
+        v[3].vx = (int16_t)ox1; v[3].vy = (int16_t)oy1; v[3].vz = (int16_t)oz1;
+        rbs_glow_quad(ctx, v, gr, gg, gb);
+
+        /* The skirt standing on its leading edge. -Y is up. */
+        v[0].vx = (int16_t)ox0; v[0].vy = (int16_t)(oy0 - RBS_SHOCK_WALL_H); v[0].vz = (int16_t)oz0;
+        v[1].vx = (int16_t)ox1; v[1].vy = (int16_t)(oy1 - RBS_SHOCK_WALL_H); v[1].vz = (int16_t)oz1;
+        v[2].vx = (int16_t)ox0; v[2].vy = (int16_t)oy0;                      v[2].vz = (int16_t)oz0;
+        v[3].vx = (int16_t)ox1; v[3].vy = (int16_t)oy1;                      v[3].vz = (int16_t)oz1;
+        rbs_glow_quad(ctx, v, wr, wg, wb);
+    }
+}
+
+void rbs_attacks_draw(RenderContext *ctx) {
     int i;
+
     for (i = 0; i < MAX_RBS_FIREBALLS; i++) {
         RbsFireball *f = &rbs_fireballs[i];
         if (f->life <= 0 || f->area != game_state) continue;
         draw_rbs_fireball(ctx, f);
+    }
+
+    for (i = 0; i < rabisu_count; i++) {
+        Rabisu *r = &rabisus[i];
+        if (!r->active || r->dead || r->area != game_state) continue;
+
+        /* The light beam's tell: the chest coming up to full over 1.5 s. It is
+           the only warning the attack gives, so it ramps rather than switching
+           on — a light that is already at full when you notice it tells you
+           nothing about how long you have left. */
+        if (r->ai_state == RBS_AI_BEAM_CHARGE) {
+            VECTOR chest;
+            rabisu_anchor_world(r, RBS_A_CHEST_X, RBS_A_CHEST_Y, RBS_A_CHEST_Z,
+                                &chest);
+            int32_t b = (r->ai_timer * 256) / RBS_BEAM_CHARGE;
+            if (b > 256) b = 256;
+            rbs_glow_point(ctx, &chest, b, rbs_glow_clock);
+        }
+
+        /* The path itself: the poly burning now, plus the one behind it dying
+           back. Two at a time rather than one is what makes it read as
+           something TRAVELLING instead of a light being switched between
+           unrelated squares. */
+        if (r->ai_state == RBS_AI_BEAM_WALK && r->beam_cells > 0) {
+            int step;
+            for (step = r->beam_step; step >= r->beam_step - 1; step--) {
+                if (step < 0) continue;
+                int32_t cx, cz, half = RBS_BEAM_CELL / 2;
+                rbs_beam_cell_centre(r, step, &cx, &cz);
+                int32_t fy = rbs_floor_y_at(cx, cz, r->spawn_y + RBS_HOVER);
+                /* The trailing cell fades out across the CURRENT one's 0.3 s.
+                   ai_timer counts down, so it is already the fraction left. */
+                int32_t b = (step == r->beam_step)
+                          ? 256
+                          : (r->ai_timer * 256) / RBS_BEAM_STEP;
+                if (b <= 0) continue;
+                rbs_glow_pillar(ctx, cx - half, cx + half, cz - half, cz + half,
+                                fy, b, rbs_glow_clock + step * 7);
+            }
+        }
+
+        if (r->wave_t > 0) draw_rbs_shockwave(ctx, r);
     }
 }

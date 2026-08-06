@@ -152,8 +152,14 @@
    and 5 in garden_courtyard_mesh_collision.c, y 800..900). Those two lips —
    x = -1722 west and x = +1142 east — bound the fight, and the boss's spawn at
    x = -290 sits exactly 1432 from each, which is what makes the sweep
-   symmetric. Move the spawn in world.c and this stops being true. */
-#define RBS_SWEEP_RADIUS     1432
+   symmetric. Move the spawn in world.c and this stops being true.
+
+   The sweep itself runs at 80% of that 1432, pulled in deliberately: the full
+   reach put the boss right on the lip, where the arc's ends were clamped as
+   often as they were reached and the fight sprawled across the whole garden.
+   1146 keeps both ends clear of the step. The LIP is still the arena boundary;
+   the sweep just no longer touches it. */
+#define RBS_SWEEP_RADIUS     1146   /* 80% of the 1432 spawn-to-lip distance */
 #define RBS_ARENA_MIN_X   (-1722)
 #define RBS_ARENA_MAX_X     1142
 /* The lawn's own Z extent is [-857, 2000]. Inset a little at the south end so
@@ -175,9 +181,13 @@
 #define RBS_MOVES_MIN           3   /* traversals between attacks, inclusive    */
 #define RBS_MOVES_MAX           8
 
-/* Fireball : foot slash = 2 : 1, so a roll of 3 with one losing face. */
-#define RBS_ATTACK_ROLL         3
+/* The attack it picks when it stops, as a weighted roll. Fireball : foot slash
+   : light beam = 2 : 1 : 1, which keeps the original "fireball twice as often
+   as foot slash" intact and slots the beam in at the slash's rate. Everything
+   that is not a named face below is a fireball. */
+#define RBS_ATTACK_ROLL         4
 #define RBS_SLASH_FACE          0
+#define RBS_BEAM_FACE           1
 
 /* --- Attack 1: the fireball ------------------------------------------------
    Aimed at where the player IS when it leaves the chest and travelling in a
@@ -238,6 +248,49 @@
    game uses, so the "is this poly under the cut" test is simply always false. */
 #define RBS_NO_CLIP        0x7FFFFFFF
 
+/* --- Attack 3: the light beam ----------------------------------------------
+   Chosen from the pool like the other two. It stops, its chest glows for 1.5 s
+   — the tell — and then a line of ground polys between it and the player
+   ignites one at a time, 0.3 s each, walking outward until the last one lands
+   on the poly the player was standing on when the path was drawn.
+
+   Dodging it means being somewhere else by the time the light gets to you: the
+   path is fixed at the moment the walk starts, and each poly damages only if
+   the player is standing on THAT poly on the frame it lights. Walking along
+   the path is therefore worse than walking off it.
+
+   The step is the lawn grid's own ~286 poly pitch, and the cells are laid out
+   BACKWARD from the player so the final one is centred on them exactly. */
+#define RBS_BEAM_CHARGE        90   /* 1.5 s of chest glow before the walk      */
+#define RBS_BEAM_STEP          18   /* 0.3 s per poly                           */
+#define RBS_BEAM_CELL         286   /* the lawn's poly pitch, from the .smx     */
+#define RBS_BEAM_MAX_CELLS     14   /* caps a path drawn across the whole arena */
+#define RBS_BEAM_DAMAGE (MAX_HEALTH * 3 / 10)   /* 30% of the bar               */
+
+/* --- Attack 4: the shockwave -----------------------------------------------
+   >>> NOT PICKED FROM THE POOL. THIS IS A REACTION. <<< Everything else the
+   boss does happens at the end of a sweep; this happens because the player
+   walked inside its sweep radius. It gives up moving, settles in the middle,
+   and pulses — so standing close is not a way to avoid the sweep, it is a way
+   to be somewhere a wave passes through every two seconds.
+
+   Leaving is the answer, and there is two seconds of warning to do it in. The
+   wave itself cannot be outrun once launched (it crosses the radius in 40
+   frames, well past sprint speed) and that is deliberate: the decision is made
+   before it fires, not after.
+
+   The hysteresis matters. Without it a player standing exactly on the radius
+   flips the boss between centring and sweeping every frame. */
+#define RBS_SHOCK_HYST        160   /* extra distance needed to LEAVE the zone  */
+#define RBS_SHOCK_CENTRE_F     45   /* 0.75 s to settle into the middle         */
+#define RBS_SHOCK_PERIOD      120   /* 2 s between waves                        */
+#define RBS_SHOCK_EXPAND       40   /* frames for a wave to reach full radius   */
+#define RBS_SHOCK_LINGER       14   /* frames it stays up after reaching it     */
+#define RBS_SHOCK_DAMAGE (MAX_HEALTH / 5)   /* 20% of the bar                   */
+#define RBS_SHOCK_KNOCKBACK    90
+#define RBS_SHOCK_WALL_H      210   /* the vertical skirt on the leading edge   */
+#define RBS_SHOCK_SEGS         20   /* ring resolution: segments around the arc */
+
 /* What the combat AI is doing. RBS_AI_DORMANT means it is doing nothing at
    all: the encounter director is posing the body by hand (the rise out of the
    floor, the death freeze), or the fight has not started yet. */
@@ -248,6 +301,10 @@ typedef enum {
     RBS_AI_FIRE,        /* fireball away, waiting for it to resolve            */
     RBS_AI_SLASH_IN,    /* charging the player feet-first                      */
     RBS_AI_SLASH_BACK,  /* drifting back to where the charge began             */
+    RBS_AI_BEAM_CHARGE, /* stopped, chest glowing, path not drawn yet          */
+    RBS_AI_BEAM_WALK,   /* the path igniting one poly at a time                */
+    RBS_AI_CENTRE,      /* sliding to the middle: the player came inside       */
+    RBS_AI_SHOCK,       /* parked in the middle, pulsing every 2 s             */
 } RbsAiState;
 
 typedef struct {
@@ -298,6 +355,25 @@ typedef struct {
        shot. The director points it at the camera instead. Off = 0. */
     int32_t   face_ovr;
     int32_t   face_ovr_x, face_ovr_z;
+
+    /* Light beam. The path is stored as its two ENDPOINTS and a cell count,
+       not as a list of cells: it is a straight line at a fixed pitch, so any
+       cell's centre is a lerp, and 14 stored pairs would be 112 bytes per
+       instance in the save blob for something derivable in three lines. */
+    int32_t   beam_px, beam_pz;    /* the player's spot when the path was drawn */
+    int32_t   beam_bx, beam_bz;    /* and the boss's — frozen, because it keeps
+                                      re-solving its arc while the walk plays
+                                      and a live origin would swing the path
+                                      around as the player circles            */
+    int32_t   beam_cells;          /* how many polys long the path is           */
+    int32_t   beam_step;           /* which one is lit right now, 0-based       */
+
+    /* Shockwave. One wave in the air at a time — the 2 s period is five times
+       the flight, so a second could never overlap. wave_t counts frames since
+       it launched; 0 means nothing is out. */
+    int32_t   shock_timer;         /* frames until the next wave               */
+    int32_t   wave_t;              /* 0 = none, else frames since launch       */
+    int32_t   wave_hit;            /* 1 = this wave already caught the player  */
 
     /* --- Cutscene pose, written by the encounter director ------------------ */
     int32_t   frozen;            /* 1 = hold the current animation frame        */
@@ -357,8 +433,58 @@ int32_t rabisu_scale_damage(int32_t base, DamageType type);
    toward the player, while a fireball can be turned around. Transient, so —
    like webs — they are NOT part of the save blob. */
 void rbs_fireballs_reset(void);
-void rbs_fireballs_update(void);
-void rbs_fireballs_draw(RenderContext *ctx);
+
+/* Draw everything the boss's ATTACKS put in the world: fireballs in flight,
+   the beam's charge glow and its burning path, and the shockwave. Call with
+   the PLAIN camera view matrix loaded, i.e. after draw_rabisus has restored
+   it. Area-gated inside, so it is free in rooms with no boss. */
+void rbs_attacks_draw(RenderContext *ctx);
+
+/* ---- Shared additive-glow helpers ------------------------------------------
+   The reveal's lawn lights, the death's crown/wing/chest lights, the beam's
+   path and the shockwave are all ONE effect wearing four hats, and they share
+   these three primitives so they cannot drift apart — the brief asks for the
+   beam and the death to read as the same phenomenon as the reveal, and using
+   the same colour ramp and the same blend is what actually delivers that.
+
+   They live here rather than in rabisu_boss.c because two of the four users
+   are ATTACKS, which belong to the body and have to work for a second Rabisu
+   dropped somewhere with no cutscene attached.
+
+   All of it is ADDITIVE (ABR=1): overlapping lights mix the way real light
+   does and need no sorting among themselves, and "dimmer" means scaled toward
+   BLACK rather than toward any fog colour. */
+
+/* Free-running pulse clock, ticked once per update_rabisus(). Pass it (plus a
+   per-light offset, or everything strobes in lockstep) as `clock`. */
+extern int32_t rbs_glow_clock;
+
+/* The white -> orange -> red ramp at `clock`, scaled to a 0..256 `level`. */
+void rbs_glow_pulse(int32_t clock, int32_t level,
+                    uint8_t *r, uint8_t *g, uint8_t *b);
+
+/* One additive world-space quad. Silently drops anything off-screen, behind
+   the camera, or past the packet budget. */
+void rbs_glow_quad(RenderContext *ctx, const SVECTOR v[4],
+                   uint8_t r, uint8_t g, uint8_t b);
+
+/* A glow hung at a world point, as concentric screen-space squares around its
+   projection — the same explicit-projection trick the health bar uses, since
+   there is no billboard quad to hang a sprite off. */
+void rbs_glow_point(RenderContext *ctx, const VECTOR *at, int32_t bright,
+                    int32_t clock);
+
+/* Light pouring UP out of a rectangle of ground: a pool on the surface plus a
+   shaft that FLARES as it rises and dims with height. The reveal's lawn
+   lights and the beam's path are both this. */
+void rbs_glow_pillar(RenderContext *ctx, int32_t x0, int32_t x1,
+                     int32_t z0, int32_t z1, int32_t floor_y,
+                     int32_t bright, int32_t clock);
+
+/* Floor surface Y at (x,z) from the room's floor zones, or `fallback` if the
+   point is outside all of them. The beam's path crosses terraces at different
+   heights, so each poly it lights has to sit on its own. */
+int32_t rbs_floor_y_at(int32_t x, int32_t z, int32_t fallback);
 
 /* ---- The encounter director's API (src/rabisu_boss.c) ----------------------
    Everything below exists so the cutscene can pose and drive the body without

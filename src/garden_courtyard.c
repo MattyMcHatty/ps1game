@@ -520,9 +520,11 @@ void garden_courtyard_draw(RenderContext *ctx) {
     draw_rabisus(ctx);
     /* Both of these want the PLAIN camera view matrix, which draw_rabisus puts
        back after composing the boss's own — so they must come after it, not
-       before. The fireballs are the boss's projectiles; the encounter draw is
-       the lawn lights and the death glow. */
-    rbs_fireballs_draw(ctx);
+       before. The first is everything the boss's ATTACKS put in the world —
+       fireballs, the light beam's charge and burning path, the shockwave — and
+       the second is the ENCOUNTER's own: the reveal's lawn lights and the
+       death glow. */
+    rbs_attacks_draw(ctx);
     rabisu_boss_draw(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);

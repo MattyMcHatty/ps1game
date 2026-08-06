@@ -109,41 +109,18 @@ static const uint8_t LIGHT_ORDER[RBE_LIGHTS] = {
 static uint8_t light_slot[RBE_LIGHTS];   /* cell -> its position in LIGHT_ORDER */
 
 #define RBE_LIGHT_FADE        30   /* frames a single light takes to come up  */
-#define RBE_SHAFT_H          900   /* how far up the beam reaches from the turf */
-/* >>> THE CONE FLARES OUTWARD AS IT RISES. <<< It is light coming OUT OF the
-   ground, not a spotlight shining down onto it, and a cone is read almost
-   entirely by which end is wide: narrowing it upward — which is what the
-   lightswitch puzzle's ceiling cones do, and what this was copied from — reads
-   unmistakably as a lamp in the sky picking out the lawn. Each corner is
-   pushed this far AWAY from its cell's centre by the top. */
-#define RBE_SHAFT_FLARE      150
-#define RBE_SHAFT_SEGS         3
 
-/* Pulse: white -> orange -> red -> white, one leg per RBE_PULSE_STEP frames, so
-   a 78-frame (1.3 s) round trip. Used by the lawn lights AND by the death
-   lights, which is the point — the brief asks for the death to read as the same
-   phenomenon as the reveal, and sharing the colour ramp is what does that. */
-static const uint8_t PULSE[3][3] = {
-    { 255, 250, 235 },   /* white  */
-    { 255, 145,  30 },   /* orange */
-    { 255,  35,  10 },   /* red    */
-};
-#define RBE_PULSE_STEP        26
-
-/* Additive brightness of each part of a beam, as a 0..256 scale of the pulse
-   colour. Faint in the shaft so sixteen of them do not white out the middle of
-   the garden; the pool on the turf is where the colour has to read. Same
-   split, and the same reasoning, as the lightswitch puzzle's cones. */
-#define RBE_POOL_LEVEL       210
-#define RBE_SHAFT_LEVEL       60
+/* >>> THE LIGHT ITSELF LIVES IN rabisu.c. <<< rbs_glow_pillar, rbs_glow_point,
+   rbs_glow_pulse and rbs_glow_quad are shared with the boss's own light-beam
+   and shockwave attacks, and they are shared deliberately: the brief asks for
+   the beam and the death to read as the same phenomenon as this reveal, and
+   one colour ramp and one blend is what actually delivers that rather than
+   three effects that merely resemble each other. See the block comment on them
+   in rabisu.h. All this file adds is WHICH sixteen polys, and WHEN. */
 
 /* ---- Death lights ----------------------------------------------------------
-   Four of them, hung on the model's own anchors (RBS_A_* in rabisu.h). Each is
-   drawn as three concentric additive squares — wide and dim, then tighter and
-   brighter — which is a cheap, entirely convincing glow and needs no texture,
-   no VRAM and no sorting among themselves. */
-#define RBE_GLOW_WORLD       230   /* world half-size of the outermost square */
-#define RBE_GLOW_RINGS         3
+   Four of them, hung on the model's own anchors (RBS_A_* in rabisu.h) via
+   rbs_glow_point. */
 #define RBE_SHAKE_MAX         11   /* world units of jitter at full intensity */
 
 /* ---- The lines --------------------------------------------------------------
@@ -181,12 +158,37 @@ typedef enum {
 
 static RbeState state = RBE_IDLE;
 static int32_t  phase_t   = 0;     /* frames elapsed in the current phase */
-static int32_t  pulse_t   = 0;     /* free-running, so the colour never jumps */
 static int32_t  light_master = 0;  /* 0..256 over the whole lamp bank         */
 
 /* Where the player was standing when the director took over, and what the
    camera was doing. Restored on the way out. */
 static int32_t save_cx, save_cy, save_cz, save_crot, save_cvy;
+
+/* ---- Which boss this encounter owns ----------------------------------------
+   >>> LATCHED AS AN INDEX AT ARM TIME, AND NOT LOOKED UP AGAIN. <<<
+   rabisu_boss_instance() answers "is there a LIVE boss in the CURRENT area",
+   which is the right question for arming and exactly the wrong one for driving
+   a running script. It goes NULL in two situations that are both perfectly
+   normal, and in both the encounter used to tear itself down:
+
+     - the frame after RBE_D_FADE sets `dead`. The bail then fired BEFORE
+       RBE_D_CAM_BACK could run, releasing the camera while it still sat at the
+       crane shot — so the player was dumped in the middle of the garden facing
+       north instead of being carried back to where they were standing. That
+       looked exactly like "it put me back at the start of the fight".
+     - any frame the inventory menu is open, because game_state is STATE_MENU
+       and the area tag no longer matches. Opening the menu mid-fight ended the
+       whole encounter and unsealed the door.
+
+   The index does not care about either. The only thing that can invalidate it
+   is the slot itself going away, which is what boss() checks. */
+static int boss_idx = -1;
+
+static Rabisu *boss(void) {
+    if (boss_idx < 0 || boss_idx >= rabisu_count) return NULL;
+    Rabisu *r = &rabisus[boss_idx];
+    return r->active ? r : NULL;
+}
 
 /* Camera glide (the piano puzzle's, factored out — this file needs four of
    them and inlining the lerp four times would be four chances to differ). */
@@ -199,14 +201,6 @@ static int32_t turn_delta(int32_t from, int32_t to) {
     int32_t d = ((to - from) % 4096 + 4096) % 4096;
     if (d > 2048) d -= 4096;
     return d;
-}
-
-static int32_t rbe_isqrt(int32_t v) {
-    if (v <= 0) return 0;
-    int32_t x = v, last;
-    if (x > 1 << 16) x = 1 << 16;
-    do { last = x; x = (x + v / x) >> 1; } while (x < last);
-    return last;
 }
 
 static void glide_begin(const CamShot *dst, int32_t frames) {
@@ -244,8 +238,8 @@ int rabisu_boss_seals_door(void) {
 void rabisu_boss_reset(void) {
     state        = RBE_IDLE;
     phase_t      = 0;
-    pulse_t      = 0;
     light_master = 0;
+    boss_idx     = -1;
     camera_release_player();
     cam_pitch = 0;
 }
@@ -259,6 +253,7 @@ void rabisu_boss_enter(void) {
     state        = RBE_IDLE;
     phase_t      = 0;
     light_master = 0;
+    boss_idx     = -1;
     cam_pitch    = 0;
     camera_release_player();
     for (i = 0; i < RBE_LIGHTS; i++) light_slot[LIGHT_ORDER[i]] = (uint8_t)i;
@@ -334,19 +329,19 @@ static void begin_death(Rabisu *r) {
 /* ---- Update ---------------------------------------------------------------- */
 
 void rabisu_boss_update(void) {
-    Rabisu *r = rabisu_boss_instance();
-
-    pulse_t++;
+    Rabisu *r = boss();
 
     if (state == RBE_IDLE) {
         /* Arm on the first frame a living boss is in the room with us. */
-        if (r) begin_reveal(r);
+        Rabisu *found = rabisu_boss_instance();
+        if (found) { boss_idx = (int)(found - rabisus); begin_reveal(found); }
         return;
     }
     if (state == RBE_DONE) return;
 
-    /* The boss vanished out from under the script (a debug jump, a load). Bail
-       out cleanly rather than driving a NULL through the rest of this. */
+    /* The boss vanished out from under the script (a debug jump, a load).
+       Bail out cleanly rather than driving a NULL through the rest of this.
+       See boss() for why this is the SLOT being empty and nothing else. */
     if (!r) {
         camera_release_player();
         cam_pitch = 0;
@@ -492,211 +487,17 @@ void rabisu_boss_update(void) {
     }
 }
 
-/* ---- Drawing: the beams ----------------------------------------------------
-   One additive flat quad, lifted wholesale from the lightswitch puzzle's
-   ls_quad and for the same reasons: additive (ABR=1) so overlapping beams mix
-   the way real light does and need no sorting among themselves, no backface
-   cull because a beam is a volume rather than a surface, and the DR_TPAGE added
-   to the same OT bucket immediately AFTER the poly — the OT is LIFO, so "after"
-   is what puts it in front. */
-static void rbe_quad(RenderContext *ctx, const SVECTOR v[4],
-                     uint8_t r, uint8_t g, uint8_t b) {
-    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-    if (ctx->next_packet + sizeof(POLY_F4) + sizeof(DR_TPAGE) > buf_end) return;
-
-    DVECTOR sv[4];
-    int32_t sz[4], otz;
-    int k;
-
-    gte_ldv3(&v[0], &v[1], &v[2]);
-    gte_rtpt();
-    gte_stsxy3c(sv);
-    gte_stsz4c(sz);
-    gte_ldv0(&v[3]);
-    gte_rtps();
-    gte_stsxy(&sv[3]);
-    gte_stsz(&sz[3]);
-    if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) return;
-
-    for (k = 0; k < 4; k++)
-        if (sv[k].vx <= -1023 || sv[k].vx >= 1023 ||
-            sv[k].vy <= -1023 || sv[k].vy >= 1023) return;
-
-    gte_avsz4();
-    gte_stotz(&otz);
-    if (otz <= SCENE_OT_MIN) return;
-    otz += 40;   /* the room mesh's own bias, so a wall in front still occludes */
-    if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
-
-    uint32_t *ot = ctx->buffers[ctx->active_buffer].ot;
-
-    POLY_F4 *p = (POLY_F4 *)ctx->next_packet;
-    setPolyF4(p);
-    setSemiTrans(p, 1);
-    setRGB0(p, r, g, b);
-    p->x0 = sv[0].vx; p->y0 = sv[0].vy;
-    p->x1 = sv[1].vx; p->y1 = sv[1].vy;
-    p->x2 = sv[2].vx; p->y2 = sv[2].vy;
-    p->x3 = sv[3].vx; p->y3 = sv[3].vy;
-    addPrim(&ot[otz], p);
-    ctx->next_packet += sizeof(POLY_F4);
-
-    DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
-    setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
-    addPrim(&ot[otz], tp);
-    ctx->next_packet += sizeof(DR_TPAGE);
-}
-
-/* The pulse colour at a given clock, already scaled to a 0..256 brightness.
-   Fading an additive poly means scaling it toward BLACK — there is nothing to
-   blend toward, so the usual fog-colour lerp does not apply here. */
-static void rbe_pulse(int32_t t, int32_t level, uint8_t *r, uint8_t *g, uint8_t *b) {
-    if (t < 0) t = 0;
-    int32_t leg = (t / RBE_PULSE_STEP) % 3;
-    int32_t f   = ((t % RBE_PULSE_STEP) * 256) / RBE_PULSE_STEP;
-    const uint8_t *a = PULSE[leg];
-    const uint8_t *c = PULSE[(leg + 1) % 3];
-    int32_t rr = (a[0] * (256 - f) + c[0] * f) >> 8;
-    int32_t gg = (a[1] * (256 - f) + c[1] * f) >> 8;
-    int32_t bb = (a[2] * (256 - f) + c[2] * f) >> 8;
-    *r = (uint8_t)((rr * level) >> 8);
-    *g = (uint8_t)((gg * level) >> 8);
-    *b = (uint8_t)((bb * level) >> 8);
-}
-
-/* One lawn light: a pool covering its grass quad, and a shaft tapering upward
-   out of it. The shaft is banded so no single quad is large enough to blow past
-   the GTE's +/-1023 screen clamp if the player ever ends up standing in one. */
+/* One lawn light. All of the work is rbs_glow_pillar's (rabisu.c) — the pool
+   on the turf and the flaring shaft above it are the same effect the boss's
+   light beam paints on the ground, and they are one routine so they cannot
+   drift apart. What belongs here is only WHICH cell and HOW BRIGHT. */
 static void draw_lawn_light(RenderContext *ctx, int cell, int32_t bright) {
     int col = cell & 3, row = cell >> 2;
-    int32_t x0 = LAWN_X[col], x1 = LAWN_X[col + 1];
-    int32_t z0 = LAWN_Z[row], z1 = LAWN_Z[row + 1];
     /* Each light runs its own clock, offset by cell, so the sixteen shimmer out
        of step instead of strobing the whole patch as one lamp. */
-    int32_t clock = pulse_t + cell * 9;
-
-    uint8_t r, g, b;
-    SVECTOR v[4];
-    int k;
-    for (k = 0; k < 4; k++) v[k].pad = 0;
-
-    /* --- The pool, 4 above the turf so it never z-fights the grass poly --- */
-    rbe_pulse(clock, (bright * RBE_POOL_LEVEL) >> 8, &r, &g, &b);
-    v[0].vx = (int16_t)x0; v[0].vy = RBE_LAWN_Y - 4; v[0].vz = (int16_t)z0;
-    v[1].vx = (int16_t)x1; v[1].vy = RBE_LAWN_Y - 4; v[1].vz = (int16_t)z0;
-    v[2].vx = (int16_t)x0; v[2].vy = RBE_LAWN_Y - 4; v[2].vz = (int16_t)z1;
-    v[3].vx = (int16_t)x1; v[3].vy = RBE_LAWN_Y - 4; v[3].vz = (int16_t)z1;
-    rbe_quad(ctx, v, r, g, b);
-
-    /* --- The shaft: four walls, drawn from both sides, FLARING as it rises so
-           the beam widens out of the poly it is pouring from. Banded along its
-           length both so no single quad can blow past the GTE's +/-1023 screen
-           clamp and so the brightness can fall off with height — a beam that
-           is uniformly lit top to bottom looks like a solid box, and the whole
-           point is that it is brightest where it leaves the ground. --- */
-    {
-        /* Corners in a ring, so consecutive pairs share an edge. */
-        const int32_t cx[4] = { x0, x1, x1, x0 };
-        const int32_t cz[4] = { z0, z0, z1, z1 };
-        /* The cell's centre: corners are pushed directly away from it. */
-        const int32_t mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
-        int s, t;
-        for (t = 0; t < RBE_SHAFT_SEGS; t++) {
-            int32_t e0 = t, e1 = t + 1;
-            int32_t y0 = RBE_LAWN_Y - (RBE_SHAFT_H * e0) / RBE_SHAFT_SEGS;
-            int32_t y1 = RBE_LAWN_Y - (RBE_SHAFT_H * e1) / RBE_SHAFT_SEGS;
-            int32_t o0 = (RBE_SHAFT_FLARE * e0) / RBE_SHAFT_SEGS;
-            int32_t o1 = (RBE_SHAFT_FLARE * e1) / RBE_SHAFT_SEGS;
-
-            /* Thins out toward the top: full level at the turf, a third of it
-               at the last band. */
-            int32_t drop = 256 - (170 * e0) / RBE_SHAFT_SEGS;
-            rbe_pulse(clock, (((bright * RBE_SHAFT_LEVEL) >> 8) * drop) >> 8,
-                      &r, &g, &b);
-
-            for (s = 0; s < 4; s++) {
-                int n = (s + 1) & 3;
-                /* Away from the centre, not toward it — this sign IS the fix. */
-                #define PUSHX(c, o) ((c) + ((mx - (c)) > 0 ? -(o) : (o)))
-                #define PUSHZ(c, o) ((c) + ((mz - (c)) > 0 ? -(o) : (o)))
-                v[0].vx = (int16_t)PUSHX(cx[s], o0); v[0].vz = (int16_t)PUSHZ(cz[s], o0); v[0].vy = (int16_t)y0;
-                v[1].vx = (int16_t)PUSHX(cx[n], o0); v[1].vz = (int16_t)PUSHZ(cz[n], o0); v[1].vy = (int16_t)y0;
-                v[2].vx = (int16_t)PUSHX(cx[s], o1); v[2].vz = (int16_t)PUSHZ(cz[s], o1); v[2].vy = (int16_t)y1;
-                v[3].vx = (int16_t)PUSHX(cx[n], o1); v[3].vz = (int16_t)PUSHZ(cz[n], o1); v[3].vy = (int16_t)y1;
-                #undef PUSHX
-                #undef PUSHZ
-                rbe_quad(ctx, v, r, g, b);
-            }
-        }
-    }
-}
-
-/* ---- Drawing: the death lights ---------------------------------------------
-   A glow hung on one of the model's anchors. Projected as a single point and
-   drawn as concentric SCREEN-space squares, the way the health bar is anchored
-   (draw_rbs_bar): a model has no billboard quad to hang anything off, so the
-   point is projected explicitly and the sprite built around it in 2D. Sizing it
-   off the world distance rather than the projected SZ keeps the maths obvious
-   and keeps the glow the same physical size wherever the shot is set. */
-static void draw_death_glow(RenderContext *ctx, const VECTOR *at, int32_t bright,
-                            int32_t clock) {
-    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-
-    SVECTOR pt;
-    pt.vx = (int16_t)at->vx; pt.vy = (int16_t)at->vy; pt.vz = (int16_t)at->vz;
-    pt.pad = 0;
-
-    DVECTOR sv;
-    int32_t sz;
-    gte_ldv0(&pt);
-    gte_rtps();
-    gte_stsxy(&sv);
-    gte_stsz(&sz);
-    if (sz == 0) return;
-    if (sv.vx <= -1023 || sv.vx >= 1023 || sv.vy <= -1023 || sv.vy >= 1023) return;
-
-    int32_t dx = at->vx - cam_x, dy = at->vy - cam_y, dz = at->vz - cam_z;
-    int32_t dist = rbe_isqrt(dx * dx + dy * dy + dz * dz);
-    if (dist < 64) dist = 64;
-
-    int32_t otz = sz >> 2;
-    if (otz <= SCENE_OT_MIN) otz = SCENE_OT_MIN;
-    if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
-
-    uint32_t *ot = ctx->buffers[ctx->active_buffer].ot;
-
-    int ring;
-    for (ring = 0; ring < RBE_GLOW_RINGS; ring++) {
-        if (ctx->next_packet + sizeof(POLY_F4) + sizeof(DR_TPAGE) > buf_end) return;
-
-        /* Outermost ring is full width and dimmest; each step in halves the
-           square and doubles the level, so the three add up to a soft falloff
-           with a hot core. */
-        int32_t world_half = RBE_GLOW_WORLD >> ring;
-        int32_t half = (world_half * 256) / dist;   /* gte_SetGeomScreen(256) */
-        if (half < 1) half = 1;
-        if (half > 400) half = 400;
-        int32_t level = (bright * (60 + ring * 70)) >> 8;
-
-        uint8_t r, g, b;
-        rbe_pulse(clock + ring * 5, level, &r, &g, &b);
-
-        POLY_F4 *p = (POLY_F4 *)ctx->next_packet;
-        setPolyF4(p);
-        setSemiTrans(p, 1);
-        setRGB0(p, r, g, b);
-        p->x0 = (int16_t)(sv.vx - half); p->y0 = (int16_t)(sv.vy - half);
-        p->x1 = (int16_t)(sv.vx + half); p->y1 = (int16_t)(sv.vy - half);
-        p->x2 = (int16_t)(sv.vx - half); p->y2 = (int16_t)(sv.vy + half);
-        p->x3 = (int16_t)(sv.vx + half); p->y3 = (int16_t)(sv.vy + half);
-        addPrim(&ot[otz], p);
-        ctx->next_packet += sizeof(POLY_F4);
-
-        DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
-        setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
-        addPrim(&ot[otz], tp);
-        ctx->next_packet += sizeof(DR_TPAGE);
-    }
+    rbs_glow_pillar(ctx, LAWN_X[col], LAWN_X[col + 1],
+                    LAWN_Z[row], LAWN_Z[row + 1], RBE_LAWN_Y,
+                    bright, rbs_glow_clock + cell * 9);
 }
 
 void rabisu_boss_draw(RenderContext *ctx) {
@@ -727,9 +528,7 @@ void rabisu_boss_draw(RenderContext *ctx) {
 
     /* --- The death lights: crown, both wing tips, chest --- */
     if (state == RBE_D_BURN || state == RBE_D_FADE) {
-        /* Still findable: RBE_D_FADE does not set `dead` until the frame it
-           ends on, and by then the state has already moved past this block. */
-        Rabisu *r = rabisu_boss_instance();
+        Rabisu *r = boss();
         if (r) {
             /* Ramps in over the burn and rides the model's own fade out, so the
                light does not outlive the body it is pouring out of. */
@@ -748,7 +547,7 @@ void rabisu_boss_draw(RenderContext *ctx) {
                 for (a = 0; a < 4; a++) {
                     VECTOR w;
                     rabisu_anchor_world(r, A[a][0], A[a][1], A[a][2], &w);
-                    draw_death_glow(ctx, &w, bright, pulse_t + a * 13);
+                    rbs_glow_point(ctx, &w, bright, rbs_glow_clock + a * 13);
                 }
             }
         }

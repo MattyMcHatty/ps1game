@@ -7,7 +7,8 @@ runbook for the second thing. It assumes the first is already done.
 
 It was written immediately after the Rabisu encounter was built (August 2026),
 the game's first boss fight, and records every step that was actually
-performed — including the two things that were wrong first.
+performed — including the ten things that were wrong first, which are listed
+at the bottom and are the most useful part of the file.
 
 Companion docs, in the order you will want them:
   tools/ADDING_A_3D_ENEMY.txt    - get the BODY in the room first. Nothing here
@@ -77,16 +78,20 @@ Two files, and the split is not cosmetic.
                       the sealed door, the phase machine, the death sequence.
                       All one-off script bolted to one room.
 
-They talk through a small named API and nothing else. The Rabisu's is six
+They talk through a small named API and nothing else. The Rabisu's is five
 functions, declared in a marked-off block at the foot of rabisu.h:
 
     <Slug> *<slug>_boss_instance(void);   /* the live one here, or NULL      */
     void    <slug>_go_dormant(<Slug> *);  /* park the AI; I'll pose the body */
     void    <slug>_fight_begin(<Slug> *); /* take it, it's yours             */
+    void    <slug>_face_override(<Slug> *, int on, x, z);   /* look HERE     */
     void    <slug>_anchor_world(const <Slug> *, lx, ly, lz, VECTOR *out);
 
-plus three plain FIELDS the director writes directly (`frozen`, `shake`,
-`fade`, `clip_y` — STEP 5).
+plus four plain FIELDS the director writes directly — `frozen`, `shake`,
+`fade` and `clip_y` (STEP 5).
+
+The traffic goes the other way too: the shared additive-glow primitives live
+in the ENEMY file, because two of their four users are attacks. See STEP 7.
 
 >>> RESIST PUTTING THE CUTSCENE IN THE ENEMY FILE. <<< It is one file either
 way on the first boss and it is obviously one file. It stops being obviously
@@ -274,10 +279,37 @@ init-time decision about whether there is a boss to reveal is made a frame too
 early. <slug>_boss_enter() therefore only PARKS the director, and the first
 update that finds a living boss starts the reveal:
 
-    if (state == RBE_IDLE) { if (r) begin_reveal(r); return; }
+    if (state == RBE_IDLE) { if (found) { boss_idx = ...; begin_reveal(found); } return; }
 
 That also gives the "already killed, player walked back in" case for free:
 <slug>_boss_instance() skips the dead, so it stays IDLE and nothing happens.
+
+>>> THEN LATCH THE BOSS AS AN INDEX AND NEVER LOOK IT UP AGAIN. <<<
+"Find the live boss in the current area" is the right question for ARMING and
+the wrong one for DRIVING. It returns NULL in two situations that are both
+completely normal, and a script that re-asks it every frame tears itself down
+in both:
+
+  - THE FRAME AFTER YOUR OWN FADE SETS `dead`. The "boss vanished, bail out"
+    guard then fires BEFORE the final camera move can run — so the camera is
+    released while it is still parked at the crane shot, and the player is
+    dumped wherever that was instead of being carried back to where they were
+    standing. It looks precisely like "it put me back at the start of the
+    fight", which sends you hunting through the wrong code.
+  - ANY FRAME THE INVENTORY MENU IS OPEN, because game_state becomes
+    STATE_MENU and the area tag stops matching. Opening the menu mid-fight
+    ended the entire encounter and unsealed the door.
+
+    static int boss_idx = -1;
+    static Rabisu *boss(void) {
+        if (boss_idx < 0 || boss_idx >= rabisu_count) return NULL;
+        Rabisu *r = &rabisus[boss_idx];
+        return r->active ? r : NULL;
+    }
+
+The index cares about neither game_state nor `dead`. Keep the bail-out — a
+debug jump really can empty the slot — but make it test the SLOT, not the
+lookup. Clear boss_idx in both _reset() and _enter().
 
 TWO PHASES ARE NOT CUTSCENES. The FIGHT and DONE states are free play. Expose
 that distinction, because main.c needs it:
@@ -486,6 +518,47 @@ anything. Two numbers to check against the room, not against taste:
     swung its feet in below the bottom of the screen. Lerp the attacker's Y
     toward the player during the charge and back on the return.
 
+SIZE THE SWEEP FOR THE FIGHT, NOT FOR THE ARENA. The Rabisu's arc was first
+built to reach the lips exactly, because that was the number the brief handed
+over — and at full reach the ends were clamped as often as they were reached
+and the boss sprawled across the whole garden. It runs at 80% now. The lip is
+still the boundary; the sweep just no longer touches it.
+
+>>> AN ATTACK CAN BE A REACTION RATHER THAN A CHOICE. <<< Not everything has to
+come out of the stop-and-pick pool. The Rabisu's shockwave fires because the
+player walked inside its sweep radius: it abandons the arc, settles in the
+middle and pulses every two seconds until they leave. That turns "get close" —
+normally the safest place to be against a thing that circles you — into the
+one place a wave passes through on a timer, and it costs one distance test in
+two AI states.
+
+Three things a zone reaction needs that a pool attack does not:
+  - HYSTERESIS on the exit. Without it a player standing exactly on the radius
+    flips the boss between centring and sweeping every single frame.
+  - THE TEST MEASURED FROM THE ARENA CENTRE, not from the boss. The boss is the
+    thing that moves to the middle, so measuring from it drags the zone around
+    behind it.
+  - THE WAVE TICKED OUTSIDE THE AI SWITCH, so one already in the air keeps
+    expanding after the boss has gone back to sweeping — or died. Launching it
+    was the commitment; escaping it afterwards should not be possible just
+    because the state changed.
+
+A TELEGRAPHED PATH ATTACK (the light beam: chest glows 1.5 s, then a line of
+ground polys ignites one at a time toward the player) has two traps of its own:
+  - DRAW THE PATH WHEN THE CHARGE ENDS, NOT WHEN IT STARTS. A path locked in at
+    the start of the tell is aimed at where the player stood 1.5 s before the
+    first poly lit, which makes the tell pointless.
+  - FREEZE THE ORIGIN. The boss keeps re-solving its arc position while the
+    walk plays, so a path derived from its LIVE position swings around as the
+    player circles. Store both endpoints at draw time.
+  - LAY THE CELLS OUT BACKWARD FROM THE PLAYER. Stepping forward from the boss
+    at a fixed pitch leaves the last cell wherever the division lands; stepping
+    back from the player puts it exactly on them, which is the requirement.
+  - Store the path as TWO ENDPOINTS AND A COUNT, not as a list. It is a
+    straight line at a fixed pitch, so any cell is a lerp — and fourteen stored
+    pairs would be 112 bytes per instance in the save blob for three lines of
+    arithmetic.
+
 A LEAN, OR ANY SECOND ROTATION, must be composed INSIDE the yaw:
 
     MulMatrix0(&yawm, &leanm, &pm);      /* pm = yaw * lean */
@@ -500,9 +573,21 @@ same way the facing already is.
 ##########################################################################
  STEP 7 — LIGHT
 ##########################################################################
-Two kinds, one colour ramp. Sharing the ramp is the point: if the death is
-meant to read as the same phenomenon as the reveal, the colours have to BE the
-same colours.
+>>> PUT THE PRIMITIVES IN THE ENEMY FILE, NOT THE DIRECTOR. <<< It is natural
+to write them where the first user is, which is the reveal — and wrong, because
+the boss's own ATTACKS end up needing them too, and an attack has to work for a
+second one of these dropped somewhere with no cutscene attached. The Rabisu's
+four glow users are the reveal's lawn lights, the death's crown/wing/chest
+lights, the light beam's burning path and the shockwave; two of the four are
+attacks. They live in rabisu.c as rbs_glow_pulse / _quad / _point / _pillar and
+rabisu_boss.c calls them. Moving them afterwards is easy but pointless work.
+
+The clock they share (rbs_glow_clock) belongs there too, ticked once per
+update_<slug>s(). Two free-running clocks in two files drift.
+
+Kinds of light, one colour ramp. Sharing the ramp is the point: if the death
+and the attacks are meant to read as the same phenomenon as the reveal, the
+colours have to BE the same colours.
 
     static const uint8_t PULSE[3][3] = { white, orange, red };
     leg = (t / STEP) % 3;  f = ((t % STEP) * 256) / STEP;
@@ -572,6 +657,22 @@ B. LIGHTS ON THE MODEL are glow sprites hung on mesh-local anchors.
 
    RAMP THE LIGHT ON over the phase and then let it ride the model's own fade
    out, so the light never outlives the body it is pouring out of.
+
+C. AN EXPANDING RING (the shockwave) is wedges around an arc, and it wants BOTH
+   a band on the ground and a short vertical skirt on its leading edge. The
+   band says where the wave is; the skirt is the part the player can actually
+   see coming, because in first person a flat figure on the floor vanishes the
+   moment it is more than a few metres out. Twenty segments is plenty.
+
+   >>> LOOK THE FLOOR HEIGHT UP PER CORNER. <<< A wave crossing an arena with
+   terraces in it — and a good arena has terraces in it — is drawn at one Y
+   only if you let it, and then it sinks into two thirds of the room. One
+   floor-zone lookup per corner is four scans of a seven-entry list; it is not
+   the expensive part of anything.
+
+   Give the whole ring ONE clock, unlike the lawn lights' per-cell offsets. It
+   is a single object, and shimmering its segments out of phase breaks it into
+   twenty separate flickers.
 
 
 ##########################################################################
@@ -717,6 +818,11 @@ Code-level, before handing over:
   [ ] The phase machine cannot deadlock: every non-terminal phase has an exit
       that fires on a frame count, not only on an external event.
   [ ] The projectile pool being full cannot hang the attack state.
+  [ ] Nothing in the running script re-derives the boss from game_state or from
+      `dead`. Latch the index (STEP 4).
+  [ ] Every attack in flight is cancelled when the boss dies — a shockwave
+      still expanding, a beam path still walking. Route it all through the
+      go-dormant call rather than clearing fields at each call site.
   [ ] world.c's _Static_assert still compiled — the entity struct grew.
 
 In the emulator, in this order, because each depends on the last:
@@ -739,9 +845,16 @@ In the emulator, in this order, because each depends on the last:
       shove you. Damage applying is not the same as the attack landing.
   [ ] Both parry windows are catchable, a block is obviously distinct from a
       miss, and the deflected projectile connects.
+  [ ] OPEN THE INVENTORY MENU MID-FIGHT, then close it. The encounter must
+      still be running. This is a one-second test that catches an entire class
+      of "look the boss up by game_state" bug.
   [ ] The door is dead for the whole encounter and works immediately after.
   [ ] The boss faces the camera as it dies, and is genuinely invisible at the
       end of the fade — against the geometry as well as against the sky.
+  [ ] >>> AFTER THE DEATH SCENE THE PLAYER IS BACK WHERE THEY WERE STANDING
+      WHEN THEY LANDED THE KILL. <<< Deliberately kill it from an odd corner of
+      the arena so "back where I was" and "back at the fight's start position"
+      cannot be confused for one another.
 
 
 ##########################################################################
@@ -765,29 +878,36 @@ In the emulator, in this order, because each depends on the last:
    same thing and is not: it pulls the ends of the sweep in, and the boss
    silently stops using a quarter of the arena it was given. STEP 6.
 
-4. A LUNGE THAT DEALT ITS DAMAGE FROM OUTSIDE ITS OWN COLLISION BUBBLE, AT
+4. RE-LOOKING-UP THE BOSS EVERY FRAME OF A RUNNING SCRIPT.
+   Two bugs from one line. The encounter killed its own final camera move the
+   frame after it set `dead`, dumping the player in the middle of the garden —
+   reported, reasonably, as "it put me back at the start of the fight". And
+   opening the inventory menu, which changes game_state, ended the whole
+   encounter and unsealed the door. STEP 4.
+
+5. A LUNGE THAT DEALT ITS DAMAGE FROM OUTSIDE ITS OWN COLLISION BUBBLE, AT
    ANKLE HEIGHT, AND THEN GOT BLOCKED BY AN IDLE SWING.
    Three separate causes, one symptom — "the foot slash almost never lands" —
    and none of them is what that sentence sounds like. The damage was
    unconditional the whole time. STEP 6.
 
-5. ONE `dead` FLAG FOR A TWELVE-SECOND DEATH.
+6. ONE `dead` FLAG FOR A TWELVE-SECOND DEATH.
    STEP 11.
 
-6. THE CONE POINTED THE WRONG WAY UP.
+7. THE CONE POINTED THE WRONG WAY UP.
    Inherited wholesale from the lightswitch puzzle, whose cones hang from the
    CEILING. One sign, and it turns "light pouring out of the ground" into
    "spotlight shining onto the ground". STEP 7A.
 
-7. THE BOSS SPENT ITS REVEAL LOOKING AT THE DOOR.
+8. THE BOSS SPENT ITS REVEAL LOOKING AT THE DOOR.
    Correct code — it targets the player, and the player is anchored by the door
    during a cutscene. STEP 3.
 
-8. STOPPING SHORT OF THE PLAYER-ANCHOR RULE.
+9. STOPPING SHORT OF THE PLAYER-ANCHOR RULE.
    Tempting to leave the existing cam_* targeting alone because it works during
    the fight — and it does. It only breaks during the cutscenes, which are the
    part you test last. STEP 6.
 
-9. HANDING CONTROL BACK ON A PUSH-OUT BOUNDARY.
+10. HANDING CONTROL BACK ON A PUSH-OUT BOUNDARY.
    -1740 is exactly GC_WALL_RADIUS from the south wall, and "exactly" means the
    first frame of free play may shove the player. Sit short of it. STEP 2E.
