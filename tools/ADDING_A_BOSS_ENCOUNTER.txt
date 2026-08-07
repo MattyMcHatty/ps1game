@@ -326,9 +326,13 @@ in both:
     dumped wherever that was instead of being carried back to where they were
     standing. It looks precisely like "it put me back at the start of the
     fight", which sends you hunting through the wrong code.
-  - ANY FRAME THE INVENTORY MENU IS OPEN, because game_state becomes
-    STATE_MENU and the area tag stops matching. Opening the menu mid-fight
-    ended the entire encounter and unsealed the door.
+  - ANY FRAME THE INVENTORY MENU IS OPEN, back when the area tag was compared
+    against game_state: that becomes STATE_MENU and no entity matched it, so
+    opening the menu mid-fight ended the entire encounter and unsealed the
+    door. Tags now compare against current_area, which is the room either way
+    (title.h), so the lookup itself no longer breaks — but latch the index
+    anyway. The gate was only half of it: the whole encounter must survive the
+    player pressing Start, and the boss must keep attacking while they do.
 
     static int boss_idx = -1;
     static Rabisu *boss(void) {
@@ -878,9 +882,11 @@ In the emulator, in this order, because each depends on the last:
       shove you. Damage applying is not the same as the attack landing.
   [ ] Both parry windows are catchable, a block is obviously distinct from a
       miss, and the deflected projectile connects.
-  [ ] OPEN THE INVENTORY MENU MID-FIGHT, then close it. The encounter must
-      still be running. This is a one-second test that catches an entire class
-      of "look the boss up by game_state" bug.
+  [ ] OPEN THE INVENTORY MENU MID-FIGHT AND LEAVE IT OPEN. The boss must keep
+      moving, keep being drawn, and be able to hit you while you are in there —
+      the menu is not a pause. Then close it and confirm the encounter is still
+      running. This is a one-second test that catches an entire class of
+      "look the boss up by game_state" bug.
   [ ] The door is dead for the whole encounter and works immediately after.
   [ ] The boss faces the camera as it dies, and is genuinely invisible at the
       end of the fade — against the geometry as well as against the sky.

@@ -339,7 +339,7 @@ in one place:
                     value and add the matching dispatch branch calling
                     <slug>_damage(&<slug>s[best_idx], GUN_DAMAGE).
 
-Both loops must skip enemies whose area != game_state (see STEP 6).
+Both loops must skip enemies whose area != current_area (see STEP 6).
 GUN_DAMAGE is 1 and a crucifaxe swing is 1, so "N hits to kill" == N health.
 
 
@@ -358,7 +358,19 @@ Two models exist:
   B. GLOBAL + AREA-TAGGED (fat doors, tentacles, spiders)
      ONE array in the WorldState's global section. Each instance carries a
      `GameState area;` field and update/draw/weapon loops skip any instance
-     whose area != game_state. Costs sizeof(array) ONCE.
+     whose area != current_area. Costs sizeof(array) ONCE.
+
+     >>> current_area, NEVER game_state. <<< They are the same value during
+     ordinary play and differ the moment the inventory menu opens: game_state
+     becomes STATE_MENU while the room behind the menu keeps running (main.c
+     passes current_area to update_current_area and draw_current_area). Gate on
+     game_state and your enemy freezes and disappears for as long as the menu is
+     up — the player can pause a fight by pressing Start, which no enemy in this
+     game is meant to allow. It cost the Rabisu boss fight exactly that, and it
+     is invisible until someone opens the menu mid-fight. The same rule applies
+     to anything else that asks WHICH ROOM: a per-area table selected on
+     game_state silently falls through to its default (zombies navigated the
+     conservatory with the kitchen's zone tables for the same reason).
 
 Use B unless the enemy genuinely needs per-room isolation. The Spider was
 written with A first: MAX_SPIDERS=4 at ~88 bytes each cost 2848 bytes and left
@@ -493,7 +505,12 @@ Code-level checks before handing over:
       TIMs are listed at the slots you chose.
   [ ] The _Static_assert in world.c compiled, and `nm -S` shows the blob still
       has room for another room (~2560 bytes).
-  [ ] Every weapon loop and the update/draw loops skip `area != game_state`.
+  [ ] Every weapon loop and the update/draw loops skip `area != current_area`.
+      grep the file for `game_state` afterwards: every remaining hit should be a
+      deliberate "is the MENU up" test, not a "which room" one.
+  [ ] OPEN THE INVENTORY MENU WHILE IT IS CHASING YOU. It must keep moving,
+      keep being drawn, and still be able to land a hit. One second, and it is
+      the only way to catch a game_state gate.
   [ ] Arithmetic: recompute the sprite's world extent by hand from
       cy = y + Y_OFFSET and cy +/- HALF_H, and check it against the mesh
       heights you mined in STEP 2. Do this on paper — it is how both Spider

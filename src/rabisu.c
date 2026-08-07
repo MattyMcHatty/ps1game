@@ -215,7 +215,7 @@ Rabisu *rabisu_boss_instance(void) {
     int i;
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *r = &rabisus[i];
-        if (r->active && !r->dead && r->area == game_state) return r;
+        if (r->active && !r->dead && r->area == current_area) return r;
     }
     return NULL;
 }
@@ -643,7 +643,7 @@ void rbs_fireballs_update(void) {
     for (i = 0; i < MAX_RBS_FIREBALLS; i++) {
         RbsFireball *f = &rbs_fireballs[i];
         if (f->life <= 0) continue;
-        if (f->area != game_state) { f->life = 0; continue; }
+        if (f->area != current_area) { f->life = 0; continue; }
         if (--f->life <= 0) continue;
         f->age++;
 
@@ -1192,7 +1192,7 @@ void update_rabisus(void) {
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *r = &rabisus[i];
         if (!r->active || r->dead) continue;
-        if (r->area != game_state) continue;
+        if (r->area != current_area) continue;
 
         if (r->hit_timer > 0) r->hit_timer--;
 
@@ -1222,7 +1222,7 @@ void update_rabisus(void) {
 
         /* Idle playback. One shared clip, looping, at RBS_ANIM_TICKS game
            frames each. The clock is per instance, and it only advances in the
-           boss's own area because of the game_state gate above — which is what
+           boss's own area because of the area gate above — which is what
            we want: an off-screen boss in another room should not be burning
            frames of animation. `frozen` is the death sequence holding the pose
            for its two-second beat before the light starts. */
@@ -1252,7 +1252,7 @@ void rabisus_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
            and the death sequence walks it back to its spawn, which would shove
            the player across the garden if the cylinder were still live. */
         if (!r->active || r->dead || r->dying) continue;
-        if (r->area != game_state) continue;
+        if (r->area != current_area) continue;
 
         /* Vertical gate: the player's body span (feet at py+GROUND_FLOOR_Y,
            head a little above the eye) against the boss's. It hovers, so a
@@ -1551,7 +1551,7 @@ void draw_rabisus(RenderContext *ctx) {
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *r = &rabisus[i];
         if (!r->active || r->dead) continue;
-        if (r->area != game_state) continue;
+        if (r->area != current_area) continue;
         /* Fully burnt out, or waiting under the lawn before its reveal: not
            merely invisible but skipped, so neither case costs 476 polys. */
         if (r->fade <= 0) continue;
@@ -1627,7 +1627,7 @@ void draw_rabisus(RenderContext *ctx) {
            seconds like any other, and an empty bar hanging over the death
            sequence would be the one piece of HUD still insisting there is a
            fight on. */
-        if (!r->active || r->dead || r->dying || r->area != game_state) continue;
+        if (!r->active || r->dead || r->dying || r->area != current_area) continue;
         draw_rbs_bar(ctx, r);
     }
 }
@@ -1792,13 +1792,13 @@ void rbs_attacks_draw(RenderContext *ctx) {
 
     for (i = 0; i < MAX_RBS_FIREBALLS; i++) {
         RbsFireball *f = &rbs_fireballs[i];
-        if (f->life <= 0 || f->area != game_state) continue;
+        if (f->life <= 0 || f->area != current_area) continue;
         draw_rbs_fireball(ctx, f);
     }
 
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *r = &rabisus[i];
-        if (!r->active || r->dead || r->area != game_state) continue;
+        if (!r->active || r->dead || r->area != current_area) continue;
 
         /* The light beam's tell: the chest coming up to full over 1.5 s. It is
            the only warning the attack gives, so it ramps rather than switching

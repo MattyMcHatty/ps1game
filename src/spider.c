@@ -190,7 +190,7 @@ void update_spiders(void) {
 
     for (i = 0; i < spider_count; i++) {
         Spider *s = &spiders[i];
-        if (!s->active || s->state == SPD_DEAD || s->area != game_state) continue;
+        if (!s->active || s->state == SPD_DEAD || s->area != current_area) continue;
 
         if (s->hit_timer    > 0) s->hit_timer--;
         if (s->damage_timer > 0) s->damage_timer--;
@@ -309,7 +309,7 @@ void update_spiders(void) {
             if (j == i) continue;
             Spider *other = &spiders[j];
             if (!other->active || other->state == SPD_DEAD ||
-                other->area != game_state) continue;
+                other->area != current_area) continue;
             int32_t odx   = s->x - other->x;
             int32_t odz   = s->z - other->z;
             int32_t odist = (odx < 0 ? -odx : odx) + (odz < 0 ? -odz : odz);
@@ -442,10 +442,10 @@ void update_spiders(void) {
     int a, b;
     for (a = 0; a < spider_count; a++) {
         Spider *sa = &spiders[a];
-        if (!sa->active || sa->state != SPD_ALERT || sa->area != game_state) continue;
+        if (!sa->active || sa->state != SPD_ALERT || sa->area != current_area) continue;
         for (b = a + 1; b < spider_count; b++) {
             Spider *sb = &spiders[b];
-            if (!sb->active || sb->state != SPD_ALERT || sb->area != game_state) continue;
+            if (!sb->active || sb->state != SPD_ALERT || sb->area != current_area) continue;
             int32_t cdx  = sa->x - sb->x;
             int32_t cdz  = sa->z - sb->z;
             int32_t dist = (cdx < 0 ? -cdx : cdx) + (cdz < 0 ? -cdz : cdz);
@@ -691,7 +691,7 @@ void draw_spiders(RenderContext *ctx) {
     int i;
     for (i = 0; i < spider_count; i++) {
         Spider *s = &spiders[i];
-        if (!s->active || s->state == SPD_DEAD || s->area != game_state) continue;
+        if (!s->active || s->state == SPD_DEAD || s->area != current_area) continue;
 
         int32_t dx = s->x - cam_x;
         int32_t dz = s->z - cam_z;

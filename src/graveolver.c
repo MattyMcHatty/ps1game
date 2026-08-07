@@ -242,7 +242,7 @@ static void graveolver_fire(void) {
     }
     for (i = 0; i < spider_count; i++) {
         Spider *s = &spiders[i];
-        if (!s->active || s->state == SPD_DEAD || s->area != game_state) continue;
+        if (!s->active || s->state == SPD_DEAD || s->area != current_area) continue;
         if (enemy_in_circle(s->x, s->y + SPD_Y_OFFSET, s->z,
                             SPD_HALF_W, SPD_HALF_H, fx, fz, &depth) &&
             depth < best_depth && crosshair_clear(fx, fz, depth)) {
@@ -251,7 +251,7 @@ static void graveolver_fire(void) {
     }
     for (i = 0; i < tentacle_count; i++) {
         Tentacle *t = &tentacles[i];
-        if (!t->active || t->health <= 0 || t->area != game_state) continue;
+        if (!t->active || t->health <= 0 || t->area != current_area) continue;
         int32_t cyc, hh, hw;
         tentacle_body(t, &cyc, &hh, &hw);
         if (enemy_in_circle(t->x, cyc, t->z, hw, hh, fx, fz, &depth) &&
@@ -263,7 +263,7 @@ static void graveolver_fire(void) {
         Rabisu *rb = &rabisus[i];
         /* `dying` as well as `dead`: the boss stays on screen through its whole
            death sequence, and a round spent into a corpse should miss. */
-        if (!rb->active || rb->dead || rb->dying || rb->area != game_state) continue;
+        if (!rb->active || rb->dead || rb->dying || rb->area != current_area) continue;
         int32_t cyc, hh, hw;
         rabisu_body(rb, &cyc, &hh, &hw);
         if (enemy_in_circle(rb->x, cyc, rb->z, hw, hh, fx, fz, &depth) &&

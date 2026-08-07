@@ -28,7 +28,23 @@ typedef enum {
 } GameState;
 
 extern GameState game_state;
-extern GameState current_area;   /* last playable area entered; the menu returns here */
+
+/* The area the player is IN. Identical to game_state during ordinary play; the
+   two differ while the inventory menu is up, when game_state is STATE_MENU and
+   this still names the room behind it (main.c's STATE_MENU branch passes it to
+   update_current_area and draw_current_area, because the room keeps running:
+   enemies move, gravity applies, and anything in flight still lands).
+   >>> EVERY "IS THIS THING IN THE PLAYER'S ROOM" TEST MUST USE THIS, NEVER
+       game_state. <<< An entity gated on `area != game_state` freezes and
+       vanishes the instant the menu opens, and a per-room table selected on
+       game_state silently falls through to its default — which is how the boss
+       fight used to pause and how zombies used to navigate the conservatory
+       with the kitchen's zone tables. The rule holds one frame earlier than
+       you would think, too: handle_menu_open sets this BEFORE switching
+       game_state, so it is already correct on the frame Start is pressed.
+   Gates on STATE_MENU itself (no camera, no firing, no HUD) are the separate,
+   deliberate thing — those really do mean "is the menu up". */
+extern GameState current_area;
 extern GameState pending_area;   /* area STATE_LOADING will switch to once set up */
 
 void title_init(void);

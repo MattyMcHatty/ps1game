@@ -173,7 +173,7 @@ void update_crucifaxe(void) {
             for (si = 0; si < spider_count; si++) {
                 Spider *s = &spiders[si];
                 if (!s->active || s->state == SPD_DEAD ||
-                    s->area != game_state) continue;
+                    s->area != current_area) continue;
                 int32_t dx     = s->x - cam_x;
                 int32_t dy     = s->y - cam_y;
                 int32_t dz     = s->z - cam_z;
@@ -215,7 +215,7 @@ void update_crucifaxe(void) {
         }
 
         /* Breakable door smash. The doors are a single global array and
-           fatdoors_try_smash already skips every door whose area != game_state,
+           fatdoors_try_smash already skips every door whose area != current_area,
            so areas with no doors (menu/delivery) fall out of its loop for free.
            There used to be an explicit allowlist of door-bearing areas here as
            well; it was a second source of truth that had to be hand-updated per

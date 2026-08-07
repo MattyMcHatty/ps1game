@@ -300,7 +300,7 @@ and a model's are as good as a sprite's:
     <slug>_body(r, &cyc, &hh, &hw)   ->  cyc = r->y - HALF_H, hh, hw
 
 Claim the next free best_kind value (the Rabisu took 5) and add the matching
-dispatch branch. Skip instances whose area != game_state.
+dispatch branch. Skip instances whose area != current_area.
 
 >>> THE CRUCIFAXE IS WHERE A BIG MODEL BREAKS THE SPRITE PATTERN. <<<
 Every existing melee block tests Manhattan dist3d from the camera to the
@@ -412,7 +412,7 @@ Code-level, before handing over:
         mipsel-none-elf-nm.exe -S build\CMakeFiles\horror_game.dir\src\world.c.obj `
             | Select-String " world$"
       The size is hex; the limit is SAVE_WORLD_MAX_BYTES.
-  [ ] Every weapon/update/draw loop skips `area != game_state`.
+  [ ] Every weapon/update/draw loop skips `area != current_area`.
   [ ] The view matrix is restored on every exit path from the draw.
   [ ] ARITHMETIC, ON PAPER. Recompute the model's world Y span from
       anchor + vy + FOOT_OFF at both mesh extremes and check it against the

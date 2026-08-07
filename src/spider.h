@@ -28,7 +28,8 @@
  * same scale as the zombie's 1x2 body.
  *
  * Unlike the zombie's per-room array, spiders are ONE global array tagged by
- * area (update/draw/hit skip any spider whose area != game_state), the same way
+ * area (update/draw/hit skip any spider whose area != current_area — NOT
+ * game_state; see the note on current_area in title.h), the same way
  * the fat doors and tentacles work. That keeps them out of world.c's per-room
  * RoomState: a copy of the array in every room would have eaten almost all the
  * memory card blob's remaining headroom (see the _Static_assert in world.c) to

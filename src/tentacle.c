@@ -179,7 +179,7 @@ void update_tentacles(void) {
     for (i = 0; i < tentacle_count; i++) {
         Tentacle *t = &tentacles[i];
         if (!t->active || t->health <= 0) continue;
-        if (t->area != game_state) continue;
+        if (t->area != current_area) continue;
 
         if (t->hit_timer    > 0) t->hit_timer--;
         if (t->damage_timer > 0) t->damage_timer--;
@@ -260,7 +260,7 @@ int tentacles_try_hit(void) {
     for (i = 0; i < tentacle_count; i++) {
         Tentacle *t = &tentacles[i];
         if (!t->active || t->health <= 0) continue;
-        if (t->area != game_state) continue;
+        if (t->area != current_area) continue;
 
         /* Strike point at mid-sprite height (bottom on floor + half height). */
         int32_t hit_y  = (t->y + GROUND_FLOOR_Y) - TENT_HALF_H;
@@ -364,7 +364,7 @@ void draw_tentacles(RenderContext *ctx) {
     for (i = 0; i < tentacle_count; i++) {
         Tentacle *t = &tentacles[i];
         if (!t->active || t->health <= 0) continue;
-        if (t->area != game_state) continue;
+        if (t->area != current_area) continue;
 
         /* Idle by default; while the player is in range, oscillate between the
            idle and active sprites. */

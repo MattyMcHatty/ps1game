@@ -210,7 +210,7 @@ loop. Snapping between baked frames, no interpolation — it costs nothing and t
 stepping is period-correct.
 
 The clock is per instance so two of the same enemy do not move in lockstep, and
-it only advances inside the `area != game_state` gate, so an enemy in another
+it only advances inside the `area != current_area` gate, so an enemy in another
 room is not burning frames.
 
 INTERPOLATION, if you ever want it: lerp the two nearest frames into a scratch

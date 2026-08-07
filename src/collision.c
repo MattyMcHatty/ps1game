@@ -190,7 +190,10 @@ void apply_collision(void) {
 
 #ifdef DEBUG_COLLISION
 
-extern GameState game_state;   /* current area — matches a fat door's tag */
+extern GameState current_area;  /* the room the player is in — matches a fat
+                                   door's tag. NOT game_state: that reads
+                                   STATE_MENU with the inventory open and no
+                                   door would match. See title.h. */
 
 #define DBG_BLOCK_R 190   /* purple: everything that stops a shot */
 #define DBG_BLOCK_G  40
@@ -274,7 +277,7 @@ static void debug_draw_shot_props(RenderContext *ctx) {
     }
     for (i = 0; i < fatdoor_count; i++) {
         FatDoor *d = &fatdoors[i];
-        if (!d->active || d->state != FATDOOR_INTACT || d->area != game_state) continue;
+        if (!d->active || d->state != FATDOOR_INTACT || d->area != current_area) continue;
         dbg_aabb_corners(d->x, d->z, d->half_x + SHOT_PROP_SLACK, d->half_z + SHOT_PROP_SLACK, cx, cz);
         debug_fill_box(ctx, cx, cz, d->y - FATDOOR_HALF_H, d->y + FATDOOR_HALF_H,
                        DBG_BLOCK_R, DBG_BLOCK_G, DBG_BLOCK_B);

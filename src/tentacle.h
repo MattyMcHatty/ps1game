@@ -11,7 +11,8 @@
    idle and active sprites; if the player gets too close it lashes out, dealing
    demon-dog damage and knocking the player back. 3 HP, killable with the
    crucifaxe. Like the fat doors, tentacles are a single global array tagged by
-   area (draw/update/hit skip tentacles whose area != game_state) and persist
+   area (draw/update/hit skip tentacles whose area != current_area — NOT
+   game_state; see the note on current_area in title.h) and persist
    through world.c. */
 
 #define MAX_TENTACLES          4

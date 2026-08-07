@@ -241,9 +241,13 @@ static int32_t save_cx, save_cy, save_cz, save_crot, save_cvy;
        crane shot — so the player was dumped in the middle of the garden facing
        north instead of being carried back to where they were standing. That
        looked exactly like "it put me back at the start of the fight".
-     - any frame the inventory menu is open, because game_state is STATE_MENU
-       and the area tag no longer matches. Opening the menu mid-fight ended the
-       whole encounter and unsealed the door.
+     - any frame the inventory menu was open, back when the area tag was
+       compared against game_state: that becomes STATE_MENU and no entity
+       matched it, so opening the menu mid-fight ended the whole encounter and
+       unsealed the door. The tags now compare against current_area (title.h),
+       which is the room either way, so this one is fixed at the source — the
+       latch is still what makes it impossible to reintroduce from a different
+       direction.
 
    The index does not care about either. The only thing that can invalidate it
    is the slot itself going away, which is what boss() checks. */

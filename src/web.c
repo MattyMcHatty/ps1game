@@ -59,7 +59,7 @@ void webs_update(void) {
     for (i = 0; i < MAX_WEBS; i++) {
         Web *w = &webs[i];
         if (w->life <= 0) continue;
-        if (w->area != game_state) { w->life = 0; continue; }   /* left the room */
+        if (w->area != current_area) { w->life = 0; continue; }   /* left the room */
 
         if (--w->life <= 0) continue;
 
@@ -188,7 +188,7 @@ void webs_draw(RenderContext *ctx) {
     int i;
     for (i = 0; i < MAX_WEBS; i++) {
         Web *w = &webs[i];
-        if (w->life <= 0 || w->area != game_state) continue;
+        if (w->life <= 0 || w->area != current_area) continue;
         draw_web(ctx, w);
     }
 }

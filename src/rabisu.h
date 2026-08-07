@@ -45,7 +45,8 @@
  * Courtyard. Mixing them would make the second encounter a copy-paste job.
  *
  * Like the fat doors, tentacles and spiders, rabisus are ONE global array
- * tagged by area (update/draw/hit skip any whose area != game_state) rather
+ * tagged by area (update/draw/hit skip any whose area != current_area — NOT
+ * game_state; see the note on current_area in title.h) rather
  * than a per-room array in world.c's RoomState. See STEP 6 of
  * ADDING_AN_ENEMY.txt: a copy of the array in all 14 rooms would spend the
  * memory-card blob's remaining headroom storing empty copies.

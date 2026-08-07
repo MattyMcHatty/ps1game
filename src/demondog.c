@@ -189,7 +189,7 @@ void update_demon_dogs(void) {
         if (d->lunging && dist2d >= DDOG_CATCH_DIST) d->lunging = 0;
 
         if (d->state == DDOG_DORMANT) {
-            int32_t wake = (game_state == STATE_CONSERVATORY)
+            int32_t wake = (current_area == STATE_CONSERVATORY)
                            ? DDOG_WAKE_RADIUS_CONS : DDOG_WAKE_RADIUS;
             if (dist2d < wake) {
                 d->state      = DDOG_ALERT;

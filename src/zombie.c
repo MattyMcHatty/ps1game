@@ -127,7 +127,7 @@ void zombies_reset(void) {
  * into the next room. This funnels them cleanly through openings (and drives
  * them squarely into closed doors so they batter through).
  *
- * Each area supplies its own zone/node tables (selected by game_state in
+ * Each area supplies its own zone/node tables (selected by current_area in
  * select_nav, called from update_zombies), the same way it supplies the
  * texture window. Zombies currently live in the kitchen and the conservatory.
  * -------------------------------------------------------------------------*/
@@ -234,13 +234,13 @@ static const NavNode *nav_nodes      = kitchen_nav_nodes;
 static int            nav_node_count = 3;
 
 static void select_nav(void) {
-    if (game_state == STATE_CONSERVATORY) {
+    if (current_area == STATE_CONSERVATORY) {
         nav_zones = cons_nav_zones; nav_zone_count = 2;
         nav_nodes = cons_nav_nodes; nav_node_count = 1;
-    } else if (game_state == STATE_2F_HALL) {
+    } else if (current_area == STATE_2F_HALL) {
         nav_zones = hall_nav_zones; nav_zone_count = 3;
         nav_nodes = hall_nav_nodes; nav_node_count = 2;
-    } else if (game_state == STATE_EAST_HALL) {
+    } else if (current_area == STATE_EAST_HALL) {
         nav_zones = east_hall_nav_zones; nav_zone_count = 2;
         nav_nodes = east_hall_nav_nodes; nav_node_count = 1;
     } else {

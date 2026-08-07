@@ -12,7 +12,10 @@
 #include "title.h"
 #include "fatdoor.h"
 
-extern GameState game_state;   /* current area; doors of other areas are skipped */
+/* The room the player is in; doors of other areas are skipped. NOT game_state —
+   with the inventory menu open that is STATE_MENU and no door would match, so
+   they would blink out of the room behind the menu. See title.h. */
+extern GameState current_area;
 
 FatDoor fatdoors[MAX_FATDOORS];
 int     fatdoor_count = 0;
@@ -176,7 +179,7 @@ void fatdoors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     for (i = 0; i < fatdoor_count; i++) {
         FatDoor *d = &fatdoors[i];
         if (!d->active || d->state != FATDOOR_INTACT) continue;
-        if (d->area != game_state) continue;
+        if (d->area != current_area) continue;
 
         /* Skip if the player is on a different vertical level to the door. */
         if (py < d->y - FATDOOR_HALF_H || py > d->y + FATDOOR_HALF_H) continue;
@@ -210,7 +213,7 @@ int fatdoors_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
     for (i = 0; i < fatdoor_count; i++) {
         FatDoor *d = &fatdoors[i];
         if (!d->active || d->state != FATDOOR_INTACT) continue;
-        if (d->area != game_state) continue;
+        if (d->area != current_area) continue;
         /* Real solid box: true footprint + model half-height, no push margin. */
         if (y < d->y - FATDOOR_HALF_H || y > d->y + FATDOOR_HALF_H) continue;
         if (x < d->x - d->half_x - slack || x > d->x + d->half_x + slack) continue;
@@ -233,7 +236,7 @@ void fatdoors_draw(RenderContext *ctx) {
     for (d = 0; d < fatdoor_count; d++) {
         FatDoor *door = &fatdoors[d];
         if (!door->active || door->state == FATDOOR_SMASHED) continue;
-        if (door->area != game_state) continue;
+        if (door->area != current_area) continue;
 
         int32_t ddx = door->x - cam_x, ddz = door->z - cam_z;
         int32_t ddist = (ddx < 0 ? -ddx : ddx) + (ddz < 0 ? -ddz : ddz);
@@ -381,7 +384,7 @@ int fatdoors_try_smash(void) {
     for (i = 0; i < fatdoor_count; i++) {
         FatDoor *d = &fatdoors[i];
         if (!d->active || d->state != FATDOOR_INTACT) continue;
-        if (d->area != game_state) continue;
+        if (d->area != current_area) continue;
 
         if (cam_y < d->y - FATDOOR_HALF_H || cam_y > d->y + FATDOOR_HALF_H) continue;
 
@@ -419,7 +422,7 @@ int fatdoors_damage_at(int32_t x, int32_t z, int32_t reach, int amount) {
     for (i = 0; i < fatdoor_count; i++) {
         FatDoor *d = &fatdoors[i];
         if (!d->active || d->state != FATDOOR_INTACT) continue;
-        if (d->area != game_state) continue;
+        if (d->area != current_area) continue;
 
         int32_t min_x = d->x - d->half_x - reach;
         int32_t max_x = d->x + d->half_x + reach;
