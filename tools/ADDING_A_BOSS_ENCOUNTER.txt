@@ -213,6 +213,36 @@ Re-anchor to the DESTINATION at the START of that final glide, not at the end.
 Otherwise the boss spends the last second tracking the door the player came in
 by and then snaps its gaze across the arena the instant control returns.
 
+A MOVE THAT RUNS UNDER SEVERAL PHASES IS THE FOURTH MECHANIC, AND IT IS THE
+ONLY ONE WORTH ADDING. The Rabisu's reveal opens close in on the lawn and pulls
+back to the crane shot across the lights, the rise and the fade — one ten-second
+move under three phases that each have their own business. Two rules:
+
+  - GIVE IT ITS OWN COUNTER, not phase_t, and tick it before the switch on a
+    state test. Splitting it into three per-phase glides means three sets of
+    endpoints that have to be made to agree at the seams, and they will not
+    survive the first re-timing. Define its length as the SUM of the phases it
+    spans, so re-timing any of them re-times the move with it.
+  - SOLVE THE ANGLE FROM AN AIM POINT EVERY FRAME; do not lerp between the two
+    end angles. They agree at the ends and disagree by about 1.7 degrees in the
+    middle, which drifts the shot off the one thing it exists to hold. This SDK
+    has no arctangent — binary-search isin/icos (11 halvings, no division) and
+    you get the angle in the same trig the view matrix projects through.
+  - Move it along the boss's own X if you can. Then the yaw never changes, and
+    the facing override (below) stays true at every point on the path instead
+    of needing to track a moving camera.
+  - Ease IN and out for a long move. glide_step's ease-out is right for a 1.5 s
+    glide and reads as a yank over ten seconds.
+
+>>> CHECK A CLOSE SHOT AGAINST THE ADDITIVE GEOMETRY BEFORE COMMITTING TO IT.
+    <<< rbs_glow_quad drops any quad with a vertex past the GTE's +/-1023 screen
+clamp, and the lawn lights' shafts are 900 tall and FLARE 150 outward as they
+rise — so the front row's top corners lean back toward a camera that comes in
+close, and end up behind it. Losing those is free (they are far off-screen), but
+the band below them crosses the frame, and losing THAT flickers the whole front
+row. That constraint, not taste, is what set Spot B's distance at 900; work it
+out for the path rather than for the end points.
+
 >>> THE PITCH TRAP. THIS COST A WHOLE SHOT. <<<
 Most rooms build their view matrix by hand:
 
@@ -829,6 +859,9 @@ In the emulator, in this order, because each depends on the last:
   [ ] The reveal frames the subject: turf, crown and the light patch. (If the
       shot is level rather than tilted, you missed a camera_build_view —
       STEP 3.)
+  [ ] The pull-back holds its aim for the whole ten seconds — the emergence
+      point should not wander in the frame — and no beam in the front row
+      flickers or loses a segment while the camera is at its closest.
   [ ] The boss FACES THE CAMERA through the reveal, not off toward the door.
   [ ] The light cones are WIDE AT THE TOP. If they narrow upward they read as
       spotlights from the sky, whatever the beat sheet intended.

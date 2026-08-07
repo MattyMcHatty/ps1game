@@ -18,10 +18,16 @@
 /* The Rabisu encounter. See rabisu_boss.h for what it is and why it is a
    separate file from the boss itself. */
 
-/* ---- The two camera shots ---------------------------------------------------
-   SHOT 1, the crane. Due south of the boss's spawn on the same X, 1200 back and
-   400 up (-Y is up), pitched down onto the middle of where the model will be
-   standing once it is out of the ground.
+/* ---- The three camera shots -------------------------------------------------
+   ALL THREE AIM AT ONE POINT, and the reveal's dolly is derived from it rather
+   than from a pair of hand-picked angles: RBE_AIM_* is the middle of where the
+   model will be standing once it is out of the ground. "The camera is always
+   focused on the area where the Rabisu will land" is then a property of the
+   code and not of two constants that happen to agree.
+
+   SHOT 1, the crane — SPOT A, where the reveal ends and the death plays. Due
+   south of the boss's spawn on the same X, 1200 back and 400 up (-Y is up),
+   pitched down onto the aim point.
 
    The numbers are worked, not eyeballed, and they have to be reworked TOGETHER:
    moving the camera without redoing the pitch just re-aims the shot at the far
@@ -42,16 +48,59 @@
        the boss look small in the first place.
    Yaw is 0, due north (+Z): forward is (sin,cos) of cam_rot, see update_camera.
 
-   SHOT 2, the fight. On the south terrace, one wall standoff clear of the z =
+   SHOT 2, the near shot — SPOT B, where the reveal STARTS. The same axis, 300
+   nearer and 411 lower: ordinary standing eye height for the y=800 south
+   terrace, so the encounter opens level with somebody standing there watching
+   and ends 400 up and 300 back with the whole garden in it. The subject grows
+   1.4x (1265 to 900 from the aim point) and the tilt swings 19 degrees. It is
+   the TILT that carries the move — a dolly at the crane's own height would
+   only creep forward — which is why the near shot goes to eye level rather
+   than to something merely nearer.
+
+   >>> IT CANNOT COME MUCH CLOSER THAN THIS, AND THE LIMIT IS THE LIGHTS. <<<
+   The lawn lights' shafts FLARE by RBS_SHAFT_FLARE (150) as they rise, so the
+   near row's top corners lean BACK TOWARD THE CAMERA, to z = -721 — and
+   rbs_glow_quad drops any quad with a vertex past the GTE's +/-1023 screen
+   clamp. From z = -900 those corners project at (997, -836), inside it with
+   nothing to spare, and 180 forward of that they are behind the camera plane
+   entirely. What is at stake is not those quads — at -836 they are far above
+   a +/-120 screen and contribute nothing either way — but the band BELOW
+   them, which does cross the frame and would take the front row of beams out
+   with it. Checked the whole 600-frame path, all sixteen cells, pool and all
+   three bands: nothing that covers screen area is ever dropped. Move this
+   shot forward and that stops being true, and it reads as the beams
+   flickering rather than as a clip.
+
+   The near row's POOLS are below the bottom of the frame here, as the crane
+   shot's near corners are: 571 of ground off-axis at 900 out cannot be held
+   by a 422 half-field, at any pitch that still holds the aim point. Their
+   shafts stand in the foreground instead, which is what the shot is for — and
+   the two outermost of them are the LAST pair to light, so the frame fills
+   from the middle outward as the camera opens.
+
+   SHOT 3, the fight. On the south terrace, one wall standoff clear of the z =
    -2000 wall, on the boss's X, at ordinary standing eye height for a y=800
    floor — the same derivation garden_courtyard.h states for the east terrace.
    Pitch 0: free-look gameplay never sets pitch, and control is handed back
    here, so it must be flat. */
+/* The one point every shot in the reveal looks at: the boss's spawn X and Z,
+   and the height the crane was always centred on. */
+#define RBE_AIM_X          (-290)
+#define RBE_AIM_Y            600
+#define RBE_AIM_Z              0
+
 #define RBE_CAM_X          (-290)
 #define RBE_CAM_Y            200
 #define RBE_CAM_Z          (-1200)
 #define RBE_CAM_ROT            0
-#define RBE_CAM_PITCH        210
+#define RBE_CAM_PITCH        210   /* == aim_pitch(600-200, 0-(-1200)) + 1 */
+
+/* Spot B. Eye height for a y=800 floor is the same derivation the fight spot
+   uses below: floor - GROUND_FLOOR_Y - 40. Its pitch is not a constant — it is
+   solved from the aim point like every other frame of the dolly. */
+#define RBE_NEAR_X         (-290)
+#define RBE_NEAR_Y    (800 - GROUND_FLOOR_Y - 40)
+#define RBE_NEAR_Z         (-900)
 
 #define RBE_FIGHT_X        (-290)
 #define RBE_FIGHT_Y   (800 - GROUND_FLOOR_Y - 40)
@@ -64,13 +113,20 @@
 
 /* ---- Timing, in frames at 60 fps -------------------------------------------
    Everything the brief states in seconds, stated here once. */
-#define RBE_T_CAM_IN          90   /* 1.5 s glide out to the crane shot     */
+#define RBE_T_CAM_IN          90   /* 1.5 s glide out to the NEAR shot       */
 #define RBE_T_WATCH          120   /* 2 s of nothing, as specified          */
 #define RBE_T_LIGHTS_UP      180   /* 3 s, sixteen lights two at a time     */
 #define RBE_T_RISE           300   /* 5 s coming up through the lawn        */
 #define RBE_T_LIGHTS_DOWN    120   /* 2 s fade                              */
 #define RBE_T_LINE           360   /* 6 s per line of scripture             */
 #define RBE_T_CAM_OUT         60   /* 1 s drop to the fight position        */
+
+/* The pull-back is NOT a phase. It starts with the first pair of lights and
+   ends on Spot A as the first line of scripture appears, so it runs UNDER
+   three phases that each have their own business — which is why it is driven
+   by its own counter rather than by phase_t. Ten seconds; the sum is the
+   definition, so re-timing any of the three re-times the dolly with it. */
+#define RBE_T_PULL  (RBE_T_LIGHTS_UP + RBE_T_RISE + RBE_T_LIGHTS_DOWN)
 
 #define RBE_T_D_SETTLE        60   /* 1 s back to the crane + boss to spawn */
 #define RBE_T_D_FREEZE       120   /* 2 s frozen, as specified              */
@@ -166,6 +222,7 @@ typedef enum {
 
 static RbeState state = RBE_IDLE;
 static int32_t  phase_t   = 0;     /* frames elapsed in the current phase */
+static int32_t  pull_t    = 0;     /* frames into the Spot B -> Spot A dolly  */
 static int32_t  light_master = 0;  /* 0..256 over the whole lamp bank         */
 
 /* Where the player was standing when the director took over, and what the
@@ -233,6 +290,61 @@ static void glide_step(int32_t t) {
     cam_vy    = 0;
 }
 
+/* Pitch, in 4096ths, that aims a camera at a point `dy` below it (world +Y is
+   down, so dy > 0 means the target is below and the answer is a positive,
+   downward pitch — see camera.h) and `dz` in front of it.
+
+   This SDK has no arctangent, so it is a binary search on the SDK's OWN
+   isin/icos: eleven halvings resolve the quarter turn to a single unit, and
+   answering with the same trig table camera_build_view projects through means
+   the aim cannot disagree with the picture. tan is monotonic across the range
+   and the compare is cross-multiplied, so there is no division and nothing
+   overflows: 4096 * 1500 is well inside an int32. */
+static int32_t aim_pitch(int32_t dy, int32_t dz) {
+    int32_t lo = -1024, hi = 1024;          /* +/- 90deg; dz > 0 throughout */
+    while (hi - lo > 1) {
+        /* & 4095 because the answer here is genuinely negative when the aim
+           point is ABOVE the camera (it is, at Spot B) and isin/icos are
+           documented over 0..4095. The mask is exact, not a clamp: both are
+           periodic in 4096 and two's complement wraps the right way. */
+        int32_t mid = (lo + hi) >> 1, a = mid & 4095;
+        if (isin(a) * dz < icos(a) * dy) lo = mid;
+        else                             hi = mid;
+    }
+    return lo;
+}
+
+/* ---- The pull-back ----------------------------------------------------------
+   Spot B to Spot A over RBE_T_PULL, with the pitch RE-SOLVED every frame from
+   the interpolated position rather than lerped between the two end angles.
+   Both look the same at the ends and they are not the same in the middle: a
+   lerped angle drifts 1.7 degrees off the aim point half way through, which at
+   that range is 32 units of drift on the one thing the shot is supposed to be
+   holding still. Re-solving holds it inside 2.
+
+   EASE IN AND OUT, unlike glide_step's ease-out. A ten-second move that leaves
+   at full speed reads as a camera being yanked; this one has to start under
+   the first pair of lights without announcing itself and arrive under the last
+   without stopping dead.
+
+   The dolly stays on the boss's own X, which is worth stating because two
+   other things depend on it: the yaw never changes (so there is nothing to
+   interpolate the long way round), and the facing override the boss was given
+   at RBE_CAM_X/RBE_CAM_Z stays exactly true for every point on the path, since
+   every one of them is due south of it. */
+static void pull_step(int32_t t) {
+    int32_t p = (t * 256) / RBE_T_PULL; if (p > 256) p = 256;
+    /* Smoothstep, 3p^2 - 2p^3, in 256ths. Peaks at 50M before the shift. */
+    int32_t e = (p * p * (3 * 256 - 2 * p)) / (256 * 256);
+
+    cam_x     = RBE_NEAR_X;
+    cam_y     = RBE_NEAR_Y + ((RBE_CAM_Y - RBE_NEAR_Y) * e) / 256;
+    cam_z     = RBE_NEAR_Z + ((RBE_CAM_Z - RBE_NEAR_Z) * e) / 256;
+    cam_rot   = RBE_CAM_ROT;
+    cam_pitch = aim_pitch(RBE_AIM_Y - cam_y, RBE_AIM_Z - cam_z);
+    cam_vy    = 0;
+}
+
 /* ---- Public predicates ----------------------------------------------------- */
 
 int rabisu_boss_cutscene(void) {
@@ -246,6 +358,7 @@ int rabisu_boss_seals_door(void) {
 void rabisu_boss_reset(void) {
     state        = RBE_IDLE;
     phase_t      = 0;
+    pull_t       = 0;
     light_master = 0;
     boss_idx     = -1;
     camera_release_player();
@@ -267,6 +380,7 @@ void rabisu_boss_enter(void) {
     int i;
     state        = RBE_IDLE;
     phase_t      = 0;
+    pull_t       = 0;
     light_master = 0;
     boss_idx     = -1;
     cam_pitch    = 0;
@@ -295,7 +409,9 @@ static void begin_reveal(Rabisu *r) {
        player-facing would have it claw its way out of the ground with its back
        three-quarters turned to the shot. rabisu_fight_begin drops this again
        when control returns. Pointed at the fixed crane position rather than at
-       the live cam_*, so it does not swivel while the camera glides. */
+       the live cam_*, so it does not swivel while the camera glides — and one
+       fixed point covers the whole pull-back too, because every shot in the
+       reveal sits on the boss's own X and is therefore due south of it. */
     rabisu_face_override(r, 1, RBE_CAM_X, RBE_CAM_Z);
     r->x = r->spawn_x;
     r->z = r->spawn_z;
@@ -303,8 +419,13 @@ static void begin_reveal(Rabisu *r) {
     r->fade   = 0;
     r->clip_y = RBS_NO_CLIP;
 
-    CamShot shot = { RBE_CAM_X, RBE_CAM_Y, RBE_CAM_Z, RBE_CAM_ROT, RBE_CAM_PITCH };
+    /* Out to SPOT B, not to the crane: the encounter opens close in on the
+       patch of lawn the thing is under, and the crane is where the ten-second
+       pull-back arrives ten seconds later. */
+    CamShot shot = { RBE_NEAR_X, RBE_NEAR_Y, RBE_NEAR_Z, RBE_CAM_ROT,
+                     aim_pitch(RBE_AIM_Y - RBE_NEAR_Y, RBE_AIM_Z - RBE_NEAR_Z) };
     glide_begin(&shot, RBE_T_CAM_IN);
+    pull_t = 0;
     enter_phase(RBE_CAM_IN);
 }
 
@@ -366,6 +487,13 @@ void rabisu_boss_update(void) {
 
     phase_t++;
 
+    /* The pull-back runs UNDER the three phases between the first light and
+       the first line, on its own clock. Ticking it here rather than inside
+       each case is what keeps it one continuous move instead of three that
+       have to be made to line up at the seams. */
+    if (state == RBE_LIGHTS_UP || state == RBE_RISE || state == RBE_LIGHTS_DOWN)
+        pull_step(++pull_t);
+
     switch (state) {
     case RBE_CAM_IN:
         glide_step(phase_t);
@@ -419,6 +547,12 @@ void rabisu_boss_update(void) {
         if (light_master < 0) light_master = 0;
         if (phase_t >= RBE_T_LIGHTS_DOWN) {
             light_master = 0;
+            /* The pull-back is over and the speech plays to a shot that does
+               not move. Snap to the constants rather than leaving whatever the
+               last interpolation landed on: aim_pitch resolves to a unit, and
+               the death sequence glides back to these exact numbers. */
+            cam_x = RBE_CAM_X; cam_y = RBE_CAM_Y; cam_z = RBE_CAM_Z;
+            cam_rot = RBE_CAM_ROT; cam_pitch = RBE_CAM_PITCH; cam_vy = 0;
             /* THE MUSIC STARTS HERE — not on entering the room, which is where
                it used to be (see the note in main.c's loading branch). The
                garden is silent from the cage door until the lights die. */

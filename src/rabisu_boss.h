@@ -17,13 +17,22 @@
  *
  * THE SHAPE OF IT
  *   The player walks in through the east cage door. The camera is taken away
- *   from them and cranes out over the middle of the garden. Two seconds of
- *   nothing. Then sixteen polys of lawn start to glow, two at a time over
- *   three seconds, pulsing white to orange to red. When the last pair lights,
- *   the boss comes up through the grass over five seconds. The lights die back
- *   over two. THEN the music starts, and two lines of scripture go by at six
- *   seconds each. The camera drops to the south wall, and the player has
- *   control back — standing where the camera left them, looking north at it.
+ *   from them and moves in CLOSE on the patch of lawn the thing is buried
+ *   under, at the height of somebody standing there. Two seconds of nothing.
+ *   Then sixteen polys of lawn start to glow, two at a time over three
+ *   seconds — and on the first pair the camera begins a ten-second pull back
+ *   and up, holding its aim on the same patch the whole way. When the last
+ *   pair lights, the boss comes up through the grass over five seconds. The
+ *   lights die back over two. The camera arrives at the wide crane shot
+ *   exactly as they die, and only then does the music start and two lines of
+ *   scripture go by at six seconds each. The camera drops to the south wall,
+ *   and the player has control back — standing where the camera left them,
+ *   looking north at it.
+ *
+ *   The pull-back is what makes the reveal a reveal: the shot opens too tight
+ *   to hold the thing that is coming, and gives the garden back one second at
+ *   a time as it climbs out. It is a single move under three phases, so the
+ *   camera never restates a beat the lights and the body are already playing.
  *
  *   The door does not work again until the fight is over (see
  *   rabisu_boss_seals_door). There is no save point in this room, so the
