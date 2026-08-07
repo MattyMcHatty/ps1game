@@ -403,6 +403,19 @@ void world_enter(GameState area) {
            (see mistake 2 in tools/ADDING_AN_ENEMY.txt). */
         if (area == STATE_GARDEN_COURTYARD) {
             rabisu_add(-290, 900, 0, STATE_GARDEN_COURTYARD);
+
+            /* Two small medipacs for the boss fight, one on the west perimeter
+               walk and one on the east, so whichever side the sweep drives the
+               player to there is a heal within reach.
+
+               Both sit on the RAISED WALK, not the lawn: x=-2229 is west of the
+               -1722 lip and x=1654 is east of the +1142 one, which puts them in
+               the y=800 zones (garden_courtyard_floor_zones_init). Hence 651,
+               not the 751 a lawn placement would take — y=800 floor minus the
+               149 body reference every other sml_med_spawn call passes, which
+               spawn then lowers 50 to float them just above the paving. */
+            sml_med_spawn(-2229, 651, 1442);
+            sml_med_spawn( 1654, 651, 1475);
         }
 
         r->visited = 1;

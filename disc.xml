@@ -143,7 +143,11 @@
                      to the root pushed SYSTEM.CNF past the 2048-byte first-sector
                      boundary and the console hung at the PlayStation logo. The
                      root list is full — see the comment above it. -->
-                <file name="RABISU.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Rabisu.smd"/>
+                <file name="RABISU.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Rabisu-tex.smd"/>
+                <!-- The boss's one skin. 128x128 8bpp at VRAM (704,256): Voff 0
+                     and page-aligned, so the courtyard's own 128x128 texture
+                     window applies to it unchanged and no bracket is needed. -->
+                <file name="RABISU.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\Rabisu tex.tim"/>
                 <!-- Idle animation: baked vertex positions, 19 frames.
                      Must be re-baked whenever the mesh topology changes -
                      see tools/ANIMATING_A_3D_MODEL.txt. -->

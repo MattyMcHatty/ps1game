@@ -13,6 +13,7 @@
 #include "particles.h"
 #include "sound.h"
 #include "title.h"          /* game_state */
+#include "texmgr.h"
 #include "rabisu.h"
 
 /* Rabisu — the first boss, and the first 3D-model enemy. See rabisu.h for the
@@ -29,6 +30,18 @@ int    rabisu_count = 0;
 
 static SMD  *rabisu_smd  = NULL;
 static void *rabisu_buff = NULL;
+
+/* The boss's one skin, via texmgr rather than a private RAM copy (the rule in
+   tools/ADDING_A_3D_ENEMY.txt STEP 3 for a textured model). Its VRAM slot at
+   (704,256) is the boss's alone — nothing else streams over it — so it is
+   uploaded ONCE at startup and stays resident, and no room needs a
+   rabisus_upload_textures() on its transition.
+
+   -1 until registered, which is also what a failed registration leaves behind
+   (texmgr's cap fails SILENTLY); the draw falls back to the flat-colour path
+   on that value rather than drawing the model in whatever art happens to sit
+   at tpage 0. */
+static int rabisu_tex = -1;
 
 /* Distance beyond which the whole model is skipped. Generous compared with the
    concrete props' 1500: this thing is 4.6 m tall and is the thing the player is
@@ -109,17 +122,21 @@ static void rabisus_load_anim(void) {
     rabisu_anim_count  = n_frames;
 }
 
-/* Startup: load the model and its idle clip. CD access is only safe before the
-   render loop begins (tools/TEXTURING_NOTES.txt) — the same rule the sprite
-   enemies' LoadImage obeys, and it binds here too even though there is no VRAM
-   upload: these are CD reads. There is no *_upload_textures() counterpart
-   because the mesh is untextured and owns no VRAM at all. */
+/* Startup: load the model, its skin and its idle clip. Both the CD reads and
+   the LoadImage are only safe before the render loop begins
+   (tools/TEXTURING_NOTES.txt), which is why all three happen here and nothing
+   the boss owns is touched on a room transition. */
 void rabisus_load_assets(void) {
     /* In TEX, not the disc root: the root directory records must all fit
        the first 2048-byte sector or the boot ROM cannot find SYSTEM.CNF
        and the console hangs at the logo. See the comment in disc.xml. */
     rabisu_buff = read_file("\\TEX\\RABISU.SMD;1");
     if (rabisu_buff) rabisu_smd = smdInitData(rabisu_buff);
+
+    /* Uploaded immediately and never again: the slot is not time-shared. */
+    rabisu_tex = texmgr_register("\\TEX\\RABISU.TIM;1");
+    if (rabisu_tex >= 0) texmgr_upload(rabisu_tex);
+
     rabisus_load_anim();
 }
 
@@ -167,9 +184,13 @@ static void rbs_reset_state(Rabisu *r) {
     r->health = RBS_MAX_HEALTH;
     r->active = 1;
     r->area   = area;
-    /* Facing +Z until the first update turns it toward the player. */
+    /* Looking down world +Z until the first update turns it toward the player.
+       The negation matches the one the steering applies, so this seed agrees
+       with every value that follows it — set it to +ONE and the boss spends
+       its first frame, and the whole of its dormant wait, pointing the way it
+       used to before the yaw was corrected. */
     r->face_s = 0;
-    r->face_c = ONE;
+    r->face_c = RBS_FACE_BACKWARD ? -ONE : ONE;
     /* Solid and unclipped. The zero-fill above would otherwise leave it fully
        burnt out AND cut off at world y=0 — invisible twice over from the moment
        it was placed. */
@@ -256,6 +277,7 @@ void rabisu_fight_begin(Rabisu *r) {
                       (int32_t)(rbs_rand() % (RBS_MOVES_MAX - RBS_MOVES_MIN + 1));
     /* First leg goes to one lip or the other — never "to the spawn", which is
        where it already is. */
+    r->sweep_from   = 0;   /* == r->sweep, set just above */
     r->sweep_target = (rbs_rand() & 1) ? 4096 : -4096;
 }
 
@@ -777,6 +799,26 @@ static void rbs_arc_point(const Rabisu *r, int32_t sweep,
 /* Pick the next stopping point. The three are the two lips and the spawn, and
    it must differ from where it is standing — "moves from 1 spot to the other"
    has no reading in which staying put counts as a move. */
+/* How far the body is currently dropped below its rest height, 0 at either end
+   of the traversal and RBS_SWOOP_DIP at the midpoint. See RBS_SWOOP_DIP in
+   rabisu.h for why it is a half sine and not a triangle.
+
+   isin's period is 4096, so mapping the traversal's 0..4096 progress onto
+   0..2048 — a plain >> 1 — walks exactly half a period: up from zero, over the
+   peak at the midpoint, back to zero on arrival. */
+static int32_t rbs_swoop_dip(const Rabisu *r) {
+    int32_t span = r->sweep_target - r->sweep_from;
+    if (span < 0) span = -span;
+    if (span == 0) return 0;          /* holding a stop, or centred */
+
+    int32_t done = r->sweep - r->sweep_from;
+    if (done < 0) done = -done;
+    if (done > span) done = span;     /* the last step lands ON the target */
+
+    int32_t t = (done << 12) / span;  /* 0..4096 through the traversal */
+    return (RBS_SWOOP_DIP * isin(t >> 1)) >> 12;
+}
+
 static void rbs_pick_target(Rabisu *r) {
     static const int32_t STOP[3] = { -4096, 0, 4096 };
     int32_t opts[2];
@@ -786,6 +828,11 @@ static void rbs_pick_target(Rabisu *r) {
     /* Always exactly two: it is standing on one of the three. The n < 2 guard
        is only there so a restored save that somehow held a fourth value could
        not walk off the end of opts[]. */
+    r->sweep_from   = r->sweep;   /* where this traversal starts — the swoop's
+                                     other end. Set BEFORE the new target, and
+                                     from the live sweep rather than the old
+                                     target, so a leg interrupted part-way still
+                                     dips about its own true midpoint. */
     r->sweep_target = opts[rbs_rand() & 1];
 }
 
@@ -806,6 +853,12 @@ static void rbs_begin_centre(Rabisu *r) {
     r->lean         = 0;
     r->slash_from_x = r->x;
     r->slash_from_z = r->z;
+    /* Y as well, and it is NOT redundant now the sweep swoops: this can fire
+       on any frame of a traversal, including the deepest one, so the boss may
+       be up to RBS_SWOOP_DIP below its rest height when it is told to centre.
+       Without this the CENTRE ease would slide it home at whatever height the
+       dive had reached and leave it there for the whole shockwave. */
+    r->slash_from_y = r->y;
 }
 
 /* The stop is over: throw something. Fireball 2, foot slash 1, light beam 1. */
@@ -1020,6 +1073,13 @@ static void rbs_update_ai(Rabisu *r, int self) {
             if (r->sweep < r->sweep_target) r->sweep = r->sweep_target;
         }
         rbs_arc_point(r, r->sweep, &r->x, &r->z);
+        /* ...and the dive. Written from spawn_y every frame rather than
+           accumulated, so the height cannot drift over a long fight, and
+           whatever owned r->y before this state (the reveal's rise, the foot
+           slash's return leg) is cleanly taken back over. It reaches 0 again on
+           arrival, so every state that follows this one still starts at rest
+           height without having to reset anything. */
+        r->y = r->spawn_y + rbs_swoop_dip(r);
 
         /* The player walked into the middle: abandon the sweep. Checked here
            and in RBS_AI_PAUSE only, so a fireball or a charge already underway
@@ -1055,12 +1115,18 @@ static void rbs_update_ai(Rabisu *r, int self) {
         int32_t e = 256 - (inv * inv / 256);          /* ease-out */
         r->x = r->slash_from_x + ((r->spawn_x - r->slash_from_x) * e) / 256;
         r->z = r->slash_from_z + ((r->spawn_z - r->slash_from_z) * e) / 256;
+        /* Climbing out of the dive on the same ease, so it rises as it draws
+           in rather than snapping level at the far end. */
+        r->y = r->slash_from_y + ((r->spawn_y - r->slash_from_y) * e) / 256;
         if (r->ai_timer >= RBS_SHOCK_CENTRE_F) {
             r->x = r->spawn_x;
             r->z = r->spawn_z;
+            r->y = r->spawn_y;
             r->sweep        = 0;   /* the middle IS sweep 0, so the sweep can
                                       pick up cleanly if the player backs off */
             r->sweep_target = 0;
+            r->sweep_from   = 0;   /* zero-span leg: the swoop sits at rest
+                                      height while it holds the middle */
             r->ai_state     = RBS_AI_SHOCK;
             r->shock_timer  = RBS_SHOCK_PERIOD;
         }
@@ -1361,10 +1427,27 @@ static void draw_rbs_bar(RenderContext *ctx, const Rabisu *r) {
     }
 }
 
-/* Walk one boss's SMD prim stream. The model is untextured — every prim is a
-   flat quad, 20 bytes, with its baked RGB at offset 16 — so this is the plain
-   POLY_F4 path only, no tex map, no tpage/clut and no texture window to
-   bracket. The GTE matrix is already the composed model-view when this runs. */
+/* The body colour the model was drawn in before it had a skin. Still load-
+   bearing in two places: the death BURN (see below, where a textured poly
+   cannot fade) and the fallback if the skin failed to register. Keep it in
+   step with nothing — the .smd's own baked RGB is now a neutral 128,128,128
+   modulation value and no longer carries the boss's colour. */
+#define RBS_BODY_R   33
+#define RBS_BODY_G   18
+#define RBS_BODY_B  204
+
+/* Walk one boss's SMD prim stream. Every prim is a TEXTURED quad: 32 bytes,
+   with the neutral modulation RGB still at offset 16 and the four UV pairs at
+   offset 20. One texture for the whole model, so there is no <slug>_tex_map.h
+   — the slot is the same for every poly and comes from texmgr.
+
+   NO TEXTURE WINDOW BRACKET. The skin sits at VRAM (704,256): page-aligned in
+   X and Voff 0, so the 128x128 window the Garden Courtyard sorts for its own
+   art wraps this model's UVs (all inside 0..127 already) onto itself. That is
+   a property of where the TIM was placed, not luck — moving it off a 64-word
+   boundary or onto Voff 128 would need the zombie-style bracket instead.
+
+   The GTE matrix is already the composed model-view when this runs. */
 static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     uint8_t *p = (uint8_t *)rabisu_smd->p_prims;
@@ -1380,9 +1463,25 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
        and it burns out rather than dissolving.
        Additive needs a DR_TPAGE in FRONT of each poly in OT order, and the OT
        is LIFO, so the tpage is added to the same bucket immediately AFTER its
-       poly. Costs 8 extra bytes per poly, and only while fading. */
+       poly. Costs 8 extra bytes per poly, and only while fading.
+
+       >>> AND IT IS WHY THE BURN DROPS BACK TO FLAT, UNTEXTURED POLYS. <<< On a
+       TEXTURED poly the PS1 does not take semi-transparency from the primitive
+       at all: it takes it per TEXEL, from each colour's STP bit, and a TIM
+       converted from an opaque PNG has that bit clear everywhere. setSemiTrans
+       on a POLY_FT4 would therefore do exactly nothing — the boss would stand
+       there fully lit through the whole six-second burn and then vanish in one
+       frame. So the fading body is drawn as the flat silhouette it used to be,
+       in RBS_BODY_*: by that point it is a lit-from-within glow rather than a
+       creature, and its own skin has nothing left to say. */
     int      burning = (r->fade < 256);
     int32_t  fade    = r->fade < 0 ? 0 : r->fade;
+
+    /* Textured for every ordinary frame; flat while burning, and flat if the
+       skin never registered (texmgr fails silently past its cap). */
+    int       textured = (rabisu_tex >= 0) && !burning;
+    uint16_t  tex_tpage = textured ? texmgr_tpage(rabisu_tex) : 0;
+    uint16_t  tex_clut  = textured ? texmgr_clut(rabisu_tex)  : 0;
 
     /* The rise-through-the-lawn cut, expressed in MODEL space so the test is
        one comparison per vertex rather than a transform. The draw translates
@@ -1483,8 +1582,16 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
         otz += 40;
         if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
 
+        /* Textured: the .smd's baked 128,128,128 is the neutral modulation
+           value, so the fog and hit maths below shade the SKIN by exactly the
+           factors they used to apply to the flat colour — and by exactly the
+           blend the room's own textured mesh uses, so the boss fogs into the
+           garden rather than alongside it. Flat: the old body colour, which
+           the .smd no longer carries. */
         uint8_t *col = p + 16;
-        int32_t cr = col[0], cg = col[1], cb = col[2];
+        int32_t cr, cg, cb;
+        if (textured) { cr = col[0]; cg = col[1]; cb = col[2]; }
+        else          { cr = RBS_BODY_R; cg = RBS_BODY_G; cb = RBS_BODY_B; }
         if (hit) { cr = 255; cg = cg >> 2; cb = cb >> 2; }
         int32_t sr = (cr * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8;
         int32_t sg = (cg * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8;
@@ -1492,12 +1599,49 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
         if (burning) { sr = (sr * fade) >> 8; sg = (sg * fade) >> 8; sb = (sb * fade) >> 8; }
         uint8_t rr = (uint8_t)sr, gg = (uint8_t)sg, bb = (uint8_t)sb;
 
-        int32_t   need = (is_quad ? (int32_t)sizeof(POLY_F4) : (int32_t)sizeof(POLY_F3)) +
-                         (burning ? (int32_t)sizeof(DR_TPAGE) : 0);
+        int32_t   need;
+        if (textured) need = is_quad ? (int32_t)sizeof(POLY_FT4) : (int32_t)sizeof(POLY_FT3);
+        else          need = (is_quad ? (int32_t)sizeof(POLY_F4) : (int32_t)sizeof(POLY_F3)) +
+                             (burning ? (int32_t)sizeof(DR_TPAGE) : 0);
         uint32_t *ot   = ctx->buffers[ctx->active_buffer].ot;
         if (ctx->next_packet + need > buf_end) { p += stride; continue; }
 
-        if (is_quad) {
+        /* UVs live at offset 20 of a textured prim, two bytes per corner, in
+           the same corner order as the vertex indices. No DR_TPAGE of its own:
+           a POLY_FT* carries its page and CLUT in the primitive. */
+        uint8_t *uv = p + 20;
+
+        if (textured && is_quad) {
+            POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
+            setPolyFT4(poly);
+            setRGB0(poly, rr, gg, bb);
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
+            poly->u0 = uv[0]; poly->v0 = uv[1];
+            poly->u1 = uv[2]; poly->v1 = uv[3];
+            poly->u2 = uv[4]; poly->v2 = uv[5];
+            poly->u3 = uv[6]; poly->v3 = uv[7];
+            poly->tpage = tex_tpage;
+            poly->clut  = tex_clut;
+            addPrim(&ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_FT4);
+        } else if (textured) {
+            POLY_FT3 *poly = (POLY_FT3 *)ctx->next_packet;
+            setPolyFT3(poly);
+            setRGB0(poly, rr, gg, bb);
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            poly->u0 = uv[0]; poly->v0 = uv[1];
+            poly->u1 = uv[2]; poly->v1 = uv[3];
+            poly->u2 = uv[4]; poly->v2 = uv[5];
+            poly->tpage = tex_tpage;
+            poly->clut  = tex_clut;
+            addPrim(&ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_FT3);
+        } else if (is_quad) {
             POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
             setPolyF4(poly);
             setRGB0(poly, rr, gg, bb);

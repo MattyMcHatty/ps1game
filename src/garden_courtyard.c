@@ -506,10 +506,11 @@ void garden_courtyard_draw(RenderContext *ctx) {
     draw_garden_courtyard_smd(ctx);
 
     /* The Rabisu (this room's boss) is the only enemy placed here, and it is a
-       MODEL — untextured, so it owns no VRAM and needs no window bracket. The
-       room's 128 window is still handed to the sprite renderers so a future
-       SPRITE spawn brackets its Voff>=128 quad correctly (see
-       tools/TEXTURING_NOTES.txt PART 5). */
+       MODEL. Its skin sits at VRAM (704,256) — page-aligned, Voff 0 — so the
+       128 window sorted above serves it exactly as it serves this room's own
+       art, and it needs no bracket of its own. The window is still handed to
+       the sprite renderers so a future SPRITE spawn brackets its Voff>=128
+       quad correctly (see tools/TEXTURING_NOTES.txt PART 5). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);

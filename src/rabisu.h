@@ -16,15 +16,20 @@
  * it is the companion runbook to tools/ADDING_AN_ENEMY.txt and records what a
  * model enemy does differently from a sprite one. The short version:
  *
- *   - Its art is assets/bosses/Rabisu.smx -> RABISU.SMD, loaded once at
+ *   - Its art is assets/bosses/Rabisu-tex.smx -> RABISU.SMD, loaded once at
  *     startup and drawn by walking the SMD prim stream, exactly the way the
  *     rooms and the concrete props do (src/concrete_props.c is the closest
  *     reference — a rotatable SMD prop).
- *   - It owns NO VRAM. The mesh is untextured: every one of its 476 quads is
- *     flat-shaded in one colour baked into the SMD, so there is no TIM, no
- *     CLUT line, no VRAM slot and no texture window to bracket. That is the
- *     single biggest difference from a sprite enemy, and it is why STEP 3 of
- *     ADDING_AN_ENEMY.txt does not apply.
+ *   - It is TEXTURED, by one skin over all 476 quads: textures/Rabisu tex.tim
+ *     -> RABISU.TIM, 128x128 8bpp at VRAM (704,256), CLUT (672,488). The slot
+ *     is the boss's alone, so it is registered AND uploaded once at startup
+ *     and no room re-uploads it. Page-aligned and Voff 0, which is what lets
+ *     the Garden Courtyard's own 128x128 texture window apply to it unchanged
+ *     — there is no bracket here, by construction rather than by luck.
+ *     It began life untextured, and one trace of that remains on purpose: the
+ *     death fade cannot be done on a textured poly (semi-transparency is a
+ *     per-TEXEL STP bit there, and the skin has none), so the burn drops back
+ *     to flat quads in RBS_BODY_R/G/B, the colour the whole model used to be.
  *   - Being a solid model it is backface-culled per poly (the SMD's nocull bit
  *     is clear), so roughly half its quads reach the GPU on any frame.
  *   - It turns to face the player. There is no billboard flip; the model is
@@ -150,11 +155,23 @@
 /* How far the underside hovers above the floor it is placed over. 1 m. */
 #define RBS_HOVER            100
 
-/* Which way the model faces in its own space. The upper body spreads along X
-   (the wings) and the low tail trails off toward -Z, so +Z is read as forward.
-   If the boss turns out to face away from the player in-game, flip this to 1
-   and nothing else changes. */
-#define RBS_FACE_BACKWARD      0
+/* Which way the model faces in its own space, i.e. whether the facing vector
+   needs negating (a 180-degree yaw) before it becomes the draw's rotation.
+
+   FORWARD IS -Z. This was originally read off the silhouette as +Z — the upper
+   body spreads along X (the wings) and the low tail trails toward -Z, which
+   argued for the tail being behind it — and that guess was wrong. On an
+   untextured model the error is close to invisible: the boss is a symmetrical
+   blue silhouette with its wings out, and it turns to track the player either
+   way. It only became obvious once the skin went on and the face was somewhere
+   a face could be seen. The anchors below had it right the whole time (the
+   chest is at -Z, "on the front face"), which is the corroboration.
+
+   >>> IF YOU FLIP THIS, FLIP RBS_LEAN_BACKWARD TOO. <<< The slash's lean is
+   applied INSIDE the yaw, about the model's local X axis, so a 180-degree yaw
+   reverses the world direction it tips in. The two constants are only
+   independent on paper; on screen they move together. */
+#define RBS_FACE_BACKWARD      1
 
 /* --- Named points ON the model, in MESH-LOCAL space ------------------------
    Read off the idle clip's frame 0 (the pose the death sequence freezes on, so
@@ -210,6 +227,33 @@
    halts mid-travel, so a stopped Rabisu is always somewhere the player has
    already seen it stop. */
 #define RBS_SWEEP_FRAMES       60   /* 1 s from the spawn out to either lip     */
+
+/* THE SWOOP. A traversal is already a curve in XZ — rbs_arc_point walks a
+   circle centred on the player — but the boss held one height the whole way
+   across, and a thing with wings tracking a flat line reads as a thing on
+   rails. So it now dives: the underside drops toward the lawn on the way out
+   of one stopping point and climbs back for the next, deepest exactly halfway
+   between the two.
+
+   The depth is a HALF SINE over the traversal, which is what puts the extremes
+   in the right places — zero slope at both ends, so it leaves and arrives level
+   rather than with a kink, and flat through the bottom so the low pass reads as
+   a skim rather than a bounce. A triangle or a parabola in `sweep` would hit
+   the same depth and look cheaper.
+
+   80 against RBS_HOVER's 100 leaves the underside 20 units off the grass at the
+   bottom — close enough to threaten, and short of the clipping that any value
+   >= 100 would produce. The arc never leaves the sunken lawn (RBS_ARENA_* are
+   the lawn's own bounds), so the floor under it is y=900 for the whole
+   traversal and one constant is enough; give the boss an arena that spans two
+   floor heights and this owes rbs_floor_y_at() a lookup instead.
+
+   It is applied to r->y, the anchor, and NOT to the draw — so the hit box, the
+   collision cylinder and the health bar all dive with the body, because every
+   one of them is derived from the anchor (see mistake 2 in
+   tools/ADDING_A_3D_ENEMY.txt). Duck under a swooping boss and it should be
+   able to hit you. */
+#define RBS_SWOOP_DIP          80
 #define RBS_STOP_PAUSE         90   /* 1.5 s held still, then an attack         */
 #define RBS_MOVES_MIN           3   /* traversals between attacks, inclusive    */
 #define RBS_MOVES_MAX           8
@@ -272,10 +316,15 @@
 #define RBS_SLASH_RISE_TO      60
 #define RBS_SLASH_KNOCKBACK    70
 #define RBS_SLASH_LEAN        780   /* 4096ths of a turn: ~69deg back at impact */
-/* Sign of the lean rotation. The model faces +Z, so leaning BACK means the
-   crown tips toward -Z. If it ends up folding face-first into the ground
-   instead, flip this to 1 and nothing else changes. */
-#define RBS_LEAN_BACKWARD       0
+/* Sign of the lean rotation. The model faces -Z (see RBS_FACE_BACKWARD), so
+   leaning BACK means the crown tips toward +Z.
+
+   This was 0 while the yaw was 180 degrees out, and it was tuned to LOOK right
+   in that state. Correcting the yaw reverses the world direction the lean tips
+   in — it is composed inside the yaw, about the model's local X axis — so this
+   flipped with it to keep the same motion on screen. If the slash ever folds
+   the boss face-first into the ground, this is the constant to put back. */
+#define RBS_LEAN_BACKWARD       1
 
 /* Sentinel for Rabisu.clip_y: no vertical clipping. Far below any world Y the
    game uses, so the "is this poly under the cut" test is simply always false. */
@@ -377,6 +426,12 @@ typedef struct {
     int32_t   ai_timer;          /* frames left / elapsed in the current state  */
     int32_t   sweep;             /* -4096..+4096 along the arc                  */
     int32_t   sweep_target;      /* the stopping point being travelled to       */
+    /* The stopping point the current traversal LEFT. Only the swoop needs it:
+       the dip is deepest at the midpoint, and a midpoint needs both ends —
+       |sweep| alone cannot tell 0 -> +4096 (midpoint 2048) from
+       -4096 -> +4096 (midpoint 0). Always equals the previous sweep_target,
+       but storing it beats re-deriving it from a history nobody keeps. */
+    int32_t   sweep_from;
     int32_t   moves_done;        /* traversals completed since the last attack  */
     int32_t   moves_target;      /* how many to do before stopping (3..8)       */
     /* The spot a foot slash launched from, so the return leg has somewhere to

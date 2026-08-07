@@ -111,31 +111,77 @@ vertices contiguously; read the offset.
 
 
 ##########################################################################
- STEP 3 — TEXTURES: USUALLY THERE ARE NONE
+ STEP 3 — TEXTURES
 ##########################################################################
->>> AN UNTEXTURED MODEL OWNS NO VRAM. SKIP STEP 3 OF ADDING_AN_ENEMY.TXT. <<<
+An enemy model may ship untextured or textured, and the two cost wildly
+different amounts. The Rabisu was BOTH: it shipped as 476 flat quads in one
+baked colour (33,18,204), and was skinned later. Both paths are recorded here
+because the untextured one is still the cheap default for a new enemy.
+
+UNTEXTURED — THE MODEL OWNS NO VRAM. SKIP STEP 3 OF ADDING_AN_ENEMY.TXT.
 No TIM, no CLUT line, no VRAM slot, no VRAM_MAP regeneration, no texture
-window to bracket, and no *_upload_textures() on the room transition. The
-Rabisu's 476 quads are all one flat colour (33,18,204) baked into the SMD by
-the exporter, and it reads as a solid silhouette.
+window to bracket, and no *_upload_textures() on the room transition. It reads
+as a solid silhouette, which for a thing seen through 3500 units of fog is
+often enough.
 
 That also removes the single biggest hazard of a sprite enemy: there is no
 Voff >= 128 sprite to wrap, so add_ft4_windowed() and <slug>s_set_texwindow()
-have no counterpart here. A room that draws ONLY a model enemy still hands its
+have no counterpart. A room that draws ONLY a model enemy still hands its
 window to the sprite renderers, for the sprites' sake — say so in the comment
 so it does not read as a leftover.
 
-IF THE MODEL IS TEXTURED, it costs VRAM like any room art and STEP 3 of
-ADDING_AN_ENEMY.txt applies in full, with two changes:
+TEXTURED — it costs VRAM like any room art and STEP 3 of ADDING_AN_ENEMY.txt
+applies in full, with these changes:
   - register through texmgr (texmgr_register / texmgr_upload), as
     concrete_props.c does, NOT a private RAM copy. texmgr has a hard
-    TEXMGR_MAX and a registration past it fails SILENTLY.
-  - the per-poly UVs come from the SMD at offset 20; you do NOT write a
-    <slug>_tex_map.h unless the model uses more than one texture.
+    TEXMGR_MAX and a registration past it fails SILENTLY — so hold the id in
+    a variable that starts at -1 and branch the DRAW on it, or a failed
+    registration draws the model in whatever art sits at tpage 0.
+  - the per-poly UVs come from the SMD at offset 20 and the prim's own
+    tpage/clut at 28/30; you do NOT write a <slug>_tex_map.h unless the model
+    uses more than one texture. Prefer the texmgr values over the baked ones
+    so moving the TIM does not require relinking the .smd.
+  - the stride grows (20 -> 32 for a quad) and pt->len already carries it, so
+    the prim walk needs no change. RE-RUN THE STEP 2 PRIM-STREAM CHECK anyway:
+    the `tex` bit flipping 0 -> 1 is the confirmation that -tp actually
+    resolved the texture rather than silently emitting a flat model.
+
+  >>> PLACE THE TIM PAGE-ALIGNED AND AT Voff 0, AND YOU NEED NO BRACKET. <<<
+  A room with a 128x128 texture window (most of them) wraps U and V mod 128
+  within the page. A model texture at a 64-word-aligned X and VRAM y 0 or 256
+  is then wrapped onto ITSELF and the room's own window just works. Off either
+  boundary and every UV samples someone else's art, and you owe the model a
+  zombie-style window bracket. The Rabisu's skin is 128x128 8bpp at (704,256)
+  for exactly this reason.
+
+  Two traps when picking that slot, both of which bit during this work:
+    - THE EXPORTER BAKES THE PAGE OFFSET INTO THE UVs. Placing the TIM at a
+      non-64-aligned X (736) made smxlink emit u=151 where the .smx said 23 —
+      the 128-texel offset into the page. It looks like a UV bug and is not.
+      Fix the SLOT, then re-run smxlink; the UVs should match the .smx exactly.
+    - THE CLUT BAND IS NOT ALL FREE. Some textures sit at y 448 with height 64
+      and so intrude into y>=480 (ddog_alert at x[640,672)). Do not reason
+      about the band by hand — place the TIM, regenerate tools/VRAM_MAP.txt,
+      and read its CLUT OVERLAP CHECK, which catches exactly this.
+
+  A FADE-OUT CANNOT BE DONE ON A TEXTURED POLY. The PS1 takes semi-transparency
+  for a POLY_FT* per TEXEL, from each CLUT colour's STP bit, not from the
+  primitive — so setSemiTrans on a skin converted from an opaque PNG does
+  NOTHING. If the enemy has a death fade, drop it back to flat POLY_F* for
+  those frames and keep the old body colour in a constant for the purpose
+  (RBS_BODY_R/G/B). The .smd's baked RGB is a neutral 128,128,128 modulation
+  value once the model is textured and no longer carries the body colour.
+
+  Fog and hit-flash need no change at all: they modulate the same RGB, and 128
+  is neutral, so the factors that shaded the flat colour now shade the skin —
+  and by the same blend the room's own textured mesh uses, so the enemy fogs
+  INTO the room rather than alongside it.
 
 Either way the enemy still needs a CD READ, and the startup-only rule binds for
 that just as hard as it does for LoadImage: call <slug>s_load_assets() from
-main() before the render loop, never on a transition.
+main() before the render loop, never on a transition. If the model's VRAM slot
+is its alone (not time-shared), upload it there too and it never needs
+re-uploading — there is no <slug>s_upload_textures() in the Rabisu's case.
 
 
 ##########################################################################
@@ -170,14 +216,42 @@ COORDINATE CONVENTIONS are unchanged from ADDING_AN_ENEMY.txt STEP 2, and the
 GROUND_FLOOR_Y trap is the same trap: it converts a floor SURFACE into a
 STANDING anchor. It has no business in a hover height or a ceiling.
 
-FACING. Nothing in the .smx says which way the model looks. Read it off the
-silhouette by histogramming the vertices in height bands:
+FACING. Nothing in the .smx says which way the model looks. The instinct is to
+read it off the silhouette by histogramming the vertices in height bands:
 
   the Rabisu's upper body spreads +/-168 along X (wings) and its low tail
   trails to z=-189, so +Z is forward.
 
+>>> THAT REASONING WAS RUN ON THE RABISU AND IT GOT THE ANSWER BACKWARDS. <<<
+The tail argued for +Z; the model faces -Z. A trailing low mass is not reliably
+BEHIND a creature — on this one it is a hanging tail, in front of and below the
+body — and the wings are symmetrical, so they cast no vote at all. Worse, the
+error survived every check in STEP 10: an untextured model is a symmetrical
+silhouette that turns to track the player whichever way round it is, so it
+looks correct from every angle. It was invisible until the model was SKINNED,
+months later, and a face appeared on the wrong side.
+
+So histogram the silhouette if you like, but CORROBORATE it against something
+that knows where the front is:
+  - THE UV LAYOUT, if the model is textured. This is the real answer: find the
+    polys the face/eyes are mapped to and read their vertices' sign in Z.
+  - THE NAMED ANCHOR POINTS you are about to write anyway (the chest, the
+    mouth). If you find yourself writing "chest: on the front (-Z) face" under
+    a constant that declares +Z forward, believe the anchor. That exact
+    contradiction sat in rabisu.h from the day both were written.
+  - Failing both, ASK. It is one question and the user can see the model.
+
 Then make the guess CHEAP TO FLIP — one constant (RBS_FACE_BACKWARD) that
-negates the facing vector, and nothing else changes.
+negates the facing vector. But note what "cheap" does NOT cover: ANY OTHER
+ROTATION COMPOSED INSIDE THE YAW moves with it. The Rabisu's slash lean is
+built about the model's LOCAL X axis, so correcting the yaw by 180 degrees
+reversed the world direction it tipped in, and RBS_LEAN_BACKWARD had to flip
+in the same commit to keep the animation looking the way it was tuned to look.
+Local-space ANCHOR points need no such fix — they ride the same matrix and end
+up where they were always meant to be, which for the chest glow means the flip
+FIXED it. Seed the entity's default facing through the constant too
+(`face_c = RBS_FACE_BACKWARD ? -ONE : ONE`), or the frames before the first
+steering update disagree with every frame after it.
 
 
 ##########################################################################
@@ -430,7 +504,12 @@ Code-level, before handing over:
 In-game (needs an emulator; say so plainly if you have not run it):
   [ ] It is at the intended spot and the intended height off the floor.
   [ ] It faces the player from every angle — walk a full circle around it. If
-      it faces AWAY, flip the one facing constant.
+      it faces AWAY, flip the one facing constant (and see STEP 4 for what else
+      flips with it).
+      >>> THIS CHECK CANNOT SEE A 180-DEGREE ERROR ON AN UNTEXTURED MODEL. <<<
+      It turns to track you either way, so it passes while being exactly wrong,
+      and it passed on the Rabisu for months. Until there is a skin on it, take
+      the facing from STEP 4's corroboration, not from this walk.
   [ ] The model does not flicker, invert or lose faces as the camera moves
       (a backface-cull or winding problem). Check this statically FIRST, per
       shell, before ever launching:  py tools/check_model_winding.py <the .smd>
@@ -475,7 +554,9 @@ In-game (needs an emulator; say so plainly if you have not run it):
 
 7. TREATING AN UNTEXTURED MODEL AS IF IT NEEDED VRAM. No TIM, no CLUT, no slot,
    no texture window. The whole of STEP 3 of ADDING_AN_ENEMY.txt evaporates —
-   but the CD read still has to happen at STARTUP.
+   but the CD read still has to happen at STARTUP. And the converse, when you
+   later skin it: a TEXTURED model on a non-page-aligned or Voff>=128 slot
+   samples someone else's art in every windowed room. See STEP 3.
 
 8. FOGGING PER POLY. Once per model. 476 divides a frame is a real cost and the
    gradient across one body is invisible.
