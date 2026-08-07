@@ -81,6 +81,42 @@ an intermediate.
 
 
 ##########################################################################
+ STEP 1B — LEVEL. THERE IS NO VOLUME KNOB AT RUNTIME.
+##########################################################################
+>>> A CLIP'S LOUDNESS IS BAKED INTO ITS SAMPLE AND NOWHERE ELSE. <<<
+
+sound_play() sets SPU_CH_VOL_L/R to 0x3fff, which is the MAXIMUM in volume
+mode — the register's value is doubled internally, so 0x3fff is 100% and
+there is no value above it. Nothing sets the common master volume away from
+SpuInit's max either. There is therefore no per-effect, per-room or per-
+moment volume in this engine, and "make X louder" always means "re-gain the
+wav and re-convert". Do not go looking for a mixer; there isn't one.
+
+    py gain_wav.py mysound.wav --gain 1.5    # +50%
+    py wav_to_vag.py mysound.wav --rate 11025
+
+gain_wav.py rewrites the wav IN PLACE (git holds the previous level) and
+soft-limits rather than clipping: samples under --knee get the full gain,
+above it the curve asymptotes to full scale. It prints the RMS delta, which
+is the gain the clip ACTUALLY received — ask for 1.5x on something already
+slammed to 0 dBFS and you will get 1.3x, because that is all the peaks left
+room for. That number is the honest one; no tool does better.
+
+Length and rate are untouched, so the VAG is byte-identical in size and the
+STEP 3 budget does not move.
+
+TRAP: a shared clip is shared. HURT, AXEHIT, SWING, DIE, SLAM, the gun and
+the footsteps all play in the boss fight AND everywhere else, so re-gaining
+one for one fight re-gains it for the whole game. The five clips that are
+genuinely boss-only are FIREBALL, BOOM, EXPLODE, EMERGE and DMNSPEAK; those
+were the five taken up 50% in August 2026.
+
+TRAP: EXPLODE's length is load-bearing. RBE_T_D_BURN + RBE_T_D_FADE in
+rabisu_boss.c is cut to exactly its 322 frames. Re-gaining does not change
+that; TRIMMING would, and silently.
+
+
+##########################################################################
  STEP 2 — PUT IT ON THE DISC
 ##########################################################################
 disc.xml, inside <dir name="SND">. The disc name is 8.3 UPPERCASE and does
