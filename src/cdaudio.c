@@ -34,20 +34,36 @@
 
 /* Per-track mix level, applied by cdaudio_play().
  * ------------------------------------------------
- * The SPU's CD volume register is LINEAR amplitude, so CD_VOL_BOSS is a true
- * fifth of full scale (-14 dB) and not a perceptual one.
+ * CD audio passes through TWO independent volume stages on the way out, and
+ * this matters because attenuating both multiplies them together:
+ *
+ *   1. the CD-ROM CONTROLLER's mixing matrix (CdMix / CdlATV), 0-255 with 128
+ *      meaning 100%. This is the drive's own output level, applied before the
+ *      audio ever reaches the SPU.
+ *   2. the SPU's CD input volume (SpuSetCommonCDVolume), 0-0x7FFF.
+ *
+ * >>> THE ATTENUATION IS AT STAGE 1, AND STAGE 2 STAYS AT FULL. <<<
+ * Setting the SPU register alone was tried first and changed nothing audible,
+ * so that stage is not the one governing playback here — which is consistent
+ * with the CD-DA routing note in cdaudio_init() below: the SPU's CD path can
+ * be bypassed, and where it is, its volume register goes with it. The drive's
+ * mixer is upstream of all of that. Both stages exist on real hardware, and
+ * 20% at either one is 20% out, so attenuating the reliable one is not a
+ * workaround — it is just the stage that is always in circuit.
+ *
+ * Do NOT also drop CD_VOL_FULL to "help": 20% x 20% is 4%.
  *
  * The Garden Courtyard's track is the only one that plays over a fight rather
  * than over exploration, and at full level it buries the Rabisu's own sounds —
  * the light-beam detonations and the foot-slash wind-up especially, which the
- * player has to hear to time a parry off. Half was still too loud for that;
- * 20% is where the effects sit clearly on top. Everything else stays at full.
+ * player has to hear to time a parry off.
  *
  * This lives in cdaudio_play() rather than at the call site in rabisu_boss.c so
  * no caller has to remember to put the level back: every room starts its music
  * through here, so the next cdaudio_play always re-asserts the right level. */
-#define CD_VOL_FULL    0x7FFF
-#define CD_VOL_BOSS    0x1999   /* 20% of CD_VOL_FULL */
+#define CD_VOL_FULL    0x7FFF   /* SPU CD input: always full, see above  */
+#define CD_MIX_FULL       128   /* drive mixer: 128 == 100%              */
+#define CD_MIX_BOSS        26   /* 20% of CD_MIX_FULL                    */
 
 static int           cd_audio_playing = 0;
 static int           cd_track_num     = 0;
@@ -168,9 +184,10 @@ static void issue_play(void) {
 }
 
 void cdaudio_init(void) {
-    /* Route CD audio into the SPU mixer at full volume. This is only the
-       STARTING level — cdaudio_play() re-asserts a per-track one (see
-       CD_VOL_FULL/CD_VOL_HALF above) every time music starts... */
+    /* Route CD audio into the SPU mixer at full volume, and leave it there for
+       good: per-track levels are set on the DRIVE's mixer by cdaudio_play(),
+       one stage upstream of this one. See the CD_MIX_* note above for why the
+       attenuation is not done here... */
     SpuSetCommonCDVolume(CD_VOL_FULL, CD_VOL_FULL);
     /* ...and CRITICALLY, set bit 0 of SPUCNT (CD Audio Enable). Without this
        bit, accurate emulators (DuckStation) and real hardware will NOT mix CD
@@ -201,11 +218,18 @@ void cdaudio_play(int track, int loop) {
     /* Set the mix level for THIS track before it starts. Re-asserted on every
        play, which is what makes it self-correcting: leaving the courtyard for
        any room restores full volume without that room knowing anything about
-       it. issue_play() on a loop restart does not touch the register, so the
-       level survives the track looping. */
+       it. issue_play() on a loop restart does not re-issue this, so the level
+       survives the track looping.
+
+       The matrix is L-to-L and R-to-R only ({ v, 0, v, 0 }) — the SDK's stated
+       default routing, with just the level changed. The cross terms are what
+       downmix to mono, and setting them would collapse the stereo image as a
+       side effect of turning the music down. */
     {
-        int vol = (track == CDAUDIO_COURTYARD_TRACK) ? CD_VOL_BOSS : CD_VOL_FULL;
-        SpuSetCommonCDVolume(vol, vol);
+        uint8_t v = (track == CDAUDIO_COURTYARD_TRACK) ? CD_MIX_BOSS
+                                                       : CD_MIX_FULL;
+        CdlATV mix = { v, 0, v, 0 };
+        CdMix(&mix);
     }
 
     cd_audio_playing = 1;
