@@ -119,6 +119,17 @@
                 <file name="SPIT.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\spit.vag"/>
                 <file name="SLAM.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\slam.vag"/>
                 <file name="MCHNE.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\mchne.vag"/>
+                <!-- The Rabisu. FIREBALL/BOOM/EXPLODE are resident in SPU RAM
+                     like everything above; EMERGE and DMNSPEK are the BOSS
+                     sound bank, re-read off the disc every time the player
+                     walks through the Garden Courtyard's cage door because
+                     121 KB of SPU RAM does not exist to hold them permanently.
+                     See src/sound.h and tools/ADDING_A_SOUND.txt. -->
+                <file name="FIREBALL.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\fireball.vag"/>
+                <file name="BOOM.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\boom.vag"/>
+                <file name="EXPLODE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\explode.vag"/>
+                <file name="EMERGE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\emerge.vag"/>
+                <file name="DMNSPEK.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dmnspeak.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

@@ -8,6 +8,7 @@
 #include "camera.h"
 #include "collision.h"     /* GROUND_FLOOR_Y */
 #include "cdaudio.h"
+#include "sound.h"         /* SFX_EMERGE / SFX_DMNSPEAK — the BOSS sound bank */
 #include "btn_glyph.h"     /* btn_prompt_draw — screen-space text */
 #include "garden_courtyard.h"
 #include "rabisu.h"
@@ -242,6 +243,11 @@ void rabisu_boss_reset(void) {
     boss_idx     = -1;
     camera_release_player();
     cam_pitch = 0;
+    /* Both are long clips on dedicated voices, so nothing else would ever cut
+       them: a new game started while the reveal was mid-sentence would carry
+       the speech into the delivery area. */
+    sound_stop(SFX_EMERGE);
+    sound_stop(SFX_DMNSPEAK);
 }
 
 void rabisu_boss_enter(void) {
@@ -361,6 +367,16 @@ void rabisu_boss_update(void) {
         /* Two seconds of an empty lawn. Nothing happens on purpose. */
         if (phase_t >= RBE_T_WATCH) {
             light_master = 256;
+            /* On the LIGHTS, not on the rise: the sound is what the two silent
+               seconds have been setting up, and it has to arrive with the first
+               pair of polys rather than three seconds after them. The clip runs
+               11.1 s, which carries it across RBE_T_LIGHTS_UP (3 s) and
+               RBE_T_RISE (5 s) and dies away under the fade — so the lights
+               coming up and the thing coming out of the ground are one event.
+               It is a BANKED effect (see sound.h); it is only ever audible
+               because main.c swapped the boss bank in on the way through the
+               cage door. */
+            sound_play(SFX_EMERGE);
             enter_phase(RBE_LIGHTS_UP);
         }
         break;
@@ -398,12 +414,21 @@ void rabisu_boss_update(void) {
                it used to be (see the note in main.c's loading branch). The
                garden is silent from the cage door until the lights die. */
             cdaudio_play(CDAUDIO_COURTYARD_TRACK, 1);
+            /* One utterance per line, fired as the line appears. The clip is
+               8.6 s against a 6 s line, so the second play cuts the first
+               short — which is why both go on the same voice (sound.c) and why
+               this is two sound_play calls at the two phase entries rather than
+               one long one: the speech has to break where the text does. */
+            sound_play(SFX_DMNSPEAK);
             enter_phase(RBE_LINE1);
         }
         break;
 
     case RBE_LINE1:
-        if (phase_t >= RBE_T_LINE) enter_phase(RBE_LINE2);
+        if (phase_t >= RBE_T_LINE) {
+            sound_play(SFX_DMNSPEAK);   /* the second line */
+            enter_phase(RBE_LINE2);
+        }
         break;
 
     case RBE_LINE2:

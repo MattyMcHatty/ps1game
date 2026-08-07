@@ -32,6 +32,23 @@
 #define CD_FAIL_LIMIT       4   /* consecutive failed position reads = drive stopped */
 #define CD_END_MARGIN      75   /* restart this many sectors (~1s) before the lead-out */
 
+/* Per-track mix level, applied by cdaudio_play().
+ * ------------------------------------------------
+ * The SPU's CD volume register is LINEAR amplitude, so CD_VOL_BOSS is a true
+ * fifth of full scale (-14 dB) and not a perceptual one.
+ *
+ * The Garden Courtyard's track is the only one that plays over a fight rather
+ * than over exploration, and at full level it buries the Rabisu's own sounds —
+ * the light-beam detonations and the foot-slash wind-up especially, which the
+ * player has to hear to time a parry off. Half was still too loud for that;
+ * 20% is where the effects sit clearly on top. Everything else stays at full.
+ *
+ * This lives in cdaudio_play() rather than at the call site in rabisu_boss.c so
+ * no caller has to remember to put the level back: every room starts its music
+ * through here, so the next cdaudio_play always re-asserts the right level. */
+#define CD_VOL_FULL    0x7FFF
+#define CD_VOL_BOSS    0x1999   /* 20% of CD_VOL_FULL */
+
 static int           cd_audio_playing = 0;
 static int           cd_track_num     = 0;
 static int           cd_loop_mode     = 0;
@@ -151,8 +168,10 @@ static void issue_play(void) {
 }
 
 void cdaudio_init(void) {
-    /* Route CD audio into the SPU mixer at full volume... */
-    SpuSetCommonCDVolume(0x7FFF, 0x7FFF);
+    /* Route CD audio into the SPU mixer at full volume. This is only the
+       STARTING level — cdaudio_play() re-asserts a per-track one (see
+       CD_VOL_FULL/CD_VOL_HALF above) every time music starts... */
+    SpuSetCommonCDVolume(CD_VOL_FULL, CD_VOL_FULL);
     /* ...and CRITICALLY, set bit 0 of SPUCNT (CD Audio Enable). Without this
        bit, accurate emulators (DuckStation) and real hardware will NOT mix CD
        audio into the output — only lenient emulators (PCSX-Redux) play it
@@ -177,6 +196,16 @@ void cdaudio_play(int track, int loop) {
         uint32_t start = loc_to_sector(&cd_track_loc);
         if (cd_end_sector < start + 750)
             cd_end_sector = 0;
+    }
+
+    /* Set the mix level for THIS track before it starts. Re-asserted on every
+       play, which is what makes it self-correcting: leaving the courtyard for
+       any room restores full volume without that room knowing anything about
+       it. issue_play() on a loop restart does not touch the register, so the
+       level survives the track looping. */
+    {
+        int vol = (track == CDAUDIO_COURTYARD_TRACK) ? CD_VOL_BOSS : CD_VOL_FULL;
+        SpuSetCommonCDVolume(vol, vol);
     }
 
     cd_audio_playing = 1;

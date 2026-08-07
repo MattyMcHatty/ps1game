@@ -889,6 +889,21 @@ int main(int argc, const char **argv) {
                while CD-DA audio is playing (the original design loaded at startup
                to avoid exactly this). */
             DrawSync(0);
+
+            /* Per-room SOUND streaming, and the one thing here that DOES touch
+               the drive. The Rabisu's reveal clips are too big to keep in SPU
+               RAM alongside the monster effects, so the two sets timeshare one
+               region (see sound.h): the Garden Courtyard gets the boss bank,
+               every other room gets the house bank. sound_bank_select suspends
+               CD-DA around its own reads and returns immediately when the right
+               bank is already in, so this is safe to run unconditionally on
+               every transition — including a title-screen load or a debug
+               level-select jump, both of which arrive through here. Keyed on
+               pending_area rather than on a door trigger for exactly that
+               reason: every path into a room passes this line. */
+            sound_bank_select(pending_area == STATE_GARDEN_COURTYARD
+                              ? SND_BANK_BOSS : SND_BANK_HOUSE);
+
             /* Upload reception's unique textures into VRAM from their resident RAM
                copies. Pure LoadImage, no CD access (the bytes were preloaded at
                startup), so no CD-DA suspend is needed and the drive never hangs. */
@@ -1234,6 +1249,11 @@ int main(int argc, const char **argv) {
                    LoadImage from RAM, same rule as the loading branch). */
                 DrawSync(0);
                 delivery_restore_textures();
+                /* Same reason, for the sound banks: a session that reached the
+                   Garden Courtyard and then went back to the title would
+                   otherwise start the new game with the boss bank still in and
+                   every monster in the house silent. */
+                sound_bank_select(SND_BANK_HOUSE);
                 reset_game(&ctx);   /* fresh-start spawn/state */
             }
             world_new_game();       /* reset rooms; capture the fresh starting room */

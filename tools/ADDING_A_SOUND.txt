@@ -1,0 +1,263 @@
+PS1 HORROR GAME — ADDING A SOUND EFFECT: THE COMPLETE RUNBOOK
+==============================================================
+This is the authoritative, step-by-step procedure for adding a sound effect,
+and the reference for the SPU-RAM BANK TIMESHARE. It was written immediately
+after the Rabisu's five clips were added (August 2026) — the addition that
+exhausted SPU RAM and forced the timeshare into existence — and records every
+step that was actually performed, in order, with real commands.
+
+Companion docs (read them for the *why*; this file is the *how*):
+  src/sound.h                       - the SPU map and the bank rules, in full
+  tools/ADDING_A_BOSS_ENCOUNTER.txt - where a cutscene's sound cues belong
+  tools/TEXTURING_NOTES.txt         - the VRAM equivalent of this squeeze
+  rebuild commands.txt              - authoritative build steps
+
+NOTE ON PYTHON: the `python` on PATH is the Windows Store stub and fails. Use
+`py` or the real interpreter explicitly:
+    C:\Users\virtu\AppData\Local\Python\bin\python.exe
+
+
+##########################################################################
+ HOW TO KICK THIS OFF (what the user provides)
+##########################################################################
+  1. "Follow tools/ADDING_A_SOUND.txt"
+  2. The clip, dropped in sounds/ as an .mp3 or .wav.
+  3. What fires it, in prose ("when the fireball is loosed").
+
+Everything else — sample rate, VAG conversion, SPU address, bank tag, voice
+number, disc entry — is DERIVED by the steps below.
+
+
+##########################################################################
+ STEP 0 — THE ONE FACT THAT GOVERNS EVERYTHING
+##########################################################################
+SPU RAM IS FULL. There are 512 KB of sample RAM, the first 0x1000 belongs to
+the CD-DA capture area, and as of the Rabisu the game uses all but ~16 KB of
+what is left. A new effect therefore has exactly three homes, and you must
+pick one before writing any code:
+
+  A. RESIDENT — permanent SPU RAM. Only for effects that are SMALL (say under
+     16 KB, i.e. ~2.5 s at 11025 Hz) or that must be playable everywhere.
+     Costs the remaining headroom, so count it first: see STEP 3.
+
+  B. AN EXISTING BANK — SND_BANK_BOSS if it belongs to the Rabisu's reveal.
+     Free as long as the bank still fits the region (STEP 3 checks this).
+
+  C. A NEW BANK — a set of effects used only in one room, swapped in on the
+     transition into it. This is the expensive option; see STEP 7.
+
+>>> A BANKED EFFECT IS SILENT EVERYWHERE ITS BANK IS NOT LOADED. <<<
+sound_play() on an evicted effect returns without a sound and without a
+complaint. Before banking anything, check every room that plays it — the
+check that matters is world.c's placement block, not intuition.
+
+
+##########################################################################
+ STEP 1 — CONVERT THE CLIP
+##########################################################################
+From an mp3:
+
+    cd C:\Users\virtu\Documents\ps1game\sounds
+    py mp3_to_wav.py mysound.mp3 --rate 11025
+    py wav_to_vag.py mysound.wav --rate 11025
+
+11025 Hz MONO is the house standard and what every clip but swing.vag uses.
+22050 doubles the SPU cost for very little on a PS1's output; do not use it
+without a reason. Check what you got:
+
+    py -c "import struct;d=open('mysound.vag','rb').read(48);
+    print(d[:4], struct.unpack('>I',d[12:16])[0], struct.unpack('>I',d[16:20])[0])"
+
+Expect b'VAGp', then the audio size, then 11025. The SPU cost is the audio
+size rounded up to 64 bytes — NOT the file size, which carries a 48-byte
+header.
+
+TRAP: shortening a clip is the cheapest possible way to make it fit. A 5 s
+one-shot costs 31 KB; the same effect trimmed to 2 s costs 12 KB. Trim in an
+editor before assuming a bank is needed.
+
+COMMIT the .wav and the .vag. git_details.txt calls .wav a source file, not
+an intermediate.
+
+
+##########################################################################
+ STEP 2 — PUT IT ON THE DISC
+##########################################################################
+disc.xml, inside <dir name="SND">. The disc name is 8.3 UPPERCASE and does
+NOT have to match the source filename (dmnspeak.vag ships as DMNSPEK.VAG):
+
+    <file name="MYSOUND.VAG" type="data"
+          source="C:\Users\virtu\Documents\ps1game\sounds\mysound.vag"/>
+
+>>> NEVER ADD A SOUND TO THE DISC ROOT. <<< The root directory is FULL — 36
+free bytes, less than one record — and the PS1 boot ROM only reads its first
+sector to find SYSTEM.CNF. See the comment above the root file list. SND is a
+subdirectory precisely so sounds cannot cause this. Verify after any change:
+
+    py tools\check_disc_root.py
+
+
+##########################################################################
+ STEP 3 — DO THE SPU ARITHMETIC *BEFORE* WRITING CODE
+##########################################################################
+This is the step that gets skipped and it is the one that matters. Nothing at
+runtime reports an overflow: load_vag_at() silently drops any clip that will
+not fit, and that effect is then mute forever with no message.
+
+Run this, with your clip added to the right list:
+
+    cd C:\Users\virtu\Documents\ps1game\sounds
+    py -c "
+    import os
+    def a(f): return (os.path.getsize(f)-48+63)&~63
+    res=['swing','hurt','pickup','smash','axehit','unlock','dropen','DIE',
+         'gr_shot','gr_reload','step1','step2','slam','fireball','boom','explode']
+    house=['dogbark','dogdie','zombie_2','ZOMBIEDIE','tntcl_wrth_2','tntcl_die',
+           'spdr_wlk','spit','mchne']
+    boss=['emerge','dmnspeak']
+    p=4112
+    for f in res: p+=a(f+'.vag')
+    h=sum(a(f+'.vag') for f in house); b=sum(a(f+'.vag') for f in boss)
+    print('bank_base   0x%05X'%p, ' region', 524288-p)
+    print('house', h, 'OK' if p+h<=524288 else 'OVERFLOW')
+    print('boss ', b, 'OK' if p+b<=524288 else 'OVERFLOW')
+    print('spare', 524288-p-max(h,b))
+    "
+
+The lists must be kept in the SAME ORDER as the enum in sound.h, because
+sound_init() allocates in enum order. As of the Rabisu:
+
+    bank_base 0x4F5D0   region 199216   house 182656   boss 124224
+    spare 16560
+
+RESIDENT costs come off `spare` AND push bank_base up, shrinking the region
+by the same amount — a resident clip is charged twice over. A banked clip is
+charged only against its own bank's total.
+
+
+##########################################################################
+ STEP 4 — DECLARE IT IN sound.h
+##########################################################################
+Append to the SfxID enum (append — the ids are positional and sfx_files[] is
+indexed by them) and bump SFX_COUNT:
+
+    SFX_MYSOUND = 28,
+    SFX_COUNT   = 29,
+
+Give it a comment stating its LENGTH and, if it is banked, saying so. Both
+facts are load-bearing later and neither is recoverable from the code.
+
+
+##########################################################################
+ STEP 5 — WIRE IT IN sound.c
+##########################################################################
+Three arrays, all indexed by SfxID, all of which must stay in step:
+
+  1. sfx_files[]  — "\\SND\\MYSOUND.VAG;1"   (or NULL if it is an alias)
+  2. sfx_bank[]   — SND_RESIDENT / SND_BANK_HOUSE / SND_BANK_BOSS
+  3. sfx_channel() — only if it needs a voice of its own; see STEP 6
+
+An ALIAS is the fourth possibility and costs nothing: the same sample on a
+second voice, for when one clip has two callers that must not cut each other.
+SFX_RBS_SWING is the worked example — NULL in sfx_files[], SND_RESIDENT in
+sfx_bank[], its own line in sfx_channel(), and one copy in sound_init():
+
+    sfx_slots[SFX_RBS_SWING] = sfx_slots[SFX_SWING];
+
+
+##########################################################################
+ STEP 6 — PICK A VOICE
+##########################################################################
+The SPU has 24 (0..23). The scheme:
+
+    0        unused
+    1..8     the one-shot POOL, FIRST_VOICE + (id % 8)
+    9..15    free
+    16       SFX_ZOMBIE       (looped ambience)
+    17       SFX_TNTCL_WRTH   (looped ambience)
+    18       SFX_SPDR_WLK     (HARDWARE-looped ambience)
+    19       SFX_EMERGE
+    20       SFX_DMNSPEAK
+    21       SFX_EXPLODE
+    22       SFX_BOOM
+    23       SFX_RBS_SWING
+
+Leave it in the pool unless one of these is true:
+
+  - it LOOPS. A looped voice never releases, so it must be alone.
+  - it is LONG (say over 2 s) and something in the pool can fire over it.
+    Work out which ids share its slot: they are the ones with the same
+    (id % 8). SFX_MCHNE is the counter-example — 2.8 s and still in the pool,
+    because the puzzle that plays it locks out the two ids that share it.
+  - two callers of the SAME sample must overlap. Alias it (STEP 5).
+
+TRAP: a long clip in the pool is the classic bug and it presents as "the
+sound sometimes cuts off". The player's footsteps (SFX_STEP1/STEP2, ids 16
+and 17) land on pool voices 1 and 2, so ANY long effect sharing those is
+chopped every time the player takes a step.
+
+
+##########################################################################
+ STEP 7 — ONLY IF YOU NEED A NEW BANK
+##########################################################################
+Skip unless STEP 0 landed on option C. Adding a bank is four edits:
+
+  1. sound.h — a new SoundBank value. Number it from 1; zero must stay
+     SND_RESIDENT so an effect omitted from sfx_bank[] fails safe.
+  2. sound.c — tag its effects in sfx_bank[].
+  3. main.c, the STATE_LOADING branch — extend the sound_bank_select() call
+     so the new area asks for the new bank. Keyed on pending_area, which is
+     why every path into a room (door, stair, title load, debug jump) is
+     covered by that one line.
+  4. Re-run STEP 3 with the new bank in the list. The region is sized by
+     whatever is left after the residents, so a new bank is free until it
+     is the LARGEST one, at which point it must still fit the region.
+
+Then check the eviction list against the destination room, in world.c's
+placement block. Every effect in every OTHER bank goes silent while yours is
+loaded. The house bank is the nine monster effects and it is nine because
+world.c places nothing in the Garden Courtyard but the Rabisu.
+
+TRAP: a bank swap is a CD READ (~0.5 s for 120 KB). It can only happen at a
+transition, behind the door animation's black screen, with CD-DA suspended —
+a CdRead issued while the drive is streaming audio HANGS IT. sound_bank_
+select() does the suspend/resume itself; never call it from inside a room.
+
+TRAP: anything that must play DURING a fight has to be RESIDENT. There is no
+way to swap a bank in mid-room. This is why the Rabisu's fireball, boom and
+explode are resident and only its two reveal clips are banked.
+
+
+##########################################################################
+ STEP 8 — FIRE IT
+##########################################################################
+    #include "sound.h"
+    sound_play(SFX_MYSOUND);
+
+Put the call at the moment the EVENT happens, not at the moment its animation
+peaks — a wind-up sound belongs at the start of the wind-up, because the
+player is timing a parry off it (see rbs_begin_attack in rabisu.c).
+
+If it is long and a cutscene owns it, add a matching sound_stop() to that
+cutscene's reset path. rabisu_boss_reset() stops SFX_EMERGE and SFX_DMNSPEAK
+for this reason: a new game started mid-sentence would otherwise carry the
+speech into the delivery area.
+
+
+##########################################################################
+ STEP 9 — BUILD AND VERIFY
+##########################################################################
+    cd C:\Users\virtu\Documents\ps1game
+    cmake --build build --target horror_game
+    mkpsxiso -y disc.xml
+    py tools\check_disc_root.py          # 36 free bytes, both records OK
+
+Then in the emulator, confirm in this order:
+
+  1. The sound plays at all — if it is silent, it did not fit (STEP 3) or the
+     disc name does not match sfx_files[] (STEPS 2 and 5).
+  2. It is not cut short — if it is, it is sharing a pool voice (STEP 6).
+  3. If it is BANKED: walk into the banked room, then walk back out, then
+     find a monster of each evicted kind and confirm it still makes its noise.
+     A restore that never fires is the failure this whole system invites, and
+     it only shows up on the way BACK.

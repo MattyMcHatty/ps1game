@@ -284,8 +284,12 @@ void rabisu_damage(Rabisu *r, int dmg) {
         /* Burst at mid-body, not at the anchor: the anchor is the underside, so
            a burst there would spray from beneath its feet. */
         spawn_blood_burst(r->x, r->y - RBS_HALF_H, r->z);
-        sound_play(SFX_TNTCL_DIE);   /* no boss clip yet; borrows the tentacle's
-                                        death cry as a deliberate stand-in */
+        /* On the KILLING BLOW, not at the start of the burn six seconds
+           later: the brief puts it on "taken its last hit and starts dying",
+           and `dying` is set here. The 5.4 s clip therefore runs out under
+           RBE_D_SETTLE and RBE_D_FREEZE, and the body is already shaking
+           itself apart by the time it ends. */
+        sound_play(SFX_EXPLODE);
     } else {
         sound_play(SFX_AXEHIT);
     }
@@ -591,7 +595,7 @@ static void rbs_fireball_spawn(int owner, int32_t x, int32_t y, int32_t z,
     f->deflected = 0;
     f->owner     = owner;
     f->area      = area;
-    sound_play(SFX_SPIT);   /* stand-in: the spider's projectile hiss */
+    sound_play(SFX_FIREBALL);   /* the ball leaving the chest */
 }
 
 /* Turn a ball around: double speed, straight back at the chest of the thing
@@ -788,6 +792,15 @@ static void rbs_begin_attack(Rabisu *r, int self) {
     uint32_t roll = rbs_rand() % RBS_ATTACK_ROLL;
 
     if (roll == RBS_SLASH_FACE) {
+        /* At the START of the RBS_SLASH_IN charge — "about to swing". That is
+           the 1 s wind-up, so the 1.2 s clip runs right through it and lands
+           with rbs_slash_land: the sound is the tell the parry is timed off,
+           and putting it on the landing instead would be a sound that arrives
+           after the window it warns about has closed. It is the player's own
+           crucifaxe clip — the same kind of event and the same arc of air — but
+           played through SFX_RBS_SWING, which is that sample on a voice of its
+           own so the player swinging cannot silence the tell. */
+        sound_play(SFX_RBS_SWING);
         r->ai_state    = RBS_AI_SLASH_IN;
         r->ai_timer    = 0;
         r->slash_from_x = r->x;
@@ -860,6 +873,13 @@ static void rbs_beam_cell_centre(const Rabisu *r, int k,
 static void rbs_beam_ignite(Rabisu *r, int k) {
     int32_t cx, cz;
     rbs_beam_cell_centre(r, k, &cx, &cz);
+
+    /* Per POLY, not per attack, and before the hit test: every shaft that comes
+       up out of the lawn makes the noise whether or not the player was standing
+       on it. Retriggered every RBS_BEAM_STEP (0.3 s) on one dedicated voice, so
+       each detonation is cut by the next and only the last plays its tail —
+       see the note on SFX_BOOM in sound.h. */
+    sound_play(SFX_BOOM);
 
     int32_t px = player_x() - cx;
     int32_t pz = player_z() - cz;
