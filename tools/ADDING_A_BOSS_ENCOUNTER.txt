@@ -891,7 +891,7 @@ In the emulator, in this order, because each depends on the last:
    and none of them is what that sentence sounds like. The damage was
    unconditional the whole time. STEP 6.
 
-6. ONE `dead` FLAG FOR A TWELVE-SECOND DEATH.
+6. ONE `dead` FLAG FOR A NINE-SECOND DEATH.
    STEP 11.
 
 7. THE CONE POINTED THE WRONG WAY UP.

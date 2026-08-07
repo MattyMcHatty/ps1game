@@ -33,14 +33,18 @@
  *     SND_RESIDENT   - loaded once at startup, playable in every room.
  *     SND_BANK_HOUSE - the monster effects. Loaded at startup, evicted while
  *                      the boss bank is in.
- *     SND_BANK_BOSS  - the Rabisu's reveal. Only ever in the Garden Courtyard.
+ *     SND_BANK_BOSS  - the Rabisu's own two clips. Only ever in the Garden
+ *                      Courtyard, which is the only place they are played.
  *
  * WHY THESE THREE ARE RESIDENT AND NOT BANKED
  *   FIREBALL, BOOM and EXPLODE fire DURING the fight, and a bank swap is a CD
  *   read — it cannot happen mid-room. They are small enough (47 KB together)
  *   to live in what was previously the spare tail, so they do. Only EMERGE and
- *   DMNSPEAK, which are enormous (70 KB and 54 KB) and play only during the
- *   reveal cutscene, are worth banking.
+ *   DMNSPEAK, which are enormous (70 KB and 54 KB), are worth banking. Note
+ *   that EMERGE is no longer reveal-only — it is also the light beam's charge
+ *   tell, so it now plays mid-fight. That is safe for exactly one reason: the
+ *   boss bank is loaded for the whole of the Garden Courtyard, cutscene and
+ *   fight alike, and the fight cannot happen anywhere else.
  *
  * WHY THE HOUSE BANK IS THE MONSTERS
  *   world.c places nothing in the Garden Courtyard but the Rabisu itself — no
@@ -97,10 +101,16 @@ typedef enum {
                             walks, so each one is cut short by the next and the
                             attack reads as a chain of detonations — only the
                             last plays its tail out. */
-    SFX_EXPLODE    = 24, /* the killing blow lands; the death sequence begins   */
-    SFX_EMERGE     = 25, /* BANKED. The lawn lighting up and the boss hauling
-                            itself out of it. 11.1 s, which covers the reveal's
-                            3 s of lights plus its 5 s rise.                    */
+    SFX_EXPLODE    = 24, /* the death lights come up and the body starts coming
+                            apart (RBE_D_BURN). 5.374 s, and the burn plus the
+                            fade are cut to exactly that: the lights are lit for
+                            the length of this clip. Retrim it and see
+                            RBE_T_D_BURN.                                       */
+    SFX_EMERGE     = 25, /* BANKED. Light being hauled up out of the ground.
+                            11.1 s, which covers the reveal's 3 s of lights plus
+                            its 5 s rise. Also the light beam's charge tell,
+                            where it is deliberately cut after ~1.5 s by the
+                            first poly igniting.                                */
     SFX_DMNSPEAK   = 26, /* BANKED. One line of scripture; played once per line,
                             the second retriggering over the first.             */
     /* SFX_SWING's sample on a voice of its own. Not a second clip: no file on

@@ -104,6 +104,38 @@
    only this one constant, and rabisu_gap() keeps the melee reach in step. */
 #define RBS_BODY_RADIUS      255
 
+/* --- The SHOOTABLE box (rabisu_body) ---------------------------------------
+   NOT the whole silhouette. The legs and the tail are deliberately outside it:
+   a round through them does nothing, and only the head, the wings and the
+   torso count. The cut is read off the same frame-0 vertex spread the anchors
+   above are, in MESH-LOCAL Y (-Y is up):
+
+     -427 .. -417   head crown
+     -300 .. -250   the wings, at full spread (|x| out to 252)
+     -250 .. -170   torso, narrow (|x| <= 48)
+     -170 .. +132   HIPS, LEGS AND TAIL — everything below the cut. The tail is
+                    the part that trails off toward -Z as y increases.
+
+   RBS_HIT_BOT_VY is that -170 boundary. RBS_HIT_TOP_VY sits a little under the
+   crown and RBS_HIT_HALF_W a little inside the 254-unit wing span, both for
+   the same reason: the box is a screen-space rectangle (see enemy_in_circle in
+   graveolver.c) and an exact-fit rectangle over a thing this irregular hands
+   the player a large area of empty air around the wing tips and over the head.
+   Tighten these to make the fight harder; they are the only two knobs, and
+   nothing else reads them.
+
+   >>> Re-bake the animation and these must be re-read. <<< They are mesh
+   coordinates, so a re-export that shifts the model shifts every one of them. */
+#define RBS_HIT_TOP_VY     (-415)
+#define RBS_HIT_BOT_VY     (-170)
+#define RBS_HIT_HALF_W       205   /* vs the 254 the wings actually reach */
+#define RBS_HIT_HALF_H     ((RBS_HIT_BOT_VY - RBS_HIT_TOP_VY) / 2)
+/* Box centre relative to the entity anchor. The anchor is the model's
+   UNDERSIDE, and the draw translates by RBS_FOOT_OFF, so a mesh vy maps to
+   world y as (r->y + RBS_FOOT_OFF + vy) — the same mapping the rise-clip uses. */
+#define RBS_HIT_CY_OFF     (RBS_FOOT_OFF + \
+                            (RBS_HIT_TOP_VY + RBS_HIT_BOT_VY) / 2)
+
 /* --- Idle animation -----------------------------------------------------
    Game frames per animation frame. The clip is authored at 24 fps and the game
    runs at 60, so 3 gives 20 fps — the closest clean divisor. 19 frames at 20
@@ -287,7 +319,10 @@
 #define RBS_SHOCK_EXPAND       40   /* frames for a wave to reach full radius   */
 #define RBS_SHOCK_LINGER       14   /* frames it stays up after reaching it     */
 #define RBS_SHOCK_DAMAGE (MAX_HEALTH / 5)   /* 20% of the bar                   */
-#define RBS_SHOCK_KNOCKBACK    90
+/* 270, i.e. 200% more than the 90 it launched with. The wave is the one attack
+   the player cannot parry or step out of once it is expanding, so the shove is
+   what it trades for that — it should put real ground between them. */
+#define RBS_SHOCK_KNOCKBACK   270
 #define RBS_SHOCK_WALL_H      210   /* the vertical skirt on the leading edge   */
 #define RBS_SHOCK_SEGS         20   /* ring resolution: segments around the arc */
 
@@ -421,7 +456,8 @@ void rabisus_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
    is no crucifaxe caller: see the note on RBS_MAX_HEALTH. */
 void rabisu_damage(Rabisu *r, int dmg);
 
-/* Grave-olver hitscan support: the aim box (centre Y, half-height, half-width). */
+/* Grave-olver hitscan support: the aim box (centre Y, half-height, half-width).
+   This is the SHOOTABLE box, not the silhouette — see RBS_HIT_TOP_VY. */
 void rabisu_body(const Rabisu *r, int32_t *cyc, int32_t *hh, int32_t *hw);
 
 /* Scale a hit by this enemy's weaknesses (see damage.h). */

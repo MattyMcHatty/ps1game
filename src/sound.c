@@ -110,9 +110,11 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
    be heard gets a voice of its own, clear of that pool:
      - the zombie groan, the tentacle writhe and the spider scuttle are
        continuous ambiences (the scuttle is HARDWARE-looped);
-     - EMERGE (11 s), DMNSPEAK (8.6 s) and EXPLODE (5.4 s) each play under a
-       cutscene the player cannot interrupt, but the footsteps and the weapon
-       sounds share the pool and would chop them;
+     - EMERGE (11 s), DMNSPEAK (8.6 s) and EXPLODE (5.4 s) are all far longer
+       than the pool can protect: the footsteps and the weapon sounds share it
+       and would chop them. EMERGE needs its own voice most of all, because
+       unlike the other two it also plays DURING the fight, as the light beam's
+       charge tell, where the player is free to swing and run over it;
      - BOOM gets one so the beam's detonations are cut only by the NEXT
        detonation, which is the intended read (see sound.h).
    FIREBALL stays in the pool deliberately: it is a 1.1 s one-shot, and the

@@ -231,6 +231,11 @@ void rabisu_go_dormant(Rabisu *r) {
     r->beam_cells = 0;
     r->beam_step  = 0;
     rbs_fireballs_reset();
+    /* Including the beam's charge tell, which is only ever cut by the first
+       poly lighting — a boss killed mid-charge would otherwise carry eleven
+       seconds of it into the death cutscene. Safe on the reveal's path too:
+       begin_reveal calls this BEFORE the reveal plays its own EMERGE. */
+    sound_stop(SFX_EMERGE);
 }
 
 void rabisu_face_override(Rabisu *r, int on, int32_t x, int32_t z) {
@@ -266,14 +271,20 @@ int32_t rabisu_scale_damage(int32_t base, DamageType type) {
                         WEAKNESS_COUNT(rabisu_weakness));
 }
 
-void rabisu_damage(Rabisu *r, int dmg) {
+/* The real entry point. `hit_sfx` is what a NON-FATAL hit sounds like, and it
+   is a parameter for one reason: a hit is announced by the thing that landed
+   it, not by the thing it landed on. A bullet is the axe-hit thud; a fireball
+   turned back into its owner's chest is the fireball's own report again. The
+   killing blow makes no sound of its own either way — SFX_EXPLODE belongs to
+   the burn, six seconds later (rabisu_boss.c). */
+static void rbs_damage_sfx(Rabisu *r, int dmg, SfxID hit_sfx) {
     if (!r->active || r->dead || r->dying) return;
     r->health   -= dmg;
     r->hit_timer = RBS_BAR_TIMER_MAX;
     if (r->health <= 0) {
         r->health = 0;
         /* `dying`, NOT `dead`. The body has to stay drawable: the encounter
-           director now takes it over for a twelve-second death sequence and
+           director now takes it over for a nine-second death sequence and
            only sets `dead` once it has finished burning away. Setting `dead`
            here would blink the boss out of existence on the killing shot. */
         r->dying    = 1;
@@ -284,21 +295,28 @@ void rabisu_damage(Rabisu *r, int dmg) {
         /* Burst at mid-body, not at the anchor: the anchor is the underside, so
            a burst there would spray from beneath its feet. */
         spawn_blood_burst(r->x, r->y - RBS_HALF_H, r->z);
-        /* On the KILLING BLOW, not at the start of the burn six seconds
-           later: the brief puts it on "taken its last hit and starts dying",
-           and `dying` is set here. The 5.4 s clip therefore runs out under
-           RBE_D_SETTLE and RBE_D_FREEZE, and the body is already shaking
-           itself apart by the time it ends. */
-        sound_play(SFX_EXPLODE);
+        /* SFX_EXPLODE is NOT played here. It belongs to the burn — the phase
+           where the death lights come up — and rabisu_boss.c fires it on the
+           entry to RBE_D_BURN. Played on the killing blow instead, the 5.4 s
+           clip ran out under the settle and the freeze and the body burned in
+           silence. */
     } else {
-        sound_play(SFX_AXEHIT);
+        sound_play(hit_sfx);
     }
 }
 
+void rabisu_damage(Rabisu *r, int dmg) {
+    rbs_damage_sfx(r, dmg, SFX_AXEHIT);
+}
+
 void rabisu_body(const Rabisu *r, int32_t *cyc, int32_t *hh, int32_t *hw) {
-    *cyc = r->y - RBS_HALF_H;   /* anchor is the underside; -Y is up */
-    *hh  = RBS_HALF_H;
-    *hw  = RBS_HALF_W;
+    /* Head, wings and torso only: the box stops at the hips, so the legs and
+       the tail cannot be hit at all. All four numbers come off the mesh in
+       rabisu.h — see RBS_HIT_TOP_VY for the derivation and for which two to
+       turn if the fight needs to be harder or easier. */
+    *cyc = r->y + RBS_HIT_CY_OFF;
+    *hh  = RBS_HIT_HALF_H;
+    *hw  = RBS_HIT_HALF_W;
 }
 
 /* ===========================================================================
@@ -650,7 +668,10 @@ void rbs_fireballs_update(void) {
                 if (d <= RBS_FB_RBS_RADIUS) {
                     f->life = 0;
                     spawn_blood_burst(f->x, f->y, f->z);
-                    rabisu_damage(r, 1);
+                    /* Its own shot going back in: the fireball's report, not
+                       the gun's thud. The ball is spent on this frame, so the
+                       clip that opened its flight also closes it. */
+                    rbs_damage_sfx(r, 1, SFX_FIREBALL);
                 }
             } else {
                 f->life = 0;   /* it died to something else mid-return */
@@ -809,6 +830,16 @@ static void rbs_begin_attack(Rabisu *r, int self) {
     }
 
     if (roll == RBS_BEAM_FACE) {
+        /* The charge's tell, on the frame the chest starts burning. It is the
+           reveal's own clip — the same thing dragging the same light up out of
+           the lawn — and at 11.1 s it is far longer than the 1.5 s charge, so
+           it is CUT deliberately by the first poly igniting (rbs_beam_ignite):
+           the player hears the rising half and the detonation takes over. It is
+           BANKED (SND_BANK_BOSS, see sound.h) and audible here only because the
+           whole fight happens inside the boss bank. Its dedicated voice 19 means
+           nothing else can silence it early, and rabisu_go_dormant stops it for
+           the case where the boss is killed mid-charge. */
+        sound_play(SFX_EMERGE);
         /* Charge only. The path is not drawn until the charge ENDS — a path
            locked in now would be aimed at where the player stood 1.5 s before
            the first poly lit, and the tell would be pointless. */
@@ -874,6 +905,12 @@ static void rbs_beam_ignite(Rabisu *r, int k) {
     int32_t cx, cz;
     rbs_beam_cell_centre(r, k, &cx, &cz);
 
+    /* The charge tell is over the moment the first shaft comes up: EMERGE runs
+       11.1 s against a 1.5 s charge, so left alone it would still be swelling
+       under the whole walk. Cut on the FIRST cell only — k>0 is the same attack
+       continuing, and re-stopping it there would be a no-op anyway. */
+    if (k == 0) sound_stop(SFX_EMERGE);
+
     /* Per POLY, not per attack, and before the hit test: every shaft that comes
        up out of the lawn makes the noise whether or not the player was standing
        on it. Retriggered every RBS_BEAM_STEP (0.3 s) on one dedicated voice, so
@@ -920,7 +957,7 @@ static void rbs_shock_tick(Rabisu *r) {
     if (game_over) return;
     player_hurt(RBS_SHOCK_DAMAGE);
     player_knockback(r->spawn_x, r->spawn_z, RBS_SHOCK_KNOCKBACK);
-    sound_play(SFX_SMASH);
+    sound_play(SFX_HURT);
     if (player_health <= 0) {
         player_health = 0;
         game_over     = 1;
@@ -951,7 +988,7 @@ static void rbs_slash_land(Rabisu *r) {
            though, and loudly — otherwise a blocked slash and a slash that
            somehow whiffed look and sound identical, and the player cannot tell
            that the parry is what saved them. */
-        sound_play(SFX_SMASH);
+        sound_play(SFX_AXEHIT);
         player_knockback(r->x, r->z, RBS_SLASH_KNOCKBACK / 2);
     } else if (!game_over) {
         player_hurt(RBS_SLASH_DAMAGE);
@@ -1210,7 +1247,7 @@ void rabisus_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     int i;
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *r = &rabisus[i];
-        /* A dying boss stops being solid. It is drawn for another twelve
+        /* A dying boss stops being solid. It is drawn for another nine
            seconds while it comes apart, but it is finished as an obstacle —
            and the death sequence walks it back to its spawn, which would shove
            the player across the garden if the cylinder were still live. */
@@ -1368,8 +1405,13 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
     int32_t fog_factor = ((g_fog_far - fog) << 8) / (g_fog_far - g_fog_near);
     /* Flash red the whole model on a fresh hit, the way the sprite enemies tint
        their quad — on a one-colour model it is the only damage feedback the
-       silhouette can carry. */
-    int hit = (r->hit_timer > 0);
+       silhouette can carry.
+       HELD FOR THE WHOLE DEATH, not just the two seconds the killing blow's
+       hit_timer would buy: the body is lit from the inside from the moment it
+       starts dying until it has faded out, so the red runs under the settle,
+       the freeze and the burn as one unbroken glow rather than dropping back
+       to its normal colour halfway through and re-igniting with the lights. */
+    int hit = (r->hit_timer > 0) || r->dying;
 
     int i;
     for (i = 0; i < rabisu_smd->n_prims; i++) {

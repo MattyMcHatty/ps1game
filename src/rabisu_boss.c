@@ -8,7 +8,8 @@
 #include "camera.h"
 #include "collision.h"     /* GROUND_FLOOR_Y */
 #include "cdaudio.h"
-#include "sound.h"         /* SFX_EMERGE / SFX_DMNSPEAK — the BOSS sound bank */
+#include "sound.h"         /* SFX_EMERGE / SFX_DMNSPEAK — the BOSS sound bank;
+                              SFX_EXPLODE (resident) for the death burn        */
 #include "btn_glyph.h"     /* btn_prompt_draw — screen-space text */
 #include "garden_courtyard.h"
 #include "rabisu.h"
@@ -73,7 +74,13 @@
 
 #define RBE_T_D_SETTLE        60   /* 1 s back to the crane + boss to spawn */
 #define RBE_T_D_FREEZE       120   /* 2 s frozen, as specified              */
-#define RBE_T_D_BURN         360   /* 6 s of shaking and light              */
+/* >>> BURN + FADE IS THE LENGTH OF SFX_EXPLODE. <<< The death lights are drawn
+   across exactly these two phases (see the draw), and the clip starts on the
+   frame the burn does, so the light and the sound have to end together or one
+   of them is left hanging. EXPLODE.VAG is 33856 bytes of ADPCM at 11025 Hz —
+   33856/16*28/11025 = 5.374 s = 322 frames — and 232 + 90 is that. Retrim the
+   clip and these must be re-split; the arithmetic is in ADDING_A_SOUND.txt. */
+#define RBE_T_D_BURN         232   /* 3.87 s of shaking and light           */
 #define RBE_T_D_FADE          90   /* 1.5 s burning away                    */
 #define RBE_T_D_CAM_BACK      60   /* 1 s back to the player                */
 
@@ -243,11 +250,13 @@ void rabisu_boss_reset(void) {
     boss_idx     = -1;
     camera_release_player();
     cam_pitch = 0;
-    /* Both are long clips on dedicated voices, so nothing else would ever cut
-       them: a new game started while the reveal was mid-sentence would carry
-       the speech into the delivery area. */
+    /* All three are long clips on dedicated voices, so nothing else would ever
+       cut them: a new game started while the reveal was mid-sentence would
+       carry the speech into the delivery area, and one started mid-burn would
+       carry the death out of the garden with it. */
     sound_stop(SFX_EMERGE);
     sound_stop(SFX_DMNSPEAK);
+    sound_stop(SFX_EXPLODE);
 }
 
 void rabisu_boss_enter(void) {
@@ -471,7 +480,16 @@ void rabisu_boss_update(void) {
     }
 
     case RBE_D_FREEZE:
-        if (phase_t >= RBE_T_D_FREEZE) enter_phase(RBE_D_BURN);
+        if (phase_t >= RBE_T_D_FREEZE) {
+            /* WITH THE LIGHTS, not with the killing blow. The death lights are
+               drawn from RBE_D_BURN onward (see the draw below), so this is the
+               one frame on which the body starts pouring light and shaking, and
+               the 5.4 s clip now runs under the 6 s burn instead of expiring
+               during the settle and the freeze. Voice 21 is its own, so nothing
+               in the burn can cut it short. */
+            sound_play(SFX_EXPLODE);
+            enter_phase(RBE_D_BURN);
+        }
         break;
 
     case RBE_D_BURN:

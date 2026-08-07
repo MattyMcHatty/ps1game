@@ -9,7 +9,7 @@
  * src/rabisu.c owns the BODY: the model, the animation, the damage, and the
  * combat AI. This file owns everything ABOUT the fight that is a one-off
  * script: the camera, the sixteen lights in the lawn, the subtitles, the
- * music cue, the sealed door, and the twelve seconds of death.
+ * music cue, the sealed door, and the nine seconds of death.
  *
  * Read rabisu.h's "director API" section alongside this — the two files talk
  * through those six functions and nothing else, which is what keeps a second
