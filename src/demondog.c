@@ -58,12 +58,19 @@ static void add_ddog_ft4_windowed(RenderContext *ctx, int32_t otz, POLY_FT4 *pol
     }
 }
 
-static uint16_t sleep_tpage  = 0, sleep_clut  = 0;
-static uint16_t alert_tpage  = 0, alert_clut  = 0;
-static uint16_t alert2_tpage = 0, alert2_clut = 0;
-static uint16_t shadow_tpage = 0, shadow_clut = 0;
+/* One dog frame's draw handles. u0/v0 are the texture's origin WITHIN its tpage,
+   derived from the TIM's own VRAM rect rather than hardcoded: ddog_alert2 sits at
+   x=736 in a tpage based at x=704, and the old fixed "u 0..63" sampled the left
+   half of that page instead — which is the Rabisu's corner, so the open-mouth
+   frame drew the Rabisu. Same derivation as anzu_tex.c's load_tile. */
+typedef struct {
+    uint16_t tpage, clut;
+    uint8_t  u0, v0;
+} DDogTex;
 
-static void load_tim(const char *filename, uint16_t *tpage_out, uint16_t *clut_out) {
+static DDogTex ddog_sleep_tex, ddog_alert_tex, ddog_alert2_tex, ddog_shadow_tex;
+
+static void load_tim(const char *filename, DDogTex *out) {
     CdlFILE file;
     if (!CdSearchFile(&file, filename)) return;
     int sectors = (file.size + 2047) / 2048;
@@ -80,16 +87,21 @@ static void load_tim(const char *filename, uint16_t *tpage_out, uint16_t *clut_o
         LoadImage(tim.crect, tim.caddr);
         DrawSync(0);
     }
-    *tpage_out = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
-    *clut_out  = getClut(tim.crect->x, tim.crect->y);
+    out->tpage = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
+    out->clut  = getClut(tim.crect->x, tim.crect->y);
+
+    int bpp_mode = tim.mode & 3;
+    int px_mult  = (bpp_mode == 0) ? 4 : (bpp_mode == 1) ? 2 : 1;  /* px per word */
+    out->u0 = (uint8_t)((tim.prect->x & 63) * px_mult);
+    out->v0 = (uint8_t)(tim.prect->y % 256);
     free(buf);
 }
 
 void demon_dogs_init(void) {
-    load_tim("\\DDSLEEP.TIM;1", &sleep_tpage,  &sleep_clut);
-    load_tim("\\DDALERT.TIM;1", &alert_tpage,  &alert_clut);
-    load_tim("\\DDALRT2.TIM;1", &alert2_tpage, &alert2_clut);
-    load_tim("\\SHADOW.TIM;1",  &shadow_tpage, &shadow_clut);
+    load_tim("\\DDSLEEP.TIM;1", &ddog_sleep_tex);
+    load_tim("\\DDALERT.TIM;1", &ddog_alert_tex);
+    load_tim("\\DDALRT2.TIM;1", &ddog_alert2_tex);
+    load_tim("\\SHADOW.TIM;1",  &ddog_shadow_tex);
 
     int i = 0;
 
@@ -405,7 +417,7 @@ static void draw_ddog_shadow(RenderContext *ctx, DemonDog *d) {
     int32_t shadow_otz = otz + 2 < OT_LENGTH ? otz + 2 : OT_LENGTH - 1;
 
     DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
-    setDrawTPage(tp, 0, 1, shadow_tpage);
+    setDrawTPage(tp, 0, 1, ddog_shadow_tex.tpage);
     addPrim(&ctx->buffers[ctx->active_buffer].ot[shadow_otz + 1], tp);
     ctx->next_packet += sizeof(DR_TPAGE);
 
@@ -418,14 +430,15 @@ static void draw_ddog_shadow(RenderContext *ctx, DemonDog *d) {
     poly->x2 = ssv[2].vx; poly->y2 = ssv[2].vy;
     poly->x3 = ssv[3].vx; poly->y3 = ssv[3].vy;
 
-    /* Texture at VRAM (640,160): tpage base y=0, so V offset = 160 */
-    poly->u0 =  0; poly->v0 = 160;
-    poly->u1 = 63; poly->v1 = 160;
-    poly->u2 =  0; poly->v2 = 191;
-    poly->u3 = 63; poly->v3 = 191;
+    /* 64x32 patch at the TIM's own origin within its tpage (VRAM 640,160 -> u 0, v 160). */
+    uint8_t su = ddog_shadow_tex.u0, sv0 = ddog_shadow_tex.v0;
+    poly->u0 = su;      poly->v0 = sv0;
+    poly->u1 = su + 63; poly->v1 = sv0;
+    poly->u2 = su;      poly->v2 = sv0 + 31;
+    poly->u3 = su + 63; poly->v3 = sv0 + 31;
 
-    poly->clut  = shadow_clut;
-    poly->tpage = shadow_tpage;
+    poly->clut  = ddog_shadow_tex.clut;
+    poly->tpage = ddog_shadow_tex.tpage;
 
     /* Reserve the poly before the window bracket may allocate DR_TWINs. */
     ctx->next_packet += sizeof(POLY_FT4);
@@ -433,7 +446,7 @@ static void draw_ddog_shadow(RenderContext *ctx, DemonDog *d) {
 }
 
 static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
-                              uint16_t tpage, uint16_t clut, uint8_t v_start, int flip) {
+                              const DDogTex *tex, int flip) {
     int32_t rx  = icos(cam_rot);
     int32_t rz  = -isin(cam_rot);
 
@@ -521,15 +534,16 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
     poly->x2 = sv[3].vx; poly->y2 = sv[3].vy;
     poly->x3 = sv[2].vx; poly->y3 = sv[2].vy;
 
-    uint8_t u_left  = flip ? 63 : 0;
-    uint8_t u_right = flip ?  0 : 63;
+    uint8_t u_left  = flip ? tex->u0 + 63 : tex->u0;
+    uint8_t u_right = flip ? tex->u0      : tex->u0 + 63;
+    uint8_t v_start = tex->v0;
     poly->u0 = u_left;  poly->v0 = v_start;
     poly->u1 = u_right; poly->v1 = v_start;
     poly->u2 = u_left;  poly->v2 = v_start + 63;
     poly->u3 = u_right; poly->v3 = v_start + 63;
 
-    poly->tpage = tpage;
-    poly->clut  = clut;
+    poly->tpage = tex->tpage;
+    poly->clut  = tex->clut;
 
     /* Reserve the sprite before the window bracket may allocate DR_TWINs (its
        V 128..255 wraps under a room's 128 window without the bracket). */
@@ -565,12 +579,11 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
     }
 }
 
-/* NOTE: the dog sprites (VRAM Voff 128/192) and shadow (Voff 160) are drawn with
-   NO texture-window bracket, so they are only correct where no 128x128 texture
-   window is active — i.e. the delivery area (which resets the window to full).
-   If demon dogs are ever placed in a windowed room (kitchen/reception), their
-   sprites will wrap to the wrong texels; bracket each sprite with a full-window
-   reset + restore like zombie.c's add_ft4_windowed. See tools/VRAM_MAP.txt. */
+/* NOTE: the dog sprites (VRAM Voff 128/192) and shadow (Voff 160) all sit past
+   Voff 128, so every one of them goes through add_ddog_ft4_windowed — without
+   that bracket a room's 128x128 texture window wraps their V and they sample the
+   wrong texels. A room that places dogs must call demon_dogs_set_texwindow() with
+   its own window. See tools/VRAM_MAP.txt. */
 void draw_demon_dogs(RenderContext *ctx) {
     int i;
     for (i = 0; i < demon_dog_count; i++) {
@@ -584,7 +597,7 @@ void draw_demon_dogs(RenderContext *ctx) {
         draw_ddog_shadow(ctx, d);
 
         if (d->state == DDOG_DORMANT) {
-            draw_ddog_sprite(ctx, d, sleep_tpage, sleep_clut, 128, 0);
+            draw_ddog_sprite(ctx, d, &ddog_sleep_tex, 0);
         } else {
             /* Flip the sprite when the dog is to the player's right so it
                always faces toward the player. Camera right vector = (icos, -isin). */
@@ -593,9 +606,9 @@ void draw_demon_dogs(RenderContext *ctx) {
             int flip = dot <= 0;
             /* Alternate between open-mouth and closed-mouth every 15 frames */
             if ((d->anim_tick / 25) & 1)
-                draw_ddog_sprite(ctx, d, alert2_tpage, alert2_clut,   0, flip);
+                draw_ddog_sprite(ctx, d, &ddog_alert2_tex, flip);
             else
-                draw_ddog_sprite(ctx, d, alert_tpage,  alert_clut,  192, flip);
+                draw_ddog_sprite(ctx, d, &ddog_alert_tex,  flip);
         }
     }
 }
