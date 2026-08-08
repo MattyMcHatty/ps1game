@@ -27,7 +27,8 @@
    Two interactions: the stairs back down to the East Stairwell's east landing
    at the chamber's west wall, and that west-room door. Rendered the same way as
    the East Stairwell (per-poly tex map + 128 texture window + fog). */
-void attic_stairwell_load_assets(void);     /* startup: geometry + texture registration */
+void attic_stairwell_load_assets(void);     /* startup: register streamed textures */
+void attic_stairwell_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void attic_stairwell_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 void attic_stairwell_init(void);            /* set collision/floor zones + spawn */
 void attic_stairwell_draw(RenderContext *ctx);

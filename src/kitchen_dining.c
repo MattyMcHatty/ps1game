@@ -7,6 +7,7 @@
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
+#include "room_arena.h"
 #include "camera.h"
 #include "texmgr.h"
 #include "kitchen_dining.h"
@@ -80,18 +81,6 @@ static void *kitchen_buff = NULL;
 #define KITCHEN_TEX_COUNT 11
 static uint16_t tex_tpage[KITCHEN_TEX_COUNT];
 static uint16_t tex_clut[KITCHEN_TEX_COUNT];
-
-static void *load_file_from_cd(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buff = malloc(sectors * 2048);
-    if (!buff) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buff, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buff;
-}
 
 /* Load a TIM into VRAM using a caller-supplied scratch buffer, so all kitchen
    textures share ONE allocation instead of mallocing/freeing per file. This
@@ -218,6 +207,16 @@ static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
     "\\DBLDOOR.TIM;1",
 };
 
+/* Load this room's geometry into the shared arena. Called on ENTRY, from main's
+   STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
+   this overwrites whatever the player just walked out of; that is safe because
+   collision and floor heights come from compile-time tables, not from the mesh.
+   See src/room_arena.h for the whole rationale. */
+void kitchen_load_geometry(void) {
+    kitchen_buff = room_arena_load("\\KITCHN.SMD;1");
+    kitchen_smd  = kitchen_buff ? smdInitData(kitchen_buff) : NULL;
+}
+
 void kitchen_load_assets(void) {
     kitchen_stream_textures();   /* initial upload at startup */
 
@@ -226,11 +225,6 @@ void kitchen_load_assets(void) {
        mid-game CD read. All CD access happens here, at startup. */
     for (int i = 0; i < KITCHEN_SHARED_TEX; i++)
         shared_id[i] = texmgr_register(shared_tex_file[i]);
-
-    /* Geometry, kept resident so entering the kitchen needs no CD read. */
-    kitchen_buff = load_file_from_cd("\\KITCHN.SMD;1");
-    if (kitchen_buff)
-        kitchen_smd = smdInitData(kitchen_buff);
 }
 
 /* Re-upload the reception-shared textures into VRAM from their resident RAM

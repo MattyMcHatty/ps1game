@@ -25,7 +25,8 @@
 
    Rendered the same way as the Attic Stairwell (per-poly tex map + 128 texture
    window + fog). */
-void attic_exit_load_assets(void);     /* startup: geometry + texture registration */
+void attic_exit_load_assets(void);     /* startup: register streamed textures */
+void attic_exit_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void attic_exit_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 
 /* Exit-door puzzle solved: put the unlocked xt_dr_cmplt art up straight away.

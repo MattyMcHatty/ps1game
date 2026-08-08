@@ -8,7 +8,8 @@
    room, with an open stairwell descending back down to the conservatory.
    A single flat y=0 floor (the descending stairwell is scenery only, like the
    conservatory's upstairs). Modelled on conservatory.c. */
-void hall_2f_load_assets(void);      /* startup: geometry + texture registration */
+void hall_2f_load_assets(void);     /* startup: register streamed textures */
+void hall_2f_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void hall_2f_upload_textures(void);  /* room entry: pure LoadImage from RAM (no CD) */
 
 /* Narrow uploads of this module's strs / upstairs copies, for rooms that want

@@ -37,6 +37,31 @@ THE FIX (implemented):
 GENERAL RULE for future per-room streaming: do ALL CD reads at startup. Mid-game,
 only ever LoadImage from RAM. Never CdRead while CD-DA is playing.
 
+  *** SUPERSEDED (2026-08-08) — read this before believing the rule above. ***
+
+  The last sentence is the true one; the first is too strong and was overtaken.
+  A mid-game CdRead is FINE provided CD-DA is halted around it with a BLOCKING
+  stop. cdaudio_suspend()/cdaudio_resume() do exactly that, and two systems now
+  rely on it:
+
+    - sound.c's sound_bank_select(), swapping the Rabisu's reveal clips in and
+      out of SPU RAM on entry to the Garden Courtyard. Shipping since the boss
+      encounter went in; this is the "slight delay" on that door.
+    - room_arena.c's room_arena_load(), reading the incoming room's MESH on
+      every transition. Room geometry is no longer resident at all: it was
+      ~518 KB of a ~1.5 MB heap held for rooms nobody was in.
+
+  So the rule to carry forward is:
+    - LoadImage: safe mid-game, GPU idled first. Startup-only for the INITIAL
+      upload (see below), but re-uploads on a transition are fine.
+    - CdRead:    safe mid-game ONLY inside cdaudio_suspend()/resume(), and ONLY
+      somewhere it is legal to block for a few hundred ms — i.e. STATE_LOADING,
+      behind the door animation's five-second fade. Never in a draw or update.
+
+  cdaudio_resume() restores the playback POSITION, not just the track, so a room
+  load no longer restarts the music. That matters for the delivery <-> kitchen
+  door, the one pair that shares a track and does not stop it on the transition.
+
 --------------------------------------------------------------------------
 Original mid-debug handoff notes follow (kept for history; the leading
 hypothesis in CRASH #2 is now known to be WRONG — see RESOLVED above).

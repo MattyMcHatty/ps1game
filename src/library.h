@@ -13,7 +13,8 @@
    Two doors are modelled into the mesh, both wired up: the vestibule's west
    double door back to the East Hall, and the single wooden door in the reading
    room's south wall (z=-2080, x=-1400) onto the East Stairwell's east landing. */
-void library_load_assets(void);     /* startup: geometry + texture headers */
+void library_load_assets(void);     /* startup: register streamed textures */
+void library_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void library_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 void library_init(void);            /* set collision/floor zones + spawn */
 void library_draw(RenderContext *ctx);

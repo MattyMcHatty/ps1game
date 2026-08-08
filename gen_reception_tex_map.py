@@ -12,7 +12,7 @@ resolve N -> name, then look the name up in the engine's fixed VRAM slot order
 after smxlink, so reception_tex_map[i] lines up with reception_smd prim i.
 
 NAME_TO_SLOT MUST match the slot order loaded in src/reception.c
-(reception_load_assets / new_tex[] + capture_tpage calls). If you add/move a
+(reception_load_assets / new_tex[] + TIM_SLOT calls). If you add/move a
 texture slot there, update it here too.
 
 Usage:

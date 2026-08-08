@@ -227,6 +227,33 @@ Two independent pipelines. Both are needed for a new room.
 ##########################################################################
 Copy src/master_bedroom.c and rename. The parts that need real thought:
 
+  <slug>_load_geometry()   <-- ROOM ENTRY, not startup
+      Three lines, and every room's are identical bar the path:
+
+          void <slug>_load_geometry(void) {
+              <slug>_buff = room_arena_load("\\TEX\\<NAME>.SMD;1");
+              <slug>_smd  = <slug>_buff ? smdInitData(<slug>_buff) : NULL;
+          }
+
+      Room meshes are NOT resident. One shared buffer (src/room_arena.c) holds
+      the room the player is standing in, and main's STATE_LOADING reads the
+      incoming room into it on every transition. Read src/room_arena.h before
+      changing anything here — in particular, never call smdInitData twice on
+      one buffer: it rebases the model's pointers IN PLACE.
+
+      If the new mesh is the biggest on the disc, the arena has to grow:
+
+          py tools/gen_room_arena.py
+
+      Skip that and room_arena_load refuses the oversized read and the room
+      draws empty (deliberately loud, rather than overrunning the buffer).
+
+  <slug>_load_assets()     <-- STARTUP
+      What is left after geometry moved out: texmgr_register() for any texture
+      this room OWNS, and TIM_SLOT() for the rest. See "Texture slots" below.
+      A room whose textures are all owned by other modules ends up with nothing
+      but TIM_SLOT lines and does no CD access at all (see garden_courtyard.c).
+
   <slug>_floor_zones_init()
       Usually one FLOOR_FLAT zone at y=0 spanning the collision bounds (all the
       interior rooms so far are single-level). Take min/max x/z from the
@@ -235,19 +262,35 @@ Copy src/master_bedroom.c and rename. The parts that need real thought:
 
   Texture slots
       #define <SLUG>_TEX_COUNT N, and a NAME_TO_SLOT-matching load order:
-        - textures already resident from startup -> capture_tpage(path, slot)
-          (reads the TIM header only, no LoadImage — the pixels are already in
-          VRAM). Resident set today: wd_flr, red_wlppr, din_cl, stn_gls (kitchen)
-          and wd_dr (fatdoor).
+        - textures already resident from startup -> TIM_SLOT(slot, NAME)
+          (from the generated src/tim_slots.h; costs NOTHING at runtime — the
+          pixels are already in VRAM and the tpage/clut are compile-time
+          constants). Resident set today: wd_flr, red_wlppr, din_cl, stn_gls
+          (kitchen) and wd_dr (fatdoor).
         - textures in a time-shared slot -> texmgr_register() at startup +
           texmgr_upload() in <slug>_upload_textures(). Put them in the
           new_tex[] table with their slot index.
         - a texture whose upload another module owns (e.g. the dresser prop's)
-          -> capture_tpage() for the tpage/clut, and call that module's
+          -> TIM_SLOT() for the tpage/clut, and call that module's
           upload fn from <slug>_upload_textures().
+
+      NAME is the disc filename without extension, uppercased: \TEX\CNCRTE.TIM
+      is TIM_SLOT(0, CNCRTE). A typo is a compile error. If the texture is new,
+      add it to disc.xml FIRST and then regenerate:
+          py tools/gen_tim_slots.py
+          py tools/vram_map.py > tools/VRAM_MAP.txt
+
+      This replaced the old per-module capture_tpage(), which read the WHOLE
+      TIM off the CD to recover two constants — 56 calls and 840 KB of redundant
+      reads on the loading screen, wd_dr.tim alone ten times over. Do not
+      reintroduce it: there is nothing about a tpage that has to be discovered
+      at runtime.
+
       Upload rules: CD reads (texmgr_register, load_file_from_cd) are STARTUP
       ONLY. LoadImage (texmgr_upload) is safe on the transition because main's
-      STATE_LOADING does DrawSync(0) first. Never CdRead mid-game.
+      STATE_LOADING does DrawSync(0) first. A mid-game CdRead is possible but
+      MUST be bracketed by cdaudio_suspend()/cdaudio_resume() — see sound.c's
+      sound_bank_select(), the one place that does it today.
 
   Doors (one block per door)
       A #define set for X/Z/text Y/text radius/fade/trigger radius, a per-door
@@ -315,9 +358,15 @@ Touch these files, in this order:
                      Any room addition invalidates existing saves — the
                      world_size check rejects them cleanly, which is fine.
 
-  src/main.c         Five separate edits:
+  src/main.c         Six separate edits:
                      1. #include "<slug>.h"
                      2. <slug>_load_assets(); in main()'s startup init block
+                        (TEXTURES ONLY — geometry does not load at startup)
+                     2b. load_area_geometry(): a `case STATE_<X>:
+                        <slug>_load_geometry(); break;` — MISS THIS AND THE ROOM
+                        IS INVISIBLE. It draws nothing, silently, because its
+                        SMD pointer is never set. That is the single easiest
+                        mistake to make when adding a room now.
                      3. update_current_area(): a new `else if (area ==
                         STATE_<X>)` branch — apply_collision_reception() (it is
                         generic over current_collision_room), apply_height(),
@@ -353,6 +402,12 @@ Touch these files, in this order:
                      block**, 8.3 uppercase names. The ROOT directory must stay
                      within one 2048-byte sector or the disc will not boot
                      (freezes at the BIOS logo).
+
+  regenerate         After disc.xml is updated, both generated headers are stale:
+                         py tools/gen_tim_slots.py      # tpage/clut constants
+                         py tools/gen_room_arena.py     # arena size vs new mesh
+                         py tools/vram_map.py > tools/VRAM_MAP.txt
+                     py tools/check_disc_root.py after mkpsxiso, as always.
 
 
 ##########################################################################

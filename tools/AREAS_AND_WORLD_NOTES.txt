@@ -43,7 +43,10 @@ PART 2 — HOW A TRANSITION WORKS
        game_state   = STATE_LOADING;
 
 2. The STATE_LOADING handler in main.c (run next frame) does, in order:
-       draw_loading_screen(&ctx);          // covers the 1-frame switch
+       DrawSync(0);                        // idle the GPU before any upload
+       load_area_geometry(pending_area);   // CD: read the target room's MESH
+       sound_bank_select(...);             // CD: swap the SPU bank if needed
+       <upload the target area's textures> // RAM -> VRAM, pure LoadImage
        world_leave(current_area);          // snapshot the room we're leaving
        <set up the target area>            // collision room, floor zones, spawn
        world_enter(pending_area);          // restore the target room's entities
@@ -56,8 +59,19 @@ PART 2 — HOW A TRANSITION WORKS
      - delivery:  collision_init() + floor_zones_init(), then place the camera
                   just inside the front door, then door_arm()
 
-3. Because all area assets are resident (see PART 5), this does NO CD reads:
-   the switch is instant and the CD-DA music keeps playing.
+3. This DOES do CD reads — the room's geometry is not resident. It is legal
+   here and nowhere else in the frame: the door animation has already faded to
+   black and runs 300 frames (5 s), so a few hundred ms of blocking read is
+   invisible. room_arena_load and sound_bank_select each bracket their own reads
+   with cdaudio_suspend()/resume(), which is mandatory — a data read issued
+   while CD-DA streams hangs the drive (TEXTURE_STREAMING_DEBUG.txt). Resume
+   restores the playback position, so the music does not restart.
+
+   THE ONE AREA THAT DOES NOT PASS THROUGH HERE is the delivery area when
+   entered straight off the title screen. That path (bottom of the main loop,
+   `prev_state == STATE_TITLE`) has to repeat this work itself, and does:
+   delivery_load_geometry(), delivery_restore_textures(), sound_bank_select().
+   Anything new added to STATE_LOADING probably needs adding there too.
 
 GOTCHA — bounce-back: if the player arrives within the destination door's
 trigger radius with Circle still held, the door could fire immediately and send
@@ -134,20 +148,41 @@ stay live across rooms and are saved separately.
 PART 5 — ASSET LOADING RULE (critical)
 ==========================================================================
 
-Load ALL of an area's CD assets (textures AND geometry) ONCE AT STARTUP, before
-the main render loop — see kitchen_load_assets(), called from main() init.
+The rule is split by asset type. It used to be "everything at startup"; geometry
+no longer is.
 
-Why:
-  - LoadImage (texture -> VRAM) HARD-CRASHES if called mid-game, once the
-    per-frame draw loop is running. It is only safe at startup. (See
-    TEXTURING_NOTES.txt PART 1 for the full debugging story.)
-  - Loading at startup also means NO CD reads happen during gameplay, so area
-    transitions never have to stop the CD-DA music (CD can't read data and play
-    audio at once) and switches are instant.
+TEXTURES — STARTUP.
+  A texture's INITIAL upload to VRAM must happen before the main render loop
+  (see kitchen_load_assets, called from main() init). Registering it with texmgr
+  also keeps a RAM copy, which is what makes the entry-time re-upload a pure
+  LoadImage with no CD access. tpage/clut never need loading at all: they are
+  compile-time constants in the generated src/tim_slots.h — use TIM_SLOT().
 
-Each area's textures live in non-overlapping VRAM regions, so every area's
-assets stay resident together. An area's *_init() (run on entry) only sets up
-collision, floor zones and the spawn camera — never loads assets.
+GEOMETRY — ROOM ENTRY.
+  Room meshes are NOT resident. One shared 64 KB arena (src/room_arena.c) holds
+  the room the player is standing in; <room>_load_geometry() reads the incoming
+  room into it from STATE_LOADING. Keeping all fourteen resident cost ~518 KB of
+  a ~1.5 MB heap to hold thirteen rooms nobody was in.
+
+  This is safe because NOTHING except drawing reads the mesh: wall collision is
+  a compile-time array in <room>_mesh_collision.c, floor heights are hardcoded
+  zone tables in <room>_floor_zones_init(), and entity state lives in world.c.
+  A room whose geometry has been evicted still collides correctly right up to
+  the moment it stops being drawn.
+
+  The invariant to preserve: only the CURRENT room's <room>_smd is valid. Every
+  other room module still holds a non-NULL pointer into the arena, now full of
+  someone else's mesh. Nothing draws a room that is not current, so this is
+  fine — but do not add anything that does (e.g. rendering the outgoing room
+  during a transition) without nulling the pointers first.
+
+CD ACCESS — STATE_LOADING ONLY, AND BRACKETED.
+  A CdRead is legal mid-game inside cdaudio_suspend()/cdaudio_resume() and
+  nowhere else; unbracketed, it hangs the drive. See TEXTURE_STREAMING_DEBUG.txt,
+  whose "do ALL CD reads at startup" rule this supersedes.
+
+An area's *_init() (run on entry) only sets up collision, floor zones and the
+spawn camera — it never loads assets.
 
 
 ==========================================================================

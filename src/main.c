@@ -142,6 +142,35 @@ void reset_game(RenderContext *ctx) {
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
 }
 
+/* Read one area's mesh into the shared room arena, evicting whatever room was
+   in it. Called from STATE_LOADING for every area, and additionally from the
+   title-exit path for the delivery area, which is the one room entered without
+   a STATE_LOADING pass.
+
+   Blocking CD access: legal here and nowhere else in the frame. See
+   src/room_arena.h for why one arena is enough and why the outgoing room's mesh
+   is safe to discard. A room missing from this switch loads no geometry and
+   draws empty — add new rooms here as well as to draw_current_area(). */
+static void load_area_geometry(GameState area) {
+    switch (area) {
+        case STATE_DELIVERY_AREA:    delivery_load_geometry();         break;
+        case STATE_KITCHEN_DINING:   kitchen_load_geometry();          break;
+        case STATE_RECEPTION:        reception_load_geometry();        break;
+        case STATE_PIANO_ROOM:       piano_room_load_geometry();       break;
+        case STATE_CONSERVATORY:     conservatory_load_geometry();     break;
+        case STATE_2F_HALL:          hall_2f_load_geometry();          break;
+        case STATE_MASTER_BEDROOM:   master_bedroom_load_geometry();   break;
+        case STATE_EAST_HALL:        east_hall_load_geometry();        break;
+        case STATE_LIBRARY:          library_load_geometry();          break;
+        case STATE_EAST_STAIRWELL:   east_stairwell_load_geometry();   break;
+        case STATE_ATTIC_STAIRWELL:  attic_stairwell_load_geometry();  break;
+        case STATE_ATTIC_EXIT:       attic_exit_load_geometry();       break;
+        case STATE_GARDEN_STAIRS:    garden_stairs_load_geometry();    break;
+        case STATE_GARDEN_COURTYARD: garden_courtyard_load_geometry(); break;
+        default: break;   /* title, menu, transitions: no room to build */
+    }
+}
+
 /* ---- Shared per-frame helpers, used by every playable area ---- */
 
 /* Open the inventory menu on a fresh Start press, remembering the area. */
@@ -779,24 +808,30 @@ int main(int argc, const char **argv) {
     draw_loading_screen(&ctx);
     flip_buffers(&ctx);
 
+    /* ROOM GEOMETRY IS NOT LOADED HERE. Each room's mesh is read into the shared
+       arena when the player walks into it (<room>_load_geometry, called from the
+       STATE_LOADING branch below) — see src/room_arena.h. What is left in these
+       calls is the texture side: texmgr registrations that keep a RAM copy so the
+       entry-time VRAM upload stays a pure LoadImage with no CD read.
+
+       LoadImage itself is only safe before the main render loop starts, which is
+       why the texture work still happens here and not on entry. */
     delivery_area_init();
-    kitchen_load_assets();     /* load kitchen textures + geometry at startup —
-                                  LoadImage is only safe before the main render
-                                  loop, and this keeps gameplay CD-read-free */
-    reception_load_assets();   /* placeholder reception geometry (no textures) */
-    piano_room_load_assets();  /* piano room geometry + textures (prpl_wlppr streamed) */
+    kitchen_load_assets();     /* kitchen textures (geometry streams on entry) */
+    reception_load_assets();   /* reception's unique textures -> RAM */
+    piano_room_load_assets();  /* piano room textures (prpl_wlppr streamed) */
     piano_props_load_assets(); /* piano + bookcase props (streamed textures) */
-    conservatory_load_assets();/* conservatory geometry + streamed textures */
-    hall_2f_load_assets();     /* 2F hall geometry + streamed textures */
-    master_bedroom_load_assets();/* master bedroom geometry + streamed textures */
-    east_hall_load_assets();   /* east hall geometry + texture headers */
-    library_load_assets();     /* library geometry + texture headers */
-    east_stairwell_load_assets();/* east stairwell geometry + streamed textures */
-    attic_stairwell_load_assets();/* attic stairwell geometry + streamed textures */
-    attic_exit_load_assets();  /* attic exit geometry + streamed textures */
+    conservatory_load_assets();/* conservatory streamed textures */
+    hall_2f_load_assets();     /* 2F hall streamed textures */
+    master_bedroom_load_assets();/* master bedroom streamed textures */
+    east_hall_load_assets();   /* east hall texture slots (all owned elsewhere) */
+    library_load_assets();     /* library texture slots (all owned elsewhere) */
+    east_stairwell_load_assets();/* east stairwell streamed textures */
+    attic_stairwell_load_assets();/* attic stairwell streamed textures */
+    attic_exit_load_assets();  /* attic exit streamed textures */
     exit_door_puzzle_load_assets();/* the exit door's fixed magenta stone icon */
-    garden_stairs_load_assets();/* garden stairs geometry + streamed textures */
-    garden_courtyard_load_assets();/* garden courtyard geometry + texture headers */
+    garden_stairs_load_assets();/* garden stairs streamed textures */
+    garden_courtyard_load_assets();/* garden courtyard texture slots */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -878,19 +913,30 @@ int main(int argc, const char **argv) {
                 save_menu_draw(&ctx);
             }
         } else if (game_state == STATE_LOADING) {
-            /* Switch areas. All assets are resident (loaded at startup), so this
-               does no CD reads — the music keeps playing and there's no real load
-               delay. The door animation already faded to black, so we just hold a
-               black screen for this one-frame switch (no LOADING screen). */
+            /* Switch areas. This is where the incoming room is actually BUILT:
+               its geometry is read off the disc, its textures are pushed into
+               VRAM, and its sound bank is swapped in. The door animation has
+               already faded to black and has five seconds of runway behind it,
+               so a few hundred milliseconds of blocking CD access here is
+               invisible — which is the whole reason the geometry is allowed to
+               live on the disc instead of in RAM.
 
-            /* Per-room texture streaming. Idle the GPU first so the previous
-               frame's async DrawOTagEnv is finished, then upload the incoming
-               room's textures while quiescent (no draw is kicked until
-               flip_buffers at the loop bottom). CD-DA must be suspended around
-               the reads: streaming uses CdRead, which hangs the drive if it runs
-               while CD-DA audio is playing (the original design loaded at startup
-               to avoid exactly this). */
+               Everything here runs on EVERY path into a room: a door, a stair
+               climb, a title-screen Load Game, a debug level-select jump. Keying
+               any of it off a door trigger instead would leave the other paths
+               entering a room that was never built. */
+
+            /* Idle the GPU first so the previous frame's async DrawOTagEnv is
+               finished, then do the loads while quiescent (no draw is kicked
+               until flip_buffers at the loop bottom). */
             DrawSync(0);
+
+            /* Geometry: read the incoming room's mesh into the shared arena,
+               evicting the one the player just left. room_arena_load brackets
+               its own CdRead with cdaudio_suspend/resume — a data read issued
+               while CD-DA streams hangs the drive
+               (tools/TEXTURE_STREAMING_DEBUG.txt). */
+            load_area_geometry(pending_area);
 
             /* Per-room SOUND streaming, and the one thing here that DOES touch
                the drive. The Rabisu's reveal clips are too big to keep in SPU
@@ -1241,14 +1287,21 @@ int main(int argc, const char **argv) {
         }
 
         /* CD-DA music: start once when leaving the title for gameplay, stop
-           when returning to the title. In-game area transitions never touch it
-           (all assets are resident, so no CD read competes with playback). */
+           when returning to the title. In-game area transitions do their CD work
+           inside STATE_LOADING, which suspends playback around it. */
         if (prev_state == STATE_TITLE && game_state != STATE_TITLE) {
             if (game_state == STATE_DELIVERY_AREA) {
-                /* This path enters delivery directly (no STATE_LOADING pass),
-                   so restore the slots the conservatory may have streamed over
-                   in a previous session segment. GPU idled first (pure
-                   LoadImage from RAM, same rule as the loading branch). */
+                /* This path enters delivery directly (no STATE_LOADING pass), so
+                   everything that branch would have done has to happen here.
+                   Geometry first: the arena may hold any room at all — the player
+                   could have quit to the title from the Garden Courtyard — and
+                   delivery's own mesh has not been resident since startup stopped
+                   loading it. Music is not playing yet on this path, so the read
+                   is uncontended. */
+                delivery_load_geometry();
+                /* Then the slots the conservatory may have streamed over in a
+                   previous session segment. GPU idled first (pure LoadImage from
+                   RAM, same rule as the loading branch). */
                 DrawSync(0);
                 delivery_restore_textures();
                 /* Same reason, for the sound banks: a session that reached the

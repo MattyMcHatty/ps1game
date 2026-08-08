@@ -7,6 +7,8 @@
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
+#include "room_arena.h"
+#include "tim_slots.h"
 #include "camera.h"
 #include "east_hall.h"
 #include "collision.h"
@@ -65,61 +67,29 @@ static void east_hall_floor_zones_init(void) {
 static uint16_t tex_tpage[EAST_HALL_TEX_COUNT];
 static uint16_t tex_clut[EAST_HALL_TEX_COUNT];
 
-/* Read a whole TIM into a freshly malloc'd buffer (caller owns it). NULL on fail. */
-static uint8_t *read_tim(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    uint8_t *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+/* Load this room's geometry into the shared arena. Called on ENTRY, from main's
+   STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
+   this overwrites whatever the player just walked out of; that is safe because
+   collision and floor heights come from compile-time tables, not from the mesh.
+   See src/room_arena.h for the whole rationale. */
+void east_hall_load_geometry(void) {
+    east_hall_buff = room_arena_load("\\TEX\\EASTHALL.SMD;1");
+    east_hall_smd  = east_hall_buff ? smdInitData(east_hall_buff) : NULL;
 }
 
-static void *load_file_from_cd(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buff = malloc(sectors * 2048);
-    if (!buff) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buff, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buff;
-}
-
-/* Capture tpage/clut for a texture that is ALREADY resident in VRAM (shared
-   with another room), or whose upload another module owns: read its header
-   only, no LoadImage. */
-static void capture_tpage(const char *filename, int slot) {
-    uint8_t *buf = read_tim(filename);
-    if (!buf) return;
-    TIM_IMAGE tim;
-    GetTimInfo((uint32_t *)buf, &tim);
-    if (tim.mode & 0x8) tex_clut[slot] = getClut(tim.crect->x, tim.crect->y);
-    tex_tpage[slot] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
-    free(buf);
-}
-
-/* Load geometry AND capture texture headers at STARTUP (the only time CD access
-   is safe — see tools/TEXTURING_NOTES.txt). Every texture this room draws is
-   registered by another module, so there is nothing to texmgr_register here. */
+/* Nothing to read at STARTUP: geometry moved to east_hall_load_geometry above,
+   and every texture this room draws is registered/uploaded by another module, so
+   the slots below are compile-time constants. */
 void east_hall_load_assets(void) {
-    east_hall_buff = load_file_from_cd("\\TEX\\EASTHALL.SMD;1");
-    if (east_hall_buff)
-        east_hall_smd = smdInitData(east_hall_buff);
-
     /* Uploaded by concrete_props (cncrte) and the dresser prop (dresser), both
        of which east_hall_upload_textures calls on entry. */
-    capture_tpage("\\TEX\\CNCRTE.TIM;1",  0);
-    capture_tpage("\\TEX\\DRESSER.TIM;1", 3);
+    TIM_SLOT(0, CNCRTE);
+    TIM_SLOT(3, DRESSER);
 
     /* Resident from startup (kitchen/reception + fatdoor). */
-    capture_tpage("\\WDFLR.TIM;1",    1);
-    capture_tpage("\\INRDBLDR.TIM;1", 2);
-    capture_tpage("\\WDDR.TIM;1",     4);
+    TIM_SLOT(1, WDFLR);
+    TIM_SLOT(2, INRDBLDR);
+    TIM_SLOT(4, WDDR);
 }
 
 /* Upload the two streamed textures from their owners' resident RAM copies.

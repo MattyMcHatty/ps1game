@@ -25,7 +25,8 @@
    Both doors sit in the z=349 wall and are approached from -Z, so both signs
    lie in the XY plane with mirror=0 (same orientation as the master bedroom's).
    Modelled on library.c / master_bedroom.c. */
-void east_stairwell_load_assets(void);     /* startup: geometry + texture registration */
+void east_stairwell_load_assets(void);     /* startup: register streamed textures */
+void east_stairwell_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void east_stairwell_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 /* Narrow upload of this module's chnlnk copy alone, for the Attic Exit's cage
    (see the comment on the definition). */

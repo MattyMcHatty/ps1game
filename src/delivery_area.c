@@ -6,6 +6,7 @@
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
+#include "room_arena.h"
 #include "camera.h"
 #include "delivery_area.h"
 #include "collision.h"
@@ -108,10 +109,16 @@ void delivery_area_init(void) {
     for (int i = 0; i < DELIVERY_SHARED_TEX; i++)
         shared_id[i] = texmgr_register(shared_tex_file[i]);
 
-    room_buff = load_file_from_cd("\\DELIVERY.SMD", NULL);
-    if (room_buff) {
-        room_smd = smdInitData(room_buff);
-    }
+}
+
+/* Load this room's geometry into the shared arena. Called on ENTRY, not at
+   startup, like every other room — but delivery is the one room reached WITHOUT
+   a STATE_LOADING pass (the title screen drops straight into it), so main.c
+   calls this from the title-exit path as well as from STATE_LOADING. See
+   src/room_arena.h. */
+void delivery_load_geometry(void) {
+    room_buff = room_arena_load("\\DELIVERY.SMD");
+    room_smd  = room_buff ? smdInitData(room_buff) : NULL;
 }
 
 /* SMD FT4 layout, stride=32:

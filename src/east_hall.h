@@ -12,7 +12,8 @@
    goes back to reception, the east double door (x=2672, z=372) into the Library,
    and the south single door (z=-992, x=220), at the bottom of the south
    offshoot, onto the East Stairwell's west landing. */
-void east_hall_load_assets(void);     /* startup: geometry + texture registration */
+void east_hall_load_assets(void);     /* startup: register streamed textures */
+void east_hall_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void east_hall_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 void east_hall_init(void);            /* set collision/floor zones + spawn */
 void east_hall_draw(RenderContext *ctx);

@@ -74,6 +74,9 @@ static CdlLOC        cd_track_loc;
 static int           cd_loc_valid     = 0;
 /* Absolute sector at which the track ends (disc lead-out). 0 if unknown. */
 static uint32_t      cd_end_sector    = 0;
+/* Where playback was when cdaudio_suspend() halted the drive, so cdaudio_resume()
+   can pick the track up mid-phrase. 0 means "start the track from the top". */
+static uint32_t      cd_resume_sector = 0;
 
 /* Position-polling state. */
 static int           poll_tick        = 0;
@@ -164,14 +167,29 @@ static int read_position(uint32_t *sector, int *track) {
     return 1;
 }
 
-/* Seek to the resolved track start and begin CD-DA playback. CdlModeDA selects
-   audio mode; speed bit stays clear (CD-DA must play at 1x). No CdlModeAP — we
-   want continuous playback to end of disc and detect the end by polling. */
-static void issue_play(void) {
+/* Convert an absolute sector count back to a CdlLOC (absolute MSF, BCD) — the
+   inverse of loc_to_sector, used to resume playback part-way through a track. */
+static void sector_to_loc(uint32_t sec, CdlLOC *out) {
+    out->minute = itob((uint8_t)(sec / (60 * 75)));
+    out->second = itob((uint8_t)((sec / 75) % 60));
+    out->sector = itob((uint8_t)(sec % 75));
+    out->track  = 0;
+}
+
+/* Seek and begin CD-DA playback. `at` is an absolute sector to start from, or 0
+   for the track's own start. CdlModeDA selects audio mode; speed bit stays clear
+   (CD-DA must play at 1x). No CdlModeAP — we want continuous playback to end of
+   disc and detect the end by polling. */
+static void issue_play_from(uint32_t at) {
     uint8_t mode = CdlModeDA;
     CdControl(CdlSetmode, &mode, NULL);
-    if (cd_loc_valid)
+    if (at) {
+        CdlLOC loc;
+        sector_to_loc(at, &loc);
+        CdControl(CdlSetloc, &loc, NULL);
+    } else if (cd_loc_valid) {
         CdControl(CdlSetloc, &cd_track_loc, NULL);
+    }
     CdControl(CdlPlay, NULL, NULL);
 
     /* Reset poll state so the seek/spinup window isn't mistaken for a stall. */
@@ -182,6 +200,9 @@ static void issue_play(void) {
     fail_count    = 0;
     last_sector   = 0;
 }
+
+/* Start the track from its beginning. */
+static void issue_play(void) { issue_play_from(0); }
 
 void cdaudio_init(void) {
     /* Route CD audio into the SPU mixer at full volume, and leave it there for
@@ -312,22 +333,45 @@ void cdaudio_update(void) {
 
 /* Temporarily halt CD-DA so the drive is free for data reads (CdRead) mid-game.
    The original design loaded all assets at startup precisely to avoid competing
-   with CD-DA; per-room texture streaming needs mid-game reads, so it must bracket
-   them with suspend/resume or the drive hangs (reading data while audio streams).
-   cd_audio_playing stays set so resume knows to restart. No-op if not playing. */
+   with CD-DA; per-room geometry and sound-bank streaming need mid-game reads, so
+   they must bracket them with suspend/resume or the drive hangs (reading data
+   while audio streams). cd_audio_playing stays set so resume knows to restart.
+   No-op if not playing.
+
+   The playback POSITION is captured here and restored by cdaudio_resume, so the
+   music picks up where it left off rather than snapping back to the top of the
+   track. That matters for exactly one door today — delivery <-> kitchen, the one
+   pair that deliberately shares a track and so does NOT cdaudio_stop() on the
+   transition — but it is the difference between streaming a room being inaudible
+   and it restarting the score every time the player walks through. */
 void cdaudio_suspend(void) {
-    if (cd_audio_playing) {
-        /* BLOCKING stop: CdControlB waits for the command to complete, so the
-           drive is actually halted before we issue data reads. A non-blocking
-           CdControl(CdlStop) returns immediately and the still-streaming drive
-           corrupts the subsequent CdRead (garbage TIM -> LoadImage crash). */
-        CdControlB(CdlStop, NULL, NULL);
-    }
+    if (!cd_audio_playing) return;
+
+    uint32_t sec;
+    int      trk;
+    cd_resume_sector = read_position(&sec, &trk) ? sec : 0;
+
+    /* BLOCKING stop: CdControlB waits for the command to complete, so the
+       drive is actually halted before we issue data reads. A non-blocking
+       CdControl(CdlStop) returns immediately and the still-streaming drive
+       corrupts the subsequent CdRead (garbage TIM -> LoadImage crash). */
+    CdControlB(CdlStop, NULL, NULL);
 }
 
 void cdaudio_resume(void) {
-    if (cd_audio_playing)
-        issue_play();   /* re-seek to the track and restart DA playback */
+    if (!cd_audio_playing) return;
+
+    /* Refuse a resume point that is not plausibly inside the track: a bad
+       position read would otherwise strand playback in the lead-out or in the
+       next track. Falling back to the track start is the old behaviour, which
+       is merely unmusical rather than broken. */
+    uint32_t at    = cd_resume_sector;
+    uint32_t start = cd_loc_valid ? loc_to_sector(&cd_track_loc) : 0;
+    if (at < start || (cd_end_sector && at >= cd_end_sector))
+        at = 0;
+
+    cd_resume_sector = 0;
+    issue_play_from(at);
 }
 
 void cdaudio_stop(void) {

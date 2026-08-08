@@ -7,6 +7,8 @@
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
+#include "room_arena.h"
+#include "tim_slots.h"
 #include "camera.h"
 #include "reception.h"
 #include "collision.h"
@@ -31,18 +33,6 @@ extern volatile size_t  pad_buff_len[2];
 
 static SMD  *reception_smd  = NULL;
 static void *reception_buff = NULL;
-
-static void *load_file_from_cd(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buff = malloc(sectors * 2048);
-    if (!buff) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buff, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buff;
-}
 
 /* Multi-level floor layout (taken from the collision mesh, Reception_mesh.smx):
    ground (y=0) -> ramp A up to a y=-150 platform -> ramp B up to the y=-600
@@ -135,40 +125,20 @@ static const struct { const char *file; int slot; } new_tex[RECEPTION_NEW_TEX] =
     { "\\TEX\\FRNTDR.TIM;1", 5 },
 };
 
-/* Read a whole TIM into a freshly malloc'd buffer (caller owns it). NULL on fail. */
-static uint8_t *read_tim(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    uint8_t *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+/* Load this room's geometry into the shared arena. Called on ENTRY, from main's
+   STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
+   this overwrites whatever the player just walked out of; that is safe because
+   collision and floor heights come from compile-time tables, not from the mesh.
+   See src/room_arena.h for the whole rationale. */
+void reception_load_geometry(void) {
+    reception_buff = room_arena_load("\\RECEPT.SMD;1");
+    reception_smd  = reception_buff ? smdInitData(reception_buff) : NULL;
 }
 
-/* Capture tpage/clut for a texture that is ALREADY resident in VRAM (shared with
-   another room): read its header only, no LoadImage. */
-static void capture_tpage(const char *filename, int slot) {
-    uint8_t *buf = read_tim(filename);
-    if (!buf) return;
-    TIM_IMAGE tim;
-    GetTimInfo((uint32_t *)buf, &tim);
-    if (tim.mode & 0x8) tex_clut[slot] = getClut(tim.crect->x, tim.crect->y);
-    tex_tpage[slot] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
-    free(buf);
-}
-
-/* Load geometry AND preload textures at STARTUP. Geometry and the six shared
-   textures need only their headers/data read here (no mid-game CD); the three
-   unique textures are kept resident in RAM for entry-time upload. All CD access
-   happens here, at startup, where it is safe. */
+/* Preload textures at STARTUP. Geometry moved to reception_load_geometry above;
+   what remains is the texmgr registration of reception's unique textures, kept
+   RAM-resident so the entry-time upload is a pure LoadImage with no CD read. */
 void reception_load_assets(void) {
-    reception_buff = load_file_from_cd("\\RECEPT.SMD;1");
-    if (reception_buff)
-        reception_smd = smdInitData(reception_buff);
-
     /* Register the 3 reception-only textures with the texture manager (RAM-
        resident, uploaded to VRAM on each reception entry) and capture their
        tpage/clut into the renderer's slot table. */
@@ -181,12 +151,12 @@ void reception_load_assets(void) {
 
     /* The other 6 are resident from startup (kitchen + fatdoor); just capture
        their tpage/clut for reception's renderer. */
-    capture_tpage("\\REDWLPPR.TIM;1", 1);
-    capture_tpage("\\WDFLR.TIM;1",    2);
-    capture_tpage("\\DINCL.TIM;1",    4);
-    capture_tpage("\\WDDR.TIM;1",     6);
-    capture_tpage("\\INRDBLDR.TIM;1", 7);
-    capture_tpage("\\STNGLS.TIM;1",   8);
+    TIM_SLOT(1, REDWLPPR);
+    TIM_SLOT(2, WDFLR);
+    TIM_SLOT(4, DINCL);
+    TIM_SLOT(6, WDDR);
+    TIM_SLOT(7, INRDBLDR);
+    TIM_SLOT(8, STNGLS);
 }
 
 /* Upload reception's 3 unique textures into VRAM from their resident RAM copies.

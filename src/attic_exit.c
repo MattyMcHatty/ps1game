@@ -7,6 +7,8 @@
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
+#include "room_arena.h"
+#include "tim_slots.h"
 #include "camera.h"
 #include "attic_exit.h"
 #include "collision.h"
@@ -92,51 +94,21 @@ static int cmplt_tex_id = -1;
 static uint16_t tex_tpage[ATTIC_EXIT_TEX_COUNT];
 static uint16_t tex_clut[ATTIC_EXIT_TEX_COUNT];
 
-/* Read a whole TIM into a freshly malloc'd buffer (caller owns it). NULL on fail. */
-static uint8_t *read_tim(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    uint8_t *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+/* Load this room's geometry into the shared arena. Called on ENTRY, from main's
+   STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
+   this overwrites whatever the player just walked out of; that is safe because
+   collision and floor heights come from compile-time tables, not from the mesh.
+   See src/room_arena.h for the whole rationale. */
+void attic_exit_load_geometry(void) {
+    attic_exit_buff = room_arena_load("\\TEX\\ATTCEXIT.SMD;1");
+    attic_exit_smd  = attic_exit_buff ? smdInitData(attic_exit_buff) : NULL;
 }
 
-static void *load_file_from_cd(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buff = malloc(sectors * 2048);
-    if (!buff) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buff, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buff;
-}
-
-/* Capture tpage/clut for a texture that is ALREADY resident in VRAM (shared
-   with another room), or whose upload another module owns: read its header
-   only, no LoadImage. */
-static void capture_tpage(const char *filename, int slot) {
-    uint8_t *buf = read_tim(filename);
-    if (!buf) return;
-    TIM_IMAGE tim;
-    GetTimInfo((uint32_t *)buf, &tim);
-    if (tim.mode & 0x8) tex_clut[slot] = getClut(tim.crect->x, tim.crect->y);
-    tex_tpage[slot] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
-    free(buf);
-}
-
-/* Load geometry AND register/capture textures at STARTUP (the only time CD
-   access is safe — see tools/TEXTURING_NOTES.txt). */
+/* Register this room's streamed textures at STARTUP. Geometry is NOT loaded
+   here any more — see attic_exit_load_geometry above — but the texmgr registrations
+   still are: they keep a RAM copy so the entry-time upload is a pure LoadImage
+   (tools/TEXTURING_NOTES.txt). */
 void attic_exit_load_assets(void) {
-    attic_exit_buff = load_file_from_cd("\\TEX\\ATTCEXIT.SMD;1");
-    if (attic_exit_buff)
-        attic_exit_smd = smdInitData(attic_exit_buff);
-
     /* Streamed slots we own: RAM-resident via the texture manager, uploaded on
        entry. */
     for (int i = 0; i < ATTIC_EXIT_NEW_TEX; i++) {
@@ -149,13 +121,13 @@ void attic_exit_load_assets(void) {
 
     /* Owned by the East Stairwell, whose narrow upload attic_exit_upload_textures
        calls. Header only — no LoadImage, no second RAM copy. */
-    capture_tpage("\\TEX\\CHNLNK.TIM;1", 4);
+    TIM_SLOT(4, CHNLNK);
 
     /* Resident from startup (kitchen + fatdoor). */
-    capture_tpage("\\WDFLR.TIM;1",    0);
-    capture_tpage("\\REDWLPPR.TIM;1", 1);
-    capture_tpage("\\DINCL.TIM;1",    2);
-    capture_tpage("\\WDDR.TIM;1",     3);
+    TIM_SLOT(0, WDFLR);
+    TIM_SLOT(1, REDWLPPR);
+    TIM_SLOT(2, DINCL);
+    TIM_SLOT(3, WDDR);
 }
 
 /* Upload the streamed textures from their resident RAM copies. Pure LoadImage

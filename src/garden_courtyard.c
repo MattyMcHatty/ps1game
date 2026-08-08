@@ -7,6 +7,8 @@
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
+#include "room_arena.h"
+#include "tim_slots.h"
 #include "camera.h"
 #include "garden_courtyard.h"
 #include "collision.h"
@@ -115,57 +117,28 @@ static void garden_courtyard_floor_zones_init(void) {
 static uint16_t tex_tpage[GARDEN_COURTYARD_TEX_COUNT];
 static uint16_t tex_clut[GARDEN_COURTYARD_TEX_COUNT];
 
-/* Read a whole TIM into a freshly malloc'd buffer (caller owns it). NULL on fail. */
-static uint8_t *read_tim(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    uint8_t *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+/* Load this room's geometry into the shared arena. Called on ENTRY, from main's
+   STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
+   this overwrites whatever the player just walked out of; that is safe because
+   collision and floor heights come from compile-time tables, not from the mesh.
+   See src/room_arena.h for the whole rationale. */
+void garden_courtyard_load_geometry(void) {
+    garden_courtyard_buff = room_arena_load("\\TEX\\GRDNCRTY.SMD;1");
+    garden_courtyard_smd  = garden_courtyard_buff ? smdInitData(garden_courtyard_buff) : NULL;
 }
 
-static void *load_file_from_cd(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buff = malloc(sectors * 2048);
-    if (!buff) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buff, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buff;
-}
-
-/* Capture tpage/clut for a texture whose upload another module owns: read its
-   header only, no LoadImage. */
-static void capture_tpage(const char *filename, int slot) {
-    uint8_t *buf = read_tim(filename);
-    if (!buf) return;
-    TIM_IMAGE tim;
-    GetTimInfo((uint32_t *)buf, &tim);
-    if (tim.mode & 0x8) tex_clut[slot] = getClut(tim.crect->x, tim.crect->y);
-    tex_tpage[slot] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
-    free(buf);
-}
-
-/* Load geometry AND capture the texture headers at STARTUP (the only time CD
-   access is safe — see tools/TEXTURING_NOTES.txt). */
+/* Nothing to read at STARTUP: geometry moved to garden_courtyard_load_geometry
+   above, and every texture slot below is a compile-time constant. This function
+   survives only so the room keeps the same shape as its neighbours; it costs one
+   call and no CD access. */
 void garden_courtyard_load_assets(void) {
-    garden_courtyard_buff = load_file_from_cd("\\TEX\\GRDNCRTY.SMD;1");
-    if (garden_courtyard_buff)
-        garden_courtyard_smd = smdInitData(garden_courtyard_buff);
-
     /* Every one of these is uploaded by another module; header only — no
        LoadImage, no second RAM copy. */
-    capture_tpage("\\BRIKWLL.TIM;1",     0);
-    capture_tpage("\\TEX\\CHNLNK.TIM;1", 1);
-    capture_tpage("\\TEX\\XTDRCG.TIM;1", 2);
-    capture_tpage("\\TEX\\GRAVELGS.TIM;1", 4);
-    capture_tpage("\\TEX\\GRSSGS.TIM;1",   5);
+    TIM_SLOT(0, BRIKWLL);
+    TIM_SLOT(1, CHNLNK);
+    TIM_SLOT(2, XTDRCG);
+    TIM_SLOT(4, GRAVELGS);
+    TIM_SLOT(5, GRSSGS);
 }
 
 /* Upload the streamed textures. Pure LoadImage — no CD access — safe during the

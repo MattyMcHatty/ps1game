@@ -7,6 +7,8 @@
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
+#include "room_arena.h"
+#include "tim_slots.h"
 #include "camera.h"
 #include "library.h"
 #include "collision.h"
@@ -76,63 +78,31 @@ static void library_floor_zones_init(void) {
 static uint16_t tex_tpage[LIBRARY_TEX_COUNT];
 static uint16_t tex_clut[LIBRARY_TEX_COUNT];
 
-/* Read a whole TIM into a freshly malloc'd buffer (caller owns it). NULL on fail. */
-static uint8_t *read_tim(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    uint8_t *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+/* Load this room's geometry into the shared arena. Called on ENTRY, from main's
+   STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
+   this overwrites whatever the player just walked out of; that is safe because
+   collision and floor heights come from compile-time tables, not from the mesh.
+   See src/room_arena.h for the whole rationale. */
+void library_load_geometry(void) {
+    library_buff = room_arena_load("\\TEX\\LIBRARY.SMD;1");
+    library_smd  = library_buff ? smdInitData(library_buff) : NULL;
 }
 
-static void *load_file_from_cd(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buff = malloc(sectors * 2048);
-    if (!buff) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buff, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buff;
-}
-
-/* Capture tpage/clut for a texture that is ALREADY resident in VRAM (shared
-   with another room), or whose upload another module owns: read its header
-   only, no LoadImage. */
-static void capture_tpage(const char *filename, int slot) {
-    uint8_t *buf = read_tim(filename);
-    if (!buf) return;
-    TIM_IMAGE tim;
-    GetTimInfo((uint32_t *)buf, &tim);
-    if (tim.mode & 0x8) tex_clut[slot] = getClut(tim.crect->x, tim.crect->y);
-    tex_tpage[slot] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
-    free(buf);
-}
-
-/* Load geometry AND capture texture headers at STARTUP (the only time CD access
-   is safe — see tools/TEXTURING_NOTES.txt). Every texture this room draws is
-   registered by another module, so there is nothing to texmgr_register here. */
+/* Nothing to read at STARTUP: geometry moved to library_load_geometry above,
+   and every texture this room draws is registered/uploaded by another module, so
+   the slots below are compile-time constants. */
 void library_load_assets(void) {
-    library_buff = load_file_from_cd("\\TEX\\LIBRARY.SMD;1");
-    if (library_buff)
-        library_smd = smdInitData(library_buff);
-
     /* Uploaded by concrete_props (cncrte), the piano room (prpl_wlppr) and the
        bookcase prop (bookshelf), all of which library_upload_textures calls. */
-    capture_tpage("\\TEX\\CNCRTE.TIM;1",   0);
-    capture_tpage("\\TEX\\PRPLWLP.TIM;1",  1);
-    capture_tpage("\\TEX\\BOOKSHLF.TIM;1", 4);
+    TIM_SLOT(0, CNCRTE);
+    TIM_SLOT(1, PRPLWLP);
+    TIM_SLOT(4, BOOKSHLF);
 
     /* Resident from startup (kitchen/reception + fatdoor). */
-    capture_tpage("\\WDFLR.TIM;1",    2);
-    capture_tpage("\\DINCL.TIM;1",    3);
-    capture_tpage("\\INRDBLDR.TIM;1", 5);
-    capture_tpage("\\WDDR.TIM;1",     6);
+    TIM_SLOT(2, WDFLR);
+    TIM_SLOT(3, DINCL);
+    TIM_SLOT(5, INRDBLDR);
+    TIM_SLOT(6, WDDR);
 }
 
 /* Upload the three streamed textures from their owners' resident RAM copies.

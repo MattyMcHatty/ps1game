@@ -81,6 +81,7 @@ add_executable(horror_game
     src/save_point.c
     src/dresser.c
     src/texmgr.c
+    src/room_arena.c
     src/key.c
     src/item_pickup.c
     src/bullet_hit.c

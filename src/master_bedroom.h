@@ -8,7 +8,8 @@
    central bed chamber (x[-500,500], z[-379,319]) joined by short passages to a
    west and an east wing, each with its own door back out to the corridor.
    Flat floor at y=0 throughout. Modelled on conservatory.c / hall_2f.c. */
-void master_bedroom_load_assets(void);     /* startup: geometry + texture registration */
+void master_bedroom_load_assets(void);     /* startup: register streamed textures */
+void master_bedroom_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void master_bedroom_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 void master_bedroom_init(void);            /* set collision/floor zones + spawn */
 void master_bedroom_draw(RenderContext *ctx);

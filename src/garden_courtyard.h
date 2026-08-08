@@ -33,7 +33,8 @@
    Rendered the same way as the Garden Stairs (per-poly tex map + one 128
    texture window + purple outdoor fog), and it reuses that room's texture
    uploads wholesale — the two share all five of this mesh's textures. */
-void garden_courtyard_load_assets(void);     /* startup: geometry + tpage capture */
+void garden_courtyard_load_assets(void);     /* startup: register streamed textures */
+void garden_courtyard_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void garden_courtyard_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 void garden_courtyard_init(void);            /* set collision/floor zones + spawn */
 void garden_courtyard_draw(RenderContext *ctx);

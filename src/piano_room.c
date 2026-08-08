@@ -7,6 +7,8 @@
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
+#include "room_arena.h"
+#include "tim_slots.h"
 #include "camera.h"
 #include "piano_room.h"
 #include "collision.h"
@@ -28,18 +30,6 @@ extern volatile size_t  pad_buff_len[2];
 
 static SMD  *piano_room_smd  = NULL;
 static void *piano_room_buff = NULL;
-
-static void *load_file_from_cd(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buff = malloc(sectors * 2048);
-    if (!buff) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buff, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buff;
-}
 
 /* Single flat floor at y=0 across the whole room (see the FLOOR comment in
    piano_room_mesh_collision.c). */
@@ -66,38 +56,21 @@ static uint16_t tex_clut[PIANO_ROOM_TEX_COUNT];
 
 static int prpl_tex_id = -1;   /* texmgr id for the streamed prpl_wlppr */
 
-/* Read a whole TIM into a freshly malloc'd buffer (caller owns it). NULL on fail. */
-static uint8_t *read_tim(const char *filename) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    uint8_t *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+/* Load this room's geometry into the shared arena. Called on ENTRY, from main's
+   STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
+   this overwrites whatever the player just walked out of; that is safe because
+   collision and floor heights come from compile-time tables, not from the mesh.
+   See src/room_arena.h for the whole rationale. */
+void piano_room_load_geometry(void) {
+    piano_room_buff = room_arena_load("\\TEX\\PIANORM.SMD;1");
+    piano_room_smd  = piano_room_buff ? smdInitData(piano_room_buff) : NULL;
 }
 
-/* Capture tpage/clut for a texture that is ALREADY resident in VRAM (shared with
-   another room): read its header only, no LoadImage. */
-static void capture_tpage(const char *filename, int slot) {
-    uint8_t *buf = read_tim(filename);
-    if (!buf) return;
-    TIM_IMAGE tim;
-    GetTimInfo((uint32_t *)buf, &tim);
-    if (tim.mode & 0x8) tex_clut[slot] = getClut(tim.crect->x, tim.crect->y);
-    tex_tpage[slot] = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
-    free(buf);
-}
-
-/* Load geometry AND register/capture textures at STARTUP (the only time CD
-   access is safe — see tools/TEXTURING_NOTES.txt). */
+/* Register this room's streamed textures at STARTUP. Geometry is NOT loaded
+   here any more — see piano_room_load_geometry above — but the texmgr registrations
+   still are: they keep a RAM copy so the entry-time upload is a pure LoadImage
+   (tools/TEXTURING_NOTES.txt). */
 void piano_room_load_assets(void) {
-    piano_room_buff = load_file_from_cd("\\TEX\\PIANORM.SMD;1");
-    if (piano_room_buff)
-        piano_room_smd = smdInitData(piano_room_buff);
-
     /* Streamed, room-unique wallpaper (slot 0). */
     prpl_tex_id  = texmgr_register("\\TEX\\PRPLWLP.TIM;1");
     tex_tpage[0] = texmgr_tpage(prpl_tex_id);
@@ -105,9 +78,9 @@ void piano_room_load_assets(void) {
 
     /* The other 3 are resident from startup (kitchen + fatdoor); just capture
        their tpage/clut for this room's renderer. */
-    capture_tpage("\\WDFLR.TIM;1", 1);
-    capture_tpage("\\DINCL.TIM;1", 2);
-    capture_tpage("\\WDDR.TIM;1",  3);
+    TIM_SLOT(1, WDFLR);
+    TIM_SLOT(2, DINCL);
+    TIM_SLOT(3, WDDR);
 }
 
 /* Upload prpl_wlppr into the stove's VRAM slot from its resident RAM copy.

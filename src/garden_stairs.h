@@ -29,7 +29,8 @@
 
    Rendered the same way as the Attic Exit (per-poly tex map + 128 texture
    window + fog). */
-void garden_stairs_load_assets(void);     /* startup: geometry + texture registration */
+void garden_stairs_load_assets(void);     /* startup: register streamed textures */
+void garden_stairs_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void garden_stairs_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 void garden_stairs_init(void);            /* set collision/floor zones + spawn */
 void garden_stairs_draw(RenderContext *ctx);

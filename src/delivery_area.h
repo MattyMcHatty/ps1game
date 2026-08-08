@@ -4,6 +4,10 @@
 #include "render.h"
 
 void delivery_area_init(void);
+/* ROOM ENTRY: read the mesh into the arena. Unlike every other room, delivery is
+   also reached WITHOUT a STATE_LOADING pass (straight off the title screen), so
+   main.c calls this from both paths. */
+void delivery_load_geometry(void);
 void delivery_area_draw(RenderContext *ctx);
 void delivery_restore_textures(void);   /* re-upload slots the conservatory streams over */
 

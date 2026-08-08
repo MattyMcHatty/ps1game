@@ -3,7 +3,8 @@
 
 #include "render.h"
 
-void kitchen_load_assets(void);     /* load textures + geometry once at startup */
+void kitchen_load_assets(void);     /* startup: register streamed textures */
+void kitchen_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void kitchen_stream_textures(void); /* re-upload kitchen textures on re-entry (GPU idle) */
 void kitchen_restore_textures(void);/* re-upload reception-shared textures from RAM (no CD) */
 void kitchen_dining_init(void);
