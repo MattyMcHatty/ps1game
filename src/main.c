@@ -275,6 +275,8 @@ static void update_current_area(GameState area) {
             pending_area = STATE_DELIVERY_AREA;
             door_anim_start(DOOR_PANEL_OUTER);
             game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();   /* silence during the transition; delivery music
+                                 starts when the delivery area finishes loading */
         } else if (!lock && to_reception_door_triggered()) {
             pending_area = STATE_RECEPTION;
             door_anim_start(DOOR_PANEL_INNER);
@@ -1025,16 +1027,21 @@ int main(int argc, const char **argv) {
                 kitchen_dining_init();
                 /* Coming back from reception: spawn at the kitchen's "to
                    reception" door (far west wall), facing east into the kitchen,
-                   instead of the default delivery-side spawn, and restore the
-                   default music (reception swapped it for its own track). */
+                   instead of the default delivery-side spawn. */
                 if (current_area == STATE_RECEPTION) {
                     cam_x   = -3100;
                     cam_y   = -149;
                     cam_vy  = 0;
                     cam_z   = -26;
                     cam_rot = 1024;   /* face +X, into the kitchen */
-                    cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
                 }
+                /* Start the music on arrival, from every direction — including
+                   from the delivery area, which plays this same track. The two
+                   used to share it across the transition without stopping, but
+                   streaming the room's mesh suspends CD-DA mid-track, so what
+                   the player heard was the score pausing over the load. Cheaper
+                   to be consistent with every other door than to hide the seam. */
+                cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
                 kitchen_door_arm();
             } else if (pending_area == STATE_RECEPTION) {
                 reception_init();
@@ -1194,6 +1201,9 @@ int main(int argc, const char **argv) {
                 cam_z   = DOOR_Z;
                 cam_rot = 1024;           /* face +X, into the delivery area */
                 door_arm();
+                cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);   /* same track as the
+                                                           kitchen, restarted on
+                                                           arrival — see there */
             }
             /* Restore the entered room's entities into the live arrays. */
             world_enter(pending_area);

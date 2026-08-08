@@ -340,10 +340,11 @@ void cdaudio_update(void) {
 
    The playback POSITION is captured here and restored by cdaudio_resume, so the
    music picks up where it left off rather than snapping back to the top of the
-   track. That matters for exactly one door today — delivery <-> kitchen, the one
-   pair that deliberately shares a track and so does NOT cdaudio_stop() on the
-   transition — but it is the difference between streaming a room being inaudible
-   and it restarting the score every time the player walks through. */
+   track. No door needs that any more — every transition now cdaudio_stop()s and
+   the destination room starts its track fresh — but the MID-ROOM streamers do:
+   sound_bank_select() and room_arena_load() suspend around their reads while the
+   player stands in a room with the score playing, and without the position
+   restore each one would jump the music back to the top. */
 void cdaudio_suspend(void) {
     if (!cd_audio_playing) return;
 

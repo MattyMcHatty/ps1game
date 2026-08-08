@@ -11,6 +11,7 @@
 #include "door.h"
 #include "door_anim.h"
 #include "sound.h"
+#include "cdaudio.h"
 #include "title.h"
 
 DoorState door_state = DOOR_LOCKED;
@@ -378,6 +379,8 @@ void door_update(void) {
             pending_area = STATE_KITCHEN_DINING;
             door_anim_start(DOOR_PANEL_OUTER);
             game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();   /* silence during the transition; kitchen music
+                                 starts when the kitchen finishes loading */
         }
     }
 }
