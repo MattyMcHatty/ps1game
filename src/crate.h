@@ -34,7 +34,11 @@ extern Crate crates[MAX_CRATES];
 extern int   crate_count;
 
 void crates_init(void);
-void crates_reset(void);
+void crates_reset(void);           /* new game: crates + every pickup module   */
+void crates_place_defaults(void);  /* crates ONLY — no inventory side effects  */
+/* Spawn a crate's contents at it, with no smash effects. world.c replays this
+   when rebuilding a smashed crate from a save delta. */
+void crate_drop_contents(const Crate *c);
 void crates_update(void);
 void crates_draw(RenderContext *ctx);
 void crates_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);

@@ -372,22 +372,26 @@ Two models exist:
      game_state silently falls through to its default (zombies navigated the
      conservatory with the kitchen's zone tables for the same reason).
 
-Use B unless the enemy genuinely needs per-room isolation. The Spider was
-written with A first: MAX_SPIDERS=4 at ~88 bytes each cost 2848 bytes and left
-the blob's _Static_assert with 168 bytes of headroom — the next room added
-would have broken the build. Model B cost 484 bytes total. Check with:
+Use B unless the enemy genuinely needs per-room isolation. Model A puts a
+fixed-capacity copy of the array in EVERY room, so 13 of the 14 copies are
+empty; the Spider was written that way first and cost 2848 bytes of RAM against
+Model B's 484. This is now a RAM argument only — the memory card no longer sees
+these arrays at all (the WorldDelta stores one bit per instance) — but the RAM
+argument alone still settles it. Check the cost with:
 
   mipsel-none-elf-nm.exe -S build\CMakeFiles\horror_game.dir\src\world.c.obj `
       | Select-String " world$"
 
-The size is hex. The limit is SAVE_WORLD_MAX_BYTES (24192 with
-SAVE_WORLD_BLOCKS=3). Raising it costs one more memory-card block per save.
-
 For model B, wire world.c like this:
   - add `<Slug> <slug>s[MAX_<PFX>S]; int <slug>_count;` to WorldState, beside
     the tentacles, NOT to RoomState
-  - mirror it in snapshot_fatdoors() and restore it in world_install()
+  - mirror it in snapshot_fatdoors()
   - call <slug>s_rest() in world_leave() next to zombies_rest()
+  - give it a field in WorldDelta (world.h) and handle it in BOTH halves of the
+    codec at the bottom of world.c. A global area-tagged array must be keyed by
+    canonical_index(), not by raw array index: the array is appended to as rooms
+    are first entered, so a raw index means different things in two playthroughs
+    that took different routes. Copy what the spiders do.
   - seed placements in world_enter()'s first-visit block (see STEP 7)
 
 <slug>s_rest() rebuilds every living instance at its spawn, asleep, at full
@@ -503,8 +507,10 @@ Confirm the new TIMs were packed:
 Code-level checks before handing over:
   [ ] tools/VRAM_MAP.txt says "No unexpected pixel collisions" and both sprite
       TIMs are listed at the slots you chose.
-  [ ] The _Static_assert in world.c compiled, and `nm -S` shows the blob still
-      has room for another room (~2560 bytes).
+  [ ] The _Static_asserts in world.c compiled — the WorldDelta's bit widths
+      still cover the new array (raise the matching WD_MAX_* if one fires).
+  [ ] Both halves of the save codec at the bottom of world.c handle it, and a
+      save/quit/load cycle brings its deaths back correctly.
   [ ] Every weapon loop and the update/draw loops skip `area != current_area`.
       grep the file for `game_state` afterwards: every remaining hit should be a
       deliberate "is the MENU up" test, not a "which room" one.

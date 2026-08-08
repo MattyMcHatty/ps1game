@@ -18,6 +18,7 @@ DemonDog demon_dogs[MAX_DEMON_DOGS];
 int      demon_dog_count = 0;
 
 static DemonDog ddog_defaults[MAX_DEMON_DOGS];
+static int      ddog_default_count = 0;
 
 /* Texture window the current area expects, restored around each dog sprite/
    shadow (their VRAM sits at Voff 128/160/192, so a room's 128x128 window would
@@ -114,12 +115,17 @@ void demon_dogs_init(void) {
     int j;
     for (j = 0; j < demon_dog_count; j++)
         ddog_defaults[j] = demon_dogs[j];
+    ddog_default_count = demon_dog_count;
 }
 
+/* Restore the DELIVERY AREA's three dogs, count included. The count is restated
+   rather than assumed live because world_seed_room() clears the array to zero
+   before rebuilding a room from a save delta. */
 void demon_dogs_reset(void) {
     int i;
-    for (i = 0; i < demon_dog_count; i++)
+    for (i = 0; i < ddog_default_count; i++)
         demon_dogs[i] = ddog_defaults[i];
+    demon_dog_count = ddog_default_count;
 }
 
 /* No weaknesses yet — add a { DMG_*, percent } line to give it one (damage.h). */

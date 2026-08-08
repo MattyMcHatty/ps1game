@@ -14,8 +14,9 @@
  * while chasing, and contact damage on a cooldown. What it adds on top:
  *
  *   - It starts stuck to the CEILING, upside down, on the spdr_rst texture.
- *     The ceiling height is not authored per placement: spider_add reads it out
- *     of the room's mesh-generated collision data (collision_ceiling_y).
+ *     The placement tables in world.c author the ceiling height explicitly
+ *     (spider_add_at) so a room can be rebuilt from a save without its geometry
+ *     resident; spider_add probes collision_ceiling_y for the loaded room.
  *   - It wakes when the player comes within SPD_WAKE_RADIUS of its XZ position
  *     (a true radial distance, not the Manhattan approximation the zombie's
  *     much larger wake radius uses) or when anything damages it.
@@ -152,10 +153,14 @@ extern int    spider_count;
    only safe before the main render loop begins). */
 void spiders_load_textures(void);
 
-/* Hang a spider from the ceiling above (x,z) in `area`. The Y comes from the
-   CURRENT room's collision mesh, so this must be called while that room is
-   loaded: placements live in world_enter(), which runs after each area's
-   *_init(). Returns its index, or -1 if full. */
+/* Hang a spider from the ceiling at `ceiling_y` above (x,z) in `area`. The
+   ceiling height is AUTHORED, not probed, so this works for a room that is not
+   loaded — which is what lets world.c rebuild every visited room from a save
+   delta without its geometry resident. Returns its index, or -1 if full. */
+int  spider_add_at(int32_t x, int32_t z, int32_t ceiling_y, GameState area);
+
+/* Same, but reading the ceiling out of the CURRENT room's collision mesh, so
+   this must be called while that room is loaded. */
 int  spider_add(int32_t x, int32_t z, GameState area);
 
 void spiders_init(void);

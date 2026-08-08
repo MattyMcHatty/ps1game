@@ -65,18 +65,17 @@ void spiders_load_textures(void) {
     load_tim("\\SHADOW.TIM;1",  &shadow_tpage, &shadow_clut);
 }
 
-int spider_add(int32_t x, int32_t z, GameState area) {
+int spider_add_at(int32_t x, int32_t z, int32_t ceiling_y, GameState area) {
     if (spider_count >= MAX_SPIDERS) return -1;
     int i = spider_count++;
     Spider *s = &spiders[i];
-    /* Hang the sprite's TOP edge on the ceiling the room's mesh actually has
-       above this spot, so the whole body hangs down into the room. The quad is
-       drawn centred on y + SPD_Y_OFFSET and reaches SPD_HALF_H either side of
-       that (the 180-degree roll spins it about that centre and so does not
-       change its extent), which is why the half-height comes back off here —
-       anchoring the centre on the ceiling instead buries the top half of the
-       spider in the roof mesh. */
-    int32_t y = collision_ceiling_y(x, z) - SPD_Y_OFFSET + SPD_HALF_H;
+    /* Hang the sprite's TOP edge on the ceiling, so the whole body hangs down
+       into the room. The quad is drawn centred on y + SPD_Y_OFFSET and reaches
+       SPD_HALF_H either side of that (the 180-degree roll spins it about that
+       centre and so does not change its extent), which is why the half-height
+       comes back off here — anchoring the centre on the ceiling instead buries
+       the top half of the spider in the roof mesh. */
+    int32_t y = ceiling_y - SPD_Y_OFFSET + SPD_HALF_H;
     *s = (Spider){0};
     s->x = x; s->y = y; s->z = z;
     s->spawn_x = x; s->spawn_y = y; s->spawn_z = z;
@@ -85,6 +84,10 @@ int spider_add(int32_t x, int32_t z, GameState area) {
     s->active = 1;
     s->area   = area;
     return i;
+}
+
+int spider_add(int32_t x, int32_t z, GameState area) {
+    return spider_add_at(x, z, collision_ceiling_y(x, z), area);
 }
 
 void spiders_rest(void) {

@@ -343,20 +343,27 @@ Touch these files, in this order:
                      enum. Saves store raw enum values, so inserting in the
                      middle silently corrupts old saves.
 
-  src/world.c        Bump WORLD_NUM_ROOMS (+1) and add a `case STATE_<X>:
-                     return <n>;` to room_index(). Seed any resident enemies /
-                     pickups for the room in world_enter()'s first-visit block.
-                     >>> CHECK THE SAVE BUDGET. RoomState is ~2560 bytes, so
-                     each room costs that much of the on-card world blob. The
-                     _Static_assert in world.c enforces the memory-card block
-                     chain's capacity (SAVE_WORLD_BLOCKS in savegame.h; 3 blocks
-                     = 24192 bytes ~= 9 rooms). If it fires, raise
-                     SAVE_WORLD_BLOCKS by one, bump SAVE_VERSION, and know that
-                     each extra block costs one more card block per save. The
-                     chain code in savegame.c is already generalised over N
-                     blocks (0x51 head -> 0x52 middle -> 0x53 tail).
-                     Any room addition invalidates existing saves — the
-                     world_size check rejects them cleanly, which is fine.
+  src/world.h        Bump WORLD_NUM_ROOMS (+1).
+
+  src/world.c        Add a `case STATE_<X>: return <n>;` to room_index() AND the
+                     matching entry to room_areas[] — the two tables are
+                     inverses and the save rebuild walks room_areas[] in order.
+                     Seed any resident enemies / pickups for the room in
+                     world_seed_room().
+                     >>> world_seed_room() RUNS FOR ROOMS THAT ARE NOT LOADED.
+                     Loading a save rebuilds all fourteen rooms with only one
+                     room's geometry resident, so nothing you add there may read
+                     the current room's mesh or collision data — author every
+                     coordinate, floor height and ceiling height as a literal.
+                     That is why the East Hall / Library spiders call
+                     spider_add_at() with a stated ceiling instead of
+                     spider_add(), which probes collision_ceiling_y().
+                     >>> NO SAVE BUDGET TO WORRY ABOUT. A room costs 10 bytes of
+                     the on-card WorldDelta, and one card block holds 7808. It
+                     was ~2560 bytes a room until v12, when the raw world blob
+                     was replaced by the delta; five card blocks became one.
+                     Any room addition still invalidates existing saves — the
+                     delta_size check rejects them cleanly, which is fine.
 
   src/main.c         Six separate edits:
                      1. #include "<slug>.h"
@@ -436,7 +443,13 @@ Code-level checks to do before handing over:
       original. Walk the routes on paper: new room -> hall -> conservatory,
       -> reception -> kitchen, -> delivery, and a title-screen load STRAIGHT
       into each room (that path skips some restores).
-  [ ] The _Static_assert in world.c compiled (save blob still fits).
+  [ ] The _Static_asserts in world.c and savegame.c compiled (the delta's bit
+      widths still cover the arrays, and it still fits one card block).
+  [ ] room_index() and room_areas[] agree, and world_seed_room() reads nothing
+      out of the room's mesh or collision data.
+  [ ] Saved in the new room, quit to the title, loaded back in: the room comes
+      back as you left it (dead enemies still dead, taken pickups still gone),
+      and so does every other room you had been through.
   [ ] Each door's spawn is outside the wall push radius and every interaction
       in the destination is armed.
 

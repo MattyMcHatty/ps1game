@@ -21,6 +21,7 @@ Crate crates[MAX_CRATES];
 int   crate_count = 0;
 
 static Crate crate_defaults[MAX_CRATES];
+static int   crate_default_count = 0;
 static SMD  *crate_smd    = NULL;
 static void *crate_buffer = NULL;
 
@@ -82,12 +83,23 @@ void crates_init(void) {
     int j;
     for (j = 0; j < crate_count; j++)
         crate_defaults[j] = crates[j];
+    crate_default_count = crate_count;
+}
+
+/* Put the crates back exactly as crates_init() placed them, and NOTHING else.
+   crates_reset() below cascades into the pickup modules, several of which clear
+   player inventory — which is right for a new game but fatal when world.c is
+   rebuilding rooms from a save delta, since the player's keys/weapons/ammo have
+   already been restored by then. That path calls this instead. */
+void crates_place_defaults(void) {
+    int i;
+    for (i = 0; i < crate_default_count; i++)
+        crates[i] = crate_defaults[i];
+    crate_count = crate_default_count;   /* the rebuild path clears it first */
 }
 
 void crates_reset(void) {
-    int i;
-    for (i = 0; i < crate_count; i++)
-        crates[i] = crate_defaults[i];
+    crates_place_defaults();
     keys_reset();      /* also clears player_keys */
     sml_meds_reset();
     item_pickups_reset();  /* also resets player_weapons / player_ammo */
@@ -206,6 +218,24 @@ void crates_draw(RenderContext *ctx) {
        delivery_area_draw re-sets it after this call returns. */
 }
 
+/* Spawn whatever a crate was holding, at the crate. Split out of the smash so
+   world.c can re-run it when rebuilding a room from a save delta: the delta
+   stores "crate i is smashed", and the pickup it dropped is then re-derived
+   from the crate rather than stored in its own right. Keep it free of anything
+   the SMASH does that a rebuild must not repeat — no particles, no sound. */
+void crate_drop_contents(const Crate *c) {
+    switch (c->item) {
+        case ITEM_MEDIPAC:
+            sml_med_spawn(c->x, c->y, c->z);
+            break;
+        case ITEM_KEY:
+            key_spawn(c->x, c->y, c->z, KEY_FRONT_DOOR);
+            break;
+        default:
+            break;
+    }
+}
+
 int crate_try_smash(void) {
     int i, smashed_any = 0;
 
@@ -233,16 +263,7 @@ int crate_try_smash(void) {
         spawn_wood_burst(c->x, c->y - 30, c->z);
         sound_play(SFX_SMASH);
 
-        switch (c->item) {
-            case ITEM_MEDIPAC:
-                sml_med_spawn(c->x, c->y, c->z);
-                break;
-            case ITEM_KEY:
-                key_spawn(c->x, c->y, c->z, KEY_FRONT_DOOR);
-                break;
-            default:
-                break;
-        }
+        crate_drop_contents(c);
 
         smashed_any = 1;
     }

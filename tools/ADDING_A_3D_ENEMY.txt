@@ -307,8 +307,9 @@ the matrix. It is exact, and it is the identical matrix RotMatrix would build.
 
 That handedness matches RotMatrix's Y rotation and every rotated prop in the
 game (compare the footprint maths in chainlink_door.c). Store s and c on the
-entity: they persist through the save blob, they are what the draw wants, and
-they ARE the facing for whatever attack code comes later.
+entity: they survive a room swap, they are what the draw wants, and they ARE
+the facing for whatever attack code comes later. (They do NOT go on the memory
+card — nothing on a living enemy does; see world.h.)
 
 The Manhattan divide the steering code gets away with is NOT good enough here.
 It skews the direction by up to ~40% off-axis, and on a model that visibly
@@ -417,12 +418,16 @@ dead button.
  STEP 8 — PERSISTENCE AND THE REST OF THE WIRING
 ##########################################################################
 Identical to STEPS 6 and 7 of ADDING_AN_ENEMY.txt. Use the GLOBAL AREA-TAGGED
-model (B); a boss is a single instance and a per-room array would spend the
-blob's headroom on 13 empty copies.
+model (B); a boss is a single instance and a per-room array would spend 13
+empty copies of it in RAM.
+
+  src/world.h      a field in WorldDelta, keyed by canonical_index() as the
+                   spiders are — see ADDING_AN_ENEMY.txt STEP 6.
 
   src/world.c      <Slug> <slug>s[MAX] + count in WorldState beside the spiders
-                   (NOT RoomState); mirror in snapshot_fatdoors(); restore in
-                   world_install(); <slug>s_rest() in world_leave(); seed the
+                   (NOT RoomState); mirror in snapshot_fatdoors();
+                   <slug>s_rest() in world_leave(); both halves of the save
+                   codec at the bottom of the file; seed the
                    placement in world_enter()'s first-visit block.
   src/main.c       #include; <slug>s_load_assets() + <slug>s_init() in the
                    startup block; <slug>s_reset() in reset_game();
@@ -481,11 +486,11 @@ Code-level, before handing over:
       how many bytes of slack are left. Non-zero exit = the disc is dead. Do
       not estimate the record sizes by hand instead; doing that said the root
       still fit when it did not.
-  [ ] world.c's _Static_assert compiled, and the blob still has room for
-      another room (~2560 bytes):
+  [ ] world.c's _Static_asserts compiled — the WorldDelta's bit widths still
+      cover the new array. The entity struct's own size no longer touches the
+      save (only RAM), so check that with:
         mipsel-none-elf-nm.exe -S build\CMakeFiles\horror_game.dir\src\world.c.obj `
             | Select-String " world$"
-      The size is hex; the limit is SAVE_WORLD_MAX_BYTES.
   [ ] Every weapon/update/draw loop skips `area != current_area`.
   [ ] The view matrix is restored on every exit path from the draw.
   [ ] ARITHMETIC, ON PAPER. Recompute the model's world Y span from

@@ -337,8 +337,11 @@ Code-level checks before handing over:
   [ ] Every old use of the field you replaced is gone:
           Select-String -Path src\*.c,src\*.h -Pattern "player_rounds"
       Stale COMMENTS count — they are what the next person reads.
-  [ ] The _Static_assert in world.c still compiles.
-  [ ] SAVE_VERSION was bumped if SaveData changed.
+  [ ] The _Static_asserts in world.c still compile.
+  [ ] SAVE_VERSION was bumped if SaveData or WorldDelta changed. Growing the
+      ItemPickup struct alone no longer needs it — the card stores one
+      "taken" bit per pickup slot, not the struct — but raising
+      MAX_ITEM_PICKUPS does (it changes what the bits mean).
 
 In-game (needs an emulator; say so plainly if you have not run it):
   [ ] The sprite shows the right art in the room it is placed in — wrong art

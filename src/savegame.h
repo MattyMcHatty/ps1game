@@ -3,14 +3,23 @@
 
 #include <stdint.h>
 #include "player.h"   /* MAX_AMMO_TYPES: the per-type reserve array below */
+#include "world.h"    /* WorldDelta */
 
-/* The game's on-card save: what we serialise into one 128-byte data frame, plus
-   the helpers that manage the PlayStation directory structure around it. This is
-   SAVE only; a matching load path (title-screen "Continue") can read the same
-   SaveData frame later. */
+/* The game's on-card save, plus the helpers that manage the PlayStation
+   directory structure around it.
+
+   ONE BLOCK. A save is a header frame, an icon frame, the SaveData frame and
+   then the WorldDelta, which is a few hundred bytes — so it all fits in the 61
+   frames a single block has left over. Up to v11 the world went on the card as
+   a raw 37,920-byte memcpy of every room's entity arrays and took FIVE blocks;
+   see the note at the top of the WorldDelta declaration in world.h for why
+   almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   11            /* v11: 5-block chain (the garden stairs,
+#define SAVE_VERSION   12            /* v12: one block — the raw world blob is
+                                        replaced by a WorldDelta rebuilt through
+                                        world_seed_room();
+                                        v11: 5-block chain (the garden stairs,
                                         room 12, outgrew four);
                                         v10: persistent puzzle/world flag word
                                         (game_flags — the piano puzzle);
@@ -24,13 +33,10 @@
                                         v3: two blocks */
 #define SAVE_MAX_SLOTS 15            /* blocks 1..15 are usable for saves */
 
-/* Largest world blob the card layout can hold: the tail of the first block
-   (64 frames minus the 3 header/data frames) plus SAVE_WORLD_BLOCKS-1 whole
-   blocks, at 128 bytes per frame. world.c static-asserts sizeof(WorldState)
-   against this — bump SAVE_WORLD_BLOCKS if a new room breaks it (each extra
-   block is one more memory-card block consumed per save). */
-#define SAVE_WORLD_BLOCKS  5
-#define SAVE_WORLD_MAX_BYTES ((61 + (SAVE_WORLD_BLOCKS - 1) * 64) * 128)
+/* Bytes a single block has left for the world delta, after the title, icon and
+   SaveData frames. savegame.c static-asserts sizeof(WorldDelta) against this —
+   at ~160 bytes there is room for roughly fifty times the current world. */
+#define SAVE_DELTA_MAX_BYTES  (61 * 128)
 
 typedef struct {
     uint32_t magic;
@@ -47,10 +53,13 @@ typedef struct {
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     uint32_t counter;               /* playthrough save count INCLUDING this save
                                        (mirrors player_save_count; restored on load) */
-    uint32_t world_size;            /* byte size of the world blob stored in the
-                                       frames after this one; must equal
-                                       world_blob_size() for the save to load
-                                       (a layout change invalidates old saves) */
+    uint32_t delta_size;            /* byte size of the WorldDelta in the frames
+                                       after this one; must equal
+                                       sizeof(WorldDelta) for the save to load.
+                                       Unlike the old world_size this only moves
+                                       when a ROOM or an entity CATEGORY is
+                                       added — growing an entity struct no longer
+                                       invalidates saves. */
 } SaveData;                          /* well under 128 bytes */
 
 typedef struct {

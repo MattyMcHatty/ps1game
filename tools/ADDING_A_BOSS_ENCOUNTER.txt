@@ -590,8 +590,8 @@ ground polys ignites one at a time toward the player) has two traps of its own:
     back from the player puts it exactly on them, which is the requirement.
   - Store the path as TWO ENDPOINTS AND A COUNT, not as a list. It is a
     straight line at a fixed pitch, so any cell is a lerp — and fourteen stored
-    pairs would be 112 bytes per instance in the save blob for three lines of
-    arithmetic.
+    pairs would be 112 bytes per instance, in a struct the world keeps a copy
+    of, for three lines of arithmetic.
 
 A LEAN, OR ANY SECOND ROTATION, must be composed INSIDE the yaw:
 
@@ -857,7 +857,9 @@ Code-level, before handing over:
   [ ] Every attack in flight is cancelled when the boss dies — a shockwave
       still expanding, a beam path still walking. Route it all through the
       go-dormant call rather than clearing fields at each call site.
-  [ ] world.c's _Static_assert still compiled — the entity struct grew.
+  [ ] world.c's _Static_asserts still compiled. The entity struct's growth no
+      longer touches the memory card (the WorldDelta stores one bit per boss),
+      only RAM.
 
 In the emulator, in this order, because each depends on the last:
   [ ] The reveal frames the subject: turf, crown and the light patch. (If the

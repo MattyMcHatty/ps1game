@@ -219,17 +219,34 @@ Test:
 
 
 ==========================================================================
-PART 7 — SAVE SYSTEM READINESS (not implemented yet)
+PART 7 — THE SAVE SYSTEM
 ==========================================================================
 
-When the save feature is built, the payload is:
-  - player state:  player_keys, player_health  (and current_area to resume)
-  - world state:   the rooms[] array from world.c (every room's RoomState)
+ONE memory-card block per save, as of SAVE_VERSION 12. The payload is:
+  - player state:  SaveData in savegame.h — camera/position, health, ammo,
+                   the weapon/key/item bitmasks, game_flags, current_area.
+                   ~72 bytes, one frame.
+  - world state:   WorldDelta in world.h. 164 bytes.
 
-Recommendations for that work:
-  - Marshal into a dedicated compact SaveData struct, NOT the live runtime
-    structs (DemonDog etc. carry transient timers and may change shape; a stable
-    save layout keeps old saves valid).
-  - Size is tiny (a few KB) — fits one 8KB memory-card block easily.
-  - Init order is deterministic, so an entity's array index is a stable ID
-    (e.g. "crate 3 is smashed"); no explicit IDs needed.
+The delta stores only what the PLAYER changed — which rooms have been entered,
+which enemies are dead, which pickups are gone, which crates are smashed, how
+battered each fat door and tentacle is, each room's door state. Everything else
+is rebuilt on load by world_seed_room(), which is the same code a first visit
+runs. That works because world_leave() normalises a room on the way out (every
+living enemy back at its spawn, full health, dormant, AI scratch cleared), so a
+living enemy carries no information and a dead one carries one bit.
+
+Versions 3-11 wrote the live WorldState instead: a raw 37,920-byte memcpy of
+every room's fixed-capacity entity arrays, spanning FIVE chained blocks, to
+hold a few hundred bits of actual progress. Thirteen of the fourteen rooms
+carried an empty 576-byte crate array apiece.
+
+Two constraints came out of that design and are easy to trip over:
+  - world_seed_room() runs for rooms that are NOT loaded. It may not read the
+    current room's mesh or collision data — author every coordinate and height
+    as a literal. (This is why spider_add_at() exists alongside spider_add().)
+  - A global area-tagged array (spiders, the boss) is appended to as rooms are
+    first entered, so a raw array index is NOT a stable ID across playthroughs
+    that took different routes. Those are keyed by canonical_index() instead.
+    Per-room arrays are fine: their init order is deterministic, so "crate 3 is
+    smashed" means the same thing every time.
