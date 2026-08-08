@@ -26,6 +26,7 @@
 #include "zombie.h"
 #include "spider.h"
 #include "rabisu.h"
+#include "tentacle.h"
 #include "web.h"
 #include "item_pickup.h"
 
@@ -531,17 +532,20 @@ void attic_exit_draw(RenderContext *ctx) {
     levers_draw(ctx);            /* the four wall levers (flat-shaded, no texture) */
     lightswitch_draw(ctx);       /* their light cones + the per-lever prompts */
 
-    /* No enemies placed here yet; the room's 128 texture window is still handed
-       to the sprite renderers so a future spawn brackets its Voff>=128 sprite
-       correctly (see tools/TEXTURING_NOTES.txt PART 5). */
+    /* Enemies: the four tentacles guarding the north levers, plus the renderers
+       that have nothing placed here — the room's 128 texture window is handed to
+       all of them so a Voff>=128 sprite brackets it correctly (see
+       tools/TEXTURING_NOTES.txt PART 5). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
         spiders_set_texwindow(&tw);
+        tentacles_set_texwindow(&tw);
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
     draw_rabisus(ctx);
+    draw_tentacles(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
 

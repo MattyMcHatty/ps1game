@@ -15,7 +15,7 @@
    game_state; see the note on current_area in title.h) and persist
    through world.c. */
 
-#define MAX_TENTACLES          4
+#define MAX_TENTACLES          8
 #define TENTACLE_MAX_HEALTH    3
 
 typedef struct {
@@ -33,7 +33,7 @@ extern Tentacle tentacles[MAX_TENTACLES];
 extern int      tentacle_count;
 
 void tentacles_load_assets(void);   /* startup: load both sprite TIMs (resident) */
-void tentacles_init(void);          /* place the conservatory tentacles          */
+void tentacles_init(void);          /* place every room's tentacles              */
 void tentacles_reset(void);         /* new game: restore the initial layout      */
 void tentacles_silence(void);       /* stop the writhe loop + clear its latch    */
 void update_tentacles(void);        /* proximity oscillate + damage the player   */

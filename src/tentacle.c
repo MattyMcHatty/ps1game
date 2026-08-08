@@ -151,9 +151,35 @@ void tentacles_init(void) {
     add_tentacle(-1150, -149, 1350, STATE_CONSERVATORY);   /* between the two    */
     add_tentacle(-1300, -149, 1450, STATE_CONSERVATORY);   /* southwest approach */
 
-    /* The east-most tentacle (x=-1000, added first) faces the opposite way from
-       the rest — mirror its sprite. */
+    /* Two per lever in front of the Attic Exit's north pair (the NW lever at
+       x=-1052 and the NE at x=1129, both at z~924 — see FIXTURE[] in
+       lightswitch_puzzle.c). The chainlink cage walls the middle of the north
+       half off at x[-543,544], so each lever sits at the head of a corridor the
+       player can only work down the middle of; the pair straddles that line 120
+       either side of the lever's x, at z=745.
+
+       That spacing is deliberate: TENT_DAMAGE_RANGE is 130 Manhattan, so
+       crossing z=745 to reach a lever costs a lash from both, while the spot the
+       195 wall standoff parks the player on to throw it (z~804) is 179 out —
+       clear. Tentacles have no collision, so they threaten the approach without
+       ever sealing it.
+
+       y is the STANDING ANCHOR, not the floor surface: draw_billboard rests the
+       sprite bottom on y + GROUND_FLOOR_Y. The attic exit's floor plane is world
+       y=0 (attic_exit_floor_zones_init), so the anchor is -149 — the same value
+       the conservatory pair above uses over its own y=0 floor. Passing the floor
+       surface itself buries them to the waist. */
+    add_tentacle(-1172, -149, 745, STATE_ATTIC_EXIT);   /* NW lever, west side  */
+    add_tentacle( -932, -149, 745, STATE_ATTIC_EXIT);   /* NW lever, cage side  */
+    add_tentacle( 1009, -149, 745, STATE_ATTIC_EXIT);   /* NE lever, cage side  */
+    add_tentacle( 1249, -149, 745, STATE_ATTIC_EXIT);   /* NE lever, east side  */
+
+    /* The east-most conservatory tentacle (x=-1000, added first) faces the
+       opposite way from the rest — mirror its sprite. Mirror one of each attic
+       pair too, so the two halves of a pair are not the same picture twice. */
     tent_flip[0] = 1;
+    tent_flip[3] = 1;
+    tent_flip[5] = 1;
 
     int i;
     for (i = 0; i < tentacle_count; i++)

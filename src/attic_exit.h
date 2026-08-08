@@ -19,6 +19,9 @@
                exit_door_puzzle.c); solving it swaps the art to xt_dr_cmplt. No
                room is wired behind it yet — the open door TEMPORARILY sends the
                player back to this room's own entrance.
+     ENEMIES   Four tentacles, two in front of each of the two north-wall
+               levers, in the corridors either side of the cage (placed in
+               tentacles_init).
 
    Rendered the same way as the Attic Stairwell (per-poly tex map + 128 texture
    window + fog). */

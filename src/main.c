@@ -210,6 +210,7 @@ static void update_current_area(GameState area) {
         update_zombies();
         update_spiders();
         update_rabisus();
+        update_tentacles();    /* the four guarding the north levers */
         webs_update();
         player_status_update();
         exit_door_puzzle_update();
@@ -407,6 +408,7 @@ static void update_current_area(GameState area) {
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
         update_rabisus();
+        update_tentacles();    /* two in front of each of the north-wall levers */
         item_pickups_update();
         if (!lock) lightswitch_update();   /* the four levers + their light cones */
         /* The north-wall exit door: its keystone board, or — once unlocked —
@@ -803,7 +805,7 @@ int main(int argc, const char **argv) {
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
     fatdoors_init();
     tentacles_load_assets();   /* tentacle enemy sprites (resident) */
-    tentacles_init();          /* place the conservatory tentacles */
+    tentacles_init();          /* conservatory + attic exit tentacles */
     door_anim_load_assets();   /* level-transition door panel (texture) */
     stair_anim_load_assets();  /* conservatory<->2F stair-climb transition (upstairs tex) */
     collision_init();
