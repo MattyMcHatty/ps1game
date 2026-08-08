@@ -367,6 +367,26 @@ void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
     }
 }
 
+/* Draw a WEAPON's icon at an arbitrary screen rect — the HUD's weapon box uses
+   this for whatever is currently equipped, from the same VRAM copies the menu's
+   WEAPONS column draws. Unlike menu_draw_item_icon this does NOT check
+   ownership: the caller already knows which weapon is in hand.
+   The caller must have reset the texture window — see the note in menu_draw. */
+void menu_draw_weapon_icon(RenderContext *ctx, int weapon, int x, int y, int size,
+                           int ot_idx) {
+    switch (weapon) {
+        case WEAPON_CRUCIFAXE:
+            draw_icon(ctx, x, y, size, crfx_tpage, crfx_clut,
+                      crfx_u0, crfx_v0, crfx_u1, crfx_v1, 255, ot_idx);
+            break;
+        case WEAPON_GRAVEOLVER:
+            draw_icon(ctx, x, y, size, grav_tpage, grav_clut,
+                      grav_u0, grav_v0, grav_u1, grav_v1, 255, ot_idx);
+            break;
+        default: break;
+    }
+}
+
 /* Public API */
 
 void menu_init(void) {

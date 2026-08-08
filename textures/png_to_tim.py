@@ -17,7 +17,16 @@ Options:
     --ty N      VRAM Y position for texture data (default: 0)
     --cx N      VRAM X position for CLUT/palette (default: 0)
     --cy N      VRAM Y position for CLUT/palette (default: 480)
+    --alpha-cut N  Alpha below N becomes PS1-transparent (default: 128)
     --out FILE  Output filename (default: same as input with .tim extension)
+
+ALPHA-CUT: the PS1 has no partial alpha — a texel is either drawn or skipped —
+    so every source pixel has to fall on one side of a threshold. The default 128
+    treats a half-covered antialiased edge as transparent, which is right for a
+    sprite (the soft halo disappears) and WRONG for UI line art: a 1px box border
+    drawn at 50% coverage vanishes entirely, leaving boxes with missing edges.
+    For hand-drawn UI panels pass --alpha-cut 1, which keeps anything that is not
+    fully transparent.
 
 VRAM layout reminder:
     Framebuffer 1:  x=0,   y=0    (320x240)
@@ -93,11 +102,12 @@ def _fs_dither():
         return Image.FLOYDSTEINBERG
 
 
-def build_clut_4bit(image, dither=True):
+def build_clut_4bit(image, dither=True, alpha_cut=128):
     """Build a 16-colour palette using median-cut quantisation (optionally with
     Floyd-Steinberg dithering), mirroring build_clut_8bit. Transparent pixels
-    (alpha < 128) map to CLUT entry 0 (0x0000 = PS1 transparent). Returns
-    (clut_bytes, img_p) where img_p is a 16-colour palette image.
+    (alpha < alpha_cut) map to CLUT entry 0 (0x0000 = PS1 transparent). Returns
+    (clut_bytes, img_p) where img_p is a 16-colour palette image. alpha_cut is
+    the alpha below which a pixel counts as transparent (see --alpha-cut).
 
     This replaces the old "first 16 unique colours" grab, which produced poor
     palettes; median cut + dithering makes 4bpp viable for real textures."""
@@ -115,7 +125,7 @@ def build_clut_4bit(image, dither=True):
     has_alpha = False
     for y in range(h):
         for x in range(w):
-            if pix_rgba[x, y][3] < 128:
+            if pix_rgba[x, y][3] < alpha_cut:
                 pix_rgb[x, y] = SENTINEL
                 has_alpha = True
 
@@ -149,10 +159,10 @@ def build_clut_4bit(image, dither=True):
     return clut_bytes, img_p
 
 
-def build_clut_8bit(image):
+def build_clut_8bit(image, alpha_cut=128):
     """Build a 256-colour palette from an image.
 
-    Transparent pixels (alpha < 128) are mapped to CLUT entry 0x0000, which
+    Transparent pixels (alpha < alpha_cut) are mapped to CLUT entry 0x0000, which
     the PS1 GPU treats as transparent (pixel not drawn).  All other pixels are
     quantised normally.
     """
@@ -170,7 +180,7 @@ def build_clut_8bit(image):
 
     for y in range(h):
         for x in range(w):
-            if pix_rgba[x, y][3] < 128:
+            if pix_rgba[x, y][3] < alpha_cut:
                 pix_rgb[x, y] = SENTINEL
                 has_alpha = True
 
@@ -232,7 +242,7 @@ def build_pixels_8bit(img_p):
     return bytes(data)
 
 
-def build_pixels_16bit(image):
+def build_pixels_16bit(image, alpha_cut=128):
     """Convert directly to 16-bit PS1 colour."""
     img = image.convert('RGBA')
     w, h = img.width, img.height
@@ -240,7 +250,8 @@ def build_pixels_16bit(image):
     for y in range(h):
         for x in range(w):
             px = img.getpixel((x, y))
-            data.extend(struct.pack('<H', rgb_to_ps1(px[0], px[1], px[2], px[3])))
+            a = 0 if px[3] < alpha_cut else 255
+            data.extend(struct.pack('<H', rgb_to_ps1(px[0], px[1], px[2], a)))
     return bytes(data)
 
 
@@ -310,6 +321,7 @@ def main():
     tex_y   = 0
     clut_x  = 0
     clut_y  = 480
+    alpha_cut = 128
     out_file = None
 
     args = sys.argv[1:]
@@ -322,6 +334,8 @@ def main():
         print("  --ty N      VRAM Y for texture (default: 0)")
         print("  --cx N      VRAM X for CLUT    (default: 0)")
         print("  --cy N      VRAM Y for CLUT    (default: 480)")
+        print("  --alpha-cut N  Alpha below N is transparent (default: 128;")
+        print("                 use 1 for UI line art so AA borders survive)")
         print("  --out FILE  Output .tim filename")
         print("")
         print("Example:")
@@ -336,6 +350,7 @@ def main():
         elif args[i] == '--ty' and i+1 < len(args): tex_y  = int(args[i+1]); i += 2
         elif args[i] == '--cx' and i+1 < len(args): clut_x = int(args[i+1]); i += 2
         elif args[i] == '--cy' and i+1 < len(args): clut_y = int(args[i+1]); i += 2
+        elif args[i] == '--alpha-cut' and i+1 < len(args): alpha_cut = int(args[i+1]); i += 2
         elif args[i] == '--out'and i+1 < len(args): out_file = args[i+1];    i += 2
         else: i += 1
 
@@ -370,17 +385,17 @@ def main():
     pixel_data  = b''
 
     if bpp == 4:
-        clut_data, img_p = build_clut_4bit(image)
+        clut_data, img_p = build_clut_4bit(image, alpha_cut=alpha_cut)
         pixel_data = build_pixels_4bit(img_p)
         print("  Palette: 16 colours")
 
     elif bpp == 8:
-        clut_data, img_p = build_clut_8bit(image)
+        clut_data, img_p = build_clut_8bit(image, alpha_cut=alpha_cut)
         pixel_data = build_pixels_8bit(img_p)
         print("  Palette: 256 colours")
 
     elif bpp == 16:
-        pixel_data = build_pixels_16bit(image)
+        pixel_data = build_pixels_16bit(image, alpha_cut=alpha_cut)
         print("  Mode: direct 16-bit colour (no palette)")
 
     print("Writing: %s" % out_file)

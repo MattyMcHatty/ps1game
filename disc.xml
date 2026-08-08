@@ -152,6 +152,11 @@
                      Must be re-baked whenever the mesh topology changes -
                      see tools/ANIMATING_A_3D_MODEL.txt. -->
                 <file name="RBSIDLE.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Rabisu_idle.pva"/>
+                <!-- The HUD panel. 320x56 4bpp at VRAM (384,384) — 80 words, so
+                     it straddles the 64-word page boundary at x=448 and is drawn
+                     as two abutting quads (see src/hud.c). Voff is 128, so the
+                     HUD resets the texture window before drawing itself. -->
+                <file name="HUD.TIM"      type="data" source="C:\Users\virtu\Documents\ps1game\textures\hud.tim"/>
                 <file name="STRS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\strs.tim"/>
                 <file name="FRNTDR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\frnt_dr.tim"/>
                 <file name="STNSTL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\stn_stl.tim"/>

@@ -206,3 +206,26 @@ RULES:
      zombie-style bracket first (noted in demondog.c).
   4. Keep new window-sensitive art at Voff 0 (VRAM y 0 or 256) when you can — it
      sidesteps the whole issue. Check tools/VRAM_MAP.txt after placing a texture.
+  5. A single reset sorted a few OT buckets ABOVE your content is NOT reliable
+     inside the shared UI block 0-15 — something else can land in between and
+     re-enable the window. Disable it in the SAME OT bucket as the content,
+     after that bucket's prims, the way zombie.c's add_ft4_windowed does. The
+     HUD learned this the hard way; see tools/HUD_NOTES.txt PART 3b.
+
+
+==========================================================================
+PART 6 — ALPHA IS A THRESHOLD, AND THE DEFAULT EATS UI BORDERS
+==========================================================================
+The PS1 has no partial alpha: a texel is drawn or skipped. png_to_tim.py
+therefore thresholds the source alpha, and its default cut is 128.
+
+That is right for SPRITES — a half-covered antialiased edge is a soft halo you
+want gone. It is WRONG for hand-drawn UI line art: a 1-2px box border drawn at
+50% coverage falls below the cut and disappears entirely, leaving boxes with
+missing edges. This ate the top edge of every box on the HUD panel.
+
+  >>> RULE: UI panels convert with --alpha-cut 1 (keep anything not fully
+      transparent). Sprites and world textures keep the default 128.
+
+Either way, decode the .tim back and compare it to the source before trusting
+it. A missing 1px line is invisible in a thumbnail and glaring on a TV.

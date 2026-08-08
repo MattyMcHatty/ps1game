@@ -1,0 +1,167 @@
+PS1 HORROR GAME — THE HUD
+==========================
+The bottom-of-screen status panel. Code lives in src/hud.c / src/hud.h; the art
+is textures/hud.png -> textures/hud.tim, packed as \TEX\HUD.TIM.
+
+Read src/hud.h first — it is the short version. This file is the background:
+the two problems the panel had to solve and why it is built the way it is.
+
+
+==========================================================================
+PART 1 — THE ART AND ITS BOXES
+==========================================================================
+textures/hud.png is authored at 320x56 — EXACTLY screen width — so it sits at
+screen y 184..239 with no scaling at all. A source-texture coordinate and a
+screen coordinate differ only by +184 in y. Keep it that way: every rect in
+hud.c is written in source space and read straight off the PNG.
+
+Four yellow-bordered boxes (source coords, INTERIOR, i.e. inside the 2px border):
+
+  health bar     x   6..133   y 14..24    128 x 11
+  stamina bar    x   6..133   y 31..41    128 x 11
+  weapon box     x 141..178   y  9..46     38 x 38
+  log box        x 185..313   y  9..46    129 x 38
+
+Only the log box has an opaque fill in the art (the same dark purple, 36,6,61).
+Everything else inside the frame is TRANSPARENT, which is the whole design: the
+panel is a FRAME laid over live content, not a picture of a HUD.
+
+If you redraw hud.png, re-measure those four rects and update the #defines at
+the top of hud.c. Nothing derives them automatically.
+
+
+==========================================================================
+PART 2 — PROBLEM A: 320 px does not fit a 4bpp texture page
+==========================================================================
+A 4bpp texture page is 64 VRAM words = 256 pixels wide. The panel is 320 px =
+80 words, so it STRADDLES a page boundary and cannot be drawn as one quad.
+
+Two ways out. We took the second:
+
+  1. Downscale to 256x56 and stretch 1.25x at draw time. Cheapest (64 words),
+     but resampling a 2px yellow border to 1.6px and stretching it back gives an
+     uneven 2-3px line that crawls along the panel. Rejected.
+
+  2. Keep the art at 320 and draw it as TWO ABUTTING QUADS, one per page:
+     screen x 0..255 from the page at VRAM word x=384, x 256..319 from the page
+     at x=448. Pixel-perfect, costs 16 more words. This is what hud_panel_span()
+     does — it walks the source span and splits it at every 256-texel boundary,
+     so it also handles the log-box-only draw (which crosses the same seam).
+
+VRAM slot: 4bpp at (384,384), 80 words x 56 lines, CLUT at (176,511).
+Regenerate tools/VRAM_MAP.txt after touching it.
+
+
+==========================================================================
+PART 3 — PROBLEM B: the AA borders vanished in conversion
+==========================================================================
+The PS1 has no partial alpha — a texel is drawn or skipped — so png_to_tim.py
+thresholds source alpha. Its default cut of 128 is right for sprites (a soft
+halo disappears) and WRONG here: the panel's box borders are antialiased at
+alpha 127, so the default silently deleted the top edge of every box.
+
+png_to_tim.py now takes --alpha-cut. For UI line art pass 1, which keeps
+anything that is not fully transparent:
+
+    python textures/png_to_tim.py hud.png --bpp 4 \
+           --tx 384 --ty 384 --cx 176 --cy 511 --alpha-cut 1 --out hud.tim
+
+>>> RULE: any hand-drawn UI panel goes through --alpha-cut 1. Sprites and world
+    textures keep the default. After converting, decode the TIM back and compare
+    it to the PNG before assuming it worked — a missing 1px border is easy to
+    miss in a thumbnail and obvious on a TV.
+
+==========================================================================
+PART 3b — THE TEXTURE WINDOW, AND WHY ONE RESET WAS NOT ENOUGH
+==========================================================================
+VRAM y 384 puts the panel at Voff 128, and it is 320 px wide, so a live 128x128
+texture window wraps BOTH of its coordinates:
+
+    v 128..183  ->  0..55      u 0..255  ->  0..127, twice
+
+Page x=384 at v 0..55 is stove.tim (and prpl_wlppr.tim, which time-shares that
+slot); page x=448 is din_cl.tim. So a stale window makes the HUD render as the
+STOVE (or the WALLPAPER) with the CEILING on its right-hand end, in the HUD's
+own colours. If you ever see that, this is what it is — it is not a VRAM
+overlap, and tools/vram_map.py will correctly report no collision.
+
+The first version of this file sorted ONE full reset a few OT buckets above the
+HUD (at OT 9, the way menu_draw does). It was not enough, and the panel still
+wrapped in some spots in the kitchen, library, 2F hall and conservatory. The
+reserved UI block 0-15 is SHARED — puzzles use 12/10/8/7/3/1, the poison wash
+uses 3, the debug overlay uses 1 — so "nothing writes between my reset and my
+content" is not a property the HUD can rely on.
+
+  >>> RULE: disable the window IN THE SAME OT BUCKET as the content it protects,
+      after that bucket's prims (addPrim prepends, so the disable ends up at the
+      head of the list, adjacent to them, and nothing can interpose). This is
+      the same bracket zombie.c's add_ft4_windowed uses. hud.c does it for every
+      bucket that draws a TEXTURE: the weapon icon (5), the panel (4) and the
+      log text (0).
+
+Three separate things in the HUD need it, which is worth knowing when only one
+of them looks broken:
+  - the panel          Voff 128, u 0..255
+  - the crucifaxe icon Voff 128. The grave-olver icon is Voff 0 with u 32..95,
+    so it is IMMUNE — if the panel is wrapping, the crucifaxe icon shows the
+    front door / red carpet while the grave-olver looks perfectly fine.
+  - the log text       FntSort's font spans u 0..255 of its page.
+
+
+==========================================================================
+PART 4 — LAYERING
+==========================================================================
+Back to front, all inside the OT block 0-15 that main.c reserves for UI
+(lower index = drawn later = nearer the front):
+
+   6  purple slab, exactly the panel's 320x56 footprint
+   5  health fill, stamina fill, equipped-weapon icon   [+ window disable]
+   4  the panel texture — the frame goes OVER the live content  [+ window disable]
+   2  ammo count drop shadow
+   1  ammo count
+   0  log text                                          [+ window disable]
+
+Those indices deliberately MISS the ones the puzzles and menus use
+(12 / 10 / 8 / 7 / 3 / 1) and the poison wash (3), because the log box stays up
+over a camera-locked puzzle and the two draws interleave. See PART 3b for the
+per-bucket window disables — do not consolidate them back into one.
+
+The weapon icon is not the 3D model — it is the same CRFXICON.TIM /
+GRAVOLVR.TIM the inventory menu already holds in VRAM, via the shared
+menu_draw_weapon_icon(). Zero extra VRAM, zero extra CD reads. A new weapon
+needs a case there and nothing in hud.c.
+
+
+==========================================================================
+PART 5 — THE LOG
+==========================================================================
+show_pickup_msg / show_pickup_msg_raw (player.c) post into pickup_log[]; the
+HUD renders it. The box gives 125 px x 34 px, which at the 8px debug font is
+15 COLUMNS x 4 ROWS — tight. hud.c word-wraps into that grid and, when a
+message produces more lines than fit, drops the OLDEST, so whatever the player
+just triggered is always the thing on screen.
+
+hud_log_update() ticks the message timers and is called from the AREA UPDATE,
+not the draw. That matters: a line posted during a puzzle has to expire on its
+own even while the HUD is hidden, or it would still be sitting there afterwards.
+
+
+==========================================================================
+PART 6 — WHEN THE HUD IS HIDDEN
+==========================================================================
+  1. camera-locked puzzles and boss cutscenes — the bars, weapon box and slab
+     go; hud_draw_log_only() keeps the LOG BOX, because the puzzles post lines
+     the player has to read ("That makes no sense..."). It is a no-op while the
+     log is empty, so a boss cutscene — which posts nothing — shows nothing.
+  2. the title screen
+  3. the inventory menu and the save-point menu
+  4. room transitions: door anim, stair anim, loading
+
+Only 1 and 3 needed code. States 2 and 4 never reach a HUD draw at all, which is
+why hud_draw() has no game_state check of its own — main.c's loop decides, and
+the HUD stays a dumb renderer. If you add a state that draws the world, decide
+there whether it calls hud_draw(), hud_draw_log_only(), or neither.
+
+NOTE: the HUD is deliberately NOT drawn from draw_player_systems(). The menu and
+save screens want the particles/weapon/poison-wash overlays but must not show
+the HUD, so the HUD is a separate call at each site.

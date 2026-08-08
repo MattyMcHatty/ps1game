@@ -34,6 +34,7 @@
 #include "spider.h"
 #include "web.h"
 #include "menu.h"
+#include "hud.h"
 #include "save_menu.h"
 #include "savegame.h"
 #include "debug_opts.h"
@@ -81,8 +82,9 @@ int       debug_mode   = 0;
    side. The rooms are linked in pairs, so one flag serves both directions. */
 static int bedroom_door_west = 0;
 
-/* HUD/debug font streams (opened in main() after FntLoad). */
-static int gameover_fnt, notify_fnt;
+/* Debug/game-over font stream (opened in main() after FntLoad). The HUD's log
+   box renders with FntSort straight into the OT, so it needs no stream. */
+static int gameover_fnt;
 
 volatile uint8_t pad_buff[2][34];
 volatile size_t  pad_buff_len[2];
@@ -642,6 +644,7 @@ static void update_current_area(GameState area) {
     webs_update();            /* spider webs in flight (area-tagged, so free
                                  in rooms that have none) */
     player_status_update();   /* ticks the web's poison timer down */
+    hud_log_update();         /* expires log lines whether or not the HUD is up */
 }
 
 /* Draw an area's world + entities only (player overlays come separately). */
@@ -676,8 +679,10 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         delivery_area_draw(ctx);
 }
 
-/* Player overlays shared by every area: blood particles, the swingable
-   weapon, the health/stamina HUD, and the debug collision view. */
+/* Player overlays shared by every area: blood particles, the swingable weapon,
+   the poison wash and the debug collision view. NOT the HUD — that is drawn by
+   the caller, because the menu and save screens want these overlays but must
+   not show the HUD (see src/hud.h for the full visibility rules). */
 static void draw_player_systems(RenderContext *ctx) {
     draw_particles(ctx);
     bullet_hits_draw(ctx);  /* brief impact sprites (world-space billboards) */
@@ -693,23 +698,9 @@ static void draw_player_systems(RenderContext *ctx) {
 #endif
     weapons_draw(ctx);
     player_draw_status_overlay(ctx);   /* poison wash: over the scene, under the HUD */
-    draw_hud(ctx);
 #ifdef DEBUG_COLLISION
-    debug_draw_coords(ctx);      /* 2D panel — safe after the HUD */
+    debug_draw_coords(ctx);      /* 2D panel — screen space, so it goes last */
 #endif
-}
-
-/* On-screen item pickup notifications. */
-static void draw_pickup_messages(void) {
-    int k, any = 0;
-    for (k = 0; k < PICKUP_MSG_COUNT; k++) {
-        if (pickup_log[k].timer > 0) {
-            FntPrint(notify_fnt, "%s\n", pickup_log[k].msg);
-            pickup_log[k].timer--;
-            any = 1;
-        }
-    }
-    if (any) FntFlush(notify_fnt);
 }
 
 /* Debug overlay: held items + the scrolling compass.
@@ -874,10 +865,10 @@ int main(int argc, const char **argv) {
 
     FntLoad(960, 0);
     gameover_fnt = FntOpen(40,  104, 240, 32, 0, 128);
-    notify_fnt   = FntOpen(116, 210, 200, 28, 0, 192);
 
     /* menu_init and title_init open their own font streams, so call them
        after FntLoad above. */
+    hud_load_texture();        /* resident in VRAM for every room; startup-only */
     menu_init();
     title_init();
 
@@ -896,8 +887,7 @@ int main(int argc, const char **argv) {
             } else {
                 update_current_area(current_area);
                 draw_current_area(&ctx, current_area);
-                draw_player_systems(&ctx);
-                draw_pickup_messages();
+                draw_player_systems(&ctx);   /* no HUD: the menu is open */
                 menu_update();
                 menu_draw(&ctx);
             }
@@ -910,7 +900,7 @@ int main(int argc, const char **argv) {
                    save_menu_update() defers the blocking card write by one frame
                    so the "SAVING" screen is already on-screen when it runs. */
                 draw_current_area(&ctx, current_area);
-                draw_player_systems(&ctx);
+                draw_player_systems(&ctx);   /* no HUD: the save flow is a menu */
                 save_menu_update();
                 save_menu_draw(&ctx);
             }
@@ -1283,15 +1273,18 @@ int main(int argc, const char **argv) {
                 if (!puzzle) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);
-                /* During the puzzle hide the weapon/particles but still show the
-                   HUD, so the player sees zombies chipping their health away.
-                   The boss cutscenes are the exception: nothing can touch the
-                   player during the reveal or the death, so a health bar over
-                   them is a frame of UI insisting on a fight that isn't on. */
-                if (!puzzle) draw_player_systems(&ctx);
-                else if (!(area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()))
-                    draw_hud(&ctx);
-                draw_pickup_messages();
+                /* The HUD belongs to the player having the camera. While a
+                   puzzle or cutscene owns it, the panel goes with it. */
+                if (!puzzle) {
+                    draw_player_systems(&ctx);
+                    hud_draw(&ctx);
+                } else {
+                    /* The camera is not the player's: no bars, no weapon box.
+                       The log box alone stays, and only while it has something
+                       in it — puzzles post lines the player has to read, while
+                       a boss cutscene posts nothing and so shows nothing. */
+                    hud_draw_log_only(&ctx);
+                }
                 draw_debug_overlay(&ctx);
             }
         }

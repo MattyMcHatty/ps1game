@@ -33,5 +33,10 @@ const char *menu_item_name(int slot);
    caller must have reset the texture window — see the note in menu_draw. */
 void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
                          int ot_idx);
+/* Draw a WeaponType's icon at an arbitrary screen rect (the HUD's weapon box).
+   No ownership check — the caller passes the weapon it wants drawn. The caller
+   must have reset the texture window, as for menu_draw_item_icon. */
+void menu_draw_weapon_icon(RenderContext *ctx, int weapon, int x, int y, int size,
+                           int ot_idx);
 
 #endif

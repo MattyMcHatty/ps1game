@@ -100,6 +100,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   wd_dr.tim            16      768   256   128   128     0   -
   stn_gls.tim          8       896   256   128   128     0   0,488
   crucifaxe.tim        8       320   384    64    64   128   0,500  <-- Voff>=128
+  hud.tim              4       384   384   320    56   128   176,511  <-- Voff>=128
   ddog_sleep.tim       8       640   384    64    64   128   0,483  <-- Voff>=128
   ddog_alert2.tim      8       736   384    64    64   128   0,485  <-- Voff>=128
   ddog_alert.tim       8       640   448    64    64   192   0,484  <-- Voff>=128
@@ -170,6 +171,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=511  x[208,224)  grn_ky_stn.tim
   y=511  x[80,96)  grss.tim
   y=511  x[224,240)  grss_gs.tim
+  y=511  x[176,192)  hud.tim
   y=511  x[32,48)  piano_keys.tim
   y=511  x[32,48)  piano_keys_full.tim
   y=511  x[0,16)  prpl_wlppr.tim

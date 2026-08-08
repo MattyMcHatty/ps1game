@@ -130,11 +130,13 @@ static inline int player_poisoned(void) { return player_poison_timer > 0; }
 void player_poison(void);          /* apply/refresh the status  */
 void player_status_update(void);   /* tick it; call once a frame per area */
 /* Slight green wash while poisoned. Drawn over the scene but under the HUD, so
-   call it from the player-systems draw pass before draw_hud. */
+   call it from the player-systems draw pass before hud_draw. */
 void player_draw_status_overlay(RenderContext *ctx);
 
+/* Post a line to the HUD's log box (bottom right). show_pickup_msg prefixes
+   "Picked up "; the _raw form is verbatim, for puzzle and status lines. The box
+   itself is drawn by hud.c — see src/hud.h for when it is visible. */
 void show_pickup_msg(const char *item_name);
 void show_pickup_msg_raw(const char *text);   /* verbatim log line, no prefix */
-void draw_hud(RenderContext *ctx);
 
 #endif
