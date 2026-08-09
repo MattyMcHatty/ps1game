@@ -8,6 +8,7 @@
 #include "camera.h"
 #include "player.h"
 #include "item_pickup.h"
+#include "menu.h"            /* menu_inventory_sync on collect */
 #include "sound.h"
 
 ItemPickup item_pickups[MAX_ITEM_PICKUPS];
@@ -146,6 +147,10 @@ static void collect(ItemPickup *p) {
     }
     sound_play(SFX_PICKUP);
     show_pickup_msg(kind_name[p->kind]);
+    /* Drop it into the inventory grid's first free cell NOW, so the grid fills in
+       the order things were collected rather than in item-ID order the next time
+       the menu is opened. */
+    menu_inventory_sync();
 }
 
 void item_pickups_update(void) {

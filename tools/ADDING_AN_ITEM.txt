@@ -233,22 +233,36 @@ giving it one would silently rescale every existing swing.
 ##########################################################################
  STEP 6 — THE INVENTORY MENU
 ##########################################################################
+  MENU_SLOT_* IS AN ITEM ID, NOT A GRID POSITION. Where an item appears on
+  screen is decided at runtime: menu_inventory_sync() drops each newly held item
+  into the first free cell of the 12-cell grid, and the player rearranges them
+  with Circle (take) / Circle (place, or swap with whatever is there). So adding
+  an item is now purely "one more identity" — there is no cell to pick.
+
   src/menu.h   Add MENU_SLOT_<NAME> **at the END**, before MENU_ITEM_SLOTS, and
                bump MENU_ITEM_SLOTS. Appending avoids renumbering the existing
-               slots, which are positional in several parallel arrays.
+               IDs, which are positional in several parallel arrays.
 
-  src/menu.c   Five places, all indexed by the same slot number:
+  src/menu.c   Four places, all indexed by the same item ID:
                  - the icon's tpage/clut/u0..v1 statics
                  - load_icon_tim(...) in menu_init()
-                 - item_descriptions[] (order MUST match the slot numbering)
-                 - items_count(), menu_item_held(), menu_item_name(),
-                   menu_draw_item_icon()
-                 - the grid draw loop's `i == <slot>` case, and the description
-                   box's `slot == <slot>` case
+                 - item_descriptions[] (order MUST match the ID numbering)
+                 - menu_item_held(), menu_item_name(), menu_draw_item_icon()
 
-  GRID CAPACITY: the ITEMS column draws 8 cells (2 cols x 4 rows, cursor rows
-  0..3). Slots 5..7 are free today, so an item added now needs no layout change.
-  Past 8 the grid itself has to grow.
+               NOTHING in the draw loop or the description box needs touching:
+               both read item_cell[] and index by the ID they find there. Only a
+               COUNTED item needs one more line — draw_item_cell()'s per-item
+               count, which travels with the icon rather than sitting in a fixed
+               cell.
+
+  GRID CAPACITY: MENU_ITEM_CELLS is 12 (3 cols x 4 rows) against 9 item IDs, so
+  three are free. Past 12 the grid itself has to grow again, and MENU_ITEM_CELLS
+  must keep matching ITEM_COLS * GRID_ROWS — menu.c static-asserts it.
+
+  ARRANGEMENT PERSISTENCE: the cell layout is in the save (SaveData.item_order,
+  one byte per cell holding the item ID + 1). menu_inventory_load validates it
+  and then syncs, so a blob that disagrees with what is held degrades to the
+  default first-free-cell order instead of showing an item the player lost.
 
   >>> THE STOVE PUZZLE SHARES THIS SLOT TABLE. <<<
   src/stove_puzzle.c iterates MENU_ITEM_SLOTS to build its ingredient picker, so
@@ -296,7 +310,8 @@ btn_prompt_draw(ctx, x, y, str, 0) — it renders via FntSort into the OT.
   src/savegame.h >>> ANY NEW INVENTORY FIELD CHANGES SaveData. <<<
                  Add the field and BUMP SAVE_VERSION with a note saying what
                  changed. Old saves are then rejected cleanly. SaveData must
-                 stay well under 128 bytes (one card frame); it is ~68 today.
+                 stay well under 128 bytes (one card frame); it is ~84 today
+                 (v13 added the 12-byte inventory arrangement).
 
   src/savegame.c Mirror the field in savegame_capture() and
                  savegame_apply_pending(). CLAMP anything used as an array index
@@ -347,7 +362,9 @@ In-game (needs an emulator; say so plainly if you have not run it):
   [ ] The sprite shows the right art in the room it is placed in — wrong art
       means a Voff/texture-window problem (STEP 2).
   [ ] Collecting it posts the right pickup-log line and increments the count.
-  [ ] The menu shows the icon, count and description in the right slot.
+  [ ] The menu drops it into the first FREE cell, with the right icon, count and
+      description, and it can be carried to another cell (Circle, Circle) and
+      swapped with an occupied one.
   [ ] Counted item: the HUD reads correctly at 1 and at 2+ digits.
   [ ] Ammo: R2 swaps only with a second type held; the reload animation plays
       in full; the message appears only on completion; switching weapons
@@ -372,8 +389,10 @@ In-game (needs an emulator; say so plainly if you have not run it):
 3. PER-TYPE BEHAVIOUR CHOSEN BY SNIFFING A STRING. `name[0] == 'F'` to pick the
    log wording. Put it in the table.
 
-4. FORGETTING THE SHARED SLOT TABLE. MENU_ITEM_SLOTS also drives the stove
-   puzzle's ingredient picker.
+4. FORGETTING THE SHARED SLOT TABLE. MENU_ITEM_SLOTS also drives the stove,
+   piano and exit-door pickers. Those list ITEM IDS (all of them, held or not),
+   which is why they were unaffected when the menu grid stopped being
+   ID-ordered — do not "fix" them to read item_cell[].
 
 5. ADDING AN INVENTORY FIELD WITHOUT BUMPING SAVE_VERSION. Old saves then load
    with the new field read from whatever those bytes used to mean.

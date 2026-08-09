@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "player.h"   /* MAX_AMMO_TYPES: the per-type reserve array below */
+#include "menu.h"     /* MENU_ITEM_CELLS: the inventory arrangement below */
 #include "world.h"    /* WorldDelta */
 
 /* The game's on-card save, plus the helpers that manage the PlayStation
@@ -16,7 +17,12 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   12            /* v12: one block — the raw world blob is
+#define SAVE_VERSION   13            /* v13: the inventory GRID ARRANGEMENT
+                                        (item_order) — items now land in the
+                                        first free cell and the player can
+                                        rearrange them, so where each one sits is
+                                        no longer implied by its item ID;
+                                        v12: one block — the raw world blob is
                                         replaced by a WorldDelta rebuilt through
                                         world_seed_room();
                                         v11: 5-block chain (the garden stairs,
@@ -51,6 +57,11 @@ typedef struct {
     int32_t  keys;                  /* held-key bitmask */
     int32_t  items;                 /* held non-key item bitmask (player_items) */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
+    uint8_t  item_order[MENU_ITEM_CELLS];  /* inventory grid: cell -> item ID + 1,
+                                       0 = empty. Purely the ARRANGEMENT; what is
+                                       held still comes from keys/items/ammo
+                                       above, and menu_inventory_load reconciles
+                                       the two. */
     uint32_t counter;               /* playthrough save count INCLUDING this save
                                        (mirrors player_save_count; restored on load) */
     uint32_t delta_size;            /* byte size of the WorldDelta in the frames

@@ -142,6 +142,7 @@ void reset_game(RenderContext *ctx) {
     sprint_cooldown = 0;
     door_init();
     hall_2f_door_unlocked = 0;   /* Hall 2F <-> Reception door starts locked */
+    menu_inventory_reset();      /* an empty inventory grid, in no arrangement */
     crates_reset();
     demon_dogs_reset();
     zombies_reset();

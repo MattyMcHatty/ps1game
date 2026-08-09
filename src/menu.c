@@ -13,6 +13,7 @@
 #include "crucifaxe.h"
 #include "camera.h"
 #include "title.h"
+#include "btn_glyph.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -30,6 +31,8 @@ extern volatile size_t  pad_buff_len[2];
 #define ITEM_COLS            3
 #define WEAPON_COLS          2
 #define GRID_ROWS            4
+_Static_assert(ITEM_COLS * GRID_ROWS == MENU_ITEM_CELLS,
+               "MENU_ITEM_CELLS must match the drawn ITEMS grid");
 #define COL_ITEMS_X          5
 #define COL_WEAPONS_X      115      /* 5 + ITEM_COLS*CELL_W + 8 gap */
 #define HEADER_Y            10
@@ -57,6 +60,19 @@ static int col_cols(int col) { return col == 0 ? ITEM_COLS : WEAPON_COLS; }
 static int cursor_col    = 0;
 static int cursor_subcol = 0;
 static int cursor_row    = 0;
+
+/* ---- The ITEMS grid's contents ---------------------------------------------
+   item_cell[c] is the item ID (MENU_SLOT_*) shown in grid cell c, or -1 for an
+   empty cell. Cells fill in collection order (menu_inventory_sync) and the
+   player rearranges them with Circle; held_cell is the cell whose item is
+   currently lifted off the grid, or -1. Same take/place idiom as the Anzu
+   tablet's tiles, except placing onto an occupied cell SWAPS rather than being
+   refused — with a fixed 12 cells there is no need to keep one free to shuffle
+   through. */
+static int8_t item_cell[MENU_ITEM_CELLS] = {
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+};
+static int    held_cell = -1;
 
 /* Button state for navigation */
 static int dpad_prev   = 0;
@@ -308,6 +324,65 @@ const char *menu_item_name(int slot) {
     }
 }
 
+/* ---- Inventory order (see menu.h) ---------------------------------------- */
+
+static int cell_of_item(int item) {
+    int c;
+    for (c = 0; c < MENU_ITEM_CELLS; c++) if (item_cell[c] == (int8_t)item) return c;
+    return -1;
+}
+
+void menu_inventory_reset(void) {
+    int c;
+    for (c = 0; c < MENU_ITEM_CELLS; c++) item_cell[c] = -1;
+    held_cell = -1;
+}
+
+void menu_inventory_sync(void) {
+    int c, id;
+
+    /* Spent or consumed: the ammo counters hit zero and the puzzles clear bits
+       in player_items, and neither tells us — menu_item_held is the only truth. */
+    for (c = 0; c < MENU_ITEM_CELLS; c++)
+        if (item_cell[c] >= 0 && !menu_item_held(item_cell[c])) item_cell[c] = -1;
+
+    /* Newly held: first free cell. Called from the pickup path, so items landing
+       in one sync are normally a single item and the order is collection order;
+       a batch grant (a debug jump, a load) falls back to ID order within itself. */
+    for (id = 0; id < MENU_ITEM_SLOTS; id++) {
+        if (!menu_item_held(id) || cell_of_item(id) >= 0) continue;
+        for (c = 0; c < MENU_ITEM_CELLS; c++)
+            if (item_cell[c] < 0) { item_cell[c] = (int8_t)id; break; }
+    }
+
+    /* A pickup can land while the menu is open and an item is lifted. The lifted
+       item stays in its cell until it is placed, so it cannot be overwritten —
+       but if THAT item was the one consumed, stop carrying a hole. */
+    if (held_cell >= 0 && item_cell[held_cell] < 0) held_cell = -1;
+}
+
+void menu_inventory_save(uint8_t *out) {
+    int c;
+    for (c = 0; c < MENU_ITEM_CELLS; c++)
+        out[c] = (item_cell[c] >= 0) ? (uint8_t)(item_cell[c] + 1) : 0;
+}
+
+void menu_inventory_load(const uint8_t *in) {
+    int c, d;
+    menu_inventory_reset();
+    for (c = 0; c < MENU_ITEM_CELLS; c++) {
+        int id = (int)in[c] - 1;
+        if (id < 0 || id >= MENU_ITEM_SLOTS) continue;   /* empty, or out of range */
+        for (d = 0; d < c; d++) if (item_cell[d] == (int8_t)id) break;
+        if (d < c) continue;                             /* already placed: drop the dup */
+        item_cell[c] = (int8_t)id;
+    }
+    /* The blob is only an ARRANGEMENT. What is actually held comes from the
+       inventory fields the caller has already restored, so sync has the last
+       word: it adds anything the blob missed and clears anything it invented. */
+    menu_inventory_sync();
+}
+
 /* Draw the icon for an inventory slot anywhere on screen (the stove puzzle's
    picker and its ingredient boxes). No-op for a slot the player doesn't hold.
    The caller is responsible for resetting the texture window first — see the
@@ -421,6 +496,11 @@ void menu_open(void) {
     cursor_col    = 0;
     cursor_subcol = 0;
     cursor_row    = 0;
+    held_cell     = -1;   /* never re-enter the menu mid-carry */
+    /* Anything granted or consumed away from the pickup path — a puzzle reward,
+       a crate, a debug grant, ammo spent since the last look — lands in the grid
+       here. */
+    menu_inventory_sync();
     /* Capture current button state so opening press doesn't close menu */
     if (pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
@@ -445,11 +525,15 @@ void menu_update(void) {
 
     /* Navigate the current column's grid; crossing its edge switches column.
        The two columns are different widths (ITEMS 3, WEAPONS 2), so the edge is
-       col_cols(cursor_col) rather than a hard-coded 1. */
+       col_cols(cursor_col) rather than a hard-coded 1.
+
+       While carrying an item the cursor is penned into the ITEMS column: the
+       WEAPONS column has nowhere to put it, so letting the reticule wander there
+       would only offer a Circle that does nothing. */
     if (pressed & PAD_LEFT) {
         if (cursor_subcol > 0) {
             cursor_subcol--;
-        } else if (cursor_col > 0) {
+        } else if (cursor_col > 0 && held_cell < 0) {
             cursor_col--;
             cursor_subcol = col_cols(cursor_col) - 1;
         }
@@ -457,7 +541,7 @@ void menu_update(void) {
     if (pressed & PAD_RIGHT) {
         if (cursor_subcol < col_cols(cursor_col) - 1) {
             cursor_subcol++;
-        } else if (cursor_col < 1) {
+        } else if (cursor_col < 1 && held_cell < 0) {
             cursor_col++;
             cursor_subcol = 0;
         }
@@ -470,6 +554,24 @@ void menu_update(void) {
         cursor_row++;
         if (cursor_row > GRID_ROWS - 1) cursor_row = 0;
     }
+
+    /* Circle lifts the item under the reticule off the grid; Circle again drops
+       it into the cell the reticule is now over — empty (a move) or occupied (a
+       swap). Placing back onto the source cell is the swap with itself, so it
+       cancels for free. */
+    if ((pressed & PAD_CIRCLE) && cursor_col == 0) {
+        int cell = cursor_row * ITEM_COLS + cursor_subcol;
+        if (held_cell < 0) {
+            if (item_cell[cell] >= 0) held_cell = cell;
+        } else {
+            int8_t t             = item_cell[cell];
+            item_cell[cell]      = item_cell[held_cell];
+            item_cell[held_cell] = t;
+            held_cell            = -1;
+        }
+    }
+    /* Cross puts a carried item straight back where it came from. */
+    if ((pressed & PAD_CROSS) && held_cell >= 0) held_cell = -1;
 }
 
 /* OT layers — all within the menu-reserved range 0..(SCENE_OT_MIN-1) so the menu
@@ -481,6 +583,31 @@ void menu_update(void) {
 #define OT_ICON       7
 #define OT_COUNT      5   /* ammo count over an icon (yellow at 5, shadow at 6) */
 #define OT_RETICULE   3
+#define OT_TEXT       1   /* the control prompt along the bottom */
+
+/* ---- The carry box ---------------------------------------------------------
+   Where a lifted item is shown while the reticule moves: one cell's worth of
+   space in the bottom of the description panel. The Anzu board hangs the held
+   tile off the reticule itself, which cannot work here — the reticule passes
+   over OCCUPIED cells (that is what a swap is), and two 24px icons in one 34px
+   cell is unreadable. Parking it beside the description keeps both the thing
+   being carried and the thing about to be displaced legible. */
+#define CARRY_X      (DESC_X + 6)
+#define CARRY_Y             168      /* label at 158; the panel ends at 205 */
+
+/* One item's contents at (x,y): the icon plus, for the two counted items, the
+   reserve count over it. Drawn wherever the item happens to be — a cell of the
+   ITEMS grid or the carry box — so the count follows the icon instead of being
+   pinned to a fixed cell. -1 (an empty cell) draws nothing. */
+static void draw_item_cell(RenderContext *ctx, int item, int x, int y) {
+    if (item < 0) return;
+    menu_draw_item_icon(ctx, item, x, y, ICON_SIZE, OT_ICON);
+    /* Ammo count, yellow, tucked into the icon's bottom-left. */
+    if (item == MENU_SLOT_ROUNDS && player_ammo[AMMO_STANDARD] > 0)
+        draw_number(ctx, x, y + ICON_SIZE, player_ammo[AMMO_STANDARD], 2, OT_COUNT);
+    if (item == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0)
+        draw_number(ctx, x, y + ICON_SIZE, player_ammo[AMMO_FLAME], 2, OT_COUNT);
+}
 
 void menu_draw(RenderContext *ctx) {
     /* Semi-transparent background: DR_TPAGE sets abr=0 (B/2+F/2, 50% blend),
@@ -536,13 +663,14 @@ void menu_draw(RenderContext *ctx) {
     draw_rect(ctx, COL_ITEMS_X,   HEADER_Y + 12, CELL_W * ITEM_COLS,   1, 80, 80, 80, OT_FILL);
     draw_rect(ctx, COL_WEAPONS_X, HEADER_Y + 12, CELL_W * WEAPON_COLS, 1, 80, 80, 80, OT_FILL);
 
-    /* Items column — ITEM_COLS x GRID_ROWS grid. The icons come from
-       menu_draw_item_icon, the same accessor the stove and Anzu pickers use, so
-       a new item only ever has to be described in ONE place; only the two
-       counted slots need anything extra drawn over the top. */
+    /* Items column — MENU_ITEM_CELLS cells, each showing whatever item_cell says
+       it holds. The icons come from menu_draw_item_icon, the same accessor the
+       stove and Anzu pickers use, so a new item only ever has to be described in
+       ONE place. The cell a carried item came from draws EMPTY: the item itself
+       is shown in the carry box beside the description. */
     {
         int i;
-        for (i = 0; i < ITEM_COLS * GRID_ROWS; i++) {
+        for (i = 0; i < MENU_ITEM_CELLS; i++) {
             int row = i / ITEM_COLS;
             int sc  = i % ITEM_COLS;
             int ix = COL_ITEMS_X + sc * CELL_W + ICON_PADDING;
@@ -551,15 +679,8 @@ void menu_draw(RenderContext *ctx) {
                       CELL_W, CELL_H, 35, 30, 45, OT_BOX);
             draw_outline(ctx, ix - ICON_PADDING, iy - ICON_PADDING,
                          CELL_W, CELL_H, 80, 70, 100, OT_FILL);
-            if (i >= MENU_ITEM_SLOTS) continue;   /* trailing empty cells */
-            menu_draw_item_icon(ctx, i, ix, iy, ICON_SIZE, OT_ICON);
-            /* Ammo count, yellow, tucked into the icon's bottom-left. */
-            if (i == MENU_SLOT_ROUNDS && player_ammo[AMMO_STANDARD] > 0)
-                draw_number(ctx, ix, iy + ICON_SIZE,
-                            player_ammo[AMMO_STANDARD], 2, OT_COUNT);
-            if (i == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0)
-                draw_number(ctx, ix, iy + ICON_SIZE,
-                            player_ammo[AMMO_FLAME], 2, OT_COUNT);
+            if (i == held_cell) continue;
+            draw_item_cell(ctx, item_cell[i], ix, iy);
         }
     }
 
@@ -590,20 +711,25 @@ void menu_draw(RenderContext *ctx) {
         }
     }
 
-    /* Cursor reticule (frontmost) */
+    /* Cursor reticule (frontmost). It turns amber while an item is being carried
+       — the one tell that Circle will now PLACE rather than take. */
     {
         int col_x = cursor_col == 0 ? COL_ITEMS_X : COL_WEAPONS_X;
         int cx = col_x + cursor_subcol * CELL_W + ICON_PADDING - 2;
         int cy = COL_Y_START + cursor_row * CELL_H + ICON_PADDING - 2;
         int cs = ICON_SIZE + 4;
+        int carry = held_cell >= 0;
+        uint8_t or_ = carry ? 200 : 80,  og = carry ? 120 : 80,  ob = carry ?  20 : 200;
+        uint8_t ir  = carry ? 255 : 180, ig = carry ? 210 : 180, ib = carry ?  90 : 255;
+        uint8_t kr  = 255,               kg = carry ? 230 : 255, kb = carry ? 120 : 255;
 
-        draw_outline(ctx, cx - 2, cy - 2, cs + 4, cs + 4, 80, 80, 200, OT_RETICULE);
-        draw_outline(ctx, cx, cy, cs, cs, 180, 180, 255, OT_RETICULE);
+        draw_outline(ctx, cx - 2, cy - 2, cs + 4, cs + 4, or_, og, ob, OT_RETICULE);
+        draw_outline(ctx, cx, cy, cs, cs, ir, ig, ib, OT_RETICULE);
 
-        draw_rect(ctx, cx,        cy,        3, 3, 255, 255, 255, OT_RETICULE);
-        draw_rect(ctx, cx+cs-3,   cy,        3, 3, 255, 255, 255, OT_RETICULE);
-        draw_rect(ctx, cx,        cy+cs-3,   3, 3, 255, 255, 255, OT_RETICULE);
-        draw_rect(ctx, cx+cs-3,   cy+cs-3,   3, 3, 255, 255, 255, OT_RETICULE);
+        draw_rect(ctx, cx,        cy,        3, 3, kr, kg, kb, OT_RETICULE);
+        draw_rect(ctx, cx+cs-3,   cy,        3, 3, kr, kg, kb, OT_RETICULE);
+        draw_rect(ctx, cx,        cy+cs-3,   3, 3, kr, kg, kb, OT_RETICULE);
+        draw_rect(ctx, cx+cs-3,   cy+cs-3,   3, 3, kr, kg, kb, OT_RETICULE);
     }
 
     /* Description box */
@@ -614,11 +740,12 @@ void menu_draw(RenderContext *ctx) {
         int slot = cursor_row * col_cols(cursor_col) + cursor_subcol;
         const char *desc = "Empty";
         if (cursor_col == 0) {
-            /* item_descriptions[] is indexed by MENU_SLOT_*, and menu_item_held
-               already knows what each slot needs, so this stays one line as
-               items are added. */
-            if (slot < MENU_ITEM_SLOTS && menu_item_held(slot))
-                desc = item_descriptions[slot];
+            /* item_descriptions[] is indexed by item ID, so the cell's CONTENTS
+               are the index — not the cell number, which no longer says anything
+               about which item is in it. The cell the carried item came from
+               reads "Empty", which is exactly what it is right now. */
+            int item = (slot == held_cell) ? -1 : item_cell[slot];
+            if (item >= 0) desc = item_descriptions[item];
         } else {
             if (slot == 0)
                 desc = weapon_descriptions[0];
@@ -627,6 +754,27 @@ void menu_draw(RenderContext *ctx) {
         }
         FntPrint(menu_fnt, desc);
         FntFlush(menu_fnt);
+    }
+
+    /* Carry box — only while something is lifted, so the panel is unchanged in
+       the ordinary case. Its own cell, in the description panel's bottom. */
+    if (held_cell >= 0) {
+        btn_prompt_draw(ctx, CARRY_X, CARRY_Y - 10, "CARRYING", OT_TEXT);
+        draw_rect(ctx, CARRY_X, CARRY_Y, CELL_W, CELL_H, 60, 45, 20, OT_BOX);
+        draw_outline(ctx, CARRY_X, CARRY_Y, CELL_W, CELL_H, 200, 160, 60, OT_FILL);
+        draw_item_cell(ctx, item_cell[held_cell],
+                       CARRY_X + ICON_PADDING, CARRY_Y + ICON_PADDING);
+    }
+
+    /* Control prompt, under the health bar. Only the ITEMS column can be
+       rearranged, so nothing is advertised over an empty cell or the WEAPONS
+       column — the line appears exactly when there is a button to press. */
+    if (cursor_col == 0) {
+        int cell = cursor_row * ITEM_COLS + cursor_subcol;
+        const char *prompt = 0;
+        if (held_cell >= 0)            prompt = BTN_CIRCLE " Place/Swap  " BTN_CROSS " Cancel";
+        else if (item_cell[cell] >= 0) prompt = BTN_CIRCLE " Move item";
+        if (prompt) btn_prompt_draw(ctx, HBAR_X, HBAR_Y + HBAR_H + 4, prompt, OT_TEXT);
     }
 
     /* Health bar */

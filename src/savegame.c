@@ -5,6 +5,7 @@
 #include "savegame.h"
 #include "player.h"
 #include "camera.h"
+#include "menu.h"
 #include "title.h"
 #include "world.h"
 
@@ -68,6 +69,7 @@ void savegame_capture(SaveData *sd) {
     sd->keys    = player_keys;
     sd->items   = player_items;
     sd->flags   = game_flags;
+    menu_inventory_save(sd->item_order);
     sd->counter = 0;
     sd->delta_size = (uint32_t)sizeof(WorldDelta);
 }
@@ -233,6 +235,9 @@ void savegame_apply_pending(void) {
     player_items      = sd->items;
     game_flags        = sd->flags;
     player_save_count = (int)sd->counter;
+    /* AFTER the inventory fields above: the arrangement is reconciled against
+       what the player actually holds, so it has to be restored last. */
+    menu_inventory_load(sd->item_order);
 
     /* Rebuild every visited room from the delta, over the fresh rooms[] the
        new-game path just built, then enter the saved area so the live entity
