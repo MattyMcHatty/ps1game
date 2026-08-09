@@ -22,6 +22,7 @@
 #include "door.h"
 #include "demondog.h"
 #include "garden_stairs.h"    /* garden_stairs_upload_grss_gs */
+#include "delivery_intro.h"   /* the New Game arrival sequence's fade overlay */
 #include "tim_slots.h"
 #include "delivery_area_tex_map.h"
 
@@ -529,4 +530,9 @@ void delivery_area_draw(RenderContext *ctx) {
             ctx->next_packet += sizeof(DR_TWIN);
         }
     }
+
+    /* The New Game arrival sequence's fade up from the intro's black. Screen
+       space, OT bucket 0, so it goes over the room, the props and the sprites;
+       a no-op on every other entry into this room. */
+    delivery_intro_draw(ctx);
 }

@@ -66,6 +66,7 @@
 #include "tentacle.h"
 #include "rabisu.h"
 #include "rabisu_boss.h"
+#include "delivery_intro.h"
 #include "world.h"
 #include "fatdoor.h"
 #include "door_anim.h"
@@ -153,6 +154,10 @@ void reset_game(RenderContext *ctx) {
     spiders_reset();
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
+    delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
+                              BEFORE the arrival is armed on the New Game path
+                              (see the frontend hook), so it never cancels the
+                              one it is about to start. */
     fatdoors_reset();
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
@@ -278,6 +283,16 @@ static void update_current_area(GameState area) {
         player_status_update();
         rabisu_boss_update();
         update_particles();
+        return;
+    }
+    /* ...and the Delivery Area's arrival sequence, on a New Game only. It drives
+       the camera over the fence by hand, so update_camera and apply_height must
+       not run: gravity would haul the jump straight back down onto the ground,
+       and apply_collision would push the camera off the grass outside the yard
+       the moment the sequence put it there. Nothing else in the room needs
+       ticking — the yard starts with no enemies in it (world.c). */
+    if (area == STATE_DELIVERY_AREA && delivery_intro_active()) {
+        delivery_intro_update();
         return;
     }
     update_camera();
@@ -1311,7 +1326,8 @@ int main(int argc, const char **argv) {
                              (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && exit_door_puzzle_active());
-                int cutscene = (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene());
+                int cutscene = (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()) ||
+                               (area == STATE_DELIVERY_AREA && delivery_intro_active());
                 if (!puzzle && !cutscene) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);
@@ -1370,6 +1386,15 @@ int main(int argc, const char **argv) {
                 collision_init();
                 floor_zones_init();
                 reset_game(&ctx);   /* fresh-start spawn/state */
+
+                /* THE ARRIVAL SEQUENCE (src/delivery_intro.h): the camera walks
+                   up to the yard's east fence from the grass outside and vaults
+                   it into the starting spot. Armed HERE, after reset_game, which
+                   would otherwise stamp the normal spawn back over the camera —
+                   and gated on prev_state so it fires on a NEW GAME only. A
+                   title-screen Load Game reaches this same block straight from
+                   STATE_TITLE and must drop the player in unceremoniously. */
+                if (prev_state == STATE_INTRO) delivery_intro_start();
             }
             /* The room we are "coming from" is now the fresh start, not
                whatever room the previous session ended in. STATE_LOADING reads

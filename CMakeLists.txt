@@ -23,6 +23,7 @@ add_executable(horror_game
     src/camera.c
     src/render.c
     src/delivery_area.c
+    src/delivery_intro.c
     src/player.c
     src/vampire.c
     src/crucifaxe.c
