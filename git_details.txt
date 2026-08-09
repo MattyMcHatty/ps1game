@@ -33,10 +33,19 @@ or when new files have been added to them:
 
     assets/          — level meshes (.smd), prop meshes, other game assets
     blender models/  — source .blend files for any 3D models
+    misc/            — editor project files for other source media, e.g. the
+                       Audacity .aup3 a voice clip was cut in. Same reasoning
+                       as "blender models/": it is the editable original that
+                       sounds/*.wav was rendered from, and it is not
+                       reproducible from anything else in the repo.
     music/           — background music tracks (.wav, .mp3, etc.)
-    sounds/          — sound effects (.vag, .wav, etc.)
+    sounds/          — sound effects (.vag, .wav, etc.) and the conversion
+                       scripts beside them (mp3_to_wav, wav_to_vag, gain_wav,
+                       crush_wav)
     src/             — all C source files (.c) and headers (.h)
     textures/        — texture files (.tim, .png, source images)
+    tools/           — the runbooks (ADDING_A_*.txt, *_NOTES.txt), the VRAM
+                       map and the Blender exporters/generator scripts
 
 Also always commit these specific files if they have changed:
     CMakeLists.txt          — build configuration
@@ -49,15 +58,18 @@ Also always commit these specific files if they have changed:
 When committing, stage everything relevant at once rather than file by file.
 Example full commit workflow:
 
-    git add src/ textures/ assets/ sounds/ music/ CMakeLists.txt disc.xml
+    git add src/ textures/ assets/ sounds/ music/ tools/ CMakeLists.txt disc.xml
     git commit -m "Your description of what changed and why"
     git push
 
 To also pick up NEW files in those folders (git add stages new files too):
-    git add src/ textures/ assets/ sounds/ music/ "blender models/"
+    git add src/ textures/ assets/ sounds/ music/ tools/ misc/ "blender models/"
     git add CMakeLists.txt disc.xml system.cnf "rebuild commands.txt" git_details.txt .gitignore
     git commit -m "Description"
     git push
+
+A multi-line commit message will not survive `-m` on this machine's shell —
+write it to a file and use `git commit -F <file>` instead.
 
 
 WHAT IS INTENTIONALLY IGNORED (.gitignore)
