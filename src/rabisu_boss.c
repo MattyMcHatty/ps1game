@@ -14,6 +14,7 @@
 #include "garden_courtyard.h"
 #include "rabisu.h"
 #include "rabisu_boss.h"
+#include "trial_end.h"     /* where this build of the game stops */
 
 /* The Rabisu encounter. See rabisu_boss.h for what it is and why it is a
    separate file from the boss itself. */
@@ -660,6 +661,12 @@ void rabisu_boss_update(void) {
             camera_release_player();
             garden_courtyard_door_arm();
             state = RBE_DONE;
+            /* THE END OF THE TRIAL. Armed HERE and not by anything watching for
+               RBE_DONE, because the bail-out above reaches RBE_DONE too — a
+               debug jump or a load that takes the boss out from under the script
+               must not roll the credits. This is the one path that gets here off
+               a body that actually died. */
+            trial_end_start();
         }
         break;
 

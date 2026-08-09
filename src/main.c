@@ -66,6 +66,7 @@
 #include "tentacle.h"
 #include "rabisu.h"
 #include "rabisu_boss.h"
+#include "trial_end.h"
 #include "delivery_intro.h"
 #include "world.h"
 #include "fatdoor.h"
@@ -154,6 +155,7 @@ void reset_game(RenderContext *ctx) {
     spiders_reset();
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
+    trial_end_reset();     /* ...and the sign-off screen it ends on */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
                               BEFORE the arrival is armed on the New Game path
                               (see the frontend hook), so it never cancels the
@@ -1310,6 +1312,21 @@ int main(int argc, const char **argv) {
                    game_state == STATE_GARDEN_COURTYARD) {
             if (game_over) {
                 draw_lose_screen(&ctx);
+            } else if (trial_end_active()) {
+                /* THE END OF THE TRIAL (src/trial_end.h), armed by the Rabisu
+                   encounter the frame its death sequence retires. It owns the
+                   screen exactly the way the game-over screen does: nothing in
+                   the room ticks, no menu, no HUD, and Start goes to the title.
+                   The garden is still DRAWN for the four seconds of the fade —
+                   that is what is being faded — and not for a frame longer. */
+                trial_end_update();
+                if (trial_end_world_visible())
+                    draw_current_area(&ctx, game_state);
+                trial_end_draw(&ctx);
+                if (trial_end_finished()) {
+                    reset_game(&ctx);
+                    game_state = STATE_TITLE;
+                }
             } else {
                 /* Capture the area first: handle_menu_open may switch game_state
                    to STATE_MENU mid-frame, but the rest of this frame must keep

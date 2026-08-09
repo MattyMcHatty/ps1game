@@ -162,17 +162,27 @@ static const uint8_t FONT[26][GLYPH_H] = {
 
 static const uint8_t GLYPH_COMMA[GLYPH_H] = {0,0,0,0,0x04,0x04,0x02};
 static const uint8_t GLYPH_DOT[GLYPH_H]   = {0,0,0,0,0,0x01,0x01};
+/* The three the trial-end screen adds (src/trial_end.c): a handle, a
+   contraction and an exclamation. Same convention — bit 0 is the left column. */
+static const uint8_t GLYPH_AT[GLYPH_H]    = {0x0E,0x11,0x1D,0x15,0x1D,0x01,0x0E};
+static const uint8_t GLYPH_APOS[GLYPH_H]  = {0x04,0x04,0x02,0,0,0,0};
+static const uint8_t GLYPH_BANG[GLYPH_H]  = {0x04,0x04,0x04,0x04,0x04,0,0x04};
 
 static const uint8_t *glyph_for(char c) {
     if (c >= 'A' && c <= 'Z') return FONT[c - 'A'];
     if (c == ',')             return GLYPH_COMMA;
     if (c == '.')             return GLYPH_DOT;
+    if (c == '@')             return GLYPH_AT;
+    if (c == '\'')            return GLYPH_APOS;
+    if (c == '!')             return GLYPH_BANG;
     return 0;                  /* space, and anything unmapped */
 }
 
 static int advance_for(char c) {
-    if (c == ' ') return ADV_SPACE;
-    if (c == '.') return ADV_DOT;
+    if (c == ' ')  return ADV_SPACE;
+    if (c == '.')  return ADV_DOT;
+    if (c == '\'') return ADV_DOT + 1;   /* narrow, but not as tight as a stop */
+    if (c == '!')  return ADV_SPACE;
     return ADV_LETTER;
 }
 
@@ -308,7 +318,7 @@ int intro_finished(void) {
 
 /* ------------------------------------------------------------------ drawing */
 static void tile_run(RenderContext *ctx, int x, int y, int w,
-                     uint8_t r, uint8_t g, uint8_t b) {
+                     uint8_t r, uint8_t g, uint8_t b, int ot) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     if (ctx->next_packet + sizeof(TILE) > buf_end) return;
     TILE *tl = (TILE *)ctx->next_packet;
@@ -316,26 +326,31 @@ static void tile_run(RenderContext *ctx, int x, int y, int w,
     setXY0(tl, x, y);
     setWH(tl, w, 1);
     setRGB0(tl, r, g, b);
-    addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_TEXT], tl);
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[ot], tl);
     ctx->next_packet += sizeof(TILE);
 }
 
-static int text_width(const char *s) {
+int intro_text_width(const char *s) {
     int w = 0;
     while (*s) w += advance_for(*s++);
     return w ? w - 1 : 0;   /* the trailing 1px inter-letter gap is not width */
 }
 
-/* One line, horizontally centred, at brightness `level` (0-255). Each glyph row
-   is emitted as horizontal RUNS of lit pixels rather than one TILE per pixel,
-   which roughly halves the primitive count for a screenful of text. */
-static void draw_line(RenderContext *ctx, const char *s, int y, int level) {
+/* One line, horizontally centred, at brightness `level` (0-255), into OT bucket
+   `ot`. Each glyph row is emitted as horizontal RUNS of lit pixels rather than
+   one TILE per pixel, which roughly halves the primitive count for a screenful
+   of text.
+
+   PUBLIC because the trial-end screen (src/trial_end.c) fades text on in exactly
+   the same way and for the same reason the opening sequence does: the SDK's font
+   streams draw at a fixed brightness, so they cannot be faded at all. */
+void intro_text_draw(RenderContext *ctx, const char *s, int y, int level, int ot) {
     if (level <= 0) return;
     uint8_t r = (uint8_t)(TEXT_R * level / 255);
     uint8_t g = (uint8_t)(TEXT_G * level / 255);
     uint8_t b = (uint8_t)(TEXT_B * level / 255);
 
-    int x = (SCREEN_XRES - text_width(s)) / 2;
+    int x = (SCREEN_XRES - intro_text_width(s)) / 2;
     for (; *s; s++) {
         const uint8_t *gl = glyph_for(*s);
         if (gl) {
@@ -347,12 +362,16 @@ static void draw_line(RenderContext *ctx, const char *s, int y, int level) {
                     if (!(bits & (1 << col))) { col++; continue; }
                     int start = col;
                     while (col < GLYPH_W && (bits & (1 << col))) col++;
-                    tile_run(ctx, x + start, y + row, col - start, r, g, b);
+                    tile_run(ctx, x + start, y + row, col - start, r, g, b, ot);
                 }
             }
         }
         x += advance_for(*s);
     }
+}
+
+static void draw_line(RenderContext *ctx, const char *s, int y, int level) {
+    intro_text_draw(ctx, s, y, level, OT_TEXT);
 }
 
 /* Brightness of line `line` of a block, given the block-local time `bt`.
