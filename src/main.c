@@ -71,6 +71,15 @@
 #include "door_anim.h"
 #include "stair_anim.h"
 
+/* Title-screen background. It is the framebuffer CLEAR colour, not a drawn
+   tile: draw_title paints only the letters over it. Gameplay and the game-over
+   screen both overwrite the clear colour (black / red), so anything that
+   returns to the title has to put this back — see the STATE_TITLE entry hook at
+   the bottom of the main loop. */
+#define TITLE_BG_R 25
+#define TITLE_BG_G 0
+#define TITLE_BG_B 29
+
 GameState game_state   = STATE_TITLE;
 GameState current_area = STATE_DELIVERY_AREA;  /* last playable area; menu returns here */
 GameState pending_area = STATE_KITCHEN_DINING; /* area STATE_LOADING will switch to */
@@ -785,7 +794,8 @@ int main(int argc, const char **argv) {
     ResetGraph(0);
 
     RenderContext ctx;
-    setup_context(&ctx, SCREEN_XRES, SCREEN_YRES, 25, 0, 29);
+    setup_context(&ctx, SCREEN_XRES, SCREEN_YRES,
+                  TITLE_BG_R, TITLE_BG_G, TITLE_BG_B);
 
     InitGeom();
     gte_SetGeomScreen(256);
@@ -1321,8 +1331,30 @@ int main(int argc, const char **argv) {
                    otherwise start the new game with the boss bank still in and
                    every monster in the house silent. */
                 sound_bank_select(SND_BANK_HOUSE);
+                /* COLLISION, for the same "the arena may hold any room at all"
+                   reason as the geometry above. These two install the delivery
+                   area's wall list and floor zones; every other room's _init
+                   overwrites both, so a session that reached any other room and
+                   came back to the title would otherwise re-enter delivery
+                   walking on the LAST room's walls and floor heights. It only
+                   looked right on a cold boot because main()'s startup inits
+                   happen to leave delivery's data in place.
+                   The standoff is reset first for the same reason main.c resets
+                   it before every room init: the garden rooms raise it, and
+                   delivery wants the default back. */
+                collision_set_wall_radius(0);
+                collision_init();
+                floor_zones_init();
                 reset_game(&ctx);   /* fresh-start spawn/state */
             }
+            /* The room we are "coming from" is now the fresh start, not
+               whatever room the previous session ended in. STATE_LOADING reads
+               current_area to pick arrival spawns and to snapshot the outgoing
+               room, and enemies read it for their per-room behaviour, so a
+               stale value here mis-places the player on the first door
+               transition of the new game and writes delivery's entities into
+               another room's slot. */
+            current_area = STATE_DELIVERY_AREA;
             world_new_game();       /* reset rooms; capture the fresh starting room */
             /* Loading into the delivery area enters it directly (no
                STATE_LOADING pass), so apply the staged save here, after
@@ -1338,6 +1370,14 @@ int main(int argc, const char **argv) {
         }
         if (prev_state != STATE_TITLE && game_state == STATE_TITLE) {
             cdaudio_stop();
+            /* Put the title's purple back. The screen we are coming from owns
+               the clear colour and left its own in place — gameplay's black,
+               or the game-over screen's red — and draw_title paints only the
+               HORROR letters, so without this the title comes up in whatever
+               colour the last screen happened to be using. Both buffers, since
+               either may be the next one drawn into. */
+            setRGB0(&ctx.buffers[0].draw_env, TITLE_BG_R, TITLE_BG_G, TITLE_BG_B);
+            setRGB0(&ctx.buffers[1].draw_env, TITLE_BG_R, TITLE_BG_G, TITLE_BG_B);
         }
         cdaudio_update();
         prev_state = game_state;
