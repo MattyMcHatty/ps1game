@@ -395,20 +395,7 @@ void delivery_area_draw(RenderContext *ctx) {
     draw_sky_gradient(ctx);
 
     MATRIX rot_matrix;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-
-    RotMatrix(&neg_rot, &rot_matrix);
-
-    VECTOR trans;
-    trans.vx = -cam_x;
-    trans.vy = -cam_y;
-    trans.vz = -cam_z;
-
-    ApplyMatrixLV(&rot_matrix, &trans, &trans);
-
-    rot_matrix.t[0] = trans.vx;
-    rot_matrix.t[1] = trans.vy;
-    rot_matrix.t[2] = trans.vz;
+    camera_build_view(&rot_matrix);
 
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);

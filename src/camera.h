@@ -11,12 +11,42 @@ extern int32_t cam_z;
 extern int32_t cam_rot;
 
 /* Camera pitch (X rotation, 4096 = 360deg; positive tilts the view DOWN).
-   Free-look gameplay never sets it — it stays 0 and the pitch matrix is the
-   identity — it exists for scripted fixed-camera shots like the stove puzzle's
-   top-down framing. Only view matrices built via camera_build_view() honour it,
-   which is every draw in the kitchen's path; rooms that still build their own
-   yaw-only matrix are unaffected (their pitch is always 0 anyway). */
+   Driven by look mode (below) and by scripted fixed-camera shots like the stove
+   puzzle's top-down framing; 0 the rest of the time, where the pitch matrix is
+   the identity. Only view matrices built via camera_build_view() honour it, so
+   every room/prop draw builds its view through that call. */
 extern int32_t cam_pitch;
+
+/* ---- Look mode ------------------------------------------------------------
+   HOLD Circle to look around from a standstill: the d-pad swings the view up to
+   LOOK_MAX_ANG off the player's facing in each axis instead of walking/turning.
+   A TAP of the same button interacts instead — see interact_tapped() below,
+   which every door, prompt, save point and puzzle entry uses in place of
+   reading Circle off the pad.
+   Only the camera is affected — the world keeps ticking exactly as it does in
+   roaming mode. Releasing Circle eases the view back to the player's facing.
+   The offset is folded into cam_rot/cam_pitch, so every draw (rooms, props,
+   billboards) follows it without knowing look mode exists; update_camera strips
+   it again at the top of the next frame, so cam_rot outside this window is
+   still the true facing. */
+#define LOOK_MAX_ANG 228   /* 20 deg, in 4096-per-turn units */
+extern int look_mode;      /* 1 while Circle is held and the view is unlocked */
+
+/* Drop any look offset immediately, putting cam_rot back to the player's real
+   facing. update_camera does this for itself every frame; call it from anything
+   that takes the camera or freezes the game on a frame where Circle may still
+   be down (puzzles, the save flow, room transitions), so nothing snapshots or
+   saves a swung-off-centre cam_rot. */
+void camera_look_cancel(void);
+
+/* 1 for the single frame a Circle TAP resolves — i.e. on release, if the press
+   was too short to have become a look. World interactions (doors, stairs, save
+   points, puzzle entries, prompts) read this instead of the pad, so they fire
+   on release and a hold-to-look never triggers them. Modules that already
+   edge-detect their own `held` flag can keep that logic: this reads as a
+   one-frame press. In-puzzle menus still read Circle straight off the pad —
+   look mode is off while a puzzle owns the camera, so nothing is shared. */
+int interact_tapped(void);
 
 /* ---- Player anchor --------------------------------------------------------
    The player's world position is normally just the camera's. A camera-locked

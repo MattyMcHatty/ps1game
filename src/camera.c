@@ -26,6 +26,11 @@ static int32_t anchor_x = 0, anchor_y = 0, anchor_z = 0;
 static int     anchored = 0;
 
 void camera_anchor_player(int32_t x, int32_t y, int32_t z) {
+    /* A puzzle taking the camera wants cam_rot to be the player's real facing,
+       and it owns cam_pitch from here — so a look offset applied on the frame
+       the puzzle started (Circle both looks and interacts) goes now, not on the
+       next update_camera, which a camera-locked puzzle may not even reach. */
+    camera_look_cancel();
     anchor_x = x; anchor_y = y; anchor_z = z;
     anchored = 1;
 }
@@ -60,6 +65,49 @@ int sprint_cooldown = 0;
 int     aiming = 0;
 int32_t aim_x  = AIM_REST_X;
 int32_t aim_y  = AIM_REST_Y;
+
+/* Look mode (see camera.h): hold Circle to swing the view off the player's
+   facing without moving. look_yaw/look_pitch are the offsets currently folded
+   into cam_rot/cam_pitch — update_camera subtracts look_yaw again at the top of
+   every frame so turning, walking, enemies and saves all keep seeing the true
+   facing in cam_rot. */
+#define LOOK_SPEED   14   /* offset units per frame while held (~1.2 deg) */
+#define LOOK_RETURN  28   /* recentre speed once Circle is released       */
+int look_mode = 0;
+static int32_t look_yaw   = 0;
+static int32_t look_pitch = 0;
+
+/* Circle is shared: a TAP interacts (doors, prompts, save points, puzzle
+   entries), a HOLD looks around. So interactions resolve on release — every
+   world interaction calls interact_tapped() instead of reading the pad, and
+   gets a single frame of 1 when a press ends inside LOOK_HOLD_FRAMES. Once a
+   press crosses that it has become a look and can never fire an interaction,
+   which is what stops a look near a door from walking you through it. */
+#define LOOK_HOLD_FRAMES 10   /* ~0.17 s down and the press is a look, not a tap */
+static int circle_frames = 0; /* frames Circle has been down, capped at the
+                                 threshold; -1 = press spent (see below) */
+static int tap_frame     = 0; /* 1 for the single frame a tap resolves */
+
+int interact_tapped(void) { return tap_frame; }
+
+/* Drop any applied offset and put cam_rot back to the player's facing. Called on
+   the paths that leave update_camera early (menus, no pad), by anything that
+   takes the camera, and from main's loop when the game leaves free roam — so
+   nothing else ever snapshots or saves a view that is still swung off-centre.
+   Leaves cam_pitch alone while a puzzle owns the camera: that pitch is the
+   puzzle's, not ours. */
+void camera_look_cancel(void) {
+    cam_rot   = (cam_rot - look_yaw) & 4095;
+    look_yaw  = 0;
+    if (!anchored) cam_pitch = 0;
+    look_pitch = 0;
+    look_mode  = 0;
+    /* Spend whatever Circle press is in flight: a press that was still down when
+       the camera was taken must not resume looking, nor pop out as a tap when
+       it is finally released. The next release clears the mark. */
+    circle_frames = -1;
+    tap_frame     = 0;
+}
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -98,11 +146,16 @@ void camera_set_view_matrix(void) {
 }
 
 void update_camera(void) {
-    if (game_state == STATE_MENU) return;
-    if (!pad_buff_len[0]) return;
+    if (game_state == STATE_MENU) { camera_look_cancel(); return; }
+    if (!pad_buff_len[0])         { camera_look_cancel(); return; }
 
     PadResponse *pad = (PadResponse *)pad_buff[0];
     uint16_t btn = ~pad->btn;
+
+    /* Unfold last frame's look offset: everything below (turning, walking, the
+       sprint/footstep logic) works on the player's true facing. The offset is
+       folded back in at the end of the function. */
+    cam_rot = (cam_rot - look_yaw) & 4095;
 
     /* Player knockback (tentacle hits): displace and decay before input, so it
        stacks with walking and gets wall-resolved by the later apply_collision. */
@@ -134,6 +187,46 @@ void update_camera(void) {
         aiming = 1;
     }
     aim_prev_held = aim_held;
+
+    /* Circle: hold to look, tap to interact. The press is classified here — under
+       LOOK_HOLD_FRAMES it resolves as a tap on release (interact_tapped(), which
+       is what doors and prompts read), at or past it the player is looking and
+       no interaction can come of it. Walking is still free during those first
+       frames, so a tap never stutters the player's movement.
+       Look mode itself is unavailable while aiming (L2 owns the d-pad) or while
+       a puzzle owns the camera. It roots the player and gives the d-pad to the
+       view; on release the view eases back to the player's facing, with movement
+       free again during the ease. Nothing else about the frame changes — the
+       caller keeps ticking enemies, pickups and props as in roaming mode. */
+    int circle = (btn & PAD_CIRCLE) ? 1 : 0;
+    tap_frame = 0;
+    if (circle) {
+        /* -1 (spent) stays put; otherwise count up to — and stop at — the hold
+           threshold, which is what both the tap test and look_mode read. */
+        if (circle_frames >= 0 && circle_frames < LOOK_HOLD_FRAMES) circle_frames++;
+    } else {
+        if (circle_frames > 0 && circle_frames < LOOK_HOLD_FRAMES) tap_frame = 1;
+        circle_frames = 0;
+    }
+    look_mode = (circle_frames >= LOOK_HOLD_FRAMES && !aiming && !anchored) ? 1 : 0;
+    if (look_mode) {
+        if (btn & PAD_LEFT)  look_yaw   -= LOOK_SPEED;
+        if (btn & PAD_RIGHT) look_yaw   += LOOK_SPEED;
+        if (btn & PAD_UP)    look_pitch -= LOOK_SPEED;   /* +pitch looks DOWN */
+        if (btn & PAD_DOWN)  look_pitch += LOOK_SPEED;
+        if (look_yaw   >  LOOK_MAX_ANG) look_yaw   =  LOOK_MAX_ANG;
+        if (look_yaw   < -LOOK_MAX_ANG) look_yaw   = -LOOK_MAX_ANG;
+        if (look_pitch >  LOOK_MAX_ANG) look_pitch =  LOOK_MAX_ANG;
+        if (look_pitch < -LOOK_MAX_ANG) look_pitch = -LOOK_MAX_ANG;
+    } else {
+        if (look_yaw   >  LOOK_RETURN) look_yaw   -= LOOK_RETURN;
+        else if (look_yaw   < -LOOK_RETURN) look_yaw   += LOOK_RETURN;
+        else look_yaw = 0;
+        if (look_pitch >  LOOK_RETURN) look_pitch -= LOOK_RETURN;
+        else if (look_pitch < -LOOK_RETURN) look_pitch += LOOK_RETURN;
+        else look_pitch = 0;
+    }
+    if (look_mode) goto debug_toggle;   /* rooted while looking */
 
     if (aiming) {
         if (btn & PAD_UP)    aim_y -= AIM_MOVE_SPEED;
@@ -239,5 +332,11 @@ debug_toggle:
         if (select_held && !select_prev) debug_mode = (debug_mode + 1) % 3;
         select_prev = select_held;
     }
+
+    /* Fold the look offset back into the camera. cam_rot carries the yaw so
+       every room and prop view matrix picks it up; cam_pitch is only ours when
+       no puzzle has anchored the player and taken the camera. */
+    cam_rot = (cam_rot + look_yaw) & 4095;
+    if (!anchored) cam_pitch = look_pitch;
 }
 

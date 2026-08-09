@@ -131,20 +131,12 @@ void save_points_update(void) {
 static int save_circle_prev = 1;   /* start "held" so an entry press won't fire */
 
 void save_point_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     save_circle_prev = held;
 }
 
 int save_point_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !save_circle_prev;
     save_circle_prev = held;
     if (!just) return 0;
@@ -181,13 +173,7 @@ void save_points_draw(RenderContext *ctx) {
     if (!sp_smd) return;
 
     MATRIX view;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &view);
-    VECTOR vt = {-cam_x, -cam_y, -cam_z};
-    ApplyMatrixLV(&view, &vt, &vt);
-    view.t[0] = vt.vx;
-    view.t[1] = vt.vy;
-    view.t[2] = vt.vz;
+    camera_build_view(&view);
 
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 

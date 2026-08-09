@@ -339,20 +339,12 @@ void door_init(void) {
 /* Seed the Circle edge state to the current button so a press held from the
    previous screen/door doesn't immediately re-trigger this door on arrival. */
 void door_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     door_circle_prev = held;
 }
 
 void door_update(void) {
-    int o_held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        o_held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int o_held = interact_tapped();
     int o_just_pressed = o_held && !door_circle_prev;
     door_circle_prev = o_held;
 

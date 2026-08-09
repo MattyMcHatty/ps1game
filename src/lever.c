@@ -167,13 +167,7 @@ void levers_draw(RenderContext *ctx) {
     if (lever_count == 0 || !lever_smd) return;
 
     MATRIX view;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &view);
-    VECTOR vt = {-cam_x, -cam_y, -cam_z};
-    ApplyMatrixLV(&view, &vt, &vt);
-    view.t[0] = vt.vx;
-    view.t[1] = vt.vy;
-    view.t[2] = vt.vz;
+    camera_build_view(&view);
 
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 

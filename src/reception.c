@@ -184,20 +184,12 @@ void reception_upload_textures(void) {
 static int rdoor_circle_prev = 1;
 
 void reception_door_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     rdoor_circle_prev = held;
 }
 
 int reception_door_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !rdoor_circle_prev;
     rdoor_circle_prev = held;
     if (!just) return 0;
@@ -241,20 +233,12 @@ static void reception_door_text(RenderContext *ctx) {
 static int wdoor_circle_prev = 1;
 
 void wdoor_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     wdoor_circle_prev = held;
 }
 
 int wdoor_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !wdoor_circle_prev;
     wdoor_circle_prev = held;
     if (!just) return 0;
@@ -296,20 +280,12 @@ static void wdoor_text(RenderContext *ctx) {
 static int cdoor_circle_prev = 1;
 
 void cdoor_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     cdoor_circle_prev = held;
 }
 
 int cdoor_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !cdoor_circle_prev;
     cdoor_circle_prev = held;
     if (!just) return 0;
@@ -354,20 +330,12 @@ static void cdoor_text(RenderContext *ctx) {
 static int hdoor_circle_prev = 1;
 
 void hdoor_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     hdoor_circle_prev = held;
 }
 
 int hdoor_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !hdoor_circle_prev;
     hdoor_circle_prev = held;
     if (!just) return 0;
@@ -453,20 +421,12 @@ static void ndoor_text(RenderContext *ctx) {
 static int edoor_circle_prev = 1;
 
 void edoor_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     edoor_circle_prev = held;
 }
 
 int edoor_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !edoor_circle_prev;
     edoor_circle_prev = held;
     if (!just) return 0;
@@ -722,17 +682,7 @@ void reception_draw(RenderContext *ctx) {
 
     /* View matrix from the camera (same construction as kitchen_dining_draw). */
     MATRIX rot_matrix;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &rot_matrix);
-
-    VECTOR trans;
-    trans.vx = -cam_x;
-    trans.vy = -cam_y;
-    trans.vz = -cam_z;
-    ApplyMatrixLV(&rot_matrix, &trans, &trans);
-    rot_matrix.t[0] = trans.vx;
-    rot_matrix.t[1] = trans.vy;
-    rot_matrix.t[2] = trans.vz;
+    camera_build_view(&rot_matrix);
 
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);

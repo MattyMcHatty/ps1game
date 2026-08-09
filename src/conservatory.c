@@ -140,20 +140,12 @@ void conservatory_upload_con_tile(void) { texmgr_upload(new_tex_id[2]); }
 static int condoor_circle_prev = 1;
 
 void condoor_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     condoor_circle_prev = held;
 }
 
 int condoor_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !condoor_circle_prev;
     condoor_circle_prev = held;
     if (!just) return 0;
@@ -204,20 +196,12 @@ static void condoor_text(RenderContext *ctx) {
 static int stairs_circle_prev = 1;
 
 void stairs_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     stairs_circle_prev = held;
 }
 
 int stairs_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !stairs_circle_prev;
     stairs_circle_prev = held;
     if (!just) return 0;
@@ -456,17 +440,7 @@ void conservatory_draw(RenderContext *ctx) {
 
     /* View matrix from the camera (same construction as the other rooms). */
     MATRIX rot_matrix;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &rot_matrix);
-
-    VECTOR trans;
-    trans.vx = -cam_x;
-    trans.vy = -cam_y;
-    trans.vz = -cam_z;
-    ApplyMatrixLV(&rot_matrix, &trans, &trans);
-    rot_matrix.t[0] = trans.vx;
-    rot_matrix.t[1] = trans.vy;
-    rot_matrix.t[2] = trans.vz;
+    camera_build_view(&rot_matrix);
 
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);

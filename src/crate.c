@@ -167,13 +167,7 @@ void crates_draw(RenderContext *ctx) {
     /* Build the camera view matrix (same computation as delivery_area_draw).
        CompMatrixLV needs this to combine view + per-crate world transforms. */
     MATRIX view;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &view);
-    VECTOR vt = {-cam_x, -cam_y, -cam_z};
-    ApplyMatrixLV(&view, &vt, &vt);
-    view.t[0] = vt.vx;
-    view.t[1] = vt.vy;
-    view.t[2] = vt.vz;
+    camera_build_view(&view);
 
     /* smdSortModel runs GTE NCDS (normal colour cueing) for l_type=1 prims.
        Back colour = 128,128,128 gives neutral ambient (texture at full

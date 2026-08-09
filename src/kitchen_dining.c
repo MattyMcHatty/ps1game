@@ -252,11 +252,7 @@ void kitchen_dining_init(void) {
 /* Seed the Circle edge state on entering the kitchen, so a press held from the
    delivery door doesn't immediately bounce the player back. */
 void kitchen_door_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     kdoor_circle_prev = held;
     rdoor_circle_prev = held;
     stove_puzzle_arm();
@@ -264,11 +260,7 @@ void kitchen_door_arm(void) {
 
 /* Returns 1 when Circle is freshly pressed within range of the kitchen door. */
 int kitchen_door_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !kdoor_circle_prev;
     kdoor_circle_prev = held;
     if (!just) return 0;
@@ -282,11 +274,7 @@ int kitchen_door_triggered(void) {
 /* Returns 1 when Circle is freshly pressed within range of the "to reception"
    door (same scheme as the kitchen door, separate edge state). */
 int to_reception_door_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !rdoor_circle_prev;
     rdoor_circle_prev = held;
     if (!just) return 0;

@@ -121,11 +121,7 @@ int stove_puzzle_solved(void) {
 }
 
 void stove_puzzle_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     interact_prev = held;
     state         = SP_IDLE;
     camera_release_player();
@@ -206,7 +202,7 @@ void stove_puzzle_update(void) {
 
     if (state == SP_IDLE) {
         if (stove_puzzle_solved()) return;   /* retired: nothing left to cook */
-        int held = (btn & PAD_CIRCLE) ? 1 : 0;
+        int held = interact_tapped();
         int just = held && !interact_prev;
         interact_prev = held;
         int32_t dx = cam_x - SP_STOVE_X, dz = cam_z - SP_STOVE_Z;

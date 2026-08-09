@@ -121,11 +121,7 @@ int piano_puzzle_active(void) { return state != PZ_IDLE; }
 int piano_puzzle_solved(void) { return game_flag(FLAG_PIANO_SOLVED); }
 
 void piano_puzzle_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     interact_prev = held;
     state         = PZ_IDLE;
     camera_release_player();
@@ -195,7 +191,7 @@ void piano_puzzle_update(void) {
 
     if (state == PZ_IDLE) {
         if (piano_puzzle_solved()) return;   /* retired: the key is already in */
-        int held = (btn & PAD_CIRCLE) ? 1 : 0;
+        int held = interact_tapped();
         int just = held && !interact_prev;
         interact_prev = held;
         int32_t dx = cam_x - piano_prop_x(), dz = cam_z - piano_prop_z();

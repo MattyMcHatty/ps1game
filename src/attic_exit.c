@@ -176,9 +176,7 @@ void attic_exit_unlock_door(void) {
 static int door_circle_prev = 1;
 
 static int circle_held(void) {
-    if (!pad_buff_len[0]) return 0;
-    PadResponse *pad = (PadResponse *)pad_buff[0];
-    return (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    return interact_tapped();
 }
 
 void attic_exit_door_arm(void) {
@@ -484,17 +482,7 @@ void attic_exit_draw(RenderContext *ctx) {
 
     /* View matrix from the camera (same construction as the other rooms). */
     MATRIX rot_matrix;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &rot_matrix);
-
-    VECTOR trans;
-    trans.vx = -cam_x;
-    trans.vy = -cam_y;
-    trans.vz = -cam_z;
-    ApplyMatrixLV(&rot_matrix, &trans, &trans);
-    rot_matrix.t[0] = trans.vx;
-    rot_matrix.t[1] = trans.vy;
-    rot_matrix.t[2] = trans.vz;
+    camera_build_view(&rot_matrix);
 
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);

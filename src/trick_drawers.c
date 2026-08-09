@@ -259,7 +259,7 @@ void trick_drawers_update(void) {
 
     if (!puzzle_active) {
         if (solved()) return;   /* already solved: no more interacting */
-        int held = (btn & PAD_CIRCLE) ? 1 : 0;
+        int held = interact_tapped();
         int just = held && !interact_prev;
         interact_prev = held;
         int32_t dx = cam_x - TD_INTERACT_X, dz = cam_z - TD_INTERACT_Z;
@@ -328,13 +328,7 @@ void trick_drawers_draw(RenderContext *ctx) {
     if (prop_count == 0 || !drawer_smd) return;
 
     MATRIX view;
-    SVECTOR neg_rot = {0, -cam_rot, 0, 0};
-    RotMatrix(&neg_rot, &view);
-    VECTOR vt = {-cam_x, -cam_y, -cam_z};
-    ApplyMatrixLV(&view, &vt, &vt);
-    view.t[0] = vt.vx;
-    view.t[1] = vt.vy;
-    view.t[2] = vt.vz;
+    camera_build_view(&view);
 
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     uint16_t tp = texmgr_tpage(drawer_tex);

@@ -174,9 +174,7 @@ void garden_courtyard_upload_textures(void) {
 static int door_circle_prev = 1;
 
 static int circle_held(void) {
-    if (!pad_buff_len[0]) return 0;
-    PadResponse *pad = (PadResponse *)pad_buff[0];
-    return (~pad->btn & PAD_CIRCLE) ? 1 : 0;
+    return interact_tapped();
 }
 
 void garden_courtyard_door_arm(void) {

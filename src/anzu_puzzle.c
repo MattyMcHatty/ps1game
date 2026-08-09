@@ -194,11 +194,7 @@ void anzu_puzzle_place(void) {
     else          shuffle();
 
     /* Don't treat a Circle held through the door transition as an interact. */
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     interact_prev = held;
 }
 
@@ -328,7 +324,7 @@ void anzu_puzzle_update(void) {
     if (state == AZ_IDLE) {
         rng += 0x6D2B79F5u;   /* stir while the player walks around the room */
         if (solved()) return; /* retired: the relief is finished */
-        int held = (btn & PAD_CIRCLE) ? 1 : 0;
+        int held = interact_tapped();
         int just = held && !interact_prev;
         interact_prev = held;
         int32_t dx = cam_x - AZ_INTERACT_X, dz = cam_z - AZ_INTERACT_Z;

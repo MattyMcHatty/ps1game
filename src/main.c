@@ -875,6 +875,15 @@ int main(int argc, const char **argv) {
     GameState prev_state = STATE_TITLE;
 
     for (;;) {
+        /* Look mode (hold Circle) only belongs to free roam, where game_state is
+           the area itself. Every other state either takes the camera or freezes
+           the game on a frame where Circle may still be down — title, loading,
+           the door/stair transitions, the save flow — and none of them run
+           update_camera to unwind the offset themselves, so drop it here.
+           STATE_MENU is exempt: update_camera still runs and cancels it there. */
+        if (game_state != current_area && game_state != STATE_MENU)
+            camera_look_cancel();
+
         if (game_state == STATE_TITLE) {
             update_title();
             draw_title(&ctx);

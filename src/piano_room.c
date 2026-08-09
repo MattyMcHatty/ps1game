@@ -114,20 +114,12 @@ void piano_room_upload_wallpaper(void) {
 static int pdoor_circle_prev = 1;
 
 void pdoor_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     pdoor_circle_prev = held;
 }
 
 int pdoor_triggered(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     int just = held && !pdoor_circle_prev;
     pdoor_circle_prev = held;
     if (!just) return 0;

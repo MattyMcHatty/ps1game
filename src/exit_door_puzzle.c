@@ -183,11 +183,7 @@ int exit_door_puzzle_active(void) { return state != XD_IDLE; }
 static int solved(void) { return game_flag(FLAG_EXIT_DOOR_UNLOCKED); }
 
 void exit_door_puzzle_arm(void) {
-    int held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-    }
+    int held = interact_tapped();
     interact_prev = held;
     state         = XD_IDLE;
     exit_latch    = 0;
@@ -282,7 +278,7 @@ void exit_door_puzzle_update(void) {
     if (pad_buff_len[0]) { PadResponse *pad = (PadResponse *)pad_buff[0]; btn = ~pad->btn; }
 
     if (state == XD_IDLE) {
-        int held = (btn & PAD_CIRCLE) ? 1 : 0;
+        int held = interact_tapped();
         int just = held && !interact_prev;
         interact_prev = held;
         if (!just) return;

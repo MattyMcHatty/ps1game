@@ -203,11 +203,7 @@ void lightswitch_place(void) {
 
     /* Don't treat a Circle held through the door transition as an interact. */
     {
-        int held = 0;
-        if (pad_buff_len[0]) {
-            PadResponse *pad = (PadResponse *)pad_buff[0];
-            held = (~pad->btn & PAD_CIRCLE) ? 1 : 0;
-        }
+        int held = interact_tapped();
         interact_prev = held;
     }
 }
@@ -293,7 +289,7 @@ void lightswitch_update(void) {
     /* Throw the lever the player is standing at. A lever mid-travel is ignored
        so a mashed Circle cannot leave one stuck between states. */
     {
-        int held = (btn & PAD_CIRCLE) ? 1 : 0;
+        int held = interact_tapped();
         int just = held && !interact_prev;
         interact_prev = held;
         if (!just || solved()) return;
