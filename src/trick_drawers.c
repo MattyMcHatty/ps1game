@@ -66,12 +66,19 @@ static const uint8_t PRIM_DRAWER[40] = {
 /* The unlock sequence (drawer numbers). */
 static const uint8_t SOLUTION[6] = { 6, 15, 2, 13, 9, 20 };
 
-/* Face-on camera target: centred on the drawer front (world), looking -Z. The
+/* Face-on camera target: face-on to the drawer front (world), looking -Z. The
    prop's model origin sits at world y=0 (draw uses y+GROUND_FLOOR_Y=0), so the
-   face (local y -312..0) is centred at world y=-156. */
+   face (local y -312..0) is centred at world y=-156.
+
+   The HUD owns the bottom 56 rows, so the usable window is y 0..183 (centre 92)
+   rather than the full screen. At gte_SetGeomScreen(256) a span S at distance D
+   covers S*256/D pixels: pulling back to D=520 puts the 312-tall face across
+   154 px, and lifting the camera 57 above the face centre drops that band onto
+   screen y ~15..169 — clear of the log box with even margin top and bottom.
+   The reticule is projected from the model, so it follows without extra work. */
 #define TD_CAM_X    (-3299)
-#define TD_CAM_Y     (-156)   /* face vertical centre                       */
-#define TD_CAM_Z     (-895)   /* ~440 in front of the face (z=-1334)        */
+#define TD_CAM_Y      (-99)   /* 57 above the face centre: band centres on y=92 */
+#define TD_CAM_Z     (-814)   /* 520 in front of the face (z=-1334)             */
 #define TD_CAM_ROT    2048     /* face -Z, straight at the drawers           */
 
 /* Proximity interact prompt/trigger, centred on the prop. */
