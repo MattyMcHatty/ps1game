@@ -61,7 +61,13 @@ int sprint_cooldown = 0;
 #define AIM_REST_Y     (SCREEN_YRES / 2 + 20)   /* rests a touch below centre */
 #define AIM_MOVE_SPEED 3     /* crosshair pixels per frame                     */
 #define AIM_MARGIN     10    /* keep the crosshair this far from screen edges  */
-#define AIM_MAX_Y   ((SCREEN_YRES * 4) / 5)  /* lowest crosshair: 20% up from bottom */
+/* Lowest the crosshair goes: the reticule's bottom arm ends exactly on the top
+   edge of the HUD panel, so the cross never disappears behind it. The panel is
+   56px tall and bottom-aligned (hud.c's HUD_Y), and the reticule's lower arm
+   reaches 14px below aim_y (graveolver.c's draw). */
+#define AIM_HUD_TOP (SCREEN_YRES - 56)
+#define AIM_RETICULE_REACH 14
+#define AIM_MAX_Y   (AIM_HUD_TOP - AIM_RETICULE_REACH)
 int     aiming = 0;
 int32_t aim_x  = AIM_REST_X;
 int32_t aim_y  = AIM_REST_Y;
