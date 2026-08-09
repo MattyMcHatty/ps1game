@@ -38,26 +38,10 @@ _Static_assert(sizeof(WorldDelta) <= SAVE_DELTA_MAX_BYTES,
                "world delta outgrew a single memory-card block");
 
 /* ---- Save-block icon (cosmetic; shown in the console card manager) ---------
-   16 colours, BGR555. 0 = transparent black, 1 = purple, 2 = white. */
-static const uint16_t icon_clut[16] = {
-    0x0000, 0x70A5, 0x7FFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-};
-
-/* Build the 16x16 4bpp icon (128 bytes, two pixels per byte, low nibble = left
-   pixel): a white border with a purple fill. */
-static void build_icon(uint8_t *frame) {
-    int y, x;
-    for (y = 0; y < 16; y++) {
-        for (x = 0; x < 16; x += 2) {
-            int edge0 = (x == 0 || y == 0 || y == 15);
-            int edge1 = (x + 1 == 15 || y == 0 || y == 15);
-            uint8_t lo = edge0 ? 2 : 1;
-            uint8_t hi = edge1 ? 2 : 1;
-            frame[(y * 16 + x) / 2] = (uint8_t)((hi << 4) | lo);
-        }
-    }
-}
+   16x16 4bpp bitmap + a 16-entry BGR555 palette, both generated from
+   textures/save_icon.png by tools/gen_save_icon.py. Edit the PNG and re-run
+   that script to change the icon. */
+#include "save_icon_data.h"
 
 void savegame_capture(SaveData *sd) {
     /* The current room's live entities are normally only snapshotted into its
@@ -343,14 +327,13 @@ int savegame_write(int port, int block, const SaveData *sd, const char *title) {
         if (n > 32) n = 32;
         if (title) memcpy(frame + 4, title, n);   /* ASCII == Shift-JIS subset */
     }
-    memcpy(frame + 96, icon_clut, sizeof(icon_clut));   /* clut at offset 96 */
+    memcpy(frame + 96, save_icon_clut, sizeof(save_icon_clut));   /* clut at offset 96 */
     if (memcard_write_frame(port, block * MC_FRAMES_PER_BLOCK + TITLE_FRAME, frame) != MC_OK) {
         memcard_end(); return MC_BAD_DATA;
     }
 
     /* --- Icon bitmap frame --- */
-    memset(frame, 0, sizeof(frame));
-    build_icon(frame);
+    memcpy(frame, save_icon_pixels, sizeof(save_icon_pixels));
     if (memcard_write_frame(port, block * MC_FRAMES_PER_BLOCK + ICON_FRAME, frame) != MC_OK) {
         memcard_end(); return MC_BAD_DATA;
     }
