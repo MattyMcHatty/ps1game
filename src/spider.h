@@ -76,10 +76,13 @@
 #define SPD_SPIT_INTERVAL   180    /* frames between webs                      */
 
 /* Sprite: 3 wide by 2 tall. Half-height is set so the feet land where a
-   zombie's do — SPD_Y_OFFSET + SPD_HALF_H == 150, the zombie's 25 + 125. */
-#define SPD_HALF_W           93
-#define SPD_HALF_H           62
-#define SPD_Y_OFFSET         88
+   zombie's do — SPD_Y_OFFSET + SPD_HALF_H == 150, the zombie's 25 + 125.
+   That sum is the invariant: growing SPD_HALF_H has to come back out of
+   SPD_Y_OFFSET or the spider floats above the floor (and hangs off the
+   ceiling, which is derived from the same pair — see spider_add_at). */
+#define SPD_HALF_W          140
+#define SPD_HALF_H           93
+#define SPD_Y_OFFSET         57
 
 /* The drop. Seeding vy at MAX_FALL_VEL makes apply_ddog_height fall at its
    terminal rate from frame one (a standing start takes ~20 frames to get
@@ -87,7 +90,7 @@
 
    SPD_TURN_FRAMES must stay comfortably UNDER that fall time or the spider is
    still rolling when it lands. Hung under the East Hall's 520-high ceiling it
-   falls about 395 units to the floor, i.e. ~20 frames at SPD_DROP_VEL, so 10
+   falls about 335 units to the floor, i.e. ~17 frames at SPD_DROP_VEL, so 10
    leaves plenty of margin. A taller room simply finishes the roll earlier in
    the fall, which still looks right; a ceiling less than ~200 above the floor
    would land it mid-turn, but a spider needs that much headroom anyway. */
@@ -104,15 +107,15 @@
    wall-follow commit are all it needs to get round furniture and corners. */
 #define SPD_SEP_RADIUS      150
 #define SPD_SEP_WEIGHT        2
-#define SPD_BODY_RADIUS      60
+#define SPD_BODY_RADIUS      90
 #define SPD_DOOR_CLEARANCE  100    /* fat-door clearance, as ZMB_DOOR_CLEARANCE */
 #define SPD_FEELER_LEN      150
 #define SPD_TURN_RATE         3
 #define SPD_STEER_COMMIT     30
 #define SPD_KNOCKBACK        20
 
-#define SPD_SHADOW_W        100
-#define SPD_SHADOW_D         40
+#define SPD_SHADOW_W        150
+#define SPD_SHADOW_D         60
 #define SPD_SHADOW_R          0
 #define SPD_SHADOW_G          0
 #define SPD_SHADOW_B          0

@@ -14,9 +14,11 @@
 #define DDOG_CATCH_DIST       180
 #define DDOG_DAMAGE_AMOUNT    10
 #define DDOG_DAMAGE_COOLDOWN  60
-#define DDOG_HALF_W           60
-#define DDOG_HALF_H           50
-#define DDOG_Y_OFFSET        100
+/* Sprite size. Y_OFFSET + HALF_H == 150 puts the feet on the floor, so any
+   change to HALF_H must come back out of Y_OFFSET or the dog floats/sinks. */
+#define DDOG_HALF_W           90
+#define DDOG_HALF_H           75
+#define DDOG_Y_OFFSET         75
 #define DDOG_KNOCKBACK        40
 /* Bite "lunge": on a damage hit the sprite snaps to a fixed spot in front of the
    camera and STAYS there (a bite in the face) until the dog is knocked back or the
@@ -28,8 +30,8 @@
    frame and only the head/upper body shows. Keep DROP+HALF_H modest so the sprite
    doesn't project past the ~1023 vertex-coord limit. */
 #define DDOG_LUNGE_DIST      100    /* depth in front of camera (safe, no clip)   */
-#define DDOG_LUNGE_HALF_W     85    /* on-screen half width  (normal is 60)       */
-#define DDOG_LUNGE_HALF_H     70    /* on-screen half height (normal is 50)       */
+#define DDOG_LUNGE_HALF_W    128    /* on-screen half width  (normal is 90)       */
+#define DDOG_LUNGE_HALF_H    105    /* on-screen half height (normal is 75)       */
 #define DDOG_LUNGE_SIDE       50    /* + = to the right of the view centre         */
 #define DDOG_LUNGE_DROP       45    /* + = downward (drop the body below frame)    */
 #define DDOG_LUNGE_FLIP        0    /* fixed facing during a bite (0/1); 0 = face  */
@@ -39,13 +41,13 @@
 /* --- Steering / flocking tuning --- */
 #define DDOG_SEP_RADIUS      180    /* dogs try to stay this far apart (soft push) */
 #define DDOG_SEP_WEIGHT        2    /* separation strength vs. pursuit */
-#define DDOG_BODY_RADIUS     120    /* hard collision radius (~half sprite width) */
+#define DDOG_BODY_RADIUS     180    /* hard collision radius (dog-vs-dog spacing) */
 #define DDOG_FEELER_LEN      150    /* obstacle look-ahead distance */
 #define DDOG_TURN_RATE         3    /* turn smoothing: 1=sluggish .. 8=instant snap */
 #define DDOG_STEER_COMMIT     30    /* frames to commit to a wall-follow side once blocked */
 
-#define DDOG_SHADOW_W          70
-#define DDOG_SHADOW_D          30
+#define DDOG_SHADOW_W         105
+#define DDOG_SHADOW_D          45
 #define DDOG_SHADOW_R           0
 #define DDOG_SHADOW_G           0
 #define DDOG_SHADOW_B           0
