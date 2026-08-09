@@ -17,14 +17,14 @@ void attic_stairwell_collision_init(CollisionRoom *r) {
     r->max_z = 350;
 
     /* Wall 0 (avg Y: -64) */
-    r->walls[0].x1 =     -99;  r->walls[0].z1 =    -350;
-    r->walls[0].x2 =     -99;  r->walls[0].z2 =    -396;
+    r->walls[0].x1 =    -149;  r->walls[0].z1 =    -350;
+    r->walls[0].x2 =    -149;  r->walls[0].z2 =    -396;
     r->walls[0].nx =    4096;  r->walls[0].nz =       0;
     r->walls[0].y_min =    -129;  r->walls[0].y_max =       0;
 
     /* Wall 1 (avg Y: -64) */
-    r->walls[1].x1 =   -1608;  r->walls[1].z1 =    -899;
-    r->walls[1].x2 =   -1654;  r->walls[1].z2 =    -899;
+    r->walls[1].x1 =   -1608;  r->walls[1].z1 =    -850;
+    r->walls[1].x2 =   -1654;  r->walls[1].z2 =    -850;
     r->walls[1].nx =       0;  r->walls[1].nz =   -4096;
     r->walls[1].y_min =    -129;  r->walls[1].y_max =       0;
 
@@ -83,14 +83,14 @@ void attic_stairwell_collision_init(CollisionRoom *r) {
     r->walls[10].y_min =    -129;  r->walls[10].y_max =       0;
 
     /* Wall 11 (avg Y: -259) */
-    r->walls[11].x1 =   -1654;  r->walls[11].z1 =    -899;
+    r->walls[11].x1 =   -1654;  r->walls[11].z1 =    -850;
     r->walls[11].x2 =   -1654;  r->walls[11].z2 =     349;
     r->walls[11].nx =   -4096;  r->walls[11].nz =       0;
     r->walls[11].y_min =    -519;  r->walls[11].y_max =       0;
 
     /* Wall 12 (avg Y: -259) */
     r->walls[12].x1 =   -1608;  r->walls[12].z1 =     349;
-    r->walls[12].x2 =   -1608;  r->walls[12].z2 =    -899;
+    r->walls[12].x2 =   -1608;  r->walls[12].z2 =    -850;
     r->walls[12].nx =    4096;  r->walls[12].nz =       0;
     r->walls[12].y_min =    -519;  r->walls[12].y_max =       0;
 
@@ -126,7 +126,7 @@ void attic_stairwell_collision_init(CollisionRoom *r) {
 
     /* Wall 18 (avg Y: -64) */
     r->walls[18].x1 =    -350;  r->walls[18].z1 =    -350;
-    r->walls[18].x2 =     -99;  r->walls[18].z2 =    -350;
+    r->walls[18].x2 =    -149;  r->walls[18].z2 =    -350;
     r->walls[18].nx =       0;  r->walls[18].nz =    4096;
     r->walls[18].y_min =    -129;  r->walls[18].y_max =       0;
 
@@ -161,7 +161,7 @@ void attic_stairwell_collision_init(CollisionRoom *r) {
     r->walls[23].y_min =    -346;  r->walls[23].y_max =       0;
 
     /* Wall 24 (avg Y: -259) */
-    r->walls[24].x1 =     -99;  r->walls[24].z1 =    -396;
+    r->walls[24].x1 =    -149;  r->walls[24].z1 =    -396;
     r->walls[24].x2 =   -1009;  r->walls[24].z2 =    -396;
     r->walls[24].nx =       0;  r->walls[24].nz =   -4096;
     r->walls[24].y_min =    -519;  r->walls[24].y_max =       0;
@@ -176,9 +176,9 @@ void attic_stairwell_collision_init(CollisionRoom *r) {
      * Floor/ceiling planes detected:
      * Use these in apply_height() for vertical movement.
      *
-     * FLOOR   0: y=     0  x(-99 to 199)  z(-396 to -350)
+     * FLOOR   0: y=     0  x(-149 to 199)  z(-396 to -350)
      * FLOOR   1: y=     0  x(-1654 to -1608)  z(-1199 to -1049)
-     * FLOOR   2: y=     0  x(-1654 to -1608)  z(-1049 to -899)
+     * FLOOR   2: y=     0  x(-1654 to -1608)  z(-1049 to -850)
      * FLOOR   3: y=     0  x(-2611 to -1654)  z(-1400 to 349)
      * FLOOR   4: y=     0  x(-1608 to -1009)  z(-1399 to 349)
      * FLOOR   5: y=     0  x(-1608 to 351)  z(-1399 to -396)

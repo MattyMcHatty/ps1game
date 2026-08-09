@@ -53,7 +53,7 @@ static void attic_stairwell_floor_zones_init(void) {
 
     /* Doorway in the chamber's south wall. */
     floor_zones[1].type  = FLOOR_FLAT;
-    floor_zones[1].min_x = -100;  floor_zones[1].max_x = 200;
+    floor_zones[1].min_x = -150;  floor_zones[1].max_x = 200;
     floor_zones[1].min_z = -397;  floor_zones[1].max_z = -350;
     floor_zones[1].y     = 0;
 
@@ -72,7 +72,7 @@ static void attic_stairwell_floor_zones_init(void) {
     /* Doorway through the partition into the west room. */
     floor_zones[4].type  = FLOOR_FLAT;
     floor_zones[4].min_x = -1655; floor_zones[4].max_x = -1608;
-    floor_zones[4].min_z = -1200; floor_zones[4].max_z = -900;
+    floor_zones[4].min_z = -1200; floor_zones[4].max_z = -850;
     floor_zones[4].y     = 0;
 
     /* West room. */
