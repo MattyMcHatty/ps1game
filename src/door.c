@@ -329,7 +329,8 @@ static int player_near_door(void) {
     int32_t dy   = cam_y - DOOR_Y;
     int32_t xz_dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int32_t y_dist  = (dy < 0 ? -dy : dy);
-    return xz_dist < DOOR_TRIGGER_RADIUS && y_dist < DOOR_Y_TOLERANCE;
+    return xz_dist < DOOR_TRIGGER_RADIUS && y_dist < DOOR_Y_TOLERANCE &&
+           interact_facing(DOOR_X, DOOR_Z);
 }
 
 void door_init(void) {

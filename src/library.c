@@ -162,7 +162,7 @@ int library_wdoor_triggered(void) {
     int32_t dx = cam_x - LDOOR_W_X;
     int32_t dz = cam_z - LDOOR_W_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < LDOOR_TRIGGER_RADIUS;
+    return xz < LDOOR_TRIGGER_RADIUS && interact_facing(LDOOR_W_X, LDOOR_W_Z);
 }
 
 int library_sdoor_triggered(void) {
@@ -174,7 +174,7 @@ int library_sdoor_triggered(void) {
     int32_t dx = cam_x - LSDOOR_X;
     int32_t dz = cam_z - LSDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < LDOOR_TRIGGER_RADIUS;
+    return xz < LDOOR_TRIGGER_RADIUS && interact_facing(LSDOOR_X, LSDOOR_Z);
 }
 
 /* Floating "Press O to enter" sign on the west door. YZ plane:

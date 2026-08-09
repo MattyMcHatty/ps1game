@@ -329,7 +329,8 @@ void anzu_puzzle_update(void) {
         interact_prev = held;
         int32_t dx = cam_x - AZ_INTERACT_X, dz = cam_z - AZ_INTERACT_Z;
         int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        if (just && xz < AZ_INTERACT_RADIUS) start_puzzle();
+        if (just && xz < AZ_INTERACT_RADIUS &&
+            interact_facing(AZ_INTERACT_X, AZ_INTERACT_Z)) start_puzzle();
         return;
     }
 

@@ -190,7 +190,7 @@ int garden_courtyard_door_triggered(void) {
     int32_t dx = cam_x - GC_DOOR_X;
     int32_t dz = cam_z - GC_DOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < GC_TRIGGER_RADIUS;
+    return xz < GC_TRIGGER_RADIUS && interact_facing(GC_DOOR_X, GC_DOOR_Z);
 }
 
 /* Floating "Press O to enter" sign on the east-wall door. YZ plane:

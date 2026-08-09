@@ -153,7 +153,7 @@ int condoor_triggered(void) {
     int32_t dx = cam_x - CONDOOR_X;
     int32_t dz = cam_z - CONDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < CONDOOR_TRIGGER_RADIUS;
+    return xz < CONDOOR_TRIGGER_RADIUS && interact_facing(CONDOOR_X, CONDOOR_Z);
 }
 
 /* Floating "Press " BTN_CIRCLE " to enter" sign on the east door, in the YZ
@@ -209,7 +209,7 @@ int stairs_triggered(void) {
     int32_t dx = cam_x - STAIRS_X;
     int32_t dz = cam_z - STAIRS_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < STAIRS_TRIGGER_RADIUS;
+    return xz < STAIRS_TRIGGER_RADIUS && interact_facing(STAIRS_X, STAIRS_Z);
 }
 
 static void stairs_text(RenderContext *ctx) {

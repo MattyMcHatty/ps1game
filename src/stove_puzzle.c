@@ -207,7 +207,8 @@ void stove_puzzle_update(void) {
         interact_prev = held;
         int32_t dx = cam_x - SP_STOVE_X, dz = cam_z - SP_STOVE_Z;
         int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        if (just && xz < SP_INTERACT_RADIUS) start_puzzle();
+        if (just && xz < SP_INTERACT_RADIUS &&
+            interact_facing(SP_STOVE_X, SP_STOVE_Z)) start_puzzle();
         return;
     }
 

@@ -148,7 +148,7 @@ int save_point_triggered(void) {
         if (!save_point_y_near(s, cam_y)) continue;
         int32_t dx = cam_x - s->x, dz = cam_z - s->z;
         int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        if (xz < SAVE_TRIGGER_RADIUS) return 1;
+        if (xz < SAVE_TRIGGER_RADIUS && interact_facing(s->x, s->z)) return 1;
     }
     return 0;
 }

@@ -271,7 +271,8 @@ void trick_drawers_update(void) {
         interact_prev = held;
         int32_t dx = cam_x - TD_INTERACT_X, dz = cam_z - TD_INTERACT_Z;
         int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        if (just && xz < TD_INTERACT_RADIUS) start_puzzle();
+        if (just && xz < TD_INTERACT_RADIUS &&
+            interact_facing(TD_INTERACT_X, TD_INTERACT_Z)) start_puzzle();
         return;
     }
 

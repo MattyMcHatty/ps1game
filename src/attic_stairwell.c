@@ -288,7 +288,7 @@ int attic_stairwell_stairs_triggered(void) {
     int32_t dx = cam_x - ASTAIRS_X;
     int32_t dz = cam_z - ASTAIRS_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < ASTAIRS_TRIGGER_RADIUS;
+    return xz < ASTAIRS_TRIGGER_RADIUS && interact_facing(ASTAIRS_X, ASTAIRS_Z);
 }
 
 static void stairs_text(RenderContext *ctx) {

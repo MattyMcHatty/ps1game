@@ -48,6 +48,23 @@ void camera_look_cancel(void);
    look mode is off while a puzzle owns the camera, so nothing is shared. */
 int interact_tapped(void);
 
+/* ---- "Is it in front of me?" ----------------------------------------------
+   Proximity alone is not enough to interact: standing next to a door with your
+   back to it used to let a Circle tap open it, so walking into a room and
+   tapping immediately walked you straight back out. Every world interaction
+   pairs its distance test with this one, so the thing has to be in view.
+
+   Returns 1 when (wx, wz) lies inside a cone of INTERACT_FOV_* half-angle
+   around the player's TRUE facing (cam_rot with any look-mode offset removed),
+   or when the player is standing all but on top of it — inside
+   INTERACT_FACE_MIN the direction to the target is meaningless, so the cone is
+   skipped rather than left as a dead spot you can't interact from.
+   Y is ignored: the callers already do their own floor/height gating. */
+#define INTERACT_FOV_NUM   7   /* cone half-angle as a tangent: 7/4 = 1.75, */
+#define INTERACT_FOV_DEN   4   /* i.e. ~60 deg either side of the facing    */
+#define INTERACT_FACE_MIN 96   /* Manhattan units; inside this, always "in view" */
+int interact_facing(int32_t wx, int32_t wz);
+
 /* ---- Player anchor --------------------------------------------------------
    The player's world position is normally just the camera's. A camera-locked
    puzzle breaks that: the camera flies off to a fixed shot while the PLAYER

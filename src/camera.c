@@ -96,6 +96,28 @@ static int tap_frame     = 0; /* 1 for the single frame a tap resolves */
 
 int interact_tapped(void) { return tap_frame; }
 
+/* Is (wx, wz) in front of the player? The delta is rotated into player space —
+   forward is (isin, icos) of the facing, so `fwd` is the component along it and
+   `side` the component across — and the cone test is then just a comparison of
+   the two, with no square root or arctangent involved.
+   look_yaw is unfolded first so this reads the player's real facing even on a
+   frame where the view is still easing back from a look. */
+int interact_facing(int32_t wx, int32_t wz) {
+    int32_t rot = (cam_rot - look_yaw) & 4095;
+    int32_t dx  = wx - cam_x;
+    int32_t dz  = wz - cam_z;
+
+    int32_t manhattan = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (manhattan < INTERACT_FACE_MIN) return 1;   /* standing on it */
+
+    int32_t s = isin(rot), c = icos(rot);
+    int32_t fwd  = (dx * s + dz * c) >> 12;
+    int32_t side = (dx * c - dz * s) >> 12;
+    if (fwd <= 0) return 0;                        /* behind the player */
+    if (side < 0) side = -side;
+    return side * INTERACT_FOV_DEN <= fwd * INTERACT_FOV_NUM;
+}
+
 /* Drop any applied offset and put cam_rot back to the player's facing. Called on
    the paths that leave update_camera early (menus, no pad), by anything that
    takes the camera, and from main's loop when the game leaves free roam — so

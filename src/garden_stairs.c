@@ -293,7 +293,7 @@ static int door_triggered_at(int32_t door_x, int32_t door_z, int *prev) {
     int32_t dx = cam_x - door_x;
     int32_t dz = cam_z - door_z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < GS_TRIGGER_RADIUS;
+    return xz < GS_TRIGGER_RADIUS && interact_facing(door_x, door_z);
 }
 
 void garden_stairs_door_arm(void) {

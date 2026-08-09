@@ -218,7 +218,11 @@ static int lever_in_reach(void) {
         int32_t dx = cam_x - FIXTURE[i].lx;
         int32_t dz = cam_z - FIXTURE[i].lz;
         int32_t d  = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        if (d < best_d) { best_d = d; best = i; }
+        if (d >= best_d) continue;
+        /* Has to be in view as well as in range — a lever behind you is not
+           one you can throw. */
+        if (!interact_facing(FIXTURE[i].lx, FIXTURE[i].lz)) continue;
+        best_d = d; best = i;
     }
     return best;
 }

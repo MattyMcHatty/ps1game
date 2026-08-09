@@ -268,7 +268,7 @@ int kitchen_door_triggered(void) {
     int32_t dx = cam_x - KDOOR_X;
     int32_t dz = cam_z - KDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < KDOOR_TRIGGER_RADIUS;
+    return xz < KDOOR_TRIGGER_RADIUS && interact_facing(KDOOR_X, KDOOR_Z);
 }
 
 /* Returns 1 when Circle is freshly pressed within range of the "to reception"
@@ -282,7 +282,8 @@ int to_reception_door_triggered(void) {
     int32_t dx = cam_x - TO_RECEPTION_TEXT_X;
     int32_t dz = cam_z - TO_RECEPTION_TEXT_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < TO_RECEPTION_TRIGGER_RADIUS;
+    return xz < TO_RECEPTION_TRIGGER_RADIUS &&
+           interact_facing(TO_RECEPTION_TEXT_X, TO_RECEPTION_TEXT_Z);
 }
 
 /* Keep the burner fed while lit. The flame is no longer player-toggled: the

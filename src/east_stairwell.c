@@ -210,7 +210,7 @@ static int esdoor_triggered(int32_t door_x, int *circle_prev) {
     int32_t dx = cam_x - door_x;
     int32_t dz = cam_z - ESDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < ESDOOR_TRIGGER_RADIUS;
+    return xz < ESDOOR_TRIGGER_RADIUS && interact_facing(door_x, ESDOOR_Z);
 }
 
 int east_stairwell_wdoor_triggered(void) {
@@ -270,7 +270,7 @@ int east_stairwell_stairs_triggered(void) {
     int32_t dx = cam_x - ESSTAIRS_X;
     int32_t dz = cam_z - ESSTAIRS_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < ESSTAIRS_TRIGGER_RADIUS;
+    return xz < ESSTAIRS_TRIGGER_RADIUS && interact_facing(ESSTAIRS_X, ESSTAIRS_Z);
 }
 
 static void esstairs_text(RenderContext *ctx) {

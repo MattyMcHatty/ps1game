@@ -151,7 +151,7 @@ int hall_2f_stairs_triggered(void) {
     int32_t dx = cam_x - STAIRS_X;
     int32_t dz = cam_z - STAIRS_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < STAIRS_TRIGGER_RADIUS;
+    return xz < STAIRS_TRIGGER_RADIUS && interact_facing(STAIRS_X, STAIRS_Z);
 }
 
 static void stairs_text(RenderContext *ctx) {
@@ -211,6 +211,7 @@ int hall_2f_edoor_triggered(void) {
     int32_t dz = cam_z - EDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (xz >= EDOOR_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(EDOOR_X, EDOOR_Z)) return 0;
 
     /* First Circle press unlocks the door (no transition yet); once unlocked,
        further presses enter Reception. The Reception side reads the same flag. */
@@ -283,7 +284,7 @@ static int bdoor_triggered(int32_t door_x, int *circle_prev) {
     int32_t dx = cam_x - door_x;
     int32_t dz = cam_z - BDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < BDOOR_TRIGGER_RADIUS;
+    return xz < BDOOR_TRIGGER_RADIUS && interact_facing(door_x, BDOOR_Z);
 }
 
 int hall_2f_bdoor_e_triggered(void) {

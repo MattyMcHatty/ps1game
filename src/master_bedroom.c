@@ -156,7 +156,7 @@ static int door_triggered(int32_t door_x, int *circle_prev) {
     int32_t dx = cam_x - door_x;
     int32_t dz = cam_z - MBDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < MBDOOR_TRIGGER_RADIUS;
+    return xz < MBDOOR_TRIGGER_RADIUS && interact_facing(door_x, MBDOOR_Z);
 }
 
 int master_bedroom_wdoor_triggered(void) {

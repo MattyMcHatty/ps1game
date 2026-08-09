@@ -196,7 +196,8 @@ void piano_puzzle_update(void) {
         interact_prev = held;
         int32_t dx = cam_x - piano_prop_x(), dz = cam_z - piano_prop_z();
         int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        if (just && xz < PP_INTERACT_RADIUS) start_puzzle();
+        if (just && xz < PP_INTERACT_RADIUS &&
+            interact_facing(piano_prop_x(), piano_prop_z())) start_puzzle();
         return;
     }
 

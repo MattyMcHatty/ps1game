@@ -197,7 +197,7 @@ int reception_door_triggered(void) {
     int32_t dx = cam_x - RDOOR_X;
     int32_t dz = cam_z - RDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < RDOOR_TRIGGER_RADIUS;
+    return xz < RDOOR_TRIGGER_RADIUS && interact_facing(RDOOR_X, RDOOR_Z);
 }
 
 /* Floating "Press " BTN_CIRCLE " to enter" sign on the double door, in the YZ plane (faces
@@ -247,7 +247,7 @@ int wdoor_triggered(void) {
     int32_t dx = cam_x - WDOOR_X;
     int32_t dz = cam_z - WDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < RDOOR_TRIGGER_RADIUS;
+    return xz < RDOOR_TRIGGER_RADIUS && interact_facing(WDOOR_X, WDOOR_Z);
 }
 
 static void wdoor_text(RenderContext *ctx) {
@@ -294,7 +294,7 @@ int cdoor_triggered(void) {
     int32_t dx = cam_x - CDOOR_X;
     int32_t dz = cam_z - CDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < RDOOR_TRIGGER_RADIUS;
+    return xz < RDOOR_TRIGGER_RADIUS && interact_facing(CDOOR_X, CDOOR_Z);
 }
 
 static void cdoor_text(RenderContext *ctx) {
@@ -345,7 +345,7 @@ int hdoor_triggered(void) {
     int32_t dx = cam_x - HDOOR_X;
     int32_t dz = cam_z - HDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < RDOOR_TRIGGER_RADIUS;
+    return xz < RDOOR_TRIGGER_RADIUS && interact_facing(HDOOR_X, HDOOR_Z);
 }
 
 static void hdoor_text(RenderContext *ctx) {
@@ -435,7 +435,7 @@ int edoor_triggered(void) {
     int32_t dx = cam_x - EDOOR_X;
     int32_t dz = cam_z - EDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < RDOOR_TRIGGER_RADIUS;
+    return xz < RDOOR_TRIGGER_RADIUS && interact_facing(EDOOR_X, EDOOR_Z);
 }
 
 static void edoor_text(RenderContext *ctx) {

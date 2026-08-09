@@ -192,7 +192,7 @@ int attic_exit_door_triggered(void) {
     int32_t dx = cam_x - AEXIT_DOOR_X;
     int32_t dz = cam_z - AEXIT_DOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < AEXIT_TRIGGER_RADIUS;
+    return xz < AEXIT_TRIGGER_RADIUS && interact_facing(AEXIT_DOOR_X, AEXIT_DOOR_Z);
 }
 
 /* Floating "Press O to enter" sign on the south-wall door. XY plane:

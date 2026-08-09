@@ -127,7 +127,7 @@ int pdoor_triggered(void) {
     int32_t dx = cam_x - PDOOR_X;
     int32_t dz = cam_z - PDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < PDOOR_TRIGGER_RADIUS;
+    return xz < PDOOR_TRIGGER_RADIUS && interact_facing(PDOOR_X, PDOOR_Z);
 }
 
 /* Floating "Press " BTN_CIRCLE " to enter" sign on the east door, in the YZ

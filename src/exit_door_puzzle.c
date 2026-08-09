@@ -286,6 +286,7 @@ void exit_door_puzzle_update(void) {
         int32_t dx = cam_x - XD_DOOR_X, dz = cam_z - XD_DOOR_Z;
         int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
         if (xz >= XD_INTERACT_RADIUS) return;
+        if (!interact_facing(XD_DOOR_X, XD_DOOR_Z)) return;
         /* Once the door is open the same press is the way OUT, not back into a
            finished board. */
         if (solved()) exit_latch = 1;

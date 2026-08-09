@@ -162,7 +162,7 @@ static int ehdoor_triggered(int32_t door_x, int *circle_prev) {
     int32_t dx = cam_x - door_x;
     int32_t dz = cam_z - EHDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < EHDOOR_TRIGGER_RADIUS;
+    return xz < EHDOOR_TRIGGER_RADIUS && interact_facing(door_x, EHDOOR_Z);
 }
 
 int east_hall_wdoor_triggered(void) {
@@ -184,7 +184,7 @@ int east_hall_sdoor_triggered(void) {
     int32_t dx = cam_x - EHSDOOR_X;
     int32_t dz = cam_z - EHSDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < EHDOOR_TRIGGER_RADIUS;
+    return xz < EHDOOR_TRIGGER_RADIUS && interact_facing(EHSDOOR_X, EHSDOOR_Z);
 }
 
 /* Floating "Press O to enter" sign. YZ plane: door_draw_string_3d centres the
