@@ -70,9 +70,9 @@
    below. Damage comes from the grave-olver (1 standard, 2 flame) and from a
    fireball deflected back into its owner (1).
 
-   12 HP is therefore two full cylinders of standard rounds, six flame rounds,
-   or any mix eked out with deflects. */
-#define RBS_MAX_HEALTH        12
+   20 HP is therefore three and a third cylinders of standard rounds, ten flame
+   rounds, or any mix eked out with deflects. */
+#define RBS_MAX_HEALTH        20
 #define RBS_BAR_TIMER_MAX    120   /* frames the health bar stays up after a hit */
 
 /* --- Mesh-derived geometry ---------------------------------------------
@@ -256,7 +256,7 @@
 #define RBS_SWOOP_DIP          80
 #define RBS_STOP_PAUSE         90   /* 1.5 s held still, then an attack         */
 #define RBS_MOVES_MIN           3   /* traversals between attacks, inclusive    */
-#define RBS_MOVES_MAX           8
+#define RBS_MOVES_MAX           5
 
 /* The attack it picks when it stops, as a weighted roll. Fireball : foot slash
    : light beam = 2 : 1 : 1, which keeps the original "fireball twice as often

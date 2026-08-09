@@ -161,7 +161,7 @@ static void draw_smd_room(RenderContext *ctx) {
         {
             int32_t dx = (int32_t)v0->vx - cam_x;
             int32_t dz = (int32_t)v0->vz - cam_z;
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 1500)
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 1950)
                 { p += stride; continue; }
         }
 
@@ -224,7 +224,7 @@ static void draw_smd_room(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog_start = 350, fog_end = 1500;
+        int32_t fog_start = 455, fog_end = 1950;
         int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
         int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
 
@@ -350,8 +350,8 @@ static void draw_panel(
             int32_t dz = face_cz - cam_z;
             int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
 
-            int32_t fog_start = 350;
-            int32_t fog_end   = 1500;
+            int32_t fog_start = 455;
+            int32_t fog_end   = 1950;
             int32_t fog = dist;
             if (fog < fog_start) fog = fog_start;
             if (fog > fog_end)   fog = fog_end;
@@ -390,7 +390,7 @@ static void draw_room(RenderContext *ctx) {
 
 void delivery_area_draw(RenderContext *ctx) {
     /* Entities fog with the same near/far as the mesh (matches kitchen/reception). */
-    g_fog_near = 350; g_fog_far = 1500;
+    g_fog_near = 455; g_fog_far = 1950;
 
     draw_sky_gradient(ctx);
 
