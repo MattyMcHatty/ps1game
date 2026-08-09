@@ -25,10 +25,24 @@ extern DoorState door_state;
 #define DOOR_TRIGGER_RADIUS 500     /* distance at which player can interact */
 #define DOOR_Y_TOLERANCE    250     /* tight vertical tolerance */
 
-/* Sign floats just south of the door, centred on it */
-#define SIGN_X    DOOR_X
-#define SIGN_Y    (-730)    /* text top — slightly above eye level (cam_y=-693) */
-#define SIGN_Z    (DOOR_Z - 200)
+/* Sign, centred on the DRAWN door and sitting just proud of its wall.
+ *
+ * These do NOT derive from DOOR_X/DOOR_Z above: those are the interaction point,
+ * pushed out into the room so the trigger's Manhattan test feels right, and they
+ * are not where the door is drawn. Taking the sign's position from them left it
+ * 59 units off centre and 187 units out from the wall, floating in mid-air.
+ *
+ * The real door, from the double_door polys in "Delivery Area v2.smx":
+ *     wall  x = -5451        leaves  z[3924,4320]   y[-899,-524]
+ * so its midpoint is z=4122, y=-711. */
+#define SIGN_X    (-5451 + 11)    /* 11 units proud of the wall, toward the
+                                     player, who stands at +X — the same standoff
+                                     the other rooms' door signs use */
+#define SIGN_Y    (-725)          /* text TOP. The glyphs are 7 rows of
+                                     DOOR_PIXEL_SIZE = 28 units tall, so a top of
+                                     -725 centres them on the door's y midpoint */
+#define SIGN_Z    (4122 - 200)    /* door_draw_string_3d adds 200 back to the
+                                     reading axis before centring, hence the -200 */
 
 /* World units per font pixel — reduce if text is too wide on screen */
 #define PIXEL_SIZE  8

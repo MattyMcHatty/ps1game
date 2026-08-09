@@ -32,4 +32,9 @@ void keys_update(void);
 void keys_draw(RenderContext *ctx);
 void keys_reset(void);
 
+/* Tell the key sprites which texture window the room has active, so they can
+   bracket around it — key.tim sits at VRAM Voff 128 and would otherwise wrap.
+   Pass NULL in a room that sets no window. Mirrors demon_dogs_set_texwindow. */
+void keys_set_texwindow(const RECT *tw);
+
 #endif

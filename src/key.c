@@ -112,6 +112,18 @@ void keys_update(void) {
     }
 }
 
+/* Texture window the current area expects, restored around each key sprite.
+   key.tim sits at VRAM Voff 128, so a room's 128x128 window would wrap its V
+   mod-128 and sample the wrong texels — the same bracket the copper pot and the
+   demon dogs use. Inactive by default; set by keys_set_texwindow(). */
+static RECT key_tw_restore;
+static int  key_tw_active = 0;
+
+void keys_set_texwindow(const RECT *tw) {
+    if (tw) { key_tw_restore = *tw; key_tw_active = 1; }
+    else    { key_tw_active = 0; }
+}
+
 void keys_draw(RenderContext *ctx) {
     if (!key_tpage) return;
 
@@ -177,6 +189,26 @@ void keys_draw(RenderContext *ctx) {
 
         ctx->next_packet += sizeof(POLY_FT4);
 
-        addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+        /* Window bracket. addPrim prepends, so adding restore -> sprite ->
+           disable yields the draw order disable-window, sprite, restore-window. */
+        if (key_tw_active &&
+            ctx->next_packet + 2 * sizeof(DR_TWIN) <= buf_end) {
+            uint32_t *ot = ctx->buffers[ctx->active_buffer].ot;
+
+            DR_TWIN *restore = (DR_TWIN *)ctx->next_packet;
+            setTexWindow(restore, &key_tw_restore);
+            addPrim(&ot[otz], restore);
+            ctx->next_packet += sizeof(DR_TWIN);
+
+            addPrim(&ot[otz], poly);
+
+            RECT full = { 0, 0, 0, 0 };
+            DR_TWIN *disable = (DR_TWIN *)ctx->next_packet;
+            setTexWindow(disable, &full);
+            addPrim(&ot[otz], disable);
+            ctx->next_packet += sizeof(DR_TWIN);
+        } else {
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+        }
     }
 }

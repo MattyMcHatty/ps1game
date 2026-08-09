@@ -32,6 +32,15 @@
 void garden_stairs_load_assets(void);     /* startup: register streamed textures */
 void garden_stairs_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void garden_stairs_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
+
+/* Narrow, single-texture upload of this module's grss_gs RAM copy — the clone of
+   grss at the stn_stl page (x320 y0). The Delivery Area draws the same grass but
+   cannot use grss's own slot (x768), which it fills with brick_wall, so it reuses
+   this clone. Narrow because garden_stairs_upload_textures would also drag in
+   gravel_gs and xt_dr_cg, which land in delivery's rusty_fence and double_door
+   slots. Reusing the resident copy rather than registering a second one is not
+   just tidiness: texmgr has a hard TEXMGR_MAX and overruns fail SILENTLY. */
+void garden_stairs_upload_grss_gs(void);
 void garden_stairs_init(void);            /* set collision/floor zones + spawn */
 void garden_stairs_draw(RenderContext *ctx);
 

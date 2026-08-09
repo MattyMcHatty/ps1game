@@ -56,6 +56,16 @@ KNOWN_STREAM_PAIRS = [
     ("double_door.tim",    "con_tile.tim"),# ...double_door is kitchen+delivery
     ("brick_wall.tim",     "bed.tim"),     # master bedroom streams bed over the...
     ("grss.tim",           "bed.tim"),     # ...same delivery slot the conservatory uses for grss
+    # chnlnk_dl is the Delivery Area's clone of chnlnk (the room draws chnlnk
+    # AND gravel, which share x640). It is parked on the clsd_drwr/cncrte page,
+    # none of whose textures the Delivery Area draws, and every one of which its
+    # own room re-uploads on entry. Delivery re-uploads chnlnk_dl the same way.
+    ("chnlnk_dl.tim", "clsd_drwr.tim"),
+    ("chnlnk_dl.tim", "cncrte.tim"),
+    ("chnlnk_dl.tim", "kchn_tile.tim"),
+    ("chnlnk_dl.tim", "piano_keys.tim"),
+    ("chnlnk_dl.tim", "piano_keys_full.tim"),
+    ("chnlnk_dl.tim", "xt_dr_outr.tim"),
     ("gravel_texture.tim", "chnlnk.tim"),  # east stairwell streams chnlnk over the...
     ("trees.tim",          "chnlnk.tim"),  # ...same delivery slot the conservatory uses for trees
     ("gravel_texture.tim", "trck_clue.tim"),# attic stairwell streams trck_clue over that

@@ -255,6 +255,15 @@
                      textures is already on the disc for the Garden Stairs,
                      whose uploads it reuses wholesale. -->
                 <file name="GRDNCRTY.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\garden_courtyard.smd"/>
+
+                <!-- Delivery Area: the remodelled yard draws trees and chnlnk
+                     alongside gravel, whose VRAM page (x640 y0) all three used
+                     to share. Byte-for-byte clones at the last free page
+                     (x960 y256), same trick as GRSSGS/GRAVELGS above. CHNLNKDL
+                     sits in that page's upper half (U 128-255) — see the U
+                     offset table in src/delivery_area.c. -->
+                <file name="TREESDL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\trees_dl.tim"/>
+                <file name="CHNLNKDL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\chnlnk_dl.tim"/>
             </dir>
         </directory_tree>
     </track>

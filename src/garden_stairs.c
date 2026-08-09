@@ -234,6 +234,10 @@ void garden_stairs_upload_textures(void) {
     east_stairwell_upload_chnlnk();         /* chnlnk     -> gravel slot    */
 }
 
+/* Narrow upload of grss_gs alone, for the Delivery Area — see garden_stairs.h.
+   new_tex[3] is GRSSGS; keep this index in step with the table above. */
+void garden_stairs_upload_grss_gs(void) { texmgr_upload(new_tex_id[3]); }
+
 /* ---- The south-wall door back to the Attic Exit ----------------------------
    The xt_dr_outr poly spans x[-104,386] at z=1117, on the TOP landing
    (floor y=-1500). It is the OUTER face of the same door the exit-door puzzle

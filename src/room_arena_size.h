@@ -11,7 +11,7 @@
  *
  * The ten largest meshes on the disc at generation time:
  *
- *     63700 bytes   32 sectors  delivery_area.smd
+ *     65740 bytes   33 sectors  delivery_area.smd
  *     57860 bytes   29 sectors  Reception.smd
  *     42228 bytes   21 sectors  garden_stairs.smd
  *     40220 bytes   20 sectors  kitchen_dining.smd
@@ -26,7 +26,7 @@
 #ifndef ROOM_ARENA_SIZE_H
 #define ROOM_ARENA_SIZE_H
 
-#define ROOM_ARENA_SECTORS 32
+#define ROOM_ARENA_SECTORS 33
 #define ROOM_ARENA_BYTES   (ROOM_ARENA_SECTORS * 2048)
 
 #endif /* ROOM_ARENA_SIZE_H */

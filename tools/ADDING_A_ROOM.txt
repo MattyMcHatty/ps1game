@@ -130,6 +130,16 @@ COORDINATE CONVENTIONS (memorise these):
     taken. Anything at Voff >= 128 is window-sensitive and will sample the wrong
     art under the room's 128 texture window — do not put mesh art there.
 
+    (The last one, x960 y256, went to the remodelled Delivery Area in August
+    2026. Its upper half at x992 was used too, briefly, back when that room
+    still computed its own UVs and could add 128 to U by hand — once it moved
+    to baked UVs and a texture window like everywhere else, that texture had to
+    move to a page boundary and x992 came free again. It is only usable by a
+    room that does not set a 128 window, which is now none of them.
+    Also free, and page-aligned, but at Voff 128: x448 y128 and x576 y384 —
+    same restriction. Run the free-block scan in tools/vram_map.py before
+    believing any of this.)
+
     So a new texture must TIME-SHARE a slot. Pick one that is:
       - not used by the new room, AND
       - already time-shared, so it needs no NEW restore code.

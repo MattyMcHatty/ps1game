@@ -79,6 +79,10 @@
 #define TIM_TPAGE_CHNLNK   0x000a
 #define TIM_CLUT_CHNLNK    0x7fca
 
+/* chnlnk_dl.tim   4bpp  VRAM ( 384,  0)  \TEX\CHNLNKDL.TIM */
+#define TIM_TPAGE_CHNLNKDL 0x0006
+#define TIM_CLUT_CHNLNKDL  0x7802
+
 /* clsd_drwr.tim   8bpp  VRAM ( 384,  0)  \TEX\CLSDDRWR.TIM */
 #define TIM_TPAGE_CLSDDRWR 0x0086
 #define TIM_CLUT_CLSDDRWR  0x7a90
@@ -166,6 +170,10 @@
 /* grss_gs.tim     4bpp  VRAM ( 320,  0)  \TEX\GRSSGS.TIM */
 #define TIM_TPAGE_GRSSGS   0x0005
 #define TIM_CLUT_GRSSGS    0x7fce
+
+/* hud.tim         4bpp  VRAM ( 384,384)  \TEX\HUD.TIM */
+#define TIM_TPAGE_HUD      0x0016
+#define TIM_CLUT_HUD       0x7fcb
 
 /* inr_dbl_dr.tim  4bpp  VRAM ( 576,256)  \INRDBLDR.TIM */
 #define TIM_TPAGE_INRDBLDR 0x0019
@@ -274,6 +282,10 @@
 /* trees.tim       4bpp  VRAM ( 640,  0)  \TEX\TREES.TIM */
 #define TIM_TPAGE_TREES    0x000a
 #define TIM_CLUT_TREES     0x7fc3
+
+/* trees_dl.tim    4bpp  VRAM ( 960,256)  \TEX\TREESDL.TIM */
+#define TIM_TPAGE_TREESDL  0x001f
+#define TIM_CLUT_TREESDL   0x7801
 
 /* upstairs.tim    4bpp  VRAM ( 704,  0)  \TEX\UPSTAIRS.TIM */
 #define TIM_TPAGE_UPSTAIRS 0x000b

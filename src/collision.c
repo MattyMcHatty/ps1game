@@ -164,27 +164,126 @@ int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
     return 0;
 }
 
-void apply_collision(void) {
+/* ---- The DELIVERY AREA's wall set, per floor -------------------------------
+ *
+ * collide_wall() above is purely 2D: it knows nothing about y_min/y_max, and it
+ * pushes an entity out to the wall's front face from EITHER side (up to 175 in
+ * front, up to 700 behind). That is fine for a flat room, where every wall is a
+ * room boundary at one height. It is not fine here, because this room's mesh
+ * contributes interior faces that only exist for one of its three floors:
+ *
+ *   THE RAMP'S NORTH BANK  the z 3321..3339 strip, walls 6/8/9/15/28/30-34.
+ *       These are the OUTSIDE of the embankment the ramp is cut into: their
+ *       normals point north, into the yard, and they exist to stop someone down
+ *       in the yard walking into the bank. Someone up on the ramp deck is behind
+ *       them, ~330 units back, well inside collide_wall's 700-unit reach — so
+ *       leaving these on flung the player ~500 units north, off the deck and
+ *       into the yard, where the bank then blocked them from climbing back.
+ *       That was the juddering. Gated on POSITION (DELIVERY_BANK_Z), which is
+ *       set just past the ramp zone's north edge so nothing holds the player on
+ *       the deck — the edge is unfenced and falling off it is intended.
+ *
+ *   THE UNDER-RAMP FACE  x=-4194, z(2556..3339). The retaining face under the
+ *       TOP of the ramp, walkable side -X. Ground floor only: it is what stops a
+ *       player under the platform walking into the ramp's underside, but on the
+ *       ramp or the platform it would seal the two off from each other.
+ *
+ * Both sets are matched on their coordinates rather than by index, so
+ * regenerating the collision from a fresh export cannot silently shift the set
+ * out from under this function.
+ *
+ * Shared by the player, the vampire and the demon dogs so all three read the
+ * same wall list — they only differ in radius and which floor flags they pass. */
+
+/* The ramp's north bank: the whole wall lies in the z 3300..3345 strip. */
+static int delivery_wall_is_ramp_bank(const Wall *w) {
+    return w->z1 >= 3300 && w->z1 <= 3345 &&
+           w->z2 >= 3300 && w->z2 <= 3345;
+}
+
+/* North of this line you are in the yard, looking at the bank; south of it you
+   are on the ramp deck, behind it.
+   It is one unit past the ramp floor zone's own north edge (3339) ON PURPOSE.
+   The ramp's north edge is unfenced — walking off it and dropping into the yard
+   is intended — so the bank must not engage while the player is still anywhere
+   the ramp zone still claims, or it would shove them off instead of letting
+   them walk off. The bank's own geometry stops at z=3339 too, so nothing is
+   left unguarded: it only has to hold back someone already down in the yard. */
+#define DELIVERY_BANK_Z 3340
+
+/* The retaining face under the top of the ramp: the whole wall lies on x=-4194
+   (the generator splits it as -4204..-4193, hence the band). */
+static int delivery_wall_is_under_ramp(const Wall *w) {
+    return w->x1 >= -4210 && w->x1 <= -4185 &&
+           w->x2 >= -4210 && w->x2 <= -4185;
+}
+
+/* Walls too short for collide_wall's along-the-wall test to mean anything.
+ *
+ * That test shifts both the wall vector and the player offset down by 4 before
+ * multiplying, so a wall's DIRECTION is only known to 1/16 of a unit. On a wall
+ * a few hundred units long that is a rounding error. On a short diagonal it is
+ * not: this mesh's 55-unit north-east chamfer, (-2023,3339)-(-2075,3321),
+ * quantises to (-4,-2) — 8 degrees off its true (-52,-18) — and over a long
+ * lever arm that error swamps the endpoint check entirely. The wall then behaves
+ * as an almost unbounded LINE: it was displacing the player ~200 units
+ * diagonally from as far away as the first yard and the corridor mouth, which is
+ * the "jutting, then can't get through" this was reported as.
+ *
+ * 100 units is comfortably below every wall that carries real room boundary
+ * (the next shortest here is 156 and axis-aligned, where the direction is exact
+ * however short it is) and above the chamfer. The chamfer itself is redundant:
+ * walls 28 and 32 already overlap across the corner it cuts.
+ *
+ * The proper fix is to stop quantising in collide_wall — the products fit in
+ * int32 unshifted at this room's coordinate scale — but that function is shared
+ * by all fourteen rooms and every doorway in them is tuned around its current
+ * tolerance, so this stays local to delivery. */
+#define DELIVERY_MIN_WALL_LEN 100
+static int delivery_wall_too_short(const Wall *w) {
+    int32_t dx = w->x2 - w->x1;
+    int32_t dz = w->z2 - w->z1;
+    return dx * dx + dz * dz <
+           (int32_t)DELIVERY_MIN_WALL_LEN * DELIVERY_MIN_WALL_LEN;
+}
+
+static void delivery_collide_walls(int32_t *x, int32_t *z, int32_t radius,
+                                   int on_upper_floor, int on_ramp) {
     CollisionRoom *r = &current_collision_room;
-    int32_t radius = 175;
+    int on_ground = !on_ramp && !on_upper_floor;
     int i, pass;
 
-    /* Wall layout (see delivery_area_mesh_collision.c):
-     *   0-12  regular room walls — always active
-     *   13    upper-floor bannister — only when player_on_upper_floor
-     *   14    under-ramp barrier along Z (at ramp midpoint X=-3208)
-     *   15    under-ramp barrier along X (north edge Z=3054 to ramp start X=-2269)
-     *         walls 14 & 15 active only when !player_on_ramp && !player_on_upper_floor */
     for (pass = 0; pass < 2; pass++) {
-        for (i = 0; i < 13; i++)
-            collide_wall(&r->walls[i], &cam_x, &cam_z, radius);
-        if (player_on_upper_floor)
-            collide_wall(&r->walls[13], &cam_x, &cam_z, radius);
-        if (!player_on_ramp && !player_on_upper_floor) {
-            collide_wall(&r->walls[14], &cam_x, &cam_z, radius);
-            collide_wall(&r->walls[15], &cam_x, &cam_z, radius);
+        for (i = 0; i < r->wall_count; i++) {
+            Wall *w = &r->walls[i];
+
+            if (delivery_wall_too_short(w)) continue;
+
+            if (delivery_wall_is_ramp_bank(w)) {
+                /* Gated on the entity's POSITION, not on on_ramp — and that
+                   distinction is the whole reason the ramp was unclimbable.
+                   The floor flags are one frame stale here: main runs collision
+                   BEFORE apply_height, so on the frame you first step into the
+                   ramp's x range you are still flagged 'ground'. With the bank
+                   live for that one frame it caught you from behind and threw
+                   you ~700 units north, out of the ramp zone entirely — so
+                   apply_height never got to flag you as on the ramp, and you
+                   ended up walking the yard instead. Position has no such lag:
+                   south of the bank's own face you are on the deck, full stop. */
+                if (*z < DELIVERY_BANK_Z || on_upper_floor) continue;
+            } else if (delivery_wall_is_under_ramp(w)) {
+                if (!on_ground) continue;        /* seen from the yard only */
+            }
+            collide_wall(w, x, z, radius);
         }
     }
+}
+
+void apply_collision(void) {
+    int32_t radius = 175;
+
+    delivery_collide_walls(&cam_x, &cam_z, radius,
+                           player_on_upper_floor, player_on_ramp);
     crates_collide(&cam_x, cam_y, &cam_z, radius);
 }
 
@@ -686,34 +785,22 @@ int32_t collision_ceiling_y(int32_t x, int32_t z) {
 }
 
 void apply_vampire_collision(void) {
-    CollisionRoom *r = &current_collision_room;
-    int32_t radius = 100;
-    int i, pass;
-
     /* Mirror the player's floor-conditional wall logic using the vampire's
      * own floor state (set each frame by apply_vampire_height). */
-    for (pass = 0; pass < 2; pass++) {
-        for (i = 0; i < 13; i++)
-            collide_wall(&r->walls[i], &vampire_x, &vampire_z, radius);
-        if (vampire_on_upper_floor)
-            collide_wall(&r->walls[13], &vampire_x, &vampire_z, radius);
-        if (!vampire_on_ramp && !vampire_on_upper_floor) {
-            collide_wall(&r->walls[14], &vampire_x, &vampire_z, radius);
-            collide_wall(&r->walls[15], &vampire_x, &vampire_z, radius);
-        }
-    }
+    delivery_collide_walls(&vampire_x, &vampire_z, 100,
+                           vampire_on_upper_floor, vampire_on_ramp);
 }
 
 /* -----------------------------------------------------------------------
  * Floor zones
  *
- * Coordinates taken from the script-detected floor data in
- * delivery_area_mesh_collision.c comments:
- *   FLOOR 0: y=149  x(-5451 to -238)   z(2557 to 5426)  big room
- *   FLOOR 1: y=149  x(-1400 to -1000)  z(1800 to 2557)  corridor
- *   FLOOR 2: y=149  x(-1800 to 1800)   z(-1799 to 1800) first room
- *   FLOOR 3: y=-200 x(-4148 to -2269)  z(2554 to 3054)  ramp surface
- *   FLOOR 4: y=-544 x(-5483 to -4143)  z(2527 to 5447)  upper floor
+ * Coordinates taken from the condensed floor list in
+ * delivery_area_mesh_collision.c:
+ *   y=150   x(-1800..1800)   z(-1800..1800)   first yard
+ *   y=150   x(-1400..-1000)  z(1800..2556)    corridor
+ *   RAMP    x(-4194..-1711)  z(2556..3339)    150 (east) -> -524 (west)
+ *   y=-524  x(-5451..-4194)  z(2556..5425)    upper platform
+ *   y=150   x(-5451..-238)   z(2556..5425)    big yard, ground level
  *
  * cam_y = floor_surface_y - GROUND_FLOOR_Y  (0 = default camera height)
  * trans.vy in delivery_area_draw = -cam_y
@@ -729,52 +816,55 @@ int       vampire_on_ramp        = 0;
 void floor_zones_init(void) {
     int i = 0;
 
-    /* First room */
+    /* First yard */
     floor_zones[i].type  = FLOOR_FLAT;
     floor_zones[i].min_x = -1800; floor_zones[i].max_x = 1800;
     floor_zones[i].min_z = -1800; floor_zones[i].max_z = 1800;
-    floor_zones[i].y     = 149;
+    floor_zones[i].y     = 150;
     i++;
 
     /* Corridor */
     floor_zones[i].type  = FLOOR_FLAT;
     floor_zones[i].min_x = -1400; floor_zones[i].max_x = -1000;
-    floor_zones[i].min_z =  1800; floor_zones[i].max_z =  2557;
-    floor_zones[i].y     = 149;
+    floor_zones[i].min_z =  1800; floor_zones[i].max_z =  2556;
+    floor_zones[i].y     = 150;
     i++;
 
-    /* Big room — right section east of ramp, ground level */
-    floor_zones[i].type  = FLOOR_FLAT;
-    floor_zones[i].min_x = -2269; floor_zones[i].max_x = -238;
-    floor_zones[i].min_z =  2557; floor_zones[i].max_z = 5426;
-    floor_zones[i].y     = 149;
-    i++;
-
-    /* Ramp — runs along the X axis (east=ground, west=upper) */
+    /* Ramp — one continuous slope along X (east = ground, west = upper floor).
+     * The mesh subdivides it into 8 x-cells by 3 z-bands and skews the cells
+     * very slightly in Z, so a single-axis ramp is a fit, not an exact match:
+     * anchoring the ends at the two floors they join (150 at x=-1711, -524 at
+     * x=-4194) keeps both joins seamless and leaves at most ~29 units of error
+     * mid-slope, well inside the 40-unit float standoff apply_height applies. */
     floor_zones[i].type             = FLOOR_RAMP;
-    floor_zones[i].min_x            = -4148; floor_zones[i].max_x = -2269;
-    floor_zones[i].min_z            =  2554; floor_zones[i].max_z =  3054;
-    floor_zones[i].ramp_y_start     =   149; /* Y at x=-2269 (east, ground) */
-    floor_zones[i].ramp_y_end       =  -544; /* Y at x=-4148 (west, upper)  */
-    floor_zones[i].ramp_axis_start  = -2269;
-    floor_zones[i].ramp_axis_end    = -4148;
+    floor_zones[i].min_x            = -4194; floor_zones[i].max_x = -1711;
+    floor_zones[i].min_z            =  2556; floor_zones[i].max_z =  3339;
+    floor_zones[i].ramp_y_start     =   150; /* Y at x=-1711 (east, ground) */
+    floor_zones[i].ramp_y_end       =  -524; /* Y at x=-4194 (west, upper)  */
+    floor_zones[i].ramp_axis_start  = -1711;
+    floor_zones[i].ramp_axis_end    = -4194;
     floor_zones[i].ramp_along_x     = 1;
     i++;
 
-    /* Upper floor — max_x is -4149 (one unit west of the ramp end at -4148)
-     * so the ramp top itself is not inside this zone. Stepping sideways off
-     * the ramp before crossing that boundary causes a fall, not a snap. */
+    /* Upper platform. It sits directly over the west end of the ground floor,
+     * so it MUST come before the ground catch-all below: apply_height walks the
+     * list in order and skips any flat/upper zone that is above the player, so
+     * a player underneath falls through to the ground zone while one up here
+     * matches this one first (and gets player_on_upper_floor set).
+     * max_x is -4194, the ramp's west end, so the two meet with no gap. */
     floor_zones[i].type  = FLOOR_UPPER;
-    floor_zones[i].min_x = -5483; floor_zones[i].max_x = -4149;
-    floor_zones[i].min_z =  2527; floor_zones[i].max_z =  5447;
-    floor_zones[i].y     = -544;
+    floor_zones[i].min_x = -5451; floor_zones[i].max_x = -4194;
+    floor_zones[i].min_z =  2556; floor_zones[i].max_z =  5425;
+    floor_zones[i].y     = -524;
     i++;
 
-    /* Big room catch-all — ground level fallback for areas not covered above */
+    /* Big yard, ground level — catch-all for everything z>2556 not covered
+     * above, including the strip under the upper platform. The north edge of
+     * the mesh tilts to y=165; 150 is within the float standoff. */
     floor_zones[i].type  = FLOOR_FLAT;
     floor_zones[i].min_x = -5451; floor_zones[i].max_x = -238;
-    floor_zones[i].min_z =  2557; floor_zones[i].max_z =  5426;
-    floor_zones[i].y     = 149;
+    floor_zones[i].min_z =  2556; floor_zones[i].max_z =  5425;
+    floor_zones[i].y     = 150;
     i++;
 
     floor_zone_count = i;
@@ -916,18 +1006,9 @@ void apply_ddog_collision(int32_t *x, int32_t *z, int on_upper_floor, int on_ram
         return;
     }
 
-    /* Delivery area (multi-level): the original hand-tuned index logic — walls
-       0-12 always, 13 only upstairs, 14/15 only on the ground floor. */
-    for (pass = 0; pass < 2; pass++) {
-        for (i = 0; i < 13; i++)
-            collide_wall(&r->walls[i], x, z, radius);
-        if (on_upper_floor)
-            collide_wall(&r->walls[13], x, z, radius);
-        if (!on_ramp && !on_upper_floor) {
-            collide_wall(&r->walls[14], x, z, radius);
-            collide_wall(&r->walls[15], x, z, radius);
-        }
-    }
+    /* Delivery area (multi-level): every wall, bar the two floor-conditional
+       ones — same list the player and the vampire collide. */
+    delivery_collide_walls(x, z, radius, on_upper_floor, on_ramp);
 }
 
 void apply_ddog_height(int32_t *px, int32_t *py, int32_t *pz,

@@ -21,14 +21,54 @@
 #include "key.h"
 #include "door.h"
 #include "demondog.h"
+#include "garden_stairs.h"    /* garden_stairs_upload_grss_gs */
+#include "tim_slots.h"
 #include "delivery_area_tex_map.h"
 
 static SMD  *room_smd  = NULL;
 static void *room_buff = NULL;
 
-/* tpage/clut for each texture: [0]=gravel [1]=rusty fence [2]=brick_wall [3]=double_door */
-static uint16_t tex_tpage[4] = {0, 0, 0, 0};
-static uint16_t tex_clut[4]  = {0, 0, 0, 0};
+/* ---- Per-room textures -----------------------------------------------------
+   The remodelled yard draws SEVEN textures where the old one drew four. Three of
+   the new set (grss, chnlnk, trees) already exist on the disc for other rooms —
+   but at VRAM pages this room now fills with something else it draws at the same
+   time. grss lives at x768, which delivery fills with brick_wall; chnlnk and
+   trees both live at x640, which delivery fills with gravel. So all three are
+   drawn from CLONES at pages this room does not otherwise touch, exactly as the
+   Garden Stairs does for the same two textures (tools/retarget_tim.py):
+
+     grss   -> grss_gs   (x320 y0)   already on the disc for the Garden Stairs;
+                                     shares the stn_stl / strs / bookshelf page,
+                                     which every consumer re-uploads on its own
+                                     entry, so this adds no restore obligation.
+                                     The Garden Stairs owns the RAM copy — we
+                                     call its narrow upload rather than
+                                     registering a second one, because texmgr has
+                                     a hard TEXMGR_MAX and overruns fail SILENTLY.
+     trees  -> trees_dl  (x960 y256) NEW, and the last free page-aligned Voff-0
+                                     page in VRAM. Nothing else lives there, so
+                                     it is uploaded once at startup, never
+                                     restored.
+     chnlnk -> chnlnk_dl (x384 y0)   NEW, parked on the clsd_drwr / cncrte /
+                                     kchn_tile / piano_keys / xt_dr_outr page.
+                                     The room draws none of those and each of
+                                     them is re-uploaded by its own room on
+                                     entry, so this adds no restore obligation
+                                     beyond our own.
+
+   EVERY ONE OF THE SEVEN MUST BE PAGE-ALIGNED AND AT Voff 0. The room's 128
+   texture window masks U and V to 0-127 of the tpage, so there is no way to
+   reach the upper half of a page or the lower half of a 256-row one. chnlnk_dl
+   originally sat at x992 — the upper half of trees_dl's page — which worked
+   only while this room hand-computed its UVs, and had to move when it started
+   using the window like everywhere else.
+
+   Slots (must match NAME_TO_SLOT in gen_delivery_area_tex_map.py):
+     [0]=gravel [1]=rusty_fence [2]=brick_wall [3]=double_door
+     [4]=grss   [5]=chnlnk      [6]=trees                                     */
+#define DELIVERY_TEX_COUNT 7
+static uint16_t tex_tpage[DELIVERY_TEX_COUNT];
+static uint16_t tex_clut[DELIVERY_TEX_COUNT];
 
 static void *load_file_from_cd(const char *filename, int *size_out) {
     CdlFILE file;
@@ -74,21 +114,28 @@ static void load_tim_to_vram(const char *filename, int slot) {
    (gravel/fence/brick <- trees/upstairs/grss, double_door <- con_tile), so
    they must be re-uploadable on return here with no mid-game CD read. The
    texture manager keeps them RAM-resident; ids captured at startup. */
-#define DELIVERY_SHARED_TEX 4
+#define DELIVERY_SHARED_TEX 5
 static int shared_id[DELIVERY_SHARED_TEX];
 static const char *shared_tex_file[DELIVERY_SHARED_TEX] = {
     "\\GRAVEL.TIM;1",
     "\\FENCE.TIM;1",
     "\\BRIKWLL.TIM;1",
     "\\DBLDOOR.TIM;1",
+    "\\TEX\\CHNLNKDL.TIM;1",   /* our chnlnk clone, on the clsd_drwr page */
 };
 
 /* Re-upload the shared textures from their resident RAM copies. Pure
    LoadImage, no CD access — safe mid-game once the caller has idled the GPU
-   (DrawSync), as main's loading/title paths do. */
+   (DrawSync), as main's loading/title paths do.
+
+   trees_dl is deliberately absent: it owns its VRAM page outright, so the
+   startup upload is the only one it ever needs. */
 void delivery_restore_textures(void) {
     for (int i = 0; i < DELIVERY_SHARED_TEX; i++)
         texmgr_upload(shared_id[i]);
+    /* grss, from the Garden Stairs' clone. That page is shared with stn_stl /
+       strs / bookshelf, all of whose rooms re-upload on their own entry. */
+    garden_stairs_upload_grss_gs();
 }
 
 /* brick_wall ONLY (index 2 above). The Garden Stairs draws brick_wall but keeps
@@ -104,6 +151,19 @@ void delivery_area_init(void) {
     load_tim_to_vram("\\FENCE.TIM;1",   1);
     load_tim_to_vram("\\BRIKWLL.TIM;1", 2);
     load_tim_to_vram("\\DBLDOOR.TIM;1", 3);
+
+    /* trees_dl owns its VRAM page, so this single startup upload is the only one
+       it needs — no entry-time restore. chnlnk_dl shares the clsd_drwr page, so
+       it is uploaded here AND kept RAM-resident below for the restores. */
+    load_tim_to_vram("\\TEX\\TREESDL.TIM;1",  6);
+    load_tim_to_vram("\\TEX\\CHNLNKDL.TIM;1", 5);
+
+    /* grss comes from the Garden Stairs' grss_gs clone. Its pixels are uploaded
+       on every delivery entry by delivery_restore_textures(); the tpage/clut are
+       compile-time constants, so nothing is read off the CD for it here.
+       (garden_stairs_load_assets() has not run yet at this point in main's
+       startup — the first upload happens on the title-exit path.) */
+    TIM_SLOT(4, GRSSGS);
 
     /* Startup-only (CD reads): keep RAM copies for the mid-game restores. */
     for (int i = 0; i < DELIVERY_SHARED_TEX; i++)
@@ -123,28 +183,31 @@ void delivery_load_geometry(void) {
 
 /* SMD FT4 layout, stride=32:
    [0-3] SMD_PRI_TYPE  [4-11] v0..v3 uint16  [12-13] n0  [14-15] pad
-   [16-18] r,g,b  [19] code  [20-27] UVs (ignored)  [28-31] tpage/clut (ignored)
-   Texture per primitive from delivery_area_tex_map.h (0xFF = untextured). */
+   [16-18] r,g,b  [19] code  [20-27] UVs  [28-31] tpage/clut (ignored)
+   Texture per primitive from delivery_area_tex_map.h (0xFF = untextured).
 
-/* World-space UV projection: floor uses XZ, walls use along-wall + Y. */
-static void compute_uv(SVECTOR *v, SVECTOR *norm,
-                        uint8_t *u_out, uint8_t *v_out) {
-    int32_t abs_nx = norm->vx < 0 ? -norm->vx : norm->vx;
-    int32_t abs_ny = norm->vy < 0 ? -norm->vy : norm->vy;
-    int32_t abs_nz = norm->vz < 0 ? -norm->vz : norm->vz;
+   UVs come straight from the SMD (offset 20+) and wrap via the 128 texture
+   window set in delivery_area_draw — the same scheme every other room uses.
 
-    /* Mask to 0-127: each texture has its own tpage, so V stays in 0-127. */
-    if (abs_ny > abs_nx && abs_ny > abs_nz) {
-        *u_out = (uint8_t)((v->vx >> 1) & 0x7F);
-        *v_out = (uint8_t)((v->vz >> 1) & 0x7F);
-    } else if (abs_nx >= abs_nz) {
-        *u_out = (uint8_t)((v->vz >> 2) & 0x7F);
-        *v_out = (uint8_t)((v->vy)      & 0x7F);
-    } else {
-        *u_out = (uint8_t)((v->vx >> 2) & 0x7F);
-        *v_out = (uint8_t)((v->vy)      & 0x7F);
-    }
-}
+   This room used to project its UVs from world position instead and mask them
+   to 7 bits in software, which is how it was written before the rest of the
+   game settled on baked UVs. Two things were wrong with that, and they are
+   worth recording because both were reported as art bugs:
+
+     - it threw away the UV map from Blender, so anything that is ONE image
+       rather than a tiling material came out wrong. The double door is the
+       clear case: eight polys that should carry one picture of a door were
+       each handed gravel-style tiling coordinates and came out stretched;
+
+     - masking in software only tiles POLYGON BY POLYGON, because the GPU
+       interpolates linearly between the two masked corner values and cannot
+       wrap in between. That put a hard ceiling on polygon size (256 world
+       units on floors, 128 vertically on walls) which no other room has, and
+       the mesh had to be subdivided against it — which is what pushed the
+       primitive count, and the frame rate near the upper floor, over budget.
+
+   The texture window does the wrapping in hardware, so both problems go away
+   and polygons can be any size. Do not reintroduce compute_uv(). */
 static void draw_smd_room(RenderContext *ctx) {
     uint8_t *p = (uint8_t *)room_smd->p_prims;
     int i;
@@ -182,7 +245,10 @@ static void draw_smd_room(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        if (!pt->nocull) {
+        /* Backface cull, except degenerate (triangle-shaped) quads flagged at
+           build time in delivery_area_nocull — same scheme as the other rooms. */
+        int nocull = (i < DELIVERY_AREA_PRIM_COUNT) && delivery_area_nocull[i];
+        if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
             if (nclip <= 0) { p += stride; continue; }
@@ -234,13 +300,7 @@ static void draw_smd_room(RenderContext *ctx) {
 
         if (is_quad && tex_idx != 0xFF) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
-            SVECTOR *v3 = &room_smd->p_verts[vi[3]];
-            SVECTOR *norm = &room_smd->p_norms[vi[4]];
-            uint8_t u0,uv0, u1,uv1, u2,uv2, u3,uv3;
-            compute_uv(v0, norm, &u0, &uv0);
-            compute_uv(v1, norm, &u1, &uv1);
-            compute_uv(v2, norm, &u2, &uv2);
-            compute_uv(v3, norm, &u3, &uv3);
+            uint8_t *uv = p + 20;
             POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
             setPolyFT4(poly);
             setRGB0(poly,
@@ -249,10 +309,10 @@ static void draw_smd_room(RenderContext *ctx) {
                 (uint8_t)(((int32_t)col[2] * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8));
             poly->tpage = tex_tpage[tex_idx];
             poly->clut  = tex_clut[tex_idx];
-            poly->u0=u0; poly->v0=uv0;
-            poly->u1=u1; poly->v1=uv1;
-            poly->u2=u2; poly->v2=uv2;
-            poly->u3=u3; poly->v3=uv3;
+            poly->u0=uv[0]; poly->v0=uv[1];
+            poly->u1=uv[2]; poly->v1=uv[3];
+            poly->u2=uv[4]; poly->v2=uv[5];
+            poly->u3=uv[6]; poly->v3=uv[7];
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
             poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
@@ -273,6 +333,28 @@ static void draw_smd_room(RenderContext *ctx) {
             poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
             addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
             ctx->next_packet += sizeof(POLY_F4);
+        } else if (tex_idx != 0xFF) {
+            /* Textured triangle — the wedges that close off the ramp's brick
+               embankment and its rusty_fence side wall. They sit in plain view,
+               so they cannot fall through to the flat-shaded path. */
+            if (ctx->next_packet + sizeof(POLY_FT3) > buf_end) { p += stride; continue; }
+            uint8_t *uv = p + 20;
+            POLY_FT3 *poly = (POLY_FT3 *)ctx->next_packet;
+            setPolyFT3(poly);
+            setRGB0(poly,
+                (uint8_t)(((int32_t)col[0] * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8),
+                (uint8_t)(((int32_t)col[1] * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8),
+                (uint8_t)(((int32_t)col[2] * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8));
+            poly->tpage = tex_tpage[tex_idx];
+            poly->clut  = tex_clut[tex_idx];
+            poly->u0=uv[0]; poly->v0=uv[1];
+            poly->u1=uv[2]; poly->v1=uv[3];
+            poly->u2=uv[4]; poly->v2=uv[5];
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_FT3);
         } else {
             if (ctx->next_packet + sizeof(POLY_F3) > buf_end) { p += stride; continue; }
             POLY_F3 *poly = (POLY_F3 *)ctx->next_packet;
@@ -411,9 +493,16 @@ void delivery_area_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
     /* draw_vampire(ctx); */ /* disabled — kept for later */
-    /* Delivery uses no texture window; clear any left set by a windowed room
-       (the conservatory) so the dogs draw unbracketed here. */
-    demon_dogs_set_texwindow(NULL);
+    /* This room now sets a 128 window like every other one, so the sprites whose
+       VRAM sits at Voff >= 128 must bracket themselves around it: the dogs
+       (V128/192) and their shadow (V160), and the key pickups (V128). Both
+       modules restore this RECT after each sprite. Crates (wdcrate, Voff 0) and
+       the medipacs (sml_med, Voff 0) need nothing. */
+    {
+        RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+        demon_dogs_set_texwindow(&tw);
+        keys_set_texwindow(&tw);
+    }
     draw_demon_dogs(ctx);
     sml_meds_draw(ctx);
     keys_draw(ctx);
@@ -422,20 +511,21 @@ void delivery_area_draw(RenderContext *ctx) {
        are drawn by the shared draw_player_systems step in main, so they
        apply uniformly to every area. */
 
-    /* Reset the texture window to full-page. The window is persistent GPU state:
-       delivery uses no window (its startup state), but returning here from the
-       kitchen/reception — which sort a 128x128 window at OT_LENGTH-1 — would
-       otherwise leave that window active and wrap the Voff>=128 sprites (demon
-       dogs at V128/192, their shadow at V160) to the wrong VRAM region. Added
-       LAST so LIFO puts it at the head of the OT_LENGTH-1 bucket, i.e. the first
-       GPU command, ahead of every delivery primitive. RECT{0,0,0,0} = no wrap. */
+    /* 128x128 texture window so per-poly UVs wrap (tile) within each texture's
+       page — this is what lets a polygon be any size at all, and it is why all
+       seven of this room's textures have to sit at page-top (Voff 0) and on a
+       page boundary. chnlnk_dl was moved off the half-page at x992 to x384 for
+       exactly this reason; see the texture notes at the top of this file.
+
+       Added LAST so LIFO puts it at the head of the OT_LENGTH-1 bucket, i.e.
+       the first GPU command, ahead of every delivery primitive. */
     {
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
         if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
-            RECT full = {0, 0, 0, 0};
-            DR_TWIN *tw = (DR_TWIN *)ctx->next_packet;
-            setTexWindow(tw, &full);
-            addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], tw);
+            RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+            DR_TWIN *twin = (DR_TWIN *)ctx->next_packet;
+            setTexWindow(twin, &tw);
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], twin);
             ctx->next_packet += sizeof(DR_TWIN);
         }
     }
