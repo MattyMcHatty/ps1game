@@ -174,7 +174,12 @@ void reception_upload_textures(void) {
    Circle press within range starts the transition back. */
 #define RDOOR_X                  1450
 #define RDOOR_Z                 (-414)
-#define RDOOR_TEXT_Y            (-186)
+/* Text TOP, centred on the drawn door leaf. In "Reception v2.smx" every
+   ground-floor door spans y[-429,0] (mid -214) and the glyphs are 7 rows of
+   DOOR_PIXEL_SIZE = 28 units tall, so a top of -229 puts the text's middle on
+   the door's. Shared by RDOOR, WDOOR and CDOOR — all three leaves match.
+   (The upper-floor doors use their own constants; see HDOOR_TEXT_Y.) */
+#define RDOOR_TEXT_Y            (-229)
 #define RDOOR_TEXT_RADIUS        1500
 #define RDOOR_FADE_NEAR          1000   /* fully opaque within this distance */
 #define RDOOR_TRIGGER_RADIUS      500   /* distance at which Circle activates */
@@ -325,7 +330,9 @@ static void cdoor_text(RenderContext *ctx) {
    floor's eye height. */
 #define HDOOR_X                (-1435)
 #define HDOOR_Z                 (-750)
-#define HDOOR_TEXT_Y            (-786)   /* upper floor (y=-600) standing eye - 186 */
+/* Text TOP, centred on the drawn door leaf, as RDOOR_TEXT_Y is. The upper
+   floor's doors span y[-1029,-600] (mid -814), so the top sits at -829. */
+#define HDOOR_TEXT_Y            (-829)
 
 static int hdoor_circle_prev = 1;
 
@@ -385,7 +392,7 @@ static void hdoor_text(RenderContext *ctx) {
    mirror=0, at the upper floor's eye height. */
 #define NDOOR_X                (-1435)
 #define NDOOR_Z                   964
-#define NDOOR_TEXT_Y            (-786)   /* upper floor (y=-600) standing eye - 186 */
+#define NDOOR_TEXT_Y            (-829)   /* centred on the door leaf; see HDOOR_TEXT_Y */
 
 static void ndoor_text(RenderContext *ctx) {
     if (!player_on_upper_floor) return;   /* only visible from the upper floor */
@@ -416,7 +423,7 @@ static void ndoor_text(RenderContext *ctx) {
    kitchen door — at the upper floor's eye height. */
 #define EDOOR_X                  1435
 #define EDOOR_Z                  1071
-#define EDOOR_TEXT_Y            (-786)   /* upper floor (y=-600) standing eye - 186 */
+#define EDOOR_TEXT_Y            (-829)   /* centred on the door leaf; see HDOOR_TEXT_Y */
 
 static int edoor_circle_prev = 1;
 

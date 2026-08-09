@@ -1,5 +1,5 @@
 """
-gen_reception_tex_map.py — generate src/reception_tex_map.h from Reception.smx.
+gen_reception_tex_map.py — generate src/reception_tex_map.h from the Reception SMX.
 
 Each <poly> in the SMX carries texture="N", where N indexes the SMX's own
 <textures> list. That list is renumbered by the Blender exporter whenever the
@@ -15,14 +15,18 @@ NAME_TO_SLOT MUST match the slot order loaded in src/reception.c
 (reception_load_assets / new_tex[] + TIM_SLOT calls). If you add/move a
 texture slot there, update it here too.
 
+The room's model is "Reception v2.smx" (the remodelled export); assets/Reception.smx
+is the superseded original, kept only for reference. Both convert to Reception.smd,
+which is what disc.xml packs as RECEPT.SMD.
+
 Usage:
-    python gen_reception_tex_map.py            # assets/Reception.smx -> src/reception_tex_map.h
+    python gen_reception_tex_map.py            # assets/Reception v2.smx -> src/reception_tex_map.h
     python gen_reception_tex_map.py <smx> <out>
 """
 import xml.etree.ElementTree as ET
 import sys
 
-SMX = sys.argv[1] if len(sys.argv) > 1 else 'assets/Reception.smx'
+SMX = sys.argv[1] if len(sys.argv) > 1 else 'assets/Reception v2.smx'
 OUT = sys.argv[2] if len(sys.argv) > 2 else 'src/reception_tex_map.h'
 
 # Engine VRAM slot for each texture name (must match src/reception.c load order).
