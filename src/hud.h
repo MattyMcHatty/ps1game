@@ -45,11 +45,6 @@
    loop is running (see tools/TEXTURING_NOTES.txt, PROBLEM A). */
 void hud_load_texture(void);
 
-/* Tick the log's message timers. Call once per frame from the area update, NOT
-   from the draw: the log must expire on its own while the HUD is hidden, or a
-   line posted during a puzzle would still be sitting there afterwards. */
-void hud_log_update(void);
-
 /* The whole panel: backing bar, bars, weapon + ammo, frame, log. */
 void hud_draw(RenderContext *ctx);
 

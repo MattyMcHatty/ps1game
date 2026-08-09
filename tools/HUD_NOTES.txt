@@ -141,18 +141,23 @@ HUD renders it. The box gives 125 px x 34 px, which at the 8px debug font is
 message produces more lines than fit, drops the OLDEST, so whatever the player
 just triggered is always the thing on screen.
 
-hud_log_update() ticks the message timers and is called from the AREA UPDATE,
-not the draw. That matters: a line posted during a puzzle has to expire on its
-own even while the HUD is hidden, or it would still be sitting there afterwards.
+Lines DO NOT time out. pickup_log[] holds three entries and each poster shifts
+them up, so a message stays on screen until three newer messages have pushed it
+off (or the 4-row grid runs out and the oldest wrapped line scrolls away). The
+PickupEntry `live` field is only a "this slot is filled" flag, not a countdown;
+the log is cleared wholesale on new game / load (main.c).
 
 
 ==========================================================================
 PART 6 — WHEN THE HUD IS HIDDEN
 ==========================================================================
-  1. camera-locked puzzles and boss cutscenes — the bars, weapon box and slab
-     go; hud_draw_log_only() keeps the LOG BOX, because the puzzles post lines
-     the player has to read ("That makes no sense..."). It is a no-op while the
-     log is empty, so a boss cutscene — which posts nothing — shows nothing.
+  1. camera-locked PUZZLES — the bars, weapon box and slab go;
+     hud_draw_log_only() keeps the LOG BOX, because the puzzles post lines the
+     player has to read ("That makes no sense..."). Still a no-op while the log
+     is empty.
+  1b. BOSS CUTSCENES (Rabisu reveal/death) — nothing at all, not even the log
+     box. main.c tracks these separately from `puzzle` for exactly this reason:
+     lines no longer expire, so any earlier message would sit over the scene.
   2. the title screen
   3. the inventory menu and the save-point menu
   4. room transitions: door anim, stair anim, loading

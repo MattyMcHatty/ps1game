@@ -90,7 +90,7 @@ static const int8_t GRID[AZ_GRID_ROWS][AZ_GRID_COLS] = {
 /* ---- Board layout (320x240) -----------------------------------------------
    Three boxes down each side, clear of the frame: the frame's panels project to
    screen x 80..242, so the left column ends at 60 and the right starts at 260.
-   The bottom row stops at y=200, above the control prompt at 206. */
+   The bottom row stops at y=200, above the control prompt at 206/216. */
 #define BOX_W        52
 #define BOX_H        52
 #define BOX_L_X       8
@@ -616,9 +616,13 @@ void anzu_puzzle_draw(RenderContext *ctx) {
         }
     }
 
+    /* Two lines, not three-on-one: the log box starts at x=183 and all three
+       prompts on a single row would run under it. Two per line keeps the text
+       inside the free strip to the left of the log. */
     btn_prompt_draw(ctx, 8, 206,
                     held_tile >= 0
-                        ? BTN_CIRCLE " - Place  " BTN_SQUARE " - Turn  " BTN_CROSS " - Exit"
-                        : BTN_CIRCLE " - Take   " BTN_SQUARE " - Turn  " BTN_CROSS " - Exit",
+                        ? BTN_CIRCLE " - Place  " BTN_SQUARE " - Turn"
+                        : BTN_CIRCLE " - Take   " BTN_SQUARE " - Turn",
                     AZ_OT_TEXT);
+    btn_prompt_draw(ctx, 8, 216, BTN_CROSS " - Exit", AZ_OT_TEXT);
 }

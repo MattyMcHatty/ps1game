@@ -225,13 +225,10 @@ static void hud_draw_number(RenderContext *ctx, int value, int x, int y, int sca
    The box is 125px of usable width, i.e. 15 characters of the 8px debug font,
    and 4 lines tall. Messages are word-wrapped into that grid; when more lines
    are produced than fit, the OLDEST are dropped, so the newest line the player
-   just triggered is always on screen. */
+   just triggered is always on screen.
 
-void hud_log_update(void) {
-    int k;
-    for (k = 0; k < PICKUP_MSG_COUNT; k++)
-        if (pickup_log[k].timer > 0) pickup_log[k].timer--;
-}
+   Nothing expires: a line stays up until newer lines push it out of the
+   three-entry pickup_log (or off the top of the 4-row grid). */
 
 static char hud_log_lines[LOG_ROWS][LOG_COLS + 1];
 static int  hud_log_count;
@@ -254,7 +251,7 @@ static void hud_log_emit(const char *s, int len) {
 static int hud_log_empty(void) {
     int k;
     for (k = 0; k < PICKUP_MSG_COUNT; k++)
-        if (pickup_log[k].timer > 0) return 0;
+        if (pickup_log[k].live) return 0;
     return 1;
 }
 
@@ -282,7 +279,7 @@ static void hud_draw_log_text(RenderContext *ctx) {
 
     hud_log_count = 0;
     for (k = 0; k < PICKUP_MSG_COUNT; k++)
-        if (pickup_log[k].timer > 0) hud_log_wrap(pickup_log[k].msg);
+        if (pickup_log[k].live) hud_log_wrap(pickup_log[k].msg);
 
     for (k = 0; k < hud_log_count; k++)
         ctx->next_packet = FntSort(&ot[HUD_OT_TEXT], ctx->next_packet,

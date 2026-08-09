@@ -96,12 +96,14 @@ int player_ammo_total(void);
                                    one cylinder's worth (see GRAVEOLVER_CAPACITY) */
 #define GRAVEOLVER_CAPACITY  6  /* rounds the Grave-olver cylinder holds at once */
 
-#define PICKUP_MSG_DURATION 120  /* frames (~2 seconds at 60fps) */
 #define PICKUP_MSG_COUNT    3
 
+/* Log entries never time out: a posted line stays on screen until three newer
+   lines have pushed it off the top (or a load/new game clears the log). `live`
+   is just "this slot holds a message", not a countdown. */
 typedef struct {
     char msg[64];
-    int  timer;
+    int  live;
 } PickupEntry;
 
 extern PickupEntry pickup_log[PICKUP_MSG_COUNT];

@@ -362,7 +362,7 @@ void door_update(void) {
             const char *msg = "Used Front Door Key";
             while (msg[i] && i < 63) { pickup_log[2].msg[i] = msg[i]; i++; }
             pickup_log[2].msg[i] = '\0';
-            pickup_log[2].timer = PICKUP_MSG_DURATION;
+            pickup_log[2].live = 1;
         }
     } else if (door_state == DOOR_UNLOCKED) {
         if (o_just_pressed) {

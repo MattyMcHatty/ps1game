@@ -127,7 +127,7 @@ void reset_game(RenderContext *ctx) {
     cam_pitch = 0;           /* a puzzle camera never survives a reset */
     {
         int k;
-        for (k = 0; k < PICKUP_MSG_COUNT; k++) pickup_log[k].timer = 0;
+        for (k = 0; k < PICKUP_MSG_COUNT; k++) pickup_log[k].live = 0;
     }
     sprint_stamina  = SPRINT_STAMINA_MAX;
     sprint_cooldown = 0;
@@ -644,7 +644,6 @@ static void update_current_area(GameState area) {
     webs_update();            /* spider webs in flight (area-tagged, so free
                                  in rooms that have none) */
     player_status_update();   /* ticks the web's poison timer down */
-    hud_log_update();         /* expires log lines whether or not the HUD is up */
 }
 
 /* Draw an area's world + entities only (player overlays come separately). */
@@ -1277,21 +1276,22 @@ int main(int argc, const char **argv) {
                              (area == STATE_PIANO_ROOM && piano_puzzle_active()) ||
                              (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) ||
-                             (area == STATE_ATTIC_EXIT && exit_door_puzzle_active()) ||
-                             (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene());
-                if (!puzzle) handle_menu_open();
+                             (area == STATE_ATTIC_EXIT && exit_door_puzzle_active());
+                int cutscene = (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene());
+                if (!puzzle && !cutscene) handle_menu_open();
                 update_current_area(area);
                 draw_current_area(&ctx, area);
                 /* The HUD belongs to the player having the camera. While a
                    puzzle or cutscene owns it, the panel goes with it. */
-                if (!puzzle) {
+                if (!puzzle && !cutscene) {
                     draw_player_systems(&ctx);
                     hud_draw(&ctx);
-                } else {
+                } else if (puzzle) {
                     /* The camera is not the player's: no bars, no weapon box.
-                       The log box alone stays, and only while it has something
-                       in it — puzzles post lines the player has to read, while
-                       a boss cutscene posts nothing and so shows nothing. */
+                       The log box alone stays, because puzzles post lines the
+                       player has to read. A CUTSCENE gets nothing at all — log
+                       lines no longer expire on their own, so leaving the box up
+                       would park stale text over the Rabisu reveal and death. */
                     hud_draw_log_only(&ctx);
                 }
                 draw_debug_overlay(&ctx);

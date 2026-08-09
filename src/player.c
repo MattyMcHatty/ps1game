@@ -101,7 +101,7 @@ void show_pickup_msg(const char *item_name) {
     while (prefix[i] && i < 63)     { pickup_log[2].msg[i] = prefix[i]; i++; }
     while (item_name[j] && i < 63)  { pickup_log[2].msg[i++] = item_name[j++]; }
     pickup_log[2].msg[i] = '\0';
-    pickup_log[2].timer  = PICKUP_MSG_DURATION;
+    pickup_log[2].live   = 1;
 }
 
 /* Post a verbatim log line (no "Picked up " prefix) — used for puzzle/status
@@ -112,6 +112,6 @@ void show_pickup_msg_raw(const char *text) {
     pickup_log[1] = pickup_log[2];
     while (text[i] && i < 63) { pickup_log[2].msg[i] = text[i]; i++; }
     pickup_log[2].msg[i] = '\0';
-    pickup_log[2].timer  = PICKUP_MSG_DURATION;
+    pickup_log[2].live   = 1;
 }
 
