@@ -40,7 +40,8 @@ pick one before writing any code:
      16 KB, i.e. ~2.5 s at 11025 Hz) or that must be playable everywhere.
      Costs the remaining headroom, so count it first: see STEP 3.
 
-  B. AN EXISTING BANK — SND_BANK_BOSS if it belongs to the Rabisu's reveal.
+  B. AN EXISTING BANK — SND_BANK_BOSS if it belongs to the Rabisu's reveal,
+     SND_BANK_INTRO if it belongs to the opening sequence (title screen only).
      Free as long as the bank still fits the region (STEP 3 checks this).
 
   C. A NEW BANK — a set of effects used only in one room, swapped in on the
@@ -117,6 +118,27 @@ that; TRIMMING would, and silently.
 
 
 ##########################################################################
+ STEP 1C — DELIBERATE DEGRADATION (the "retro" grain)
+##########################################################################
+crush_wav.py is gain_wav.py's opposite number: it makes a clip WORSE on
+purpose, for the thin overdriven quality of a 90s survival-horror voice
+sample. Same in-place contract, same place in the pipeline:
+
+    py mp3_to_wav.py "My Voice.mp3" --out myvoice.wav --rate 8000
+    py crush_wav.py myvoice.wav --bits 6 --drive 2.5
+    py wav_to_vag.py myvoice.wav --rate 8000
+
+It band-limits (300-3400 Hz by default), drives into a soft clipper, then
+quantises — in that order, because quantising first and filtering after
+smooths away the very steps that make the grain audible. NINURTA.VAG is the
+worked example: 8000 Hz, 6-bit, drive 2.5.
+
+The SAMPLE RATE is not crush_wav's business — set it in mp3_to_wav.py, since
+it is also what decides the clip's SPU cost. Note that dropping to 8000 Hz is
+itself most of the effect, and it is the only part of it that saves RAM.
+
+
+##########################################################################
  STEP 2 — PUT IT ON THE DISC
 ##########################################################################
 disc.xml, inside <dir name="SND">. The disc name is 8.3 UPPERCASE and does
@@ -151,20 +173,27 @@ Run this, with your clip added to the right list:
     house=['dogbark','dogdie','zombie_2','ZOMBIEDIE','tntcl_wrth_2','tntcl_die',
            'spdr_wlk','spit','mchne']
     boss=['emerge','dmnspeak']
+    intro=['ninurta']
     p=4112
     for f in res: p+=a(f+'.vag')
     h=sum(a(f+'.vag') for f in house); b=sum(a(f+'.vag') for f in boss)
+    i=sum(a(f+'.vag') for f in intro)
     print('bank_base   0x%05X'%p, ' region', 524288-p)
     print('house', h, 'OK' if p+h<=524288 else 'OVERFLOW')
     print('boss ', b, 'OK' if p+b<=524288 else 'OVERFLOW')
-    print('spare', 524288-p-max(h,b))
+    print('intro', i, 'OK' if p+i<=524288 else 'OVERFLOW')
+    print('spare', 524288-p-max(h,b,i))
     "
 
 The lists must be kept in the SAME ORDER as the enum in sound.h, because
-sound_init() allocates in enum order. As of the Rabisu:
+sound_init() allocates in enum order. As of the opening sequence:
 
-    bank_base 0x4F5D0   region 199216   house 182656   boss 124224
+    bank_base 0x4F5D0   region 199216
+    house 182656   boss 124224   intro 22080
     spare 16560
+
+Note `spare` is sized by the LARGEST bank, so a small bank is genuinely free —
+adding SND_BANK_INTRO did not move it at all.
 
 RESIDENT costs come off `spare` AND push bank_base up, shrinking the region
 by the same amount — a resident clip is charged twice over. A banked clip is

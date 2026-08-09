@@ -25,7 +25,16 @@ typedef enum {
     STATE_ATTIC_EXIT,  /* caged attic room north of the attic stairwell's west room */
     STATE_GARDEN_STAIRS, /* caged switchback stairway behind the attic exit's door */
     STATE_GARDEN_COURTYARD, /* walled garden at the foot of the garden stairs */
+    STATE_INTRO,       /* opening sequence, between New Game and the delivery area */
 } GameState;
+
+/* The title screen's background. It is the framebuffer CLEAR colour, not a drawn
+   tile — draw_title paints only the letters over it. Lives here rather than in
+   main.c because the opening sequence fades this same colour down to black on
+   its way out of the title (src/intro.c). */
+#define TITLE_BG_R 25
+#define TITLE_BG_G  0
+#define TITLE_BG_B 29
 
 extern GameState game_state;
 
@@ -51,5 +60,12 @@ void title_init(void);
 void update_title(void);
 void draw_title(RenderContext *ctx);
 void draw_loading_screen(RenderContext *ctx);
+
+/* The HORROR word alone, at the title screen's own size and position, in an
+   arbitrary colour. The opening sequence (src/intro.c) takes the title over at
+   the moment New Game is confirmed and fades this out; the letter bitmaps and
+   the layout constants live here, so it draws through this rather than
+   duplicating them. */
+void title_draw_horror(RenderContext *ctx, uint8_t r, uint8_t g, uint8_t b);
 
 #endif

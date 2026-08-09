@@ -15,5 +15,7 @@ void cdaudio_suspend(void);   /* halt CD-DA so the drive is free for data reads 
 void cdaudio_resume(void);    /* restart CD-DA after a suspend */
 void cdaudio_stop(void);
 void cdaudio_set_volume(int left, int right);
+void cdaudio_set_mix(int level);   /* drive mixer 0-255; the stage that is audible */
+int  cdaudio_mix_full(void);       /* the 100% level for cdaudio_set_mix           */
 
 #endif

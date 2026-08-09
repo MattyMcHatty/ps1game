@@ -7,6 +7,7 @@
 #include "memcard.h"
 #include "savegame.h"
 #include "debug_opts.h"
+#include "intro.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -341,13 +342,12 @@ static void draw_press_start(RenderContext *ctx) {
 
 /* ---- Public functions ---- */
 
-void draw_title(RenderContext *ctx) {
+/* The HORROR word at its title-screen size and position. Shared by draw_title
+   (which pulses it red) and by the opening sequence, which fades it to black. */
+void title_draw_horror(RenderContext *ctx, uint8_t r, uint8_t g, uint8_t b) {
     static const LetterPtr horror[6] = {
         LETTER_H, LETTER_O, LETTER_R, LETTER_R, LETTER_O, LETTER_R,
     };
-
-    static int32_t pulse      = 0;
-    static int32_t title_flash = 0;
 
     int32_t tile_size    = 8;
     int32_t letter_width = 5 * tile_size + tile_size;   /* 48 */
@@ -356,18 +356,23 @@ void draw_title(RenderContext *ctx) {
     int32_t start_y      = 60;
     int i;
 
+    for (i = 0; i < 6; i++)
+        draw_letter(ctx, horror[i],
+                    start_x + i * letter_width, start_y,
+                    tile_size, r, g, b);
+}
+
+void draw_title(RenderContext *ctx) {
+    static int32_t pulse      = 0;
+    static int32_t title_flash = 0;
+
     pulse = (pulse + 2) & 255;
     uint8_t red = (uint8_t)(180 + ((pulse < 128) ? pulse / 2 : (255 - pulse) / 2));
 
     /* The debug level select takes over the whole screen — hide the HORROR
        title while it is open; it returns when Select backs out to PRESS START. */
-    if (!debug_menu_open) {
-        for (i = 0; i < 6; i++) {
-            draw_letter(ctx, horror[i],
-                        start_x + i * letter_width, start_y,
-                        tile_size, red, 0, 0);
-        }
-    }
+    if (!debug_menu_open)
+        title_draw_horror(ctx, red, 0, 0);
 
     if (debug_menu_open) {
         int k, rows;
@@ -520,8 +525,14 @@ void update_title(void) {
         if (back) { tmenu = TM_CLOSED; return; }
         if (confirm) {
             if (tmenu_cursor == 0) {
-                tmenu      = TM_CLOSED;             /* New Game — as before */
-                game_state = STATE_DELIVERY_AREA;
+                /* New Game runs the opening sequence first; it hands over to
+                   the delivery area itself once it finishes (or is skipped).
+                   Closing the menu here is what makes the rest of the title's
+                   text vanish immediately — draw_title stops being called on
+                   the very next frame, so nothing of it is left to fade. */
+                tmenu      = TM_CLOSED;
+                intro_start();
+                game_state = STATE_INTRO;
             } else {
                 tmenu        = TM_CARD;             /* Load Game */
                 tmenu_cursor = 0;

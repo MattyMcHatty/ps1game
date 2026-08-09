@@ -385,3 +385,21 @@ void cdaudio_stop(void) {
 void cdaudio_set_volume(int left, int right) {
     SpuSetCommonCDVolume(left & 0x7FFF, right & 0x7FFF);
 }
+
+/* Set the DRIVE mixer level directly, 0-255 with CD_MIX_FULL (128) = 100%.
+   This is the stage that actually governs how loud CD-DA comes out — see the
+   CD_MIX_* note at the top of this file for why the SPU-side
+   cdaudio_set_volume() is not the one to ramp. Used by the opening sequence to
+   fade the music down under its last block of text.
+
+   Nothing has to put the level back: cdaudio_play() re-asserts the per-track
+   level on every start, so the next room's music comes up at its own volume
+   whatever this was left at. */
+void cdaudio_set_mix(int level) {
+    if (level < 0)   level = 0;
+    if (level > 255) level = 255;
+    CdlATV mix = { (uint8_t)level, 0, (uint8_t)level, 0 };
+    CdMix(&mix);
+}
+
+int cdaudio_mix_full(void) { return CD_MIX_FULL; }

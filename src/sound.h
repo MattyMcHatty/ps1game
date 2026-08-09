@@ -120,7 +120,13 @@ typedef enum {
        the tell for the only attack that cannot be sidestepped — the parry
        window would then be pure guesswork whenever the player was mid-swing. */
     SFX_RBS_SWING  = 27,
-    SFX_COUNT      = 28,
+    SFX_NINURTA    = 28, /* BANKED (intro). The Order of Ninurta line, over the
+                            white flash that opens the game. 4.82 s at 8000 Hz,
+                            deliberately band-limited and 6-bit crushed — see
+                            sounds/crush_wav.py. Banked rather than resident
+                            because 21.6 KB does not fit the ~16 KB of resident
+                            headroom, and it only ever plays on the title. */
+    SFX_COUNT      = 29,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds. Numbered from 1
@@ -130,6 +136,15 @@ typedef enum {
 typedef enum {
     SND_BANK_HOUSE = 1,   /* the monsters — every room but the Garden Courtyard */
     SND_BANK_BOSS  = 2,   /* the Rabisu's reveal — the Garden Courtyard only     */
+    SND_BANK_INTRO = 3,   /* the opening sequence's voice line. Loaded by
+                             intro_start() and gone by the time any room is
+                             entered: every path out of the intro reaches
+                             main.c's title-exit hook, which asks for the house
+                             bank back. Safe to swap in from the title because
+                             nothing is playing there yet — this is the one bank
+                             load that is NOT behind a door transition, and it
+                             is legal for the same reason those are: the drive
+                             is idle. */
 } SoundBank;
 
 void sound_init(void);

@@ -71,6 +71,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   ghit.tim             8       896    64    16    16    64   0,510
   spdr_rst.tim         8       320   128   128   128   128   256,492  <-- Voff>=128
   spdr_wk.tim          8       384   128   128   128   128   256,493  <-- Voff>=128
+  mansion.tim          8       448   128   128   128   128   256,495  <-- Voff>=128
   dbl_dr_hlf.tim       8       512   128    64   128   128   0,487  <-- Voff>=128
   inr_dbl_dr_half.tim  8       576   128    64   128   128   0,502  <-- Voff>=128
   cppr_pt.tim          8       640   128    32    32   128   0,505  <-- Voff>=128
@@ -152,6 +153,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=494  x[256,512)  mgn_ky_stn.tim
   y=494  x[0,16)  stove.tim
   y=495  x[0,16)  din_cl.tim
+  y=495  x[256,512)  mansion.tim
   y=496  x[0,16)  inr_dbl_dr.tim
   y=497  x[0,16)  wd_dr_crk.tim
   y=498  x[0,256)  zombie_sleep.tim

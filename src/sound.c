@@ -60,6 +60,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\EMERGE.VAG;1",
     "\\SND\\DMNSPEK.VAG;1",
     NULL,                       /* SFX_RBS_SWING: an alias, not a file         */
+    "\\SND\\NINURTA.VAG;1",
 };
 
 /* Which bank each effect belongs to. SND_RESIDENT is spelled as a third value
@@ -103,6 +104,7 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_EMERGE]     = SND_BANK_BOSS,
     [SFX_DMNSPEAK]   = SND_BANK_BOSS,
     [SFX_RBS_SWING]  = SND_RESIDENT,   /* aliases a resident, so: resident      */
+    [SFX_NINURTA]    = SND_BANK_INTRO, /* title screen only; see sound.h        */
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -128,6 +130,7 @@ static int sfx_channel(SfxID id) {
     if (id == SFX_EXPLODE)     return 21;
     if (id == SFX_BOOM)        return 22;
     if (id == SFX_RBS_SWING)   return 23;   /* clear of SFX_SWING's pool slot */
+    if (id == SFX_NINURTA)     return 9;    /* 4.8 s, and the intro's only sound */
     /* SFX_MCHNE is long (2.8 s) but stays in the one-shot pool on purpose: it
        only ever plays during the piano puzzle, which owns the screen in a room
        with no enemies, and the two other ids that share its slot (AXEHIT,
@@ -242,7 +245,14 @@ void sound_init(void) {
        (199 KB). The house bank uses 178 KB of it and the boss bank 121 KB. */
     bank_base  = next_spu_addr;
     bank_bytes = SPU_RAM_END - bank_base;
-    load_bank(SND_BANK_HOUSE);
+
+    /* The INTRO bank, not the house one, because the title screen is where the
+       game starts and the opening sequence's voice is the first thing that has
+       to be ready. Every route out of the title asks for the bank it actually
+       needs — main.c's title-exit hook does it for the delivery area, and
+       STATE_LOADING does it for a Load Game or a debug level-select jump — so
+       nothing reaches a room with this one still in. */
+    load_bank(SND_BANK_INTRO);
 }
 
 void sound_play(SfxID id) {

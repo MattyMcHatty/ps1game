@@ -130,6 +130,11 @@
                 <file name="EXPLODE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\explode.vag"/>
                 <file name="EMERGE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\emerge.vag"/>
                 <file name="DMNSPEK.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dmnspeak.vag"/>
+                <!-- SND_BANK_INTRO, a bank of one: the Order of Ninurta line
+                     over the opening sequence's white flash. Banked because
+                     21.6 KB will not fit the resident headroom, and it is only
+                     ever played on the title screen. -->
+                <file name="NINURTA.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\ninurta.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -264,6 +269,13 @@
                      offset table in src/delivery_area.c. -->
                 <file name="TREESDL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\trees_dl.tim"/>
                 <file name="CHNLNKDL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\chnlnk_dl.tim"/>
+
+                <!-- Opening sequence (src/intro.c): the mansion still that fades
+                     in behind the last block of text. Uploaded once at startup
+                     into the free 128x128 8bpp slot at x[448,512) y[128,256) —
+                     Voff 128, so the intro resets the texture window before
+                     drawing it (see door_anim.c for the same). -->
+                <file name="MANSION.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\mansion.tim"/>
             </dir>
         </directory_tree>
     </track>

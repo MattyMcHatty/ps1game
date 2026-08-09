@@ -70,15 +70,19 @@
 #include "fatdoor.h"
 #include "door_anim.h"
 #include "stair_anim.h"
+#include "intro.h"
 
-/* Title-screen background. It is the framebuffer CLEAR colour, not a drawn
-   tile: draw_title paints only the letters over it. Gameplay and the game-over
-   screen both overwrite the clear colour (black / red), so anything that
-   returns to the title has to put this back — see the STATE_TITLE entry hook at
-   the bottom of the main loop. */
-#define TITLE_BG_R 25
-#define TITLE_BG_G 0
-#define TITLE_BG_B 29
+/* Title-screen background (TITLE_BG_* live in title.h). It is the framebuffer
+   CLEAR colour, not a drawn tile: draw_title paints only the letters over it.
+   Gameplay and the game-over screen both overwrite the clear colour (black /
+   red), so anything that returns to the title has to put this back — see the
+   STATE_TITLE entry hook at the bottom of the main loop. */
+
+/* The front end: the title screen and the opening sequence that follows New
+   Game. Both are "not in the world yet" — the hooks at the bottom of the main
+   loop start the music and build the first room on the way OUT of this pair,
+   not on the title -> intro step in the middle of it. */
+#define IS_FRONTEND(s) ((s) == STATE_TITLE || (s) == STATE_INTRO)
 
 GameState game_state   = STATE_TITLE;
 GameState current_area = STATE_DELIVERY_AREA;  /* last playable area; menu returns here */
@@ -185,18 +189,25 @@ static void load_area_geometry(GameState area) {
 
 /* ---- Shared per-frame helpers, used by every playable area ---- */
 
+/* Start's edge state for the inventory menu. Initialised "held" so a press left
+   over from the front end is swallowed rather than opening the menu on the
+   first frame of play. handle_menu_open_arm() re-asserts that: the opening
+   sequence is skipped WITH Start, so the button is still down when the Delivery
+   Area comes up. */
+static int menu_start_prev = 1;
+static void handle_menu_open_arm(void) { menu_start_prev = 1; }
+
 /* Open the inventory menu on a fresh Start press, remembering the area. */
 static void handle_menu_open(void) {
     if (!pad_buff_len[0]) return;
     PadResponse *pad = (PadResponse *)pad_buff[0];
-    static int start_prev = 1; /* held on the first frame swallows the title-screen press */
     int start_held = (~pad->btn & PAD_START) ? 1 : 0;
-    if (start_held && !start_prev) {
+    if (start_held && !menu_start_prev) {
         current_area = game_state;
         menu_open();
         game_state = STATE_MENU;
     }
-    start_prev = start_held;
+    menu_start_prev = start_held;
 }
 
 /* Advance one area: player movement + the area's own geometry/entities,
@@ -844,6 +855,7 @@ int main(int argc, const char **argv) {
     fatdoors_init();
     tentacles_load_assets();   /* tentacle enemy sprites (resident) */
     tentacles_init();          /* conservatory + attic exit tentacles */
+    intro_load_assets();       /* opening sequence's mansion still (texture) */
     door_anim_load_assets();   /* level-transition door panel (texture) */
     stair_anim_load_assets();  /* conservatory<->2F stair-climb transition (upstairs tex) */
     collision_init();
@@ -897,6 +909,17 @@ int main(int argc, const char **argv) {
         if (game_state == STATE_TITLE) {
             update_title();
             draw_title(&ctx);
+        } else if (game_state == STATE_INTRO) {
+            /* Opening sequence (src/intro.c). It owns the clear colour for its
+               whole run — the title's purple fading to black — and stops the
+               music itself before it finishes, because the hook below reads the
+               Delivery Area's mesh off the disc the moment we leave here. */
+            intro_update();
+            intro_draw(&ctx);
+            if (intro_finished()) {
+                handle_menu_open_arm();   /* Start may still be down from a skip */
+                game_state = STATE_DELIVERY_AREA;
+            }
         } else if (game_state == STATE_MENU) {
             /* The area keeps running in the background (enemies move, gravity
                applies); update_camera and weapon input self-disable while in
@@ -1312,7 +1335,7 @@ int main(int argc, const char **argv) {
         /* CD-DA music: start once when leaving the title for gameplay, stop
            when returning to the title. In-game area transitions do their CD work
            inside STATE_LOADING, which suspends playback around it. */
-        if (prev_state == STATE_TITLE && game_state != STATE_TITLE) {
+        if (IS_FRONTEND(prev_state) && !IS_FRONTEND(game_state)) {
             if (game_state == STATE_DELIVERY_AREA) {
                 /* This path enters delivery directly (no STATE_LOADING pass), so
                    everything that branch would have done has to happen here.
@@ -1369,8 +1392,15 @@ int main(int argc, const char **argv) {
             }
             cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
         }
-        if (prev_state != STATE_TITLE && game_state == STATE_TITLE) {
+        if (!IS_FRONTEND(prev_state) && game_state == STATE_TITLE) {
             cdaudio_stop();
+            /* Put the opening sequence's voice back in the shared SPU region,
+               the way it was at boot. Doing it HERE — while the player is
+               looking at the title with the drive idle — is what keeps the
+               white flash instant on New Game: intro_start()'s own request is
+               then always a no-op. (The read is safe because cdaudio_stop above
+               has just freed the drive.) */
+            sound_bank_select(SND_BANK_INTRO);
             /* Put the title's purple back. The screen we are coming from owns
                the clear colour and left its own in place — gameplay's black,
                or the game-over screen's red — and draw_title paints only the

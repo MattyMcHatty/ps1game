@@ -102,6 +102,7 @@ add_executable(horror_game
     src/world.c
     src/fatdoor.c
     src/door_anim.c
+    src/intro.c
     src/debug_opts.c
 )
 
