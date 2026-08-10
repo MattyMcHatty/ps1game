@@ -1482,7 +1482,7 @@ int main(int argc, const char **argv) {
             /* Put the title's purple back. The screen we are coming from owns
                the clear colour and left its own in place — gameplay's black,
                or the game-over screen's red — and draw_title paints only the
-               HORROR letters, so without this the title comes up in whatever
+               title letters, so without this the title comes up in whatever
                colour the last screen happened to be using. Both buffers, since
                either may be the next one drawn into. */
             setRGB0(&ctx.buffers[0].draw_env, TITLE_BG_R, TITLE_BG_G, TITLE_BG_B);

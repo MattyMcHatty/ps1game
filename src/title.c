@@ -50,6 +50,17 @@ static SaveSlotInfo tmenu_slots[SAVE_MAX_SLOTS];
 static int tmenu_slot_count = 0;
 static int load_list_fnt    = -1;            /* wider stream for save titles */
 
+/* The menu sits in the band under the title stack (which ends at y=133). Its
+   font window is 22 characters of 8x16 glyphs starting at TMENU_X, so its
+   centre line is TMENU_X + 88 = 160 — the middle of the screen. FntPrint is
+   left-aligned and the window cannot move per state, so each line is centred
+   by padding it with leading spaces; that only buys 8px steps, hence the odd
+   half-character offsets noted against the strings below. */
+#define TMENU_X          80
+#define TMENU_Y         144
+#define TMENU_ROW        16   /* 8x16 font: one printed line */
+#define TMENU_PROMPT_X  100   /* centres the 15-char button prompt */
+
 static const char *const level_names[] = {
     "DELIVERY AREA",
     "KITCHEN DINING",
@@ -232,6 +243,26 @@ static const uint8_t LETTER_N[7][5] = {
     {1,0,0,0,1},
 };
 
+static const uint8_t LETTER_F[7][5] = {
+    {1,1,1,1,1},
+    {1,0,0,0,0},
+    {1,0,0,0,0},
+    {1,1,1,1,0},
+    {1,0,0,0,0},
+    {1,0,0,0,0},
+    {1,0,0,0,0},
+};
+
+static const uint8_t LETTER_U[7][5] = {
+    {1,0,0,0,1},
+    {1,0,0,0,1},
+    {1,0,0,0,1},
+    {1,0,0,0,1},
+    {1,0,0,0,1},
+    {1,0,0,0,1},
+    {0,1,1,1,0},
+};
+
 static const uint8_t LETTER_G[7][5] = {
     {0,1,1,1,1},
     {1,0,0,0,0},
@@ -297,6 +328,8 @@ static LetterPtr char_to_letter(char c) {
         case 'I': return LETTER_I;
         case 'N': return LETTER_N;
         case 'G': return LETTER_G;
+        case 'F': return LETTER_F;
+        case 'U': return LETTER_U;
         case '.': return LETTER_DOT;
         default:  return LETTER_SPACE;
     }
@@ -326,11 +359,14 @@ static void draw_press_start(RenderContext *ctx) {
         LETTER_S, LETTER_T, LETTER_A, LETTER_R, LETTER_T,
     };
 
-    int32_t tile_size    = 4;
-    int32_t letter_width = 5 * tile_size + tile_size;   /* 24 */
-    int32_t total_width  = letter_width * 11;            /* 264 */
+    /* Well under the title's tile size: this is the prompt, not the name of the
+       game. It sits in the same band the New Game / Load Game menu takes over
+       (see TMENU_Y), so pressing Start does not shift the screen around. */
+    int32_t tile_size    = 2;
+    int32_t letter_width = 5 * tile_size + tile_size;   /* 12  */
+    int32_t total_width  = letter_width * 11;            /* 132 */
     int32_t start_x      = (SCREEN_XRES - total_width) / 2;
-    int32_t start_y      = 165;
+    int32_t start_y      = 152;
     int i;
 
     for (i = 0; i < 11; i++) {
@@ -342,24 +378,32 @@ static void draw_press_start(RenderContext *ctx) {
 
 /* ---- Public functions ---- */
 
-/* The HORROR word at its title-screen size and position. Shared by draw_title
-   (which pulses it red) and by the opening sequence, which fades it to black. */
-void title_draw_horror(RenderContext *ctx, uint8_t r, uint8_t g, uint8_t b) {
-    static const LetterPtr horror[6] = {
-        LETTER_H, LETTER_O, LETTER_R, LETTER_R, LETTER_O, LETTER_R,
-    };
+/* The game's title at its title-screen size and position. Shared by draw_title
+   (which pulses it red) and by the opening sequence, which fades it to black.
 
-    int32_t tile_size    = 8;
-    int32_t letter_width = 5 * tile_size + tile_size;   /* 48 */
-    int32_t total_width  = letter_width * 6;             /* 288 */
-    int32_t start_x      = (SCREEN_XRES - total_width) / 2;
-    int32_t start_y      = 60;
-    int i;
+   One word per line, so it is the seven letters of NINURTA — not all sixteen
+   characters — that have to fit across. A cell costs 6 * tile_size wide and a
+   line 8 * tile_size tall (7 glyph rows + a blank row between lines), giving
+   7 * 6 * 5 = 210 wide and 3 * 8 * 5 - 5 = 115 tall at this size. The stack
+   ends at y=133, which is what leaves the band below it free for the menu. */
+static const char *const title_lines[3] = { "ORDER", "OF", "NINURTA" };
 
-    for (i = 0; i < 6; i++)
-        draw_letter(ctx, horror[i],
-                    start_x + i * letter_width, start_y,
-                    tile_size, r, g, b);
+void title_draw_logo(RenderContext *ctx, uint8_t r, uint8_t g, uint8_t b) {
+    int32_t tile_size    = 5;
+    int32_t letter_width = 5 * tile_size + tile_size;   /* 30 */
+    int32_t line_step    = 7 * tile_size + tile_size;   /* 40 */
+    int32_t start_y      = 18;                          /* stack runs 18..133 */
+    int i, len;
+
+    /* Each line is centred on its own width, so the block reads as centred
+       however the words are later reworded. */
+    for (i = 0; i < 3; i++) {
+        for (len = 0; title_lines[i][len]; len++) ;
+        draw_title_string(ctx, title_lines[i],
+                          (SCREEN_XRES - len * letter_width) / 2,
+                          start_y + i * line_step,
+                          tile_size, r, g, b);
+    }
 }
 
 void draw_title(RenderContext *ctx) {
@@ -369,10 +413,10 @@ void draw_title(RenderContext *ctx) {
     pulse = (pulse + 2) & 255;
     uint8_t red = (uint8_t)(180 + ((pulse < 128) ? pulse / 2 : (255 - pulse) / 2));
 
-    /* The debug level select takes over the whole screen — hide the HORROR
-       title while it is open; it returns when Select backs out to PRESS START. */
+    /* The debug level select takes over the whole screen — hide the title
+       while it is open; it returns when Select backs out to PRESS START. */
     if (!debug_menu_open)
-        title_draw_horror(ctx, red, 0, 0);
+        title_draw_logo(ctx, red, 0, 0);
 
     if (debug_menu_open) {
         int k, rows;
@@ -407,20 +451,27 @@ void draw_title(RenderContext *ctx) {
         btn_prompt_draw(ctx, 8, 8 + (2 + rows + 1) * 8,
                         BTN_CROSS ":LOAD/TOGGLE  SEL:BACK", 1);
     } else if (tmenu == TM_MAIN) {
-        FntPrint(level_select_fnt, "%s NEW GAME\n%s LOAD GAME\n",
+        /* 10 characters wide; 5 spaces put them at x=120..200, dead centre. */
+        FntPrint(level_select_fnt, "     %s NEW GAME\n     %s LOAD GAME\n",
                  tmenu_cursor == 0 ? "*" : " ",
                  tmenu_cursor == 1 ? "*" : " ");
         FntFlush(level_select_fnt);
-        btn_prompt_draw(ctx, 96, 176, BTN_CIRCLE ":SELECT " BTN_CROSS ":BACK", 1);
+        btn_prompt_draw(ctx, TMENU_PROMPT_X, TMENU_Y + 3 * TMENU_ROW,
+                        BTN_CIRCLE ":SELECT " BTN_CROSS ":BACK", 1);
     } else if (tmenu == TM_CARD) {
-        FntPrint(level_select_fnt, "LOAD GAME\n\n");
-        FntPrint(level_select_fnt, "%s MEMORY CARD 1\n%s MEMORY CARD 2\n",
+        /* Heading is 9 wide and the card lines 15, so they centre at 5 and 2
+           spaces respectively (each a half-character shy of exact). */
+        FntPrint(level_select_fnt, "     LOAD GAME\n\n");
+        FntPrint(level_select_fnt, "  %s MEMORY CARD 1\n  %s MEMORY CARD 2\n",
                  tmenu_cursor == 0 ? "*" : " ",
                  tmenu_cursor == 1 ? "*" : " ");
+        /* The error line's length varies, so it takes a fixed indent rather
+           than a centring pad. It replaces the blank row the prompt sat under. */
         if (tmenu_msg)
-            FntPrint(level_select_fnt, "\n%s\n", tmenu_msg);
+            FntPrint(level_select_fnt, "   %s\n", tmenu_msg);
         FntFlush(level_select_fnt);
-        btn_prompt_draw(ctx, 96, 176, BTN_CIRCLE ":SELECT " BTN_CROSS ":BACK", 1);
+        btn_prompt_draw(ctx, TMENU_PROMPT_X, TMENU_Y + 5 * TMENU_ROW,
+                        BTN_CIRCLE ":SELECT " BTN_CROSS ":BACK", 1);
     } else if (tmenu == TM_FILE) {
         /* Wider window: save titles run up to 32 characters. Scroll a 10-entry
            window so a full card (15 saves) stays reachable. */
@@ -443,8 +494,10 @@ void draw_title(RenderContext *ctx) {
 }
 
 void title_init(void) {
-    /* Font window for the level-select list (8x16 glyphs), below the title. */
-    level_select_fnt = FntOpen(96, 120, 160, 96, 0, 256);
+    /* Font window for the start menu (8x16 glyphs), in the band below the
+       title stack — see the TMENU_* notes above. 176px is 22 characters, wide
+       enough for the memory-card lines and the longest error message. */
+    level_select_fnt = FntOpen(TMENU_X, TMENU_Y, 176, 96, 0, 256);
     /* Wider window for the save-file list (32-char titles + cursor). */
     load_list_fnt = FntOpen(28, 118, 264, 112, 0, 512);
     /* Debug menu's LEFT column only — 128px is 16 characters, and "* MASTER

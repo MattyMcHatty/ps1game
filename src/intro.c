@@ -17,12 +17,12 @@
    counter, `t`, with the phase boundaries below computed from it.
 
      t = 0                 the title's menu text has already vanished (main.c
-                           simply stops calling draw_title), leaving HORROR over
-                           the purple background. The screen flashes white and
-                           the Order of Ninurta line plays
-     .. F_FLASH_HOLD       HORROR sits under the burning-off flash
+                           simply stops calling draw_title), leaving the title
+                           over the purple background. The screen flashes white
+                           and the Order of Ninurta line plays
+     .. F_FLASH_HOLD       the title sits under the burning-off flash
      .. F_VOICE            the line plays out; then the music starts
-     .. F_TITLE_FADE       HORROR and the background fade together to black
+     .. F_TITLE_FADE       the title and background fade together to black
      .. + F_TITLE_HOLD     black
      T_B1 ..               block 1: three lines fade in one at a time, hold,
                            fade out together
@@ -53,7 +53,7 @@
 #define F_FLASH_DECAY     26   /* frames the wash burns off over                */
 #define F_VOICE          300   /* 5.0s: the Ninurta line (4.82s) plays out over
                                   the held title, then the music comes in       */
-#define F_TITLE_FADE     180   /* 3.0s HORROR + background -> black             */
+#define F_TITLE_FADE     180   /* 3.0s title + background -> black              */
 #define F_TITLE_HOLD      36   /* 0.6s of black before the first line           */
 
 /* The two WAITS — how long a line sits before the next one starts, and how long
@@ -121,7 +121,7 @@
 
 /* OT buckets. Higher index draws first, so: window reset, then the picture,
    then the text over it — and the opening flash last of all, over everything
-   including the HORROR letters (which title.c draws at index 1). */
+   including the title letters (which title.c draws at index 1). */
 #define OT_FLASH           0
 #define OT_TEXT          100
 #define OT_IMAGE         200
@@ -448,9 +448,9 @@ void intro_draw(RenderContext *ctx) {
         setRGB0(&ctx->buffers[0].draw_env, r, g, b);
         setRGB0(&ctx->buffers[1].draw_env, r, g, b);
 
-        /* HORROR fades with it. No pulse — it is on its way out. */
+        /* The title fades with it. No pulse — it is on its way out. */
         if (ft < F_TITLE_FADE)
-            title_draw_horror(ctx, (uint8_t)(220 * k / F_TITLE_FADE), 0, 0);
+            title_draw_logo(ctx, (uint8_t)(220 * k / F_TITLE_FADE), 0, 0);
     }
 
     /* The opening white flash, over everything. Modelled on the Grave-olver's

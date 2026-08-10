@@ -61,11 +61,11 @@ void update_title(void);
 void draw_title(RenderContext *ctx);
 void draw_loading_screen(RenderContext *ctx);
 
-/* The HORROR word alone, at the title screen's own size and position, in an
+/* The game's title alone, at the title screen's own size and position, in an
    arbitrary colour. The opening sequence (src/intro.c) takes the title over at
    the moment New Game is confirmed and fades this out; the letter bitmaps and
    the layout constants live here, so it draws through this rather than
    duplicating them. */
-void title_draw_horror(RenderContext *ctx, uint8_t r, uint8_t g, uint8_t b);
+void title_draw_logo(RenderContext *ctx, uint8_t r, uint8_t g, uint8_t b);
 
 #endif
