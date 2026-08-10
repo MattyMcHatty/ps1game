@@ -802,6 +802,26 @@ static void draw_debug_overlay(RenderContext *ctx) {
     }
 }
 
+/* Put the red LOADING screen on the television NOW, part-way through a frame,
+   instead of at the bottom of it.
+
+   A frame's drawing is not displayed until the flip at the END of the loop, so
+   anything that blocks inside a frame — a title-screen Load Game reading a room
+   off the disc — leaves the PREVIOUS frame up for the whole wait. Two draws and
+   two flips fill BOTH framebuffers, so whichever one is being displayed holds
+   the loading screen before the reads begin; it is the same trick, for the same
+   reason, as the pair of flips main() does at boot. The third draw is for the
+   frame we are in the middle of: without it the loop's own flip at the bottom
+   would put an empty buffer up and the screen would blink to the clear colour
+   mid-load. */
+static void show_loading_screen_now(RenderContext *ctx) {
+    draw_loading_screen(ctx);
+    flip_buffers(ctx);
+    draw_loading_screen(ctx);
+    flip_buffers(ctx);
+    draw_loading_screen(ctx);
+}
+
 /* Game-over / restart screen (area-agnostic). */
 static void draw_lose_screen(RenderContext *ctx) {
     if (flash_timer > 0) {
@@ -925,7 +945,23 @@ int main(int argc, const char **argv) {
 
         if (game_state == STATE_TITLE) {
             update_title();
-            draw_title(&ctx);
+            /* update_title may have routed us OUT of the title on this very
+               frame — a Load Game, or a debug level-select jump. Both are about
+               to block for seconds building the saved room, either in the
+               STATE_LOADING branch on the next frame or in the frontend hook at
+               the bottom of THIS one, and neither of them flips until it has
+               finished. This is therefore the last chance to put anything on
+               screen before the wait, so the title's own draw is REPLACED by the
+               loading screen rather than followed by it — otherwise the player
+               sits looking at a title with its menu already gone (which is
+               exactly what they were).
+               New Game is deliberately not included: it goes to STATE_INTRO,
+               which opens on a white flash and reads nothing off the disc. */
+            if (game_state == STATE_TITLE)
+                draw_title(&ctx);
+            else if (game_state == STATE_LOADING ||
+                     game_state == STATE_DELIVERY_AREA)
+                show_loading_screen_now(&ctx);
         } else if (game_state == STATE_INTRO) {
             /* Opening sequence (src/intro.c). It owns the clear colour for its
                whole run — the title's purple fading to black — and stops the
