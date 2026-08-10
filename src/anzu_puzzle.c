@@ -90,13 +90,22 @@ static const int8_t GRID[AZ_GRID_ROWS][AZ_GRID_COLS] = {
 /* ---- Board layout (320x240) -----------------------------------------------
    Three boxes down each side, clear of the frame: the frame's panels project to
    screen x 80..242, so the left column ends at 60 and the right starts at 260.
-   The bottom row stops at y=200, above the control prompt at 206/216. */
+   The rows are pinned by their BOTTOM edge, not their top: at the authored
+   Y0=24/DY=62 the bottom row ended at y=200, which cleared the control prompt at
+   206/216 but ran under the HUD log box, which starts at y=191 and spans
+   x 183..315 — over the right column. The bottom row now ends at 182, leaving
+   room for the 4px the selection cursor draws outside the box.
+
+   Raising the bottom row that far pushed the top row up against the ceiling, so
+   the inter-box gap was halved (10 -> 5, i.e. DY 62 -> 57) and Y0 set so the
+   bottom row stays at 182: rows land at 16/73/130 and the slack comes back at
+   the top instead. */
 #define BOX_W        52
 #define BOX_H        52
 #define BOX_L_X       8
 #define BOX_R_X     260
-#define BOX_ROW_Y0   24
-#define BOX_ROW_DY   62
+#define BOX_ROW_Y0   16
+#define BOX_ROW_DY   57
 #define BOX_PAD       4   /* inset of the tile art within its box */
 
 /* OT layers — inside the menu-reserved range (< SCENE_OT_MIN) so the board

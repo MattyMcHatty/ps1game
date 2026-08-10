@@ -44,9 +44,13 @@ extern volatile size_t  pad_buff_len[2];
 #define BOX_X                 244
 #define BOX_W                  56
 #define BOX_H                  56
-#define BOX_A_Y                46
-#define BOX_B_Y               110
-#define COOK_Y                174
+/* The column is lifted 20px from its authored position: at COOK_Y 174 the cook
+   button's bottom edge (174+28=202) ran under the HUD log box, which starts at
+   y=191 and spans x 183..315 — the same columns this board uses. The lift also
+   has to clear the 4px the selection cursor draws outside the box. */
+#define BOX_A_Y                26
+#define BOX_B_Y                90
+#define COOK_Y                154
 #define COOK_H                 28   /* half-height, as specified */
 #define BOX_ICON               40   /* ingredient icon inside a box */
 

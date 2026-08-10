@@ -79,13 +79,16 @@ extern volatile size_t  pad_buff_len[2];
 #define XD_MID_R   (XD_BOX_CX + XD_BOX_GAP / 2)           /* 254 */
 #define XD_COL_X   (XD_BOX_CX - BOX_W / 2)                /* 228 */
 
+/* The diamond is lifted 12px from its authored rows (46/100/154): the fixed
+   socket's bottom edge (154+44=198) ran under the HUD log box, which starts at
+   y=191 and spans x 183..315 — the columns this diamond sits in. */
 static const struct { int x, y; } BOX_XY[XD_BOX_COUNT] = {
-    /* TOP   */ { XD_COL_X,  46 },
-    /* LEFT  */ { XD_MID_L, 100 },
-    /* RIGHT */ { XD_MID_R, 100 },
+    /* TOP   */ { XD_COL_X,  34 },
+    /* LEFT  */ { XD_MID_L,  88 },
+    /* RIGHT */ { XD_MID_R,  88 },
 };
 #define XD_FIXED_X         XD_COL_X   /* the magenta stone's socket */
-#define XD_FIXED_Y              154
+#define XD_FIXED_Y              142
 
 /* Item picker panel + its grid — the same metrics as the stove puzzle's, so the
    two pickers read as one piece of UI. */
