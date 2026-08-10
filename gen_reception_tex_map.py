@@ -82,6 +82,83 @@ for p in root.find('primitives').findall('poly'):
             deg = 1
     nocull.append(deg)
 
+def _warn_duplicate_faces():
+    """Report same-facing coplanar faces that overlap — a pure z-fighting source.
+
+    The PS1 has no depth buffer, so two faces sharing a plane and facing the same
+    way flicker against each other ("criss-crossing" polys that look like they
+    clip). Back-to-back pairs (opposite facing) are fine — the backface cull
+    drops one — so only same-facing overlaps are reported.
+    """
+    from collections import defaultdict
+
+    def cross(a, b, c):
+        u = [b[i]-a[i] for i in range(3)]
+        v = [c[i]-a[i] for i in range(3)]
+        n = [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]]
+        L = sum(x*x for x in n) ** 0.5
+        return [x/L for x in n] if L > 1e-9 else None
+
+    planes = defaultdict(list)
+    for pi, p in enumerate(root.find('primitives').findall('poly')):
+        idx = [int(p.get(f'v{k}')) for k in range(4) if p.get(f'v{k}') is not None]
+        pts = [verts[i] for i in idx]
+        n = cross(*pts[:3])
+        if n is None:
+            continue
+        # Unsigned plane key, but keep the true facing so back-to-back pairs
+        # can be told apart from real duplicates.
+        key_n = n if n > [-x for x in n] else [-x for x in n]
+        facing = 1 if sum(key_n[i]*n[i] for i in range(3)) > 0 else -1
+        d = sum(key_n[i]*pts[0][i] for i in range(3))
+        # Project onto the plane so overlap is a plain 2D test.
+        ax = [1, 0, 0] if abs(key_n[0]) < 0.9 else [0, 1, 0]
+        e1 = [ax[1]*key_n[2]-ax[2]*key_n[1], ax[2]*key_n[0]-ax[0]*key_n[2],
+              ax[0]*key_n[1]-ax[1]*key_n[0]]
+        L = sum(x*x for x in e1) ** 0.5
+        e1 = [x/L for x in e1]
+        e2 = [key_n[1]*e1[2]-key_n[2]*e1[1], key_n[2]*e1[0]-key_n[0]*e1[2],
+              key_n[0]*e1[1]-key_n[1]*e1[0]]
+        flat = [(sum(q[i]*e1[i] for i in range(3)),
+                 sum(q[i]*e2[i] for i in range(3))) for q in pts]
+        # SMX quads store v0,v1,v2,v3 in strip order; the ring is v0,v1,v3,v2.
+        ring = [flat[0], flat[1], flat[3], flat[2]] if len(flat) == 4 else flat
+        planes[(round(key_n[0], 3), round(key_n[1], 3), round(key_n[2], 3),
+                round(d, 1))].append((pi, ring, facing, pts))
+
+    def tris(r):
+        return [(r[0], r[1], r[2]), (r[0], r[2], r[3])] if len(r) == 4 else [tuple(r)]
+
+    def in_tri(pt, t):
+        x, y = pt
+        den = ((t[1][1]-t[2][1])*(t[0][0]-t[2][0]) + (t[2][0]-t[1][0])*(t[0][1]-t[2][1]))
+        if abs(den) < 1e-9:
+            return False
+        a = ((t[1][1]-t[2][1])*(x-t[2][0]) + (t[2][0]-t[1][0])*(y-t[2][1])) / den
+        b = ((t[2][1]-t[0][1])*(x-t[2][0]) + (t[0][0]-t[2][0])*(y-t[2][1])) / den
+        return a > 1e-3 and b > 1e-3 and (1-a-b) > 1e-3
+
+    hits = set()
+    for lst in planes.values():
+        for i, (pi, ri, fi, pts_i) in enumerate(lst):
+            centres = [(sum(q[0] for q in t)/3, sum(q[1] for q in t)/3) for t in tris(ri)]
+            for j, (pj, rj, fj, _) in enumerate(lst):
+                if i == j or fi != fj:
+                    continue
+                if any(any(in_tri(c, t) for t in tris(rj)) for c in centres):
+                    hits.add((min(pi, pj), max(pi, pj),
+                              tuple(round(v) for v in pts_i[0])))
+    if hits:
+        print(f"WARNING: {len(hits)} same-facing coplanar overlap(s) — these "
+              f"z-fight on hardware. Delete the duplicate face in Blender:")
+        for pi, pj, at in sorted(hits):
+            print(f"    prims {pi} and {pj} share a plane through {at}")
+    else:
+        print("No same-facing coplanar overlaps.")
+
+
+_warn_duplicate_faces()
+
 inv = {v: k for k, v in NAME_TO_SLOT.items()}
 counts = {}
 for e in entries:

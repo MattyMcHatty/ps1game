@@ -564,17 +564,23 @@ static void draw_reception_smd(RenderContext *ctx) {
             gte_stsz(&sz[3]);
             if (sv[3].vx <= -1023 || sv[3].vx >= 1023 || sv[3].vy <= -1023 || sv[3].vy >= 1023) { p += stride; continue; }
             if (sz[3] == 0) { p += stride; continue; }
-            gte_avsz4();
-        } else {
-            gte_avsz3();
         }
 
-        gte_stotz(&otz);
-        /* Horizontal polys sort by their farthest corner, not their average,
-           so floors stay behind whatever stands on them (see render.h). */
-        if (poly_is_flat_y(v0, v1, v2, v3))
-            otz = is_quad ? otz_far4(sz[1], sz[2], v2_sz, sz[3])
-                          : otz_far3(sz[1], sz[2], sz[3]);
+        /* EVERY poly sorts by its farthest corner — not just the flat ones, and
+           never by the GTE average. See render.h: the average ties along a
+           floor/wall contact line, which is why flat polys were switched to the
+           far corner. Leaving VERTICAL polys on the average then broke the
+           reverse case here: the upper floor's edge ring is a band of long
+           sheared quads (the outer edge loop is cut every 3000/14 = 214 units to
+           match the wall, the inner grid every 250), so a single floor poly can
+           be 600 units deep. Sorted at its far corner it lands BEHIND the
+           ground-floor wall tucked under the balcony, whose average is nearer —
+           so that wall painted over the floor edge, and over the wooden
+           underside when viewed from below. Farthest-corner for everything is
+           the consistent choice: it keeps floors behind what stands on them and
+           keeps geometry hidden behind a floor slab from punching through it. */
+        otz = is_quad ? otz_far4(sz[1], sz[2], v2_sz, sz[3])
+                      : otz_far3(sz[1], sz[2], sz[3]);
         if (otz <= 0) { p += stride; continue; }
         otz += 40;
         if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
