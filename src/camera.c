@@ -89,7 +89,11 @@ static int32_t look_pitch = 0;
    gets a single frame of 1 when a press ends inside LOOK_HOLD_FRAMES. Once a
    press crosses that it has become a look and can never fire an interaction,
    which is what stops a look near a door from walking you through it. */
-#define LOOK_HOLD_FRAMES 10   /* ~0.17 s down and the press is a look, not a tap */
+/* The tap window has to cover a RELAXED press, not a flick: a deliberate press
+   of a pad button commonly runs 0.2-0.3 s, and anything shorter than that made
+   interacting feel like it needed a sharp jab. 20 frames (~0.33 s) takes every
+   normal press as a tap; a look is then an unmistakable hold. */
+#define LOOK_HOLD_FRAMES 20   /* ~0.33 s down and the press is a look, not a tap */
 static int circle_frames = 0; /* frames Circle has been down, capped at the
                                  threshold; -1 = press spent (see below) */
 static int tap_frame     = 0; /* 1 for the single frame a tap resolves */
