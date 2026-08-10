@@ -46,15 +46,14 @@ _Static_assert(ITEM_COLS * GRID_ROWS == MENU_ITEM_CELLS,
 #define DESC_X             191      /* COL_WEAPONS_X + WEAPON_COLS*CELL_W + 8 */
 #define DESC_Y              10
 #define DESC_W             125      /* 320 - DESC_X - 4 */
-#define DESC_H             195      /* HBAR_Y - DESC_Y - 5 */
+#define DESC_H             195      /* down to the bottom control-prompt strip */
 
 static int col_cols(int col) { return col == 0 ? ITEM_COLS : WEAPON_COLS; }
 
-/* Health bar */
-#define HBAR_X              20
-#define HBAR_Y              210
-#define HBAR_W              180
-#define HBAR_H              12
+/* Control prompt, along the bottom strip the health bar used to occupy. The
+   HUD panel carries health now, so the menu does not repeat it. */
+#define PROMPT_X            20
+#define PROMPT_Y           226
 
 /* Cursor position — col=0/1 (items/weapons), subcol=0..col_cols(col)-1, row=0-3 */
 static int cursor_col    = 0;
@@ -766,7 +765,7 @@ void menu_draw(RenderContext *ctx) {
                        CARRY_X + ICON_PADDING, CARRY_Y + ICON_PADDING);
     }
 
-    /* Control prompt, under the health bar. Only the ITEMS column can be
+    /* Control prompt along the bottom. Only the ITEMS column can be
        rearranged, so nothing is advertised over an empty cell or the WEAPONS
        column — the line appears exactly when there is a button to press. */
     if (cursor_col == 0) {
@@ -774,22 +773,6 @@ void menu_draw(RenderContext *ctx) {
         const char *prompt = 0;
         if (held_cell >= 0)            prompt = BTN_CIRCLE " Place/Swap  " BTN_CROSS " Cancel";
         else if (item_cell[cell] >= 0) prompt = BTN_CIRCLE " Move item";
-        if (prompt) btn_prompt_draw(ctx, HBAR_X, HBAR_Y + HBAR_H + 4, prompt, OT_TEXT);
+        if (prompt) btn_prompt_draw(ctx, PROMPT_X, PROMPT_Y, prompt, OT_TEXT);
     }
-
-    /* Health bar */
-    draw_rect(ctx, HBAR_X, HBAR_Y, HBAR_W, HBAR_H, 40, 0, 0, OT_BOX);
-    int fill = (HBAR_W * player_health) / MAX_HEALTH;
-    if (fill > 0) {
-        uint8_t hr, hg;
-        if (player_health > 60) {
-            hr = 0;   hg = 200;
-        } else if (player_health > 30) {
-            hr = 200; hg = 200;
-        } else {
-            hr = 220; hg = 0;
-        }
-        draw_rect(ctx, HBAR_X, HBAR_Y, fill, HBAR_H, hr, hg, 0, OT_FILL);
-    }
-    draw_outline(ctx, HBAR_X, HBAR_Y, HBAR_W, HBAR_H, 100, 100, 100, OT_FILL);
 }

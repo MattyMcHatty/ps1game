@@ -221,6 +221,40 @@ static void hud_draw_number(RenderContext *ctx, int value, int x, int y, int sca
     }
 }
 
+/* ---- Health bar colour ---------------------------------------------------
+   Green at full, through orange at half, to red as it empties, so the colour
+   alone reads as "how bad is it" without the player parsing the bar's length.
+   Two straight lerps over the fraction (0..255) rather than one, because a
+   single green->red ramp passes through a muddy khaki at the midpoint. */
+#define HP_HI_R    0
+#define HP_HI_G  200
+#define HP_HI_B   32
+#define HP_MID_R 230
+#define HP_MID_G 120
+#define HP_MID_B   0
+#define HP_LO_R  208
+#define HP_LO_G    0
+#define HP_LO_B    0
+
+static uint8_t hud_lerp8(int a, int b, int t) {   /* t 0..255 -> a..b */
+    return (uint8_t)(a + ((b - a) * t) / 255);
+}
+
+static void hud_health_colour(int32_t hp, uint8_t *r, uint8_t *g, uint8_t *b) {
+    int frac = (int)((hp * 255) / MAX_HEALTH);    /* 0 = empty, 255 = full */
+    if (frac >= 128) {
+        int t = ((frac - 128) * 255) / 127;       /* orange -> green */
+        *r = hud_lerp8(HP_MID_R, HP_HI_R,  t);
+        *g = hud_lerp8(HP_MID_G, HP_HI_G,  t);
+        *b = hud_lerp8(HP_MID_B, HP_HI_B,  t);
+    } else {
+        int t = (frac * 255) / 127;               /* red -> orange */
+        *r = hud_lerp8(HP_LO_R,  HP_MID_R, t);
+        *g = hud_lerp8(HP_LO_G,  HP_MID_G, t);
+        *b = hud_lerp8(HP_LO_B,  HP_MID_B, t);
+    }
+}
+
 /* ---- Log -----------------------------------------------------------------
    The box is 125px of usable width, i.e. 15 characters of the 8px debug font,
    and 4 lines tall. Messages are word-wrapped into that grid; when more lines
@@ -305,18 +339,22 @@ void hud_draw(RenderContext *ctx) {
         if (hp < 0) hp = 0;
         if (hp > MAX_HEALTH) hp = MAX_HEALTH;
         int hw = (int)((hp * BAR_W) / MAX_HEALTH);
-        if (hw > 0)
+        if (hw > 0) {
+            uint8_t r, g, b;
+            hud_health_colour(hp, &r, &g, &b);
             hud_rect(ctx, BAR_X, HUD_Y + HEALTH_Y, hw, BAR_H,
-                     0, 0, 200, HUD_OT_FILL);
+                     r, g, b, HUD_OT_FILL);
+        }
     }
     {
         int sw = (sprint_stamina * BAR_W) / SPRINT_STAMINA_MAX;
         if (sw > 0) {
-            /* Red while sprint is locked out — exhausted or poisoned; green
-               when it is available. (Unchanged from the old bar.) */
+            /* Red while sprint is locked out — exhausted or poisoned; blue
+               when it is available, so it never reads as a second health bar. */
             int locked = sprint_cooldown || player_poisoned();
             hud_rect(ctx, BAR_X, HUD_Y + STAMINA_Y, sw, BAR_H,
-                     locked ? 200 : 0, locked ? 0 : 200, 0, HUD_OT_FILL);
+                     locked ? 208 : 32, locked ? 0 : 96, locked ? 0 : 220,
+                     HUD_OT_FILL);
         }
     }
 
