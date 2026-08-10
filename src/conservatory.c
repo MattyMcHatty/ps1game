@@ -253,6 +253,19 @@ void conservatory_init(void) {
     concrete_props_place();   /* 1 concrete block + 3 concrete chairs */
 }
 
+/* The mesh's untextured polys are the glass panes — the only prims in
+   Conservatory.smx with no texture reference. Blender's low material alpha does
+   not survive the SMX export, so the glass is made see-through here instead:
+   the prim is flagged semi-transparent and this DR_TPAGE selects ABR=0 (50%
+   background + 50% foreground). The OT bucket is LIFO, so adding the TPAGE
+   immediately AFTER its poly puts it in FRONT of it in GPU order. */
+static void cons_glass_tpage(RenderContext *ctx, int32_t otz) {
+    DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
+    setDrawTPage(tp, 0, 0, getTPage(0, 0 /* ABR=0: 50% blend */, 0, 0));
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], tp);
+    ctx->next_packet += sizeof(DR_TPAGE);
+}
+
 static void draw_conservatory_smd(RenderContext *ctx) {
     if (!conservatory_smd) return;
 
@@ -372,9 +385,10 @@ static void draw_conservatory_smd(RenderContext *ctx) {
             addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
             ctx->next_packet += sizeof(POLY_FT4);
         } else if (is_quad) {
-            if (ctx->next_packet + sizeof(POLY_F4) > buf_end) { p += stride; continue; }
+            if (ctx->next_packet + sizeof(POLY_F4) + sizeof(DR_TPAGE) > buf_end) { p += stride; continue; }
             POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
             setPolyF4(poly);
+            setSemiTrans(poly, 1);
             setRGB0(poly, r, g, b);
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
@@ -382,6 +396,7 @@ static void draw_conservatory_smd(RenderContext *ctx) {
             poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
             addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
             ctx->next_packet += sizeof(POLY_F4);
+            cons_glass_tpage(ctx, otz);
         } else if (textured) {
             if (ctx->next_packet + sizeof(POLY_FT3) > buf_end) { p += stride; continue; }
             uint8_t *uv = p + 20;
@@ -399,15 +414,17 @@ static void draw_conservatory_smd(RenderContext *ctx) {
             addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
             ctx->next_packet += sizeof(POLY_FT3);
         } else {
-            if (ctx->next_packet + sizeof(POLY_F3) > buf_end) { p += stride; continue; }
+            if (ctx->next_packet + sizeof(POLY_F3) + sizeof(DR_TPAGE) > buf_end) { p += stride; continue; }
             POLY_F3 *poly = (POLY_F3 *)ctx->next_packet;
             setPolyF3(poly);
+            setSemiTrans(poly, 1);
             setRGB0(poly, r, g, b);
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
             poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
             addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
             ctx->next_packet += sizeof(POLY_F3);
+            cons_glass_tpage(ctx, otz);
         }
 
         p += stride;
