@@ -246,10 +246,16 @@ void stove_puzzle_update(void) {
     pz_btn_prev = btn;
 
     if (state == SP_BOARD) {
-        if (pressed & PAD_UP)   { if (board_cur > 0) board_cur--; }
-        if (pressed & PAD_DOWN) { if (board_cur < 2) board_cur++; }
-        if (pressed & PAD_CROSS)  { exit_puzzle(); return; }
+        /* Guarded so a press against either end of the three rows is silent. */
+        if ((pressed & PAD_UP)   && board_cur > 0) { board_cur--; sound_play(SFX_CURSOR); }
+        if ((pressed & PAD_DOWN) && board_cur < 2) { board_cur++; sound_play(SFX_CURSOR); }
+        if (pressed & PAD_CROSS)  { sound_play(SFX_BACK); exit_puzzle(); return; }
         if (pressed & PAD_CIRCLE) {
+            /* COOK is confirmed here whether or not the recipe is right: the
+               burner's own cue is seconds away on a success (finish_cook) and
+               there is none at all on a failure, so this blip is the only
+               acknowledgement the press gets either way. */
+            sound_play(SFX_SELECT);
             if (board_cur == 2) {
                 try_cook();
             } else {
@@ -273,12 +279,19 @@ void stove_puzzle_update(void) {
         if (pressed & PAD_LEFT)  { if (col > 0) col--; }
         if (pressed & PAD_RIGHT) { if (col < PICK_COLS - 1) col++; }
         int next = row * PICK_COLS + col;
-        if (next < MENU_ITEM_SLOTS) pick_cur = next;
+        /* Blipped off the accepted cell, not the press: the guard below rejects
+           a step into the last row's trailing cells, and the grid edges reject
+           the rest. */
+        if (next < MENU_ITEM_SLOTS && next != pick_cur) {
+            pick_cur = next;
+            sound_play(SFX_CURSOR);
+        }
 
-        if (pressed & PAD_CROSS) { state = SP_BOARD; return; }
+        if (pressed & PAD_CROSS) { sound_play(SFX_BACK); state = SP_BOARD; return; }
         if ((pressed & PAD_CIRCLE) && menu_item_held(pick_cur) && !slot_taken(pick_cur)) {
             box_item[pick_target] = pick_cur;
             state = SP_BOARD;
+            sound_play(SFX_SELECT);
         }
     }
 }

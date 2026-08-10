@@ -273,11 +273,12 @@ static void press_select(void) {
     if (slot < 0) return;
 
     if (held_tile < 0) {
-        if (slot_tile[slot] < 0) return;
+        if (slot_tile[slot] < 0) return;   /* empty slot: nothing to lift, no blip */
         held_tile = slot_tile[slot];
         held_rot  = slot_rot[slot];
         slot_tile[slot] = -1;
         slot_rot[slot]  = 0;
+        sound_play(SFX_SELECT);
         return;
     }
 
@@ -286,7 +287,11 @@ static void press_select(void) {
     slot_rot[slot]  = held_rot;
     held_tile = -1;
     held_rot  = 0;
+    /* The winning drop is silent HERE because win() answers it with the unlock
+       clunk a beat later; two cues on the one press would step on each other,
+       and the clunk is the one that means something. */
     if (is_solution()) win();
+    else               sound_play(SFX_SELECT);
 }
 
 /* ---- Reticule movement -----------------------------------------------------
@@ -373,15 +378,25 @@ void anzu_puzzle_update(void) {
     uint16_t pressed = btn & ~pz_btn_prev;
     pz_btn_prev = btn;
 
+    /* The reticule skips holes in the grid and refuses to leave it, so a press
+       at an edge moves nothing — hence the before/after compare rather than a
+       blip per press. */
+    int was_row = ret_row, was_col = ret_col;
     if (pressed & PAD_UP)    move_vert(-1);
     if (pressed & PAD_DOWN)  move_vert( 1);
     if (pressed & PAD_LEFT)  move_horz(-1);
     if (pressed & PAD_RIGHT) move_horz( 1);
+    if (ret_row != was_row || ret_col != was_col) sound_play(SFX_CURSOR);
 
-    /* Square turns the held tile a quarter turn clockwise. */
-    if ((pressed & PAD_SQUARE) && held_tile >= 0) held_rot = (int8_t)((held_rot + 1) & 3);
+    /* Square turns the held tile a quarter turn clockwise. A rotation is a
+       change to the thing being carried rather than a choice, so it takes the
+       cursor blip, not the confirm. */
+    if ((pressed & PAD_SQUARE) && held_tile >= 0) {
+        held_rot = (int8_t)((held_rot + 1) & 3);
+        sound_play(SFX_CURSOR);
+    }
 
-    if (pressed & PAD_CROSS)  { exit_puzzle(1); return; }
+    if (pressed & PAD_CROSS)  { sound_play(SFX_BACK); exit_puzzle(1); return; }
     if (pressed & PAD_CIRCLE) press_select();
 }
 

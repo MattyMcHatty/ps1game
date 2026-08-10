@@ -135,6 +135,16 @@
                      21.6 KB will not fit the resident headroom, and it is only
                      ever played on the title screen. -->
                 <file name="NINURTA.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\ninurta.vag"/>
+                <!-- The menu blips: cursor move, confirm, back out. RESIDENT,
+                     because they play on the title screen (INTRO bank in), in
+                     every room (HOUSE bank in) and in the Garden Courtyard
+                     (BOSS bank in) — there is no one bank they could live in
+                     and still be audible everywhere a menu opens. They are
+                     8000 Hz rather than the house 11025 to pay for that: 9.8 KB
+                     of the resident headroom instead of 13.3 KB. -->
+                <file name="CURSOR.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\cursor.vag"/>
+                <file name="SELECT.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\select.vag"/>
+                <file name="BACK.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\back.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

@@ -61,6 +61,9 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\DMNSPEK.VAG;1",
     NULL,                       /* SFX_RBS_SWING: an alias, not a file         */
     "\\SND\\NINURTA.VAG;1",
+    "\\SND\\CURSOR.VAG;1",
+    "\\SND\\SELECT.VAG;1",
+    "\\SND\\BACK.VAG;1",
 };
 
 /* Which bank each effect belongs to. SND_RESIDENT is spelled as a third value
@@ -105,6 +108,9 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_DMNSPEAK]   = SND_BANK_BOSS,
     [SFX_RBS_SWING]  = SND_RESIDENT,   /* aliases a resident, so: resident      */
     [SFX_NINURTA]    = SND_BANK_INTRO, /* title screen only; see sound.h        */
+    [SFX_CURSOR]     = SND_RESIDENT,   /* the menus open under every bank there */
+    [SFX_SELECT]     = SND_RESIDENT,   /* is — title, rooms, courtyard — so all */
+    [SFX_BACK]       = SND_RESIDENT,   /* three must be. See sound.h.           */
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -131,6 +137,15 @@ static int sfx_channel(SfxID id) {
     if (id == SFX_BOOM)        return 22;
     if (id == SFX_RBS_SWING)   return 23;   /* clear of SFX_SWING's pool slot */
     if (id == SFX_NINURTA)     return 9;    /* 4.8 s, and the intro's only sound */
+    /* The menu blips, one voice each out of the free 10..15. They are short
+       enough for the pool, but a menu is the one place the player fires sounds
+       back to back at speed, and in the pool a cursor run would cut the confirm
+       that ends it (BACK, at 1.23 s, would be cut by almost anything). Off the
+       pool they also stay clear of the footsteps and the weapon sounds, which
+       keep playing under the pause menu's frozen room. */
+    if (id == SFX_CURSOR)      return 10;
+    if (id == SFX_SELECT)      return 11;
+    if (id == SFX_BACK)        return 12;
     /* SFX_MCHNE is long (2.8 s) but stays in the one-shot pool on purpose: it
        only ever plays during the piano puzzle, which owns the screen in a room
        with no enemies, and the two other ids that share its slot (AXEHIT,
@@ -241,8 +256,8 @@ void sound_init(void) {
        past it to protect, and the only thing worth catching is a bank that
        overruns SPU RAM itself, which load_vag_at's limit does.
 
-       As of writing: residents end at 0x4F5D0, so the region is 0x30A30
-       (199 KB). The house bank uses 178 KB of it and the boss bank 121 KB. */
+       As of writing: residents end at 0x51C10, so the region is 0x2E3F0
+       (185 KB). The house bank uses 178 KB of it and the boss bank 121 KB. */
     bank_base  = next_spu_addr;
     bank_bytes = SPU_RAM_END - bank_base;
 

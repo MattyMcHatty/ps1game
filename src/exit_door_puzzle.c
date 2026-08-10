@@ -325,12 +325,18 @@ void exit_door_puzzle_update(void) {
        out rather than derived from a grid: the bottom socket is fixed and is
        deliberately unreachable. */
     if (state == XD_BOARD) {
+        /* The diamond's moves are mostly no-ops from the wrong socket (Up from
+           the top one, Left from the left one), so the blip is conditioned on
+           board_cur actually changing. */
+        int was_cur = board_cur;
         if (pressed & PAD_UP)    { board_cur = XD_BOX_TOP; }
         if (pressed & PAD_DOWN)  { if (board_cur == XD_BOX_TOP) board_cur = XD_BOX_LEFT; }
         if (pressed & PAD_LEFT)  { if (board_cur == XD_BOX_RIGHT) board_cur = XD_BOX_LEFT; }
         if (pressed & PAD_RIGHT) { if (board_cur == XD_BOX_LEFT)  board_cur = XD_BOX_RIGHT; }
-        if (pressed & PAD_CROSS) { exit_puzzle(); return; }
+        if (board_cur != was_cur) sound_play(SFX_CURSOR);
+        if (pressed & PAD_CROSS) { sound_play(SFX_BACK); exit_puzzle(); return; }
         if (pressed & PAD_CIRCLE) {
+            sound_play(SFX_SELECT);
             pick_target = board_cur;
             /* Open on the socket's current item, else the first slot. */
             pick_cur = box_item[board_cur] >= 0 ? box_item[board_cur] : 0;
@@ -350,16 +356,25 @@ void exit_door_puzzle_update(void) {
         if (pressed & PAD_LEFT)  { if (col > 0) col--; }
         if (pressed & PAD_RIGHT) { if (col < PICK_COLS - 1) col++; }
         int next = row * PICK_COLS + col;
-        if (next < MENU_ITEM_SLOTS) pick_cur = next;
+        /* Blipped off the accepted cell, not the press: the guard below rejects
+           a step into the last row's trailing cells, and the grid edges reject
+           the rest. */
+        if (next < MENU_ITEM_SLOTS && next != pick_cur) {
+            pick_cur = next;
+            sound_play(SFX_CURSOR);
+        }
 
-        if (pressed & PAD_CROSS) { state = XD_BOARD; return; }
+        if (pressed & PAD_CROSS) { sound_play(SFX_BACK); state = XD_BOARD; return; }
         if ((pressed & PAD_CIRCLE) && menu_item_held(pick_cur) && !slot_taken(pick_cur)) {
             box_item[pick_target] = pick_cur;
             state = XD_BOARD;
             /* There is no "confirm" control: the lock reads itself the moment
                all three sockets are filled, and stays silent unless the
-               combination is right. */
+               combination is right. The stone going into the socket takes the
+               confirm blip — except on the press that completes the
+               combination, where unlock_door's own clunk says it better. */
             if (combination_ok()) unlock_door();
+            else                  sound_play(SFX_SELECT);
         }
     }
 }

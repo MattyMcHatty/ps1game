@@ -169,7 +169,8 @@ Run this, with your clip added to the right list:
     import os
     def a(f): return (os.path.getsize(f)-48+63)&~63
     res=['swing','hurt','pickup','smash','axehit','unlock','dropen','DIE',
-         'gr_shot','gr_reload','step1','step2','slam','fireball','boom','explode']
+         'gr_shot','gr_reload','step1','step2','slam','fireball','boom','explode',
+         'cursor','select','back']
     house=['dogbark','dogdie','zombie_2','ZOMBIEDIE','tntcl_wrth_2','tntcl_die',
            'spdr_wlk','spit','mchne']
     boss=['emerge','dmnspeak']
@@ -186,11 +187,16 @@ Run this, with your clip added to the right list:
     "
 
 The lists must be kept in the SAME ORDER as the enum in sound.h, because
-sound_init() allocates in enum order. As of the opening sequence:
+sound_init() allocates in enum order. As of the menu blips:
 
-    bank_base 0x4F5D0   region 199216
+    bank_base 0x51C10   region 189424
     house 182656   boss 124224   intro 22080
-    spare 16560
+    spare 6768
+
+(Before them it was bank_base 0x4F5D0, region 199216, spare 16560. The three
+blips took 9792 of that — see STEP 6's note on why they are resident, and note
+they are 8000 Hz for exactly this reason: at the house 11025 they would have
+cost 13568 and left under 3 KB for everything after them.)
 
 Note `spare` is sized by the LARGEST bank, so a small bank is genuinely free —
 adding SND_BANK_INTRO did not move it at all.
@@ -237,7 +243,11 @@ The SPU has 24 (0..23). The scheme:
 
     0        unused
     1..8     the one-shot POOL, FIRST_VOICE + (id % 8)
-    9..15    free
+    9        SFX_NINURTA      (the intro's voice line)
+    10       SFX_CURSOR       (the menu blips: off the pool because a menu is
+    11       SFX_SELECT        where the player fires sounds back to back at
+    12       SFX_BACK          speed, and they must not cut each other)
+    13..15   free
     16       SFX_ZOMBIE       (looped ambience)
     17       SFX_TNTCL_WRTH   (looped ambience)
     18       SFX_SPDR_WLK     (HARDWARE-looped ambience)

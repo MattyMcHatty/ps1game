@@ -22,9 +22,10 @@
  *     0x01010  +---------------------------+
  *              | RESIDENT effects          |  always loaded, never moves
  *              |  ...including FIREBALL,   |
- *              |     BOOM and EXPLODE      |
- *     0x4F5D0  +---------------------------+  <- bank_base
- *              | THE BANK REGION           |  199 KB, all that is left:
+ *              |     BOOM, EXPLODE and the |
+ *              |     three menu blips      |
+ *     0x51C10  +---------------------------+  <- bank_base
+ *              | THE BANK REGION           |  185 KB, all that is left:
  *              |   HOUSE (178 KB) *or*     |  nothing follows it, so it takes
  *              |   BOSS  (121 KB)          |  the whole tail and the slack
  *     0x80000  +---------------------------+  lands in whichever bank is in
@@ -126,7 +127,26 @@ typedef enum {
                             sounds/crush_wav.py. Banked rather than resident
                             because 21.6 KB does not fit the ~16 KB of resident
                             headroom, and it only ever plays on the title. */
-    SFX_COUNT      = 29,
+    /* ---- The menu blips. RESIDENT, and they have to be: a menu opens on the
+       title screen (INTRO bank in), in every room (HOUSE bank in) and in the
+       Garden Courtyard (BOSS bank in), so any bank tag would make them silent
+       somewhere the player can still move a cursor. They are 8000 Hz rather
+       than the house standard 11025 to afford exactly that — 9.8 KB of the
+       resident headroom against 13.3 KB, leaving ~6.7 KB spare. A menu blip is
+       short and percussive and loses almost nothing to the lower rate; a longer
+       clip would not have fitted at all.
+
+       Each has a voice of its own (see sfx_channel): a menu is the one place
+       where the player generates sounds faster than anything else in the game,
+       and on shared voices a fast cursor run would chop the confirm that ends
+       it. They cost nothing to separate — voices 10..12 were free. ---- */
+    SFX_CURSOR     = 29, /* the cursor steps between options. 0.19 s          */
+    SFX_SELECT     = 30, /* an option is chosen / a screen is confirmed. 0.71 s.
+                            Suppressed where the confirm already has an outcome
+                            sound of its own in the same frame — the puzzles'
+                            UNLOCK/PICKUP/SLAM — so nothing ever layers.       */
+    SFX_BACK       = 31, /* backing out of a screen or cancelling. 1.23 s     */
+    SFX_COUNT      = 32,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds. Numbered from 1

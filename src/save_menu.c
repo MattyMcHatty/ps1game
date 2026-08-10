@@ -15,6 +15,7 @@
 #include "save_point.h"
 #include "reception.h"
 #include "garden_stairs.h"
+#include "sound.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -202,6 +203,8 @@ void save_menu_open(void) {
     sm_cursor = 0;
     sm_port   = 0;
     seed_buttons();
+    /* Only ever reached from the Circle press at a save point. */
+    sound_play(SFX_SELECT);
 }
 
 void save_menu_update(void) {
@@ -225,10 +228,15 @@ void save_menu_update(void) {
 
     switch (sm_screen) {
     case SM_CARD_SELECT:
-        if (pressed & PAD_UP)   sm_cursor = (sm_cursor + 1) & 1;
-        if (pressed & PAD_DOWN) sm_cursor = (sm_cursor + 1) & 1;
-        if (cancel || back) { close_menu(); return; }
+        if (pressed & (PAD_UP | PAD_DOWN)) {
+            sm_cursor = (sm_cursor + 1) & 1;
+            sound_play(SFX_CURSOR);
+        }
+        if (cancel || back) { sound_play(SFX_BACK); close_menu(); return; }
         if (confirm) {
+            /* The blip is on the press, not on the outcome: a missing card
+               still took the input, and the RESULT screen is what says so. */
+            sound_play(SFX_SELECT);
             sm_port = sm_cursor;
             memcard_begin();
             int present = memcard_present(sm_port);
@@ -239,13 +247,17 @@ void save_menu_update(void) {
         break;
 
     case SM_FILE_SELECT:
+        /* An empty list (CARD FULL) has nothing to move between and nothing to
+           choose, so neither the cursor nor the confirm makes a sound there. */
         if (sm_opt_count > 0) {
+            if (pressed & (PAD_UP | PAD_DOWN)) sound_play(SFX_CURSOR);
             if (pressed & PAD_UP)   sm_cursor = (sm_cursor + sm_opt_count - 1) % sm_opt_count;
             if (pressed & PAD_DOWN) sm_cursor = (sm_cursor + 1) % sm_opt_count;
         }
-        if (back)   { sm_screen = SM_CARD_SELECT; sm_cursor = sm_port; seed_buttons(); return; }
-        if (cancel) { close_menu(); return; }
+        if (back)   { sound_play(SFX_BACK); sm_screen = SM_CARD_SELECT; sm_cursor = sm_port; seed_buttons(); return; }
+        if (cancel) { sound_play(SFX_BACK); close_menu(); return; }
         if (confirm && sm_opt_count > 0) {
+            sound_play(SFX_SELECT);
             sm_target_block = sm_block[sm_cursor];
             sm_target_isnew = sm_isnew[sm_cursor];
             if (sm_target_isnew) {
@@ -259,12 +271,14 @@ void save_menu_update(void) {
         break;
 
     case SM_CONFIRM:
-        if (confirm) { sm_save_delay = 1; sm_screen = SM_SAVING; }
-        else if (back || cancel) { sm_screen = SM_FILE_SELECT; seed_buttons(); }
+        if (confirm) { sound_play(SFX_SELECT); sm_save_delay = 1; sm_screen = SM_SAVING; }
+        else if (back || cancel) { sound_play(SFX_BACK); sm_screen = SM_FILE_SELECT; seed_buttons(); }
         break;
 
     case SM_RESULT:
-        if (confirm || back || cancel) { close_menu(); return; }
+        /* The prompt is a bare "O OK", so every key that dismisses it is an
+           acknowledgement rather than a retreat — SELECT, even for Cross. */
+        if (confirm || back || cancel) { sound_play(SFX_SELECT); close_menu(); return; }
         break;
 
     default:

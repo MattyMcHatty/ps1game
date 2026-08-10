@@ -247,7 +247,11 @@ static void select_drawer(void) {
             show_pickup_msg_raw("You hear another drawer unlock");
         }
     } else if (puzzle_prog == 0) {
-        /* Nothing open yet: any wrong drawer is simply locked (stay in puzzle). */
+        /* Nothing open yet: any wrong drawer is simply locked (stay in puzzle).
+           The only branch here with no outcome sound of its own, so it takes
+           the confirm blip; every other one answers with PICKUP, UNLOCK or
+           SLAM and would only be muddied by a second cue over the top. */
+        sound_play(SFX_SELECT);
         show_pickup_msg_raw("The drawer is locked");
     } else {
         /* Past the first: a wrong drawer slams them all shut and ejects. */
@@ -299,13 +303,16 @@ void trick_drawers_update(void) {
     uint16_t pressed = btn & ~pz_btn_prev;
     pz_btn_prev = btn;
 
+    /* Already edge-guarded, so compare rather than blip per press. */
+    int was_row = ret_row, was_col = ret_col;
     if ((pressed & PAD_UP)    && ret_row > 0) ret_row--;
     if ((pressed & PAD_DOWN)  && ret_row < 4) ret_row++;
     if ((pressed & PAD_LEFT)  && ret_col > 0) ret_col--;
     if ((pressed & PAD_RIGHT) && ret_col < 3) ret_col++;
+    if (ret_row != was_row || ret_col != was_col) sound_play(SFX_CURSOR);
 
-    if (pressed & PAD_CROSS)  { exit_puzzle(0); return; }   /* leave, keep progress */
-    if (pressed & PAD_CIRCLE) { select_drawer(); }
+    if (pressed & PAD_CROSS)  { sound_play(SFX_BACK); exit_puzzle(0); return; }   /* leave, keep progress */
+    if (pressed & PAD_CIRCLE) { select_drawer(); }   /* sounds its own outcome */
 }
 
 /* Filled screen rect (2D overlay) at OT index ot_idx. */

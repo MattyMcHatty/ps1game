@@ -277,13 +277,20 @@ void piano_puzzle_update(void) {
     pz_btn_prev = btn;
 
     if (state == PZ_BOARD) {
-        if (pressed & PAD_UP)   { if (board_cur > 0) board_cur--; }
-        if (pressed & PAD_DOWN) { if (board_cur < 1) board_cur++; }
-        if (pressed & PAD_CROSS)  { exit_puzzle(); return; }
+        /* Guarded so a press against either end of the two rows is silent. */
+        if ((pressed & PAD_UP)   && board_cur > 0) { board_cur--; sound_play(SFX_CURSOR); }
+        if ((pressed & PAD_DOWN) && board_cur < 1) { board_cur++; sound_play(SFX_CURSOR); }
+        if (pressed & PAD_CROSS)  { sound_play(SFX_BACK); exit_puzzle(); return; }
         if (pressed & PAD_CIRCLE) {
             if (board_cur == 1) {
+                /* PLACE answers a success itself — try_place fires SFX_PICKUP
+                   in this very frame — so the confirm blip is only for the
+                   wrong-item branch, which otherwise gets a message and no
+                   sound at all. */
+                if (box_item != MENU_SLOT_PIANO_KEY) sound_play(SFX_SELECT);
                 try_place();
             } else {
+                sound_play(SFX_SELECT);
                 /* Open on the box's current item, else the first slot. */
                 pick_cur = box_item >= 0 ? box_item : 0;
                 state    = PZ_PICKER;
@@ -303,12 +310,19 @@ void piano_puzzle_update(void) {
         if (pressed & PAD_LEFT)  { if (col > 0) col--; }
         if (pressed & PAD_RIGHT) { if (col < PICK_COLS - 1) col++; }
         int next = row * PICK_COLS + col;
-        if (next < MENU_ITEM_SLOTS) pick_cur = next;
+        /* Blipped off the accepted cell, not the press: the guard below rejects
+           a step into the last row's trailing cells, and the grid edges reject
+           the rest. */
+        if (next < MENU_ITEM_SLOTS && next != pick_cur) {
+            pick_cur = next;
+            sound_play(SFX_CURSOR);
+        }
 
-        if (pressed & PAD_CROSS) { state = PZ_BOARD; return; }
+        if (pressed & PAD_CROSS) { sound_play(SFX_BACK); state = PZ_BOARD; return; }
         if ((pressed & PAD_CIRCLE) && menu_item_held(pick_cur)) {
             box_item = pick_cur;
             state    = PZ_BOARD;
+            sound_play(SFX_SELECT);
         }
     }
 }

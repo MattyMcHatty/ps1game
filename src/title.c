@@ -9,6 +9,7 @@
 #include "debug_opts.h"
 #include "intro.h"
 #include "door.h"
+#include "sound.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -582,10 +583,12 @@ void update_title(void) {
         if (pressed & PAD_SELECT) {
             debug_menu_open   = 1;
             debug_menu_cursor = 0;
+            sound_play(SFX_SELECT);
         } else if (pressed & PAD_START) {
             tmenu        = TM_MAIN;   /* New Game / Load Game */
             tmenu_cursor = 0;
             tmenu_msg    = 0;
+            sound_play(SFX_SELECT);
         }
         return;
     }
@@ -594,6 +597,12 @@ void update_title(void) {
         /* Up/Down moves within the active column, Left/Right switches column,
            Circle loads (levels) or flips the toggle (options), Cross backs out.
            Select still closes the menu as well — it is the key that opened it. */
+        /* One cursor blip for any move, whichever column it happens in — a
+           column switch reads as a cursor move to the player exactly as an
+           up/down step does. */
+        if (pressed & (PAD_LEFT | PAD_RIGHT | PAD_UP | PAD_DOWN))
+            sound_play(SFX_CURSOR);
+
         if (pressed & (PAD_LEFT | PAD_RIGHT))
             debug_col = (debug_col == DBG_COL_LEVELS) ? DBG_COL_OPTS : DBG_COL_LEVELS;
 
@@ -609,9 +618,12 @@ void update_title(void) {
                 debug_opt_cursor = (debug_opt_cursor + 1) % DEBUG_OPT_COUNT;
         }
 
-        if (pressed & (PAD_SELECT | PAD_CROSS))
+        if (pressed & (PAD_SELECT | PAD_CROSS)) {
             debug_menu_open = 0;
+            sound_play(SFX_BACK);
+        }
         if (pressed & PAD_CIRCLE) {
+            sound_play(SFX_SELECT);
             if (debug_col == DBG_COL_OPTS) {
                 /* Toggling leaves the menu open so several can be set in a row. */
                 debug_opts[debug_opt_cursor] = !debug_opts[debug_opt_cursor];
@@ -634,6 +646,14 @@ void update_title(void) {
        Circle = select, X = back: matches the in-game save menu's convention. */
     int confirm = (pressed & PAD_CIRCLE) ? 1 : 0;
     int back    = (pressed & PAD_CROSS)  ? 1 : 0;
+
+    /* One place for all three states' blips. SELECT fires on every confirm the
+       menu acts on, including the ones that end in an inline error (NO MEMORY
+       CARD, LOAD FAILED): the press was registered and the player needs to hear
+       that, and the message on screen is what says it did not work. */
+    if (pressed & (PAD_UP | PAD_DOWN)) sound_play(SFX_CURSOR);
+    if (back)    sound_play(SFX_BACK);
+    if (confirm) sound_play(SFX_SELECT);
 
     if (tmenu == TM_MAIN) {
         if (pressed & (PAD_UP | PAD_DOWN)) tmenu_cursor ^= 1;

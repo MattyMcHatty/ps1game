@@ -14,6 +14,7 @@
 #include "camera.h"
 #include "title.h"
 #include "btn_glyph.h"
+#include "sound.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -496,6 +497,9 @@ void menu_open(void) {
     cursor_subcol = 0;
     cursor_row    = 0;
     held_cell     = -1;   /* never re-enter the menu mid-carry */
+    /* Opening is a confirmation like any other — main.c only calls this on a
+       fresh Start press, never on a state restore. */
+    sound_play(SFX_SELECT);
     /* Anything granted or consumed away from the pickup path — a puzzle reward,
        a crate, a debug grant, ammo spent since the last look — lands in the grid
        here. */
@@ -518,6 +522,7 @@ void menu_update(void) {
 
     /* Close menu on Start — return to whichever area opened it */
     if (pressed & PAD_START) {
+        sound_play(SFX_BACK);
         game_state = current_area;
         return;
     }
@@ -529,6 +534,13 @@ void menu_update(void) {
        While carrying an item the cursor is penned into the ITEMS column: the
        WEAPONS column has nowhere to put it, so letting the reticule wander there
        would only offer a Circle that does nothing. */
+    /* Where the reticule was, so the blip below can be conditioned on it having
+       actually MOVED. Several of the steps here legitimately do nothing — Left
+       at the ITEMS column's left edge, or any column change while carrying —
+       and a blip on a press that moved nothing reads as the menu accepting
+       something it did not. */
+    int prev_col = cursor_col, prev_subcol = cursor_subcol, prev_row = cursor_row;
+
     if (pressed & PAD_LEFT) {
         if (cursor_subcol > 0) {
             cursor_subcol--;
@@ -554,15 +566,24 @@ void menu_update(void) {
         if (cursor_row > GRID_ROWS - 1) cursor_row = 0;
     }
 
+    if (cursor_col != prev_col || cursor_subcol != prev_subcol ||
+        cursor_row != prev_row)
+        sound_play(SFX_CURSOR);
+
     /* Circle lifts the item under the reticule off the grid; Circle again drops
        it into the cell the reticule is now over — empty (a move) or occupied (a
        swap). Placing back onto the source cell is the swap with itself, so it
-       cancels for free. */
+       cancels for free.
+
+       The blip goes on the branches that DO something: lifting an empty cell,
+       and Circle over the WEAPONS column, are both no-ops the player should
+       hear nothing from. */
     if ((pressed & PAD_CIRCLE) && cursor_col == 0) {
         int cell = cursor_row * ITEM_COLS + cursor_subcol;
         if (held_cell < 0) {
-            if (item_cell[cell] >= 0) held_cell = cell;
+            if (item_cell[cell] >= 0) { held_cell = cell; sound_play(SFX_SELECT); }
         } else {
+            sound_play(SFX_SELECT);
             int8_t t             = item_cell[cell];
             item_cell[cell]      = item_cell[held_cell];
             item_cell[held_cell] = t;
@@ -570,7 +591,10 @@ void menu_update(void) {
         }
     }
     /* Cross puts a carried item straight back where it came from. */
-    if ((pressed & PAD_CROSS) && held_cell >= 0) held_cell = -1;
+    if ((pressed & PAD_CROSS) && held_cell >= 0) {
+        held_cell = -1;
+        sound_play(SFX_BACK);
+    }
 }
 
 /* OT layers — all within the menu-reserved range 0..(SCENE_OT_MIN-1) so the menu
