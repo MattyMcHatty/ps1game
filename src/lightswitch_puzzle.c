@@ -172,6 +172,13 @@ static int lit_mask(void) {
 void lightswitch_place(void) {
     int i;
 
+    /* Stir in the free-running vblank counter. Walking around the room stirs the
+       LCG for RE-entries, but the FIRST entry would otherwise always deal from
+       the fixed seed; the vblank count depends on how long the player took to get
+       here, so the opening hand varies too. */
+    rng ^= (uint32_t)VSync(-1) * 2654435761u;
+    (void)ls_rand();
+
     /* Fisher-Yates over the four colours: every light gets a different one. */
     for (i = 0; i < LS_COUNT; i++) colour_of[i] = (uint8_t)i;
     for (i = LS_COUNT - 1; i > 0; i--) {
