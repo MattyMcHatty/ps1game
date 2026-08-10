@@ -32,6 +32,11 @@ void keys_update(void);
 void keys_draw(RenderContext *ctx);
 void keys_reset(void);
 
+/* Re-upload key.tim into its VRAM slot, which the copper pot time-shares and
+   streams over. Called from delivery_restore_textures() on every entry to the
+   only room that holds a key. GPU must be idle. */
+void keys_upload_texture(void);
+
 /* Tell the key sprites which texture window the room has active, so they can
    bracket around it — key.tim sits at VRAM Voff 128 and would otherwise wrap.
    Pass NULL in a room that sets no window. Mirrors demon_dogs_set_texwindow. */

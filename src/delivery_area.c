@@ -137,6 +137,11 @@ void delivery_restore_textures(void) {
     /* grss, from the Garden Stairs' clone. That page is shared with stn_stl /
        strs / bookshelf, all of whose rooms re-upload on their own entry. */
     garden_stairs_upload_grss_gs();
+    /* key.tim, which the copper pot streams over — this is the only room that
+       draws a key, and a new game after a session that reached the conservatory
+       would otherwise show the pot's texels in the key's palette. Callers that
+       own the pot re-upload it after this, so the pot still wins its slot. */
+    keys_upload_texture();
 }
 
 /* brick_wall ONLY (index 2 above). The Garden Stairs draws brick_wall but keeps

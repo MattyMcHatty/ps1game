@@ -1467,6 +1467,15 @@ int main(int argc, const char **argv) {
                 /* Delivery is entered directly, so its debug grants land here —
                    after reset_game() above, which clears the inventory. */
                 debug_opts_apply_grants();
+                /* Ownership is only known after the save/grants above, and
+                   delivery_restore_textures() has just put the key back in the
+                   slot the two share. Same rule as the STATE_LOADING branch:
+                   once the pot is owned it stays resident so the menu icon is
+                   right in every room. */
+                if (copper_pot_owned()) {
+                    DrawSync(0);
+                    copper_pot_upload_texture();
+                }
             }
             cdaudio_play(CDAUDIO_MUSIC_TRACK, 1);
         }

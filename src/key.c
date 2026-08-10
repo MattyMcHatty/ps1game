@@ -26,31 +26,35 @@ static uint16_t key_tpage = 0;
 static uint16_t key_clut  = 0;
 static uint8_t  key_u0, key_v0, key_u1, key_v1;
 
+/* Resident RAM copy of key.tim, kept for re-upload — the copper pot time-shares
+   this VRAM slot (640,128) and streams over it, so a single startup upload does
+   not survive a session that entered the conservatory. Mirrors copper_pot.c.
+   ~2KB (one sector). */
+static uint8_t  *key_buf = NULL;
+static TIM_IMAGE key_tim;
+
 void keys_init(void) {
     keys_reset();
 
     CdlFILE file;
     if (!CdSearchFile(&file, "\\KEY.TIM;1")) return;
 
-    int   sectors = (file.size + 2047) / 2048;
-    void *buf     = malloc(sectors * 2048);
-    if (!buf) return;
+    int sectors = (file.size + 2047) / 2048;
+    key_buf     = malloc(sectors * 2048);
+    if (!key_buf) return;
 
     CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
+    CdRead(sectors, (uint32_t *)key_buf, CdlModeSpeed);
     CdReadSync(0, NULL);
 
     TIM_IMAGE tim;
-    GetTimInfo((uint32_t *)buf, &tim);
+    GetTimInfo((uint32_t *)key_buf, &tim);
+    key_tim = tim;
 
-    LoadImage(tim.prect, tim.paddr);
-    DrawSync(0);
+    keys_upload_texture();
 
-    if (tim.mode & 8) {
-        LoadImage(tim.crect, tim.caddr);
-        DrawSync(0);
+    if (tim.mode & 8)
         key_clut = getClut(tim.crect->x, tim.crect->y);
-    }
 
     key_tpage = getTPage(tim.mode & 3, 0, tim.prect->x, tim.prect->y);
 
@@ -64,8 +68,22 @@ void keys_init(void) {
     key_v0 = (uint8_t)(tim.prect->y % 256);
     key_u1 = (uint8_t)(tex_w - 1);
     key_v1 = (uint8_t)(key_v0 + tex_h - 1);
+}
 
-    free(buf);
+/* Put key.tim back in its VRAM slot. Needed because the copper pot shares that
+   slot: once a session has entered the conservatory (or picked the pot up, which
+   makes main.c keep it resident for the menu icon), the key's pixels are gone
+   until this runs. A new game respawns the key but not its texture, which is why
+   it drew as the pot's texels through the key's palette — near-black with a few
+   coloured pixels along the top. Caller must have idled the GPU. */
+void keys_upload_texture(void) {
+    if (!key_buf) return;
+    LoadImage(key_tim.prect, key_tim.paddr);
+    DrawSync(0);
+    if (key_tim.mode & 8) {
+        LoadImage(key_tim.crect, key_tim.caddr);
+        DrawSync(0);
+    }
 }
 
 void keys_reset(void) {
