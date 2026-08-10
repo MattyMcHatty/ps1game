@@ -8,6 +8,7 @@
 #include "savegame.h"
 #include "debug_opts.h"
 #include "intro.h"
+#include "door.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -36,6 +37,11 @@ static int debug_fnt         = -1;   /* left column, top-left  */
 #define DBG_OPT_BOX_X   152   /* the [ ] checkbox                  */
 #define DBG_OPT_NAME_X  184   /* the label                         */
 #define DBG_OPT_TOP_Y    24   /* first row: below "OPTIONS" + blank */
+/* The footer is pinned to the bottom of the screen rather than trailing the
+   longer of the two lists, so it does not jump around as entries are added.
+   The taller column (levels: 2 header lines + LEVEL_SELECT_COUNT rows of 8px
+   from y=8) has to stay clear of it. */
+#define DBG_FOOTER_Y    224
 
 /* ---- Start menu (opened with Start): New Game / Load Game ------------------
    Load Game walks card slot -> save file, reads the chosen SaveData, stages it
@@ -50,16 +56,38 @@ static SaveSlotInfo tmenu_slots[SAVE_MAX_SLOTS];
 static int tmenu_slot_count = 0;
 static int load_list_fnt    = -1;            /* wider stream for save titles */
 
-/* The menu sits in the band under the title stack (which ends at y=133). Its
-   font window is 22 characters of 8x16 glyphs starting at TMENU_X, so its
-   centre line is TMENU_X + 88 = 160 — the middle of the screen. FntPrint is
-   left-aligned and the window cannot move per state, so each line is centred
-   by padding it with leading spaces; that only buys 8px steps, hence the odd
-   half-character offsets noted against the strings below. */
+/* The menu sits in the band under the title stack (which ends at y=133) and
+   above the corner captions (which start at y=224). The debug font is 8x8 and
+   FntPrint steps one line per 8px, so the band holds ten rows.
+
+   Its window is 22 characters wide starting at TMENU_X, giving a centre line of
+   TMENU_X + 88 = 168. FntPrint is left-aligned and the window cannot move per
+   state, so each line is centred on the SCREEN centre (160) by padding it with
+   leading spaces; that only buys 8px steps, hence the odd half-character
+   offsets noted against the strings below. */
 #define TMENU_X          80
 #define TMENU_Y         144
-#define TMENU_ROW        16   /* 8x16 font: one printed line */
-#define TMENU_PROMPT_X  100   /* centres the 15-char button prompt */
+#define TMENU_ROW         8   /* 8x8 font: one printed line */
+
+/* One prompt, one place, for all three menu states — TM_MAIN, TM_CARD and
+   TM_FILE each lay their rows out above it rather than trailing it after their
+   own last line. It is 15 characters, so x=100 centres it on 160, and it sits
+   one blank row above the captions. */
+#define TMENU_PROMPT    BTN_CIRCLE ":SELECT " BTN_CROSS ":BACK"
+#define TMENU_PROMPT_X  100
+#define TMENU_PROMPT_Y  212
+
+/* Save rows that fit between the save list's first entry (heading + blank row
+   below TMENU_Y) and the prompt. Six at the current spacing; a full card holds
+   fifteen saves, so the list scrolls. */
+#define TMENU_FILE_ROWS ((TMENU_PROMPT_Y - (TMENU_Y + 2 * TMENU_ROW)) / TMENU_ROW)
+
+/* The cursor is a dash on either side of the highlighted entry ("- NEW GAME -").
+   Both halves have a blank stand-in so an unselected row occupies exactly the
+   same cells — the whole block would otherwise shuffle sideways as the cursor
+   moves. Each row's leading pad is one character smaller than it was for the
+   old single asterisk, which keeps the block sitting where it always did. */
+#define TMENU_MARK(sel)  ((sel) ? "-" : " ")
 
 static const char *const level_names[] = {
     "DELIVERY AREA",
@@ -72,10 +100,10 @@ static const char *const level_names[] = {
     "EAST HALL",
     "LIBRARY",
     "EAST STAIRWELL",
-    "ATTIC STAIRWELL",
+    "ATC STAIRWELL",
     "ATTIC EXIT",
     "GARDEN STAIRS",
-    "GARDEN COURTYARD",
+    "GRDN COURTYARD",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -376,6 +404,27 @@ static void draw_press_start(RenderContext *ctx) {
     }
 }
 
+/* ---- Bottom-corner captions ------------------------------------------------
+   Build stamp on the left, credit on the right, both on the same baseline in
+   the 5x7 screen font (door_draw_string_2d). At 6px per cell the pair is 186 +
+   90 = 276px of the 320 available, which the 8px debug font could not manage;
+   TITLE_CAPTION_Y keeps them inside the overscan-safe area. Dim grey so they
+   read as a footnote under the pulsing logo. */
+#define TITLE_CAPTION_Y  224
+#define TITLE_CAPTION_X    8   /* also the right margin, mirrored */
+
+static const char TITLE_CAPTION_LEFT[]  = "Preview Version";
+static const char TITLE_CAPTION_RIGHT[] = "Created by @electricreload 2026";
+
+static void draw_title_captions(RenderContext *ctx) {
+    door_draw_string_2d(ctx, TITLE_CAPTION_LEFT,
+                        TITLE_CAPTION_X, TITLE_CAPTION_Y, 150, 150, 150, 1);
+    door_draw_string_2d(ctx, TITLE_CAPTION_RIGHT,
+                        SCREEN_XRES - TITLE_CAPTION_X
+                            - door_small_text_width(TITLE_CAPTION_RIGHT),
+                        TITLE_CAPTION_Y, 150, 150, 150, 1);
+}
+
 /* ---- Public functions ---- */
 
 /* The game's title at its title-screen size and position. Shared by draw_title
@@ -418,8 +467,13 @@ void draw_title(RenderContext *ctx) {
     if (!debug_menu_open)
         title_draw_logo(ctx, red, 0, 0);
 
+    /* Only the debug menu covers the screen; every menu state leaves the bottom
+       corners free now that they all share one prompt row at TMENU_PROMPT_Y. */
+    if (!debug_menu_open)
+        draw_title_captions(ctx);
+
     if (debug_menu_open) {
-        int k, rows;
+        int k;
         /* Left column: rooms. The cursor only shows while this column is active,
            so it is always clear which one Cross will act on. */
         FntPrint(debug_fnt, "LEVEL SELECT\n\n");
@@ -443,63 +497,70 @@ void draw_title(RenderContext *ctx) {
             btn_prompt_draw(ctx, DBG_OPT_NAME_X, oy, debug_opt_names[k], 1);
         }
 
-        /* Footer with the coloured Cross button glyph, below the taller of the
-           two lists (the Fnt streams can't hold coloured glyphs, so footers are
-           drawn separately). Each list is 2 + entries lines of 8px from y=8. */
-        rows = (LEVEL_SELECT_COUNT > DEBUG_OPT_COUNT)
-                   ? LEVEL_SELECT_COUNT : DEBUG_OPT_COUNT;
-        btn_prompt_draw(ctx, 8, 8 + (2 + rows + 1) * 8,
-                        BTN_CROSS ":LOAD/TOGGLE  SEL:BACK", 1);
+        /* Footer with the coloured button glyphs, along the bottom of the
+           screen (the Fnt streams can't hold coloured glyphs, so it is drawn
+           separately). Circle acts, Cross backs out — the same convention as
+           the start menu and the in-game save menu. */
+        btn_prompt_draw(ctx, 8, DBG_FOOTER_Y,
+                        BTN_CIRCLE ":LOAD/TOGGLE  " BTN_CROSS ":BACK", 1);
     } else if (tmenu == TM_MAIN) {
-        /* 10 characters wide; 5 spaces put them at x=120..200, dead centre. */
-        FntPrint(level_select_fnt, "     %s NEW GAME\n     %s LOAD GAME\n",
-                 tmenu_cursor == 0 ? "*" : " ",
-                 tmenu_cursor == 1 ? "*" : " ");
+        /* 12 characters wide with both dashes; 4 spaces put them at x=112..208,
+           dead centre. */
+        FntPrint(level_select_fnt, "    %s NEW GAME %s\n    %s LOAD GAME %s\n",
+                 TMENU_MARK(tmenu_cursor == 0), TMENU_MARK(tmenu_cursor == 0),
+                 TMENU_MARK(tmenu_cursor == 1), TMENU_MARK(tmenu_cursor == 1));
         FntFlush(level_select_fnt);
-        btn_prompt_draw(ctx, TMENU_PROMPT_X, TMENU_Y + 3 * TMENU_ROW,
-                        BTN_CIRCLE ":SELECT " BTN_CROSS ":BACK", 1);
     } else if (tmenu == TM_CARD) {
-        /* Heading is 9 wide and the card lines 15, so they centre at 5 and 2
+        /* Heading is 9 wide and the card lines 17, so they centre at 5 and 1
            spaces respectively (each a half-character shy of exact). */
         FntPrint(level_select_fnt, "     LOAD GAME\n\n");
-        FntPrint(level_select_fnt, "  %s MEMORY CARD 1\n  %s MEMORY CARD 2\n",
-                 tmenu_cursor == 0 ? "*" : " ",
-                 tmenu_cursor == 1 ? "*" : " ");
+        FntPrint(level_select_fnt, " %s MEMORY CARD 1 %s\n %s MEMORY CARD 2 %s\n",
+                 TMENU_MARK(tmenu_cursor == 0), TMENU_MARK(tmenu_cursor == 0),
+                 TMENU_MARK(tmenu_cursor == 1), TMENU_MARK(tmenu_cursor == 1));
         /* The error line's length varies, so it takes a fixed indent rather
-           than a centring pad. It replaces the blank row the prompt sat under. */
+           than a centring pad. It sits on the row below the second card. */
         if (tmenu_msg)
             FntPrint(level_select_fnt, "   %s\n", tmenu_msg);
         FntFlush(level_select_fnt);
-        btn_prompt_draw(ctx, TMENU_PROMPT_X, TMENU_Y + 5 * TMENU_ROW,
-                        BTN_CIRCLE ":SELECT " BTN_CROSS ":BACK", 1);
     } else if (tmenu == TM_FILE) {
-        /* Wider window: save titles run up to 32 characters. Scroll a 10-entry
-           window so a full card (15 saves) stays reachable. */
-        int fnt = load_list_fnt >= 0 ? load_list_fnt : level_select_fnt;
-        int first = (tmenu_cursor > 9) ? tmenu_cursor - 9 : 0;
+        /* Same heading row as TM_CARD, then as many save rows as fit above the
+           prompt (see TMENU_FILE_ROWS), scrolled so the cursor is always in
+           view. An error line borrows the last row rather than being drawn on
+           top of the prompt, so a full list shows one entry fewer while it is
+           up. Titles run to 32 characters, hence the wider window. */
+        int fnt   = load_list_fnt >= 0 ? load_list_fnt : level_select_fnt;
+        int rows  = tmenu_msg ? TMENU_FILE_ROWS - 1 : TMENU_FILE_ROWS;
+        int first = (tmenu_cursor >= rows) ? tmenu_cursor - rows + 1 : 0;
         int k;
-        FntPrint(fnt, "SELECT SAVE\n\n");
-        for (k = first; k < tmenu_slot_count && k < first + 10; k++)
+        /* 11 characters, 11 spaces in from x=28: centred on 160 like LOAD GAME. */
+        FntPrint(fnt, "           SELECT SAVE\n\n");
+        for (k = first; k < tmenu_slot_count && k < first + rows; k++)
             FntPrint(fnt, "%s %s\n",
                      k == tmenu_cursor ? "*" : " ", tmenu_slots[k].title);
         if (tmenu_msg)
             FntPrint(fnt, "%s\n", tmenu_msg);
         FntFlush(fnt);
-        btn_prompt_draw(ctx, 28, 222, BTN_CIRCLE ":LOAD  " BTN_CROSS ":BACK", 1);
     } else {
         title_flash++;
         if ((title_flash & 63) < 40)
             draw_press_start(ctx);
     }
+
+    /* Drawn once here rather than per state so all three menus show the same
+       prompt in the same place, in the same font as the debug menu's footer. */
+    if (!debug_menu_open && tmenu != TM_CLOSED)
+        btn_prompt_draw(ctx, TMENU_PROMPT_X, TMENU_PROMPT_Y, TMENU_PROMPT, 1);
 }
 
 void title_init(void) {
-    /* Font window for the start menu (8x16 glyphs), in the band below the
-       title stack — see the TMENU_* notes above. 176px is 22 characters, wide
-       enough for the memory-card lines and the longest error message. */
-    level_select_fnt = FntOpen(TMENU_X, TMENU_Y, 176, 96, 0, 256);
-    /* Wider window for the save-file list (32-char titles + cursor). */
-    load_list_fnt = FntOpen(28, 118, 264, 112, 0, 512);
+    /* Font window for the start menu, in the band below the title stack — see
+       the TMENU_* notes above. 176px is 22 characters, wide enough for the
+       memory-card lines and the longest error message, and the height stops it
+       short of the prompt row. */
+    level_select_fnt = FntOpen(TMENU_X, TMENU_Y, 176, 72, 0, 256);
+    /* The save-file list starts on the same row so its heading lines up with
+       TM_CARD's, but needs a wider window (32-char titles + cursor). */
+    load_list_fnt = FntOpen(28, TMENU_Y, 264, 80, 0, 512);
     /* Debug menu's LEFT column only — 128px is 16 characters, and "* MASTER
        BEDROOM" is exactly 16. The right column needs no stream (see the eight-
        stream cap documented at the top of this file). This is the eighth and
@@ -531,7 +592,8 @@ void update_title(void) {
 
     if (debug_menu_open) {
         /* Up/Down moves within the active column, Left/Right switches column,
-           X loads (levels) or flips the toggle (options), Select backs out. */
+           Circle loads (levels) or flips the toggle (options), Cross backs out.
+           Select still closes the menu as well — it is the key that opened it. */
         if (pressed & (PAD_LEFT | PAD_RIGHT))
             debug_col = (debug_col == DBG_COL_LEVELS) ? DBG_COL_OPTS : DBG_COL_LEVELS;
 
@@ -547,9 +609,9 @@ void update_title(void) {
                 debug_opt_cursor = (debug_opt_cursor + 1) % DEBUG_OPT_COUNT;
         }
 
-        if (pressed & PAD_SELECT)
+        if (pressed & (PAD_SELECT | PAD_CROSS))
             debug_menu_open = 0;
-        if (pressed & PAD_CROSS) {
+        if (pressed & PAD_CIRCLE) {
             if (debug_col == DBG_COL_OPTS) {
                 /* Toggling leaves the menu open so several can be set in a row. */
                 debug_opts[debug_opt_cursor] = !debug_opts[debug_opt_cursor];

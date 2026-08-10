@@ -36,6 +36,11 @@ enum {
 #define OPT_Y0   (PANEL_Y + 34)
 #define OPT_DY    16
 #define MAX_OPTS  16
+/* Rows that fit between the first option and the button prompt along the
+   bottom of the panel — six at the current geometry. A full card offers a "new
+   save" plus fifteen existing saves, so the list scrolls rather than running
+   over the prompt and out through the panel frame. */
+#define OPT_VISIBLE ((PANEL_Y + PANEL_H - 16 - OPT_Y0) / OPT_DY)
 
 /* OT layers within the menu-reserved range (< SCENE_OT_MIN); lower = on top. */
 #define OT_DIM     15   /* full-screen dim                */
@@ -310,9 +315,12 @@ void save_menu_draw(RenderContext *ctx) {
     }
     case SM_FILE_SELECT: {
         draw_text(ctx, PANEL_X + 10, PANEL_Y + 8, "SAVE - SELECT FILE");
+        /* Scroll a window of OPT_VISIBLE rows, derived from the cursor rather
+           than tracked separately so wrapping off either end lands correctly. */
+        int first = (sm_cursor >= OPT_VISIBLE) ? sm_cursor - OPT_VISIBLE + 1 : 0;
         int i;
-        for (i = 0; i < sm_opt_count; i++) {
-            int y = OPT_Y0 + i * OPT_DY;
+        for (i = first; i < sm_opt_count && i < first + OPT_VISIBLE; i++) {
+            int y = OPT_Y0 + (i - first) * OPT_DY;
             if (i == sm_cursor)
                 draw_rect(ctx, PANEL_X + 8, y - 2, PANEL_W - 16, 12, 70, 55, 110, OT_HILITE);
             draw_text(ctx, PANEL_X + 14, y, sm_label[i]);

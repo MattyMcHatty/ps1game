@@ -73,6 +73,15 @@ void door_draw_string_3d(RenderContext *ctx, const char *str,
                          uint8_t r, uint8_t g, uint8_t b,
                          int fade_factor, int mirror, TextPlane plane, int pixel);
 
+/* Screen-space pixel-font text: 5x7 glyphs on a 6px cell, drawn as 1x1 tiles
+   sorted at ot[ot_idx]. Smaller than btn_prompt_draw's 8px debug font, and it
+   covers lowercase — for captions that have to fit in a corner. */
+#define DOOR_SMALL_CELL_W 6   /* 5 glyph columns + 1 gap */
+int  door_small_text_width(const char *str);
+void door_draw_string_2d(RenderContext *ctx, const char *str,
+                         int32_t sx, int32_t sy,
+                         uint8_t r, uint8_t g, uint8_t b, int ot_idx);
+
 /* Camera-facing (billboard) variant of the pixel-font text, centred on
    (wx,wy,wz). Caller must have the camera view matrix loaded in the GTE. */
 void door_draw_string_billboard(RenderContext *ctx, const char *str,

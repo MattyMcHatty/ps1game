@@ -27,7 +27,7 @@ static int door_circle_prev = 1;
 /* -----------------------------------------------------------------------
  * 5x7 pixel font — same bitmask format as the old HUD font.
  * Index 0-9: digits, 10-35: A-Z, 36: space, 37: !, 38-63: a-z,
- * 64: -, 65: :, 66: ., 67: '
+ * 64: -, 65: :, 66: ., 67: ', 68: @
  * ----------------------------------------------------------------------- */
 static const uint8_t door_glyphs[][7] = {
     {0x1F,0x11,0x11,0x11,0x11,0x11,0x1F}, /* 0 */
@@ -98,6 +98,7 @@ static const uint8_t door_glyphs[][7] = {
     {0x00,0x04,0x04,0x00,0x04,0x04,0x00}, /* : */
     {0x00,0x00,0x00,0x00,0x00,0x01,0x00}, /* . */
     {0x00,0x00,0x00,0x00,0x00,0x00,0x04}, /* ' */
+    {0x0E,0x11,0x0D,0x15,0x0D,0x01,0x0E}, /* @ */
 };
 
 static int char_to_glyph(char c) {
@@ -110,7 +111,49 @@ static int char_to_glyph(char c) {
     if (c == ':')  return 65;
     if (c == '.')  return 66;
     if (c == '\'') return 67;
+    if (c == '@')  return 68;
     return 36;
+}
+
+/* -----------------------------------------------------------------------
+ * Screen-space version of the same font, one 1x1 TILE per lit pixel.
+ * Half the width of the SDK debug font btn_prompt_draw uses (6px per cell
+ * against 8), which is what lets two captions share the bottom line, and it
+ * has the lowercase the tile-letter title font in title.c lacks.
+ * ----------------------------------------------------------------------- */
+int door_small_text_width(const char *str) {
+    int n = 0;
+    while (str[n]) n++;
+    return n * DOOR_SMALL_CELL_W;
+}
+
+void door_draw_string_2d(
+    RenderContext *ctx,
+    const char    *str,
+    int32_t        sx, int32_t sy,
+    uint8_t        r, uint8_t g, uint8_t b,
+    int            ot_idx
+) {
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    int i, row, col;
+
+    for (i = 0; str[i]; i++) {
+        const uint8_t *glyph = door_glyphs[char_to_glyph(str[i])];
+        for (row = 0; row < 7; row++) {
+            for (col = 0; col < 5; col++) {
+                if (!(glyph[row] & (0x01 << col))) continue;
+                if (ctx->next_packet + sizeof(TILE) > buf_end) return;
+
+                TILE *t = (TILE *)ctx->next_packet;
+                setTile(t);
+                setXY0(t, sx + i * DOOR_SMALL_CELL_W + col, sy + row);
+                setWH(t, 1, 1);
+                setRGB0(t, r, g, b);
+                addPrim(&ctx->buffers[ctx->active_buffer].ot[ot_idx], t);
+                ctx->next_packet += sizeof(TILE);
+            }
+        }
+    }
 }
 
 /* -----------------------------------------------------------------------
