@@ -11,6 +11,11 @@ build/
 HORROR.cue
 HORROR.bin
 
+# Packaged playtest builds — the .bin/.cue inside are already covered by the
+# globs above; this is the zip they get wrapped in for the website. Both are
+# rebuilt from build/ + disc.xml, so only the hand-written README is tracked.
+release/*.zip
+
 # Generated artifacts (regenerable from tools/)
 __pycache__/
 tools/preview_4bpp.png
