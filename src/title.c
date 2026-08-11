@@ -533,11 +533,12 @@ void draw_title(RenderContext *ctx) {
         int rows  = tmenu_msg ? TMENU_FILE_ROWS - 1 : TMENU_FILE_ROWS;
         int first = (tmenu_cursor >= rows) ? tmenu_cursor - rows + 1 : 0;
         int k;
-        /* 11 characters, 11 spaces in from x=28: centred on 160 like LOAD GAME. */
-        FntPrint(fnt, "           SELECT SAVE\n\n");
+        /* 11 characters, 13 spaces in from x=8: centred on 160 like LOAD GAME. */
+        FntPrint(fnt, "             SELECT SAVE\n\n");
         for (k = first; k < tmenu_slot_count && k < first + rows; k++)
-            FntPrint(fnt, "%s %s\n",
-                     k == tmenu_cursor ? "*" : " ", tmenu_slots[k].title);
+            FntPrint(fnt, "%s %s %s\n",
+                     TMENU_MARK(k == tmenu_cursor), tmenu_slots[k].title,
+                     TMENU_MARK(k == tmenu_cursor));
         if (tmenu_msg)
             FntPrint(fnt, "%s\n", tmenu_msg);
         FntFlush(fnt);
@@ -560,8 +561,9 @@ void title_init(void) {
        short of the prompt row. */
     level_select_fnt = FntOpen(TMENU_X, TMENU_Y, 176, 72, 0, 256);
     /* The save-file list starts on the same row so its heading lines up with
-       TM_CARD's, but needs a wider window (32-char titles + cursor). */
-    load_list_fnt = FntOpen(28, TMENU_Y, 264, 80, 0, 512);
+       TM_CARD's, but needs a wider window (32-char titles + a dash and a space
+       on each side is 36 characters, so 304px / 38 characters from x=8). */
+    load_list_fnt = FntOpen(8, TMENU_Y, 304, 80, 0, 512);
     /* Debug menu's LEFT column only — 128px is 16 characters, and "* MASTER
        BEDROOM" is exactly 16. The right column needs no stream (see the eight-
        stream cap documented at the top of this file). This is the eighth and
