@@ -35,6 +35,16 @@ static int       cp_bob   = 0;
 
 static int owned(void) { return player_items & (1 << ITEM_COPPER_POT); }
 
+/* Has the pot been picked up AT ALL — which is a different question from whether
+   it is still in the inventory, now that the stove consumes it. `owned` governs
+   the icon and the texture residency and must go false when it is spent; this
+   governs the WORLD SPRITE, and must never go false again or cooking would put a
+   second pot back on the conservatory floor.
+
+   Ownership is still accepted as proof so saves written before FLAG_POT_TAKEN
+   existed — which carry the item but not the bit — don't respawn it either. */
+static int taken(void) { return game_flag(FLAG_POT_TAKEN) || owned(); }
+
 void copper_pot_load_assets(void) {
     CdlFILE file;
     if (!CdSearchFile(&file, "\\TEX\\CPPRPOT.TIM;1")) return;
@@ -86,7 +96,7 @@ void copper_pot_icon(uint16_t *tpage, uint16_t *clut,
 }
 
 void copper_pot_update(void) {
-    if (owned()) return;
+    if (taken()) return;
     cp_bob = (cp_bob + CP_BOB_RATE) & 4095;
 
     int32_t dx = cam_x - CP_X;
@@ -95,13 +105,14 @@ void copper_pot_update(void) {
     int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (dist < CP_PICKUP_RADIUS && (dy < 0 ? -dy : dy) < CP_PICKUP_HEIGHT) {
         player_items |= (1 << ITEM_COPPER_POT);
+        game_flag_set(FLAG_POT_TAKEN);
         sound_play(SFX_PICKUP);
         show_pickup_msg("Copper Pot");
     }
 }
 
 void copper_pot_draw(RenderContext *ctx) {
-    if (owned() || !cp_tpage) return;
+    if (taken() || !cp_tpage) return;
 
     int32_t dx = CP_X - cam_x;
     int32_t dz = CP_Z - cam_z;

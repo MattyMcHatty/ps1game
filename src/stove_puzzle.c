@@ -192,6 +192,16 @@ static void try_cook(void) {
 static void finish_cook(void) {
     kitchen_stove_set_lit(0);
     game_flag_set(FLAG_STOVE_SOLVED);
+    /* The ingredients are CONSUMED — they went into the stone. Cleared only on
+       this path, the successful cook: every other way out of the puzzle leaves
+       the player holding both, because nothing was spent. The recipe needs one
+       of each and recipe_ok has already confirmed both are in the boxes, so
+       there is no partial case to worry about.
+
+       The pause menu's grid catches up on its own: menu_inventory_sync runs on
+       every menu_open and drops any cell whose item is no longer held, which is
+       the same route the piano key's consumption takes. */
+    player_items &= ~((1 << ITEM_COPPER_POT) | (1 << ITEM_WAX_CUBE));
     player_items |= (1 << ITEM_GREEN_KEY_STONE);
     sound_play(SFX_PICKUP);
     show_pickup_msg_raw("Received Green Key Stone");

@@ -40,6 +40,13 @@ void debug_opts_apply_grants(void) {
 
     if (debug_opts[DBG_HAS_WAX_AND_POT]) {
         player_items |= (1 << ITEM_COPPER_POT) | (1 << ITEM_WAX_CUBE);
+        /* Both of these are SPENT by the kitchen stove, so the grant has to say
+           where they came from as well as hand them over — exactly the situation
+           DBG_HAS_KEY_STONES documents below. Without the flags, cooking with
+           granted ingredients would drop a second pot back on the conservatory
+           floor and re-arm the 2F trick drawers for another Wax Cube. */
+        game_flag_set(FLAG_POT_TAKEN);
+        game_flag_set(FLAG_DRAWERS_SOLVED);
         /* The pot's texture time-shares the key slot and is only uploaded on
            conservatory entry or on a room load once it is owned — neither has
            happened yet on a direct jump, so upload it here or the menu icon is

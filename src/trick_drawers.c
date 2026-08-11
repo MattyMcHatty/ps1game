@@ -237,8 +237,11 @@ static void select_drawer(void) {
         puzzle_open |= (1u << (d - 1));
         puzzle_prog++;
         if (puzzle_prog >= 6) {
-            /* Final drawer: award the Wax Cube and kick the player out. */
+            /* Final drawer: award the Wax Cube and kick the player out. The
+               flag is what retires the puzzle — the cube itself cannot, because
+               the kitchen stove consumes it (see solved() below). */
             player_items |= (1 << ITEM_WAX_CUBE);
+            game_flag_set(FLAG_DRAWERS_SOLVED);
             sound_play(SFX_PICKUP);
             show_pickup_msg_raw("Received the Wax Cube");
             exit_puzzle(1);
@@ -261,8 +264,18 @@ static void select_drawer(void) {
     }
 }
 
-/* Once the Wax Cube is won the puzzle is finished for good. */
-static int solved(void) { return (player_items & (1 << ITEM_WAX_CUBE)) != 0; }
+/* Once the Wax Cube is won the puzzle is finished for good — and "won" has to be
+   its own recorded fact rather than ownership of the cube, because the kitchen
+   stove CONSUMES the cube. Reading the inventory here re-armed the whole puzzle
+   the moment the player cooked, letting them farm cube after cube.
+
+   Ownership is still accepted as proof so saves written before
+   FLAG_DRAWERS_SOLVED existed — which carry the cube but not the bit — stay
+   solved. Same arrangement, for the same reason, as stove_puzzle_solved(). */
+static int solved(void) {
+    return game_flag(FLAG_DRAWERS_SOLVED) ||
+           (player_items & (1 << ITEM_WAX_CUBE)) != 0;
+}
 
 void trick_drawers_update(void) {
     uint16_t btn = 0;
@@ -312,7 +325,26 @@ void trick_drawers_update(void) {
     if (ret_row != was_row || ret_col != was_col) sound_play(SFX_CURSOR);
 
     if (pressed & PAD_CROSS)  { sound_play(SFX_BACK); exit_puzzle(0); return; }   /* leave, keep progress */
-    if (pressed & PAD_CIRCLE) { select_drawer(); }   /* sounds its own outcome */
+    if (pressed & PAD_CIRCLE) {
+        select_drawer();                             /* sounds its own outcome */
+        /* If that ejected us, SPEND the Circle that did it. The board reads
+           Circle straight off the pad, so this branch runs on the PRESS — but
+           re-entry runs on interact_tapped(), which resolves on the RELEASE,
+           several frames later. exit_puzzle's `interact_prev = 1` cannot catch
+           that: interact_prev is reloaded from interact_tapped() on the very
+           next frame, and during a hold that reads 0, so the mark is gone long
+           before the release arrives and the tap then looks brand new. The
+           result was a wrong drawer throwing the player out and the puzzle
+           reopening the instant they let go of the button.
+
+           Every other puzzle gets this for free, because camera_anchor_player
+           calls camera_look_cancel() when it takes the camera. This one never
+           anchors the player — it drives cam_* directly — so it is the only
+           puzzle that has to spend the press itself. Spending rather than
+           cancelling the look: exit_puzzle has just restored the saved camera
+           and camera_look_cancel would rotate cam_rot back out from under it. */
+        if (!puzzle_active) interact_spend_press();
+    }
 }
 
 /* Filled screen rect (2D overlay) at OT index ot_idx. */

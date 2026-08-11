@@ -7,7 +7,10 @@
 /* The Copper Pot: a permanent collectible the player carries between rooms
    (stored in the player_items bitmask, so it persists through transitions and
    saves — see player.h / savegame.c). One instance sits in the conservatory;
-   collecting it sets ITEM_COPPER_POT and the world sprite stops drawing.
+   collecting it sets ITEM_COPPER_POT and FLAG_POT_TAKEN, and the world sprite
+   stops drawing. The sprite is gated on the FLAG, not on ownership: the kitchen
+   stove consumes the pot, and a sprite gated on ownership would reappear on the
+   conservatory floor the moment it did.
 
    Its texture time-shares the KEY's VRAM slot (the Front Door Key is spent long
    before the pot is reachable), so it is NOT uploaded at startup — that would
@@ -22,7 +25,10 @@ void copper_pot_reset(void);            /* new game: drop it from the inventory 
 void copper_pot_update(void);           /* conservatory tick: proximity pickup */
 void copper_pot_draw(RenderContext *ctx);  /* world billboard (view matrix must be set) */
 
-int  copper_pot_owned(void);            /* 1 once collected */
+/* 1 while the pot is IN THE INVENTORY — this is the texture-residency and menu-
+   icon question, so it goes false again when the stove consumes it. It is not
+   "has the pot been collected"; see the note above on FLAG_POT_TAKEN. */
+int  copper_pot_owned(void);
 
 /* Menu icon handle (same VRAM slot as the key, own CLUT). Valid after
    copper_pot_load_assets(); the menu draws it when the pot is owned. */

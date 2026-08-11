@@ -43,6 +43,13 @@ typedef enum {
     FLAG_LIGHTS_SOLVED,      /* Attic Exit lightswitches set: the cage gate is winched away */
     FLAG_EXIT_DOOR_UNLOCKED, /* Attic Exit keystones placed: the exit door is open */
     FLAG_STOVE_SOLVED,       /* Kitchen stove cooked: the Green Key Stone was awarded */
+    /* The stove CONSUMES its two ingredients, so neither of the facts below can
+       be read off the inventory any more — the same trap FLAG_STOVE_SOLVED was
+       added for when the exit door started consuming the green stone. Without
+       these, cooking put the pot back in the conservatory and re-armed the
+       trick drawers, and each could then be farmed indefinitely. */
+    FLAG_POT_TAKEN,          /* Copper Pot collected: its world sprite is gone for good */
+    FLAG_DRAWERS_SOLVED,     /* 2F trick drawers beaten: the Wax Cube was awarded */
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

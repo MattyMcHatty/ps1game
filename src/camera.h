@@ -48,6 +48,14 @@ void camera_look_cancel(void);
    look mode is off while a puzzle owns the camera, so nothing is shared. */
 int interact_tapped(void);
 
+/* Mark the in-flight Circle press spent, so it resolves as neither a look nor an
+   interact tap; the mark clears when that press is released. For a module that
+   read Circle off the pad and acted on the PRESS, and must stop the same press
+   arriving at interact_tapped() on the RELEASE a few frames later. Unlike
+   camera_look_cancel this touches no camera state, so it is safe to call after
+   restoring a saved view. */
+void interact_spend_press(void);
+
 /* ---- "Is it in front of me?" ----------------------------------------------
    Proximity alone is not enough to interact: standing next to a door with your
    back to it used to let a Circle tap open it, so walking into a room and

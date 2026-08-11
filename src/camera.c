@@ -100,6 +100,20 @@ static int tap_frame     = 0; /* 1 for the single frame a tap resolves */
 
 int interact_tapped(void) { return tap_frame; }
 
+/* Mark the Circle press currently in flight as spent, so it can neither become
+   a look nor pop out as a tap when it is finally released. The mark clears on
+   that release, so only the one press is affected.
+
+   Split out of camera_look_cancel because the two are wanted separately: a
+   module that read Circle off the pad and acted on the PRESS needs to stop that
+   press reaching the interact path on RELEASE, without also unwinding a look
+   angle and flattening cam_pitch — which for a module that has restored its own
+   camera would visibly skew the view. trick_drawers is the caller. */
+void interact_spend_press(void) {
+    circle_frames = -1;
+    tap_frame     = 0;
+}
+
 /* Is (wx, wz) in front of the player? The delta is rotated into player space —
    forward is (isin, icos) of the facing, so `fwd` is the component along it and
    `side` the component across — and the cone test is then just a comparison of
@@ -137,8 +151,7 @@ void camera_look_cancel(void) {
     /* Spend whatever Circle press is in flight: a press that was still down when
        the camera was taken must not resume looking, nor pop out as a tap when
        it is finally released. The next release clears the mark. */
-    circle_frames = -1;
-    tap_frame     = 0;
+    interact_spend_press();
 }
 
 extern volatile uint8_t pad_buff[2][34];
