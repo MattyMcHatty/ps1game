@@ -159,6 +159,10 @@
 #define TIM_TPAGE_GRAVOLVR 0x0095
 #define TIM_CLUT_GRAVOLVR  0x7f00
 
+/* grdn_gte.tim    8bpp  VRAM ( 512,  0)  \TEX\GRDNGTE.TIM */
+#define TIM_TPAGE_GRDNGTE  0x0088
+#define TIM_CLUT_GRDNGTE   0x7aaa
+
 /* grn_ky_stn.tim  4bpp  VRAM ( 552,256)  \TEX\GRNKYSTN.TIM */
 #define TIM_TPAGE_GRNKYSTN 0x0018
 #define TIM_CLUT_GRNKYSTN  0x7fcd
@@ -170,6 +174,10 @@
 /* grss_gs.tim     4bpp  VRAM ( 320,  0)  \TEX\GRSSGS.TIM */
 #define TIM_TPAGE_GRSSGS   0x0005
 #define TIM_CLUT_GRSSGS    0x7fce
+
+/* hedge.tim       8bpp  VRAM ( 384,  0)  \TEX\HEDGE.TIM */
+#define TIM_TPAGE_HEDGE    0x0086
+#define TIM_CLUT_HEDGE     0x7a6a
 
 /* hud.tim         4bpp  VRAM ( 384,384)  \TEX\HUD.TIM */
 #define TIM_TPAGE_HUD      0x0016
@@ -194,6 +202,10 @@
 /* key.tim         8bpp  VRAM ( 640,128)  \KEY.TIM */
 #define TIM_TPAGE_KEY      0x008a
 #define TIM_CLUT_KEY       0x7840
+
+/* mansion.tim     8bpp  VRAM ( 448,128)  \TEX\MANSION.TIM */
+#define TIM_TPAGE_MANSION  0x0087
+#define TIM_CLUT_MANSION   0x7bd0
 
 /* mgn_ky_stn.tim  8bpp  VRAM ( 672,256)  \TEX\MGNKYSTN.TIM */
 #define TIM_TPAGE_MGNKYSTN 0x009a

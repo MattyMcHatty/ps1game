@@ -87,19 +87,20 @@ static void garden_courtyard_floor_zones_init(void) {
 }
 
 /* ---- Per-room textures -----------------------------------------------------
-   This mesh's five textures are all drawn by the Garden Stairs too, from the
-   very same VRAM slots, so this room owns NO texture RAM of its own: it
+   Six of this mesh's seven textures are drawn by the Garden Stairs too, from
+   the very same VRAM slots, so for those the room owns NO texture RAM: it
    captures the tpage/clut headers at startup and delegates the entry-time
    LoadImage to garden_stairs_upload_textures(). Registering a second RAM copy
    of each would have been the obvious thing and is the wrong thing — texmgr has
    a hard TEXMGR_MAX and a registration past it fails SILENTLY, breaking that
    texture everywhere (see tools/TEXTURING_NOTES.txt).
 
-   That call also uploads xt_dr_outr, which this mesh does not use. Harmless:
-   its page (clsd_drwr, x384 y0) is one this room never draws from.
+   That call also uploads xt_dr_outr, which this mesh does not use. Harmless —
+   and now load-bearing: hedge takes that very page, so the uploader has to run
+   BEFORE hedge goes up. See garden_courtyard_upload_textures.
 
-   Slot numbering is the Garden Stairs' verbatim, gap and all, so the two rooms'
-   tex maps stay directly comparable:
+   Slots 0-5 are the Garden Stairs' numbering verbatim, gap and all, so the two
+   rooms' tex maps stay directly comparable. 6-7 are this room's own:
 
      0 brick_wall      the perimeter wall (delivery's slot, x768 y0)
      1 chnlnk          the fence panels   (delivery's gravel slot, x640 y0)
@@ -107,15 +108,34 @@ static void garden_courtyard_floor_zones_init(void) {
      3 xt_dr_outr      UNUSED here
      4 gravel_gs       the paved walk     (rusty_fence page, x704 y0)
      5 grss_gs         the lawn           (stn_stl page, x320 y0)
+     6 hedge           the north wall     (clsd_drwr page, x384 y0)   OWNED
+     7 grdn_gte        the gate in it     (kchn_wl page,   x512 y0)   OWNED
 
    grss_gs / gravel_gs are the byte-for-byte clones the Garden Stairs introduced
    (tools/retarget_tim.py), needed because this room fills grss's and gravel's
-   own pages with brick_wall and chnlnk. All six sit at Voff 0, so the one 128
-   texture window set in garden_courtyard_draw serves them all. */
-#define GARDEN_COURTYARD_TEX_COUNT 6
+   own pages with brick_wall and chnlnk. Every delivery/outdoor page was
+   therefore already spoken for by the time the hedge arrived, so hedge and
+   grdn_gte went to the only two full 8bpp pages this room draws nothing from.
+   Both were already time-shared, so neither adds a restore obligation:
+   kitchen_restore_textures puts kchn_wl back, reception re-uploads the dresser,
+   and every consumer of the clsd_drwr page re-uploads on its own room entry.
+
+   All eight sit at Voff 0, so the one 128 texture window set in
+   garden_courtyard_draw serves them all. */
+#define GARDEN_COURTYARD_TEX_COUNT 8
 
 static uint16_t tex_tpage[GARDEN_COURTYARD_TEX_COUNT];
 static uint16_t tex_clut[GARDEN_COURTYARD_TEX_COUNT];
+
+/* The two textures this room OWNS: RAM-resident from startup so the entry-time
+   upload is a pure LoadImage with no CD read. Keep this table in step with the
+   slot numbering above and with NAME_TO_SLOT in gen_garden_courtyard_tex_map.py. */
+#define GARDEN_COURTYARD_NEW_TEX 2
+static int new_tex_id[GARDEN_COURTYARD_NEW_TEX];
+static const char *new_tex_file[GARDEN_COURTYARD_NEW_TEX] = {
+    "\\TEX\\HEDGE.TIM;1",     /* slot 6 */
+    "\\TEX\\GRDNGTE.TIM;1",   /* slot 7 */
+};
 
 /* Load this room's geometry into the shared arena. Called on ENTRY, from main's
    STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
@@ -127,10 +147,9 @@ void garden_courtyard_load_geometry(void) {
     garden_courtyard_smd  = garden_courtyard_buff ? smdInitData(garden_courtyard_buff) : NULL;
 }
 
-/* Nothing to read at STARTUP: geometry moved to garden_courtyard_load_geometry
-   above, and every texture slot below is a compile-time constant. This function
-   survives only so the room keeps the same shape as its neighbours; it costs one
-   call and no CD access. */
+/* Read at STARTUP — the only safe time for CD access — the two textures this
+   room owns. Geometry moved to garden_courtyard_load_geometry above, and the
+   other six slots are compile-time constants that cost nothing here. */
 void garden_courtyard_load_assets(void) {
     /* Every one of these is uploaded by another module; header only — no
        LoadImage, no second RAM copy. */
@@ -139,13 +158,23 @@ void garden_courtyard_load_assets(void) {
     TIM_SLOT(2, XTDRCG);
     TIM_SLOT(4, GRAVELGS);
     TIM_SLOT(5, GRSSGS);
+
+    /* This room's own pair: RAM-resident copies for a CD-free re-upload. */
+    for (int i = 0; i < GARDEN_COURTYARD_NEW_TEX; i++)
+        new_tex_id[i] = texmgr_register(new_tex_file[i]);
+    TIM_SLOT(6, HEDGE);
+    TIM_SLOT(7, GRDNGTE);
 }
 
 /* Upload the streamed textures. Pure LoadImage — no CD access — safe during the
    room transition (the caller DrawSyncs first, as main's STATE_LOADING does).
-   Identical slot set to the Garden Stairs, so its uploader does the whole job. */
+   Slots 0-5 are the Garden Stairs' set exactly, so its uploader does that job.
+   ORDER MATTERS: that call also puts xt_dr_outr on the clsd_drwr page (x384 y0),
+   which is where hedge lives — so hedge must go up AFTER it, not before. */
 void garden_courtyard_upload_textures(void) {
     garden_stairs_upload_textures();
+    for (int i = 0; i < GARDEN_COURTYARD_NEW_TEX; i++)
+        texmgr_upload(new_tex_id[i]);
 }
 
 /* ---- The east-wall door back to the Garden Stairs --------------------------

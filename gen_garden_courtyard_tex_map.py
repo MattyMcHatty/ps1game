@@ -31,6 +31,11 @@ NAME_TO_SLOT = {
     # brick_wall and chnlnk — see the texture notes in src/garden_courtyard.c.
     'gravel_texture': 4,
     'grss':           5,
+    # The north wall's hedge and the gate set into it. Unlike everything above,
+    # these two are the courtyard's OWN textures (it registers and uploads them
+    # itself) — see the slot table in src/garden_courtyard.c.
+    'hedge':          6,
+    'grdn_gte':       7,
 }
 UNTEXTURED = 0xFF
 

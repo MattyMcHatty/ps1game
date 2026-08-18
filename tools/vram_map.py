@@ -110,6 +110,27 @@ KNOWN_STREAM_PAIRS = [
     ("bookshelf.tim",      "grss_gs.tim"),
     ("rusty_fence.tim",    "gravel_gs.tim"),
     ("upstairs.tim",       "gravel_gs.tim"),
+    # The Garden Courtyard's re-exported north wall: a hedge with a gate in it,
+    # replacing most of the chainlink run. Every delivery/outdoor page was
+    # already spoken for by this room (brick_wall x768, chnlnk x640, gravel_gs
+    # x704, grss_gs x320, xt_dr_cg x832), so the two new textures took the only
+    # 8bpp-wide pages this room draws nothing from, both already time-shared:
+    #   hedge    -> the clsd_drwr page (x384 y0). The room DOES upload
+    #               xt_dr_outr here (it reuses the Garden Stairs' uploader
+    #               wholesale) but never draws it, so hedge simply lands on top
+    #               — see the upload order in garden_courtyard_upload_textures.
+    #   grdn_gte -> the kchn_wl page (x512 y0), which the dresser prop already
+    #               streams over in reception; kitchen_restore_textures puts
+    #               kchn_wl back, reception re-uploads the dresser.
+    ("clsd_drwr.tim",      "hedge.tim"),
+    ("cncrte.tim",         "hedge.tim"),
+    ("kchn_tile.tim",      "hedge.tim"),
+    ("piano_keys.tim",     "hedge.tim"),
+    ("piano_keys_full.tim","hedge.tim"),
+    ("chnlnk_dl.tim",      "hedge.tim"),
+    ("xt_dr_outr.tim",     "hedge.tim"),
+    ("kchn_wl.tim",        "grdn_gte.tim"),
+    ("dresser.tim",        "grdn_gte.tim"),
 ]
 
 def read_tim(path):

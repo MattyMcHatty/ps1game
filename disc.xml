@@ -266,10 +266,17 @@
                 <file name="GRAVELGS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gravel_gs.tim"/>
 
                 <!-- Garden Courtyard: the walled garden at the foot of the
-                     Garden Stairs. Geometry only — every one of its five
-                     textures is already on the disc for the Garden Stairs,
-                     whose uploads it reuses wholesale. -->
+                     Garden Stairs. Five of its seven textures are already on
+                     the disc for the Garden Stairs, whose uploads it reuses
+                     wholesale. HEDGE and GRDNGTE are its own: the re-exported
+                     north wall is a hedge with a gate in it, in place of most
+                     of the chainlink run. Both sit on pages this room draws
+                     nothing else from — HEDGE on the clsd_drwr page (x384 y0),
+                     GRDNGTE on the kchn_wl page (x512 y0) — and both pages were
+                     already time-shared, so no new restore code was needed. -->
                 <file name="GRDNCRTY.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\garden_courtyard.smd"/>
+                <file name="HEDGE.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\hedge.tim"/>
+                <file name="GRDNGTE.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\grdn_gte.tim"/>
 
                 <!-- Delivery Area: the remodelled yard draws trees and chnlnk
                      alongside gravel, whose VRAM page (x640 y0) all three used
