@@ -64,6 +64,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\CURSOR.VAG;1",
     "\\SND\\SELECT.VAG;1",
     "\\SND\\BACK.VAG;1",
+    "\\SND\\GATE.VAG;1",
 };
 
 /* Which bank each effect belongs to. SND_RESIDENT is spelled as a third value
@@ -111,6 +112,12 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_CURSOR]     = SND_RESIDENT,   /* the menus open under every bank there */
     [SFX_SELECT]     = SND_RESIDENT,   /* is — title, rooms, courtyard — so all */
     [SFX_BACK]       = SND_RESIDENT,   /* three must be. See sound.h.           */
+    [SFX_GATE]       = SND_BANK_BOSS,  /* the garden gate. Banked with the boss
+                                          because the only two rooms it joins —
+                                          the Garden Courtyard and Fountain
+                                          Square — are the only two on that bank,
+                                          and it does not fit anywhere else. The
+                                          full reasoning is in sound.h.          */
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool

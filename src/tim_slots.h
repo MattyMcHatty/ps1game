@@ -127,6 +127,10 @@
 #define TIM_TPAGE_DINCL    0x0017
 #define TIM_CLUT_DINCL     0x7bc0
 
+/* drain.tim       8bpp  VRAM ( 832,  0)  \TEX\DRAIN.TIM */
+#define TIM_TPAGE_DRAIN    0x008d
+#define TIM_CLUT_DRAIN     0x7b2a
+
 /* dresser.tim     8bpp  VRAM ( 512,  0)  \TEX\DRESSER.TIM */
 #define TIM_TPAGE_DRESSER  0x0088
 #define TIM_CLUT_DRESSER   0x7ec0
@@ -138,6 +142,10 @@
 /* flm_rnds.tim    8bpp  VRAM ( 480,256)  \TEX\FLMRNDS.TIM */
 #define TIM_TPAGE_FLMRNDS  0x0097
 #define TIM_CLUT_FLMRNDS   0x7850
+
+/* fountain.tim    8bpp  VRAM ( 768,  0)  \TEX\FOUNTAIN.TIM */
+#define TIM_TPAGE_FOUNTAIN 0x008c
+#define TIM_CLUT_FOUNTAIN  0x7aea
 
 /* frnt_dr.tim     4bpp  VRAM ( 320,256)  \TEX\FRNTDR.TIM */
 #define TIM_TPAGE_FRNTDR   0x0015
@@ -162,6 +170,14 @@
 /* grdn_gte.tim    8bpp  VRAM ( 512,  0)  \TEX\GRDNGTE.TIM */
 #define TIM_TPAGE_GRDNGTE  0x0088
 #define TIM_CLUT_GRDNGTE   0x7aaa
+
+/* grdngtl.tim     8bpp  VRAM ( 544,128)  \TEX\GRDNGTL.TIM */
+#define TIM_TPAGE_GRDNGTL  0x0088
+#define TIM_CLUT_GRDNGTL   0x7b6a
+
+/* grdngtr.tim     8bpp  VRAM ( 608,128)  \TEX\GRDNGTR.TIM */
+#define TIM_TPAGE_GRDNGTR  0x0089
+#define TIM_CLUT_GRDNGTR   0x7baa
 
 /* grn_ky_stn.tim  4bpp  VRAM ( 552,256)  \TEX\GRNKYSTN.TIM */
 #define TIM_TPAGE_GRNKYSTN 0x0018

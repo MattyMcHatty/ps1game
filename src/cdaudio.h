@@ -7,6 +7,7 @@
 #define CDAUDIO_PIANO_TRACK     4   /* piano room music */
 #define CDAUDIO_ANZU_TRACK      5   /* piano room music once the Anzu Tablet is solved */
 #define CDAUDIO_COURTYARD_TRACK 6   /* garden courtyard music */
+#define CDAUDIO_FOUNTAIN_TRACK  7   /* fountain square music */
 
 void cdaudio_init(void);
 void cdaudio_play(int track, int loop);

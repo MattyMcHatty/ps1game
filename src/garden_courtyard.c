@@ -191,19 +191,48 @@ void garden_courtyard_upload_textures(void) {
 #define GC_FADE_NEAR            1000
 #define GC_TRIGGER_RADIUS        500
 
-/* East-terrace standing eye: floor y=800, less GROUND_FLOOR_Y and the 40-unit
-   floor standoff apply_height applies. Stated explicitly because this room's
-   floors are at POSITIVE y — arriving at the shaft's cam_y would drop the
-   player in from well overhead. */
-#define GC_EAST_EYE_Y  (800 - GROUND_FLOOR_Y - 40)
+/* ---- The north-wall gate into Fountain Square ------------------------------
+   The grdn_gte polys span x[-1437,-580] at z=2000, set into the hedge that
+   replaced most of this side's chainlink. Collision wall 9 runs the width of
+   the lawn at z=2000 with nz = -4096, so the walkable side is -Z and the player
+   approaches from inside the room: the sign lies in the XY plane with mirror=0.
 
-/* Circle edge-detect, seeded by garden_courtyard_door_arm(). Starts "held" so a
-   press carried in through the transition doesn't bounce the player straight
-   back. */
-static int door_circle_prev = 1;
+   It stands on the LAWN (floor y=900), a terrace lower than the east door, so
+   its sign and its spawn use a different eye height. */
+#define GC_NGATE_X            (-1008)   /* (-1437 + -580) / 2 */
+#define GC_NGATE_Z              2000
+#define GC_NGATE_TEXT_Y          714    /* eye level on the lawn */
+
+/* Standing eye per terrace: the floor surface, less GROUND_FLOOR_Y and the
+   40-unit floor standoff apply_height applies. Stated explicitly because this
+   room's floors are at POSITIVE y — arriving at the shaft's cam_y would drop
+   the player in from well overhead. */
+#define GC_EAST_EYE_Y  (800 - GROUND_FLOOR_Y - 40)
+#define GC_LAWN_EYE_Y  (900 - GROUND_FLOOR_Y - 40)
+
+/* Circle edge-detect, one per door, seeded by the *_arm()s. Both start "held"
+   so a press carried in through the transition doesn't bounce the player
+   straight back. */
+static int door_circle_prev  = 1;   /* east cage door, east terrace */
+static int ngate_circle_prev = 1;   /* north hedge gate, lawn       */
 
 static int circle_held(void) {
     return interact_tapped();
+}
+
+/* Shared body: a fresh Circle press with the player inside GC_TRIGGER_RADIUS
+   (Manhattan) of the door, facing it. Each door keeps its own edge state so one
+   press can never work both. */
+static int door_triggered_at(int32_t door_x, int32_t door_z, int *prev) {
+    int held = circle_held();
+    int just = held && !*prev;
+    *prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - door_z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < GC_TRIGGER_RADIUS && interact_facing(door_x, door_z);
 }
 
 void garden_courtyard_door_arm(void) {
@@ -211,15 +240,15 @@ void garden_courtyard_door_arm(void) {
 }
 
 int garden_courtyard_door_triggered(void) {
-    int held = circle_held();
-    int just = held && !door_circle_prev;
-    door_circle_prev = held;
-    if (!just) return 0;
+    return door_triggered_at(GC_DOOR_X, GC_DOOR_Z, &door_circle_prev);
+}
 
-    int32_t dx = cam_x - GC_DOOR_X;
-    int32_t dz = cam_z - GC_DOOR_Z;
-    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < GC_TRIGGER_RADIUS && interact_facing(GC_DOOR_X, GC_DOOR_Z);
+void garden_courtyard_ngate_arm(void) {
+    ngate_circle_prev = circle_held();
+}
+
+int garden_courtyard_ngate_triggered(void) {
+    return door_triggered_at(GC_NGATE_X, GC_NGATE_Z, &ngate_circle_prev);
 }
 
 /* Floating "Press O to enter" sign on the east-wall door. YZ plane:
@@ -245,6 +274,29 @@ static void door_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* The same sign on the north gate. XY plane this time: door_draw_string_3d
+   centres the reading axis (X) on world_x after adding 200, so pass door_x-200.
+   Sits just south (z-11) of the hedge so it floats in front of the gate, and
+   mirror=0 because the player reads it from -Z. */
+static void ngate_text(RenderContext *ctx) {
+    int32_t dx = cam_x - GC_NGATE_X;
+    int32_t dz = cam_z - GC_NGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= GC_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > GC_FADE_NEAR) {
+        int range = GC_TEXT_RADIUS - GC_FADE_NEAR;
+        int prog  = xz - GC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        GC_NGATE_X - 200, GC_NGATE_TEXT_Y, GC_NGATE_Z - 11,
+                        50, 255, 50, fade, 0, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+}
+
 /* Arriving from the Garden Stairs: stand on the east terrace west of the x=2000
    wall, clear of this room's GC_WALL_RADIUS push (so the player isn't shoved on
    their first frame), facing -X — the direction of travel through the door,
@@ -256,6 +308,20 @@ void garden_courtyard_spawn_east(void) {
     cam_z   = GC_DOOR_Z;
     cam_rot = 3072;   /* facing -X, into the room */
     garden_courtyard_door_arm();
+    garden_courtyard_ngate_arm();
+}
+
+/* Arriving back from Fountain Square: stand on the lawn south of the z=2000
+   hedge, clear of GC_WALL_RADIUS, facing -Z — the direction of travel through
+   the gate, looking down the garden toward the terraces. */
+void garden_courtyard_spawn_north(void) {
+    cam_x   = GC_NGATE_X;
+    cam_y   = GC_LAWN_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = GC_NGATE_Z - GC_WALL_RADIUS - 25;
+    cam_rot = 2048;   /* facing -Z, into the room */
+    garden_courtyard_door_arm();
+    garden_courtyard_ngate_arm();
 }
 
 void garden_courtyard_init(void) {
@@ -284,7 +350,10 @@ void garden_courtyard_init(void) {
 
     garden_courtyard_floor_zones_init();
 
-    /* Only one way in, so no per-door override is needed in main.c. */
+    /* Default arrival: the east cage door. main.c's STATE_LOADING overrides it
+       with garden_courtyard_spawn_north() when the player came from Fountain
+       Square. Either spawn arms BOTH doors — a Circle held through the
+       transition would otherwise fire whichever one the player landed near. */
     garden_courtyard_spawn_east();
 
     /* Save points and dresser props are global (not room-swapped) and neither is
@@ -531,9 +600,10 @@ void garden_courtyard_draw(RenderContext *ctx) {
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);
 
-    /* No door prompt while the encounter has the gate sealed: offering "Press O
-       to enter" on a door that will not answer is worse than offering nothing. */
-    if (!rabisu_boss_seals_door()) door_text(ctx);
+    /* No door prompt while the encounter has the arena sealed: offering "Press O
+       to enter" on a door that will not answer is worse than offering nothing.
+       Both exits, since the north gate is as shut as the east one. */
+    if (!rabisu_boss_seals_door()) { door_text(ctx); ngate_text(ctx); }
 
     /* Screen-space, so last: the two lines of scripture over the reveal. */
     rabisu_boss_draw_overlay(ctx);

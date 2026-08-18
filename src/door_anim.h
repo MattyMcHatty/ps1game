@@ -25,6 +25,16 @@
                                  the two above, BOTH leaves swing away from the
                                  camera, and each has its OWN texture rather than
                                  one leaf image used twice.                       */
+#define DOOR_PANEL_GATE   4   /* grdngtl + grdngtr — the wrought-iron garden gate
+                                 between the Garden Courtyard and Fountain Square.
+                                 Two textures like the exit door, but only the
+                                 LEFT leaf swings; the right stays shut. It is
+                                 also the one variant that does NOT play SFX_DOOR:
+                                 it plays SFX_GATE, and its swing is cut to that
+                                 clip's length so the leaf stops when the hinge
+                                 stops creaking. The art is see-through (alpha in
+                                 the PNG becomes CLUT 0), so the black behind
+                                 shows through the bars.                          */
 
 void door_anim_load_assets(void);   /* load the panel TIMs into VRAM (startup) */
 void door_anim_start(int variant);  /* begin the animation; plays the sound */

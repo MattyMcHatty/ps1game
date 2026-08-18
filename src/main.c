@@ -55,6 +55,7 @@
 #include "attic_exit.h"
 #include "garden_stairs.h"
 #include "garden_courtyard.h"
+#include "fountain_square.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -66,7 +67,6 @@
 #include "tentacle.h"
 #include "rabisu.h"
 #include "rabisu_boss.h"
-#include "trial_end.h"
 #include "delivery_intro.h"
 #include "world.h"
 #include "fatdoor.h"
@@ -155,7 +155,6 @@ void reset_game(RenderContext *ctx) {
     spiders_reset();
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
-    trial_end_reset();     /* ...and the sign-off screen it ends on */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
                               BEFORE the arrival is armed on the New Game path
                               (see the frontend hook), so it never cancels the
@@ -190,6 +189,7 @@ static void load_area_geometry(GameState area) {
         case STATE_ATTIC_EXIT:       attic_exit_load_geometry();       break;
         case STATE_GARDEN_STAIRS:    garden_stairs_load_geometry();    break;
         case STATE_GARDEN_COURTYARD: garden_courtyard_load_geometry(); break;
+        case STATE_FOUNTAIN_SQUARE:  fountain_square_load_geometry();  break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -561,6 +561,33 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_EXIT);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (!lock && !rabisu_boss_seals_door() &&
+                   garden_courtyard_ngate_triggered()) {
+            /* North through the gate in the hedge, into Fountain Square. The one
+               transition in the game that is not a door: DOOR_PANEL_GATE, a
+               single iron leaf swinging over the length of SFX_GATE. */
+            pending_area = STATE_FOUNTAIN_SQUARE;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_FOUNTAIN_SQUARE) {
+        /* Flat parterre: one paved plane, so the shared wall collision routine
+           (generic over current_collision_room) and a single floor zone are the
+           whole of it. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed — see world_seed_room's note on */
+        update_spiders();      /* why this room has to stay empty            */
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        if (!lock && fountain_square_gate_triggered()) {
+            /* South back through the same gate, into the Garden Courtyard. */
+            pending_area = STATE_GARDEN_COURTYARD;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_CONSERVATORY) {
         /* Flat single-floor room; the shared wall/prop collision routine is
@@ -712,6 +739,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         garden_stairs_draw(ctx);
     else if (area == STATE_GARDEN_COURTYARD)
         garden_courtyard_draw(ctx);
+    else if (area == STATE_FOUNTAIN_SQUARE)
+        fountain_square_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -883,6 +912,7 @@ int main(int argc, const char **argv) {
     exit_door_puzzle_load_assets();/* the exit door's fixed magenta stone icon */
     garden_stairs_load_assets();/* garden stairs streamed textures */
     garden_courtyard_load_assets();/* garden courtyard texture slots */
+    fountain_square_load_assets(); /* fountain square texture slots  */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -1028,15 +1058,21 @@ int main(int argc, const char **argv) {
             /* Per-room SOUND streaming, and the one thing here that DOES touch
                the drive. The Rabisu's reveal clips are too big to keep in SPU
                RAM alongside the monster effects, so the two sets timeshare one
-               region (see sound.h): the Garden Courtyard gets the boss bank,
-               every other room gets the house bank. sound_bank_select suspends
+               region (see sound.h): the two GARDEN rooms get the boss bank,
+               every other room gets the house bank. Fountain Square is on it
+               not for the Rabisu — the boss never leaves the courtyard — but
+               for SFX_GATE, which is banked there because it fits nowhere else
+               and which plays on the way OUT of both rooms. The price is that
+               Fountain Square has no monster sounds, hence world_seed_room
+               leaving it empty. sound_bank_select suspends
                CD-DA around its own reads and returns immediately when the right
                bank is already in, so this is safe to run unconditionally on
                every transition — including a title-screen load or a debug
                level-select jump, both of which arrive through here. Keyed on
                pending_area rather than on a door trigger for exactly that
                reason: every path into a room passes this line. */
-            sound_bank_select(pending_area == STATE_GARDEN_COURTYARD
+            sound_bank_select((pending_area == STATE_GARDEN_COURTYARD ||
+                               pending_area == STATE_FOUNTAIN_SQUARE)
                               ? SND_BANK_BOSS : SND_BANK_HOUSE);
 
             /* Upload reception's unique textures into VRAM from their resident RAM
@@ -1071,6 +1107,10 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_GARDEN_COURTYARD) {
                 garden_courtyard_upload_textures(); /* the same slot set — it
                                                        delegates to the above */
+            } else if (pending_area == STATE_FOUNTAIN_SQUARE) {
+                fountain_square_upload_textures();  /* ditto, plus fountain +
+                                                       drain over brick_wall
+                                                       and xt_dr_cg */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -1264,7 +1304,11 @@ int main(int argc, const char **argv) {
                    door transition's cdaudio_stop) also arrives in silence. */
                 cdaudio_stop();
             } else if (pending_area == STATE_GARDEN_COURTYARD) {
-                garden_courtyard_init();  /* only one way in: the east cage door */
+                garden_courtyard_init();  /* defaults to the east cage door */
+                /* Coming back south out of Fountain Square, arrive at the gate
+                   in the north hedge instead, down on the lawn. */
+                if (current_area == STATE_FOUNTAIN_SQUARE)
+                    garden_courtyard_spawn_north();
                 /* NO music here. The courtyard's track is the BOSS's track, and
                    src/rabisu_boss.c starts it at the moment the reveal's lights
                    die back — not on walking in. The garden is silent from the
@@ -1274,6 +1318,17 @@ int main(int argc, const char **argv) {
                    into this room does not pass through the door transition's
                    own stop. */
                 cdaudio_stop();
+            } else if (pending_area == STATE_FOUNTAIN_SQUARE) {
+                fountain_square_init();  /* only one gate is connected: the south
+                                            one, back into the courtyard */
+                /* Music of its own, unlike the rest of the garden — the stairs
+                   and the courtyard are silent by design, and the courtyard's
+                   track belongs to the boss. Played HERE rather than on the door
+                   trigger so every route in gets it: the gate, a title-screen
+                   load and a debug level-select jump all pass through this
+                   branch. The transition's own cdaudio_stop has already killed
+                   whatever was playing next door. */
+                cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
@@ -1345,24 +1400,10 @@ int main(int argc, const char **argv) {
                    game_state == STATE_ATTIC_STAIRWELL ||
                    game_state == STATE_ATTIC_EXIT ||
                    game_state == STATE_GARDEN_STAIRS ||
-                   game_state == STATE_GARDEN_COURTYARD) {
+                   game_state == STATE_GARDEN_COURTYARD ||
+                   game_state == STATE_FOUNTAIN_SQUARE) {
             if (game_over) {
                 draw_lose_screen(&ctx);
-            } else if (trial_end_active()) {
-                /* THE END OF THE TRIAL (src/trial_end.h), armed by the Rabisu
-                   encounter the frame its death sequence retires. It owns the
-                   screen exactly the way the game-over screen does: nothing in
-                   the room ticks, no menu, no HUD, and Start goes to the title.
-                   The garden is still DRAWN for the four seconds of the fade —
-                   that is what is being faded — and not for a frame longer. */
-                trial_end_update();
-                if (trial_end_world_visible())
-                    draw_current_area(&ctx, game_state);
-                trial_end_draw(&ctx);
-                if (trial_end_finished()) {
-                    reset_game(&ctx);
-                    game_state = STATE_TITLE;
-                }
             } else {
                 /* Capture the area first: handle_menu_open may switch game_state
                    to STATE_MENU mid-frame, but the rest of this frame must keep

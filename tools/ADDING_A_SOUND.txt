@@ -173,7 +173,7 @@ Run this, with your clip added to the right list:
          'cursor','select','back']
     house=['dogbark','dogdie','zombie_2','ZOMBIEDIE','tntcl_wrth_2','tntcl_die',
            'spdr_wlk','spit','mchne']
-    boss=['emerge','dmnspeak']
+    boss=['emerge','dmnspeak','gate']
     intro=['ninurta']
     p=4112
     for f in res: p+=a(f+'.vag')
@@ -187,11 +187,21 @@ Run this, with your clip added to the right list:
     "
 
 The lists must be kept in the SAME ORDER as the enum in sound.h, because
-sound_init() allocates in enum order. As of the menu blips:
+sound_init() allocates in enum order. As of the garden gate:
 
     bank_base 0x51C10   region 189424
-    house 182656   boss 124224   intro 22080
+    house 182656   boss 142528   intro 22080
     spare 6768
+
+(GATE is the worked example of a NON-obvious bank choice, and worth reading
+before you place anything else. It is a door sound — the sort of thing that
+"obviously" belongs with SFX_DOOR in the residents — but at 17.9 KB it does not
+fit the 6.6 KB of resident headroom, and the house bank has exactly the same
+6.6 KB free, because `spare` is sized by the LARGEST bank and house IS the
+largest. The boss bank had 65 KB free, so the gate went there and the second
+room it serves, Fountain Square, was put on the boss bank with the courtyard.
+That is only legal because world.c seeds Fountain Square empty: putting a room
+on the boss bank costs it all nine monster effects.)
 
 (Before them it was bank_base 0x4F5D0, region 199216, spare 16560. The three
 blips took 9792 of that — see STEP 6's note on why they are resident, and note

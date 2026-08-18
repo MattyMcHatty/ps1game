@@ -82,7 +82,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_PIANO_ROOM,     STATE_CONSERVATORY,   STATE_2F_HALL,
     STATE_MASTER_BEDROOM, STATE_EAST_HALL,      STATE_LIBRARY,
     STATE_EAST_STAIRWELL, STATE_ATTIC_STAIRWELL,STATE_ATTIC_EXIT,
-    STATE_GARDEN_STAIRS,  STATE_GARDEN_COURTYARD,
+    STATE_GARDEN_STAIRS,  STATE_GARDEN_COURTYARD, STATE_FOUNTAIN_SQUARE,
 };
 
 static int room_index(GameState area) {
@@ -101,6 +101,7 @@ static int room_index(GameState area) {
         case STATE_ATTIC_EXIT:     return 11;
         case STATE_GARDEN_STAIRS:  return 12;
         case STATE_GARDEN_COURTYARD: return 13;
+        case STATE_FOUNTAIN_SQUARE: return 14;
         default:                   return 0;
     }
 }
@@ -433,6 +434,13 @@ void world_seed_room(GameState area) {
         sml_med_spawn(-2229, 651, 1442);
         sml_med_spawn( 1654, 651, 1475);
     }
+
+    /* Fountain Square seeds NOTHING — no enemies, no pickups. That is not an
+       oversight to be quietly corrected: it is what pays for the gate sound.
+       SFX_GATE lives in the BOSS bank (there is no resident or house-bank room
+       for it), so this room runs with the nine SND_BANK_HOUSE monster effects
+       evicted, exactly as the Garden Courtyard does. Anything with a voice
+       placed here would be silent. See src/sound.h before adding to this. */
 }
 
 void world_enter(GameState area) {

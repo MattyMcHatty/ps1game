@@ -130,6 +130,14 @@
                 <file name="EXPLODE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\explode.vag"/>
                 <file name="EMERGE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\emerge.vag"/>
                 <file name="DMNSPEK.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\dmnspeak.vag"/>
+                <!-- The garden gate between the Garden Courtyard and Fountain
+                     Square (DOOR_PANEL_GATE's transition). On the BOSS bank,
+                     which reads oddly for a door: at 17.9 KB it does not fit the
+                     6.6 KB of resident headroom, the house bank has exactly the
+                     same 6.6 KB free, and the boss bank has 63 KB. The two rooms
+                     the gate joins are the only two it plays in, so both are on
+                     the boss bank. See src/sound.h. -->
+                <file name="GATE.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\gate.vag"/>
                 <!-- SND_BANK_INTRO, a bank of one: the Order of Ninurta line
                      over the opening sequence's white flash. Banked because
                      21.6 KB will not fit the resident headroom, and it is only
@@ -278,6 +286,28 @@
                 <file name="HEDGE.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\hedge.tim"/>
                 <file name="GRDNGTE.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\grdn_gte.tim"/>
 
+                <!-- Fountain Square: the hedge-walled parterre north of the
+                     courtyard, through the gate in that hedge. Four of its six
+                     textures are the courtyard's (HEDGE, GRDNGTE) and the Garden
+                     Stairs' clones (GRSSGS, GRAVELGS) — it reuses the courtyard's
+                     uploader wholesale — so only FOUNTAIN and DRAIN are its own.
+                     Both went to pages this room draws nothing else from and that
+                     were already time-shared: FOUNTAIN on the brick_wall page
+                     (x768 y0), DRAIN on the opn_drwr page (x832 y0). Note the
+                     .smx exports for this room live in assets/garden/, not
+                     assets/. -->
+                <file name="FNTNSQ.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\fountain_square.smd"/>
+                <file name="FOUNTAIN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\fountain.tim"/>
+                <file name="DRAIN.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\drain.tim"/>
+                <!-- The gate's two leaves as the door-anim transition draws them
+                     (DOOR_PANEL_GATE). Like XTDRLHLF/XTDRRHLF these are separate
+                     per-leaf images, but unlike them they could not be
+                     page-aligned — no free 64-word column remains at a page
+                     boundary — so each sits in the right half of a page
+                     (x544 / x608, y128) and is sampled at U 64..127. -->
+                <file name="GRDNGTL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\grdngtl.tim"/>
+                <file name="GRDNGTR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\grdngtr.tim"/>
+
                 <!-- Delivery Area: the remodelled yard draws trees and chnlnk
                      alongside gravel, whose VRAM page (x640 y0) all three used
                      to share. Byte-for-byte clones at the last free page
@@ -311,6 +341,14 @@
 
     <!-- Track 6: garden courtyard music -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\33446737-the-vampires-monster-menu-games-236772.wav"/>
+
+    <!-- Track 7: fountain square music.
+         Every track here must be 44100 Hz 16-bit STEREO — Redbook. mkpsxiso
+         accepts anything and silently converts, but the result is upsampled
+         mono. music/mp3_to_wav.py is NOT the tool for these: it is the sound-
+         effect path and always mixes to mono at 22050, whatever --rate says.
+         Convert music with pydub/ffmpeg straight to 44100 stereo instead. -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\artifystudio-eerie-ambient-10-205803.wav"/>
 
 
 </iso_project>

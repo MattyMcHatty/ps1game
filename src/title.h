@@ -26,6 +26,8 @@ typedef enum {
     STATE_GARDEN_STAIRS, /* caged switchback stairway behind the attic exit's door */
     STATE_GARDEN_COURTYARD, /* walled garden at the foot of the garden stairs */
     STATE_INTRO,       /* opening sequence, between New Game and the delivery area */
+    STATE_FOUNTAIN_SQUARE, /* hedge parterre north of the garden courtyard, through
+                              the gate in its north hedge */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

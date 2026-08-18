@@ -22,10 +22,13 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 14  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 15  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
-                               attic_exit, garden_stairs, garden_courtyard */
+                               attic_exit, garden_stairs, garden_courtyard,
+                               fountain_square.
+                               NOTE the WorldDelta's `visited` is a uint16_t, so
+                               16 is the ceiling without widening it. */
 
 void world_new_game(void);          /* reset all rooms; capture the starting room */
 void world_leave(GameState area);   /* live entities  -> the area's saved slot */

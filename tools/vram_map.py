@@ -131,6 +131,26 @@ KNOWN_STREAM_PAIRS = [
     ("xt_dr_outr.tim",     "hedge.tim"),
     ("kchn_wl.tim",        "grdn_gte.tim"),
     ("dresser.tim",        "grdn_gte.tim"),
+    # Fountain Square, the walled garden north of the courtyard. It draws hedge,
+    # grdn_gte, grss_gs and gravel_gs from the Garden Courtyard's slots verbatim
+    # (it reuses that room's uploader wholesale), so only its two OWN textures
+    # needed homes — and, like the courtyard's, both went to pages this room
+    # draws nothing from and that were already time-shared:
+    #   fountain -> the brick_wall page (x768 y0), shared with grss / bed /
+    #               xt_dr_lckd / xt_dr_cmplt. The Garden Stairs uploader puts
+    #               brick_wall here on the way in, so fountain must go up AFTER
+    #               it — see fountain_square_upload_textures.
+    #   drain    -> the opn_drwr page (x832 y0), shared with double_door /
+    #               con_tile / xt_dr_cg. Same ordering rule, same uploader.
+    ("brick_wall.tim",     "fountain.tim"),
+    ("grss.tim",           "fountain.tim"),
+    ("bed.tim",            "fountain.tim"),
+    ("xt_dr_lckd.tim",     "fountain.tim"),
+    ("xt_dr_cmplt.tim",    "fountain.tim"),
+    ("con_tile.tim",       "drain.tim"),
+    ("double_door.tim",    "drain.tim"),
+    ("opn_drwr.tim",       "drain.tim"),
+    ("xt_dr_cg.tim",       "drain.tim"),
 ]
 
 def read_tim(path):

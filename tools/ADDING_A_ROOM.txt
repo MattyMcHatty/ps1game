@@ -155,6 +155,14 @@ COORDINATE CONVENTIONS (memorise these):
     (delivery_restore_textures / kitchen_restore_textures / the room's own
     *_upload_textures).
 
+    >>> AND COUNT THE REGISTRATIONS. <<< TEXMGR_MAX is 48 and, as of Fountain
+    Square, 46 are used. A texmgr_register past the cap fails SILENTLY and
+    breaks that texture in every room that draws it. The way to spend none at
+    all is the one Fountain Square and the Garden Courtyard both take: if
+    another room already uploads the slot you need, call ITS *_upload_textures()
+    from yours and use TIM_SLOT() for the header, instead of registering a
+    second RAM copy of the same file.
+
 3c. CLUT slot: 8bpp needs 256 words, 4bpp needs 16, one line tall, in the
     scratch area y >= 480. Check the "CLUT SLOTS" table in VRAM_MAP.txt for a
     gap, and remember ddog_alert occupies x[640,672) y[448,512) — that is NOT
@@ -361,7 +369,7 @@ Touch these files, in this order:
                      Seed any resident enemies / pickups for the room in
                      world_seed_room().
                      >>> world_seed_room() RUNS FOR ROOMS THAT ARE NOT LOADED.
-                     Loading a save rebuilds all fourteen rooms with only one
+                     Loading a save rebuilds all fifteen rooms with only one
                      room's geometry resident, so nothing you add there may read
                      the current room's mesh or collision data — author every
                      coordinate, floor height and ceiling height as a literal.

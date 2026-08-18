@@ -146,7 +146,26 @@ typedef enum {
                             sound of its own in the same frame — the puzzles'
                             UNLOCK/PICKUP/SLAM — so nothing ever layers.       */
     SFX_BACK       = 31, /* backing out of a screen or cancelling. 1.23 s     */
-    SFX_COUNT      = 32,
+    /* The wrought-iron garden gate between the Garden Courtyard and Fountain
+       Square, played by DOOR_PANEL_GATE's transition. 2.90 s at 11025 Hz, and
+       door_anim.c's GATE_SWING_FRAMES is cut to exactly that — retrim this clip
+       and that constant has to move with it.
+
+       BANKED (boss), which reads oddly for a door and is the only arrangement
+       that works. It is 17.9 KB and the RESIDENT headroom is 6.6 KB, so it
+       cannot be resident; the house bank has exactly the same 6.6 KB spare, so
+       it cannot go there either. The boss bank has 63 KB free — and the two
+       rooms the gate joins are the only two rooms it ever plays in, so both are
+       simply put on the boss bank (see main.c's sound_bank_select call).
+
+       >>> THE PRICE: FOUNTAIN SQUARE HAS NO MONSTER SOUNDS. <<< The nine
+       SND_BANK_HOUSE effects are evicted there, exactly as they are in the
+       Garden Courtyard. That is free today because world.c places nothing in
+       Fountain Square, but anything with a voice added to that room later will
+       be silent. Read tools/ADDING_A_SOUND.txt STEP 0 before assuming
+       otherwise. */
+    SFX_GATE       = 32,
+    SFX_COUNT      = 33,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds. Numbered from 1

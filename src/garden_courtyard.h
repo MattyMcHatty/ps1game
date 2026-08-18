@@ -26,9 +26,17 @@
    only 100 tall, so they block from BELOW but are stepped off from above, which
    is what a knee-high garden wall should do.
 
-     EAST   the xt_dr_cg door at x=2000, y[114,800], z[-1429,-857]. The only way
-     WALL   in or out, and the far side of the identical door on the Garden
-            Stairs' bottom landing.
+     EAST   the xt_dr_cg door at x=2000, y[114,800], z[-1429,-857]. The far
+     WALL   side of the identical door on the Garden Stairs' bottom landing.
+
+     NORTH  the grdn_gte leaf at z=2000, x[-1437,-580], y[300,900], set into
+     WALL   the hedge that replaced most of the chainlink run along this side.
+            It opens onto Fountain Square, and it is the one door in the game
+            whose transition is DOOR_PANEL_GATE — a single leaf swinging over
+            the length of SFX_GATE rather than the usual door slam.
+
+   Both are sealed while the Rabisu encounter has the arena shut
+   (rabisu_boss_seals_door): the prompt is withheld and the trigger refuses.
 
    Rendered the same way as the Garden Stairs (per-poly tex map + one 128
    texture window + purple outdoor fog), and it reuses that room's texture
@@ -43,7 +51,12 @@ void garden_courtyard_draw(RenderContext *ctx);
 void garden_courtyard_door_arm(void);        /* seed the Circle edge state */
 int  garden_courtyard_door_triggered(void);  /* 1 on a fresh Circle press in range */
 
-/* Spawn just inside the east door — the only arrival. */
+/* The north-wall gate through the hedge, into Fountain Square. */
+void garden_courtyard_ngate_arm(void);
+int  garden_courtyard_ngate_triggered(void);
+
+/* Spawn just inside one of the two doors; each arms every interaction here. */
 void garden_courtyard_spawn_east(void);
+void garden_courtyard_spawn_north(void);
 
 #endif

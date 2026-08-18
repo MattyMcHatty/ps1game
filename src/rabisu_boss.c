@@ -14,7 +14,6 @@
 #include "garden_courtyard.h"
 #include "rabisu.h"
 #include "rabisu_boss.h"
-#include "trial_end.h"     /* where this build of the game stops */
 
 /* The Rabisu encounter. See rabisu_boss.h for what it is and why it is a
    separate file from the boss itself. */
@@ -592,7 +591,10 @@ void rabisu_boss_update(void) {
                camera is standing at the fight spot, which is the whole trick
                behind "the camera moves there and control is given back". */
             camera_release_player();
+            /* Both exits, or a Circle held through the cutscene fires whichever
+               one the camera happens to have landed next to. */
             garden_courtyard_door_arm();
+            garden_courtyard_ngate_arm();
             rabisu_fight_begin(r);
             enter_phase(RBE_FIGHT);
         }
@@ -660,13 +662,17 @@ void rabisu_boss_update(void) {
             cam_rot = save_crot; cam_vy = save_cvy; cam_pitch = 0;
             camera_release_player();
             garden_courtyard_door_arm();
+            garden_courtyard_ngate_arm();
             state = RBE_DONE;
-            /* THE END OF THE TRIAL. Armed HERE and not by anything watching for
-               RBE_DONE, because the bail-out above reaches RBE_DONE too — a
-               debug jump or a load that takes the boss out from under the script
-               must not roll the credits. This is the one path that gets here off
-               a body that actually died. */
-            trial_end_start();
+            /* ...and that is the end of it. The player has control back, stood
+               where they were when the boss died, in a silent garden (the death
+               sequence's cdaudio_stop) with both exits open — rabisu_boss_seals_
+               door() is false at RBE_DONE. Free play resumes.
+
+               This used to arm a sign-off screen here (src/trial_end.c: a fade
+               to purple, a closing message and PRESS START TO RETURN), which was
+               the trial build's stopping point. Removed — killing the boss is no
+               longer the end of the game, so it just ends the encounter. */
         }
         break;
 
