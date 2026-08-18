@@ -70,6 +70,8 @@ add_executable(horror_game
     src/garden_courtyard.c
     src/fountain_square_mesh_collision.c
     src/fountain_square.c
+    src/outside_catacombs_mesh_collision.c
+    src/outside_catacombs.c
     src/rabisu_boss.c
     src/chainlink_door.c
     src/lever.c

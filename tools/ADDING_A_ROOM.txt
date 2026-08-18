@@ -155,8 +155,13 @@ COORDINATE CONVENTIONS (memorise these):
     (delivery_restore_textures / kitchen_restore_textures / the room's own
     *_upload_textures).
 
-    >>> AND COUNT THE REGISTRATIONS. <<< TEXMGR_MAX is 48 and, as of Fountain
-    Square, 46 are used. A texmgr_register past the cap fails SILENTLY and
+    >>> AND COUNT THE REGISTRATIONS. <<< TEXMGR_MAX is 48 and, as of the
+    Outside Catacombs, ALL 48 ARE USED — the two Fountain Square left were
+    spent on that room's tablet and flower bed. The next room that wants a
+    texture of its own must either raise TEXMGR_MAX (it costs a TexEntry and,
+    more to the point, RAM for the resident copy) or delegate every slot the
+    way garden_courtyard.c and outside_catacombs.c do. A texmgr_register past
+    the cap fails SILENTLY and
     breaks that texture in every room that draws it. The way to spend none at
     all is the one Fountain Square and the Garden Courtyard both take: if
     another room already uploads the slot you need, call ITS *_upload_textures()

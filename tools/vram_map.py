@@ -151,6 +151,31 @@ KNOWN_STREAM_PAIRS = [
     ("double_door.tim",    "drain.tim"),
     ("opn_drwr.tim",       "drain.tim"),
     ("xt_dr_cg.tim",       "drain.tim"),
+    # Outside Catacombs, north of Fountain Square through the same kind of gate.
+    # It draws hedge, grdn_gte, grss_gs and gravel_gs from the Garden Courtyard's
+    # slots (it reuses that room's uploader wholesale) plus con_tile from the
+    # conservatory's narrow upload, so again only its two OWN textures needed
+    # homes, and again both went to pages it draws nothing from that were
+    # already time-shared:
+    #   lamashtu tablet    -> the brick_wall page (x768 y0), shared with grss /
+    #               bed / xt_dr_lckd / xt_dr_cmplt / fountain. The Garden Stairs
+    #               uploader puts brick_wall here on the way in, so the tablet
+    #               must go up AFTER it — see outside_catacombs_upload_textures.
+    #   poison_flower_base -> the trck_clue page (x640 y0), an 8bpp full-page
+    #               slot shared with gravel_texture / trees / chnlnk (all 4bpp,
+    #               using only its left half). Everyone re-uploads on entry:
+    #               delivery restores gravel_texture+trees, the east stairwell
+    #               and garden stairs chnlnk, the attic stairwell trck_clue.
+    ("brick_wall.tim",     "lamashtu tablet.tim"),
+    ("grss.tim",           "lamashtu tablet.tim"),
+    ("bed.tim",            "lamashtu tablet.tim"),
+    ("xt_dr_lckd.tim",     "lamashtu tablet.tim"),
+    ("xt_dr_cmplt.tim",    "lamashtu tablet.tim"),
+    ("fountain.tim",       "lamashtu tablet.tim"),
+    ("gravel_texture.tim", "poison_flower_base.tim"),
+    ("trees.tim",          "poison_flower_base.tim"),
+    ("chnlnk.tim",         "poison_flower_base.tim"),
+    ("trck_clue.tim",      "poison_flower_base.tim"),
 ]
 
 def read_tim(path):

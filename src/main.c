@@ -56,6 +56,7 @@
 #include "garden_stairs.h"
 #include "garden_courtyard.h"
 #include "fountain_square.h"
+#include "outside_catacombs.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -190,6 +191,7 @@ static void load_area_geometry(GameState area) {
         case STATE_GARDEN_STAIRS:    garden_stairs_load_geometry();    break;
         case STATE_GARDEN_COURTYARD: garden_courtyard_load_geometry(); break;
         case STATE_FOUNTAIN_SQUARE:  fountain_square_load_geometry();  break;
+        case STATE_OUTSIDE_CATACOMBS:outside_catacombs_load_geometry();break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -588,6 +590,32 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (!lock && fountain_square_ngate_triggered()) {
+            /* North through the gate in the far hedge, on to the Outside
+               Catacombs. Same DOOR_PANEL_GATE transition as the south one —
+               it is the same iron leaf. */
+            pending_area = STATE_OUTSIDE_CATACOMBS;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_OUTSIDE_CATACOMBS) {
+        /* Flat ground throughout — all sixteen collision floor planes are at
+           y=0 — so the shared wall collision routine (generic over
+           current_collision_room) and a single floor zone are the whole of it. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed — see world_seed_room's note on */
+        update_spiders();      /* why this room has to stay empty            */
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        if (!lock && outside_catacombs_gate_triggered()) {
+            /* South back through the same gate, into Fountain Square. */
+            pending_area = STATE_FOUNTAIN_SQUARE;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_CONSERVATORY) {
         /* Flat single-floor room; the shared wall/prop collision routine is
@@ -741,6 +769,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         garden_courtyard_draw(ctx);
     else if (area == STATE_FOUNTAIN_SQUARE)
         fountain_square_draw(ctx);
+    else if (area == STATE_OUTSIDE_CATACOMBS)
+        outside_catacombs_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -913,6 +943,7 @@ int main(int argc, const char **argv) {
     garden_stairs_load_assets();/* garden stairs streamed textures */
     garden_courtyard_load_assets();/* garden courtyard texture slots */
     fountain_square_load_assets(); /* fountain square texture slots  */
+    outside_catacombs_load_assets();/* outside catacombs texture slots */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -1072,7 +1103,8 @@ int main(int argc, const char **argv) {
                pending_area rather than on a door trigger for exactly that
                reason: every path into a room passes this line. */
             sound_bank_select((pending_area == STATE_GARDEN_COURTYARD ||
-                               pending_area == STATE_FOUNTAIN_SQUARE)
+                               pending_area == STATE_FOUNTAIN_SQUARE ||
+                               pending_area == STATE_OUTSIDE_CATACOMBS)
                               ? SND_BANK_BOSS : SND_BANK_HOUSE);
 
             /* Upload reception's unique textures into VRAM from their resident RAM
@@ -1111,6 +1143,11 @@ int main(int argc, const char **argv) {
                 fountain_square_upload_textures();  /* ditto, plus fountain +
                                                        drain over brick_wall
                                                        and xt_dr_cg */
+            } else if (pending_area == STATE_OUTSIDE_CATACOMBS) {
+                outside_catacombs_upload_textures();/* ditto, plus con_tile and
+                                                       the tablet + flower bed
+                                                       over xt_dr_cg,
+                                                       brick_wall and chnlnk */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -1319,8 +1356,12 @@ int main(int argc, const char **argv) {
                    own stop. */
                 cdaudio_stop();
             } else if (pending_area == STATE_FOUNTAIN_SQUARE) {
-                fountain_square_init();  /* only one gate is connected: the south
-                                            one, back into the courtyard */
+                fountain_square_init();  /* defaults to the south gate, back
+                                            into the courtyard */
+                /* Coming back south out of the Outside Catacombs, arrive at the
+                   gate in the north hedge instead. */
+                if (current_area == STATE_OUTSIDE_CATACOMBS)
+                    fountain_square_spawn_north();
                 /* Music of its own, unlike the rest of the garden — the stairs
                    and the courtyard are silent by design, and the courtyard's
                    track belongs to the boss. Played HERE rather than on the door
@@ -1328,6 +1369,18 @@ int main(int argc, const char **argv) {
                    load and a debug level-select jump all pass through this
                    branch. The transition's own cdaudio_stop has already killed
                    whatever was playing next door. */
+                cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
+            } else if (pending_area == STATE_OUTSIDE_CATACOMBS) {
+                outside_catacombs_init();  /* only one gate is connected: the
+                                              south one, back into the square */
+                /* The SAME track as Fountain Square next door, restarted on
+                   arrival. The two could in principle have shared it across the
+                   gate without a stop, but streaming this room's mesh suspends
+                   CD-DA mid-track and what the player would hear is the score
+                   pausing over the load — the kitchen/delivery pair settled that
+                   argument already. Played HERE rather than on the gate trigger
+                   so every route in gets it: the gate, a title-screen load and a
+                   debug level-select jump all pass through this branch. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else {
                 /* Return to the delivery area: restore its collision/floor and
@@ -1401,7 +1454,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_ATTIC_EXIT ||
                    game_state == STATE_GARDEN_STAIRS ||
                    game_state == STATE_GARDEN_COURTYARD ||
-                   game_state == STATE_FOUNTAIN_SQUARE) {
+                   game_state == STATE_FOUNTAIN_SQUARE ||
+                   game_state == STATE_OUTSIDE_CATACOMBS) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

@@ -83,6 +83,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_MASTER_BEDROOM, STATE_EAST_HALL,      STATE_LIBRARY,
     STATE_EAST_STAIRWELL, STATE_ATTIC_STAIRWELL,STATE_ATTIC_EXIT,
     STATE_GARDEN_STAIRS,  STATE_GARDEN_COURTYARD, STATE_FOUNTAIN_SQUARE,
+    STATE_OUTSIDE_CATACOMBS,
 };
 
 static int room_index(GameState area) {
@@ -102,6 +103,7 @@ static int room_index(GameState area) {
         case STATE_GARDEN_STAIRS:  return 12;
         case STATE_GARDEN_COURTYARD: return 13;
         case STATE_FOUNTAIN_SQUARE: return 14;
+        case STATE_OUTSIDE_CATACOMBS: return 15;
         default:                   return 0;
     }
 }
@@ -441,6 +443,11 @@ void world_seed_room(GameState area) {
        for it), so this room runs with the nine SND_BANK_HOUSE monster effects
        evicted, exactly as the Garden Courtyard does. Anything with a voice
        placed here would be silent. See src/sound.h before adding to this. */
+
+    /* The Outside Catacombs seeds NOTHING either, and for exactly the same
+       reason: it is reached only through the gate, so it is on SND_BANK_BOSS
+       for SFX_GATE and runs with the house bank's monster effects evicted.
+       Do not populate it without reading src/sound.h first. */
 }
 
 void world_enter(GameState area) {

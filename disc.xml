@@ -299,6 +299,19 @@
                 <file name="FNTNSQ.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\fountain_square.smd"/>
                 <file name="FOUNTAIN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\fountain.tim"/>
                 <file name="DRAIN.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\drain.tim"/>
+
+                <!-- Outside Catacombs: the approach to the catacomb mouth, north
+                     of Fountain Square through the gate in ITS north hedge. Five
+                     of its seven textures belong to other rooms — HEDGE, GRDNGTE,
+                     GRSSGS and GRAVELGS via the courtyard's uploader, CONTILE via
+                     the conservatory's narrow one — so only LMSHTBLT and PSNFLWR
+                     are its own, and both went to pages this room draws nothing
+                     else from that were already time-shared: LMSHTBLT on the
+                     brick_wall page (x768 y0), PSNFLWR on the trck_clue page
+                     (x640 y0). Its .smx exports live in assets/garden/ too. -->
+                <file name="OUTCTCMB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\outside_catacombs.smd"/>
+                <file name="LMSHTBLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu tablet.tim"/>
+                <file name="PSNFLWR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\poison_flower_base.tim"/>
                 <!-- The gate's two leaves as the door-anim transition draws them
                      (DOOR_PANEL_GATE). Like XTDRLHLF/XTDRRHLF these are separate
                      per-leaf images, but unlike them they could not be
@@ -346,7 +359,12 @@
          Every track here must be 44100 Hz 16-bit STEREO — Redbook. mkpsxiso
          accepts anything and silently converts, but the result is upsampled
          mono. music/mp3_to_wav.py is NOT the tool for these: it is the sound-
-         effect path and always mixes to mono at 22050, whatever --rate says.
+         effect path and always mixes to mono at 22050, whatever its "rate"
+         option says. (Written without the option's leading dashes on purpose:
+         a literal "- -" pair inside an XML comment makes this whole file
+         non-well-formed, and tools/gen_tim_slots.py and tools/gen_room_arena.py
+         parse it with ElementTree, which rejects it. mkpsxiso is lenient and
+         did not notice.)
          Convert music with pydub/ffmpeg straight to 44100 stereo instead. -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\artifystudio-eerie-ambient-10-205803.wav"/>
 

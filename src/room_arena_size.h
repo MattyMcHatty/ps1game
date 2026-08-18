@@ -13,6 +13,7 @@
  *
  *     67860 bytes   34 sectors  Reception.smd
  *     65740 bytes   33 sectors  delivery_area.smd
+ *     53404 bytes   27 sectors  outside_catacombs.smd
  *     45676 bytes   23 sectors  fountain_square.smd
  *     42228 bytes   21 sectors  garden_stairs.smd
  *     40220 bytes   20 sectors  kitchen_dining.smd
@@ -20,7 +21,6 @@
  *     35924 bytes   18 sectors  attic_exit.smd
  *     32220 bytes   16 sectors  attic_stairwell.smd
  *     30060 bytes   15 sectors  garden_courtyard.smd
- *     27964 bytes   14 sectors  Conservatory.smd
  *
  */
 #ifndef ROOM_ARENA_SIZE_H

@@ -26,13 +26,18 @@
      DRAIN      a channel cut across the paving at z[243,304]; art only, no
                 collision of its own.
 
-   FOUR gates are modelled, one per side, but only the SOUTH one is connected:
+   FOUR gates are modelled, one per side; TWO are connected:
 
      SOUTH   the grdn_gte leaf at z=-1822, x[-364,364], y[-600,0]. The far side
-     WALL    of the gate in the Garden Courtyard's north hedge, and today the
-             only way in or out. The three others (west x=-1994, east x=2005,
-             north z=2177) are drawn shut and back onto solid collision — they
-             are there for rooms that do not exist yet.
+     WALL    of the gate in the Garden Courtyard's north hedge. Collision wall
+             79 there has nz = +4096, so it is approached from +Z (mirror=1).
+     NORTH   the leaf at z=2177, same x span. It opens on the Outside
+     WALL    Catacombs' south gate. Collision wall 66 has nz = -4096, so it is
+             approached from -Z — the opposite face, hence mirror=0 and a sign
+             on the z-11 side.
+             The two others (west x=-1994, east x=2005) are drawn shut and back
+             onto solid collision — they are there for rooms that do not exist
+             yet.
 
    Rendered the same way as the Garden Courtyard (per-poly tex map + one 128
    texture window + purple outdoor fog), and it reuses that room's texture
@@ -53,7 +58,14 @@ void fountain_square_draw(RenderContext *ctx);
 void fountain_square_gate_arm(void);        /* seed the Circle edge state */
 int  fountain_square_gate_triggered(void);  /* 1 on a fresh Circle press in range */
 
-/* Spawn just inside the south gate — the only arrival. */
+/* The north-wall gate on to the Outside Catacombs. Its own edge state, so a
+   press consumed by one gate cannot re-arm the other. */
+void fountain_square_ngate_arm(void);
+int  fountain_square_ngate_triggered(void);
+
+/* Spawns, one per connected gate. The south one is the room's default;
+   main.c overrides with the north one when arriving from the catacombs. */
 void fountain_square_spawn_south(void);
+void fountain_square_spawn_north(void);
 
 #endif

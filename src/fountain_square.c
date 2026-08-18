@@ -248,6 +248,78 @@ void fountain_square_spawn_south(void) {
     fountain_square_gate_arm();
 }
 
+/* ---- The north-wall gate on to the Outside Catacombs -----------------------
+   The second of this room's four modelled gates to be connected. Its grdn_gte
+   polys span x[-364,364] at z=2177, y[-600,0] — the mirror of the south gate
+   above, and it opens on the Outside Catacombs' south gate at that room's
+   z=-2000.
+
+   Collision wall 66 runs the full width of the north side at z=2177 with
+   nz = -4096, so the walkable side is -Z: the player approaches from inside the
+   room, which is the OPPOSITE face from the south gate. The sign is therefore
+   still in the XY plane but with mirror=0, and it stands 11 units SOUTH of the
+   wall (z - 11) rather than north of it. Getting either of those backwards
+   comes out as mirrored text or a sign inside the hedge. */
+#define FS_NGATE_X                 0    /* (-364 + 364) / 2 */
+#define FS_NGATE_Z            2177
+
+/* Its own Circle edge-detect. Two gates in one room means two independent edge
+   states — sharing one would let a press consumed by the near gate re-arm the
+   far one — and both are seeded on every entry by fountain_square_init. */
+static int ngate_circle_prev = 1;
+
+void fountain_square_ngate_arm(void) {
+    ngate_circle_prev = circle_held();
+}
+
+int fountain_square_ngate_triggered(void) {
+    int held = circle_held();
+    int just = held && !ngate_circle_prev;
+    ngate_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - FS_NGATE_X;
+    int32_t dz = cam_z - FS_NGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < FS_TRIGGER_RADIUS && interact_facing(FS_NGATE_X, FS_NGATE_Z);
+}
+
+/* Floating sign on the north gate. Same radii and fade as the south one; only
+   the mirror flag and the sign's side of the wall differ (see above). */
+static void ngate_text(RenderContext *ctx) {
+    int32_t dx = cam_x - FS_NGATE_X;
+    int32_t dz = cam_z - FS_NGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= FS_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > FS_FADE_NEAR) {
+        int range = FS_TEXT_RADIUS - FS_FADE_NEAR;
+        int prog  = xz - FS_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        FS_NGATE_X - 200, FS_TEXT_Y, FS_NGATE_Z - 11,
+                        50, 255, 50, fade, 0, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+}
+
+/* Arriving back from the Outside Catacombs: stand on the paving SOUTH of the
+   z=2177 hedge, clear of the wall push radius, facing -Z — the direction of
+   travel through the gate, looking back down the central path at the fountain. */
+void fountain_square_spawn_north(void) {
+    cam_x   = FS_NGATE_X;
+    cam_y   = FS_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = FS_NGATE_Z - COLLISION_WALL_RADIUS - 25;
+    cam_rot = 2048;   /* facing -Z, into the room */
+    /* Arm BOTH gates, not just this one: a Circle held through the transition
+       would otherwise fire whichever interaction was left unarmed. */
+    fountain_square_gate_arm();
+    fountain_square_ngate_arm();
+}
+
 void fountain_square_init(void) {
     fountain_square_collision_init(&current_collision_room);
     /* The perimeter hedge is drawn to y=-500 (the gates reach -600, but they
@@ -263,8 +335,12 @@ void fountain_square_init(void) {
 
     fountain_square_floor_zones_init();
 
-    /* Only one gate is connected, so no per-door override is needed in main.c. */
+    /* Default arrival is the south gate; main.c's STATE_LOADING branch
+       overrides it with the north spawn when the player is coming back out of
+       the Outside Catacombs. Either way both gates end up armed — the south
+       spawn calls its own arm and the extra one is added here. */
     fountain_square_spawn_south();
+    fountain_square_ngate_arm();
 
     /* Save points and dresser props are global (not room-swapped) and neither is
        area-gated in its collide routine, so reception's instances would block
@@ -491,6 +567,7 @@ void fountain_square_draw(RenderContext *ctx) {
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);
 
-    /* Last: the gate sign. */
+    /* Last: the gate signs. */
     gate_text(ctx);
+    ngate_text(ctx);
 }

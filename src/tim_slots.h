@@ -219,6 +219,10 @@
 #define TIM_TPAGE_KEY      0x008a
 #define TIM_CLUT_KEY       0x7840
 
+/* lamashtu tablet.tim  8bpp  VRAM ( 768,  0)  \TEX\LMSHTBLT.TIM */
+#define TIM_TPAGE_LMSHTBLT 0x008c
+#define TIM_CLUT_LMSHTBLT  0x7bea
+
 /* mansion.tim     8bpp  VRAM ( 448,128)  \TEX\MANSION.TIM */
 #define TIM_TPAGE_MANSION  0x0087
 #define TIM_CLUT_MANSION   0x7bd0
@@ -246,6 +250,10 @@
 /* prpl_wlppr.tim  4bpp  VRAM ( 384,256)  \TEX\PRPLWLP.TIM */
 #define TIM_TPAGE_PRPLWLP  0x0016
 #define TIM_CLUT_PRPLWLP   0x7fc0
+
+/* poison_flower_base.tim  8bpp  VRAM ( 640,  0)  \TEX\PSNFLWR.TIM */
+#define TIM_TPAGE_PSNFLWR  0x008a
+#define TIM_CLUT_PSNFLWR   0x7c2a
 
 /* Rabisu tex.tim  8bpp  VRAM ( 704,256)  \TEX\RABISU.TIM */
 #define TIM_TPAGE_RABISU   0x009b

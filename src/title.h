@@ -28,6 +28,10 @@ typedef enum {
     STATE_INTRO,       /* opening sequence, between New Game and the delivery area */
     STATE_FOUNTAIN_SQUARE, /* hedge parterre north of the garden courtyard, through
                               the gate in its north hedge */
+    STATE_OUTSIDE_CATACOMBS, /* the approach to the catacomb mouth, north of
+                                Fountain Square through the gate in ITS north
+                                hedge. Appended, not inserted: saves store raw
+                                enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn
