@@ -95,9 +95,9 @@ void outside_catacombs_collision_init(CollisionRoom *r) {
     r->walls[12].y_min =    -500;  r->walls[12].y_max =       0;
 
     /* Wall 13 (avg Y: -249) */
-    r->walls[13].x1 =   -2498;  r->walls[13].z1 =    -285;
-    r->walls[13].x2 =   -2498;  r->walls[13].z2 =   -1449;
-    r->walls[13].nx =    4096;  r->walls[13].nz =       0;
+    r->walls[13].x1 =   -2498;  r->walls[13].z1 =   -1449;
+    r->walls[13].x2 =   -2498;  r->walls[13].z2 =    -285;
+    r->walls[13].nx =   -4096;  r->walls[13].nz =       0;
     r->walls[13].y_min =    -500;  r->walls[13].y_max =       0;
 
     /* Wall 14 (avg Y: -250) */
