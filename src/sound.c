@@ -65,17 +65,21 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\SELECT.VAG;1",
     "\\SND\\BACK.VAG;1",
     "\\SND\\GATE.VAG;1",
+    "\\SND\\GAS.VAG;1",
+    "\\SND\\PULLIN.VAG;1",
 };
 
-/* Which bank each effect belongs to. SND_RESIDENT is spelled as a third value
-   here rather than a flag because "resident" is a real third case: those
-   effects are allocated OUTSIDE the shared region and are never evicted.
+/* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
+   can be in more than one and is then loaded once into each (see sound.h).
+   SND_RESIDENT is 0, i.e. "no bank": those effects are allocated OUTSIDE the
+   shared region and are never evicted, which is a real third case rather than a
+   fourth flag.
 
-   The nine SND_BANK_HOUSE entries are the monster effects, and they are the
-   nine because the Garden Courtyard places no monster but the boss (world.c).
    Read sound.h before adding to this list — banking an effect a room actually
-   uses makes it silently disappear in that room. Zero, and so the default for
-   anything omitted here, is SND_RESIDENT: see the note on SoundBank. */
+   uses makes it silently disappear in that room, and the check that matters is
+   world.c's placement block plus main.c's sound_bank_select mapping, not
+   intuition. Zero, and so the default for anything omitted here, is
+   SND_RESIDENT: see the note on SoundBank. */
 #define SND_RESIDENT 0
 
 static const uint8_t sfx_bank[SFX_COUNT] = {
@@ -94,12 +98,15 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_DIE]        = SND_RESIDENT,
     [SFX_GR_SHOT]    = SND_RESIDENT,
     [SFX_GR_RELOAD]  = SND_RESIDENT,
-    [SFX_TNTCL_WRTH] = SND_BANK_HOUSE,
-    [SFX_TNTCL_DIE]  = SND_BANK_HOUSE,
+    /* Both also in GARDEN: the Rafflesia borrows the writhe for its idle loop
+       and the tentacle's death cry for its own (rafflesia.c). One copy per
+       bank — 15.4 KB and 23.1 KB again in the garden's roomy 101 KB spare. */
+    [SFX_TNTCL_WRTH] = SND_BANK_HOUSE | SND_BANK_GARDEN,
+    [SFX_TNTCL_DIE]  = SND_BANK_HOUSE | SND_BANK_GARDEN,
     [SFX_STEP1]      = SND_RESIDENT,   /* the player walks in every room        */
     [SFX_STEP2]      = SND_RESIDENT,
     [SFX_SLAM]       = SND_RESIDENT,   /* the boss launching a shockwave        */
-    [SFX_SPDR_WLK]   = SND_BANK_HOUSE,
+    [SFX_SPDR_WLK]   = SND_BANK_HOUSE | SND_BANK_GARDEN,  /* the flower's bite */
     [SFX_SPIT]       = SND_BANK_HOUSE,
     [SFX_MCHNE]      = SND_BANK_HOUSE,
     [SFX_FIREBALL]   = SND_RESIDENT,   /* the three below fire mid-fight, and a */
@@ -112,12 +119,14 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_CURSOR]     = SND_RESIDENT,   /* the menus open under every bank there */
     [SFX_SELECT]     = SND_RESIDENT,   /* is — title, rooms, courtyard — so all */
     [SFX_BACK]       = SND_RESIDENT,   /* three must be. See sound.h.           */
-    [SFX_GATE]       = SND_BANK_BOSS,  /* the garden gate. Banked with the boss
-                                          because the only two rooms it joins —
-                                          the Garden Courtyard and Fountain
-                                          Square — are the only two on that bank,
-                                          and it does not fit anywhere else. The
-                                          full reasoning is in sound.h.          */
+    /* The garden gate, in BOTH garden-side banks: it plays on the way out of
+       the Garden Courtyard (boss bank) and out of Fountain Square and the
+       Outside Catacombs (garden bank). It fits in neither the resident headroom
+       nor the house bank — 17.9 KB against 6.6 KB spare in each — so two copies
+       is what it takes. Full reasoning in sound.h. */
+    [SFX_GATE]       = SND_BANK_BOSS | SND_BANK_GARDEN,
+    [SFX_GAS]        = SND_BANK_GARDEN,  /* the Rafflesia's spore puff          */
+    [SFX_PULL]       = SND_BANK_GARDEN,  /* ...and its grab (fireball reversed) */
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -144,6 +153,17 @@ static int sfx_channel(SfxID id) {
     if (id == SFX_BOOM)        return 22;
     if (id == SFX_RBS_SWING)   return 23;   /* clear of SFX_SWING's pool slot */
     if (id == SFX_NINURTA)     return 9;    /* 4.8 s, and the intro's only sound */
+    /* The Rafflesia's spore puff, off the pool on purpose. Its pool slot would
+       be FIRST_VOICE + (33 % 8) = 2, shared with SFX_HURT — and the one moment
+       the puff matters most is the frame a cloud lands on a player already
+       standing in range, which fires HURT in the same frame and would cut it. */
+    if (id == SFX_GAS)         return 13;
+    /* The grab, likewise off the pool. It fires on the frame a flower seizes
+       the player, which is a busy one — the haul starts, the player is very
+       likely already gassed and taking damage — and its pool slot would be
+       shared with PICKUP and SLAM. It is the cue that tells you what just
+       happened to you, so nothing may cut it. */
+    if (id == SFX_PULL)        return 14;
     /* The menu blips, one voice each out of the free 10..15. They are short
        enough for the pool, but a menu is the one place the player fires sounds
        back to back at speed, and in the pool a cursor run would cut the confirm
@@ -235,8 +255,13 @@ static void load_bank(SoundBank b) {
         sfx_slots[i].loaded = 0;
     }
 
+    /* `& b`, not `== b`: sfx_bank is a mask, so an effect listed in several
+       banks is loaded afresh into each one. Its address therefore DIFFERS
+       between banks, which is exactly why the eviction pass above must mark
+       every banked slot unloaded first — a stale spu_addr from the previous
+       bank would point at whatever this one laid down in its place. */
     for (i = 0; i < SFX_COUNT; i++)
-        if (sfx_bank[i] == b) addr += load_vag_at((SfxID)i, addr, limit);
+        if (sfx_bank[i] & b) addr += load_vag_at((SfxID)i, addr, limit);
 
     bank_loaded = b;
 }
@@ -264,7 +289,9 @@ void sound_init(void) {
        overruns SPU RAM itself, which load_vag_at's limit does.
 
        As of writing: residents end at 0x51C10, so the region is 0x2E3F0
-       (185 KB). The house bank uses 178 KB of it and the boss bank 121 KB. */
+       (185 KB). The house bank uses 178.4 KB of it, the boss bank 139.2 KB, the
+       garden bank 83.9 KB and the intro bank 21.6 KB. The house bank is the one
+       with no slack left (6.6 KB); the others have room. */
     bank_base  = next_spu_addr;
     bank_bytes = SPU_RAM_END - bank_base;
 

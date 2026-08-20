@@ -235,8 +235,26 @@ facts are load-bearing later and neither is recoverable from the code.
 Three arrays, all indexed by SfxID, all of which must stay in step:
 
   1. sfx_files[]  — "\\SND\\MYSOUND.VAG;1"   (or NULL if it is an alias)
-  2. sfx_bank[]   — SND_RESIDENT / SND_BANK_HOUSE / SND_BANK_BOSS
+  2. sfx_bank[]   — a MASK of SoundBank bits, or SND_RESIDENT (0) for none
   3. sfx_channel() — only if it needs a voice of its own; see STEP 6
+
+sfx_bank[] IS A BITMASK, so an effect may belong to several banks at once:
+
+    [SFX_TNTCL_WRTH] = SND_BANK_HOUSE | SND_BANK_GARDEN,
+
+That loads one copy into EACH bank, at whatever address that bank's pass
+reaches, and costs its own SPU bytes every time. It is the right answer when
+one clip is wanted in two rooms that cannot share a bank — the tentacle
+writhe is in the house bank for the tentacles and in the garden bank because
+the Rafflesia borrows it, and the garden gate is in the boss and garden banks
+because it plays on the way out of rooms on both. Compare the alternatives:
+making it resident costs permanent RAM in every room (and 17.9 KB does not
+fit the 6.6 KB of resident headroom anyway), and a second SfxID pointing at a
+second copy of the same file costs the same SPU bytes plus a disc entry.
+
+>>> AN EFFECT'S SPU ADDRESS DIFFERS BETWEEN BANKS. <<< That is why load_bank
+marks every banked slot unloaded before it reloads: a slot left "loaded" from
+the previous bank would point into whatever the new one laid down there.
 
 An ALIAS is the fourth possibility and costs nothing: the same sample on a
 second voice, for when one clip has two callers that must not cut each other.
@@ -287,9 +305,11 @@ chopped every time the player takes a step.
 ##########################################################################
 Skip unless STEP 0 landed on option C. Adding a bank is four edits:
 
-  1. sound.h — a new SoundBank value. Number it from 1; zero must stay
+  1. sound.h — a new SoundBank value. It must be the NEXT FREE BIT (1, 2, 4,
+     8, 16...), not the next integer: sfx_bank[] is a mask. Zero must stay
      SND_RESIDENT so an effect omitted from sfx_bank[] fails safe.
-  2. sound.c — tag its effects in sfx_bank[].
+  2. sound.c — tag its effects in sfx_bank[], OR-ing the new bit into any
+     effect that is also wanted elsewhere (see STEP 5).
   3. main.c, the STATE_LOADING branch — extend the sound_bank_select() call
      so the new area asks for the new bank. Keyed on pending_area, which is
      why every path into a room (door, stair, title load, debug jump) is
@@ -300,8 +320,25 @@ Skip unless STEP 0 landed on option C. Adding a bank is four edits:
 
 Then check the eviction list against the destination room, in world.c's
 placement block. Every effect in every OTHER bank goes silent while yours is
-loaded. The house bank is the nine monster effects and it is nine because
-world.c places nothing in the Garden Courtyard but the Rabisu.
+loaded.
+
+WORKED EXAMPLE — SND_BANK_GARDEN (Aug 2026). Fountain Square and the Outside
+Catacombs were on the BOSS bank for one reason: SFX_GATE was tagged
+SND_BANK_BOSS and fits nowhere else. The price was that both rooms had NO
+monster sounds at all, which is why world.c seeded Fountain Square empty. The
+Rafflesia then needed four sounds in the Outside Catacombs. The fix was a
+fourth bank holding its own copy of the gate plus the flower's four (83.9 KB
+against the region's 185), and the two rooms moved onto it.
+
+Two things that fell out of it and are worth knowing before you copy it:
+  - THE GARDEN COURTYARD COULD NOT COME ALONG. It needs the boss bank for the
+    fight, and the flower's four are 66.1 KB against the boss bank's 45.8 KB
+    spare. A room that hosts a boss is effectively spoken for.
+  - THE GARDEN STAIRS WAS DELIBERATELY LEFT ON HOUSE, so house monsters stay
+    placeable on it. A rafflesia there would play its three borrowed sounds
+    (they are in both banks) and be silent on SFX_GAS alone. Deciding which
+    bank a quiet room sits on is a LEVEL DESIGN choice about what may be
+    placed there later — ask, do not assume.
 
 TRAP: a bank swap is a CD READ (~0.5 s for 120 KB). It can only happen at a
 transition, behind the door animation's black screen, with CD-DA suspended —

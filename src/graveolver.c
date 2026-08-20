@@ -16,6 +16,7 @@
 #include "zombie.h"
 #include "spider.h"
 #include "tentacle.h"
+#include "rafflesia.h"
 #include "rabisu.h"
 #include "vampire.h"
 #include "particles.h"
@@ -259,6 +260,16 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 3; best_idx = i;
         }
     }
+    for (i = 0; i < rafflesia_count; i++) {
+        Rafflesia *rf = &rafflesias[i];
+        if (!rf->active || rf->health <= 0 || rf->area != current_area) continue;
+        int32_t cyc, hh, hw;
+        rafflesia_body(rf, &cyc, &hh, &hw);
+        if (enemy_in_circle(rf->x, cyc, rf->z, hw, hh, fx, fz, &depth) &&
+            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 6; best_idx = i;
+        }
+    }
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *rb = &rabisus[i];
         /* `dying` as well as `dead`: the boss stays on screen through its whole
@@ -300,6 +311,11 @@ static void graveolver_fire(void) {
     } else if (best_kind == 4) {
         spider_damage(&spiders[best_idx],
                       spider_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 6) {
+        /* 1 from a Standard Round, 2 from a Flame Round (its weakness table
+           doubles DMG_FLAME) — so four shots to kill, or two. */
+        rafflesia_shoot(&rafflesias[best_idx],
+                        rafflesia_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 5) {
         /* Boss: 1 from a Standard Round, 2 from a Flame Round (its weakness
            table doubles DMG_FLAME) — so 20 or 10 shots to kill. */

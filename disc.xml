@@ -138,6 +138,8 @@
                      the gate joins are the only two it plays in, so both are on
                      the boss bank. See src/sound.h. -->
                 <file name="GATE.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\gate.vag"/>
+                <file name="GAS.VAG"     type="data" source="C:\Users\virtu\Documents\ps1game\sounds\gas.vag"/>
+                <file name="PULLIN.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\pullin.vag"/>
                 <!-- SND_BANK_INTRO, a bank of one: the Order of Ninurta line
                      over the opening sequence's white flash. Banked because
                      21.6 KB will not fit the resident headroom, and it is only
@@ -222,6 +224,16 @@
                 <file name="CPPRPOT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\cppr_pt.tim"/>
                 <file name="TNTCLIDL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\tntcl_idle.tim"/>
                 <file name="TNTCLACT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\tntcl_actv.tim"/>
+                <!-- Rafflesia sprites. In TEX rather than the ROOT the other
+                     enemy sprites use: the first root directory sector has only
+                     ~36 bytes spare (tools/check_disc_root.py) and two more
+                     records there would push SYSTEM.CNF out of it and stop the
+                     disc booting. They are texmgr-streamed anyway, so the path
+                     is a compile-time constant in rafflesia.c and nothing else
+                     cares which directory they live in. -->
+                <file name="RAFLSIA1.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\rafflesia1.tim"/>
+                <file name="RAFLSIA2.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\rafflesia2.tim"/>
+                <file name="MIST.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\mist.tim"/>
                 <file name="MSTRBED.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\master_bedroom.smd"/>
                 <file name="BED.TIM"      type="data" source="C:\Users\virtu\Documents\ps1game\textures\bed.tim"/>
                 <file name="EASTHALL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\east_hall.smd"/>

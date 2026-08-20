@@ -176,6 +176,17 @@ KNOWN_STREAM_PAIRS = [
     ("trees.tim",          "poison_flower_base.tim"),
     ("chnlnk.tim",         "poison_flower_base.tim"),
     ("trck_clue.tim",      "poison_flower_base.tim"),
+    # The Rafflesia (Outside Catacombs) takes the SPIDERS' two sprite slots
+    # outright — x320 y128 and x384 y128. This is the first ENEMY-on-enemy
+    # timeshare and it is forced: by the time the garden was built there was no
+    # 128-row hole left anywhere in VRAM for another pair of 128x128 sprites (the
+    # only free band, y[384,480) at x>=800, is 96 rows and runs into the CLUT
+    # band at y=480). It is safe because the two never share a room — spiders are
+    # house-interior, rafflesias are garden — and main.c streams exactly one of
+    # the two pairs in on EVERY room entry, keyed on pending_area. The CLUTs are
+    # NOT shared (there was room for two more lines), so only the pixels collide.
+    ("spdr_rst.tim",       "rafflesia1.tim"),
+    ("spdr_wk.tim",        "rafflesia2.tim"),
 ]
 
 def read_tim(path):

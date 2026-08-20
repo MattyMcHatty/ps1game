@@ -11,6 +11,7 @@
 #include "door.h"
 #include "fatdoor.h"
 #include "tentacle.h"
+#include "rafflesia.h"
 #include "rabisu.h"
 #include "savegame.h"
 #include "sound.h"
@@ -164,6 +165,7 @@ void world_new_game(void) {
 void world_silence_monsters(void) {
     spiders_silence();          /* SFX_SPDR_WLK   — looped, latched */
     tentacles_silence();        /* SFX_TNTCL_WRTH — looped, latched */
+    rafflesias_silence();       /* borrows BOTH of the above loops — see rafflesia.c */
     sound_stop(SFX_ZOMBIE);     /* groan, retriggered on an interval while alert */
     sound_stop(SFX_ZOMBIEDIE);
     sound_stop(SFX_DOGBARK);
@@ -180,6 +182,11 @@ void world_leave(GameState area) {
     spiders_rest();
     rabisus_rest();
     demon_dogs_rest();
+    /* The rafflesias go further than "rest": they come back at full health even
+       if they were killed. They are the one enemy with no permanent death (see
+       rafflesia.h), which is also why they have no WorldState section and no
+       WorldDelta field — there is nothing about them worth saving. */
+    rafflesias_rest();
     snapshot(&world.rooms[room_index(area)]);
     snapshot_fatdoors();
 }
@@ -592,6 +599,10 @@ void world_load_delta(const WorldDelta *d) {
     rabisus_reset();
     fatdoors_reset();
     tentacles_reset();
+    /* Not rebuilt by the room walk (its placements are fixed at startup, like
+       the tentacles'), and nothing about it is in the delta — a load simply puts
+       every flower back. */
+    rafflesias_reset();
 
     for (r = 0; r < WORLD_NUM_ROOMS; r++) {
         const RoomDelta *rd = &d->rooms[r];

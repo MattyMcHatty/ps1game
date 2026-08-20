@@ -66,6 +66,7 @@
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "tentacle.h"
+#include "rafflesia.h"
 #include "rabisu.h"
 #include "rabisu_boss.h"
 #include "delivery_intro.h"
@@ -154,6 +155,7 @@ void reset_game(RenderContext *ctx) {
     demon_dogs_reset();
     zombies_reset();
     spiders_reset();
+    rafflesias_reset();
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
@@ -228,6 +230,7 @@ static void update_current_area(GameState area) {
         update_zombies();       /* enemies keep chasing/attacking during the puzzle */
         update_spiders();
         update_rabisus();
+        update_rafflesias();    /* ...and the garden flowers keep gripping */
         webs_update();          /* ...and their webs keep flying */
         player_status_update();
         trick_drawers_update();
@@ -239,6 +242,7 @@ static void update_current_area(GameState area) {
         update_zombies();
         update_spiders();
         update_rabisus();
+        update_rafflesias();
         webs_update();
         player_status_update();
         kitchen_stove_update();
@@ -272,6 +276,7 @@ static void update_current_area(GameState area) {
         update_spiders();
         update_rabisus();
         update_tentacles();    /* the four guarding the north levers */
+        update_rafflesias();
         webs_update();
         player_status_update();
         exit_door_puzzle_update();
@@ -734,6 +739,9 @@ static void update_current_area(GameState area) {
     weapons_update();
     update_particles();
     bullet_hits_update();
+    /* Area-tagged like the webs, so this one call covers every room branch above
+       and costs nothing in the rooms with no flowers in them. */
+    update_rafflesias();
     webs_update();            /* spider webs in flight (area-tagged, so free
                                  in rooms that have none) */
     player_status_update();   /* ticks the web's poison timer down */
@@ -972,8 +980,14 @@ int main(int argc, const char **argv) {
     demon_dogs_init();
     zombies_load_textures();   /* LoadImage at startup only (see TEXTURING_NOTES) */
     zombies_init();            /* capture spawn defaults (none placed yet) */
-    spiders_load_textures();   /* same rule: sprite TIMs uploaded once, at startup */
+    spiders_load_textures();   /* same rule: CD read at startup only. The two body
+                                  sprites go through texmgr because the Rafflesia
+                                  time-shares their VRAM slots — see below. */
     spiders_init();
+    rafflesias_load_assets();  /* garden flower sprites: REGISTERED here, uploaded
+                                  on entry to the Outside Catacombs (they sit in
+                                  the spiders' two VRAM slots; see rafflesia.h) */
+    rafflesias_init();         /* the three Outside Catacombs beds */
     rabisus_load_assets();     /* boss MODEL, not sprites: one CD read for
                                   RABISU.SMD. Startup-only for the same reason —
                                   CD access is unsafe once the render loop runs.
@@ -1088,24 +1102,36 @@ int main(int argc, const char **argv) {
 
             /* Per-room SOUND streaming, and the one thing here that DOES touch
                the drive. The Rabisu's reveal clips are too big to keep in SPU
-               RAM alongside the monster effects, so the two sets timeshare one
-               region (see sound.h): the two GARDEN rooms get the boss bank,
-               every other room gets the house bank. Fountain Square is on it
-               not for the Rabisu — the boss never leaves the courtyard — but
-               for SFX_GATE, which is banked there because it fits nowhere else
-               and which plays on the way OUT of both rooms. The price is that
-               Fountain Square has no monster sounds, hence world_seed_room
-               leaving it empty. sound_bank_select suspends
+               RAM alongside the monster effects, so the sets timeshare one
+               region (see sound.h). Three-way now:
+
+                 GARDEN COURTYARD  -> BOSS.   The fight needs EMERGE/DMNSPEAK,
+                                     and they leave too little spare for the
+                                     flower's four, so no rafflesia can sound
+                                     in that room. It is the one exception.
+                 FOUNTAIN SQUARE   -> GARDEN. Both of these used to be on the
+                 OUTSIDE CATACOMBS    boss bank purely to reach SFX_GATE, which
+                                      cost them every monster sound in the game
+                                      — Fountain Square was seeded empty for
+                                      exactly that reason. The garden bank
+                                      carries its own copy of the gate, so they
+                                      get monster sounds back.
+                 EVERYTHING ELSE   -> HOUSE. Including the Garden Stairs, kept
+                                     there deliberately so house monsters stay
+                                     placeable on it.
+
+               sound_bank_select suspends
                CD-DA around its own reads and returns immediately when the right
                bank is already in, so this is safe to run unconditionally on
                every transition — including a title-screen load or a debug
                level-select jump, both of which arrive through here. Keyed on
                pending_area rather than on a door trigger for exactly that
                reason: every path into a room passes this line. */
-            sound_bank_select((pending_area == STATE_GARDEN_COURTYARD ||
-                               pending_area == STATE_FOUNTAIN_SQUARE ||
-                               pending_area == STATE_OUTSIDE_CATACOMBS)
-                              ? SND_BANK_BOSS : SND_BANK_HOUSE);
+            sound_bank_select(
+                (pending_area == STATE_GARDEN_COURTYARD) ? SND_BANK_BOSS :
+                (pending_area == STATE_FOUNTAIN_SQUARE ||
+                 pending_area == STATE_OUTSIDE_CATACOMBS) ? SND_BANK_GARDEN :
+                SND_BANK_HOUSE);
 
             /* Upload reception's unique textures into VRAM from their resident RAM
                copies. Pure LoadImage, no CD access (the bytes were preloaded at
@@ -1169,6 +1195,19 @@ int main(int argc, const char **argv) {
                conservatory (already done above). */
             if (copper_pot_owned())
                 copper_pot_upload_texture();
+
+            /* THE SHARED ENEMY-SPRITE SLOTS. The spiders' two 128x128 sprites
+               and the Rafflesia's live at the same VRAM x320/x384, y128 — VRAM
+               had no 128-row hole left for a second pair, and the two enemies
+               never share a room (spiders are house-interior, the flowers are
+               garden). So exactly one pair is streamed in on every room entry,
+               unconditionally, from their resident RAM copies: pure LoadImage,
+               GPU already idled above. Keyed on pending_area so a title-screen
+               load or a debug level-select jump gets it right too. */
+            if (pending_area == STATE_OUTSIDE_CATACOMBS)
+                rafflesias_upload_textures();
+            else
+                spiders_upload_textures();
             {
                 TILE *bg = (TILE *)ctx.next_packet;
                 setTile(bg);

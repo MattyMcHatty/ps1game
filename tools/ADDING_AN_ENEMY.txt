@@ -162,6 +162,33 @@ Voff >= 128. That is where the free space is.
       py png_to_tim.py spdr_rst.png --bpp 8 --tx 320 --ty 128 --cx 256 --cy 492
       py png_to_tim.py spdr_wk.png  --bpp 8 --tx 384 --ty 128 --cx 256 --cy 493
 
+3b-bis. IF THERE IS NO FREE SLOT — SHARE ANOTHER ENEMY'S. As of the Rafflesia
+    (Aug 2026) VRAM has no 128-row hole left: the only free band is y[384,480)
+    at x >= 800, which is 96 rows and runs into the CLUT band at y=480. A new
+    128x128 pair must therefore TIME-SHARE an existing enemy's slots, and the
+    rule for picking a donor is the same one the rooms use — pick something the
+    new enemy can never be in a room with. The Rafflesia is a garden enemy and
+    took the SPIDERS' two slots (x320/x384, y128), because spiders only exist
+    inside the house.
+
+    Sharing means neither sprite may be a plain startup LoadImage any more.
+    Both enemies register their sprites with texmgr (a resident RAM copy) and
+    expose a <slug>s_upload_textures(); main.c then streams exactly one of the
+    two pairs in on EVERY room entry, in the STATE_LOADING block beside the
+    room uploads and keyed on pending_area:
+
+        if (pending_area == STATE_<ROOM>) <new>s_upload_textures();
+        else                              <donor>s_upload_textures();
+
+    An `else` and not a second `if`: the donor must come back on every other
+    entry, including title-screen loads and debug level-select jumps, which all
+    pass through that same line. Watch TEXMGR_MAX — converting the donor costs
+    registrations too, and the count was at exactly 48 when this was written.
+    CLUTs do NOT have to be shared (lines are cheap; give the new pair its own),
+    and finally add the pair to SHARED_SLOTS in tools/vram_map.py with a comment
+    saying which room separates them, or the map will report the overlap as an
+    unexpected collision forever.
+
 3e. Regenerate the map and CHECK IT:
 
       py tools\vram_map.py | Out-File -Encoding utf8 tools\VRAM_MAP.txt
@@ -573,3 +600,58 @@ In-game (needs an emulator; say so plainly if you have not run it):
 8. A ZEROED COOLDOWN FIRING ON FRAME ONE. A fresh entity's timers are 0, so a
    `if (--timer <= 0) fire();` cooldown attacks the instant it first enters
    range. Arm the timer where the entity wakes.
+
+9. SIZING A ROOTED ENEMY'S REACH WITHOUT CHECKING WHAT THE ROOM LETS THE
+   PLAYER REACH. The Rafflesia was given a 150 pull radius and a 110 bite
+   radius, straight off the design's "within 150". It was completely inert,
+   and the reason is geometry, not code: its three flower beds are each tucked
+   against a hedge, and the Outside Catacombs holds the player 260 off every
+   wall (OC_WALL_RADIUS — wider than the usual 195 because its hedges are
+   drawn 1100 tall). The closest the player can physically stand to those
+   flowers is 110, 120 and 110 Manhattan. So `dist < 110` could not be true on
+   any frame of any playthrough, and the 150 pull radius left a 30-unit sliver.
+
+   >>> A ROOTED ENEMY'S REACH HAS A FLOOR, AND IT IS SET BY THE ROOM. <<<
+   That floor is (the room's wall radius) minus (the enemy's distance from the
+   nearest wall), and it applies to anything that cannot walk away from where
+   it was planted. Two rules follow:
+     - every attack radius must clear the floor by a real margin, not by a
+       few units;
+     - a HOLD distance (the range a pull settles at) must be ABOVE the floor,
+       or the pull just grinds the player into the geometry forever.
+
+   Check it, do not eyeball it. Parse the room's *_mesh_collision.c, sweep a
+   grid, drop every point closer than the wall radius to any wall segment, and
+   take the minimum distance to each spawn. That sweep is thirty lines and it
+   would have caught this before the user ever saw it. Do the same whenever an
+   enemy is replanted or a room's standoff changes.
+
+10. AN ENEMY THAT PULLS THE PLAYER, WITHOUT A BODY TO STOP THEM. The Rafflesia
+   hauled the player straight into its own billboard, where the quad crosses
+   the GTE near plane and clips away — so the thing eating you was invisible,
+   and being invisible it could not be aimed at either. ANY enemy that closes
+   the distance for you needs a solid body; a stationary one the player chooses
+   to walk up to can get away without one (the tentacle has none).
+
+   Give it a CYLINDER (rafflesias_collide), not the crates' AABB — a billboard
+   has no facing, so the stop distance must be identical from every bearing,
+   and that needs a true radial test and a real integer sqrt. Size the radius
+   from three constraints at once: outside the sprite half-width, inside the
+   crucifaxe's SWING_RANGE so it stays meleeable while it holds you, and far
+   enough back that the billboard still projects whole.
+
+   >>> AND ORDER IT BEFORE THE WALL PASSES IN apply_collision_reception. <<<
+   Every other prop there is pushed AFTER the walls, which is fine because they
+   stand in open floor. An enemy planted against level geometry is not: its
+   push circle overlaps the wall, and pushed last it wins and shoves the player
+   INTO the hedge (measured: 949 of the standable cells around one flower did
+   exactly that). Pushed first, the walls get the final say and the player is
+   never wedged; the price is that in a tight pocket they end up closer to the
+   enemy than its radius asked for. Hard world geometry beats a soft prop.
+
+11. A DESCENDING-NEWTON isqrt SEEDED BELOW THE ROOT. `while (t > 1) { t >>= 2;
+   s <<= 1; }` stops one shift early and seeds under the answer for every input
+   that is not a perfect power of four; the loop's `while (x < last)` then fails
+   on the first iteration and the function returns its own seed — isqrt(120)
+   came back 8. Use `t > 0`, and check any integer sqrt against floor(sqrt)
+   over a real range before trusting a distance built on it.

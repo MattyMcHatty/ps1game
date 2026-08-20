@@ -23,6 +23,7 @@
 #include "save_point.h"
 #include "zombie.h"
 #include "spider.h"
+#include "rafflesia.h"
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
@@ -498,18 +499,21 @@ void outside_catacombs_draw(RenderContext *ctx) {
 
     draw_outside_catacombs_smd(ctx);
 
-    /* Nothing is placed in this room yet (world.c seeds it empty, for the same
-       sound-bank reason as Fountain Square), but the renderers are wired up and
-       handed the window so that a future SPRITE spawn brackets its Voff>=128
-       quad correctly rather than sampling this room's hedge (see
-       tools/TEXTURING_NOTES.txt PART 5). */
+    /* The zombies and spiders are still seeded empty here (world.c, for the same
+       sound-bank reason as Fountain Square) but keep their renderers wired up so
+       a future spawn brackets its Voff>=128 quad correctly rather than sampling
+       this room's hedge (see tools/TEXTURING_NOTES.txt PART 5). The RAFFLESIAS
+       are real: three of them, one on each poison_flower_base bed, and their
+       sprites sit at Voff 128 too — so the same window goes to them. */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
         spiders_set_texwindow(&tw);
+        rafflesias_set_texwindow(&tw);
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
+    draw_rafflesias(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);

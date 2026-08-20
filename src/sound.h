@@ -31,11 +31,16 @@
  *     0x80000  +---------------------------+  lands in whichever bank is in
  *
  *   Every effect carries a bank tag (see sfx_bank[] in sound.c):
- *     SND_RESIDENT   - loaded once at startup, playable in every room.
- *     SND_BANK_HOUSE - the monster effects. Loaded at startup, evicted while
- *                      the boss bank is in.
- *     SND_BANK_BOSS  - the Rabisu's own two clips. Only ever in the Garden
- *                      Courtyard, which is the only place they are played.
+ *     SND_RESIDENT    - loaded once at startup, playable in every room.
+ *     SND_BANK_HOUSE  - the monster effects. Loaded at startup, evicted while
+ *                       another bank is in.
+ *     SND_BANK_BOSS   - the Rabisu's own two clips plus the gate. Only ever in
+ *                       the Garden Courtyard.
+ *     SND_BANK_GARDEN - the outdoor rooms: the gate again, plus the Rafflesia's
+ *                       four. Fountain Square and the Outside Catacombs.
+ *
+ *   The tag is a MASK, not a single value — an effect can be in more than one
+ *   bank, at the cost of one copy in each. See the SoundBank enum below.
  *
  * WHY THESE THREE ARE RESIDENT AND NOT BANKED
  *   FIREBALL, BOOM and EXPLODE fire DURING the fight, and a bank swap is a CD
@@ -151,31 +156,62 @@ typedef enum {
        door_anim.c's GATE_SWING_FRAMES is cut to exactly that — retrim this clip
        and that constant has to move with it.
 
-       BANKED (boss), which reads oddly for a door and is the only arrangement
-       that works. It is 17.9 KB and the RESIDENT headroom is 6.6 KB, so it
-       cannot be resident; the house bank has exactly the same 6.6 KB spare, so
-       it cannot go there either. The boss bank has 63 KB free — and the two
-       rooms the gate joins are the only two rooms it ever plays in, so both are
-       simply put on the boss bank (see main.c's sound_bank_select call).
+       BANKED, and in TWO banks: BOSS | GARDEN. It is 17.9 KB and the resident
+       headroom is 6.6 KB, so it cannot be resident; the house bank has exactly
+       the same 6.6 KB spare, so it cannot go there either. It now joins the
+       gate's three rooms the honest way — a copy in the boss bank for the
+       Garden Courtyard and a copy in the garden bank for Fountain Square and
+       the Outside Catacombs.
 
-       >>> THE PRICE: FOUNTAIN SQUARE HAS NO MONSTER SOUNDS. <<< The nine
-       SND_BANK_HOUSE effects are evicted there, exactly as they are in the
-       Garden Courtyard. That is free today because world.c places nothing in
-       Fountain Square, but anything with a voice added to that room later will
-       be silent. Read tools/ADDING_A_SOUND.txt STEP 0 before assuming
-       otherwise. */
+       This used to be BOSS only, which forced Fountain Square onto the boss
+       bank purely to hear its own gate, and THAT cost the square every monster
+       sound in the game. The garden bank exists to undo that. */
     SFX_GATE       = 32,
-    SFX_COUNT      = 33,
+    /* The Rafflesia exhaling a cloud of spores. 0.75 s at 11025 Hz — 4.7 KB,
+       the smallest effect in the game. GARDEN bank; it is the only one of the
+       flower's four sounds that is not borrowed from a house monster. */
+    SFX_GAS        = 33,
+    /* The Rafflesia seizing the player, on the frame its grip is claimed. This
+       is fireball.wav PLAYED BACKWARDS (ffmpeg -af areverse) — a fireball's
+       decay run in reverse is a rising suck, which is exactly the read wanted,
+       and it costs 6.8 KB rather than a new recording. Same length and rate as
+       the original, 1.07 s at 11025 Hz. GARDEN bank. */
+    SFX_PULL       = 34,
+    SFX_COUNT      = 35,
 } SfxID;
 
-/* Which set of effects the shared SPU region currently holds. Numbered from 1
-   so that 0 — the value an effect left out of sound.c's sfx_bank[] would get —
-   means SND_RESIDENT: a missed entry then costs permanent SPU RAM, which the
-   startup arithmetic catches, instead of going silently mute in one room. */
+/* Which set of effects the shared SPU region currently holds.
+ *
+ * >>> THESE ARE BIT FLAGS, AND sfx_bank[] IS A MASK. <<< An effect may belong
+ * to SEVERAL banks — it is then loaded into each of them, at whatever address
+ * that bank's pass happens to reach, and costs its own SPU bytes once per bank.
+ * That is what lets the garden gate live in both the BOSS and GARDEN banks (it
+ * plays on the way out of rooms on both), and the tentacle writhe, the tentacle
+ * death and the spider scuttle live in both HOUSE and GARDEN (the Rafflesia
+ * borrows all three). Duplicating a sample is far cheaper than the alternative
+ * of making it resident, which would cost permanent RAM in every room.
+ *
+ * Zero — the value an effect left out of sound.c's sfx_bank[] would get — still
+ * means SND_RESIDENT: a missed entry then costs permanent SPU RAM, which the
+ * startup arithmetic catches, instead of going silently mute in one room. */
 typedef enum {
-    SND_BANK_HOUSE = 1,   /* the monsters — every room but the Garden Courtyard */
+    SND_BANK_HOUSE = 1,   /* the monsters — the house, and the Garden Stairs    */
     SND_BANK_BOSS  = 2,   /* the Rabisu's reveal — the Garden Courtyard only     */
-    SND_BANK_INTRO = 3,   /* the opening sequence's voice line. Loaded by
+    /* The outdoor rooms: Fountain Square and the Outside Catacombs. Added when
+       the Rafflesia needed sounds in a room that was on the BOSS bank purely to
+       reach SFX_GATE, and so had no monster effects at all. It holds the gate
+       plus the flower's four, 83.9 KB against the region's 185 — the roomiest
+       bank in the game.
+
+       >>> THE GARDEN COURTYARD IS NOT ON IT AND CANNOT BE. <<< It needs the
+       boss bank for the fight, and the flower's four sounds are 66.1 KB against
+       the 45.8 KB the boss bank has spare. A rafflesia placed in the courtyard
+       would be mute. The Garden Stairs is deliberately left on HOUSE so that
+       house monsters remain placeable there; the price is that a rafflesia on
+       the stairs would be silent on SFX_GAS alone (its other three are in both
+       banks). */
+    SND_BANK_GARDEN = 4,
+    SND_BANK_INTRO = 8,   /* the opening sequence's voice line. Loaded by
                              intro_start() and gone by the time any room is
                              entered: every path out of the intro reaches
                              main.c's title-exit hook, which asks for the house

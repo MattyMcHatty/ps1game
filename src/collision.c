@@ -11,6 +11,7 @@
 #include "dresser.h"
 #include "fatdoor.h"
 #include "save_point.h"
+#include "rafflesia.h"
 #include "piano_props.h"
 #include "concrete_props.h"
 #include "trick_drawers.h"
@@ -677,6 +678,18 @@ void apply_collision_reception(void) {
     int32_t body_bot = cam_y + GROUND_FLOOR_Y;
     int32_t body_top = cam_y - 30;
     int i, pass;
+    /* Rafflesias go BEFORE the walls, and they are the only prop that does.
+       Everything else here is placed in open floor, so pushing it after the
+       walls is free; a rafflesia is planted in a flower bed and two of the three
+       beds are tucked against a hedge, so its push circle overlaps solid
+       geometry. Pushed last it would win, and shove the player INTO the hedge —
+       measured: 949 of the standable cells around the east-lawn flower do
+       exactly that at this radius. Pushed first, the wall passes below get the
+       final say and the player is never left inside a hedge; the cost is that in
+       that one tight pocket they may end up nearer the flower than its body
+       radius asks. Hard world geometry beats a soft prop, every time.
+       See RAF_BODY_RADIUS in rafflesia.c. */
+    rafflesias_collide(&cam_x, cam_y, &cam_z, 75);
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly_y(&r->walls[i], &cam_x, &cam_z,

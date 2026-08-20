@@ -21,6 +21,7 @@
 #include "sound.h"
 #include "fatdoor.h"
 #include "tentacle.h"
+#include "rafflesia.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -34,6 +35,7 @@ static int zomb_hit_this_swing  = 0;
 static int spdr_hit_this_swing  = 0;
 static int fatdoor_hit_this_swing = 0;
 static int tent_hit_this_swing  = 0;
+static int raf_hit_this_swing   = 0;
 
 void crucifaxe_init(void) {
     CdlFILE file;
@@ -72,6 +74,7 @@ void update_crucifaxe(void) {
         spdr_hit_this_swing    = 0;
         fatdoor_hit_this_swing = 0;
         tent_hit_this_swing    = 0;
+        raf_hit_this_swing     = 0;
         sound_play(SFX_SWING);
     }
 
@@ -199,6 +202,13 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !tent_hit_this_swing) {
             if (tentacles_try_hit())
                 tent_hit_this_swing = 1;
+        }
+
+        /* Rafflesia hit — same shape as the tentacle's: rooted enemy, so the
+           whole test (reach, facing, one hit per swing) lives in its module. */
+        if (swing_timer <= SWING_DURATION && !raf_hit_this_swing) {
+            if (rafflesias_try_hit())
+                raf_hit_this_swing = 1;
         }
 
         /* >>> THERE IS DELIBERATELY NO RABISU BLOCK HERE. <<< The boss is the

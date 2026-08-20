@@ -14,6 +14,7 @@
 #include "spider.h"
 #include "web.h"
 #include "fatdoor.h"
+#include "texmgr.h"
 #include "sound.h"
 
 Spider spiders[MAX_SPIDERS];
@@ -57,12 +58,33 @@ static void load_tim(const char *filename, uint16_t *tpage_out, uint16_t *clut_o
     free(buf);
 }
 
-/* Load the sprite textures. Call ONCE at startup — LoadImage is only safe
-   before the per-frame render loop begins (see tools/TEXTURING_NOTES.txt). */
+/* texmgr ids for the two BODY sprites. They are registered rather than plainly
+   loaded because their VRAM slots are now TIME-SHARED with the Rafflesia's two
+   sprites (see rafflesia.c: there is no 128-row hole left in VRAM for a second
+   pair, and the two enemies never share a room — spiders are house-interior,
+   rafflesias are garden). The shadow is not shared and stays a plain load. */
+static int rest_tex_id = -1, walk_tex_id = -1;
+
+/* Load the sprite textures. Call ONCE at startup — a CdRead is only safe before
+   the per-frame render loop begins (see tools/TEXTURING_NOTES.txt). The bodies
+   are also uploaded here, so the spiders are correct from the first frame
+   without waiting on a transition. */
 void spiders_load_textures(void) {
-    load_tim("\\SPDRRST.TIM;1", &rest_tpage,   &rest_clut);
-    load_tim("\\SPDRWK.TIM;1",  &walk_tpage,   &walk_clut);
+    rest_tex_id = texmgr_register("\\SPDRRST.TIM;1");
+    walk_tex_id = texmgr_register("\\SPDRWK.TIM;1");
+    rest_tpage  = texmgr_tpage(rest_tex_id); rest_clut = texmgr_clut(rest_tex_id);
+    walk_tpage  = texmgr_tpage(walk_tex_id); walk_clut = texmgr_clut(walk_tex_id);
+    spiders_upload_textures();
     load_tim("\\SHADOW.TIM;1",  &shadow_tpage, &shadow_clut);
+}
+
+/* Re-stream the two body sprites into their VRAM slots. Pure LoadImage, so it is
+   safe on a room transition and only there; main.c calls it on entry to every
+   room that is not the Outside Catacombs, which is where the Rafflesias take
+   the same two slots. */
+void spiders_upload_textures(void) {
+    texmgr_upload(rest_tex_id);
+    texmgr_upload(walk_tex_id);
 }
 
 int spider_add_at(int32_t x, int32_t z, int32_t ceiling_y, GameState area) {

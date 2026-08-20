@@ -155,6 +155,10 @@ extern int    spider_count;
 /* Load the spider sprite TIMs into VRAM. Call ONCE at startup (LoadImage is
    only safe before the main render loop begins). */
 void spiders_load_textures(void);
+/* Re-stream the two body sprites into their VRAM slots on a room transition.
+   The slots are time-shared with the Rafflesia's sprites (see rafflesia.h), so
+   main.c uploads one enemy's pair or the other's on every room entry. */
+void spiders_upload_textures(void);
 
 /* Hang a spider from the ceiling at `ceiling_y` above (x,z) in `area`. The
    ceiling height is AUTHORED, not probed, so this works for a room that is not

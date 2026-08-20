@@ -322,6 +322,7 @@ def main():
     clut_x  = 0
     clut_y  = 480
     alpha_cut = 128
+    stp       = False
     out_file = None
 
     args = sys.argv[1:]
@@ -336,6 +337,13 @@ def main():
         print("  --cy N      VRAM Y for CLUT    (default: 480)")
         print("  --alpha-cut N  Alpha below N is transparent (default: 128;")
         print("                 use 1 for UI line art so AA borders survive)")
+        print("  --stp       Set the STP bit on every opaque CLUT entry, so the")
+        print("              texture BLENDS when its primitive has setSemiTrans.")
+        print("              Without it a semi-transparent textured poly draws")
+        print("              fully opaque: the PS1 blends per TEXEL, and only")
+        print("              texels whose palette entry has bit 15 set. Only")
+        print("              meaningful for 4/8bpp. Fully transparent entries")
+        print("              are left at 0x0000 so they keep being skipped.")
         print("  --out FILE  Output .tim filename")
         print("")
         print("Example:")
@@ -351,6 +359,7 @@ def main():
         elif args[i] == '--cx' and i+1 < len(args): clut_x = int(args[i+1]); i += 2
         elif args[i] == '--cy' and i+1 < len(args): clut_y = int(args[i+1]); i += 2
         elif args[i] == '--alpha-cut' and i+1 < len(args): alpha_cut = int(args[i+1]); i += 2
+        elif args[i] == '--stp': stp = True; i += 1
         elif args[i] == '--out'and i+1 < len(args): out_file = args[i+1];    i += 2
         else: i += 1
 
@@ -397,6 +406,27 @@ def main():
     elif bpp == 16:
         pixel_data = build_pixels_16bit(image, alpha_cut=alpha_cut)
         print("  Mode: direct 16-bit colour (no palette)")
+
+    # --stp: force bit 15 on every entry that is not fully transparent. The PS1
+    # decides semi-transparency PER TEXEL, from the palette entry's STP bit, so a
+    # primitive with setSemiTrans() still draws opaque wherever STP is clear —
+    # which is everything png_to_tim normally emits. Entries that are exactly
+    # 0x0000 are left alone: that value means "skip this texel", and setting STP
+    # on it would turn holes into blended black.
+    if stp and bpp in (4, 8) and clut_data:
+        stp_clut = bytearray(clut_data)
+        forced = 0
+        for n in range(0, len(stp_clut), 2):
+            entry = stp_clut[n] | (stp_clut[n+1] << 8)
+            if entry == 0x0000:
+                continue
+            if not (entry & 0x8000):
+                forced += 1
+            entry |= 0x8000
+            stp_clut[n]   = entry & 0xFF
+            stp_clut[n+1] = (entry >> 8) & 0xFF
+        clut_data = bytes(stp_clut)
+        print("  STP: set on %d CLUT entries (texture will blend)" % forced)
 
     print("Writing: %s" % out_file)
     write_tim(out_file, bpp, pixel_data, clut_data,

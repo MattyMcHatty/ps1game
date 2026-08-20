@@ -13,8 +13,13 @@
        over registering a second RAM copy (see hall_2f_upload_strs);
      - keep real headroom here. Each unused slot costs ~40 bytes of BSS; the TIM
        buffers are malloc'd per registration, so raising this alone costs
-       nothing at runtime. */
-#define TEXMGR_MAX 48
+       nothing at runtime.
+   Raised from 48 to 56 when the Rafflesia arrived: the count had reached
+   EXACTLY 48, and that enemy adds four (its own two sprites plus the spiders'
+   two, which had to become registrations so the shared slot could be streamed
+   back — see rafflesia.c). Anything registered after the 48th would have
+   silently failed. */
+#define TEXMGR_MAX 56
 
 typedef struct {
     uint8_t  *buf;    /* resident RAM copy of the whole TIM (kept for re-upload) */
