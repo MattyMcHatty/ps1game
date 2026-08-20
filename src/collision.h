@@ -6,7 +6,32 @@
 /* Comment out this line for release builds */
 #define DEBUG_COLLISION 1
 
-extern int debug_mode;  /* toggled by Select; always available */
+extern int debug_mode;  /* toggled by Select; always available. 0 off, 1 perf
+                           meter, 2 authoring overlay, 3 collision viz,
+                           4-7 perf meter + an isolation switch (see camera.c) */
+
+/* Which isolation switch is active: 0 = none, 1..5 = debug levels 4..8. A room's
+   draw consults this to leave part of the scene out, so a frame's cost can be
+   bisected in one sitting instead of one rebuild per hypothesis. See the Select
+   note in camera.c.
+
+   These answered the Maze One regression, in this order: the room MESH is the
+   cost and the enemies in it are not; and once the section timers existed, that
+   the frame is CPU-bound with the GPU idle (G ~ 2 hblanks of 262). That killed a
+   hedge-occlusion cull outright — it cost 130 hblanks a frame, half a frame of
+   sightline arithmetic, to save fill nobody was short of. What is left is the
+   A/B for the side-plane frustum cull, which is CPU either way and has to prove
+   it saves more transform than it spends testing. */
+#define DEBUG_EXPERIMENT()  (debug_mode >= 4 ? debug_mode - 3 : 0)
+#define DBG_EXP_NO_MESH        1   /* baseline: the room without its geometry */
+#define DBG_EXP_NO_FRUSTUM     2   /* side-plane cull off: is it paying for itself? */
+#define DBG_EXP_CULL_2000      3
+#define DBG_EXP_CULL_1800      4
+
+/* View distance for the active experiment, or 0 for "use the room's own". */
+#define DEBUG_CULL_DIST()                                        \
+    (DEBUG_EXPERIMENT() == DBG_EXP_CULL_2000 ? 2000 :            \
+     DEBUG_EXPERIMENT() == DBG_EXP_CULL_1800 ? 1800 : 0)
 
 #ifdef DEBUG_COLLISION
 #include "render.h"
@@ -125,6 +150,30 @@ void    collision_shoot_over_short_walls(int32_t max_height);
    camera-offset space, matching cam_y / enemy coordinates. */
 int  collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
                                int32_t bx, int32_t by, int32_t bz);
+
+/* The same test from the CAMERA to a world point: 1 if level geometry stands
+   between the player's eye and (x,y,z).
+
+   >>> THIS IS A FILL-RATE CULL, AND IT IS NOT THE SAME QUESTION THE OT ANSWERS.
+   <<< Sorting a sprite behind a wall makes the wall paint OVER it, which is
+   correct and free-looking but not free: the GPU fills every one of the sprite's
+   pixels first and the room then covers them. A body-sized billboard is a big
+   fill, and a room like Maze One can have seven of them inside the fog at once
+   with hedges in front of nearly all — measured as a real frame cost when
+   looking into the middle of the maze. Skipping the draw outright is what
+   actually gets the pixels back.
+
+   Two rules for anything that uses this:
+     - EXEMPT A CLOSE RADIUS. An enemy that is interacting with the player must
+       never be invisible, whatever the geometry says (see mistake 10 in
+       tools/ADDING_AN_ENEMY.txt: an unaimable invisible attacker is a bug, not
+       an optimisation). Each caller picks the radius from its own reach.
+     - EXEMPT ANYTHING CROSSING THE GEOMETRY. A Mushroom Head's leap flies
+       through walls on purpose; culled on the sightline it would blink out
+       mid-arc.
+   The tail cost of a mispick is one popped sprite as the player rounds a
+   corner, which is the trade this is here to make. */
+int  collision_hidden_from_camera(int32_t x, int32_t y, int32_t z);
 
 /* -----------------------------------------------------------------------
  * Floor / height zones

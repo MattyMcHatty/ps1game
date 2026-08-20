@@ -9,6 +9,9 @@ Companion docs (read them for the *why*; this file is the *how*):
   tools/TEXTURING_NOTES.txt         - VRAM rules, LoadImage timing, tex windows
   tools/AREAS_AND_WORLD_NOTES.txt   - the area/state model and world.c
   tools/VRAM_MAP.txt                - generated; who owns which VRAM slot
+  tools/DIAGNOSING_FRAME_RATE.txt   - when a room drops to 30fps: the perf
+                                      meter, the isolation switches, and the
+                                      four optimisations that did not work
   rebuild commands.txt              - authoritative build steps
 
 

@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <psxgpu.h>
 #include <psxgte.h>
+#include <psxapi.h>
+#include <hwregs_c.h>   /* TIMER_VALUE/TIMER_CTRL: the section timers */
 #include <inline_c.h>
 #include "render.h"
 #include "camera.h"
@@ -24,6 +26,12 @@ void setup_context(RenderContext *ctx, int w, int h, int r, int g, int b) {
     SetDispMask(1);
 }
 
+/* See the header: this is the free alternative to a full-screen background TILE. */
+void render_set_clear_colour(RenderContext *ctx, int r, int g, int b) {
+    setRGB0(&ctx->buffers[0].draw_env, (uint8_t)r, (uint8_t)g, (uint8_t)b);
+    setRGB0(&ctx->buffers[1].draw_env, (uint8_t)r, (uint8_t)g, (uint8_t)b);
+}
+
 /* Perf counters, refreshed every flip and read by the debug overlay:
    perf_frame_vblanks — frame period in vblanks (1 = full 60/50fps, 2 = half, ...)
    perf_packet_bytes  — bytes of the packet buffer used this frame (scene load proxy)
@@ -32,6 +40,27 @@ void setup_context(RenderContext *ctx, int w, int h, int r, int g, int b) {
 int perf_frame_vblanks = 1;
 int perf_packet_bytes  = 0;
 int perf_gpu_busy      = 0;
+
+/* Section timers — see the long note in render.h for why VB alone was not
+   enough to optimise against. */
+int perf_ticks_update = 0;
+int perf_ticks_draw   = 0;
+int perf_ticks_gpu    = 0;
+
+/* >>> THE HARDWARE REGISTER, NOT SetRCnt/StartRCnt. <<< The BIOS-style root
+   counter API needs an event opened and enabled before it will run; called on
+   its own it left the counter dead and the meter read U0 D0 G0. The SDK's own
+   timer example (share/psn00bsdk/examples/system/timer) drives the registers
+   directly for the same reason, and that is what this does.
+
+   Timer 1, clock source hblank (mode bit 8), free-running, no IRQ. Writing the
+   mode register resets the count to zero; it then wraps at 0xFFFF every 4.2
+   seconds, which per-frame deltas in 16-bit arithmetic do not care about. */
+void perf_timer_init(void) {
+    TIMER_CTRL(1) = 0x0100;
+}
+
+int perf_ticks_now(void) { return (int)(TIMER_VALUE(1) & 0xFFFF); }
 
 /* Distance fog shared by the room mesh and the entities/sprites drawn in it, so
    enemies and pickups fade (and vanish) together with the walls around them
@@ -57,7 +86,14 @@ void flip_buffers(RenderContext *ctx) {
     perf_packet_bytes = (int)(ctx->next_packet - draw_buffer->buffer);
     perf_gpu_busy     = IsIdleGPU(0) ? 0 : 1;
 
-    DrawSync(0);
+    /* The GPU has been drawing the previous frame while we queued this one, so
+       this wait is the OVERHANG — how much longer it needed than we took. Near
+       zero means the CPU is the limit no matter how busy the GPU looks. */
+    {
+        int t0 = perf_ticks_now();
+        DrawSync(0);
+        perf_ticks_gpu = (perf_ticks_now() - t0) & 0xFFFF;
+    }
     VSync(0);
 
     /* Free-running vblank counter (VSync(-1)); diff = vblanks this frame took. */

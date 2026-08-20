@@ -798,6 +798,28 @@ static void draw_billboard(RenderContext *ctx, Rafflesia *r, const Sprite *s) {
     if (wdist >= g_fog_far) return;
     if (((dx * isin(cam_rot) + dz * icos(cam_rot)) >> 12) <= 0) return;  /* behind camera */
 
+    /* Behind a hedge: skip the fill (collision.h explains why the OT sort does
+       not already save it). 210 x 380 world units is a big billboard, and Maze
+       One plants five of them around a maze where most are hidden from any given
+       spot.
+
+       EXEMPT RAF_PULL_RADIUS. Inside its own reach a flower must be drawn
+       whatever stands in the way: that is the range at which it grabs the
+       player, and an invisible thing hauling you in is unaimable and unreadable
+       — mistake 10 in the runbook, and the reason this cull went on the mist
+       first and the body only now. Nothing outside 700 can touch the player, so
+       nothing outside 700 needs to be on screen through a wall.
+
+       The 3/2 is the MANHATTAN-to-radial conversion, and it is not decoration:
+       wdist is the Manhattan sum while RAF_PULL_RADIUS is a true radius, and
+       Manhattan overstates by up to sqrt(2) on the diagonals. Compared raw, a
+       flower gripping the player from 700 away on a diagonal reads as 990 and
+       would be culled mid-grab — exactly the case the exemption exists for.
+       3/2 > sqrt(2) covers every bearing. */
+    if (wdist > (RAF_PULL_RADIUS * 3) / 2 &&
+        collision_hidden_from_camera(r->x, r->y, r->z))
+        return;
+
     int32_t floor_y = r->y + GROUND_FLOOR_Y;
     int32_t cy      = floor_y - RAF_HALF_H;
 
@@ -904,8 +926,12 @@ static void draw_mist(RenderContext *ctx, Rafflesia *r) {
        invisible one is exactly the bug RAF_BODY_RADIUS exists to prevent (see
        mistake 10 in tools/ADDING_AN_ENEMY.txt). Note the cloud still DAMAGES
        through geometry, as it always has — that is an update-side question and
-       this changes nothing about it. */
-    if (collision_segment_blocked(cam_x, cam_y, cam_z, r->x, r->y, r->z)) return;
+       this changes nothing about it.
+
+       No close-radius exemption here, unlike the body below: a cloud has nothing
+       to aim at and nothing to read off, so there is no distance at which one
+       hidden behind a hedge is worth its fill. */
+    if (collision_hidden_from_camera(r->x, r->y, r->z)) return;
 
     int32_t floor_y = r->y + GROUND_FLOOR_Y;
     int32_t cy      = floor_y - RAF_MIST_HALF_H;

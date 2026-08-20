@@ -1,0 +1,205 @@
+PS1 HORROR GAME — DIAGNOSING A FRAME-RATE DROP: THE COMPLETE RUNBOOK
+====================================================================
+Written immediately after Maze One was dragged back from 30fps to 60fps
+(Aug 2026). It records the method that eventually worked, the instrument that
+had to be built before anything could be measured, and — at greater length,
+because they cost more time than the fix did — the four wrong turns taken on
+the way, every one of them an optimisation written before anything was measured.
+
+>>> THE ONE-LINE LESSON: THREE OF THE FOUR OPTIMISATIONS WRITTEN BY REASONING
+    ABOUT THIS ROOM WERE WORTHLESS, AND ONE OF THEM MADE IT 56% WORSE. THE TWO
+    THAT WORKED WERE BOTH WRITTEN AFTER A MEASUREMENT SAID WHERE TO LOOK. <<<
+
+Companion docs:
+  tools/ADDING_A_ROOM.txt        - the room runbook; view distance and culling
+  tools/ADDING_AN_ENEMY.txt      - per-frame AI cost lives here
+  tools/TEXTURING_NOTES.txt      - VRAM, texture windows
+  rebuild commands.txt           - build steps
+
+
+##########################################################################
+ STEP 0 — THE INSTRUMENT. DO NOT SKIP THIS.
+##########################################################################
+Press SELECT in game. It cycles eight levels:
+
+    0  off
+    1  PERF METER ONLY  <- read every number here
+    2  authoring overlay: coordinates, compass, held keys
+    3  + collision visualisation
+    4  perf meter + room mesh not drawn
+    5  perf meter + the room's frustum cull off (an A/B slot; repoint it at
+       whatever cull is currently on trial)
+    6  perf meter + view distance 2000
+    7  perf meter + view distance 1800
+
+Level 1 reads:
+
+    FPS60 VB1
+    4808B ~120p
+    U43 D232 G2
+    T31474
+
+  VB    frame period in whole vblanks. 1 = 60fps, 2 = 30fps.
+  B/p   packet-buffer bytes queued, and bytes/40 as a primitive estimate
+        (POLY_FT4 is 40 bytes — an older meter divided by 28 and overstated
+        every count in this room by 40%).
+  U     hblanks in update_current_area  — the game's logic
+  D     hblanks queueing the scene      — CPU, and where culling work lands
+  G     hblanks WAITING at DrawSync     — the GPU's overhang
+  T     the raw hblank counter, so a dead timer is obvious at a glance
+
+>>> 262 HBLANKS IS ONE 60Hz FRAME. <<< U + D + G under 262 is 60fps. The three
+numbers therefore read almost as percentages of a frame, and — this is the whole
+point — they SIZE a problem instead of merely detecting one.
+
+  G near zero  = CPU-bound. Fill is not your problem, whatever it looks like.
+  G large      = GPU/fill-bound. Now, and only now, culling pixels is worth it.
+
+Maze One at its worst read U43 D365 G2. G2 of 262. Every optimisation aimed at
+fill was aimed at 0.8% of the frame.
+
+
+##########################################################################
+ STEP 1 — BISECT WITH THE ISOLATION SWITCHES, NOT WITH GUESSES
+##########################################################################
+Levels 4-7 remove one part of the scene each. Read VB and D at each and the
+answer falls out in one sitting rather than one rebuild per hypothesis. In Maze
+One the four readings were:
+
+    no mesh      VB1  39p   <- the room's GEOMETRY is the cost
+    no sprites   VB2 279p   <- the ENEMIES are not, however many there are
+    half cull    VB1 112p
+    empty        VB1  39p
+
+Add a switch for anything you are about to spend an afternoon on. They cost
+about ten lines each (DEBUG_EXPERIMENT() in collision.h, honoured in the room's
+draw) and they are the difference between knowing and believing.
+
+
+##########################################################################
+ STEP 2 — READ THE RIGHT NUMBER
+##########################################################################
+Three separate metrics lied in this investigation. All three are still on the
+meter, because each is useful for something; none of them is the frame cost.
+
+1. VB IS TOO COARSE TO OPTIMISE AGAINST. VB2 covers everything from 16.7ms to
+   33.3ms. Maze One went from 410 hblanks to 277 across several changes and VB
+   read "2" the whole way — a 32% improvement that was completely invisible.
+   USE VB TO DETECT, U/D/G TO MEASURE.
+
+2. "GPU-bound" ON THE OLD METER WAS NOT A BOTTLENECK TEST. perf_gpu_busy is
+   sampled BEFORE the DrawSync, so it reports "the GPU is still working through
+   the previous frame" — true of any non-trivial scene, at 60fps as well as 30.
+   It said GPU-bound in every single reading taken in this room, including the
+   ones running at full rate. It is a liveness flag, not a verdict. G is the
+   verdict.
+
+3. PRIMITIVE COUNT IS NOT FRAME COST. Measured in this room: 93 primitives ran
+   at VB2 while 112 primitives ran at VB1. Reception draws ~951 and is fine.
+   What a primitive costs depends on how big it is on screen and what the CPU
+   had to do to decide to send it — the count on its own predicts neither.
+
+
+##########################################################################
+ STEP 3 — WHAT ACTUALLY FIXED IT
+##########################################################################
+Both winners were CPU, and both were found by measuring first.
+
+A. A GUNFIRE-SHAPED FUNCTION ON THE PER-FRAME AI PATH.
+   collision_segment_blocked() samples its segment every 30 units and calls nine
+   prop families at each sample. Its own comment justified that with "firing is
+   infrequent, so the extra samples are free" — but src/mushroom.c calls it up to
+   four times a FRAME per enemy, and the sample count scales with the segment's
+   LENGTH. A mushroom's pacing sightline runs the full length of its patrol leg,
+   so Maze One's 6097-unit leg alone cost 203 samples x 9 prop calls x 60 fps in
+   a room containing no props whatsoever.
+   FIX: a *_any_solid() predicate per prop family, aggregated by props_any_solid()
+   in collision.c, gating the whole sampling pass. A prop-less room (every garden
+   room — chainlink doors and levers exist only in the Attic Exit) collapses to
+   the exact wall-crossing loop. Cost only; answers unchanged.
+
+B. THE REJECT PATH WAS TOUCHING THE MESH.
+   Only ~120 of Maze One's 2037 primitives survive the distance cull, so ~1900 a
+   frame are pure overhead — and each one still cost a read of the primitive
+   header for its stride, a read of its first vertex INDEX, and a chase into the
+   117 KB vertex array for the coordinates. The R3000 has NO DATA CACHE behind
+   any of that and the mesh is far too big for the scratchpad, so every one was a
+   main-memory stall.
+   FIX: mo_keys[] in maze_one.c — a 12 KB table built once at load holding each
+   primitive's first-vertex X/Z and its stride. A rejected primitive now costs
+   one sequential 6-byte read and never touches the mesh. Identical output; it
+   changes what the reject path READS, not what it decides. Hoisting isin/icos
+   and the cull distance out of the loop went in at the same time.
+
+   >>> THIS IS THE FIRST THING TO TRY IN ANY ROOM WITH A BIG MESH. <<< It is
+   behaviour-neutral, it scales with primitives REJECTED rather than drawn, and
+   it is the reason this room ended up back at 60fps.
+
+
+##########################################################################
+ STEP 4 — THE WRONG TURNS. ALL FOUR WERE WRITTEN BEFORE MEASURING.
+##########################################################################
+1. HEDGE OCCLUSION CULLING — A NET LOSS OF HALF A FRAME.
+   Reasoning: 68% of the polys inside the frustum are behind another hedge, so
+   skipping them saves the GPU filling pixels it then paints over. All of that
+   was TRUE and all of it was IRRELEVANT: G was 2. It cost 133 hblanks a frame
+   of sightline arithmetic (D went 232 -> 365) to save fill nobody was short of.
+   Deleted. If a room is ever genuinely fill-bound, the code is in the git
+   history and the measurements were sound — it was the premise that was wrong.
+
+2. SIDE-PLANE FRUSTUM CULLING — EXACTLY NEUTRAL.
+   Removes 72% of submitted primitives (measured offline against the mesh, zero
+   holes) and D was IDENTICAL with it on and off: 232 either way. It saves one
+   GTE transform per culled poly and spends the same amount deciding. Kept,
+   because it halves packet-buffer use and leaves GPU headroom for free — but it
+   fixed nothing, and a room already in trouble should not expect it to.
+
+3. THE DOUBLE SCREEN CLEAR — REAL WASTE, WRONG HALF OF THE MACHINE.
+   The draw environments carry isbg=1, so DrawOTagEnv already fills the whole
+   framebuffer before a primitive is drawn; every room then queued its OWN
+   full-screen TILE on top to get its own colour. That is a second 77k-pixel fill
+   per frame, about a millisecond, for free. render_set_clear_colour() (render.h)
+   replaces it and Maze One now uses it. Worth doing — but it is GPU time, VB did
+   not move, and 18 other rooms still paint their own tile.
+
+4. SPRITE OCCLUSION CULLS ON THE ENEMIES — UNMEASURED, STILL IN.
+   The Rafflesia's mist and body and the Mushroom Head's sprite are all skipped
+   when a wall stands between them and the camera (collision_hidden_from_camera).
+   Same premise as (1) and the same objection applies: they spend CPU sightlines
+   to save fill. They are small and they are still in place, but they have never
+   been measured and by this document's own argument they may be a slight net
+   loss. MEASURE BEFORE DEFENDING THEM.
+
+And one that wasted a round on its own: THE FIRST SECTION TIMER DID NOT RUN.
+SetRCnt()/StartRCnt() need a BIOS event opened and enabled first; called alone
+they leave the counter dead and the meter reads U0 D0 G0. Drive the hardware
+directly, as the SDK's own example does (share/psn00bsdk/examples/system/timer):
+
+    TIMER_CTRL(1) = 0x0100;              /* hblank source, free-run, no IRQ */
+    ticks = TIMER_VALUE(1) & 0xFFFF;     /* wraps every 4.2 s; deltas & 0xFFFF */
+
+The T field on the meter exists so this can never silently happen again.
+
+
+##########################################################################
+ STEP 5 — THE ORDER TO WORK IN, NEXT TIME
+##########################################################################
+  1. Read U/D/G at level 1 in the worst spot in the room. Write them down.
+  2. G large?  -> fill. Attack overdraw, view distance, sprite sizes, blending.
+     G small?  -> CPU. Attack the draw loop's reject path and the AI.
+  3. Bisect with the isolation switches before writing a line of optimisation.
+  4. Where the mesh is implicated, do the cull-key table (STEP 3B) FIRST — it is
+     behaviour-neutral and it is usually the biggest single win.
+  5. Check U as well as D. A room's logic can be a sixth of its frame; Maze One
+     sat at U43 of 262 and that was never investigated because the fix landed
+     first. The monsters were "exonerated" early on the VB meter, which could
+     not resolve 43 hblanks — that exoneration was drawn with a broken
+     instrument and would need re-testing before it is relied on.
+  6. Re-measure after EVERY change. Two of the four wrong turns above would have
+     been caught by one reading.
+
+  And an honest note on the emulator: these numbers came from PCSX-Redux, whose
+  GPU timing is not necessarily faithful to real hardware. It hardly mattered
+  here because the answer was CPU-bound and CPU timing is accurate — but a
+  FILL-bound verdict from an emulator is worth confirming on hardware or in a
+  second emulator before reshaping any geometry around it.

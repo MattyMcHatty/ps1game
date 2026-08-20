@@ -861,15 +861,39 @@ static void draw_debug_overlay(RenderContext *ctx) {
        rate), GPU vs cpu bound, and packet bytes queued (~scene load; est. prims
        at ~28 B each). */
     {
-        char pbuf[48];
+        /* NOTE ON "GPU-bound": perf_gpu_busy is sampled before the DrawSync, so
+           it reports only that the GPU was still working through the previous
+           frame — true of any non-trivial scene, at 60fps as well as 30. Treat
+           it as "the GPU is doing something", NOT as proof that fill is the
+           bottleneck. The isolation switches below are what actually answer
+           that, by removing one part of the scene at a time. */
+        static const char *exp_name[5] = {
+            "", "no mesh", "no frustum", "cull 2000", "cull 1800"
+        };
+        char pbuf[64];
         int vb  = perf_frame_vblanks < 1 ? 1 : perf_frame_vblanks;
         int fps = 60 / vb;   /* assumes 60Hz NTSC; VB is region-independent */
-        snprintf(pbuf, sizeof(pbuf), "FPS%d VB%d\n%s\n%dB ~%dp",
+        int exp = DEBUG_EXPERIMENT();
+        /* U/D/G are HBLANKS — 262 to a 60Hz frame, so they read almost as
+           percentages of one. U = game logic, D = queueing the scene (CPU, and
+           where the culls' own cost lands), G = time spent WAITING for the GPU.
+           G near zero means the CPU is the wall however busy the GPU looked;
+           G large means fill is. See the note in render.h.
+           The prim estimate divides by 40, POLY_FT4's real size — the old 28
+           overstated every count in this room by 40%. */
+        snprintf(pbuf, sizeof(pbuf),
+                 "FPS%d VB%d\n%dB ~%dp\nU%d D%d G%d\nT%d %s",
                  fps, vb,
-                 perf_gpu_busy ? "GPU-bound" : "cpu-bound",
-                 perf_packet_bytes, perf_packet_bytes / 28);
+                 perf_packet_bytes, perf_packet_bytes / 40,
+                 perf_ticks_update, perf_ticks_draw, perf_ticks_gpu,
+                 perf_ticks_now(), exp_name[exp]);
         ctx->next_packet = FntSort(&ot[1], ctx->next_packet, 196, 140, pbuf);
     }
+
+    /* Everything below is the AUTHORING overlay (level 2+). It is deliberately
+       NOT drawn at level 1: it costs ~250 primitives a frame and was making the
+       perf readout above measure itself. See the Select comment in camera.c. */
+    if (debug_mode != 2 && debug_mode != 3) return;
 
     /* Scrolling compass tape, just below the coordinate panel.
        80 chars = 360deg, 10 chars per 45deg; N->NE->E->SE->S->SW->W->NW matches
@@ -950,6 +974,7 @@ int main(int argc, const char **argv) {
     setup_context(&ctx, SCREEN_XRES, SCREEN_YRES,
                   TITLE_BG_R, TITLE_BG_G, TITLE_BG_B);
 
+    perf_timer_init();   /* root counter 1: the debug meter's section timers */
     InitGeom();
     gte_SetGeomScreen(256);
     gte_SetGeomOffset(160, 120);
@@ -1587,8 +1612,16 @@ int main(int argc, const char **argv) {
                 int cutscene = (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()) ||
                                (area == STATE_DELIVERY_AREA && delivery_intro_active());
                 if (!puzzle && !cutscene) handle_menu_open();
-                update_current_area(area);
-                draw_current_area(&ctx, area);
+                {
+                    int t0 = perf_ticks_now();
+                    update_current_area(area);
+                    perf_ticks_update = (perf_ticks_now() - t0) & 0xFFFF;
+                }
+                {
+                    int t0 = perf_ticks_now();
+                    draw_current_area(&ctx, area);
+                    perf_ticks_draw = (perf_ticks_now() - t0) & 0xFFFF;
+                }
                 /* The HUD belongs to the player having the camera. While a
                    puzzle or cutscene owns it, the panel goes with it. */
                 if (!puzzle && !cutscene) {

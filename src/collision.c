@@ -194,6 +194,14 @@ int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
     return 0;
 }
 
+/* Draw-side occlusion test — see the long note in collision.h for the rules
+   every caller has to keep. Cheap in the rooms that need it most: a prop-less
+   room skips the sampling pass entirely (props_any_solid), so this is one pass
+   over the room's walls per sprite. */
+int collision_hidden_from_camera(int32_t x, int32_t y, int32_t z) {
+    return collision_segment_blocked(cam_x, cam_y, cam_z, x, y, z);
+}
+
 /* ---- The DELIVERY AREA's wall set, per floor -------------------------------
  *
  * collide_wall() above is purely 2D: it knows nothing about y_min/y_max, and it
@@ -435,7 +443,7 @@ static void debug_draw_shot_props(RenderContext *ctx) {
 }
 
 void debug_draw_walls(RenderContext *ctx) {
-    if (debug_mode < 2) return;   /* heavy overdraw — only in full-debug (level 2) */
+    if (debug_mode != 3) return;  /* heavy overdraw — only in full-debug (level 3) */
 
     /* Called from draw_player_systems right after the bullet-hit sprites, so the
        GTE still holds the scene's camera view matrix — project world coords
@@ -580,7 +588,11 @@ static void debug_draw_label(RenderContext *ctx, int sx, int sy,
 }
 
 void debug_draw_coords(RenderContext *ctx) {
-    if (!debug_mode) return;
+    /* Level 2+, not level 1. This panel is the expensive half of the old
+       overlay: a 320x30 backing tile and a seven-segment TILE per digit segment
+       across four numbers. Level 1 is the perf meter alone, so that VB can be
+       read without this panel changing the answer (see camera.c's Select note). */
+    if (debug_mode != 2 && debug_mode != 3) return;
 
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     int sx = 8, sy = 8;

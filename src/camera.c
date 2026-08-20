@@ -369,12 +369,42 @@ void update_camera(void) {
 
 debug_toggle:
     {
-        /* SELECT cycles debug: 0 = off, 1 = light overlay (perf/coords/compass —
-           cheap, so VB reflects the real game), 2 = adds the heavy collision
-           visualisation (purple walls etc., which itself costs GPU fill). */
+        /* SELECT cycles debug:
+             0 = off
+             1 = PERF METER ONLY. Three short lines of text and nothing else —
+                 this is the level to read VB in.
+             2 = the authoring overlay: coordinates, compass, held keys. Useful
+                 for placing things, NOT for measuring (see below).
+             3 = adds the heavy collision visualisation (purple walls etc).
+             4..7 = the PERF METER plus one ISOLATION SWITCH each, for bisecting
+                 where a frame's time actually goes without a rebuild per guess:
+                   4  room mesh not drawn (the baseline cost of everything else)
+                   5  side-plane frustum cull OFF - does it pay for itself?
+                   6  view distance 2000
+                   7  view distance 1800
+                 Only Maze One honours them today (maze_one.c); every other room
+                 ignores them and just shows the meter.
+
+           These found the Maze One regression: no-mesh read VB1 and no-sprites
+           read VB2, so the room's geometry was the cost and the enemies in it
+           were not, and a half view distance was enough to hold 60fps. The fog
+           far distance moves WITH the ladder, so what you see at each rung is
+           what the room would really look like at that setting rather than a
+           hard pop at the cull.
+
+           >>> LEVEL 1 EXISTS BECAUSE THE OVERLAY WAS DISTORTING ITS OWN
+           READING. <<< The old level 1 bundled the perf text together with the
+           coordinate panel, and that panel is not cheap: a 320x30 backing tile
+           plus a seven-segment TILE per digit segment for X, Y, Z and the wall
+           count, plus a 40-character compass tape and the key list — on the
+           order of 250 extra primitives every frame. Its comment claimed it was
+           "cheap, so VB reflects the real game", and that claim was wrong; Maze
+           One reads VB2 with it up and VB1 without. An instrument that costs a
+           vblank cannot be used to hunt a vblank, so the meter is now its own
+           level with nothing else in it. */
         static int select_prev = 0;
         int select_held = (btn & PAD_SELECT) ? 1 : 0;
-        if (select_held && !select_prev) debug_mode = (debug_mode + 1) % 3;
+        if (select_held && !select_prev) debug_mode = (debug_mode + 1) % 8;
         select_prev = select_held;
     }
 

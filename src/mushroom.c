@@ -869,7 +869,35 @@ void draw_mushrooms(RenderContext *ctx) {
 
         int32_t dx = m->x - cam_x;
         int32_t dz = m->z - cam_z;
-        if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 4000) continue;
+        int32_t wdist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+
+        /* Distance cull at the ROOM'S OWN fog, not the old flat 4000. The body
+           already culls itself at g_fog_far (draw_msh_sprite), so past that the
+           4000 was drawing nothing but a shadow, under fog that had already
+           taken the floor around it to black. Every room this enemy can stand in
+           fogs out well inside 4000. */
+        if (wdist >= g_fog_far) continue;
+
+        /* Behind a wall: skip body AND shadow. See collision.h — the OT sort
+           makes the hedge paint over the sprite but the GPU has already filled
+           it, and a 250x250 billboard is a real fill. Two exemptions, both from
+           the rules in that note:
+
+             - MID-LEAP IT IS NEVER CULLED. The arc ignores level geometry by
+               design (mushroom.h), so the one moment a mushroom is legitimately
+               inside a hedge is the one moment it must stay on screen. Culling
+               on the sightline here would blink it out over the wall it is
+               jumping through, which is the read the whole ritual is built on.
+             - WITHIN ONE HOP IT IS NEVER CULLED. MSH_LEAP_MAX is how far it can
+               cross in a single bound, so anything closer than that is already
+               in the player's fight whatever is standing in between. Beyond it
+               a hidden mushroom cannot reach the player this second and is not
+               worth its pixels. The 3/2 converts the Manhattan wdist to cover a
+               true radius on every bearing (Manhattan overstates by up to
+               sqrt(2) on the diagonals). */
+        if (m->state != MSH_LEAP && wdist > (MSH_LEAP_MAX * 3) / 2 &&
+            collision_hidden_from_camera(m->x, m->y + MSH_Y_OFFSET, m->z))
+            continue;
 
         draw_msh_shadow(ctx, m);
 
