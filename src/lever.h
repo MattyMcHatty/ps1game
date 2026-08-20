@@ -48,6 +48,12 @@ void lever_set_pitch(int index, int32_t pitch);
 void levers_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 int  levers_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
 
+/* Is ANY instance of this family solid in the CURRENT AREA right now? Mirrors
+   the non-coordinate gates of levers_point_solid above/below, and nothing
+   else. collision_segment_blocked uses it to skip its whole segment-sampling
+   pass in rooms that hold no props at all — see the note there. */
+int  levers_any_solid(void);
+
 /* Draw every instance in the current area. Restores the caller's view matrix. */
 void levers_draw(RenderContext *ctx);
 

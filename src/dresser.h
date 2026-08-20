@@ -57,4 +57,10 @@ void dressers_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
    (rotated footprint + height, no push margin). For gun line-of-sight. */
 int  dressers_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
 
+/* Is ANY instance of this family solid in the CURRENT AREA right now? Mirrors
+   the non-coordinate gates of dressers_point_solid above/below, and nothing
+   else. collision_segment_blocked uses it to skip its whole segment-sampling
+   pass in rooms that hold no props at all — see the note there. */
+int  dressers_any_solid(void);
+
 #endif

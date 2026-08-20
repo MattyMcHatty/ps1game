@@ -223,6 +223,17 @@ int fatdoors_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
     return 0;
 }
 
+/* See the header. One global array tagged by area, as the doors themselves are. */
+int fatdoors_any_solid(void) {
+    int i;
+    for (i = 0; i < fatdoor_count; i++) {
+        FatDoor *d = &fatdoors[i];
+        if (d->active && d->state == FATDOOR_INTACT && d->area == current_area)
+            return 1;
+    }
+    return 0;
+}
+
 void fatdoors_draw(RenderContext *ctx) {
     if (!fatdoor_smd) return;
 

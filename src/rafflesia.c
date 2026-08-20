@@ -196,6 +196,41 @@ static int32_t raf_isqrt(int32_t v) {
     return last;
 }
 
+/* Spread one area's flowers evenly around the mist cycle.
+
+   The timer is armed on the WAKING edge, and flowers that come into fog range on
+   the same frame therefore arm on the same frame — and then stay phase-locked
+   for good, because every one of them runs the same RAF_MIST_INTERVAL period
+   afterwards. Maze One's two southern beds are 1210 apart and wake together, so
+   they exhaled on exactly the same frames, and a cloud is the most expensive
+   thing this enemy draws (see the occlusion note in draw_mist).
+
+   The phase is (this flower's ordinal WITHIN ITS AREA) / (flowers in that area),
+   spread across one interval. Per-area rather than per-array, because a global
+   ordinal would waste most of the cycle on flowers in a room the player is not
+   standing in: Maze One's five want the whole 300 frames between them, not the
+   five eighths of it that eight global slots would leave.
+
+   With 5 flowers, a 300-frame period and a 120-frame cloud life the spacing is
+   60 frames and at most TWO clouds are ever in the air at once — 5x120 > 300, so
+   zero overlap is arithmetically impossible and two is the floor.
+
+   Always ADDED to a full interval, never subtracted from one: nothing here may
+   make a flower gas the player sooner after waking than it did before (mistake 8
+   again). Worst case the fifth flower's first cloud is four seconds late, and
+   after that every flower is on the ordinary five-second beat. */
+static int raf_mist_phase(int idx) {
+    int j, ordinal = 0, in_area = 0;
+    GameState a = rafflesias[idx].area;
+    for (j = 0; j < rafflesia_count; j++) {
+        if (!rafflesias[j].active || rafflesias[j].area != a) continue;
+        if (j < idx) ordinal++;
+        in_area++;
+    }
+    if (in_area <= 1) return 0;
+    return (ordinal * RAF_MIST_INTERVAL) / in_area;
+}
+
 /* ---- The two looped ambiences ----------------------------------------------
    Driven exactly like the tentacle's writhe latch: ONE voice for every flower in
    the room, flipped by a per-frame "did anything do this" flag at the END of the
@@ -393,6 +428,37 @@ void rafflesias_init(void) {
     add_rafflesia( 2352, -149,  143, STATE_OUTSIDE_CATACOMBS);
     add_rafflesia( -600, -149, 1571, STATE_OUTSIDE_CATACOMBS);
 
+    /* Maze One: one on each of the FIVE poison_flower_base beds in its drawn
+       mesh (assets/garden/Maze One.smx, texture index 3 — the same texture the
+       Catacombs' beds use). Bed centroids, as above:
+           x[ 498, 699] z[3098,3298]  ->  ( 599, 3198)   north-west corridor
+           x[2898,3097] z[2701,2901]  ->  (2998, 2801)   the middle of the maze
+           x[4500,4802] z[3300,3500]  ->  (4651, 3400)   north-east pocket
+           x[4299,4500] z[-1893,-1696] -> (4400,-1794)   } the pair on the
+           x[5508,5711] z[-1893,-1696] -> (5610,-1794)   } southern dead end
+
+       Same -149 standing anchor: this room's ground is one flat plane at y=0
+       too (maze_one_floor_zones_init), so the sprite's feet land on it.
+
+       >>> REACH CHECKED AGAINST THE MAZE, per mistake 9 in the enemy runbook.
+       <<< The Catacombs hold the player 260 off every wall; the maze uses the
+       default 195 (maze_one.c says so explicitly), and none of these five beds
+       is tucked into a corner the way the Catacombs' are. Sweeping every
+       standable cell of the room, the closest a player can physically get to
+       each centroid is 7, 4, 51, 10 and 1 units — so all five are inside
+       RAF_BITE_DIST and RAF_PULL_RADIUS by a mile, and RAF_HOLD_DIST (260) is
+       comfortably above the floor rather than under it. The same sweep says the
+       five 240-unit push circles sever no corridor: the reachable area from the
+       gate is identical with and without them.
+
+       Spacing: the two southern beds are 1210 apart and the rest are thousands
+       apart, so no two mist clouds (300) or pull radii (700) overlap. */
+    add_rafflesia(  599, -149, 3198, STATE_MAZE_ONE);
+    add_rafflesia( 2998, -149, 2801, STATE_MAZE_ONE);
+    add_rafflesia( 4651, -149, 3400, STATE_MAZE_ONE);
+    add_rafflesia( 4400, -149, -1794, STATE_MAZE_ONE);
+    add_rafflesia( 5610, -149, -1794, STATE_MAZE_ONE);
+
     int i;
     for (i = 0; i < rafflesia_count; i++)
         raf_defaults[i] = rafflesias[i];
@@ -485,8 +551,10 @@ void update_rafflesias(void) {
             r->anim++;
             /* Arm the cooldown on the WAKING edge, not at zero: a fresh timer
                would exhale a cloud on the first frame the player came into view
-               (tools/ADDING_AN_ENEMY.txt, mistake 8). */
-            if (!was_awake) r->mist_timer = RAF_MIST_INTERVAL;
+               (tools/ADDING_AN_ENEMY.txt, mistake 8).
+               PLUS A PER-FLOWER PHASE, which is what keeps a bed of them from
+               breathing in unison — see raf_mist_phase. */
+            if (!was_awake) r->mist_timer = RAF_MIST_INTERVAL + raf_mist_phase(i);
         } else {
             /* Asleep: no cloud, no grip, and the distance history is stale. */
             r->mist_life  = 0;
@@ -814,6 +882,30 @@ static void draw_mist(RenderContext *ctx, Rafflesia *r) {
     /* Fade with distance too, so a cloud does not glow out of the fog. */
     k = (k * render_fog_scale(wdist)) >> 8;
     if (k <= 0) return;
+
+    /* >>> OCCLUSION. THIS IS A FILL-RATE CULL, NOT A CORRECTNESS ONE. <<<
+       The cloud is 600 x 260 world units, SEMI-TRANSPARENT and ADDITIVE, which
+       is several times the per-pixel cost of the opaque hedges around it. At
+       gte_SetGeomScreen(256) a 300-unit half-width covers the full 320-pixel
+       width from 480 units away, so a near cloud is a full-screen blended fill —
+       and there are five flowers in Maze One, most of them behind a hedge from
+       any given spot. Without this test the GPU fills every one of those and the
+       maze then paints over them: the whole cost, none of the picture.
+
+       Tested to the flower's own centre, which is where the cloud is anchored.
+       The failure mode is a small pop as a bed comes round a corner, and that is
+       the right trade against a full-screen additive quad per hidden flower.
+       Cheap now that a prop-less room skips the sampler (see props_any_solid in
+       collision.c): this is one pass over the room's walls, and only for a
+       flower that actually has a cloud in the air.
+
+       The MIST ONLY. The body sprite deliberately keeps drawing through a hedge:
+       a flower can grip the player from 700 away and an ungrabbable, unaimable
+       invisible one is exactly the bug RAF_BODY_RADIUS exists to prevent (see
+       mistake 10 in tools/ADDING_AN_ENEMY.txt). Note the cloud still DAMAGES
+       through geometry, as it always has — that is an update-side question and
+       this changes nothing about it. */
+    if (collision_segment_blocked(cam_x, cam_y, cam_z, r->x, r->y, r->z)) return;
 
     int32_t floor_y = r->y + GROUND_FLOOR_Y;
     int32_t cy      = floor_y - RAF_MIST_HALF_H;

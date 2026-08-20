@@ -35,4 +35,10 @@ void dining_tables_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius)
    shot clears a low table but a low/angled shot strikes it. For gun LOS. */
 int  dining_tables_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
 
+/* Is ANY instance of this family solid in the CURRENT AREA right now? Mirrors
+   the non-coordinate gates of dining_tables_point_solid above/below, and nothing
+   else. collision_segment_blocked uses it to skip its whole segment-sampling
+   pass in rooms that hold no props at all — see the note there. */
+int  dining_tables_any_solid(void);
+
 #endif

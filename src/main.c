@@ -1254,7 +1254,8 @@ int main(int argc, const char **argv) {
                unconditionally, from their resident RAM copies: pure LoadImage,
                GPU already idled above. Keyed on pending_area so a title-screen
                load or a debug level-select jump gets it right too. */
-            if (pending_area == STATE_OUTSIDE_CATACOMBS)
+            if (pending_area == STATE_OUTSIDE_CATACOMBS ||
+                pending_area == STATE_MAZE_ONE)
                 rafflesias_upload_textures();
             else
                 spiders_upload_textures();

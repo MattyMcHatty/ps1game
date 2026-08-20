@@ -24,6 +24,7 @@
 #include "save_point.h"
 #include "zombie.h"
 #include "spider.h"
+#include "rafflesia.h"
 #include "mushroom.h"
 #include "web.h"
 #include "item_pickup.h"
@@ -488,24 +489,26 @@ void maze_one_draw(RenderContext *ctx) {
 
     draw_maze_one_smd(ctx);
 
-    /* Nothing is placed in this room yet (world.c seeds it empty), but the
-       renderers are wired up and handed the window so that a future SPRITE spawn
-       brackets its Voff>=128 quad correctly rather than sampling this room's
-       hedge (see tools/TEXTURING_NOTES.txt PART 5).
+    /* Every sprite enemy renderer is handed this room's texture window, because
+       all of their sprites live at Voff >= 128 and must bracket it rather than
+       sample the hedge (see tools/TEXTURING_NOTES.txt PART 5). The zombies and
+       spiders are still seeded empty here; the FIVE RAFFLESIAS (one per
+       poison_flower_base bed, rafflesias_init) and TWO MUSHROOM HEADS
+       (world_seed_room) are real.
 
-       The MUSHROOM HEAD is wired in for the same reason Fountain Square wires
-       it: this room is on SND_BANK_GARDEN, so it is one of the few a mushroom
-       could be dropped into and still scream (SFX_HISS does not fit the house
-       bank — see src/sound.h). Its sprites sit at Voff 128 too, so the same
-       window serves them. */
+       Both of those are sound-legal here for the same reason Fountain Square's
+       mushroom is: this room is on SND_BANK_GARDEN, which is where SFX_HISS and
+       the flowers' own loops live (src/sound.h). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
         spiders_set_texwindow(&tw);
+        rafflesias_set_texwindow(&tw);
         mushrooms_set_texwindow(&tw);
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
+    draw_rafflesias(ctx);
     draw_mushrooms(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);

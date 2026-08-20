@@ -20,4 +20,10 @@ void concrete_props_draw(RenderContext *ctx);
 void concrete_props_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 int  concrete_props_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
 
+/* Is ANY instance of this family solid in the CURRENT AREA right now? Mirrors
+   the non-coordinate gates of concrete_props_point_solid above/below, and nothing
+   else. collision_segment_blocked uses it to skip its whole segment-sampling
+   pass in rooms that hold no props at all — see the note there. */
+int  concrete_props_any_solid(void);
+
 #endif

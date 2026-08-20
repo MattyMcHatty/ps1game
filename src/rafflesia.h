@@ -41,7 +41,10 @@
  * them back at full health. Leave the bed and come back and it has regrown.
  * ----------------------------------------------------------------------- */
 
-#define MAX_RAFFLESIAS         8
+/* Whole-game budget, not per room: three in the Outside Catacombs and five in
+   Maze One fill eight of these, so the pool is kept two clear of the current
+   planting — add_rafflesia drops silently once it is full. */
+#define MAX_RAFFLESIAS        10
 #define RAFFLESIA_MAX_HEALTH   4
 
 typedef struct {

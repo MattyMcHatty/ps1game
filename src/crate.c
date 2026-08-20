@@ -161,6 +161,15 @@ int crates_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
     return 0;
 }
 
+/* See the header. Crates live in the per-room array world.c swaps on every
+   transition, so "in this area" is simply "in the array". */
+int crates_any_solid(void) {
+    int i;
+    for (i = 0; i < crate_count; i++)
+        if (crates[i].active && crates[i].state == CRATE_INTACT) return 1;
+    return 0;
+}
+
 void crates_draw(RenderContext *ctx) {
     if (!crate_smd) return;
 

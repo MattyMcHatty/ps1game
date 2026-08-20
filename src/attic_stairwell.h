@@ -57,4 +57,10 @@ void attic_stairwell_altar_collide(int32_t *px, int32_t py, int32_t *pz,
 int  attic_stairwell_altar_point_solid(int32_t x, int32_t y, int32_t z,
                                        int32_t slack);
 
+/* Is ANY instance of this family solid in the CURRENT AREA right now? Mirrors
+   the non-coordinate gates of attic_stairwell_altar_point_solid above/below, and nothing
+   else. collision_segment_blocked uses it to skip its whole segment-sampling
+   pass in rooms that hold no props at all — see the note there. */
+int  attic_stairwell_altar_any_solid(void);
+
 #endif

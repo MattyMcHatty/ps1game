@@ -49,6 +49,12 @@ int  chainlink_doors_raise_update(void);
 void chainlink_doors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 int  chainlink_doors_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
 
+/* Is ANY instance of this family solid in the CURRENT AREA right now? Mirrors
+   the non-coordinate gates of chainlink_doors_point_solid above/below, and nothing
+   else. collision_segment_blocked uses it to skip its whole segment-sampling
+   pass in rooms that hold no props at all — see the note there. */
+int  chainlink_doors_any_solid(void);
+
 /* Draw every instance in the current area. Restores the caller's view matrix. */
 void chainlink_doors_draw(RenderContext *ctx);
 

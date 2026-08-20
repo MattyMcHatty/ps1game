@@ -362,6 +362,15 @@ int piano_props_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
     return 0;
 }
 
+/* See the header. Piano-room-only, exactly as the point test is. */
+int piano_props_any_solid(void) {
+    int i;
+    if (current_area != STATE_PIANO_ROOM) return 0;
+    for (i = 0; i < PPROP_COUNT; i++)
+        if (props[i].active) return 1;
+    return 0;
+}
+
 /* Baked UV -> the UV this prop's texture actually wants (see uv_span in
    PianoProp). uv_span 0 is the identity, which is every prop but the tablets. */
 static inline uint8_t remap_u(const PianoProp *p, uint8_t u) {

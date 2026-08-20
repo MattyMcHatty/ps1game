@@ -80,6 +80,31 @@ static int props_block_point(int32_t x, int32_t y, int32_t z) {
     return 0;
 }
 
+/* Does the current area hold ANY solid prop at all? The same nine families, but
+   asking only their active/state/area gates — no coordinates, so it is one pass
+   over nine short arrays rather than one per sample point.
+
+   >>> THIS IS WHAT KEEPS THE SAMPLER OFF THE PER-FRAME PATH. <<< The sampling
+   loop below was sized for GUNFIRE, which happens a few times a second; its own
+   comment says the extra samples are free for that reason. They are not free for
+   the AI, which calls collision_segment_blocked up to four times a frame per
+   enemy (src/mushroom.c has five call sites), and the sample COUNT scales with
+   the segment's length — a mushroom's pacing sightline runs the full length of
+   its patrol leg, so Maze One's 6097-unit leg alone hit 203 samples x 9 prop
+   calls x 60 fps for a room that contains no props whatsoever.
+
+   The gardens, the maze and Fountain Square hold nothing this test can find, so
+   the whole pass is skipped there and the function collapses to its exact
+   wall-crossing loop. Rooms that DO hold props are unaffected, sample for sample
+   — this changes cost, never answers. */
+static int props_any_solid(void) {
+    return crates_any_solid()        || fatdoors_any_solid()      ||
+           dressers_any_solid()      || dining_tables_any_solid() ||
+           piano_props_any_solid()   || concrete_props_any_solid()||
+           attic_stairwell_altar_any_solid() ||
+           chainlink_doors_any_solid() || levers_any_solid();
+}
+
 int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
                               int32_t bx, int32_t by, int32_t bz) {
     CollisionRoom *r = &current_collision_room;
@@ -144,9 +169,13 @@ int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
        Step at a FIXED distance, not a fixed count — a long shot with few samples
        would space them hundreds of units apart and skip a thin prop (e.g. a
        ~60-unit-deep door). SHOT_PROP_STEP < the thinnest prop's depth guarantees
-       at least one sample lands inside. Firing is infrequent, so the extra
-       samples are free. */
-    {
+       at least one sample lands inside.
+
+       Skipped entirely in an area with no solid props — see props_any_solid.
+       That guard is load-bearing now that the AI calls this every frame; without
+       it the cost of the loop is paid by every room, in proportion to how long
+       the segment is. */
+    if (props_any_solid()) {
         int32_t adx = rx < 0 ? -rx : rx;
         int32_t adz = rz < 0 ? -rz : rz;
         int32_t span = adx > adz ? adx : adz;   /* dominant horizontal extent */

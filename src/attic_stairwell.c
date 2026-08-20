@@ -162,6 +162,11 @@ int attic_stairwell_altar_point_solid(int32_t x, int32_t y, int32_t z,
     return 1;
 }
 
+/* See the header. The altar is a fixed box that is always solid in its room. */
+int attic_stairwell_altar_any_solid(void) {
+    return current_area == STATE_ATTIC_STAIRWELL;
+}
+
 /* ---- Per-room textures -----------------------------------------------------
    Seven mesh textures. Two are resident from startup (wd_flr with the kitchen,
    wd_dr with the fatdoor) and just need their headers captured. Four more live

@@ -143,6 +143,14 @@ int dressers_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
     return 0;
 }
 
+/* See the header. Per-room array, like the crates. */
+int dressers_any_solid(void) {
+    int i;
+    for (i = 0; i < dresser_count; i++)
+        if (dressers[i].active) return 1;
+    return 0;
+}
+
 /* Render all active dressers using the same textured-prim path as the room
    geometry (per-poly UVs from the SMD, the 128 texture window the room sets, and
    matching distance fog). Each face is drawn with either the room's wd_flr

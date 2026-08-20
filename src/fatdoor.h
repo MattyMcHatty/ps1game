@@ -45,6 +45,12 @@ void fatdoors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 /* Hitscan solid test: 1 if (x,y,z) is inside an intact door's real solid volume
    (true footprint + height, no push margin). For gun line-of-sight. */
 int  fatdoors_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
+
+/* Is ANY instance of this family solid in the CURRENT AREA right now? Mirrors
+   the non-coordinate gates of fatdoors_point_solid above/below, and nothing
+   else. collision_segment_blocked uses it to skip its whole segment-sampling
+   pass in rooms that hold no props at all — see the note there. */
+int  fatdoors_any_solid(void);
 int  fatdoors_try_smash(void);
 
 /* Damage the first intact door whose collision box (expanded by `reach`)

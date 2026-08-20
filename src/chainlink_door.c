@@ -217,6 +217,14 @@ int chainlink_doors_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) 
     return 0;
 }
 
+/* See the header. */
+int chainlink_doors_any_solid(void) {
+    int i;
+    for (i = 0; i < door_count; i++)
+        if (doors[i].active && doors[i].area == current_area) return 1;
+    return 0;
+}
+
 /* Render every instance in the current area, with the same fog and cull budget
    as the interior rooms. chnlnk is 4bpp with its wire gaps on CLUT entry 0,
    which the GPU skips outright — so the panel is see-through with no blend

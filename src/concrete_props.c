@@ -158,6 +158,15 @@ int concrete_props_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
     return 0;
 }
 
+/* See the header. Conservatory-only, exactly as the point test is. */
+int concrete_props_any_solid(void) {
+    int i;
+    if (current_area != STATE_CONSERVATORY) return 0;
+    for (i = 0; i < prop_count; i++)
+        if (props[i].active) return 1;
+    return 0;
+}
+
 /* Render all placed props with the conservatory's fog and texture window. Both
    models are fully textured with cncrte; horizontal faces use the far-corner
    sort (render.h). Restores the caller's view matrix before returning. */

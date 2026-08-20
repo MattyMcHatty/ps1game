@@ -503,6 +503,38 @@ void world_seed_room(GameState area) {
                      -4039,   871,   /* B: north end of it                */
                      -149, STATE_OUTSIDE_CATACOMBS);
     }
+
+    /* Maze One: TWO Mushroom Heads, on the two patrol lines the design asked
+       for. Both are legal walks, checked the way the Catacombs' one was —
+       sampling each line every 20 units against maze_one_mesh_collision.c:
+
+         A (  668, 3942) -> B (6765, 3942)   the full-width northern run, 6097
+             long, outside the maze's north hedge. Tightest clearance anywhere
+             on it is 242 (against the x[4800,6900] z=3700 run), so the whole
+             leg clears MSH_BODY_RADIUS (90) nearly threefold and even the
+             player's own 195 wall radius. This one is the long patrol: at
+             MSH_WALK_SPEED it takes about 17 s a leg, and it runs BROADSIDE to
+             most of the maze's northern exits, so which way it happens to be
+             facing decides whether a player stepping out is noticed (see the
+             three-part wake in mushroom.h).
+         A ( 3825,  418) -> B (5279,  418)   a short 1454-long east-west leg
+             inside the south-east of the maze, in a pocket 325 to 682 clear of
+             the hedges either side.
+
+       Neither line comes within MSH_SEP_RADIUS of the other or of any flower,
+       and both are inside the region reachable from the gate.
+
+       y is the STANDING ANCHOR over this room's flat y=0 ground, -149, the same
+       value the rafflesias here take. AUTHORED, not probed — world_seed_room
+       runs for rooms whose geometry is not resident.
+
+       Sound: this room is on SND_BANK_GARDEN (main.c's STATE_LOADING), so
+       SFX_HISS is loaded and the scream sounds, as do SFX_TNTCL_DIE for the
+       death and the resident SFX_AXEHIT / SFX_HURT. */
+    if (area == STATE_MAZE_ONE) {
+        mushroom_add( 668, 3942, 6765, 3942, -149, STATE_MAZE_ONE);
+        mushroom_add(3825,  418, 5279,  418, -149, STATE_MAZE_ONE);
+    }
 }
 
 void world_enter(GameState area) {

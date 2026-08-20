@@ -159,6 +159,14 @@ int levers_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
     return 0;
 }
 
+/* See the header. */
+int levers_any_solid(void) {
+    int i;
+    for (i = 0; i < lever_count; i++)
+        if (levers[i].active && levers[i].area == current_area) return 1;
+    return 0;
+}
+
 /* Render every instance in the current area, with the same fog and cull budget
    as the interior rooms. Every face is flat-shaded (POLY_F3/F4) — the model
    carries no UVs, and its per-face colours are what mark the blue mounting cap

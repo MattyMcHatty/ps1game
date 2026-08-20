@@ -123,6 +123,15 @@ int dining_tables_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
     return 0;
 }
 
+/* See the header. Kitchen-only, exactly as the point test is. */
+int dining_tables_any_solid(void) {
+    int i;
+    if (current_area != STATE_KITCHEN_DINING) return 0;
+    for (i = 0; i < dining_table_count; i++)
+        if (dining_tables[i].active) return 1;
+    return 0;
+}
+
 /* Render the tables using the SAME textured-prim path as the kitchen geometry
    (per-poly UVs from the SMD, the 128 texture window set in kitchen_dining_draw,
    and matching distance fog) so they blend in with the room. The caller passes
