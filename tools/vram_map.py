@@ -187,6 +187,24 @@ KNOWN_STREAM_PAIRS = [
     # NOT shared (there was room for two more lines), so only the pixels collide.
     ("spdr_rst.tim",       "rafflesia1.tim"),
     ("spdr_wk.tim",        "rafflesia2.tim"),
+    # Maze One, east of Fountain Square through that room's east gate. It draws
+    # hedge, grdn_gte and grss_gs from the Garden Courtyard's slots, drain from
+    # Fountain Square's narrow upload and poison_flower_base from the Outside
+    # Catacombs' — so of its six textures exactly ONE needed a home of its own:
+    #   pipe -> the brick_wall page (x768 y0), shared with grss / bed /
+    #           xt_dr_lckd / xt_dr_cmplt / fountain / lamashtu tablet. Note this
+    #           room draws NO gravel at all, so unlike every other garden room
+    #           the gravel_gs page (x704) was free too; brick_wall was chosen to
+    #           keep the pipe with the rest of the already-shared 8bpp set. The
+    #           Garden Stairs uploader puts brick_wall here on the way in, so
+    #           pipe must go up AFTER it — see maze_one_upload_textures.
+    ("brick_wall.tim",     "pipe.tim"),
+    ("grss.tim",           "pipe.tim"),
+    ("bed.tim",            "pipe.tim"),
+    ("xt_dr_lckd.tim",     "pipe.tim"),
+    ("xt_dr_cmplt.tim",    "pipe.tim"),
+    ("fountain.tim",       "pipe.tim"),
+    ("lamashtu tablet.tim","pipe.tim"),
 ]
 
 def read_tim(path):

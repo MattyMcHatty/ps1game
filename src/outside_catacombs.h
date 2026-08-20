@@ -49,6 +49,9 @@
 void outside_catacombs_load_assets(void);     /* startup: register streamed textures */
 void outside_catacombs_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void outside_catacombs_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
+/* Just this room's flower bed, for a room that draws poison_flower_base but not
+   the tablet or the facade — Maze One. Run the courtyard's uploader first. */
+void outside_catacombs_upload_flowers(void);
 void outside_catacombs_init(void);            /* set collision/floor zones + spawn */
 void outside_catacombs_draw(RenderContext *ctx);
 

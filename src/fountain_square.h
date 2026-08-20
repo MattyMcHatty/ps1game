@@ -26,7 +26,7 @@
      DRAIN      a channel cut across the paving at z[243,304]; art only, no
                 collision of its own.
 
-   FOUR gates are modelled, one per side; TWO are connected:
+   FOUR gates are modelled, one per side; THREE are connected:
 
      SOUTH   the grdn_gte leaf at z=-1822, x[-364,364], y[-600,0]. The far side
      WALL    of the gate in the Garden Courtyard's north hedge. Collision wall
@@ -35,9 +35,12 @@
      WALL    Catacombs' south gate. Collision wall 66 has nz = -4096, so it is
              approached from -Z — the opposite face, hence mirror=0 and a sign
              on the z-11 side.
-             The two others (west x=-1994, east x=2005) are drawn shut and back
-             onto solid collision — they are there for rooms that do not exist
-             yet.
+     EAST    the leaf at x=2005, z[-364,364] — this one in the YZ plane. It
+     WALL    opens on Maze One's west gate at that room's x=-100. Collision wall
+             54 has nx = -4096, so it is approached from -X, which for a YZ sign
+             is mirror=1 and a sign on the x-11 side.
+             The one remaining (west x=-1994) is drawn shut and backs onto solid
+             collision — it is there for a room that does not exist yet.
 
    Rendered the same way as the Garden Courtyard (per-poly tex map + one 128
    texture window + purple outdoor fog), and it reuses that room's texture
@@ -63,9 +66,21 @@ int  fountain_square_gate_triggered(void);  /* 1 on a fresh Circle press in rang
 void fountain_square_ngate_arm(void);
 int  fountain_square_ngate_triggered(void);
 
-/* Spawns, one per connected gate. The south one is the room's default;
-   main.c overrides with the north one when arriving from the catacombs. */
+/* The east-wall gate on to Maze One. Its own edge state again, for the same
+   reason. Unlike the other two this one is in the YZ plane (fixed X). */
+void fountain_square_egate_arm(void);
+int  fountain_square_egate_triggered(void);
+
+/* Just the drain, for a room that draws the channel but not the fountain —
+   Maze One, whose own pipe occupies the fountain's page. Run the courtyard's
+   uploader first. */
+void fountain_square_upload_drain(void);
+
+/* Spawns, one per connected gate. The south one is the room's default; main.c
+   overrides with the north one when arriving from the catacombs and the east
+   one when arriving from Maze One. */
 void fountain_square_spawn_south(void);
 void fountain_square_spawn_north(void);
+void fountain_square_spawn_east(void);
 
 #endif

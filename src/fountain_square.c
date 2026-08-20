@@ -166,6 +166,19 @@ void fountain_square_upload_textures(void) {
         texmgr_upload(new_tex_id[i]);
 }
 
+/* Just the drain, for a room that draws the channel but nothing else of this
+   one's. Maze One is the case: it wants drain on the opn_drwr page but NOT
+   fountain, whose page (brick_wall, x768 y0) it fills with its own pipe — so
+   running the whole uploader above would put fountain straight over it. Narrow
+   accessor rather than a second registration of drain.tim: texmgr has a hard
+   TEXMGR_MAX and a duplicate costs a slot and 16 KB of RAM for nothing (see
+   conservatory_upload_con_tile, the same pattern). Still ordered AFTER the
+   courtyard's uploader by every caller — it is that call which puts xt_dr_cg
+   on this slot. */
+void fountain_square_upload_drain(void) {
+    texmgr_upload(new_tex_id[1]);   /* slot 5, \TEX\DRAIN.TIM */
+}
+
 /* ---- The south-wall gate back to the Garden Courtyard -----------------------
    The grdn_gte polys on this side span x[-364,364] at z=-1822, y[-600,0]. It is
    the same gate leaf as the one in the Garden Courtyard's north hedge, which is
@@ -315,10 +328,82 @@ void fountain_square_spawn_north(void) {
     cam_vy  = 0;
     cam_z   = FS_NGATE_Z - COLLISION_WALL_RADIUS - 25;
     cam_rot = 2048;   /* facing -Z, into the room */
-    /* Arm BOTH gates, not just this one: a Circle held through the transition
-       would otherwise fire whichever interaction was left unarmed. */
+    /* Arm ALL THREE gates, not just this one: a Circle held through the
+       transition would otherwise fire whichever interaction was left unarmed. */
     fountain_square_gate_arm();
     fountain_square_ngate_arm();
+    fountain_square_egate_arm();
+}
+
+/* ---- The east-wall gate on to Maze One --------------------------------------
+   The third of this room's four modelled gates to be connected. Its grdn_gte
+   polys span z[-364,364] at x=2005, y[-600,0] — the same leaf again, this time
+   in the YZ plane — and it opens on Maze One's west gate at that room's x=-100.
+
+   Collision wall 54 runs the full width of the east side at x=2005 with
+   nx = -4096, so the walkable side is -X: the player approaches from inside the
+   room. For a YZ-plane sign that is mirror=1, and the sign stands 11 units WEST
+   of the wall (x - 11). Note this is the opposite hand from Maze One's side of
+   the same gate, whose wall faces +X — see the note in src/maze_one.c. */
+#define FS_EGATE_X            2005
+#define FS_EGATE_Z                0    /* (-364 + 364) / 2 */
+
+/* Its own Circle edge-detect, for the same reason the north gate has one: three
+   gates in one room means three independent edge states, and all three are
+   seeded on every entry by fountain_square_init. */
+static int egate_circle_prev = 1;
+
+void fountain_square_egate_arm(void) {
+    egate_circle_prev = circle_held();
+}
+
+int fountain_square_egate_triggered(void) {
+    int held = circle_held();
+    int just = held && !egate_circle_prev;
+    egate_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - FS_EGATE_X;
+    int32_t dz = cam_z - FS_EGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < FS_TRIGGER_RADIUS && interact_facing(FS_EGATE_X, FS_EGATE_Z);
+}
+
+/* Floating sign on the east gate. Same radii and fade as the other two; being in
+   the YZ plane it is door_draw_string_3d's Z axis that gets the -200, not X. */
+static void egate_text(RenderContext *ctx) {
+    int32_t dx = cam_x - FS_EGATE_X;
+    int32_t dz = cam_z - FS_EGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= FS_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > FS_FADE_NEAR) {
+        int range = FS_TEXT_RADIUS - FS_FADE_NEAR;
+        int prog  = xz - FS_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        FS_EGATE_X - 11, FS_TEXT_Y, FS_EGATE_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
+/* Arriving back from Maze One: stand on the paving WEST of the x=2005 hedge,
+   clear of the wall push radius, facing -X — the direction of travel through the
+   gate, looking back along the east arm of the cross at the fountain. */
+void fountain_square_spawn_east(void) {
+    cam_x   = FS_EGATE_X - COLLISION_WALL_RADIUS - 25;
+    cam_y   = FS_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = FS_EGATE_Z;
+    cam_rot = 3072;   /* facing -X, into the room */
+    /* Arm ALL THREE gates, not just this one: a Circle held through the
+       transition would otherwise fire whichever interaction was left unarmed. */
+    fountain_square_gate_arm();
+    fountain_square_ngate_arm();
+    fountain_square_egate_arm();
 }
 
 void fountain_square_init(void) {
@@ -337,11 +422,13 @@ void fountain_square_init(void) {
     fountain_square_floor_zones_init();
 
     /* Default arrival is the south gate; main.c's STATE_LOADING branch
-       overrides it with the north spawn when the player is coming back out of
-       the Outside Catacombs. Either way both gates end up armed — the south
-       spawn calls its own arm and the extra one is added here. */
+       overrides it with the north spawn coming back out of the Outside
+       Catacombs, or the east one coming back out of Maze One. Either way all
+       three gates end up armed — the south spawn calls its own arm and the two
+       others are added here. */
     fountain_square_spawn_south();
     fountain_square_ngate_arm();
+    fountain_square_egate_arm();
 
     /* Save points and dresser props are global (not room-swapped) and neither is
        area-gated in its collide routine, so reception's instances would block
@@ -579,4 +666,5 @@ void fountain_square_draw(RenderContext *ctx) {
     /* Last: the gate signs. */
     gate_text(ctx);
     ngate_text(ctx);
+    egate_text(ctx);
 }

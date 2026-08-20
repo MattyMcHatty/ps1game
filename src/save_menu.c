@@ -88,6 +88,7 @@ static const char *area_name(int area) {
         case STATE_GARDEN_COURTYARD: return "COURTYARD";
         case STATE_FOUNTAIN_SQUARE: return "FOUNTAIN SQUARE";
         case STATE_OUTSIDE_CATACOMBS: return "OUTSIDE CATACOMBS";
+        case STATE_MAZE_ONE:          return "MAZE ONE";
         default:                   return "MANSION";
     }
 }

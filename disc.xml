@@ -339,6 +339,19 @@
                 <file name="OUTCTCMB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\outside_catacombs.smd"/>
                 <file name="LMSHTBLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu tablet.tim"/>
                 <file name="PSNFLWR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\poison_flower_base.tim"/>
+
+                <!-- Maze One: the hedge maze east of Fountain Square, through
+                     that room's east gate. FIVE of its six textures belong to
+                     other rooms - HEDGE, GRDNGTE and GRSSGS via the courtyard's
+                     uploader, DRAIN via Fountain Square's narrow one and PSNFLWR
+                     via the Outside Catacombs' - so PIPE alone is its own. It
+                     went to the brick_wall page (x768 y0), which this room draws
+                     nothing from and which was already time-shared six ways.
+                     At 117 KB its SMD is by some way the largest on the disc and
+                     it is what sizes the room arena (tools/gen_room_arena.py).
+                     Its .smx exports live in assets/garden/ too. -->
+                <file name="MAZEONE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\maze_one.smd"/>
+                <file name="PIPE.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe.tim"/>
                 <!-- The gate's two leaves as the door-anim transition draws them
                      (DOOR_PANEL_GATE). Like XTDRLHLF/XTDRRHLF these are separate
                      per-leaf images, but unlike them they could not be

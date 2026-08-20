@@ -231,6 +231,26 @@
 #define TIM_TPAGE_MGNKYSTN 0x009a
 #define TIM_CLUT_MGNKYSTN  0x7b90
 
+/* mist.tim        4bpp  VRAM ( 832,448)  \TEX\MIST.TIM */
+#define TIM_TPAGE_MIST     0x001d
+#define TIM_CLUT_MIST      0x7803
+
+/* mushy_behind.tim  8bpp  VRAM ( 512,384)  \TEX\MSHYBHND.TIM */
+#define TIM_TPAGE_MSHYBHND 0x0098
+#define TIM_CLUT_MSHYBHND  0x7cd0
+
+/* mushy_closed.tim  8bpp  VRAM ( 560,384)  \TEX\MSHYCLSD.TIM */
+#define TIM_TPAGE_MSHYCLSD 0x0098
+#define TIM_CLUT_MSHYCLSD  0x7d10
+
+/* mushy_open.tim  8bpp  VRAM ( 768,384)  \TEX\MSHYOPEN.TIM */
+#define TIM_TPAGE_MSHYOPEN 0x009c
+#define TIM_CLUT_MSHYOPEN  0x7d50
+
+/* mushy_run.tim   8bpp  VRAM ( 464,384)  \TEX\MSHYRUN.TIM */
+#define TIM_TPAGE_MSHYRUN  0x0097
+#define TIM_CLUT_MSHYRUN   0x7c90
+
 /* opn_drwr.tim    8bpp  VRAM ( 832,  0)  \TEX\OPNDRWR.TIM */
 #define TIM_TPAGE_OPNDRWR  0x008d
 #define TIM_CLUT_OPNDRWR   0x7ad0
@@ -242,6 +262,10 @@
 /* piano_keys.tim  4bpp  VRAM ( 384,  0)  \TEX\PIANOKEY.TIM */
 #define TIM_TPAGE_PIANOKEY 0x0006
 #define TIM_CLUT_PIANOKEY  0x7fc2
+
+/* pipe.tim        8bpp  VRAM ( 768,  0)  \TEX\PIPE.TIM */
+#define TIM_TPAGE_PIPE     0x008c
+#define TIM_CLUT_PIPE      0x7d90
 
 /* pno_key.tim     8bpp  VRAM ( 608,256)  \TEX\PNOKEY.TIM */
 #define TIM_TPAGE_PNOKEY   0x0099
@@ -258,6 +282,14 @@
 /* Rabisu tex.tim  8bpp  VRAM ( 704,256)  \TEX\RABISU.TIM */
 #define TIM_TPAGE_RABISU   0x009b
 #define TIM_CLUT_RABISU    0x7a2a
+
+/* rafflesia1.tim  8bpp  VRAM ( 320,128)  \TEX\RAFLSIA1.TIM */
+#define TIM_TPAGE_RAFLSIA1 0x0085
+#define TIM_CLUT_RAFLSIA1  0x7c10
+
+/* rafflesia2.tim  8bpp  VRAM ( 384,128)  \TEX\RAFLSIA2.TIM */
+#define TIM_TPAGE_RAFLSIA2 0x0086
+#define TIM_CLUT_RAFLSIA2  0x7c50
 
 /* red_crpt.tim    4bpp  VRAM ( 320,256)  \TEX\REDCRPT.TIM */
 #define TIM_TPAGE_REDCRPT  0x0015

@@ -32,6 +32,9 @@ typedef enum {
                                 Fountain Square through the gate in ITS north
                                 hedge. Appended, not inserted: saves store raw
                                 enum values. */
+    STATE_MAZE_ONE,          /* the hedge maze east of Fountain Square, through
+                                the gate in its EAST hedge. Appended too, for
+                                the same reason. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

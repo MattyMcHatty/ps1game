@@ -190,6 +190,17 @@ void outside_catacombs_upload_textures(void) {
         texmgr_upload(new_tex_id[i]);     /* tablet -> brick_wall, flowers -> chnlnk */
 }
 
+/* Just the flower bed, for a room that draws poison_flower_base but nothing else
+   of this one's. Maze One is the case: it has flower beds of its own but no
+   facade and no tablet, and the tablet's page (brick_wall, x768 y0) is where its
+   pipe goes — so running the whole uploader above would put the tablet straight
+   over it. Narrow accessor rather than a second registration of PSNFLWR.TIM,
+   for the usual TEXMGR_MAX reason. Callers must still run the courtyard's
+   uploader FIRST: that is what puts chnlnk on this slot. */
+void outside_catacombs_upload_flowers(void) {
+    texmgr_upload(new_tex_id[1]);   /* slot 6, \TEX\PSNFLWR.TIM */
+}
+
 /* ---- The south-wall gate back to Fountain Square ---------------------------
    The grdn_gte polys on this side span x[-450,450] at z=-2000, y[-600,0]. It is
    the same gate leaf as the one in Fountain Square's north hedge, which is 172

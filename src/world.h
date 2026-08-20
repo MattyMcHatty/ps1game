@@ -22,16 +22,17 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 16  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 17  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
-                               fountain_square, outside_catacombs.
-                               NOTE the WorldDelta's `visited` is a uint16_t, so
-                               16 is the ceiling without widening it — and this
-                               is now AT that ceiling. The next room added must
-                               widen `visited` (and re-check the _Static_asserts
-                               below) before it can be counted here. */
+                               fountain_square, outside_catacombs, maze_one.
+                               NOTE the WorldDelta's `visited` is the bitmap that
+                               caps this. It was a uint16_t and 16 was the
+                               ceiling; Maze One is the room that hit it, so it
+                               is now a uint32_t and the ceiling is 32. The
+                               _Static_assert in world.c holds the two in step —
+                               widen it again, don't just bump this. */
 
 void world_new_game(void);          /* reset all rooms; capture the starting room */
 void world_leave(GameState area);   /* live entities  -> the area's saved slot */
@@ -88,7 +89,10 @@ typedef struct {
 } RoomDelta;                  /* 10 bytes */
 
 typedef struct {
-    uint16_t  visited;                            /* bit r: room r entered   */
+    /* bit r: room r entered. uint32_t, not uint16_t: this is the field that
+       caps WORLD_NUM_ROOMS, and the sixteenth room filled the old one exactly.
+       Widening it costs two bytes of a delta that has thousands spare. */
+    uint32_t  visited;
     uint8_t   spiders_dead;                       /* keyed by (area, ordinal) */
     uint8_t   rabisus_dead;                       /* likewise                 */
     uint8_t   mushrooms_dead;                     /* likewise                 */

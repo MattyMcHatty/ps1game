@@ -63,6 +63,12 @@ _Static_assert(MAX_TENTACLES     <= WD_MAX_TENTACLES,"tentacle_health too short"
 _Static_assert(MAX_SPIDERS       <= WD_MAX_SPIDERS,  "spiders_dead too narrow");
 _Static_assert(MAX_RABISUS       <= WD_MAX_RABISUS,  "rabisus_dead too narrow");
 _Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow");
+/* The `visited` bitmap is what caps the room count — one bit per room. It was a
+   uint16_t and the sixteenth room filled it exactly; Maze One is the seventeenth
+   and widened it to 32 bits. This assert is what makes the NEXT overflow a
+   compile error instead of rooms silently coming back unvisited from a save. */
+_Static_assert(WORLD_NUM_ROOMS <= 8 * sizeof(((WorldDelta *)0)->visited),
+               "WorldDelta.visited too narrow for WORLD_NUM_ROOMS");
 
 static WorldState world;
 
@@ -89,7 +95,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_MASTER_BEDROOM, STATE_EAST_HALL,      STATE_LIBRARY,
     STATE_EAST_STAIRWELL, STATE_ATTIC_STAIRWELL,STATE_ATTIC_EXIT,
     STATE_GARDEN_STAIRS,  STATE_GARDEN_COURTYARD, STATE_FOUNTAIN_SQUARE,
-    STATE_OUTSIDE_CATACOMBS,
+    STATE_OUTSIDE_CATACOMBS, STATE_MAZE_ONE,
 };
 
 static int room_index(GameState area) {
@@ -110,6 +116,7 @@ static int room_index(GameState area) {
         case STATE_GARDEN_COURTYARD: return 13;
         case STATE_FOUNTAIN_SQUARE: return 14;
         case STATE_OUTSIDE_CATACOMBS: return 15;
+        case STATE_MAZE_ONE:          return 16;
         default:                   return 0;
     }
 }
@@ -570,7 +577,7 @@ void world_save_delta(WorldDelta *d) {
         const RoomState *rs = &world.rooms[r];
         RoomDelta       *rd = &d->rooms[r];
         if (!rs->visited) continue;
-        d->visited |= (uint16_t)(1u << r);
+        d->visited |= (uint32_t)(1u << r);
 
         for (i = 0; i < MAX_ZOMBIES; i++)
             if (rs->zombs[i].state == ZMB_DEAD)

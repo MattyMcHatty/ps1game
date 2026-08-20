@@ -155,24 +155,42 @@ COORDINATE CONVENTIONS (memorise these):
     (delivery_restore_textures / kitchen_restore_textures / the room's own
     *_upload_textures).
 
-    >>> AND COUNT THE REGISTRATIONS. <<< TEXMGR_MAX is 48 and, as of the
-    Outside Catacombs, ALL 48 ARE USED — the two Fountain Square left were
-    spent on that room's tablet and flower bed. The next room that wants a
-    texture of its own must either raise TEXMGR_MAX (it costs a TexEntry and,
-    more to the point, RAM for the resident copy) or delegate every slot the
-    way garden_courtyard.c and outside_catacombs.c do. A texmgr_register past
-    the cap fails SILENTLY and
-    breaks that texture in every room that draws it. The way to spend none at
-    all is the one Fountain Square and the Garden Courtyard both take: if
-    another room already uploads the slot you need, call ITS *_upload_textures()
-    from yours and use TIM_SLOT() for the header, instead of registering a
-    second RAM copy of the same file.
+    >>> AND COUNT THE REGISTRATIONS. <<< TEXMGR_MAX was 48 and had been reached
+    EXACTLY when the Outside Catacombs landed; the Rafflesia then raised it to
+    56 (see the comment in src/texmgr.c), so there is real headroom again —
+    check the live value there rather than trusting this paragraph. A
+    texmgr_register past the cap fails SILENTLY and breaks that texture in every
+    room that draws it, so headroom is not permission to be careless. The way to
+    spend none at all is the one Fountain Square and the Garden Courtyard both
+    take: if another room already uploads the slot you need, call ITS
+    *_upload_textures() from yours and use TIM_SLOT() for the header, instead of
+    registering a second RAM copy of the same file.
+
+    >>> AND WATCH WHAT THE BORROWED UPLOADER ALSO STAMPS. <<< A full
+    *_upload_textures() puts up every slot that room owns, not just the one you
+    wanted. Maze One draws Fountain Square's drain and the Outside Catacombs'
+    flower bed, but calling either room's full uploader would ALSO have dropped
+    that room's second texture (the fountain, the tablet) on the brick_wall page
+    at x768 y0 — which is exactly where Maze One's own pipe goes. The fix is a
+    NARROW accessor on the owning module, the conservatory_upload_con_tile
+    pattern: fountain_square_upload_drain() and outside_catacombs_upload_flowers()
+    exist for precisely this. Check the borrowed uploader's slot list against
+    your own before you call it.
 
 3c. CLUT slot: 8bpp needs 256 words, 4bpp needs 16, one line tall, in the
     scratch area y >= 480. Check the "CLUT SLOTS" table in VRAM_MAP.txt for a
-    gap, and remember ddog_alert occupies x[640,672) y[448,512) — that is NOT
-    free space. bed's CLUT went at (272,480), in the gap between rusty_fence's
-    CLUT at x[256,272) and double_door's at x[768,784).
+    gap, and remember ddog_alert occupies x[640,704) y[448,512) and mist
+    x[832,864) y[448,512) — those are NOT free space, and they run through EVERY
+    row of the CLUT band. bed's CLUT went at (272,480), in the gap between
+    rusty_fence's CLUT at x[256,272) and double_door's at x[768,784).
+
+    A 256-word 8bpp CLUT is now genuinely hard to place. x[0,256) is the fixed
+    CLUT band, ddog_alert blocks x[640,704) and mist x[832,864) on every row, so
+    the only run wide enough is x[256,640) — and rows 480..501 all have a 256-
+    word CLUT sitting in it already. As of Maze One the first row with 256
+    contiguous free words is y=502 (pipe took x[256,512) there); 503-511 have
+    room too. Scan the rows rather than guessing, and re-scan after any addition
+    — this is the resource most likely to run out next.
 
 3d. Convert. Source MUST be 128x128 (the exporter maps 1 UV tile = 128 texels;
     a 64x64 source sampled 0..128 reads past itself into neighbouring VRAM —
@@ -366,7 +384,14 @@ Touch these files, in this order:
                      enum. Saves store raw enum values, so inserting in the
                      middle silently corrupts old saves.
 
-  src/world.h        Bump WORLD_NUM_ROOMS (+1).
+  src/world.h        Bump WORLD_NUM_ROOMS (+1). >>> CHECK IT AGAINST THE
+                     `visited` BITMAP. <<< WorldDelta.visited is one bit per
+                     room and it is the real ceiling on the room count. It was a
+                     uint16_t and Maze One was the seventeenth room, so it is a
+                     uint32_t now and the ceiling is 32. There is a
+                     _Static_assert in world.c holding the two in step — if it
+                     fires, WIDEN THE FIELD, do not just bump the count, or
+                     rooms past the end come back unvisited from every save.
 
   src/world.c        Add a `case STATE_<X>: return <n>;` to room_index() AND the
                      matching entry to room_areas[] — the two tables are
