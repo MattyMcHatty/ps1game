@@ -12,6 +12,7 @@
 #include "fatdoor.h"
 #include "tentacle.h"
 #include "rafflesia.h"
+#include "mushroom.h"
 #include "rabisu.h"
 #include "savegame.h"
 #include "sound.h"
@@ -45,6 +46,8 @@ typedef struct {
     int       spider_count;
     Rabisu    rabisus[MAX_RABISUS];       /* the boss: same global area-tagged model */
     int       rabisu_count;
+    Mushroom  mushrooms[MAX_MUSHROOMS];   /* ditto: the garden's pacing ambusher */
+    int       mushroom_count;
 } WorldState;
 
 /* The delta's bit widths must cover the live arrays. Raise the WD_MAX_* in
@@ -59,6 +62,7 @@ _Static_assert(MAX_FATDOORS      <= WD_MAX_FATDOORS, "fatdoor_health too short")
 _Static_assert(MAX_TENTACLES     <= WD_MAX_TENTACLES,"tentacle_health too short");
 _Static_assert(MAX_SPIDERS       <= WD_MAX_SPIDERS,  "spiders_dead too narrow");
 _Static_assert(MAX_RABISUS       <= WD_MAX_RABISUS,  "rabisus_dead too narrow");
+_Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow");
 
 static WorldState world;
 
@@ -68,6 +72,7 @@ extern DemonDog  demon_dogs[MAX_DEMON_DOGS];   extern int demon_dog_count;
 extern Zombie    zombies[MAX_ZOMBIES];         extern int zombie_count;
 extern Spider    spiders[MAX_SPIDERS];         extern int spider_count;
 extern Rabisu    rabisus[MAX_RABISUS];         extern int rabisu_count;
+extern Mushroom  mushrooms[MAX_MUSHROOMS];     extern int mushroom_count;
 extern Crate     crates[MAX_CRATES];           extern int crate_count;
 extern KeyPickup keys[MAX_KEYS];               extern int key_count;
 extern SmlMed    sml_meds[MAX_SML_MEDS];       extern int sml_med_count;
@@ -142,6 +147,8 @@ static void snapshot_fatdoors(void) {
     world.spider_count = spider_count;
     memcpy(world.rabisus, rabisus, sizeof rabisus);
     world.rabisu_count = rabisu_count;
+    memcpy(world.mushrooms, mushrooms, sizeof mushrooms);
+    world.mushroom_count = mushroom_count;
 }
 
 void world_new_game(void) {
@@ -172,6 +179,8 @@ void world_silence_monsters(void) {
     sound_stop(SFX_DOGDIE);
     sound_stop(SFX_SPIT);
     sound_stop(SFX_TNTCL_DIE);  /* also the spider's death cry (see spider.c) */
+    sound_stop(SFX_HISS);       /* the Mushroom Head's scream — which is also
+                                   its death cry (mushroom.c) */
 }
 
 void world_leave(GameState area) {
@@ -181,6 +190,7 @@ void world_leave(GameState area) {
     zombies_rest();
     spiders_rest();
     rabisus_rest();
+    mushrooms_rest();
     demon_dogs_rest();
     /* The rafflesias go further than "rest": they come back at full health even
        if they were killed. They are the one enemy with no permanent death (see
@@ -451,10 +461,41 @@ void world_seed_room(GameState area) {
        evicted, exactly as the Garden Courtyard does. Anything with a voice
        placed here would be silent. See src/sound.h before adding to this. */
 
-    /* The Outside Catacombs seeds NOTHING either, and for exactly the same
-       reason: it is reached only through the gate, so it is on SND_BANK_BOSS
-       for SFX_GATE and runs with the house bank's monster effects evicted.
-       Do not populate it without reading src/sound.h first. */
+    /* Outside Catacombs: ONE Mushroom Head, pacing the WESTERLY ROOM —
+       x[-4396,-2498] z[-1449,1424], the big walled space off the west side of
+       the map. It is reached through the one gap in its east wall, the
+       z[-285,285] doorway at x=-2498 (collision walls 7 and 13 stop either side
+       of it), by way of the corridor that runs west out of the central chamber.
+
+       The patrol is a straight north-south run along the room's west wall:
+           A  (-4039, -1055)      B  (-4039,  871)
+       x=-4039 stands 357 clear of the west wall at -4396, and the two ends are
+       394 and 553 clear of the south and north walls, so the whole leg is open
+       floor and nothing on it is inside MSH_BODY_RADIUS of anything.
+
+       That line runs BROADSIDE to the doorway, which is what makes the new
+       three-part wake worth having: a player coming through at z~0 arrives
+       square in the middle of the run, and whether they are seen depends on
+       which way the mushroom happens to be walking when they do.
+
+       y is the STANDING ANCHOR over this room's flat y=0 ground, -149 — the
+       same value the rafflesias and every other y=0-floor placement here use.
+       AUTHORED rather than probed, because world_seed_room runs for rooms whose
+       geometry is not loaded.
+
+       >>> THIS ROOM USED TO HAVE TO STAY EMPTY, AND NO LONGER DOES. <<< The
+       note that stood here said so because the room was then on SND_BANK_BOSS
+       purely to reach SFX_GATE, with every monster effect evicted. It is on
+       SND_BANK_GARDEN now (main.c's STATE_LOADING), which is where SFX_HISS
+       lives — so the scream sounds, and so do the effects the mushroom borrows:
+       SFX_TNTCL_DIE for its death (garden bank) and SFX_AXEHIT / SFX_HURT
+       (resident). Check any FURTHER placement against src/sound.h the same way;
+       the nine house-bank effects are still evicted here. */
+    if (area == STATE_OUTSIDE_CATACOMBS) {
+        mushroom_add(-4039, -1055,   /* A: south end of the west wall run */
+                     -4039,   871,   /* B: north end of it                */
+                     -149, STATE_OUTSIDE_CATACOMBS);
+    }
 }
 
 void world_enter(GameState area) {
@@ -584,6 +625,14 @@ void world_save_delta(WorldDelta *d) {
                 d->rabisus_dead |= (uint8_t)
                     (1u << canonical_index(areas, world.rabisu_count, i));
     }
+    {
+        GameState areas[MAX_MUSHROOMS];
+        for (i = 0; i < world.mushroom_count; i++) areas[i] = world.mushrooms[i].area;
+        for (i = 0; i < world.mushroom_count; i++)
+            if (world.mushrooms[i].state == MSH_DEAD)
+                d->mushrooms_dead |= (uint8_t)
+                    (1u << canonical_index(areas, world.mushroom_count, i));
+    }
 }
 
 void world_load_delta(const WorldDelta *d) {
@@ -597,6 +646,7 @@ void world_load_delta(const WorldDelta *d) {
        already restored the inventory by the time this runs. */
     spiders_reset();
     rabisus_reset();
+    mushrooms_reset();
     fatdoors_reset();
     tentacles_reset();
     /* Not rebuilt by the room walk (its placements are fixed at startup, like
@@ -653,6 +703,8 @@ void world_load_delta(const WorldDelta *d) {
         if (d->spiders_dead & (1u << i)) spiders[i].state = SPD_DEAD;
     for (i = 0; i < rabisu_count; i++)
         if (d->rabisus_dead & (1u << i)) { rabisus[i].dead = 1; rabisus[i].dying = 1; }
+    for (i = 0; i < mushroom_count; i++)
+        if (d->mushrooms_dead & (1u << i)) mushrooms[i].state = MSH_DEAD;
 
     snapshot_fatdoors();
 }

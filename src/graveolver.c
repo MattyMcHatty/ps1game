@@ -17,6 +17,7 @@
 #include "spider.h"
 #include "tentacle.h"
 #include "rafflesia.h"
+#include "mushroom.h"
 #include "rabisu.h"
 #include "vampire.h"
 #include "particles.h"
@@ -270,6 +271,16 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 6; best_idx = i;
         }
     }
+    for (i = 0; i < mushroom_count; i++) {
+        Mushroom *m = &mushrooms[i];
+        if (!m->active || m->state == MSH_DEAD || m->area != current_area) continue;
+        int32_t cyc, hh, hw;
+        mushroom_body(m, &cyc, &hh, &hw);
+        if (enemy_in_circle(m->x, cyc, m->z, hw, hh, fx, fz, &depth) &&
+            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 7; best_idx = i;
+        }
+    }
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *rb = &rabisus[i];
         /* `dying` as well as `dead`: the boss stays on screen through its whole
@@ -316,6 +327,11 @@ static void graveolver_fire(void) {
            doubles DMG_FLAME) — so four shots to kill, or two. */
         rafflesia_shoot(&rafflesias[best_idx],
                         rafflesia_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 7) {
+        /* No weaknesses: 1 from any round, so five shots to kill whatever is
+           chambered (see mushroom.h). */
+        mushroom_damage(&mushrooms[best_idx],
+                        mushroom_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 5) {
         /* Boss: 1 from a Standard Round, 2 from a Flame Round (its weakness
            table doubles DMG_FLAME) — so 20 or 10 shots to kill. */

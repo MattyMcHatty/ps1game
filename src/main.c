@@ -67,6 +67,7 @@
 #include "copper_pot.h"
 #include "tentacle.h"
 #include "rafflesia.h"
+#include "mushroom.h"
 #include "rabisu.h"
 #include "rabisu_boss.h"
 #include "delivery_intro.h"
@@ -156,6 +157,7 @@ void reset_game(RenderContext *ctx) {
     zombies_reset();
     spiders_reset();
     rafflesias_reset();
+    mushrooms_reset();
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
@@ -231,6 +233,7 @@ static void update_current_area(GameState area) {
         update_spiders();
         update_rabisus();
         update_rafflesias();    /* ...and the garden flowers keep gripping */
+        update_mushrooms();     /* ...and the Mushroom Head keeps hunting  */
         webs_update();          /* ...and their webs keep flying */
         player_status_update();
         trick_drawers_update();
@@ -243,6 +246,7 @@ static void update_current_area(GameState area) {
         update_spiders();
         update_rabisus();
         update_rafflesias();
+        update_mushrooms();
         webs_update();
         player_status_update();
         kitchen_stove_update();
@@ -277,6 +281,7 @@ static void update_current_area(GameState area) {
         update_rabisus();
         update_tentacles();    /* the four guarding the north levers */
         update_rafflesias();
+        update_mushrooms();
         webs_update();
         player_status_update();
         exit_door_puzzle_update();
@@ -742,6 +747,9 @@ static void update_current_area(GameState area) {
     /* Area-tagged like the webs, so this one call covers every room branch above
        and costs nothing in the rooms with no flowers in them. */
     update_rafflesias();
+    /* Likewise area-tagged, so this one call covers every room branch above and
+       costs nothing in the rooms with no mushrooms in them. */
+    update_mushrooms();
     webs_update();            /* spider webs in flight (area-tagged, so free
                                  in rooms that have none) */
     player_status_update();   /* ticks the web's poison timer down */
@@ -988,6 +996,11 @@ int main(int argc, const char **argv) {
                                   on entry to the Outside Catacombs (they sit in
                                   the spiders' two VRAM slots; see rafflesia.h) */
     rafflesias_init();         /* the three Outside Catacombs beds */
+    mushrooms_load_textures(); /* startup CD read only, as above. The four
+                                  sprites OWN their VRAM slots (no time-share,
+                                  so nothing to re-upload on a transition) —
+                                  see mushroom.h */
+    mushrooms_init();
     rabisus_load_assets();     /* boss MODEL, not sprites: one CD read for
                                   RABISU.SMD. Startup-only for the same reason —
                                   CD access is unsafe once the render loop runs.

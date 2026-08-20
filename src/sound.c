@@ -67,6 +67,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\GATE.VAG;1",
     "\\SND\\GAS.VAG;1",
     "\\SND\\PULLIN.VAG;1",
+    "\\SND\\HISS.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -127,6 +128,11 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_GATE]       = SND_BANK_BOSS | SND_BANK_GARDEN,
     [SFX_GAS]        = SND_BANK_GARDEN,  /* the Rafflesia's spore puff          */
     [SFX_PULL]       = SND_BANK_GARDEN,  /* ...and its grab (fireball reversed) */
+    /* The Mushroom Head's scream. GARDEN only — it is 12.3 KB and the house
+       bank, which is the largest and so sets `spare`, has 6.6 KB free. The
+       garden bank runs to 105 KB of the region's 185, so this is free there.
+       Placing a mushroom in a house room would leave it mute. */
+    [SFX_HISS]       = SND_BANK_GARDEN,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -164,6 +170,13 @@ static int sfx_channel(SfxID id) {
        shared with PICKUP and SLAM. It is the cue that tells you what just
        happened to you, so nothing may cut it. */
     if (id == SFX_PULL)        return 14;
+    /* The Mushroom Head's scream, off the pool for the same reason: it is 2 s
+       long and it is a TELL — the leap comes out of the end of it, and a player
+       who cannot hear it finish cannot read the wind-up. Its pool slot would be
+       FIRST_VOICE + (35 % 8) = 4, shared with SFX_SMASH and SFX_DIE, and the
+       scream is followed within the second by a lunge that may well kill. 15 is
+       the last of the free 13..15 block. */
+    if (id == SFX_HISS)        return 15;
     /* The menu blips, one voice each out of the free 10..15. They are short
        enough for the pool, but a menu is the one place the player fires sounds
        back to back at speed, and in the pool a cursor run would cut the confirm

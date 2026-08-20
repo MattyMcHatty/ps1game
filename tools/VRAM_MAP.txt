@@ -114,8 +114,12 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   trees_dl.tim         4       960   256   128   128     0   16,480
   crucifaxe.tim        8       320   384    64    64   128   0,500  <-- Voff>=128
   hud.tim              4       384   384   320    56   128   176,511  <-- Voff>=128
+  mushy_run.tim        8       464   384    96    96   128   256,498  <-- Voff>=128
+  mushy_behind.tim     8       512   384    96    96   128   256,499  <-- Voff>=128
+  mushy_closed.tim     8       560   384    96    96   128   256,500  <-- Voff>=128
   ddog_sleep.tim       8       640   384    64    64   128   0,483  <-- Voff>=128
   ddog_alert2.tim      8       736   384    64    64   128   0,485  <-- Voff>=128
+  mushy_open.tim       8       768   384    96    96   128   256,501  <-- Voff>=128
   ddog_alert.tim       8       640   448    64    64   192   0,484  <-- Voff>=128
   mist.tim             4       832   448    32    32   192   48,480  <-- Voff>=128
 
@@ -178,10 +182,14 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=496  x[256,512)  rafflesia1.tim
   y=497  x[256,512)  rafflesia2.tim
   y=497  x[0,16)  wd_dr_crk.tim
+  y=498  x[256,512)  mushy_run.tim
   y=498  x[0,256)  zombie_sleep.tim
+  y=499  x[256,512)  mushy_behind.tim
   y=499  x[0,256)  zombie_alert.tim
   y=500  x[0,256)  crucifaxe.tim
+  y=500  x[256,512)  mushy_closed.tim
   y=501  x[0,16)  brick_wall.tim
+  y=501  x[256,512)  mushy_open.tim
   y=502  x[0,256)  inr_dbl_dr_half.tim
   y=503  x[0,256)  kchn_wl.tim
   y=504  x[0,16)  strs.tim

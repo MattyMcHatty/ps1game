@@ -22,6 +22,7 @@
 #include "fatdoor.h"
 #include "tentacle.h"
 #include "rafflesia.h"
+#include "mushroom.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -36,6 +37,7 @@ static int spdr_hit_this_swing  = 0;
 static int fatdoor_hit_this_swing = 0;
 static int tent_hit_this_swing  = 0;
 static int raf_hit_this_swing   = 0;
+static int msh_hit_this_swing   = 0;
 
 void crucifaxe_init(void) {
     CdlFILE file;
@@ -75,6 +77,7 @@ void update_crucifaxe(void) {
         fatdoor_hit_this_swing = 0;
         tent_hit_this_swing    = 0;
         raf_hit_this_swing     = 0;
+        msh_hit_this_swing     = 0;
         sound_play(SFX_SWING);
     }
 
@@ -209,6 +212,40 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !raf_hit_this_swing) {
             if (rafflesias_try_hit())
                 raf_hit_this_swing = 1;
+        }
+
+        /* Mushroom Head hit. Same shape as the spider's, with one difference:
+           the knockback is MSH_KNOCKBACK (45, decaying 7/8 a frame, so ~360
+           units all told) rather than the spider's 20 — the axe is supposed to
+           buy real breathing room against this one. It is skipped mid-LEAP,
+           because the arc is interpolated between two fixed endpoints and a
+           sideways shove would slide the body off the line it is committed to.
+           mushroom_damage handles waking a pacing one into its scream. */
+        if (swing_timer <= SWING_DURATION && !msh_hit_this_swing) {
+            int mi;
+            for (mi = 0; mi < mushroom_count; mi++) {
+                Mushroom *m = &mushrooms[mi];
+                if (!m->active || m->state == MSH_DEAD ||
+                    m->area != current_area) continue;
+                int32_t dx     = m->x - cam_x;
+                int32_t dy     = (m->y + MSH_Y_OFFSET) - cam_y;
+                int32_t dz     = m->z - cam_z;
+                int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+                int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
+                if (dist3d < SWING_RANGE) {
+                    int32_t dot = ((int32_t)dx * isin(cam_rot) +
+                                   (int32_t)dz * icos(cam_rot)) >> 12;
+                    if (dot > 0) {
+                        if (!mushroom_airborne(m)) {
+                            m->kb_vx = dist2d > 0 ? (dx * MSH_KNOCKBACK) / dist2d : 0;
+                            m->kb_vz = dist2d > 0 ? (dz * MSH_KNOCKBACK) / dist2d : 0;
+                        }
+                        mushroom_damage(m, 1);
+                        msh_hit_this_swing = 1;
+                        break;
+                    }
+                }
+            }
         }
 
         /* >>> THERE IS DELIBERATELY NO RABISU BLOCK HERE. <<< The boss is the

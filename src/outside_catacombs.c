@@ -24,6 +24,7 @@
 #include "zombie.h"
 #include "spider.h"
 #include "rafflesia.h"
+#include "mushroom.h"
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
@@ -504,16 +505,20 @@ void outside_catacombs_draw(RenderContext *ctx) {
        a future spawn brackets its Voff>=128 quad correctly rather than sampling
        this room's hedge (see tools/TEXTURING_NOTES.txt PART 5). The RAFFLESIAS
        are real: three of them, one on each poison_flower_base bed, and their
-       sprites sit at Voff 128 too — so the same window goes to them. */
+       sprites sit at Voff 128 too — so the same window goes to them. So does
+       the MUSHROOM HEAD pacing the southern chamber: its four 96x96 sprites sit
+       at Voff 128 as well (VRAM y=384, see mushroom.h). */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
         spiders_set_texwindow(&tw);
         rafflesias_set_texwindow(&tw);
+        mushrooms_set_texwindow(&tw);
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
     draw_rafflesias(ctx);
+    draw_mushrooms(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);

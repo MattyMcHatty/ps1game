@@ -22,6 +22,7 @@
 #include "save_point.h"
 #include "zombie.h"
 #include "spider.h"
+#include "mushroom.h"
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
@@ -555,14 +556,22 @@ void fountain_square_draw(RenderContext *ctx) {
     /* Nothing is placed in this room yet (world.c seeds it empty), but the
        renderers are wired up and handed the window so that a future SPRITE
        spawn brackets its Voff>=128 quad correctly rather than sampling this
-       room's hedge (see tools/TEXTURING_NOTES.txt PART 5). */
+       room's hedge (see tools/TEXTURING_NOTES.txt PART 5).
+
+       The MUSHROOM HEAD is wired in for the same reason and one more: this is
+       the only room besides the Outside Catacombs on SND_BANK_GARDEN, so it is
+       the only other room a mushroom could be dropped into and still scream
+       (SFX_HISS does not fit the house bank — see src/sound.h). Its sprites sit
+       at Voff 128 too, so the same window serves them. */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
         spiders_set_texwindow(&tw);
+        mushrooms_set_texwindow(&tw);
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
+    draw_mushrooms(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);

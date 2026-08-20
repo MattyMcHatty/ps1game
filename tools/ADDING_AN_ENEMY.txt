@@ -189,6 +189,35 @@ Voff >= 128. That is where the free space is.
     saying which room separates them, or the map will report the overlap as an
     unexpected collision forever.
 
+3b-ter. THE OTHER WAY OUT: SHRINK THE SPRITE. Sharing a donor's slots buys a
+    128x128 pair at the price of a streaming obligation on EVERY room entry
+    (3b-bis), a texmgr registration each, and a rule about which rooms the two
+    enemies may not meet in. A 96x96 8bpp sprite is 48 words by 96 rows, and 96
+    rows is exactly what the y[384,480) band under the HUD has — so it OWNS its
+    slot, is a plain startup LoadImage, and needs no main.c line, no texmgr
+    entry and no SHARED_SLOTS note at all. The Mushroom Head (Aug 2026) took
+    four of them: x464/512/560 and x768, all at y=384.
+
+    Do the trade honestly. 96x96 is 56% of the texels, and on a body-sized
+    billboard that reads as slightly softer at close range and not at all past a
+    few metres — much less than the 8bpp -> 4bpp alternative costs, which on
+    photographic sprite art washes the darks out completely (measured on this
+    same enemy: 15 colours flattened it, 96x96 did not). Prefer this whenever
+    the enemy needs THREE OR MORE frames, where sharing would mean finding three
+    donors that are all absent from the same rooms.
+
+    png_to_tim.py does not resize; make the 96x96 PNGs alongside the originals
+    and commit both, so the conversion stays reproducible:
+        py -c "from PIL import Image; im=Image.open('textures/x.png'); \
+               im.resize((96,96), Image.LANCZOS).save('textures/x_96.png')"
+
+    TWO TRAPS. png_to_tim warns that 96 is not a power of two — ignore it, the
+    warning is about texture-window WRAPPING and a sprite brackets a full,
+    unmasked window anyway (STEP 4). And the CLUT band is not as free as the
+    map's CLUT section makes it look: ddog_alert.tim is 64 rows tall at y=448,
+    so its PIXELS occupy x[640,672) all the way down to y=512 and a CLUT placed
+    there lands inside them. vram_map.py catches it; put the line at x[256,512).
+
 3e. Regenerate the map and CHECK IT:
 
       py tools\vram_map.py | Out-File -Encoding utf8 tools\VRAM_MAP.txt

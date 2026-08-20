@@ -140,6 +140,11 @@
                 <file name="GATE.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\gate.vag"/>
                 <file name="GAS.VAG"     type="data" source="C:\Users\virtu\Documents\ps1game\sounds\gas.vag"/>
                 <file name="PULLIN.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\pullin.vag"/>
+                <!-- The Mushroom Head's scream. GARDEN bank only: the house
+                     bank is the largest of the three and has 6.6 KB spare
+                     against this clip's 12.3, so it cannot go there as well.
+                     A mushroom placed inside the house would be mute. -->
+                <file name="HISS.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\hiss.vag"/>
                 <!-- SND_BANK_INTRO, a bank of one: the Order of Ninurta line
                      over the opening sequence's white flash. Banked because
                      21.6 KB will not fit the resident headroom, and it is only
@@ -234,6 +239,16 @@
                 <file name="RAFLSIA1.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\rafflesia1.tim"/>
                 <file name="RAFLSIA2.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\rafflesia2.tim"/>
                 <file name="MIST.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\mist.tim"/>
+                <!-- The Mushroom Head's four sprites. 96x96 rather than the
+                     128x128 every other enemy uses: VRAM has no 128-row hole
+                     left at all, and these four OWN their slots outright
+                     (x464/512/560/768, y384) rather than time-sharing anyone
+                     else's, so they are a plain startup LoadImage and never
+                     need re-streaming. See tools/VRAM_MAP.txt. -->
+                <file name="MSHYRUN.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\mushy_run.tim"/>
+                <file name="MSHYBHND.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\mushy_behind.tim"/>
+                <file name="MSHYCLSD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\mushy_closed.tim"/>
+                <file name="MSHYOPEN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\mushy_open.tim"/>
                 <file name="MSTRBED.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\master_bedroom.smd"/>
                 <file name="BED.TIM"      type="data" source="C:\Users\virtu\Documents\ps1game\textures\bed.tim"/>
                 <file name="EASTHALL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\east_hall.smd"/>

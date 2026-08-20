@@ -17,7 +17,15 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   13            /* v13: the inventory GRID ARRANGEMENT
+#define SAVE_VERSION   14            /* v14: the WorldDelta gained
+                                        mushrooms_dead (the Mushroom Head, one
+                                        bit per instance of a global
+                                        area-tagged array — see world.h). The
+                                        delta_size check alone would already
+                                        have rejected a v13 save, since the
+                                        struct grew a byte; the bump makes the
+                                        reason legible rather than implicit;
+                                        v13: the inventory GRID ARRANGEMENT
                                         (item_order) — items now land in the
                                         first free cell and the player can
                                         rearrange them, so where each one sits is

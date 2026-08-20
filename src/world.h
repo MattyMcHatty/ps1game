@@ -74,6 +74,7 @@ void world_silence_monsters(void);
 #define WD_MAX_TENTACLES 10
 #define WD_MAX_SPIDERS    8   /* bits: one global area-tagged array */
 #define WD_MAX_RABISUS    8
+#define WD_MAX_MUSHROOMS  8   /* bits: likewise one global area-tagged array */
 
 typedef struct {
     uint8_t  zombies_dead;    /* bit i: zombies[i] was killed        */
@@ -90,6 +91,7 @@ typedef struct {
     uint16_t  visited;                            /* bit r: room r entered   */
     uint8_t   spiders_dead;                       /* keyed by (area, ordinal) */
     uint8_t   rabisus_dead;                       /* likewise                 */
+    uint8_t   mushrooms_dead;                     /* likewise                 */
     RoomDelta rooms[WORLD_NUM_ROOMS];
     uint8_t   fatdoor_health[WD_MAX_FATDOORS];    /* 0 = smashed              */
     uint8_t   tentacle_health[WD_MAX_TENTACLES];  /* 0 = killed               */

@@ -177,7 +177,14 @@ typedef enum {
        and it costs 6.8 KB rather than a new recording. Same length and rate as
        the original, 1.07 s at 11025 Hz. GARDEN bank. */
     SFX_PULL       = 34,
-    SFX_COUNT      = 35,
+    /* The Mushroom Head's scream — the wet hiss its cap makes when it splits
+       open. 2.00 s at 11025 Hz, 12.3 KB. GARDEN bank, and GARDEN ONLY: the
+       house bank is the largest of the three and so sets `spare`, which is
+       6.6 KB — this clip does not fit it, and could not be made resident for
+       the same reason. A mushroom placed inside the house would therefore be
+       silent; the garden is where it lives. See tools/ADDING_A_SOUND.txt. */
+    SFX_HISS       = 35,
+    SFX_COUNT      = 36,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.
