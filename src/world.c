@@ -551,10 +551,45 @@ void world_seed_room(GameState area) {
         mushroom_add(3825,  418, 5279,  418, -149, STATE_MAZE_ONE);
     }
 
-    /* Maze Two: ONE Living Statue, on the plinth, and it is a LIVING one.
-       Its three poison_flower_base beds are still art — rafflesia.c places the
-       Catacombs' three and Maze One's five by name and this room is in neither
-       list — and no mushroom walks it.
+    /* Maze Two: ONE Mushroom Head on the southern lane, and ONE Living Statue
+       on the plinth — and the statue is a LIVING one. Its three
+       poison_flower_base beds are planted now too, by rafflesia.c rather than
+       here (the flowers are authored in rafflesias_init with the Catacombs' and
+       Maze One's, because they have no WorldState section to seed).
+
+       The mushroom's patrol is the length of the southern lane, the z[202,802]
+       run (collision FLOOR 11) the player enters the room along:
+           A  (1613, 530)      B  (5691, 517)
+       4078 long — this room's answer to Maze One's long northern run, about
+       11 s a leg at MSH_WALK_SPEED. Sampled every 20 units against
+       maze_two_mesh_collision.c the tightest clearance anywhere on it is 273,
+       at (1995, 529): three times MSH_BODY_RADIUS (90) and clear of the
+       player's own 195 push radius, so the whole leg is open floor. Both
+       endpoints are inside the region reachable from the south gate.
+
+       It runs BROADSIDE to every opening off the lane, which is the point: the
+       player arrives at the gate (-1300, 220) with the mushroom somewhere on a
+       4078-unit line, and whether they are noticed depends on which way it is
+       walking (see the three-part wake in mushroom.h). MSH_ALERT_RADIUS (1400)
+       is well inside this room's 2500 fog-far (MT_FOG_FAR), so it never wakes
+       to a player it cannot see.
+
+       Nothing on the line is inside MSH_SEP_RADIUS of anything: the nearest
+       flower is the doorway one at (3700, 901), 378 off the line, and the
+       statue's plinth at (685, 2330) is far north of it.
+
+       y is the STANDING ANCHOR over this room's flat y=0 ground, -149, the same
+       value the rafflesias here take. AUTHORED, not probed — world_seed_room
+       runs for rooms whose geometry is not resident.
+
+       Sound: this room is on SND_BANK_GARDEN (main.c's STATE_LOADING), so
+       SFX_HISS sounds for the scream, as do SFX_TNTCL_DIE for the death and the
+       resident SFX_AXEHIT / SFX_HURT.
+
+       >>> THIS IS THE FOURTH AND LAST MUSHROOM. <<< MAX_MUSHROOMS is 4 and is a
+       WHOLE-GAME budget (one in the Catacombs, two in Maze One, this one), and
+       mushroom_add drops silently once it is full — raise MAX_MUSHROOMS (and
+       check it against WD_MAX_MUSHROOMS, 8) before placing a fifth.
 
        The plinth is x[593,777] z[2238,2422], 131 tall (maze_two.h), so its
        centre is (685, 2330) and its top face is at mesh y = -131. A statue's
@@ -584,6 +619,9 @@ void world_seed_room(GameState area) {
        SFX_RUMBLE is loaded and the teleport and the death both sound, as does
        the resident SFX_AXEHIT / SFX_HURT. */
     if (area == STATE_MAZE_TWO) {
+        mushroom_add(1613, 530,      /* A: west end of the southern lane */
+                     5691, 517,      /* B: east end of the same lane     */
+                     -149, STATE_MAZE_TWO);
         living_statue_add(685, 2330, -281, 1, STATE_MAZE_TWO);
     }
 }

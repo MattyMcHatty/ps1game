@@ -459,6 +459,47 @@ void rafflesias_init(void) {
     add_rafflesia( 4400, -149, -1794, STATE_MAZE_ONE);
     add_rafflesia( 5610, -149, -1794, STATE_MAZE_ONE);
 
+    /* Maze Two: one on each of the THREE poison_flower_base beds in its drawn
+       mesh (assets/garden/Maze Two.smx, texture index 4 there — the index moves
+       between rooms, the texture does not). Bed centroids, as above:
+           x[-3800,-3600] z[4200,4400]  ->  (-3700, 4300)   north-west corner
+           x[ -800, -600] z[ 803,1002]  ->  ( -700,  902)   the west lane pocket
+           x[ 3600, 3800] z[ 803,1000]  ->  ( 3700,  901)   the central doorway
+
+       Same -149 standing anchor: this room's ground is one flat plane at y=0
+       (maze_two_floor_zones_init), so the sprite's feet land on it.
+
+       >>> REACH CHECKED AGAINST THE MAZE, per mistake 9 in the enemy runbook.
+       <<< Maze Two uses the default 195 wall radius (maze_two.c says so). A grid
+       sweep of every standable cell reachable from the south gate says the
+       closest a player can get to these three centroids is 0, 2 and 1 units, so
+       all three are inside RAF_BITE_DIST (340) and RAF_PULL_RADIUS (700) by a
+       mile, and RAF_HOLD_DIST (260) sits well above the floor rather than under
+       it. Each bed stands 299-300 off the nearest hedge, so none of them is in
+       the Catacombs' tucked-into-a-corner situation.
+
+       Spacing: the three are thousands apart, so no two mist clouds (300) or
+       pull radii (700) overlap, and none is within MSH_SEP_RADIUS of the
+       mushroom's patrol line (the nearest approach is 378, to the doorway
+       flower — see world_seed_room).
+
+       >>> THE DOORWAY FLOWER AT (3700, 901) IS A GATE, NOT A DECORATION. <<<
+       Its bed sits dead centre in the 600-wide gap (collision FLOOR 0,
+       x[3400,4000] z[802,1000]) that is the ONLY way into the central chamber,
+       FLOOR 10. The 240 push circle (RAF_BODY_RADIUS 165 + the player's 75 in
+       apply_collision_reception) spans that gap end to end: the same sweep says
+       7433 standable cells — the whole chamber — go unreachable while the
+       flower is alive. The x walls cannot squeeze the player past it either,
+       because the push that stops them points along z, which no wall opposes.
+       So the chamber is behind FOUR crucifaxe swings (RAF_BODY_RADIUS is inside
+       SWING_RANGE by design) or four rounds, and rafflesias_rest() regrows it on
+       every transition, so the toll is paid again on every visit. That is a real
+       design decision and is deliberate here; move the flower off the bed
+       centroid if it should ever become scenery instead. */
+    add_rafflesia(-3700, -149, 4300, STATE_MAZE_TWO);
+    add_rafflesia( -700, -149,  902, STATE_MAZE_TWO);
+    add_rafflesia( 3700, -149,  901, STATE_MAZE_TWO);
+
     int i;
     for (i = 0; i < rafflesia_count; i++)
         raf_defaults[i] = rafflesias[i];

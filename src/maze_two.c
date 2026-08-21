@@ -618,14 +618,15 @@ void maze_two_draw(RenderContext *ctx) {
 
     /* Every sprite enemy renderer is handed this room's texture window, because
        all of their sprites live at Voff >= 128 and must bracket it rather than
-       sample the hedge (see tools/TEXTURING_NOTES.txt PART 5). Nothing is seeded
-       in this room yet — the three flower beds are art only, and no mushroom
-       walks here — but the updaters and draw calls cost nothing on empty arrays,
-       and this is where a later population hangs itself.
+       sample the hedge (see tools/TEXTURING_NOTES.txt PART 5). Three of these
+       arrays are live here now — a Rafflesia on each of the three flower beds
+       (rafflesias_init), one Mushroom Head pacing the southern lane and the
+       plinth's Living Statue (both world_seed_room) — and the zombie and spider
+       calls cost nothing on their empty arrays.
 
-       This room is on SND_BANK_GARDEN (main.c's STATE_LOADING), so anything put
-       here later can reach SFX_HISS and the flowers' own loops; check any
-       placement against src/sound.h the way Maze One's was. */
+       This room is on SND_BANK_GARDEN (main.c's STATE_LOADING), so all three
+       reach SFX_HISS and the flowers' own loops; check any further placement
+       against src/sound.h the way Maze One's was. */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);

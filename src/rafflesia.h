@@ -41,10 +41,12 @@
  * them back at full health. Leave the bed and come back and it has regrown.
  * ----------------------------------------------------------------------- */
 
-/* Whole-game budget, not per room: three in the Outside Catacombs and five in
-   Maze One fill eight of these, so the pool is kept two clear of the current
-   planting — add_rafflesia drops silently once it is full. */
-#define MAX_RAFFLESIAS        10
+/* Whole-game budget, not per room: three in the Outside Catacombs, five in
+   Maze One and three in Maze Two fill eleven of these, so the pool is kept two
+   clear of the current planting — add_rafflesia drops silently once it is full.
+   Raising it costs RAM only and nothing on the memory card: rafflesias have no
+   WorldState section at all (see rafflesias_rest below). */
+#define MAX_RAFFLESIAS        13
 #define RAFFLESIA_MAX_HEALTH   4
 
 typedef struct {

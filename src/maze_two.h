@@ -27,10 +27,11 @@
                 narrowest is the 600-wide lane along the south wall, the same
                 width as Maze One's; there is no second storey and nothing to
                 climb, which is why multi_level is 0 and one floor zone does.
-     FLOWERS    three poison_flower_base beds laid into the paths. ART ONLY for
-                now — no rafflesia is seeded on them (rafflesia.c places Maze
-                One's five and the Catacombs' three by name, and this room is not
-                in either list).
+     FLOWERS    three poison_flower_base beds laid into the paths, with a
+                Rafflesia planted on each centroid (rafflesias_init). The one at
+                (3700, 901) sits in the gap that is the only way into the
+                central chamber and its push circle plugs it, so that chamber is
+                behind killing the flower — see rafflesias_init for the sweep.
      PIPE       a standpipe at x[4667,4733] z[2271,2329], 230 tall — the same
                 borrowed texture Maze One's standpipe uses.
      PLINTH     a block at x[593,777] z[2238,2422], 131 tall, the room's one

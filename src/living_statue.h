@@ -49,8 +49,9 @@
  *      screen actually shows, because it is the only formulation that
  *      GUARANTEES a teleport is never drawn happening. A statue that visibly
  *      jumped once would stop being frightening for the rest of the game.
- *   2. THE PLAYER MUST BE FAR ENOUGH AWAY — beyond LST_STALK_GATE, three times
- *      the activation radius.
+ *   2. THE PLAYER MUST BE FAR ENOUGH AWAY — beyond LST_STALK_GATE, 1050. It is
+ *      no longer any fixed multiple of the activation radius; see the note at
+ *      the constant for why the two were untied.
  *
  * >>> GATE 2 RE-FREEZES, AND THAT HAS A CONSEQUENCE WORTH KNOWING. <<<
  * It is re-tested every frame, not just once to start the sequence. So the
@@ -134,16 +135,45 @@
 #define LST_MAX_HEALTH        2    /* two crucifaxe swings, in ATTACK only     */
 
 /* ---- Ranges.
-   LST_ACTIVATE_RADIUS is half a Rafflesia's engagement range — that flower
-   works off RAF_PULL_RADIUS, 700 — and is TRUE RADIAL, so 350 means 350
-   whichever way the player walks in from. Arming is one-way: once a statue has
-   seen the player this close it is armed for the rest of the visit.
+   LST_ACTIVATE_RADIUS is TRUE RADIAL, so 600 means 600 whichever way the player
+   walks in from. Arming is one-way: once a statue has seen the player this close
+   it is armed for the rest of the visit. It was 350 — half a Rafflesia's
+   engagement range, that flower working off RAF_PULL_RADIUS, 700 — and is now
+   600, a little under that flower's whole range.
 
-   LST_STALK_GATE is three times it. Read the note above about re-freezing
-   before retuning either: the gate and the stage ranges interact, and the only
-   stage range OUTSIDE the gate is the first one. */
-#define LST_ACTIVATE_RADIUS 350
-#define LST_STALK_GATE     1050    /* 3 x LST_ACTIVATE_RADIUS                  */
+   >>> 600 IS NOT A ROUND NUMBER, IT IS THE CORNER. <<< Maze Two's statue stands
+   on a plinth at (685, 2330) at the dead end of the east-west corridor that
+   turns north into the alcove lane, and the radius has to be wide enough that
+   TURNING THAT CORNER ARMS IT. It is not enough to cover the corner's inside: a
+   player who hugs it rounds the turn along the far edge. Solving the widest path
+   through the local grid — the max over routes of the minimum distance to the
+   plinth, over standable cells (front-only walls, the 195 player radius, the
+   three flowers' push circles) — says a corner-hugging player can get from the
+   corridor to the north lane while staying 536 away. So 525 could still be
+   dodged and was; 600 clears that route by 64 units, which is the margin this
+   number exists for. Anything at or under 536 reopens the dodge.
+
+   >>> WIDENING IT HAS NOT MOVED THE ARMING ZONE, ONLY GROWN IT. <<< The zone is
+   whatever standable floor is inside the radius, and by the same sweep it is
+   x[350,610] z[2400,2670] at 350, x[170,610] z[2400,2840] at 525 and
+   x[90,610] z[2400,2920] at 600 — 4 m2 of floor becoming 19, in ONE connected
+   piece every time. All three sit wholly inside the corridor-and-alcove pocket
+   behind the statue's own hedges, so it still cannot be armed from the lane on
+   the far side of them. Re-run both sweeps if it is ever replanted or the radius
+   moves again; neither survives a change to the room's geometry.
+
+   LST_STALK_GATE DELIBERATELY DID NOT FOLLOW. It used to be exactly three times
+   the activation radius and is now a plain 1050. Scaling it to 1575 would have
+   put the FIRST teleport's landing range (LST_TP_R0, 1200) inside the gate
+   instead of just outside it, so a statue would freeze after one jump unless the
+   player ran half the maze away — read the note above about re-freezing before
+   retuning it: the gate and the stage ranges interact, and the only stage range
+   outside the gate is the first one. */
+#define LST_ACTIVATE_RADIUS 600
+#define LST_STALK_GATE     1050    /* NOT tied to the activation radius — see
+                                      above; it must stay under LST_TP_R0       */
+_Static_assert(LST_ACTIVATE_RADIUS < LST_STALK_GATE,
+               "a statue armed outside its own stalk gate would teleport at once");
 #define LST_REFREEZE          1    /* 0 = once started, the sequence completes */
 
 /* ---- The floor grid. Maze Two's mesh is a 200-unit quad grid — 668 floor
@@ -159,6 +189,11 @@
 #define LST_TP_R1  (4 * LST_POLY)
 #define LST_TP_R2  (2 * LST_POLY)
 #define LST_TP_R3  (1 * LST_POLY)
+/* The first landing must clear LST_STALK_GATE, or gate 2 re-freezes the statue
+   the moment it arrives and the sequence stalls after one jump. This is what
+   stops LST_STALK_GATE being raised to follow LST_ACTIVATE_RADIUS. */
+_Static_assert(LST_TP_R0 > LST_STALK_GATE,
+               "the first teleport must land OUTSIDE the stalk gate");
 
 /* The landing search. TP_TRIES bearings, each walked inward from the stage's
    range in TP_STEP increments down to TP_MIN — which is the closest it will
