@@ -149,6 +149,16 @@ COORDINATE CONVENTIONS (memorise these):
     Good candidates (all delivery-only, Voff 0, already streamed over by the
     conservatory): brick_wall/grss (x768 y0), gravel/trees (x640 y0),
     rusty_fence/upstairs (x704 y0), double_door/con_tile (x832 y0).
+
+    >>> A PAGE THAT LOOKS FREE MAY ONLY BE HALF FREE. <<< bpp decides the width:
+    a 128x128 texture is 64 VRAM columns at 8bpp but only 32 at 4bpp. So a page
+    whose occupants are all 4bpp has its RIGHT half free — and something else may
+    already be living there. x704 y0 is exactly that trap: gravel_gs, rusty_fence
+    and upstairs are 4bpp and cover x[704,736) only, while anzu3 and anzu6 sit at
+    x736. Maze One's notes called that page free for a maze, on the true premise
+    that no maze draws gravel; Maze Two put an 8bpp plinth there and landed on
+    the Anzu. Check the map's `wpx`/bpp columns, not just the texture names, and
+    let vram_map.py have the last word — it caught this one.
     `bed` took the brick_wall slot: delivery_restore_textures() puts brick_wall
     back on delivery entry and conservatory_upload_textures() puts grss back on
     conservatory entry, so nothing new was needed.
@@ -158,10 +168,13 @@ COORDINATE CONVENTIONS (memorise these):
     (delivery_restore_textures / kitchen_restore_textures / the room's own
     *_upload_textures).
 
-    >>> AND COUNT THE REGISTRATIONS. <<< TEXMGR_MAX was 48 and had been reached
-    EXACTLY when the Outside Catacombs landed; the Rafflesia then raised it to
-    56 (see the comment in src/texmgr.c), so there is real headroom again —
-    check the live value there rather than trusting this paragraph. A
+    >>> AND COUNT THE REGISTRATIONS. <<< This has now filled up TWICE. It was 48
+    and had been reached EXACTLY when the Outside Catacombs landed; the Rafflesia
+    raised it to 56; Maze Two's plinth was then the 56th and it was raised to 64
+    (see the comment in src/texmgr.c). Check the live value there rather than
+    trusting this paragraph, and count what is actually registered rather than
+    assuming — most call sites are `for (i = 0; i < <ROOM>_NEW_TEX; i++)` loops,
+    so the count is the sum of those defines plus the standalone calls. A
     texmgr_register past the cap fails SILENTLY and breaks that texture in every
     room that draws it, so headroom is not permission to be careless. The way to
     spend none at all is the one Fountain Square and the Garden Courtyard both

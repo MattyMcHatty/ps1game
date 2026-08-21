@@ -267,6 +267,10 @@
 #define TIM_TPAGE_PIPE     0x008c
 #define TIM_CLUT_PIPE      0x7d90
 
+/* plinth.tim      8bpp  VRAM ( 832,  0)  \TEX\PLINTH.TIM */
+#define TIM_TPAGE_PLINTH   0x008d
+#define TIM_CLUT_PLINTH    0x7dd0
+
 /* pno_key.tim     8bpp  VRAM ( 608,256)  \TEX\PNOKEY.TIM */
 #define TIM_TPAGE_PNOKEY   0x0099
 #define TIM_CLUT_PNOKEY    0x7890

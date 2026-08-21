@@ -205,6 +205,29 @@ KNOWN_STREAM_PAIRS = [
     ("xt_dr_cmplt.tim",    "pipe.tim"),
     ("fountain.tim",       "pipe.tim"),
     ("lamashtu tablet.tim","pipe.tim"),
+    # Maze Two, north of Maze One through that room's north gate. It draws
+    # hedge, grdn_gte and grss_gs from the Garden Courtyard's slots,
+    # poison_flower_base from the Outside Catacombs' narrow upload and pipe from
+    # Maze One's — so of its six textures exactly ONE needed a home of its own:
+    #   plinth -> the opn_drwr page (x832 y0), shared with con_tile /
+    #             double_door / drain / xt_dr_cg. Maze One's note said the
+    #             gravel_gs page (x704 y0) was free for a maze, and for a 4bpp
+    #             texture it is — but only its LEFT half. gravel_gs, rusty_fence
+    #             and upstairs are all 4bpp and occupy 32 VRAM columns each,
+    #             while anzu3/anzu6 sit in the right half at x736; a full-page
+    #             8bpp texture there lands on the Anzu. x832 is the page this
+    #             room genuinely draws nothing from — it has no drain, the one
+    #             texture Maze One took from Fountain Square and this room does
+    #             not. It adds no restore obligation: the conservatory re-uploads
+    #             con_tile, delivery double_door, and the garden chain puts
+    #             xt_dr_cg back through the courtyard's uploader. That uploader
+    #             runs on the way in here too, so plinth must go up AFTER it —
+    #             see maze_two_upload_textures.
+    ("con_tile.tim",       "plinth.tim"),
+    ("double_door.tim",    "plinth.tim"),
+    ("drain.tim",          "plinth.tim"),
+    ("opn_drwr.tim",       "plinth.tim"),
+    ("xt_dr_cg.tim",       "plinth.tim"),
 ]
 
 def read_tim(path):

@@ -32,7 +32,7 @@
                 cannot reach the spot it occupies anyway.
      DRAIN      a channel across the paths at z[367,833]; art only, no collision.
 
-   THREE gates are modelled; ONE is connected:
+   THREE gates are modelled; TWO are connected:
 
      WEST    the grdn_gte leaf at x=-100, z[-300,500], y[-600,0], in the YZ
      WALL    plane. The far side of the gate in Fountain Square's east hedge.
@@ -40,9 +40,16 @@
              — from inside the maze — which for a YZ sign is mirror=0 and a sign
              on the x+11 side. Note that is the OPPOSITE hand from the square's
              side of the same gate, whose wall faces -X.
-             The two others (east x=7100 z[-900,-312], north z=4497
-             x[1501,2096]) are drawn shut and back onto solid collision — they
-             are there for rooms that do not exist yet.
+
+     NORTH   the leaf at z=4497, x[1501,2096], y[-600,0], in the XY plane, on to
+     WALL    MAZE TWO's south gate. Its alcove is collision FLOOR 4,
+             x(1501,2095) z(4300,4496), which fixes the centre at x=1798.
+             Collision wall 19 runs across the opening at z=4496 with
+             nz = -4096, so it is approached from -Z — again from inside the maze
+             — which for an XY sign is mirror=0 and a sign on the z-11 side.
+             The remaining one (east x=7100 z[-900,-312]) is drawn shut and backs
+             onto solid collision — it is there for a room that does not exist
+             yet.
 
    Rendered the same way as Fountain Square (per-poly tex map + one 128 texture
    window + purple outdoor fog), with that room's fog distances exactly, and it
@@ -66,11 +73,22 @@ void maze_one_upload_textures(void); /* room entry: pure LoadImage from RAM (no 
 void maze_one_init(void);            /* set collision/floor zones + spawn */
 void maze_one_draw(RenderContext *ctx);
 
+/* Just the pipe, for Maze Two — which draws the same standpipe but no drain, so
+   it must NOT call maze_one_upload_textures() wholesale (that would put the
+   drain on x832 y0, where Maze Two's plinth lives). Run the courtyard's uploader
+   first. */
+void maze_one_upload_pipe(void);
+
 /* The west-wall gate back to Fountain Square. */
 void maze_one_gate_arm(void);        /* seed the Circle edge state */
 int  maze_one_gate_triggered(void);  /* 1 on a fresh Circle press in range */
 
-/* The room's only spawn, just inside the west gate. */
-void maze_one_spawn_west(void);
+/* The north-wall gate on to Maze Two. Its own edge state, seeded separately. */
+void maze_one_ngate_arm(void);
+int  maze_one_ngate_triggered(void);
+
+/* One spawn per connected gate. Either arms BOTH gates. */
+void maze_one_spawn_west(void);      /* arriving from Fountain Square */
+void maze_one_spawn_north(void);     /* arriving back from Maze Two   */
 
 #endif

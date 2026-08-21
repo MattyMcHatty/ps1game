@@ -76,6 +76,8 @@ add_executable(horror_game
     src/outside_catacombs.c
     src/maze_one_mesh_collision.c
     src/maze_one.c
+    src/maze_two_mesh_collision.c
+    src/maze_two.c
     src/rabisu_boss.c
     src/chainlink_door.c
     src/lever.c

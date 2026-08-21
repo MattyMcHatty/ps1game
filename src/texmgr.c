@@ -18,8 +18,16 @@
    EXACTLY 48, and that enemy adds four (its own two sprites plus the spiders'
    two, which had to become registrations so the shared slot could be streamed
    back — see rafflesia.c). Anything registered after the 48th would have
-   silently failed. */
-#define TEXMGR_MAX 56
+   silently failed.
+
+   Raised again, 56 -> 64, when Maze Two landed. The same thing had happened: its
+   PLINTH was the 56th registration, so it fitted with not one slot to spare and
+   the next room to own a texture would have been the one to break. Both mazes
+   own exactly one texture each, which is the pattern to keep — five of Maze
+   Two's six come in through other modules' narrow uploaders and cost nothing
+   here. Count them before adding: this file cannot tell you when you are one
+   over. */
+#define TEXMGR_MAX 64
 
 typedef struct {
     uint8_t  *buf;    /* resident RAM copy of the whole TIM (kept for re-upload) */

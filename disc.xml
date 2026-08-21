@@ -352,6 +352,24 @@
                      Its .smx exports live in assets/garden/ too. -->
                 <file name="MAZEONE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\maze_one.smd"/>
                 <file name="PIPE.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe.tim"/>
+
+                <!-- Maze Two: the second hedge maze, north through Maze One's
+                     north gate. FIVE of its six textures belong to other rooms —
+                     HEDGE, GRDNGTE and GRSSGS via the courtyard's uploader,
+                     PSNFLWR via the Outside Catacombs' narrow one and PIPE via
+                     Maze One's — so PLINTH alone is its own. It went to the
+                     opn_drwr page (x832 y0), which this room draws nothing from
+                     (it has no DRAIN, the one texture Maze One takes that this
+                     room does not) and which was already time-shared five ways.
+                     NOT the gravel_gs page x704 that Maze One's note called
+                     free: the three textures there are 4bpp and use only its
+                     left half, and anzu3/anzu6 sit in the right half at x736.
+                     Its SMD is 107 KB, second
+                     only to Maze One's, so the room arena is unchanged.
+                     Its .smx exports live in assets/garden/ too. -->
+                <file name="MAZETWO.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\maze_two.smd"/>
+                <file name="PLINTH.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\plinth.tim"/>
+
                 <!-- The gate's two leaves as the door-anim transition draws them
                      (DOOR_PANEL_GATE). Like XTDRLHLF/XTDRRHLF these are separate
                      per-leaf images, but unlike them they could not be

@@ -214,6 +214,17 @@ void maze_one_upload_textures(void) {
     texmgr_upload(pipe_tex_id);           /* pipe    -> the brick_wall slot      */
 }
 
+/* Just the pipe, for Maze Two through the north gate — which draws the same
+   standpipe but no drain. The conservatory_upload_con_tile pattern: this room
+   owns the only RAM copy, and a second texmgr_register in Maze Two would spend a
+   registration to hold identical bytes (see tools/TEXTURING_NOTES.txt). Calling
+   maze_one_upload_textures() wholesale instead would ALSO drop the drain on
+   x832 y0, which is precisely where Maze Two's plinth goes. The caller must have
+   run the courtyard's uploader first — brick_wall lands on this slot. */
+void maze_one_upload_pipe(void) {
+    texmgr_upload(pipe_tex_id);
+}
+
 /* ---- The west-wall gate back to Fountain Square -----------------------------
    The grdn_gte polys on this side span z[-300,500] at x=-100, y[-600,0]. It is
    the same gate leaf as the one in Fountain Square's east hedge, which is 72
@@ -298,7 +309,90 @@ void maze_one_spawn_west(void) {
     cam_vy  = 0;
     cam_z   = MO_GATE_Z;
     cam_rot = 1024;   /* facing +X, into the room */
+    /* Arm BOTH gates, not just this one: a Circle held through the transition
+       would otherwise fire whichever interaction was left unarmed. */
     maze_one_gate_arm();
+    maze_one_ngate_arm();
+}
+
+/* ---- The north-wall gate on to Maze Two -------------------------------------
+   The second of this room's three modelled gates to be connected. Its grdn_gte
+   polys span x[1501,2096] at z=4497, y[-600,0], and the alcove behind them is
+   collision FLOOR 4, x(1501,2095) z(4300,4496) — which is what fixes the centre
+   at x=1798.
+
+   Collision wall 19 runs across the opening at z=4496 with nz = -4096, so the
+   walkable side is -Z and the player approaches from inside the maze. For a sign
+   in the XY plane that is mirror=0, and it stands 11 units SOUTH of the wall
+   (z - 11). That is the opposite hand from Maze Two's side of the same gate,
+   whose wall faces +Z — getting either backwards comes out as mirrored text or a
+   sign buried in the hedge.
+
+   The wall STAYS in the collision list: as with the west gate, the leaf is shut
+   as far as collision is concerned and it is the trigger, not a hole, that lets
+   the player through. */
+#define MO_NGATE_X            1798    /* (1501 + 2095) / 2, and FLOOR 4's centre */
+#define MO_NGATE_Z            4496
+
+/* Its own Circle edge-detect. Two gates in one room means two independent edge
+   states — sharing one would let a press consumed by the near gate re-arm the
+   far one — and both are seeded on every entry by maze_one_init. */
+static int ngate_circle_prev = 1;
+
+void maze_one_ngate_arm(void) {
+    ngate_circle_prev = circle_held();
+}
+
+int maze_one_ngate_triggered(void) {
+    int held = circle_held();
+    int just = held && !ngate_circle_prev;
+    ngate_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - MO_NGATE_X;
+    int32_t dz = cam_z - MO_NGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < MO_TRIGGER_RADIUS && interact_facing(MO_NGATE_X, MO_NGATE_Z);
+}
+
+/* Floating sign on the north gate. XY plane: door_draw_string_3d centres the
+   reading axis (X) on world_x after adding 200, so pass door_x - 200. Same radii
+   and fade as the west one; only the plane, the mirror flag and the sign's side
+   of the wall differ (see above). */
+static void ngate_text(RenderContext *ctx) {
+    int32_t dx = cam_x - MO_NGATE_X;
+    int32_t dz = cam_z - MO_NGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= MO_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > MO_FADE_NEAR) {
+        int range = MO_TEXT_RADIUS - MO_FADE_NEAR;
+        int prog  = xz - MO_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        MO_NGATE_X - 200, MO_TEXT_Y, MO_NGATE_Z - 11,
+                        50, 255, 50, fade, 0, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+}
+
+/* Arriving back from Maze Two: stand SOUTH of the z=4496 hedge, clear of the
+   wall push radius, facing -Z — the direction of travel through the gate. z
+   lands at 4276, which is inside collision FLOOR 1's z(3698,4300) run and in the
+   x gap between walls 1 and 15, so the player drops straight out of the gate
+   alcove into the maze's northern corridor rather than onto its roof. x=1798 is
+   297 clear of the alcove's side walls at x=1501 and x=2095, comfortably outside
+   the 195 push radius. */
+void maze_one_spawn_north(void) {
+    cam_x   = MO_NGATE_X;
+    cam_y   = MO_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = MO_NGATE_Z - COLLISION_WALL_RADIUS - 25;
+    cam_rot = 2048;   /* facing -Z, into the room */
+    maze_one_gate_arm();
+    maze_one_ngate_arm();
 }
 
 void maze_one_init(void) {
@@ -318,8 +412,9 @@ void maze_one_init(void) {
 
     maze_one_floor_zones_init();
 
-    /* Only one gate is connected, so there is one spawn and no main.c override
-       to go with it. */
+    /* Default spawn: the west gate, back into Fountain Square. main.c overrides
+       it with maze_one_spawn_north() when the player is arriving from Maze Two.
+       Either spawn arms BOTH gates. */
     maze_one_spawn_west();
 
     /* Save points and dresser props are global (not room-swapped) and neither is
@@ -651,6 +746,7 @@ void maze_one_draw(RenderContext *ctx) {
         sml_meds_draw(ctx);
     }
 
-    /* Last: the gate sign. */
+    /* Last: the gate signs. */
     gate_text(ctx);
+    ngate_text(ctx);
 }

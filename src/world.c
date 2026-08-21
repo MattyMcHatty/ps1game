@@ -95,7 +95,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_MASTER_BEDROOM, STATE_EAST_HALL,      STATE_LIBRARY,
     STATE_EAST_STAIRWELL, STATE_ATTIC_STAIRWELL,STATE_ATTIC_EXIT,
     STATE_GARDEN_STAIRS,  STATE_GARDEN_COURTYARD, STATE_FOUNTAIN_SQUARE,
-    STATE_OUTSIDE_CATACOMBS, STATE_MAZE_ONE,
+    STATE_OUTSIDE_CATACOMBS, STATE_MAZE_ONE,      STATE_MAZE_TWO,
 };
 
 static int room_index(GameState area) {
@@ -117,6 +117,7 @@ static int room_index(GameState area) {
         case STATE_FOUNTAIN_SQUARE: return 14;
         case STATE_OUTSIDE_CATACOMBS: return 15;
         case STATE_MAZE_ONE:          return 16;
+        case STATE_MAZE_TWO:          return 17;
         default:                   return 0;
     }
 }
@@ -535,6 +536,14 @@ void world_seed_room(GameState area) {
         mushroom_add( 668, 3942, 6765, 3942, -149, STATE_MAZE_ONE);
         mushroom_add(3825,  418, 5279,  418, -149, STATE_MAZE_ONE);
     }
+
+    /* Maze Two seeds NOTHING, deliberately. The room is in as geometry only, the
+       way Maze One went in before it was populated a commit later. Its three
+       poison_flower_base beds are art — rafflesia.c places the Catacombs' three
+       and Maze One's five by name and this room is in neither list — and no
+       mushroom walks it. It IS on SND_BANK_GARDEN (main.c's STATE_LOADING), so
+       whatever goes here later can reach SFX_HISS and the flowers' loops; check
+       any placement against src/sound.h the way Maze One's was. */
 }
 
 void world_enter(GameState area) {

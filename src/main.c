@@ -58,6 +58,7 @@
 #include "fountain_square.h"
 #include "outside_catacombs.h"
 #include "maze_one.h"
+#include "maze_two.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -198,6 +199,7 @@ static void load_area_geometry(GameState area) {
         case STATE_FOUNTAIN_SQUARE:  fountain_square_load_geometry();  break;
         case STATE_OUTSIDE_CATACOMBS:outside_catacombs_load_geometry();break;
         case STATE_MAZE_ONE:         maze_one_load_geometry();         break;
+        case STATE_MAZE_TWO:         maze_two_load_geometry();         break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -635,6 +637,31 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (!lock && maze_one_ngate_triggered()) {
+            /* North through the gate in the far hedge, on into Maze Two. The
+               same iron leaf, so the same DOOR_PANEL_GATE transition. */
+            pending_area = STATE_MAZE_TWO;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_MAZE_TWO) {
+        /* Flat maze, exactly as Maze One: all seventeen collision floor planes
+           are at y=0, so the shared wall collision routine (generic over
+           current_collision_room) and a single floor zone are the whole of it. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed — the room is seeded empty, but */
+        update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        if (!lock && maze_two_gate_triggered()) {
+            /* South back through the same gate, into Maze One. */
+            pending_area = STATE_MAZE_ONE;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_OUTSIDE_CATACOMBS) {
         /* Flat ground throughout — all sixteen collision floor planes are at
@@ -816,6 +843,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         outside_catacombs_draw(ctx);
     else if (area == STATE_MAZE_ONE)
         maze_one_draw(ctx);
+    else if (area == STATE_MAZE_TWO)
+        maze_two_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -1015,6 +1044,7 @@ int main(int argc, const char **argv) {
     fountain_square_load_assets(); /* fountain square texture slots  */
     outside_catacombs_load_assets();/* outside catacombs texture slots */
     maze_one_load_assets();    /* maze one texture slots (owns only PIPE) */
+    maze_two_load_assets();    /* maze two texture slots (owns only PLINTH) */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -1199,7 +1229,8 @@ int main(int argc, const char **argv) {
                 (pending_area == STATE_GARDEN_COURTYARD) ? SND_BANK_BOSS :
                 (pending_area == STATE_FOUNTAIN_SQUARE ||
                  pending_area == STATE_OUTSIDE_CATACOMBS ||
-                 pending_area == STATE_MAZE_ONE) ? SND_BANK_GARDEN :
+                 pending_area == STATE_MAZE_ONE ||
+                 pending_area == STATE_MAZE_TWO) ? SND_BANK_GARDEN :
                 SND_BANK_HOUSE);
 
             /* Upload reception's unique textures into VRAM from their resident RAM
@@ -1249,6 +1280,11 @@ int main(int argc, const char **argv) {
                                                        owners' NARROW uploads,
                                                        and its own pipe over
                                                        brick_wall */
+            } else if (pending_area == STATE_MAZE_TWO) {
+                maze_two_upload_textures();         /* ditto, plus the flower bed
+                                                       and Maze One's pipe through
+                                                       NARROW uploads, and its own
+                                                       plinth over xt_dr_cg */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -1280,7 +1316,8 @@ int main(int argc, const char **argv) {
                GPU already idled above. Keyed on pending_area so a title-screen
                load or a debug level-select jump gets it right too. */
             if (pending_area == STATE_OUTSIDE_CATACOMBS ||
-                pending_area == STATE_MAZE_ONE)
+                pending_area == STATE_MAZE_ONE ||
+                pending_area == STATE_MAZE_TWO)
                 rafflesias_upload_textures();
             else
                 spiders_upload_textures();
@@ -1502,10 +1539,13 @@ int main(int argc, const char **argv) {
                    debug level-select jump all pass through this branch. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_MAZE_ONE) {
-                maze_one_init();  /* only one gate is connected: the west one,
-                                     back into the square. No spawn override
-                                     needed — there is nowhere else to arrive
-                                     from. */
+                maze_one_init();  /* defaults to the west gate, back into the
+                                     square */
+                /* Coming back south out of Maze Two, arrive at the gate in the
+                   north hedge instead. Either spawn arms BOTH gates, so
+                   whichever branch runs the other is safe. */
+                if (current_area == STATE_MAZE_TWO)
+                    maze_one_spawn_north();
                 /* The SAME track as Fountain Square through the gate, restarted
                    on arrival, exactly as the Outside Catacombs does it. Sharing
                    it across the gate without a stop is not an option: streaming
@@ -1515,6 +1555,21 @@ int main(int argc, const char **argv) {
                    Played HERE rather than on the gate trigger so every route in
                    gets it: the gate, a title-screen load and a debug
                    level-select jump all pass through this branch. */
+                cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
+            } else if (pending_area == STATE_MAZE_TWO) {
+                maze_two_init();  /* only one gate is connected: the south one,
+                                     back into Maze One. No spawn override
+                                     needed — there is nowhere else to arrive
+                                     from. */
+                /* THE SAME TRACK as Maze One through the gate — the user asked
+                   for it explicitly, and it is what the rest of the garden runs
+                   on anyway. Restarted on arrival rather than carried across:
+                   streaming this room's 107 KB mesh suspends CD-DA for nearly as
+                   long as Maze One's does, and what the player would hear is the
+                   score pausing over the load. Played HERE rather than on the
+                   gate trigger so every route in gets it: the gate, a
+                   title-screen load and a debug level-select jump all pass
+                   through this branch. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else {
                 /* Return to the delivery area: restore its collision/floor and
@@ -1590,7 +1645,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_GARDEN_COURTYARD ||
                    game_state == STATE_FOUNTAIN_SQUARE ||
                    game_state == STATE_OUTSIDE_CATACOMBS ||
-                   game_state == STATE_MAZE_ONE) {
+                   game_state == STATE_MAZE_ONE ||
+                   game_state == STATE_MAZE_TWO) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {
