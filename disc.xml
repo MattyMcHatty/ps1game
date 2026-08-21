@@ -145,6 +145,12 @@
                      against this clip's 12.3, so it cannot go there as well.
                      A mushroom placed inside the house would be mute. -->
                 <file name="HISS.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\hiss.vag"/>
+                <!-- The Living Statue's stone grind: its teleport, and its
+                     death. GARDEN bank only, for the same arithmetic as HISS —
+                     13.0 KB against the 6.6 KB of resident headroom the house
+                     bank leaves. A living statue placed inside the house would
+                     be silent on both events. -->
+                <file name="RUMBLE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\rumble.vag"/>
                 <!-- SND_BANK_INTRO, a bank of one: the Order of Ninurta line
                      over the opening sequence's white flash. Banked because
                      21.6 KB will not fit the resident headroom, and it is only
@@ -249,6 +255,14 @@
                 <file name="MSHYBHND.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\mushy_behind.tim"/>
                 <file name="MSHYCLSD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\mushy_closed.tim"/>
                 <file name="MSHYOPEN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\mushy_open.tim"/>
+                <!-- The Living Statue's two frames. In TEX and not the root for
+                     the usual reason (the root is full); they own their VRAM
+                     slots outright, so they are a plain startup LoadImage and
+                     nothing re-uploads them on a transition. 64x96 and 128x96
+                     rather than 128x128 because the 96-row band under the HUD
+                     is the only VRAM left — see living_statue.h. -->
+                <file name="LSIDLE.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\ls_idle.tim"/>
+                <file name="LSATK.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\ls_atk.tim"/>
                 <file name="MSTRBED.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\master_bedroom.smd"/>
                 <file name="BED.TIM"      type="data" source="C:\Users\virtu\Documents\ps1game\textures\bed.tim"/>
                 <file name="EASTHALL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\east_hall.smd"/>

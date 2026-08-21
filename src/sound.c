@@ -68,6 +68,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\GAS.VAG;1",
     "\\SND\\PULLIN.VAG;1",
     "\\SND\\HISS.VAG;1",
+    "\\SND\\RUMBLE.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -133,6 +134,11 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        garden bank runs to 105 KB of the region's 185, so this is free there.
        Placing a mushroom in a house room would leave it mute. */
     [SFX_HISS]       = SND_BANK_GARDEN,
+    /* The Living Statue's teleport/death grind, 13.0 KB. GARDEN only, and for
+       the same reason as HISS directly above: the house bank is the largest and
+       so sets `spare` at 6.6 KB, which this does not fit. The garden bank goes
+       from 105 KB to 119 KB of the region's 185, so it is free there. */
+    [SFX_RUMBLE]     = SND_BANK_GARDEN,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -177,6 +183,16 @@ static int sfx_channel(SfxID id) {
        scream is followed within the second by a lunge that may well kill. 15 is
        the last of the free 13..15 block. */
     if (id == SFX_HISS)        return 15;
+    /* The Living Statue's grind, 2.12 s, and the ONLY cue that it has moved —
+       the player is meant to hear it appear behind them. Its pool slot would be
+       FIRST_VOICE + (36 % 8) = 5, shared with SFX_GR_SHOT, which is resident and
+       which the player is free to fire while running away; a gunshot cutting the
+       teleport cue would delete the enemy's only tell.
+       Voices 13..15 are spoken for, so it SHARES voice 9 with SFX_NINURTA. That
+       costs nothing: NINURTA is SND_BANK_INTRO and only ever plays on the title
+       screen, and the statue is SND_BANK_GARDEN — the two banks are never both
+       loaded, so the two clips can never sound in the same room. */
+    if (id == SFX_RUMBLE)      return 9;
     /* The menu blips, one voice each out of the free 10..15. They are short
        enough for the pool, but a menu is the one place the player fires sounds
        back to back at speed, and in the pool a cursor run would cut the confirm

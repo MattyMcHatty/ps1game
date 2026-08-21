@@ -12,6 +12,7 @@
 #include "fatdoor.h"
 #include "save_point.h"
 #include "rafflesia.h"
+#include "living_statue.h"
 #include "piano_props.h"
 #include "concrete_props.h"
 #include "trick_drawers.h"
@@ -731,6 +732,18 @@ void apply_collision_reception(void) {
        radius asks. Hard world geometry beats a soft prop, every time.
        See RAF_BODY_RADIUS in rafflesia.c. */
     rafflesias_collide(&cam_x, cam_y, &cam_z, 75);
+    /* Living statues go before the walls too, and for exactly the same reason:
+       Maze Two's is planted on a plinth standing hard against a hedge run, so
+       its push circle overlaps solid geometry. Pushed last it would shove the
+       player into the hedge; pushed first, the wall passes below get the final
+       say. Area-gated inside the module, so this is a no-op everywhere else.
+
+       >>> AND IT GETS THE WALL RADIUS, NOT THE 75 EVERY OTHER PROP HERE GETS.
+       <<< A statue must never be walkable-through, so it is collided like level
+       geometry rather than like furniture: 195 + its own LST_BODY_RADIUS is a
+       265 stop. That is past what a centre-based melee test could reach, which
+       is why the crucifaxe measures to its surface — see LST_BODY_RADIUS. */
+    living_statues_collide(&cam_x, cam_y, &cam_z, LST_WALL_LIKE_PUSH);
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly_y(&r->walls[i], &cam_x, &cam_z,

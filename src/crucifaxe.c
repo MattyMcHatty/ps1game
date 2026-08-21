@@ -23,6 +23,7 @@
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
+#include "living_statue.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -38,6 +39,7 @@ static int fatdoor_hit_this_swing = 0;
 static int tent_hit_this_swing  = 0;
 static int raf_hit_this_swing   = 0;
 static int msh_hit_this_swing   = 0;
+static int lst_hit_this_swing   = 0;
 
 void crucifaxe_init(void) {
     CdlFILE file;
@@ -78,6 +80,7 @@ void update_crucifaxe(void) {
         tent_hit_this_swing    = 0;
         raf_hit_this_swing     = 0;
         msh_hit_this_swing     = 0;
+        lst_hit_this_swing     = 0;
         sound_play(SFX_SWING);
     }
 
@@ -246,6 +249,37 @@ void update_crucifaxe(void) {
                     }
                 }
             }
+        }
+
+        /* Living Statue hit. Same shape as the mushroom's above, with two
+           differences, both of which are the enemy's design rather than an
+           omission:
+
+             - NO KNOCKBACK. It is a block of stone that moves by teleporting;
+               there is nowhere for a shove to put it that its own next teleport
+               would not immediately overrule.
+             - >>> IT IS SKIPPED UNLESS IT IS IN ATTACK. <<< The axe is
+               specified to be ineffective against an idle or stalking statue
+               for now, and the skip is BEFORE the reach test on purpose: it
+               leaves lst_hit_this_swing unset, so the same swing can still go
+               on to land on something that can actually be hurt. (The second
+               half of the same rule lives in living_statue_damage, which
+               refuses a hit in any other state — that is the one to relax when
+               the weapon that CAN break a stalking statue is designed.)
+
+           There is no Grave-olver block for this enemy ANYWHERE, for the same
+           reason: only the crucifaxe can spend its 2 HP.
+
+           The whole test lives in the module — the shape the tentacle and the
+           Rafflesia already use — rather than being inlined here like the
+           dog/zombie/spider/mushroom blocks above. It has to be: a statue's
+           solid body holds the player 265 off its centre, which is further than
+           the Manhattan dist3d those blocks measure can reach, so the reach must
+           be taken to its SURFACE from the same radius the push-out uses. See
+           LST_BODY_RADIUS in living_statue.h. */
+        if (swing_timer <= SWING_DURATION && !lst_hit_this_swing) {
+            if (living_statues_try_hit())
+                lst_hit_this_swing = 1;
         }
 
         /* >>> THERE IS DELIBERATELY NO RABISU BLOCK HERE. <<< The boss is the

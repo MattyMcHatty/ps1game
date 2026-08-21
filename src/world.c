@@ -13,6 +13,7 @@
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
+#include "living_statue.h"
 #include "rabisu.h"
 #include "savegame.h"
 #include "sound.h"
@@ -48,6 +49,8 @@ typedef struct {
     int       rabisu_count;
     Mushroom  mushrooms[MAX_MUSHROOMS];   /* ditto: the garden's pacing ambusher */
     int       mushroom_count;
+    LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
+    int          living_statue_count;
 } WorldState;
 
 /* The delta's bit widths must cover the live arrays. Raise the WD_MAX_* in
@@ -63,6 +66,8 @@ _Static_assert(MAX_TENTACLES     <= WD_MAX_TENTACLES,"tentacle_health too short"
 _Static_assert(MAX_SPIDERS       <= WD_MAX_SPIDERS,  "spiders_dead too narrow");
 _Static_assert(MAX_RABISUS       <= WD_MAX_RABISUS,  "rabisus_dead too narrow");
 _Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow");
+_Static_assert(MAX_LIVING_STATUES <= WD_MAX_LIVING_STATUES,
+               "living_statues_dead too narrow");
 /* The `visited` bitmap is what caps the room count — one bit per room. It was a
    uint16_t and the sixteenth room filled it exactly; Maze One is the seventeenth
    and widened it to 32 bits. This assert is what makes the NEXT overflow a
@@ -79,6 +84,8 @@ extern Zombie    zombies[MAX_ZOMBIES];         extern int zombie_count;
 extern Spider    spiders[MAX_SPIDERS];         extern int spider_count;
 extern Rabisu    rabisus[MAX_RABISUS];         extern int rabisu_count;
 extern Mushroom  mushrooms[MAX_MUSHROOMS];     extern int mushroom_count;
+extern LivingStatue living_statues[MAX_LIVING_STATUES];
+extern int          living_statue_count;
 extern Crate     crates[MAX_CRATES];           extern int crate_count;
 extern KeyPickup keys[MAX_KEYS];               extern int key_count;
 extern SmlMed    sml_meds[MAX_SML_MEDS];       extern int sml_med_count;
@@ -157,6 +164,8 @@ static void snapshot_fatdoors(void) {
     world.rabisu_count = rabisu_count;
     memcpy(world.mushrooms, mushrooms, sizeof mushrooms);
     world.mushroom_count = mushroom_count;
+    memcpy(world.living_statues, living_statues, sizeof living_statues);
+    world.living_statue_count = living_statue_count;
 }
 
 void world_new_game(void) {
@@ -189,6 +198,10 @@ void world_silence_monsters(void) {
     sound_stop(SFX_TNTCL_DIE);  /* also the spider's death cry (see spider.c) */
     sound_stop(SFX_HISS);       /* the Mushroom Head's scream — which is also
                                    its death cry (mushroom.c) */
+    sound_stop(SFX_RUMBLE);     /* the Living Statue's teleport, which is also
+                                   its death (living_statue.c). 2.12 s, so one
+                                   fired on the last frame before a transition
+                                   would otherwise grind on into the next room */
 }
 
 void world_leave(GameState area) {
@@ -199,6 +212,7 @@ void world_leave(GameState area) {
     spiders_rest();
     rabisus_rest();
     mushrooms_rest();
+    living_statues_rest();
     demon_dogs_rest();
     /* The rafflesias go further than "rest": they come back at full health even
        if they were killed. They are the one enemy with no permanent death (see
@@ -537,13 +551,41 @@ void world_seed_room(GameState area) {
         mushroom_add(3825,  418, 5279,  418, -149, STATE_MAZE_ONE);
     }
 
-    /* Maze Two seeds NOTHING, deliberately. The room is in as geometry only, the
-       way Maze One went in before it was populated a commit later. Its three
-       poison_flower_base beds are art — rafflesia.c places the Catacombs' three
-       and Maze One's five by name and this room is in neither list — and no
-       mushroom walks it. It IS on SND_BANK_GARDEN (main.c's STATE_LOADING), so
-       whatever goes here later can reach SFX_HISS and the flowers' loops; check
-       any placement against src/sound.h the way Maze One's was. */
+    /* Maze Two: ONE Living Statue, on the plinth, and it is a LIVING one.
+       Its three poison_flower_base beds are still art — rafflesia.c places the
+       Catacombs' three and Maze One's five by name and this room is in neither
+       list — and no mushroom walks it.
+
+       The plinth is x[593,777] z[2238,2422], 131 tall (maze_two.h), so its
+       centre is (685, 2330) and its top face is at mesh y = -131. A statue's
+       `y` is the STANDING ANCHOR and its feet are at y + 150, so the anchor is
+       -131 - 150 = -281 and the body runs from -453 (top) to -131 (feet, flush
+       with the plinth). AUTHORED, not probed — world_seed_room runs for rooms
+       whose geometry is not resident, and lst_floor_anchor is only consulted on
+       a teleport, which is the first moment the statue leaves the plinth.
+
+       The anchor did NOT change when the body was cut to 128 x 322: the feet
+       sit at y + 150 whatever the half-height is (LST_Y_OFFSET absorbs it), so
+       the plinth placement is independent of the statue's size.
+
+       >>> AT THIS SIZE THE HEAD DOES NOT CLEAR THE HEDGES. <<< They are 500
+       tall and its crown reaches -453, so it is 47 short and cannot be spotted
+       over the maze — it has to be found by walking into its alcove, which is a
+       dead end behind two hedge runs (collision walls 5 and 6, whose normals
+       both face away from the plinth; that is also why the player can walk into
+       the plinth's footprint at all). At the original 460 it stood 91 proud.
+       See LST_HALF_H if that trade wants revisiting.
+
+       The 1 in the fourth argument is what makes it come alive. Pass 0 and the
+       same call places ordinary masonry: solid, drawn, permanently inert. That
+       is the provision for mixing real ones in with fakes — see living_statue.h.
+
+       Sound: this room is on SND_BANK_GARDEN (main.c's STATE_LOADING), so
+       SFX_RUMBLE is loaded and the teleport and the death both sound, as does
+       the resident SFX_AXEHIT / SFX_HURT. */
+    if (area == STATE_MAZE_TWO) {
+        living_statue_add(685, 2330, -281, 1, STATE_MAZE_TWO);
+    }
 }
 
 void world_enter(GameState area) {
@@ -681,6 +723,15 @@ void world_save_delta(WorldDelta *d) {
                 d->mushrooms_dead |= (uint8_t)
                     (1u << canonical_index(areas, world.mushroom_count, i));
     }
+    {
+        GameState areas[MAX_LIVING_STATUES];
+        for (i = 0; i < world.living_statue_count; i++)
+            areas[i] = world.living_statues[i].area;
+        for (i = 0; i < world.living_statue_count; i++)
+            if (world.living_statues[i].state == LST_DEAD)
+                d->living_statues_dead |= (uint8_t)
+                    (1u << canonical_index(areas, world.living_statue_count, i));
+    }
 }
 
 void world_load_delta(const WorldDelta *d) {
@@ -695,6 +746,7 @@ void world_load_delta(const WorldDelta *d) {
     spiders_reset();
     rabisus_reset();
     mushrooms_reset();
+    living_statues_reset();
     fatdoors_reset();
     tentacles_reset();
     /* Not rebuilt by the room walk (its placements are fixed at startup, like
@@ -753,6 +805,8 @@ void world_load_delta(const WorldDelta *d) {
         if (d->rabisus_dead & (1u << i)) { rabisus[i].dead = 1; rabisus[i].dying = 1; }
     for (i = 0; i < mushroom_count; i++)
         if (d->mushrooms_dead & (1u << i)) mushrooms[i].state = MSH_DEAD;
+    for (i = 0; i < living_statue_count; i++)
+        if (d->living_statues_dead & (1u << i)) living_statues[i].state = LST_DEAD;
 
     snapshot_fatdoors();
 }

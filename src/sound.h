@@ -184,7 +184,15 @@ typedef enum {
        the same reason. A mushroom placed inside the house would therefore be
        silent; the garden is where it lives. See tools/ADDING_A_SOUND.txt. */
     SFX_HISS       = 35,
-    SFX_COUNT      = 36,
+    /* The Living Statue: stone grinding on stone. It plays on the frame the
+       statue TELEPORTS, and again on the frame it is destroyed — those are the
+       only two noises it makes (it is also the one enemy that is silent while
+       it stalks, which is the point of it). 2.12 s at 11025 Hz, 13.0 KB.
+       GARDEN bank, and GARDEN ONLY, for the same arithmetic as SFX_HISS above:
+       the house bank sets `spare` at 6.6 KB and this does not fit it. A living
+       statue placed inside the house would teleport and die in silence. */
+    SFX_RUMBLE     = 36,
+    SFX_COUNT      = 37,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

@@ -70,6 +70,7 @@
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
+#include "living_statue.h"
 #include "rabisu.h"
 #include "rabisu_boss.h"
 #include "delivery_intro.h"
@@ -160,6 +161,7 @@ void reset_game(RenderContext *ctx) {
     spiders_reset();
     rafflesias_reset();
     mushrooms_reset();
+    living_statues_reset();
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
@@ -238,6 +240,7 @@ static void update_current_area(GameState area) {
         update_rabisus();
         update_rafflesias();    /* ...and the garden flowers keep gripping */
         update_mushrooms();     /* ...and the Mushroom Head keeps hunting  */
+        update_living_statues();/* ...and the statue keeps closing in       */
         webs_update();          /* ...and their webs keep flying */
         player_status_update();
         trick_drawers_update();
@@ -251,6 +254,7 @@ static void update_current_area(GameState area) {
         update_rabisus();
         update_rafflesias();
         update_mushrooms();
+        update_living_statues();
         webs_update();
         player_status_update();
         kitchen_stove_update();
@@ -286,6 +290,7 @@ static void update_current_area(GameState area) {
         update_tentacles();    /* the four guarding the north levers */
         update_rafflesias();
         update_mushrooms();
+        update_living_statues();
         webs_update();
         player_status_update();
         exit_door_puzzle_update();
@@ -804,6 +809,12 @@ static void update_current_area(GameState area) {
     /* Likewise area-tagged, so this one call covers every room branch above and
        costs nothing in the rooms with no mushrooms in them. */
     update_mushrooms();
+    /* Likewise area-tagged. It is the only enemy that acts on the CAMERA'S
+       facing rather than just the player's position, which is exactly why it
+       has to be in the camera-locked puzzle branches above too: a puzzle points
+       the camera at a board, so a statue behind the player is unwatched for the
+       whole of it. */
+    update_living_statues();
     webs_update();            /* spider webs in flight (area-tagged, so free
                                  in rooms that have none) */
     player_status_update();   /* ticks the web's poison timer down */
@@ -1086,6 +1097,10 @@ int main(int argc, const char **argv) {
                                   so nothing to re-upload on a transition) —
                                   see mushroom.h */
     mushrooms_init();
+    living_statues_load_textures(); /* startup CD read only, as above. Both
+                                  sprites OWN their VRAM slots in the 96-row
+                                  band under the HUD — see living_statue.h */
+    living_statues_init();
     rabisus_load_assets();     /* boss MODEL, not sprites: one CD read for
                                   RABISU.SMD. Startup-only for the same reason —
                                   CD access is unsafe once the render loop runs.

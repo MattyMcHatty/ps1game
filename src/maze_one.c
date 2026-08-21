@@ -26,6 +26,7 @@
 #include "spider.h"
 #include "rafflesia.h"
 #include "mushroom.h"
+#include "living_statue.h"
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
@@ -735,12 +736,14 @@ void maze_one_draw(RenderContext *ctx) {
         spiders_set_texwindow(&tw);
         rafflesias_set_texwindow(&tw);
         mushrooms_set_texwindow(&tw);
+        living_statues_set_texwindow(&tw);
     }
     {
         draw_zombies(ctx);
         draw_spiders(ctx);
         draw_rafflesias(ctx);
         draw_mushrooms(ctx);
+        draw_living_statues(ctx);
         webs_draw(ctx);
         item_pickups_draw(ctx);
         sml_meds_draw(ctx);
