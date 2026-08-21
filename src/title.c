@@ -579,8 +579,16 @@ void title_init(void) {
     /* Debug menu's LEFT column only — 128px is 16 characters, and "* MASTER
        BEDROOM" is exactly 16. The right column needs no stream (see the eight-
        stream cap documented at the top of this file). This is the eighth and
-       last FntOpen in the project. */
-    debug_fnt = FntOpen(8, 8, 128, 224, 0, 256);
+       last FntOpen in the project.
+
+       The last argument is the CHARACTER budget for one frame's FntPrints, and
+       FntPrint silently drops everything past it — the symptom is the tail of
+       the list vanishing, with the row that straddles the limit printed
+       half-finished ("MAZE ONE" came out as "MAZE ON"). The header plus a row
+       per level costs 14 + sum(strlen(name) + 3), which was 268 at eighteen
+       rooms and had already overrun 256. 512 leaves room for roughly sixteen
+       more entries; raise it again when the list next grows. */
+    debug_fnt = FntOpen(8, 8, 128, 224, 0, 512);
 }
 
 void update_title(void) {
