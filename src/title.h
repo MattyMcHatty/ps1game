@@ -42,6 +42,12 @@ typedef enum {
                                 through the gate in its west hedge — the last of
                                 that room's four to be connected. Appended, not
                                 inserted, for the same reason. */
+    STATE_WEST_CORRIDOR,     /* the upper-floor passage joining Reception's
+                                north-west door to the door at the top of the
+                                Rear Gate's ramp — the first link between the
+                                house and the garden chain that does not go
+                                through the front of the mansion. Appended, not
+                                inserted, for the same reason. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

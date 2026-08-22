@@ -41,5 +41,12 @@ void door_anim_start(int variant);  /* begin the animation; plays the sound */
 void door_anim_update(void);        /* advance one frame */
 void door_anim_draw(RenderContext *ctx);
 int  door_anim_finished(void);      /* 1 once the transition has fully faded out */
+/* 1 from the frame door_anim_start() runs until the transition ends. Its one
+   use is the tail of update_current_area: the door-trigger branches are NOT the
+   last thing in that function, so the shared entity updates below them still run
+   once on the trigger frame — after world_silence_monsters() has already cut
+   every sound. Anything that would restart a sound (or worse, a CD-DA track)
+   from that tail has to ask this first. See update_hadads(). */
+int  door_anim_active(void);
 
 #endif

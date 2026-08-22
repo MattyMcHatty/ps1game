@@ -199,6 +199,18 @@
 #define TIM_TPAGE_GRSSGS   0x0005
 #define TIM_CLUT_GRSSGS    0x7fce
 
+/* hadad_idle_64.tim  8bpp  VRAM ( 352,384)  \TEX\HADIDLE.TIM */
+#define TIM_TPAGE_HADIDLE  0x0095
+#define TIM_CLUT_HADIDLE   0x7ed0
+
+/* hadad_stp1_64.tim  8bpp  VRAM ( 608,384)  \TEX\HADSTP1.TIM */
+#define TIM_TPAGE_HADSTP1  0x0099
+#define TIM_CLUT_HADSTP1   0x7f10
+
+/* hadad_stp2_64.tim  8bpp  VRAM ( 992,384)  \TEX\HADSTP2.TIM */
+#define TIM_TPAGE_HADSTP2  0x009f
+#define TIM_CLUT_HADSTP2   0x7f50
+
 /* hedge.tim       8bpp  VRAM ( 384,  0)  \TEX\HEDGE.TIM */
 #define TIM_TPAGE_HEDGE    0x0086
 #define TIM_CLUT_HEDGE     0x7a6a

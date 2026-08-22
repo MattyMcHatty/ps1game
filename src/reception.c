@@ -21,7 +21,10 @@
 #include "fatdoor.h"
 #include "item_pickup.h"
 #include "texmgr.h"
-#include "hall_2f.h"   /* hall_2f_door_unlocked: shared 2F-door lock state */
+#include "player.h"    /* FLAG_HALL_2F_DOOR / FLAG_WEST_CORR_DOOR — the saved
+                          locks on the two upper-floor west-wall doors. Both are
+                          set from the FAR side (hall_2f.c / west_corridor.c);
+                          this room only reads them. */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -347,7 +350,7 @@ int hdoor_triggered(void) {
     hdoor_circle_prev = held;
     if (!just) return 0;
     if (!player_on_upper_floor) return 0;   /* upper-floor door only */
-    if (!hall_2f_door_unlocked) return 0;   /* locked from the Hall 2F side */
+    if (!game_flag(FLAG_HALL_2F_DOOR)) return 0;   /* locked from the Hall 2F side */
 
     int32_t dx = cam_x - HDOOR_X;
     int32_t dz = cam_z - HDOOR_Z;
@@ -372,7 +375,7 @@ static void hdoor_text(RenderContext *ctx) {
 
     /* Until the Hall 2F side unlocks it, this door reads "Locked from the other
        side" in red and does nothing; afterwards it's a normal entry door. */
-    if (!hall_2f_door_unlocked) {
+    if (!game_flag(FLAG_HALL_2F_DOOR)) {
         door_draw_string_3d(ctx, "Locked from the other side",
                             HDOOR_X, HDOOR_TEXT_Y, HDOOR_Z - 200,
                             255, 50, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
@@ -384,15 +387,58 @@ static void hdoor_text(RenderContext *ctx) {
                         50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
-/* ---- 2nd-floor dead-end door (north end of the west wall) ------------------
+/* ---- 2nd-floor NORTH-WEST door, into the West Corridor ---------------------
    The other UPPER-floor door on the west wall (x=-1500, z spans 857..1071 in
-   Reception.smx, so centre 964), north of HDOOR. It leads nowhere, so it only
-   ever shows the red "Locked from the other side" sign and has no trigger.
+   Reception.smx, so centre 964), north of HDOOR. It used to be a dead end that
+   only ever showed the red "Locked from the other side" sign; it now opens on
+   the West Corridor's EAST door (see src/west_corridor.h), a single wooden leaf
+   so the transition is DOOR_PANEL_WOOD.
+
    Same facing as HDOOR: approached from the +X (room) side, YZ-plane sign with
-   mirror=0, at the upper floor's eye height. */
+   mirror=0, at the upper floor's eye height. Gated on player_on_upper_floor
+   like the rest of the west wall's doors so the two levels never
+   cross-trigger.
+
+   LOCKED FROM THE OTHER SIDE until the player unlocks it in the West Corridor
+   — the same arrangement HDOOR has with the 2F Hall, reading
+   FLAG_WEST_CORR_DOOR instead of FLAG_HALL_2F_DOOR. Until then this
+   side shows the red sign and does nothing at all. */
 #define NDOOR_X                (-1435)
 #define NDOOR_Z                   964
 #define NDOOR_TEXT_Y            (-829)   /* centred on the door leaf; see HDOOR_TEXT_Y */
+
+static int ndoor_circle_prev = 1;
+
+void ndoor_arm(void) {
+    int held = interact_tapped();
+    ndoor_circle_prev = held;
+}
+
+int ndoor_triggered(void) {
+    int held = interact_tapped();
+    int just = held && !ndoor_circle_prev;
+    ndoor_circle_prev = held;
+    if (!just) return 0;
+    if (!player_on_upper_floor) return 0;   /* upper-floor door only */
+    if (!game_flag(FLAG_WEST_CORR_DOOR)) return 0;   /* locked from the corridor side */
+
+    int32_t dx = cam_x - NDOOR_X;
+    int32_t dz = cam_z - NDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < RDOOR_TRIGGER_RADIUS && interact_facing(NDOOR_X, NDOOR_Z);
+}
+
+/* Arrive back on reception's upper floor through this door, facing +X into the
+   room. 210 clear of the x=-1500 wall — past the 195 push radius — the same
+   standoff HDOOR's and EDOOR's arrivals use. */
+void reception_spawn_northwest(void) {
+    cam_x   = -1290;
+    cam_y   = -789;   /* upper-floor standing eye (-600 - 189) */
+    cam_vy  = 0;
+    cam_z   = NDOOR_Z;
+    cam_rot = 1024;   /* face +X, into reception */
+    ndoor_arm();      /* don't re-trigger on the held Circle */
+}
 
 static void ndoor_text(RenderContext *ctx) {
     if (!player_on_upper_floor) return;   /* only visible from the upper floor */
@@ -409,9 +455,19 @@ static void ndoor_text(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
 
-    door_draw_string_3d(ctx, "Locked from the other side",
+    /* Until the West Corridor side unlocks it, this door reads "Locked from the
+       other side" in red and does nothing; afterwards it's a normal entry door.
+       Exactly what hdoor_text does with the 2F Hall's flag. */
+    if (!game_flag(FLAG_WEST_CORR_DOOR)) {
+        door_draw_string_3d(ctx, "Locked from the other side",
+                            NDOOR_X, NDOOR_TEXT_Y, NDOOR_Z - 200,
+                            255, 50, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+        return;
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
                         NDOOR_X, NDOOR_TEXT_Y, NDOOR_Z - 200,
-                        255, 50, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
 /* ---- 2nd-floor double door to the East Hall --------------------------------
@@ -482,6 +538,7 @@ void reception_init(void) {
     cdoor_arm();            /* same, for the conservatory door */
     hdoor_arm();            /* same, for the 2nd-floor door to the 2F hall */
     edoor_arm();            /* same, for the 2nd-floor door to the East Hall */
+    ndoor_arm();            /* same, for the 2nd-floor NW door to the West Corridor */
     save_point_arm();       /* same, for the Circle-to-save interaction */
 
     /* Place reception's props. */

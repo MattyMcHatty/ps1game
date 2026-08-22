@@ -469,6 +469,17 @@
                      Voff 128, so the intro resets the texture window before
                      drawing it (see door_anim.c for the same). -->
                 <file name="MANSION.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\mansion.tim"/>
+
+                <!-- The West Corridor (src/west_corridor.c): the upper-floor
+                     passage between Reception's north-west door and the door at
+                     the top of the Rear Gate's ramp. MESH ONLY — no TIM of its
+                     own. All seven of its textures are the mansion's and belong
+                     to other modules (red_wlppr, wd_flr, din_cl, wd_dr resident
+                     from startup; double_door, red_crpt and prpl_wlppr through
+                     NARROW uploads on the kitchen's and the piano room's RAM
+                     copies), so it registers nothing with texmgr and adds no
+                     restore obligation on anybody. -->
+                <file name="WSTCORR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\west_corridor.smd"/>
             </dir>
         </directory_tree>
     </track>

@@ -62,6 +62,7 @@
 #include "maze_one.h"
 #include "maze_two.h"
 #include "rear_gate.h"
+#include "west_corridor.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -157,7 +158,11 @@ void reset_game(RenderContext *ctx) {
     sprint_stamina  = SPRINT_STAMINA_MAX;
     sprint_cooldown = 0;
     door_init();
-    hall_2f_door_unlocked = 0;   /* Hall 2F <-> Reception door starts locked */
+    /* The two one-sided door locks (Hall 2F <-> Reception and West Corridor <->
+       Reception) used to be cleared here. They are GameFlags now — see
+       FLAG_HALL_2F_DOOR in src/player.h — so `game_flags = 0` above already
+       starts a new game with both locked, and a LOADED game gets them back from
+       SaveData.flags instead of being wrongly re-locked by this function. */
     menu_inventory_reset();      /* an empty inventory grid, in no arrangement */
     crates_reset();
     demon_dogs_reset();
@@ -208,6 +213,7 @@ static void load_area_geometry(GameState area) {
         case STATE_MAZE_ONE:         maze_one_load_geometry();         break;
         case STATE_MAZE_TWO:         maze_two_load_geometry();         break;
         case STATE_REAR_GATE:        rear_gate_load_geometry();        break;
+        case STATE_WEST_CORRIDOR:    west_corridor_load_geometry();    break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -391,6 +397,14 @@ static void update_current_area(GameState area) {
             /* Double door on the upper floor's east wall, into the East Hall. */
             pending_area = STATE_EAST_HALL;
             door_anim_start(DOOR_PANEL_INNER);   /* interior double door */
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (!lock && ndoor_triggered()) {
+            /* North-west door on the upper floor, into the West Corridor. A
+               single wooden leaf, so the same transition as the ground-floor
+               piano/conservatory doors. */
+            pending_area = STATE_WEST_CORRIDOR;
+            door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -673,6 +687,42 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (!lock && rear_gate_sdoor_triggered()) {
+            /* South through the double door at the top of the ramp, into the
+               West Corridor and back inside the house. Not a gate: this is a
+               real door, and the user asked for the Delivery/Kitchen
+               transition, which is DOOR_PANEL_OUTER. */
+            pending_area = STATE_WEST_CORRIDOR;
+            door_anim_start(DOOR_PANEL_OUTER);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_WEST_CORRIDOR) {
+        /* Flat single-floor room (all four collision floor planes are y=0), so
+           the shared wall collision routine — generic over
+           current_collision_room — and a single floor zone are the whole of
+           it. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed yet, but keeps the room uniform */
+        update_spiders();
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        if (!lock && west_corridor_ndoor_triggered()) {
+            /* North through the double door, out to the top of the Rear Gate's
+               ramp. The Delivery/Kitchen transition, as on the other side. */
+            pending_area = STATE_REAR_GATE;
+            door_anim_start(DOOR_PANEL_OUTER);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (!lock && west_corridor_edoor_triggered()) {
+            /* East through the single wooden door, back onto reception's upper
+               floor. */
+            pending_area = STATE_RECEPTION;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_MAZE_ONE) {
         /* Flat maze: all twenty-seven collision floor planes are at y=0, so the
@@ -911,6 +961,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         maze_two_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
+    else if (area == STATE_WEST_CORRIDOR)
+        west_corridor_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -1113,6 +1165,8 @@ int main(int argc, const char **argv) {
     maze_two_load_assets();    /* maze two texture slots (owns only PLINTH) */
     rear_gate_load_assets();   /* rear gate texture slots (owns the two retargets,
                                   PLNTHRG and DBLDRRG) */
+    west_corridor_load_assets();/* west corridor texture slots — TIM_SLOT only; it
+                                   owns no texture and registers nothing */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -1372,6 +1426,12 @@ int main(int argc, const char **argv) {
                                                        retargeted plinth and
                                                        double door over chnlnk
                                                        and frnt_dr */
+            } else if (pending_area == STATE_WEST_CORRIDOR) {
+                west_corridor_upload_textures();    /* owns nothing: three NARROW
+                                                       uploads on the kitchen's
+                                                       and the piano room's RAM
+                                                       copies (double_door,
+                                                       red_crpt, prpl_wlppr) */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -1479,6 +1539,11 @@ int main(int argc, const char **argv) {
                     cam_z   = 1071;
                     cam_rot = 3072;   /* face -X, into reception */
                     edoor_arm();      /* don't re-trigger on the held Circle */
+                } else if (current_area == STATE_WEST_CORRIDOR) {
+                    /* Arrive at the 2nd-floor NORTH-WEST door (upper floor
+                       y=-600), facing +X into the room. The helper sets the
+                       camera and arms that door itself. */
+                    reception_spawn_northwest();
                 }
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);   /* reception music */
             } else if (pending_area == STATE_PIANO_ROOM) {
@@ -1663,10 +1728,14 @@ int main(int argc, const char **argv) {
                    through this branch. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_REAR_GATE) {
-                rear_gate_init();  /* only one gate is connected: the east one,
-                                      back into Fountain Square. No spawn
-                                      override needed — there is nowhere else to
-                                      arrive from. */
+                rear_gate_init();  /* defaults to the east gate, back into
+                                      Fountain Square. */
+                /* Coming back out of the West Corridor, arrive at the south
+                   door instead — on the ramp, not down on the lawn. Either
+                   spawn arms the gate, the plinth and the south door, so
+                   whichever branch runs the others are safe. */
+                if (current_area == STATE_WEST_CORRIDOR)
+                    rear_gate_spawn_south();
                 /* NO MUSIC HERE — the user asked for this room to be silent.
                    Stopped rather than merely not started, exactly as the Garden
                    Stairs and the Garden Courtyard do it: a title-screen load or
@@ -1680,6 +1749,21 @@ int main(int argc, const char **argv) {
                    whole story. It has to run first either way — arriving with
                    the square's track still going and then layering the stalk on
                    top is not something cdaudio can do. See hadad.h. */
+                cdaudio_stop();
+            } else if (pending_area == STATE_WEST_CORRIDOR) {
+                west_corridor_init();  /* defaults to the east door, back into
+                                          Reception */
+                /* Coming south out of the Rear Gate, arrive at the north
+                   double door instead. Either spawn arms BOTH doors, so
+                   whichever branch runs the other is safe. */
+                if (current_area == STATE_REAR_GATE)
+                    west_corridor_spawn_north();
+                /* NO MUSIC HERE — the user asked for this room to be silent.
+                   Stopped rather than merely not started, exactly as the Rear
+                   Gate and the Garden Stairs do it: a title-screen load or a
+                   debug level-select jump does not pass through the door
+                   transition's own cdaudio_stop, and without this line either
+                   would carry Reception's track in with it. */
                 cdaudio_stop();
             } else {
                 /* Return to the delivery area: restore its collision/floor and
@@ -1757,7 +1841,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_OUTSIDE_CATACOMBS ||
                    game_state == STATE_MAZE_ONE ||
                    game_state == STATE_MAZE_TWO ||
-                   game_state == STATE_REAR_GATE) {
+                   game_state == STATE_REAR_GATE ||
+                   game_state == STATE_WEST_CORRIDOR) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

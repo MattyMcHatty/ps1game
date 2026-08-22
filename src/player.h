@@ -69,6 +69,19 @@ typedef enum {
        debug menu (DBG_HADAD_FLAG_TWO). */
     FLAG_HADAD_ONE,
     FLAG_HADAD_TWO,
+    /* The two doors that are unlocked from one side and read from the other.
+       Neither awards or consumes anything, so there is nothing in the inventory
+       to read them off — the same reason the puzzle flags above exist. They were
+       plain globals reset on a new game until the user asked for them to survive
+       a save/load; being bits in this word is all that takes.
+
+         FLAG_HALL_2F_DOOR      the 2F Hall's east door. Unlocked from the hall;
+                                Reception's HDOOR reads it (reception.c).
+         FLAG_WEST_CORR_DOOR    the West Corridor's east door. Unlocked from the
+                                corridor; Reception's NDOOR reads it. Same
+                                mechanic, deliberately — see west_corridor.h. */
+    FLAG_HALL_2F_DOOR,
+    FLAG_WEST_CORR_DOOR,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

@@ -230,6 +230,10 @@ int door_anim_finished(void) {
     return 0;
 }
 
+int door_anim_active(void) {
+    return anim_active;
+}
+
 /* Swinging-leaf angle in GTE units (0 = closed, 1024 = 90deg open), with an
  * ease-out curve so the door flings open then settles. */
 static int32_t swing_angle(void) {

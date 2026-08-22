@@ -108,7 +108,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_EAST_STAIRWELL, STATE_ATTIC_STAIRWELL,STATE_ATTIC_EXIT,
     STATE_GARDEN_STAIRS,  STATE_GARDEN_COURTYARD, STATE_FOUNTAIN_SQUARE,
     STATE_OUTSIDE_CATACOMBS, STATE_MAZE_ONE,      STATE_MAZE_TWO,
-    STATE_REAR_GATE,
+    STATE_REAR_GATE,      STATE_WEST_CORRIDOR,
 };
 
 static int room_index(GameState area) {
@@ -132,6 +132,7 @@ static int room_index(GameState area) {
         case STATE_MAZE_ONE:          return 16;
         case STATE_MAZE_TWO:          return 17;
         case STATE_REAR_GATE:         return 18;
+        case STATE_WEST_CORRIDOR:     return 19;
         default:                   return 0;
     }
 }
@@ -214,8 +215,15 @@ void world_silence_monsters(void) {
     /* Hadad borrows that same rumble AND owns a CD-DA track, which the line
        above cannot touch. "The music should stop as soon as the player exits
        the current room" is this call: update_hadads is area-gated and stops
-       running the instant the transition begins, so nothing else could ever
-       turn the track off again. */
+       running once the transition is under way, so nothing else could ever turn
+       the track off again.
+       >>> "ONCE UNDER WAY" IS NOT "IMMEDIATELY". <<< This runs from
+       door_anim_start(), which the door-trigger branches call from the MIDDLE of
+       update_current_area — the shared entity updates at the tail of that
+       function, update_hadads among them, still get one more tick on the same
+       frame. update_hadads carries its own door_anim_active() guard for that;
+       see the note there before adding anything else here that a later tick
+       could undo. */
     hadads_silence();
 }
 

@@ -24,6 +24,7 @@
 #include "rabisu.h"
 #include "web.h"
 #include "sound.h"
+#include "player.h"   /* FLAG_HALL_2F_DOOR — the east door's saved lock */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -190,10 +191,12 @@ static void stairs_text(RenderContext *ctx) {
 #define EDOOR_FADE_NEAR          1000
 #define EDOOR_TRIGGER_RADIUS      500
 
-/* Shared lock state (declared in hall_2f.h). The door is locked from the
-   Reception side until the player unlocks it here in the Hall 2F. */
-int hall_2f_door_unlocked = 0;
-
+/* The lock lives in FLAG_HALL_2F_DOOR (src/player.h), not in a local: the door
+   is locked from the Reception side until the player unlocks it here, and the
+   user asked for that to survive a save/load. game_flags rides in
+   SaveData.flags, so being a bit in that word is the whole of it — no
+   save-format change, and reset_game()'s `game_flags = 0` still starts a new
+   game locked. Reception's hdoor reads the same bit. */
 static int edoor_circle_prev = 1;
 
 void hall_2f_edoor_arm(void) {
@@ -215,8 +218,8 @@ int hall_2f_edoor_triggered(void) {
 
     /* First Circle press unlocks the door (no transition yet); once unlocked,
        further presses enter Reception. The Reception side reads the same flag. */
-    if (!hall_2f_door_unlocked) {
-        hall_2f_door_unlocked = 1;
+    if (!game_flag(FLAG_HALL_2F_DOOR)) {
+        game_flag_set(FLAG_HALL_2F_DOOR);
         sound_play(SFX_UNLOCK);
         return 0;
     }
@@ -238,8 +241,8 @@ static void edoor_text(RenderContext *ctx) {
     }
 
     door_draw_string_3d(ctx,
-                        hall_2f_door_unlocked ? "Press " BTN_CIRCLE " to enter"
-                                              : "Press " BTN_CIRCLE " to unlock",
+                        game_flag(FLAG_HALL_2F_DOOR) ? "Press " BTN_CIRCLE " to enter"
+                                                     : "Press " BTN_CIRCLE " to unlock",
                         EDOOR_X, EDOOR_TEXT_Y, EDOOR_Z - 200,
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }

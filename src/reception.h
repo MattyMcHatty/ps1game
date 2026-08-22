@@ -20,5 +20,11 @@ void hdoor_arm(void);               /* same pair for the 2nd-floor door to the 2
 int  hdoor_triggered(void);         /* 1 when Circle pressed near the upper-floor south door */
 void edoor_arm(void);               /* same pair for the 2nd-floor east double door */
 int  edoor_triggered(void);         /* 1 when Circle pressed near the upper-floor east door */
+void ndoor_arm(void);               /* same pair for the 2nd-floor NORTH-WEST door */
+int  ndoor_triggered(void);         /* 1 when Circle pressed near it (-> West Corridor) */
+
+/* Arrive back on the upper floor at the north-west door, coming out of the
+   West Corridor's east door. */
+void reception_spawn_northwest(void);
 
 #endif

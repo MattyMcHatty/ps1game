@@ -352,6 +352,77 @@ static void gate_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* ---- The SOUTH door, at the top of the ramp --------------------------------
+   The double_door in the 1500-tall brick wall at z=-3200, x[-300,300] so centre
+   x=0, drawn y[-900,-500] with its sill at y=-500 — exactly the ramp's top. It
+   led nowhere until the West Corridor was built; it now opens on that room's
+   NORTH door (see src/west_corridor.h). Same transition as Delivery Area <->
+   Kitchen Dining, which is what the user asked for: DOOR_PANEL_OUTER.
+
+   The player approaches from +Z, walking UP the ramp, which for an XY-plane
+   sign is mirror=1 — the opposite hand from the plinth's inscription below,
+   whose face the player reads from -Z.
+
+   COLLISION WALL 39 STAYS. It is the brick wall's upper band at y[-1237,-500]
+   and it is what stops the player at z=-2994, standing on the ramp at y=-410
+   and looking at the door from 200 away; the leaf is shut as far as collision
+   is concerned and it is the trigger, not a hole, that lets them through. That
+   200 is why the trigger radius here is the room's 500 rather than anything
+   tighter: Manhattan distance from the stop line to the door centre is already
+   ~206 before the player's x offset is counted.
+
+   The sign sits LOW on the leaf rather than centred on it. Centring would put
+   the glyph top at -715 (the door spans y[-900,-500], mid -700, and
+   door_draw_string_3d takes the TOP of 7 rows of DOOR_PIXEL_SIZE = 28 units),
+   which reads too high from the ramp: the player is looking UP at this door
+   from below, so the sill, not the middle, is where the eye lands. -607 is
+   halfway from that centred position down to the sill at y=-500 — the ramp's
+   top — and the user asked for it by eye. Note it is NOT RG_TEXT_Y either:
+   that constant is eye level on the LAWN, 500 units below this door. */
+#define RG_SDOOR_X                0
+#define RG_SDOOR_Z          (-3200)
+#define RG_SDOOR_TEXT_Y      (-607)
+
+static int sdoor_circle_prev = 1;
+
+void rear_gate_sdoor_arm(void) {
+    sdoor_circle_prev = circle_held();
+}
+
+int rear_gate_sdoor_triggered(void) {
+    int held = circle_held();
+    int just = held && !sdoor_circle_prev;
+    sdoor_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - RG_SDOOR_X;
+    int32_t dz = cam_z - RG_SDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < RG_TRIGGER_RADIUS && interact_facing(RG_SDOOR_X, RG_SDOOR_Z);
+}
+
+/* XY plane: door_draw_string_3d centres the reading axis (X) on world_x after
+   adding 200, so pass door_x - 200. Sits just north (z+11) of the wall, on the
+   side the player is actually on. */
+static void sdoor_text(RenderContext *ctx) {
+    int32_t dx = cam_x - RG_SDOOR_X;
+    int32_t dz = cam_z - RG_SDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= RG_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > RG_FADE_NEAR) {
+        int range = RG_TEXT_RADIUS - RG_FADE_NEAR;
+        int prog  = xz - RG_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        RG_SDOOR_X - 200, RG_SDOOR_TEXT_Y, RG_SDOOR_Z + 11,
+                        50, 255, 50, fade, 1, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+}
+
 /* ---- The plinth's inscription ----------------------------------------------
    The 200-tall block in the middle of the lawn, x[-300,300] z[2500,3100]. Its
    SOUTH face is collision wall 2, at z=2500 with nz = -4096, so the walkable
@@ -461,6 +532,28 @@ void rear_gate_spawn_east(void) {
     cam_rot = 3072;   /* facing -X, into the room */
     rear_gate_gate_arm();
     rear_gate_plinth_arm();
+    rear_gate_sdoor_arm();
+}
+
+/* Arriving from the West Corridor: stand ON THE RAMP just north of the south
+   door, facing +Z — the direction of travel, looking down the ramp at the
+   courtyards and the lawn beyond. z=-2950 is 250 clear of the z=-3200 wall,
+   past the 195 push radius and past where collision wall 39 stops the player
+   (z=-2994) on the way up, so nothing shoves them on their first frame.
+
+   cam_y is NOT RG_EYE_Y. That constant is the lawn's, and the ramp at z=-2950
+   is 386 units up it — 0 to -500 over z=-2100 to -3200, so -500 * 850/1100.
+   apply_height settles the exact value on the first frame either way, but
+   arriving a whole storey low would drop the camera through the ramp for it. */
+void rear_gate_spawn_south(void) {
+    cam_x   = RG_SDOOR_X;
+    cam_y   = -386 - GROUND_FLOOR_Y - 40;
+    cam_vy  = 0;
+    cam_z   = RG_SDOOR_Z + 250;
+    cam_rot = 0;      /* facing +Z, down the ramp into the room */
+    rear_gate_gate_arm();
+    rear_gate_plinth_arm();
+    rear_gate_sdoor_arm();
 }
 
 void rear_gate_init(void) {
@@ -835,6 +928,7 @@ void rear_gate_draw(RenderContext *ctx) {
     /* Last: the three signs — the east gate's, the plinth's, and the corridor
        lever's. */
     gate_text(ctx);
+    sdoor_text(ctx);
     plinth_text(ctx);
     grinder_puzzle_draw(ctx);
 }

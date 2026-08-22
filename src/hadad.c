@@ -13,6 +13,7 @@
 #include "crucifaxe.h"   /* SWING_RANGE — hadads_try_hit owns the reach */
 #include "sound.h"
 #include "cdaudio.h"     /* the stalker track */
+#include "door_anim.h"   /* door_anim_active — see the guard in update_hadads */
 
 Hadad hadads[MAX_HADADS];
 int   hadad_count = 0;
@@ -446,6 +447,23 @@ static void had_arrive(Hadad *h, int32_t x, int32_t z, int follow) {
 void update_hadads(void) {
     int i;
     int music_wanted = 0;
+
+    /* >>> A ROOM TRANSITION HAS ALREADY BEGUN: DO NOTHING. <<< The door-trigger
+       branches in update_current_area are not the last thing in that function —
+       the shared entity updates below them, this one among them, still run once
+       on the very frame the door is pressed. door_anim_start() has by then
+       called world_silence_monsters() -> hadads_silence(), which stopped the
+       track and cleared music_on; without this guard the reconciliation at the
+       bottom of this function would see music_wanted still set, music_on clear,
+       and immediately cdaudio_play() the stalker track BACK ON. That is exactly
+       what it did: the music cut on the press, came straight back over the whole
+       door transition, and only died when the next room loaded — and the three
+       CD commands issued in that one frame (stop, stop, play) plus a CD-DA
+       stream competing with the mesh read is what made the transition lurch.
+       The comment in world_silence_monsters() claims "the area update stops
+       running the instant the transition begins"; it stops running from the NEXT
+       frame, and this is the frame it does not cover. */
+    if (door_anim_active()) return;
 
     for (i = 0; i < hadad_count; i++) {
         Hadad *h = &hadads[i];

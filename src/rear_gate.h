@@ -53,9 +53,10 @@
      DOOR      a double_door at the top of the ramp, in the 1500-tall brick wall
                at z=-3200, x[-300,300], drawn y[-900,-500]. Its sill is at
                y=-500, exactly the ramp's top, so it reads as a door you can walk
-               up to and not as art floating over the lawn. IT GOES NOWHERE YET:
-               there is no trigger, no sign and no spawn for it. What closes that
-               end is collision WALL 39, the brick wall's upper band at
+               up to and not as art floating over the lawn. IT LEADS TO THE WEST
+               CORRIDOR (src/west_corridor.h) — trigger, sign and spawn are
+               rear_gate_sdoor_* and rear_gate_spawn_south below. What closes
+               that end is collision WALL 39, the brick wall's upper band at
                y[-1237,-500] — it stops the player at z=-2994, standing on the
                ramp at y=-410 and looking at the door from 200 away. Walls 27 and
                33 alone would not have done it: they run only x[-900,-300] and
@@ -63,8 +64,8 @@
                it and the player walked out of the room and fell 500 units.
                (Wall 39 exists only because smx_to_collision.py was fixed to
                treat the HIGH end of a ramp as a floor level — see the note at
-               the top of rear_gate_mesh_collision.c.) It is the hook for the
-               room behind the mansion.
+               the top of rear_gate_mesh_collision.c.) The room behind the
+               mansion it was the hook for is the West Corridor.
 
    THREE gates are modelled; ONE is connected:
 
@@ -124,7 +125,16 @@ int  rear_gate_gate_triggered(void);  /* 1 on a fresh Circle press in range */
 void rear_gate_plinth_arm(void);       /* seed the Circle edge state */
 void rear_gate_plinth_update(int lock);/* per-frame; `lock` suppresses the press */
 
-/* The room's only spawn, just inside the east gate. */
+/* The double door at the top of the southern ramp, into the West Corridor. The
+   "IT GOES NOWHERE YET" note above is now out of date — it is a normal door
+   transition (DOOR_PANEL_OUTER, the Delivery/Kitchen one), and collision wall
+   39 still closes the opening. */
+void rear_gate_sdoor_arm(void);        /* seed the Circle edge state */
+int  rear_gate_sdoor_triggered(void);  /* 1 on a fresh Circle press in range */
+
+/* The two spawns: just inside the east gate, and on the ramp below the south
+   door. */
 void rear_gate_spawn_east(void);
+void rear_gate_spawn_south(void);
 
 #endif

@@ -236,6 +236,16 @@ void kitchen_restore_textures(void) {
         texmgr_upload(shared_id[i]);
 }
 
+/* Narrow, single-texture uploads of two of the RAM copies above, for rooms that
+   draw red_crpt or double_door but must NOT have the whole kitchen set dropped
+   on them (kitchen_restore_textures would also stamp stn_stl, kchn_tile,
+   kchn_wl and stove). Same pattern as hall_2f_upload_strs() and
+   piano_room_upload_wallpaper(); they exist so a room can reuse the resident
+   copy instead of registering another one — texmgr has a hard TEXMGR_MAX and
+   overruns fail SILENTLY. The West Corridor uses both. */
+void kitchen_upload_red_crpt(void)    { texmgr_upload(shared_id[2]); }
+void kitchen_upload_double_door(void) { texmgr_upload(shared_id[5]); }
+
 void kitchen_dining_init(void) {
     kitchen_dining_collision_init(&current_collision_room);
     collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */

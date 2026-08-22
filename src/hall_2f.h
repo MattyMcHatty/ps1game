@@ -34,10 +34,11 @@ int  hall_2f_bdoor_w_triggered(void);  /* 1 when Circle pressed near the west on
 void hall_2f_spawn_bdoor_e(void);
 void hall_2f_spawn_bdoor_w(void);
 
-/* Shared lock state for the Hall 2F <-> Reception door. Starts locked; the
-   Hall 2F side unlocks it (Circle) and both sides read it: the Reception side
-   stays "Locked from the other side" until this flips to 1. Persists across
-   room transitions (a plain global); reset to 0 on a new game. */
-extern int hall_2f_door_unlocked;
+/* The Hall 2F <-> Reception door's lock is FLAG_HALL_2F_DOOR in src/player.h.
+   Starts locked; the Hall 2F side unlocks it (Circle) and both sides read it —
+   the Reception side stays "Locked from the other side" until the bit is set.
+   It used to be a plain global here; it is a GameFlag so that it rides in
+   SaveData.flags and survives a save/load, which is what the user asked for.
+   Read it with game_flag(FLAG_HALL_2F_DOOR), not through this header. */
 
 #endif
