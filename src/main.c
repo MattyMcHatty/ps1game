@@ -656,6 +656,10 @@ static void update_current_area(GameState area) {
            itself rather than being wrapped in it: an open menu suppresses the
            PRESS, but grinders already on the move keep moving. */
         grinder_puzzle_update(lock);
+        /* The plinth's inscription on the lawn. Takes `lock` itself, as the
+           grinders do; it is a read with no state behind it, so there is
+           nothing for an open menu to interrupt beyond the press. */
+        rear_gate_plinth_update(lock);
         if (!lock && rear_gate_gate_triggered()) {
             /* East back through the same gate, into Fountain Square. The room's
                other two modelled gates (west and north) are drawn shut and lead

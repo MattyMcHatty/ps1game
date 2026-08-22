@@ -12,6 +12,7 @@
 #include "camera.h"
 #include "rear_gate.h"
 #include "collision.h"
+#include "player.h"              /* show_pickup_msg_raw — the plinth's log line */
 #include "rear_gate_mesh_collision.h"
 #include "rear_gate_tex_map.h"
 #include "btn_glyph.h"
@@ -350,6 +351,99 @@ static void gate_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* ---- The plinth's inscription ----------------------------------------------
+   The 200-tall block in the middle of the lawn, x[-300,300] z[2500,3100]. Its
+   SOUTH face is collision wall 2, at z=2500 with nz = -4096, so the walkable
+   side is -Z and the player reads it walking up from the east gate at z=1900 —
+   the first thing in the room they come to.
+
+   The sign lies in the XZ face, which reads along X at a fixed Z, i.e.
+   TEXT_PLANE_XY, and door_draw_string_3d centres the reading axis on world_x
+   after adding 200, so the face's centre x=0 is passed as -200. mirror=0: the
+   player is on the -Z side, the same hand as the piano room's examine sign, and
+   the opposite of a sign on a face whose normal points +Z.
+
+   >>> THE TEXT IS ON THE BLOCK, NOT OVER IT. <<< The face spans y[-200,0] and
+   the glyph Y is the TOP of seven rows, so at pixel 3 the line runs y[-175,-154]
+   — sitting in the upper part of the face, 25 below its top edge, and level with
+   the player's eye at RG_EYE_Y = -189. Standing on the lawn the block's top is
+   only 11 units above eye height, so anything higher would float off the stone.
+   z is 11 units proud of the face, the standoff every other sign in the game
+   uses.
+
+   The line is 15 characters at 6*3 = 18 units a cell, so 270 wide against a face
+   600 wide, comfortably inside it.
+
+   THE TRIGGER IS GATED TO THE SOUTH SIDE. Manhattan 500 to the face's centre
+   alone would also fire from beside the west or east face, where there is
+   nothing written; requiring cam_z < RG_PLINTH_Z keeps it to the face the text
+   is on. The wall standoff parks the player at z=2305, so the closest they can
+   stand is 195 away and the radius has plenty of room. interact_facing pairs
+   with the distance test as it does everywhere else, so a tap aimed at something
+   else across the lawn doesn't read the stone. */
+#define RG_PLINTH_X                0    /* face centre: (-300 + 300) / 2      */
+#define RG_PLINTH_Z             2500    /* the south face — collision wall 2  */
+#define RG_PLINTH_TEXT_Y       (-175)   /* glyph TOP; 7 rows of 3 end at -154 */
+#define RG_PLINTH_TEXT_Z    (RG_PLINTH_Z - 11)
+#define RG_PLINTH_TEXT_PIXEL       3    /* small prop sign, the lever's size  */
+#define RG_PLINTH_TEXT_RADIUS    900
+#define RG_PLINTH_FADE_NEAR      600
+#define RG_PLINTH_TRIGGER_RADIUS 500
+
+/* Manhattan to the face centre, and only from the side the writing is on. */
+static int32_t plinth_dist(void) {
+    int32_t dx = cam_x - RG_PLINTH_X;
+    int32_t dz = cam_z - RG_PLINTH_Z;
+    return (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+}
+
+/* Circle edge state, seeded held by rear_gate_plinth_arm() for the same reason
+   the gate's is: a press carried in through the room transition must not post a
+   log line on the player's first frame. */
+static int plinth_circle_prev = 1;
+
+void rear_gate_plinth_arm(void) {
+    plinth_circle_prev = circle_held();
+}
+
+void rear_gate_plinth_update(int lock) {
+    if (lock) return;
+
+    int held = circle_held();
+    int just = held && !plinth_circle_prev;
+    plinth_circle_prev = held;
+    if (!just) return;
+
+    if (cam_z >= RG_PLINTH_Z) return;
+    if (plinth_dist() >= RG_PLINTH_TRIGGER_RADIUS) return;
+    if (!interact_facing(RG_PLINTH_X, RG_PLINTH_Z)) return;
+
+    /* Three wrapped rows in the log's 15-column box ("In memoriam of" /
+       "Hadad, a great" / "hero"), inside its four. The comma is fine: the log is
+       drawn with FntSort's font, not the pixel font the 3D sign uses, which has
+       no comma glyph and would swallow it. */
+    show_pickup_msg_raw("In memoriam of Hadad, a great hero");
+}
+
+/* The floating invitation on the face. Same fade ramp as every other sign. */
+static void plinth_text(RenderContext *ctx) {
+    int32_t xz = plinth_dist();
+    if (xz >= RG_PLINTH_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > RG_PLINTH_FADE_NEAR) {
+        int range = RG_PLINTH_TEXT_RADIUS - RG_PLINTH_FADE_NEAR;
+        int prog  = xz - RG_PLINTH_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to read",
+                        RG_PLINTH_X - 200, RG_PLINTH_TEXT_Y, RG_PLINTH_TEXT_Z,
+                        50, 255, 50, fade, 0, TEXT_PLANE_XY,
+                        RG_PLINTH_TEXT_PIXEL);
+}
+
 /* Arriving from Fountain Square: stand WEST of the x=2200 hedge, clear of the
    wall push radius (so the player isn't shoved on their first frame), facing -X
    — the direction of travel through the gate, looking out across the lawn at the
@@ -365,6 +459,7 @@ void rear_gate_spawn_east(void) {
     cam_z   = RG_GATE_Z;
     cam_rot = 3072;   /* facing -X, into the room */
     rear_gate_gate_arm();
+    rear_gate_plinth_arm();
 }
 
 void rear_gate_init(void) {
@@ -733,7 +828,9 @@ void rear_gate_draw(RenderContext *ctx) {
         sml_meds_draw(ctx);
     }
 
-    /* Last: the two signs — the east gate's, and the corridor lever's. */
+    /* Last: the three signs — the east gate's, the plinth's, and the corridor
+       lever's. */
     gate_text(ctx);
+    plinth_text(ctx);
     grinder_puzzle_draw(ctx);
 }

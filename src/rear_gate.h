@@ -112,6 +112,14 @@ void rear_gate_draw(RenderContext *ctx);
 void rear_gate_gate_arm(void);        /* seed the Circle edge state */
 int  rear_gate_gate_triggered(void);  /* 1 on a fresh Circle press in range */
 
+/* The plinth's inscription: a floating "Press O to read" on the block's SOUTH
+   face, and the Circle press that posts its epitaph to the log. Purely a read —
+   it sets no flag, gives nothing and can be read any number of times, so there
+   is nothing here for the save blob to carry. Placement and the south-side
+   gating are documented at RG_PLINTH_X in rear_gate.c. */
+void rear_gate_plinth_arm(void);       /* seed the Circle edge state */
+void rear_gate_plinth_update(int lock);/* per-frame; `lock` suppresses the press */
+
 /* The room's only spawn, just inside the east gate. */
 void rear_gate_spawn_east(void);
 
