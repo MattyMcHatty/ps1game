@@ -22,6 +22,11 @@ typedef enum {
     ITEM_PIANO_KEY,         /* found on the Attic Stairwell altar; puzzle input, TBD */
     ITEM_BLUE_KEY_STONE,    /* found on the Attic Stairwell altar; puzzle input, TBD */
     ITEM_YELLOW_KEY_STONE,  /* awarded by solving the piano room's Anzu Tablet puzzle */
+    ITEM_MAGENTA_KEY_STONE, /* the fourth stone. Its art is the one already fixed into
+                               the exit door's bottom socket (exit_door_puzzle.c draws
+                               that from its own copy of the same TIM); nothing places
+                               a magenta pickup yet, so the bit is only reachable from
+                               a PICKUP_MAGENTA_KEY_STONE spawn added later */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */

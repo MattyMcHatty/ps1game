@@ -64,7 +64,8 @@ extern volatile size_t  pad_buff_len[2];
 
 /* Item picker panel + grid — identical metrics to the stove's, so the two
    puzzles present the inventory the same way (see the sizing note in
-   stove_puzzle.c: 3 columns, not 2, or MENU_ITEM_SLOTS spills off the panel). */
+   stove_puzzle.c: the panel fits exactly three rows, so the grid widens rather
+   than growing a row as MENU_ITEM_SLOTS goes up). */
 #define PICK_X                 24
 #define PICK_Y                 30
 #define PICK_W                168
@@ -72,7 +73,7 @@ extern volatile size_t  pad_buff_len[2];
 #define PICK_CELL              42
 #define PICK_ICON              30
 #define PICK_PAD                6
-#define PICK_COLS               3
+#define PICK_COLS               4
 #define PICK_ROWS  ((MENU_ITEM_SLOTS + PICK_COLS - 1) / PICK_COLS)
 #define PICK_GRID_X   (PICK_X + (PICK_W - PICK_COLS * PICK_CELL) / 2)
 #define PICK_GRID_Y   (PICK_Y + 22)

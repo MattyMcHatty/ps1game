@@ -22,6 +22,7 @@
 #include "zombie.h"
 #include "spider.h"
 #include "rabisu.h"
+#include "hadad.h"           /* he can come into the mansion through here */
 #include "web.h"
 #include "item_pickup.h"
 #include "fatdoor.h"         /* the breakable door in the inner-room opening */
@@ -480,15 +481,25 @@ void west_corridor_draw(RenderContext *ctx) {
 
     /* No enemies placed here yet; the room's 128 texture window is still handed
        to the sprite renderers so a future spawn brackets its Voff>=128 sprite
-       correctly (see tools/TEXTURING_NOTES.txt PART 5). */
+       correctly (see tools/TEXTURING_NOTES.txt PART 5).
+
+       HADAD is wired in here so he can be placed in this room at all. His art
+       needs NO texture work: hadad_stp1_64 (x608 y384) and hadad_stp2_64
+       (x992 y384) own their VRAM outright and are LoadImaged once at startup by
+       hadads_load_textures(), so nothing streams over them and this room owes
+       no upload. What the room DOES owe is the bracket below — all three of his
+       frames sit at Voff 128, so under this room's 128 window an unbracketed
+       quad would wrap his V and draw the corridor's own wallpaper on him. */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
         spiders_set_texwindow(&tw);
+        hadads_set_texwindow(&tw);
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
     draw_rabisus(ctx);
+    draw_hadads(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
 

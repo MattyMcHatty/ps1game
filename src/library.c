@@ -25,6 +25,7 @@
 #include "zombie.h"
 #include "spider.h"
 #include "rabisu.h"
+#include "hadad.h"           /* he can come into the mansion through here */
 #include "web.h"
 #include "item_pickup.h"
 
@@ -464,15 +465,22 @@ void library_draw(RenderContext *ctx) {
     /* Three spiders hang from the reading room's ceiling and one zombie walks
        its northern strip (both placed in world.c). Each renderer is handed the
        room's 128 texture window so its Voff>=128 sprites are bracketed
-       correctly (see tools/TEXTURING_NOTES.txt PART 5). */
+       correctly (see tools/TEXTURING_NOTES.txt PART 5).
+
+       HADAD is wired in for the same reason and costs the same nothing: his
+       hadad_stp1_64 / hadad_stp2_64 slots are loaded once at startup and are
+       never streamed over, so the room owes no upload — only the bracket, since
+       all his frames sit at Voff 128. */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
         spiders_set_texwindow(&tw);
+        hadads_set_texwindow(&tw);
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
     draw_rabisus(ctx);
+    draw_hadads(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
 

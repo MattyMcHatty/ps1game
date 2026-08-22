@@ -20,6 +20,7 @@
 #include "dresser.h"
 #include "fatdoor.h"
 #include "item_pickup.h"
+#include "hadad.h"     /* he can come into the mansion through here */
 #include "texmgr.h"
 #include "player.h"    /* FLAG_HALL_2F_DOOR / FLAG_WEST_CORR_DOOR — the saved
                           locks on the two upper-floor west-wall doors. Both are
@@ -770,6 +771,19 @@ void reception_draw(RenderContext *ctx) {
        128 texture window (its UVs are 0-127, so wrapping is a no-op) and restores
        the view matrix before returning. */
     fatdoors_draw(ctx);
+    /* HADAD. He is the first sprite enemy this room renders, and he needs no
+       texture work to stand here: hadad_stp1_64 (x608 y384) and hadad_stp2_64
+       (x992 y384) own their VRAM outright and are LoadImaged once at startup by
+       hadads_load_textures(), so nothing in reception's upload list streams over
+       them and there is nothing to restore. What IS owed is the window bracket
+       — all his frames sit at Voff 128, so under the 128 window set above an
+       unbracketed quad would wrap his V and draw this room's wallpaper on him.
+       draw_hadads is area-gated, so it costs nothing until one is placed. */
+    {
+        RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+        hadads_set_texwindow(&tw);
+    }
+    draw_hadads(ctx);
     save_points_draw(ctx);
     reception_door_text(ctx);
     wdoor_text(ctx);

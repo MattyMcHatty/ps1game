@@ -92,6 +92,8 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_SMASH]      = SND_RESIDENT,   /* the boss's shockwave hit / parry     */
     [SFX_DOGBARK]    = SND_BANK_HOUSE,
     [SFX_AXEHIT]     = SND_RESIDENT,
+    /* Re-cut from 22050 Hz to the 11025 house standard (20.1 KB -> 9.8 KB) to
+       pay for SFX_RUMBLE's house copy below. Nothing times off its length. */
     [SFX_DOGDIE]     = SND_BANK_HOUSE,
     [SFX_UNLOCK]     = SND_RESIDENT,
     [SFX_DOOR]       = SND_RESIDENT,   /* plays on the way OUT of the courtyard,
@@ -135,11 +137,19 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        garden bank runs to 105 KB of the region's 185, so this is free there.
        Placing a mushroom in a house room would leave it mute. */
     [SFX_HISS]       = SND_BANK_GARDEN,
-    /* The Living Statue's teleport/death grind, 13.0 KB. GARDEN only, and for
-       the same reason as HISS directly above: the house bank is the largest and
-       so sets `spare` at 6.6 KB, which this does not fit. The garden bank goes
-       from 105 KB to 119 KB of the region's 185, so it is free there. */
-    [SFX_RUMBLE]     = SND_BANK_GARDEN,
+    /* The Living Statue's teleport/death grind, 13.0 KB — and Hadad's, which is
+       what put it in BOTH banks. He was GARDEN-only while he was only ever on
+       the Rear Gate's plinth; once he could also be placed in the West Corridor,
+       Reception and the Library (all HOUSE), a GARDEN-only tag would have left
+       his arrival and death cue silently mute in exactly those rooms.
+       >>> IT DID NOT FIT UNTIL dogdie WAS RE-CUT. <<< House is the largest bank
+       and so sets `spare`, which was 6.6 KB against this clip's 13.0. dogdie was
+       at 22050 Hz — off the 11025 house standard, with no reason recorded — and
+       re-converting it to 11025 freed 9.8 KB, which pays for this copy and
+       leaves 3.3 KB. House 178 KB -> 182 KB, garden unmoved at 127 KB, both
+       inside the region's 185. Re-run the STEP 3 arithmetic in
+       tools/ADDING_A_SOUND.txt before spending the rest. */
+    [SFX_RUMBLE]     = SND_BANK_HOUSE | SND_BANK_GARDEN,
     /* The Rear Gate grinders' travel, 10.9 KB. GARDEN only, and unlike HISS and
        RUMBLE above it could not have been resident even if the headroom were
        there: a resident clip is charged twice, pushing bank_base up by its own
@@ -196,9 +206,13 @@ static int sfx_channel(SfxID id) {
        which the player is free to fire while running away; a gunshot cutting the
        teleport cue would delete the enemy's only tell.
        Voices 13..15 are spoken for, so it SHARES voice 9 with SFX_NINURTA. That
-       costs nothing: NINURTA is SND_BANK_INTRO and only ever plays on the title
-       screen, and the statue is SND_BANK_GARDEN — the two banks are never both
-       loaded, so the two clips can never sound in the same room. */
+       still costs nothing now the clip is in the HOUSE bank as well as GARDEN:
+       NINURTA is SND_BANK_INTRO, which main.c selects on the TITLE SCREEN and
+       nowhere else, while HOUSE, GARDEN and BOSS are the three a room can ask
+       for. INTRO is never loaded alongside any of them, so the intro line and
+       this grind can never sound in the same place whatever bank a room is on.
+       Widening the mask again is the thing to re-check here — a second GARDEN
+       or HOUSE clip landing on voice 9 would cut this one. */
     if (id == SFX_RUMBLE)      return 9;
     /* The grinders' travel. Off the pool because it runs 1.76 s and is played
        three times WITHOUT a gap — the sequence is 5.3 s long and the player is

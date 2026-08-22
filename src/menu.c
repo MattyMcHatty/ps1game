@@ -108,6 +108,13 @@ static uint8_t  bkst_u0, bkst_v0, bkst_u1, bkst_v1;
 static uint16_t ykst_tpage   = 0;
 static uint16_t ykst_clut    = 0;
 static uint8_t  ykst_u0, ykst_v0, ykst_u1, ykst_v1;
+/* The magenta stone. exit_door_puzzle.c keeps its own handle on the SAME TIM for
+   the fixed socket on its board; both LoadImage the one permanently resident
+   slot (x672 y256, Voff 0 — window-safe), so the second read is redundant
+   pixels, not a second slot. */
+static uint16_t mkst_tpage   = 0;
+static uint16_t mkst_clut    = 0;
+static uint8_t  mkst_u0, mkst_v0, mkst_u1, mkst_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -125,6 +132,7 @@ static const char *item_descriptions[] = {
     "Piano Key\n\nA white key\nfor a piano",
     "Blue Key Stone\n\nA blue jewel\nwith a key\nprotruding from\nthe back",
     "Yellow Key Stone\n\nA yellow jewel\nwith a key\nprotruding from\nthe back",
+    "Magenta Key Stone\n\nA magenta jewel\nwith a key\nprotruding from\nthe back",
 };
 
 static const char *weapon_descriptions[] = {
@@ -305,6 +313,8 @@ int menu_item_held(int slot) {
         case MENU_SLOT_BLUE_KEY_STONE: return (player_items & (1 << ITEM_BLUE_KEY_STONE)) != 0;
         case MENU_SLOT_YELLOW_KEY_STONE:
                                        return (player_items & (1 << ITEM_YELLOW_KEY_STONE)) != 0;
+        case MENU_SLOT_MAGENTA_KEY_STONE:
+                                       return (player_items & (1 << ITEM_MAGENTA_KEY_STONE)) != 0;
         default: return 0;
     }
 }
@@ -320,6 +330,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_PIANO_KEY:      return "Piano Key";
         case MENU_SLOT_BLUE_KEY_STONE: return "Blue Key Stone";
         case MENU_SLOT_YELLOW_KEY_STONE:return "Yellow Key Stone";
+        case MENU_SLOT_MAGENTA_KEY_STONE:return "Magenta Key Stone";
         default: return "";
     }
 }
@@ -438,6 +449,11 @@ void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
             draw_icon(ctx, x, y, size, ykst_tpage, ykst_clut,
                       ykst_u0, ykst_v0, ykst_u1, ykst_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_MAGENTA_KEY_STONE:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, mkst_tpage, mkst_clut,
+                      mkst_u0, mkst_v0, mkst_u1, mkst_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -485,6 +501,8 @@ void menu_init(void) {
                   &ykst_u0, &ykst_v0, &ykst_u1, &ykst_v1);
     load_icon_tim("\\TEX\\BLKYSTN.TIM;1", &bkst_tpage, &bkst_clut,
                   &bkst_u0, &bkst_v0, &bkst_u1, &bkst_v1);
+    load_icon_tim("\\TEX\\MGNKYSTN.TIM;1", &mkst_tpage, &mkst_clut,
+                  &mkst_u0, &mkst_v0, &mkst_u1, &mkst_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);

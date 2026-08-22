@@ -120,8 +120,13 @@
  * ======================================================================
  * SFX_RUMBLE on every arrival and on death — the Living Statue's own clip,
  * reused deliberately rather than for want of a new one, because it is the
- * noise stone makes moving and Hadad is stone. It is GARDEN bank and the Rear
- * Gate is on GARDEN (main.c's STATE_LOADING), so it sounds here.
+ * noise stone makes moving and Hadad is stone. It is in the HOUSE bank AND the
+ * GARDEN one, so it sounds wherever he is put: the Rear Gate is on GARDEN and
+ * the West Corridor, Reception and the Library are on HOUSE (main.c's
+ * STATE_LOADING maps every room to a bank). >>> IF HE IS EVER PLACED IN THE
+ * GARDEN COURTYARD, HE ARRIVES IN SILENCE <<< — that room takes SND_BANK_BOSS
+ * for the Rabisu, and the boss bank has no copy of this clip. See sound.h for
+ * why a third copy is not affordable.
  *
  * The stalker music is CD-DA track 8 and it starts HAD_RUMBLE_FRAMES after the
  * rumble is triggered, which is the clip's own length — "as soon as the rumble

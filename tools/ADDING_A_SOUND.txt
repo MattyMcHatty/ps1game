@@ -172,26 +172,43 @@ Run this, with your clip added to the right list:
          'gr_shot','gr_reload','step1','step2','slam','fireball','boom','explode',
          'cursor','select','back']
     house=['dogbark','dogdie','zombie_2','ZOMBIEDIE','tntcl_wrth_2','tntcl_die',
-           'spdr_wlk','spit','mchne']
+           'spdr_wlk','spit','mchne','rumble']
     boss=['emerge','dmnspeak','gate']
+    garden=['tntcl_wrth_2','tntcl_die','spdr_wlk','gate','gas','pullin','hiss',
+            'rumble','grind']
     intro=['ninurta']
     p=4112
     for f in res: p+=a(f+'.vag')
     h=sum(a(f+'.vag') for f in house); b=sum(a(f+'.vag') for f in boss)
-    i=sum(a(f+'.vag') for f in intro)
+    g=sum(a(f+'.vag') for f in garden); i=sum(a(f+'.vag') for f in intro)
     print('bank_base   0x%05X'%p, ' region', 524288-p)
-    print('house', h, 'OK' if p+h<=524288 else 'OVERFLOW')
-    print('boss ', b, 'OK' if p+b<=524288 else 'OVERFLOW')
-    print('intro', i, 'OK' if p+i<=524288 else 'OVERFLOW')
-    print('spare', 524288-p-max(h,b,i))
+    for n,v in (('house',h),('boss',b),('garden',g),('intro',i)):
+        print(n, v, 'OK' if p+v<=524288 else 'OVERFLOW')
+    print('spare', 524288-p-max(h,b,g,i))
     "
 
+>>> A CLIP IN TWO BANKS MUST APPEAR IN BOTH LISTS. <<< The mask is per-effect,
+so tntcl_wrth_2, tntcl_die, spdr_wlk, gate and rumble are each counted twice —
+once against house or boss, once against garden. Omit the second entry and the
+script under-reports the bank you are about to overflow.
+
 The lists must be kept in the SAME ORDER as the enum in sound.h, because
-sound_init() allocates in enum order. As of the garden gate:
+sound_init() allocates in enum order. As of Hadad's move indoors:
 
     bank_base 0x51C10   region 189424
-    house 182656   boss 142528   intro 22080
-    spare 6768
+    house 186048   boss 142528   garden 129856   intro 22080
+    spare 3376
+
+(Before it: house 182656, spare 6768. Putting SFX_RUMBLE in the house bank as
+well as the garden one needed 13376 B against 6768 free. It was paid for NOT by
+trimming rumble — hadad.h's HAD_RUMBLE_FRAMES is cut to that clip's exact length
+— but by finding a clip that was off the house standard for no recorded reason:
+dogdie.vag was 22050 Hz, and re-cutting it to 11025 freed 9.8 KB. FOUR of the
+house bank's clips are still at 22050 — dogbark, tntcl_die, spdr_wlk and spit —
+so the trick has roughly 42 KB left in it. Two caveats: tntcl_die and spdr_wlk
+are in the garden bank as well, so re-cutting either shrinks BOTH; and every use
+costs an existing sound its top octave, which is the user's call and not a free
+lunch. Ask before spending one.)
 
 (GATE is the worked example of a NON-obvious bank choice, and worth reading
 before you place anything else. It is a door sound — the sort of thing that

@@ -35,6 +35,7 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\PNOKEY.TIM;1",     /* PICKUP_PIANO_KEY      */
     "\\TEX\\BLKYSTN.TIM;1",    /* PICKUP_BLUE_KEY_STONE   */
     "\\TEX\\YLKYSTN.TIM;1",    /* PICKUP_YELLOW_KEY_STONE */
+    "\\TEX\\MGNKYSTN.TIM;1",   /* PICKUP_MAGENTA_KEY_STONE */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
@@ -43,6 +44,7 @@ static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Piano Key",               /* PICKUP_PIANO_KEY      */
     "Blue Key Stone",          /* PICKUP_BLUE_KEY_STONE   */
     "Yellow Key Stone",        /* PICKUP_YELLOW_KEY_STONE */
+    "Magenta Key Stone",       /* PICKUP_MAGENTA_KEY_STONE */
 };
 
 /* Load one TIM into VRAM and record its tpage/clut and UV rect. The UV's U0 is
@@ -102,9 +104,12 @@ void item_pickups_reset(void) {
     graveolver_ammo   = AMMO_STANDARD;
     graveolver_loaded = GRAVEOLVER_CAPACITY;
     current_weapon = WEAPON_CRUCIFAXE;
-    /* The two flag items this module grants. Cleared here (this runs on a new
-       game via crates_reset) or they survive into a fresh playthrough. */
-    player_items &= ~((1 << ITEM_PIANO_KEY) | (1 << ITEM_BLUE_KEY_STONE));
+    /* The flag items this module grants from a pickup with no other owner.
+       Cleared here (this runs on a new game via crates_reset) or they survive
+       into a fresh playthrough. (The yellow stone is not in this list: the Anzu
+       puzzle is what awards it, and that module clears it.) */
+    player_items &= ~((1 << ITEM_PIANO_KEY) | (1 << ITEM_BLUE_KEY_STONE) |
+                      (1 << ITEM_MAGENTA_KEY_STONE));
 }
 
 int item_pickup_spawn_amount(int32_t x, int32_t y, int32_t z, PickupKind kind,
@@ -143,6 +148,7 @@ static void collect(ItemPickup *p) {
         case PICKUP_PIANO_KEY:      player_items |= (1 << ITEM_PIANO_KEY);      break;
         case PICKUP_BLUE_KEY_STONE: player_items |= (1 << ITEM_BLUE_KEY_STONE); break;
         case PICKUP_YELLOW_KEY_STONE: player_items |= (1 << ITEM_YELLOW_KEY_STONE); break;
+        case PICKUP_MAGENTA_KEY_STONE: player_items |= (1 << ITEM_MAGENTA_KEY_STONE); break;
         default: break;
     }
     sound_play(SFX_PICKUP);

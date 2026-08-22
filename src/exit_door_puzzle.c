@@ -99,7 +99,9 @@ static const struct { int x, y; } BOX_XY[XD_BOX_COUNT] = {
 #define PICK_CELL                42
 #define PICK_ICON                30
 #define PICK_PAD                  6
-#define PICK_COLS                 3
+#define PICK_COLS                 4   /* see the sizing note in stove_puzzle.c:
+                                         the panel fits exactly 3 rows, so the
+                                         grid widens as slots are added */
 #define PICK_ROWS  ((MENU_ITEM_SLOTS + PICK_COLS - 1) / PICK_COLS)
 #define PICK_GRID_X   (PICK_X + (PICK_W - PICK_COLS * PICK_CELL) / 2)
 #define PICK_GRID_Y   (PICK_Y + 22)

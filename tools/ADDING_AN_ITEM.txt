@@ -255,9 +255,20 @@ giving it one would silently rescale every existing swing.
                count, which travels with the icon rather than sitting in a fixed
                cell.
 
-  GRID CAPACITY: MENU_ITEM_CELLS is 12 (3 cols x 4 rows) against 9 item IDs, so
-  three are free. Past 12 the grid itself has to grow again, and MENU_ITEM_CELLS
+  GRID CAPACITY: MENU_ITEM_CELLS is 12 (3 cols x 4 rows) against 10 item IDs, so
+  two are free. Past 12 the grid itself has to grow again, and MENU_ITEM_CELLS
   must keep matching ITEM_COLS * GRID_ROWS — menu.c static-asserts it.
+
+  >>> AND CHECK THE THREE PICKERS' COLUMN COUNT. <<< The stove, piano and
+  exit-door pickers each lay MENU_ITEM_SLOTS out in a PICK_COLS x PICK_ROWS grid
+  whose ROW COUNT IS DERIVED, and their panel fits EXACTLY THREE ROWS (grid top
+  at PICK_Y+22 = 52, three 42px rows end at 178, the item name sits at 182, the
+  panel ends at 198 and the controls line is at 206). A 4th row silently draws
+  over both. So a new slot that pushes ceil(SLOTS/PICK_COLS) past 3 needs
+  PICK_COLS WIDENED in all three files, never a row added — it went 2 -> 3 at 9
+  slots and 3 -> 4 when the Magenta Key Stone made 10. At 4 columns the grid is
+  168px, exactly PICK_W, so 13 slots is the next wall and that one needs a real
+  resize.
 
   ARRANGEMENT PERSISTENCE: the cell layout is in the save (SaveData.item_order,
   one byte per cell holding the item ID + 1). menu_inventory_load validates it

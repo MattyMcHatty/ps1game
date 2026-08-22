@@ -26,8 +26,9 @@
  *              |     three menu blips      |
  *     0x51C10  +---------------------------+  <- bank_base
  *              | THE BANK REGION           |  185 KB, all that is left:
- *              |   HOUSE (178 KB) *or*     |  nothing follows it, so it takes
- *              |   BOSS  (121 KB)          |  the whole tail and the slack
+ *              |   HOUSE (182 KB) *or*     |  nothing follows it, so it takes
+ *              |   BOSS  (139 KB) *or*     |  the whole tail and the slack
+ *              |   GARDEN (127 KB)         |  (house leaves only 3.3 KB of it)
  *     0x80000  +---------------------------+  lands in whichever bank is in
  *
  *   Every effect carries a bank tag (see sfx_bank[] in sound.c):
@@ -64,7 +65,7 @@
  *
  * THE SWAP IS A CD READ
  *   Unlike texmgr, which keeps a RAM copy of every streamed texture, banks are
- *   re-read from \SND\ on the transition. 178 KB of resident RAM copies is not
+ *   re-read from \SND\ on the transition. 182 KB of resident RAM copies is not
  *   affordable next to the room meshes; half a second of drive time behind the
  *   door fade is. sound_bank_select() suspends CD-DA around the read for the
  *   reason cdaudio_suspend() documents: a CdRead issued while the drive is
@@ -137,7 +138,9 @@ typedef enum {
        Garden Courtyard (BOSS bank in), so any bank tag would make them silent
        somewhere the player can still move a cursor. They are 8000 Hz rather
        than the house standard 11025 to afford exactly that — 9.8 KB of the
-       resident headroom against 13.3 KB, leaving ~6.7 KB spare. A menu blip is
+       resident headroom against 13.3 KB. (That left ~6.7 KB spare at the time;
+       SFX_RUMBLE's house copy has since taken most of it, so `spare` is 3.3 KB
+       — check it rather than quoting this line.) A menu blip is
        short and percussive and loses almost nothing to the lower rate; a longer
        clip would not have fitted at all.
 
@@ -157,8 +160,8 @@ typedef enum {
        and that constant has to move with it.
 
        BANKED, and in TWO banks: BOSS | GARDEN. It is 17.9 KB and the resident
-       headroom is 6.6 KB, so it cannot be resident; the house bank has exactly
-       the same 6.6 KB spare, so it cannot go there either. It now joins the
+       headroom was 6.6 KB (3.3 KB now), so it cannot be resident; the house
+       bank has the same figure spare, so it cannot go there either. It joins the
        gate's three rooms the honest way — a copy in the boss bank for the
        Garden Courtyard and a copy in the garden bank for Fountain Square and
        the Outside Catacombs.
@@ -179,18 +182,30 @@ typedef enum {
     SFX_PULL       = 34,
     /* The Mushroom Head's scream — the wet hiss its cap makes when it splits
        open. 2.00 s at 11025 Hz, 12.3 KB. GARDEN bank, and GARDEN ONLY: the
-       house bank is the largest of the three and so sets `spare`, which is
-       6.6 KB — this clip does not fit it, and could not be made resident for
+       house bank is the largest of the four and so sets `spare`, which is now
+       3.3 KB — this clip does not fit it, and could not be made resident for
        the same reason. A mushroom placed inside the house would therefore be
-       silent; the garden is where it lives. See tools/ADDING_A_SOUND.txt. */
+       silent; the garden is where it lives. (SFX_RUMBLE below IS in both banks
+       now, but only because re-cutting dogdie paid for it — that headroom is
+       spent, so this one still cannot follow.) See tools/ADDING_A_SOUND.txt. */
     SFX_HISS       = 35,
     /* The Living Statue: stone grinding on stone. It plays on the frame the
        statue TELEPORTS, and again on the frame it is destroyed — those are the
        only two noises it makes (it is also the one enemy that is silent while
        it stalks, which is the point of it). 2.12 s at 11025 Hz, 13.0 KB.
-       GARDEN bank, and GARDEN ONLY, for the same arithmetic as SFX_HISS above:
-       the house bank sets `spare` at 6.6 KB and this does not fit it. A living
-       statue placed inside the house would teleport and die in silence. */
+       It is ALSO Hadad's arrival and death cue (hadad.h), reused deliberately
+       because it is the noise stone makes moving and he is stone.
+
+       HOUSE | GARDEN — one copy in each, 13.0 KB apiece. It was GARDEN ONLY
+       while Hadad only ever stood on the Rear Gate's plinth; the moment he
+       could be placed in the West Corridor, Reception or the Library it had to
+       be in the house bank too, or he would have arrived in silence in exactly
+       those rooms and nothing would have said so. It did NOT fit: house is the
+       largest bank and so sets `spare`, which was 6.6 KB. dogdie.vag was at
+       22050 Hz with no reason on record, against the 11025 house standard, and
+       re-cutting it freed 9.8 KB. That is what bought this. `spare` is now
+       3.3 KB — SMALLER THAN THIS CLIP, so the same trick cannot be repeated
+       without finding more room. */
     SFX_RUMBLE     = 36,
     /* The Rear Gate's two grinders driving along their rails, played three
        times back to back on each throw of the corridor lever. 1.76 s at
@@ -199,11 +214,11 @@ typedef enum {
        with it, the same contract SFX_GATE has with door_anim.c.
 
        GARDEN bank, and GARDEN ONLY. Made resident it would push bank_base up by
-       its own 10.9 KB and overflow the HOUSE bank by 4.3 KB — the house bank is
-       the largest, so it both sets `spare` (6.6 KB, which this does not fit) and
-       has no room to be squeezed. The garden bank runs 119 KB to 130 KB of the
-       region's 185, so a copy there is free and `spare` does not move. A grinder
-       placed inside the house would be silent. */
+       its own 10.9 KB and overflow the HOUSE bank — the house bank is the
+       largest, so it both sets `spare` (3.3 KB now, which this does not fit) and
+       has no room to be squeezed. The garden bank runs to 127 KB of the region's
+       185, so a copy there is free and `spare` does not move. A grinder placed
+       inside the house would be silent. */
     SFX_GRIND      = 37,
     SFX_COUNT      = 38,
 } SfxID;

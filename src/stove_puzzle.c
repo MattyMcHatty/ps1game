@@ -62,13 +62,17 @@ extern volatile size_t  pad_buff_len[2];
 #define PICK_CELL              42
 #define PICK_ICON              30
 #define PICK_PAD                6
-/* 3 wide, NOT 2: the panel is only tall enough for three PICK_CELL rows (the
-   grid starts at PICK_GRID_Y=+22 and the item name sits at PICK_H-16), so at
-   MENU_ITEM_SLOTS=8 a 2-wide grid would need a 4th row and spill past the panel
-   onto the controls line. Widening keeps every slot on screen without resizing
-   the panel. The picker's grid is independent of the inventory menu's own 2x4
-   layout — only the slot NUMBERS are shared. */
-#define PICK_COLS               3
+/* >>> THE PANEL FITS EXACTLY THREE ROWS, SO THIS WIDENS AS SLOTS ARE ADDED. <<<
+   The grid starts at PICK_GRID_Y = PICK_Y+22 = 52 and the item name sits at
+   PICK_Y+PICK_H-16 = 182, so three PICK_CELL rows (52+126 = 178) is all that
+   clears it — a 4th row would run to 220, past the panel's bottom edge at 198
+   and over the controls line at 206. It was 2 at MENU_ITEM_SLOTS=8 and 3 at 9;
+   the Magenta Key Stone made it 10, which needs 4. Widen, never add a row.
+   4 x PICK_CELL is 168 = PICK_W exactly, so PICK_GRID_X lands flush with the
+   panel and the 30px icons keep their PICK_PAD inset at both edges.
+   The picker's grid is independent of the inventory menu's own 3x4 layout —
+   only the slot NUMBERS are shared. */
+#define PICK_COLS               4
 #define PICK_ROWS  ((MENU_ITEM_SLOTS + PICK_COLS - 1) / PICK_COLS)
 /* Grid centred in the panel, under the header, with room for the item name
    along the bottom edge. */
