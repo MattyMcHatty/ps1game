@@ -26,6 +26,7 @@
 #include "save_point.h"
 #include "dresser.h"
 #include "grinder.h"
+#include "grinder_puzzle.h"
 #include "key.h"
 #include "item_pickup.h"
 #include "bullet_hit.h"
@@ -651,6 +652,10 @@ static void update_current_area(GameState area) {
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
+        /* The corridor lever and the two grinders it drives. Takes `lock`
+           itself rather than being wrapped in it: an open menu suppresses the
+           PRESS, but grinders already on the move keep moving. */
+        grinder_puzzle_update(lock);
         if (!lock && rear_gate_gate_triggered()) {
             /* East back through the same gate, into Fountain Square. The room's
                other two modelled gates (west and north) are drawn shut and lead

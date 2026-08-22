@@ -155,36 +155,57 @@ int grinder_add(int32_t x, int32_t y, int32_t z, int32_t rot_y, int32_t area,
     return i;
 }
 
+/* One instance's push box, or 0 if the player's height misses it entirely. */
+static int gr_push_box(const Grinder *g, int32_t py, int32_t radius,
+                       int32_t *min_x, int32_t *max_x,
+                       int32_t *min_z, int32_t *max_z) {
+    if (!g->active || g->area != (int32_t)current_area) return 0;
+
+    /* Vertical gate: only collide when the player is on the grinder's floor, so
+       its footprint doesn't reach up or down a level (see the dresser). */
+    int32_t dy = py - g->y;
+    if ((dy < 0 ? -dy : dy) > GRINDER_HALF_H) return 0;
+
+    /* The footprint is square, so the rotated bound is the same for every
+       multiple of a quarter turn — but do the general maths anyway, since a
+       puzzle that slides one of these may well turn it too. isin/icos are
+       fixed-point (4096 = 1.0). */
+    int32_t c = icos(g->rot_y), s = isin(g->rot_y);
+    if (c < 0) c = -c;
+    if (s < 0) s = -s;
+    int32_t hw = (g->half_w * c + g->half_d * s) >> 12;
+    int32_t hd = (g->half_w * s + g->half_d * c) >> 12;
+
+    /* Minkowski-expanded AABB plus a push margin (same scheme as the dresser and
+       the dining table) so the camera stops clear of the visible edges. */
+    *min_x = g->x - hw - radius - GRINDER_PUSH_MARGIN;
+    *max_x = g->x + hw + radius + GRINDER_PUSH_MARGIN;
+    *min_z = g->z - hd - radius - GRINDER_PUSH_MARGIN;
+    *max_z = g->z + hd + radius + GRINDER_PUSH_MARGIN;
+    return 1;
+}
+
+static int crush_contacts = 0;
+
+int grinders_crush_contacts(void) { return crush_contacts; }
+
 void grinders_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     int i;
+    int32_t min_x, max_x, min_z, max_z;
+    int     held_by_mover = 0;
+
+    crush_contacts = 0;
+
     for (i = 0; i < grinder_count; i++) {
-        Grinder *g = &grinders[i];
-        if (!g->active || g->area != (int32_t)current_area) continue;
-
-        /* Vertical gate: only collide when the player is on the grinder's floor,
-           so its footprint doesn't reach up or down a level (see the dresser). */
-        int32_t dy = py - g->y;
-        if ((dy < 0 ? -dy : dy) > GRINDER_HALF_H) continue;
-
-        /* The footprint is square, so the rotated bound is the same for every
-           multiple of a quarter turn — but do the general maths anyway, since a
-           puzzle that slides one of these may well turn it too. isin/icos are
-           fixed-point (4096 = 1.0). */
-        int32_t c = icos(g->rot_y), s = isin(g->rot_y);
-        if (c < 0) c = -c;
-        if (s < 0) s = -s;
-        int32_t hw = (g->half_w * c + g->half_d * s) >> 12;
-        int32_t hd = (g->half_w * s + g->half_d * c) >> 12;
-
-        /* Minkowski-expanded AABB plus a push margin (same scheme as the dresser
-           and the dining table) so the camera stops clear of the visible edges. */
-        int32_t min_x = g->x - hw - radius - GRINDER_PUSH_MARGIN;
-        int32_t max_x = g->x + hw + radius + GRINDER_PUSH_MARGIN;
-        int32_t min_z = g->z - hd - radius - GRINDER_PUSH_MARGIN;
-        int32_t max_z = g->z + hd + radius + GRINDER_PUSH_MARGIN;
-
+        if (!gr_push_box(&grinders[i], py, radius, &min_x, &max_x, &min_z, &max_z))
+            continue;
         if (*px <= min_x || *px >= max_x) continue;
         if (*pz <= min_z || *pz >= max_z) continue;
+
+        /* Contact, counted before the push resolves it — see the note on
+           grinders_crush_contacts in the header. Only a grinder under power
+           counts: walking into a parked one is furniture, not machinery. */
+        if (grinders[i].moving) { crush_contacts++; held_by_mover = 1; }
 
         /* Push out along the axis with the smallest penetration. */
         int32_t push_l = *px - min_x;
@@ -199,6 +220,42 @@ void grinders_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
 
         *px += px_delta;
         *pz += pz_delta;
+    }
+
+    /* ---- Second pass: caught in the jaws --------------------------------------
+       >>> TWO GRINDERS CLOSING ON THE SAME LANE OVERLAP COMPLETELY BY THE END,
+       AND THE PASS ABOVE CANNOT CLEAR A PLAYER OUT OF BOTH. <<< Standing between
+       them, the smallest penetration for each is sideways and the two point at
+       each other: one shoves the player east into the other's box, which shoves
+       them back west, and they sit on the centre line juddering a frame at a
+       time instead of being put somewhere legal.
+
+       So whichever box still holds them after the first pass pushes along Z
+       instead — out of the mouth of the machine rather than across it. Z is the
+       free axis by construction: a grinder travels along its own X, which is
+       what cut_x already requires of rot_y, so no amount of travel ever closes
+       it. Nothing else reaches this pass; a player beside a single grinder was
+       already cleared above and this loop finds nothing to do.
+
+       >>> BUT NOT WHILE THE MACHINE IS RUNNING. <<< Being spat out of the jaws
+       is an ESCAPE, and a player who stands in a closing pair is supposed to be
+       killed by it — ejecting them would end the contact a few frames in and
+       take the crush with it. So this runs only once nothing that holds them is
+       moving, which is the case it was written for: a player somehow left
+       inside a pair that has already stopped, who would otherwise be stuck
+       there for good. While the grinders run, they judder on the centre line
+       and die there, which is the point of standing in front of them. */
+    if (held_by_mover) return;
+
+    for (i = 0; i < grinder_count; i++) {
+        if (!gr_push_box(&grinders[i], py, radius, &min_x, &max_x, &min_z, &max_z))
+            continue;
+        if (*px <= min_x || *px >= max_x) continue;
+        if (*pz <= min_z || *pz >= max_z) continue;
+
+        int32_t push_f = *pz - min_z;      /* out through the south mouth */
+        int32_t push_b = max_z - *pz;      /* out through the north mouth */
+        *pz += (push_f < push_b) ? -push_f : push_b;
     }
 }
 

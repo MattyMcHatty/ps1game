@@ -192,7 +192,20 @@ typedef enum {
        the house bank sets `spare` at 6.6 KB and this does not fit it. A living
        statue placed inside the house would teleport and die in silence. */
     SFX_RUMBLE     = 36,
-    SFX_COUNT      = 37,
+    /* The Rear Gate's two grinders driving along their rails, played three
+       times back to back on each throw of the corridor lever. 1.76 s at
+       11025 Hz, 10.9 KB, and grinder_puzzle.c's GP_TRAVEL_FRAMES is cut to
+       exactly three of them — retrim this clip and that constant has to move
+       with it, the same contract SFX_GATE has with door_anim.c.
+
+       GARDEN bank, and GARDEN ONLY. Made resident it would push bank_base up by
+       its own 10.9 KB and overflow the HOUSE bank by 4.3 KB — the house bank is
+       the largest, so it both sets `spare` (6.6 KB, which this does not fit) and
+       has no room to be squeezed. The garden bank runs 119 KB to 130 KB of the
+       region's 185, so a copy there is free and `spare` does not move. A grinder
+       placed inside the house would be silent. */
+    SFX_GRIND      = 37,
+    SFX_COUNT      = 38,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

@@ -54,6 +54,10 @@ typedef struct {
     int32_t area;        /* the GameState this instance belongs to — see below */
     int32_t cut_x;       /* world X of the wall face it is set into, or
                             GRINDER_NO_CUT — see the block below */
+    int32_t moving;      /* 1 while it is under power and travelling. Set by
+                            whatever drives it; a grinder that moves without
+                            setting this is simply a wall that slides, and the
+                            player will be shoved by it rather than crushed. */
     int32_t active;
     int32_t half_w;      /* model-space XZ half-extents (footprint) */
     int32_t half_d;
@@ -101,6 +105,19 @@ void grinders_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 /* Hitscan solid test: 1 if (x,y,z) is inside a grinder's real solid volume
    (rotated footprint + height, no push margin). For gun line-of-sight. */
 int  grinders_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
+
+/* How many MOVING grinders had to shove the player on the last grinders_collide
+   call — 0, 1, or 2 for a pair closing on the same lane.
+ *
+ * This is the crush test, and it is measured DURING the push rather than after
+ * it because after it there is nothing to measure: the push puts the player
+ * exactly on the box's edge every frame, so a player being run down by a moving
+ * wall is never found inside one. What contact really means here is "the wall
+ * had to move me this frame", which is precisely what the push reports.
+ *
+ * Whoever drives the grinders owns what to do about it; the prop does not hurt
+ * anyone by itself. See grinder_puzzle.c. */
+int  grinders_crush_contacts(void);
 
 /* Is ANY instance of this family solid in the CURRENT AREA right now? Mirrors
    the non-coordinate gates of grinders_point_solid above/below, and nothing

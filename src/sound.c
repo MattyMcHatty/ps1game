@@ -69,6 +69,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\PULLIN.VAG;1",
     "\\SND\\HISS.VAG;1",
     "\\SND\\RUMBLE.VAG;1",
+    "\\SND\\GRIND.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -139,6 +140,12 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        so sets `spare` at 6.6 KB, which this does not fit. The garden bank goes
        from 105 KB to 119 KB of the region's 185, so it is free there. */
     [SFX_RUMBLE]     = SND_BANK_GARDEN,
+    /* The Rear Gate grinders' travel, 10.9 KB. GARDEN only, and unlike HISS and
+       RUMBLE above it could not have been resident even if the headroom were
+       there: a resident clip is charged twice, pushing bank_base up by its own
+       size AND shrinking the region, which puts the 178 KB house bank 4.3 KB
+       over. Garden goes 119 KB -> 130 KB of the region's 185. */
+    [SFX_GRIND]      = SND_BANK_GARDEN,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -193,6 +200,17 @@ static int sfx_channel(SfxID id) {
        screen, and the statue is SND_BANK_GARDEN — the two banks are never both
        loaded, so the two clips can never sound in the same room. */
     if (id == SFX_RUMBLE)      return 9;
+    /* The grinders' travel. Off the pool because it runs 1.76 s and is played
+       three times WITHOUT a gap — the sequence is 5.3 s long and the player is
+       free to walk, shoot and reload right through it. Its pool slot would be
+       FIRST_VOICE + (37 % 8) = 6, shared with SFX_AXEHIT and SFX_GR_RELOAD, and
+       a reload is exactly the sort of thing a player does while watching a door
+       close. VOICE 0, which FIRST_VOICE = 1 has always left out of the pool and
+       which nothing else in the game has ever claimed; 13..15 are spoken for by
+       the flower and the mushroom, and 9 is shared by the intro line and the
+       Living Statue — and the statue is GARDEN too, so it could sound in this
+       very room the day one is placed here. */
+    if (id == SFX_GRIND)       return 0;
     /* The menu blips, one voice each out of the free 10..15. They are short
        enough for the pool, but a menu is the one place the player fires sounds
        back to back at speed, and in the pool a cursor run would cut the confirm

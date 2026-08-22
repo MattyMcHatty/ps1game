@@ -19,6 +19,8 @@
 #include "texmgr.h"
 #include "dresser.h"
 #include "grinder.h"
+#include "grinder_puzzle.h"
+#include "lever.h"
 #include "garden_courtyard.h"    /* garden_courtyard_upload_textures      */
 #include "fountain_square.h"     /* fountain_square_upload_drain          */
 #include "save_point.h"
@@ -401,48 +403,25 @@ void rear_gate_init(void) {
     save_points_clear();
     dressers_clear();
 
-    /* ---- The two grinders in the corridor ---------------------------------
-       The PATH is the hedged corridor running south from the lawn, x[-300,300]
-       between collision walls 0 and 1, z[1500,-1500]. One grinder is set into
-       each side wall at z=-85, a little south of its midpoint.
+    /* ---- The corridor gate -------------------------------------------------
+       Two grinders set into the hedges of the southern path, and the lever in
+       its west wall that drives them together across it. grinder_puzzle_place()
+       owns all three placements AND the travel that links them — the grinders
+       have to meet exactly on the corridor's centre line and take exactly as
+       long about it as the sound that covers them — so it is the single source
+       of truth for the lot, the way lightswitch_place() is for the Attic Exit's
+       lever/light pairing. It clears the grinder and lever arrays itself.
 
-       THE MODEL is 400 x 400 in plan and 450 tall, authored with its base at
-       y=0 and the GRINDER-TEXTURED PLATE on its -X face; every other face takes
-       the plinth art. So the east one, whose plate must look west into the
-       corridor, is placed unrotated, and the west one is turned a half-turn
-       (2048) to face its plate east.
+       The geometry, and why each grinder's drawn shape is cut off at the hedge
+       face it stands in, is documented there and in the cut_x note in
+       src/grinder.h.
 
-       EIGHTY PER CENT BURIED, as asked: 320 of the 400 depth sits inside the
-       hedge and 80 protrudes. The corridor wall is at x=+/-300, so the front
-       face lands at +/-220 and the centre 200 further out again, at +/-420.
-       The back face is then at +/-620, which is well inside the hedge mass, and
-       the 450-tall body is under the hedge's 500-tall roofline — nothing pokes
-       out of the far side or over the top.
-
-       AND THE DRAWN SHAPE IS CUT OFF AT THE HEDGE FACE (the cut_x argument,
-       +/-300). It has to be: the model is an open-backed cap and skirt whose
-       skirt quads run its full 400 depth, so half-buried they STRADDLE the
-       hedge plane — and the corridor hedge is a single one-sided plane with
-       nothing behind it, no cap and no back face. A painter's sort can only put
-       such a quad wholly in front of the hedge or wholly behind it, and which
-       one it picks changes with the camera, so without the cut the grinders read
-       as buried up close and as standing out into the corridor from down the
-       path, hollow interior and all. See the cut_x note in src/grinder.h.
-
-       >>> THE HEDGE, NOT THE GRINDER, IS WHAT THE PLAYER BUMPS INTO TODAY. <<<
-       The wall radius here is the default 195, so walls 0 and 1 already hold the
-       player at x=+/-105 — 115 units short of a protruding face. The collision
-       box below is real and correctly placed; it simply cannot be reached while
-       the grinder is this deep in the hedge, and it starts mattering the moment
-       the puzzle slides one out into the lane. That is why it is written
-       properly rather than left out.
-
-       y = -149 is the standing reference for a floor at world y=0 (see
-       GROUND_FLOOR_Y), which is what the whole corridor sits at — floor zone 1's
-       flat plane, not the ramp further south. */
-    grinders_clear();
-    grinder_add(-420, -149, -85, 2048, STATE_REAR_GATE, -300);  /* west wall, plate faces +X */
-    grinder_add( 420, -149, -85,    0, STATE_REAR_GATE,  300);  /* east wall, plate faces -X */
+       >>> THE HEDGE, NOT THE GRINDER, IS WHAT THE PLAYER BUMPS INTO WHILE THE
+       CORRIDOR IS OPEN. <<< The wall radius here is the default 195, so walls 0
+       and 1 hold the player at x=+/-105, 115 short of a protruding face. The
+       grinders' own boxes only start mattering once the lever has sent them out
+       into the lane — which is now something that happens. */
+    grinder_puzzle_place();
 }
 
 static void draw_rear_gate_smd(RenderContext *ctx) {
@@ -741,6 +720,7 @@ void rear_gate_draw(RenderContext *ctx) {
        (7) for every face but the grinder plate, which carries the prop's own
        art; both sit at Voff 0, so the 128 window set above serves them. */
     grinders_draw(ctx, tex_tpage[7], tex_clut[7]);
+    levers_draw(ctx);   /* the corridor lever (flat-shaded, no texture) */
 
     {
         draw_zombies(ctx);
@@ -753,6 +733,7 @@ void rear_gate_draw(RenderContext *ctx) {
         sml_meds_draw(ctx);
     }
 
-    /* Last: the gate sign. */
+    /* Last: the two signs — the east gate's, and the corridor lever's. */
     gate_text(ctx);
+    grinder_puzzle_draw(ctx);
 }

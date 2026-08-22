@@ -95,6 +95,7 @@ add_executable(horror_game
     src/save_point.c
     src/dresser.c
     src/grinder.c
+    src/grinder_puzzle.c
     src/texmgr.c
     src/room_arena.c
     src/key.c

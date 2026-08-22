@@ -151,6 +151,17 @@
                      bank leaves. A living statue placed inside the house would
                      be silent on both events. -->
                 <file name="RUMBLE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\rumble.vag"/>
+                <!-- The Rear Gate's grinders driving along their rails. 1.76 s
+                     at 11025 Hz, 10.9 KB, played three times back to back and
+                     the travel timed to exactly that (see grinder_puzzle.c).
+                     GARDEN bank only: made resident it would push bank_base up
+                     11 KB and overflow the HOUSE bank by 4.3 KB, and the house
+                     bank is the largest so it also sets the 6.6 KB of `spare`
+                     this clip does not fit. The garden bank goes 119 KB -> 130
+                     of the region's 185, so it is free there and `spare` does
+                     not move. A grinder placed inside the house would be
+                     silent. -->
+                <file name="GRIND.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\grind.vag"/>
                 <!-- SND_BANK_INTRO, a bank of one: the Order of Ninurta line
                      over the opening sequence's white flash. Banked because
                      21.6 KB will not fit the resident headroom, and it is only
