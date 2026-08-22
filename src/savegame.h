@@ -17,7 +17,15 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   14            /* v14: the WorldDelta gained
+#define SAVE_VERSION   15            /* v15: the WorldDelta gained hadads_state
+                                        — TWO bits per instance rather than the
+                                        usual one, because Hadad can be spent as
+                                        well as dead (see world.h and hadad.h).
+                                        Same reasoning as the v14 bump below:
+                                        the delta_size check would already have
+                                        rejected a v14 save, and the bump makes
+                                        the reason legible;
+                                        v14: the WorldDelta gained
                                         mushrooms_dead (the Mushroom Head, one
                                         bit per instance of a global
                                         area-tagged array — see world.h). The

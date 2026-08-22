@@ -14,6 +14,7 @@
 #include "rafflesia.h"
 #include "mushroom.h"
 #include "living_statue.h"
+#include "hadad.h"
 #include "rabisu.h"
 #include "savegame.h"
 #include "sound.h"
@@ -51,6 +52,8 @@ typedef struct {
     int       mushroom_count;
     LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
     int          living_statue_count;
+    Hadad     hadads[MAX_HADADS];         /* ditto: the Rear Gate's scripted one */
+    int       hadad_count;
 } WorldState;
 
 /* The delta's bit widths must cover the live arrays. Raise the WD_MAX_* in
@@ -68,6 +71,7 @@ _Static_assert(MAX_RABISUS       <= WD_MAX_RABISUS,  "rabisus_dead too narrow");
 _Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow");
 _Static_assert(MAX_LIVING_STATUES <= WD_MAX_LIVING_STATUES,
                "living_statues_dead too narrow");
+_Static_assert(MAX_HADADS        <= WD_MAX_HADADS,  "hadads_state too narrow");
 /* The `visited` bitmap is what caps the room count — one bit per room. It was a
    uint16_t and the sixteenth room filled it exactly; Maze One is the seventeenth
    and widened it to 32 bits. This assert is what makes the NEXT overflow a
@@ -86,6 +90,7 @@ extern Rabisu    rabisus[MAX_RABISUS];         extern int rabisu_count;
 extern Mushroom  mushrooms[MAX_MUSHROOMS];     extern int mushroom_count;
 extern LivingStatue living_statues[MAX_LIVING_STATUES];
 extern int          living_statue_count;
+extern Hadad     hadads[MAX_HADADS];           extern int hadad_count;
 extern Crate     crates[MAX_CRATES];           extern int crate_count;
 extern KeyPickup keys[MAX_KEYS];               extern int key_count;
 extern SmlMed    sml_meds[MAX_SML_MEDS];       extern int sml_med_count;
@@ -168,6 +173,8 @@ static void snapshot_fatdoors(void) {
     world.mushroom_count = mushroom_count;
     memcpy(world.living_statues, living_statues, sizeof living_statues);
     world.living_statue_count = living_statue_count;
+    memcpy(world.hadads, hadads, sizeof hadads);
+    world.hadad_count = hadad_count;
 }
 
 void world_new_game(void) {
@@ -204,6 +211,12 @@ void world_silence_monsters(void) {
                                    its death (living_statue.c). 2.12 s, so one
                                    fired on the last frame before a transition
                                    would otherwise grind on into the next room */
+    /* Hadad borrows that same rumble AND owns a CD-DA track, which the line
+       above cannot touch. "The music should stop as soon as the player exits
+       the current room" is this call: update_hadads is area-gated and stops
+       running the instant the transition begins, so nothing else could ever
+       turn the track off again. */
+    hadads_silence();
 }
 
 void world_leave(GameState area) {
@@ -215,6 +228,10 @@ void world_leave(GameState area) {
     rabisus_rest();
     mushrooms_rest();
     living_statues_rest();
+    /* NOT simply "back at his spawn": where Hadad starts a visit depends on the
+       two flags, and leaving mid-chase is also what burns the second encounter
+       out. hadads_rest() owns both — see the note on it in hadad.h. */
+    hadads_rest();
     demon_dogs_rest();
     /* The rafflesias go further than "rest": they come back at full health even
        if they were killed. They are the one enemy with no permanent death (see
@@ -627,21 +644,43 @@ void world_seed_room(GameState area) {
         living_statue_add(685, 2330, -281, 1, STATE_MAZE_TWO);
     }
 
-    /* Rear Gate: SEEDED EMPTY, deliberately and not for want of a sound bank.
-       The room is on SND_BANK_GARDEN like the rest of the chain (main.c's
-       STATE_LOADING), so SFX_HISS, SFX_RUMBLE and the flowers' loops are all
-       there and a rafflesia, a mushroom head or a living statue could be dropped
-       in tomorrow — rear_gate_draw already hands every one of those renderers
-       this room's texture window for exactly that. It is empty because nothing
-       has been designed for it yet.
+    /* Rear Gate: HADAD, on the plinth in the middle of the lawn — the statue the
+       block's own inscription is a memorial to (rear_gate.c's plinth text reads
+       "In memoriam of Hadad, a great hero").
 
-       Two notes for whoever fills it. Its ground is the room's flat y=0 lawn, so
-       the standing anchor is -149, the same authored literal every other garden
-       placement uses — do NOT probe collision here, world_seed_room runs for
-       rooms whose geometry is not resident. And the southern ramp is the one
-       piece of this room that is NOT at y=0: it climbs to -500 at z=-3200, so
-       anything placed on x[-300,300] z[-3200,-2100] needs its own anchor worked
-       out from the slope rather than -149. */
+       The plinth is x[-300,300] z[2500,3100] and 200 tall (collision walls 2 and
+       34-36 box it), so its centre is (0, 2800) and its top face is at mesh
+       y=-200. A Hadad's `y` is the STANDING ANCHOR and his feet are at y + 150,
+       so the anchor is -350 and the body runs from -800 (crown) to -200 (feet,
+       flush with the stone). The anchor is independent of his HEIGHT — the
+       invariant HAD_Y_OFFSET + HAD_HALF_H == 150 absorbs that — so halving him
+       did not move this line. AUTHORED, not probed — world_seed_room
+       runs for rooms whose geometry is not resident, and had_floor_anchor is
+       only consulted when he TELEPORTS, which is the first moment he leaves the
+       plinth.
+
+       >>> THIS IS THE ONLY PLACEMENT HE EVER GETS, IN ANY FLAG STATE. <<< Where
+       he actually stands on a given visit is decided by hadads_rest() out of
+       FLAG_HADAD_ONE/TWO, and by update_hadads on a FIRST visit where rest has
+       never run. Seeding him anywhere but the plinth would make a save rebuild
+       disagree with a fresh walk-in.
+
+       At 600 tall his crown clears the room's 500-tall perimeter hedge by 300,
+       so unlike Maze Two's Living Statue he is visible from the moment the
+       player steps in through the east gate. He is well inside the drawn ceiling
+       everywhere he goes: the hedge line is -500 but the south brick wall is
+       drawn to -1500, and at the top of the ramp his crown reaches only -640.
+
+       Sound: this room is on SND_BANK_GARDEN (main.c's STATE_LOADING), so
+       SFX_RUMBLE sounds here, as do the resident SFX_AXEHIT / SFX_HURT / SFX_DIE.
+       His music is CD-DA and needs no bank at all.
+
+       The room holds nothing else. It is on the garden bank, so a rafflesia, a
+       mushroom head or a living statue could still be dropped in — rear_gate_draw
+       hands every one of those renderers this room's texture window already. */
+    if (area == STATE_REAR_GATE) {
+        hadad_add(HAD_PLINTH_X, HAD_PLINTH_Z, HAD_PLINTH_ANCHOR, STATE_REAR_GATE);
+    }
 }
 
 void world_enter(GameState area) {
@@ -788,6 +827,21 @@ void world_save_delta(WorldDelta *d) {
                 d->living_statues_dead |= (uint8_t)
                     (1u << canonical_index(areas, world.living_statue_count, i));
     }
+    {
+        /* TWO bits apiece — dead and spent. `spent` has to ride the save
+           because it is the one fact about Hadad that FLAG_HADAD_TWO cannot
+           reconstruct: the flag says the second encounter exists, and this says
+           it has already been had. */
+        GameState areas[MAX_HADADS];
+        for (i = 0; i < world.hadad_count; i++) areas[i] = world.hadads[i].area;
+        for (i = 0; i < world.hadad_count; i++) {
+            int c = canonical_index(areas, world.hadad_count, i);
+            if (world.hadads[i].state == HAD_DEAD)
+                d->hadads_state |= (uint8_t)(1u << (2 * c));
+            if (world.hadads[i].spent)
+                d->hadads_state |= (uint8_t)(1u << (2 * c + 1));
+        }
+    }
 }
 
 void world_load_delta(const WorldDelta *d) {
@@ -803,6 +857,7 @@ void world_load_delta(const WorldDelta *d) {
     rabisus_reset();
     mushrooms_reset();
     living_statues_reset();
+    hadads_reset();
     fatdoors_reset();
     tentacles_reset();
     /* Not rebuilt by the room walk (its placements are fixed at startup, like
@@ -863,6 +918,12 @@ void world_load_delta(const WorldDelta *d) {
         if (d->mushrooms_dead & (1u << i)) mushrooms[i].state = MSH_DEAD;
     for (i = 0; i < living_statue_count; i++)
         if (d->living_statues_dead & (1u << i)) living_statues[i].state = LST_DEAD;
+    for (i = 0; i < hadad_count; i++) {
+        /* `spent` FIRST, because hadads_rest() reads it to decide where he
+           stands, and the world_enter() that follows a load runs that path. */
+        if (d->hadads_state & (1u << (2 * i + 1))) hadads[i].spent = 1;
+        if (d->hadads_state & (1u << (2 * i)))     hadads[i].state = HAD_DEAD;
+    }
 
     snapshot_fatdoors();
 }

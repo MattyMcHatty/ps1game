@@ -15,6 +15,7 @@
 #include "lever.h"
 #include "grinder.h"
 #include "grinder_puzzle.h"
+#include "hadad.h"          /* the lever lockout, and the thing the plates kill */
 
 /* ---- The corridor ----------------------------------------------------------
    The PATH is the hedged corridor running south out of the Rear Gate's lawn:
@@ -43,6 +44,17 @@
    grinder emerges more of its body simply comes into view; the part still
    inside the hedge goes on being clipped. See the cut_x note in grinder.h for
    why the clip exists at all. */
+/* The strip the closing plates sweep, for anything the grinders can catch that
+   is not the player. The pair span x[-400,400] when shut and each body occupies
+   z[-285,115] in either position, so that rectangle IS the danger zone and it
+   never moves — only the plates inside it do. Hadad is caught by his CENTRE
+   being in it, not by an overlap test: he is 600 wide and the corridor is 600
+   wide, so "his centre is between the plates" and "he is between the plates"
+   are the same statement here. */
+#define GP_CRUSH_X_HALF  400
+#define GP_CRUSH_Z_MIN  (-285)
+#define GP_CRUSH_Z_MAX    115
+
 #define GP_W_OPEN_X    (-420)
 #define GP_W_SHUT_X    (-200)
 #define GP_E_OPEN_X      420
@@ -230,6 +242,17 @@ void grinder_puzzle_update(int lock) {
        on the frame the wall reached the player rather than the frame after. */
     crush_update(grinders_crush_contacts());
 
+    /* ...and the same plates on HADAD. This is the intended answer to a
+       hundred-swing health bar, and it is only ever reachable under
+       FLAG_HADAD_TWO because that is the only state in which the lever below
+       will accept a press at all (hadad_lever_locked). Tested on every frame of
+       the closing travel rather than only on the throw, so walking into the
+       plates while they are already moving catches him too — which is what the
+       player has to engineer, since he is not going to stand there. Area-gated
+       inside the module, so it costs nothing anywhere else. */
+    if (shut)
+        hadads_grinder_crush(GP_CRUSH_X_HALF, GP_CRUSH_Z_MIN, GP_CRUSH_Z_MAX);
+
     /* The lever's swing, independent of the machinery it started. */
     {
         int want = shut ? GP_THROW_FRAMES : 0;
@@ -262,6 +285,15 @@ void grinder_puzzle_update(int lock) {
     }
 
     if (lock) return;
+
+    /* >>> HADAD TAKES THE LEVER AWAY. <<< Once the first encounter has armed,
+       the corridor gate is dead — the player cannot shut it on him and cannot
+       re-open it either — and it stays dead until FLAG_HADAD_TWO replaces flag
+       one, at which point the grinders become the way to kill him. Refused
+       before the edge detector is read, which costs nothing: the lock can only
+       change between visits, and grinder_puzzle_place() re-seeds interact_prev
+       held on every entry. */
+    if (hadad_lever_locked()) return;
 
     {
         int held = interact_tapped();

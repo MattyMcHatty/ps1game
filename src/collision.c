@@ -14,6 +14,7 @@
 #include "save_point.h"
 #include "rafflesia.h"
 #include "living_statue.h"
+#include "hadad.h"
 #include "piano_props.h"
 #include "concrete_props.h"
 #include "trick_drawers.h"
@@ -747,6 +748,15 @@ void apply_collision_reception(void) {
        265 stop. That is past what a centre-based melee test could reach, which
        is why the crucifaxe measures to its surface — see LST_BODY_RADIUS. */
     living_statues_collide(&cam_x, cam_y, &cam_z, LST_WALL_LIKE_PUSH);
+    /* Hadad, on the same terms and before the walls for the same reason: on the
+       plinth his push circle sits inside that block's own collision box, and
+       pushed last he would shove the player into the stone. He gets the WALL
+       radius too — "a collision zone around him so the player can't walk
+       through him" was asked for explicitly, and it is also what makes him a
+       plug in a 600-wide corridor rather than something to squeeze past. His
+       300 + 195 is a 495 stop, well past what a centre-based melee test could
+       reach, which is why the crucifaxe measures to his surface. */
+    hadads_collide(&cam_x, cam_y, &cam_z, HAD_WALL_LIKE_PUSH);
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly_y(&r->walls[i], &cam_x, &cam_z,

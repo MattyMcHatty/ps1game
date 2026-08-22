@@ -32,6 +32,24 @@
 #define CD_FAIL_LIMIT       4   /* consecutive failed position reads = drive stopped */
 #define CD_END_MARGIN      75   /* restart this many sectors (~1s) before the lead-out */
 
+/* Per-track LOOP OFFSET
+ * ---------------------
+ * A repeat does not have to begin where the track begins. CD-DA runs at exactly
+ * 75 sectors a second, so an offset in seconds is an exact sector count and the
+ * seek lands on a frame boundary with no drift however many times it loops.
+ *
+ * Only Hadad's track uses one: its first four seconds are a one-off swell that
+ * belongs to his arrival, and hearing it again every twenty seconds would turn
+ * the cue into a metronome. The FIRST play still starts at the top — that is the
+ * whole point of the swell — so the offset is applied by the RESTART path
+ * (issue_replay) and not by cdaudio_play.
+ *
+ * 4.015 s x 75 = 301.125 sectors; 301 is the frame the loop starts on. Expressed
+ * as the numerator over 1000 rather than as a float because there is no FPU here
+ * and the intent is easier to check against the design than a bare 301 would be. */
+#define CD_SECTORS_PER_SEC   75
+#define CDAUDIO_STALKER_LOOP_MS  4015   /* 4.015 s -> 301 sectors */
+
 /* Per-track mix level, applied by cdaudio_play().
  * ------------------------------------------------
  * CD audio passes through TWO independent volume stages on the way out, and
@@ -68,6 +86,9 @@
 static int           cd_audio_playing = 0;
 static int           cd_track_num     = 0;
 static int           cd_loop_mode     = 0;
+/* Sectors past the track start that a REPEAT begins at. 0 for every track but
+   Hadad's; see the loop-offset note above. */
+static uint32_t      cd_loop_offset   = 0;
 
 /* Resolved start location of the music track (from the TOC). */
 static CdlLOC        cd_track_loc;
@@ -204,6 +225,16 @@ static void issue_play_from(uint32_t at) {
 /* Start the track from its beginning. */
 static void issue_play(void) { issue_play_from(0); }
 
+/* Start the track AGAIN — the loop restart. Identical to issue_play() for every
+   track whose cd_loop_offset is 0, which is all of them but Hadad's; for that
+   one it skips the arrival swell. Falls back to the track start if the location
+   was never resolved, so a TOC read that failed is merely unmusical rather than
+   a seek into the lead-out. */
+static void issue_replay(void) {
+    if (!cd_loop_offset || !cd_loc_valid) { issue_play(); return; }
+    issue_play_from(loc_to_sector(&cd_track_loc) + cd_loop_offset);
+}
+
 void cdaudio_init(void) {
     /* Route CD audio into the SPU mixer at full volume, and leave it there for
        good: per-track levels are set on the DRIVE's mixer by cdaudio_play(),
@@ -253,6 +284,13 @@ void cdaudio_play(int track, int loop) {
         CdMix(&mix);
     }
 
+    /* Where a REPEAT of this track begins. Re-derived on every play so it can
+       never be left set from a previous room's track — the same self-correcting
+       arrangement the mix level above uses. */
+    cd_loop_offset = (track == CDAUDIO_STALKER_TRACK)
+                   ? (uint32_t)((CDAUDIO_STALKER_LOOP_MS * CD_SECTORS_PER_SEC) / 1000)
+                   : 0;
+
     cd_audio_playing = 1;
     cd_track_num     = track;
     cd_loop_mode     = loop;
@@ -285,7 +323,7 @@ void cdaudio_update(void) {
        direct indicator and is what catches PCSX-Redux. */
     int playing = drive_is_playing();
     if (playing == 0) {
-        if (++notplay_count >= CD_NOTPLAY_LIMIT) { issue_play(); return; }
+        if (++notplay_count >= CD_NOTPLAY_LIMIT) { issue_replay(); return; }
     } else if (playing == 1) {
         notplay_count = 0;
     }
@@ -295,7 +333,7 @@ void cdaudio_update(void) {
     int      cur_track = 0;
     if (!read_position(&cur, &cur_track)) {
         /* Signal 2: position reads keep failing — drive has likely stopped. */
-        if (++fail_count >= CD_FAIL_LIMIT) { issue_play(); return; }
+        if (++fail_count >= CD_FAIL_LIMIT) { issue_replay(); return; }
         return;
     }
     fail_count = 0;
@@ -308,21 +346,21 @@ void cdaudio_update(void) {
     if (cd_end_sector > CD_END_MARGIN &&
         cur >= (cd_end_sector - CD_END_MARGIN) &&
         cur <= (cd_end_sector + (75 * 5))) {
-        issue_play();
+        issue_replay();
         return;
     }
 
     /* Signal 4: playback left our track (into the next track or the lead-out).
        cur_track == 0 is treated as "unknown" and ignored. */
     if (cur_track != 0 && cur_track != cd_track_num) {
-        issue_play();
+        issue_replay();
         return;
     }
 
     /* Signal 5: position stopped advancing — drive reached end of disc. */
     if (cur <= last_sector) {
         if (++stall_count >= CD_STALL_LIMIT) {
-            issue_play();
+            issue_replay();
             return;
         }
     } else {

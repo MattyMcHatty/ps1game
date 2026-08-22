@@ -25,6 +25,18 @@ typedef enum {
     DBG_HAS_KEY_STONES,      /* blue + yellow + green: the exit door's inputs    */
     DBG_INFINITE_LIFE,       /* enemy damage does not reduce health              */
     DBG_INFINITE_STAMINA,    /* sprinting never drains the bar                   */
+    /* Hadad's two encounter flags, so the Rear Gate can be jumped into with
+       either half of him already armed instead of having to be played up to.
+       One-shot grants like the item ones above and for the same reason: they
+       set persistent GameFlags, and a room must not be able to init before the
+       flag is there — update_hadads reads them on its FIRST frame to decide
+       where he is standing (see hadad.h).
+
+       They are NOT mutually exclusive in code, and that is deliberate: flag two
+       ignores flag one wherever the two disagree, so ticking both is a legal
+       state and the honest way to test that rule. */
+    DBG_HADAD_FLAG_ONE,      /* he is posted at the bottom of the corridor       */
+    DBG_HADAD_FLAG_TWO,      /* the second encounter: absent until the ramp      */
     DEBUG_OPT_COUNT
 } DebugOpt;
 

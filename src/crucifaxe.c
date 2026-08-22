@@ -24,6 +24,7 @@
 #include "rafflesia.h"
 #include "mushroom.h"
 #include "living_statue.h"
+#include "hadad.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -40,6 +41,7 @@ static int tent_hit_this_swing  = 0;
 static int raf_hit_this_swing   = 0;
 static int msh_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
+static int had_hit_this_swing   = 0;
 
 void crucifaxe_init(void) {
     CdlFILE file;
@@ -81,6 +83,7 @@ void update_crucifaxe(void) {
         raf_hit_this_swing     = 0;
         msh_hit_this_swing     = 0;
         lst_hit_this_swing     = 0;
+        had_hit_this_swing     = 0;
         sound_play(SFX_SWING);
     }
 
@@ -280,6 +283,23 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !lst_hit_this_swing) {
             if (living_statues_try_hit())
                 lst_hit_this_swing = 1;
+        }
+
+        /* HADAD — the Living Statue's arrangement in every respect, and for
+           every one of the same reasons. The axe is the ONLY thing that can
+           hurt him (1 a swing against 100 HP, so a hundred connected swings),
+           there is no Grave-olver block for him anywhere, he is SKIPPED rather
+           than reported as hit while he is on his plinth or out of the room so
+           the swing stays live for anything else, and the reach is measured in
+           his own module because his 495 stop distance is far past the
+           Manhattan dist3d the inlined blocks above use. See HAD_BODY_RADIUS.
+
+           The other way to kill him is not a weapon at all: under FLAG_HADAD_TWO
+           the corridor grinders empty the whole bar at once
+           (hadads_grinder_crush). */
+        if (swing_timer <= SWING_DURATION && !had_hit_this_swing) {
+            if (hadads_try_hit())
+                had_hit_this_swing = 1;
         }
 
         /* >>> THERE IS DELIBERATELY NO RABISU BLOCK HERE. <<< The boss is the

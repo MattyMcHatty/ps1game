@@ -27,8 +27,10 @@
                finishing at the north gate. All of it at y=0.
      PLINTH    a 200-tall block at x[-300,300] z[2500,3100], standing in the
                middle of the lawn. Collision walls 2/34/35/36 box it, so it is a
-               real obstacle to walk around rather than set dressing; nothing
-               stands on it (Maze Two's plinth is the one with a statue).
+               real obstacle to walk around rather than set dressing. HADAD
+               stands on it (src/hadad.h) — 600 x 600, so his crown reaches
+               y=-800 and clears the perimeter hedge by 300. The inscription on
+               the block's south face is his epitaph.
      ALCOVES   two shallow dead ends off the lawn's south edge at z[1299,1500],
                x[900,2000] and x[-2000,-900].
      PATH      a hedged corridor running south from the lawn at x[-300,300]. Its
@@ -82,11 +84,13 @@
      NORTH   the leaf at z≈4100, x[-1300,1300], behind collision wall 13. Also
      WALL    drawn shut, also unconnected.
 
-   NO MUSIC. cdaudio_stop() on arrival, the Garden Stairs' and the Garden
+   NO ROOM MUSIC. cdaudio_stop() on arrival, the Garden Stairs' and the Garden
    Courtyard's arrangement rather than Fountain Square's — stopped rather than
    merely not started, so a title-screen load or a debug level-select jump
    (neither of which passes through the gate transition's own stop) also arrives
-   in silence. Fog and cull are MAZE ONE'S exactly, 575/2500 in the garden's
+   in silence. HADAD BRINGS HIS OWN (CD-DA track 8), started and stopped by
+   update_hadads and cut by world_silence_monsters on the way out; the silence
+   above is this room's baseline, not a guarantee. Fog and cull are MAZE ONE'S exactly, 575/2500 in the garden's
    purple, so the step through the square's west gate changes the plan of the
    place but not the weather.
 

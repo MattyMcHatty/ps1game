@@ -51,6 +51,7 @@ add_executable(horror_game
     src/rafflesia.c
     src/mushroom.c
     src/living_statue.c
+    src/hadad.c
     src/conservatory_mesh_collision.c
     src/conservatory.c
     src/hall_2f_mesh_collision.c

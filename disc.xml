@@ -274,6 +274,14 @@
                      is the only VRAM left — see living_statue.h. -->
                 <file name="LSIDLE.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\ls_idle.tim"/>
                 <file name="LSATK.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\ls_atk.tim"/>
+                <!-- Hadad. Three 64x96 8bpp frames, each owning its own slot
+                     in the 96-row band under the HUD; the 64x96 PNGs are
+                     committed beside the 128x128 originals so the conversion
+                     stays reproducible. See hadad.h on why three frames could
+                     not be 128x128. -->
+                <file name="HADIDLE.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\hadad_idle_64.tim"/>
+                <file name="HADSTP1.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\hadad_stp1_64.tim"/>
+                <file name="HADSTP2.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\hadad_stp2_64.tim"/>
                 <file name="MSTRBED.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\master_bedroom.smd"/>
                 <file name="BED.TIM"      type="data" source="C:\Users\virtu\Documents\ps1game\textures\bed.tim"/>
                 <file name="EASTHALL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\east_hall.smd"/>
@@ -492,6 +500,14 @@
          did not notice.)
          Convert music with pydub/ffmpeg straight to 44100 stereo instead. -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\artifystudio-eerie-ambient-10-205803.wav"/>
+
+    <!-- Track 8: Hadad's stalk. 20.0 s, and the ONLY track that does not repeat
+         from its own start: cdaudio.c gives it a loop offset so every pass after
+         the first begins 4.015 s in, past the arrival swell that belongs to the
+         moment he appears. See CDAUDIO_STALKER_TRACK.
+         44100 Hz 16-bit stereo like the rest — converted with
+         ffmpeg y i "stalker music.mp3" ac 2 ar 44100 sample_fmt s16 -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\stalker music.wav"/>
 
 
 </iso_project>

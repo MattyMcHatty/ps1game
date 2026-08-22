@@ -30,6 +30,7 @@
 #include "rafflesia.h"
 #include "mushroom.h"
 #include "living_statue.h"
+#include "hadad.h"
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
@@ -794,9 +795,10 @@ void rear_gate_draw(RenderContext *ctx) {
     /* Every sprite enemy renderer is handed this room's texture window, because
        all of their sprites live at Voff >= 128 and must bracket it rather than
        sample the hedge (see tools/TEXTURING_NOTES.txt PART 5). NOTHING is placed
-       here yet — world.c seeds the room empty — so all of these run over empty
-       arrays and cost nothing; they are wired up so that a future spawn brackets
-       its quad correctly instead of drawing this room's grass on a monster.
+       here yet EXCEPT HADAD, whose three sprites sit at Voff 128 like the rest
+       and so need the same bracket; the others run over empty arrays and cost
+       nothing, and are wired up so that a future spawn brackets its quad
+       correctly instead of drawing this room's grass on a monster.
 
        When something is placed, it is sound-legal: this room is on
        SND_BANK_GARDEN (main.c's STATE_LOADING), which is where SFX_HISS and the
@@ -810,6 +812,7 @@ void rear_gate_draw(RenderContext *ctx) {
         rafflesias_set_texwindow(&tw);
         mushrooms_set_texwindow(&tw);
         living_statues_set_texwindow(&tw);
+        hadads_set_texwindow(&tw);
     }
     /* The two grinders in the corridor. Drawn with the room's own plinth slot
        (7) for every face but the grinder plate, which carries the prop's own
@@ -823,6 +826,7 @@ void rear_gate_draw(RenderContext *ctx) {
         draw_rafflesias(ctx);
         draw_mushrooms(ctx);
         draw_living_statues(ctx);
+        draw_hadads(ctx);
         webs_draw(ctx);
         item_pickups_draw(ctx);
         sml_meds_draw(ctx);

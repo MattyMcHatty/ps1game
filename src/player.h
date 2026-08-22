@@ -50,6 +50,25 @@ typedef enum {
        trick drawers, and each could then be farmed indefinitely. */
     FLAG_POT_TAKEN,          /* Copper Pot collected: its world sprite is gone for good */
     FLAG_DRAWERS_SOLVED,     /* 2F trick drawers beaten: the Wax Cube was awarded */
+    /* Hadad, the thing on the Rear Gate's plinth. Two flags rather than one
+       because the encounter has two halves that run in the SAME room and want
+       opposite behaviour out of it, and neither can be read off anything else —
+       he awards no item and consumes none. See src/hadad.h for the whole state
+       table; the short version is:
+
+         FLAG_HADAD_ONE  he has come off the plinth once. He is then permanently
+                         posted at the foot of the ramp on every return visit,
+                         and the corridor lever is dead for as long as this is
+                         the ONLY one of the two that is set.
+         FLAG_HADAD_TWO  the second encounter is armed. It IGNORES flag one
+                         entirely — the lever works again and Hadad is not in
+                         the room until the player comes back up off the ramp.
+
+       Flag two is not set by anything yet, by design: what turns it on has not
+       been designed. Until then it is reachable only from the title screen's
+       debug menu (DBG_HADAD_FLAG_TWO). */
+    FLAG_HADAD_ONE,
+    FLAG_HADAD_TWO,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

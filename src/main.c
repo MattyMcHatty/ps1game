@@ -74,6 +74,7 @@
 #include "rafflesia.h"
 #include "mushroom.h"
 #include "living_statue.h"
+#include "hadad.h"
 #include "rabisu.h"
 #include "rabisu_boss.h"
 #include "delivery_intro.h"
@@ -165,6 +166,7 @@ void reset_game(RenderContext *ctx) {
     rafflesias_reset();
     mushrooms_reset();
     living_statues_reset();
+    hadads_reset();
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
@@ -245,6 +247,7 @@ static void update_current_area(GameState area) {
         update_rafflesias();    /* ...and the garden flowers keep gripping */
         update_mushrooms();     /* ...and the Mushroom Head keeps hunting  */
         update_living_statues();/* ...and the statue keeps closing in       */
+        update_hadads();        /* ...and Hadad keeps walking his corridor  */
         webs_update();          /* ...and their webs keep flying */
         player_status_update();
         trick_drawers_update();
@@ -259,6 +262,7 @@ static void update_current_area(GameState area) {
         update_rafflesias();
         update_mushrooms();
         update_living_statues();
+        update_hadads();
         webs_update();
         player_status_update();
         kitchen_stove_update();
@@ -295,6 +299,7 @@ static void update_current_area(GameState area) {
         update_rafflesias();
         update_mushrooms();
         update_living_statues();
+        update_hadads();
         webs_update();
         player_status_update();
         exit_door_puzzle_update();
@@ -859,6 +864,10 @@ static void update_current_area(GameState area) {
        the camera at a board, so a statue behind the player is unwatched for the
        whole of it. */
     update_living_statues();
+    /* Likewise area-tagged, and in the camera-locked branches above for the same
+       reason the statue is: he keeps walking his corridor through a puzzle, and
+       under flag one he is what stands between the player and the way back. */
+    update_hadads();
     webs_update();            /* spider webs in flight (area-tagged, so free
                                  in rooms that have none) */
     player_status_update();   /* ticks the web's poison timer down */
@@ -1152,6 +1161,10 @@ int main(int argc, const char **argv) {
                                   sprites OWN their VRAM slots in the 96-row
                                   band under the HUD — see living_statue.h */
     living_statues_init();
+    hadads_load_textures();    /* startup CD read only, as above. All THREE
+                                  sprites own their VRAM slots in the same
+                                  96-row band under the HUD — see hadad.h */
+    hadads_init();
     rabisus_load_assets();     /* boss MODEL, not sprites: one CD read for
                                   RABISU.SMD. Startup-only for the same reason —
                                   CD access is unsafe once the render loop runs.
@@ -1659,7 +1672,14 @@ int main(int argc, const char **argv) {
                    Stairs and the Garden Courtyard do it: a title-screen load or
                    a debug level-select jump does not pass through the gate
                    transition's own cdaudio_stop, and without this line either
-                   would carry Fountain Square's track in with it. */
+                   would carry Fountain Square's track in with it.
+
+                   >>> THE ROOM IS SILENT; HADAD IS NOT. <<< update_hadads owns a
+                   CD track of its own and brings it up the moment he is active
+                   in here, so this stop is the room's BASELINE rather than its
+                   whole story. It has to run first either way — arriving with
+                   the square's track still going and then layering the stalk on
+                   top is not something cdaudio can do. See hadad.h. */
                 cdaudio_stop();
             } else {
                 /* Return to the delivery area: restore its collision/floor and
