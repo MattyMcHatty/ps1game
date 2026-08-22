@@ -582,6 +582,10 @@ Code-level checks before handing over:
       placement bugs would have been caught before the user saw them.
   [ ] Any drop/fall animation completes before it lands: fall distance /
       DROP_VEL frames must exceed the animation's frame count.
+  [ ] If it is rooted, or solid, or has an activation radius: the reachability
+      sweep from mistake 9 was run, it models walls FRONT-ONLY, it flood fills
+      from the spawn, and one of its distances was checked by hand. A sweep that
+      disagrees with the room is worse than no sweep — see mistake 12.
 
 In-game (needs an emulator; say so plainly if you have not run it):
   [ ] The enemy sits flush against whatever it is attached to, in the room the
@@ -653,10 +657,44 @@ In-game (needs an emulator; say so plainly if you have not run it):
        or the pull just grinds the player into the geometry forever.
 
    Check it, do not eyeball it. Parse the room's *_mesh_collision.c, sweep a
-   grid, drop every point closer than the wall radius to any wall segment, and
-   take the minimum distance to each spawn. That sweep is thirty lines and it
-   would have caught this before the user ever saw it. Do the same whenever an
-   enemy is replanted or a room's standoff changes.
+   grid, drop every point the walls would push, FLOOD FILL from the room's
+   spawn, and take the minimum distance from the surviving cells to each spawn
+   point. That sweep is forty lines and it would have caught this before the
+   user ever saw it. Do the same whenever an enemy is replanted or a room's
+   standoff changes.
+
+   >>> AND MODEL THE WALLS THE WAY THE GAME DOES: FRONT-ONLY. <<< This
+   paragraph used to say "drop every point closer than the wall radius to any
+   wall segment", and that is WRONG — it is a two-sided test, and
+   collide_wall_frontonly_y (collision.c, the routine reception actually calls)
+   pushes only from the NORMAL side and returns 0 for anything behind the wall.
+   Half the hedge runs in a maze face away from the corridor you are standing
+   in. A two-sided sweep therefore walls off floor the player can really stand
+   on, and every distance it reports is an over-estimate of how close they can
+   get — the direction that makes a reach look SAFE when it is not, and that
+   quietly hides whole regions of the room. See mistake 12.
+
+   The three tests to copy, in the order the C does them:
+     1. dot = (p - wall.x1) . normal;  skip if dot < 0 (behind) or >= radius;
+     2. the along-segment projection must land within the segment's length;
+     3. only then is the point pushed, i.e. not standable.
+   The flood fill matters as much as the test: "not pushed by any wall" alone
+   admits sealed pockets on the far side of the hedges that no player can ever
+   walk to, and those pockets will happily report an approach distance of zero.
+
+   TWO MORE THINGS THE SAME SWEEP ANSWERS, both worth running while it is set
+   up. Neither is about reach:
+     - DOES A SOLID ENEMY SEVER THE ROOM? Flood twice, once with its push
+       circle as an obstacle and once without, and diff the reachable sets. Any
+       cell lost that is not itself inside the circle is floor the enemy has
+       walled off. Maze Two's central chamber, 7433 cells, hangs on this.
+     - IS AN ACTIVATION RADIUS DODGEABLE? A radius that covers the inside of a
+       corner does not cover the corner. Solve the WIDEST PATH — max over
+       routes of the minimum distance to the enemy, a max-min Dijkstra on the
+       same grid — between the two places the player is travelling from and to.
+       That number is the closest a corner-hugger can be made to come, and the
+       radius has to beat it. Maze Two's Living Statue was dodgeable at 525
+       because that path bottlenecks at 536.
 
 10. AN ENEMY THAT PULLS THE PLAYER, WITHOUT A BODY TO STOP THEM. The Rafflesia
    hauled the player straight into its own billboard, where the quad crosses
@@ -687,3 +725,29 @@ In-game (needs an emulator; say so plainly if you have not run it):
    on the first iteration and the function returns its own seed — isqrt(120)
    came back 8. Use `t > 0`, and check any integer sqrt against floor(sqrt)
    over a real range before trusting a distance built on it.
+
+12. SWEEPING A ROOM WITH TWO-SIDED WALLS. Mistake 9's own instructions said to
+   do this, and following them to check Maze Two's Living Statue returned the
+   answer that the player can never come within 915 units of its plinth — that
+   is, that a statue with a 350 activation radius, sitting in the room, never
+   arms at all and the whole enemy is dead code. It arms from 142.
+
+   The room disagreed with the sweep because the sweep was not the game. The
+   statue's alcove is entered THROUGH two hedge runs whose normals face away
+   from it (that is why the alcove is a dead end you can walk into rather than
+   a sealed box), and collide_wall_frontonly_y does not push a player standing
+   behind a wall. Treating the runs as two-sided sealed the alcove, and with it
+   about a third of the room's real floor.
+
+   >>> A REACHABILITY SWEEP IS A REIMPLEMENTATION OF apply_collision_reception,
+   AND IT HAS TO MATCH IT. <<< Not approximately: the same signed dot, the same
+   along-segment reject, the same radius, plus every solid entity that room
+   places (the flowers' push circles here). When the two disagree the sweep is
+   wrong, and it will be wrong in the flattering direction — reporting the
+   player held further off than they are, which is exactly the direction that
+   makes an under-sized reach look fine.
+
+   The tell is a number that is absurd rather than merely surprising. 915 in a
+   maze whose corridors are 600 wide could not have been true of anywhere the
+   player can stand. Sanity-check a sweep against one distance you can work out
+   by hand before you trust the rest of it.
