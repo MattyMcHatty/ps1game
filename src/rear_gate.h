@@ -34,6 +34,10 @@
      PATH      a hedged corridor running south from the lawn at x[-300,300]. Its
                mouth is the 600-wide gap at z=1500 between walls 14 and 15; walls
                0 and 1 hem it in on both sides from z=1500 down to z=-1500.
+               TWO GRINDERS (src/grinder.h) are set into its side walls at
+               z=-85, one east and one west, each buried 320 of its 400 depth in
+               the hedge so only the textured plate shows. They are the room's
+               only props, and the hook for a puzzle that will move them.
      COURTS    two side courtyards, x[-900,-300] and x[300,899], both spanning
                z[-3200,-1500]. The ONLY way into either is the 600-deep opening
                at z[-2100,-1500] where the path's side walls have ended and the

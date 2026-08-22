@@ -25,6 +25,7 @@
 #include "dining_table.h"
 #include "save_point.h"
 #include "dresser.h"
+#include "grinder.h"
 #include "key.h"
 #include "item_pickup.h"
 #include "bullet_hit.h"
@@ -1113,6 +1114,9 @@ int main(int argc, const char **argv) {
     save_points_init();        /* reusable save-point prop (loads SAVEPT.SMD) */
     dresser_load_assets();     /* reusable dresser prop: geometry + preload its
                                   streamed texture (uploaded on reception entry) */
+    grinder_load_assets();     /* reusable grinder prop: geometry + its texture,
+                                  which owns its VRAM outright and so goes up
+                                  here ONCE — there is no per-entry upload */
     keys_init();
     sml_meds_init();
     anzu_tex_load();               /* the six Anzu tiles (LoadImage: startup only) */

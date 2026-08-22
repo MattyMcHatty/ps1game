@@ -428,6 +428,22 @@
                 <file name="PLNTHRG.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\plinth_rg.tim"/>
                 <file name="DBLDRRG.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\dbl_dr_rg.tim"/>
 
+                <!-- The Grinder prop (src/grinder.c), two of which stand in the
+                     Rear Gate's hedged corridor. Its non-grinder faces reuse the
+                     room's resident PLNTHRG above; GRINDER.TIM is its own art and
+                     it is 64x64 8bpp in the LAST genuinely free scrap of VRAM —
+                     x[992,1024) y[256,384), the upper half of TREESDL's page.
+                     Nothing else lives there, so like TREESDL it is uploaded once
+                     at startup and never restored: no texmgr slot, no entry-time
+                     LoadImage, no restore obligation on anybody.
+                     The price is that only 32 VRAM columns were free there, so
+                     the art is 64x64 rather than the 128x128 the SMX exporter's
+                     UVs assume; grinders_draw halves them to suit. No detail is
+                     lost - grinder.png is 64x64 to begin with. See the note
+                     there. -->
+                <file name="GRINDER.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Grinder.smd"/>
+                <file name="GRINDER.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\grinder.tim"/>
+
                 <!-- Opening sequence (src/intro.c): the mansion still that fades
                      in behind the last block of text. Uploaded once at startup
                      into the free 128x128 8bpp slot at x[448,512) y[128,256) —

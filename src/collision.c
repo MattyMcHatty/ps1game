@@ -9,6 +9,7 @@
 #include "crate.h"
 #include "dining_table.h"
 #include "dresser.h"
+#include "grinder.h"
 #include "fatdoor.h"
 #include "save_point.h"
 #include "rafflesia.h"
@@ -72,6 +73,7 @@ static int props_block_point(int32_t x, int32_t y, int32_t z) {
     if (crates_point_solid(x, y, z, SHOT_PROP_SLACK))        return 1;
     if (fatdoors_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
     if (dressers_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
+    if (grinders_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
     if (dining_tables_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
     if (piano_props_point_solid(x, y, z, SHOT_PROP_SLACK))   return 1;
     if (concrete_props_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
@@ -103,7 +105,8 @@ static int props_any_solid(void) {
            dressers_any_solid()      || dining_tables_any_solid() ||
            piano_props_any_solid()   || concrete_props_any_solid()||
            attic_stairwell_altar_any_solid() ||
-           chainlink_doors_any_solid() || levers_any_solid();
+           chainlink_doors_any_solid() || levers_any_solid() ||
+           grinders_any_solid();
 }
 
 int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
@@ -751,6 +754,9 @@ void apply_collision_reception(void) {
     /* Props use a tighter radius than the walls (walk right up to them), same as
        the kitchen's dining tables. */
     dressers_collide(&cam_x, cam_y, &cam_z, 75);
+    /* Grinders; the module gates each instance to the area it was placed in, so
+       this is a no-op everywhere but the Rear Gate. */
+    grinders_collide(&cam_x, cam_y, &cam_z, 75);
     /* Breakable door in the small-room doorway. Radius 125 (like the kitchen's
        doors) rather than the wide wall radius, so the player can walk up close
        enough to smash it. fatdoors_collide skips doors of other areas. */

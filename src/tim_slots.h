@@ -183,6 +183,10 @@
 #define TIM_TPAGE_GRDNGTR  0x0089
 #define TIM_CLUT_GRDNGTR   0x7baa
 
+/* grinder.tim     8bpp  VRAM ( 992,256)  \TEX\GRINDER.TIM */
+#define TIM_TPAGE_GRINDER  0x009f
+#define TIM_CLUT_GRINDER   0x7ef0
+
 /* grn_ky_stn.tim  4bpp  VRAM ( 552,256)  \TEX\GRNKYSTN.TIM */
 #define TIM_TPAGE_GRNKYSTN 0x0018
 #define TIM_CLUT_GRNKYSTN  0x7fcd
