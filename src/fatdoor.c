@@ -159,6 +159,17 @@ void fatdoors_init(void) {
     fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
     fatdoors[i].area = STATE_EAST_HALL; i++;
 
+    /* West Corridor: the doorway between the corridor's west arm and the inner
+       room — the 300-wide opening in the double-thickness wall at x[-2100,-2044],
+       z[1050,1349] (the gap between walls 11 and 10 / 13 and 12 in
+       west_corridor_mesh_collision.c). Fills the gap along Z (rotated 90°, thin
+       in X), standing on that room's flat y=0 floor. Centred in the wall's
+       thickness so the leaf clears both jambs. */
+    fatdoors[i].x = -2072; fatdoors[i].y = -188; fatdoors[i].z = 1200;
+    fatdoors[i].rot_y = 1024; fatdoors[i].half_x = 30;  fatdoors[i].half_z = 150;
+    fatdoors[i].state = FATDOOR_INTACT; fatdoors[i].active = 1;
+    fatdoors[i].area = STATE_WEST_CORRIDOR; i++;
+
     fatdoor_count = i;
 
     int j;

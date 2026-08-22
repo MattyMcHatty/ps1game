@@ -24,6 +24,7 @@
 #include "rabisu.h"
 #include "web.h"
 #include "item_pickup.h"
+#include "fatdoor.h"         /* the breakable door in the inner-room opening */
 #include "kitchen_dining.h"   /* kitchen_upload_double_door / _red_crpt */
 #include "piano_room.h"       /* piano_room_upload_wallpaper           */
 #include "sound.h"            /* SFX_UNLOCK, for the east door's first press */
@@ -470,6 +471,12 @@ void west_corridor_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_west_corridor_smd(ctx);
+
+    /* Breakable door filling the west-arm/inner-room opening. Draws with the
+       room's active 128 texture window (its wd_dr UVs are 0-127, so the wrap is
+       a no-op) and restores the view matrix before returning, which the sprite
+       renderers below rely on. */
+    fatdoors_draw(ctx);
 
     /* No enemies placed here yet; the room's 128 texture window is still handed
        to the sprite renderers so a future spawn brackets its Voff>=128 sprite

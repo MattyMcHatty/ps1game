@@ -9,7 +9,7 @@
    (instanced SMD via smdSortModel) and smash like crates (hit with the
    crucifaxe). While intact they block the doorway; once smashed the gap opens. */
 
-#define MAX_FATDOORS        10   /* 9 placed; the array is part of the save blob,
+#define MAX_FATDOORS        10   /* 10 placed; the array is part of the save blob,
                                     so raising this grows every save file */
 #define FATDOOR_MAX_HEALTH   2     /* hits to destroy a door (no health bar) */
 #define FATDOOR_SMASH_RANGE  300

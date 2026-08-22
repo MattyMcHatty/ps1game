@@ -26,7 +26,10 @@
                 z[398,1986], reached ONLY through the 300-wide opening in the
                 double-thickness wall at x=-2100/-2044, z[1050,1350]. It shares
                 no boundary with the south arm: walls at z=325 and z=398 run
-                the full width between them.
+                the full width between them. A BREAKABLE FAT DOOR fills that
+                opening (x=-2072, z=1200, rotated 90° so it is thin in X) — see
+                fatdoors_init() — so the inner room is shut until the player
+                smashes it with the crucifaxe.
 
    TWO DOORS, both connected:
 
