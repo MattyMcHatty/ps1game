@@ -260,7 +260,14 @@ void fountain_square_spawn_south(void) {
     cam_vy  = 0;
     cam_z   = FS_GATE_Z + COLLISION_WALL_RADIUS + 25;
     cam_rot = 0;    /* facing +Z, into the room */
+    /* Arm ALL FOUR gates, not just this one: a Circle held through the
+       transition would otherwise fire whichever interaction was left unarmed.
+       (The other three are declared in fountain_square.h, so this compiles even
+       though two of them are defined further down the file.) */
     fountain_square_gate_arm();
+    fountain_square_ngate_arm();
+    fountain_square_egate_arm();
+    fountain_square_wgate_arm();
 }
 
 /* ---- The north-wall gate on to the Outside Catacombs -----------------------
@@ -329,11 +336,12 @@ void fountain_square_spawn_north(void) {
     cam_vy  = 0;
     cam_z   = FS_NGATE_Z - COLLISION_WALL_RADIUS - 25;
     cam_rot = 2048;   /* facing -Z, into the room */
-    /* Arm ALL THREE gates, not just this one: a Circle held through the
+    /* Arm ALL FOUR gates, not just this one: a Circle held through the
        transition would otherwise fire whichever interaction was left unarmed. */
     fountain_square_gate_arm();
     fountain_square_ngate_arm();
     fountain_square_egate_arm();
+    fountain_square_wgate_arm();
 }
 
 /* ---- The east-wall gate on to Maze One --------------------------------------
@@ -400,11 +408,95 @@ void fountain_square_spawn_east(void) {
     cam_vy  = 0;
     cam_z   = FS_EGATE_Z;
     cam_rot = 3072;   /* facing -X, into the room */
-    /* Arm ALL THREE gates, not just this one: a Circle held through the
+    /* Arm ALL FOUR gates, not just this one: a Circle held through the
        transition would otherwise fire whichever interaction was left unarmed. */
     fountain_square_gate_arm();
     fountain_square_ngate_arm();
     fountain_square_egate_arm();
+    fountain_square_wgate_arm();
+}
+
+/* ---- The west-wall gate on to the Rear Gate ---------------------------------
+   The LAST of this room's four modelled gates to be connected. Its grdn_gte
+   polys span z[-364,364] at x=-1994, y[-600,0] — the mirror of the east gate
+   above — and it opens on the Rear Gate's east gate at that room's x=2200.
+
+   Collision wall 81 runs the full width of the west side at x=-1994 with
+   nx = +4096, so the walkable side is +X: the player approaches from inside the
+   room, which is the OPPOSITE face from the east gate. For a YZ-plane sign that
+   is mirror=0, and the sign stands 11 units EAST of the wall (x + 11) rather
+   than west of it. Getting either backwards comes out as mirrored text or a sign
+   buried in the hedge. Note this is also the opposite hand from the Rear Gate's
+   side of the same gate, whose wall faces -X — see the note in src/rear_gate.c.
+
+   The gate's own alcove is collision FLOOR 0, x(-1994,-1820) z(-364,364), which
+   is what fixes the centre at z=0. */
+#define FS_WGATE_X          (-1994)
+#define FS_WGATE_Z                0    /* (-364 + 364) / 2, and FLOOR 0's centre */
+
+/* Its own Circle edge-detect, for the same reason the other two have one: four
+   gates in one room means four independent edge states — sharing one would let a
+   press consumed by the near gate re-arm a far one — and all four are seeded on
+   every entry by fountain_square_init. */
+static int wgate_circle_prev = 1;
+
+void fountain_square_wgate_arm(void) {
+    wgate_circle_prev = circle_held();
+}
+
+int fountain_square_wgate_triggered(void) {
+    int held = circle_held();
+    int just = held && !wgate_circle_prev;
+    wgate_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - FS_WGATE_X;
+    int32_t dz = cam_z - FS_WGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < FS_TRIGGER_RADIUS && interact_facing(FS_WGATE_X, FS_WGATE_Z);
+}
+
+/* Floating sign on the west gate. Same radii and fade as the other three; being
+   in the YZ plane it is door_draw_string_3d's Z axis that gets the -200, not X,
+   and the mirror flag and the sign's side of the wall are both the opposite hand
+   from the east gate's (see above). */
+static void wgate_text(RenderContext *ctx) {
+    int32_t dx = cam_x - FS_WGATE_X;
+    int32_t dz = cam_z - FS_WGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= FS_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > FS_FADE_NEAR) {
+        int range = FS_TEXT_RADIUS - FS_FADE_NEAR;
+        int prog  = xz - FS_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        FS_WGATE_X + 11, FS_TEXT_Y, FS_WGATE_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
+/* Arriving back from the Rear Gate: stand on the paving EAST of the x=-1994
+   hedge, clear of the wall push radius, facing +X — the direction of travel
+   through the gate, looking back along the west arm of the cross at the
+   fountain. x lands at -1774, just past the alcove mouth at x=-1820 and so past
+   the ends of walls 13 and 14, which is why nothing pushes the player on the
+   frame they arrive. The mirror of the east spawn's 1785. */
+void fountain_square_spawn_west(void) {
+    cam_x   = FS_WGATE_X + COLLISION_WALL_RADIUS + 25;
+    cam_y   = FS_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = FS_WGATE_Z;
+    cam_rot = 1024;   /* facing +X, into the room */
+    /* Arm ALL FOUR gates, not just this one: a Circle held through the
+       transition would otherwise fire whichever interaction was left unarmed. */
+    fountain_square_gate_arm();
+    fountain_square_ngate_arm();
+    fountain_square_egate_arm();
+    fountain_square_wgate_arm();
 }
 
 void fountain_square_init(void) {
@@ -422,14 +514,12 @@ void fountain_square_init(void) {
 
     fountain_square_floor_zones_init();
 
-    /* Default arrival is the south gate; main.c's STATE_LOADING branch
-       overrides it with the north spawn coming back out of the Outside
-       Catacombs, or the east one coming back out of Maze One. Either way all
-       three gates end up armed — the south spawn calls its own arm and the two
-       others are added here. */
+    /* Default arrival is the south gate; main.c's STATE_LOADING branch overrides
+       it with the north spawn coming back out of the Outside Catacombs, the east
+       one coming back out of Maze One, or the west one coming back out of the
+       Rear Gate. Whichever runs, all FOUR gates end up armed — every spawn arms
+       the full set (see fountain_square.h). */
     fountain_square_spawn_south();
-    fountain_square_ngate_arm();
-    fountain_square_egate_arm();
 
     /* Save points and dresser props are global (not room-swapped) and neither is
        area-gated in its collide routine, so reception's instances would block
@@ -666,8 +756,9 @@ void fountain_square_draw(RenderContext *ctx) {
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);
 
-    /* Last: the gate signs. */
+    /* Last: the gate signs, one per side. */
     gate_text(ctx);
     ngate_text(ctx);
     egate_text(ctx);
+    wgate_text(ctx);
 }

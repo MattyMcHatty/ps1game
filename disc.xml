@@ -402,6 +402,32 @@
                 <file name="TREESDL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\trees_dl.tim"/>
                 <file name="CHNLNKDL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\chnlnk_dl.tim"/>
 
+                <!-- Rear Gate: the walled lawn WEST of Fountain Square, through
+                     that room's west gate. NINE mesh textures, the most of any
+                     garden room, and seven of them cost nothing: HEDGE, GRDNGTE,
+                     GRSSGS and GRAVELGS come through the courtyard's uploader,
+                     BRIKWLL with them via the Garden Stairs', DRAIN through
+                     Fountain Square's narrow one, and TREES resolves to the
+                     delivery area's TREESDL clone, which owns its page outright
+                     and is resident from startup.
+                     The two below are its own, and both are byte-for-byte
+                     retargets (tools/retarget_tim.py) rather than new art. They
+                     exist because this room draws DRAIN, PLINTH and DOUBLE_DOOR
+                     at once and all three live on the opn_drwr page at x832 y0.
+                     DRAIN keeps that page, so:
+                       PLNTHRG  -> x640 y0, the trck_clue/poison_flower page, an
+                                   8bpp full page this room draws nothing from
+                                   and already time-shared five ways.
+                       DBLDRRG  -> x320 y256, the frnt_dr/red_crpt page. 4bpp, so
+                                   it needs only that page's left half and stays
+                                   clear of everything else; reception and the
+                                   kitchen already re-upload their own on entry,
+                                   so it adds no restore obligation either.
+                     Its .smx exports live in assets/garden/ too. -->
+                <file name="REARGATE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\rear_gate.smd"/>
+                <file name="PLNTHRG.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\plinth_rg.tim"/>
+                <file name="DBLDRRG.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\dbl_dr_rg.tim"/>
+
                 <!-- Opening sequence (src/intro.c): the mansion still that fades
                      in behind the last block of text. Uploaded once at startup
                      into the free 128x128 8bpp slot at x[448,512) y[128,256) —

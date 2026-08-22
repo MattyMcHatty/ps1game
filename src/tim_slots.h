@@ -111,6 +111,10 @@
 #define TIM_TPAGE_DBLDRHLF 0x0088
 #define TIM_CLUT_DBLDRHLF  0x79c0
 
+/* dbl_dr_rg.tim   4bpp  VRAM ( 320,256)  \TEX\DBLDRRG.TIM */
+#define TIM_TPAGE_DBLDRRG  0x0015
+#define TIM_CLUT_DBLDRRG   0x7ea0
+
 /* ddog_alert.tim  8bpp  VRAM ( 640,448)  \DDALERT.TIM */
 #define TIM_TPAGE_DDALERT  0x009a
 #define TIM_CLUT_DDALERT   0x7900
@@ -223,6 +227,14 @@
 #define TIM_TPAGE_LMSHTBLT 0x008c
 #define TIM_CLUT_LMSHTBLT  0x7bea
 
+/* ls_atk.tim      8bpp  VRAM ( 896,384)  \TEX\LSATK.TIM */
+#define TIM_TPAGE_LSATK    0x009e
+#define TIM_CLUT_LSATK     0x7e50
+
+/* ls_idle.tim     8bpp  VRAM ( 960,384)  \TEX\LSIDLE.TIM */
+#define TIM_TPAGE_LSIDLE   0x009f
+#define TIM_CLUT_LSIDLE    0x7e10
+
 /* mansion.tim     8bpp  VRAM ( 448,128)  \TEX\MANSION.TIM */
 #define TIM_TPAGE_MANSION  0x0087
 #define TIM_CLUT_MANSION   0x7bd0
@@ -270,6 +282,10 @@
 /* plinth.tim      8bpp  VRAM ( 832,  0)  \TEX\PLINTH.TIM */
 #define TIM_TPAGE_PLINTH   0x008d
 #define TIM_CLUT_PLINTH    0x7dd0
+
+/* plinth_rg.tim   8bpp  VRAM ( 640,  0)  \TEX\PLNTHRG.TIM */
+#define TIM_TPAGE_PLNTHRG  0x008a
+#define TIM_CLUT_PLNTHRG   0x7e90
 
 /* pno_key.tim     8bpp  VRAM ( 608,256)  \TEX\PNOKEY.TIM */
 #define TIM_TPAGE_PNOKEY   0x0099

@@ -26,7 +26,7 @@
      DRAIN      a channel cut across the paving at z[243,304]; art only, no
                 collision of its own.
 
-   FOUR gates are modelled, one per side; THREE are connected:
+   FOUR gates are modelled, one per side, and ALL FOUR are now connected:
 
      SOUTH   the grdn_gte leaf at z=-1822, x[-364,364], y[-600,0]. The far side
      WALL    of the gate in the Garden Courtyard's north hedge. Collision wall
@@ -39,8 +39,17 @@
      WALL    opens on Maze One's west gate at that room's x=-100. Collision wall
              54 has nx = -4096, so it is approached from -X, which for a YZ sign
              is mirror=1 and a sign on the x-11 side.
-             The one remaining (west x=-1994) is drawn shut and backs onto solid
-             collision — it is there for a room that does not exist yet.
+     WEST    the leaf at x=-1994, z[-364,364], the mirror of the east one and
+     WALL    also in the YZ plane. It opens on the Rear Gate's east gate at that
+             room's x=2200. Collision wall 81 has nx = +4096 — the OPPOSITE face
+             from the east gate — so it is approached from +X, which for a YZ
+             sign is mirror=0 and a sign on the x+11 side. Its alcove is
+             collision FLOOR 0, x(-1994,-1820) z(-364,364).
+
+   Four gates means FOUR independent Circle edge states, and every spawn below
+   arms all of them: a press carried in through any transition would otherwise
+   fire whichever interaction was left unarmed and bounce the player straight
+   back out of the room they just entered.
 
    Rendered the same way as the Garden Courtyard (per-poly tex map + one 128
    texture window + purple outdoor fog), and it reuses that room's texture
@@ -71,16 +80,23 @@ int  fountain_square_ngate_triggered(void);
 void fountain_square_egate_arm(void);
 int  fountain_square_egate_triggered(void);
 
-/* Just the drain, for a room that draws the channel but not the fountain —
-   Maze One, whose own pipe occupies the fountain's page. Run the courtyard's
-   uploader first. */
+/* The west-wall gate on to the Rear Gate. Its own edge state again, for the same
+   reason; in the YZ plane like the east one, but approached from the other side. */
+void fountain_square_wgate_arm(void);
+int  fountain_square_wgate_triggered(void);
+
+/* Just the drain, for a room that draws the channel but not the fountain — Maze
+   One, whose own pipe occupies the fountain's page, and the Rear Gate, whose
+   brick wall does. Run the courtyard's uploader first. */
 void fountain_square_upload_drain(void);
 
 /* Spawns, one per connected gate. The south one is the room's default; main.c
-   overrides with the north one when arriving from the catacombs and the east
-   one when arriving from Maze One. */
+   overrides with the north one when arriving from the catacombs, the east one
+   when arriving from Maze One and the west one when arriving from the Rear
+   Gate. */
 void fountain_square_spawn_south(void);
 void fountain_square_spawn_north(void);
 void fountain_square_spawn_east(void);
+void fountain_square_spawn_west(void);
 
 #endif

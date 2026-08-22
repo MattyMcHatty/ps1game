@@ -228,6 +228,40 @@ KNOWN_STREAM_PAIRS = [
     ("drain.tim",          "plinth.tim"),
     ("opn_drwr.tim",       "plinth.tim"),
     ("xt_dr_cg.tim",       "plinth.tim"),
+    # Rear Gate, west of Fountain Square through that room's west gate. NINE mesh
+    # textures — the most of any room in the game — and the first room to want
+    # THREE of the opn_drwr page's occupants at once: it draws drain, plinth and
+    # double_door together, and all three live at x832 y0. Two therefore had to
+    # move, and both moved as byte-for-byte RETARGETS (tools/retarget_tim.py)
+    # rather than as new art, exactly as grss_gs/gravel_gs/trees_dl did:
+    #   plinth_rg   -> the trck_clue page (x640 y0), an 8bpp FULL page this room
+    #               draws nothing from — no flower beds, no chnlnk, and its
+    #               gravel and trees resolve elsewhere (see below). Already
+    #               time-shared five ways and everyone re-uploads on their own
+    #               entry: delivery restores gravel_texture+trees, the east
+    #               stairwell and garden stairs chnlnk, the attic stairwell
+    #               trck_clue, the catacombs and both mazes poison_flower_base.
+    #               The courtyard's uploader puts chnlnk here on the way in, so
+    #               plinth_rg must go up AFTER it — see rear_gate_upload_textures.
+    #   dbl_dr_rg   -> the frnt_dr/red_crpt page (x320 y256). 4bpp, so it needs
+    #               only 32 VRAM columns and stays inside that page's left half —
+    #               nothing sits in the right half at x352 y256 but graveolver,
+    #               and this does not reach it. frnt_dr and red_crpt are already
+    #               an intentional streaming pair (reception over the kitchen's)
+    #               and both rooms re-upload on entry, so a third sharer adds no
+    #               restore obligation.
+    # The room's other seven cost nothing at all: hedge, grdn_gte, grss_gs and
+    # gravel_gs through the courtyard's uploader, brick_wall with them via the
+    # Garden Stairs', drain through fountain_square_upload_drain(), and its
+    # 'trees' resolved to the delivery area's TREES_DL clone, which owns its page
+    # outright and is resident from startup.
+    ("chnlnk.tim",             "plinth_rg.tim"),
+    ("gravel_texture.tim",     "plinth_rg.tim"),
+    ("trees.tim",              "plinth_rg.tim"),
+    ("poison_flower_base.tim", "plinth_rg.tim"),
+    ("trck_clue.tim",          "plinth_rg.tim"),
+    ("frnt_dr.tim",            "dbl_dr_rg.tim"),
+    ("red_crpt.tim",           "dbl_dr_rg.tim"),
 ]
 
 def read_tim(path):

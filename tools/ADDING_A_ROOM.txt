@@ -32,6 +32,27 @@ Everything else — the room's slug, VRAM slot choice, door coordinates, spawn
 points, floor zones — is DERIVED from the meshes by the steps below. Do not ask
 the user for coordinates; extract them from the .smx (STEP 2).
 
+>>> BOTH MESHES MUST EXIST BEFORE ANY OF THIS STARTS. <<< Check for the visual
+AND the collision .smx as the very first action, before mining coordinates,
+before picking VRAM slots, before converting anything:
+
+  Get-ChildItem "assets\<Name>.smx","assets\<Name> mesh.smx"   # or assets\garden\
+
+If EITHER is missing, STOP and ask the user to export both. Do not start the
+half of the work that is possible and ask afterwards — the Rear Gate was begun
+that way in August 2026 with only the visual mesh present (the commit that added
+it shipped "Rear Gate.smx" and both .blend files but no "Rear Gate mesh.smx"),
+and it cost a full round trip in the middle of the job. The collision mesh is
+not a late step that can be slotted in at the end: the wall list, each gate's
+inward NORMAL (which decides the sign's mirror flag and which side the spawn
+goes on) and the floor-zone bounds all come out of it, and it is what the room
+module and every STEP 6 edit are written against. There is no useful way to
+guess any of it, and a room wired up around a guessed normal fails as mirrored
+text or a spawn inside a hedge.
+
+The likeliest cause of a missing one is the export landing in the wrong folder
+rather than not having been done — search for it before asking (see STEP 0).
+
 Naming: pick a lowercase C slug from the room name, e.g. "Master Bedroom" ->
 master_bedroom. It must be a valid C identifier — if the room name starts with a
 digit ("2f Hall"), reorder it (hall_2f). The slug is used for:
@@ -41,12 +62,22 @@ digit ("2f Hall"), reorder it (hall_2f). The slug is used for:
 
 
 ##########################################################################
- STEP 0 — VERIFY THE EXPORTS ARE FRESH
+ STEP 0 — VERIFY BOTH EXPORTS EXIST, AND ARE FRESH
 ##########################################################################
 Exports land in the wrong folder often enough that this is step zero.
 
   Get-ChildItem "assets\<Name>.smx","assets\<Name> mesh.smx" |
       Select-Object Name,Length,LastWriteTime
+
+BOTH must be listed. If one is missing, widen the search before concluding
+anything — the wrong-folder case looks identical to the not-exported case:
+
+  Get-ChildItem -Recurse assets -Filter "*<Name>*"
+  # and, if still nothing, Documents / Downloads / Desktop
+
+If it is genuinely absent, STOP HERE and ask the user to export both. Nothing
+below this line can be done correctly without the collision mesh — see the
+"HOW TO KICK THIS OFF" note above for why starting anyway is a false economy.
 
 `git status` should show them as new/modified, and the timestamps should match
 when the user says they exported. If a .smd already exists, the .smx must be
@@ -248,6 +279,23 @@ Two independent pipelines. Both are needed for a new room.
     Watch the output: "Walls after dedup: N" must stay under
     MAX_WALLS_PER_ROOM (128, in collision.h). Note the printed FLOOR list — you
     need its Y values and x/z extents for the floor zones in STEP 6.
+
+    >>> AND CHECK THE COUNT MOVED. <<< If you re-exported to ADD collision, the
+    wall count must have gone UP. The generator drops faces it does not like
+    with a bare `continue` and reports only the total, so a rejected face is
+    indistinguishable from one you forgot to model. The Rear Gate's south wall
+    came back as 39 walls from 52 prims and then 39 walls from 55 — three added
+    faces, no error, no new wall, and a doorway the player walked straight out
+    of. The cause was the "above the ceiling" filter measuring a wall's base
+    against the floor levels: a RAMP registered only its LOW end, so a wall
+    standing at the TOP of one was a whole storey out. That is fixed (both ends
+    of every floor face count now), but the general lesson stands — diff the
+    generated .c, do not read the summary line.
+
+    A FLOOR LIST ENTRY OVER A RAMP IS AN AVERAGE, NOT A PLANE. The same room's
+    ramp printed as "FLOOR 9: y=-250"; the real surface runs 0 to -500 and it
+    wants a FLOOR_RAMP zone. Check any floor whose Y is not shared with its
+    neighbours against the VISUAL mesh before believing it.
 
 4c. Copy the generated pair into src/, LOWERCASED, then hand-edit two things
     the generator does not emit — stale values here are a real bug:

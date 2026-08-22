@@ -59,6 +59,7 @@
 #include "outside_catacombs.h"
 #include "maze_one.h"
 #include "maze_two.h"
+#include "rear_gate.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -202,6 +203,7 @@ static void load_area_geometry(GameState area) {
         case STATE_OUTSIDE_CATACOMBS:outside_catacombs_load_geometry();break;
         case STATE_MAZE_ONE:         maze_one_load_geometry();         break;
         case STATE_MAZE_TWO:         maze_two_load_geometry();         break;
+        case STATE_REAR_GATE:        rear_gate_load_geometry();        break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -624,6 +626,38 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (!lock && fountain_square_wgate_triggered()) {
+            /* West through the gate in the opposite side hedge, into the Rear
+               Gate — the last of this room's four leaves to lead anywhere. The
+               same iron leaf once more, so the same DOOR_PANEL_GATE. */
+            pending_area = STATE_REAR_GATE;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_REAR_GATE) {
+        /* NOT a flat room, unlike every other one in the garden chain: the
+           gravel path at the south end climbs 500 units to the double door in
+           the brick wall. That costs nothing here, though — apply_height walks
+           the room's floor-zone list and rear_gate_floor_zones_init puts a
+           FLOOR_RAMP at the head of it, and apply_collision_reception is generic
+           over current_collision_room and Y-aware regardless of the room's
+           multi_level flag. So the two calls are the same two as everywhere. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed — the room is seeded empty, but */
+        update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        if (!lock && rear_gate_gate_triggered()) {
+            /* East back through the same gate, into Fountain Square. The room's
+               other two modelled gates (west and north) are drawn shut and lead
+               nowhere, so this is the only way out. */
+            pending_area = STATE_FOUNTAIN_SQUARE;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_MAZE_ONE) {
         /* Flat maze: all twenty-seven collision floor planes are at y=0, so the
@@ -856,6 +890,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         maze_one_draw(ctx);
     else if (area == STATE_MAZE_TWO)
         maze_two_draw(ctx);
+    else if (area == STATE_REAR_GATE)
+        rear_gate_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -1056,6 +1092,8 @@ int main(int argc, const char **argv) {
     outside_catacombs_load_assets();/* outside catacombs texture slots */
     maze_one_load_assets();    /* maze one texture slots (owns only PIPE) */
     maze_two_load_assets();    /* maze two texture slots (owns only PLINTH) */
+    rear_gate_load_assets();   /* rear gate texture slots (owns the two retargets,
+                                  PLNTHRG and DBLDRRG) */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -1245,7 +1283,8 @@ int main(int argc, const char **argv) {
                 (pending_area == STATE_FOUNTAIN_SQUARE ||
                  pending_area == STATE_OUTSIDE_CATACOMBS ||
                  pending_area == STATE_MAZE_ONE ||
-                 pending_area == STATE_MAZE_TWO) ? SND_BANK_GARDEN :
+                 pending_area == STATE_MAZE_TWO ||
+                 pending_area == STATE_REAR_GATE) ? SND_BANK_GARDEN :
                 SND_BANK_HOUSE);
 
             /* Upload reception's unique textures into VRAM from their resident RAM
@@ -1300,6 +1339,13 @@ int main(int argc, const char **argv) {
                                                        and Maze One's pipe through
                                                        NARROW uploads, and its own
                                                        plinth over xt_dr_cg */
+            } else if (pending_area == STATE_REAR_GATE) {
+                rear_gate_upload_textures();        /* ditto, plus the drain
+                                                       through Fountain Square's
+                                                       NARROW upload, and its own
+                                                       retargeted plinth and
+                                                       double door over chnlnk
+                                                       and frnt_dr */
             } else if (pending_area == STATE_DELIVERY_AREA) {
                 /* The conservatory streams over gravel/fence/brick/double_door
                    — restore them. Unconditional for the same reason as the
@@ -1527,12 +1573,16 @@ int main(int argc, const char **argv) {
                                             into the courtyard */
                 /* Coming back south out of the Outside Catacombs, arrive at the
                    gate in the north hedge instead; coming back west out of Maze
-                   One, at the gate in the east hedge. Each spawn arms all three
-                   gates, so whichever branch runs the other two are safe. */
+                   One, at the gate in the east hedge; coming back east out of
+                   the Rear Gate, at the gate in the west hedge. Each spawn arms
+                   all FOUR gates, so whichever branch runs the other three are
+                   safe. */
                 if (current_area == STATE_OUTSIDE_CATACOMBS)
                     fountain_square_spawn_north();
                 else if (current_area == STATE_MAZE_ONE)
                     fountain_square_spawn_east();
+                else if (current_area == STATE_REAR_GATE)
+                    fountain_square_spawn_west();
                 /* Music of its own, unlike the rest of the garden — the stairs
                    and the courtyard are silent by design, and the courtyard's
                    track belongs to the boss. Played HERE rather than on the door
@@ -1586,6 +1636,18 @@ int main(int argc, const char **argv) {
                    title-screen load and a debug level-select jump all pass
                    through this branch. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
+            } else if (pending_area == STATE_REAR_GATE) {
+                rear_gate_init();  /* only one gate is connected: the east one,
+                                      back into Fountain Square. No spawn
+                                      override needed — there is nowhere else to
+                                      arrive from. */
+                /* NO MUSIC HERE — the user asked for this room to be silent.
+                   Stopped rather than merely not started, exactly as the Garden
+                   Stairs and the Garden Courtyard do it: a title-screen load or
+                   a debug level-select jump does not pass through the gate
+                   transition's own cdaudio_stop, and without this line either
+                   would carry Fountain Square's track in with it. */
+                cdaudio_stop();
             } else {
                 /* Return to the delivery area: restore its collision/floor and
                    place the player just inside the front door, facing in, armed
@@ -1661,7 +1723,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_FOUNTAIN_SQUARE ||
                    game_state == STATE_OUTSIDE_CATACOMBS ||
                    game_state == STATE_MAZE_ONE ||
-                   game_state == STATE_MAZE_TWO) {
+                   game_state == STATE_MAZE_TWO ||
+                   game_state == STATE_REAR_GATE) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

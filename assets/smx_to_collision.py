@@ -136,13 +136,37 @@ def extract_walls(vertices, primitives):
     # We use these to reject wall faces whose top vertex is NOT within 20
     # units of any real floor level — e.g. ceiling panels or structural
     # geometry above the ceiling that would create phantom collision walls.
+    #
+    # >>> BOTH ENDS OF EVERY FLOOR FACE, NOT JUST ITS max(). <<< A RAMP is a
+    # floor face whose two ends are at different heights, and it is a floor the
+    # player can stand at either end of. Taking only max() registered the ramp's
+    # LOW end as a floor level and never its high one, so any wall standing at
+    # the TOP of a ramp had its base measured against a floor level a whole
+    # storey below and was thrown out as "above the ceiling" — silently, since
+    # the rejection is a bare `continue` and the wall count simply comes back
+    # unchanged.
+    #
+    # The Rear Gate is the room that found this. Its southern gravel ramp climbs
+    # 500 units to a double door in the brick wall, and the three wall faces
+    # sealing that end (z=-3200, y[-1238,-500]) were dropped on every export:
+    # the only floor level the room reported was 0, the ramp's bottom, so a base
+    # at -500 measured 500 out. The room came back with 39 walls from 52 prims
+    # and 39 from 55, which is exactly what this looks like from outside.
+    #
+    # min() and max() coincide for a flat face, so this is a no-op for every
+    # room whose floors are level, and for the ramps in the delivery area and
+    # the Garden Stairs it only ADMITS faces that were previously discarded —
+    # it can never remove one. Both were re-run and diffed when this changed;
+    # neither moved.
     floor_ys = []
     for face in primitives:
         if len(face) < 3:
             continue
         n = face_normal(vertices, face)
         if abs(n[1]) > FLOOR_THRESHOLD:
-            floor_ys.append(max(vertices[i][1] for i in face))
+            ys = [vertices[i][1] for i in face]
+            floor_ys.append(max(ys))
+            floor_ys.append(min(ys))
 
     if not floor_ys:
         floor_ys = [max(v[1] for v in vertices)]  # fallback: use mesh max Y

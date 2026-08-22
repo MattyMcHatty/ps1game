@@ -103,6 +103,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_EAST_STAIRWELL, STATE_ATTIC_STAIRWELL,STATE_ATTIC_EXIT,
     STATE_GARDEN_STAIRS,  STATE_GARDEN_COURTYARD, STATE_FOUNTAIN_SQUARE,
     STATE_OUTSIDE_CATACOMBS, STATE_MAZE_ONE,      STATE_MAZE_TWO,
+    STATE_REAR_GATE,
 };
 
 static int room_index(GameState area) {
@@ -125,6 +126,7 @@ static int room_index(GameState area) {
         case STATE_OUTSIDE_CATACOMBS: return 15;
         case STATE_MAZE_ONE:          return 16;
         case STATE_MAZE_TWO:          return 17;
+        case STATE_REAR_GATE:         return 18;
         default:                   return 0;
     }
 }
@@ -624,6 +626,22 @@ void world_seed_room(GameState area) {
                      -149, STATE_MAZE_TWO);
         living_statue_add(685, 2330, -281, 1, STATE_MAZE_TWO);
     }
+
+    /* Rear Gate: SEEDED EMPTY, deliberately and not for want of a sound bank.
+       The room is on SND_BANK_GARDEN like the rest of the chain (main.c's
+       STATE_LOADING), so SFX_HISS, SFX_RUMBLE and the flowers' loops are all
+       there and a rafflesia, a mushroom head or a living statue could be dropped
+       in tomorrow — rear_gate_draw already hands every one of those renderers
+       this room's texture window for exactly that. It is empty because nothing
+       has been designed for it yet.
+
+       Two notes for whoever fills it. Its ground is the room's flat y=0 lawn, so
+       the standing anchor is -149, the same authored literal every other garden
+       placement uses — do NOT probe collision here, world_seed_room runs for
+       rooms whose geometry is not resident. And the southern ramp is the one
+       piece of this room that is NOT at y=0: it climbs to -500 at z=-3200, so
+       anything placed on x[-300,300] z[-3200,-2100] needs its own anchor worked
+       out from the slope rather than -149. */
 }
 
 void world_enter(GameState area) {

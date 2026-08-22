@@ -13,6 +13,7 @@
  *
  *    117492 bytes   58 sectors  maze_one.smd
  *    109324 bytes   54 sectors  maze_two.smd
+ *     68444 bytes   34 sectors  rear_gate.smd
  *     67860 bytes   34 sectors  Reception.smd
  *     65836 bytes   33 sectors  outside_catacombs.smd
  *     65740 bytes   33 sectors  delivery_area.smd
@@ -20,7 +21,6 @@
  *     42228 bytes   21 sectors  garden_stairs.smd
  *     40220 bytes   20 sectors  kitchen_dining.smd
  *     36320 bytes   18 sectors  master_bedroom.smd
- *     35924 bytes   18 sectors  attic_exit.smd
  *
  */
 #ifndef ROOM_ARENA_SIZE_H
