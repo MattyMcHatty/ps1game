@@ -35,10 +35,14 @@
    shaking in place with six overlapping rumbles under it and a log line on the
    frame it starts moving, and then free play again. The camera never moves to a
    new shot, so there is no glide either way.
-   It runs as a state of THIS module rather than as its own, which is what gets
-   it the input lock and the HUD/menu suppression for free: main.c already
-   routes the whole frame through exit_door_puzzle_update() and hides the
-   overlays whenever exit_door_puzzle_active() is 1. */
+
+   >>> THE SHAKE ITSELF IS src/quake.c, NOT THIS FILE. <<< The East Hall plays
+   the same one on the way out of the wrecked Library (east_hall_quake.h), so it
+   is shared. What is a state of THIS module is the beat's PLACE in the game —
+   XD_QUAKE — and it is one because that is what gets it the input lock and the
+   HUD/menu suppression for free: main.c already routes the whole frame through
+   exit_door_puzzle_update() and hides the overlays whenever
+   exit_door_puzzle_active() is 1. */
 void exit_door_puzzle_load_assets(void);  /* startup: the magenta stone icon */
 void exit_door_puzzle_arm(void);          /* reset to free play (new game / room entry) */
 /* 1 while the board — or the quake — owns the camera and input. main.c reads it

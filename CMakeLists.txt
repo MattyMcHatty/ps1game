@@ -60,6 +60,7 @@ add_executable(horror_game
     src/master_bedroom.c
     src/east_hall_mesh_collision.c
     src/east_hall.c
+    src/east_hall_quake.c
     src/library_mesh_collision.c
     src/library.c
     src/library_destroyed_mesh_collision.c
@@ -92,6 +93,7 @@ add_executable(horror_game
     src/lever.c
     src/lightswitch_puzzle.c
     src/exit_door_puzzle.c
+    src/quake.c
     src/damage.c
     src/stair_anim.c
     src/trick_drawers.c

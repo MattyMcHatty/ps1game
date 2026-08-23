@@ -130,6 +130,25 @@ void spiders_rest(void) {
     }
 }
 
+/* Kill every living spider tagged to `area`, SILENTLY: no blood burst, no death
+   cry, no wake. It is for a room being emptied by the story rather than by the
+   player — the East Hall once FLAG_HADAD_TWO is set (east_hall.h) — and it runs
+   during a transition, with nobody there to see or hear it.
+
+   Marked dead, not deactivated. SPD_DEAD is what every loop in this file already
+   skips, what spiders_rest() refuses to stand back up, and what world.c's save
+   delta records (spiders_dead), so a spider retired this way is retired on
+   exactly the same terms as one the player killed — including across a save. */
+void spiders_kill_area(GameState area) {
+    int i;
+    for (i = 0; i < spider_count; i++) {
+        Spider *s = &spiders[i];
+        if (!s->active || s->area != area || s->state == SPD_DEAD) continue;
+        s->health = 0;
+        s->state  = SPD_DEAD;
+    }
+}
+
 /* Shared scuttle loop latch, driven exactly like the tentacle writhe: ONE voice
    for every spider in the room, keyed on whether any of them actually moved this
    frame. Per-spider voices would be three copies of the same sample fighting

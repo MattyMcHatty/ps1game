@@ -112,6 +112,18 @@ typedef enum {
     /* Hadad's second encounter, declared out of story order — see the block on
        FLAG_HADAD_ONE above for what it means and why it is down here. */
     FLAG_HADAD_TWO,
+    /* The East Hall's east double door, the one that leads to the Library and
+       then to the Library Destroyed, is buried on the far side. Set by the quake
+       that runs the first time the player comes back OUT of the wrecked Library
+       into the hall (east_hall_quake.h) — the shake IS the ceiling coming down
+       behind them. From then on the door keeps its "Press O to enter" sign but
+       Circle only posts a line: the way back east is through the East Stairwell.
+
+       A saved bit rather than a global because it is a one-way world change, and
+       because the East Stairwell's own door into the library is still open — a
+       reload that forgot this would hand the player a route the story has
+       closed. Declared at the END of the enum, as the note above instructs. */
+    FLAG_EAST_HALL_RUBBLE,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

@@ -116,6 +116,12 @@ void zombies_reset(void);
 int32_t zombie_scale_damage(int32_t base, DamageType type);
 
 void zombies_rest(void);
+/* Kill every living zombie in the live array, silently and permanently — for a
+   room the STORY empties rather than the player. This array is room-swapped, so
+   it takes no area and must be called from the room being emptied; see the note
+   on the definition in zombie.c. The East Hall is the one caller
+   (east_hall.h). */
+void zombies_kill_all(void);
 void update_zombies(void);
 void draw_zombies(RenderContext *ctx);
 

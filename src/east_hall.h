@@ -18,6 +18,22 @@ void east_hall_upload_textures(void); /* room entry: pure LoadImage from RAM (no
 void east_hall_init(void);            /* set collision/floor zones + spawn */
 void east_hall_draw(RenderContext *ctx);
 
+/* ---- The hall after the keystones come out ---------------------------------
+   FLAG_HADAD_TWO retires this room. Two things follow from it, and they are
+   deliberately in two places:
+
+     THE MONSTERS DIE — east_hall_apply_flags() below. Every zombie, spider and
+     Rabisu still alive in here is marked dead, silently and permanently, on
+     every entry from that point on. Nothing new spawns in the East Hall again.
+
+     THE EAST DOOR IS BURIED — but not by this flag and not on entry. That is the
+     collapse's doing and it has its own flag; see east_hall_quake.h.
+
+   Called from main.c's post-entry re-derive block, after world_enter and after
+   the saved flags are installed — the same slot as attic_exit_apply_flags, for
+   the same reason. See the full note on the definition in east_hall.c. */
+void east_hall_apply_flags(void);
+
 /* The three doors: west back to reception's upper floor, east to the Library,
    south to the East Stairwell. */
 void east_hall_doors_arm(void);        /* seed all three doors' Circle edge state */

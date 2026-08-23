@@ -231,9 +231,10 @@ static int sfx_channel(SfxID id) {
     if (id == SFX_RUMBLE)      return 9;
     /* The quake's four extra rumble voices, borrowed from sounds that cannot be
        in a HOUSE room: GAS, PULL and HISS are the garden's flower and mushroom,
-       EMERGE is the boss's. The quake only ever runs in the Attic Exit, so those
-       four are idle every time it does. Full reasoning on SFX_RUMBLE_2 in
-       sound.h — and read it before playing a rumble anywhere else. */
+       EMERGE is the boss's. The quake only ever runs in the Attic Exit and the
+       East Hall, both HOUSE rooms, so those four are idle every time it does.
+       Full reasoning on SFX_RUMBLE_2 in sound.h — and read it before playing a
+       rumble anywhere else. */
     if (id == SFX_RUMBLE_2)    return 13;   /* SFX_GAS's    (GARDEN) */
     if (id == SFX_RUMBLE_3)    return 14;   /* SFX_PULL's   (GARDEN) */
     if (id == SFX_RUMBLE_4)    return 15;   /* SFX_HISS's   (GARDEN) */

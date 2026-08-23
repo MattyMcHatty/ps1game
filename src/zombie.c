@@ -104,6 +104,31 @@ void zombies_rest(void) {
     }
 }
 
+/* Kill every living zombie in the live array, SILENTLY: no blood burst, no death
+   cry. It is for a room being emptied by the story rather than by the player —
+   the East Hall once FLAG_HADAD_TWO is set (east_hall.h) — and it runs during a
+   transition, with nobody there to see or hear it.
+
+   NO AREA ARGUMENT, unlike the spider and Rabisu versions: this array is
+   ROOM-SWAPPED, not global and area-tagged (world.c snapshots and restores it
+   per room), so "the live array" IS the room the caller is standing in and there
+   is nothing to filter. Call it from that room and nowhere else.
+
+   Marked dead, not deactivated. ZMB_DEAD is what every loop in this file already
+   skips, what zombies_rest() refuses to stand back up, and what world.c's save
+   delta records (zombies_dead), so a zombie retired this way is retired on
+   exactly the same terms as one the player killed — including across a save. */
+void zombies_kill_all(void) {
+    int i;
+    for (i = 0; i < zombie_count; i++) {
+        Zombie *z0 = &zombies[i];
+        if (!z0->active || z0->state == ZMB_DEAD) continue;
+        z0->health  = 0;
+        z0->state   = ZMB_DEAD;
+        z0->lunging = 0;   /* nothing latched onto the player survives this */
+    }
+}
+
 void zombies_init(void) {
     /* Zombies are seeded per-room by the world system (see world.c), so the
        live array starts empty. */

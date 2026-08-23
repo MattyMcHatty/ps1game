@@ -499,6 +499,11 @@ int  rabisu_add(int32_t x, int32_t ground_y, int32_t z, GameState area);
 /* Put every living boss back at its spawn at full health; deaths stick. Called
    from world_leave beside zombies_rest(). */
 void rabisus_rest(void);
+/* Kill every living Rabisu tagged to `area`, silently and permanently — for a
+   room the STORY empties rather than the player. Skips the death sequence
+   entirely (it sets `dead`, not just `dying`); see the note on the definition in
+   rabisu.c. The East Hall is the one caller (east_hall.h). */
+void rabisus_kill_area(GameState area);
 
 void update_rabisus(void);
 void draw_rabisus(RenderContext *ctx);

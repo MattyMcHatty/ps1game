@@ -232,6 +232,32 @@ void rabisus_rest(void) {
     rbs_fireballs_reset();
 }
 
+/* Kill every living Rabisu tagged to `area`, SILENTLY: no blood burst, no death
+   sequence, no explosion. It is for a room being emptied by the story rather
+   than by the player — the East Hall once FLAG_HADAD_TWO is set (east_hall.h) —
+   and it runs during a transition, with nobody there to see or hear it.
+
+   >>> BOTH FLAGS, NOT JUST `dying`. <<< A killing BLOW sets `dying` alone and
+   hands the body to the encounter director for nine seconds of coming apart
+   (rbs_damage_sfx). There is no director here and no one watching, so this skips
+   straight to `dead` — the state that means "gone", which every loop skips,
+   rabisus_rest() refuses to stand back up, and world.c's save delta records
+   (rabisus_dead). */
+void rabisus_kill_area(GameState area) {
+    int i;
+    for (i = 0; i < rabisu_count; i++) {
+        Rabisu *r = &rabisus[i];
+        if (!r->active || r->area != area || r->dead) continue;
+        r->health = 0;
+        r->dying  = 1;
+        r->dead   = 1;
+        /* Anything it had in the air dies with it — a shockwave mid-expansion
+           would otherwise still be hitting the player on the far side of the
+           transition. */
+        rabisu_go_dormant(r);
+    }
+}
+
 Rabisu *rabisu_boss_instance(void) {
     int i;
     for (i = 0; i < rabisu_count; i++) {

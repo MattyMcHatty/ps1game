@@ -51,6 +51,7 @@
 #include "hall_2f.h"
 #include "master_bedroom.h"
 #include "east_hall.h"
+#include "east_hall_quake.h"
 #include "library.h"
 #include "library_destroyed.h"
 #include "hadad_library.h"
@@ -175,6 +176,7 @@ void reset_game(RenderContext *ctx) {
     living_statues_reset();
     hadads_reset();
     hadad_library_reset(); /* ...and any half-played crawl under the shelving */
+    east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
@@ -321,6 +323,21 @@ static void update_current_area(GameState area) {
         exit_door_puzzle_update();
         return;
     }
+    /* ...and the same quake again, this time in the East Hall, on the first
+       arrival back out of the wrecked Library (east_hall_quake.h). Same shape as
+       the branch above and for the same reason — update_camera, apply_collision
+       and apply_height must NOT run, or the walls would push the shake around —
+       but it needs a branch of its own because it is not a state of any puzzle
+       this room hosts. The room's enemies keep running: the player is stood just
+       inside the door the whole time, exactly as in the Attic Exit. */
+    if (area == STATE_EAST_HALL && east_hall_quake_active()) {
+        update_zombies();
+        update_spiders();
+        update_rabisus();
+        player_status_update();
+        east_hall_quake_update();
+        return;
+    }
     /* The Garden Courtyard's boss encounter takes the camera and all input for
        its reveal and for its death sequence — but NOT for the fight in between,
        which is ordinary free play and falls through to the branch below.
@@ -456,12 +473,24 @@ static void update_current_area(GameState area) {
             /* Double door at the hall's east end, into the library — or into
                the Library Destroyed once the keystones have come back out of the
                Attic Exit's door. One doorway, two rooms behind it; the rule is
-               library_destroyed_active() and lives in one place. */
-            pending_area = library_destroyed_active() ? STATE_LIBRARY_DESTROYED
-                                                      : STATE_LIBRARY;
-            door_anim_start(DOOR_PANEL_INNER);   /* interior double door */
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
+               library_destroyed_active() and lives in one place.
+
+               ...unless the ceiling came down on the far side of it on the way
+               out of the wrecked Library (east_hall_quake.h). The door then
+               keeps its sign — the player is meant to try it — and Circle only
+               says why nothing happens. Handled HERE rather than inside
+               east_hall_edoor_triggered() so the trigger keeps meaning "the
+               player pressed O at this door" and the room this door leads to
+               stays the one decision made in this file. */
+            if (game_flag(FLAG_EAST_HALL_RUBBLE)) {
+                show_pickup_msg_raw("There is rubble behind the door!");
+            } else {
+                pending_area = library_destroyed_active() ? STATE_LIBRARY_DESTROYED
+                                                          : STATE_LIBRARY;
+                door_anim_start(DOOR_PANEL_INNER);   /* interior double door */
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
         } else if (!lock && east_hall_sdoor_triggered()) {
             /* Single wooden door in the south wall, onto the East Stairwell's
                west landing. */
@@ -1667,6 +1696,21 @@ int main(int argc, const char **argv) {
                     east_hall_spawn_east();
                 else if (current_area == STATE_EAST_STAIRWELL)
                     east_hall_spawn_south();
+                /* Out of the WRECKED library specifically: the house shakes and
+                   the door behind the player is buried (east_hall_quake.h). The
+                   module owns the rest of the rule — the two flags, and whether
+                   it has already happened — so all this line decides is where
+                   the player came from. Armed rather than started, so the base
+                   to shake around is taken a frame later, after everything below
+                   has finished placing the player.
+
+                   A title-screen Load Game cannot reach this: that path sets
+                   current_area to STATE_DELIVERY_AREA before the loading branch
+                   runs, so the saved flags installed further down can never
+                   arrive after an arm and undo it. */
+                east_hall_quake_reset();
+                if (current_area == STATE_LIBRARY_DESTROYED)
+                    east_hall_quake_arm_on_entry();
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* shares reception's music */
             } else if (pending_area == STATE_LIBRARY) {
                 library_init();     /* defaults to the west (east hall) door */
@@ -1896,6 +1940,9 @@ int main(int argc, const char **argv) {
             if (pending_area == STATE_ATTIC_EXIT)
                 attic_exit_apply_flags();   /* re-reads FLAG_LIGHTS_SOLVED, and
                                                the two behind the door's art */
+            if (pending_area == STATE_EAST_HALL)
+                east_hall_apply_flags();    /* re-reads FLAG_HADAD_TWO: the hall's
+                                               monsters die with the Library */
         } else if (game_state == STATE_DOOR_ANIM) {
             /* RE-style door transition: a black screen with the door swinging
                open, then a fade to black. Draws nothing of the live room — when
@@ -1950,7 +1997,15 @@ int main(int argc, const char **argv) {
                              (area == STATE_PIANO_ROOM && piano_puzzle_active()) ||
                              (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) ||
-                             (area == STATE_ATTIC_EXIT && exit_door_puzzle_active());
+                             (area == STATE_ATTIC_EXIT && exit_door_puzzle_active()) ||
+                             /* The East Hall's collapse. A cutscene by shape,
+                                but it belongs in THIS list and not the one
+                                below: the quake's whole payload is a log line
+                                ("You feel the ground shake violently") and only
+                                `puzzle` keeps the log box up. The Attic Exit's
+                                quake gets the same treatment by riding inside
+                                exit_door_puzzle_active() on the line above. */
+                             (area == STATE_EAST_HALL && east_hall_quake_active());
                 int cutscene = (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()) ||
                                (area == STATE_DELIVERY_AREA && delivery_intro_active()) ||
                                (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene());

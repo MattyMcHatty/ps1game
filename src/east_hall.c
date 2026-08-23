@@ -26,6 +26,7 @@
 #include "rabisu.h"
 #include "web.h"
 #include "item_pickup.h"
+#include "player.h"           /* game_flag, FLAG_HADAD_TWO */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -283,6 +284,34 @@ void east_hall_init(void) {
        safe: reception_init() re-places both on every reception entry. */
     save_points_clear();
     dressers_clear();
+}
+
+/* ---- What FLAG_HADAD_TWO does to this room ---------------------------------
+   Once the four key stones are back out of the Attic Exit's door, the hall is
+   EMPTY. Whatever is still alive in here — the three ceiling spiders world.c
+   seeds, and anything later placed alongside them — is marked dead, silently and
+   for good. From that point the only thing the player meets in this room is
+   Hadad's collapse on the way out of the wrecked Library (east_hall_quake.h).
+
+   DEAD, NOT DESPAWNED. Each of the three helpers sets the same state the player
+   killing it would, which is what makes the change stick: world_leave's *_rest()
+   passes leave a dead body alone, and world.c's save delta records it in the
+   same bitmask a real kill would. Nothing here needs a flag of its own.
+
+   Called from main.c's post-entry re-derive block — AFTER world_enter has put
+   the room's residents in the live arrays and after savegame_apply_pending has
+   installed the saved flags, which is the same slot and the same reason
+   attic_exit_apply_flags has. Run any earlier and it either kills an array that
+   is about to be overwritten or reads the previous playthrough's flags.
+
+   All three enemy kinds this room's update loop ticks are swept, not only the
+   spiders that are in it today: the point is that the hall is finished, and a
+   zombie added here next month should not quietly reopen it. */
+void east_hall_apply_flags(void) {
+    if (!game_flag(FLAG_HADAD_TWO)) return;
+    zombies_kill_all();                      /* room-swapped: no area argument */
+    spiders_kill_area(STATE_EAST_HALL);
+    rabisus_kill_area(STATE_EAST_HALL);
 }
 
 static void draw_east_hall_smd(RenderContext *ctx) {
