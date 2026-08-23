@@ -52,9 +52,10 @@ typedef struct {
     int       mushroom_count;
     LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
     int          living_statue_count;
-    Hadad     hadads[MAX_HADADS];         /* ditto: the two scripted encounters —
-                                             the Rear Gate's plinth and the West
-                                             Corridor's corner ambush           */
+    Hadad     hadads[MAX_HADADS];         /* ditto: the three scripted encounters
+                                             — the Rear Gate's plinth, the West
+                                             Corridor's corner ambush and the
+                                             Library Destroyed's U-shaped chase */
     int       hadad_count;
 } WorldState;
 
@@ -727,6 +728,32 @@ void world_seed_room(GameState area) {
     if (area == STATE_WEST_CORRIDOR) {
         hadad_add(HAD_WC_START_X, HAD_WC_START_Z, HAD_WC_ANCHOR,
                   STATE_WEST_CORRIDOR, HAD_ROLE_WEST_CORR);
+    }
+
+    /* Library Destroyed: a THIRD HADAD, the U-shaped chase. Placed at the east
+       end of the west spur, which is where he APPEARS — HAD_ROLE_LIBRARY seeds
+       in HAD_ABSENT, so the room is empty until the player reaches its
+       north-west corner. It needs no flag test of its own: this room only
+       exists at all while FLAG_HADAD_TWO is set. See THE LIBRARY DESTROYED
+       ENCOUNTER in src/hadad.h, and src/hadad_library.c for the escape.
+
+       AUTHORED like the other two and for the same reason: world_seed_room runs
+       for rooms whose geometry is not resident, so no floor may be probed here.
+       This room's single floor plane is y=0 and HAD_LD_ANCHOR is its anchor.
+
+       >>> THIS PLACEMENT MUST STAY BELOW THE OTHER TWO. <<< Same rule as the
+       West Corridor's above: the save's hadads_state indexes instances in
+       room_areas[] order — Rear Gate (18), West Corridor (19), Library
+       Destroyed (20) — and this room is last in that table, so appending here
+       is what keeps a loaded save's bits on the right Hadad.
+
+       Sound: this room takes the default SND_BANK_HOUSE (main.c's
+       STATE_LOADING) and SFX_RUMBLE has a house copy, so his arrival sounds.
+       The room now enters in SILENCE (main.c's STATE_LOADING again), so the
+       stalker track update_hadads brings up is the only music it ever has. */
+    if (area == STATE_LIBRARY_DESTROYED) {
+        hadad_add(HAD_LD_APPEAR_X, HAD_LD_APPEAR_Z, HAD_LD_ANCHOR,
+                  STATE_LIBRARY_DESTROYED, HAD_ROLE_LIBRARY);
     }
 }
 

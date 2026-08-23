@@ -237,14 +237,17 @@ void hadads_rest(void) {
         Hadad *h = &hadads[i];
         if (!h->active || h->state == HAD_DEAD) continue;
 
-        /* The West Corridor ambush has no persistent posture at all: whatever
-           he was doing, leaving the room puts him back in front of the double
-           door in HAD_ABSENT, ready to run again on the next visit for as long
-           as the flag window is open. Deliberately NOT the plinth's one-shot
-           `spent` rule — nothing was asked for that would end this encounter
-           other than FLAG_HADAD_THREE, which closes it permanently and is checked
-           at the trigger. */
-        if (h->role == HAD_ROLE_WEST_CORR) { had_reseat(h); continue; }
+        /* Neither of the two scripted-room roles has a persistent posture at
+           all: whatever he was doing, leaving the room puts him back on his
+           appearance point in HAD_ABSENT, ready to run again on the next visit.
+           Deliberately NOT the plinth's one-shot `spent` rule — for the West
+           Corridor nothing was asked for that would end the ambush other than
+           FLAG_HADAD_THREE (checked at the trigger), and the Library Destroyed
+           encounter was specified to re-arm from the top after a death or an
+           exit through the double door. had_reseat clears `stage`, `leg` and
+           `branch` with everything else, so the replay starts from the first
+           walk and not from wherever the last one got to. */
+        if (h->role != HAD_ROLE_PLINTH) { had_reseat(h); continue; }
 
         int flag_one = game_flag(FLAG_HADAD_ONE);
         int flag_three = game_flag(FLAG_HADAD_THREE);
@@ -495,7 +498,8 @@ static void had_arrive(Hadad *h, int32_t x, int32_t z, int follow) {
    him judder — the wall was the SYMPTOM, and it was also the only thing keeping
    him anywhere near his own path. Removing wall collision alone would have
    stopped the juddering and walked him quietly out of the room instead. */
-static void had_march(Hadad *h, int32_t goal_dx, int32_t goal_dz, int32_t speed) {
+static void had_march(Hadad *h, int32_t goal_dx, int32_t goal_dz,
+                      int32_t speed, int step_frames) {
     /* RADIAL, not the Manhattan sum had_steer normalises by: a Manhattan
        divisor makes a diagonal leg travel `speed` in the sum of its components
        rather than along the line, i.e. slower the closer to 45° it runs. Both
@@ -516,8 +520,12 @@ static void had_march(Hadad *h, int32_t goal_dx, int32_t goal_dz, int32_t speed)
 
     /* The walk cycle, which had_steer would otherwise have been advancing.
        Leave this out and he slides the length of the corridor in a single
-       frozen pose. */
-    if (++h->step_timer >= HAD_STEP_FRAMES) {
+       frozen pose. The cadence is passed IN rather than read from
+       HAD_STEP_FRAMES because a marched leg may run at a speed of its own (the
+       Library Destroyed's first walk does), and the two must always be picked
+       together or the stride stops matching the ground covered — see
+       HAD_LD_WALK1_STEP_FRAMES. */
+    if (++h->step_timer >= step_frames) {
         h->step_timer = 0;
         h->step_frame ^= 1;
     }
@@ -528,14 +536,16 @@ static void had_march(Hadad *h, int32_t goal_dx, int32_t goal_dz, int32_t speed)
    geometry entirely while doing so.
 
    The West Corridor's two legs run down the centre line of two straight arms
-   with nothing in either of them, so there is nothing for steering to earn.
-   The Rear Gate's single leg says NO and keeps had_steer: that one threads the
+   with nothing in either of them, so there is nothing for steering to earn, and
+   the Library Destroyed's five are the same shape — the aisles are straight,
+   empty and exactly his width, and the two corners are authored waypoints. The
+   Rear Gate's single leg says NO and keeps had_steer: that one threads the
    corridor's north mouth and its side hedges with a 300-unit body, its seeded
    facing already points along the goal (so the blend above is stable for it,
    which is why that walk never showed this bug), and it is not what the user
    reported. */
 static int had_path_is_open(HadadRole role) {
-    return role == HAD_ROLE_WEST_CORR;
+    return role != HAD_ROLE_PLINTH;
 }
 
 /* ---- The scripted paths -----------------------------------------------------
@@ -563,8 +573,75 @@ static int had_path_goal(const Hadad *h, int32_t *gx, int32_t *gz) {
         default: return 0;
         }
     }
+    /* ---- The Library Destroyed's TWO walks, indexed by (stage, leg) --------
+       Stage 0 is the one the player runs from: in at the east end of the spur,
+       west to the corner, south to the single door. Stage 1 is the one they run
+       from AFTER the crawl, and it is the same path in reverse with a fork on
+       the end: north up the west aisle, east along the spur, then down whichever
+       arm of the east aisle they were in when he reached the junction.
+
+       `branch` is read here and LATCHED elsewhere (had_leg_entered). Solving it
+       from the live player position on every call would swing the goal from one
+       end of the aisle to the other the moment they crossed HAD_LD_BRANCH_Z,
+       and he would pivot on the junction instead of committing to an arm.
+       branch == 0 cannot be reached from leg 2 — the latch runs on the same
+       frame the leg is taken up — but it falls to SOUTH rather than returning 0,
+       because rooting him mid-room on a bad read would be the worse failure. */
+    if (h->role == HAD_ROLE_LIBRARY) {
+        if (h->stage == 0) {
+            switch (h->leg) {
+            case 0: *gx = HAD_LD_CORNER_X; *gz = HAD_LD_CORNER_Z; return 1;
+            case 1: *gx = HAD_LD_SDOOR_X;  *gz = HAD_LD_SDOOR_Z;  return 1;
+            default: return 0;
+            }
+        }
+        switch (h->leg) {
+        case 0: *gx = HAD_LD_CORNER_X; *gz = HAD_LD_CORNER_Z; return 1;
+        case 1: *gx = HAD_LD_APPEAR_X; *gz = HAD_LD_APPEAR_Z; return 1;
+        case 2:
+            if (h->branch == 1) { *gx = HAD_LD_NORTH_X; *gz = HAD_LD_NORTH_Z; }
+            else                { *gx = HAD_LD_SOUTH_X; *gz = HAD_LD_SOUTH_Z; }
+            return 1;
+        default: return 0;
+        }
+    }
     if (h->leg == 0) { *gx = HAD_END_X; *gz = HAD_END_Z; return 1; }
     return 0;
+}
+
+/* Called the instant `leg` is advanced, BEFORE the new goal is asked for. The
+   one thing on any of these paths that is decided at run time rather than
+   authored: which arm of the Library Destroyed's east aisle Hadad takes when he
+   reaches the junction at the east end of the spur.
+
+   Latched once and never revisited — see the note in had_path_goal. Measured
+   against the spur's own north edge, so "north of the line" is exactly "up in
+   the vestibule end of the aisle, at the double door". player_z() and not
+   cam_z: the crawl anchors the player, and although that cutscene is over by
+   the time this can fire, an enemy that reads the camera to find the player is
+   the single most likely bug in this whole feature. */
+/* How fast this role walks its CURRENT leg, and the stride cadence that goes
+   with it. One function so the pair can never be picked apart: every caller
+   takes both or neither.
+
+   Only one path has a pace of its own — the Library Destroyed's FIRST walk, at
+   half of HAD_SPEED, because at full speed he is round the corner before the
+   player has noticed the single door has gone dead. His second walk, and both
+   of the other two roles', run at the enemy's own speed. */
+static void had_path_pace(const Hadad *h, int32_t *speed, int *step_frames) {
+    if (h->role == HAD_ROLE_LIBRARY && h->stage == 0) {
+        *speed       = HAD_LD_WALK1_SPEED;
+        *step_frames = HAD_LD_WALK1_STEP_FRAMES;
+        return;
+    }
+    *speed       = HAD_SPEED;
+    *step_frames = HAD_STEP_FRAMES;
+}
+
+static void had_leg_entered(Hadad *h) {
+    if (h->role != HAD_ROLE_LIBRARY || h->stage != 1 || h->leg != 2) return;
+    if (h->branch) return;
+    h->branch = (player_z() > HAD_LD_BRANCH_Z) ? 1 : 2;
 }
 
 void update_hadads(void) {
@@ -677,6 +754,26 @@ void update_hadads(void) {
                 break;
             }
 
+            /* ---- The Library Destroyed encounter ----------------------------
+               NO FLAG TEST OF ITS OWN, and that is deliberate: this instance
+               only exists in a room that only exists while FLAG_HADAD_TWO is
+               set (library_destroyed_active()), so the gate the other two roles
+               need is already the price of getting in here.
+
+               The trigger is the north-west corner, true radial so it reads the
+               same coming down the west aisle from the stairwell door as coming
+               west along the spur. He appears at the far end of the spur and
+               walks his stage-0 legs; follow = 0 because everything about this
+               encounter is a fixed path — the ESCAPE is what depends on the
+               player, and that belongs to the director. */
+            if (h->role == HAD_ROLE_LIBRARY) {
+                int32_t cdx = px - HAD_LD_TRIG_X;
+                int32_t cdz = pz - HAD_LD_TRIG_Z;
+                if (had_isqrt(cdx * cdx + cdz * cdz) <= HAD_LD_TRIG_RADIUS)
+                    had_arrive(h, HAD_LD_APPEAR_X, HAD_LD_APPEAR_Z, 0);
+                break;
+            }
+
             /* Flag three, waiting. Two-part latch: the player has to have been up
                the ramp AND come back down off it. One without the other would
                fire on somebody who had merely walked south, which would put him
@@ -766,8 +863,10 @@ void update_hadads(void) {
                    Each leg is snapped to exactly on arrival before the next one
                    is taken up, so the turn happens from the authored point and
                    not from wherever HAD_ARRIVE_DIST happened to catch him. */
-                int32_t tx, tz;
+                int32_t tx, tz, leg_speed;
+                int     leg_step;
                 if (!had_path_goal(h, &tx, &tz)) { h->state = HAD_ROOTED; break; }
+                had_path_pace(h, &leg_speed, &leg_step);
 
                 int32_t gx = tx - h->x;
                 int32_t gz = tz - h->z;
@@ -776,18 +875,19 @@ void update_hadads(void) {
                     h->x = tx;
                     h->z = tz;
                     h->leg++;
+                    had_leg_entered(h);   /* latch anything the next leg needs */
                     /* Last leg walked out: he stands here for the rest of the
                        visit. Still solid, still dangerous, still holding the
                        music up — HAD_ROOTED is a monster standing in a
                        corridor, not a statue again. */
                     if (!had_path_goal(h, &tx, &tz)) h->state = HAD_ROOTED;
                 } else if (had_path_is_open(h->role)) {
-                    had_march(h, gx, gz, HAD_SPEED);
+                    had_march(h, gx, gz, leg_speed, leg_step);
                 } else {
                     int clear = !collision_segment_blocked(
                         h->x, h->y + HAD_Y_OFFSET, h->z,
                         tx, h->y + HAD_Y_OFFSET, tz);
-                    had_steer(h, gx, gz, HAD_SPEED, clear);
+                    had_steer(h, gx, gz, leg_speed, clear);
                 }
             }
             break;
@@ -827,6 +927,49 @@ void update_hadads(void) {
         cdaudio_play(CDAUDIO_STALKER_TRACK, 1);
         music_on = 1;
     }
+}
+
+/* ---- The Library Destroyed director API ------------------------------------
+   Three functions, and they are everything src/hadad_library.c is allowed to
+   know about this enemy (see the marked block at the foot of hadad.h). */
+
+Hadad *hadad_library_instance(void) {
+    int i;
+    for (i = 0; i < hadad_count; i++) {
+        Hadad *h = &hadads[i];
+        if (!h->active || h->role != HAD_ROLE_LIBRARY) continue;
+        if (h->area != current_area || h->state == HAD_DEAD) continue;
+        return h;
+    }
+    return NULL;
+}
+
+int hadad_library_present(void) {
+    Hadad *h = hadad_library_instance();
+    /* WALK or ROOTED — i.e. he is in the room, either stage. Deliberately the
+       APPEARANCE and not the arrival: the single door dies and the crawl gap's
+       prompt comes up the moment the player sees him at the end of the spur,
+       not when he finally reaches the door a dozen seconds later. */
+    return h && (h->state == HAD_WALK || h->state == HAD_ROOTED);
+}
+
+void hadad_library_begin_return(Hadad *h) {
+    if (!h || h->role != HAD_ROLE_LIBRARY) return;
+    h->stage  = 1;
+    h->branch = 0;
+    /* Straight onto the spot the first walk was aimed at, whether or not he had
+       time to get there — the player was under the floor and did not see, and
+       "he is at the door you were running for" is the read the beat wants.
+       had_arrive resets `leg`, so stage 1 starts from the top of its own path,
+       and it re-serves the wake pause, which gives the player a second of him
+       standing there before he starts back. */
+    had_arrive(h, HAD_LD_SDOOR_X, HAD_LD_SDOOR_Z, 0);
+    /* had_arrive also re-cues the stalker track behind the rumble, which is
+       right for a first arrival and wrong here: the track has been playing
+       since he appeared, and letting the cue land would restart the CD from the
+       top two seconds after control comes back. The rumble itself still
+       sounds — that is the announcement. */
+    if (music_on) music_delay = 0;
 }
 
 int hadad_lever_locked(void) {

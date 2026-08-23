@@ -87,6 +87,7 @@ add_executable(horror_game
     src/west_corridor_mesh_collision.c
     src/west_corridor.c
     src/rabisu_boss.c
+    src/hadad_library.c
     src/chainlink_door.c
     src/lever.c
     src/lightswitch_puzzle.c

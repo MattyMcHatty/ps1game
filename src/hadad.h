@@ -41,12 +41,12 @@
  * REPLACES it. The user's words were "once this flag is active we ignore flag
  * one".
  *
- * >>> THERE IS NO FLAG TWO YET, AND THAT IS DELIBERATE. <<< This flag was
- * called FLAG_HADAD_TWO up to the rename; the encounter that will sit between
- * the two has not been designed, and the user asked for the numbering to leave
- * room for it rather than have the third encounter go on being called the
- * second. So "flag one, flag three" is not a typo anywhere in this file — see
- * the note in src/player.h for what adding the real flag two will cost.
+ * >>> "FLAG ONE, FLAG THREE" IS NOT A TYPO ANYWHERE IN THIS SECTION. <<< This
+ * flag was called FLAG_HADAD_TWO up to the rename, and FLAG_HADAD_TWO now means
+ * something else entirely: the key stones are back out of the Attic Exit's door
+ * and the Library has collapsed. It gates the THIRD instance of this enemy (THE
+ * LIBRARY DESTROYED ENCOUNTER, below) and has nothing to do with the plinth's
+ * table, which reads flags ONE and THREE only.
  *
  *   NEITHER FLAG          Hadad is a statue on the plinth (HAD_IDLE), and he
  *                         is INVULNERABLE — hadad_damage refuses outright, so
@@ -226,6 +226,81 @@
  * through the ceiling here before it does anywhere else.
  *
  * ======================================================================
+ * THE LIBRARY DESTROYED ENCOUNTER   (HAD_ROLE_LIBRARY)
+ * ======================================================================
+ * A THIRD instance, seeded into STATE_LIBRARY_DESTROYED by world_seed_room. It
+ * shares the body, art, damage rules, music and solid cylinder with the other
+ * two and, like the West Corridor's, none of the plinth's state table.
+ *
+ * >>> THIS ONE IS THE ONLY INSTANCE WITH A DIRECTOR. <<< The walking is here;
+ * the ESCAPE — the floating prompt on the crawl gap, the camera going under the
+ * bookcase, and the handover that starts his second walk — is in
+ * src/hadad_library.c, which is the encounter and not the enemy
+ * (tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 1). The two talk through the four
+ * functions in the marked block at the foot of this file and nothing else.
+ *
+ *   THE GATE      none of its own. The room only exists at all while
+ *                 FLAG_HADAD_TWO is set (library_destroyed_active()), so the
+ *                 flag test the other two roles need is already the price of
+ *                 admission. He is HAD_ABSENT until the corner is entered.
+ *
+ *   THE ROOM      a U (library_destroyed.h). The EAST AISLE x[-350,350] runs the
+ *                 whole z range, from the vestibule and its double door at the
+ *                 north end down to z=-2080; a SPUR runs west from it at
+ *                 z[-759,-309]; and the WEST AISLE x[-1780,-1299] runs south off
+ *                 the spur's far end to the single door in the south wall. The
+ *                 collapsed shelving fills the middle.
+ *
+ *   THE TRIGGER   the player reaching the north-west corner — the top of the
+ *                 west aisle, just south of where the spur meets it. True radial
+ *                 like the other two, so it reads the same whether they came up
+ *                 the west aisle from the stairwell door or west along the spur.
+ *
+ *   THE FIRST WALK   he appears at the EAST end of the spur, the full width of
+ *                 the room away from them, walks west to the corner and then
+ *                 turns south down the west aisle to a stop in front of the
+ *                 single door. TWO LEGS for the West Corridor's reason: the room
+ *                 turns, and one straight goal would cut him through the corner
+ *                 of the rubble block.
+ *
+ *                 >>> AT HALF PACE. <<< This walk alone runs at
+ *                 HAD_LD_WALK1_SPEED rather than HAD_SPEED — it is the one the
+ *                 player has to solve a room during, and at full speed he is
+ *                 round the corner before they have worked out that the single
+ *                 door has stopped answering. The second walk is at full speed.
+ *
+ *                 >>> THE SINGLE DOOR IS DEAD FROM THE MOMENT HE APPEARS. <<<
+ *                 Not from the moment he arrives at it — hadad_library_seals_
+ *                 sdoor() goes true on the appearance, the door's floating sign
+ *                 goes with it, and the crawl gap's own prompt takes its place.
+ *                 The player's only way out of the west aisle is under the
+ *                 bookcase.
+ *
+ *   THE SECOND WALK   starts when the crawl ends. The director places him in
+ *                 front of the single door — the place the first walk was aimed
+ *                 at, so it reads as "he got there while you were under the
+ *                 floor" whether he actually had time to or not — and he walks
+ *                 north to the corner, east to the end of the spur, and then
+ *                 down whichever arm of the east aisle the player is in. The
+ *                 branch is LATCHED when he reaches the spur's east end
+ *                 (had_leg_entered) and never re-read: solving it every frame
+ *                 would have him pivot on the junction as the player crossed
+ *                 HAD_LD_BRANCH_Z.
+ *
+ *                 He MARCHES both walks and roots at the end of the second. He
+ *                 does not chase — where he ends up must not depend on how the
+ *                 player ran, and at 600 wide in a 700-wide aisle he is a plug
+ *                 either way. The double door is the only exit.
+ *
+ *   RE-ARMING     leaving the room (or dying in it) puts him back to HAD_ABSENT
+ *                 at the appearance point, exactly as the West Corridor's does,
+ *                 so the whole thing replays on the next visit. `spent` is not
+ *                 used by this role either.
+ *
+ * HEADROOM IS FINE HERE. The drawn ceiling over the aisles is -730 against a
+ * crown at -599 (see library_destroyed_init's collision_set_ceiling_y).
+ *
+ * ======================================================================
  * PERSISTENCE
  * ======================================================================
  * The spiders'/statues' model: ONE global array tagged by area, in world.c's
@@ -235,10 +310,11 @@
  * (tools/ADDING_AN_ENEMY.txt STEP 6). MAX_HADADS is a whole-game budget.
  * ----------------------------------------------------------------------- */
 
-/* TWO: the Rear Gate's plinth statue and the West Corridor's ambush. This is a
-   WHOLE-GAME budget and it is what the save's hadads_state field has to cover —
-   two bits apiece against WD_MAX_HADADS (4), asserted in world.c. */
-#define MAX_HADADS            2
+/* THREE: the Rear Gate's plinth statue, the West Corridor's ambush and the
+   Library Destroyed encounter. This is a WHOLE-GAME budget and it is what the
+   save's hadads_state field has to cover — two bits apiece against
+   WD_MAX_HADADS (4), asserted in world.c. */
+#define MAX_HADADS            3
 #define HAD_MAX_HEALTH      100   /* crucifaxe swings, at 1 apiece */
 
 /* ---- Sprite geometry -------------------------------------------------------
@@ -340,6 +416,83 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
    on whichever side the player arrives from, and nowhere near either door
    (both are over 1600 away, so neither transition can trip it on the way in). */
 #define HAD_WC_TRIG_RADIUS    400
+
+/* ---- The Library Destroyed encounter, in six points ------------------------
+   That room's own coordinate space (library_destroyed.h and its collision file):
+   bounds x[-1780,350] z[-2080,349], ONE flat floor at y=0, and a U-shaped
+   walkable area — east aisle x[-350,350] over the whole z range, west spur
+   z[-759,-309] running out to x=-1780, west aisle x[-1780,-1299] running south
+   off the end of it. The collapsed shelving is the block in the middle.
+
+     TRIG     the north-west corner, a step south of where the spur meets the
+              west aisle. The user's point. TRUE RADIAL at 400, which reaches
+              z=-434 up into the spur and x=-1129 along it, so it fires a step
+              inside the corner from either approach — and both doors are over
+              1200 away, so neither arrival can trip it on the way in.
+
+     APPEAR   the EAST end of the spur, where it opens into the east aisle. The
+              far side of the room from the trigger, which is the point: the
+              player watches him come the whole way.
+
+     CORNER   the spur's centre line crossed with the west aisle's. NOTE this is
+              z=-548 and NOT the trigger's z=-834: the waypoint has to sit in the
+              SPUR, because a leg drawn straight from APPEAR to the trigger point
+              clips the rubble block's north-west corner at (-1303,-759) and he
+              marches through wall geometry without noticing. The player's corner
+              and his corner are the same corner; they are 286 apart because one
+              is where a 195-radius player stands and the other is where a
+              600-wide body turns.
+
+     SDOOR    in front of the single door in the south wall (that door's own
+              interaction point is x=-1400 z=-2015). Where the first walk ends
+              and where the director puts him back for the second. Kept on the
+              aisle's centre line rather than on the door's, because the aisle is
+              only 481 wide and he is 600: x=-1400 would bury a third of him in
+              the rubble block. His hold cylinder covers the door from here
+              regardless — 495 against the door's 500 trigger radius.
+
+     NORTH    the vestibule, in front of the double door: the branch he takes if
+              the player ran for the exit.
+     SOUTH    the east aisle's south end: the branch he takes if they did not.
+              Both are on the aisle's centre line x=0.
+
+     BRANCH_Z the line that separates the two. z=-309 is the spur's own north
+              edge (collision wall 8), so "north of the branch line" is exactly
+              "out of the spur and into the vestibule end of the aisle". */
+#define HAD_LD_TRIG_X      (-1529)
+#define HAD_LD_TRIG_Z       (-834)
+#define HAD_LD_TRIG_RADIUS    400
+#define HAD_LD_APPEAR_X       109
+#define HAD_LD_APPEAR_Z      (-548)
+#define HAD_LD_CORNER_X    (-1529)
+#define HAD_LD_CORNER_Z      (-548)
+#define HAD_LD_SDOOR_X     (-1529)
+#define HAD_LD_SDOOR_Z     (-1900)
+#define HAD_LD_NORTH_X          0
+#define HAD_LD_NORTH_Z          0
+#define HAD_LD_SOUTH_X          0
+#define HAD_LD_SOUTH_Z     (-1900)
+#define HAD_LD_BRANCH_Z      (-309)
+/* >>> THE FIRST WALK IS AT HALF PACE. <<< At HAD_SPEED he crosses the spur and
+   turns down the aisle before the player has worked out that the single door
+   has stopped answering, which leaves the crawl gap's prompt as something they
+   read on the way past rather than something they look for. Two is a quarter of
+   a walk (camera.c: 12), so they can back off up the aisle and still lose no
+   ground. The SECOND walk stays at HAD_SPEED — by then they know what the gap
+   is and the pressure is the point.
+
+   >>> AND THE STRIDE HAS TO MOVE WITH IT, IN THE OPPOSITE DIRECTION. <<< Same
+   contract HAD_STEP_FRAMES documents for HAD_SPEED itself: the walk cycle is
+   counted in FRAMES, so halving the speed without doubling this halves the
+   ground covered per stride and he moonwalks. What stays constant is the
+   DISTANCE per animation frame — 4 x 39 = 156 against 2 x 78 = 156, exactly.
+   Retune one and recompute the other from that product. */
+#define HAD_LD_WALK1_SPEED         2
+#define HAD_LD_WALK1_STEP_FRAMES  78
+/* The floor is y=0 and feet sit at anchor + 150, so the anchor is
+   -GROUND_FLOOR_Y. A literal for HAD_WC_ANCHOR's reason: world.c includes this
+   header and not collision.h. */
+#define HAD_LD_ANCHOR       (-149)
 
 /* ---- The two triggers ------------------------------------------------------
    FLAG ONE arms on proximity to the two grinders, which sit at z=-85 in the
@@ -496,6 +649,9 @@ _Static_assert(HAD_CATCH_DIST >= HAD_BODY_RADIUS + SWING_RANGE,
 typedef enum {
     HAD_ROLE_PLINTH,      /* Rear Gate: the statue and its two-flag table   */
     HAD_ROLE_WEST_CORR,   /* West Corridor: the two-leg corner ambush       */
+    HAD_ROLE_LIBRARY,     /* Library Destroyed: two walks round a U, with
+                             the crawl-gap escape in between — the only
+                             role with a director (src/hadad_library.c)    */
 } HadadRole;
 
 typedef enum {
@@ -539,6 +695,14 @@ typedef struct {
                                    this role's scripted path                 */
     int         leg;            /* index into that path while follow == 0 —
                                    see had_path_goal() in hadad.c            */
+    int         stage;          /* HAD_ROLE_LIBRARY only: 0 = the walk to the
+                                   single door, 1 = the walk back round the U
+                                   after the crawl. `leg` restarts at 0 for
+                                   each, so the pair is the whole cursor      */
+    int         branch;         /* HAD_ROLE_LIBRARY stage 1 only: which arm of
+                                   the east aisle he took. 0 = not decided
+                                   yet, 1 = north (the vestibule), 2 = south.
+                                   Latched once, at the spur's east end       */
     int         spent;          /* the flag-three encounter has been used up.
                                    HAD_ROLE_PLINTH only. Saved — see
                                    WorldDelta.hadads_state                   */
@@ -631,5 +795,30 @@ void hadads_silence(void);
    sprite can be drawn unmasked and the area's window then restored. Pass NULL
    for areas that use no texture window. */
 void hadads_set_texwindow(const RECT *tw);
+
+/* ---------------------------------------------------------------------------
+ * THE DIRECTOR API   (src/hadad_library.c and nothing else)
+ * ---------------------------------------------------------------------------
+ * Three functions, and they are the whole conversation between the enemy and
+ * the Library Destroyed encounter — see STEP 1 of
+ * tools/ADDING_A_BOSS_ENCOUNTER.txt for why the split is not cosmetic. The
+ * director never touches a Hadad field directly and never reaches into the path
+ * tables; this file never knows a camera exists.
+ */
+
+/* The live Library Destroyed Hadad, or NULL — not placed, not in this area, or
+   dead. For ARMING only: latch the answer, do not re-ask it every frame
+   (ADDING_A_BOSS_ENCOUNTER.txt STEP 4). */
+Hadad *hadad_library_instance(void);
+
+/* 1 once he is actually IN the room — walking or rooted, either stage. This is
+   what kills the single door and raises the crawl gap's prompt, and it is
+   deliberately the APPEARANCE and not the arrival. */
+int  hadad_library_present(void);
+
+/* The crawl is over: put him in front of the single door and start his second
+   walk from the top. Idempotent in the sense that it always restarts stage 1 —
+   the director calls it exactly once, on the frame control comes back. */
+void hadad_library_begin_return(Hadad *h);
 
 #endif

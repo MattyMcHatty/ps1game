@@ -53,6 +53,7 @@
 #include "east_hall.h"
 #include "library.h"
 #include "library_destroyed.h"
+#include "hadad_library.h"
 #include "east_stairwell.h"
 #include "attic_stairwell.h"
 #include "attic_exit.h"
@@ -173,6 +174,7 @@ void reset_game(RenderContext *ctx) {
     mushrooms_reset();
     living_statues_reset();
     hadads_reset();
+    hadad_library_reset(); /* ...and any half-played crawl under the shelving */
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
@@ -341,6 +343,25 @@ static void update_current_area(GameState area) {
         delivery_intro_update();
         return;
     }
+    /* ...and the Library Destroyed's crawl under the collapsed shelving, which
+       takes the camera and all input for its six seconds. Only the crawl — the
+       rest of that encounter is free play with something walking at you and
+       falls through to the branch below.
+
+       >>> update_hadads IS DELIBERATELY NOT CALLED HERE. <<< Unlike the boss
+       reveal, this cutscene is not something the player watches from safety:
+       Hadad is mid-walk down the west aisle and the anchored player is standing
+       right where he is heading, so ticking him would let a contact blow land on
+       somebody who is supposedly under the floor and cannot be touched. Freezing
+       him costs nothing, because the director TELEPORTS him to the single door
+       the frame control comes back regardless of where the walk had got to
+       (hadad_library.h). His music is a latch and simply keeps playing. */
+    if (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene()) {
+        player_status_update();
+        hadad_library_update();
+        update_particles();
+        return;
+    }
     update_camera();
     /* Menu open: the area still ticks (enemies move, gravity applies) but every
        player-driven level interaction — doors, stairs, the drawer puzzle, save
@@ -475,18 +496,21 @@ static void update_current_area(GameState area) {
     } else if (area == STATE_LIBRARY_DESTROYED) {
         /* The Library's replacement once FLAG_HADAD_TWO is set. Identical
            handling to the branch above — same flat single floor, same two doors
-           to the same two rooms — minus the enemy updates, because nothing is
-           seeded in this room (world.c). item_pickups_update stays: it is a
-           no-op with none placed, and it is what a later addition needs. */
+           to the same two rooms — plus the Hadad encounter this room now hosts.
+           item_pickups_update stays: it is a no-op with none placed, and it is
+           what a later addition needs. */
         apply_collision_reception();
         apply_height();
+        update_hadads();          /* the U-shaped chase */
+        hadad_library_update();   /* ...and the crawl gap's prompt watching for O */
         item_pickups_update();
         if (!lock && library_destroyed_wdoor_triggered()) {
             pending_area = STATE_EAST_HALL;
             door_anim_start(DOOR_PANEL_INNER);   /* same interior double door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
-        } else if (!lock && library_destroyed_sdoor_triggered()) {
+        } else if (!lock && !hadad_library_seals_sdoor() &&
+                   library_destroyed_sdoor_triggered()) {
             pending_area = STATE_EAST_STAIRWELL;
             door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
             game_state   = STATE_DOOR_ANIM;
@@ -1655,7 +1679,14 @@ int main(int argc, const char **argv) {
                 /* Coming back out of the stairwell, arrive at the south door. */
                 if (current_area == STATE_EAST_STAIRWELL)
                     library_destroyed_spawn_south();
-                cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* the Library's music, unchanged */
+                /* NO music here — the collapsed Library is silent on entry, and
+                   the only thing that ever sounds in it is Hadad's stalker track
+                   once he appears (update_hadads brings that up over this).
+                   STOPPED rather than merely not started, for the Garden Stairs'
+                   reason: a title-screen load or a debug level-select jump does
+                   not pass through the door transition's own cdaudio_stop and
+                   would otherwise arrive with the previous room's music running. */
+                cdaudio_stop();
             } else if (pending_area == STATE_EAST_STAIRWELL) {
                 east_stairwell_init();  /* defaults to the west landing */
                 /* The two landings are separate rooms in practice: the Library
@@ -1921,7 +1952,8 @@ int main(int argc, const char **argv) {
                              (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && exit_door_puzzle_active());
                 int cutscene = (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()) ||
-                               (area == STATE_DELIVERY_AREA && delivery_intro_active());
+                               (area == STATE_DELIVERY_AREA && delivery_intro_active()) ||
+                               (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();

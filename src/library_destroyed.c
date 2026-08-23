@@ -26,6 +26,8 @@
 #include "zombie.h"
 #include "spider.h"
 #include "rabisu.h"
+#include "hadad.h"
+#include "hadad_library.h"
 #include "item_pickup.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -211,6 +213,12 @@ static void lddoor_text(RenderContext *ctx) {
    centres the reading axis (X) on world_x after adding 200, so pass door_x-200.
    mirror=1 because the player reads it from +Z. */
 static void ldsdoor_text(RenderContext *ctx) {
+    /* Dead from the moment Hadad appears, and it is the SIGN going out that
+       tells the player so — the crawl gap's own prompt comes up in its place the
+       same frame (hadad_library.h). main.c gates the trigger on the same
+       predicate, so the door never answers either. */
+    if (hadad_library_seals_sdoor()) return;
+
     int32_t dx = cam_x - LDSDOOR_X;
     int32_t dz = cam_z - LDSDOOR_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
@@ -277,6 +285,11 @@ void library_destroyed_init(void) {
        safe: reception_init() re-places both on every reception entry. */
     save_points_clear();
     dressers_clear();
+
+    /* The encounter director, LAST — it only parks itself here. It arms off
+       hadad_library_present(), because world_enter() has not placed anybody yet
+       on this line (ADDING_A_BOSS_ENCOUNTER.txt STEP 4). */
+    hadad_library_enter();
 }
 
 static void draw_library_destroyed_smd(RenderContext *ctx) {
@@ -481,19 +494,23 @@ void library_destroyed_draw(RenderContext *ctx) {
        Voff>=128 sprite correctly (see tools/TEXTURING_NOTES.txt PART 5). This is
        the East Stairwell's arrangement, for the same reason.
 
-       No draw_hadads here, unlike library.c: Hadad's only two placements are the
-       Rear Gate plinth and the West Corridor ambush (world.c), and neither role
-       ever moves him into this room. */
+       draw_hadads IS here, though: world.c seeds a THIRD Hadad into this room
+       (HAD_ROLE_LIBRARY) and he is the one thing this room does contain. His
+       three sprites sit at Voff 128, so he is handed the room's 128 window and
+       brackets each quad with a full-page one himself. */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         zombies_set_texwindow(&tw);
         spiders_set_texwindow(&tw);
+        hadads_set_texwindow(&tw);
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
     draw_rabisus(ctx);
+    draw_hadads(ctx);
     item_pickups_draw(ctx);
 
     lddoor_text(ctx);
     ldsdoor_text(ctx);
+    hadad_library_draw(ctx);   /* the crawl gap's prompt, in the door's place */
 }
