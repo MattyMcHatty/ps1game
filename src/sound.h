@@ -220,7 +220,35 @@ typedef enum {
        185, so a copy there is free and `spare` does not move. A grinder placed
        inside the house would be silent. */
     SFX_GRIND      = 37,
-    SFX_COUNT      = 38,
+    /* ---- SFX_RUMBLE on four more voices. ALIASES, in the SFX_RBS_SWING sense:
+       NULL in sfx_files[], no second copy in SPU RAM, no disc entry — just four
+       more slots pointing at the one upload so four more voices can play it.
+
+       They exist for the Attic Exit's quake (exit_door_puzzle.c), which fires
+       the rumble SIX times at 30-frame spacing across a 3 s shake. The clip is
+       127 frames long, so up to five are sounding at once and on ONE voice each
+       trigger would simply cut the last — a stutter, not an earthquake.
+       Five voices is exactly enough for six plays: by the time #6 starts at
+       frame 150, #1 (frames 0..127) has finished, so the round-robin in
+       exit_door_puzzle.c never lands on a voice still in use.
+
+       >>> THESE ARE BORROWED VOICES, AND THAT IS ONLY SAFE IN THE HOUSE. <<<
+       The SPU's 24 voices are all spoken for (see sfx_channel), so rather than
+       take one from anything that can sound in the Attic Exit these sit on top
+       of four that CANNOT: GAS, PULL and HISS are GARDEN-bank monsters and
+       EMERGE is a BOSS-bank one, and the Attic Exit is a HOUSE room, so those
+       four voices are guaranteed idle here. Playing a quake in a garden or
+       courtyard room would cut a flower, a mushroom or the boss's charge tell —
+       pick different voices before moving it.
+
+       SFX_RUMBLE itself is BANKED (house|garden), so unlike RBS_SWING these
+       cannot be copied once at startup: their source address moves with every
+       bank load. load_bank re-copies them on its way out. */
+    SFX_RUMBLE_2   = 38,
+    SFX_RUMBLE_3   = 39,
+    SFX_RUMBLE_4   = 40,
+    SFX_RUMBLE_5   = 41,
+    SFX_COUNT      = 42,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

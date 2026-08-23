@@ -16,9 +16,11 @@
      WALL      Stairwell's west room (its north-wall door at x=-1942, z=350).
      NORTH     the xt_dr_lckd exit door at x[-225,225], y[-467,0], z=1000,
      WALL      inside the cage. It carries the exit-door keystone puzzle (see
-               exit_door_puzzle.c); solving it swaps the art to xt_dr_cmplt. No
-               room is wired behind it yet — the open door TEMPORARILY sends the
-               player back to this room's own entrance.
+               exit_door_puzzle.c); solving it swaps the art to xt_dr_cmplt and
+               opens onto the Garden Stairs. Late in the game the player takes
+               the four stones back OUT of it, which swaps the art back and
+               seals it from both faces for good — the quake that follows lives
+               in the same module.
      ENEMIES   Four tentacles, two in front of each of the two north-wall
                levers, in the corridors either side of the cage (placed in
                tentacles_init).
@@ -33,6 +35,11 @@ void attic_exit_upload_textures(void); /* room entry: pure LoadImage from RAM (n
    The caller must have set FLAG_EXIT_DOOR_UNLOCKED first — that flag is what
    picks the art on every subsequent room entry too. */
 void attic_exit_unlock_door(void);
+
+/* The opposite beat: the stones have been pulled back out (FLAG_HADAD_TWO,
+   which the caller must have set first), so put the xt_dr_lckd art back up
+   straight away. That flag picks the art on every later room entry too. */
+void attic_exit_relock_door(void);
 void attic_exit_init(void);            /* set collision/floor zones + spawn */
 
 /* Place the cage gate and the four lightswitch levers according to the CURRENT

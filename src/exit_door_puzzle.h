@@ -11,10 +11,39 @@
 
    Structured like the kitchen's stove puzzle: a proximity prompt in free play,
    then a fixed camera + 2D board that owns input until the player backs out.
-   Completion is saved as FLAG_EXIT_DOOR_UNLOCKED. */
+   Completion is saved as FLAG_EXIT_DOOR_UNLOCKED.
+
+   ---- AND THEN TAKING THEM BACK OUT ------------------------------------------
+   Once FLAG_HADAD_ONE is set, the same door offers "Press O to remove the
+   keystones" instead of the way out. That press:
+
+     - awards ALL FOUR stones (the three that were spent plus the magenta one
+       that was part of the lock — nothing else in the game gives that one);
+     - plays SFX_PICKUP and sets FLAG_HADAD_TWO;
+     - shuts the door for good. Both faces then read "Locked" in red and do
+       nothing: this one, and the Garden Stairs' south door, which reads the
+       same flag (garden_stairs.c). The xt_dr_lckd art goes back up, here and on
+       every later room entry (attic_exit.c's door_tex_id).
+     - runs the quake below.
+
+   FLAG_EXIT_DOOR_UNLOCKED IS NOT CLEARED by any of that, deliberately: it is
+   still the record that the puzzle was solved, and it is what stops the board
+   re-opening on the now-empty sockets.
+
+   The quake is a cutscene in the rabisu_boss sense — it owns the camera and all
+   input — but a still one: two seconds of nothing, then three of the view
+   shaking in place with six overlapping rumbles under it and a log line on the
+   frame it starts moving, and then free play again. The camera never moves to a
+   new shot, so there is no glide either way.
+   It runs as a state of THIS module rather than as its own, which is what gets
+   it the input lock and the HUD/menu suppression for free: main.c already
+   routes the whole frame through exit_door_puzzle_update() and hides the
+   overlays whenever exit_door_puzzle_active() is 1. */
 void exit_door_puzzle_load_assets(void);  /* startup: the magenta stone icon */
 void exit_door_puzzle_arm(void);          /* reset to free play (new game / room entry) */
-int  exit_door_puzzle_active(void);       /* 1 while the board owns the camera */
+/* 1 while the board — or the quake — owns the camera and input. main.c reads it
+   both to route the frame here and to suppress the menu and HUD overlays. */
+int  exit_door_puzzle_active(void);
 void exit_door_puzzle_update(void);
 void exit_door_puzzle_draw(RenderContext *ctx);   /* the board; call from the room's draw */
 void exit_door_prompt_draw(RenderContext *ctx);   /* the world-space sign on the door */

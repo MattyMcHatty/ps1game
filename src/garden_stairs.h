@@ -44,7 +44,12 @@ void garden_stairs_upload_grss_gs(void);
 void garden_stairs_init(void);            /* set collision/floor zones + spawn */
 void garden_stairs_draw(RenderContext *ctx);
 
-/* The south-wall door back to the Attic Exit, at the TOP of the stairs. */
+/* The south-wall door back to the Attic Exit, at the TOP of the stairs.
+
+   >>> IT CAN BE SEALED FROM THE FAR SIDE. <<< Once the player pulls the four key
+   stones back out of the Attic Exit's face of it (FLAG_HADAD_TWO — see
+   exit_door_puzzle.h), this face reads "Locked" in red and the trigger below
+   never fires, which shuts the whole garden half of the map off behind it. */
 void garden_stairs_door_arm(void);        /* seed the Circle edge state */
 int  garden_stairs_door_triggered(void);  /* 1 on a fresh Circle press in range */
 

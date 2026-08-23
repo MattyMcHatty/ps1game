@@ -67,26 +67,29 @@ typedef enum {
                            long as this is the ONLY one of the two that is set.
                            It also opens the West Corridor's corner ambush —
                            see west_corridor.h.
+         FLAG_HADAD_TWO    the player has pulled the four stones back out of
+                           the Attic Exit's exit door. Both faces of that door
+                           are then dead — it reads "Locked" from the Attic
+                           Exit and from the Garden Stairs — so the whole
+                           garden half of the map is sealed off behind it. Set
+                           by exit_door_puzzle.c, which also runs the quake
+                           that follows. It is DECLARED at the end of this
+                           enum, not here: see the warning below.
          FLAG_HADAD_THREE  the third encounter is armed. It IGNORES flag one
                            entirely — the lever works again, Hadad is not in
                            the room until the player comes back up off the
                            ramp, and the West Corridor ambush is closed for
                            good.
 
-       >>> THE NUMBERING SKIPS TWO ON PURPOSE. <<< This flag was FLAG_HADAD_TWO
-       until the user renamed it: the encounter that belongs between the two has
-       not been designed yet, and the gap is reserved for it rather than left
-       for the third encounter to go on wearing the second's name. Nothing in
-       the code reads the number — it is a name, and the bit index is positional
-       — so the rename cost nothing.
-
-       >>> ADDING THE REAL FLAG_HADAD_TWO WILL NOT BE FREE, THOUGH. <<< These
-       are bit positions in `game_flags`, which rides in SaveData.flags
-       wholesale. Inserting a member here shifts FLAG_HADAD_THREE and both door
-       flags below it by one, so every existing save silently reads the wrong
-       bits. Either append the new flag at the END of this enum (cheap, and the
-       declaration order need not match the story order) or bump SAVE_VERSION
-       when it goes in.
+       >>> THE STORY ORDER IS ONE, TWO, THREE; THE DECLARATION ORDER IS NOT. <<<
+       These are bit positions in `game_flags`, which rides in SaveData.flags
+       wholesale, so inserting a member mid-enum shifts everything below it and
+       every existing save then reads the wrong bits. FLAG_HADAD_THREE was
+       declared here while two was still undesigned; when two finally arrived it
+       took the cheap route this note always pointed at and went on the END of
+       the enum instead of into the gap. Nothing reads the number — it is a
+       name, and the bit index is positional — so the two orders may differ.
+       Do the same with the next one.
 
        Flag three is not set by anything yet, by design: what turns it on has not
        been designed. Until then it is reachable only from the title screen's
@@ -106,6 +109,9 @@ typedef enum {
                                 mechanic, deliberately — see west_corridor.h. */
     FLAG_HALL_2F_DOOR,
     FLAG_WEST_CORR_DOOR,
+    /* Hadad's second encounter, declared out of story order — see the block on
+       FLAG_HADAD_ONE above for what it means and why it is down here. */
+    FLAG_HADAD_TWO,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

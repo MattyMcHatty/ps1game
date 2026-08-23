@@ -137,6 +137,11 @@ void attic_exit_load_assets(void) {
    should be. Falls back to the locked art if the unlocked one failed to
    register, the same defensive fallback the piano's repaired keyboard uses. */
 static int door_tex_id(void) {
+    /* Pulling the stones back out shuts it again for good, so this wins over
+       FLAG_EXIT_DOOR_UNLOCKED — which stays set, and has to: it is still the
+       record that the puzzle was solved, and it is what stops the board being
+       re-opened on the now-empty sockets. See exit_door_puzzle.c. */
+    if (game_flag(FLAG_HADAD_TWO)) return new_tex_id[0];
     return (game_flag(FLAG_EXIT_DOOR_UNLOCKED) && cmplt_tex_id >= 0)
            ? cmplt_tex_id : new_tex_id[0];
 }
@@ -152,6 +157,16 @@ void attic_exit_upload_textures(void) {
    FLAG_EXIT_DOOR_UNLOCKED, so door_tex_id picks the new art here and on every
    later entry. */
 void attic_exit_unlock_door(void) {
+    texmgr_upload(door_tex_id());
+}
+
+/* ...and the reverse, when the player pulls the four stones back out: the
+   locked leaf goes straight back up, mid-room, off the same RAM copy. Same
+   one-liner as the unlock — door_tex_id does the deciding, and the caller has
+   already set FLAG_HADAD_TWO. Two names rather than one shared "refresh"
+   because the call sites are two opposite story beats and each should say
+   which it is. */
+void attic_exit_relock_door(void) {
     texmgr_upload(door_tex_id());
 }
 
@@ -262,6 +277,15 @@ void attic_exit_apply_flags(void) {
     /* The exit-door board never survives a room change: its own solved state
        lives in FLAG_EXIT_DOOR_UNLOCKED, which this re-reads. */
     exit_door_puzzle_arm();
+
+    /* ...and the door's ART is derived from flags too (door_tex_id reads two of
+       them), so it belongs in here rather than only in the entry upload. The
+       upload ran during the room load, which is BEFORE main.c installs a loaded
+       save's flags or hands out the debug menu's grants — so without this line a
+       Load Game, or a debug jump with the puzzle granted as solved, would arrive
+       at a door whose art disagreed with its own prompt. Pure LoadImage from the
+       resident RAM copy, so it is safe to repeat here. */
+    texmgr_upload(door_tex_id());
 }
 
 void attic_exit_init(void) {

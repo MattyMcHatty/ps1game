@@ -13,6 +13,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "INFINITE LIFE",
     "INFINITE STAMINA",
     "HADAD FLAG ONE",
+    "HADAD FLAG TWO",
     "HADAD FLAG THREE",
 };
 
@@ -91,15 +92,72 @@ void debug_opts_apply_grants(void) {
         game_flag_set(FLAG_STOVE_SOLVED);
     }
 
-    /* Hadad. Nothing but the flag: hadads_rest() and update_hadads work the rest
-       out between them, so setting the bit here and jumping to the Rear Gate
-       puts him exactly where a player who had earned it would find him — posted
-       at the bottom of the corridor for flag one, out of the room until the ramp
-       trigger for flag three. See the three-way state table in hadad.h.
+    /* Hadad. For his PLACEMENT these are nothing but the flag: hadads_rest() and
+       update_hadads work the rest out between them, so setting the bit here and
+       jumping to the Rear Gate puts him exactly where a player who had earned it
+       would find him — posted at the bottom of the corridor for flag one, out of
+       the room until the ramp trigger for flag three. See the three-way state
+       table in hadad.h.
 
-       Set one first so that three lands on top of it, which is the
-       relationship the encounter itself has. (The numbering skips two on
-       purpose — see FLAG_HADAD_THREE in src/player.h.) */
-    if (debug_opts[DBG_HADAD_FLAG_ONE])   game_flag_set(FLAG_HADAD_ONE);
+       What they DO carry beyond the bit is the state of the Attic Exit's exit
+       door, because his encounters sit on the far side of it and cannot be
+       reached with it shut. Each block below says what it grants and why.
+
+       Set in story order so each lands on top of the last, which is the
+       relationship the encounter itself has. Flag TWO is not a placement at
+       all — it seals the Attic Exit's door from both faces (see
+       exit_door_puzzle.h) — but it belongs to the same run and grants the same
+       way. (The DECLARATION order in GameFlag is not this order; see the note
+       on FLAG_HADAD_ONE in src/player.h.) */
+    if (debug_opts[DBG_HADAD_FLAG_ONE]) {
+        game_flag_set(FLAG_HADAD_ONE);
+        /* >>> AND THE EXIT-DOOR PUZZLE WITH IT. <<< Hadad is on the Rear Gate's
+           plinth, out in the garden, and the ONLY route there is through the
+           Attic Exit's exit door — so a player who has had him off that plinth
+           has necessarily solved it. Granting the flag without the door left the
+           two disagreeing: the door stood locked while its own prompt offered
+           "Press O to remove the keystones", which is the one thing a locked
+           door cannot do.
+
+           So this puts the whole thing where that player would have left it:
+
+             - FLAG_EXIT_DOOR_UNLOCKED, so the door is open and carries the
+               xt_dr_cmplt art (attic_exit.c's door_tex_id reads it on entry);
+             - the three collected stones are SPENT — cleared from the inventory,
+               because they are in the door. Note this runs AFTER
+               DBG_HAS_KEY_STONES above and deliberately undoes it: ticking both
+               means "collected them and then used them", which is the true
+               story, not "holding a second set";
+             - FLAG_STOVE_SOLVED and FLAG_ANZU_SOLVED, the two puzzles that
+               MADE two of those stones. Without them the burner and the tablets
+               are still live with the stones already spent, and each would
+               happily mint a replacement. Same trap DBG_HAS_KEY_STONES
+               documents, one step further along.
+
+           KNOWN GAP, shared with DBG_HAS_KEY_STONES and not introduced here:
+           the BLUE stone is an unconditional first-entry spawn on the Attic
+           Stairwell altar (world.c) with no flag behind it, so walking into that
+           room on a granted save still lays a second one out. Retiring it would
+           take a new GameFlag; nothing downstream can be farmed with it. */
+        game_flag_set(FLAG_EXIT_DOOR_UNLOCKED);
+        game_flag_set(FLAG_STOVE_SOLVED);
+        game_flag_set(FLAG_ANZU_SOLVED);
+        player_items &= ~((1 << ITEM_GREEN_KEY_STONE)  |
+                          (1 << ITEM_YELLOW_KEY_STONE) |
+                          (1 << ITEM_BLUE_KEY_STONE));
+    }
+    if (debug_opts[DBG_HADAD_FLAG_TWO]) {
+        game_flag_set(FLAG_HADAD_TWO);
+        /* This flag IS "the four stones have been pulled back out of the door",
+           so it has to hand them over — all four, magenta included, exactly as
+           remove_keystones does. It did not need to before, when nothing here
+           emptied the inventory; now that flag one above spends the three, a
+           one+two tick would otherwise leave the player with the door sealed and
+           no stones to show for it. Runs after flag one for that reason. */
+        player_items |= (1 << ITEM_GREEN_KEY_STONE)   |
+                        (1 << ITEM_YELLOW_KEY_STONE)  |
+                        (1 << ITEM_BLUE_KEY_STONE)    |
+                        (1 << ITEM_MAGENTA_KEY_STONE);
+    }
     if (debug_opts[DBG_HADAD_FLAG_THREE]) game_flag_set(FLAG_HADAD_THREE);
 }

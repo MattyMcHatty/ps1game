@@ -10,10 +10,10 @@
 #include "camera.h"
 #include "player.h"          /* game_flag, show_pickup_msg_raw */
 #include "menu.h"            /* MENU_SLOT_*, shared item icons/names */
-#include "sound.h"           /* SFX_UNLOCK */
+#include "sound.h"           /* SFX_UNLOCK, SFX_PICKUP, SFX_RUMBLE + its aliases */
 #include "btn_glyph.h"       /* BTN_*, btn_prompt_draw */
 #include "door.h"            /* door_draw_string_3d for the world-space sign */
-#include "attic_exit.h"      /* attic_exit_unlock_door */
+#include "attic_exit.h"      /* attic_exit_unlock_door, attic_exit_relock_door */
 #include "exit_door_puzzle.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -39,6 +39,10 @@ extern volatile size_t  pad_buff_len[2];
    wide and fits inside the 450-wide panel (at 4 it would overhang). */
 #define XD_TEXT_Y             (-186)
 #define XD_TEXT_PIXEL             3
+/* "Press O to remove the keystones" is 31 chars, which at 6*3 = 18 world units
+   per char is 558 wide and would hang 54 units off each end of the 450-wide
+   panel. At pixel 2 it is 372 and sits inside it, like every other sign here. */
+#define XD_TEXT_PIXEL_SM          2
 
 /* ---- The fixed shot --------------------------------------------------------
    Straight down the room's spine at the door's own centre height, 700 back from
@@ -117,11 +121,37 @@ static const struct { int x, y; } BOX_XY[XD_BOX_COUNT] = {
 #define XD_OT_CURSOR              3
 #define XD_OT_TEXT                1
 
+/* ---- The quake ---------------------------------------------------------------
+   What happens when the player pulls the stones back OUT (see remove_keystones):
+   two seconds of nothing, then three seconds of the room shaking, and then they
+   have control again. The camera does not move to a new shot — it stays exactly
+   where the player was standing and is jittered about that spot — so unlike the
+   board above there is no glide in or out, just a saved base to shake around and
+   restore.
+
+   Six rumbles across the shake, one every 30 frames. The clip is 127 frames
+   long, so from the third onward there are five sounding at once — which is the
+   point, and which is why SFX_RUMBLE has four alias voices (sound.h). Five
+   voices covers six plays: #6 starts at frame 150 and #1 finished at 127, so
+   the round-robin never lands on a voice still in use.
+
+   The shake is flat-topped with a taper on the last half second, so it fades out
+   rather than snapping to a stop on the frame control comes back. */
+#define XD_QUAKE_HOLD           120   /* 2 s of stillness first          */
+#define XD_QUAKE_SHAKE          180   /* 3 s of shaking after it         */
+#define XD_QUAKE_TAPER           30   /* ...the last 0.5 s of which eases off */
+#define XD_QUAKE_AMP_XZ          28   /* jitter, world units, +/- per axis */
+#define XD_QUAKE_AMP_Y           20
+#define XD_QUAKE_AMP_ROT         12   /* ~1 deg of yaw wobble, in 4096ths  */
+#define XD_RUMBLE_COUNT           6
+#define XD_RUMBLE_GAP            30   /* XD_QUAKE_SHAKE / XD_RUMBLE_COUNT  */
+
 typedef enum {
     XD_IDLE = 0,   /* not in the puzzle: proximity prompt + Circle trigger */
     XD_INTRO,      /* camera gliding back to the fixed shot                */
     XD_BOARD,      /* board live: move between the three open sockets      */
-    XD_PICKER      /* item picker open for socket `pick_target`            */
+    XD_PICKER,     /* item picker open for socket `pick_target`            */
+    XD_QUAKE       /* the stones are out: hold, then shake. No board.      */
 } XdState;
 
 static XdState state = XD_IDLE;
@@ -141,6 +171,29 @@ static int32_t src_x, src_y, src_z, src_rot, rot_delta;
 static uint16_t pz_btn_prev   = 0xFFFF;  /* board input edge-detect (btn = ~pad) */
 static int      interact_prev = 1;       /* interact-Circle edge-detect          */
 static int      exit_latch    = 0;       /* TEMPORARY: the "Press O to exit" press */
+
+static int32_t  quake_t       = 0;       /* frames into XD_QUAKE                 */
+static int      rumbles_fired = 0;       /* how many of the six have gone off    */
+
+/* Self-contained LCG, as the Anzu, lightswitch and Rabisu modules each keep —
+   there is no global PRNG in this project. It only jitters the quake. */
+static uint32_t xd_rng = 0x2545F491u;
+static uint32_t xd_rand(void) {
+    xd_rng = xd_rng * 1664525u + 1013904223u;
+    return xd_rng >> 16;
+}
+
+/* A signed jitter in [-amp, amp]. */
+static int32_t xd_jitter(int32_t amp) {
+    return (int32_t)(xd_rand() % (uint32_t)(2 * amp + 1)) - amp;
+}
+
+/* The rumble and its four alias voices, in the order the quake cycles them.
+   See the SFX_RUMBLE_2 block in sound.h before changing the length of this. */
+static const SfxID QUAKE_RUMBLE[] = {
+    SFX_RUMBLE, SFX_RUMBLE_2, SFX_RUMBLE_3, SFX_RUMBLE_4, SFX_RUMBLE_5
+};
+#define QUAKE_RUMBLE_VOICES ((int)(sizeof QUAKE_RUMBLE / sizeof QUAKE_RUMBLE[0]))
 
 /* ---- The magenta stone icon ------------------------------------------------
    Not an inventory item, so it has no menu slot: it is its own 32x32 TIM at a
@@ -187,14 +240,36 @@ int exit_door_puzzle_active(void) { return state != XD_IDLE; }
 
 static int solved(void) { return game_flag(FLAG_EXIT_DOOR_UNLOCKED); }
 
+/* The stones have been pulled back out and the door is shut for good. Note this
+   does NOT clear FLAG_EXIT_DOOR_UNLOCKED — that bit is still the record that the
+   puzzle was solved, and leaving it set is what keeps the board from re-opening
+   on the now-empty sockets. Every read below tests this one FIRST. */
+static int stones_out(void) { return game_flag(FLAG_HADAD_TWO); }
+
+/* The one window in which Circle pulls the stones: the door is open, Hadad has
+   come off his plinth at least once, and they are still in the door. */
+static int removable(void) {
+    return solved() && game_flag(FLAG_HADAD_ONE) && !stones_out();
+}
+
 void exit_door_puzzle_arm(void) {
     int held = interact_tapped();
     interact_prev = held;
     state         = XD_IDLE;
     exit_latch    = 0;
     board_cur     = XD_BOX_TOP;
+    quake_t       = 0;
+    rumbles_fired = 0;
     box_item[0] = box_item[1] = box_item[2] = -1;
     camera_release_player();
+    /* The quake's six voices are long (2.12 s each) and up to five are still
+       sounding when it ends, so a room change or a New Game landing inside that
+       tail would carry the earthquake out of the room with it — the same reason
+       rabisu_boss_reset stops its three. */
+    {
+        int i;
+        for (i = 0; i < QUAKE_RUMBLE_VOICES; i++) sound_stop(QUAKE_RUMBLE[i]);
+    }
 }
 
 int exit_door_exit_triggered(void) {
@@ -276,11 +351,102 @@ static void unlock_door(void) {
     exit_puzzle();
 }
 
+/* ---- Taking them back out ---------------------------------------------------
+   Circle on the open door once Hadad has been off his plinth. All four stones
+   come out — the three the player spent AND the magenta one that was part of the
+   lock from the start — and the door shuts behind them, from both sides, for
+   good (garden_stairs.c reads the same flag on its face of it).
+
+   Runs from XD_IDLE, i.e. from free play with the player's own camera live, so
+   there is nothing to save but that camera and nothing to glide: the quake
+   shakes around the spot they are standing on and puts it back. */
+static void remove_keystones(void) {
+    player_items |= (1 << ITEM_GREEN_KEY_STONE)  |
+                    (1 << ITEM_YELLOW_KEY_STONE) |
+                    (1 << ITEM_BLUE_KEY_STONE)   |
+                    (1 << ITEM_MAGENTA_KEY_STONE);
+
+    game_flag_set(FLAG_HADAD_TWO);
+    attic_exit_relock_door();          /* swap xt_dr_cmplt -> xt_dr_lckd */
+    sound_play(SFX_PICKUP);
+    show_pickup_msg_raw("Took the key stones");
+
+    /* Strip any look offset BEFORE the snapshot, or the quake would shake around
+       — and restore — a swung-off-centre heading. (A press that resolved as a
+       tap cannot also have become a look, so in practice there is nothing to
+       strip; the order is stated so it stays correct if that ever changes.) */
+    camera_look_cancel();
+    save_cx = cam_x; save_cy = cam_y; save_cz = cam_z;
+    save_crot = cam_rot; save_cvy = cam_vy;
+    /* Same contract the board has: the camera is about to stop being where the
+       player is, so pin the real spot for anything hunting them. */
+    camera_anchor_player(save_cx, save_cy, save_cz);
+    /* update_camera does not run for the whole quake, so a Circle pressed during
+       it would still be "in flight" on the frame control returns. Spend it. */
+    interact_spend_press();
+
+    quake_t       = 0;
+    rumbles_fired = 0;
+    state         = XD_QUAKE;
+}
+
+/* Two seconds of nothing, three of shaking, then hand control back. The camera
+   is driven from the saved base every frame rather than accumulated, so the
+   jitter cannot walk the view off the spot it started on. */
+static void quake_update(void) {
+    quake_t++;
+
+    cam_x = save_cx; cam_y = save_cy; cam_z = save_cz;
+    cam_rot = save_crot; cam_vy = 0; cam_pitch = 0;
+
+    if (quake_t <= XD_QUAKE_HOLD) return;   /* the pause before it starts */
+
+    int32_t t = quake_t - XD_QUAKE_HOLD;
+    if (t > XD_QUAKE_SHAKE) {
+        /* Done. Put the view back exactly and return to free play; the rumbles
+           already sounding are left to ring out under it. */
+        cam_pitch = 0;
+        state     = XD_IDLE;
+        camera_release_player();
+        interact_prev = 1;   /* swallow a held Circle rather than re-triggering */
+        return;
+    }
+
+    /* On the frame the shaking starts, not on the press two seconds earlier:
+       the line is what the player FEELS, and there is nothing to feel during the
+       hold. The log box survives the quake — main.c keeps hud_draw_log_only up
+       for anything exit_door_puzzle_active() covers — so it is readable while
+       the room moves, and it stays up afterwards like every other posted line. */
+    if (t == 1) show_pickup_msg_raw("You feel the ground shake violently");
+
+    /* One rumble every XD_RUMBLE_GAP frames, round-robin across the five
+       voices — see the QUAKE_RUMBLE note above. */
+    if (rumbles_fired < XD_RUMBLE_COUNT &&
+        (t - 1) % XD_RUMBLE_GAP == 0) {
+        sound_play(QUAKE_RUMBLE[rumbles_fired % QUAKE_RUMBLE_VOICES]);
+        rumbles_fired++;
+    }
+
+    /* Flat amplitude, tapering over the last XD_QUAKE_TAPER frames so it dies
+       away instead of stopping dead on the frame control comes back. */
+    int32_t amp = 256;
+    int32_t left = XD_QUAKE_SHAKE - t;
+    if (left < XD_QUAKE_TAPER) amp = (left * 256) / XD_QUAKE_TAPER;
+
+    cam_x   += (xd_jitter(XD_QUAKE_AMP_XZ)  * amp) / 256;
+    cam_z   += (xd_jitter(XD_QUAKE_AMP_XZ)  * amp) / 256;
+    cam_y   += (xd_jitter(XD_QUAKE_AMP_Y)   * amp) / 256;
+    cam_rot  = (cam_rot + (xd_jitter(XD_QUAKE_AMP_ROT) * amp) / 256) & 4095;
+}
+
 /* ---- Per-frame update ---------------------------------------------------- */
 
 void exit_door_puzzle_update(void) {
     uint16_t btn = 0;
     if (pad_buff_len[0]) { PadResponse *pad = (PadResponse *)pad_buff[0]; btn = ~pad->btn; }
+
+    /* The quake owns the camera and reads no input at all. */
+    if (state == XD_QUAKE) { quake_update(); return; }
 
     if (state == XD_IDLE) {
         int held = interact_tapped();
@@ -292,10 +458,15 @@ void exit_door_puzzle_update(void) {
         int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
         if (xz >= XD_INTERACT_RADIUS) return;
         if (!interact_facing(XD_DOOR_X, XD_DOOR_Z)) return;
-        /* Once the door is open the same press is the way OUT, not back into a
-           finished board. */
-        if (solved()) exit_latch = 1;
-        else          start_puzzle();
+        /* Four outcomes off the one press, most-final first:
+             stones out  — dead. The sign reads "Locked" and this is a wall now.
+             removable   — pull the four stones; the quake follows.
+             solved      — the way OUT, not back into a finished board.
+             otherwise   — open the board. */
+        if      (stones_out()) return;
+        else if (removable())  remove_keystones();
+        else if (solved())     exit_latch = 1;
+        else                   start_puzzle();
         return;
     }
 
@@ -441,7 +612,9 @@ static void draw_socket(RenderContext *ctx, int x, int y, int fixed) {
 }
 
 void exit_door_puzzle_draw(RenderContext *ctx) {
-    if (state == XD_IDLE || state == XD_INTRO) return;
+    /* XD_QUAKE joins the two states with nothing on screen: it owns the camera
+       but draws no board at all — the room shaking IS the whole of it. */
+    if (state == XD_IDLE || state == XD_INTRO || state == XD_QUAKE) return;
 
     /* Reset the texture window before any icon: the room sorts a 128x128 window
        at OT_LENGTH-1 which is still active down here and would wrap the icons'
@@ -539,6 +712,22 @@ void exit_door_prompt_draw(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
 
+    /* Same four cases as the Circle dispatch in the update, in the same order —
+       and they must stay in step, or the sign will offer something the press
+       does not do. Red and no button glyph for the dead one, matching
+       Reception's "Locked from the other side" (reception.c). */
+    if (stones_out()) {
+        door_draw_string_3d(ctx, "Locked",
+                            XD_DOOR_X - 200, XD_TEXT_Y, XD_DOOR_Z - 11,
+                            255, 50, 50, fade, 0, TEXT_PLANE_XY, XD_TEXT_PIXEL);
+        return;
+    }
+    if (removable()) {
+        door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to remove the keystones",
+                            XD_DOOR_X - 200, XD_TEXT_Y, XD_DOOR_Z - 11,
+                            50, 255, 50, fade, 0, TEXT_PLANE_XY, XD_TEXT_PIXEL_SM);
+        return;
+    }
     door_draw_string_3d(ctx,
                         solved() ? "Press " BTN_CIRCLE " to exit"
                                  : "Press " BTN_CIRCLE " to interact",

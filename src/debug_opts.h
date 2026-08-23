@@ -25,8 +25,8 @@ typedef enum {
     DBG_HAS_KEY_STONES,      /* blue + yellow + green: the exit door's inputs    */
     DBG_INFINITE_LIFE,       /* enemy damage does not reduce health              */
     DBG_INFINITE_STAMINA,    /* sprinting never drains the bar                   */
-    /* Hadad's two encounter flags, so the Rear Gate can be jumped into with
-       either half of him already armed instead of having to be played up to.
+    /* Hadad's three encounter flags, so the Rear Gate can be jumped into with
+       any of them already armed instead of having to be played up to.
        One-shot grants like the item ones above and for the same reason: they
        set persistent GameFlags, and a room must not be able to init before the
        flag is there — update_hadads reads them on its FIRST frame to decide
@@ -36,11 +36,19 @@ typedef enum {
        three ignores flag one wherever the two disagree, so ticking both is a
        legal state and the honest way to test that rule.
 
-       The numbering skips two because the encounter between them has not been
-       designed yet and the name is being held for it — see the note on
-       FLAG_HADAD_THREE in src/player.h. There is no DBG_HADAD_FLAG_TWO to
-       forget to add: when the real flag arrives, so does its row. */
-    DBG_HADAD_FLAG_ONE,      /* he is posted at the bottom of the corridor       */
+       >>> THEY ALSO CARRY THE ATTIC EXIT'S EXIT DOOR. <<< Every one of his
+       encounters is out in the garden, behind that door, so none of them is
+       reachable with it shut — a flag granted without the door would describe a
+       game state that cannot exist. Flag ONE therefore also solves the door
+       puzzle (stones spent, door open, and the two puzzles that minted two of
+       those stones retired), and flag TWO hands all four stones back over,
+       which is what that flag means. debug_opts.c has the full reasoning.
+
+       FLAG_HADAD_TWO is the odd one in another way too: unlike the other two it
+       is not a placement at all, it is the state of that door — both faces
+       sealed, all four key stones in the inventory (exit_door_puzzle.h). */
+    DBG_HADAD_FLAG_ONE,      /* posted at the corridor foot; door puzzle solved  */
+    DBG_HADAD_FLAG_TWO,      /* the exit door is sealed; all four stones held    */
     DBG_HADAD_FLAG_THREE,    /* the third encounter: absent until the ramp       */
     DEBUG_OPT_COUNT
 } DebugOpt;

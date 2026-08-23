@@ -296,7 +296,13 @@ static void update_current_area(GameState area) {
     }
     /* The same room's exit-door puzzle DOES take the camera and input for its
        whole duration, like the stove board. Enemies keep running: the player is
-       stood at the door the whole time. */
+       stood at the door the whole time.
+
+       This also covers the QUAKE that follows pulling the four key stones back
+       out of that door — it is a state of the same module precisely so that it
+       inherits this branch and the overlay suppression further down, rather than
+       needing a cutscene branch of its own like the boss and the delivery
+       intro. See exit_door_puzzle.h. */
     if (area == STATE_ATTIC_EXIT && exit_door_puzzle_active()) {
         update_zombies();
         update_spiders();
@@ -1790,6 +1796,17 @@ int main(int argc, const char **argv) {
                otherwise). Must run after the area init above, which sets its
                own spawn position. */
             savegame_apply_pending();
+            /* The debug menu's grants, latched so this fires only on the jump
+               that armed it and not on every door transition.
+
+               >>> BEFORE THE RE-DERIVE BLOCK, NOT AFTER. <<< These are not only
+               inventory cheats any more: DBG_HADAD_FLAG_ONE also solves the exit
+               door puzzle and retires the stove and the Anzu tablets (see
+               debug_opts.c), and every one of those is a flag the block below
+               re-reads. Granted afterwards they landed a frame too late — the
+               room had already placed its props and picked its door art from the
+               pre-grant flags. */
+            debug_opts_apply_grants();
             /* game_flags has only just been installed, so anything a room
                DERIVES from a saved flag has to be re-derived here: the area
                init above ran while the flags still held the pre-load values,
@@ -1802,11 +1819,8 @@ int main(int argc, const char **argv) {
                                                          : CDAUDIO_PIANO_TRACK, 1);
             }
             if (pending_area == STATE_ATTIC_EXIT)
-                attic_exit_apply_flags();   /* re-reads FLAG_LIGHTS_SOLVED */
-            /* Same timing requirement, so same place: hand out the debug menu's
-               inventory cheats now the room is up. Latched, so this fires only on
-               the jump that armed it, not on every door transition. */
-            debug_opts_apply_grants();
+                attic_exit_apply_flags();   /* re-reads FLAG_LIGHTS_SOLVED, and
+                                               the two behind the door's art */
         } else if (game_state == STATE_DOOR_ANIM) {
             /* RE-style door transition: a black screen with the door swinging
                open, then a fade to black. Draws nothing of the live room — when

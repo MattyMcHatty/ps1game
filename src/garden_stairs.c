@@ -27,6 +27,7 @@
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
+#include "player.h"           /* game_flag, FLAG_HADAD_TWO */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -305,7 +306,13 @@ void garden_stairs_door_arm(void) {
 }
 
 int garden_stairs_door_triggered(void) {
-    return door_triggered_at(GS_DOOR_X, GS_DOOR_Z, &door_circle_prev);
+    /* Pulling the key stones back out of the far side shuts this door for good
+       — see FLAG_HADAD_TWO in player.h and exit_door_puzzle.h. The edge state is
+       still sampled (rather than returning early) so a press held through the
+       transition is still spent here rather than waiting to fire the moment the
+       flag were ever cleared. */
+    int t = door_triggered_at(GS_DOOR_X, GS_DOOR_Z, &door_circle_prev);
+    return t && !game_flag(FLAG_HADAD_TWO);
 }
 
 void garden_stairs_cg_door_arm(void) {
@@ -340,6 +347,14 @@ static void door_text(RenderContext *ctx) {
     int fade = door_text_fade(GS_DOOR_X, GS_DOOR_Z);
     if (fade < 0) return;
 
+    /* Once the stones are back out of the other face, this is a wall: red
+       "Locked" and no button glyph, as Reception's sealed door reads. */
+    if (game_flag(FLAG_HADAD_TWO)) {
+        door_draw_string_3d(ctx, "Locked",
+                            GS_DOOR_X - 200, GS_TEXT_Y, GS_DOOR_Z + 11,
+                            255, 50, 50, fade, 1, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+        return;
+    }
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
                         GS_DOOR_X - 200, GS_TEXT_Y, GS_DOOR_Z + 11,
                         50, 255, 50, fade, 1, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);

@@ -70,6 +70,10 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\HISS.VAG;1",
     "\\SND\\RUMBLE.VAG;1",
     "\\SND\\GRIND.VAG;1",
+    NULL,                       /* SFX_RUMBLE_2: an alias, not a file          */
+    NULL,                       /* SFX_RUMBLE_3                                */
+    NULL,                       /* SFX_RUMBLE_4                                */
+    NULL,                       /* SFX_RUMBLE_5                                */
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -156,6 +160,17 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        size AND shrinking the region, which puts the 178 KB house bank 4.3 KB
        over. Garden goes 119 KB -> 130 KB of the region's 185. */
     [SFX_GRIND]      = SND_BANK_GARDEN,
+    /* The four extra rumble voices. Aliases, so they cost no SPU bytes — but
+       unlike SFX_RBS_SWING they alias a BANKED clip, so they are tagged with the
+       source's own banks rather than SND_RESIDENT. That is what makes load_bank
+       key their voices off and mark them unloaded on a bank swap, which is
+       exactly right: the sample under them is about to move or disappear. The
+       re-copy at the bottom of load_bank then restores them (or leaves them
+       unloaded, in a bank RUMBLE is not in). See sound.h. */
+    [SFX_RUMBLE_2]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
+    [SFX_RUMBLE_3]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
+    [SFX_RUMBLE_4]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
+    [SFX_RUMBLE_5]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -214,6 +229,15 @@ static int sfx_channel(SfxID id) {
        Widening the mask again is the thing to re-check here — a second GARDEN
        or HOUSE clip landing on voice 9 would cut this one. */
     if (id == SFX_RUMBLE)      return 9;
+    /* The quake's four extra rumble voices, borrowed from sounds that cannot be
+       in a HOUSE room: GAS, PULL and HISS are the garden's flower and mushroom,
+       EMERGE is the boss's. The quake only ever runs in the Attic Exit, so those
+       four are idle every time it does. Full reasoning on SFX_RUMBLE_2 in
+       sound.h — and read it before playing a rumble anywhere else. */
+    if (id == SFX_RUMBLE_2)    return 13;   /* SFX_GAS's    (GARDEN) */
+    if (id == SFX_RUMBLE_3)    return 14;   /* SFX_PULL's   (GARDEN) */
+    if (id == SFX_RUMBLE_4)    return 15;   /* SFX_HISS's   (GARDEN) */
+    if (id == SFX_RUMBLE_5)    return 19;   /* SFX_EMERGE's (BOSS)   */
     /* The grinders' travel. Off the pool because it runs 1.76 s and is played
        three times WITHOUT a gap — the sequence is 5.3 s long and the player is
        free to walk, shoot and reload right through it. Its pool slot would be
@@ -323,6 +347,16 @@ static void load_bank(SoundBank b) {
        bank would point at whatever this one laid down in its place. */
     for (i = 0; i < SFX_COUNT; i++)
         if (sfx_bank[i] & b) addr += load_vag_at((SfxID)i, addr, limit);
+
+    /* The quake's rumble aliases. They point at a BANKED sample, so unlike
+       sound_init's RBS_SWING copy this has to be redone after every load: the
+       address RUMBLE landed at differs bank to bank, and in a bank without it
+       the source slot is `loaded = 0` and the copy correctly makes these mute
+       too. Struct copy, so address, rate and loaded all move together. */
+    sfx_slots[SFX_RUMBLE_2] = sfx_slots[SFX_RUMBLE];
+    sfx_slots[SFX_RUMBLE_3] = sfx_slots[SFX_RUMBLE];
+    sfx_slots[SFX_RUMBLE_4] = sfx_slots[SFX_RUMBLE];
+    sfx_slots[SFX_RUMBLE_5] = sfx_slots[SFX_RUMBLE];
 
     bank_loaded = b;
 }
