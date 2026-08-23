@@ -419,32 +419,59 @@ static void update_current_area(GameState area) {
             save_menu_open();
             game_state = STATE_SAVE_MENU;
         } else if (!lock && reception_door_triggered()) {
-            pending_area = STATE_KITCHEN_DINING;
-            door_anim_start(DOOR_PANEL_INNER);   /* same interior double door */
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();   /* silence during the transition; kitchen music
-                                 resumes when the kitchen finishes loading */
+            /* FOUR OF THIS ROOM'S SIX DOORS ARE RUBBLE once FLAG_HADAD_TWO is
+               set — this one, CDOOR, HDOOR and EDOOR (reception.h). Each keeps
+               its green sign, so the player walks up and presses O as normal;
+               all that changes is that the press posts a line instead of
+               starting a transition. Tested HERE rather than inside the
+               *_triggered() helpers, the same arrangement the East Hall's
+               rubble has (east_hall_quake.h): the trigger keeps meaning "the
+               player pressed O at this door", and which room is behind a door
+               stays the one decision made in this file. */
+            if (reception_sealed()) {
+                show_pickup_msg_raw("There is rubble behind the door!");
+            } else {
+                pending_area = STATE_KITCHEN_DINING;
+                door_anim_start(DOOR_PANEL_INNER);   /* same interior double door */
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();   /* silence during the transition; kitchen music
+                                     resumes when the kitchen finishes loading */
+            }
         } else if (!lock && wdoor_triggered()) {
+            /* The piano room. NOT sealed — this door and NDOOR are the way in
+               and the way on, so the encounter has somewhere to come from. */
             pending_area = STATE_PIANO_ROOM;
             door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         } else if (!lock && cdoor_triggered()) {
-            pending_area = STATE_CONSERVATORY;
-            door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
+            if (reception_sealed()) {
+                show_pickup_msg_raw("There is rubble behind the door!");
+            } else {
+                pending_area = STATE_CONSERVATORY;
+                door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
         } else if (!lock && hdoor_triggered()) {
-            pending_area = STATE_2F_HALL;
-            door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
+            if (reception_sealed()) {
+                show_pickup_msg_raw("There is rubble behind the door!");
+            } else {
+                pending_area = STATE_2F_HALL;
+                door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
         } else if (!lock && edoor_triggered()) {
             /* Double door on the upper floor's east wall, into the East Hall. */
-            pending_area = STATE_EAST_HALL;
-            door_anim_start(DOOR_PANEL_INNER);   /* interior double door */
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
+            if (reception_sealed()) {
+                show_pickup_msg_raw("There is rubble behind the door!");
+            } else {
+                pending_area = STATE_EAST_HALL;
+                door_anim_start(DOOR_PANEL_INNER);   /* interior double door */
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
         } else if (!lock && ndoor_triggered()) {
             /* North-west door on the upper floor, into the West Corridor. A
                single wooden leaf, so the same transition as the ground-floor
@@ -1638,7 +1665,9 @@ int main(int argc, const char **argv) {
                        camera and arms that door itself. */
                     reception_spawn_northwest();
                 }
-                cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);   /* reception music */
+                /* This room's music depends on a saved flag (FLAG_HADAD_TWO
+                   silences it), so it is chosen AFTER savegame_apply_pending()
+                   below rather than here — same as the piano room. */
             } else if (pending_area == STATE_PIANO_ROOM) {
                 piano_room_init();
                 /* This room's music depends on a saved flag, so it is chosen
@@ -1936,6 +1965,18 @@ int main(int argc, const char **argv) {
                 if (game_flag(FLAG_ANZU_SOLVED)) piano_props_tablets_hide();
                 cdaudio_play(game_flag(FLAG_ANZU_SOLVED) ? CDAUDIO_ANZU_TRACK
                                                          : CDAUDIO_PIANO_TRACK, 1);
+            }
+            if (pending_area == STATE_RECEPTION) {
+                reception_apply_flags();    /* re-reads FLAG_HADAD_TWO: the save
+                                               point goes with the rest of the
+                                               room's comforts */
+                /* ...and the music goes with it. Stopped rather than merely not
+                   started, as the West Corridor does it: a title-screen load or
+                   a debug level-select jump does not pass through the door
+                   transition's own cdaudio_stop, and without this line either
+                   would carry the previous room's track into the encounter. */
+                if (reception_sealed()) cdaudio_stop();
+                else cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);
             }
             if (pending_area == STATE_ATTIC_EXIT)
                 attic_exit_apply_flags();   /* re-reads FLAG_LIGHTS_SOLVED, and

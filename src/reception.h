@@ -27,4 +27,32 @@ int  ndoor_triggered(void);         /* 1 when Circle pressed near it (-> West Co
    West Corridor's east door. */
 void reception_spawn_northwest(void);
 
+/* ---- SEALED RECEPTION (FLAG_HADAD_TWO) -------------------------------------
+   Once the four key stones are back out of the Attic Exit's door the house has
+   closed around the player, and this room becomes the stage for the Reception
+   Hadad encounter. Three things change, and reception_sealed() is the single
+   test all three read:
+
+     1. FOUR OF THE SIX DOORS ARE RUBBLE. The kitchen door (RDOOR), the
+        conservatory door (CDOOR), the 2F Hall door (HDOOR) and the East Hall
+        door (EDOOR) keep their green "Press O to enter" signs — the player is
+        meant to try them — but Circle only posts "There is rubble behind the
+        door!" and there is no transition. Handled in main.c beside the door
+        triggers, exactly as the East Hall's rubble is (east_hall_quake.h), so
+        each *_triggered() keeps meaning "the player pressed O at this door".
+        The piano-room door (WDOOR) and the West Corridor door (NDOOR) still
+        work: they are the way in and the way on.
+     2. NO SAVE POINT. reception_apply_flags() clears it.
+     3. NO MUSIC ON ENTRY. main.c stops CD-DA instead of starting
+        CDAUDIO_RECEPTION_TRACK.
+
+   reception_apply_flags() is called from main.c's post-entry re-derive block —
+   AFTER world_enter and savegame_apply_pending, the same slot and the same
+   reason east_hall_apply_flags has: reception_init() runs while game_flags
+   still holds the pre-load values, so anything derived from a saved flag has to
+   be re-derived there or a "Load Game" straight into this room reads the
+   previous playthrough's flags. */
+int  reception_sealed(void);        /* 1 once FLAG_HADAD_TWO is set */
+void reception_apply_flags(void);   /* re-derive the above (save point) */
+
 #endif

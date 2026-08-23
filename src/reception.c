@@ -25,7 +25,8 @@
 #include "player.h"    /* FLAG_HALL_2F_DOOR / FLAG_WEST_CORR_DOOR — the saved
                           locks on the two upper-floor west-wall doors. Both are
                           set from the FAR side (hall_2f.c / west_corridor.c);
-                          this room only reads them. */
+                          this room only reads them. Plus FLAG_HADAD_TWO, which
+                          seals the room — see reception_sealed() below. */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -551,6 +552,29 @@ void reception_init(void) {
     /* Dresser in the ground-floor room tucked under the upper floor (bottom-floor
        standing reference -189). rot_y is 0..4096 = a full turn. */
     dresser_add(580, -189, 958, 1024);
+}
+
+/* ---- What FLAG_HADAD_TWO does to this room ---------------------------------
+   The whole rule is written up in reception.h; this is the half of it that is
+   state rather than a per-frame test. Keep reception_sealed() as the ONLY place
+   the flag is named, so the doors (main.c), the music (main.c) and the save
+   point (here) can never disagree about whether the room is sealed.
+
+   The save point is CLEARED, not hidden: save_points_clear() takes it out of the
+   draw, out of save_point_triggered()'s range test and out of the player's
+   collision in one go, and reception_init() re-places it on every entry, so
+   nothing here has to be undone. There is no flag of its own to save — the room
+   re-derives from FLAG_HADAD_TWO each time the player walks in.
+
+   Called from main.c's post-entry re-derive block, AFTER world_enter and
+   savegame_apply_pending; see the header for why that slot and no earlier. */
+int reception_sealed(void) {
+    return game_flag(FLAG_HADAD_TWO);
+}
+
+void reception_apply_flags(void) {
+    if (!reception_sealed()) return;
+    save_points_clear();   /* no saving once the house has closed in */
 }
 
 static void draw_reception_smd(RenderContext *ctx) {
