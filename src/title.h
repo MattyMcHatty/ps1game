@@ -48,6 +48,14 @@ typedef enum {
                                 house and the garden chain that does not go
                                 through the front of the mansion. Appended, not
                                 inserted, for the same reason. */
+    STATE_LIBRARY_DESTROYED, /* the Library after the keystones come back out of
+                                the Attic Exit's door. Not a new place on the
+                                map: from the moment FLAG_HADAD_TWO is set this
+                                REPLACES STATE_LIBRARY behind the same two doors
+                                (see src/library_destroyed.h). A separate room
+                                rather than a mesh swap so each version keeps its
+                                own record of what has been killed and taken.
+                                Appended, not inserted, for the same reason. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

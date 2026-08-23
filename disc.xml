@@ -286,6 +286,7 @@
                 <file name="BED.TIM"      type="data" source="C:\Users\virtu\Documents\ps1game\textures\bed.tim"/>
                 <file name="EASTHALL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\east_hall.smd"/>
                 <file name="LIBRARY.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\library.smd"/>
+                <file name="LIBDEST.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\library_destroyed.smd"/>
                 <file name="EASTSTRW.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\east_stairwell.smd"/>
                 <file name="CHNLNK.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\chnlnk.tim"/>
                 <file name="ATTCSTRW.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\attic_stairwell.smd"/>

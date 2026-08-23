@@ -111,6 +111,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_GARDEN_STAIRS,  STATE_GARDEN_COURTYARD, STATE_FOUNTAIN_SQUARE,
     STATE_OUTSIDE_CATACOMBS, STATE_MAZE_ONE,      STATE_MAZE_TWO,
     STATE_REAR_GATE,      STATE_WEST_CORRIDOR,
+    STATE_LIBRARY_DESTROYED,
 };
 
 static int room_index(GameState area) {
@@ -135,6 +136,7 @@ static int room_index(GameState area) {
         case STATE_MAZE_TWO:          return 17;
         case STATE_REAR_GATE:         return 18;
         case STATE_WEST_CORRIDOR:     return 19;
+        case STATE_LIBRARY_DESTROYED: return 20;
         default:                   return 0;
     }
 }
@@ -396,6 +398,14 @@ void world_seed_room(GameState area) {
         item_pickup_spawn_amount(-909, -50, -1249, PICKUP_FLAME_ROUNDS,
                                  GRAVEOLVER_CAPACITY);
     }
+
+    /* Library Destroyed: SEEDED WITH NOTHING, deliberately. It stands in the
+       Library's place once FLAG_HADAD_TWO is set, and none of the four things
+       above come with it — the three spiders, the zombie and the Flame Rounds
+       are the Library's and stay tagged STATE_LIBRARY. The room has its own slot
+       in room_areas[] precisely so that staying empty is a fact it remembers,
+       rather than something inherited from whichever version was entered last.
+       Nothing to write here; the `if` is left out rather than left empty. */
 
     /* East Stairwell: one full cylinder of Standard Rounds on the WEST
        landing's floor (the one you arrive on from the East Hall), out in

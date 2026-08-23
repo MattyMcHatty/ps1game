@@ -52,6 +52,7 @@
 #include "master_bedroom.h"
 #include "east_hall.h"
 #include "library.h"
+#include "library_destroyed.h"
 #include "east_stairwell.h"
 #include "attic_stairwell.h"
 #include "attic_exit.h"
@@ -203,6 +204,7 @@ static void load_area_geometry(GameState area) {
         case STATE_MASTER_BEDROOM:   master_bedroom_load_geometry();   break;
         case STATE_EAST_HALL:        east_hall_load_geometry();        break;
         case STATE_LIBRARY:          library_load_geometry();          break;
+        case STATE_LIBRARY_DESTROYED:library_destroyed_load_geometry();break;
         case STATE_EAST_STAIRWELL:   east_stairwell_load_geometry();   break;
         case STATE_ATTIC_STAIRWELL:  attic_stairwell_load_geometry();  break;
         case STATE_ATTIC_EXIT:       attic_exit_load_geometry();       break;
@@ -430,8 +432,12 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         } else if (!lock && east_hall_edoor_triggered()) {
-            /* Double door at the hall's east end, into the library. */
-            pending_area = STATE_LIBRARY;
+            /* Double door at the hall's east end, into the library — or into
+               the Library Destroyed once the keystones have come back out of the
+               Attic Exit's door. One doorway, two rooms behind it; the rule is
+               library_destroyed_active() and lives in one place. */
+            pending_area = library_destroyed_active() ? STATE_LIBRARY_DESTROYED
+                                                      : STATE_LIBRARY;
             door_anim_start(DOOR_PANEL_INNER);   /* interior double door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -466,6 +472,26 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+    } else if (area == STATE_LIBRARY_DESTROYED) {
+        /* The Library's replacement once FLAG_HADAD_TWO is set. Identical
+           handling to the branch above — same flat single floor, same two doors
+           to the same two rooms — minus the enemy updates, because nothing is
+           seeded in this room (world.c). item_pickups_update stays: it is a
+           no-op with none placed, and it is what a later addition needs. */
+        apply_collision_reception();
+        apply_height();
+        item_pickups_update();
+        if (!lock && library_destroyed_wdoor_triggered()) {
+            pending_area = STATE_EAST_HALL;
+            door_anim_start(DOOR_PANEL_INNER);   /* same interior double door */
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (!lock && library_destroyed_sdoor_triggered()) {
+            pending_area = STATE_EAST_STAIRWELL;
+            door_anim_start(DOOR_PANEL_WOOD);    /* single wooden door */
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_EAST_STAIRWELL) {
         /* Two disconnected landings, both flat at y=0; the shared wall collision
            routine is generic over current_collision_room (other rooms' props
@@ -485,7 +511,10 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         } else if (!lock && east_stairwell_edoor_triggered()) {
-            pending_area = STATE_LIBRARY;
+            /* The east landing's door into the library — same swap as the East
+               Hall's: FLAG_HADAD_TWO decides which of the two rooms is there. */
+            pending_area = library_destroyed_active() ? STATE_LIBRARY_DESTROYED
+                                                      : STATE_LIBRARY;
             door_anim_start(DOOR_PANEL_WOOD);    /* same single wooden door */
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -947,6 +976,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         east_hall_draw(ctx);
     else if (area == STATE_LIBRARY)
         library_draw(ctx);
+    else if (area == STATE_LIBRARY_DESTROYED)
+        library_destroyed_draw(ctx);
     else if (area == STATE_EAST_STAIRWELL)
         east_stairwell_draw(ctx);
     else if (area == STATE_ATTIC_STAIRWELL)
@@ -1159,6 +1190,7 @@ int main(int argc, const char **argv) {
     master_bedroom_load_assets();/* master bedroom streamed textures */
     east_hall_load_assets();   /* east hall texture slots (all owned elsewhere) */
     library_load_assets();     /* library texture slots (all owned elsewhere) */
+    library_destroyed_load_assets();/* same seven slots, likewise all owned elsewhere */
     east_stairwell_load_assets();/* east stairwell streamed textures */
     attic_stairwell_load_assets();/* attic stairwell streamed textures */
     attic_exit_load_assets();  /* attic exit streamed textures */
@@ -1392,6 +1424,8 @@ int main(int argc, const char **argv) {
                 east_hall_upload_textures();     /* cncrte + dresser */
             } else if (pending_area == STATE_LIBRARY) {
                 library_upload_textures();       /* cncrte + prpl_wlppr + bookshelf */
+            } else if (pending_area == STATE_LIBRARY_DESTROYED) {
+                library_destroyed_upload_textures();/* the same three, same slots */
             } else if (pending_area == STATE_EAST_STAIRWELL) {
                 east_stairwell_upload_textures();/* upstairs + chnlnk + cncrte */
             } else if (pending_area == STATE_ATTIC_STAIRWELL) {
@@ -1601,8 +1635,11 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_EAST_HALL) {
                 east_hall_init();   /* defaults to the west (reception) door */
                 /* Coming back out of the library, arrive at the east door; out
-                   of the stairwell, at the south offshoot's door. */
-                if (current_area == STATE_LIBRARY)
+                   of the stairwell, at the south offshoot's door. Either version
+                   of the library lands on the same east door — they share the
+                   doorway, only what is behind it changes. */
+                if (current_area == STATE_LIBRARY ||
+                    current_area == STATE_LIBRARY_DESTROYED)
                     east_hall_spawn_east();
                 else if (current_area == STATE_EAST_STAIRWELL)
                     east_hall_spawn_south();
@@ -1613,13 +1650,20 @@ int main(int argc, const char **argv) {
                 if (current_area == STATE_EAST_STAIRWELL)
                     library_spawn_south();
                 cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* shares the east hall's music */
+            } else if (pending_area == STATE_LIBRARY_DESTROYED) {
+                library_destroyed_init();  /* defaults to the west (east hall) door */
+                /* Coming back out of the stairwell, arrive at the south door. */
+                if (current_area == STATE_EAST_STAIRWELL)
+                    library_destroyed_spawn_south();
+                cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);  /* the Library's music, unchanged */
             } else if (pending_area == STATE_EAST_STAIRWELL) {
                 east_stairwell_init();  /* defaults to the west landing */
                 /* The two landings are separate rooms in practice: the Library
                    door lands on the east one, the East Hall door on the west,
                    and the attic stairs land at the foot of the east landing's
                    stair alcove. */
-                if (current_area == STATE_LIBRARY)
+                if (current_area == STATE_LIBRARY ||
+                    current_area == STATE_LIBRARY_DESTROYED)
                     east_stairwell_spawn_east();
                 else if (current_area == STATE_ATTIC_STAIRWELL)
                     east_stairwell_spawn_stairs();
@@ -1846,6 +1890,7 @@ int main(int argc, const char **argv) {
                    game_state == STATE_MASTER_BEDROOM ||
                    game_state == STATE_EAST_HALL ||
                    game_state == STATE_LIBRARY ||
+                   game_state == STATE_LIBRARY_DESTROYED ||
                    game_state == STATE_EAST_STAIRWELL ||
                    game_state == STATE_ATTIC_STAIRWELL ||
                    game_state == STATE_ATTIC_EXIT ||
