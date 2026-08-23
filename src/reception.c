@@ -21,6 +21,8 @@
 #include "fatdoor.h"
 #include "item_pickup.h"
 #include "hadad.h"     /* he can come into the mansion through here */
+#include "reception_hadad.h"  /* ...and the encounter that brings him through the
+                                 ceiling once the house has closed in */
 #include "texmgr.h"
 #include "player.h"    /* FLAG_HALL_2F_DOOR / FLAG_WEST_CORR_DOOR — the saved
                           locks on the two upper-floor west-wall doors. Both are
@@ -523,6 +525,17 @@ static void edoor_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* Every Circle edge in this room, re-seeded in one call. See reception.h. */
+void reception_doors_arm(void) {
+    reception_door_arm();
+    wdoor_arm();
+    cdoor_arm();
+    hdoor_arm();
+    edoor_arm();
+    ndoor_arm();
+    save_point_arm();
+}
+
 void reception_init(void) {
     reception_collision_init(&current_collision_room);
     collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
@@ -535,13 +548,9 @@ void reception_init(void) {
     cam_z   = -414;
     cam_rot = 3072;   /* facing west (-X) */
 
-    reception_door_arm();   /* don't re-trigger on a held Circle from the entry */
-    wdoor_arm();            /* same, for the west single door */
-    cdoor_arm();            /* same, for the conservatory door */
-    hdoor_arm();            /* same, for the 2nd-floor door to the 2F hall */
-    edoor_arm();            /* same, for the 2nd-floor door to the East Hall */
-    ndoor_arm();            /* same, for the 2nd-floor NW door to the West Corridor */
-    save_point_arm();       /* same, for the Circle-to-save interaction */
+    /* Don't re-trigger any of the six doors, or the save point, on a Circle
+       held through the entry transition. */
+    reception_doors_arm();
 
     /* Place reception's props. */
     save_points_clear();
@@ -552,6 +561,13 @@ void reception_init(void) {
     /* Dresser in the ground-floor room tucked under the upper floor (bottom-floor
        standing reference -189). rot_y is 0..4096 = a full turn. */
     dresser_add(580, -189, 958, 1024);
+
+    /* PARK the Hadad encounter. Deliberately only that: this runs before
+       world_enter() has placed him and while game_flags may still hold the
+       pre-load values, so whether the beat happens at all is decided a frame
+       later, in main.c's post-entry re-derive block
+       (reception_hadad_arm_on_entry). */
+    reception_hadad_enter();
 }
 
 /* ---- What FLAG_HADAD_TWO does to this room ---------------------------------

@@ -23,6 +23,14 @@ int  edoor_triggered(void);         /* 1 when Circle pressed near the upper-floo
 void ndoor_arm(void);               /* same pair for the 2nd-floor NORTH-WEST door */
 int  ndoor_triggered(void);         /* 1 when Circle pressed near it (-> West Corridor) */
 
+/* Re-seed the Circle edge state of ALL SIX doors and the save point at once.
+   reception_init() arms them one by one on entry; this is for anything that
+   takes input away mid-visit and has to hand it back — the entry quake
+   (src/reception_hadad.c) is the only such thing today. An edge that has not
+   been polled for five seconds is stale either way, so re-arming the lot is
+   both cheaper to read and impossible to get half right. */
+void reception_doors_arm(void);
+
 /* Arrive back on the upper floor at the north-west door, coming out of the
    West Corridor's east door. */
 void reception_spawn_northwest(void);

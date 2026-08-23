@@ -124,6 +124,18 @@ typedef enum {
        reload that forgot this would hand the player a route the story has
        closed. Declared at the END of the enum, as the note above instructs. */
     FLAG_EAST_HALL_RUBBLE,
+    /* The Reception's Hadad encounter has been used up. Set at the ARM, on the
+       first entry into the room once FLAG_HADAD_TWO has sealed it — not when
+       the beat finishes — for the reason FLAG_EAST_HALL_RUBBLE is: the entry
+       quake and the walk that follows take the better part of a minute, and a
+       reset, a debug jump or a death inside that window must not leave a world
+       where the encounter is still waiting to happen. It gates BOTH halves: the
+       quake on entry and Hadad himself (src/reception_hadad.h).
+
+       Saved, because it is a one-shot world beat; a reload that forgot it would
+       replay the collapse and drop a second Hadad through the ceiling. Declared
+       at the END of the enum, as the note above instructs. */
+    FLAG_RECEPTION_HADAD,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

@@ -26,6 +26,27 @@ Companion docs, in the order you will want them:
   src/piano_puzzle.c             - the reference for CAMERA GLIDES and for a
                                    multi-beat scripted payoff
 
+  >>> THREE LIGHTER ENCOUNTERS HAVE BEEN BUILT SINCE, AND ONE OF THEM IS
+      PROBABLY A CLOSER FIT THAN THE RABISU. <<< Not every encounter is a boss
+      fight. If yours is "a scripted thing walks at the player through a room",
+      start from these instead - all three are a fifth of the size and all
+      three follow this file's STEP 1, STEP 4 and STEP 9:
+        src/hadad_library.c   - a director with a CAMERA CUTSCENE in the middle
+                                (the crawl under the shelving) and a handover
+                                that restarts the body's walk afterwards.
+        src/east_hall_quake.c - the smallest possible director: arm on entry,
+                                run src/quake.c, set one saved flag. No enemy at
+                                all.
+        src/reception_hadad.c - the two of them joined up, and the closest thing
+                                to a template: an entry quake, then a free-play
+                                trigger, then one call that hands the player to
+                                the enemy. Its body-side script (hadad.c's
+                                HAD_ROLE_RECEPTION) is a four-stage waypoint
+                                table with two run-time branches, which is what
+                                "the enemy does different things depending on
+                                where the player went" looks like when it stays
+                                out of the director.
+
 
 ##########################################################################
  HOW TO KICK THIS OFF (what the user provides)

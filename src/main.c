@@ -52,6 +52,7 @@
 #include "master_bedroom.h"
 #include "east_hall.h"
 #include "east_hall_quake.h"
+#include "reception_hadad.h"
 #include "library.h"
 #include "library_destroyed.h"
 #include "hadad_library.h"
@@ -177,6 +178,7 @@ void reset_game(RenderContext *ctx) {
     hadads_reset();
     hadad_library_reset(); /* ...and any half-played crawl under the shelving */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
+    reception_hadad_reset();/* ...and any half-played one in the Reception   */
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
@@ -338,6 +340,21 @@ static void update_current_area(GameState area) {
         east_hall_quake_update();
         return;
     }
+    /* ...and the SAME quake a third time, in the Reception, on the entry that
+       arms its Hadad encounter (reception_hadad.h). Same shape and same reason
+       as the branch above — update_camera, apply_collision and apply_height
+       must NOT run, or the walls would push the shake around. update_hadads is
+       called for uniformity with the other quake branches and because he is the
+       one thing this room can contain: he is HAD_ABSENT for the whole five
+       seconds today (his director does not begin him until well after control
+       returns), so it costs nothing and cannot be forgotten if that ever
+       changes. */
+    if (area == STATE_RECEPTION && reception_hadad_active()) {
+        update_hadads();
+        player_status_update();
+        reception_hadad_update();
+        return;
+    }
     /* The Garden Courtyard's boss encounter takes the camera and all input for
        its reveal and for its death sequence — but NOT for the fight in between,
        which is ordinary free play and falls through to the branch below.
@@ -413,6 +430,13 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         item_pickups_update();
+        /* The Hadad encounter's director: after the entry quake this is the
+           frame-by-frame watch on the floor in front of the stair head, and it
+           is a no-op in every state but that one (reception_hadad.h). NOT
+           gated on `lock` — the crossing is a place the player walks onto, not
+           an interaction they press, and the Start menu is no more a pause for
+           this than it is for the enemy it starts. */
+        reception_hadad_update();
         if (!lock && save_point_triggered()) {
             /* Stand at the save point and press Circle to open the save flow.
                current_area is already STATE_RECEPTION, so the menu returns here. */
@@ -1977,6 +2001,14 @@ int main(int argc, const char **argv) {
                    would carry the previous room's track into the encounter. */
                 if (reception_sealed()) cdaudio_stop();
                 else cdaudio_play(CDAUDIO_RECEPTION_TRACK, 1);
+                /* The house shakes as they walk in, and Hadad comes through the
+                   ceiling once they cross the balcony. Armed HERE and not in
+                   the loading branch above, for the reason the two lines above
+                   are: this reads FLAG_HADAD_TWO and FLAG_RECEPTION_HADAD, and
+                   neither is correct until savegame_apply_pending() has run.
+                   The module owns the rest of the rule — whether the room is
+                   sealed, and whether it has already happened. */
+                reception_hadad_arm_on_entry();
             }
             if (pending_area == STATE_ATTIC_EXIT)
                 attic_exit_apply_flags();   /* re-reads FLAG_LIGHTS_SOLVED, and
@@ -2046,7 +2078,11 @@ int main(int argc, const char **argv) {
                                 `puzzle` keeps the log box up. The Attic Exit's
                                 quake gets the same treatment by riding inside
                                 exit_door_puzzle_active() on the line above. */
-                             (area == STATE_EAST_HALL && east_hall_quake_active());
+                             (area == STATE_EAST_HALL && east_hall_quake_active()) ||
+                             /* ...and the Reception's, which is the same quake
+                                with the same log line and belongs in the same
+                                list for the same reason. */
+                             (area == STATE_RECEPTION && reception_hadad_active());
                 int cutscene = (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()) ||
                                (area == STATE_DELIVERY_AREA && delivery_intro_active()) ||
                                (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene());

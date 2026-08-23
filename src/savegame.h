@@ -17,7 +17,20 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   15            /* v15: the WorldDelta gained hadads_state
+#define SAVE_VERSION   16            /* v16: a FOURTH Hadad — the Reception's
+                                        ceiling drop. The WorldDelta did not
+                                        change SHAPE, so the delta_size check
+                                        cannot catch this one and the bump is
+                                        the only thing that does: hadads_state
+                                        indexes instances in room_areas[] order
+                                        and Reception (room 2) is EARLIER than
+                                        every other Hadad's room, so every
+                                        existing save's dead/spent bits now sit
+                                        one pair to the left of what they
+                                        describe. >>> A SILENT REORDER OF AN
+                                        EXISTING FIELD NEEDS A BUMP JUST AS
+                                        MUCH AS A NEW ONE DOES. <<<
+                                        v15: the WorldDelta gained hadads_state
                                         — TWO bits per instance rather than the
                                         usual one, because Hadad can be spent as
                                         well as dead (see world.h and hadad.h).

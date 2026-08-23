@@ -52,8 +52,9 @@ typedef struct {
     int       mushroom_count;
     LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
     int          living_statue_count;
-    Hadad     hadads[MAX_HADADS];         /* ditto: the three scripted encounters
-                                             — the Rear Gate's plinth, the West
+    Hadad     hadads[MAX_HADADS];         /* ditto: the four scripted encounters
+                                             — the Reception's ceiling drop, the
+                                             Rear Gate's plinth, the West
                                              Corridor's corner ambush and the
                                              Library Destroyed's U-shaped chase */
     int       hadad_count;
@@ -665,6 +666,39 @@ void world_seed_room(GameState area) {
         living_statue_add(685, 2330, -281, 1, STATE_MAZE_TWO);
     }
 
+    /* Reception: HADAD, the ceiling drop. Placed on his APPEARANCE POINT — in
+       the ceiling in front of the second level's north-west door, feet on the
+       -1200 plane — because HAD_ROLE_RECEPTION seeds in HAD_ABSENT and that is
+       where his director puts him back. Nothing is in the room until
+       src/reception_hadad.c begins him, and unlike the other three scripted
+       roles he has no self-trigger at all: the gate is FLAG_HADAD_TWO with
+       FLAG_RECEPTION_HADAD clear and the trigger is a place on a balcony, and
+       neither is a property of this enemy. See THE RECEPTION ENCOUNTER in
+       src/hadad.h.
+
+       AUTHORED like the other three and for the same reason: world_seed_room
+       runs for rooms whose geometry is not resident, so no floor may be probed
+       here — and this placement is not on a floor at all.
+
+       >>> THIS PLACEMENT MUST STAY ABOVE THE OTHER THREE. <<< The save's
+       hadads_state indexes instances in the order the room walk in
+       world_load_delta() rebuilds them, which is room_areas[] order —
+       Reception (2), Rear Gate (18), West Corridor (19), Library Destroyed
+       (20). Reception is the EARLIEST of the four, so it goes first, and
+       inserting it is what shifted every existing save's bits by one pair and
+       forced the SAVE_VERSION bump to 16 (savegame.h).
+
+       Sound: this room takes the default SND_BANK_HOUSE (main.c's
+       STATE_LOADING) and SFX_RUMBLE has a house copy, so his arrival sounds —
+       and so does the entry quake, which needs the same clip's four alias
+       voices (quake.h: HOUSE ROOMS ONLY). The room enters SILENT once it is
+       sealed (main.c's re-derive block), so the stalker track update_hadads
+       brings up is the only music it has. */
+    if (area == STATE_RECEPTION) {
+        hadad_add(HAD_RC_CEIL_X, HAD_RC_CEIL_Z, HAD_RC_CEIL_ANCHOR,
+                  STATE_RECEPTION, HAD_ROLE_RECEPTION);
+    }
+
     /* Rear Gate: HADAD, on the plinth in the middle of the lawn — the statue the
        block's own inscription is a memorial to (rear_gate.c's plinth text reads
        "In memoriam of Hadad, a great hero").
@@ -717,9 +751,10 @@ void world_seed_room(GameState area) {
 
        >>> THIS PLACEMENT MUST STAY BELOW THE REAR GATE'S. <<< The save's
        hadads_state indexes instances in the order the room walk in
-       world_load_delta() rebuilds them, which is room_areas[] order — Rear Gate
-       (18) then West Corridor (19). Seeding this one first would make a loaded
-       save's `dead`/`spent` bits belong to the wrong Hadad.
+       world_load_delta() rebuilds them, which is room_areas[] order —
+       Reception (2), Rear Gate (18), then West Corridor (19). Seeding this one
+       earlier would make a loaded save's `dead`/`spent` bits belong to the
+       wrong Hadad.
 
        Sound: this room takes the default SND_BANK_HOUSE (main.c's
        STATE_LOADING) and SFX_RUMBLE has a house copy, so his arrival sounds.
@@ -741,11 +776,11 @@ void world_seed_room(GameState area) {
        for rooms whose geometry is not resident, so no floor may be probed here.
        This room's single floor plane is y=0 and HAD_LD_ANCHOR is its anchor.
 
-       >>> THIS PLACEMENT MUST STAY BELOW THE OTHER TWO. <<< Same rule as the
+       >>> THIS PLACEMENT MUST STAY BELOW THE OTHER THREE. <<< Same rule as the
        West Corridor's above: the save's hadads_state indexes instances in
-       room_areas[] order — Rear Gate (18), West Corridor (19), Library
-       Destroyed (20) — and this room is last in that table, so appending here
-       is what keeps a loaded save's bits on the right Hadad.
+       room_areas[] order — Reception (2), Rear Gate (18), West Corridor (19),
+       Library Destroyed (20) — and this room is last in that table, so
+       appending here is what keeps a loaded save's bits on the right Hadad.
 
        Sound: this room takes the default SND_BANK_HOUSE (main.c's
        STATE_LOADING) and SFX_RUMBLE has a house copy, so his arrival sounds.

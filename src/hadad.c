@@ -605,6 +605,69 @@ static int had_path_goal(const Hadad *h, int32_t *gx, int32_t *gz) {
         default: return 0;
         }
     }
+    /* ---- The Reception's FOUR STAGES, indexed by (stage, leg) --------------
+       Stage 0 is the arrival: he lands out of the ceiling in front of the
+       north-west door and walks one diagonal leg to the head of the stair.
+       Reaching it latches the SCENARIO (had_leg_entered) into `stage`.
+
+       Stage 1 is scenario 1 — the player went down the stair, so he follows it:
+       south down the upper flight onto the landing, then west down the lower
+       flight and out onto the ground floor.
+
+       Stage 2 is scenario 2 — the player backed off toward the East Hall door.
+       He follows them that way (leg 0), stands for a second
+       (HAD_RC_EDGE_PAUSE, set by had_leg_entered as leg 1 is taken up), walks
+       south off the unguarded stretch of the second level's edge and drops to
+       the ground (leg 1), south past the Kitchen Dining door into the
+       south-east corner (leg 2), a square 90 degrees west to the point directly
+       south of the stair (leg 3), and north-west to the stair's foot (leg 4).
+
+       BOTH SCENARIOS END ON HAD_RC_FOOT, which is what makes stage 3 one table
+       rather than two.
+
+       Stage 3 is THE CIRCUIT, and it is the same seven legs for ever: down and
+       round the stair to the Kitchen Dining door (0-2), the LEAP from it up
+       onto the second level (3), west along the balcony to the head of the
+       stair (4), and back down the stair to HAD_RC_FOOT (5-6). Leg 7 does not
+       exist — had_leg_entered wraps it to 0 — so this table never returns 0 and
+       he is never rooted. Nothing in it reads the player. */
+    if (h->role == HAD_ROLE_RECEPTION) {
+        if (h->stage == 0) {
+            if (h->leg == 0) { *gx = HAD_RC_STAIRTOP_X; *gz = HAD_RC_STAIRTOP_Z; return 1; }
+            return 0;
+        }
+        if (h->stage == 1) {
+            switch (h->leg) {
+            case 0: *gx = HAD_RC_LANDING_X; *gz = HAD_RC_LANDING_Z; return 1;
+            case 1: *gx = HAD_RC_FOOT_X;    *gz = HAD_RC_FOOT_Z;    return 1;
+            default: return 0;
+            }
+        }
+        if (h->stage == 2) {
+            switch (h->leg) {
+            case 0: *gx = HAD_RC_FOLLOW_X; *gz = HAD_RC_FOLLOW_Z; return 1;
+            case 1: *gx = HAD_RC_EDGE_X;   *gz = HAD_RC_EDGE_Z;   return 1;
+            case 2: *gx = HAD_RC_CORNER_X; *gz = HAD_RC_CORNER_Z; return 1;
+            case 3: *gx = HAD_RC_SOUTH_X;  *gz = HAD_RC_SOUTH_Z;  return 1;
+            case 4: *gx = HAD_RC_FOOT_X;   *gz = HAD_RC_FOOT_Z;   return 1;
+            default: return 0;
+            }
+        }
+        /* stage 3: the circuit. */
+        switch (h->leg) {
+        case 0: *gx = HAD_RC_SOUTH_X;    *gz = HAD_RC_SOUTH_Z;    return 1;
+        case 1: *gx = HAD_RC_CORNER_X;   *gz = HAD_RC_CORNER_Z;   return 1;
+        case 2: *gx = HAD_RC_RDOOR_X;    *gz = HAD_RC_RDOOR_Z;    return 1;
+        case 3: *gx = HAD_RC_JUMP_X;     *gz = HAD_RC_JUMP_Z;     return 1;
+        case 4: *gx = HAD_RC_STAIRTOP_X; *gz = HAD_RC_STAIRTOP_Z; return 1;
+        case 5: *gx = HAD_RC_LANDING_X;  *gz = HAD_RC_LANDING_Z;  return 1;
+        /* Leg 6 ends on HAD_RC_FOOT and had_leg_entered wraps 7 back to 0, so
+           `default` is unreachable — it is here because a table that can fall
+           off its own end silently roots him, and that failure would look like
+           the loop simply stopping. */
+        default: *gx = HAD_RC_FOOT_X;    *gz = HAD_RC_FOOT_Z;     return 1;
+        }
+    }
     if (h->leg == 0) { *gx = HAD_END_X; *gz = HAD_END_Z; return 1; }
     return 0;
 }
@@ -634,14 +697,81 @@ static void had_path_pace(const Hadad *h, int32_t *speed, int *step_frames) {
         *step_frames = HAD_LD_WALK1_STEP_FRAMES;
         return;
     }
+    /* The Reception circuit's LEAP. Four times a walk, because the arc has to
+       carry him over the second level's edge before gravity has taken the
+       upward kick back off him — see HAD_RC_JUMP_VY for the frame arithmetic
+       that ties this number to that one. */
+    if (h->role == HAD_ROLE_RECEPTION && h->stage == 3 && h->leg == 3) {
+        *speed       = HAD_RC_JUMP_SPEED;
+        *step_frames = HAD_RC_JUMP_STEP_FRAMES;
+        return;
+    }
     *speed       = HAD_SPEED;
     *step_frames = HAD_STEP_FRAMES;
 }
 
 static void had_leg_entered(Hadad *h) {
-    if (h->role != HAD_ROLE_LIBRARY || h->stage != 1 || h->leg != 2) return;
-    if (h->branch) return;
-    h->branch = (player_z() > HAD_LD_BRANCH_Z) ? 1 : 2;
+    if (h->role == HAD_ROLE_LIBRARY) {
+        if (h->stage != 1 || h->leg != 2) return;
+        if (h->branch) return;
+        h->branch = (player_z() > HAD_LD_BRANCH_Z) ? 1 : 2;
+        return;
+    }
+
+    /* ---- Everything the Reception's cursor does between legs ---------------
+       Four things, in the order they can happen: the SCENARIO latch at the head
+       of the stair, the one-second PAUSE before the step off the balcony, the
+       handover from either scenario onto the CIRCUIT, and — inside the circuit
+       — the leap's upward kick and the wrap that closes the loop. The first
+       three move `stage`, which is this role's cursor, and reset `leg` to 0 so
+       the new stage starts from the top of its own table.
+
+       The latch runs HERE rather than in had_path_goal for the reason the
+       Library Destroyed's branch does: solved every frame, the goal would swing
+       from one end of the room to the other as the player crossed the line, and
+       he would pivot on the waypoint instead of committing. It is also the ONLY
+       thing in this role that reads the player at all — the circuit does not.
+
+       player_y(), like every other read of the player in this file, and NEVER
+       cam_* — the quake that opens this encounter anchors the player and flies
+       the camera off the spot (camera.h). */
+    if (h->role != HAD_ROLE_RECEPTION) return;
+
+    /* Stage 0 walked out at the head of the stair: which scenario is it? */
+    if (h->stage == 0 && h->leg == 1) {
+        h->stage = (player_y() > HAD_RC_DESCEND_Y) ? 1 : 2;
+        h->leg   = 0;
+        return;
+    }
+
+    /* Scenario 2, leg 1 taken up: he has followed them toward the East Hall
+       door and now stands for a second before turning off the edge. */
+    if (h->stage == 2 && h->leg == 1) {
+        h->pause_timer = HAD_RC_EDGE_PAUSE;
+        return;
+    }
+
+    /* Either scenario walked out at the foot of the stair: onto the circuit,
+       which nothing ever takes him off again. */
+    if ((h->stage == 1 && h->leg == 2) || (h->stage == 2 && h->leg == 5)) {
+        h->stage = 3;
+        h->leg   = 0;
+        return;
+    }
+
+    if (h->stage != 3) return;
+
+    /* THE LEAP, taken up at the Kitchen Dining door. All it needs is the
+       upward kick: apply_ddog_height integrates it from the next frame, and
+       had_path_pace gives this one leg the speed that carries the arc. Set
+       HERE and not in had_path_goal because it must happen exactly once, on
+       the frame the leg is entered — that function is asked for the goal every
+       frame the leg runs. */
+    if (h->leg == 3) { h->vy = HAD_RC_JUMP_VY; return; }
+
+    /* ...and round again. The circuit has no end and he is never rooted in
+       this room. */
+    if (h->leg > 6) h->leg = 0;
 }
 
 void update_hadads(void) {
@@ -828,8 +958,43 @@ void update_hadads(void) {
                Hadad on the plinth would be dragged straight off it, and this is
                also what walks him DOWN the ramp under flag three rather than
                sliding him along at the height he arrived at. */
-            apply_ddog_height(&h->x, &h->y, &h->z, &h->vy,
-                              &h->on_upper_floor, &h->on_ramp);
+            {
+                /* >>> HE LANDS WITH A NOISE. <<< Two of the Reception legs end
+                   in a real drop — the step off the second level's edge in
+                   scenario 2, and the far side of the circuit's leap — and both
+                   were asked for with the rumble under them. A landing is the
+                   frame a fast downward `vy` is zeroed by the floor;
+                   HAD_RC_LAND_VY is what separates that from walking down a
+                   stair tread, which also zeroes `vy` but never gets anywhere
+                   near it.
+
+                   >>> STAGE 0 IS DELIBERATELY EXCLUDED. <<< The drop out of the
+                   ceiling already sounded this clip on the frame he appeared
+                   (had_arrive), and SFX_RUMBLE is one voice: a second play 40
+                   frames later would cut the arrival's own 127-frame clip in
+                   half and leave the appearance thinner than it started. */
+                int32_t vy_before = h->vy;
+                apply_ddog_height(&h->x, &h->y, &h->z, &h->vy,
+                                  &h->on_upper_floor, &h->on_ramp);
+                if (h->role == HAD_ROLE_RECEPTION && h->stage != 0 &&
+                    vy_before >= HAD_RC_LAND_VY && h->vy == 0)
+                    sound_play(SFX_RUMBLE);
+            }
+
+            /* >>> THE RECEPTION ARRIVAL FALLS BEFORE IT WALKS. <<< He appears
+               with his feet on the ceiling plane and the line above is what
+               brings him down; without this he would stride his first leg out
+               across 600 units of thin air on the way. STAGE 0 ONLY — scenario
+               2's step off the second level's edge is a WALK-off and must keep
+               marching through its fall, which is the whole read of it.
+
+               `vy` is zero on every frame apply_ddog_height finds him at or
+               below his floor, which on the flat second level is every frame
+               after he lands. It is NOT a safe test on a ramp — the target
+               moves out from under him each frame there — but stage 0 never
+               touches one. */
+            if (h->role == HAD_ROLE_RECEPTION && h->stage == 0 && h->vy != 0)
+                break;
 
             if (h->follow) {
                 /* Flag three: he simply comes after them, up the corridor, out
@@ -970,6 +1135,43 @@ void hadad_library_begin_return(Hadad *h) {
        top two seconds after control comes back. The rumble itself still
        sounds — that is the announcement. */
     if (music_on) music_delay = 0;
+}
+
+/* ---- The Reception director API ---------------------------------------------
+   Two functions, and they are everything src/reception_hadad.c is allowed to
+   know about this enemy (see the marked block at the foot of hadad.h). */
+
+Hadad *hadad_reception_instance(void) {
+    int i;
+    for (i = 0; i < hadad_count; i++) {
+        Hadad *h = &hadads[i];
+        if (!h->active || h->role != HAD_ROLE_RECEPTION) continue;
+        if (h->area != current_area || h->state == HAD_DEAD) continue;
+        return h;
+    }
+    return NULL;
+}
+
+void hadad_reception_begin(Hadad *h) {
+    if (!h || h->role != HAD_ROLE_RECEPTION) return;
+    h->stage = 0;
+    had_arrive(h, HAD_RC_CEIL_X, HAD_RC_CEIL_Z, 0);
+
+    /* >>> HE ARRIVES IN THE CEILING, WHICH IS THE ONE THING had_arrive CANNOT
+       DO. <<< That function probes the FLOOR for its Y (had_floor_anchor), so
+       it has just stood him on the second level; put him back up on the -1200
+       plane and let gravity do the rest. `vy` is zeroed with it so the drop
+       starts from rest rather than from whatever the last state left behind. */
+    h->y  = HAD_RC_CEIL_ANCHOR;
+    h->vy = 0;
+
+    /* >>> AND HE DOES NOT SERVE THE WAKE PAUSE. <<< Every other arrival stands
+       still for a second first, which reads as the statue noticing; here the
+       DROP is the announcement, and a second of hanging in the plaster before
+       it would read as a sprite that had failed to spawn. The pause branch in
+       update_hadads also returns BEFORE apply_ddog_height, so leaving it set
+       would literally suspend him in mid-air for its duration. */
+    h->pause_timer = 0;
 }
 
 int hadad_lever_locked(void) {

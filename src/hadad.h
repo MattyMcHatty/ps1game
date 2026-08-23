@@ -301,6 +301,109 @@
  * crown at -599 (see library_destroyed_init's collision_set_ceiling_y).
  *
  * ======================================================================
+ * THE RECEPTION ENCOUNTER   (HAD_ROLE_RECEPTION)
+ * ======================================================================
+ * A FOURTH instance, seeded into STATE_RECEPTION by world_seed_room. It shares
+ * the body, art, damage rules, music and solid cylinder with the other three
+ * and, like the two before it, none of the plinth's state table.
+ *
+ * >>> IT IS THE SECOND INSTANCE WITH A DIRECTOR, AND THE FIRST WITH A TRIGGER
+ * THAT IS NOT ITS OWN. <<< The walking is here; the ENTRY QUAKE and the trigger
+ * that starts the walk both live in src/reception_hadad.c, because both are
+ * things that happen to the PLAYER rather than properties of the enemy
+ * (tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 1). This role therefore has no
+ * self-trigger in the HAD_ABSENT branch at all: it waits to be begun.
+ *
+ *   THE GATE      FLAG_HADAD_TWO (the room is sealed) and FLAG_RECEPTION_HADAD
+ *                 clear (it has not run yet). Both are the DIRECTOR's business
+ *                 - the flag is set at the arm, on entry, so the encounter is
+ *                 one-shot and cannot half-happen.
+ *
+ *   THE ROOM      two storeys (reception.c's floor zones). The GROUND floor is
+ *                 the whole 3000 x 3000 box at y=0 less the stair mass
+ *                 x[-100,700] z[-700,500]; the SECOND LEVEL is an L at y=-600 -
+ *                 a north band x[-900,1500] z[500,1500] and a west strip
+ *                 x[-1500,-900] running the full depth. The STAIR ("the ramp")
+ *                 climbs in two flights from the ground at x=-100 z[-700,-300],
+ *                 across a landing at y=-150, and up to the band's south edge at
+ *                 z=500, x[300,700].
+ *
+ *                 The ceiling over the west strip is y=-1200 (Reception v2.smx:
+ *                 the vault steps -1200 / -1350 / -1500 / -1600 inward), and a
+ *                 Hadad standing on the second level reaches -1199. He clears it
+ *                 by one unit, exactly as he does the West Corridor's.
+ *
+ *   THE ARRIVAL   he appears IN THE CEILING in front of the second level's
+ *                 north-west door - the one into the West Corridor, which is the
+ *                 room's only way on - with his feet on the -1200 plane, and
+ *                 DROPS. Nothing else about him is different: the fall is
+ *                 apply_ddog_height's ordinary gravity, and the only special
+ *                 case is that he does not walk while it happens (see the
+ *                 `vy` gate in update_hadads).
+ *
+ *                 >>> NO WAKE PAUSE. <<< Every other arrival stands still for
+ *                 HAD_WAKE_PAUSE first; this one does not, because the DROP is
+ *                 the beat that announces him and a second of hanging in the
+ *                 plaster before it would read as a stuck sprite.
+ *
+ *   THE WALK      four STAGES, and `stage` is the cursor through them:
+ *
+ *                 0  the drop, then one leg east to the head of the stair.
+ *                    At the end of it the SCENARIO is latched (had_leg_entered)
+ *                    off where the player is: down the stair, or still up top.
+ *                 1  SCENARIO 1 - they went down. He follows the stair: south
+ *                    down the upper flight and across the landing, then west
+ *                    down the lower flight and out onto the ground floor.
+ *                 2  SCENARIO 2 - they backed off toward the East Hall door. He
+ *                    follows them that way, STANDS FOR A SECOND
+ *                    (HAD_RC_EDGE_PAUSE), then walks south off the second
+ *                    level's south edge and drops to the ground floor; south
+ *                    past the Kitchen Dining door into the room's south-east
+ *                    corner; a square 90-degree turn west to the point directly
+ *                    south of the stair; and north-west to the stair's foot.
+ *
+ *                    >>> HE STEPS OFF AT x=1100 BECAUSE THAT IS THE ONE PLACE
+ *                    HE CAN. <<< The second level's edge band along z=500 is
+ *                    modelled for x[-900,300], x[700,966] and x[1233,1500]
+ *                    (Reception v2.smx) and the collision follows it - walls 12,
+ *                    27 and 28, all y[-719,-600]. The stretch x[966,1233] has no
+ *                    band and no wall: it is the only unguarded edge on the
+ *                    floor, and 1100 is its middle.
+ *
+ *                    BOTH SCENARIOS END ON THE SAME POINT, HAD_RC_FOOT, which is
+ *                    the ground floor just west of the stair's bottom step.
+ *                 3  THE CIRCUIT, and it never ends. Seven legs, and leg 7
+ *                    wraps back to leg 0: down and round the stair to the
+ *                    KITCHEN DINING door; a LEAP from it up onto the second
+ *                    level; west along the balcony to the head of the stair;
+ *                    and back down the stair to HAD_RC_FOOT, where it starts
+ *                    again. He is never HAD_ROOTED in this room at all — there
+ *                    is no state after this one, and the stalker track plays
+ *                    for as long as the player stays.
+ *
+ *                    >>> THE LEAP IS THE ONLY BALLISTIC MOVE IN THIS ENEMY.
+ *                    <<< The second level does not reach the Kitchen Dining
+ *                    door — it stops at z=500 and the door is at z=-414 — so
+ *                    "jump up to the second level" is 975 units of ground as
+ *                    well as 600 of height. He gets an upward `vy` kick and a
+ *                    leg speed of his own, and apply_ddog_height's ordinary
+ *                    gravity draws the arc; see HAD_RC_JUMP_VY for the
+ *                    arithmetic that makes him clear the edge on the way over
+ *                    rather than fall through it.
+ *
+ *                 He MARCHES every leg. He does not chase, and nothing about
+ *                 the circuit depends on where the player is — the only
+ *                 run-time decision left in the whole role is the scenario
+ *                 latch at the head of the stair.
+ *
+ *   RE-ARMING     none. FLAG_RECEPTION_HADAD is set on the entry that arms it,
+ *                 so a later visit finds the room empty - the director never
+ *                 begins him again, and with no self-trigger he stays
+ *                 HAD_ABSENT for ever. hadads_rest() still reseats him like the
+ *                 other scripted roles; there is simply nothing left to start
+ *                 it.
+ *
+ * ======================================================================
  * PERSISTENCE
  * ======================================================================
  * The spiders'/statues' model: ONE global array tagged by area, in world.c's
@@ -310,11 +413,17 @@
  * (tools/ADDING_AN_ENEMY.txt STEP 6). MAX_HADADS is a whole-game budget.
  * ----------------------------------------------------------------------- */
 
-/* THREE: the Rear Gate's plinth statue, the West Corridor's ambush and the
-   Library Destroyed encounter. This is a WHOLE-GAME budget and it is what the
-   save's hadads_state field has to cover — two bits apiece against
-   WD_MAX_HADADS (4), asserted in world.c. */
-#define MAX_HADADS            3
+/* FOUR: the Reception's ceiling drop, the Rear Gate's plinth statue, the West
+   Corridor's ambush and the Library Destroyed encounter — in that order, which
+   is room_areas[] order and therefore the order the save's hadads_state indexes
+   them in (world.c). This is a WHOLE-GAME budget and it is what that field has
+   to cover — two bits apiece against WD_MAX_HADADS (4), asserted in world.c.
+
+   >>> THE POOL IS NOW EXACTLY FULL. <<< A fifth instance needs WD_MAX_HADADS
+   widened first, and hadads_state is a uint8_t: at two bits apiece it holds
+   four and no more. Widening it is a WorldDelta change and therefore a
+   SAVE_VERSION bump. */
+#define MAX_HADADS            4
 #define HAD_MAX_HEALTH      100   /* crucifaxe swings, at 1 apiece */
 
 /* ---- Sprite geometry -------------------------------------------------------
@@ -494,6 +603,163 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
    header and not collision.h. */
 #define HAD_LD_ANCHOR       (-149)
 
+/* ---- The Reception encounter, in ten points --------------------------------
+   That room's own coordinate space (reception.c's floor zones and
+   src/reception_mesh_collision.c): bounds x[-1500,1500] z[-1500,1500], TWO
+   storeys. Ground floor y=0 over the whole box; SECOND LEVEL y=-600 as an L —
+   north band x[-900,1500] z[500,1500] plus west strip x[-1500,-900] over the
+   full depth. The stair climbs x[-100,300] z[-700,-300] (lower flight, y 0 to
+   -150), across the landing x[300,700] z[-700,-300] (y=-150), then x[300,700]
+   z[-300,500] (upper flight, y -150 to -600) onto the band's south edge.
+
+   The two ANCHORS below are literals for HAD_WC_ANCHOR's reason — world.c
+   includes this header and not collision.h — and each is (floor - 149).
+
+     CEIL     in front of the second level's north-west door (reception.c's
+              NDOOR, x=-1435 z=964), which is the room's only way on. x=-1200
+              is the west strip's centre line and the only x a 600-wide body
+              fits on: the strip is x[-1500,-900], exactly 600 across, so he
+              plugs it the way he plugs the West Corridor. The CEILING there is
+              y=-1200 (Reception v2.smx), and HAD_RC_CEIL_ANCHOR puts his FEET
+              on that plane — feet sit at anchor + 150 — so he starts flush in
+              the plaster and falls 601 units onto the floor below.
+
+     STAIRTOP the second level's floor 120 north of the stair head, on the
+              flight's own centre line (x[300,700] -> 500). The one leg from
+              CEIL to here is a single diagonal and stays on walkable floor the
+              whole way: every point on it has z >= 620, and the strip and the
+              band are the same height with no wall between them north of
+              z=500.
+
+     LANDING  scenario 1's turn, at the foot of the upper flight and the middle
+              of the landing. x=500 is both flights' shared column and z=-500 is
+              the landing's centre, so the leg STAIRTOP->LANDING runs straight
+              down the upper flight and the next one straight down the lower.
+
+     FOLLOW   scenario 2's first leg: out toward the East Hall's double door
+              (x=1435 z=1071), which is where the player has just backed off to.
+              He stops short of it and stands for HAD_RC_EDGE_PAUSE.
+
+     EDGE     the step-off, and z=300 is deliberately PAST the edge at z=500:
+              the leg is a walk-off, not a hover, so its goal has to sit on the
+              ground floor below. x=1100 is the middle of the only unguarded
+              stretch of that edge — see the note in the header block above.
+
+     CORNER   the room's south-east corner, a body radius clear of both walls,
+              reached by walking south past the Kitchen Dining door (x=1450
+              z=-414). Its Z is shared with SOUTH so the turn there is a square
+              90 degrees, which is what the brief asks for.
+
+     SOUTH    directly south of the stair: x=100 is the lower flight's own
+              centre (x[-100,300]).
+
+     FOOT     in front of the stair, on the ground floor just west of the bottom
+              step. BOTH SCENARIOS END HERE. The bottom step is at x=-100 and a
+              300-radius body clears it at -400, so -500 stands him a clear 100
+              off it; z=-500 is the flight's centre line.
+
+     RDOOR    in front of the Kitchen Dining double door (its leaf is at x=1450
+              z=-414), a body radius plus a margin off it. It does not open —
+              it is rubble while the room is sealed (reception.h) — which is
+              the point of walking the player's eye to it. It is also where the
+              LEAP starts.
+
+     JUMP     where the leap lands: the second level, straight through the same
+              unguarded stretch of its edge that scenario 2 stepped off
+              (x[966,1233] — see the header block). 1100 is that stretch's
+              middle and 560 is 60 clear of the edge, so he comes down on floor
+              rather than on the lip. */
+#define HAD_RC_CEIL_X       (-1200)
+#define HAD_RC_CEIL_Z          964
+#define HAD_RC_CEIL_ANCHOR  (-1350)   /* feet on the -1200 ceiling plane   */
+#define HAD_RC_UPPER_ANCHOR  (-749)   /* second level y=-600               */
+#define HAD_RC_ANCHOR        (-149)   /* ground floor y=0                  */
+#define HAD_RC_STAIRTOP_X      500
+#define HAD_RC_STAIRTOP_Z      620
+#define HAD_RC_LANDING_X       500
+#define HAD_RC_LANDING_Z     (-500)
+#define HAD_RC_FOLLOW_X       1100
+#define HAD_RC_FOLLOW_Z        900
+#define HAD_RC_EDGE_X         1100
+#define HAD_RC_EDGE_Z          300
+#define HAD_RC_CORNER_X       1150
+#define HAD_RC_CORNER_Z     (-1150)
+#define HAD_RC_SOUTH_X         100
+#define HAD_RC_SOUTH_Z      (-1150)
+#define HAD_RC_FOOT_X        (-500)
+#define HAD_RC_FOOT_Z        (-500)
+#define HAD_RC_RDOOR_X        1150
+#define HAD_RC_RDOOR_Z       (-414)
+#define HAD_RC_JUMP_X         1100
+#define HAD_RC_JUMP_Z          560
+
+/* >>> HE STANDS FOR A SECOND BEFORE HE STEPS OFF. <<< Scenario 2's one pause,
+   and the only thing in this role that is timed rather than positional. It is
+   served through `pause_timer`, the same field HAD_WAKE_PAUSE uses, so he holds
+   the IDLE pose through it exactly as an arriving Hadad does — which is what
+   makes it read as him giving up on the chase rather than as a stall. */
+#define HAD_RC_EDGE_PAUSE       60   /* 1 s at 60 fps */
+
+/* The role's ONE run-time decision, read ONCE by had_leg_entered when he
+   reaches the head of the stair and never revisited — the Library Destroyed's
+   rule, and for its reason: re-solved every frame the goal would swing from one
+   end of the room to the other as the player crossed the line, and he would
+   pivot on the waypoint instead of committing.
+
+   "The player has gone down the stair", measured on the player's EYE
+   (player_y()) and not on a floor zone, because the stair is a FLOOR_RAMP and
+   the mid-landing is a FLOOR_UPPER — so player_on_upper_floor is TRUE on the
+   landing and useless here. The second level stands the eye at -789 and the
+   ground floor at -189; -700 is a shade below the top of the flight, so it
+   takes a real step or two down before it reads as a descent. */
+#define HAD_RC_DESCEND_Y     (-700)
+
+/* ---- THE LEAP ---------------------------------------------------------------
+   HAD_RC_RDOOR (1150, -414, ground, anchor -149) to HAD_RC_JUMP (1100, 560,
+   second level, anchor -749): 975 units of ground and 600 of height. `vy` is
+   kicked upward as the leg is taken up and apply_ddog_height's own gravity
+   (GRAVITY 1 a frame) does the rest, so the arc is the SAME physics that drops
+   him out of the ceiling — there is no second integrator.
+
+   >>> HE HAS TO BE ABOVE THE SECOND LEVEL WHEN HE CROSSES ITS EDGE, OR HE FALLS
+   STRAIGHT BACK TO THE GROUND. <<< apply_ddog_height skips any floor zone that
+   is ABOVE the body (`zone_target < *py - 2`), so an arc that reaches z=500
+   still climbing past -749 lands on the balcony and one that reaches it at -700
+   sails over the top of the zone and drops to y=0 on the far side. That single
+   inequality is what sets both numbers below.
+
+     RISE     with a kick of -m the rise after n frames is m*n - n(n+1)/2, so
+              the peak is m(m-1)/2 at n = m. At m=41 that is 820, reached
+              around frame 40, and the body is at or past the needed 600
+              between frames 18 and 61 — a 43-frame window.
+
+     SPEED    the leg is 975 long and the edge at z=500 is 914 of it, so at 16 a
+              frame he crosses the edge on frame 57 (rise 684, i.e. 84 clear of
+              the floor he is about to land on) and arrives over the landing
+              point on frame 60 with vy already back to +19. He touches down a
+              frame or two later, hard — which is what the landing rumble is
+              for. Retune either number and re-check frame 57 against the 600.
+
+     CEILING  the peak puts his crown at -1419 against a drawn vault of -1200,
+              so the top of him passes THROUGH the ceiling for about twenty
+              frames. That is invisible and not a bug: the camera is underneath
+              it, and the ceiling polys occlude him exactly as the floor does.
+
+     STRIDE   16 x 10 = 160 against the enemy's standing 4 x 39 = 156, which is
+              the product HAD_STEP_FRAMES exists to hold. He is airborne for
+              nearly all of it, so the cycle barely shows; it is matched anyway
+              so the pair can never be picked apart later. */
+#define HAD_RC_JUMP_VY        (-41)
+#define HAD_RC_JUMP_SPEED       16
+#define HAD_RC_JUMP_STEP_FRAMES 10
+
+/* A LANDING SOUNDS. The downward `vy` that counts as "he fell" rather than "he
+   walked down a stair tread": a real drop is capped at MAX_FALL_VEL (20) by the
+   time it lands, while walking down either flight of the stair holds `vy` at 1
+   to 3 — the ramp's surface only falls about 1.5 units a frame under him. 8
+   separates the two with room either side and is not a tuning knob. */
+#define HAD_RC_LAND_VY           8
+
 /* ---- The two triggers ------------------------------------------------------
    FLAG ONE arms on proximity to the two grinders, which sit at z=-85 in the
    corridor's side hedges (grinder_puzzle.c's GP_Z). The radius is TRUE RADIAL,
@@ -650,8 +916,13 @@ typedef enum {
     HAD_ROLE_PLINTH,      /* Rear Gate: the statue and its two-flag table   */
     HAD_ROLE_WEST_CORR,   /* West Corridor: the two-leg corner ambush       */
     HAD_ROLE_LIBRARY,     /* Library Destroyed: two walks round a U, with
-                             the crawl-gap escape in between — the only
+                             the crawl-gap escape in between — the first
                              role with a director (src/hadad_library.c)    */
+    HAD_ROLE_RECEPTION,   /* Reception: a drop through the ceiling and a
+                             four-stage walk down two storeys. Its trigger
+                             AND its entry quake belong to its director
+                             (src/reception_hadad.c), so this role has no
+                             self-trigger of its own at all               */
 } HadadRole;
 
 typedef enum {
@@ -820,5 +1091,24 @@ int  hadad_library_present(void);
    walk from the top. Idempotent in the sense that it always restarts stage 1 —
    the director calls it exactly once, on the frame control comes back. */
 void hadad_library_begin_return(Hadad *h);
+
+/* ---------------------------------------------------------------------------
+ * THE RECEPTION DIRECTOR API   (src/reception_hadad.c and nothing else)
+ * ---------------------------------------------------------------------------
+ * Two functions. That role's HAD_ABSENT branch does nothing on its own — the
+ * gate is two saved flags and the trigger is a place on a balcony, and neither
+ * is a property of this enemy — so BEGINNING him is the whole conversation.
+ */
+
+/* The live Reception Hadad, or NULL — not placed, not in this area, or dead.
+ * For ARMING only: latch the answer, do not re-ask it every frame
+ * (ADDING_A_BOSS_ENCOUNTER.txt STEP 4). */
+Hadad *hadad_reception_instance(void);
+
+/* Put him IN THE CEILING in front of the north-west door and let go. He falls
+ * to the second level under ordinary gravity and then walks his four stages;
+ * nothing else is owed and there is no counterpart to stop him. Safe to call
+ * with NULL (a debug jump can empty the slot). */
+void  hadad_reception_begin(Hadad *h);
 
 #endif
