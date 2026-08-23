@@ -13,7 +13,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "INFINITE LIFE",
     "INFINITE STAMINA",
     "HADAD FLAG ONE",
-    "HADAD FLAG TWO",
+    "HADAD FLAG THREE",
 };
 
 static int grants_pending = 0;
@@ -95,10 +95,11 @@ void debug_opts_apply_grants(void) {
        out between them, so setting the bit here and jumping to the Rear Gate
        puts him exactly where a player who had earned it would find him — posted
        at the bottom of the corridor for flag one, out of the room until the ramp
-       trigger for flag two. See the three-way state table in hadad.h.
+       trigger for flag three. See the three-way state table in hadad.h.
 
-       Set one first so that two lands on top of it, which is the relationship
-       the encounter itself has. */
-    if (debug_opts[DBG_HADAD_FLAG_ONE]) game_flag_set(FLAG_HADAD_ONE);
-    if (debug_opts[DBG_HADAD_FLAG_TWO]) game_flag_set(FLAG_HADAD_TWO);
+       Set one first so that three lands on top of it, which is the
+       relationship the encounter itself has. (The numbering skips two on
+       purpose — see FLAG_HADAD_THREE in src/player.h.) */
+    if (debug_opts[DBG_HADAD_FLAG_ONE])   game_flag_set(FLAG_HADAD_ONE);
+    if (debug_opts[DBG_HADAD_FLAG_THREE]) game_flag_set(FLAG_HADAD_THREE);
 }

@@ -61,19 +61,38 @@ typedef enum {
        he awards no item and consumes none. See src/hadad.h for the whole state
        table; the short version is:
 
-         FLAG_HADAD_ONE  he has come off the plinth once. He is then permanently
-                         posted at the foot of the ramp on every return visit,
-                         and the corridor lever is dead for as long as this is
-                         the ONLY one of the two that is set.
-         FLAG_HADAD_TWO  the second encounter is armed. It IGNORES flag one
-                         entirely — the lever works again and Hadad is not in
-                         the room until the player comes back up off the ramp.
+         FLAG_HADAD_ONE    he has come off the plinth once. He is then
+                           permanently posted at the foot of the ramp on every
+                           return visit, and the corridor lever is dead for as
+                           long as this is the ONLY one of the two that is set.
+                           It also opens the West Corridor's corner ambush —
+                           see west_corridor.h.
+         FLAG_HADAD_THREE  the third encounter is armed. It IGNORES flag one
+                           entirely — the lever works again, Hadad is not in
+                           the room until the player comes back up off the
+                           ramp, and the West Corridor ambush is closed for
+                           good.
 
-       Flag two is not set by anything yet, by design: what turns it on has not
+       >>> THE NUMBERING SKIPS TWO ON PURPOSE. <<< This flag was FLAG_HADAD_TWO
+       until the user renamed it: the encounter that belongs between the two has
+       not been designed yet, and the gap is reserved for it rather than left
+       for the third encounter to go on wearing the second's name. Nothing in
+       the code reads the number — it is a name, and the bit index is positional
+       — so the rename cost nothing.
+
+       >>> ADDING THE REAL FLAG_HADAD_TWO WILL NOT BE FREE, THOUGH. <<< These
+       are bit positions in `game_flags`, which rides in SaveData.flags
+       wholesale. Inserting a member here shifts FLAG_HADAD_THREE and both door
+       flags below it by one, so every existing save silently reads the wrong
+       bits. Either append the new flag at the END of this enum (cheap, and the
+       declaration order need not match the story order) or bump SAVE_VERSION
+       when it goes in.
+
+       Flag three is not set by anything yet, by design: what turns it on has not
        been designed. Until then it is reachable only from the title screen's
-       debug menu (DBG_HADAD_FLAG_TWO). */
+       debug menu (DBG_HADAD_FLAG_THREE). */
     FLAG_HADAD_ONE,
-    FLAG_HADAD_TWO,
+    FLAG_HADAD_THREE,
     /* The two doors that are unlocked from one side and read from the other.
        Neither awards or consumes anything, so there is nothing in the inventory
        to read them off — the same reason the puzzle flags above exist. They were

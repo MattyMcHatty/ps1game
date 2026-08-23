@@ -26,11 +26,27 @@
  * is him. Nothing in the code depends on that; it is why the placement is where
  * it is.
  *
+ * >>> HE IS NOW IN TWO ROOMS, AND THE SCRIPT IS PER-INSTANCE. <<< Everything
+ * below down to "PERSISTENCE" describes the ROLE HAD_ROLE_PLINTH — the original
+ * Rear Gate statue and its two-flag state table. The second instance is
+ * HAD_ROLE_WEST_CORR, the West Corridor ambush, and it has a state table of its
+ * own; see THE WEST CORRIDOR AMBUSH further down. A Hadad's `role` is fixed at
+ * hadad_add() time and never changes, and every branch in hadad.c that is
+ * specific to one of them tests it explicitly.
+ *
  * ======================================================================
- * THE THREE ROOMS, BY FLAG
+ * THE THREE ROOMS, BY FLAG   (HAD_ROLE_PLINTH only)
  * ======================================================================
- * Read FLAG_HADAD_TWO first: it does not layer on top of flag one, it REPLACES
- * it. The user's words were "once this flag is active we ignore flag one".
+ * Read FLAG_HADAD_THREE first: it does not layer on top of flag one, it
+ * REPLACES it. The user's words were "once this flag is active we ignore flag
+ * one".
+ *
+ * >>> THERE IS NO FLAG TWO YET, AND THAT IS DELIBERATE. <<< This flag was
+ * called FLAG_HADAD_TWO up to the rename; the encounter that will sit between
+ * the two has not been designed, and the user asked for the numbering to leave
+ * room for it rather than have the third encounter go on being called the
+ * second. So "flag one, flag three" is not a typo anywhere in this file — see
+ * the note in src/player.h for what adding the real flag two will cost.
  *
  *   NEITHER FLAG          Hadad is a statue on the plinth (HAD_IDLE), and he
  *                         is INVULNERABLE — hadad_damage refuses outright, so
@@ -52,16 +68,18 @@
  *                         either. Every later visit to the room finds him
  *                         already standing at HAD_END_Z (HAD_ROOTED).
  *
- *   FLAG TWO (either way)  The second encounter. The lever WORKS again. Hadad
- *                         is not in the room at all to begin with (HAD_ABSENT:
- *                         not drawn, not solid, not damageable). Walking down
- *                         the ramp and back up into the corridor makes him
- *                         appear at the TOP of the ramp, behind the player,
- *                         and from there he simply follows them — up the
- *                         corridor, out onto the lawn, anywhere they go.
- *                         Leaving the room ENDS him: `spent` is set, and on the
- *                         next visit he is back on the plinth in HAD_IDLE and
- *                         can never be armed again by anything.
+ *   FLAG THREE            The third encounter, and it does not matter whether
+ *                         flag one is set as well — this one REPLACES it. The
+ *                         lever WORKS again. Hadad is not in the room at all
+ *                         to begin with (HAD_ABSENT: not drawn, not solid, not
+ *                         damageable). Walking down the ramp and back up into
+ *                         the corridor makes him appear at the TOP of the
+ *                         ramp, behind the player, and from there he simply
+ *                         follows them — up the corridor, out onto the lawn,
+ *                         anywhere they go. Leaving the room ENDS him: `spent`
+ *                         is set, and on the next visit he is back on the
+ *                         plinth in HAD_IDLE and can never be armed again by
+ *                         anything.
  *
  * `spent` is the one bit of this that is not derivable from the flags, so it is
  * the one bit that rides the save (WorldDelta.hadads_state, bit 1).
@@ -110,7 +128,7 @@
  * hadad_damage refuses every hit while he is IDLE or ABSENT so the axe is a
  * silent no-op there too.
  *
- * THE ONE EXCEPTION IS THE GRINDERS, and only under flag two: the corridor
+ * THE ONE EXCEPTION IS THE GRINDERS, and only under flag three: the corridor
  * lever is live again in that state, and if he is standing between the plates
  * when it is thrown his health is emptied in one go (hadads_grinder_crush).
  * That is the intended answer to a hundred-swing health bar.
@@ -118,6 +136,16 @@
  * ======================================================================
  * SOUND AND MUSIC
  * ======================================================================
+ * >>> THE STANDING RULE, FOR EVERY HADAD IN EVERY ROOM, PRESENT AND FUTURE:
+ * HE ARRIVES ON SFX_RUMBLE, AND THE STALKER TRACK COMES UP THE FRAME THAT CLIP
+ * ENDS. <<< It is not a property of the Rear Gate encounter, it is the property
+ * of the enemy, so a new placement never has to ask for it and never has to
+ * wire it: had_arrive() does both, every arrival goes through had_arrive(), and
+ * the wanted/on reconciliation at the bottom of update_hadads() carries the
+ * track for as long as any Hadad in the current area is WALKing or ROOTED. The
+ * only thing a new room owes is a sound bank with SFX_RUMBLE in it (HOUSE and
+ * GARDEN have it, BOSS does not — see below).
+ *
  * SFX_RUMBLE on every arrival and on death — the Living Statue's own clip,
  * reused deliberately rather than for want of a new one, because it is the
  * noise stone makes moving and Hadad is stone. It is in the HOUSE bank AND the
@@ -136,6 +164,68 @@
  * world_silence_monsters) and when he dies.
  *
  * ======================================================================
+ * THE WEST CORRIDOR AMBUSH   (HAD_ROLE_WEST_CORR)
+ * ======================================================================
+ * A SECOND, SEPARATE instance, seeded into STATE_WEST_CORRIDOR by
+ * world_seed_room. It shares this enemy's body, art, damage rules, music and
+ * solid cylinder and NOTHING of the plinth's state table — it is never a
+ * statue, it never teleports to a mouth or a ramp, and it never follows.
+ *
+ *   THE GATE      FLAG_HADAD_ONE set AND FLAG_HADAD_THREE clear. Read the same
+ *                 way round as hadad_lever_locked(): flag three REPLACES flag one
+ *                 everywhere in this enemy, so once the third Rear Gate
+ *                 encounter is armed this ambush is over for good. Outside that
+ *                 window he is HAD_ABSENT — not drawn, not solid, not
+ *                 damageable, and the room is exactly as it was before he
+ *                 existed.
+ *
+ *   THE TRIGGER   the player entering the corner where the corridor turns.
+ *                 The room is an L (west_corridor.h): the WEST ARM runs north
+ *                 to the double door, the SOUTH ARM runs east to the single
+ *                 one, and they meet in the 600 x 650 pocket around
+ *                 (HAD_WC_CORNER_X, HAD_WC_CORNER_Z). HAD_WC_TRIG_RADIUS is
+ *                 TRUE RADIAL like the grinders' one, so it fires at the same
+ *                 400 whichever arm the player walks in down.
+ *
+ *   THE WALK      he appears at the NORTH end, in front of the double door,
+ *                 walks the west arm south to the corner, turns, and walks the
+ *                 south arm east to a stop in front of the single door. TWO
+ *                 LEGS, not one: the corridor turns, and a single straight goal
+ *                 at the far door would steer him into the west arm's east wall
+ *                 and leave the wall-follow to sort out a right angle it has no
+ *                 need to. `leg` is the index; had_path_goal() in hadad.c is
+ *                 the whole path.
+ *
+ *                 >>> HE MARCHES IT, HE DOES NOT STEER IT, AND HE IGNORES WALL
+ *                 GEOMETRY WHILE HE DOES. <<< The user's rule: "he's on a set
+ *                 path so collision with the geometry for Hadad isn't
+ *                 important. He should collide with the player for definite."
+ *                 Both legs run down the centre line of a straight, empty arm,
+ *                 so there is nothing for steering to earn — and had_steer's
+ *                 truncating heading blend actively broke the eastward leg,
+ *                 crabbing him along at half speed into the south wall. See
+ *                 had_march() in hadad.c for the arithmetic. HIS PUSH AGAINST
+ *                 THE PLAYER IS UNAFFECTED: that is hadads_collide, a separate
+ *                 mechanism, and he is still a plug in a 600-wide corridor.
+ *
+ *                 >>> HE ENDS UP BLOCKING THE DOOR HE STOPS AT. <<< His push
+ *                 cylinder holds the player HAD_HOLD_DIST off, which is wider
+ *                 than WCDOOR_TRIGGER_RADIUS, so once he is rooted at
+ *                 HAD_WC_END the east door cannot be used and the north one is
+ *                 the only way out. That is the point of walking him the length
+ *                 of the room; it is not a side effect.
+ *
+ *   RE-ARMING     leaving the room puts him back to HAD_ABSENT at the double
+ *                 door (hadads_rest), so it can happen again on the next visit
+ *                 for as long as the flag window is open. `spent`, which is the
+ *                 plinth role's one-shot latch, is not used by this role.
+ *
+ * HE ONLY JUST FITS. The corridor's drawn ceiling is y=-600 and this room's
+ * floor is y=0, so his anchor is -149, his sprite centre -299 and his crown
+ * -599: one unit of headroom. Anything that raises HAD_HALF_H puts his head
+ * through the ceiling here before it does anywhere else.
+ *
+ * ======================================================================
  * PERSISTENCE
  * ======================================================================
  * The spiders'/statues' model: ONE global array tagged by area, in world.c's
@@ -145,7 +235,10 @@
  * (tools/ADDING_AN_ENEMY.txt STEP 6). MAX_HADADS is a whole-game budget.
  * ----------------------------------------------------------------------- */
 
-#define MAX_HADADS            1
+/* TWO: the Rear Gate's plinth statue and the West Corridor's ambush. This is a
+   WHOLE-GAME budget and it is what the save's hadads_state field has to cover —
+   two bits apiece against WD_MAX_HADADS (4), asserted in world.c. */
+#define MAX_HADADS            2
 #define HAD_MAX_HEALTH      100   /* crucifaxe swings, at 1 apiece */
 
 /* ---- Sprite geometry -------------------------------------------------------
@@ -185,7 +278,7 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
               north part of this level" asks for.
      END      the corridor's SOUTH mouth. See the long note above for why this
               is not the foot of the ramp.
-     RAMPTOP  the flag-two arrival. The ramp climbs from y=0 at z=-2100 to
+     RAMPTOP  the flag-three arrival. The ramp climbs from y=0 at z=-2100 to
               y=-500 at z=-3200; z=-2850 is 750 up that 1100 run, i.e. surface
               y=-341 and an anchor of -490.
 
@@ -208,6 +301,46 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
 #define HAD_RAMPTOP_X           0
 #define HAD_RAMPTOP_Z       (-2850)
 
+/* ---- The West Corridor ambush, in three points -----------------------------
+   That room's own coordinate space (west_corridor.h): bounds x[-2700,0]
+   z[-325,2000], one flat floor at y=0, west arm x[-2700,-2100] and south arm
+   z[-325,325].
+
+     START   in front of the NORTH DOUBLE DOOR, whose leaves span x[-2550,-2250]
+             at z=2000, so x=-2400 is its centre and also the west arm's. Wall 7
+             closes the opening at z=2000 and a 300-radius body cannot stand
+             nearer than z=1700; 1650 leaves 50 over, the same clearance the
+             ramp arrival takes from collision wall 39.
+
+             >>> THE ARM IS 600 WIDE AND SO IS HE. <<< x=-2400 puts his cylinder
+             exactly on both walls with nothing to spare, which is the Rear Gate
+             corridor's arrangement (see the note above) and is why he plugs the
+             room rather than being something to walk past.
+
+     CORNER   where the two arms meet — the west arm's centre line crossed with
+             the south arm's, which is also the trigger's centre. The turn has
+             to be an authored waypoint: steering straight from START to END
+             aims him through the west arm's east wall for the whole first leg.
+
+     END      in front of the EAST SINGLE DOOR at x=0, z=0. Wall 0 stops a
+             300-radius body at x=-300; -400 stands him a clear 100 off the leaf
+             so the door still draws unclipped behind him. */
+#define HAD_WC_START_X     (-2400)
+#define HAD_WC_START_Z       1650
+#define HAD_WC_CORNER_X    (-2400)
+#define HAD_WC_CORNER_Z         0
+#define HAD_WC_END_X        (-400)
+#define HAD_WC_END_Z            0
+/* The floor is y=0 and feet sit at anchor + 150, so the anchor is -GROUND_FLOOR_Y.
+   Written as a literal for the reason HAD_PLINTH_ANCHOR is: this header is
+   included by world.c, which does not pull in collision.h. */
+#define HAD_WC_ANCHOR       (-149)
+/* True radial, like HAD_TRIG_RADIUS. 400 from the corner reaches z=400 up the
+   west arm and x=-2000 along the south one — a step inside either arm's mouth
+   on whichever side the player arrives from, and nowhere near either door
+   (both are over 1600 away, so neither transition can trip it on the way in). */
+#define HAD_WC_TRIG_RADIUS    400
+
 /* ---- The two triggers ------------------------------------------------------
    FLAG ONE arms on proximity to the two grinders, which sit at z=-85 in the
    corridor's side hedges (grinder_puzzle.c's GP_Z). The radius is TRUE RADIAL,
@@ -218,7 +351,7 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
    hedges, so anybody walking the corridor at all passes within 300 of the
    grinders and cannot dodge past on one side.
 
-   FLAG TWO is a two-part latch, because "steps into the corridor FROM the
+   FLAG THREE is a two-part latch, because "steps into the corridor FROM the
    bottom of the ramp" is a direction and not a place. HAD_RAMP_ARM_Z is far
    enough up the ramp that only a player who really went to the door trips it;
    HAD_RAMP_FIRE_Z is just north of the ramp's foot at z=-2100. One without the
@@ -326,7 +459,7 @@ _Static_assert(HAD_CATCH_DIST >= HAD_BODY_RADIUS + SWING_RANGE,
 
 /* ---- Animation and cues ----------------------------------------------------
    Two step frames alternating on a walk cycle; hadad_idle is the plinth pose
-   and the pose he goes back to if flag two burns out. A Hadad who has ARRIVED
+   and the pose he goes back to if flag three burns out. A Hadad who has ARRIVED
    (HAD_ROOTED) holds HAD_TEX_STEP1 rather than reverting to hadad_idle — he is
    a monster standing in a corridor, not a statue again, and the idle art reads
    as the latter.
@@ -356,12 +489,27 @@ _Static_assert(HAD_CATCH_DIST >= HAD_BODY_RADIUS + SWING_RANGE,
 #define HAD_BLOOD_G         150
 #define HAD_BLOOD_B         155
 
+/* WHICH SCRIPT this instance runs. Fixed at hadad_add() time and never changed
+   by anything — had_reseat() preserves it across every reset. Everything the
+   two share (body, art, damage, music, the solid cylinder, the steering) is
+   role-blind; everything that differs tests this explicitly. */
 typedef enum {
-    HAD_IDLE,     /* on the plinth: inert, solid, drawn, INVULNERABLE       */
-    HAD_ABSENT,   /* flag two, before the ramp trigger: not in the room     */
-    HAD_WALK,     /* moving — down the corridor (flag one) or after the
-                     player (flag two). `follow` says which               */
-    HAD_ROOTED,   /* flag one, arrived: parked at HAD_END_X/Z for good      */
+    HAD_ROLE_PLINTH,      /* Rear Gate: the statue and its two-flag table   */
+    HAD_ROLE_WEST_CORR,   /* West Corridor: the two-leg corner ambush       */
+} HadadRole;
+
+typedef enum {
+    HAD_IDLE,     /* on the plinth: inert, solid, drawn, INVULNERABLE.
+                     HAD_ROLE_PLINTH only — a West Corridor Hadad is never
+                     in this state, because he has no plinth to stand on  */
+    HAD_ABSENT,   /* not in the room: not drawn, not solid, not damageable.
+                     PLINTH — flag three, before the ramp trigger.
+                     WEST_CORR — the resting state, before the corner
+                     trigger and outside the flag window entirely       */
+    HAD_WALK,     /* moving — a scripted path, or after the player.
+                     `follow` says which, and `leg` says where on the path */
+    HAD_ROOTED,   /* the path is walked out: parked on its last point for
+                     the rest of the visit                                */
     HAD_DEAD,
 } HadadState;
 
@@ -387,12 +535,16 @@ typedef struct {
     int         on_upper_floor;
     int         on_ramp;
 
-    int         follow;         /* 1 = chase the player (flag two); 0 = walk
-                                   the corridor to HAD_END (flag one)        */
-    int         spent;          /* the flag-two encounter has been used up.
-                                   Saved — see WorldDelta.hadads_state       */
-    int         ramp_armed;     /* flag two's latch: the player has been up
+    int         follow;         /* 1 = chase the player (flag three); 0 = walk
+                                   this role's scripted path                 */
+    int         leg;            /* index into that path while follow == 0 —
+                                   see had_path_goal() in hadad.c            */
+    int         spent;          /* the flag-three encounter has been used up.
+                                   HAD_ROLE_PLINTH only. Saved — see
+                                   WorldDelta.hadads_state                   */
+    int         ramp_armed;     /* flag three's latch: the player has been up
                                    the ramp. Per-visit, not saved            */
+    HadadRole   role;
     HadadState  state;
     int32_t     active;
     GameState   area;
@@ -410,8 +562,14 @@ void hadads_load_textures(void);
    AUTHORED — nothing here reads the current room's mesh — so this is safe to
    call for a room that is not loaded, which is what lets world.c rebuild every
    visited room from a save delta. Returns its index, or -1 if the pool is
-   full. */
-int  hadad_add(int32_t x, int32_t z, int32_t y, GameState area);
+   full.
+
+   `role` picks the script AND the state he is placed in: HAD_ROLE_PLINTH lands
+   in HAD_IDLE (a statue, on show from the first frame), HAD_ROLE_WEST_CORR in
+   HAD_ABSENT (nothing in the room until the corner is entered). Get that pair
+   the wrong way round and a West Corridor Hadad stands in the middle of the
+   passage as inert, invulnerable masonry. */
+int  hadad_add(int32_t x, int32_t z, int32_t y, GameState area, HadadRole role);
 
 void hadads_init(void);
 void hadads_reset(void);
@@ -419,7 +577,7 @@ void hadads_reset(void);
    this enemy that is not "back at his spawn": it depends on the flags. Called
    when leaving a room and when saving. Deaths stick, and so does `spent` —
    which this is also the function that SETS, because leaving the room mid
-   flag-two encounter is what burns it out. */
+   flag-three encounter is what burns it out. */
 void hadads_rest(void);
 void update_hadads(void);
 void draw_hadads(RenderContext *ctx);

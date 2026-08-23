@@ -81,7 +81,7 @@ void world_silence_monsters(void);
                                    the bit index counts every placement, so plain
                                    masonry occupies a bit it never sets. */
 /* Hadad needs TWO bits per placement, not one: as well as being dead he can be
-   SPENT — the flag-two encounter has been met and burned out, which is the one
+   SPENT — the flag-three encounter has been met and burned out, which is the one
    fact about him that the two GameFlags cannot reconstruct (see hadads_rest).
    So his byte is packed as bit (2*i) = dead, bit (2*i + 1) = spent, and four
    placements is what a uint8_t holds. There is one. */

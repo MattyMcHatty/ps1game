@@ -479,11 +479,14 @@ void west_corridor_draw(RenderContext *ctx) {
        renderers below rely on. */
     fatdoors_draw(ctx);
 
-    /* No enemies placed here yet; the room's 128 texture window is still handed
-       to the sprite renderers so a future spawn brackets its Voff>=128 sprite
-       correctly (see tools/TEXTURING_NOTES.txt PART 5).
+    /* No wandering enemies placed here; the room's 128 texture window is still
+       handed to every sprite renderer so a future spawn brackets its Voff>=128
+       sprite correctly (see tools/TEXTURING_NOTES.txt PART 5).
 
-       HADAD is wired in here so he can be placed in this room at all. His art
+       HADAD IS PLACED HERE — world_seed_room drops the second instance in front
+       of the north double door, waiting in HAD_ABSENT for the player to walk
+       into the corner where the corridor turns (see THE WEST CORRIDOR AMBUSH in
+       src/hadad.h). He is not drawn until he arrives. His art
        needs NO texture work: hadad_stp1_64 (x608 y384) and hadad_stp2_64
        (x992 y384) own their VRAM outright and are LoadImaged once at startup by
        hadads_load_textures(), so nothing streams over them and this room owes

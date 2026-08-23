@@ -172,7 +172,14 @@ static int had_floor_anchor(int32_t x, int32_t z, int32_t *out) {
     return 0;
 }
 
-int hadad_add(int32_t x, int32_t z, int32_t y, GameState area) {
+/* The state a role RESTS in: a plinth Hadad is masonry on show, a West Corridor
+   one is simply not in the room. Used by both hadad_add and had_reseat, so the
+   two can never disagree about what "put him back" means. */
+static HadadState had_rest_state(HadadRole role) {
+    return (role == HAD_ROLE_PLINTH) ? HAD_IDLE : HAD_ABSENT;
+}
+
+int hadad_add(int32_t x, int32_t z, int32_t y, GameState area, HadadRole role) {
     if (hadad_count >= MAX_HADADS) return -1;
     int i = hadad_count++;
     Hadad *h = &hadads[i];
@@ -180,7 +187,8 @@ int hadad_add(int32_t x, int32_t z, int32_t y, GameState area) {
     h->x = x; h->y = y; h->z = z;
     h->spawn_x = x; h->spawn_y = y; h->spawn_z = z;
     h->health = HAD_MAX_HEALTH;
-    h->state  = HAD_IDLE;
+    h->role   = role;
+    h->state  = had_rest_state(role);
     h->active = 1;
     h->area   = area;
     return i;
@@ -189,17 +197,21 @@ int hadad_add(int32_t x, int32_t z, int32_t y, GameState area) {
 void hadads_init(void)  { hadad_count = 0; }
 void hadads_reset(void) { hadad_count = 0; music_on = 0; music_delay = 0; }
 
-/* Put him back on the plinth, at full health, with every scrap of AI state
-   cleared. The caller decides what STATE to leave him in — see hadads_rest. */
+/* Put him back on his spawn, at full health, with every scrap of AI state
+   cleared — `leg` and `ramp_armed` among them, so a re-armed encounter starts
+   from the top of its path. `role` and `spent` are the two things carried
+   across. The caller may then override the STATE — see hadads_rest. */
 static void had_reseat(Hadad *h) {
     int32_t   sx = h->spawn_x, sy = h->spawn_y, sz = h->spawn_z;
     int       sp = h->spent;
+    HadadRole rl = h->role;
     GameState a  = h->area;
     *h = (Hadad){0};
     h->x = sx; h->y = sy; h->z = sz;
     h->spawn_x = sx; h->spawn_y = sy; h->spawn_z = sz;
     h->health = HAD_MAX_HEALTH;
-    h->state  = HAD_IDLE;
+    h->role   = rl;
+    h->state  = had_rest_state(rl);
     h->spent  = sp;
     h->active = 1;
     h->area   = a;
@@ -209,8 +221,8 @@ static void had_reseat(Hadad *h) {
    "back at his spawn", because it depends on the two flags. Called from
    world_leave() (a room change) and from savegame_capture().
  *
- * >>> THIS IS ALSO WHERE THE FLAG-TWO ENCOUNTER BURNS OUT. <<< The user's rule
- * is "if the player leaves the room while flag two is active and comes back
+ * >>> THIS IS ALSO WHERE THE FLAG-THREE ENCOUNTER BURNS OUT. <<< The user's rule
+ * is "if the player leaves the room while flag three is active and comes back
  * then he will have returned to his idle position on top of the plinth and can
  * never be activated again". That is read here as leaving while the encounter
  * is RUNNING — he has actually come up the ramp after them — and not merely as
@@ -225,17 +237,26 @@ void hadads_rest(void) {
         Hadad *h = &hadads[i];
         if (!h->active || h->state == HAD_DEAD) continue;
 
+        /* The West Corridor ambush has no persistent posture at all: whatever
+           he was doing, leaving the room puts him back in front of the double
+           door in HAD_ABSENT, ready to run again on the next visit for as long
+           as the flag window is open. Deliberately NOT the plinth's one-shot
+           `spent` rule — nothing was asked for that would end this encounter
+           other than FLAG_HADAD_THREE, which closes it permanently and is checked
+           at the trigger. */
+        if (h->role == HAD_ROLE_WEST_CORR) { had_reseat(h); continue; }
+
         int flag_one = game_flag(FLAG_HADAD_ONE);
-        int flag_two = game_flag(FLAG_HADAD_TWO);
+        int flag_three = game_flag(FLAG_HADAD_THREE);
 
         /* Leaving mid-chase spends it, for good. */
-        if (flag_two && !h->spent && h->state == HAD_WALK)
+        if (flag_three && !h->spent && h->state == HAD_WALK)
             h->spent = 1;
 
         had_reseat(h);   /* preserves `spent`; everything else is wiped */
 
         if (h->spent)      h->state = HAD_IDLE;     /* over: masonry again  */
-        else if (flag_two) h->state = HAD_ABSENT;   /* waiting on the ramp  */
+        else if (flag_three) h->state = HAD_ABSENT;   /* waiting on the ramp  */
         else if (flag_one) {
             /* Posted at the corridor's south mouth, exactly where the first
                encounter left him, on every return visit. Authored rather than
@@ -269,7 +290,7 @@ void hadad_body(const Hadad *h, int32_t *cyc, int32_t *hh, int32_t *hw) {
 }
 
 /* Is he a thing that can be hurt right now? IDLE (on the plinth) and ABSENT
-   (flag two, before the ramp trigger) are both "no", and "no" means completely
+   (flag three, before the ramp trigger) are both "no", and "no" means completely
    silent — no chip, no bar flash, no sound. Anything else would read as a
    weapon that works over a health bar that is not going down, which is a worse
    lie than nothing happening at all. */
@@ -425,6 +446,7 @@ static void had_arrive(Hadad *h, int32_t x, int32_t z, int follow) {
     h->on_upper_floor = 0;
     h->on_ramp        = 0;
     h->follow         = follow;
+    h->leg            = 0;                /* always from the top of the path  */
     h->state          = HAD_WALK;
     h->pause_timer    = HAD_WAKE_PAUSE;   /* a second of standing still first */
     h->step_timer     = 0;
@@ -442,6 +464,107 @@ static void had_arrive(Hadad *h, int32_t x, int32_t z, int follow) {
 
     sound_play(SFX_RUMBLE);
     music_delay = HAD_RUMBLE_FRAMES;   /* the track comes in as the rumble ends */
+}
+
+/* ---- Marching a leg ---------------------------------------------------------
+   Straight at the goal at exactly `speed`, and NOTHING else: no feeler, no
+   wall-follow, no collision push, and above all no heading blend. Used instead
+   of had_steer by roles whose path is authored down open floor, where every one
+   of those things is a liability rather than a help.
+
+   >>> HE STILL COLLIDES WITH THE PLAYER. <<< That is hadads_collide, called
+   from apply_collision_reception against the CAMERA, and it is a separate
+   mechanism entirely — nothing here touches it. What is dropped is only his
+   own push-out against WALL GEOMETRY, which for an authored path is redundant:
+   the path is already known to be walkable.
+
+   >>> AND DROPPING THE BLEND IS THE POINT, NOT A SIDE EFFECT. <<< had_steer
+   eases the heading with (prev * 5 + want * 3) >> 3, and that shift TRUNCATES,
+   so the recurrence has integer fixed points well short of the value it is
+   easing toward. Turning a standing start east (prev 0, want +4) it goes
+   1, 2, 2, 2... — (2*5 + 4*3) >> 3 is 22 >> 3, which is 2 — and sticks there at
+   HALF SPEED for ever. The component being turned AWAY from is worse: from -4
+   with a want of 0 it goes -3, -2, -2... and -2 is also a fixed point, because
+   -10 >> 3 floors to -2. So a Hadad who turns a corner crabs off diagonally at
+   half pace and NEVER straightens up.
+
+   That is exactly what the West Corridor's second leg did. He turned east at
+   the corner and from then on moved (+2, -2) a frame: half speed east, and a
+   permanent southward drift into a wall only 25 units clear of his 300-unit
+   body. The wall push fought the drift every single frame, which is what made
+   him judder — the wall was the SYMPTOM, and it was also the only thing keeping
+   him anywhere near his own path. Removing wall collision alone would have
+   stopped the juddering and walked him quietly out of the room instead. */
+static void had_march(Hadad *h, int32_t goal_dx, int32_t goal_dz, int32_t speed) {
+    /* RADIAL, not the Manhattan sum had_steer normalises by: a Manhattan
+       divisor makes a diagonal leg travel `speed` in the sum of its components
+       rather than along the line, i.e. slower the closer to 45° it runs. Both
+       of the West Corridor's legs are axis-aligned so the two agree today, but
+       an authored path is exactly the thing somebody will later run at an
+       angle, and then this would be a silent speed change. */
+    int32_t d = had_isqrt(goal_dx * goal_dx + goal_dz * goal_dz);
+    if (d <= 0) return;
+
+    int32_t mx = (goal_dx * speed) / d;
+    int32_t mz = (goal_dz * speed) / d;
+    h->x += mx;
+    h->z += mz;
+    /* Kept in step even though nothing blends off it here, so the field means
+       the same thing in both movement paths and a later reader of `facing` is
+       not quietly given a stale heading from the previous leg. */
+    h->facing = ((int32_t)(int16_t)mx << 16) | (uint16_t)(int16_t)mz;
+
+    /* The walk cycle, which had_steer would otherwise have been advancing.
+       Leave this out and he slides the length of the corridor in a single
+       frozen pose. */
+    if (++h->step_timer >= HAD_STEP_FRAMES) {
+        h->step_timer = 0;
+        h->step_frame ^= 1;
+    }
+}
+
+/* Does this role's authored path run down open floor? A role that says yes
+   marches its legs (had_march) instead of steering them, and ignores wall
+   geometry entirely while doing so.
+
+   The West Corridor's two legs run down the centre line of two straight arms
+   with nothing in either of them, so there is nothing for steering to earn.
+   The Rear Gate's single leg says NO and keeps had_steer: that one threads the
+   corridor's north mouth and its side hedges with a 300-unit body, its seeded
+   facing already points along the goal (so the blend above is stable for it,
+   which is why that walk never showed this bug), and it is not what the user
+   reported. */
+static int had_path_is_open(HadadRole role) {
+    return role == HAD_ROLE_WEST_CORR;
+}
+
+/* ---- The scripted paths -----------------------------------------------------
+   Where a Hadad with follow == 0 is heading on his CURRENT leg. Returns 0 when
+   the path is walked out, which is the caller's cue to root him.
+
+   One table for both roles, because the only difference between "walk to the
+   bottom of the Rear Gate's corridor" and "walk the West Corridor's L" is how
+   many points there are. The Rear Gate's single leg is unchanged: leg 0 is
+   HAD_END, leg 1 does not exist, so he arrives and roots exactly as before.
+
+   >>> THE WEST CORRIDOR NEEDS TWO LEGS AND CANNOT BE DONE WITH ONE. <<< That
+   room is an L. A lone goal at the east door points him east from the moment he
+   appears, which walks him straight into the west arm's east wall (collision
+   walls 12/13 at x=-2100) and hands a right-angled turn to a wall-follow that
+   only commits for HAD_STEER_COMMIT frames at a time. The corner waypoint makes
+   the turn part of the SCRIPT, and both legs then run down the middle of a
+   straight arm with a clear sightline, so had_steer's wall-follow never engages
+   at all. */
+static int had_path_goal(const Hadad *h, int32_t *gx, int32_t *gz) {
+    if (h->role == HAD_ROLE_WEST_CORR) {
+        switch (h->leg) {
+        case 0: *gx = HAD_WC_CORNER_X; *gz = HAD_WC_CORNER_Z; return 1;
+        case 1: *gx = HAD_WC_END_X;    *gz = HAD_WC_END_Z;    return 1;
+        default: return 0;
+        }
+    }
+    if (h->leg == 0) { *gx = HAD_END_X; *gz = HAD_END_Z; return 1; }
+    return 0;
 }
 
 void update_hadads(void) {
@@ -477,7 +600,7 @@ void update_hadads(void) {
         if (h->damage_timer > 0) h->damage_timer--;
 
         int flag_one = game_flag(FLAG_HADAD_ONE);
-        int flag_two = game_flag(FLAG_HADAD_TWO);
+        int flag_three = game_flag(FLAG_HADAD_THREE);
 
         /* player_x/y/z, not cam_*: a camera-locked puzzle flies the camera off
            to a fixed shot while the PLAYER stays standing where they were, and
@@ -496,8 +619,8 @@ void update_hadads(void) {
            plinth, because that placement has to be authored for rooms whose
            geometry is not resident) and a flag switched on from the title
            screen's debug menu while he is standing here. */
-        if (h->state == HAD_IDLE && !h->spent) {
-            if (flag_two) {
+        if (h->role == HAD_ROLE_PLINTH && h->state == HAD_IDLE && !h->spent) {
+            if (flag_three) {
                 h->state = HAD_ABSENT;
             } else if (flag_one) {
                 h->x = HAD_END_X;
@@ -515,7 +638,7 @@ void update_hadads(void) {
                either flag already having been set are both handled above, so by
                the time control reaches here the only live case is the very
                first encounter. */
-            if (!h->spent && !flag_one && !flag_two) {
+            if (!h->spent && !flag_one && !flag_three) {
                 int32_t gdx = px - HAD_GRINDER_X;
                 int32_t gdz = pz - HAD_GRINDER_Z;
                 if (had_isqrt(gdx * gdx + gdz * gdz) <= HAD_TRIG_RADIUS) {
@@ -529,7 +652,32 @@ void update_hadads(void) {
             break;
 
         case HAD_ABSENT:
-            /* Flag two, waiting. Two-part latch: the player has to have been up
+            /* ---- The West Corridor ambush ------------------------------------
+               The gate is FLAG ONE SET AND FLAG THREE CLEAR, read the same way
+               round as hadad_lever_locked(): flag three REPLACES flag one
+               everywhere in this enemy, so arming the third Rear Gate encounter
+               closes this one for good. Tested here, live, rather
+               than latched at room entry, so a debug flag thrown from the title
+               screen takes effect the same way every other branch here does.
+
+               The trigger is the corner where the corridor turns, true radial
+               so it reads the same coming down the west arm as coming along the
+               south one. He appears at the far end of the room in front of the
+               double door and walks his two legs; follow = 0, because this is a
+               fixed path and not a pursuit — where he ends up must not depend
+               on where the player ran. had_arrive sounds the rumble and cues
+               the stalker track, as every Hadad arrival does. */
+            if (h->role == HAD_ROLE_WEST_CORR) {
+                if (flag_one && !flag_three) {
+                    int32_t cdx = px - HAD_WC_CORNER_X;
+                    int32_t cdz = pz - HAD_WC_CORNER_Z;
+                    if (had_isqrt(cdx * cdx + cdz * cdz) <= HAD_WC_TRIG_RADIUS)
+                        had_arrive(h, HAD_WC_START_X, HAD_WC_START_Z, 0);
+                }
+                break;
+            }
+
+            /* Flag three, waiting. Two-part latch: the player has to have been up
                the ramp AND come back down off it. One without the other would
                fire on somebody who had merely walked south, which would put him
                in front of them instead of behind. */
@@ -581,13 +729,13 @@ void update_hadads(void) {
 
             /* Gravity and the floor. He is only ever probed while walking — a
                Hadad on the plinth would be dragged straight off it, and this is
-               also what walks him DOWN the ramp under flag two rather than
+               also what walks him DOWN the ramp under flag three rather than
                sliding him along at the height he arrived at. */
             apply_ddog_height(&h->x, &h->y, &h->z, &h->vy,
                               &h->on_upper_floor, &h->on_ramp);
 
             if (h->follow) {
-                /* Flag two: he simply comes after them, up the corridor, out
+                /* Flag three: he simply comes after them, up the corridor, out
                    onto the lawn, anywhere they go — until the room ends it.
                    Walk until his own cylinder is what is stopping him
                    (HAD_HOLD_DIST), not until he is in strike range: stopping at
@@ -599,27 +747,46 @@ void update_hadads(void) {
                     had_steer(h, dx, dz, HAD_SPEED, clear);
                 }
             } else {
-                /* Flag one: a fixed path, not a pursuit. The goal is the bottom
-                   of the corridor and nothing diverts him from it — that is
-                   what makes "blocking the way back" a guarantee rather than
-                   something that depends on where the player ran. The stalk the
-                   player experiences is the by-product: he entered behind them
-                   and the corridor only goes one way.
+                /* A fixed path, not a pursuit — the Rear Gate's one leg to the
+                   bottom of its corridor, or the West Corridor's two round the
+                   turn. Nothing diverts him from it, which is what makes
+                   "blocking the way back" a guarantee rather than something
+                   that depends on where the player ran. The stalk the player
+                   experiences is the by-product: he entered behind them and the
+                   corridor only goes one way.
 
-                   The steering is kept rather than a straight line because the
-                   corridor's mouth and its side hedges are still corners he has
-                   to get round with a 300-unit body. */
-                int32_t gx = HAD_END_X - h->x;
-                int32_t gz = HAD_END_Z - h->z;
+                   HOW the leg is walked depends on the role — see
+                   had_path_is_open(). An open path MARCHES: straight at the
+                   waypoint, full speed, ignoring wall geometry. A path with
+                   obstacles in it STEERS, because a 300-unit body still has
+                   mouths and hedge corners to get round, and there the
+                   SIGHTLINE test is what keeps the wall-follow from engaging
+                   down the middle of an arm it fits exactly.
+
+                   Each leg is snapped to exactly on arrival before the next one
+                   is taken up, so the turn happens from the authored point and
+                   not from wherever HAD_ARRIVE_DIST happened to catch him. */
+                int32_t tx, tz;
+                if (!had_path_goal(h, &tx, &tz)) { h->state = HAD_ROOTED; break; }
+
+                int32_t gx = tx - h->x;
+                int32_t gz = tz - h->z;
                 int32_t gd = (gx < 0 ? -gx : gx) + (gz < 0 ? -gz : gz);
                 if (gd <= HAD_ARRIVE_DIST) {
-                    h->x     = HAD_END_X;
-                    h->z     = HAD_END_Z;
-                    h->state = HAD_ROOTED;
+                    h->x = tx;
+                    h->z = tz;
+                    h->leg++;
+                    /* Last leg walked out: he stands here for the rest of the
+                       visit. Still solid, still dangerous, still holding the
+                       music up — HAD_ROOTED is a monster standing in a
+                       corridor, not a statue again. */
+                    if (!had_path_goal(h, &tx, &tz)) h->state = HAD_ROOTED;
+                } else if (had_path_is_open(h->role)) {
+                    had_march(h, gx, gz, HAD_SPEED);
                 } else {
                     int clear = !collision_segment_blocked(
                         h->x, h->y + HAD_Y_OFFSET, h->z,
-                        HAD_END_X, h->y + HAD_Y_OFFSET, HAD_END_Z);
+                        tx, h->y + HAD_Y_OFFSET, tz);
                     had_steer(h, gx, gz, HAD_SPEED, clear);
                 }
             }
@@ -669,7 +836,7 @@ int hadad_lever_locked(void) {
        any Hadad's state: it must answer the same way on the frame the room
        loads, before update_hadads has run, and it must go on answering "locked"
        long after he has stopped moving. */
-    return game_flag(FLAG_HADAD_ONE) && !game_flag(FLAG_HADAD_TWO);
+    return game_flag(FLAG_HADAD_ONE) && !game_flag(FLAG_HADAD_THREE);
 }
 
 /* Crucifaxe strike. Reach is measured to the body's SURFACE, not to its centre,

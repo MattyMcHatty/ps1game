@@ -244,7 +244,7 @@ void grinder_puzzle_update(int lock) {
 
     /* ...and the same plates on HADAD. This is the intended answer to a
        hundred-swing health bar, and it is only ever reachable under
-       FLAG_HADAD_TWO because that is the only state in which the lever below
+       FLAG_HADAD_THREE because that is the only state in which the lever below
        will accept a press at all (hadad_lever_locked). Tested on every frame of
        the closing travel rather than only on the throw, so walking into the
        plates while they are already moving catches him too — which is what the
@@ -288,7 +288,7 @@ void grinder_puzzle_update(int lock) {
 
     /* >>> HADAD TAKES THE LEVER AWAY. <<< Once the first encounter has armed,
        the corridor gate is dead — the player cannot shut it on him and cannot
-       re-open it either — and it stays dead until FLAG_HADAD_TWO replaces flag
+       re-open it either — and it stays dead until FLAG_HADAD_THREE replaces flag
        one, at which point the grinders become the way to kill him. Refused
        before the edge detector is read, which costs nothing: the lock can only
        change between visits, and grinder_puzzle_place() re-seeds interact_prev

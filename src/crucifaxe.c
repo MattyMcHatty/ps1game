@@ -294,7 +294,7 @@ void update_crucifaxe(void) {
            his own module because his 495 stop distance is far past the
            Manhattan dist3d the inlined blocks above use. See HAD_BODY_RADIUS.
 
-           The other way to kill him is not a weapon at all: under FLAG_HADAD_TWO
+           The other way to kill him is not a weapon at all: under FLAG_HADAD_THREE
            the corridor grinders empty the whole bar at once
            (hadads_grinder_crush). */
         if (swing_timer <= SWING_DURATION && !had_hit_this_swing) {

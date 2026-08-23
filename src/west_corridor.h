@@ -55,8 +55,19 @@
             Reception's NDOOR reads the same flag and shows the red "Locked
             from the other side" until it is set.
 
-   NO ROOM MUSIC. cdaudio_stop() on arrival, the Rear Gate's and the Garden
-   Stairs' arrangement rather than Reception's — stopped rather than merely not
+   HADAD AMBUSHES THE CORNER. A second instance of the Rear Gate's enemy is
+   seeded here by world_seed_room, in front of the north double door and
+   HAD_ABSENT until the player steps into the corner where the two arms meet.
+   He then appears at the north end on SFX_RUMBLE, the stalker track comes up
+   as that clip ends, and he walks the west arm south to the corner, turns, and
+   walks the south arm east to a stop in front of the EAST door — which his
+   push cylinder then blocks, leaving the north door as the only way out. Gated
+   on FLAG_HADAD_ONE set AND FLAG_HADAD_THREE clear, and re-armed on every visit
+   while that window is open. The whole thing is in src/hadad.h under THE WEST
+   CORRIDOR AMBUSH; nothing in this file drives it.
+
+   NO ROOM MUSIC OF ITS OWN. cdaudio_stop() on arrival, the Rear Gate's and the
+   Garden Stairs' arrangement rather than Reception's — stopped rather than not
    started, so a title-screen load or a debug level-select jump (neither of
    which passes through a door transition's own stop) also arrives in silence.
 

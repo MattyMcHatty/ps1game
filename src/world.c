@@ -52,7 +52,9 @@ typedef struct {
     int       mushroom_count;
     LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
     int          living_statue_count;
-    Hadad     hadads[MAX_HADADS];         /* ditto: the Rear Gate's scripted one */
+    Hadad     hadads[MAX_HADADS];         /* ditto: the two scripted encounters —
+                                             the Rear Gate's plinth and the West
+                                             Corridor's corner ambush           */
     int       hadad_count;
 } WorldState;
 
@@ -237,7 +239,7 @@ void world_leave(GameState area) {
     mushrooms_rest();
     living_statues_rest();
     /* NOT simply "back at his spawn": where Hadad starts a visit depends on the
-       two flags, and leaving mid-chase is also what burns the second encounter
+       two flags, and leaving mid-chase is also what burns the third encounter
        out. hadads_rest() owns both — see the note on it in hadad.h. */
     hadads_rest();
     demon_dogs_rest();
@@ -687,7 +689,34 @@ void world_seed_room(GameState area) {
        mushroom head or a living statue could still be dropped in — rear_gate_draw
        hands every one of those renderers this room's texture window already. */
     if (area == STATE_REAR_GATE) {
-        hadad_add(HAD_PLINTH_X, HAD_PLINTH_Z, HAD_PLINTH_ANCHOR, STATE_REAR_GATE);
+        hadad_add(HAD_PLINTH_X, HAD_PLINTH_Z, HAD_PLINTH_ANCHOR,
+                  STATE_REAR_GATE, HAD_ROLE_PLINTH);
+    }
+
+    /* West Corridor: a SECOND HADAD, the corner ambush. Placed in front of the
+       north double door, which is where he APPEARS — HAD_ROLE_WEST_CORR seeds
+       in HAD_ABSENT, so nothing is in the room until the player walks into the
+       corner where the corridor turns, and the whole gate is FLAG_HADAD_ONE set
+       with FLAG_HADAD_THREE clear. See THE WEST CORRIDOR AMBUSH in src/hadad.h.
+
+       AUTHORED like the plinth and for the same reason: world_seed_room runs
+       for rooms whose geometry is not resident, so no floor may be probed here.
+       This room's single floor plane is y=0 and HAD_WC_ANCHOR is the standing
+       anchor for it.
+
+       >>> THIS PLACEMENT MUST STAY BELOW THE REAR GATE'S. <<< The save's
+       hadads_state indexes instances in the order the room walk in
+       world_load_delta() rebuilds them, which is room_areas[] order — Rear Gate
+       (18) then West Corridor (19). Seeding this one first would make a loaded
+       save's `dead`/`spent` bits belong to the wrong Hadad.
+
+       Sound: this room takes the default SND_BANK_HOUSE (main.c's
+       STATE_LOADING) and SFX_RUMBLE has a house copy, so his arrival sounds.
+       The room's own cdaudio_stop() on entry is its baseline, not its whole
+       story — update_hadads brings the stalker track up over it. */
+    if (area == STATE_WEST_CORRIDOR) {
+        hadad_add(HAD_WC_START_X, HAD_WC_START_Z, HAD_WC_ANCHOR,
+                  STATE_WEST_CORRIDOR, HAD_ROLE_WEST_CORR);
     }
 }
 
@@ -837,8 +866,8 @@ void world_save_delta(WorldDelta *d) {
     }
     {
         /* TWO bits apiece — dead and spent. `spent` has to ride the save
-           because it is the one fact about Hadad that FLAG_HADAD_TWO cannot
-           reconstruct: the flag says the second encounter exists, and this says
+           because it is the one fact about Hadad that FLAG_HADAD_THREE cannot
+           reconstruct: the flag says the third encounter exists, and this says
            it has already been had. */
         GameState areas[MAX_HADADS];
         for (i = 0; i < world.hadad_count; i++) areas[i] = world.hadads[i].area;

@@ -32,11 +32,16 @@ typedef enum {
        flag is there — update_hadads reads them on its FIRST frame to decide
        where he is standing (see hadad.h).
 
-       They are NOT mutually exclusive in code, and that is deliberate: flag two
-       ignores flag one wherever the two disagree, so ticking both is a legal
-       state and the honest way to test that rule. */
+       They are NOT mutually exclusive in code, and that is deliberate: flag
+       three ignores flag one wherever the two disagree, so ticking both is a
+       legal state and the honest way to test that rule.
+
+       The numbering skips two because the encounter between them has not been
+       designed yet and the name is being held for it — see the note on
+       FLAG_HADAD_THREE in src/player.h. There is no DBG_HADAD_FLAG_TWO to
+       forget to add: when the real flag arrives, so does its row. */
     DBG_HADAD_FLAG_ONE,      /* he is posted at the bottom of the corridor       */
-    DBG_HADAD_FLAG_TWO,      /* the second encounter: absent until the ramp      */
+    DBG_HADAD_FLAG_THREE,    /* the third encounter: absent until the ramp       */
     DEBUG_OPT_COUNT
 } DebugOpt;
 
