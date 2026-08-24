@@ -110,6 +110,14 @@ void hadads_load_textures(void) {
 static int music_on    = 0;
 static int music_delay = 0;
 
+/* The ejection watch's sample of the player, one frame old. Declared up here
+   only so hadads_reset() can clear it; the rule these serve, and every reason
+   it is written the way it is, are at had_watch_ejection() below. */
+static int32_t   had_watch_x = 0, had_watch_y = 0, had_watch_z = 0;
+static GameState had_watch_area  = (GameState)-1;
+static int       had_watch_epoch = -1;
+static int       had_watch_valid = 0;
+
 void hadads_silence(void) {
     if (music_on) cdaudio_stop();
     music_on    = 0;
@@ -195,7 +203,15 @@ int hadad_add(int32_t x, int32_t z, int32_t y, GameState area, HadadRole role) {
 }
 
 void hadads_init(void)  { hadad_count = 0; }
-void hadads_reset(void) { hadad_count = 0; music_on = 0; music_delay = 0; }
+void hadads_reset(void) {
+    hadad_count = 0; music_on = 0; music_delay = 0;
+    /* The ejection watch holds a player position, so it belongs to a visit and
+       not to the module. A new game or a load must not leave last session's
+       spot behind to be measured against this room's walls — the area and
+       anchor-epoch guards would catch it anyway, but this is the honest place
+       to say it. */
+    had_watch_valid = 0;
+}
 
 /* Put him back on his spawn, at full health, with every scrap of AI state
    cleared — `leg` and `ramp_armed` among them, so a re-armed encounter starts
@@ -358,15 +374,28 @@ Hadad *hadads_grinder_caught(int32_t x_half, int32_t z_min, int32_t z_max) {
    NEAR a hedge, and wall-following on that deadlocks in concave corners, while
    the real move's own collision push already slides the body along anything it
    grazes. */
+/* A point HAD_FEELER_LEN ahead along (dx, dz) — the probe the steering asks its
+   questions with, and RADIALLY normalised for the reason the constant exists.
+   The Manhattan divisor this replaces made the probe short by up to 41% on a
+   diagonal, i.e. 283 units of a stated 400, which is INSIDE HAD_BODY_RADIUS:
+   "a probe shorter than the cylinder's own radius reports clear ground the body
+   cannot fit into, and he would grind on every hedge corner in the room" is the
+   note at HAD_FEELER_LEN, and on every diagonal approach that is exactly what
+   it was. Length now means length, on every bearing. */
+static void had_feeler(const Hadad *h, int32_t dx, int32_t dz,
+                       int32_t *ox, int32_t *oz) {
+    int32_t d = had_isqrt(dx * dx + dz * dz);
+    if (d <= 0) { *ox = h->x; *oz = h->z; return; }
+    *ox = h->x + (dx * HAD_FEELER_LEN) / d;
+    *oz = h->z + (dz * HAD_FEELER_LEN) / d;
+}
+
 static void had_steer(Hadad *h, int32_t goal_dx, int32_t goal_dz,
                       int32_t speed, int sight_clear) {
     int32_t desired_x = goal_dx, desired_z = goal_dz;
-    int32_t desired_dist = (desired_x < 0 ? -desired_x : desired_x) +
-                           (desired_z < 0 ? -desired_z : desired_z);
-    if (desired_dist == 0) desired_dist = 1;
 
-    int32_t feeler_x = h->x + (desired_x * HAD_FEELER_LEN) / desired_dist;
-    int32_t feeler_z = h->z + (desired_z * HAD_FEELER_LEN) / desired_dist;
+    int32_t feeler_x, feeler_z;
+    had_feeler(h, desired_x, desired_z, &feeler_x, &feeler_z);
     int32_t fx = feeler_x, fz = feeler_z;
     apply_flat_entity_collision(&fx, &fz, HAD_BODY_RADIUS);
     int blocked = (fx != feeler_x || fz != feeler_z);
@@ -378,15 +407,9 @@ static void had_steer(Hadad *h, int32_t goal_dx, int32_t goal_dz,
     int32_t goal_pz = h->z + goal_dz;
 
     if (blocked && h->steer_timer <= 0) {
-        int32_t pl_dist = (pl_x < 0 ? -pl_x : pl_x) + (pl_z < 0 ? -pl_z : pl_z);
-        int32_t pr_dist = (pr_x < 0 ? -pr_x : pr_x) + (pr_z < 0 ? -pr_z : pr_z);
-        if (pl_dist == 0) pl_dist = 1;
-        if (pr_dist == 0) pr_dist = 1;
-
-        int32_t lx = h->x + (pl_x * HAD_FEELER_LEN) / pl_dist;
-        int32_t lz = h->z + (pl_z * HAD_FEELER_LEN) / pl_dist;
-        int32_t rx = h->x + (pr_x * HAD_FEELER_LEN) / pr_dist;
-        int32_t rz = h->z + (pr_z * HAD_FEELER_LEN) / pr_dist;
+        int32_t lx, lz, rx, rz;
+        had_feeler(h, pl_x, pl_z, &lx, &lz);
+        had_feeler(h, pr_x, pr_z, &rx, &rz);
 
         int32_t tlx = lx, tlz = lz;
         apply_flat_entity_collision(&tlx, &tlz, HAD_BODY_RADIUS);
@@ -413,19 +436,56 @@ static void had_steer(Hadad *h, int32_t goal_dx, int32_t goal_dz,
     if (h->steer_timer > 0) {
         if (h->steer_dir < 0) { desired_x = pl_x; desired_z = pl_z; }
         else                  { desired_x = pr_x; desired_z = pr_z; }
-        desired_dist = (desired_x < 0 ? -desired_x : desired_x) +
-                       (desired_z < 0 ? -desired_z : desired_z);
-        if (desired_dist == 0) desired_dist = 1;
         h->steer_timer--;
     }
 
-    /* Blend the new heading into the old one so turns are not instant. */
-    int32_t move_x  = (desired_x * speed) / desired_dist;
-    int32_t move_z  = (desired_z * speed) / desired_dist;
-    int32_t prev_mx = (int16_t)(h->facing >> 16);
-    int32_t prev_mz = (int16_t)(h->facing & 0xFFFF);
-    int32_t blend_x = (prev_mx * (8 - HAD_TURN_RATE) + move_x * HAD_TURN_RATE) >> 3;
-    int32_t blend_z = (prev_mz * (8 - HAD_TURN_RATE) + move_z * HAD_TURN_RATE) >> 3;
+    /* ---- The heading, blended, AND IT IS ALL DONE IN 1/256s ----------------
+       >>> THIS USED TO RUN AT A THIRD OF `speed` AND THAT IS WHY THE CHASE WAS
+       SLOW. <<< Both halves of the arithmetic below used to work in WHOLE world
+       units, where the only values available at HAD_SPEED are -4..4, and both
+       lost most of the speed to integer division:
+
+         THE NORMALISE  divided by the MANHATTAN sum, so a diagonal step
+                        travelled `speed` in |x| + |z| rather than along the
+                        line — 2.83 of a wanted 4 at 45 degrees — and then
+                        truncated what was left: a heading of (100, 40) came out
+                        (2, 1), a step of 2.24 against a speed of 4.
+
+         THE EASE       (prev * 5 + want * 3) >> 3 TRUNCATES, and on numbers this
+                        small the recurrence has fixed points far short of what
+                        it is easing toward. With want = 2 the value 1 is stable
+                        ((1*5 + 2*3) >> 3 == 1) and so is 0 ((0*5 + 6) >> 3 ==
+                        0) — a component being eased toward 2 from a standing
+                        start NEVER LEAVES ZERO. That is the whole of it: on any
+                        heading whose components are 2 and 2 he crawled, and he
+                        could not straighten up either.
+
+       This is the same trap had_march was written to escape (see the long note
+       on it), and the seeded `facing` in had_arrive is another patch over the
+       same hole. It is now fixed at the source instead: the normalise is RADIAL
+       like had_march's, the velocity is carried at HAD_STEER_FRAC to the unit so
+       the ease has somewhere to converge, and the sub-unit remainder is banked
+       rather than thrown away — so a chase covers exactly `speed` a frame in
+       every direction, which is what the marched legs cover and what
+       HAD_STEP_FRAMES is matched to. */
+    int32_t d = had_isqrt(desired_x * desired_x + desired_z * desired_z);
+    if (d <= 0) d = 1;
+    int32_t want_vx = (desired_x * speed * HAD_STEER_FRAC) / d;
+    int32_t want_vz = (desired_z * speed * HAD_STEER_FRAC) / d;
+
+    h->steer_vx = (h->steer_vx * (8 - HAD_TURN_RATE) + want_vx * HAD_TURN_RATE) >> 3;
+    h->steer_vz = (h->steer_vz * (8 - HAD_TURN_RATE) + want_vz * HAD_TURN_RATE) >> 3;
+
+    /* Bank the fraction. The shift FLOORS on negatives and the subtraction uses
+       the same floored value, so the remainder stays in [0, HAD_STEER_FRAC) on
+       both signs and nothing drifts either way over a long walk. */
+    h->steer_fx += h->steer_vx;
+    h->steer_fz += h->steer_vz;
+    int32_t blend_x = h->steer_fx >> HAD_STEER_SHIFT;
+    int32_t blend_z = h->steer_fz >> HAD_STEER_SHIFT;
+    h->steer_fx -= blend_x << HAD_STEER_SHIFT;
+    h->steer_fz -= blend_z << HAD_STEER_SHIFT;
+
     h->facing = ((int32_t)(int16_t)blend_x << 16) | (uint16_t)(int16_t)blend_z;
 
     h->x += blend_x;
@@ -442,10 +502,13 @@ static void had_steer(Hadad *h, int32_t goal_dx, int32_t goal_dz,
 }
 
 /* Put him on the ground at (x, z), moving, and cue the arrival: the rumble now
-   and the stalker music when it has finished. Seeds `facing` toward the player
-   as well, because had_steer BLENDS the new heading into the old one and a
-   zeroed facing would have him creep out of the arrival at a third speed for
-   the first few frames — exactly the wrong moment to look sluggish. */
+   and the stalker music when it has finished. Seeds the STEERING VELOCITY
+   toward the player as well, because had_steer eases the new heading into the
+   old one and a body starting from rest would spend the first half-second of
+   the arrival easing up to speed — exactly the wrong moment to look sluggish.
+   (This used to seed `facing`, which is what the ease read before it had a
+   fixed-point velocity of its own; the seed is still worth having, but it is no
+   longer covering for an ease that could not converge. See had_steer.) */
 static void had_arrive(Hadad *h, int32_t x, int32_t z, int follow) {
     int32_t y;
     h->x = x;
@@ -463,11 +526,15 @@ static void had_arrive(Hadad *h, int32_t x, int32_t z, int follow) {
 
     {
         int32_t adx = player_x() - h->x, adz = player_z() - h->z;
-        int32_t ad  = (adx < 0 ? -adx : adx) + (adz < 0 ? -adz : adz);
+        int32_t ad  = had_isqrt(adx * adx + adz * adz);
+        h->steer_fx = h->steer_fz = 0;
         if (ad > 0) {
-            int32_t mx = (adx * HAD_SPEED) / ad;
-            int32_t mz = (adz * HAD_SPEED) / ad;
-            h->facing = ((int32_t)(int16_t)mx << 16) | (uint16_t)(int16_t)mz;
+            h->steer_vx = (adx * HAD_SPEED * HAD_STEER_FRAC) / ad;
+            h->steer_vz = (adz * HAD_SPEED * HAD_STEER_FRAC) / ad;
+            h->facing   = ((int32_t)(int16_t)(h->steer_vx >> HAD_STEER_SHIFT) << 16) |
+                          (uint16_t)(int16_t)(h->steer_vz >> HAD_STEER_SHIFT);
+        } else {
+            h->steer_vx = h->steer_vz = 0;
         }
     }
 
@@ -487,15 +554,23 @@ static void had_arrive(Hadad *h, int32_t x, int32_t z, int follow) {
    own push-out against WALL GEOMETRY, which for an authored path is redundant:
    the path is already known to be walkable.
 
-   >>> AND DROPPING THE BLEND IS THE POINT, NOT A SIDE EFFECT. <<< had_steer
-   eases the heading with (prev * 5 + want * 3) >> 3, and that shift TRUNCATES,
-   so the recurrence has integer fixed points well short of the value it is
-   easing toward. Turning a standing start east (prev 0, want +4) it goes
-   1, 2, 2, 2... — (2*5 + 4*3) >> 3 is 22 >> 3, which is 2 — and sticks there at
-   HALF SPEED for ever. The component being turned AWAY from is worse: from -4
-   with a want of 0 it goes -3, -2, -2... and -2 is also a fixed point, because
-   -10 >> 3 floors to -2. So a Hadad who turns a corner crabs off diagonally at
-   half pace and NEVER straightens up.
+   >>> AND DROPPING THE BLEND IS THE POINT, NOT A SIDE EFFECT. <<< An authored
+   leg is a straight line between two chosen points and wants to be walked as
+   one: an ease, however well behaved, bows the start of every leg off the line
+   and arrives late, and on a path threaded between hedges by hand that is a
+   change to geometry somebody measured.
+
+   >>> IT WAS ALSO, ONCE, THE ONLY WAY TO GET FULL SPEED OUT OF HIM. <<< Kept
+   here because it is the history of both movement paths. had_steer used to ease
+   in WHOLE world units — (prev * 5 + want * 3) >> 3, on values that at
+   HAD_SPEED can only be -4..4 — and that shift TRUNCATES, so the recurrence had
+   integer fixed points well short of the value it was easing toward. Turning a
+   standing start east (prev 0, want +4) it went 1, 2, 2, 2... — (2*5 + 4*3) >> 3
+   is 22 >> 3, which is 2 — and stuck there at HALF SPEED for ever. The
+   component being turned AWAY from was worse: from -4 with a want of 0 it went
+   -3, -2, -2..., and -2 is a fixed point too, because -10 >> 3 floors to -2. So
+   a Hadad who turned a corner crabbed off diagonally at half pace and NEVER
+   straightened up.
 
    That is exactly what the West Corridor's second leg did. He turned east at
    the corner and from then on moved (+2, -2) a frame: half speed east, and a
@@ -503,7 +578,11 @@ static void had_arrive(Hadad *h, int32_t x, int32_t z, int follow) {
    body. The wall push fought the drift every single frame, which is what made
    him judder — the wall was the SYMPTOM, and it was also the only thing keeping
    him anywhere near his own path. Removing wall collision alone would have
-   stopped the juddering and walked him quietly out of the room instead. */
+   stopped the juddering and walked him quietly out of the room instead.
+
+   The ease itself is FIXED now (HAD_STEER_FRAC), which is what finally gave the
+   Rear Gate's pursuit its full HAD_SPEED — see the note in had_steer. This
+   function stays for the reason in the paragraph above it, not for that one. */
 static void had_march(Hadad *h, int32_t goal_dx, int32_t goal_dz,
                       int32_t speed, int step_frames) {
     /* RADIAL, not the Manhattan sum had_steer normalises by: a Manhattan
@@ -523,6 +602,18 @@ static void had_march(Hadad *h, int32_t goal_dx, int32_t goal_dz,
        the same thing in both movement paths and a later reader of `facing` is
        not quietly given a stale heading from the previous leg. */
     h->facing = ((int32_t)(int16_t)mx << 16) | (uint16_t)(int16_t)mz;
+
+    /* ...and so is the STEERING VELOCITY, which this function does not use and
+       had_steer starts from. The one place it matters is the Rear Gate's
+       flag-three handover: he marches the whole length of the room and then
+       takes up the pursuit mid-stride (had_leg_entered), and an ease that began
+       from rest there would have him visibly slow down at the very moment he
+       stops being a scripted walk and starts coming after you. Taken from the
+       exact quotient rather than from the truncated step, so the seed is the
+       speed the leg was MEANT to run at. */
+    h->steer_vx = (goal_dx * speed * HAD_STEER_FRAC) / d;
+    h->steer_vz = (goal_dz * speed * HAD_STEER_FRAC) / d;
+    h->steer_fx = h->steer_fz = 0;
 
     /* The walk cycle, which had_steer would otherwise have been advancing.
        Leave this out and he slides the length of the corridor in a single
@@ -649,23 +740,31 @@ static int had_path_goal(const Hadad *h, int32_t *gx, int32_t *gz) {
        south down the upper flight onto the landing, then west down the lower
        flight and out onto the ground floor.
 
-       Stage 2 is scenario 2 — the player backed off toward the East Hall door.
-       He follows them that way (leg 0), stands for a second
-       (HAD_RC_EDGE_PAUSE, set by had_leg_entered as leg 1 is taken up), walks
-       south off the unguarded stretch of the second level's edge and drops to
-       the ground (leg 1), south past the Kitchen Dining door into the
-       south-east corner (leg 2), a square 90 degrees west to the point directly
-       south of the stair (leg 3), and north-west to the stair's foot (leg 4).
+       Stage 2 is scenario 2 — the player did NOT take the stair. It is a LOOP
+       in its own right and not a run-up to stage 3: he walks the walkway east
+       to the East Hall door (leg 0), stands for a second (HAD_RC_EDGE_PAUSE,
+       set by had_leg_entered as leg 1 is taken up), walks south off the
+       unguarded stretch of the second level's edge and drops to the ground
+       (leg 1), on to the front of the Kitchen Dining door (leg 2), south into
+       the south-east corner (leg 3), a square 90 degrees west to the point
+       directly south of the stair (leg 4), north-west to its foot (leg 5), UP
+       both flights (legs 6-7) and back out along the walkway, for ever. Leg 8
+       does not exist — had_leg_entered wraps it to 0.
 
-       BOTH SCENARIOS END ON HAD_RC_FOOT, which is what makes stage 3 one table
-       rather than two.
+       >>> IT IS STAGE 3 RUN BACKWARDS, AND THAT IS THE WHOLE POINT OF IT. <<<
+       The two loops go round the same room in opposite directions and differ in
+       exactly one move: where the circuit LEAPS from the Kitchen Dining door up
+       onto the second level, this one WALKS OFF the edge above it. A player who
+       leaves the balcony by the stair gets one; a player who drops off its edge
+       gets the other.
 
        Stage 3 is THE CIRCUIT, and it is the same seven legs for ever: down and
        round the stair to the Kitchen Dining door (0-2), the LEAP from it up
        onto the second level (3), west along the balcony to the head of the
        stair (4), and back down the stair to HAD_RC_FOOT (5-6). Leg 7 does not
        exist — had_leg_entered wraps it to 0 — so this table never returns 0 and
-       he is never rooted. Nothing in it reads the player. */
+       he is never rooted. NEITHER LOOP READS THE PLAYER: the scenario latch at
+       the head of the stair is the only run-time decision in the role. */
     if (h->role == HAD_ROLE_RECEPTION) {
         if (h->stage == 0) {
             if (h->leg == 0) { *gx = HAD_RC_STAIRTOP_X; *gz = HAD_RC_STAIRTOP_Z; return 1; }
@@ -680,12 +779,18 @@ static int had_path_goal(const Hadad *h, int32_t *gx, int32_t *gz) {
         }
         if (h->stage == 2) {
             switch (h->leg) {
-            case 0: *gx = HAD_RC_FOLLOW_X; *gz = HAD_RC_FOLLOW_Z; return 1;
-            case 1: *gx = HAD_RC_EDGE_X;   *gz = HAD_RC_EDGE_Z;   return 1;
-            case 2: *gx = HAD_RC_CORNER_X; *gz = HAD_RC_CORNER_Z; return 1;
-            case 3: *gx = HAD_RC_SOUTH_X;  *gz = HAD_RC_SOUTH_Z;  return 1;
-            case 4: *gx = HAD_RC_FOOT_X;   *gz = HAD_RC_FOOT_Z;   return 1;
-            default: return 0;
+            case 0: *gx = HAD_RC_FOLLOW_X;   *gz = HAD_RC_FOLLOW_Z;   return 1;
+            case 1: *gx = HAD_RC_EDGE_X;     *gz = HAD_RC_EDGE_Z;     return 1;
+            case 2: *gx = HAD_RC_RDOOR_X;    *gz = HAD_RC_RDOOR_Z;    return 1;
+            case 3: *gx = HAD_RC_CORNER_X;   *gz = HAD_RC_CORNER_Z;   return 1;
+            case 4: *gx = HAD_RC_SOUTH_X;    *gz = HAD_RC_SOUTH_Z;    return 1;
+            case 5: *gx = HAD_RC_FOOT_X;     *gz = HAD_RC_FOOT_Z;     return 1;
+            case 6: *gx = HAD_RC_LANDING_X;  *gz = HAD_RC_LANDING_Z;  return 1;
+            /* Leg 7 ends at the head of the stair and had_leg_entered wraps 8
+               back to 0, so `default` is unreachable — it is here for stage 3's
+               reason: a table that falls off its own end roots him silently,
+               and that failure would look like the loop simply stopping. */
+            default: *gx = HAD_RC_STAIRTOP_X; *gz = HAD_RC_STAIRTOP_Z; return 1;
             }
         }
         /* stage 3: the circuit. */
@@ -811,40 +916,68 @@ static void had_leg_entered(Hadad *h) {
 
     /* ---- Everything the Reception's cursor does between legs ---------------
        Four things, in the order they can happen: the SCENARIO latch at the head
-       of the stair, the one-second PAUSE before the step off the balcony, the
-       handover from either scenario onto the CIRCUIT, and — inside the circuit
-       — the leap's upward kick and the wrap that closes the loop. The first
-       three move `stage`, which is this role's cursor, and reset `leg` to 0 so
-       the new stage starts from the top of its own table.
+       of the stair, the one-second PAUSE before each step off the balcony, the
+       handover from SCENARIO 1 onto the circuit, and the two wraps that close
+       the two loops (plus, in the circuit, the leap's upward kick). The first
+       two of those move `stage`, which is this role's cursor, and reset `leg`
+       to 0 so the new stage starts from the top of its own table.
 
        The latch runs HERE rather than in had_path_goal for the reason the
        Library Destroyed's branch does: solved every frame, the goal would swing
        from one end of the room to the other as the player crossed the line, and
        he would pivot on the waypoint instead of committing. It is also the ONLY
-       thing in this role that reads the player at all — the circuit does not.
+       thing in this role that reads the player at all — neither loop does.
 
        player_y(), like every other read of the player in this file, and NEVER
        cam_* — the quake that opens this encounter anchors the player and flies
        the camera off the spot (camera.h). */
     if (h->role != HAD_ROLE_RECEPTION) return;
 
-    /* Stage 0 walked out at the head of the stair: which scenario is it? */
+    /* Stage 0 walked out at the head of the stair: which scenario is it?
+
+       >>> HEIGHT ALONE CANNOT ANSWER THIS, AND THAT IS WHY SCENARIO 2 NEVER
+       USED TO RUN. <<< The two scenarios are "they went down the STAIR" and
+       "they dropped off the BALCONY EDGE", and both of those end with the
+       player standing on the ground floor at exactly the same eye height. This
+       used to be `player_y() > HAD_RC_DESCEND_Y ? 1 : 2` — a pure height test —
+       so a player who dropped off the edge read as a player who had taken the
+       stair, and the only way to reach scenario 2 at all was to still be up on
+       the balcony on the one frame this ran. In practice they never were: the
+       leg from the ceiling to the stair head is 1735 units at HAD_SPEED, close
+       to seven seconds, and a player being walked at by that has left.
+
+       So the descent is measured by HOW rather than by WHERE: `branch` is the
+       sticky record of the player having been on one of the stair's two ramps
+       (set every frame of stage 0 in update_hadads), and it is the only thing
+       that tells the two exits apart. Still up top when this runs? Scenario 2 as
+       well — its first leg walks the walkway after them, which is exactly what
+       that case wants, and it is where the drop leads anyway. */
     if (h->stage == 0 && h->leg == 1) {
-        h->stage = (player_y() > HAD_RC_DESCEND_Y) ? 1 : 2;
+        int descended = player_y() > HAD_RC_DESCEND_Y;
+        h->stage = (descended && h->branch) ? 1 : 2;
         h->leg   = 0;
         return;
     }
 
-    /* Scenario 2, leg 1 taken up: he has followed them toward the East Hall
-       door and now stands for a second before turning off the edge. */
+    /* SCENARIO 2, leg 1 taken up: he has walked the walkway out to the East
+       Hall door and now stands for a second before turning off the edge. Every
+       lap, not just the first — the loop comes back round to leg 0. */
     if (h->stage == 2 && h->leg == 1) {
         h->pause_timer = HAD_RC_EDGE_PAUSE;
         return;
     }
 
-    /* Either scenario walked out at the foot of the stair: onto the circuit,
-       which nothing ever takes him off again. */
-    if ((h->stage == 1 && h->leg == 2) || (h->stage == 2 && h->leg == 5)) {
+    /* SCENARIO 2's own wrap: leg 7 walks him back up to the head of the stair
+       and the next one is the walkway again. He is never rooted in this loop
+       either, and it never joins the circuit — see had_path_goal. */
+    if (h->stage == 2) {
+        if (h->leg > 7) h->leg = 0;
+        return;
+    }
+
+    /* SCENARIO 1 walked out at the foot of the stair: onto the circuit, which
+       nothing ever takes him off again. */
+    if (h->stage == 1 && h->leg == 2) {
         h->stage = 3;
         h->leg   = 0;
         return;
@@ -916,6 +1049,125 @@ int hadads_grinder_vault(int32_t z_south) {
     return latched;
 }
 
+/* ---- THE EJECTION WATCH: OUT OF THE LEVEL IS DEATH --------------------------
+   >>> HIS PUSH CAN POST THE PLAYER THROUGH A WALL, AND NOTHING BRINGS THEM
+   BACK. <<< Two of his moves teleport the player rather than steer them:
+   hadads_collide sets them flat to HAD_PUSH_RADIUS + the wall standoff off his
+   centre — 495 units, in one frame, from wherever they were — and the blow adds
+   a HAD_KNOCKBACK of 200 on top, which update_camera then spends in a single
+   step before the room's walls get a look. The wall pass that follows is
+   collide_wall_frontonly_y, and it returns early on a NEGATIVE dot: a body
+   already behind a face is not pushed, ever. So one bad angle against a wall
+   ends with the player outside the room with health to spare, free to walk
+   around the back of the level for as long as they like.
+
+   The rule is now: IF HE PUTS YOU OUTSIDE THE LEVEL, YOU ARE DEAD. It costs one
+   segment test a frame, and only in the rooms he is standing in.
+
+   >>> IT IS TWO TESTS, AND THE FIRST IS THE REAL ONE. <<<
+     CROSSED   the settled position at the end of this frame is on the far side
+               of a wall face the settled position at the end of the last one
+               was in front of (collision_wall_crossed). That is the ejection
+               itself, caught on the frame it happens, in any room, whatever
+               shape it is — and it cannot be confused with ordinary play,
+               because the wall pass guarantees every normal frame ends in FRONT
+               of every face it is gated into, and walking round the end of a
+               wall (which is what a doorway is) is not a crossing.
+     OUTSIDE   the player is beyond the room's own bounding box. A backstop for
+               anybody already out — ejected on a frame this did not run, or
+               through some gap in the shell the wall data does not describe.
+               Legal play never comes near it: the four rooms' outer walls sit
+               ON their bounds and hold the player a full standoff inside.
+
+   >>> AND IT IGNORES INFINITE LIFE, WHICH IS THE POINT OF WRITING IT HERE. <<<
+   player_hurt() returns without doing anything under DBG_INFINITE_LIFE, so a
+   kill routed through it would leave the cheat player exactly where the bug put
+   them. This sets the bar to zero and raises game_over by hand — it is not
+   damage, it is the level rejecting a position, and no cheat covers that. The
+   player asked for this explicitly.
+
+   THREE THINGS INVALIDATE THE WATCH, each because the two samples would
+   otherwise not be two steps of one walk:
+     - a room change (had_watch_area), so a position in the last room is never
+       measured against this room's walls;
+     - a camera-locked scene at either end (player_anchor_epoch), because a
+       scene may TELEPORT the anchored body — the Library Destroyed's crawl goes
+       under the collapsed shelving and stands up on the far side — and it does
+       it on frames this function is not called at all;
+     - him not being in the room, which is also the whole gate on the feature:
+       the set tested is exactly the set hadads_collide pushes with, so if
+       nothing here can shove the player, nothing here can kill them for it.
+
+   The sample itself lives at the top of the file, beside the music latches, so
+   hadads_reset() can clear it. */
+
+/* Is a Hadad standing in this room in a state that can push the player? The
+   same three skips hadads_collide makes, and deliberately no more: ABSENT is
+   not in the room and DEAD is rubble, and every other state — the plinth
+   statue included — is a solid cylinder. */
+static int had_solid_here(void) {
+    int i;
+    for (i = 0; i < hadad_count; i++) {
+        Hadad *h = &hadads[i];
+        if (!h->active || h->area != current_area) continue;
+        if (h->state == HAD_DEAD || h->state == HAD_ABSENT) continue;
+        return 1;
+    }
+    return 0;
+}
+
+static void had_kill_ejected(void) {
+    /* NOT player_hurt(): see the note above. The bar goes to zero whatever the
+       debug menu says. */
+    player_health = 0;
+    game_over     = 1;
+    flash_timer   = 90;
+    sound_play(SFX_DIE);
+}
+
+static void had_watch_ejection(void) {
+    CollisionRoom *r = &current_collision_room;
+    int32_t px, py, pz;
+    int     epoch = player_anchor_epoch();
+    int     fresh;
+
+    /* Already dead, or he is not here: nothing to watch, and the next frame
+       that does watch starts a fresh pair. */
+    if (game_over || !had_solid_here()) { had_watch_valid = 0; return; }
+
+    px = player_x(); py = player_y(); pz = player_z();
+
+    /* The two samples have to be consecutive frames of the same walk in the
+       same room — see the invalidation list above. */
+    fresh = had_watch_valid &&
+            had_watch_area  == current_area &&
+            had_watch_epoch == epoch;
+
+    if (fresh && (px != had_watch_x || pz != had_watch_z) &&
+        collision_wall_crossed(had_watch_x, had_watch_y, had_watch_z,
+                               px, py, pz)) {
+        had_kill_ejected();
+        had_watch_valid = 0;
+        return;
+    }
+
+    /* The backstop. Strictly outside the room's own bounds — no margin, because
+       there is nothing to be generous about: the shell IS the bounding box and
+       the player is held a standoff inside it. */
+    if (px < r->min_x || px > r->max_x || pz < r->min_z || pz > r->max_z) {
+        had_kill_ejected();
+        had_watch_valid = 0;
+        return;
+    }
+
+    had_watch_x     = px;
+    had_watch_y     = py;
+    had_watch_z     = pz;
+    had_watch_area  = current_area;
+    had_watch_epoch = epoch;
+    had_watch_valid = 1;
+}
+
 void update_hadads(void) {
     int i;
     int music_wanted = 0;
@@ -936,6 +1188,14 @@ void update_hadads(void) {
        running the instant the transition begins"; it stops running from the NEXT
        frame, and this is the frame it does not cover. */
     if (door_anim_active()) return;
+
+    /* >>> BEFORE ANYTHING ELSE, INCLUDING HIS OWN AI. <<< This reads the
+       position the frame settled on — the room branch in update_current_area
+       has already run update_camera, the pushes and the walls by the time this
+       function is reached — so it sees exactly what the player is standing on
+       now, and it must see it before a blow or a leg of a walk changes anything
+       about him. See the long note at had_watch_ejection. */
+    had_watch_ejection();
 
     for (i = 0; i < hadad_count; i++) {
         Hadad *h = &hadads[i];
@@ -967,9 +1227,19 @@ void update_hadads(void) {
            (camera.h). Enemies keep acting through those puzzles. */
         int32_t px = player_x(), py = player_y(), pz = player_z();
         int32_t dx = px - h->x;
-        int32_t dy = py - (h->y + HAD_Y_OFFSET);
         int32_t dz = pz - h->z;
         int32_t dist = had_isqrt(dx * dx + dz * dz);
+
+        /* The vertical half of the blow, and it is the GAP FROM THE EYE TO HIS
+           SPRITE'S SPAN — not the distance to its centre. hadads_try_hit calls
+           the same quantity `gv` and computes it the same way; the two being
+           one measurement is what keeps the axe's reach inside his own at every
+           height. See HAD_CATCH_VGAP for why measuring to the centre let him
+           strike through the Reception's balcony floor. */
+        int32_t htop = h->y + HAD_Y_OFFSET - HAD_HALF_H;
+        int32_t hbot = h->y + HAD_Y_OFFSET + HAD_HALF_H;
+        int32_t vgap = (py < htop) ? (htop - py)
+                     : (py > hbot ? py - hbot : 0);
 
         /* ---- The state the flags say this visit should be in ---------------
            hadads_rest() sets this on the way OUT of a room, so ordinarily it is
@@ -1102,6 +1372,23 @@ void update_hadads(void) {
         case HAD_ROOTED: {
             music_wanted = 1;
 
+            /* >>> WHICH WAY THE PLAYER LEAVES THE BALCONY, WATCHED EVERY FRAME
+               OF THE ARRIVAL WALK. <<< The Reception's two scenarios are told
+               apart by whether the player used the STAIR or stepped off the
+               EDGE, and by the time he reaches the head of the stair — where
+               had_leg_entered latches it — both look identical: one player on
+               one ground floor. The stair's two flights are the room's only
+               FLOOR_RAMP zones, so player_on_ramp is the difference, and it has
+               to be caught while it is happening rather than asked for
+               afterwards. Sticky, and read once; had_reseat's zero-fill and
+               hadad_reception_begin both clear it.
+
+               Ahead of the `vy` gate below on purpose: he spends the first
+               forty frames of stage 0 falling out of the ceiling, and a player
+               who runs down the stair during them must still count. */
+            if (h->role == HAD_ROLE_RECEPTION && h->stage == 0 && player_on_ramp)
+                h->branch = 1;
+
             /* ---- The blow. Horizontal and vertical reach are tested
                SEPARATELY, for the reason every other enemy here does the same:
                the player's eye sits above the body's centre, and a combined
@@ -1109,14 +1396,14 @@ void update_hadads(void) {
                never lands a hit. The horizontal half is the RADIAL `dist` — see
                HAD_CATCH_DIST for why a Manhattan sum cannot work at this size.
 
-               The vertical budget is HAD_CATCH_DIST + HAD_HALF_H, which is
-               deliberately MORE generous than the axe's own vertical reach
-               (HAD_HALF_H + SWING_RANGE): that is what makes "he can be hit" a
-               strict subset of "he can hit back". On the flat, `dy` from the
-               player's eye to his sprite centre is only 110, so this never
-               binds in the corridor — it exists for the ramp. */
+               The vertical half is `vgap`, the gap from the eye to his sprite's
+               SPAN, against HAD_CATCH_VGAP — the axe's own SWING_RANGE, so that
+               "he can be hit" stays a strict subset of "he can hit back" while
+               still being far too tight to cross a storey. On the flat the eye
+               is INSIDE his span, so vgap is 0 and this never binds in the
+               corridor; it exists for the ramp, and for the two-storey room. */
             if (!game_over && dist < HAD_CATCH_DIST &&
-                (dy < 0 ? -dy : dy) < HAD_CATCH_DIST + HAD_HALF_H &&
+                vgap < HAD_CATCH_VGAP &&
                 h->damage_timer == 0) {
                 h->damage_timer = HAD_HIT_COOLDOWN;
                 player_hurt(HAD_DAMAGE);
@@ -1347,6 +1634,10 @@ Hadad *hadad_reception_instance(void) {
 void hadad_reception_begin(Hadad *h) {
     if (!h || h->role != HAD_ROLE_RECEPTION) return;
     h->stage = 0;
+    /* The scenario observation starts CLEAR: `branch` is the record of the
+       player having been on the stair since the drop, and a value carried in
+       from anywhere else would decide the encounter before it began. */
+    h->branch = 0;
     had_arrive(h, HAD_RC_CEIL_X, HAD_RC_CEIL_Z, 0);
 
     /* >>> HE ARRIVES IN THE CEILING, WHICH IS THE ONE THING had_arrive CANNOT

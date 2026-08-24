@@ -481,17 +481,34 @@
  *
  *                 0  the drop, then one leg east to the head of the stair.
  *                    At the end of it the SCENARIO is latched (had_leg_entered)
- *                    off where the player is: down the stair, or still up top.
- *                 1  SCENARIO 1 - they went down. He follows the stair: south
- *                    down the upper flight and across the landing, then west
- *                    down the lower flight and out onto the ground floor.
- *                 2  SCENARIO 2 - they backed off toward the East Hall door. He
- *                    follows them that way, STANDS FOR A SECOND
- *                    (HAD_RC_EDGE_PAUSE), then walks south off the second
- *                    level's south edge and drops to the ground floor; south
- *                    past the Kitchen Dining door into the room's south-east
- *                    corner; a square 90-degree turn west to the point directly
- *                    south of the stair; and north-west to the stair's foot.
+ *                    off HOW THE PLAYER LEFT THE BALCONY — by the stair, or
+ *                    over its edge. Not off where they are: both exits end on
+ *                    the same floor at the same eye height, which is why the
+ *                    old height test could only ever pick scenario 1. The stair
+ *                    is the room's only ramp, so `branch` records the player
+ *                    having been on it and that is the whole difference.
+ *                 1  SCENARIO 1 - they went down the STAIR. He follows it:
+ *                    south down the upper flight and across the landing, then
+ *                    west down the lower flight and out onto the ground floor,
+ *                    ending on HAD_RC_FOOT and going on to stage 3.
+ *                 2  SCENARIO 2 - they DROPPED OFF THE BALCONY (or are still up
+ *                    on it). A LOOP OF ITS OWN, and it never ends either: out
+ *                    along the walkway to the East Hall door, a STAND OF ONE
+ *                    SECOND (HAD_RC_EDGE_PAUSE), then south off the second
+ *                    level's edge and down to the ground floor; on to the front
+ *                    of the Kitchen Dining door; south into the room's
+ *                    south-east corner; a square 90-degree turn west to the
+ *                    point directly south of the stair; north-west to its foot;
+ *                    UP both flights to the head of the stair; and out along
+ *                    the walkway again.
+ *
+ *                    >>> IT IS STAGE 3 RUN BACKWARDS. <<< Same room, same
+ *                    waypoints, opposite direction, and one move different: the
+ *                    circuit LEAPS from the Kitchen Dining door up onto the
+ *                    second level, and this walks OFF the edge above it
+ *                    instead. Leave the balcony by the stair and you are chased
+ *                    round one way; drop off it and you are chased round the
+ *                    other.
  *
  *                    >>> HE STEPS OFF AT x=1100 BECAUSE THAT IS THE ONE PLACE
  *                    HE CAN. <<< The second level's edge band along z=500 is
@@ -499,18 +516,20 @@
  *                    (Reception v2.smx) and the collision follows it - walls 12,
  *                    27 and 28, all y[-719,-600]. The stretch x[966,1233] has no
  *                    band and no wall: it is the only unguarded edge on the
- *                    floor, and 1100 is its middle.
+ *                    floor, and 1100 is its middle. IT IS ALSO THE ONLY PLACE
+ *                    THE PLAYER CAN DROP OFF, which is what makes the two
+ *                    scenarios two ways out of the room rather than one way and
+ *                    a corner case.
  *
- *                    BOTH SCENARIOS END ON THE SAME POINT, HAD_RC_FOOT, which is
- *                    the ground floor just west of the stair's bottom step.
- *                 3  THE CIRCUIT, and it never ends. Seven legs, and leg 7
- *                    wraps back to leg 0: down and round the stair to the
- *                    KITCHEN DINING door; a LEAP from it up onto the second
- *                    level; west along the balcony to the head of the stair;
- *                    and back down the stair to HAD_RC_FOOT, where it starts
- *                    again. He is never HAD_ROOTED in this room at all — there
- *                    is no state after this one, and the stalker track plays
- *                    for as long as the player stays.
+ *                 3  THE CIRCUIT — SCENARIO 1's loop, entered from HAD_RC_FOOT
+ *                    and never left. Seven legs, and leg 7 wraps back to leg 0:
+ *                    down and round the stair to the KITCHEN DINING door; a
+ *                    LEAP from it up onto the second level; west along the
+ *                    balcony to the head of the stair; and back down the stair
+ *                    to HAD_RC_FOOT, where it starts again. He is never
+ *                    HAD_ROOTED in this room at all — neither loop has a state
+ *                    after it, and the stalker track plays for as long as the
+ *                    player stays.
  *
  *                    >>> THE LEAP IS THE ONLY BALLISTIC MOVE IN THIS ENEMY.
  *                    <<< The second level does not reach the Kitchen Dining
@@ -880,25 +899,32 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
               the landing's centre, so the leg STAIRTOP->LANDING runs straight
               down the upper flight and the next one straight down the lower.
 
-     FOLLOW   scenario 2's first leg: out toward the East Hall's double door
-              (x=1435 z=1071), which is where the player has just backed off to.
-              He stops short of it and stands for HAD_RC_EDGE_PAUSE.
+     FOLLOW   scenario 2's first leg, and the top of its loop: the END OF THE
+              WALKWAY, out toward the East Hall's double door (x=1435 z=1071).
+              He stops short of it and stands for HAD_RC_EDGE_PAUSE — every lap,
+              because the loop comes back round to this leg.
 
      EDGE     the step-off, and z=300 is deliberately PAST the edge at z=500:
               the leg is a walk-off, not a hover, so its goal has to sit on the
               ground floor below. x=1100 is the middle of the only unguarded
-              stretch of that edge — see the note in the header block above.
+              stretch of that edge — see the note in the header block above. He
+              is still marching as he falls, and the leg after this one carries
+              him on to RDOOR, so he lands and walks up to the Kitchen Dining
+              door in one movement.
 
      CORNER   the room's south-east corner, a body radius clear of both walls,
               reached by walking south past the Kitchen Dining door (x=1450
               z=-414). Its Z is shared with SOUTH so the turn there is a square
-              90 degrees, which is what the brief asks for.
+              90 degrees, which is what the brief asks for. BOTH LOOPS TURN
+              HERE, in opposite directions.
 
      SOUTH    directly south of the stair: x=100 is the lower flight's own
               centre (x[-100,300]).
 
      FOOT     in front of the stair, on the ground floor just west of the bottom
-              step. BOTH SCENARIOS END HERE. The bottom step is at x=-100 and a
+              step. SCENARIO 1 ENDS HERE and the circuit starts from it;
+              scenario 2's loop passes through it on its way back UP the stair.
+              The bottom step is at x=-100 and a
               300-radius body clears it at -400, so -500 stands him a clear 100
               off it; z=-500 is the flight's centre line.
 
@@ -906,7 +932,9 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
               z=-414), a body radius plus a margin off it. It does not open —
               it is rubble while the room is sealed (reception.h) — which is
               the point of walking the player's eye to it. It is also where the
-              LEAP starts.
+              LEAP starts, and where scenario 2's DROP finishes: the circuit
+              goes up from this spot and the other loop comes down onto it,
+              which is what makes the pair read as one route walked both ways.
 
      JUMP     where the leap lands: the second level, straight through the same
               unguarded stretch of its edge that scenario 2 stepped off
@@ -950,12 +978,26 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
    end of the room to the other as the player crossed the line, and he would
    pivot on the waypoint instead of committing.
 
-   "The player has gone down the stair", measured on the player's EYE
-   (player_y()) and not on a floor zone, because the stair is a FLOOR_RAMP and
-   the mid-landing is a FLOOR_UPPER — so player_on_upper_floor is TRUE on the
+   "The player has LEFT THE BALCONY", measured on the player's EYE (player_y())
+   and not on a floor zone, because the stair is a FLOOR_RAMP and the
+   mid-landing is a FLOOR_UPPER — so player_on_upper_floor is TRUE on the
    landing and useless here. The second level stands the eye at -789 and the
    ground floor at -189; -700 is a shade below the top of the flight, so it
-   takes a real step or two down before it reads as a descent. */
+   takes a real step or two down before it reads as a descent.
+
+   >>> IT IS HALF THE TEST AND NOT THE WHOLE OF IT. <<< This says THAT they came
+   down; it cannot say HOW, because the stair and the drop off the edge put them
+   at the same eye height on the same floor. On its own it can only ever pick
+   scenario 1, which is exactly the bug that kept scenario 2 from ever running.
+   `branch` — set while the player is on either flight, see the field in the
+   struct — is the other half, and the two together are the latch:
+
+       descended && branch  -> scenario 1, he follows them down the stair
+       anything else        -> scenario 2, he takes the walkway and the edge
+
+   which puts a player still standing up top in scenario 2 as well. That is
+   right and not a fallback: its first leg walks the walkway after them, and the
+   edge is where they are going to end up anyway. */
 #define HAD_RC_DESCEND_Y     (-700)
 
 /* ---- THE LEAP ---------------------------------------------------------------
@@ -1049,6 +1091,29 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
 #define HAD_FEELER_LEN      400
 #define HAD_TURN_RATE         3
 #define HAD_STEER_COMMIT     30
+
+/* ---- The fixed point the steering runs in ----------------------------------
+   >>> HAD_SPEED IS 4, AND YOU CANNOT EASE ANYTHING IN FOUR STEPS. <<< The turn
+   above is an exponential ease, (prev * 5 + want * 3) >> 3, and run on whole
+   world units — the only values in range being -4..4 — the shift TRUNCATES the
+   recurrence into fixed points nowhere near what it is easing toward. Easing
+   toward 2, both 1 and 0 are stable; a component starting from rest therefore
+   never left zero, and the pursuit crawled at a fraction of HAD_SPEED on every
+   heading that was not square to an axis. had_march exists because of this and
+   had_arrive seeds `facing` because of this.
+
+   The ease now runs on a velocity carried at 1/256 of a world unit, where the
+   truncation is a 256th of a step instead of a whole one, and the fraction the
+   position cannot spend this frame is BANKED rather than dropped. Together
+   those make a chase cover exactly HAD_SPEED a frame in any direction — the
+   same ground a marched leg covers, which is what HAD_STEP_FRAMES is matched
+   against.
+
+   256 is picked to be a shift and to leave room: the widest thing multiplied up
+   is a room-sized delta (about 7300 in the Rear Gate) times HAD_SPEED times
+   this, which is under eight million and nowhere near int32. */
+#define HAD_STEER_SHIFT       8
+#define HAD_STEER_FRAC      (1 << HAD_STEER_SHIFT)   /* 256 */
 /* Close enough to HAD_END_X/Z to call the walk finished. It has to be wider
    than one frame's travel (HAD_SPEED, 7) with room over, or he oscillates
    around the spot for ever without ever satisfying the test. */
@@ -1088,7 +1153,22 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
      - the same stand has to plug the fat door's gap, whose mouth is 300 from
        him: 300 < 395 still, but with 95 to spare rather than 195.
    (The Library Destroyed's south door does NOT depend on it — that one is
-   sealed outright by hadad_library_seals_sdoor while he is in the room.) */
+   sealed outright by hadad_library_seals_sdoor while he is in the room.)
+
+   >>> AND THE PUSH IS A TELEPORT, WHICH IS WHY EVERY ROOM HE STANDS IN NOW
+   WATCHES FOR AN EJECTION. <<< hadads_collide does not steer the player, it
+   SETS them to HAD_HOLD_DIST off his centre — 395 units, in one frame, from
+   wherever they were — and the blow adds HAD_KNOCKBACK on top. Against a wall
+   at the wrong angle that lands them on the far side of it, and the wall pass
+   that follows cannot undo it: collide_wall_frontonly_y returns early on a
+   NEGATIVE dot, so a body already behind a face is never pushed again. The
+   player was left outside the level with health to spare, free to roam the back
+   of the room.
+
+   The rule is now OUT OF THE LEVEL IS DEATH, in every room he is standing in,
+   and it does NOT go through player_hurt() — so DBG_INFINITE_LIFE does not
+   cover it, deliberately and by request. See had_watch_ejection() in hadad.c
+   for the two tests and the three things that invalidate them. */
 #define HAD_BODY_RADIUS     300
 #define HAD_PUSH_RADIUS     200
 #define HAD_WALL_LIKE_PUSH  195   /* what apply_collision_reception passes in */
@@ -1126,10 +1206,9 @@ _Static_assert(HAD_PUSH_RADIUS + HAD_WALL_LIKE_PUSH > 300,
    100-unit safe band tightening the hold was meant to close.
 
    Both tests are strict `<` against the same figure, so the boundary agrees
-   too: at d = 550 neither fires, at d = 549 both do. The vertical halves cannot
-   reopen it either, because the axe needs gv < SWING_RANGE (so |dy| < HALF_H +
-   350 = 650) while the contact budget is HAD_CATCH_DIST + HAD_HALF_H = 850 —
-   strictly the more generous of the two, which is the safe direction.
+   too: at d = 550 neither fires, at d = 549 both do. The vertical halves agree
+   as well, and they now do it by MEASURING THE SAME THING — see
+   HAD_CATCH_VGAP.
 
    >>> WHAT THIS DOES NOT BUY IS IMMUNITY FROM THE COOLDOWN. <<< He strikes
    every HAD_HIT_COOLDOWN frames, so a player who accepts the first blow can
@@ -1152,6 +1231,41 @@ _Static_assert(HAD_CATCH_DIST > HAD_HOLD_DIST,
 _Static_assert(HAD_CATCH_DIST >= HAD_PUSH_RADIUS + SWING_RANGE,
                "the crucifaxe would then reach him from outside the range he "
                "can strike from, and the player could kill him in safety");
+
+/* ---- ...and the vertical half of it -----------------------------------------
+   >>> HE MUST NOT BE ABLE TO HIT THROUGH A FLOOR. <<< The blow's vertical test
+   used to be the eye against his sprite's CENTRE, |dy| < HAD_CATCH_DIST +
+   HAD_HALF_H = 850, which is a budget wider than a whole storey of the
+   Reception — a player standing in the ground-floor room tucked under that
+   room's balcony (reception_mesh_collision.c walls 21-26) was struck by a Hadad
+   walking the balcony DIRECTLY OVER THEIR HEAD, through 600 units of floor.
+
+   It is now the gap from the eye to his sprite's SPAN, which is the very
+   quantity hadads_try_hit already measures as `gv`, against the axe's own
+   SWING_RANGE. Same number on both sides, so the invariant the block above is
+   about — "he can be hit" is a strict subset of "he can hit back" — holds by
+   construction rather than by two figures happening to be ordered right: the
+   axe needs gh + gv < SWING_RANGE with gh >= 0, so anything it can reach has
+   gv < SWING_RANGE and is inside this.
+
+   THE MARGIN IS 60 UNITS, and here is where it comes from. Standing on the
+   floor below, the player's eye is 189 above their own floor and his FEET are
+   on the floor above, so the gap is the storey (600) less the eye's own height:
+
+       410 = 600 - 189 - 1   (his feet sit at anchor + 150 = -599 over a -600
+                              floor, which is the stray unit)
+
+   350 against 410. Widen this — or lower a room's storey height — and he
+   reaches through the ceiling again, which is what the assert is for. */
+#define HAD_CATCH_VGAP      SWING_RANGE        /* 350 */
+#define HAD_RC_STOREY_VGAP  410                /* eye below, his feet above */
+_Static_assert(HAD_CATCH_VGAP >= SWING_RANGE,
+               "the crucifaxe would out-reach the blow vertically, and the "
+               "player could stand under his chin and swing in safety");
+_Static_assert(HAD_CATCH_VGAP < HAD_RC_STOREY_VGAP,
+               "he would strike the player through the Reception's balcony "
+               "floor, from the walkway directly above the room below it");
+
 #define HAD_DAMAGE          (MAX_HEALTH / 4)   /* 25 — a quarter of FULL health */
 #define HAD_HIT_COOLDOWN     90                /* 1.5 s between blows           */
 #define HAD_KNOCKBACK       200
@@ -1239,6 +1353,14 @@ typedef struct {
     /* Steering. `facing` is the last travel step, packed hi16 X / lo16 Z, the
        way the statue and the mushroom carry theirs. */
     int32_t     facing;
+    /* ...and the steering's own state, which is NOT `facing` and must not be
+       folded back into it: the eased velocity at HAD_STEER_FRAC to the world
+       unit, plus the sub-unit remainder of the position it has not spent yet.
+       Whole units are far too coarse to ease in — see the long note in
+       had_steer, which is the bug these two pairs exist to have fixed. Runtime
+       only; had_reseat's zero-fill is what clears them. */
+    int32_t     steer_vx, steer_vz;
+    int32_t     steer_fx, steer_fz;
     int         steer_timer;
     int         steer_dir;
     /* Gravity/floor state, used only while HAD_WALK. A Hadad standing on the
@@ -1255,10 +1377,17 @@ typedef struct {
                                    single door, 1 = the walk back round the U
                                    after the crawl. `leg` restarts at 0 for
                                    each, so the pair is the whole cursor      */
-    int         branch;         /* HAD_ROLE_LIBRARY stage 1 only: which arm of
-                                   the east aisle he took. 0 = not decided
-                                   yet, 1 = north (the vestibule), 2 = south.
-                                   Latched once, at the spur's east end       */
+    int         branch;         /* TWO ROLES, one field, and neither can ever
+                                   be the other's room.
+                                   HAD_ROLE_LIBRARY stage 1: which arm of the
+                                   east aisle he took. 0 = not decided yet,
+                                   1 = north (the vestibule), 2 = south.
+                                   Latched once, at the spur's east end.
+                                   HAD_ROLE_RECEPTION stage 0: 1 once the
+                                   player has been seen on the stair, which is
+                                   what tells that room's two scenarios apart.
+                                   Set every frame, read once, at the stair
+                                   head. Per-visit, not saved                 */
     int         spent;          /* the flag-three encounter has been used up.
                                    HAD_ROLE_PLINTH only. Saved — see
                                    WorldDelta.hadads_state                   */

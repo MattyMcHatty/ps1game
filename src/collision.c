@@ -111,8 +111,28 @@ static int props_any_solid(void) {
            grinders_any_solid();
 }
 
-int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
-                              int32_t bx, int32_t by, int32_t bz) {
+/* The WALL half of collision_segment_blocked, shared by it and by
+   collision_wall_crossed(). `as_body` picks which of the two callers is asking,
+   and it changes exactly two rules — both so that each caller sees the walls
+   its own mover sees:
+
+     SHOOT-OVER  a SHOT passes over the low walls in shoot_over_mask (the kitchen
+                 counter and its like); a BODY does not, and collides with them
+                 like any other wall. The body test must therefore count them.
+
+     THE Y GATE  a SHOT is gated only in multi_level rooms, because a flat room's
+                 per-wall Y is debug data that must not stop a bullet. A BODY is
+                 gated wherever the wall HAS Y data, multi_level or not, because
+                 that is precisely what collide_wall_frontonly_y does — it never
+                 looks at multi_level. Getting this wrong in the generous
+                 direction would be a false alarm in the one caller that acts on
+                 a true answer: the Rear Gate's walls carry real heights (500
+                 hedges, a 200 plinth, a 1237 brick wall) with multi_level 0, so
+                 a body test using the shot's rule would count crossings of walls
+                 the player is legitimately above or below. */
+static int walls_crossed(int32_t ax, int32_t ay, int32_t az,
+                         int32_t bx, int32_t by, int32_t bz, int as_body) {
+    int shoot_over = !as_body;
     CollisionRoom *r = &current_collision_room;
     int i;
 
@@ -131,7 +151,7 @@ int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
         /* Low walls the gun shoots over (e.g. the kitchen counter): the player
            still collides with them, but a shot passes so enemies on the far
            side are hittable. */
-        if (i < 32 && ((r->shoot_over_mask >> i) & 1u)) continue;
+        if (shoot_over && i < 32 && ((r->shoot_over_mask >> i) & 1u)) continue;
 
         int32_t sx = w->x2 - w->x1;
         int32_t sz = w->z2 - w->z1;
@@ -158,9 +178,17 @@ int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
            y_max). Test y_min <= world_y <= y_max without dividing by multiplying
            through by d (>0 after the sign-normalise above): 64-bit products keep
            the (Y-range * d) terms exact, and there's no 64-bit divide (which the
-           -nostdlib toolchain can't link). Flat rooms carry only debug Y values,
-           so they never gate. */
-        if (r->multi_level && w->y_min != w->y_max) {
+           -nostdlib toolchain can't link). For a SHOT, flat rooms carry only
+           debug Y values so they never gate; for a BODY the gate applies
+           wherever the wall has Y data at all, which is the rule
+           collide_wall_frontonly_y itself keeps — see `as_body` above.
+
+           The body's height here is its FEET (base), a single point, where the
+           push test uses the whole span [eye-30, feet]. That is the safe way
+           round: feet inside a wall's span implies the span overlaps, so every
+           wall this gates IN is a wall the push was also gating in. The reverse
+           would invent breaches of walls the player was never held by. */
+        if ((as_body || r->multi_level) && w->y_min != w->y_max) {
             int32_t base = ay + GROUND_FLOOR_Y;
             int64_t proj = (int64_t)(by - ay) * tn;          /* (world_y-base)*d */
             int64_t lo   = (int64_t)(w->y_min - base) * d;
@@ -170,6 +198,32 @@ int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
 
         return 1;   /* a wall lies between the shot origin and the target */
     }
+    return 0;
+}
+
+/* Did the move A->B pass THROUGH a solid wall face? Walls only — no props, and
+   no shoot-over exemption: this asks whether a BODY went where a body cannot,
+   not whether a bullet had a clear line.
+
+   >>> IT IS AN EXACT CROSSING TEST, WHICH IS WHY IT CAN BE TRUSTED AS A BUG
+   DETECTOR. <<< The intersection has to fall inside BOTH segments, so walking
+   round the END of a wall — which is how every doorway in the game works — is
+   not a crossing, and neither is standing on the far side of one you never went
+   through. The player's own collision guarantees each frame ENDS in front of
+   every wall it is gated into, so two consecutive settled positions can only
+   straddle a face if something moved them past it in one step. See the
+   ejection watch in src/hadad.c, which is the caller this exists for. */
+int collision_wall_crossed(int32_t ax, int32_t ay, int32_t az,
+                           int32_t bx, int32_t by, int32_t bz) {
+    return walls_crossed(ax, ay, az, bx, by, bz, 1);   /* as a BODY */
+}
+
+int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
+                              int32_t bx, int32_t by, int32_t bz) {
+    int32_t rx = bx - ax;
+    int32_t rz = bz - az;
+
+    if (walls_crossed(ax, ay, az, bx, by, bz, 0)) return 1;   /* as a SHOT */
 
     /* Volumetric props (crates, doors, dressers, tables): sample the segment.
        Step at a FIXED distance, not a fixed count — a long shot with few samples

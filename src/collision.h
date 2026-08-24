@@ -151,6 +151,22 @@ void    collision_shoot_over_short_walls(int32_t max_height);
 int  collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
                                int32_t bx, int32_t by, int32_t bz);
 
+/* The same exact wall-crossing test as above, WITHOUT the props and WITHOUT the
+   shoot-over exemption: "did a BODY move through a solid wall face", not "did a
+   bullet have a clear line". A body collides with the low walls a shot passes
+   over, so this counts them.
+
+   Written for the one thing that has to tell a legal step from an impossible
+   one: a wall push cannot fire on a wall the mover is already BEHIND
+   (collide_wall_frontonly_y returns early on a negative dot), so once something
+   is shoved past a face nothing brings it back, and the frame it happened is
+   the only frame the event is visible. Sample a position each frame, hand the
+   pair to this, and a true answer means the geometry was breached. Walking
+   round the end of a wall — every doorway — is not a crossing: the intersection
+   must fall inside both segments. See src/hadad.c's ejection watch. */
+int  collision_wall_crossed(int32_t ax, int32_t ay, int32_t az,
+                            int32_t bx, int32_t by, int32_t bz);
+
 /* The same test from the CAMERA to a world point: 1 if level geometry stands
    between the player's eye and (x,y,z).
 

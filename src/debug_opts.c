@@ -10,6 +10,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "HAS WAX AND POT",
     "HAS PIANO KEY",
     "HAS KEY STONES",
+    "EXIT DOOR SOLVED",
     "INFINITE LIFE",
     "INFINITE STAMINA",
     "HADAD FLAG ONE",
@@ -20,6 +21,43 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
 static int grants_pending = 0;
 
 void debug_opts_arm_grants(void) { grants_pending = 1; }
+
+/* The Attic Exit's exit-door puzzle, put where a player who had solved it would
+   have left it. Two options grant it — DBG_EXIT_DOOR_SOLVED, which is nothing
+   but this, and DBG_HADAD_FLAG_ONE, which cannot describe a reachable game
+   state without it (his plinth is out in the garden and this door is the only
+   way there; granting the flag without the door left the two disagreeing, the
+   door locked while its own prompt offered "Press O to remove the keystones",
+   which is the one thing a locked door cannot do). It is idempotent, so ticking
+   both is legal and costs nothing.
+
+   What "solved" means here, piece by piece:
+
+     - FLAG_EXIT_DOOR_UNLOCKED, so the door is open and carries the xt_dr_cmplt
+       art (attic_exit.c's door_tex_id reads it on entry, and the room's prop
+       placement re-uploads from it after these grants land);
+     - the three collected stones are SPENT — cleared from the inventory,
+       because they are in the door. Note this runs AFTER DBG_HAS_KEY_STONES
+       and deliberately undoes it: ticking both means "collected them and then
+       used them", which is the true story, not "holding a second set";
+     - FLAG_STOVE_SOLVED and FLAG_ANZU_SOLVED, the two puzzles that MADE two of
+       those stones. Without them the burner and the tablets are still live with
+       the stones already spent, and each would happily mint a replacement. Same
+       trap DBG_HAS_KEY_STONES documents, one step further along.
+
+   KNOWN GAP, shared with DBG_HAS_KEY_STONES and not introduced here: the BLUE
+   stone is an unconditional first-entry spawn on the Attic Stairwell altar
+   (world.c) with no flag behind it, so walking into that room on a granted save
+   still lays a second one out. Retiring it would take a new GameFlag; nothing
+   downstream can be farmed with it. */
+static void grant_exit_door_solved(void) {
+    game_flag_set(FLAG_EXIT_DOOR_UNLOCKED);
+    game_flag_set(FLAG_STOVE_SOLVED);
+    game_flag_set(FLAG_ANZU_SOLVED);
+    player_items &= ~((1 << ITEM_GREEN_KEY_STONE)  |
+                      (1 << ITEM_YELLOW_KEY_STONE) |
+                      (1 << ITEM_BLUE_KEY_STONE));
+}
 
 void debug_opts_apply_grants(void) {
     if (!grants_pending) return;
@@ -92,6 +130,10 @@ void debug_opts_apply_grants(void) {
         game_flag_set(FLAG_STOVE_SOLVED);
     }
 
+    /* AFTER the block above, which it undoes on purpose: the stones are in the
+       door, not in the pocket. See grant_exit_door_solved. */
+    if (debug_opts[DBG_EXIT_DOOR_SOLVED]) grant_exit_door_solved();
+
     /* Hadad. For his PLACEMENT these are nothing but the flag: hadads_rest() and
        update_hadads work the rest out between them, so setting the bit here and
        jumping to the Rear Gate puts him exactly where a player who had earned it
@@ -114,37 +156,11 @@ void debug_opts_apply_grants(void) {
         /* >>> AND THE EXIT-DOOR PUZZLE WITH IT. <<< Hadad is on the Rear Gate's
            plinth, out in the garden, and the ONLY route there is through the
            Attic Exit's exit door — so a player who has had him off that plinth
-           has necessarily solved it. Granting the flag without the door left the
-           two disagreeing: the door stood locked while its own prompt offered
-           "Press O to remove the keystones", which is the one thing a locked
-           door cannot do.
-
-           So this puts the whole thing where that player would have left it:
-
-             - FLAG_EXIT_DOOR_UNLOCKED, so the door is open and carries the
-               xt_dr_cmplt art (attic_exit.c's door_tex_id reads it on entry);
-             - the three collected stones are SPENT — cleared from the inventory,
-               because they are in the door. Note this runs AFTER
-               DBG_HAS_KEY_STONES above and deliberately undoes it: ticking both
-               means "collected them and then used them", which is the true
-               story, not "holding a second set";
-             - FLAG_STOVE_SOLVED and FLAG_ANZU_SOLVED, the two puzzles that
-               MADE two of those stones. Without them the burner and the tablets
-               are still live with the stones already spent, and each would
-               happily mint a replacement. Same trap DBG_HAS_KEY_STONES
-               documents, one step further along.
-
-           KNOWN GAP, shared with DBG_HAS_KEY_STONES and not introduced here:
-           the BLUE stone is an unconditional first-entry spawn on the Attic
-           Stairwell altar (world.c) with no flag behind it, so walking into that
-           room on a granted save still lays a second one out. Retiring it would
-           take a new GameFlag; nothing downstream can be farmed with it. */
-        game_flag_set(FLAG_EXIT_DOOR_UNLOCKED);
-        game_flag_set(FLAG_STOVE_SOLVED);
-        game_flag_set(FLAG_ANZU_SOLVED);
-        player_items &= ~((1 << ITEM_GREEN_KEY_STONE)  |
-                          (1 << ITEM_YELLOW_KEY_STONE) |
-                          (1 << ITEM_BLUE_KEY_STONE));
+           has necessarily solved it. That is the same grant DBG_EXIT_DOOR_SOLVED
+           makes, so both go through the one helper above — and that is where the
+           reasoning lives, down to why it spends the three stones and retires
+           the two puzzles that minted them. */
+        grant_exit_door_solved();
     }
     if (debug_opts[DBG_HADAD_FLAG_TWO]) {
         game_flag_set(FLAG_HADAD_TWO);

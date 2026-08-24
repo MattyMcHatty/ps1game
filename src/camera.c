@@ -24,6 +24,8 @@ int32_t cam_kb_vz = 0;
 /* Player anchor (see camera.h): held position while a puzzle owns the camera. */
 static int32_t anchor_x = 0, anchor_y = 0, anchor_z = 0;
 static int     anchored = 0;
+/* Bumped on every anchor AND every release — see player_anchor_epoch(). */
+static int     anchor_epoch = 0;
 
 void camera_anchor_player(int32_t x, int32_t y, int32_t z) {
     /* A puzzle taking the camera wants cam_rot to be the player's real facing,
@@ -33,8 +35,11 @@ void camera_anchor_player(int32_t x, int32_t y, int32_t z) {
     camera_look_cancel();
     anchor_x = x; anchor_y = y; anchor_z = z;
     anchored = 1;
+    anchor_epoch++;
 }
-void camera_release_player(void) { anchored = 0; }
+void camera_release_player(void) { anchored = 0; anchor_epoch++; }
+
+int player_anchor_epoch(void) { return anchor_epoch; }
 
 int32_t player_x(void) { return anchored ? anchor_x : cam_x; }
 int32_t player_y(void) { return anchored ? anchor_y : cam_y; }

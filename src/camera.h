@@ -82,6 +82,19 @@ int interact_facing(int32_t wx, int32_t wz);
    that means "where the player is standing" reads player_x/y/z() instead. */
 void    camera_anchor_player(int32_t x, int32_t y, int32_t z);
 void    camera_release_player(void);
+
+/* A counter bumped on EVERY anchor and EVERY release, i.e. once at each end of
+   every camera-locked scene. It exists for anything that tracks the player
+   frame to frame and has to be able to tell "they walked there" from "a scene
+   put them there": a scene may TELEPORT the anchored body (the Library
+   Destroyed's crawl drops it under the floor and stands it up on the far side,
+   hadad_library.c), and it may do so on frames the watcher is not even being
+   called. Comparing the epoch across two samples answers "did a scene run in
+   between" without the watcher needing to know which scenes exist.
+
+   Its VALUE means nothing and it is free to wrap; only a change matters. */
+int     player_anchor_epoch(void);
+
 int32_t player_x(void);
 int32_t player_y(void);
 int32_t player_z(void);
