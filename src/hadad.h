@@ -155,8 +155,8 @@
  *
  * >>> HIS BODY IS AS WIDE AS THE CORRIDOR, AND THAT IS LOAD-BEARING. <<<
  * The southern path is 600 wide between collision walls 0 and 1. His push
- * cylinder is HAD_BODY_RADIUS + the room's 195 wall radius = 495, which covers
- * x[-495,495] across a lane the player can only occupy x[-105,105] of. Standing
+ * cylinder is HAD_PUSH_RADIUS + the room's 195 wall radius = 395, which covers
+ * x[-395,395] across a lane the player can only occupy x[-105,105] of. Standing
  * anywhere on the centre line he is a plug, not an obstacle.
  *
  * THE END SPOT IS THE CORRIDOR'S SOUTH MOUTH (0, -1500), NOT THE FOOT OF THE
@@ -345,9 +345,9 @@
  *                 >>> HE STILL BLOCKS THE DOUBLE DOOR, AND THE SINGLE ONE IS
  *                 THE ONLY WAY OUT. <<< The mirror of the ambush's last
  *                 paragraph and the point of the encounter. His hold cylinder
- *                 is 495 and the north door answers within
+ *                 is 395 and the north door answers within
  *                 WCDOOR_TRIGGER_RADIUS (500) of (-2400, 2000): rooted at
- *                 z=1200 he keeps the player at z=705 or south of it, 1295 off
+ *                 z=1200 he keeps the player at z=805 or south of it, 1195 off
  *                 the leaf, so the way back out to the Rear Gate is shut and
  *                 the player is herded into the Reception — where the ceiling
  *                 drops on them.
@@ -747,12 +747,12 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
 
    >>> STOPPING SHORT DOES NOT COST HIM THE DOOR. <<< The double door answers
    within WCDOOR_TRIGGER_RADIUS (500) of (-2400, 2000) and his hold cylinder is
-   495, so rooted here he keeps the player at z <= 705 — 1295 off the leaf,
-   further out than the 845 the old stop at HAD_WC_START gave. The way back to
+   395, so rooted here he keeps the player at z <= 805 — 1195 off the leaf,
+   further out than the 945 the old stop at HAD_WC_START would give. The way back to
    the Rear Gate is shut either way and the east door is still the only exit.
 
    IT DOES BLOCK THE GAP, and that follows from where he is asked to stand: the
-   opening's own mouth is 300 from him, well inside the 495 hold, so while he is
+   opening's own mouth is 300 from him, still inside the 395 hold, so while he is
    rooted the inner room cannot be entered. That room is seeded empty, so
    nothing is lost behind him today. */
 #define HAD_WC_RET_END_X   (-2400)
@@ -800,8 +800,9 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
               and where the director puts him back for the second. Kept on the
               aisle's centre line rather than on the door's, because the aisle is
               only 481 wide and he is 600: x=-1400 would bury a third of him in
-              the rubble block. His hold cylinder covers the door from here
-              regardless — 495 against the door's 500 trigger radius.
+              the rubble block. The door is SEALED OUTRIGHT while he is in
+              the room (hadad_library_seals_sdoor), so nothing here rests
+              on his hold cylinder reaching it.
 
      NORTH    the vestibule, in front of the double door: the branch he takes if
               the player ran for the exit.
@@ -1061,11 +1062,41 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
    passes so that hard geometry always gets the last say and the player can
    never be wedged into a hedge (tools/ADDING_AN_ENEMY.txt mistake 10).
 
-   HAD_BODY_RADIUS is his sprite's own half-width, so the billboard still
-   projects whole at the stop distance from every bearing. */
+   >>> THERE ARE TWO RADII, AND THEY ARE NOT THE SAME NUMBER ANY MORE. <<<
+
+   HAD_BODY_RADIUS, 300, is his sprite's own half-width: how much room the
+   600-wide BODY takes up in the world. It is what he is steered with and what
+   every authored position in this file is measured against — "a 300-radius body
+   clears wall 0 at x=-300", the leap's take-off, the corridor he exactly plugs.
+   That number describes the art and must not move while the art does not.
+
+   HAD_PUSH_RADIUS, 200, is how far he holds the PLAYER off, and it is now
+   deliberately tighter than his own half-width so the player can come inside
+   his silhouette and swing from there. It used to be the same 300 for one
+   reason only: a single 600x1200 quad is dropped whole by the GPU once its
+   screen extent passes 1023 pixels, so standing close and turning made him
+   vanish. draw_had_sprite draws him as an 8-quad grid now, which moves that
+   threshold out by 4x and puts it past the angle at which he leaves the screen
+   anyway, so the drawing no longer has an opinion about how close is too close.
+   See the grid note in hadad.c before widening either of these again.
+
+   >>> WHAT STOPS IT GOING LOWER. <<< The push cylinder is load-bearing in two
+   places besides the fight, and both are checked against HAD_HOLD_DIST (395):
+     - the West Corridor RETURN roots him at HAD_WC_RET_END, where the hold has
+       to keep the player out of WCDOOR_TRIGGER_RADIUS (500) of the double door
+       — he stops 800 short of it, so the player is held 1195 out; and
+     - the same stand has to plug the fat door's gap, whose mouth is 300 from
+       him: 300 < 395 still, but with 95 to spare rather than 195.
+   (The Library Destroyed's south door does NOT depend on it — that one is
+   sealed outright by hadad_library_seals_sdoor while he is in the room.) */
 #define HAD_BODY_RADIUS     300
+#define HAD_PUSH_RADIUS     200
 #define HAD_WALL_LIKE_PUSH  195   /* what apply_collision_reception passes in */
-#define HAD_HOLD_DIST       (HAD_BODY_RADIUS + HAD_WALL_LIKE_PUSH)   /* 495 */
+#define HAD_HOLD_DIST       (HAD_PUSH_RADIUS + HAD_WALL_LIKE_PUSH)   /* 395 */
+_Static_assert(HAD_PUSH_RADIUS + HAD_WALL_LIKE_PUSH > 300,
+               "Hadad's hold must still cover the West Corridor fat door's gap "
+               "(its mouth is 300 from HAD_WC_RET_END) or the return walk stops "
+               "sealing the inner room");
 
 /* ---- The blow --------------------------------------------------------------
    A quarter of the player's MAXIMUM health, so four connected blows kill from
@@ -1074,7 +1105,7 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
    anything but the Rabisu's shockwave (RBS_SHOCK_KNOCKBACK, 270).
 
    >>> THE REACH MUST CLEAR HIS OWN PUSH-OUT. <<< His cylinder parks the player
-   at HAD_HOLD_DIST, 495, and a reach shorter than that is a body that walks up
+   at HAD_HOLD_DIST, 395, and a reach shorter than that is a body that walks up
    to somebody, stops itself, and can then never touch them — mistake 9 in
    tools/ADDING_AN_ENEMY.txt with the floor set by the enemy's own width instead
    of by the room. The static assert below is the whole guard.
@@ -1082,16 +1113,22 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
    >>> AND IT MUST MATCH THE AXE'S OWN REACH EXACTLY. <<< "The player should
    never be able to get close enough that he can hit it without also taking
    damage" is a statement about two numbers agreeing, so the two are now ONE
-   number: hadads_try_hit lands a swing when (d - HAD_BODY_RADIUS) + gv is under
+   number: hadads_try_hit lands a swing when (d - HAD_PUSH_RADIUS) + gv is under
    SWING_RANGE, which with the eye level with any part of him (gv = 0) is
-   d < HAD_BODY_RADIUS + SWING_RANGE. That IS HAD_CATCH_DIST. Derived, never
+   d < HAD_PUSH_RADIUS + SWING_RANGE. That IS HAD_CATCH_DIST. Derived, never
    typed, so retuning either the body or the axe can never reopen the gap —
    at 545 there was a 105-unit band the player could swing from in safety.
 
+   >>> IT IS THE PUSH RADIUS BOTH RANGES ARE MEASURED FROM, NOT THE BODY'S. <<<
+   Both are about the surface the player is HELD at, so both must move with the
+   cylinder that holds them there; measuring the axe from HAD_BODY_RADIUS while
+   the player is parked at HAD_PUSH_RADIUS + 195 would hand back exactly the
+   100-unit safe band tightening the hold was meant to close.
+
    Both tests are strict `<` against the same figure, so the boundary agrees
-   too: at d = 650 neither fires, at d = 649 both do. The vertical halves cannot
+   too: at d = 550 neither fires, at d = 549 both do. The vertical halves cannot
    reopen it either, because the axe needs gv < SWING_RANGE (so |dy| < HALF_H +
-   350 = 650) while the contact budget is HAD_CATCH_DIST + HAD_HALF_H = 950 —
+   350 = 650) while the contact budget is HAD_CATCH_DIST + HAD_HALF_H = 850 —
    strictly the more generous of the two, which is the safe direction.
 
    >>> WHAT THIS DOES NOT BUY IS IMMUNITY FROM THE COOLDOWN. <<< He strikes
@@ -1107,12 +1144,12 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
 
    The cooldown is a second and a half, which at 25 a blow is a kill in four and
    a half seconds of standing still next to him. */
-#define HAD_CATCH_DIST      (HAD_BODY_RADIUS + SWING_RANGE)   /* 650 */
+#define HAD_CATCH_DIST      (HAD_PUSH_RADIUS + SWING_RANGE)   /* 550 */
 _Static_assert(HAD_CATCH_DIST > HAD_HOLD_DIST,
                "Hadad's reach must clear his own push-out, or his solid body "
                "holds the player outside the range he can strike from and he "
                "can never land a blow");
-_Static_assert(HAD_CATCH_DIST >= HAD_BODY_RADIUS + SWING_RANGE,
+_Static_assert(HAD_CATCH_DIST >= HAD_PUSH_RADIUS + SWING_RANGE,
                "the crucifaxe would then reach him from outside the range he "
                "can strike from, and the player could kill him in safety");
 #define HAD_DAMAGE          (MAX_HEALTH / 4)   /* 25 — a quarter of FULL health */

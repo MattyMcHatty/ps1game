@@ -751,3 +751,30 @@ In-game (needs an emulator; say so plainly if you have not run it):
    maze whose corridors are 600 wide could not have been true of anywhere the
    player can stand. Sanity-check a sweep against one distance you can work out
    by hand before you trust the rest of it.
+
+13. A BIG SPRITE DRAWN AS ONE QUAD, AND A STANDOFF SIZED TO HIDE IT. The GPU
+   will not draw a primitive whose screen extent passes 1023 pixels in either
+   axis. It does not clip it, it DROPS it — the whole thing vanishes for a frame
+   and comes back when the player steps away, which reads as a flickering enemy
+   rather than as a size limit.
+
+   At gte_SetGeomScreen(256) a span S covers 1023 pixels at a view depth of
+   S * 256 / 1023, so a 1200-tall billboard falls off at 300 units and a 600-wide
+   one at 150. Note this is VIEW DEPTH and not distance: a camera-facing quad
+   sits at the along-view component of the vector to the enemy, so a player
+   standing 500 away and TURNING drops the depth toward zero without moving.
+   Hadad hit this from every bearing at once and it looked like a clipping
+   problem, so his push-out was widened to 300 to keep the player out of it.
+
+   >>> THE FIX IS TO SUBDIVIDE THE SPRITE, NOT TO WIDEN THE COLLISION. <<<
+   Sizing a standoff to work around a drawing limit ties two unrelated things
+   together and always loses the fight, because the standoff is also the fight's
+   reach (mistake 9). Cut the billboard into a grid of quads instead — one
+   transform per shared vertex, one OT bucket and one texture-window bracket for
+   the whole body — and each piece's threshold falls by its own share of the
+   span. Hadad's 2 x 4 grid makes every piece a square 300 x 300 and moves the
+   drop from a depth of 300 to one of 75, which is past the angle at which he
+   has left the screen anyway. src/hadad.c's draw_had_sprite is the pattern.
+
+   Pick the grid from the sprite's ASPECT, not from a round number: splitting a
+   1:2 body 2 x 2 leaves the height limit exactly where it was and buys nothing.

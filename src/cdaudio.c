@@ -27,10 +27,41 @@
 
 #define CD_POLL_INTERVAL   20   /* frames between position polls (~0.33s @60fps) */
 #define CD_GRACE_POLLS     10   /* polls to skip after (re)starting — covers seek+spinup */
-#define CD_STALL_LIMIT      2   /* consecutive non-advancing polls = track ended */
-#define CD_NOTPLAY_LIMIT    2   /* consecutive "not playing" status reads = track ended */
-#define CD_FAIL_LIMIT       4   /* consecutive failed position reads = drive stopped */
-#define CD_END_MARGIN      75   /* restart this many sectors (~1s) before the lead-out */
+
+/* THE LAST SECOND OF THE TRACK IS MUSIC AND MUST BE HEARD.
+ * ---------------------------------------------------------
+ * Signal 3 below restarts the track when the play position comes within
+ * CD_END_MARGIN sectors of the end, and the audio stops dead the instant that
+ * fires — so the margin is not a safety cushion, it is a piece cut off the end
+ * of every repeat. At 75 sectors (a full second) Hadad's twenty-second stalk
+ * looped a second early, every time, which is audible as a phrase that never
+ * finishes.
+ *
+ * The margin cannot simply go to zero: the position is only sampled every
+ * CD_POLL_INTERVAL frames, and one slow poll is 25 sectors of travel, so a
+ * small margin with a coarse poll would overshoot into the lead-out instead.
+ * The fix is to make the SAMPLING fine where it matters rather than to keep
+ * throwing away music: within CD_END_APPROACH of the end the poll rate goes up
+ * to CD_END_POLL_INTERVAL, which is 2.5 sectors of travel, and the margin then
+ * only has to cover that. Eight sectors is three of those fast polls, about a
+ * ninth of a second — under the CD's own frame-accurate seek and far below what
+ * can be heard as a truncation.
+ *
+ * The fast window is bounded (a couple of seconds an iteration, and only when
+ * the end sector is known) so the extra CdControlB traffic never runs over the
+ * body of a track. */
+#define CD_END_POLL_INTERVAL 2  /* frames between polls near the end of a track */
+#define CD_END_APPROACH   150   /* start polling fast this many sectors (~2s) out */
+#define CD_END_MARGIN       8   /* restart this many sectors (~0.1s) before the end */
+
+/* The three "it stopped" signals are stated in FRAMES, not in polls, so they
+   mean the same length of time whichever rate is running. Dividing by the live
+   interval reproduces the old 2/2/4 exactly at CD_POLL_INTERVAL — and stops a
+   fast poll near the end from firing them eight times sooner, which would cut
+   the tail off again from the other direction. */
+#define CD_STALL_FRAMES    40   /* non-advancing position for this long = ended */
+#define CD_NOTPLAY_FRAMES  40   /* "not playing" for this long = ended          */
+#define CD_FAIL_FRAMES     80   /* position reads failing this long = stopped   */
 
 /* Per-track LOOP OFFSET
  * ---------------------
@@ -101,6 +132,10 @@ static uint32_t      cd_resume_sector = 0;
 
 /* Position-polling state. */
 static int           poll_tick        = 0;
+/* Frames between polls RIGHT NOW: CD_POLL_INTERVAL for the body of a track,
+   CD_END_POLL_INTERVAL once the position is inside CD_END_APPROACH of the end.
+   See the end-margin note at the top. */
+static int           poll_interval    = CD_POLL_INTERVAL;
 static int           grace_polls      = 0;
 static int           stall_count      = 0;   /* consecutive non-advancing reads */
 static int           notplay_count    = 0;   /* consecutive "not playing" status reads */
@@ -213,8 +248,11 @@ static void issue_play_from(uint32_t at) {
     }
     CdControl(CdlPlay, NULL, NULL);
 
-    /* Reset poll state so the seek/spinup window isn't mistaken for a stall. */
+    /* Reset poll state so the seek/spinup window isn't mistaken for a stall.
+       The rate goes back to the slow one: whatever we just seeked to, we are no
+       longer at the end of the track. */
     poll_tick     = 0;
+    poll_interval = CD_POLL_INTERVAL;
     grace_polls   = CD_GRACE_POLLS;
     stall_count   = 0;
     notplay_count = 0;
@@ -300,8 +338,17 @@ void cdaudio_play(int track, int loop) {
 void cdaudio_update(void) {
     if (!cd_audio_playing || !cd_loop_mode) return;
 
-    if (++poll_tick < CD_POLL_INTERVAL) return;
+    if (++poll_tick < poll_interval) return;
     poll_tick = 0;
+
+    /* Persistence, converted from frames to polls at whatever rate is running
+       (see the CD_*_FRAMES note at the top). Never less than one poll. */
+    int stall_limit   = CD_STALL_FRAMES   / poll_interval;
+    int notplay_limit = CD_NOTPLAY_FRAMES / poll_interval;
+    int fail_limit    = CD_FAIL_FRAMES    / poll_interval;
+    if (stall_limit   < 1) stall_limit   = 1;
+    if (notplay_limit < 1) notplay_limit = 1;
+    if (fail_limit    < 1) fail_limit    = 1;
 
     /* Startup grace: ignore everything while the drive seeks and spins up.
        Prime last_sector so the first real comparison is meaningful. */
@@ -323,7 +370,7 @@ void cdaudio_update(void) {
        direct indicator and is what catches PCSX-Redux. */
     int playing = drive_is_playing();
     if (playing == 0) {
-        if (++notplay_count >= CD_NOTPLAY_LIMIT) { issue_replay(); return; }
+        if (++notplay_count >= notplay_limit) { issue_replay(); return; }
     } else if (playing == 1) {
         notplay_count = 0;
     }
@@ -333,7 +380,7 @@ void cdaudio_update(void) {
     int      cur_track = 0;
     if (!read_position(&cur, &cur_track)) {
         /* Signal 2: position reads keep failing — drive has likely stopped. */
-        if (++fail_count >= CD_FAIL_LIMIT) { issue_replay(); return; }
+        if (++fail_count >= fail_limit) { issue_replay(); return; }
         return;
     }
     fail_count = 0;
@@ -359,7 +406,7 @@ void cdaudio_update(void) {
 
     /* Signal 5: position stopped advancing — drive reached end of disc. */
     if (cur <= last_sector) {
-        if (++stall_count >= CD_STALL_LIMIT) {
+        if (++stall_count >= stall_limit) {
             issue_replay();
             return;
         }
@@ -367,6 +414,14 @@ void cdaudio_update(void) {
         stall_count = 0;
     }
     last_sector = cur;
+
+    /* Close in on the end: once the position is within CD_END_APPROACH of the
+       track end, poll fast so signal 3 can fire on a tight CD_END_MARGIN and the
+       loop keeps the tail of the track. Only meaningful when the end sector is
+       known — with cd_end_sector == 0 nothing here can measure "close". */
+    poll_interval = (cd_end_sector > CD_END_APPROACH &&
+                     cur >= (cd_end_sector - CD_END_APPROACH))
+                  ? CD_END_POLL_INTERVAL : CD_POLL_INTERVAL;
 }
 
 /* Temporarily halt CD-DA so the drive is free for data reads (CdRead) mid-game.

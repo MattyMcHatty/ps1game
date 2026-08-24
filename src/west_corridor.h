@@ -72,7 +72,7 @@
    same march, reversed. He appears in front of the EAST door, walks the south
    arm west to the corner, turns, and walks the west arm north to a stop LEVEL
    WITH THE FAT DOOR'S GAP at z=1200 — short of the NORTH double door, but his
-   495 hold cylinder still keeps the player 1295 out from a leaf that answers
+   395 hold cylinder still keeps the player 1195 out from a leaf that answers
    within 500, so this time the EAST door into the Reception is the only way
    out, which is where the next Hadad is waiting. (Standing there he is also
    across the gap into the inner room, which is seeded empty.) The

@@ -1390,21 +1390,27 @@ int hadad_lever_locked(void) {
     return game_flag(FLAG_HADAD_ONE) && !game_flag(FLAG_HADAD_THREE);
 }
 
-/* Crucifaxe strike. Reach is measured to the body's SURFACE, not to its centre,
-   because the wall-like standoff puts the centre far out of the axe's range:
-   the push holds the player HAD_BODY_RADIUS + 195 = 495 off, against a
-   SWING_RANGE of 350. Measured from the surface the same stand gives a 195
-   horizontal gap and, with the player's eye inside the body's vertical span, no
-   vertical gap at all — 195 against 350, from every bearing.
+/* Crucifaxe strike. Reach is measured to the SURFACE THE PLAYER IS HELD AT, not
+   to the body's centre, because the wall-like standoff puts the centre far out
+   of the axe's range: the push holds the player HAD_PUSH_RADIUS + 195 = 395 off,
+   against a SWING_RANGE of 350. Measured from that surface the same stand gives
+   a 195 horizontal gap and, with the player's eye inside the body's vertical
+   span, no vertical gap at all — 195 against 350, from every bearing.
+
+   >>> THE SURFACE IS HAD_PUSH_RADIUS AND NOT HAD_BODY_RADIUS. <<< They are two
+   different numbers now (see the Solid body note in hadad.h): the art is 600
+   wide but the cylinder holding the player is 400, and it is the cylinder the
+   axe has to cross. Measuring from the wider one would put the swing's edge
+   100 units outside the range he can strike back from.
 
    >>> THIS FUNCTION AND THE CONTACT TEST IN update_hadads SHARE A NUMBER. <<<
-   HAD_CATCH_DIST is defined as HAD_BODY_RADIUS + SWING_RANGE precisely so that
+   HAD_CATCH_DIST is defined as HAD_PUSH_RADIUS + SWING_RANGE precisely so that
    the outermost stand this will accept is also the outermost stand he can
    strike from — "the player should never be able to get close enough to hit him
    without also taking damage". Read the note at that constant before changing
    either side of it.
 
-   The horizontal gap is derived from HAD_BODY_RADIUS, the very constant
+   The horizontal gap is derived from HAD_PUSH_RADIUS, the very constant
    hadads_collide pushes with, so the two can never disagree about where the
    edge is and leave the player held at a distance the axe cannot cross. */
 int hadads_try_hit(void) {
@@ -1418,7 +1424,7 @@ int hadads_try_hit(void) {
         int32_t dx = h->x - cam_x;
         int32_t dz = h->z - cam_z;
         int32_t d  = had_isqrt(dx * dx + dz * dz);
-        int32_t gh = d > HAD_BODY_RADIUS ? d - HAD_BODY_RADIUS : 0;
+        int32_t gh = d > HAD_PUSH_RADIUS ? d - HAD_PUSH_RADIUS : 0;
 
         int32_t top = h->y + HAD_Y_OFFSET - HAD_HALF_H;
         int32_t bot = h->y + HAD_Y_OFFSET + HAD_HALF_H;
@@ -1456,10 +1462,14 @@ void hadads_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
 
         /* A radial push, not the crates' AABB: a billboard has no facing, so the
            stop distance must be identical from every bearing, and that needs a
-           true sqrt (tools/ADDING_A_3D_ENEMY.txt STEP 6). */
+           true sqrt (tools/ADDING_A_3D_ENEMY.txt STEP 6).
+
+           HAD_PUSH_RADIUS, not HAD_BODY_RADIUS: the player is allowed inside his
+           silhouette now that the body is drawn as a grid that survives being
+           looked at from there. See the Solid body note in hadad.h. */
         int32_t dx   = *px - h->x;
         int32_t dz   = *pz - h->z;
-        int32_t need = HAD_BODY_RADIUS + radius;
+        int32_t need = HAD_PUSH_RADIUS + radius;
         int32_t d    = had_isqrt(dx * dx + dz * dz);
         if (d >= need) continue;
         if (d == 0) { *px = h->x + need; continue; }   /* dead centre */
@@ -1468,14 +1478,22 @@ void hadads_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     }
 }
 
-/* Bracket an already-filled POLY_FT4 with a full/unmasked texture window and a
-   restore of the area's own, all within one OT bucket. Identical to the
+/* Bracket an already-filled RUN OF POLY_FT4s with a full/unmasked texture window
+   and a restore of the area's own, all within one OT bucket. Identical to the
    statue's, and needed for the same reason: all three sprites sit at Voff 128.
-   addPrim() prepends, so adding restore, poly, disable yields the draw order
-   disable -> poly -> restore. */
-static void add_ft4_windowed(RenderContext *ctx, int32_t otz, POLY_FT4 *poly) {
+   addPrim() prepends, so adding restore, then the polys BACK TO FRONT of the
+   array, then disable, yields the draw order disable -> poly[0..n-1] -> restore.
+
+   >>> ONE BRACKET FOR THE WHOLE BODY, NOT ONE PER POLYGON. <<< The body is
+   HAD_GRID_QUADS quads now (see draw_had_sprite), and every one of them wants
+   the same window. Wrapping each separately would put sixteen extra DR_TWINs in
+   the bucket and make the GPU re-latch the window between neighbouring pieces of
+   the same sprite for nothing. */
+static void add_ft4_run_windowed(RenderContext *ctx, int32_t otz,
+                                 POLY_FT4 **polys, int n) {
     uint8_t  *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     uint32_t *ot      = ctx->buffers[ctx->active_buffer].ot;
+    int       i;
 
     if (had_tw_active && ctx->next_packet + 2 * sizeof(DR_TWIN) <= buf_end) {
         DR_TWIN *restore = (DR_TWIN *)ctx->next_packet;
@@ -1483,7 +1501,7 @@ static void add_ft4_windowed(RenderContext *ctx, int32_t otz, POLY_FT4 *poly) {
         addPrim(&ot[otz], restore);
         ctx->next_packet += sizeof(DR_TWIN);
 
-        addPrim(&ot[otz], poly);
+        for (i = n - 1; i >= 0; i--) addPrim(&ot[otz], polys[i]);
 
         RECT full = { 0, 0, 0, 0 };   /* mask 0 = no wrapping, full page */
         DR_TWIN *disable = (DR_TWIN *)ctx->next_packet;
@@ -1491,13 +1509,44 @@ static void add_ft4_windowed(RenderContext *ctx, int32_t otz, POLY_FT4 *poly) {
         addPrim(&ot[otz], disable);
         ctx->next_packet += sizeof(DR_TWIN);
     } else {
-        addPrim(&ot[otz], poly);
+        for (i = n - 1; i >= 0; i--) addPrim(&ot[otz], polys[i]);
     }
 }
 
-/* One camera-facing body quad. No mirror flip and no roll, so there is
-   deliberately no gte_nclip backface cull — a camera-facing quad has no back
-   face to cull (tools/ADDING_AN_ENEMY.txt mistake 4). */
+/* One camera-facing body, drawn as a GRID of quads. No mirror flip and no roll,
+   so there is deliberately no gte_nclip backface cull — a camera-facing quad has
+   no back face to cull (tools/ADDING_AN_ENEMY.txt mistake 4).
+
+   >>> WHY HE IS EIGHT POLYGONS AND NOT ONE. <<< He is the biggest sprite in the
+   game: 600 x 1200 world units, twice the Living Statue's area, and a single
+   quad that size falls off the hardware twice over as the player closes in.
+
+     - The GPU refuses to draw any primitive whose screen extent exceeds 1023
+       pixels in either axis. It does not clip it, it DROPS it, so the body
+       blinks out of existence at exactly the distance where it starts to fill
+       the screen. That is the "he clips if we get any closer" the old
+       HAD_BODY_RADIUS of 300 was really holding the player away from.
+     - Texture mapping is affine, so the bigger the quad on screen the more the
+       art swims across it.
+
+   Both faults are per-PRIMITIVE, so both are fixed by cutting the body up.
+   HAD_GRID_COLS x HAD_GRID_ROWS is 2 x 4, and that is the split that matters:
+   he is twice as tall as he is wide, so 2 x 4 makes every piece a SQUARE
+   300 x 300 and neither axis runs out of screen before the other. Four times
+   the height headroom and twice the width headroom — i.e. the player may come
+   at least twice as close as the single quad allowed, which is what pays for
+   the tightened HAD_BODY_RADIUS.
+
+   The grid is SHARED VERTICES, not eight loose quads: 3 x 5 = 15 points
+   transformed once each and indexed four ways. Neighbours therefore project to
+   bit-identical screen positions and cannot crack apart along the seams, and
+   the cost is 16 GTE transforms rather than the 32 loose quads would take. */
+#define HAD_GRID_COLS   2
+#define HAD_GRID_ROWS   4
+#define HAD_GRID_STRIDE (HAD_GRID_COLS + 1)                            /* 3  */
+#define HAD_GRID_QUADS  (HAD_GRID_COLS * HAD_GRID_ROWS)                /* 8  */
+#define HAD_GRID_VX     (HAD_GRID_STRIDE * (HAD_GRID_ROWS + 1))        /* 15 */
+
 static void draw_had_sprite(RenderContext *ctx, Hadad *h, const Sprite *sp) {
     int32_t rx = icos(cam_rot);
     int32_t rz = -isin(cam_rot);
@@ -1522,21 +1571,40 @@ static void draw_had_sprite(RenderContext *ctx, Hadad *h, const Sprite *sp) {
     int16_t vy_bot = (int16_t)(cy + HAD_HALF_H);
     int16_t vy_top = (int16_t)(vy_bot - 2 * half_h);
 
-    SVECTOR v[4];
-    v[0].vx = (int16_t)(cx - dwx); v[0].vy = vy_top; v[0].vz = (int16_t)(cz - dwz); v[0].pad = 0;
-    v[1].vx = (int16_t)(cx + dwx); v[1].vy = vy_top; v[1].vz = (int16_t)(cz + dwz); v[1].pad = 0;
-    v[2].vx = (int16_t)(cx + dwx); v[2].vy = vy_bot; v[2].vz = (int16_t)(cz + dwz); v[2].pad = 0;
-    v[3].vx = (int16_t)(cx - dwx); v[3].vy = vy_bot; v[3].vz = (int16_t)(cz - dwz); v[3].pad = 0;
+    /* The grid, row-major from the top-left: index r * HAD_GRID_STRIDE + c.
+       Column c runs the half-width offset from -1 through 0 to +1 along the
+       camera-facing axis, row r walks vy_top down to vy_bot. The four corners
+       are therefore 0, 2, 12 and 14. */
+    SVECTOR v[HAD_GRID_VX];
+    int     r, c;
+    for (r = 0; r <= HAD_GRID_ROWS; r++) {
+        int32_t y = vy_top + ((vy_bot - vy_top) * r) / HAD_GRID_ROWS;
+        for (c = 0; c <= HAD_GRID_COLS; c++) {
+            int32_t  k = c * 2 - HAD_GRID_COLS;   /* -2, 0, +2 over 2 columns */
+            SVECTOR *p = &v[r * HAD_GRID_STRIDE + c];
+            p->vx  = (int16_t)(cx + (dwx * k) / HAD_GRID_COLS);
+            p->vy  = (int16_t)y;
+            p->vz  = (int16_t)(cz + (dwz * k) / HAD_GRID_COLS);
+            p->pad = 0;
+        }
+    }
 
-    DVECTOR sv[4];
+    DVECTOR sv[HAD_GRID_VX];
+    DVECTOR out[3];
     int32_t sz[4], otz;
 
-    gte_ldv3(&v[0], &v[1], &v[2]);
+    /* The four CORNERS first, in the order the single quad used, so the OT sort
+       is computed from exactly the same four depths it always was and the
+       behind-the-camera reject still costs nothing extra. Every other vertex of
+       a camera-facing billboard lies between the corners in depth, so testing
+       the corners tests the body. */
+    gte_ldv3(&v[0], &v[2], &v[12]);
     gte_rtpt();
-    gte_stsxy3c(sv);
-    gte_ldv0(&v[3]);
+    gte_stsxy3c(out);
+    sv[0] = out[0]; sv[2] = out[1]; sv[12] = out[2];
+    gte_ldv0(&v[14]);
     gte_rtps();
-    gte_stsxy(&sv[3]);
+    gte_stsxy(&sv[14]);
     gte_stsz4c(sz);
     if (!sz[0] || !sz[1] || !sz[2] || !sz[3]) return;
 
@@ -1544,7 +1612,8 @@ static void draw_had_sprite(RenderContext *ctx, Hadad *h, const Sprite *sp) {
     gte_stotz(&otz);
     /* Sort on the room-geometry scale (raw average Z) so hedges between the
        camera and the body occlude it, with the SCENE_OT_MIN clamp every sprite
-       here takes. */
+       here takes. ONE bucket for all eight pieces: they are coplanar and do not
+       overlap, so there is nothing for them to sort against each other. */
     if (otz <= 0) return;
     if (otz < SCENE_OT_MIN) otz = SCENE_OT_MIN;
     if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
@@ -1557,33 +1626,71 @@ static void draw_had_sprite(RenderContext *ctx, Hadad *h, const Sprite *sp) {
     uint8_t fog8 = fs > 255 ? 255 : (uint8_t)fs;
 
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-    if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) return;
+    if (ctx->next_packet + HAD_GRID_QUADS * sizeof(POLY_FT4) > buf_end) return;
 
-    POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
-    setPolyFT4(poly);
-    if (h->hit_timer > 0) setRGB0(poly, fog8, fog8 >> 2, fog8 >> 2);
-    else                  setRGB0(poly, fog8, fog8, fog8);
+    /* The other eleven vertices, in batches of three. The last batch is one
+       short, so it repeats index 13: the duplicate writes the same screen point
+       into the same slot twice, which is cheaper than a special case for it. */
+    static const uint8_t rest[12] = { 1, 3, 4,  5, 6, 7,  8, 9, 10,  11, 13, 13 };
+    int b;
+    for (b = 0; b < 4; b++) {
+        const uint8_t *ix = &rest[b * 3];
+        gte_ldv3(&v[ix[0]], &v[ix[1]], &v[ix[2]]);
+        gte_rtpt();
+        gte_stsxy3c(out);
+        sv[ix[0]] = out[0]; sv[ix[1]] = out[1]; sv[ix[2]] = out[2];
+    }
 
-    poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
-    poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
-    poly->x2 = sv[3].vx; poly->y2 = sv[3].vy;
-    poly->x3 = sv[2].vx; poly->y3 = sv[2].vy;
+    /* The texture is cut on the same grid. u0..u1 and v0..v1 are INCLUSIVE texel
+       bounds (load_owned_sprite already insets them by one), so neighbouring
+       pieces SHARE the seam texel rather than each taking half of it: sharing
+       samples one line twice at a magnification where that cannot be seen,
+       while splitting it leaves a hairline of background between them. */
+    uint8_t uc[HAD_GRID_COLS + 1], vr[HAD_GRID_ROWS + 1];
+    for (c = 0; c <= HAD_GRID_COLS; c++)
+        uc[c] = (uint8_t)(sp->u0 + ((sp->u1 - sp->u0) * c) / HAD_GRID_COLS);
+    for (r = 0; r <= HAD_GRID_ROWS; r++)
+        vr[r] = (uint8_t)(sp->v0 + ((sp->v1 - sp->v0) * r) / HAD_GRID_ROWS);
 
-    poly->u0 = sp->u0; poly->v0 = sp->v0;
-    poly->u1 = sp->u1; poly->v1 = sp->v0;
-    poly->u2 = sp->u0; poly->v2 = sp->v1;
-    poly->u3 = sp->u1; poly->v3 = sp->v1;
+    POLY_FT4 *quads[HAD_GRID_QUADS];
+    int       n = 0;
+    for (r = 0; r < HAD_GRID_ROWS; r++) {
+        for (c = 0; c < HAD_GRID_COLS; c++) {
+            int tl = r * HAD_GRID_STRIDE + c;
+            int tr = tl + 1;
+            int bl = tl + HAD_GRID_STRIDE;
+            int br = bl + 1;
 
-    poly->tpage = sp->tpage;
-    poly->clut  = sp->clut;
+            POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
+            setPolyFT4(poly);
+            if (h->hit_timer > 0) setRGB0(poly, fog8, fog8 >> 2, fog8 >> 2);
+            else                  setRGB0(poly, fog8, fog8, fog8);
 
-    ctx->next_packet += sizeof(POLY_FT4);
-    add_ft4_windowed(ctx, otz, poly);
+            poly->x0 = sv[tl].vx; poly->y0 = sv[tl].vy;
+            poly->x1 = sv[tr].vx; poly->y1 = sv[tr].vy;
+            poly->x2 = sv[bl].vx; poly->y2 = sv[bl].vy;
+            poly->x3 = sv[br].vx; poly->y3 = sv[br].vy;
+
+            poly->u0 = uc[c];     poly->v0 = vr[r];
+            poly->u1 = uc[c + 1]; poly->v1 = vr[r];
+            poly->u2 = uc[c];     poly->v2 = vr[r + 1];
+            poly->u3 = uc[c + 1]; poly->v3 = vr[r + 1];
+
+            poly->tpage = sp->tpage;
+            poly->clut  = sp->clut;
+
+            ctx->next_packet += sizeof(POLY_FT4);
+            quads[n++] = poly;
+        }
+    }
+    add_ft4_run_windowed(ctx, otz, quads, n);
 
     if (h->hit_timer <= 0) return;
 
-    int16_t bar_cx  = (sv[0].vx + sv[1].vx) / 2;
-    int16_t bar_top = (sv[0].vy < sv[1].vy ? sv[0].vy : sv[1].vy) - 8;
+    /* The health bar hangs off the body's TOP CORNERS, which are grid vertices
+       0 and 2 now rather than the old quad's 0 and 1. */
+    int16_t bar_cx  = (sv[0].vx + sv[2].vx) / 2;
+    int16_t bar_top = (sv[0].vy < sv[2].vy ? sv[0].vy : sv[2].vy) - 8;
     int16_t bar_x   = bar_cx - 20;
     int32_t bar_otz = otz > 0 ? otz - 1 : 0;
 
@@ -1608,7 +1715,6 @@ static void draw_had_sprite(RenderContext *ctx, Hadad *h, const Sprite *sp) {
         ctx->next_packet += sizeof(TILE);
     }
 }
-
 void draw_hadads(RenderContext *ctx) {
     if (!tex_loaded) return;
     int i;
