@@ -89,9 +89,14 @@ void world_silence_monsters(void);
 /* Hadad needs TWO bits per placement, not one: as well as being dead he can be
    SPENT — the flag-three encounter has been met and burned out, which is the one
    fact about him that the two GameFlags cannot reconstruct (see hadads_rest).
-   So his byte is packed as bit (2*i) = dead, bit (2*i + 1) = spent, and four
-   placements is what a uint8_t holds. There is one. */
-#define WD_MAX_HADADS         4
+   So his field is packed as bit (2*i) = dead, bit (2*i + 1) = spent.
+
+   >>> IT WAS A uint8_t AND FOUR PLACEMENTS FILLED IT EXACTLY. <<< The West
+   Corridor's second encounter (HAD_ROLE_WEST_CORR_RET) is the fifth, so the
+   field is now a uint16_t and this is 8. Widening it changed the WorldDelta's
+   SHAPE, so delta_size already rejects an older save — the SAVE_VERSION 17 bump
+   in savegame.h is what makes the reason legible. */
+#define WD_MAX_HADADS         8
 
 typedef struct {
     uint8_t  zombies_dead;    /* bit i: zombies[i] was killed        */
@@ -113,7 +118,7 @@ typedef struct {
     uint8_t   rabisus_dead;                       /* likewise                 */
     uint8_t   mushrooms_dead;                     /* likewise                 */
     uint8_t   living_statues_dead;                /* likewise                 */
-    uint8_t   hadads_state;                       /* 2 bits each: dead, spent */
+    uint16_t  hadads_state;                       /* 2 bits each: dead, spent */
     RoomDelta rooms[WORLD_NUM_ROOMS];
     uint8_t   fatdoor_health[WD_MAX_FATDOORS];    /* 0 = smashed              */
     uint8_t   tentacle_health[WD_MAX_TENTACLES];  /* 0 = killed               */

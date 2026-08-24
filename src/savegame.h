@@ -17,7 +17,20 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   16            /* v16: a FOURTH Hadad — the Reception's
+#define SAVE_VERSION   17            /* v17: a FIFTH Hadad — the West Corridor's
+                                        RETURN, the corner ambush walked the
+                                        other way round under FLAG_HADAD_TWO. It
+                                        shares its room with the ambush, so it
+                                        takes the bit pair immediately after it
+                                        (world.c's seed order IS the tie-break
+                                        inside a room) and every LATER Hadad's
+                                        pair moves one to the right — the v16
+                                        reorder again. It also overflowed
+                                        hadads_state, which is now a uint16_t,
+                                        so this time the delta_size check would
+                                        catch a v16 save on its own; the bump
+                                        still makes the reason legible;
+                                        v16: a FOURTH Hadad — the Reception's
                                         ceiling drop. The WorldDelta did not
                                         change SHAPE, so the delta_size check
                                         cannot catch this one and the bump is

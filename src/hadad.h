@@ -171,10 +171,17 @@
  * solid cylinder and NOTHING of the plinth's state table — it is never a
  * statue, it never teleports to a mouth or a ramp, and it never follows.
  *
- *   THE GATE      FLAG_HADAD_ONE set AND FLAG_HADAD_THREE clear. Read the same
- *                 way round as hadad_lever_locked(): flag three REPLACES flag one
- *                 everywhere in this enemy, so once the third Rear Gate
- *                 encounter is armed this ambush is over for good. Outside that
+ *   THE GATE      FLAG_HADAD_ONE set, AND FLAG_HADAD_THREE AND FLAG_HADAD_TWO
+ *                 BOTH clear. The first half is read the same way round as
+ *                 hadad_lever_locked(): flag three REPLACES flag one everywhere
+ *                 in this enemy, so once the third Rear Gate encounter is armed
+ *                 this ambush is over for good. >>> FLAG TWO CLOSES IT TOO, AND
+ *                 THAT IS WHAT HANDS THE ROOM OVER TO THE RETURN. <<< The stones
+ *                 coming back out of the Attic Exit's door arms the SECOND West
+ *                 Corridor encounter (THE WEST CORRIDOR RETURN, below), which
+ *                 walks the same L the other way round. The two are separate
+ *                 instances sharing one 600-wide corridor, so the gates have to
+ *                 be mutually exclusive or they meet head-on in it. Outside that
  *                 window he is HAD_ABSENT — not drawn, not solid, not
  *                 damageable, and the room is exactly as it was before he
  *                 existed.
@@ -224,6 +231,69 @@
  * floor is y=0, so his anchor is -149, his sprite centre -299 and his crown
  * -599: one unit of headroom. Anything that raises HAD_HALF_H puts his head
  * through the ceiling here before it does anywhere else.
+ *
+ * ======================================================================
+ * THE WEST CORRIDOR RETURN   (HAD_ROLE_WEST_CORR_RET)
+ * ======================================================================
+ * A FIFTH instance, seeded into STATE_WEST_CORRIDOR alongside the ambush by
+ * world_seed_room. >>> IT IS THE AMBUSH RUN BACKWARDS, AND NOTHING ELSE. <<<
+ * Same room, same three authored points, same trigger circle, same march, same
+ * two legs — walked from the far end to the near one instead of the near end to
+ * the far one. Everything in THE WEST CORRIDOR AMBUSH above that is not a
+ * compass direction applies here word for word and is not repeated.
+ *
+ *   THE GATE      FLAG_HADAD_TWO, on its own. The stones are back out of the
+ *                 Attic Exit's door, the Library has collapsed and the Reception
+ *                 is sealed — the same beat that puts a Hadad through the
+ *                 Reception's ceiling — and this corridor is the way into that
+ *                 room. Nothing closes it again: unlike the ambush's flag-three
+ *                 half there is no later flag that supersedes it, so it re-arms
+ *                 on every visit for the rest of the game.
+ *
+ *                 >>> IT IS A SEPARATE INSTANCE AND NOT A SECOND SCRIPT ON THE
+ *                 FIRST ONE. <<< The two share nothing but the room. A player
+ *                 who spent a hundred crucifaxe swings killing the ambush has
+ *                 killed the ambush, and `dead` is saved per instance, so
+ *                 reusing that slot would silently cancel this encounter for
+ *                 them. It is also what forced WD_MAX_HADADS wider and
+ *                 SAVE_VERSION to 17 (world.h, savegame.h).
+ *
+ *   THE TRIGGER   the corner where the corridor turns, and it is the AMBUSH'S
+ *                 OWN circle — HAD_WC_CORNER_X/Z at HAD_WC_TRIG_RADIUS, true
+ *                 radial, so it reads the same down either arm. Deliberately not
+ *                 a circle of its own: the two encounters can never be armed at
+ *                 the same time (see THE GATE above), so there is nothing for a
+ *                 second one to disambiguate and one number that moves is better
+ *                 than two that have to be kept level.
+ *
+ *   THE WALK      he appears at the EAST end, in front of the SINGLE door — the
+ *                 one into the Reception, HAD_WC_END — walks the south arm west
+ *                 to the corner, turns, and walks the west arm north to a stop
+ *                 at HAD_WC_RET_END. The ambush's leg table with its two
+ *                 entries swapped, and had_path_goal() in hadad.c is the whole
+ *                 of it.
+ *
+ *                 >>> HE STOPS SHORT OF THE DOUBLE DOOR, IN FRONT OF THE FAT
+ *                 DOOR'S GAP. <<< The one asymmetry with the ambush: it walks
+ *                 its last leg all the way onto the far door, this one halts
+ *                 450 south of it, level with the 300-wide opening in the west
+ *                 arm's east wall (west_corridor.h; the breakable leaf is at
+ *                 z=1200). That is z=1200 rather than HAD_WC_START's 1650 — see
+ *                 HAD_WC_RET_END_Z for the numbers.
+ *
+ *                 >>> HE STILL BLOCKS THE DOUBLE DOOR, AND THE SINGLE ONE IS
+ *                 THE ONLY WAY OUT. <<< The mirror of the ambush's last
+ *                 paragraph and the point of the encounter. His hold cylinder
+ *                 is 495 and the north door answers within
+ *                 WCDOOR_TRIGGER_RADIUS (500) of (-2400, 2000): rooted at
+ *                 z=1200 he keeps the player at z=705 or south of it, 1295 off
+ *                 the leaf, so the way back out to the Rear Gate is shut and
+ *                 the player is herded into the Reception — where the ceiling
+ *                 drops on them.
+ *
+ *   RE-ARMING     the ambush's, unchanged: leaving the room puts him back to
+ *                 HAD_ABSENT on his appearance point (hadads_rest, which tests
+ *                 only for HAD_ROLE_PLINTH), so it replays on the next visit.
  *
  * ======================================================================
  * THE LIBRARY DESTROYED ENCOUNTER   (HAD_ROLE_LIBRARY)
@@ -413,17 +483,20 @@
  * (tools/ADDING_AN_ENEMY.txt STEP 6). MAX_HADADS is a whole-game budget.
  * ----------------------------------------------------------------------- */
 
-/* FOUR: the Reception's ceiling drop, the Rear Gate's plinth statue, the West
-   Corridor's ambush and the Library Destroyed encounter — in that order, which
-   is room_areas[] order and therefore the order the save's hadads_state indexes
-   them in (world.c). This is a WHOLE-GAME budget and it is what that field has
-   to cover — two bits apiece against WD_MAX_HADADS (4), asserted in world.c.
+/* FIVE: the Reception's ceiling drop, the Rear Gate's plinth statue, the West
+   Corridor's ambush, the West Corridor's return and the Library Destroyed
+   encounter — in that order, which is room_areas[] order (and, for the two that
+   share the West Corridor, world_seed_room's order within that room) and
+   therefore the order the save's hadads_state indexes them in (world.c). This is
+   a WHOLE-GAME budget and it is what that field has to cover — two bits apiece
+   against WD_MAX_HADADS, asserted in world.c.
 
-   >>> THE POOL IS NOW EXACTLY FULL. <<< A fifth instance needs WD_MAX_HADADS
-   widened first, and hadads_state is a uint8_t: at two bits apiece it holds
-   four and no more. Widening it is a WorldDelta change and therefore a
-   SAVE_VERSION bump. */
-#define MAX_HADADS            4
+   >>> THE FIFTH IS WHAT WIDENED THE SAVE. <<< hadads_state was a uint8_t, which
+   at two bits apiece holds exactly four; the West Corridor return made it a
+   uint16_t and WD_MAX_HADADS 8, which is a WorldDelta change and therefore the
+   SAVE_VERSION 17 bump (savegame.h). There are three spare placements in it
+   now; the ninth is the next one that costs a bump. */
+#define MAX_HADADS            5
 #define HAD_MAX_HEALTH      100   /* crucifaxe swings, at 1 apiece */
 
 /* ---- Sprite geometry -------------------------------------------------------
@@ -486,7 +559,17 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
 #define HAD_RAMPTOP_X           0
 #define HAD_RAMPTOP_Z       (-2850)
 
-/* ---- The West Corridor ambush, in three points -----------------------------
+/* ---- The West Corridor's TWO encounters, in three points -------------------
+   >>> ONE SET OF POINTS VERY NEARLY SERVES BOTH. <<< The ambush walks
+   START -> CORNER -> END and the return (HAD_ROLE_WEST_CORR_RET, under
+   FLAG_HADAD_TWO) walks END -> CORNER -> RET_END, so every note below about a
+   point being clear of a door leaf, of a wall, or of the arm it stands in holds
+   whichever direction the walk is going: the ambush's stop point is the
+   return's appearance point. The one point that is not shared is where the
+   return STOPS — it halts at the fat door's gap rather than carrying on to
+   START, and RET_END is that spot. The trigger circle IS shared outright: the
+   two are never armed at the same time.
+
    That room's own coordinate space (west_corridor.h): bounds x[-2700,0]
    z[-325,2000], one flat floor at y=0, west arm x[-2700,-2100] and south arm
    z[-325,325].
@@ -500,7 +583,9 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
              >>> THE ARM IS 600 WIDE AND SO IS HE. <<< x=-2400 puts his cylinder
              exactly on both walls with nothing to spare, which is the Rear Gate
              corridor's arrangement (see the note above) and is why he plugs the
-             room rather than being something to walk past.
+             room rather than being something to walk past. The RETURN heads
+             this way too but stops 450 short of it at HAD_WC_RET_END, so this
+             point belongs to the ambush alone.
 
      CORNER   where the two arms meet — the west arm's centre line crossed with
              the south arm's, which is also the trigger's centre. The turn has
@@ -509,13 +594,35 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
 
      END      in front of the EAST SINGLE DOOR at x=0, z=0. Wall 0 stops a
              300-radius body at x=-300; -400 stands him a clear 100 off the leaf
-             so the door still draws unclipped behind him. */
+             so the door still draws unclipped behind him. It is also where the
+             RETURN appears — at the player's back, if they came in through that
+             door. */
 #define HAD_WC_START_X     (-2400)
 #define HAD_WC_START_Z       1650
 #define HAD_WC_CORNER_X    (-2400)
 #define HAD_WC_CORNER_Z         0
 #define HAD_WC_END_X        (-400)
 #define HAD_WC_END_Z            0
+/* RET_END — where the RETURN stops, and the one point of that walk that is NOT
+   simply the ambush's read backwards. He stops SHORT of the double door, in
+   front of the FAT DOOR'S GAP: the 300-wide opening in the west arm's east wall
+   at x[-2100,-2044] z[1050,1350] (west_corridor.h), whose centre z is 1200 and
+   whose breakable leaf fatdoors_init() puts at (-2072, 1200). X stays on the
+   west arm's centre line because that is the only x a 600-wide body has in a
+   600-wide arm, so "in front of the gap" is a Z and nothing else.
+
+   >>> STOPPING SHORT DOES NOT COST HIM THE DOOR. <<< The double door answers
+   within WCDOOR_TRIGGER_RADIUS (500) of (-2400, 2000) and his hold cylinder is
+   495, so rooted here he keeps the player at z <= 705 — 1295 off the leaf,
+   further out than the 845 the old stop at HAD_WC_START gave. The way back to
+   the Rear Gate is shut either way and the east door is still the only exit.
+
+   IT DOES BLOCK THE GAP, and that follows from where he is asked to stand: the
+   opening's own mouth is 300 from him, well inside the 495 hold, so while he is
+   rooted the inner room cannot be entered. That room is seeded empty, so
+   nothing is lost behind him today. */
+#define HAD_WC_RET_END_X   (-2400)
+#define HAD_WC_RET_END_Z     1200
 /* The floor is y=0 and feet sit at anchor + 150, so the anchor is -GROUND_FLOOR_Y.
    Written as a literal for the reason HAD_PLINTH_ANCHOR is: this header is
    included by world.c, which does not pull in collision.h. */
@@ -523,7 +630,9 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
 /* True radial, like HAD_TRIG_RADIUS. 400 from the corner reaches z=400 up the
    west arm and x=-2000 along the south one — a step inside either arm's mouth
    on whichever side the player arrives from, and nowhere near either door
-   (both are over 1600 away, so neither transition can trip it on the way in). */
+   (both are over 1600 away, so neither transition can trip it on the way in).
+   BOTH West Corridor encounters fire on this one circle; their gates are
+   mutually exclusive, so it can only ever start one of them. */
 #define HAD_WC_TRIG_RADIUS    400
 
 /* ---- The Library Destroyed encounter, in six points ------------------------
@@ -915,6 +1024,11 @@ _Static_assert(HAD_CATCH_DIST >= HAD_BODY_RADIUS + SWING_RANGE,
 typedef enum {
     HAD_ROLE_PLINTH,      /* Rear Gate: the statue and its two-flag table   */
     HAD_ROLE_WEST_CORR,   /* West Corridor: the two-leg corner ambush       */
+    HAD_ROLE_WEST_CORR_RET, /* West Corridor again, under FLAG_HADAD_TWO:
+                             the same two legs walked the other way round,
+                             blocking the double door instead of the single
+                             one. A SEPARATE instance from the ambush — see
+                             THE WEST CORRIDOR RETURN above               */
     HAD_ROLE_LIBRARY,     /* Library Destroyed: two walks round a U, with
                              the crawl-gap escape in between — the first
                              role with a director (src/hadad_library.c)    */
@@ -931,8 +1045,8 @@ typedef enum {
                      in this state, because he has no plinth to stand on  */
     HAD_ABSENT,   /* not in the room: not drawn, not solid, not damageable.
                      PLINTH — flag three, before the ramp trigger.
-                     WEST_CORR — the resting state, before the corner
-                     trigger and outside the flag window entirely       */
+                     WEST_CORR and WEST_CORR_RET — the resting state, before
+                     the corner trigger and outside the flag window entirely */
     HAD_WALK,     /* moving — a scripted path, or after the player.
                      `follow` says which, and `leg` says where on the path */
     HAD_ROOTED,   /* the path is walked out: parked on its last point for
@@ -1000,10 +1114,10 @@ void hadads_load_textures(void);
    full.
 
    `role` picks the script AND the state he is placed in: HAD_ROLE_PLINTH lands
-   in HAD_IDLE (a statue, on show from the first frame), HAD_ROLE_WEST_CORR in
-   HAD_ABSENT (nothing in the room until the corner is entered). Get that pair
-   the wrong way round and a West Corridor Hadad stands in the middle of the
-   passage as inert, invulnerable masonry. */
+   in HAD_IDLE (a statue, on show from the first frame), every other role in
+   HAD_ABSENT (nothing in the room until its trigger fires). Get that pair the
+   wrong way round and a West Corridor Hadad stands in the middle of the passage
+   as inert, invulnerable masonry. */
 int  hadad_add(int32_t x, int32_t z, int32_t y, GameState area, HadadRole role);
 
 void hadads_init(void);

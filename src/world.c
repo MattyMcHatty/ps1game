@@ -52,10 +52,11 @@ typedef struct {
     int       mushroom_count;
     LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
     int          living_statue_count;
-    Hadad     hadads[MAX_HADADS];         /* ditto: the four scripted encounters
+    Hadad     hadads[MAX_HADADS];         /* ditto: the five scripted encounters
                                              — the Reception's ceiling drop, the
                                              Rear Gate's plinth, the West
-                                             Corridor's corner ambush and the
+                                             Corridor's corner ambush, that same
+                                             corridor's return leg and the
                                              Library Destroyed's U-shaped chase */
     int       hadad_count;
 } WorldState;
@@ -763,6 +764,29 @@ void world_seed_room(GameState area) {
     if (area == STATE_WEST_CORRIDOR) {
         hadad_add(HAD_WC_START_X, HAD_WC_START_Z, HAD_WC_ANCHOR,
                   STATE_WEST_CORRIDOR, HAD_ROLE_WEST_CORR);
+        /* THE SAME ROOM'S SECOND ENCOUNTER: the RETURN, which is the ambush
+           above walked the other way round once FLAG_HADAD_TWO is set. Placed
+           on ITS appearance point, which is the ambush's STOP point in front of
+           the east single door — HAD_ROLE_WEST_CORR_RET seeds in HAD_ABSENT
+           like every other scripted role, so nothing is in the room until the
+           same corner is entered, and the two gates are mutually exclusive
+           (hadad.c's HAD_ABSENT branch) so only one of the pair can ever answer
+           that trigger. See THE WEST CORRIDOR RETURN in src/hadad.h.
+
+           >>> IT MUST STAY IMMEDIATELY BELOW THE AMBUSH. <<< canonical_index()
+           ranks whole rooms first and then SEED ORDER WITHIN a room, so these
+           two share room 19 and are told apart by nothing except the order of
+           these two calls. Swap them and a loaded save's dead bits change
+           hands.
+
+           A SEPARATE INSTANCE rather than a second script on the ambush's,
+           because `dead` is per instance and saved: a player who spent a
+           hundred crucifaxe swings killing the first Hadad would otherwise
+           never meet this one. It is the fifth placement in the game, which is
+           what widened hadads_state to a uint16_t (world.h) and bumped
+           SAVE_VERSION to 17 (savegame.h). */
+        hadad_add(HAD_WC_END_X, HAD_WC_END_Z, HAD_WC_ANCHOR,
+                  STATE_WEST_CORRIDOR, HAD_ROLE_WEST_CORR_RET);
     }
 
     /* Library Destroyed: a THIRD HADAD, the U-shaped chase. Placed at the east
@@ -776,11 +800,11 @@ void world_seed_room(GameState area) {
        for rooms whose geometry is not resident, so no floor may be probed here.
        This room's single floor plane is y=0 and HAD_LD_ANCHOR is its anchor.
 
-       >>> THIS PLACEMENT MUST STAY BELOW THE OTHER THREE. <<< Same rule as the
+       >>> THIS PLACEMENT MUST STAY BELOW THE OTHER FOUR. <<< Same rule as the
        West Corridor's above: the save's hadads_state indexes instances in
-       room_areas[] order — Reception (2), Rear Gate (18), West Corridor (19),
-       Library Destroyed (20) — and this room is last in that table, so
-       appending here is what keeps a loaded save's bits on the right Hadad.
+       room_areas[] order — Reception (2), Rear Gate (18), West Corridor (19,
+       TWICE) and Library Destroyed (20) — and this room is last in that table,
+       so appending here is what keeps a loaded save's bits on the right Hadad.
 
        Sound: this room takes the default SND_BANK_HOUSE (main.c's
        STATE_LOADING) and SFX_RUMBLE has a house copy, so his arrival sounds.
@@ -946,9 +970,9 @@ void world_save_delta(WorldDelta *d) {
         for (i = 0; i < world.hadad_count; i++) {
             int c = canonical_index(areas, world.hadad_count, i);
             if (world.hadads[i].state == HAD_DEAD)
-                d->hadads_state |= (uint8_t)(1u << (2 * c));
+                d->hadads_state |= (uint16_t)(1u << (2 * c));
             if (world.hadads[i].spent)
-                d->hadads_state |= (uint8_t)(1u << (2 * c + 1));
+                d->hadads_state |= (uint16_t)(1u << (2 * c + 1));
         }
     }
 }

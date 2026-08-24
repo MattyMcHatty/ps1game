@@ -62,9 +62,22 @@
    as that clip ends, and he walks the west arm south to the corner, turns, and
    walks the south arm east to a stop in front of the EAST door — which his
    push cylinder then blocks, leaving the north door as the only way out. Gated
-   on FLAG_HADAD_ONE set AND FLAG_HADAD_THREE clear, and re-armed on every visit
-   while that window is open. The whole thing is in src/hadad.h under THE WEST
-   CORRIDOR AMBUSH; nothing in this file drives it.
+   on FLAG_HADAD_ONE set AND FLAGS TWO AND THREE clear, and re-armed on every
+   visit while that window is open. The whole thing is in src/hadad.h under THE
+   WEST CORRIDOR AMBUSH; nothing in this file drives it.
+
+   AND THEN HE DOES IT BACKWARDS. Under FLAG_HADAD_TWO — the key stones back out
+   of the Attic Exit's door, the Library down, the Reception sealed — the ambush
+   above is retired and a SECOND instance takes the room: same corner trigger,
+   same march, reversed. He appears in front of the EAST door, walks the south
+   arm west to the corner, turns, and walks the west arm north to a stop LEVEL
+   WITH THE FAT DOOR'S GAP at z=1200 — short of the NORTH double door, but his
+   495 hold cylinder still keeps the player 1295 out from a leaf that answers
+   within 500, so this time the EAST door into the Reception is the only way
+   out, which is where the next Hadad is waiting. (Standing there he is also
+   across the gap into the inner room, which is seeded empty.) The
+   two gates are mutually exclusive, so only one of them is ever in the room.
+   src/hadad.h, THE WEST CORRIDOR RETURN; again nothing here drives it.
 
    NO ROOM MUSIC OF ITS OWN. cdaudio_stop() on arrival, the Rear Gate's and the
    Garden Stairs' arrangement rather than Reception's — stopped rather than not

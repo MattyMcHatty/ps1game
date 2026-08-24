@@ -241,8 +241,10 @@ void hadads_rest(void) {
            all: whatever he was doing, leaving the room puts him back on his
            appearance point in HAD_ABSENT, ready to run again on the next visit.
            Deliberately NOT the plinth's one-shot `spent` rule — for the West
-           Corridor nothing was asked for that would end the ambush other than
-           FLAG_HADAD_THREE (checked at the trigger), and the Library Destroyed
+           Corridor nothing was asked for that would end either the ambush or
+           the return other than the flags themselves (checked at the trigger:
+           FLAG_HADAD_TWO hands the room from one to the other and
+           FLAG_HADAD_THREE closes the first), and the Library Destroyed
            encounter was specified to re-arm from the top after a death or an
            exit through the double door. had_reseat clears `stage`, `leg` and
            `branch` with everything else, so the replay starts from the first
@@ -573,6 +575,23 @@ static int had_path_goal(const Hadad *h, int32_t *gx, int32_t *gz) {
         default: return 0;
         }
     }
+    /* ---- The West Corridor's RETURN: the same L, the other way round --------
+       Under FLAG_HADAD_TWO he comes in at the single door instead of the double
+       one and stops at the double door instead of the single one, so this is
+       the table above with its two entries swapped and nothing else. The corner
+       is still leg 0 and still an authored waypoint, for the reason it is one
+       going the other way: a lone goal at the far door aims him through a wall
+       for the whole first leg. */
+    if (h->role == HAD_ROLE_WEST_CORR_RET) {
+        switch (h->leg) {
+        case 0: *gx = HAD_WC_CORNER_X;  *gz = HAD_WC_CORNER_Z;  return 1;
+        /* NOT HAD_WC_START, which is the ambush's appearance point 450 further
+           north: he stops SHORT, in front of the fat door's gap. See
+           HAD_WC_RET_END_Z for why that still shuts the double door. */
+        case 1: *gx = HAD_WC_RET_END_X; *gz = HAD_WC_RET_END_Z; return 1;
+        default: return 0;
+        }
+    }
     /* ---- The Library Destroyed's TWO walks, indexed by (stage, leg) --------
        Stage 0 is the one the player runs from: in at the east end of the spur,
        west to the corner, south to the single door. Stage 1 is the one they run
@@ -807,6 +826,7 @@ void update_hadads(void) {
         if (h->damage_timer > 0) h->damage_timer--;
 
         int flag_one = game_flag(FLAG_HADAD_ONE);
+        int flag_two = game_flag(FLAG_HADAD_TWO);
         int flag_three = game_flag(FLAG_HADAD_THREE);
 
         /* player_x/y/z, not cam_*: a camera-locked puzzle flies the camera off
@@ -859,27 +879,47 @@ void update_hadads(void) {
             break;
 
         case HAD_ABSENT:
-            /* ---- The West Corridor ambush ------------------------------------
-               The gate is FLAG ONE SET AND FLAG THREE CLEAR, read the same way
-               round as hadad_lever_locked(): flag three REPLACES flag one
-               everywhere in this enemy, so arming the third Rear Gate encounter
-               closes this one for good. Tested here, live, rather
-               than latched at room entry, so a debug flag thrown from the title
-               screen takes effect the same way every other branch here does.
+            /* ---- The West Corridor's two encounters ---------------------------
+               The AMBUSH's gate is FLAG ONE SET AND FLAGS TWO AND THREE CLEAR.
+               Flag three is read the same way round as hadad_lever_locked():
+               it REPLACES flag one everywhere in this enemy, so arming the third
+               Rear Gate encounter closes this one for good. Flag two closes it
+               because it OPENS THE OTHER ONE — see below. The RETURN's gate is
+               flag two on its own, and nothing ever shuts it again.
+
+               Both are tested here, live, rather than latched at room entry, so
+               a debug flag thrown from the title screen takes effect the way
+               every other branch here does.
 
                The trigger is the corner where the corridor turns, true radial
                so it reads the same coming down the west arm as coming along the
-               south one. He appears at the far end of the room in front of the
-               double door and walks his two legs; follow = 0, because this is a
-               fixed path and not a pursuit — where he ends up must not depend
-               on where the player ran. had_arrive sounds the rumble and cues
-               the stalker track, as every Hadad arrival does. */
-            if (h->role == HAD_ROLE_WEST_CORR) {
-                if (flag_one && !flag_three) {
+               south one, and it is SHARED — the gates above guarantee at most
+               one instance can answer it. Each appears at the far end of the
+               room from where he will stop and walks two legs; follow = 0,
+               because this is a fixed path and not a pursuit — where he ends up
+               must not depend on where the player ran. had_arrive sounds the
+               rumble and cues the stalker track, as every Hadad arrival does. */
+            if (h->role == HAD_ROLE_WEST_CORR || h->role == HAD_ROLE_WEST_CORR_RET) {
+                /* >>> ONE CIRCLE, TWO ENCOUNTERS, AND THE GATES DECIDE WHICH.
+                   <<< The ambush wants flag one with flags two and three clear;
+                   the RETURN wants flag two, on its own and for ever after. The
+                   two conditions cannot both hold, which is the whole reason
+                   flag two was added to the ambush's gate — a 600-wide corridor
+                   holds one of him, and two armed at once would walk into each
+                   other in it. Each appears where the OTHER stops: the ambush at
+                   the double door, the return at the single one. */
+                int armed = (h->role == HAD_ROLE_WEST_CORR)
+                          ? (flag_one && !flag_two && !flag_three)
+                          : flag_two;
+                if (armed) {
                     int32_t cdx = px - HAD_WC_CORNER_X;
                     int32_t cdz = pz - HAD_WC_CORNER_Z;
-                    if (had_isqrt(cdx * cdx + cdz * cdz) <= HAD_WC_TRIG_RADIUS)
-                        had_arrive(h, HAD_WC_START_X, HAD_WC_START_Z, 0);
+                    if (had_isqrt(cdx * cdx + cdz * cdz) <= HAD_WC_TRIG_RADIUS) {
+                        if (h->role == HAD_ROLE_WEST_CORR)
+                            had_arrive(h, HAD_WC_START_X, HAD_WC_START_Z, 0);
+                        else
+                            had_arrive(h, HAD_WC_END_X, HAD_WC_END_Z, 0);
+                    }
                 }
                 break;
             }
