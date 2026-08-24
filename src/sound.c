@@ -74,6 +74,8 @@ static const char *sfx_files[SFX_COUNT] = {
     NULL,                       /* SFX_RUMBLE_3                                */
     NULL,                       /* SFX_RUMBLE_4                                */
     NULL,                       /* SFX_RUMBLE_5                                */
+    "\\SND\\HADDIE.VAG;1",
+    "\\SND\\WOOSH.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -171,6 +173,11 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_RUMBLE_3]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
     [SFX_RUMBLE_4]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
     [SFX_RUMBLE_5]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
+    /* The death scene's roar and its spirit, 21.3 KB and 27.7 KB. GARDEN only —
+       the Rear Gate is the only room either can sound in, and both are far too
+       big for the 3.3 KB of resident headroom. Full reasoning in sound.h. */
+    [SFX_HAD_DIE]    = SND_BANK_GARDEN,
+    [SFX_WOOSH]      = SND_BANK_GARDEN,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -250,6 +257,20 @@ static int sfx_channel(SfxID id) {
        Living Statue — and the statue is GARDEN too, so it could sound in this
        very room the day one is placed here. */
     if (id == SFX_GRIND)       return 0;
+    /* The death scene's two clips, both off the pool: they are 3.45 s and
+       4.49 s, they are the whole soundtrack of the moment, and nothing may cut
+       either. Their pool slots would be FIRST_VOICE + (42 % 8) = 3 and
+       (43 % 8) = 4 — SFX_SMASH and SFX_DIE among others — and the grinders'
+       three-play travel is running under both of them.
+       >>> BORROWED VOICES, LEGAL FOR THE REASON SFX_RUMBLE_2's ARE. <<< 20 is
+       SFX_DMNSPEAK's and 22 is SFX_BOOM's; the first is BOSS-bank and the second
+       is resident but fired only by the Rabisu's light beam, so both are
+       guaranteed idle in a GARDEN room. Voices 13..15 and 9 are NOT available
+       here the way they are to the quake: those belong to the flower, the
+       mushroom and the Living Statue, all three of which are garden-bank
+       monsters and any of which may one day be placed in this very corridor. */
+    if (id == SFX_HAD_DIE)     return 20;   /* SFX_DMNSPEAK's (BOSS)          */
+    if (id == SFX_WOOSH)       return 22;   /* SFX_BOOM's (resident, boss-only) */
     /* The menu blips, one voice each out of the free 10..15. They are short
        enough for the pool, but a menu is the one place the player fires sounds
        back to back at speed, and in the pool a cursor run would cut the confirm

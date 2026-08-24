@@ -70,16 +70,68 @@
  *
  *   FLAG THREE            The third encounter, and it does not matter whether
  *                         flag one is set as well — this one REPLACES it. The
- *                         lever WORKS again. Hadad is not in the room at all
- *                         to begin with (HAD_ABSENT: not drawn, not solid, not
- *                         damageable). Walking down the ramp and back up into
- *                         the corridor makes him appear at the TOP of the
- *                         ramp, behind the player, and from there he simply
- *                         follows them — up the corridor, out onto the lawn,
- *                         anywhere they go. Leaving the room ENDS him: `spent`
+ *                         lever WORKS again — ONCE: the throw breaks it (see
+ *                         THE THROW HAS TO CATCH HIM below). Hadad is not in
+ *                         the room at all to begin with (HAD_ABSENT: not
+ *                         drawn, not solid, not damageable). Walking down the
+ *                         ramp and back up into the corridor makes him appear
+ *                         at the TOP of the ramp, behind the player.
+ *                         >>> AND THEN HE MARCHES BEFORE HE CHASES. <<< From
+ *                         the ramp top he walks ONE AUTHORED LEG, straight up
+ *                         the room's centre line, the whole length of the room
+ *                         to HAD_CLIMB — out of the corridor's north mouth and
+ *                         a little way onto the lawn. Only when he gets there
+ *                         does `follow` come on and the pursuit begin.
+ *                         He used to chase from the moment he appeared, and a
+ *                         player who did not run straight up the corridor could
+ *                         leave him wedged in the ramp's rails or in one of the
+ *                         courts' dead ends, with the one thing that can kill
+ *                         him a room away. The climb is a MARCH
+ *                         (had_path_is_open): no feeler, no wall-follow and no
+ *                         collision push, so none of that geometry can touch
+ *                         him, and neither can the closing plates.
+ *                         >>> AND THE MARCH IS WHEN HE IS KILLABLE. <<< It goes
+ *                         straight through the grinders, so the player's window
+ *                         is throwing the lever while he is between the plates
+ *                         on his way past. He crosses the band in about three
+ *                         seconds at HAD_SPEED, and the pair being wide open at
+ *                         that moment is fine: the scene watches them shut on
+ *                         him.
+ *
+ *                         >>> THE THROW HAS TO CATCH HIM, AND IT ONLY COMES
+ *                         ONCE. <<< The verdict is taken on the ONE frame the
+ *                         switch goes over (grinder_puzzle.c, THE THREE ANSWERS
+ *                         TO THE LEVER) and the lever breaks on that same frame
+ *                         while this flag is up. Three things can happen:
+ *                           - he is in the band: the plates have him, and the
+ *                             death scene plays.
+ *                           - he is SOUTH of it, still on his way up: he marches
+ *                             on and LEAPS the machine (see THE LEAP OVER THE
+ *                             GRINDERS below), landing north of it and finishing
+ *                             the climb.
+ *                           - he is NORTH of it, already past: nothing happens
+ *                             at all and he walks on into the pursuit.
+ *                         Closed plates do NOT kill him by standing there. They
+ *                         used to, which meant a lever thrown a minute early
+ *                         still collected him when he eventually walked into
+ *                         them — a kill nobody had timed and nobody had watched.
+ *                         From the lawn on he follows them anywhere they go.
+ *                         Leaving the room ENDS him: `spent`
  *                         is set, and on the next visit he is back on the
  *                         plinth in HAD_IDLE and can never be armed again by
  *                         anything.
+ *                         >>> AND THIS IS THE STATE HE CAN BE KILLED IN. <<<
+ *                         The player's job is to time the lever against his
+ *                         march up the corridor. Doing it plays the HADAD DEATH
+ *                         SCENE (src/hadad_grinder.c) — see DAMAGE below.
+ *
+ * >>> WHAT ARMS FLAG THREE <<< is not in this room at all: it is the player
+ * LEAVING THE WEST CORRIDOR by its north double door — the one that comes back
+ * out to the top of this room's ramp — with FLAGS ONE AND TWO BOTH ALREADY SET.
+ * The set lives in src/main.c's STATE_WEST_CORRIDOR ndoor branch, and it is the
+ * flag's ONLY trigger outside the debug menu. So the third encounter is always
+ * armed on the walk that leads straight into it: the player comes out of that
+ * door onto the ramp with him waiting to appear behind them.
  *
  * `spent` is the one bit of this that is not derivable from the flags, so it is
  * the one bit that rides the save (WorldDelta.hadads_state, bit 1).
@@ -130,8 +182,17 @@
  *
  * THE ONE EXCEPTION IS THE GRINDERS, and only under flag three: the corridor
  * lever is live again in that state, and if he is standing between the plates
- * when it is thrown his health is emptied in one go (hadads_grinder_crush).
- * That is the intended answer to a hundred-swing health bar.
+ * when it is thrown he is killed outright. That is the intended answer to a
+ * hundred-swing health bar.
+ *
+ * >>> AND IT IS A SCENE, NOT A HIT. <<< grinder_puzzle.c asks
+ * hadads_grinder_caught() who the plates have and hands him to
+ * src/hadad_grinder.c, the HADAD DEATH SCENE: the camera is taken, the plates
+ * finish their travel with him squashed to the gap between them (the `squash`
+ * field below), he roars, and his health is only then emptied — through
+ * hadad_damage, so the grey burst and the cue are the ordinary ones. Read that
+ * file's header for the beat sheet. Nothing in THIS file knows the scene
+ * exists, which is the point of the split.
  *
  * ======================================================================
  * SOUND AND MUSIC
@@ -558,6 +619,79 @@ _Static_assert(HAD_Y_OFFSET + HAD_HALF_H == 150,
 #define HAD_END_Z           (-1500)
 #define HAD_RAMPTOP_X           0
 #define HAD_RAMPTOP_Z       (-2850)
+
+/* Where flag three's march ENDS and the pursuit begins: the whole length of the
+   room, out past the top of the corridor and one body's depth onto the lawn.
+
+   z = 1600 is 100 north of HAD_MOUTH_Z, which is the corridor's north mouth
+   itself — so he is CLEAR of the hedged tube when he is handed over rather than
+   standing in its opening, and the pursuit's first steering decision is made on
+   open grass instead of in a gap exactly his own width. x = 0 is the room's
+   centre line, which the whole march runs down; both ends being on it is what
+   lets the climb be a single leg. */
+#define HAD_CLIMB_X             0
+#define HAD_CLIMB_Z          1600
+
+/* ---- THE LEAP OVER THE GRINDERS --------------------------------------------
+   The second of the three answers the lever can give during the climb: the
+   plates start closing while he is still SOUTH of them, so he clears the
+   machine instead of walking into it. (Walking into shut plates and dying of it
+   is what this replaced, and it made no sense — the lever has to be thrown
+   WITH him in the band, not merely at some point before he arrives.)
+
+   >>> IT IS THE RECEPTION CIRCUIT'S LEAP, RE-AIMED. <<< Same physics and the
+   same two knobs: `vy` is kicked upward as he takes off and apply_ddog_height's
+   own gravity (GRAVITY 1 a frame) draws the arc, so there is no second
+   integrator anywhere in this enemy. What differs is that this one lands on the
+   SAME floor it left, which makes both numbers fall out of the machine's size
+   rather than out of a balcony's edge.
+
+     TAKE-OFF  the plates' strip is z[-285,115] (grinder_puzzle.c's
+               GP_CRUSH_Z_MIN/MAX) and he is HAD_BODY_RADIUS deep, so -585 puts
+               his leading edge exactly on the strip's south face as his feet
+               leave the ground. Any nearer and he would rise THROUGH a plate;
+               any further back and the jump starts in open corridor for no
+               reason. It also has to sit at or south of the kill band's own
+               south edge, or a Hadad in the gap between the two would be told
+               to leap from a spot he had already walked past — grinder_puzzle.c
+               derives that edge from the same strip and the same leeway.
+
+     HEIGHT    a kick of m rises m(m-1)/2 by frame m, so 31 peaks at 465 — just
+               over the grinders' own 450 (GRINDER_SOLID_H), which is what makes
+               it read as clearing the machine rather than passing through it.
+               Below 20 the descent never reaches MAX_FALL_VEL, so the airtime
+               is 2m-1; at 31 the cap costs a few frames back and the whole arc
+               runs about 64.
+
+     SPEED     the ground to cover is the 400-deep strip plus his own depth at
+               each end, i.e. 1000, and 16 a frame across those 64 frames is
+               1024 of it — he lands a little past z=439, clear of the plates
+               with his whole body. Retune the kick and this must move with it.
+
+     STRIDE    16 x 10 = 160 against the enemy's standing 4 x 39 = 156, the
+               product HAD_STEP_FRAMES exists to hold. He is airborne for nearly
+               all of it so the cycle barely shows; matched anyway, because the
+               pair must never be picked apart later.
+
+   He is NOT killable while he does this, for the same reason he is not killable
+   at any other moment now: the plates only ever answer the frame the lever is
+   thrown. */
+#define HAD_VAULT_Z          (-585)
+#define HAD_VAULT_VY          (-31)
+#define HAD_VAULT_SPEED         16
+#define HAD_VAULT_STEP_FRAMES   10
+
+/* `vault` — see the field in the struct. */
+#define HAD_VAULT_PENDING        1
+#define HAD_VAULT_AIRBORNE       2
+
+/* `stage` for the plinth role, which is the one role with TWO encounters in one
+   room. 0 is flag one's walk (the corridor's north mouth south to HAD_END) and
+   is what a zero-filled Hadad already is, so it needs no name. 1 is flag three's
+   CLIMB: the ramp top north to HAD_CLIMB, marched, ending in the handover to
+   the pursuit. Latched at the arrival; read by had_path_goal, had_path_is_open
+   and had_leg_entered. */
+#define HAD_PLINTH_STAGE_CLIMB  1
 
 /* ---- The West Corridor's TWO encounters, in three points -------------------
    >>> ONE SET OF POINTS VERY NEARLY SERVES BOTH. <<< The ambush walks
@@ -1093,6 +1227,50 @@ typedef struct {
                                    WorldDelta.hadads_state                   */
     int         ramp_armed;     /* flag three's latch: the player has been up
                                    the ramp. Per-visit, not saved            */
+    /* >>> WRITTEN BY A DIRECTOR, NOT BY THE AI. <<< The one posing field this
+       body has, in the sense ADDING_A_BOSS_ENCOUNTER.txt STEP 5 means it: the
+       Rear Gate's grinder death (src/hadad_grinder.c) drives it and nothing
+       else in the game touches it.
+
+       0..256, how hard the sprite is being SQUEEZED. 0 is the normal 600x600
+       body; 256 is flattened to nothing. The draw narrows the quad by
+       (256 - squash)/256 and stretches it TALLER by half as much again, with
+       the FEET PINNED — a body being crushed between two plates rises out of
+       them, it does not sink into the floor. Transient and per-visit, so it is
+       not saved; had_reseat's zero-fill is what puts it back, which is why 0
+       and not 256 is the "normal" value. */
+    int32_t     squash;
+    /* ...and its companion: 1 = A DIRECTOR OWNS THIS BODY, and update_hadads
+       must not tick it at all. Set alongside `squash` by the Rear Gate's death
+       scene and by nothing else.
+
+       >>> IT IS NOT JUST THE AI THAT IT SWITCHES OFF, AND THAT IS THE POINT.
+       <<< A Hadad in HAD_WALK or HAD_ROOTED sets `music_wanted` every frame,
+       and the reconciliation at the foot of update_hadads acts on that. A
+       director that stopped the stalker track by hand would have it turned
+       straight back on by the same frame's reconciliation, on the one frame
+       update_hadads still runs after the trigger fires — which is precisely
+       the bug the door_anim_active() guard at the top of that function exists
+       for, written out in full there. Skipping him instead means the track
+       goes quiet through the ONE mechanism that owns it, on the frame the
+       plates take him, and stays quiet because the cutscene branch in main.c
+       stops calling update_hadads from the next frame on.
+
+       He is still DRAWN, still solid to a weapon and still damageable — the
+       director has to be able to kill him at the end of the sequence, so this
+       deliberately does not go anywhere near had_vulnerable. Transient and
+       per-visit; had_reseat's zero-fill clears it. */
+    /* >>> HE JUMPS THE GRINDERS IF THE LEVER WAS THROWN TOO EARLY. <<< The Rear
+       Gate's flag-three march, and nothing else in the game. 0 = no leap due,
+       HAD_VAULT_PENDING = one is owed and he takes off when he reaches
+       HAD_VAULT_Z, HAD_VAULT_AIRBORNE = he is in the air over the plates right
+       now. Latched by hadads_grinder_vault() on the frame the lever is thrown
+       and cleared by his own landing; see THE THREE ANSWERS TO THE LEVER in the
+       flag-three block above. Transient and per-visit, like `squash` — the
+       encounter is decided inside one visit and had_reseat's zero-fill is what
+       puts it back. */
+    int         vault;
+    int         frozen;
     HadadRole   role;
     HadadState  state;
     int32_t     active;
@@ -1165,11 +1343,44 @@ int  hadads_try_hit(void);
    grinder_puzzle_update. */
 int  hadad_lever_locked(void);
 
-/* The grinders have closed (or are closing) on the strip x[-x_half,x_half],
-   z[z_min,z_max]. If Hadad is standing in it and can be hurt, he is destroyed
-   outright. The strip is passed in rather than defined here because it is the
-   GRINDERS' geometry and grinder_puzzle.c is where that lives. */
-void hadads_grinder_crush(int32_t x_half, int32_t z_min, int32_t z_max);
+/* THE LEVER HAS JUST BEEN THROWN. Returns the Hadad standing in the band
+   x[-x_half,x_half], z[z_min,z_max] who can be hurt, or NULL. The band is passed
+   in rather than defined here because it is the GRINDERS' geometry and
+   grinder_puzzle.c is where that lives.
+
+   >>> IT IS ASKED ONCE, ON THE THROW, AND NOT EVERY FRAME OF THE TRAVEL. <<<
+   That is the difference between "the player caught him with the plates" and
+   "the plates were shut and he walked into them", and the second one was
+   happening: `shut` stays true after the travel ends, so a lever thrown long
+   before he arrived still killed him on contact, minutes later, with nobody
+   watching. The two OTHER answers the same throw can give are
+   hadads_grinder_vault() and doing nothing at all.
+
+   >>> AND IT USED TO BE THE KILL ITSELF. <<< It emptied his health on the spot
+   through hadad_damage, which is what "the lever kills him" meant before the
+   death got a scene. It now only ANSWERS, and src/hadad_grinder.c does the
+   killing at the end of that scene — through the same hadad_damage call, so
+   the grey burst, the cue and the music stop are still the hundredth-axe-swing
+   ones. Nothing else calls this. */
+Hadad *hadads_grinder_caught(int32_t x_half, int32_t z_min, int32_t z_max);
+
+/* THE LEVER WAS THROWN AND THE PLATES DID NOT HAVE HIM: he was still SOUTH of
+   the kill band, i.e. `z_south` is that band's south edge. Latches the LEAP on
+   any Hadad this side of it who is walking his authored path — he carries on
+   marching, jumps the closed machine when he reaches HAD_VAULT_Z, lands north
+   of it and finishes the climb. Returns 1 if a leap was latched.
+
+   Call it ONLY after hadads_grinder_caught has come back NULL, and only from
+   the throw: the two are the second and first answers of one verdict taken on
+   one frame (see THE THREE ANSWERS TO THE LEVER in the flag-three block above).
+   A Hadad north of the band is the third answer and needs no call at all — he
+   simply walks on.
+
+   The band edge is passed in for the reason the crush strip is: it is the
+   GRINDERS' geometry and grinder_puzzle.c owns it. Ignores a Hadad who is
+   already following the player — the leap belongs to the march, and a pursuit
+   steers round the world rather than marching through it. */
+int hadads_grinder_vault(int32_t z_south);
 
 /* Cut his sounds and his music dead. Called from world_silence_monsters() the
    instant a room transition begins — "the music should stop as soon as the
@@ -1224,5 +1435,33 @@ Hadad *hadad_reception_instance(void);
  * nothing else is owed and there is no counterpart to stop him. Safe to call
  * with NULL (a debug jump can empty the slot). */
 void  hadad_reception_begin(Hadad *h);
+
+/* ---------------------------------------------------------------------------
+ * PUT THE WEST CORRIDOR RETURN BACK ON THE TABLE   (src/main.c and nothing else)
+ * ---------------------------------------------------------------------------
+ * Reseat the HAD_ROLE_WEST_CORR_RET instance on its appearance point in front
+ * of the single door, at full health, in HAD_ABSENT — ready to run again the
+ * next time the player walks into the corner.
+ *
+ * >>> THIS IS THE ONE PLACE IN THE GAME A DEAD HADAD COMES BACK, AND THAT IS
+ * WHY THE FUNCTION EXISTS. <<< The return already re-arms on every visit by
+ * itself (hadads_rest reseats every non-plinth role, and its gate — FLAG_HADAD_
+ * TWO alone — never closes), so for a living instance this call changes
+ * nothing. What it covers is the instance the player spent a hundred crucifaxe
+ * swings KILLING: `dead` is per instance and saved, hadads_rest skips the dead,
+ * and a corpse cannot herd anybody anywhere.
+ *
+ * It is called when the player retreats from the Rear Gate into the West
+ * Corridor with the third encounter unresolved (src/main.c's STATE_REAR_GATE
+ * branch). The corridor behind them is about to be closed for good, so the
+ * house has to push them onward whether or not they once cleared this room —
+ * which is exactly what the return does: he blocks the double door back out and
+ * leaves the single one into the Reception as the only way on.
+ *
+ * Callable from ANY room: the instance is area-tagged and lives in the same
+ * global array as every other, so this does not care where the player is
+ * standing. A no-op if the West Corridor has never been seeded.
+ */
+void hadad_wc_return_rearm(void);
 
 #endif

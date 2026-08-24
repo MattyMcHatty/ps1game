@@ -249,7 +249,28 @@ typedef enum {
     SFX_RUMBLE_3   = 39,
     SFX_RUMBLE_4   = 40,
     SFX_RUMBLE_5   = 41,
-    SFX_COUNT      = 42,
+    /* ---- The Hadad Death Scene's two clips (src/hadad_grinder.c) -----------
+       Both GARDEN, and garden only: the scene happens in the Rear Gate and
+       nowhere else, and the Rear Gate is the one room in the game that can play
+       them. Made resident they would be charged twice over — bank_base up by
+       their own 49.5 KB AND the region down by it — which puts the 186 KB house
+       bank far outside a 140 KB region. In the garden bank they are free in the
+       sense that matters: `spare` is sized by the LARGEST bank, and garden goes
+       130 KB -> 180 KB against house's 186 KB, so it is still not the largest
+       and `spare` does not move off 3.3 KB. That leaves 6 KB of garden headroom
+       before the two banks swap places and `spare` starts shrinking — re-run
+       the STEP 3 arithmetic in tools/ADDING_A_SOUND.txt before spending it.
+
+       >>> hadad_die's LENGTH IS LOAD-BEARING. <<< 3.45 s = 207 frames, and
+       hadad_grinder.c's HG_T_ROAR is cut to it so the grey burst lands on the
+       last frame of the roar. Retrim the clip and that constant must move with
+       it — the same contract SFX_GRIND has with GP_TRAVEL_FRAMES.
+
+       spirit_woosh is 4.49 s and is DELIBERATELY longer than the 3 s climb it
+       covers: it is still sounding as the camera turns back to the player. */
+    SFX_HAD_DIE    = 42,  /* BANKED (garden). Hadad's death roar, 3.45 s      */
+    SFX_WOOSH      = 43,  /* BANKED (garden). The spirit flying away, 4.49 s  */
+    SFX_COUNT      = 44,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

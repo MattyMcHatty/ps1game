@@ -162,6 +162,15 @@
                      not move. A grinder placed inside the house would be
                      silent. -->
                 <file name="GRIND.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\grind.vag"/>
+                <!-- The Hadad Death Scene (src/hadad_grinder.c): his roar as
+                     the plates close on him, and his spirit leaving. Both
+                     SND_BANK_GARDEN and garden only - the Rear Gate is the one
+                     room either can sound in, and at 21.3 KB and 27.7 KB
+                     neither fits the 3.3 KB of resident headroom. Garden goes
+                     130 KB -> 180 of the region's 185 and is still not the
+                     largest bank, so `spare` does not move. -->
+                <file name="HADDIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\hadad_die.vag"/>
+                <file name="WOOSH.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\spirit_woosh.vag"/>
                 <!-- SND_BANK_INTRO, a bank of one: the Order of Ninurta line
                      over the opening sequence's white flash. Banked because
                      21.6 KB will not fit the resident headroom, and it is only

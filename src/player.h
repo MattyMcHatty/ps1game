@@ -91,9 +91,12 @@ typedef enum {
        name, and the bit index is positional — so the two orders may differ.
        Do the same with the next one.
 
-       Flag three is not set by anything yet, by design: what turns it on has not
-       been designed. Until then it is reachable only from the title screen's
-       debug menu (DBG_HADAD_FLAG_THREE). */
+       Flag three IS set by the game now — it was undesigned for a long time and
+       reachable only from the title screen's debug menu. Its one trigger is
+       LEAVING THE WEST CORRIDOR BY THE NORTH DOUBLE DOOR, the one back out to
+       the top of the Rear Gate's ramp, WITH FLAGS ONE AND TWO BOTH ALREADY SET
+       (src/main.c, the STATE_WEST_CORRIDOR ndoor branch). The debug option
+       remains, as it does for the other two. */
     FLAG_HADAD_ONE,
     FLAG_HADAD_THREE,
     /* The two doors that are unlocked from one side and read from the other.
@@ -136,6 +139,38 @@ typedef enum {
        replay the collapse and drop a second Hadad through the ceiling. Declared
        at the END of the enum, as the note above instructs. */
     FLAG_RECEPTION_HADAD,
+    /* >>> THE REAR GATE'S CORRIDOR IS SHUT AND THE LEVER IS DEAD. <<< The end
+       of Hadad's story, whichever way it goes, and the one flag in this word
+       that CLOSES A ROUTE FOR GOOD: the grinders are seated shut by
+       grinder_puzzle_place() on every entry from here on, the lever answers a
+       press with "The mechanism is broken" and nothing ever re-opens it. The
+       hedged corridor is the only way from the Rear Gate's lawn to the ramp and
+       the double door at the top of it, so this permanently seals the house off
+       from the garden.
+
+       It is set by EVERY ending of the third encounter, which is the point of
+       having it rather than reading it off FLAG_HADAD_THREE:
+         - THE LEVER IS THROWN AT ALL (src/grinder_puzzle.c). That is the first
+           and the usual one: under flag three the throw is a single decision —
+           it either catches him between the plates or it does not — and the
+           mechanism is spent the instant it is made, so the encounter cannot be
+           re-rolled by re-opening the corridor and waiting for him to come round
+           again;
+         - he is CAUGHT in the plates and the death scene kills him
+           (src/hadad_grinder.c) — which now always follows a throw, so this one
+           is a second, idempotent set that stands as its own guarantee;
+         - or the lever is never touched, and the player leaves the Rear Gate by
+           any route except the south door into the West Corridor (src/main.c's
+           STATE_REAR_GATE branch). Leaving by THAT door instead re-arms the West
+           Corridor return so the house pushes them back out again — see
+           hadad_wc_return_rearm() in src/hadad.h.
+       Either way the machinery has been used up and the corridor is closed.
+
+       Saved, because it is a one-way world change: a reload that forgot it
+       would hand the player back a route the story has taken away, standing in
+       a corridor whose plates are open again. Declared at the END of the enum,
+       as the note above instructs. */
+    FLAG_GRINDER_BROKEN,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

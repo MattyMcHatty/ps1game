@@ -175,7 +175,7 @@ Run this, with your clip added to the right list:
            'spdr_wlk','spit','mchne','rumble']
     boss=['emerge','dmnspeak','gate']
     garden=['tntcl_wrth_2','tntcl_die','spdr_wlk','gate','gas','pullin','hiss',
-            'rumble','grind']
+            'rumble','grind','hadad_die','spirit_woosh']
     intro=['ninurta']
     p=4112
     for f in res: p+=a(f+'.vag')
@@ -193,11 +193,20 @@ once against house or boss, once against garden. Omit the second entry and the
 script under-reports the bank you are about to overflow.
 
 The lists must be kept in the SAME ORDER as the enum in sound.h, because
-sound_init() allocates in enum order. As of Hadad's move indoors:
+sound_init() allocates in enum order. As of the Hadad Death Scene:
 
     bank_base 0x51C10   region 189424
-    house 186048   boss 142528   garden 129856   intro 22080
+    house 186048   boss 142528   garden 179968   intro 22080
     spare 3376
+
+>>> THE GARDEN BANK IS NOW WITHIN 6 KB OF THE HOUSE BANK, AND THAT IS THE
+    NUMBER TO WATCH. <<< `spare` is sized by the LARGEST bank, so garden has
+been free to grow all along. hadad_die (21.3 KB) and spirit_woosh (27.7 KB) took
+it from 130 KB to 180 KB against house's 186 KB. The next garden clip over
+~6 KB makes GARDEN the largest bank, at which point `spare` stops meaning
+"house's headroom", starts shrinking with every garden addition, and the
+resident total has to come down before anything else goes in. There is still
+~9 KB between garden and the region ceiling either way.
 
 (Before it: house 182656, spare 6768. Putting SFX_RUMBLE in the house bank as
 well as the garden one needed 13376 B against 6768 free. It was paid for NOT by

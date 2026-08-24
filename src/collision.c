@@ -10,6 +10,7 @@
 #include "dining_table.h"
 #include "dresser.h"
 #include "grinder.h"
+#include "grinder_puzzle.h"  /* the corridor gate's backstop, collided as a prop */
 #include "fatdoor.h"
 #include "save_point.h"
 #include "rafflesia.h"
@@ -767,6 +768,19 @@ void apply_collision_reception(void) {
     /* Grinders; the module gates each instance to the area it was placed in, so
        this is a no-op everywhere but the Rear Gate. */
     grinders_collide(&cam_x, cam_y, &cam_z, 75);
+    /* ...and the corridor gate's invisible backstop, immediately after them: it
+       closes the machine's south mouth for as long as the pair are travelling,
+       so a player cannot throw the lever at the top of the corridor and then
+       outrun their own grinders through the closing gap. Gated to the Rear Gate
+       inside the module, like every other prop here. See grinder_puzzle.h.
+
+       AFTER grinders_collide, not before, because it is the tighter of the two
+       and must have the last word: the grinders' own escape pass can spit a
+       player out through that same south mouth, and it must not be able to spit
+       them past this. (It cannot in practice — that pass only runs once nothing
+       is moving, which is precisely when the backstop is down — but the ordering
+       is what makes that a belt-and-braces argument rather than the only one.) */
+    grinder_puzzle_collide(&cam_x, cam_y, &cam_z);
     /* Breakable door in the small-room doorway. Radius 125 (like the kitchen's
        doors) rather than the wide wall radius, so the player can walk up close
        enough to smash it. fatdoors_collide skips doors of other areas. */

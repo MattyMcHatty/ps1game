@@ -328,19 +328,23 @@ void hadad_damage(Hadad *h, int dmg) {
     }
 }
 
-void hadads_grinder_crush(int32_t x_half, int32_t z_min, int32_t z_max) {
+Hadad *hadads_grinder_caught(int32_t x_half, int32_t z_min, int32_t z_max) {
     int i;
     for (i = 0; i < hadad_count; i++) {
         Hadad *h = &hadads[i];
         if (h->area != current_area || !had_vulnerable(h)) continue;
         if (h->x < -x_half || h->x > x_half) continue;
         if (h->z < z_min   || h->z > z_max)  continue;
-        /* "his health will be immediately depleted and he will be destroyed" —
-           the whole bar in one go, through the normal damage path so the grey
-           burst, the sound and the music stop all happen exactly as they do for
-           the hundredth axe swing. */
-        hadad_damage(h, h->health);
+        /* >>> IT ANSWERS; IT NO LONGER KILLS. <<< This used to be
+           hadad_damage(h, h->health) — the whole bar in one go the moment the
+           plates had him. The kill still happens through exactly that call, but
+           it happens at the END of the Hadad Death Scene (src/hadad_grinder.c),
+           six seconds later, with the plates all but shut and the body squashed
+           to nothing. Emptying the bar here as well would fire the grey burst
+           at the moment the camera was only just taking over. */
+        return h;
     }
+    return NULL;
 }
 
 /* ---- Steering ---------------------------------------------------------------
@@ -541,13 +545,25 @@ static void had_march(Hadad *h, int32_t goal_dx, int32_t goal_dz,
    with nothing in either of them, so there is nothing for steering to earn, and
    the Library Destroyed's five are the same shape — the aisles are straight,
    empty and exactly his width, and the two corners are authored waypoints. The
-   Rear Gate's single leg says NO and keeps had_steer: that one threads the
+   Rear Gate's FLAG-ONE leg says NO and keeps had_steer: that one threads the
    corridor's north mouth and its side hedges with a 300-unit body, its seeded
    facing already points along the goal (so the blend above is stable for it,
    which is why that walk never showed this bug), and it is not what the user
-   reported. */
-static int had_path_is_open(HadadRole role) {
-    return role != HAD_ROLE_PLINTH;
+   reported.
+
+   >>> THE FLAG-THREE CLIMB SAYS YES, AND IT IS THE ONE CASE THAT NEEDS TO. <<<
+   Same role, same room, and it is the leg that was getting him stuck: 750 units
+   of RAMP between its rails, then the 1800-wide stretch where the two dead-end
+   courts open off it, then the corridor, then the mouth. It runs from
+   HAD_RAMPTOP to HAD_CLIMB with both ends on x = 0, so every point of it is on
+   the room's centre line and there is nothing to steer around — while what
+   steering DOES there is trip its feeler on a rail, commit to a wall-follow, and
+   walk him into a court. Marching also means the closing plates cannot shove him
+   back off the strip that kills him. This is why the test takes the whole Hadad
+   and not just the role. */
+static int had_path_is_open(const Hadad *h) {
+    if (h->role != HAD_ROLE_PLINTH) return 1;
+    return h->stage == HAD_PLINTH_STAGE_CLIMB;
 }
 
 /* ---- The scripted paths -----------------------------------------------------
@@ -687,6 +703,53 @@ static int had_path_goal(const Hadad *h, int32_t *gx, int32_t *gz) {
         default: *gx = HAD_RC_FOOT_X;    *gz = HAD_RC_FOOT_Z;     return 1;
         }
     }
+    /* ---- The Rear Gate's two walks, told apart by `stage` -------------------
+       The plinth role has two encounters in one room and they walk the same
+       corridor in opposite directions, so `stage` is the cursor that says which
+       — the same job it does for the Library and the Reception. It is the FLAG
+       that decides which encounter is running, but the flag is not read here:
+       `stage` is latched once at the arrival (the HAD_ABSENT branch), so a debug
+       flag thrown mid-walk cannot swing his goal from one end of the room to
+       the other under him.
+
+       STAGE 0, flag one: the original single leg. In at the corridor's north
+       mouth, south to HAD_END at the bottom of it, root there for ever.
+       Unchanged, down to the leg number.
+
+       STAGE 1, flag three: in at the ramp top, ONE leg north to HAD_CLIMB, out
+       past the corridor's north mouth and a little way onto the lawn — the whole
+       length of the room, 4450 units of it. He does NOT root at the end:
+       had_leg_entered turns `follow` on as the leg is walked out and the pursuit
+       takes over from there. Both ends are on x = 0, which is what lets it be
+       one leg and a march (had_path_is_open).
+
+       >>> THE MARCH IS THE KILL WINDOW, BECAUSE IT GOES STRAIGHT THROUGH THE
+       PLATES. <<< The player throws the lever while he is between them on his
+       way past, and THAT FRAME is the whole of it: grinder_puzzle.c takes the
+       verdict once, at the throw, against a band a little wider than the plates
+       themselves (GP_KILL_Z_MIN/MAX). The pair being wide open at that moment is
+       exactly right — the scene then watches the whole 5.3 s of travel shut on
+       him. The strip is 400 deep and HAD_SPEED is 4, so he is inside the band
+       for about 175 frames.
+
+       >>> AND THROWING IT EARLY IS A MISS, NOT A DELAYED HIT. <<< The test used
+       to run on every frame of the travel, which meant `shut` plates went on
+       catching him long after they had stopped moving: a player who threw the
+       lever the moment he appeared at the ramp top got the kill anyway, a
+       minute later, by him walking into a wall. He now LEAPS a machine he finds
+       already closed (had_vault_step, and the leap block in hadad.h) and the
+       lever cannot be thrown a second time — grinder_puzzle.c breaks it on the
+       throw under this flag.
+
+       Worth knowing, because it is why the window is where it is: once he is
+       FOLLOWING he stops HAD_HOLD_DIST short on the side he approached from, and
+       from the lawn that is always the north side of anybody standing at the
+       lever, while the plates are south of it. The pursuit is the chase; the
+       march is the chance. */
+    if (h->stage == HAD_PLINTH_STAGE_CLIMB) {
+        if (h->leg == 0) { *gx = HAD_CLIMB_X; *gz = HAD_CLIMB_Z; return 1; }
+        return 0;
+    }
     if (h->leg == 0) { *gx = HAD_END_X; *gz = HAD_END_Z; return 1; }
     return 0;
 }
@@ -730,6 +793,15 @@ static void had_path_pace(const Hadad *h, int32_t *speed, int *step_frames) {
 }
 
 static void had_leg_entered(Hadad *h) {
+    /* ---- The Rear Gate's flag-three climb hands over to the pursuit --------
+       He has reached HAD_MOUTH, the top of the corridor. From here he chases,
+       and the caller's "no next leg, so root him" rule must not fire — see the
+       `follow` test beside it. This is the only leg in the game that ends in a
+       handover rather than in another waypoint or in HAD_ROOTED. */
+    if (h->role == HAD_ROLE_PLINTH) {
+        if (h->stage == HAD_PLINTH_STAGE_CLIMB && h->leg == 1) h->follow = 1;
+        return;
+    }
     if (h->role == HAD_ROLE_LIBRARY) {
         if (h->stage != 1 || h->leg != 2) return;
         if (h->branch) return;
@@ -793,6 +865,57 @@ static void had_leg_entered(Hadad *h) {
     if (h->leg > 6) h->leg = 0;
 }
 
+/* THE LEAP, one frame of it. Called from the marching branch below and from
+   nowhere else, with the leg's pace in hand so it can take the pace over for as
+   long as he is in the air.
+
+   Three frames matter and they are the three branches: the one he crosses
+   HAD_VAULT_Z on, which kicks him off the ground; every frame after, which is
+   just a faster march with gravity under it; and the one apply_ddog_height puts
+   his feet back down on, which hands the walk back at HAD_SPEED. Nothing here
+   touches h->z — had_march still does all the moving, exactly as it does for
+   the rest of the climb. */
+static void had_vault_step(Hadad *h, int32_t *speed, int *step_frames) {
+    if (h->vault == HAD_VAULT_PENDING) {
+        /* Still walking up to the take-off line. He may already be past it when
+           the lever is thrown (the kill band's south edge is north of it), in
+           which case this passes on the very first frame and he goes up from
+           where he stands — which is still south of the plates. */
+        if (h->z < HAD_VAULT_Z) return;
+        h->vault = HAD_VAULT_AIRBORNE;
+        h->vy    = HAD_VAULT_VY;
+    } else if (h->vy == 0) {
+        /* Down. `vy` is zeroed by apply_ddog_height on the frame his feet meet
+           the floor, and that call has already run this frame — so this is the
+           landing, not the take-off, and the corridor is flat so there is no
+           ramp to make the test lie (see the note beside the Reception's own
+           landing test). */
+        h->vault = 0;
+        sound_play(SFX_RUMBLE);   /* six hundred units of him hitting gravel */
+        return;
+    }
+    *speed       = HAD_VAULT_SPEED;
+    *step_frames = HAD_VAULT_STEP_FRAMES;
+}
+
+int hadads_grinder_vault(int32_t z_south) {
+    int i, latched = 0;
+    for (i = 0; i < hadad_count; i++) {
+        Hadad *h = &hadads[i];
+        if (h->area != current_area || !had_vulnerable(h)) continue;
+        /* The march only. A following Hadad has left the authored path behind
+           and steers round the room instead, and the leap is a leg of that path
+           — see the header. */
+        if (h->follow || h->state != HAD_WALK) continue;
+        if (h->role != HAD_ROLE_PLINTH || h->stage != HAD_PLINTH_STAGE_CLIMB) continue;
+        if (h->z >= z_south) continue;      /* not south of the band after all */
+        if (h->vault) continue;             /* one leap; the lever is one-shot */
+        h->vault = HAD_VAULT_PENDING;
+        latched  = 1;
+    }
+    return latched;
+}
+
 void update_hadads(void) {
     int i;
     int music_wanted = 0;
@@ -821,6 +944,15 @@ void update_hadads(void) {
            player pause the chase with Start (tools/ADDING_AN_ENEMY.txt STEP 6). */
         if (!h->active || h->state == HAD_DEAD || h->area != current_area)
             continue;
+
+        /* >>> A DIRECTOR HAS HIM: DO NOTHING AT ALL WITH HIM. <<< Not the AI,
+           not the timers, and above all not `music_wanted` below — see the
+           block on Hadad.frozen in hadad.h, and the door_anim_active() guard at
+           the top of this function, which is the same bug wearing a different
+           hat. Skipping him here is what makes the stalker track stop when the
+           Rear Gate's plates take him, and it stops it through the one
+           mechanism that owns the track rather than racing it. */
+        if (h->frozen) continue;
 
         if (h->hit_timer    > 0) h->hit_timer--;
         if (h->damage_timer > 0) h->damage_timer--;
@@ -949,8 +1081,21 @@ void update_hadads(void) {
                fire on somebody who had merely walked south, which would put him
                in front of them instead of behind. */
             if (pz <= HAD_RAMP_ARM_Z) h->ramp_armed = 1;
-            if (h->ramp_armed && pz >= HAD_RAMP_FIRE_Z)
-                had_arrive(h, HAD_RAMPTOP_X, HAD_RAMPTOP_Z, 1);
+            if (h->ramp_armed && pz >= HAD_RAMP_FIRE_Z) {
+                /* >>> follow = 0. HE WALKS BEFORE HE CHASES. <<< He used to
+                   come off the ramp top already chasing, and a player who did
+                   not run straight up the corridor could strand him in the
+                   ramp's rails or a court's dead end — with the grinders, the
+                   only thing that can kill him, nowhere near his path. He now
+                   marches one authored leg up the room's centre line, the
+                   whole length of the room to HAD_CLIMB on the lawn
+                   (had_path_goal, stage 1), and takes up the pursuit there
+                   (had_leg_entered) — on open grass, with the corridor and its
+                   two dead-end courts behind him. `stage` is latched HERE, at
+                   the arrival, so nothing can swing his goal mid-walk. */
+                had_arrive(h, HAD_RAMPTOP_X, HAD_RAMPTOP_Z, 0);
+                h->stage = HAD_PLINTH_STAGE_CLIMB;
+            }
             break;
 
         case HAD_WALK:
@@ -1085,8 +1230,15 @@ void update_hadads(void) {
                        visit. Still solid, still dangerous, still holding the
                        music up — HAD_ROOTED is a monster standing in a
                        corridor, not a statue again. */
-                    if (!had_path_goal(h, &tx, &tz)) h->state = HAD_ROOTED;
-                } else if (had_path_is_open(h->role)) {
+                    if (!h->follow && !had_path_goal(h, &tx, &tz))
+                        h->state = HAD_ROOTED;
+                } else if (had_path_is_open(h)) {
+                    /* ...and if the lever went over while he was still short of
+                       the grinders, this is where he jumps them. It only ever
+                       takes the pace over for the airborne stretch; the march
+                       below is what moves him, on this frame as on every
+                       other. */
+                    if (h->vault) had_vault_step(h, &leg_speed, &leg_step);
                     had_march(h, gx, gz, leg_speed, leg_step);
                 } else {
                     int clear = !collision_segment_blocked(
@@ -1214,6 +1366,20 @@ void hadad_reception_begin(Hadad *h) {
     h->pause_timer = 0;
 }
 
+void hadad_wc_return_rearm(void) {
+    int i;
+    for (i = 0; i < hadad_count; i++) {
+        Hadad *h = &hadads[i];
+        if (!h->active || h->role != HAD_ROLE_WEST_CORR_RET) continue;
+        /* had_reseat is the whole of it: full health, every scrap of AI state
+           cleared, and state = had_rest_state(role) = HAD_ABSENT on his
+           appearance point. It does NOT test for HAD_DEAD the way hadads_rest
+           does, which is precisely the property being used here — see the
+           block on this function in hadad.h. */
+        had_reseat(h);
+    }
+}
+
 int hadad_lever_locked(void) {
     /* The first encounter takes the lever away and never gives it back; the
        second one hands it straight over again, because the grinders are how the
@@ -1338,10 +1504,23 @@ static void draw_had_sprite(RenderContext *ctx, Hadad *h, const Sprite *sp) {
 
     int32_t cx = h->x, cz = h->z, cy = h->y + HAD_Y_OFFSET;
 
-    int16_t dwx = (int16_t)((HAD_HALF_W * rx) >> 12);
-    int16_t dwz = (int16_t)((HAD_HALF_W * rz) >> 12);
-    int16_t vy_top = (int16_t)(cy - HAD_HALF_H);
+    /* THE SQUASH (see Hadad.squash). Normally a no-op: squash is 0 for every
+       Hadad in the game except the one in the Rear Gate's grinders, and both
+       expressions below collapse to HAD_HALF_W and HAD_HALF_H at 0.
+
+       The width scales DOWN by (256 - squash)/256 and the height UP by half of
+       what the width lost, so a body squeezed to nothing between the plates
+       gets half again as tall instead of merely thinner. The BOTTOM edge is the
+       one that is held: vy_bot stays at the feet and the extra height is all
+       taken off the top, because the grinder plates cannot push him into the
+       gravel and a body growing downward would sink through it. */
+    int32_t half_w = (HAD_HALF_W * (256 - h->squash)) / 256;
+    int32_t half_h = HAD_HALF_H + (HAD_HALF_H * h->squash) / 512;
+
+    int16_t dwx = (int16_t)((half_w * rx) >> 12);
+    int16_t dwz = (int16_t)((half_w * rz) >> 12);
     int16_t vy_bot = (int16_t)(cy + HAD_HALF_H);
+    int16_t vy_top = (int16_t)(vy_bot - 2 * half_h);
 
     SVECTOR v[4];
     v[0].vx = (int16_t)(cx - dwx); v[0].vy = vy_top; v[0].vz = (int16_t)(cz - dwz); v[0].pad = 0;

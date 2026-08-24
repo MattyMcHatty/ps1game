@@ -295,8 +295,8 @@ void update_crucifaxe(void) {
            Manhattan dist3d the inlined blocks above use. See HAD_BODY_RADIUS.
 
            The other way to kill him is not a weapon at all: under FLAG_HADAD_THREE
-           the corridor grinders empty the whole bar at once
-           (hadads_grinder_crush). */
+           the corridor grinders close on him and empty the whole bar at the end
+           of the Hadad Death Scene (src/hadad_grinder.c). */
         if (swing_timer <= SWING_DURATION && !had_hit_this_swing) {
             if (hadads_try_hit())
                 had_hit_this_swing = 1;

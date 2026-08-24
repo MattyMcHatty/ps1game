@@ -26,17 +26,30 @@ Companion docs, in the order you will want them:
   src/piano_puzzle.c             - the reference for CAMERA GLIDES and for a
                                    multi-beat scripted payoff
 
-  >>> THREE LIGHTER ENCOUNTERS HAVE BEEN BUILT SINCE, AND ONE OF THEM IS
+  >>> FOUR LIGHTER ENCOUNTERS HAVE BEEN BUILT SINCE, AND ONE OF THEM IS
       PROBABLY A CLOSER FIT THAN THE RABISU. <<< Not every encounter is a boss
       fight. If yours is "a scripted thing walks at the player through a room",
-      start from these instead - all three are a fifth of the size and all
-      three follow this file's STEP 1, STEP 4 and STEP 9:
+      start from these instead - all four are a fifth of the size and all
+      four follow this file's STEP 1, STEP 4 and STEP 9:
         src/hadad_library.c   - a director with a CAMERA CUTSCENE in the middle
                                 (the crawl under the shelving) and a handover
                                 that restarts the body's walk afterwards.
         src/east_hall_quake.c - the smallest possible director: arm on entry,
                                 run src/quake.c, set one saved flag. No enemy at
                                 all.
+        src/hadad_grinder.c   - a DEATH SEQUENCE on its own, with no reveal and
+                                no fight in front of it: the Rear Gate's
+                                grinders closing on Hadad. Read it for three
+                                things this file only states in the abstract -
+                                a cutscene whose PACE is set by a prop that
+                                goes on running underneath it (the plates keep
+                                travelling under grinder_puzzle_update, and the
+                                roar and the kill are scheduled off how much
+                                travel was left when it armed); a body POSED by
+                                one field the AI never touches (Hadad.squash);
+                                and the fact that a cutscene has to draw its own
+                                PARTICLES, because main.c's draw_player_systems
+                                is one of the things it suppresses.
         src/reception_hadad.c - the two of them joined up, and the closest thing
                                 to a template: an entry quake, then a free-play
                                 trigger, then one call that hands the player to

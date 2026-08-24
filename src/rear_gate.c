@@ -31,6 +31,7 @@
 #include "mushroom.h"
 #include "living_statue.h"
 #include "hadad.h"
+#include "hadad_grinder.h"
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
@@ -611,6 +612,15 @@ void rear_gate_init(void) {
        grinders' own boxes only start mattering once the lever has sent them out
        into the lane — which is now something that happens. */
     grinder_puzzle_place();
+
+    /* ...and the scene those plates play out on Hadad, parked. It arms nothing
+       here: this runs BEFORE world_enter() places anybody, so any decision made
+       now about who is in the room would be made a frame too early
+       (tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 4). The trigger is
+       grinder_puzzle_update finding him between the plates, and it can only ever
+       fire under FLAG_HADAD_THREE, because that is the only state in which the
+       lever accepts a press at all. */
+    hadad_grinder_enter();
 }
 
 static void draw_rear_gate_smd(RenderContext *ctx) {
@@ -920,6 +930,11 @@ void rear_gate_draw(RenderContext *ctx) {
         draw_mushrooms(ctx);
         draw_living_statues(ctx);
         draw_hadads(ctx);
+        /* The death scene's green spirit — and, while it runs, the grey burst,
+           because a cutscene suppresses main.c's particle draw. A no-op on every
+           frame the scene is not running. Here rather than after the signs
+           below so it sorts against the room with the rest of the world. */
+        hadad_grinder_draw(ctx);
         webs_draw(ctx);
         item_pickups_draw(ctx);
         sml_meds_draw(ctx);

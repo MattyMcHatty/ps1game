@@ -56,6 +56,7 @@
 #include "library.h"
 #include "library_destroyed.h"
 #include "hadad_library.h"
+#include "hadad_grinder.h"
 #include "east_stairwell.h"
 #include "attic_stairwell.h"
 #include "attic_exit.h"
@@ -177,6 +178,7 @@ void reset_game(RenderContext *ctx) {
     living_statues_reset();
     hadads_reset();
     hadad_library_reset(); /* ...and any half-played crawl under the shelving */
+    hadad_grinder_reset(); /* ...and any half-played death in the grinders     */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
     rabisus_reset();
@@ -393,6 +395,27 @@ static void update_current_area(GameState area) {
     if (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene()) {
         player_status_update();
         hadad_library_update();
+        update_particles();
+        return;
+    }
+    /* ...and the Rear Gate's grinder death, which takes the camera from the
+       frame the plates have him until his spirit is out of sight.
+
+       THE GRINDERS KEEP CLOSING UNDER IT, which is the one call in here that is
+       not obvious: the whole scene is played to their travel (the squash, the
+       roar and the kill are all timed off it) and grinder_puzzle_update is what
+       drives them. It takes lock == 1 throughout, so the lever cannot be thrown
+       from inside the cutscene it started.
+
+       >>> update_hadads IS DELIBERATELY NOT CALLED. <<< The director poses the
+       body by hand for six seconds — sliding him onto the centre line and
+       scaling him to the gap — and a tick of the AI would walk him straight back
+       out from between the plates. Nothing else in this room needs ticking: it
+       is seeded with no other enemies, and the player is anchored. */
+    if (area == STATE_REAR_GATE && hadad_grinder_cutscene()) {
+        grinder_puzzle_update(1);
+        player_status_update();
+        hadad_grinder_update();
         update_particles();
         return;
     }
@@ -821,7 +844,11 @@ static void update_current_area(GameState area) {
         if (!lock && rear_gate_gate_triggered()) {
             /* East back through the same gate, into Fountain Square. The room's
                other two modelled gates (west and north) are drawn shut and lead
-               nowhere, so this is the only way out. */
+               nowhere, so this is the only way out.
+
+               >>> AND IT BREAKS THE MECHANISM. <<< See the block below: this is
+               the "any route other than the West Corridor" half of it. */
+            if (game_flag(FLAG_HADAD_THREE)) game_flag_set(FLAG_GRINDER_BROKEN);
             pending_area = STATE_FOUNTAIN_SQUARE;
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
@@ -830,7 +857,36 @@ static void update_current_area(GameState area) {
             /* South through the double door at the top of the ramp, into the
                West Corridor and back inside the house. Not a gate: this is a
                real door, and the user asked for the Delivery/Kitchen
-               transition, which is DOOR_PANEL_OUTER. */
+               transition, which is DOOR_PANEL_OUTER.
+
+               >>> THE THIRD ENCOUNTER IS RESOLVED BY LEAVING, WHICHEVER DOOR IS
+               USED, AND THE TWO DOORS RESOLVE IT DIFFERENTLY. <<< Once
+               FLAG_HADAD_THREE is set the grinders are the only way to kill him
+               and the encounter burns out the moment the player walks off with
+               him still standing (hadads_rest sets `spent`). What is left is a
+               lever that can never matter again, so it is taken away — and
+               where the player went decides how:
+
+                 EAST, out to Fountain Square (above): the machinery is spent
+                     and FLAG_GRINDER_BROKEN seals the corridor. The house is
+                     closed off from the garden for good, exactly as it is when
+                     he DOES die in the plates (src/hadad_grinder.c sets the same
+                     flag on the kill).
+
+                 SOUTH, in here: NOT sealed — they are on the wrong side of it,
+                     and shutting the corridor behind them would be shutting them
+                     IN. Instead the West Corridor's return encounter is put back
+                     on the table, dead or alive, so the house pushes them along
+                     to the Reception rather than letting them wander back the
+                     way they came. They can still come back out to the Rear Gate
+                     afterwards, and leaving it east is what finally breaks the
+                     mechanism.
+
+               Both are gated on the flag alone rather than on his state: by the
+               time either door is reached the encounter is over one way or the
+               other, and a Hadad who is already dead has set the flag himself,
+               so both branches are idempotent. */
+            if (game_flag(FLAG_HADAD_THREE)) hadad_wc_return_rearm();
             pending_area = STATE_WEST_CORRIDOR;
             door_anim_start(DOOR_PANEL_OUTER);
             game_state   = STATE_DOOR_ANIM;
@@ -851,6 +907,28 @@ static void update_current_area(GameState area) {
         if (!lock && west_corridor_ndoor_triggered()) {
             /* North through the double door, out to the top of the Rear Gate's
                ramp. The Delivery/Kitchen transition, as on the other side. */
+
+            /* >>> AND THIS IS WHAT ARMS HADAD'S THIRD ENCOUNTER. <<< Flag three
+               had no trigger until now; this doorway is it. The gate is flags
+               ONE AND TWO both already set — i.e. the player has had him off the
+               plinth once AND pulled the four key stones back out of the Attic
+               Exit's door — and the moment is LEAVING the West Corridor by this
+               door, walking back out towards the Rear Gate where the third
+               encounter waits (hadad.h, THE THREE ROOMS BY FLAG).
+
+               Set here, before door_anim_start, rather than on arrival in the
+               Rear Gate: the flag is a property of having made this crossing,
+               and setting it on the near side means one place does it whatever
+               happens to the transition afterwards.
+
+               Flag three REPLACES flag one everywhere in this enemy, so this
+               also closes the West Corridor AMBUSH for good — which is correct
+               and costs nothing, because flag two closed that one already (it is
+               the West Corridor RETURN, gated on flag two alone, that is live in
+               this room by now, and flag three does not touch it). */
+            if (game_flag(FLAG_HADAD_ONE) && game_flag(FLAG_HADAD_TWO))
+                game_flag_set(FLAG_HADAD_THREE);
+
             pending_area = STATE_REAR_GATE;
             door_anim_start(DOOR_PANEL_OUTER);
             game_state   = STATE_DOOR_ANIM;
@@ -2085,7 +2163,8 @@ int main(int argc, const char **argv) {
                              (area == STATE_RECEPTION && reception_hadad_active());
                 int cutscene = (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()) ||
                                (area == STATE_DELIVERY_AREA && delivery_intro_active()) ||
-                               (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene());
+                               (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene()) ||
+                               (area == STATE_REAR_GATE && hadad_grinder_cutscene());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();
