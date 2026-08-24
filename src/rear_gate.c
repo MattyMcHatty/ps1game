@@ -353,6 +353,69 @@ static void gate_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* ---- The WEST-wall gate, into the Stables ----------------------------------
+   The mirror of the east gate: the same grdn_gte leaf, at x=-2200 spanning
+   z[1500,2300], with its own alcove (collision FLOOR 7, x(-2200,-2000)
+   z(1500,2300)) fixing the centre at z=1900. It was drawn shut and backed onto
+   solid collision until the Stables was built; it now opens on that room's east
+   gate (src/stables.h).
+
+   >>> IT IS THE OPPOSITE HAND FROM THE EAST GATE, AND ONLY THE NORMAL SAYS SO.
+   <<< Collision wall 37 runs across this opening with nx = +4096, so the
+   walkable side is +X and the player approaches from inside the room heading
+   WEST. For a sign in the YZ plane that is mirror=0 — where the east gate's is
+   mirror=1 — and the sign stands 11 units EAST of the wall (x + 11) rather than
+   west of it. Getting either backwards comes out as mirrored text or a sign
+   buried in the hedge; the two gates look identical in the mesh and differ only
+   here.
+
+   The wall STAYS in the collision list, as wall 17 does on the east side: the
+   leaf is shut as far as collision is concerned and it is the trigger, not a
+   hole, that lets the player through. */
+#define RG_WGATE_X        (-2200)
+#define RG_WGATE_Z          1900    /* (1500 + 2300) / 2, and FLOOR 7's centre */
+
+static int wgate_circle_prev = 1;
+
+void rear_gate_wgate_arm(void) {
+    wgate_circle_prev = circle_held();
+}
+
+int rear_gate_wgate_triggered(void) {
+    int held = circle_held();
+    int just = held && !wgate_circle_prev;
+    wgate_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - RG_WGATE_X;
+    int32_t dz = cam_z - RG_WGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < RG_TRIGGER_RADIUS && interact_facing(RG_WGATE_X, RG_WGATE_Z);
+}
+
+/* YZ plane, mirror=0, and 11 units EAST of the wall — see the note above for
+   why both differ from the east gate's. Everything else (the radius, the fade
+   ramp, the eye-level Y) is that gate's verbatim: it is the same leaf in the
+   same hedge at the same height. */
+static void wgate_text(RenderContext *ctx) {
+    int32_t dx = cam_x - RG_WGATE_X;
+    int32_t dz = cam_z - RG_WGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= RG_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > RG_FADE_NEAR) {
+        int range = RG_TEXT_RADIUS - RG_FADE_NEAR;
+        int prog  = xz - RG_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        RG_WGATE_X + 11, RG_TEXT_Y, RG_WGATE_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
 /* ---- The SOUTH door, at the top of the ramp --------------------------------
    The double_door in the 1500-tall brick wall at z=-3200, x[-300,300] so centre
    x=0, drawn y[-900,-500] with its sill at y=-500 — exactly the ramp's top. It
@@ -532,6 +595,26 @@ void rear_gate_spawn_east(void) {
     cam_z   = RG_GATE_Z;
     cam_rot = 3072;   /* facing -X, into the room */
     rear_gate_gate_arm();
+    rear_gate_wgate_arm();
+    rear_gate_plinth_arm();
+    rear_gate_sdoor_arm();
+}
+
+/* Arriving from the Stables: the exact mirror of the east spawn — stand EAST of
+   the x=-2200 hedge, clear of the wall push radius, facing +X, the direction of
+   travel through the gate and the way back across the lawn to the plinth. x
+   lands at -1980, twenty units east of the alcove mouth at x=-2000 and so out on
+   the open lawn rather than in the alcove, and past the ends of both alcove side
+   walls (38 runs only z[1299,1500] on this side), so nothing pushes the player
+   anywhere on the frame they arrive. */
+void rear_gate_spawn_west(void) {
+    cam_x   = RG_WGATE_X + COLLISION_WALL_RADIUS + 25;
+    cam_y   = RG_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = RG_WGATE_Z;
+    cam_rot = 1024;   /* facing +X, into the room */
+    rear_gate_gate_arm();
+    rear_gate_wgate_arm();
     rear_gate_plinth_arm();
     rear_gate_sdoor_arm();
 }
@@ -553,6 +636,7 @@ void rear_gate_spawn_south(void) {
     cam_z   = RG_SDOOR_Z + 250;
     cam_rot = 0;      /* facing +Z, down the ramp into the room */
     rear_gate_gate_arm();
+    rear_gate_wgate_arm();
     rear_gate_plinth_arm();
     rear_gate_sdoor_arm();
 }
@@ -940,9 +1024,10 @@ void rear_gate_draw(RenderContext *ctx) {
         sml_meds_draw(ctx);
     }
 
-    /* Last: the three signs — the east gate's, the plinth's, and the corridor
-       lever's. */
+    /* Last: the four signs — the east gate's, the west gate's, the plinth's, and
+       the corridor lever's. */
     gate_text(ctx);
+    wgate_text(ctx);
     sdoor_text(ctx);
     plinth_text(ctx);
     grinder_puzzle_draw(ctx);

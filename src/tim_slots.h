@@ -187,6 +187,14 @@
 #define TIM_TPAGE_GRINDER  0x009f
 #define TIM_CLUT_GRINDER   0x7ef0
 
+/* greenhouse.tim  8bpp  VRAM ( 640,  0)  \TEX\GRNHOUSE.TIM */
+#define TIM_TPAGE_GRNHOUSE 0x008a
+#define TIM_CLUT_GRNHOUSE  0x7c6a
+
+/* greenhouse door.tim  4bpp  VRAM ( 320,256)  \TEX\GRNHSDR.TIM */
+#define TIM_TPAGE_GRNHSDR  0x0015
+#define TIM_CLUT_GRNHSDR   0x7fd1
+
 /* grn_ky_stn.tim  4bpp  VRAM ( 552,256)  \TEX\GRNKYSTN.TIM */
 #define TIM_TPAGE_GRNKYSTN 0x0018
 #define TIM_CLUT_GRNKYSTN  0x7fcd
@@ -350,6 +358,14 @@
 /* spdr_wk.tim     8bpp  VRAM ( 384,128)  \SPDRWK.TIM */
 #define TIM_TPAGE_SPDRWK   0x0086
 #define TIM_CLUT_SPDRWK    0x7b50
+
+/* stable glyphs.tim  4bpp  VRAM ( 704,  0)  \TEX\STBLGLPH.TIM */
+#define TIM_TPAGE_STBLGLPH 0x000b
+#define TIM_CLUT_STBLGLPH  0x7fd0
+
+/* stables wood.tim  8bpp  VRAM ( 832,  0)  \TEX\STBLWOOD.TIM */
+#define TIM_TPAGE_STBLWOOD 0x008d
+#define TIM_CLUT_STBLWOOD  0x7caa
 
 /* stnd_rnds.tim   8bpp  VRAM ( 416,256)  \TEX\STNDRNDS.TIM */
 #define TIM_TPAGE_STNDRNDS 0x0096

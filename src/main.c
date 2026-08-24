@@ -68,6 +68,7 @@
 #include "maze_two.h"
 #include "rear_gate.h"
 #include "west_corridor.h"
+#include "stables.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -224,6 +225,7 @@ static void load_area_geometry(GameState area) {
         case STATE_MAZE_TWO:         maze_two_load_geometry();         break;
         case STATE_REAR_GATE:        rear_gate_load_geometry();        break;
         case STATE_WEST_CORRIDOR:    west_corridor_load_geometry();    break;
+        case STATE_STABLES:          stables_load_geometry();          break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -853,6 +855,24 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (!lock && rear_gate_wgate_triggered()) {
+            /* West through the gate in the west hedge, into the Stables. A gate,
+               not a door: DOOR_PANEL_GATE, as on the east side.
+
+               >>> AND IT BREAKS THE MECHANISM TOO. <<< The rule the east branch
+               above states is "any route other than the West Corridor", and this
+               is one: leaving by it walks off from a third encounter with Hadad
+               still standing, which is what spends it. The Stables is a dead end
+               off this room and the player will come back through this same
+               gate, but they will come back to a lever that can no longer
+               matter — exactly the case FLAG_GRINDER_BROKEN exists to tidy
+               away. Idempotent for the same reason the other two are: a Hadad
+               who is already dead has set the flag himself. */
+            if (game_flag(FLAG_HADAD_THREE)) game_flag_set(FLAG_GRINDER_BROKEN);
+            pending_area = STATE_STABLES;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         } else if (!lock && rear_gate_sdoor_triggered()) {
             /* South through the double door at the top of the ramp, into the
                West Corridor and back inside the house. Not a gate: this is a
@@ -889,6 +909,28 @@ static void update_current_area(GameState area) {
             if (game_flag(FLAG_HADAD_THREE)) hadad_wc_return_rearm();
             pending_area = STATE_WEST_CORRIDOR;
             door_anim_start(DOOR_PANEL_OUTER);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_STABLES) {
+        /* Flat single-floor room — both of the collision generator's planes are
+           at y=0 — so the shared wall collision routine (generic over
+           current_collision_room) and a single floor zone are the whole of it.
+           The updaters below all run over EMPTY arrays: the room is seeded with
+           nothing, and they cost nothing that way. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();
+        update_spiders();
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        if (!lock && stables_gate_triggered()) {
+            /* East back through the same gate, into the Rear Gate. The only way
+               out — the greenhouse door in the west wall is drawn shut and backs
+               onto solid collision until the Greenhouse is built. */
+            pending_area = STATE_REAR_GATE;
+            door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -1182,6 +1224,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
         west_corridor_draw(ctx);
+    else if (area == STATE_STABLES)
+        stables_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -1387,6 +1431,10 @@ int main(int argc, const char **argv) {
                                   PLNTHRG and DBLDRRG) */
     west_corridor_load_assets();/* west corridor texture slots — TIM_SLOT only; it
                                    owns no texture and registers nothing */
+    stables_load_assets();     /* stables textures: the FOUR it owns — the most
+                                  of any room — plus four TIM_SLOT lines for the
+                                  garden chain's. See src/stables.h on the
+                                  garden-west VRAM bank they are the start of */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -1584,7 +1632,8 @@ int main(int argc, const char **argv) {
                  pending_area == STATE_OUTSIDE_CATACOMBS ||
                  pending_area == STATE_MAZE_ONE ||
                  pending_area == STATE_MAZE_TWO ||
-                 pending_area == STATE_REAR_GATE) ? SND_BANK_GARDEN :
+                 pending_area == STATE_REAR_GATE ||
+                 pending_area == STATE_STABLES) ? SND_BANK_GARDEN :
                 SND_BANK_HOUSE);
 
             /* Upload reception's unique textures into VRAM from their resident RAM
@@ -1648,6 +1697,18 @@ int main(int argc, const char **argv) {
                                                        retargeted plinth and
                                                        double door over chnlnk
                                                        and frnt_dr */
+            } else if (pending_area == STATE_STABLES) {
+                stables_upload_textures();          /* the courtyard's four, then
+                                                       the FOUR this room owns —
+                                                       the garden-west VRAM
+                                                       bank's first occupants.
+                                                       Three of the four land on
+                                                       pages the courtyard's
+                                                       uploader has just stamped
+                                                       (x640, x704, x832), so the
+                                                       order inside that function
+                                                       is load-bearing; see
+                                                       stables_upload_textures */
             } else if (pending_area == STATE_WEST_CORRIDOR) {
                 west_corridor_upload_textures();    /* owns nothing: three NARROW
                                                        uploads on the kitchen's
@@ -1686,7 +1747,8 @@ int main(int argc, const char **argv) {
                load or a debug level-select jump gets it right too. */
             if (pending_area == STATE_OUTSIDE_CATACOMBS ||
                 pending_area == STATE_MAZE_ONE ||
-                pending_area == STATE_MAZE_TWO)
+                pending_area == STATE_MAZE_TWO ||
+                pending_area == STATE_STABLES)
                 rafflesias_upload_textures();
             else
                 spiders_upload_textures();
@@ -1987,11 +2049,14 @@ int main(int argc, const char **argv) {
                 rear_gate_init();  /* defaults to the east gate, back into
                                       Fountain Square. */
                 /* Coming back out of the West Corridor, arrive at the south
-                   door instead — on the ramp, not down on the lawn. Either
-                   spawn arms the gate, the plinth and the south door, so
+                   door instead — on the ramp, not down on the lawn; coming back
+                   east out of the Stables, at the gate in the west hedge. Every
+                   spawn arms BOTH gates, the plinth and the south door, so
                    whichever branch runs the others are safe. */
                 if (current_area == STATE_WEST_CORRIDOR)
                     rear_gate_spawn_south();
+                else if (current_area == STATE_STABLES)
+                    rear_gate_spawn_west();
                 /* NO MUSIC HERE — the user asked for this room to be silent.
                    Stopped rather than merely not started, exactly as the Garden
                    Stairs and the Garden Courtyard do it: a title-screen load or
@@ -2006,6 +2071,18 @@ int main(int argc, const char **argv) {
                    the square's track still going and then layering the stalk on
                    top is not something cdaudio can do. See hadad.h. */
                 cdaudio_stop();
+            } else if (pending_area == STATE_STABLES) {
+                stables_init();  /* the east gate is the only spawn — there is
+                                    nowhere else to arrive from — so no override
+                                    is needed here. */
+                /* FOUNTAIN SQUARE'S TRACK, which the user asked for. Note it is
+                   NOT carried across the gate: the Rear Gate next door is silent
+                   (and its transition cdaudio_stops whatever Hadad had going),
+                   so this is a clean start rather than the Catacombs/Square
+                   case. Played HERE rather than on the gate trigger so every
+                   route in gets it: the gate, a title-screen load and a debug
+                   level-select jump all pass through this branch. */
+                cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_WEST_CORRIDOR) {
                 west_corridor_init();  /* defaults to the east door, back into
                                           Reception */
@@ -2130,7 +2207,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_MAZE_ONE ||
                    game_state == STATE_MAZE_TWO ||
                    game_state == STATE_REAR_GATE ||
-                   game_state == STATE_WEST_CORRIDOR) {
+                   game_state == STATE_WEST_CORRIDOR ||
+                   game_state == STATE_STABLES) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

@@ -17,10 +17,10 @@
  *     67860 bytes   34 sectors  Reception.smd
  *     65836 bytes   33 sectors  outside_catacombs.smd
  *     65740 bytes   33 sectors  delivery_area.smd
+ *     54084 bytes   27 sectors  stables.smd
  *     45676 bytes   23 sectors  fountain_square.smd
  *     42228 bytes   21 sectors  garden_stairs.smd
  *     40220 bytes   20 sectors  kitchen_dining.smd
- *     36320 bytes   18 sectors  master_bedroom.smd
  *
  */
 #ifndef ROOM_ARENA_SIZE_H

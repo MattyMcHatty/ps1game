@@ -48,6 +48,11 @@ typedef enum {
                                 house and the garden chain that does not go
                                 through the front of the mansion. Appended, not
                                 inserted, for the same reason. */
+    STATE_STABLES,           /* the walled stable yard WEST of the Rear Gate,
+                                through the gate in its west hedge — the first
+                                room of the garden-west VRAM bank (the Greenhouse
+                                behind it is the second). Appended, not
+                                inserted: saves store raw enum values. */
     STATE_LIBRARY_DESTROYED, /* the Library after the keystones come back out of
                                 the Attic Exit's door. Not a new place on the
                                 map: from the moment FLAG_HADAD_TWO is set this

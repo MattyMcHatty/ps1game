@@ -112,6 +112,7 @@ static const char *const level_names[] = {
     "REAR GATE",
     "WEST CORRIDOR",
     "LIBRARY DSTRYD",
+    "STABLES",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -119,6 +120,7 @@ static const char *const level_names[] = {
    STATE_LOADING use level_pending[] below to say which area to switch to. */
 static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_DELIVERY_AREA,
+    STATE_LOADING,
     STATE_LOADING,
     STATE_LOADING,
     STATE_LOADING,
@@ -164,6 +166,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_REAR_GATE,
     STATE_WEST_CORRIDOR,
     STATE_LIBRARY_DESTROYED,
+    STATE_STABLES,
 };
 
 /* ---- Letter bitmasks: 7 rows x 5 cols, row 0 = top ---- */

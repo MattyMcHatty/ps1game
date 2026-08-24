@@ -490,6 +490,43 @@
                      copies), so it registers nothing with texmgr and adds no
                      restore obligation on anybody. -->
                 <file name="WSTCORR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\west_corridor.smd"/>
+
+                <!-- The Stables (src/stables.c): the yard WEST of the Rear Gate,
+                     through that room's west gate. It is the first room of the
+                     GARDEN-WEST VRAM BANK — it and the Greenhouse behind it are
+                     reached only through that one gate, nothing else is drawn
+                     while the player is in them, and so the whole room-art half
+                     of VRAM is theirs to re-lay-out. See
+                     tools/VRAM_MAP_GARDEN_WEST.txt for that bank's own map; the
+                     four TIMs below are its first occupants.
+                     FOUR of the room's eight textures cost nothing: HEDGE,
+                     GRDNGTE and GRSSGS come through the Garden Courtyard's
+                     uploader and BRIKWLL with them via the Garden Stairs' — the
+                     same four every garden room since the courtyard has drawn.
+                     The other four are new art and are the room's own:
+                       GRNHOUSE -> x640 y0, the trck_clue/plinth_rg page. 8bpp
+                                   FULL page; this room draws none of its six
+                                   occupants and every one of them is re-uploaded
+                                   by its own room on entry.
+                       STBLWOOD -> x832 y0, the opn_drwr/drain page. 8bpp FULL
+                                   page, same test: no drain, no plinth, no
+                                   con_tile and no double door in this room.
+                       STBLGLPH -> x704 y0, the rusty_fence/gravel_gs page. 4bpp,
+                                   so x[704,736) only and clear of anzu3/anzu6 at
+                                   x736 — the trap Maze Two fell into by putting
+                                   an 8bpp plinth on this page. No gravel here.
+                       GRNHSDR  -> x320 y256, the frnt_dr/red_crpt/dbl_dr_rg
+                                   page. 4bpp, left half only, clear of
+                                   graveolver at x352.
+                     All four sit at Voff 0, so the one 128 texture window in
+                     stables_draw serves them and the four borrowed slots alike.
+                     Its .smx exports live in assets/garden/ like the rest of the
+                     garden's. -->
+                <file name="STABLES.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\stables.smd"/>
+                <file name="GRNHOUSE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\greenhouse.tim"/>
+                <file name="STBLWOOD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\stables wood.tim"/>
+                <file name="STBLGLPH.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\stable glyphs.tim"/>
+                <file name="GRNHSDR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\greenhouse door.tim"/>
             </dir>
         </directory_tree>
     </track>

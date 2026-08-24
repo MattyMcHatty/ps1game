@@ -79,11 +79,16 @@
              same gate, whose wall faces +X.
 
      WEST    the leaf at x=-2200, z[1500,2300], the mirror of the east one, with
-     WALL    its own alcove (FLOOR 7) behind collision wall 37. Drawn shut and
-             backing onto solid collision — there for a room that does not exist.
+     WALL    its own alcove (FLOOR 7) behind collision wall 37. IT NOW OPENS ON
+             THE STABLES (src/stables.h) — the "there for a room that does not
+             exist" note above it is out of date. Wall 37's normal is nx = +4096,
+             the OPPOSITE hand from wall 17 on the east side, so this gate is
+             approached from +X and its sign is mirror=0 on the x+11 side where
+             the east one is mirror=1 on x-11. The two leaves are identical in
+             the mesh and differ only in that.
 
-     NORTH   the leaf at z≈4100, x[-1300,1300], behind collision wall 13. Also
-     WALL    drawn shut, also unconnected.
+     NORTH   the leaf at z≈4100, x[-1300,1300], behind collision wall 13. Still
+     WALL    drawn shut, still unconnected — the last one.
 
    NO ROOM MUSIC. cdaudio_stop() on arrival, the Garden Stairs' and the Garden
    Courtyard's arrangement rather than Fountain Square's — stopped rather than
@@ -117,6 +122,12 @@ void rear_gate_draw(RenderContext *ctx);
 void rear_gate_gate_arm(void);        /* seed the Circle edge state */
 int  rear_gate_gate_triggered(void);  /* 1 on a fresh Circle press in range */
 
+/* The west-wall gate, into the Stables. The mirror of the east one in every
+   respect but the collision normal, which is what decides the sign's hand and
+   which side of the wall the spawn goes on — see RG_WGATE_X in rear_gate.c. */
+void rear_gate_wgate_arm(void);       /* seed the Circle edge state */
+int  rear_gate_wgate_triggered(void); /* 1 on a fresh Circle press in range */
+
 /* The plinth's inscription: a floating "Press O to read" on the block's SOUTH
    face, and the Circle press that posts its epitaph to the log. Purely a read —
    it sets no flag, gives nothing and can be read any number of times, so there
@@ -132,9 +143,12 @@ void rear_gate_plinth_update(int lock);/* per-frame; `lock` suppresses the press
 void rear_gate_sdoor_arm(void);        /* seed the Circle edge state */
 int  rear_gate_sdoor_triggered(void);  /* 1 on a fresh Circle press in range */
 
-/* The two spawns: just inside the east gate, and on the ramp below the south
-   door. */
+/* The three spawns: just inside the east gate, just inside the west gate, and on
+   the ramp below the south door. Each arms ALL FOUR interactions in the room
+   (both gates, the plinth and the south door), so whichever one main.c runs the
+   others are safe. */
 void rear_gate_spawn_east(void);
+void rear_gate_spawn_west(void);
 void rear_gate_spawn_south(void);
 
 #endif
