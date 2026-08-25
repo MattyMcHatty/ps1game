@@ -432,28 +432,32 @@ void world_seed_room(GameState area) {
         sml_med_spawn(289, -149, -139);
     }
 
-    /* Attic Stairwell: the Piano Key and the Blue Key Stone, side by side at
-       the altar in the west room. Both are flag items — puzzle inputs with
-       nothing consuming them yet — so the amount is irrelevant; spawn_amount
-       is used anyway so the ROUNDS_PER_PICKUP default never applies.
+    /* Attic Stairwell: the Piano Key and the Blue Key Stone, side by side in
+       the MIDDLE of the counter top in the west room. Both are flag items —
+       puzzle inputs with nothing consuming them yet — so the amount is
+       irrelevant; the amount form is used anyway so the ROUNDS_PER_PICKUP
+       default never applies.
 
-       x=-2280 sits ON the altar top: the altar is the con_tile block with
-       footprint x[-2420,-2229] z[-543,-7], top surface y=-117, so both
-       spawns are inside its footprint, a little east of its centre.
+       The counter is the con_tile block with footprint x[-2420,-2229]
+       z[-543,-7], top surface y=-117. x=-2324 is the middle of that top face
+       in X, and the two z values straddle its middle (-275) by 80 either way,
+       so the pair reads as centred on the stone rather than perched on a lip.
        item_pickup_spawn subtracts IP_FLOAT_Y=50, so each sprite hovers just
-       above the altar's top face, 22 below the standing eye — well inside
+       above the top face, 22 below the standing eye (-189) — well inside
        ITEM_PICKUP_HEIGHT. The 160 Z gap clears the sprites' IP_WORLD_HALF=70
        so they read as two objects side by side.
 
-       Reaching them depends on the altar being collided as a PROP (radius
-       75) rather than as room walls — see attic_stairwell_altar_collide.
-       With the wall standoff of 195 the nearest the player could stand was
-       x=-2033, 247 Manhattan away and so past ITEM_PICKUP_RADIUS (200); the
-       prop radius brings that to x=-2153 and 127. Move these east or shrink
-       that radius and they go out of reach again. */
+       They no longer have to be nudged toward the player to be reachable:
+       each carries its own 320 collect range (the last argument). The counter
+       is collided as a PROP (radius 75, see attic_stairwell_altar_collide),
+       so the nearest the player can stand on its east side is x=-2154 — 170
+       in X from the sprites, leaving 150 of Z slack inside the 320. Walking
+       along the east face level with either one takes it. The default
+       ITEM_PICKUP_RADIUS (200) would NOT reach the middle of the counter, so
+       do not drop that range without moving these back toward the east lip. */
     if (area == STATE_ATTIC_STAIRWELL) {
-        item_pickup_spawn_amount(-2280, -117, -355, PICKUP_PIANO_KEY,      1);
-        item_pickup_spawn_amount(-2280, -117, -195, PICKUP_BLUE_KEY_STONE, 1);
+        item_pickup_spawn_range(-2324, -117, -355, PICKUP_PIANO_KEY,      1, 320);
+        item_pickup_spawn_range(-2324, -117, -195, PICKUP_BLUE_KEY_STONE, 1, 320);
     }
 
     /* Garden Stairs: two boxes of rounds on the MIDDLE WEST landing (floor

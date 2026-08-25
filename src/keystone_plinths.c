@@ -184,14 +184,22 @@ static const struct { int16_t push; int16_t scale; uint8_t level; } GLOW[KP_LAYE
 #define KP_PAY_ROT      428
 #define KP_PAY_PITCH    324
 
-/* Where the flame rounds land. NOT the middle of the cap, however much it wants
-   to be: the keystone has collision walls of its own, so the 195 push radius
-   parks the player 295 from the centre, and item_pickups_update only reaches
-   200 (Manhattan). A box on the middle of the top face would be scenery. This
-   sits on the WEST lip instead — still on the lit stone, and 145 from where the
-   player is stopped, which is comfortably inside that reach. */
-#define KP_ROUNDS_X    2250
+/* Where the flame rounds land: the MIDDLE of the keystone's top face, at the
+   centre of x(2300,2500) z(2300,2500). It used to sit on the west lip instead,
+   because the keystone has collision walls of its own — the 195 push radius
+   parks the player 295 (Manhattan) from the centre, and the old flat
+   ITEM_PICKUP_RADIUS of 200 could not reach that far, so a box on the middle
+   would have been scenery. The pickup now carries its OWN reach instead, so it
+   can sit where the shot points and still be taken by walking level with any
+   face of the plinth.
+
+   KP_ROUNDS_RANGE has to clear that 295 with a little slack for the diagonal
+   approach into a corner; 340 does, and is still far short of the 600 the
+   alcove plinths use for their own prompts, so nothing is collected from
+   across the court. */
+#define KP_ROUNDS_X    2400
 #define KP_ROUNDS_Z    2400
+#define KP_ROUNDS_RANGE 340
 #define KP_ROUNDS_AMT     6
 
 /* ---- Board layout (320x240) -------------------------------------------------
@@ -300,8 +308,9 @@ void keystone_plinths_apply_flags(void) {
        between the fourth placement and the spawn. Hand the rounds over here
        instead of replaying the scene, and record it so this fires once. */
     if (all_placed() && !game_flag(FLAG_KEYSTONE_REWARD)) {
-        item_pickup_spawn_amount(KP_ROUNDS_X, KP_KEY_TOP, KP_ROUNDS_Z,
-                                 PICKUP_FLAME_ROUNDS, KP_ROUNDS_AMT);
+        item_pickup_spawn_range(KP_ROUNDS_X, KP_KEY_TOP, KP_ROUNDS_Z,
+                                PICKUP_FLAME_ROUNDS, KP_ROUNDS_AMT,
+                                KP_ROUNDS_RANGE);
         game_flag_set(FLAG_KEYSTONE_REWARD);
         top_level = 256;
     }
@@ -372,11 +381,12 @@ static void start_payoff(void) {
 
 static void finish_payoff(void) {
     top_level = 256;
-    item_pickup_spawn_amount(KP_ROUNDS_X, KP_KEY_TOP, KP_ROUNDS_Z,
-                             PICKUP_FLAME_ROUNDS, KP_ROUNDS_AMT);
+    item_pickup_spawn_range(KP_ROUNDS_X, KP_KEY_TOP, KP_ROUNDS_Z,
+                            PICKUP_FLAME_ROUNDS, KP_ROUNDS_AMT,
+                            KP_ROUNDS_RANGE);
     game_flag_set(FLAG_KEYSTONE_REWARD);
     sound_play(SFX_PICKUP);
-    show_pickup_msg_raw("The keystone burns white");
+    show_pickup_msg_raw("The keystones light the way");
     state      = KP_HOLD;
     hold_timer = KP_HOLD_FRAMES;
 }

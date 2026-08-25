@@ -30,12 +30,22 @@ typedef enum {
                                      height (>=150) so a pickup can't be grabbed
                                      from the floor above/below it */
 
+/* Per-pickup horizontal reach. Every ItemPickup carries a `radius`: leave it
+   0 and the pickup uses ITEM_PICKUP_RADIUS above, exactly as before; set it to
+   a number and THAT is the Manhattan X/Z reach for this one collectible.
+   It is what lets a pickup sit in the middle of a counter top or a plinth the
+   player is held well clear of, instead of having to be nudged onto the lip
+   nearest wherever the collision happens to stop them. The vertical test
+   (ITEM_PICKUP_HEIGHT) is NOT widened by it — a bigger reach must never let a
+   pickup be taken through the floor above or below. */
+
 typedef struct {
     int32_t    x, y, z;
     int32_t    bob_angle;
     int32_t    active;
     PickupKind kind;
     int32_t    amount;   /* rounds granted (PICKUP_ROUNDS only; unused otherwise) */
+    int32_t    radius;   /* 0 = use ITEM_PICKUP_RADIUS; else this pickup's reach */
 } ItemPickup;
 
 extern ItemPickup item_pickups[MAX_ITEM_PICKUPS];
@@ -52,6 +62,10 @@ void item_pickups_load_textures(void);
 int  item_pickup_spawn(int32_t x, int32_t y, int32_t z, PickupKind kind);
 int  item_pickup_spawn_amount(int32_t x, int32_t y, int32_t z, PickupKind kind,
                               int32_t amount);
+/* As _amount, but with this pickup's own collect range (Manhattan, X/Z). Pass
+   0 for radius to fall back to ITEM_PICKUP_RADIUS. */
+int  item_pickup_spawn_range(int32_t x, int32_t y, int32_t z, PickupKind kind,
+                             int32_t amount, int32_t radius);
 
 void item_pickups_update(void);
 void item_pickups_draw(RenderContext *ctx);

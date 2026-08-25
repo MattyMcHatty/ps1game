@@ -112,8 +112,8 @@ void item_pickups_reset(void) {
                       (1 << ITEM_MAGENTA_KEY_STONE));
 }
 
-int item_pickup_spawn_amount(int32_t x, int32_t y, int32_t z, PickupKind kind,
-                             int32_t amount) {
+int item_pickup_spawn_range(int32_t x, int32_t y, int32_t z, PickupKind kind,
+                            int32_t amount, int32_t radius) {
     int i;
     for (i = 0; i < MAX_ITEM_PICKUPS; i++) {
         if (!item_pickups[i].active) {
@@ -123,12 +123,18 @@ int item_pickup_spawn_amount(int32_t x, int32_t y, int32_t z, PickupKind kind,
             item_pickups[i].bob_angle = 0;
             item_pickups[i].kind      = kind;
             item_pickups[i].amount    = amount;
+            item_pickups[i].radius    = radius;
             item_pickups[i].active    = 1;
             if (i >= item_pickup_count) item_pickup_count = i + 1;
             return i;
         }
     }
     return -1;
+}
+
+int item_pickup_spawn_amount(int32_t x, int32_t y, int32_t z, PickupKind kind,
+                             int32_t amount) {
+    return item_pickup_spawn_range(x, y, z, kind, amount, 0);
 }
 
 int item_pickup_spawn(int32_t x, int32_t y, int32_t z, PickupKind kind) {
@@ -171,7 +177,11 @@ void item_pickups_update(void) {
         int32_t dz   = p->z - cam_z;
         int32_t dy   = cam_y - p->y;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        if (dist < ITEM_PICKUP_RADIUS &&
+        /* This pickup's own reach if it was given one, else the global default.
+           Only the X/Z test widens — the vertical one stays ITEM_PICKUP_HEIGHT so
+           a long-reach pickup still cannot be taken from another floor. */
+        int32_t reach = p->radius > 0 ? p->radius : ITEM_PICKUP_RADIUS;
+        if (dist < reach &&
             (dy < 0 ? -dy : dy) < ITEM_PICKUP_HEIGHT) {
             p->active = 0;
             collect(p);
