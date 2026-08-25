@@ -122,6 +122,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   stn_gls.tim          8       896   256   128   128     0   0,488
   trees_dl.tim         4       960   256   128   128     0   16,480
   grinder.tim          8       992   256    64    64     0   768,507
+  hatch_key.tim        8       480   320    64    64    64   672,505
   crucifaxe.tim        8       320   384    64    64   128   0,500  <-- Voff>=128
   hadad_idle_64.tim    8       352   384    64    96   128   256,507  <-- Voff>=128
   hud.tim              4       384   384   320    56   128   176,511  <-- Voff>=128
@@ -214,6 +215,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=504  x[256,512)  ls_idle.tim
   y=504  x[0,16)  strs.tim
   y=505  x[0,256)  cppr_pt.tim
+  y=505  x[672,928)  hatch_key.tim
   y=505  x[256,512)  ls_atk.tim
   y=506  x[512,528)  dbl_dr_rg.tim
   y=506  x[0,16)  frnt_dr.tim

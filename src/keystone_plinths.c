@@ -11,7 +11,7 @@
 #include "sound.h"
 #include "btn_glyph.h"       /* BTN_CIRCLE, btn_prompt_draw */
 #include "door.h"            /* door_draw_string_3d for the plinth prompts */
-#include "item_pickup.h"     /* the flame rounds the payoff leaves behind */
+#include "item_pickup.h"     /* the hatch key the payoff leaves behind */
 #include "keystone_plinths.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -184,7 +184,7 @@ static const struct { int16_t push; int16_t scale; uint8_t level; } GLOW[KP_LAYE
 #define KP_PAY_ROT      428
 #define KP_PAY_PITCH    324
 
-/* Where the flame rounds land: the MIDDLE of the keystone's top face, at the
+/* Where the reward lands: the MIDDLE of the keystone's top face, at the
    centre of x(2300,2500) z(2300,2500). It used to sit on the west lip instead,
    because the keystone has collision walls of its own — the 195 push radius
    parks the player 295 (Manhattan) from the centre, and the old flat
@@ -193,14 +193,14 @@ static const struct { int16_t push; int16_t scale; uint8_t level; } GLOW[KP_LAYE
    can sit where the shot points and still be taken by walking level with any
    face of the plinth.
 
-   KP_ROUNDS_RANGE has to clear that 295 with a little slack for the diagonal
+   KP_REWARD_RANGE has to clear that 295 with a little slack for the diagonal
    approach into a corner; 340 does, and is still far short of the 600 the
    alcove plinths use for their own prompts, so nothing is collected from
    across the court. */
-#define KP_ROUNDS_X    2400
-#define KP_ROUNDS_Z    2400
-#define KP_ROUNDS_RANGE 340
-#define KP_ROUNDS_AMT     6
+#define KP_REWARD_X    2400
+#define KP_REWARD_Z    2400
+#define KP_REWARD_RANGE 340
+#define KP_REWARD_AMT     1   /* one Hatch Key; the second is elsewhere */
 
 /* ---- Board layout (320x240) -------------------------------------------------
    The stove's item picker, centred: there is only one thing to fill here, so
@@ -305,12 +305,12 @@ void keystone_plinths_apply_flags(void) {
 
     /* The reward catch-up. Four stones in and no reward recorded means the
        payoff never got to run — a quit, a death or a debug jump in the seconds
-       between the fourth placement and the spawn. Hand the rounds over here
+       between the fourth placement and the spawn. Hand the key over here
        instead of replaying the scene, and record it so this fires once. */
     if (all_placed() && !game_flag(FLAG_KEYSTONE_REWARD)) {
-        item_pickup_spawn_range(KP_ROUNDS_X, KP_KEY_TOP, KP_ROUNDS_Z,
-                                PICKUP_FLAME_ROUNDS, KP_ROUNDS_AMT,
-                                KP_ROUNDS_RANGE);
+        item_pickup_spawn_range(KP_REWARD_X, KP_KEY_TOP, KP_REWARD_Z,
+                                PICKUP_HATCH_KEY, KP_REWARD_AMT,
+                                KP_REWARD_RANGE);
         game_flag_set(FLAG_KEYSTONE_REWARD);
         top_level = 256;
     }
@@ -365,7 +365,7 @@ static void place_stone(int i) {
 }
 
 /* All four faces are burning. Hard cut to the keystone, bring the top up white,
-   leave the flame rounds on it, hold a beat, cut back. */
+   leave the hatch key on it, hold a beat, cut back. */
 static void start_payoff(void) {
     save_cx = cam_x; save_cy = cam_y; save_cz = cam_z;
     save_crot = cam_rot; save_cvy = cam_vy;
@@ -381,9 +381,9 @@ static void start_payoff(void) {
 
 static void finish_payoff(void) {
     top_level = 256;
-    item_pickup_spawn_range(KP_ROUNDS_X, KP_KEY_TOP, KP_ROUNDS_Z,
-                            PICKUP_FLAME_ROUNDS, KP_ROUNDS_AMT,
-                            KP_ROUNDS_RANGE);
+    item_pickup_spawn_range(KP_REWARD_X, KP_KEY_TOP, KP_REWARD_Z,
+                            PICKUP_HATCH_KEY, KP_REWARD_AMT,
+                            KP_REWARD_RANGE);
     game_flag_set(FLAG_KEYSTONE_REWARD);
     sound_play(SFX_PICKUP);
     show_pickup_msg_raw("The keystones light the way");

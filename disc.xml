@@ -327,6 +327,13 @@
                      streamed slot. -->
                 <file name="XTDRCMPL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_cmplt.tim"/>
                 <file name="MGNKYSTN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\mgn_ky_stn.tim"/>
+                <!-- The Keystone Maze's plinth reward: the Hatch Key, pickup
+                     sprite and inventory icon out of the one TIM. It sits at
+                     VRAM y=320 (Voff 64) rather than the pickup band's Voff 0,
+                     which had no 64x64 gap left — safe because every room's
+                     texture window is 128x128 at offset 0, so a V range of
+                     64..127 maps to itself. -->
+                <file name="HATCHKEY.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\hatch_key.tim"/>
                 <!-- Garden Stairs: the caged switchback stairway behind the
                      Attic Exit's unlocked door. XTDRCG/XTDROUTR are its two new
                      mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the

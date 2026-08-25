@@ -21,6 +21,7 @@ typedef enum {
     PICKUP_BLUE_KEY_STONE,   /* blue key stone  -> ITEM_BLUE_KEY_STONE bit    */
     PICKUP_YELLOW_KEY_STONE, /* yellow key stone-> ITEM_YELLOW_KEY_STONE bit  */
     PICKUP_MAGENTA_KEY_STONE,/* magenta key stone->ITEM_MAGENTA_KEY_STONE bit */
+    PICKUP_HATCH_KEY,        /* hatch key       -> player_hatch_keys (stacks) */
     PICKUP_KIND_COUNT
 } PickupKind;
 

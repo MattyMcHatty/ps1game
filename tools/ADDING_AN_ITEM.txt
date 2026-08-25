@@ -77,6 +77,16 @@ art in every room that sets a window.
       py -c "from PIL import Image; im=Image.open('textures/flm_rnds.png'); \
              print(im.size, im.mode, im.getbbox())"
 
+2a-bis. THE Voff 0 BAND IS FULL (Aug 2026). The y=256 pickup row has no 64x64
+    gap left — the Hatch Key had to go at x[480,512) y=320, i.e. Voff 64. That is
+    still safe, and here is the actual rule behind "Voff 0": every room sets the
+    SAME window, RECT{0,0,128,128} (grep "RECT tw =" — they all match), which
+    wraps V mod 128 with no offset. So what a pickup really needs is its whole V
+    range inside 0..127 of its page. Voff 0 with h<=128 satisfies that; so does
+    Voff 64 with h<=64. Voff >= 128 never does. If you take a Voff 64 slot,
+    re-run the grep first and confirm no room has since introduced a different
+    window.
+
 2b. Find a slot in tools/VRAM_MAP.txt. A 64px 8bpp sprite is 32 WORDS wide by
     64 tall. Work the widths out yourself — the map's "wpx" column is in PIXELS,
     so words = wpx/4 (4bpp), wpx/2 (8bpp), wpx (16bpp). The pickup band is the
@@ -91,6 +101,13 @@ art in every room that sets a window.
 2c. CLUT line: 8bpp needs 256 words, one line, y >= 480. Find a line whose only
     occupant is a 16-word 4bpp CLUT at x[0,16) and take x[256,512). Flame Rounds
     used (256,481), sharing y=481 with key.tim's 16-word CLUT.
+
+    Those lines are running out too, and CLUT lines carry PIXELS as well as
+    CLUTs (ddog_alert lives at x[640,672) y[448,512), which is what rejected the
+    Hatch Key's first choice of (512,481)). Do not eyeball it: list the free
+    256-word runs on y=480..511 across the FULL width from every .tim's own
+    rects, then pick one. The Hatch Key took (672,505); x[672,1024) is free on
+    most of y=499..511.
 
 2d. Convert:
 

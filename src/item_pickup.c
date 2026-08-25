@@ -36,6 +36,7 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\BLKYSTN.TIM;1",    /* PICKUP_BLUE_KEY_STONE   */
     "\\TEX\\YLKYSTN.TIM;1",    /* PICKUP_YELLOW_KEY_STONE */
     "\\TEX\\MGNKYSTN.TIM;1",   /* PICKUP_MAGENTA_KEY_STONE */
+    "\\TEX\\HATCHKEY.TIM;1",   /* PICKUP_HATCH_KEY         */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
@@ -45,6 +46,7 @@ static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Blue Key Stone",          /* PICKUP_BLUE_KEY_STONE   */
     "Yellow Key Stone",        /* PICKUP_YELLOW_KEY_STONE */
     "Magenta Key Stone",       /* PICKUP_MAGENTA_KEY_STONE */
+    "Hatch Key",               /* PICKUP_HATCH_KEY         */
 };
 
 /* Load one TIM into VRAM and record its tpage/clut and UV rect. The UV's U0 is
@@ -110,6 +112,7 @@ void item_pickups_reset(void) {
        puzzle is what awards it, and that module clears it.) */
     player_items &= ~((1 << ITEM_PIANO_KEY) | (1 << ITEM_BLUE_KEY_STONE) |
                       (1 << ITEM_MAGENTA_KEY_STONE));
+    player_hatch_keys = 0;
 }
 
 int item_pickup_spawn_range(int32_t x, int32_t y, int32_t z, PickupKind kind,
@@ -155,6 +158,14 @@ static void collect(ItemPickup *p) {
         case PICKUP_BLUE_KEY_STONE: player_items |= (1 << ITEM_BLUE_KEY_STONE); break;
         case PICKUP_YELLOW_KEY_STONE: player_items |= (1 << ITEM_YELLOW_KEY_STONE); break;
         case PICKUP_MAGENTA_KEY_STONE: player_items |= (1 << ITEM_MAGENTA_KEY_STONE); break;
+        /* Counted, but not ammo: the garden has two hatches to unlock and both
+           keys share one inventory slot, so this is a small counter rather than
+           a bit. Clamped so a duplicate spawn (a reward catch-up firing twice)
+           cannot push it past the number of hatches that exist. */
+        case PICKUP_HATCH_KEY:
+            player_hatch_keys += p->amount;
+            if (player_hatch_keys > HATCH_KEYS_MAX) player_hatch_keys = HATCH_KEYS_MAX;
+            break;
         default: break;
     }
     sound_play(SFX_PICKUP);

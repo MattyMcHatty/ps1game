@@ -244,6 +244,12 @@ extern const AmmoInfo ammo_info[MAX_AMMO_TYPES];
 extern int       player_ammo[MAX_AMMO_TYPES];  /* reserve rounds held, per type */
 extern AmmoType  graveolver_ammo;              /* type currently in the cylinder */
 extern int       graveolver_loaded;  /* rounds currently in the cylinder (0..6) */
+/* Hatch keys held. A COUNTER rather than a bit in player_items: the garden has
+   two hatches and both keys stack into one inventory slot, so what matters is
+   how many are carried, not merely that one is. */
+#define HATCH_KEYS_MAX  2
+extern int player_hatch_keys;
+
 extern int player_save_count;  /* total successful saves this playthrough (any slot/card) */
 extern WeaponType current_weapon;  /* the equipped weapon; L2 cycles owned ones */
 

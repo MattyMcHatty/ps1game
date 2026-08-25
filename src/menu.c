@@ -115,6 +115,13 @@ static uint8_t  ykst_u0, ykst_v0, ykst_u1, ykst_v1;
 static uint16_t mkst_tpage   = 0;
 static uint16_t mkst_clut    = 0;
 static uint8_t  mkst_u0, mkst_v0, mkst_u1, mkst_v1;
+/* The hatch key. Its art sits at VRAM y=320, i.e. Voff 64 — the pickup band at
+   Voff 0 had no 64x64 gap left. That is still window-safe: every room's texture
+   window is RECT{0,0,128,128}, so a V range of 64..127 maps to itself and needs
+   no reset, unlike the Voff>=128 icons the note in menu_draw is about. */
+static uint16_t htky_tpage   = 0;
+static uint16_t htky_clut    = 0;
+static uint8_t  htky_u0, htky_v0, htky_u1, htky_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -133,6 +140,7 @@ static const char *item_descriptions[] = {
     "Blue Key Stone\n\nA blue jewel\nwith a key\nprotruding from\nthe back",
     "Yellow Key Stone\n\nA yellow jewel\nwith a key\nprotruding from\nthe back",
     "Magenta Key Stone\n\nA magenta jewel\nwith a key\nprotruding from\nthe back",
+    "Hatch Key\n\nA key for the\nhatch at the back\nof the garden",
 };
 
 static const char *weapon_descriptions[] = {
@@ -315,6 +323,7 @@ int menu_item_held(int slot) {
                                        return (player_items & (1 << ITEM_YELLOW_KEY_STONE)) != 0;
         case MENU_SLOT_MAGENTA_KEY_STONE:
                                        return (player_items & (1 << ITEM_MAGENTA_KEY_STONE)) != 0;
+        case MENU_SLOT_HATCH_KEY:      return player_hatch_keys > 0;
         default: return 0;
     }
 }
@@ -331,6 +340,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_BLUE_KEY_STONE: return "Blue Key Stone";
         case MENU_SLOT_YELLOW_KEY_STONE:return "Yellow Key Stone";
         case MENU_SLOT_MAGENTA_KEY_STONE:return "Magenta Key Stone";
+        case MENU_SLOT_HATCH_KEY:      return "Hatch Key";
         default: return "";
     }
 }
@@ -454,6 +464,11 @@ void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
             draw_icon(ctx, x, y, size, mkst_tpage, mkst_clut,
                       mkst_u0, mkst_v0, mkst_u1, mkst_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_HATCH_KEY:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, htky_tpage, htky_clut,
+                      htky_u0, htky_v0, htky_u1, htky_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -503,6 +518,8 @@ void menu_init(void) {
                   &bkst_u0, &bkst_v0, &bkst_u1, &bkst_v1);
     load_icon_tim("\\TEX\\MGNKYSTN.TIM;1", &mkst_tpage, &mkst_clut,
                   &mkst_u0, &mkst_v0, &mkst_u1, &mkst_v1);
+    load_icon_tim("\\TEX\\HATCHKEY.TIM;1", &htky_tpage, &htky_clut,
+                  &htky_u0, &htky_v0, &htky_u1, &htky_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);
@@ -648,6 +665,11 @@ static void draw_item_cell(RenderContext *ctx, int item, int x, int y) {
         draw_number(ctx, x, y + ICON_SIZE, player_ammo[AMMO_STANDARD], 2, OT_COUNT);
     if (item == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0)
         draw_number(ctx, x, y + ICON_SIZE, player_ammo[AMMO_FLAME], 2, OT_COUNT);
+    /* Hatch keys stack two to a cell. Only worth a number once there are two —
+       a "1" over the icon of a thing you obviously hold once is noise, which is
+       not true of ammo, where the exact reserve is the point. */
+    if (item == MENU_SLOT_HATCH_KEY && player_hatch_keys > 1)
+        draw_number(ctx, x, y + ICON_SIZE, player_hatch_keys, 2, OT_COUNT);
 }
 
 void menu_draw(RenderContext *ctx) {

@@ -12,8 +12,8 @@
 
    Placing the matching key stone in an alcove plinth puts that plinth's light
    out and lights the corresponding FACE of the keystone in the same colour.
-   With all four faces burning the top face lights white and a box of flame
-   rounds appears on the keystone.
+   With all four faces burning the top face lights white and a Hatch Key
+   appears on the keystone.
 
      PLINTH   centre XZ   colour    stone            keystone face
      -------  ----------  --------  ---------------  --------------
@@ -64,7 +64,7 @@ void keystone_plinths_place(void);
    >>> IT MUST RUN AFTER world_enter(), NOT INSIDE THE AREA INIT. <<< On top of
    re-running the install it also CATCHES UP THE REWARD: four placements with
    FLAG_KEYSTONE_REWARD still clear means the player quit or died between the
-   fourth stone and the payoff that spawns the rounds, so this hands them over
+   fourth stone and the payoff that spawns the key, so this hands it over
    on the spot. Spawning is a write to item_pickups, and world_enter overwrites
    that array wholesale with the saved room state — do it in the area init and
    the box is dropped on the floor of a room that is about to be restored over

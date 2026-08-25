@@ -17,7 +17,15 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   17            /* v17: a FIFTH Hadad — the West Corridor's
+#define SAVE_VERSION   18            /* v18: hatch_keys — the Keystone Maze's
+                                        plinth reward is a Hatch Key now, not a
+                                        box of Flame Rounds, and it is COUNTED
+                                        (two keys share one inventory slot), so
+                                        SaveData grew a field. Nothing about the
+                                        WorldDelta changed, so the delta_size
+                                        check cannot catch a v17 save: the bump
+                                        is the only thing that does;
+                                        v17: a FIFTH Hadad — the West Corridor's
                                         RETURN, the corner ambush walked the
                                         other way round under FLAG_HADAD_TWO. It
                                         shares its room with the ambush, so it
@@ -98,6 +106,7 @@ typedef struct {
     int32_t  weapons;               /* owned-weapon bitmask */
     int32_t  keys;                  /* held-key bitmask */
     int32_t  items;                 /* held non-key item bitmask (player_items) */
+    int32_t  hatch_keys;            /* hatch keys carried, 0..HATCH_KEYS_MAX */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     uint8_t  item_order[MENU_ITEM_CELLS];  /* inventory grid: cell -> item ID + 1,
                                        0 = empty. Purely the ARRANGEMENT; what is

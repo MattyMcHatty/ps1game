@@ -68,6 +68,7 @@ void savegame_capture(SaveData *sd) {
     sd->weapons = player_weapons;
     sd->keys    = player_keys;
     sd->items   = player_items;
+    sd->hatch_keys = player_hatch_keys;
     sd->flags   = game_flags;
     menu_inventory_save(sd->item_order);
     sd->counter = 0;
@@ -233,6 +234,11 @@ void savegame_apply_pending(void) {
     player_weapons    = sd->weapons;
     player_keys       = sd->keys;
     player_items      = sd->items;
+    /* Clamp: the count drives a menu cell's number, and menu_item_held reads it
+       as "carried at all", so a corrupt value must not survive as one. */
+    player_hatch_keys = (sd->hatch_keys < 0) ? 0
+                      : (sd->hatch_keys > HATCH_KEYS_MAX) ? HATCH_KEYS_MAX
+                      : (int)sd->hatch_keys;
     game_flags        = sd->flags;
     player_save_count = (int)sd->counter;
     /* AFTER the inventory fields above: the arrangement is reconciled against

@@ -17,6 +17,7 @@ int     player_weapons = (1 << WEAPON_CRUCIFAXE);  /* crucifaxe always owned */
 int      player_ammo[MAX_AMMO_TYPES] = {0};
 AmmoType graveolver_ammo = AMMO_STANDARD;          /* cylinder starts on lead  */
 int      graveolver_loaded = GRAVEOLVER_CAPACITY;  /* cylinder starts loaded   */
+int      player_hatch_keys = 0;                    /* 0..HATCH_KEYS_MAX        */
 
 /* One row per AmmoType (see player.h). The muzzle-flash colour is the whole
    visual tell for which rounds are chambered, so keep them clearly distinct.
