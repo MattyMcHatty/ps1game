@@ -171,6 +171,37 @@ typedef enum {
        a corridor whose plates are open again. Declared at the END of the enum,
        as the note above instructs. */
     FLAG_GRINDER_BROKEN,
+    /* ---- The Keystone Maze's four plinths --------------------------------
+       One bit per hedge-alcove plinth, set the moment the right key stone is
+       placed in it. Five bits rather than one because the puzzle is solved a
+       quarter at a time and each quarter is a separate, permanent world change:
+       the plinth's own light goes out, the matching face of the central
+       keystone lights, and the STONE IS CONSUMED. Nothing in the inventory can
+       be read back afterwards to tell which of the four were spent — the same
+       trap FLAG_STOVE_SOLVED exists for — so the bits have to carry it.
+
+       The order here is the order the puzzle is stated in, not a compass walk:
+       NW/green, W/magenta, NE/yellow, SE/blue. See src/keystone_plinths.h for
+       the plinth <-> colour <-> face table.
+
+         FLAG_KEYSTONE_REWARD  all four are in and the payoff has RUN: the top
+                               face burns white and the flame rounds have been
+                               spawned onto the keystone's west lip. Separate
+                               from the four above because the reward is
+                               spawned by a cutscene that can be cut short by a
+                               quit or a death between the fourth placement and
+                               the spawn; without this bit that player would
+                               come back to a solved puzzle and no rounds, and
+                               with it the room hands them over on entry
+                               instead. It is also what stops the payoff
+                               replaying on every later visit.
+
+       Declared at the END of the enum, as the note above instructs. */
+    FLAG_KEYSTONE_NW,
+    FLAG_KEYSTONE_W,
+    FLAG_KEYSTONE_NE,
+    FLAG_KEYSTONE_SE,
+    FLAG_KEYSTONE_REWARD,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

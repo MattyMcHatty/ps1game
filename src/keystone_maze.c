@@ -29,6 +29,7 @@
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
+#include "keystone_plinths.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -337,6 +338,13 @@ void keystone_maze_init(void) {
        this room's own; the nearest is on the Garden Stairs' top landing. */
     save_points_clear();
     dressers_clear();
+
+    /* The four alcove plinths and the keystone in the middle, installed from the
+       CURRENT flags. main.c runs keystone_plinths_apply_flags() again once the
+       real flags are in and the room's entities have been restored — this call
+       is only so the room is never drawn in an undefined state during the load
+       frame. See keystone_plinths.h. */
+    keystone_plinths_place();
 }
 
 static void draw_keystone_maze_smd(RenderContext *ctx) {
@@ -657,6 +665,12 @@ void keystone_maze_draw(RenderContext *ctx) {
         item_pickups_draw(ctx);
         sml_meds_draw(ctx);
     }
+
+    /* The plinth puzzle: the coloured glows, the keystone's lit faces and — when
+       it owns the camera — its item picker. After the mesh and the entities, so
+       the additive lights land over what they fall on; the 2D half sorts into
+       the menu-reserved OT range and is unaffected by the order. */
+    keystone_plinths_draw(ctx);
 
     /* Last: the gate sign. */
     gate_text(ctx);

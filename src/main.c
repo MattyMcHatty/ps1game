@@ -67,6 +67,7 @@
 #include "maze_one.h"
 #include "maze_two.h"
 #include "keystone_maze.h"
+#include "keystone_plinths.h"
 #include "rear_gate.h"
 #include "west_corridor.h"
 #include "stables.h"
@@ -299,6 +300,19 @@ static void update_current_area(GameState area) {
     /* ...and the same room's Anzu Tablet puzzle. */
     if (area == STATE_PIANO_ROOM && anzu_puzzle_active()) {
         anzu_puzzle_update();
+        return;
+    }
+    /* The Keystone Maze's plinth puzzle: the item picker and the payoff cut BOTH
+       own the camera and input. Enemies keep running for the same reason the
+       stove's board does — the player is stood at the plinth the whole time —
+       even though this room is seeded empty today. */
+    if (area == STATE_KEYSTONE_MAZE && keystone_plinths_active()) {
+        update_zombies();
+        update_spiders();
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        keystone_plinths_update();
         return;
     }
     /* The Attic Exit's lightswitch puzzle only takes the camera for its PAYOFF —
@@ -1046,7 +1060,11 @@ static void update_current_area(GameState area) {
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
-        if (!lock && keystone_maze_gate_triggered()) {
+        /* The plinth prompts, and the light cross-fades that run in free play
+           after a stone goes in. The branch above catches the frames where this
+           owns the camera instead. */
+        if (!lock) keystone_plinths_update();
+        if (!lock && !keystone_plinths_active() && keystone_maze_gate_triggered()) {
             /* West back through the same gate, into Maze One. */
             pending_area = STATE_MAZE_ONE;
             door_anim_start(DOOR_PANEL_GATE);
@@ -2223,6 +2241,15 @@ int main(int argc, const char **argv) {
             if (pending_area == STATE_EAST_HALL)
                 east_hall_apply_flags();    /* re-reads FLAG_HADAD_TWO: the hall's
                                                monsters die with the Library */
+            if (pending_area == STATE_KEYSTONE_MAZE)
+                keystone_plinths_apply_flags();  /* re-reads the five keystone
+                                                    flags, and spawns the reward
+                                                    if the payoff never got to.
+                                                    HAS to be here and not in the
+                                                    area init: it writes to
+                                                    item_pickups, which
+                                                    world_enter above has only
+                                                    just restored. */
         } else if (game_state == STATE_DOOR_ANIM) {
             /* RE-style door transition: a black screen with the door swinging
                open, then a fade to black. Draws nothing of the live room — when
@@ -2280,6 +2307,9 @@ int main(int argc, const char **argv) {
                              (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && exit_door_puzzle_active()) ||
+                             /* The Keystone Maze's plinth picker, and the cut to
+                                the keystone that ends the puzzle. */
+                             (area == STATE_KEYSTONE_MAZE && keystone_plinths_active()) ||
                              /* The East Hall's collapse. A cutscene by shape,
                                 but it belongs in THIS list and not the one
                                 below: the quake's whole payload is a log line
