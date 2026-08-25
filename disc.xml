@@ -413,6 +413,21 @@
                 <file name="MAZETWO.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\maze_two.smd"/>
                 <file name="PLINTH.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\plinth.tim"/>
 
+                <!-- Keystone Maze: the third hedge maze, east through Maze One's
+                     east gate. FIVE of its six textures belong to other rooms —
+                     HEDGE, GRDNGTE, GRSSGS and GRAVELGS via the courtyard's
+                     uploader (it is the first maze to draw gravel, so all four
+                     of that uploader's outdoor slots are live here) and PLINTH
+                     via maze_two_upload_plinth(), the narrow accessor added for
+                     this room — so PLNTHDMD alone is its own. It went to the
+                     brick_wall page (x768 y0), an 8bpp full page this room draws
+                     nothing from: no FOUNTAIN, no DRAIN, no PSNFLWR, no PIPE, no
+                     BED. Already time-shared seven ways, so no new restore.
+                     Its SMD is 83 KB, well inside the arena Maze One sizes.
+                     Its .smx exports live in assets/garden/ too. -->
+                <file name="KEYSTONE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\keystone_maze.smd"/>
+                <file name="PLNTHDMD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\plinth_diamond.tim"/>
+
                 <!-- The gate's two leaves as the door-anim transition draws them
                      (DOOR_PANEL_GATE). Like XTDRLHLF/XTDRRHLF these are separate
                      per-leaf images, but unlike them they could not be

@@ -66,6 +66,7 @@
 #include "outside_catacombs.h"
 #include "maze_one.h"
 #include "maze_two.h"
+#include "keystone_maze.h"
 #include "rear_gate.h"
 #include "west_corridor.h"
 #include "stables.h"
@@ -223,6 +224,7 @@ static void load_area_geometry(GameState area) {
         case STATE_OUTSIDE_CATACOMBS:outside_catacombs_load_geometry();break;
         case STATE_MAZE_ONE:         maze_one_load_geometry();         break;
         case STATE_MAZE_TWO:         maze_two_load_geometry();         break;
+        case STATE_KEYSTONE_MAZE:    keystone_maze_load_geometry();    break;
         case STATE_REAR_GATE:        rear_gate_load_geometry();        break;
         case STATE_WEST_CORRIDOR:    west_corridor_load_geometry();    break;
         case STATE_STABLES:          stables_load_geometry();          break;
@@ -1007,6 +1009,13 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (!lock && maze_one_egate_triggered()) {
+            /* East through the gate in the far corner, on into the Keystone
+               Maze. The same iron leaf again. */
+            pending_area = STATE_KEYSTONE_MAZE;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_MAZE_TWO) {
         /* Flat maze, exactly as Maze One: all seventeen collision floor planes
@@ -1021,6 +1030,24 @@ static void update_current_area(GameState area) {
         sml_meds_update();
         if (!lock && maze_two_gate_triggered()) {
             /* South back through the same gate, into Maze One. */
+            pending_area = STATE_MAZE_ONE;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_KEYSTONE_MAZE) {
+        /* Flat maze, exactly as the other two: all thirteen collision floor
+           planes are at y=0, so the shared wall collision routine (generic over
+           current_collision_room) and a single floor zone are the whole of it. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed — the room is seeded empty, but */
+        update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        if (!lock && keystone_maze_gate_triggered()) {
+            /* West back through the same gate, into Maze One. */
             pending_area = STATE_MAZE_ONE;
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
@@ -1220,6 +1247,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         maze_one_draw(ctx);
     else if (area == STATE_MAZE_TWO)
         maze_two_draw(ctx);
+    else if (area == STATE_KEYSTONE_MAZE)
+        keystone_maze_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -1427,6 +1456,7 @@ int main(int argc, const char **argv) {
     outside_catacombs_load_assets();/* outside catacombs texture slots */
     maze_one_load_assets();    /* maze one texture slots (owns only PIPE) */
     maze_two_load_assets();    /* maze two texture slots (owns only PLINTH) */
+    keystone_maze_load_assets();/* keystone maze slots (owns only PLNTHDMD) */
     rear_gate_load_assets();   /* rear gate texture slots (owns the two retargets,
                                   PLNTHRG and DBLDRRG) */
     west_corridor_load_assets();/* west corridor texture slots — TIM_SLOT only; it
@@ -1632,6 +1662,7 @@ int main(int argc, const char **argv) {
                  pending_area == STATE_OUTSIDE_CATACOMBS ||
                  pending_area == STATE_MAZE_ONE ||
                  pending_area == STATE_MAZE_TWO ||
+                 pending_area == STATE_KEYSTONE_MAZE ||
                  pending_area == STATE_REAR_GATE ||
                  pending_area == STATE_STABLES) ? SND_BANK_GARDEN :
                 SND_BANK_HOUSE);
@@ -1690,6 +1721,12 @@ int main(int argc, const char **argv) {
                                                        and Maze One's pipe through
                                                        NARROW uploads, and its own
                                                        plinth over xt_dr_cg */
+            } else if (pending_area == STATE_KEYSTONE_MAZE) {
+                keystone_maze_upload_textures();    /* the courtyard's four, plus
+                                                       Maze Two's plinth through a
+                                                       NARROW upload, and its own
+                                                       plinth_diamond over
+                                                       brick_wall */
             } else if (pending_area == STATE_REAR_GATE) {
                 rear_gate_upload_textures();        /* ditto, plus the drain
                                                        through Fountain Square's
@@ -2020,6 +2057,8 @@ int main(int argc, const char **argv) {
                    whichever branch runs the other is safe. */
                 if (current_area == STATE_MAZE_TWO)
                     maze_one_spawn_north();
+                else if (current_area == STATE_KEYSTONE_MAZE)
+                    maze_one_spawn_east();
                 /* The SAME track as Fountain Square through the gate, restarted
                    on arrival, exactly as the Outside Catacombs does it. Sharing
                    it across the gate without a stop is not an option: streaming
@@ -2042,6 +2081,19 @@ int main(int argc, const char **argv) {
                    long as Maze One's does, and what the player would hear is the
                    score pausing over the load. Played HERE rather than on the
                    gate trigger so every route in gets it: the gate, a
+                   title-screen load and a debug level-select jump all pass
+                   through this branch. */
+                cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
+            } else if (pending_area == STATE_KEYSTONE_MAZE) {
+                keystone_maze_init();  /* only one gate is connected: the west
+                                          one, back into Maze One. No spawn
+                                          override needed — there is nowhere
+                                          else to arrive from. */
+                /* THE SAME TRACK as the rest of the garden, restarted on
+                   arrival rather than carried across: streaming this room's
+                   83 KB mesh suspends CD-DA over the load, and what the player
+                   would hear is the score pausing. Played HERE rather than on
+                   the gate trigger so every route in gets it: the gate, a
                    title-screen load and a debug level-select jump all pass
                    through this branch. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
@@ -2206,6 +2258,7 @@ int main(int argc, const char **argv) {
                    game_state == STATE_OUTSIDE_CATACOMBS ||
                    game_state == STATE_MAZE_ONE ||
                    game_state == STATE_MAZE_TWO ||
+                   game_state == STATE_KEYSTONE_MAZE ||
                    game_state == STATE_REAR_GATE ||
                    game_state == STATE_WEST_CORRIDOR ||
                    game_state == STATE_STABLES) {

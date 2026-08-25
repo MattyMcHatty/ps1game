@@ -307,6 +307,29 @@ KNOWN_STREAM_PAIRS = [
     ("frnt_dr.tim",            "greenhouse door.tim"),
     ("red_crpt.tim",           "greenhouse door.tim"),
     ("dbl_dr_rg.tim",          "greenhouse door.tim"),
+    # Keystone Maze, east of Maze One through that room's east gate. Six mesh
+    # textures and five of them cost nothing: hedge, grdn_gte, grss_gs and
+    # gravel_gs come through the Garden Courtyard's uploader wholesale, and
+    # plinth through maze_two_upload_plinth() — the narrow accessor added for
+    # this room, because Maze Two's full uploader would also drop its borrowed
+    # pipe on x768 y0, which is exactly where this room's own texture goes.
+    #   plinth_diamond -> the brick_wall page (x768 y0), an 8bpp FULL page this
+    #               room draws nothing from: no fountain, no drain, no flower
+    #               bed, no pipe, no bed. Already time-shared seven ways (grss /
+    #               brick_wall / bed / fountain / lamashtu tablet / pipe /
+    #               xt_dr_lckd / xt_dr_cmplt) and every consumer re-uploads on
+    #               its own entry, so it adds no restore obligation. The Garden
+    #               Stairs uploader (reached through the courtyard's) puts
+    #               brick_wall here on the way in, so plinth_diamond must go up
+    #               AFTER it — see keystone_maze_upload_textures.
+    ("brick_wall.tim",         "plinth_diamond.tim"),
+    ("grss.tim",               "plinth_diamond.tim"),
+    ("bed.tim",                "plinth_diamond.tim"),
+    ("xt_dr_lckd.tim",         "plinth_diamond.tim"),
+    ("xt_dr_cmplt.tim",        "plinth_diamond.tim"),
+    ("fountain.tim",           "plinth_diamond.tim"),
+    ("lamashtu tablet.tim",    "plinth_diamond.tim"),
+    ("pipe.tim",               "plinth_diamond.tim"),
 ]
 
 def read_tim(path):

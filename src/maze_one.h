@@ -32,7 +32,7 @@
                 cannot reach the spot it occupies anyway.
      DRAIN      a channel across the paths at z[367,833]; art only, no collision.
 
-   THREE gates are modelled; TWO are connected:
+   THREE gates are modelled and ALL THREE are connected:
 
      WEST    the grdn_gte leaf at x=-100, z[-300,500], y[-600,0], in the YZ
      WALL    plane. The far side of the gate in Fountain Square's east hedge.
@@ -47,9 +47,12 @@
              Collision wall 19 runs across the opening at z=4496 with
              nz = -4096, so it is approached from -Z — again from inside the maze
              — which for an XY sign is mirror=0 and a sign on the z-11 side.
-             The remaining one (east x=7100 z[-900,-312]) is drawn shut and backs
-             onto solid collision — it is there for a room that does not exist
-             yet.
+     EAST    the leaf at x=7100, z[-900,-312], y[-600,0], in the YZ plane, on to
+     WALL    the KEYSTONE MAZE's west gate. Its alcove is collision FLOOR 26,
+             x(6901,7100) z(-900,-312), which fixes the centre at z=-606.
+             Collision wall 4 runs across the opening at x=7100 with
+             nx = -4096, so it is approached from -X — again from inside the maze
+             — which for a YZ sign is mirror=1 and a sign on the x-11 side.
 
    Rendered the same way as Fountain Square (per-poly tex map + one 128 texture
    window + purple outdoor fog), with that room's fog distances exactly, and it
@@ -87,8 +90,13 @@ int  maze_one_gate_triggered(void);  /* 1 on a fresh Circle press in range */
 void maze_one_ngate_arm(void);
 int  maze_one_ngate_triggered(void);
 
-/* One spawn per connected gate. Either arms BOTH gates. */
-void maze_one_spawn_west(void);      /* arriving from Fountain Square */
-void maze_one_spawn_north(void);     /* arriving back from Maze Two   */
+/* The east-wall gate on to the Keystone Maze. Its own edge state again. */
+void maze_one_egate_arm(void);
+int  maze_one_egate_triggered(void);
+
+/* One spawn per connected gate. Every one arms ALL THREE gates. */
+void maze_one_spawn_west(void);      /* arriving from Fountain Square    */
+void maze_one_spawn_north(void);     /* arriving back from Maze Two      */
+void maze_one_spawn_east(void);      /* arriving back from Keystone Maze */
 
 #endif

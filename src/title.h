@@ -61,6 +61,9 @@ typedef enum {
                                 rather than a mesh swap so each version keeps its
                                 own record of what has been killed and taken.
                                 Appended, not inserted, for the same reason. */
+    STATE_KEYSTONE_MAZE,     /* the third hedge maze, EAST of Maze One through
+                                the gate in that room's east hedge. Appended,
+                                not inserted: saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

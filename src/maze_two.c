@@ -213,6 +213,18 @@ void maze_two_upload_textures(void) {
     texmgr_upload(plinth_tex_id);         /* plinth  -> the xt_dr_cg slot        */
 }
 
+/* Just the plinth, for the Keystone Maze through the east gate of Maze One —
+   which draws the same block but no pipe. The conservatory_upload_con_tile
+   pattern: this room owns the only RAM copy, and a second texmgr_register there
+   would spend a registration to hold identical bytes (see
+   tools/TEXTURING_NOTES.txt). Calling maze_two_upload_textures() wholesale
+   instead would ALSO drop the borrowed pipe on x768 y0, which is precisely where
+   the Keystone Maze's plinth_diamond goes. The caller must have run the
+   courtyard's uploader first — xt_dr_cg lands on this slot. */
+void maze_two_upload_plinth(void) {
+    texmgr_upload(plinth_tex_id);
+}
+
 /* ---- The south-wall gate back to Maze One -----------------------------------
    The grdn_gte polys on this side span x[-1600,-1000] at z=0, y[-600,0]. It is
    the same gate leaf as the one in Maze One's north hedge, which is four units

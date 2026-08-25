@@ -307,6 +307,10 @@
 #define TIM_TPAGE_PLINTH   0x008d
 #define TIM_CLUT_PLINTH    0x7dd0
 
+/* plinth_diamond.tim  8bpp  VRAM ( 768,  0)  \TEX\PLNTHDMD.TIM */
+#define TIM_TPAGE_PLNTHDMD 0x008c
+#define TIM_CLUT_PLNTHDMD  0x7f90
+
 /* plinth_rg.tim   8bpp  VRAM ( 640,  0)  \TEX\PLNTHRG.TIM */
 #define TIM_TPAGE_PLNTHRG  0x008a
 #define TIM_CLUT_PLNTHRG   0x7e90

@@ -66,6 +66,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   grss.tim             4       768     0   128   128     0   80,511
   lamashtu tablet.tim  8       768     0   128   128     0   672,495
   pipe.tim             8       768     0   128   128     0   256,502
+  plinth_diamond.tim   8       768     0   128   128     0   256,510
   xt_dr_cmplt.tim      8       768     0   128   128     0   672,483
   xt_dr_lckd.tim       8       768     0   128   128     0   672,483
   con_tile.tim         4       832     0   128   128     0   96,511
@@ -225,6 +226,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=509  x[256,512)  hadad_stp2_64.tim
   y=509  x[0,256)  stnd_rnds.tim
   y=510  x[0,256)  ghit.tim
+  y=510  x[256,512)  plinth_diamond.tim
   y=511  x[16,32)  bookshelf.tim
   y=511  x[160,176)  chnlnk.tim
   y=511  x[112,128)  cncrte.tim
@@ -251,6 +253,7 @@ OVERLAP CHECK
   bed.tim                                  grss.tim             time-shared (streaming)
   bed.tim                                  lamashtu tablet.tim  time-shared (streaming)
   bed.tim                                  pipe.tim             time-shared (streaming)
+  bed.tim                                  plinth_diamond.tim   time-shared (streaming)
   bed.tim                                  xt_dr_cmplt.tim      time-shared (streaming)
   bed.tim                                  xt_dr_lckd.tim       time-shared (streaming)
   bookshelf.tim                            grss_gs.tim          time-shared (streaming)
@@ -260,6 +263,7 @@ OVERLAP CHECK
   brick_wall.tim                           grss.tim             time-shared (streaming)
   brick_wall.tim                           lamashtu tablet.tim  time-shared (streaming)
   brick_wall.tim                           pipe.tim             time-shared (streaming)
+  brick_wall.tim                           plinth_diamond.tim   time-shared (streaming)
   brick_wall.tim                           xt_dr_cmplt.tim      time-shared (streaming)
   brick_wall.tim                           xt_dr_lckd.tim       time-shared (streaming)
   chnlnk.tim                               gravel_texture.tim   time-shared (streaming)
@@ -310,6 +314,7 @@ OVERLAP CHECK
   fountain.tim                             grss.tim             time-shared (streaming)
   fountain.tim                             lamashtu tablet.tim  time-shared (streaming)
   fountain.tim                             pipe.tim             time-shared (streaming)
+  fountain.tim                             plinth_diamond.tim   time-shared (streaming)
   fountain.tim                             xt_dr_cmplt.tim      time-shared (streaming)
   fountain.tim                             xt_dr_lckd.tim       time-shared (streaming)
   frnt_dr.tim                              greenhouse door.tim  time-shared (streaming)
@@ -330,6 +335,7 @@ OVERLAP CHECK
   greenhouse.tim                           trees.tim            time-shared (streaming)
   grss.tim                                 lamashtu tablet.tim  time-shared (streaming)
   grss.tim                                 pipe.tim             time-shared (streaming)
+  grss.tim                                 plinth_diamond.tim   time-shared (streaming)
   grss.tim                                 xt_dr_cmplt.tim      time-shared (streaming)
   grss.tim                                 xt_dr_lckd.tim       time-shared (streaming)
   grss_gs.tim                              stn_stl.tim          time-shared (streaming)
@@ -342,6 +348,7 @@ OVERLAP CHECK
   kchn_tile.tim                            piano_keys_full.tim  time-shared (streaming)
   kchn_tile.tim                            xt_dr_outr.tim       time-shared (streaming)
   lamashtu tablet.tim                      pipe.tim             time-shared (streaming)
+  lamashtu tablet.tim                      plinth_diamond.tim   time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_cmplt.tim      time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_lckd.tim       time-shared (streaming)
   opn_drwr.tim                             plinth.tim           time-shared (streaming)
@@ -350,10 +357,13 @@ OVERLAP CHECK
   piano_keys.tim                           piano_keys_full.tim  time-shared (streaming)
   piano_keys.tim                           xt_dr_outr.tim       time-shared (streaming)
   piano_keys_full.tim                      xt_dr_outr.tim       time-shared (streaming)
+  pipe.tim                                 plinth_diamond.tim   time-shared (streaming)
   pipe.tim                                 xt_dr_cmplt.tim      time-shared (streaming)
   pipe.tim                                 xt_dr_lckd.tim       time-shared (streaming)
   plinth.tim                               stables wood.tim     time-shared (streaming)
   plinth.tim                               xt_dr_cg.tim         time-shared (streaming)
+  plinth_diamond.tim                       xt_dr_cmplt.tim      time-shared (streaming)
+  plinth_diamond.tim                       xt_dr_lckd.tim       time-shared (streaming)
   plinth_rg.tim                            poison_flower_base.tim time-shared (streaming)
   plinth_rg.tim                            trck_clue.tim        time-shared (streaming)
   plinth_rg.tim                            trees.tim            time-shared (streaming)

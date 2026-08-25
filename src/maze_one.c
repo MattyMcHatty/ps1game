@@ -310,10 +310,11 @@ void maze_one_spawn_west(void) {
     cam_vy  = 0;
     cam_z   = MO_GATE_Z;
     cam_rot = 1024;   /* facing +X, into the room */
-    /* Arm BOTH gates, not just this one: a Circle held through the transition
-       would otherwise fire whichever interaction was left unarmed. */
+    /* Arm ALL THREE gates, not just this one: a Circle held through the
+       transition would otherwise fire whichever interaction was left unarmed. */
     maze_one_gate_arm();
     maze_one_ngate_arm();
+    maze_one_egate_arm();
 }
 
 /* ---- The north-wall gate on to Maze Two -------------------------------------
@@ -394,6 +395,91 @@ void maze_one_spawn_north(void) {
     cam_rot = 2048;   /* facing -Z, into the room */
     maze_one_gate_arm();
     maze_one_ngate_arm();
+    maze_one_egate_arm();
+}
+
+/* ---- The east-wall gate on to the Keystone Maze -----------------------------
+   The last of this room's three modelled gates to be connected, and the one its
+   header used to describe as "there for a room that does not exist yet". Its
+   grdn_gte polys span z[-900,-312] at x=7100, y[-600,0], and the alcove behind
+   them is collision FLOOR 26, x(6901,7100) z(-900,-312) — which is what fixes
+   the centre at z=-606.
+
+   Collision wall 4 runs across the opening at x=7100 with nx = -4096, so the
+   walkable side is -X and the player approaches from inside the maze. For a sign
+   in the YZ plane that is mirror=1, and it stands 11 units WEST of the wall
+   (x - 11). Both are the opposite hand from the WEST gate in this same room,
+   whose wall faces +X, and the opposite hand again from the Keystone Maze's side
+   of this gate, whose wall faces +X — getting any of them backwards comes out as
+   mirrored text or a sign buried in the hedge.
+
+   The wall STAYS in the collision list: as with the other two, the leaf is shut
+   as far as collision is concerned and it is the trigger, not a hole, that lets
+   the player through. */
+#define MO_EGATE_X            7100
+#define MO_EGATE_Z           (-606)   /* (-900 + -312) / 2, and FLOOR 26's centre */
+
+/* Its own Circle edge-detect. Three gates in one room means three independent
+   edge states — sharing one would let a press consumed by the near gate re-arm
+   the far one — and all three are seeded on every entry by maze_one_init. */
+static int egate_circle_prev = 1;
+
+void maze_one_egate_arm(void) {
+    egate_circle_prev = circle_held();
+}
+
+int maze_one_egate_triggered(void) {
+    int held = circle_held();
+    int just = held && !egate_circle_prev;
+    egate_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - MO_EGATE_X;
+    int32_t dz = cam_z - MO_EGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < MO_TRIGGER_RADIUS && interact_facing(MO_EGATE_X, MO_EGATE_Z);
+}
+
+/* Floating sign on the east gate. YZ plane, like the west one:
+   door_draw_string_3d centres the reading axis (Z) on world_z after adding 200,
+   so pass door_z - 200. Same radii and fade; only the mirror flag and the sign's
+   side of the wall differ (see above). */
+static void egate_text(RenderContext *ctx) {
+    int32_t dx = cam_x - MO_EGATE_X;
+    int32_t dz = cam_z - MO_EGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= MO_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > MO_FADE_NEAR) {
+        int range = MO_TEXT_RADIUS - MO_FADE_NEAR;
+        int prog  = xz - MO_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        MO_EGATE_X - 11, MO_TEXT_Y, MO_EGATE_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
+/* Arriving back from the Keystone Maze: stand WEST of the x=7100 hedge, clear of
+   the wall push radius, facing -X — the direction of travel through the gate. x
+   lands at 6880, which is 21 units outside the alcove's mouth at x=6901 and so
+   inside collision FLOOR 25's x(6293,6901) z(-2095,1300) run, in the z gap
+   between walls 11 and 12; the player drops straight out of the gate alcove into
+   the corridor along the maze's east side rather than onto a hedge. z=-606 is
+   294 clear of both alcove side walls, comfortably outside the 195 push
+   radius. */
+void maze_one_spawn_east(void) {
+    cam_x   = MO_EGATE_X - COLLISION_WALL_RADIUS - 25;
+    cam_y   = MO_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = MO_EGATE_Z;
+    cam_rot = 3072;   /* facing -X, into the room */
+    maze_one_gate_arm();
+    maze_one_ngate_arm();
+    maze_one_egate_arm();
 }
 
 void maze_one_init(void) {
@@ -414,8 +500,9 @@ void maze_one_init(void) {
     maze_one_floor_zones_init();
 
     /* Default spawn: the west gate, back into Fountain Square. main.c overrides
-       it with maze_one_spawn_north() when the player is arriving from Maze Two.
-       Either spawn arms BOTH gates. */
+       it with maze_one_spawn_north() when the player is arriving from Maze Two,
+       and maze_one_spawn_east() when they are coming back out of the Keystone
+       Maze. Every spawn arms ALL THREE gates. */
     maze_one_spawn_west();
 
     /* Save points and dresser props are global (not room-swapped) and neither is
@@ -752,4 +839,5 @@ void maze_one_draw(RenderContext *ctx) {
     /* Last: the gate signs. */
     gate_text(ctx);
     ngate_text(ctx);
+    egate_text(ctx);
 }

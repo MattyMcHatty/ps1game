@@ -72,6 +72,12 @@ void maze_two_upload_textures(void); /* room entry: pure LoadImage from RAM (no 
 void maze_two_init(void);            /* set collision/floor zones + spawn */
 void maze_two_draw(RenderContext *ctx);
 
+/* Just the plinth, for the Keystone Maze — which draws the same block but no
+   pipe, so it must NOT call maze_two_upload_textures() wholesale (that would put
+   this room's borrowed pipe on x768 y0, where the Keystone Maze's own
+   plinth_diamond lives). Run the courtyard's uploader first. */
+void maze_two_upload_plinth(void);
+
 /* The south-wall gate back to Maze One. */
 void maze_two_gate_arm(void);        /* seed the Circle edge state */
 int  maze_two_gate_triggered(void);  /* 1 on a fresh Circle press in range */
