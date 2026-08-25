@@ -635,10 +635,11 @@ void world_seed_room(GameState area) {
        SFX_HISS sounds for the scream, as do SFX_TNTCL_DIE for the death and the
        resident SFX_AXEHIT / SFX_HURT.
 
-       >>> THIS IS THE FOURTH AND LAST MUSHROOM. <<< MAX_MUSHROOMS is 4 and is a
-       WHOLE-GAME budget (one in the Catacombs, two in Maze One, this one), and
-       mushroom_add drops silently once it is full — raise MAX_MUSHROOMS (and
-       check it against WD_MAX_MUSHROOMS, 8) before placing a fifth.
+       >>> THIS IS THE FOURTH MUSHROOM. <<< MAX_MUSHROOMS is a WHOLE-GAME
+       budget and is now 5 (one in the Catacombs, two in Maze One, this one and
+       the Keystone Maze's), and mushroom_add drops silently once it is full —
+       raise MAX_MUSHROOMS (and check it against WD_MAX_MUSHROOMS, 8) before
+       placing a sixth.
 
        The plinth is x[593,777] z[2238,2422], 131 tall (maze_two.h), so its
        centre is (685, 2330) and its top face is at mesh y = -131. A statue's
@@ -820,6 +821,105 @@ void world_seed_room(GameState area) {
     if (area == STATE_LIBRARY_DESTROYED) {
         hadad_add(HAD_LD_APPEAR_X, HAD_LD_APPEAR_Z, HAD_LD_ANCHOR,
                   STATE_LIBRARY_DESTROYED, HAD_ROLE_LIBRARY);
+    }
+
+    /* Keystone Maze: a MUSHROOM HEAD pacing the northern lane, and FIVE LIVING
+       STATUES, one on each of the room's five SHORT plinths — of which only
+       three ever come alive.
+
+       ---- THE MUSHROOM ---------------------------------------------------
+       A 1692-unit east-west patrol along z=5012, from (5398, 5012) at the east
+       end to (3706, 5012) at the west, in the lane that runs across the top of
+       the maze north of the court. The whole line is clear: no collision wall
+       in "Keystone Maze mesh.smx" crosses it, and the nearest hedge face to any
+       point on it is 288 away (at the east end) against the 195 the player is
+       pushed out by — so neither end is a spot the mushroom can be shoved out
+       of. Nothing else placed here is anywhere near it: the closest statue is
+       the corridor one at (4985, -185), five thousand units south.
+
+       MSH_ALERT_RADIUS (1400) is well inside this room's KM_FOG_FAR, so it
+       never wakes to a player it cannot see, and the lane is long enough that
+       which way it is walking decides whether it notices them at all (the
+       three-part wake in mushroom.h).
+
+       y is the STANDING ANCHOR over this room's single flat y=0 floor zone,
+       -149 — the same value Maze One's and Maze Two's take. AUTHORED, not
+       probed: world_seed_room runs for rooms whose geometry is not resident.
+
+       >>> THIS IS THE FIFTH AND LAST MUSHROOM. <<< See the Maze Two placement
+       above; MAX_MUSHROOMS is now 5.
+
+       ---- THE STATUES ----------------------------------------------------
+       Five plinths, and the mesh is what says which five: the SHORT (120-tall)
+       ones. "Keystone Maze.smx" has ten plinth-textured blocks and they fall in
+       two clean groups — five capped in plinth_diamond and 150-175 tall, which
+       are the KEYSTONE PUZZLE's (keystone_plinths.h owns those and nothing may
+       stand on them), and five plain `plinth` blocks 120 tall, which are these.
+       Four are the court's corners and the fifth stands alone in the corridor
+       inside the south-east corner:
+
+         PLINTH             centre XZ      living?
+         -----------------  -------------  --------------------------------
+         court north-west   (1600, 3200)   0 — masonry
+         court north-east   (3200, 3200)   1
+         court south-west   (1600, 1600)   1
+         court south-east   (3200, 1600)   0 — masonry
+         corridor SE        (4985, -185)   1 — the one near the BLUE plinth
+
+       The two `living` = 0 entries are ordinary stone forever (living_statue.h,
+       THE DEAD ONES): solid and drawn, never armed, never damageable. They cost
+       a slot in the global array like any other statue, which is what took
+       MAX_LIVING_STATUES to 6.
+
+       >>> "SOUTH-EAST" IS TWO DIFFERENT PLINTHS AND ONLY ONE OF THEM LIVES.
+       <<< The court has a south-east corner at (3200, 1600) and it is masonry;
+       the living one is the outlier at (4985, -185), which is the short plinth
+       nearest the BLUE puzzle plinth at (4800, 1200) — 1385 south of it, down
+       the corridor. They are told apart by nothing but this table, so do not
+       "tidy" the two south-easts together.
+
+       ANCHORS. Every one of these five blocks tops out at mesh y = -120 (all
+       120 tall on a y=0 floor). A statue's `y` is the STANDING ANCHOR and its
+       feet are at y + 150, so the anchor is -120 - 150 = -270 for all five, and
+       the body runs from -442 (crown) to -120 (feet, flush with the cap). The
+       anchor does not depend on LST_HALF_H — the LST_Y_OFFSET + LST_HALF_H ==
+       150 invariant absorbs the body size. AUTHORED, not probed, for the usual
+       reason; lst_floor_anchor is only consulted on a teleport, which is the
+       first moment a statue leaves its plinth.
+
+       >>> AT 322 TALL THE HEADS DO NOT CLEAR THE HEDGES. <<< They reach -442
+       against 500-tall hedge runs, so none of these can be spotted over the
+       maze — the court four are seen on walking into the court, and the
+       corridor one on turning into its corridor. Same trade as Maze Two's.
+
+       >>> THE CORRIDOR PLINTH HAS NO COLLISION. <<< keystone_maze.h records it:
+       it stands on collision floor 10 in open corridor and "Keystone Maze mesh
+       .smx" has no walls for it, so the player walks through the STONE. The
+       statue on top is still solid in its own right (living_statues_collide),
+       so what this reads as is a statue the player can walk up to but whose
+       pedestal is a ghost. Add four faces for the block and regenerate the
+       collision if that matters — it is a mesh bug, not a placement one.
+
+       SEED ORDER IS LOAD-BEARING. living_statues_dead indexes instances by
+       (room, then seed order within the room) — canonical_index() below — and
+       this room is index 22, the LAST in room_areas[], so these five append
+       after Maze Two's single statue and no existing save's bits move. That is
+       why no SAVE_VERSION bump comes with them. Reorder these calls and a
+       loaded save's deaths change hands.
+
+       Sound: SND_BANK_GARDEN (main.c's STATE_LOADING keys this room to it), so
+       SFX_HISS sounds for the mushroom's scream and SFX_RUMBLE for a statue's
+       teleport and death, as do the resident SFX_AXEHIT / SFX_HURT. */
+    if (area == STATE_KEYSTONE_MAZE) {
+        mushroom_add(5398, 5012,     /* A: east end of the northern lane */
+                     3706, 5012,     /* B: west end of the same lane     */
+                     -149, STATE_KEYSTONE_MAZE);
+
+        living_statue_add(1600, 3200, -270, 0, STATE_KEYSTONE_MAZE);
+        living_statue_add(3200, 3200, -270, 1, STATE_KEYSTONE_MAZE);
+        living_statue_add(1600, 1600, -270, 1, STATE_KEYSTONE_MAZE);
+        living_statue_add(3200, 1600, -270, 0, STATE_KEYSTONE_MAZE);
+        living_statue_add(4985, -185, -270, 1, STATE_KEYSTONE_MAZE);
     }
 }
 

@@ -63,14 +63,18 @@
  * every update/draw/weapon loop skipping any instance whose area is not
  * current_area — current_area and NEVER game_state, or the enemy freezes for
  * as long as the inventory menu is open (see tools/ADDING_AN_ENEMY.txt STEP 6).
- * MAX_MUSHROOMS is therefore the budget for the WHOLE GAME, not per room.
+ * MAX_MUSHROOMS is therefore the budget for the WHOLE GAME, not per room:
+ * one in the Outside Catacombs, two in Maze One, one in Maze Two and one in
+ * the Keystone Maze fill all five of them, and mushroom_add drops SILENTLY
+ * once it is full. Raise it (and check it against WD_MAX_MUSHROOMS, 8, in
+ * src/world.h) before placing a sixth.
  *
  * SOUND. SFX_HISS is in the GARDEN bank only — it does not fit the house
  * bank's 6.6 KB of spare. A mushroom placed inside the house would still work
  * but would scream silently; see src/sound.h before moving one indoors.
  * ----------------------------------------------------------------------- */
 
-#define MAX_MUSHROOMS         4
+#define MAX_MUSHROOMS         5    /* WHOLE-GAME budget — see above       */
 #define MSH_MAX_HEALTH        5    /* five crucifaxe swings or five rounds     */
 
 /* ---- Speeds, in units per frame. The player walks at 12 and sprints at 20
