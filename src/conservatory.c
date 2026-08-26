@@ -17,6 +17,8 @@
 #include "btn_glyph.h"
 #include "door.h"
 #include "texmgr.h"
+#include "piano_room.h"
+#include "hall_2f.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "fatdoor.h"
@@ -62,15 +64,17 @@ static void conservatory_floor_zones_init(void) {
 #define CONSERVATORY_TEX_COUNT 9
 
 /* Streamed slots: engine slot -> texmgr id. */
-#define CONSERVATORY_NEW_TEX 6
+#define CONSERVATORY_NEW_TEX 3
 static int new_tex_id[CONSERVATORY_NEW_TEX];
+/* THREE registrations, down from six. prpl_wlppr, strs and upstairs used to be
+   RAM copies of their own; they are now borrowed from the modules that already
+   hold one (see conservatory_upload_textures). Same texture, same VRAM address,
+   same tpage/clut - the only difference is that this room no longer keeps a
+   second copy of each in main RAM. See tools/HEAP_BUDGET.txt. */
 static const struct { const char *file; int slot; } new_tex[CONSERVATORY_NEW_TEX] = {
-    { "\\TEX\\PRPLWLP.TIM;1",  1 },
-    { "\\TEX\\STRS.TIM;1",     3 },
     { "\\TEX\\CONTILE.TIM;1",  4 },
     { "\\TEX\\TREES.TIM;1",    5 },
     { "\\TEX\\GRSS.TIM;1",     6 },
-    { "\\TEX\\UPSTAIRS.TIM;1", 8 },
 };
 
 static uint16_t tex_tpage[CONSERVATORY_TEX_COUNT];
@@ -103,6 +107,11 @@ void conservatory_load_assets(void) {
     TIM_SLOT(0, WDFLR);
     TIM_SLOT(2, DINCL);
     TIM_SLOT(7, WDDR);
+    /* Borrowed RAM copies: the header is the same compile-time constant either
+       way; the pixels come from the owning module's narrow uploader on entry. */
+    TIM_SLOT(1, PRPLWLP);    /* piano_room owns the copy  */
+    TIM_SLOT(3, STRS);       /* hall_2f owns the copy     */
+    TIM_SLOT(8, UPSTAIRS);   /* hall_2f owns the copy     */
 }
 
 /* Upload the six streamed textures from their resident RAM copies. Pure
@@ -111,6 +120,14 @@ void conservatory_load_assets(void) {
 void conservatory_upload_textures(void) {
     for (int i = 0; i < CONSERVATORY_NEW_TEX; i++)
         texmgr_upload(new_tex_id[i]);
+    /* The three this room no longer keeps a copy of. Each accessor uploads
+       exactly one texture to exactly the address this room's slot expects, so
+       the VRAM result is identical to the old six-copy version and the order
+       against the loop above does not matter - none of them shares a page with
+       con_tile, trees or grss. */
+    piano_room_upload_wallpaper();      /* prpl_wlppr -> stove slot, x384 y256 */
+    hall_2f_upload_strs();              /* strs       -> stn_stl slot, x320 y0 */
+    hall_2f_upload_upstairs();          /* upstairs   -> x704 y0               */
     concrete_props_upload_textures();   /* cncrte -> kchn_tile slot (unused here) */
     copper_pot_upload_texture();        /* copper pot -> key slot (world sprite) */
 }
@@ -122,7 +139,7 @@ void conservatory_upload_textures(void) {
    hall_2f_upload_strs — reuse the resident copy rather than registering a
    second one, because texmgr has a hard TEXMGR_MAX and overruns fail
    SILENTLY. */
-void conservatory_upload_con_tile(void) { texmgr_upload(new_tex_id[2]); }
+void conservatory_upload_con_tile(void) { texmgr_upload(new_tex_id[0]); }
 
 /* ---- Door back to reception -----------------------------------------------
    The single wooden door on the east wall (x=0), centred on z~10 (from the

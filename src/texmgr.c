@@ -26,8 +26,43 @@
    own exactly one texture each, which is the pattern to keep — five of Maze
    Two's six come in through other modules' narrow uploaders and cost nothing
    here. Count them before adding: this file cannot tell you when you are one
-   over. */
-#define TEXMGR_MAX 64
+   over.
+
+   Raised a third time, 64 -> 72, when the GREENHOUSE was added. The live count
+   is 62 and this cap is no longer the thing to watch.
+
+   >>> THE REAL CEILING IS MAIN RAM, NOT THIS NUMBER, AND IT IS MUCH CLOSER. <<<
+   Every registration keeps the WHOLE TIM resident forever, so 62 of them hold
+   roughly 855 KB. PSn00bSDK gives this program a heap of about 1196 KB (_end up
+   to 0x801FFFF8) and the props' model buffers take ~150 KB more, so what is
+   actually spare at rest is around 200 KB — not the ten free slots in this array.
+
+   AND OVERRUNNING THAT ONE DOES NOT FAIL SOFTLY. The heap top IS the stack:
+   InitHeap is handed everything up to 0x801FFFF8, and the BIOS stack pointer
+   starts at 0x801FFF00 and grows down into the same region with no guard between
+   them. A malloc made when the heap is nearly full therefore SUCCEEDS and hands
+   back memory the stack is using; the next CdRead DMAs over the return address
+   and the console jumps into nothing. The Greenhouse hit exactly this in August
+   2026 — five registrations too many — and it surfaced inside
+   rabisus_load_assets, the next large read after it, looking like a boot hang
+   unrelated to the new room.
+
+   THE GREENHOUSE'S FIX WAS PAID FOR BY A CLEANUP, not by the room going away.
+   Five TIMs were being held two and three times over — prpl_wlppr, strs,
+   upstairs and red_crpt across the conservatory, the 2F hall, reception and the
+   master bedroom — 72 KB of second copies of textures that already had a narrow
+   uploader and an owner. Reclaiming those took the count 67 -> 55 and free-at-
+   rest 143 KB -> 276 KB. There is one duplicate left (double_door, in delivery
+   and the kitchen) and it is deliberate: that module captures its tpages
+   differently and the 10 KB was not needed.
+
+   So: run tools/heap_budget.py before adding a registration, and prefer the two
+   ways of adding none at all — a narrow *_upload_x() on the module that already
+   owns the texture (see hall_2f_upload_strs), or streaming it on entry into a
+   scratch buffer that is freed again (see greenhouse_upload_textures, the first
+   room to own art and register nothing). */
+
+#define TEXMGR_MAX 72
 
 typedef struct {
     uint8_t  *buf;    /* resident RAM copy of the whole TIM (kept for re-upload) */

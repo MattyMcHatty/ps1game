@@ -64,6 +64,11 @@ typedef enum {
     STATE_KEYSTONE_MAZE,     /* the third hedge maze, EAST of Maze One through
                                 the gate in that room's east hedge. Appended,
                                 not inserted: saves store raw enum values. */
+    STATE_GREENHOUSE,        /* the glasshouse WEST of the Stables, through the
+                                greenhouse door in that room's west wall — the
+                                second and last room of the garden-west VRAM
+                                bank, and a dead end. Appended, not inserted:
+                                saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

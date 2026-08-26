@@ -17,6 +17,8 @@
 #include "btn_glyph.h"
 #include "door.h"
 #include "texmgr.h"
+#include "piano_room.h"
+#include "kitchen_dining.h"
 #include "trick_drawers.h"
 #include "fatdoor.h"
 #include "zombie.h"
@@ -61,13 +63,21 @@ static void hall_2f_floor_zones_init(void) {
 #define HALL_2F_TEX_COUNT 7
 
 /* Streamed slots: engine slot -> texmgr id. */
-#define HALL_2F_NEW_TEX 4
+#define HALL_2F_NEW_TEX 2
 static int new_tex_id[HALL_2F_NEW_TEX];
+/* TWO registrations, down from four, and this room is the OWNER of both: strs
+   and upstairs are borrowed from here by the conservatory and reception through
+   the narrow accessors below. prpl_wlppr and red_crpt went the other way - they
+   are borrowed from the piano room and the kitchen rather than kept a second
+   time. See tools/HEAP_BUDGET.txt.
+
+   >>> THE ACCESSOR INDICES BELOW TRACK THIS TABLE. <<< They were [1] and [2]
+   when prpl_wlppr sat in front of them; shrink or reorder the table again and
+   they must move with it, or every room that borrows strs gets whatever is at
+   that index instead - silently, and in someone else's room. */
 static const struct { const char *file; int slot; } new_tex[HALL_2F_NEW_TEX] = {
-    { "\\TEX\\PRPLWLP.TIM;1",  1 },
     { "\\TEX\\STRS.TIM;1",     4 },
     { "\\TEX\\UPSTAIRS.TIM;1", 5 },
-    { "\\TEX\\REDCRPT.TIM;1",  6 },
 };
 
 static uint16_t tex_tpage[HALL_2F_TEX_COUNT];
@@ -100,6 +110,9 @@ void hall_2f_load_assets(void) {
     TIM_SLOT(0, WDFLR);
     TIM_SLOT(2, DINCL);
     TIM_SLOT(3, WDDR);
+    /* Borrowed RAM copies - header constant here, pixels from the owner. */
+    TIM_SLOT(1, PRPLWLP);    /* piano_room owns the copy */
+    TIM_SLOT(6, REDCRPT);    /* the kitchen owns the copy */
 }
 
 /* Upload the four streamed textures from their resident RAM copies. Pure
@@ -108,6 +121,10 @@ void hall_2f_load_assets(void) {
 void hall_2f_upload_textures(void) {
     for (int i = 0; i < HALL_2F_NEW_TEX; i++)
         texmgr_upload(new_tex_id[i]);
+    /* The two this room no longer keeps a copy of. Neither shares a page with
+       strs or upstairs, so the order against the loop does not matter. */
+    piano_room_upload_wallpaper();   /* prpl_wlppr -> stove slot, x384 y256 */
+    kitchen_upload_red_crpt();       /* red_crpt   -> frnt_dr slot, x320 y256 */
     trick_drawers_upload_texture();   /* clsd_drwr -> cncrte/kchn_tile slot (unused here) */
 }
 
@@ -118,8 +135,8 @@ void hall_2f_upload_textures(void) {
    needs for cncrte). Same pattern as piano_room_upload_wallpaper().
    These exist so a room can reuse the resident copy instead of registering a
    third one — texmgr has a hard TEXMGR_MAX and overruns fail SILENTLY. */
-void hall_2f_upload_strs(void)     { texmgr_upload(new_tex_id[1]); }
-void hall_2f_upload_upstairs(void) { texmgr_upload(new_tex_id[2]); }
+void hall_2f_upload_strs(void)     { texmgr_upload(new_tex_id[0]); }
+void hall_2f_upload_upstairs(void) { texmgr_upload(new_tex_id[1]); }
 
 /* ---- Stairs down to the conservatory ---------------------------------------
    The mesh has an open stairwell descending south (+Z) from the hall floor at

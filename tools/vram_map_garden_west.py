@@ -102,6 +102,19 @@ BANK = {
     "stables wood.tim":    "Stables: the two stable blocks              OWNED",
     "stable glyphs.tim":   "Stables: markings on the blocks' faces      OWNED",
     "greenhouse door.tim": "Stables: the shut door in the west wall     OWNED",
+    # The Greenhouse, the bank's second and last room. Five of its ten mesh
+    # textures are the Stables' set above (grss_gs, brick_wall, greenhouse,
+    # stables wood, greenhouse door); these five are its own, and every one of
+    # them lands on a page the STABLES has just stamped and this room draws
+    # nothing from. Note the two CLONES: poison_flower_base and pipe both exist
+    # already, but at x640 y0 and x768 y0 - which is where `greenhouse` and
+    # `brick_wall` live, and this room draws those. See src/greenhouse.c.
+    "flowerbed.tim":       "Greenhouse: the beds along the aisles       OWNED",
+    "cuniform pipes.tim":  "Greenhouse: the marked pipework             OWNED",
+    "poison_flower_base_gh.tim":
+                           "Greenhouse: flower-bed soil, 4bpp clone     OWNED",
+    "pipe_gh.tim":         "Greenhouse: the standing pipe, 4bpp clone   OWNED",
+    "pipe_button_off.tim": "Greenhouse: the button on the pipework      OWNED",
 }
 
 # Textures that are startup-resident and are NOT re-uploaded by any room. Taking
@@ -109,6 +122,13 @@ BANK = {
 NEEDS_RESTORE = {
     "wd_flr.tim", "red_wlppr.tim", "din_cl.tim", "stn_gls.tim",   # kitchen set
     "wd_dr.tim",                                                   # fatdoor
+    # Loaded once at startup by whoever owns them and never re-uploaded by any
+    # room's entry path. wd_dr_crk was missing from this list until the
+    # Greenhouse took its page and the omission turned into a real bug (see
+    # KITCHEN_SHARED_TEX in src/kitchen_dining.c, which now restores it);
+    # inr_dbl_dr is in kitchen_stream_textures, which is startup-only - the
+    # mid-game path is kitchen_restore_textures, and it is not in that list.
+    "wd_dr_crk.tim", "inr_dbl_dr.tim",
     "trees_dl.tim", "grinder.tim", "wdcrate.tim", "mansion.tim",
     "anzu1.tim", "anzu2.tim", "anzu3.tim", "anzu4.tim", "anzu5.tim", "anzu6.tim",
     "tntcl_idle.tim", "tntcl_actv.tim",

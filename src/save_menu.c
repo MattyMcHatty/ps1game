@@ -94,6 +94,7 @@ static const char *area_name(int area) {
         case STATE_REAR_GATE:         return "REAR GATE";
         case STATE_WEST_CORRIDOR:     return "WEST CORRIDOR";
         case STATE_STABLES:           return "STABLES";
+        case STATE_GREENHOUSE:        return "GREENHOUSE";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

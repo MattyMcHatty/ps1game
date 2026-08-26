@@ -88,12 +88,17 @@ THIS BANK'S ROOM ART
   --------------------------------------------------------------------------
   grss_gs.tim          4     320     0   128   128     0  224,511     Stables: the yard                       (borrowed)
   hedge.tim            8     384     0   128   128     0  672,489     Stables: east perimeter + gate alcove   (borrowed)
+  flowerbed.tim        8     384     0   128   128     0  672,489     Greenhouse: the beds along the aisles       OWNED
   grdn_gte.tim         8     512     0   128   128     0  672,490     Stables: the gate leaf                  (borrowed)
+  cuniform pipes.tim   8     512     0   128   128     0  672,490     Greenhouse: the marked pipework             OWNED
   greenhouse.tim       8     640     0   128   128     0  672,497     Stables: the building beyond the west wall  OWNED
   stable glyphs.tim    4     704     0   128   128     0  256,511     Stables: markings on the blocks' faces      OWNED
+  poison_flower_base_gh.tim 4     704     0   128   128     0  256,511     Greenhouse: flower-bed soil, 4bpp clone     OWNED
   brick_wall.tim       4     768     0   128   128     0  0,501       Stables: north/south/west walls         (borrowed)
   stables wood.tim     8     832     0   128   128     0  672,498     Stables: the two stable blocks              OWNED
   greenhouse door.tim  4     320   256   128   128     0  272,511     Stables: the shut door in the west wall     OWNED
+  pipe_gh.tim          4     384   256   128   128     0  512,502     Greenhouse: the standing pipe, 4bpp clone   OWNED
+  pipe_button_off.tim  4     512   256   128   128     0  528,502     Greenhouse: the button on the pipework      OWNED
 
 WHAT IS LEFT FOR THE GREENHOUSE
 
@@ -111,20 +116,20 @@ WHAT IS LEFT FOR THE GREENHOUSE
   already do for their own).
 
   x320  y0    IN USE by this bank: grss_gs.tim
-  x384  y0    IN USE by this bank: hedge.tim
+  x384  y0    IN USE by this bank: flowerbed.tim, hedge.tim
   x448  y0    FREE - 8bpp full page  [RESTORE: anzu1.tim, anzu4.tim, wd_flr.tim]
-  x512  y0    IN USE by this bank: grdn_gte.tim
+  x512  y0    IN USE by this bank: cuniform pipes.tim, grdn_gte.tim
   x576  y0    FREE - 8bpp full page  [RESTORE: anzu2.tim, anzu5.tim, red_wlppr.tim]
   x640  y0    IN USE by this bank: greenhouse.tim
-  x704  y0    IN USE by this bank: stable glyphs.tim
+  x704  y0    IN USE by this bank: poison_flower_base_gh.tim, stable glyphs.tim
   x768  y0    IN USE by this bank: brick_wall.tim
   x832  y0    IN USE by this bank: stables wood.tim
   x896  y0    TAKEN - reserved: ghit.tim
   x960  y0    FONT - never available
   x320  y256  IN USE by this bank: greenhouse door.tim
-  x384  y256  4bpp ONLY - right half reserved: stnd_rnds.tim
+  x384  y256  IN USE by this bank: pipe_gh.tim
   x448  y256  4bpp ONLY - right half reserved: flm_rnds.tim
-  x512  y256  4bpp ONLY - right half reserved: grn_ky_stn.tim, wx_cb.tim
+  x512  y256  IN USE by this bank: pipe_button_off.tim
   x576  y256  4bpp ONLY - right half reserved: bl_ky_stn.tim, pno_key.tim
   x640  y256  TAKEN - reserved: sml_med.tim
   x704  y256  FREE - 8bpp full page  [RESTORE: Rabisu tex.tim]

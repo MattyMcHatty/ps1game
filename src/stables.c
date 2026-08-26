@@ -35,7 +35,9 @@ extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
 /* The Stables: the walled yard west of the Rear Gate. See stables.h for the
-   layout. */
+   layout. TWO openings now: the east gate back to the Rear Gate, and the
+   greenhouse door in the west wall, which since the Greenhouse was built leads
+   somewhere instead of being drawn shut. */
 
 static SMD  *stables_smd  = NULL;
 static void *stables_buff = NULL;
@@ -283,11 +285,12 @@ void stables_upload_textures(void) {
    courtyard below is at positive y. */
 #define ST_EYE_Y  (0 - GROUND_FLOOR_Y - 40)
 
-/* Circle edge-detect, seeded by stables_gate_arm(). Starts "held" so a press
-   carried in through the transition doesn't bounce the player straight back.
-   ONE gate is connected here — it is the only opening in the room — so there is
-   only one edge state to keep. */
-static int gate_circle_prev = 1;
+/* Circle edge-detect, one per opening, each seeded by its own *_arm(). Both
+   start "held" so a press carried in through a transition doesn't bounce the
+   player straight back out of the room they just entered. Every spawn arms
+   BOTH, so whichever door the player arrives by, the other is safe too. */
+static int gate_circle_prev  = 1;
+static int gdoor_circle_prev = 1;
 
 static int circle_held(void) {
     return interact_tapped();
@@ -332,6 +335,81 @@ static void gate_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
+/* ---- The west-wall greenhouse door, into the Greenhouse ---------------------
+   The greenhouse door polys stand at x=-3400, z[-133,133], y[-500,0], in the YZ
+   plane. Behind them, until August 2026, was nothing: the door was drawn shut
+   and backed onto collision wall 15 because the room it opens into did not
+   exist. It does now (src/greenhouse.h), and the two meshes were modelled in a
+   shared world - greenhouse_x = stables_x + 3500, greenhouse_z = stables_z - 100
+   maps this door onto that room's, at x=100 z=-100.
+
+   Collision wall 15 runs the FULL west side at x=-3400 with nx = +4096, so the
+   walkable side is +X and the player approaches from inside this room. For a
+   sign in the YZ plane that is mirror=0, and it stands 11 units EAST of the wall
+   (x + 11). Both are the opposite hand from the east gate at the other end of
+   the yard, whose wall faces -X - and the opposite of the Greenhouse's side of
+   this same door. Getting either backwards comes out as mirrored text or a sign
+   buried in the brickwork.
+
+   The wall STAYS in the collision list, exactly as the east gate's does: the
+   door is shut as far as collision is concerned, and it is the trigger rather
+   than a hole in the wall that lets the player through. Nothing about wall 15
+   changed when the Greenhouse was built. */
+#define ST_GDOOR_X          (-3400)
+#define ST_GDOOR_Z               0    /* (-133 + 133) / 2                      */
+
+void stables_gdoor_arm(void) {
+    gdoor_circle_prev = circle_held();
+}
+
+int stables_gdoor_triggered(void) {
+    int held = circle_held();
+    int just = held && !gdoor_circle_prev;
+    gdoor_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - ST_GDOOR_X;
+    int32_t dz = cam_z - ST_GDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < ST_TRIGGER_RADIUS && interact_facing(ST_GDOOR_X, ST_GDOOR_Z);
+}
+
+/* The greenhouse door's sign. Same YZ-plane arrangement as the gate's, mirrored
+   the other way and standing on the +X side, because the player reads this one
+   from the east. */
+static void gdoor_text(RenderContext *ctx) {
+    int32_t dx = cam_x - ST_GDOOR_X;
+    int32_t dz = cam_z - ST_GDOOR_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= ST_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > ST_FADE_NEAR) {
+        int range = ST_TEXT_RADIUS - ST_FADE_NEAR;
+        int prog  = xz - ST_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        ST_GDOOR_X + 11, ST_TEXT_Y, ST_GDOOR_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
+/* Arriving back out of the Greenhouse: stand EAST of the x=-3400 wall, clear of
+   the wall push radius, facing +X down the yard toward the two stable blocks and
+   the gate beyond them. x lands at -3180, which is 380 west of the near block's
+   x=-2799 face, so nothing pushes the player anywhere on the frame they arrive. */
+void stables_spawn_west(void) {
+    cam_x   = ST_GDOOR_X + COLLISION_WALL_RADIUS + 25;
+    cam_y   = ST_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = ST_GDOOR_Z;
+    cam_rot = 1024;   /* facing +X, into the yard */
+    stables_gate_arm();
+    stables_gdoor_arm();
+}
+
 /* Arriving from the Rear Gate: stand WEST of the x=100 gate wall, clear of the
    wall push radius (so the player isn't shoved on their first frame), facing -X
    — the direction of travel through the gate, looking down the lane between the
@@ -349,6 +427,7 @@ void stables_spawn_east(void) {
     cam_z   = ST_GATE_Z;
     cam_rot = 3072;   /* facing -X, into the room */
     stables_gate_arm();
+    stables_gdoor_arm();
 }
 
 void stables_init(void) {
@@ -373,9 +452,10 @@ void stables_init(void) {
 
     stables_floor_zones_init();
 
-    /* The only spawn: the east gate, back into the Rear Gate. There is nowhere
-       else to arrive from — the greenhouse door in the west wall is drawn shut
-       and backs onto collision wall 15 — so main.c needs no override. */
+    /* Default to the east gate, back into the Rear Gate; main.c overrides it
+       with stables_spawn_west() when the player has come back out of the
+       Greenhouse. Either spawn arms BOTH openings, so whichever branch runs the
+       other one is safe. */
     stables_spawn_east();
 
     /* Save points and dresser props are global (not room-swapped) and neither is
@@ -705,6 +785,7 @@ void stables_draw(RenderContext *ctx) {
         sml_meds_draw(ctx);
     }
 
-    /* Last: the gate's sign, the only one in the room. */
+    /* Last: the two signs, one at each end of the yard. */
     gate_text(ctx);
+    gdoor_text(ctx);
 }

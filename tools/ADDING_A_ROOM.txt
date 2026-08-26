@@ -9,6 +9,9 @@ Companion docs (read them for the *why*; this file is the *how*):
   tools/TEXTURING_NOTES.txt         - VRAM rules, LoadImage timing, tex windows
   tools/AREAS_AND_WORLD_NOTES.txt   - the area/state model and world.c
   tools/VRAM_MAP.txt                - generated; who owns which VRAM slot
+  tools/HEAP_BUDGET.txt             - generated; what is permanently in MAIN RAM
+                                      and how much is left. READ IT BEFORE ADDING
+                                      A texmgr_register ANYWHERE — see STEP 3f
   tools/DIAGNOSING_FRAME_RATE.txt   - when a room drops to 30fps: the perf
                                       meter, the isolation switches, and the
                                       four optimisations that did not work
@@ -260,6 +263,24 @@ COORDINATE CONVENTIONS (memorise these):
     room too. Scan the rows rather than guessing, and re-scan after any addition
     — this is the resource most likely to run out next.
 
+    >>> IT HAS NOW ALL BUT RUN OUT, AND THERE IS A WAY ROUND IT. <<< As of the
+    Greenhouse (August 2026) a scan of every row finds exactly ONE free 256-word
+    run in the whole map: y=511, x[288,544). Do not spend it on room art. A CLUT
+    is only words in VRAM and texmgr_upload puts pixels and palette up together,
+    so the same "displaced, and restored by whoever needs it" argument that
+    governs PIXELS governs PALETTES: give your 8bpp texture the CLUT of the very
+    texture whose page it is already taking. The Greenhouse's flowerbed sits on
+    hedge's page AND hedge's CLUT at (672,489), its cuniform pipes on grdn_gte's
+    at (672,490) — one swap each, restored by one uploader, no new palette space
+    at all. Register the CLUT pair in KNOWN_STREAM_PAIRS the same way as the
+    pixel pair; vram_map.py checks CLUT-vs-CLUT and CLUT-vs-pixels separately and
+    will tell you if the two textures are ever drawn together.
+
+    Only a 4bpp texture (16 words) should be reaching for genuinely free space
+    now, and it should take it from a row whose largest gap is under 256 words —
+    y=502's x[512,640) is the one the Greenhouse's two clones used — so that the
+    last big run stays whole.
+
 3d. Convert. Source MUST be 128x128 (the exporter maps 1 UV tile = 128 texels;
     a 64x64 source sampled 0..128 reads past itself into neighbouring VRAM —
     stretch it first and save as <name>_128.png, as clsd_drwr/dresser did):
@@ -276,6 +297,44 @@ COORDINATE CONVENTIONS (memorise these):
 
     "No unexpected pixel collisions." and your texture showing Voff 0 are the
     two things to confirm.
+
+
+3f. >>> AND NOW CHECK MAIN RAM, WHICH IS TIGHTER THAN VRAM. <<<
+
+      py tools\heap_budget.py > tools\HEAP_BUDGET.txt
+
+    Every texmgr_register() keeps the WHOLE TIM resident for the life of the run
+    — 10 KB for a 4bpp 128x128, 18 KB for an 8bpp one. There are 62 of them and
+    they hold 836 KB. The heap is 1196 KB. The props' model buffers take 154 KB
+    more. What is actually free at rest is about 200 KB, and the startup reads
+    have to fit in it — the Rabisu's idle clip alone is 74 KB.
+
+    >>> OVERRUNNING IT DOES NOT FAIL SOFTLY, AND THE CRASH POINTS SOMEWHERE
+    ELSE. <<< PSn00bSDK's InitHeap is handed everything from _end up to
+    0x801FFFF8 — which IS the stack; the BIOS stack pointer starts at 0x801FFF00
+    and grows down into the same region with nothing between them. So a malloc
+    made when the heap is nearly full SUCCEEDS, hands back memory the stack is
+    using, and the next CdRead DMAs over the return address. The console jumps
+    into nothing and PCSX-Redux says "Unrecoverable error while running
+    recompiler" at whatever PC it last had.
+
+    The GREENHOUSE did this in August 2026. Five registrations took free-at-rest
+    from 216 KB to 143 KB, the game stopped booting, and the reported PC was in
+    rabisus_load_assets — the next large read after the new room's — which has
+    nothing to do with the Greenhouse and sent the first look in the wrong
+    direction entirely. If a room addition stops the game booting, run
+    heap_budget.py FIRST; do not start reading the crash address.
+
+    THE TWO WAYS TO ADD A TEXTURE AND SPEND NOTHING:
+      1. A narrow *_upload_x() on the module that already owns it, plus
+         TIM_SLOT() for the header (hall_2f_upload_strs is the pattern). This is
+         also how you fix a DUPLICATE — heap_budget.py lists them, and there is
+         currently 80 KB held in second and third copies of five TIMs.
+      2. Stream it on entry into a scratch buffer that is freed again, bracketed
+         by cdaudio_suspend/resume. greenhouse_upload_textures is the only one
+         today: that room owns FIVE textures and registers none of them. It costs
+         a little loading time and no permanent bytes, and it is the right answer
+         for a room at the end of a branch that nothing else reaches.
 
 
 ##########################################################################

@@ -330,6 +330,59 @@ KNOWN_STREAM_PAIRS = [
     ("fountain.tim",           "plinth_diamond.tim"),
     ("lamashtu tablet.tim",    "plinth_diamond.tim"),
     ("pipe.tim",               "plinth_diamond.tim"),
+    # ---- THE GARDEN-WEST BANK, second room: the Greenhouse -----------------
+    # West of the Stables through the greenhouse door in that room's west wall,
+    # and the end of the line — nothing leads on from it. Ten mesh textures, of
+    # which FIVE come free: grss_gs and brick_wall through the Garden Courtyard's
+    # uploader, and greenhouse / stables wood / greenhouse door through the
+    # Stables' (this room calls stables_upload_textures wholesale, so the door
+    # panel for its own transition is in VRAM whichever side it is triggered
+    # from). The other five are this room's own, and they take pages the STABLES
+    # has just stamped and this room draws nothing from — hedge, grdn_gte and
+    # stable glyphs — plus two 4bpp left-halves of mansion pages.
+    #
+    # >>> CLUTS ARE TIME-SHARED HERE TOO, WHICH IS NEW. <<< There is exactly ONE
+    # free 256-word CLUT run left in the whole map (y=511, x[288,544)) and
+    # spending it on garden decoration would have been the last of it. So the two
+    # 8bpp textures take the CLUT of the very texture whose PIXELS they replace:
+    # flowerbed sits on hedge's page AND on hedge's palette row, cuniform pipes
+    # on grdn_gte's. A CLUT is only words in VRAM and it streams with the pixels
+    # (texmgr_upload uploads both), so "replaces hedge, palette and all" restores
+    # for free the moment garden_courtyard_upload_textures runs again. Same trick
+    # for the 4bpp flower-bed clone over stable glyphs.
+    #   flowerbed             -> hedge's page      (x384 y0) + hedge's CLUT
+    #   cuniform pipes        -> grdn_gte's page   (x512 y0) + grdn_gte's CLUT
+    #   poison_flower_base_gh -> stable glyphs'    (x704 y0) + its CLUT. A 4bpp
+    #                            CLONE of poison_flower_base, which cannot be
+    #                            used as it stands: its own TIM is at x640 y0,
+    #                            which is where `greenhouse` lives and this room
+    #                            draws both at once.
+    #   pipe_gh               -> the prpl_wlppr/stove page (x384 y256), 4bpp left
+    #                            half, clear of stnd_rnds at x416. Also a clone,
+    #                            for the same reason: pipe.tim is on brick_wall's
+    #                            page and this room draws brick_wall.
+    #   pipe_button_off       -> the wd_dr_crk page (x512 y256), 4bpp left half,
+    #                            clear of wx_cb at x544.
+    # The last two take 16-word CLUTs at y=502 x[512,544) — a 128-word gap that
+    # could never have held a 256-word CLUT anyway, so y=511's run survives whole.
+    ("chnlnk_dl.tim",          "flowerbed.tim"),
+    ("clsd_drwr.tim",          "flowerbed.tim"),
+    ("cncrte.tim",             "flowerbed.tim"),
+    ("hedge.tim",              "flowerbed.tim"),
+    ("kchn_tile.tim",          "flowerbed.tim"),
+    ("piano_keys.tim",         "flowerbed.tim"),
+    ("piano_keys_full.tim",    "flowerbed.tim"),
+    ("xt_dr_outr.tim",         "flowerbed.tim"),
+    ("dresser.tim",            "cuniform pipes.tim"),
+    ("grdn_gte.tim",           "cuniform pipes.tim"),
+    ("kchn_wl.tim",            "cuniform pipes.tim"),
+    ("gravel_gs.tim",          "poison_flower_base_gh.tim"),
+    ("rusty_fence.tim",        "poison_flower_base_gh.tim"),
+    ("stable glyphs.tim",      "poison_flower_base_gh.tim"),
+    ("upstairs.tim",           "poison_flower_base_gh.tim"),
+    ("prpl_wlppr.tim",         "pipe_gh.tim"),
+    ("stove.tim",              "pipe_gh.tim"),
+    ("wd_dr_crk.tim",          "pipe_button_off.tim"),
 ]
 
 def read_tim(path):

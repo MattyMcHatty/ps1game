@@ -24,6 +24,7 @@
 #include "reception_hadad.h"  /* ...and the encounter that brings him through the
                                  ceiling once the house has closed in */
 #include "texmgr.h"
+#include "hall_2f.h"
 #include "player.h"    /* FLAG_HALL_2F_DOOR / FLAG_WEST_CORR_DOOR — the saved
                           locks on the two upper-floor west-wall doors. Both are
                           set from the FAR side (hall_2f.c / west_corridor.c);
@@ -125,10 +126,12 @@ static uint16_t tex_clut[RECEPTION_TEX_COUNT];
 /* Slot 3 (formerly bnnstr, the banister) is retired: the mesh no longer
    references it, so nothing streams into the kchn_tile slot for reception —
    the piano room's piano_keys texture time-shares it instead. */
-#define RECEPTION_NEW_TEX 2
+#define RECEPTION_NEW_TEX 1
 static int new_tex_id[RECEPTION_NEW_TEX];
+/* ONE registration, down from two: strs is borrowed from hall_2f, which owns the
+   only RAM copy, rather than kept a second time here. Same texture, same VRAM
+   address, same tpage/clut. See tools/HEAP_BUDGET.txt. */
 static const struct { const char *file; int slot; } new_tex[RECEPTION_NEW_TEX] = {
-    { "\\TEX\\STRS.TIM;1",   0 },
     { "\\TEX\\FRNTDR.TIM;1", 5 },
 };
 
@@ -158,6 +161,7 @@ void reception_load_assets(void) {
 
     /* The other 6 are resident from startup (kitchen + fatdoor); just capture
        their tpage/clut for reception's renderer. */
+    TIM_SLOT(0, STRS);       /* hall_2f owns the copy */
     TIM_SLOT(1, REDWLPPR);
     TIM_SLOT(2, WDFLR);
     TIM_SLOT(4, DINCL);
@@ -173,6 +177,8 @@ void reception_load_assets(void) {
 void reception_upload_textures(void) {
     for (int i = 0; i < RECEPTION_NEW_TEX; i++)
         texmgr_upload(new_tex_id[i]);
+    hall_2f_upload_strs();   /* strs -> stn_stl slot, x320 y0. Different page
+                                from frnt_dr, so the order is free. */
 }
 
 /* ---- Door back to the kitchen ---------------------------------------------

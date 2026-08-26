@@ -71,6 +71,7 @@
 #include "rear_gate.h"
 #include "west_corridor.h"
 #include "stables.h"
+#include "greenhouse.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -229,6 +230,7 @@ static void load_area_geometry(GameState area) {
         case STATE_REAR_GATE:        rear_gate_load_geometry();        break;
         case STATE_WEST_CORRIDOR:    west_corridor_load_geometry();    break;
         case STATE_STABLES:          stables_load_geometry();          break;
+        case STATE_GREENHOUSE:       greenhouse_load_geometry();       break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -942,11 +944,42 @@ static void update_current_area(GameState area) {
         item_pickups_update();
         sml_meds_update();
         if (!lock && stables_gate_triggered()) {
-            /* East back through the same gate, into the Rear Gate. The only way
-               out — the greenhouse door in the west wall is drawn shut and backs
-               onto solid collision until the Greenhouse is built. */
+            /* East back through the same gate, into the Rear Gate. */
             pending_area = STATE_REAR_GATE;
             door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (!lock && stables_gdoor_triggered()) {
+            /* West through the greenhouse door in the brick wall, into the
+               Greenhouse. A door, not a gate, and it gets its OWN panel:
+               DOOR_PANEL_GREENHOUSE, the single-leaf wooden transition widened
+               by a fifth and drawn with the door's own texture. Both ends of
+               this transition are in the garden-west VRAM bank and both upload
+               that texture on entry, which is what makes drawing the panel from
+               room art safe — see src/door_anim.h. */
+            pending_area = STATE_GREENHOUSE;
+            door_anim_start(DOOR_PANEL_GREENHOUSE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_GREENHOUSE) {
+        /* Flat single-floor room — all five of the collision generator's planes
+           are at y=0 — so the shared wall collision routine (generic over
+           current_collision_room) and a single floor zone are the whole of it.
+           The updaters below all run over EMPTY arrays: the room is seeded with
+           nothing, and they cost nothing that way. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();
+        update_spiders();
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        if (!lock && greenhouse_door_triggered()) {
+            /* East back through the same door, into the Stables. The only way
+               out: this room is the end of the line. */
+            pending_area = STATE_STABLES;
+            door_anim_start(DOOR_PANEL_GREENHOUSE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -1273,6 +1306,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         west_corridor_draw(ctx);
     else if (area == STATE_STABLES)
         stables_draw(ctx);
+    else if (area == STATE_GREENHOUSE)
+        greenhouse_draw(ctx);
     else
         delivery_area_draw(ctx);
 }
@@ -1483,6 +1518,15 @@ int main(int argc, const char **argv) {
                                   of any room — plus four TIM_SLOT lines for the
                                   garden chain's. See src/stables.h on the
                                   garden-west VRAM bank they are the start of */
+    greenhouse_load_assets();  /* greenhouse texture slots — TIM_SLOT only. It
+                                  owns FIVE textures, more than any room, but it
+                                  registers NOTHING: five come through the
+                                  Stables' and the courtyard's uploaders and its
+                                  own five are streamed on entry into a scratch
+                                  buffer that is freed again. That is not a style
+                                  choice — see the table in src/greenhouse.c and
+                                  tools/HEAP_BUDGET.txt. Costs no CD access at
+                                  all here. */
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
@@ -1682,7 +1726,8 @@ int main(int argc, const char **argv) {
                  pending_area == STATE_MAZE_TWO ||
                  pending_area == STATE_KEYSTONE_MAZE ||
                  pending_area == STATE_REAR_GATE ||
-                 pending_area == STATE_STABLES) ? SND_BANK_GARDEN :
+                 pending_area == STATE_STABLES ||
+                 pending_area == STATE_GREENHOUSE) ? SND_BANK_GARDEN :
                 SND_BANK_HOUSE);
 
             /* Upload reception's unique textures into VRAM from their resident RAM
@@ -1764,6 +1809,25 @@ int main(int argc, const char **argv) {
                                                        order inside that function
                                                        is load-bearing; see
                                                        stables_upload_textures */
+            } else if (pending_area == STATE_GREENHOUSE) {
+                greenhouse_upload_textures();       /* the Stables' whole set
+                                                       (which itself runs the
+                                                       courtyard's), then this
+                                                       room's own FIVE — and
+                                                       those are STREAMED OFF
+                                                       THE CD here, not uploaded
+                                                       from RAM, the only room
+                                                       that does so. It brackets
+                                                       its own read with
+                                                       cdaudio_suspend/resume,
+                                                       like room_arena_load
+                                                       above. Three of the five
+                                                       land on pages the Stables
+                                                       has just stamped (x384 y0,
+                                                       x512 y0, x704 y0),
+                                                       palettes included, so the
+                                                       order inside that function
+                                                       is load-bearing. */
             } else if (pending_area == STATE_WEST_CORRIDOR) {
                 west_corridor_upload_textures();    /* owns nothing: three NARROW
                                                        uploads on the kitchen's
@@ -1803,7 +1867,8 @@ int main(int argc, const char **argv) {
             if (pending_area == STATE_OUTSIDE_CATACOMBS ||
                 pending_area == STATE_MAZE_ONE ||
                 pending_area == STATE_MAZE_TWO ||
-                pending_area == STATE_STABLES)
+                pending_area == STATE_STABLES ||
+                pending_area == STATE_GREENHOUSE)
                 rafflesias_upload_textures();
             else
                 spiders_upload_textures();
@@ -2142,15 +2207,31 @@ int main(int argc, const char **argv) {
                    top is not something cdaudio can do. See hadad.h. */
                 cdaudio_stop();
             } else if (pending_area == STATE_STABLES) {
-                stables_init();  /* the east gate is the only spawn — there is
-                                    nowhere else to arrive from — so no override
-                                    is needed here. */
+                stables_init();  /* defaults to the east gate, back into the
+                                    Rear Gate. */
+                /* Coming back east out of the Greenhouse, arrive at the
+                   greenhouse door in the west wall instead. Either spawn arms
+                   BOTH openings, so whichever branch runs the other is safe. */
+                if (current_area == STATE_GREENHOUSE)
+                    stables_spawn_west();
                 /* FOUNTAIN SQUARE'S TRACK, which the user asked for. Note it is
                    NOT carried across the gate: the Rear Gate next door is silent
                    (and its transition cdaudio_stops whatever Hadad had going),
                    so this is a clean start rather than the Catacombs/Square
                    case. Played HERE rather than on the gate trigger so every
                    route in gets it: the gate, a title-screen load and a debug
+                   level-select jump all pass through this branch. */
+                cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
+            } else if (pending_area == STATE_GREENHOUSE) {
+                greenhouse_init();  /* the east door is the only spawn — there is
+                                       nowhere else to arrive from — so no
+                                       override is needed here. */
+                /* THE SAME TRACK as the Stables and the rest of the garden,
+                   restarted on arrival rather than carried across: the
+                   transition's own cdaudio_stop has already killed it, and
+                   streaming this room's 69 KB mesh would have paused it anyway.
+                   Played HERE rather than on the door trigger so every route in
+                   gets it: the door, a title-screen load and a debug
                    level-select jump all pass through this branch. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_WEST_CORRIDOR) {
@@ -2288,7 +2369,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_KEYSTONE_MAZE ||
                    game_state == STATE_REAR_GATE ||
                    game_state == STATE_WEST_CORRIDOR ||
-                   game_state == STATE_STABLES) {
+                   game_state == STATE_STABLES ||
+                   game_state == STATE_GREENHOUSE) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else {

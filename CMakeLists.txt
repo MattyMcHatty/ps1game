@@ -91,6 +91,8 @@ add_executable(horror_game
     src/west_corridor_mesh_collision.c
     src/west_corridor.c
     src/stables_mesh_collision.c
+    src/greenhouse.c
+    src/greenhouse_mesh_collision.c
     src/stables.c
     src/rabisu_boss.c
     src/hadad_library.c

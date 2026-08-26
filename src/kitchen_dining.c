@@ -196,7 +196,17 @@ void kitchen_stream_textures(void) {
    slot, x384 y256), and double_door by the conservatory's con_tile; the only
    route back to the kitchen is through reception, so restoring them here
    covers those cases too. */
-#define KITCHEN_SHARED_TEX 6
+/* wd_dr_crk — the CRACKED fat-door texture, x512 y256 — joined the list for the
+   GREENHOUSE, which puts its pipe button on that page. It is the odd one out
+   here in that the kitchen does not draw it: src/fatdoor.c does, and only in
+   this room (every fat door is area-gated to STATE_KITCHEN_DINING). fatdoor.c
+   read it off the CD once at startup and freed the buffer, so before this there
+   was no resident copy to put back and a trip to the Greenhouse would have left
+   every last-hit door showing a garden button until the console was reset.
+   Registering it here rather than in fatdoor.c keeps the ONE RAM copy where the
+   restore happens, and its tpage/clut — captured at startup and unchanged by a
+   re-upload to the same rect — still work. */
+#define KITCHEN_SHARED_TEX 7
 static int shared_id[KITCHEN_SHARED_TEX];
 static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
     "\\TEX\\STNSTL.TIM;1",
@@ -205,6 +215,7 @@ static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
     "\\TEX\\KCHNWL.TIM;1",
     "\\TEX\\STOVE.TIM;1",
     "\\DBLDOOR.TIM;1",
+    "\\WDDRCRK.TIM;1",
 };
 
 /* Load this room's geometry into the shared arena. Called on ENTRY, from main's

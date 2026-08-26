@@ -17,6 +17,7 @@
 #include "btn_glyph.h"
 #include "door.h"
 #include "texmgr.h"
+#include "kitchen_dining.h"
 #include "dresser.h"
 #include "save_point.h"
 #include "zombie.h"
@@ -63,10 +64,12 @@ static void master_bedroom_floor_zones_init(void) {
 #define MASTER_BEDROOM_TEX_COUNT 8
 
 /* Streamed slots: engine slot -> texmgr id. */
-#define MASTER_BEDROOM_NEW_TEX 2
+#define MASTER_BEDROOM_NEW_TEX 1
 static int new_tex_id[MASTER_BEDROOM_NEW_TEX];
+/* ONE registration, down from two: red_crpt is borrowed from the kitchen, which
+   owns the only RAM copy and already re-uploads it for its own restore, rather
+   than kept a second time here. See tools/HEAP_BUDGET.txt. */
 static const struct { const char *file; int slot; } new_tex[MASTER_BEDROOM_NEW_TEX] = {
-    { "\\TEX\\REDCRPT.TIM;1", 5 },
     { "\\TEX\\BED.TIM;1",     7 },
 };
 
@@ -99,6 +102,7 @@ void master_bedroom_load_assets(void) {
     /* Resident from startup (kitchen + fatdoor); just capture tpage/clut. */
     TIM_SLOT(0, WDFLR);
     TIM_SLOT(1, REDWLPPR);
+    TIM_SLOT(5, REDCRPT);    /* the kitchen owns the copy */
     TIM_SLOT(2, DINCL);
     TIM_SLOT(3, STNGLS);
     TIM_SLOT(4, WDDR);
@@ -113,6 +117,8 @@ void master_bedroom_load_assets(void) {
 void master_bedroom_upload_textures(void) {
     for (int i = 0; i < MASTER_BEDROOM_NEW_TEX; i++)
         texmgr_upload(new_tex_id[i]);
+    kitchen_upload_red_crpt();  /* red_crpt -> frnt_dr slot, x320 y256. Different
+                                   page from bed, so the order is free. */
     dresser_upload_texture();   /* dresser -> kchn_wl slot (mesh dressers here) */
 }
 

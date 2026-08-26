@@ -4,6 +4,7 @@
 #include <psxgte.h>
 #include <psxcd.h>
 #include "door_anim.h"
+#include "tim_slots.h"   /* TIM_TPAGE_GRNHSDR / TIM_CLUT_GRNHSDR */
 #include "sound.h"
 #include "world.h"   /* world_silence_monsters */
 
@@ -110,7 +111,29 @@
 #define GATE_R_U_SEAM    64
 #define GATE_R_U_OUTER  127
 
-#define DOOR_PANEL_COUNT  5
+/* DOOR_PANEL_GREENHOUSE, the door between the Stables and the Greenhouse. The
+ * WOOD variant's geometry - one leaf, hinged on its right edge, the whole door
+ * swinging - on the shared clock and with SFX_DOOR. Two things differ.
+ *
+ * IT IS WIDER. A greenhouse door is a broader thing than a house door, and at
+ * the shared PANEL_W it read as a house door with the wrong picture on it. 96 is
+ * PANEL_W + 20%, the same widening the garden gate takes and arrived at the same
+ * way; the height stays at DOOR_HALF_H, because widening only is the point. The
+ * final dolly takes the free edge to 96 * ZOOM_MAX/256 = 134 from the hinge,
+ * which still lands inside the screen.
+ *
+ * AND ITS TEXTURE IS ROOM ART, not a reserved panel. greenhouse door.tim is
+ * 4bpp at VRAM x320 y256 - Voff 0, so U and V both run 0..127 exactly as the
+ * 16bpp wd_dr does - on a page shared with frnt_dr, red_crpt and dbl_dr_rg. It
+ * is therefore NOT read off the CD by door_anim_load_assets; see the note
+ * there. */
+#define GH_PANEL_W      ((PANEL_W * 12) / 10)   /* 96 */
+#define GH_U_FREE        0
+#define GH_U_HINGE     127
+#define GH_V_TOP         0
+#define GH_V_BOT       127
+
+#define DOOR_PANEL_COUNT  6
 
 static int32_t  anim_timer  = 0;
 static int      anim_active = 0;
@@ -185,6 +208,23 @@ void door_anim_load_assets(void) {
     /* The garden gate's two leaves, same arrangement. */
     load_panel("\\TEX\\GRDNGTL.TIM;1", DOOR_PANEL_GATE);
     load_panel_r("\\TEX\\GRDNGTR.TIM;1", DOOR_PANEL_GATE);
+    /* The greenhouse door: HEADER ONLY, no CD read and no LoadImage.
+       Every panel above lives in a VRAM rect nobody else writes, so loading it
+       once at startup settles it for the whole run. This one does not: its
+       texture is the Greenhouse's own room art at x320 y256, a page that
+       frnt_dr, red_crpt and dbl_dr_rg all stream over, so a copy put up here
+       would be gone the first time the player walked into Reception.
+
+       It does not need one. This panel is only ever drawn on the transition
+       between the Stables and the Greenhouse, both of which are in the
+       garden-west VRAM bank, and BOTH of them upload greenhouse door.tim on
+       entry (stables_upload_textures owns it; greenhouse_upload_textures calls
+       that function wholesale, partly for this reason). So whichever side the
+       player triggers the door from, the pixels are already in VRAM - and a
+       tpage/clut is a pair of compile-time constants, not something that has to
+       be discovered by reading the file back off the disc. */
+    panel_tpage[DOOR_PANEL_GREENHOUSE] = TIM_TPAGE_GRNHSDR;
+    panel_clut [DOOR_PANEL_GREENHOUSE] = TIM_CLUT_GRNHSDR;
     /* The outer door is the default/fallback; require at least it to draw. */
     if (ok) tex_loaded = 1;
 }
@@ -345,25 +385,40 @@ void door_anim_draw(RenderContext *ctx) {
     int32_t top = DOOR_CENTER_Y - DOOR_HALF_H;
     int32_t bot = DOOR_CENTER_Y + DOOR_HALF_H;
 
-    /* Single wooden door: one quad, centred, hinged on its right edge. Same
+    /* Single-leaf doors: one quad, centred, hinged on its right edge. Same
      * swing math as the double door's right leaf, but the leaf is the whole
-     * door and the hinge sits at centre + W/2 so the door stays centred. */
-    if (anim_variant == DOOR_PANEL_WOOD) {
+     * door and the hinge sits at centre + W/2 so the door stays centred.
+     *
+     * TWO VARIANTS SHARE THIS BODY and differ only in how wide the leaf is and
+     * which texture it carries: the wooden house door at PANEL_W, and the
+     * greenhouse door at GH_PANEL_W (20% broader - see the note by that
+     * define). Both textures happen to be 128x128 at Voff 0, so the UV corners
+     * come out as the same four numbers either way; they are still selected
+     * per variant rather than assumed, so a third single door with a
+     * differently-shaped source stays a two-line change here. */
+    if (anim_variant == DOOR_PANEL_WOOD || anim_variant == DOOR_PANEL_GREENHOUSE) {
+        int     gh      = (anim_variant == DOOR_PANEL_GREENHOUSE);
+        int32_t w       = gh ? GH_PANEL_W : PANEL_W;
+        int     u_free  = gh ? GH_U_FREE  : WOOD_U_FREE;
+        int     u_hinge = gh ? GH_U_HINGE : WOOD_U_HINGE;
+        int     v_top   = gh ? GH_V_TOP   : WOOD_V_TOP;
+        int     v_bot   = gh ? GH_V_BOT   : WOOD_V_BOT;
+
         int32_t swing  = swing_angle();
         int32_t cos_t  = icos(swing);
         int32_t sin_t  = isin(swing);
-        int32_t z      = PANEL_W * sin_t / 4096;
+        int32_t z      = w * sin_t / 4096;
         int32_t persp  = PERSP_D * 256 / (PERSP_D + z);
-        int32_t hinge_x = DOOR_CENTER_X + PANEL_W / 2;
-        int32_t xoff    = (-PANEL_W * cos_t / 4096) * persp / 256;
+        int32_t hinge_x = DOOR_CENTER_X + w / 2;
+        int32_t xoff    = (-w * cos_t / 4096) * persp / 256;
         int32_t free_x  = hinge_x + xoff;
         int32_t free_hh = DOOR_HALF_H * persp / 256;
 
         emit_panel(ctx, buf_end,
                    free_x,  DOOR_CENTER_Y - free_hh,  hinge_x, top,
                    free_x,  DOOR_CENTER_Y + free_hh,  hinge_x, bot,
-                   WOOD_U_FREE, WOOD_V_TOP,  WOOD_U_HINGE, WOOD_V_TOP,
-                   WOOD_U_FREE, WOOD_V_BOT,  WOOD_U_HINGE, WOOD_V_BOT,
+                   u_free, v_top,  u_hinge, v_top,
+                   u_free, v_bot,  u_hinge, v_bot,
                    intensity, zoom);
         return;
     }

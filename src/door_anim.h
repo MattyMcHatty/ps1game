@@ -35,6 +35,25 @@
                                  stops creaking. The art is see-through (alpha in
                                  the PNG becomes CLUT 0), so the black behind
                                  shows through the bars.                          */
+#define DOOR_PANEL_GREENHOUSE 5 /* greenhouse door — the door between the Stables
+                                 and the Greenhouse. A SINGLE leaf hinged on its
+                                 right edge, exactly like DOOR_PANEL_WOOD, on the
+                                 shared clock and with SFX_DOOR; the only thing
+                                 that differs is the width. A greenhouse door is
+                                 a broader thing than a house door, so the panel
+                                 is 96 rather than 80 — the same 20% widening,
+                                 and for the same reason, as the garden gate's.
+
+                                 IT IS ALSO THE ONE PANEL THAT IS NOT READ OFF
+                                 THE CD HERE. Its texture is room art (greenhouse
+                                 door.tim at x320 y256) on a page three mansion
+                                 textures also use, so a startup LoadImage would
+                                 be undone the first time the player walked into
+                                 Reception. It does not need one: both ends of
+                                 this transition are in the garden-west VRAM bank
+                                 and BOTH upload it on entry, so the pixels are
+                                 always in VRAM when the panel is drawn. See
+                                 door_anim_load_assets.                           */
 
 void door_anim_load_assets(void);   /* load the panel TIMs into VRAM (startup) */
 void door_anim_start(int variant);  /* begin the animation; plays the sound */

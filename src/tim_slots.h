@@ -103,6 +103,10 @@
 #define TIM_TPAGE_CRFXICON 0x0095
 #define TIM_CLUT_CRFXICON  0x7d00
 
+/* cuniform pipes.tim  8bpp  VRAM ( 512,  0)  \TEX\CUNIPIPE.TIM */
+#define TIM_TPAGE_CUNIPIPE 0x0088
+#define TIM_CLUT_CUNIPIPE  0x7aaa
+
 /* double_door.tim  4bpp  VRAM ( 832,  0)  \DBLDOOR.TIM */
 #define TIM_TPAGE_DBLDOOR  0x000d
 #define TIM_CLUT_DBLDOOR   0x7830
@@ -146,6 +150,10 @@
 /* flm_rnds.tim    8bpp  VRAM ( 480,256)  \TEX\FLMRNDS.TIM */
 #define TIM_TPAGE_FLMRNDS  0x0097
 #define TIM_CLUT_FLMRNDS   0x7850
+
+/* flowerbed.tim   8bpp  VRAM ( 384,  0)  \TEX\FLWRBED.TIM */
+#define TIM_TPAGE_FLWRBED  0x0086
+#define TIM_CLUT_FLWRBED   0x7a6a
 
 /* fountain.tim    8bpp  VRAM ( 768,  0)  \TEX\FOUNTAIN.TIM */
 #define TIM_TPAGE_FOUNTAIN 0x008c
@@ -218,6 +226,10 @@
 /* hadad_stp2_64.tim  8bpp  VRAM ( 992,384)  \TEX\HADSTP2.TIM */
 #define TIM_TPAGE_HADSTP2  0x009f
 #define TIM_CLUT_HADSTP2   0x7f50
+
+/* hatch_key.tim   8bpp  VRAM ( 480,320)  \TEX\HATCHKEY.TIM */
+#define TIM_TPAGE_HATCHKEY 0x0097
+#define TIM_CLUT_HATCHKEY  0x7e6a
 
 /* hedge.tim       8bpp  VRAM ( 384,  0)  \TEX\HEDGE.TIM */
 #define TIM_TPAGE_HEDGE    0x0086
@@ -303,6 +315,14 @@
 #define TIM_TPAGE_PIPE     0x008c
 #define TIM_CLUT_PIPE      0x7d90
 
+/* pipe_button_off.tim  4bpp  VRAM ( 512,256)  \TEX\PIPEBTNO.TIM */
+#define TIM_TPAGE_PIPEBTNO 0x0018
+#define TIM_CLUT_PIPEBTNO  0x7da1
+
+/* pipe_gh.tim     4bpp  VRAM ( 384,256)  \TEX\PIPEGH.TIM */
+#define TIM_TPAGE_PIPEGH   0x0016
+#define TIM_CLUT_PIPEGH    0x7da0
+
 /* plinth.tim      8bpp  VRAM ( 832,  0)  \TEX\PLINTH.TIM */
 #define TIM_TPAGE_PLINTH   0x008d
 #define TIM_CLUT_PLINTH    0x7dd0
@@ -322,6 +342,10 @@
 /* prpl_wlppr.tim  4bpp  VRAM ( 384,256)  \TEX\PRPLWLP.TIM */
 #define TIM_TPAGE_PRPLWLP  0x0016
 #define TIM_CLUT_PRPLWLP   0x7fc0
+
+/* poison_flower_base_gh.tim  4bpp  VRAM ( 704,  0)  \TEX\PSNFLGH.TIM */
+#define TIM_TPAGE_PSNFLGH  0x000b
+#define TIM_CLUT_PSNFLGH   0x7fd0
 
 /* poison_flower_base.tim  8bpp  VRAM ( 640,  0)  \TEX\PSNFLWR.TIM */
 #define TIM_TPAGE_PSNFLWR  0x008a

@@ -549,6 +549,47 @@
                 <file name="STBLWOOD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\stables wood.tim"/>
                 <file name="STBLGLPH.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\stable glyphs.tim"/>
                 <file name="GRNHSDR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\greenhouse door.tim"/>
+
+                <!-- The Greenhouse (src/greenhouse.c): WEST of the Stables
+                     through the greenhouse door in that room's west wall, and
+                     the second and last room of the garden-west bank. Ten mesh
+                     textures; FIVE are the Stables' set above and cost nothing
+                     (GRSSGS and BRIKWLL through the Garden Courtyard's uploader,
+                     GRNHOUSE / STBLWOOD / GRNHSDR through the Stables' own,
+                     which this room calls wholesale). The other five are its:
+                       FLWRBED  -> x384 y0, the page the Stables has just put
+                                   HEDGE on, and this room has no hedge. 8bpp.
+                       CUNIPIPE -> x512 y0, likewise GRDNGTE's page; no gate.
+                       PSNFLGH  -> x704 y0, likewise STBLGLPH's; no glyphs. A
+                                   4bpp CLONE of poison_flower_base, whose own
+                                   TIM is at x640 y0 where GRNHOUSE lives —
+                                   this room draws both at once.
+                       PIPEGH   -> x384 y256, the prpl_wlppr/stove page, 4bpp
+                                   left half, clear of stnd_rnds at x416. A
+                                   clone for the same reason: pipe.tim sits on
+                                   brick_wall's page and this room draws that.
+                       PIPEBTNO -> x512 y256, the wd_dr_crk page, 4bpp left
+                                   half, clear of wx_cb at x544. The one slot
+                                   here that costs a restore: WDDRCRK is
+                                   startup-resident (src/fatdoor.c) and is now
+                                   put back by KITCHEN_SHARED_TEX on kitchen
+                                   entry.
+                     The first three take the CLUT of the texture whose pixels
+                     they replace, not new palette space: there is one free
+                     256-word CLUT run left in the whole map and this room does
+                     not spend it. See tools/VRAM_MAP_GARDEN_WEST.txt.
+                     These five are also the only room art on the disc that is
+                     read at TRANSITION time rather than held in RAM from
+                     startup — main RAM had no room left for five more resident
+                     TIMs. See tools/HEAP_BUDGET.txt and the table in
+                     src/greenhouse.c.
+                     Its .smx exports live in assets/garden/. -->
+                <file name="GRNHSE.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\greenhouse.smd"/>
+                <file name="FLWRBED.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\flowerbed.tim"/>
+                <file name="CUNIPIPE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\cuniform pipes.tim"/>
+                <file name="PSNFLGH.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\poison_flower_base_gh.tim"/>
+                <file name="PIPEGH.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe_gh.tim"/>
+                <file name="PIPEBTNO.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe_button_off.tim"/>
             </dir>
         </directory_tree>
     </track>

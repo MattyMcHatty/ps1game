@@ -36,11 +36,16 @@
                800-wide lane between them at z[-400,400] is the way through to
                the west end. Their long faces carry the STABLE GLYPHS.
      WEST END  the strip x[-3400,-2799], with the GREENHOUSE DOOR in the brick
-               wall at x=-3400, z[-133,133]. It is DRAWN SHUT and backs onto
-               collision wall 15, which runs the full west side — the Greenhouse
-               it opens onto does not exist yet. The greenhouse itself IS drawn,
-               beyond the wall at x[-4010,-3400] and 1100 tall, so the door reads
-               as leading somewhere rather than as a panel on a blank wall.
+               wall at x=-3400, z[-133,133]. It LEADS SOMEWHERE now: the
+               Greenhouse (src/greenhouse.h) is on the other side of it, and the
+               two rooms' meshes line up exactly - greenhouse_x = stables_x +
+               3500, greenhouse_z = stables_z - 100. Collision wall 15 still runs
+               the full west side and is not touched: the door is shut as far as
+               collision is concerned, and it is the trigger that lets the player
+               through, the same arrangement as the east gate. The greenhouse
+               building itself is still DRAWN beyond the wall at x[-4010,-3400]
+               and 1100 tall, so the door reads as leading somewhere from across
+               the yard.
 
    ONE FLAT FLOOR. Both of the generator's planes are genuinely at y=0 (the yard
    and the gate alcove), so unlike the Rear Gate this room needs no FLOOR_RAMP
@@ -85,11 +90,19 @@ void stables_upload_textures(void); /* room entry: pure LoadImage from RAM (no C
 void stables_init(void);            /* set collision/floor zones + spawn */
 void stables_draw(RenderContext *ctx);
 
-/* The east-wall gate back to the Rear Gate. The only way in or out. */
+/* The east-wall gate back to the Rear Gate. */
 void stables_gate_arm(void);        /* seed the Circle edge state */
 int  stables_gate_triggered(void);  /* 1 on a fresh Circle press in range */
 
-/* Arriving through that gate: just inside it, facing west into the yard. */
+/* The west-wall greenhouse door, on into the Greenhouse. Uses its own transition
+   panel, DOOR_PANEL_GREENHOUSE - see src/door_anim.h. */
+void stables_gdoor_arm(void);
+int  stables_gdoor_triggered(void);
+
+/* Arriving through the gate: just inside it, facing west into the yard. */
 void stables_spawn_east(void);
+/* Arriving back out of the Greenhouse: just inside the west door, facing east.
+   Both spawns arm BOTH openings. */
+void stables_spawn_west(void);
 
 #endif

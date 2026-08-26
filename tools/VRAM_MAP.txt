@@ -36,6 +36,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   chnlnk_dl.tim        4       384     0   128   128     0   32,480
   clsd_drwr.tim        8       384     0   128   128     0   256,490
   cncrte.tim           4       384     0   128   128     0   112,511
+  flowerbed.tim        8       384     0   128   128     0   672,489
   hedge.tim            8       384     0   128   128     0   672,489
   kchn_tile.tim        4       384     0   128   128     0   0,490
   piano_keys.tim       4       384     0   128   128     0   32,511
@@ -43,6 +44,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   xt_dr_outr.tim       8       384     0   128   128     0   672,484
   wd_flr.tim           4       448     0   128   128     0   0,491
   anzu1.tim            8       480     0    64    64     0   256,483
+  cuniform pipes.tim   8       512     0   128   128     0   672,490
   dresser.tim          8       512     0   128   128     0   0,507
   grdn_gte.tim         8       512     0   128   128     0   672,490
   kchn_wl.tim          8       512     0   128   128     0   0,503
@@ -56,6 +58,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   trck_clue.tim        8       640     0   128   128     0   768,481
   trees.tim            4       640     0   128   128     0   48,511
   gravel_gs.tim        4       704     0   128   128     0   240,511
+  poison_flower_base_gh.tim 4       704     0   128   128     0   256,511
   rusty_fence.tim      4       704     0   128   128     0   256,480
   stable glyphs.tim    4       704     0   128   128     0   256,511
   upstairs.tim         4       704     0   128   128     0   64,511
@@ -103,11 +106,13 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   greenhouse door.tim  4       320   256   128   128     0   272,511
   red_crpt.tim         4       320   256   128   128     0   0,493
   graveolver.tim       8       352   256    64    64     0   0,508
+  pipe_gh.tim          4       384   256   128   128     0   512,502
   prpl_wlppr.tim       4       384   256   128   128     0   0,511
   stove.tim            4       384   256   128   128     0   0,494
   stnd_rnds.tim        8       416   256    64    64     0   0,509
   din_cl.tim           4       448   256   128   128     0   0,495
   flm_rnds.tim         8       480   256    64    64     0   256,481
+  pipe_button_off.tim  4       512   256   128   128     0   528,502
   wd_dr_crk.tim        4       512   256   128   128     0   0,497
   wx_cb.tim            4       544   256    32    32     0   192,511
   grn_ky_stn.tim       4       552   256    32    32     0   208,511
@@ -172,10 +177,12 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=488  x[672,928)  Rabisu tex.tim
   y=488  x[256,512)  anzu6.tim
   y=488  x[0,256)  stn_gls.tim
+  y=489  x[672,928)  flowerbed.tim
   y=489  x[672,928)  hedge.tim
   y=489  x[0,16)  stn_stl.tim
   y=489  x[256,512)  ylw_ky_stn.tim
   y=490  x[256,512)  clsd_drwr.tim
+  y=490  x[672,928)  cuniform pipes.tim
   y=490  x[672,928)  grdn_gte.tim
   y=490  x[0,16)  kchn_tile.tim
   y=491  x[672,928)  fountain.tim
@@ -210,6 +217,8 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=501  x[256,512)  mushy_open.tim
   y=502  x[0,256)  inr_dbl_dr_half.tim
   y=502  x[256,512)  pipe.tim
+  y=502  x[528,544)  pipe_button_off.tim
+  y=502  x[512,528)  pipe_gh.tim
   y=503  x[0,256)  kchn_wl.tim
   y=503  x[256,512)  plinth.tim
   y=504  x[256,512)  ls_idle.tim
@@ -241,6 +250,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=511  x[176,192)  hud.tim
   y=511  x[32,48)  piano_keys.tim
   y=511  x[32,48)  piano_keys_full.tim
+  y=511  x[256,272)  poison_flower_base_gh.tim
   y=511  x[0,16)  prpl_wlppr.tim
   y=511  x[256,272)  stable glyphs.tim
   y=511  x[144,160)  tntcl_actv.tim
@@ -276,17 +286,20 @@ OVERLAP CHECK
   chnlnk.tim                               trees.tim            time-shared (streaming)
   chnlnk_dl.tim                            clsd_drwr.tim        time-shared (streaming)
   chnlnk_dl.tim                            cncrte.tim           time-shared (streaming)
+  chnlnk_dl.tim                            flowerbed.tim        time-shared (streaming)
   chnlnk_dl.tim                            hedge.tim            time-shared (streaming)
   chnlnk_dl.tim                            kchn_tile.tim        time-shared (streaming)
   chnlnk_dl.tim                            piano_keys.tim       time-shared (streaming)
   chnlnk_dl.tim                            piano_keys_full.tim  time-shared (streaming)
   chnlnk_dl.tim                            xt_dr_outr.tim       time-shared (streaming)
   clsd_drwr.tim                            cncrte.tim           time-shared (streaming)
+  clsd_drwr.tim                            flowerbed.tim        time-shared (streaming)
   clsd_drwr.tim                            hedge.tim            time-shared (streaming)
   clsd_drwr.tim                            kchn_tile.tim        time-shared (streaming)
   clsd_drwr.tim                            piano_keys.tim       time-shared (streaming)
   clsd_drwr.tim                            piano_keys_full.tim  time-shared (streaming)
   clsd_drwr.tim                            xt_dr_outr.tim       time-shared (streaming)
+  cncrte.tim                               flowerbed.tim        time-shared (streaming)
   cncrte.tim                               hedge.tim            time-shared (streaming)
   cncrte.tim                               kchn_tile.tim        time-shared (streaming)
   cncrte.tim                               piano_keys.tim       time-shared (streaming)
@@ -299,6 +312,9 @@ OVERLAP CHECK
   con_tile.tim                             stables wood.tim     time-shared (streaming)
   con_tile.tim                             xt_dr_cg.tim         time-shared (streaming)
   cppr_pt.tim                              key.tim              time-shared (streaming)
+  cuniform pipes.tim                       dresser.tim          time-shared (streaming)
+  cuniform pipes.tim                       grdn_gte.tim         time-shared (streaming)
+  cuniform pipes.tim                       kchn_wl.tim          time-shared (streaming)
   dbl_dr_rg.tim                            frnt_dr.tim          time-shared (streaming)
   dbl_dr_rg.tim                            greenhouse door.tim  time-shared (streaming)
   dbl_dr_rg.tim                            red_crpt.tim         time-shared (streaming)
@@ -313,6 +329,11 @@ OVERLAP CHECK
   drain.tim                                xt_dr_cg.tim         time-shared (streaming)
   dresser.tim                              grdn_gte.tim         time-shared (streaming)
   dresser.tim                              kchn_wl.tim          time-shared (streaming)
+  flowerbed.tim                            hedge.tim            time-shared (streaming)
+  flowerbed.tim                            kchn_tile.tim        time-shared (streaming)
+  flowerbed.tim                            piano_keys.tim       time-shared (streaming)
+  flowerbed.tim                            piano_keys_full.tim  time-shared (streaming)
+  flowerbed.tim                            xt_dr_outr.tim       time-shared (streaming)
   fountain.tim                             grss.tim             time-shared (streaming)
   fountain.tim                             lamashtu tablet.tim  time-shared (streaming)
   fountain.tim                             pipe.tim             time-shared (streaming)
@@ -321,6 +342,7 @@ OVERLAP CHECK
   fountain.tim                             xt_dr_lckd.tim       time-shared (streaming)
   frnt_dr.tim                              greenhouse door.tim  time-shared (streaming)
   frnt_dr.tim                              red_crpt.tim         time-shared (streaming)
+  gravel_gs.tim                            poison_flower_base_gh.tim time-shared (streaming)
   gravel_gs.tim                            rusty_fence.tim      time-shared (streaming)
   gravel_gs.tim                            stable glyphs.tim    time-shared (streaming)
   gravel_gs.tim                            upstairs.tim         time-shared (streaming)
@@ -362,6 +384,9 @@ OVERLAP CHECK
   pipe.tim                                 plinth_diamond.tim   time-shared (streaming)
   pipe.tim                                 xt_dr_cmplt.tim      time-shared (streaming)
   pipe.tim                                 xt_dr_lckd.tim       time-shared (streaming)
+  pipe_button_off.tim                      wd_dr_crk.tim        time-shared (streaming)
+  pipe_gh.tim                              prpl_wlppr.tim       time-shared (streaming)
+  pipe_gh.tim                              stove.tim            time-shared (streaming)
   plinth.tim                               stables wood.tim     time-shared (streaming)
   plinth.tim                               xt_dr_cg.tim         time-shared (streaming)
   plinth_diamond.tim                       xt_dr_cmplt.tim      time-shared (streaming)
@@ -371,6 +396,9 @@ OVERLAP CHECK
   plinth_rg.tim                            trees.tim            time-shared (streaming)
   poison_flower_base.tim                   trck_clue.tim        time-shared (streaming)
   poison_flower_base.tim                   trees.tim            time-shared (streaming)
+  poison_flower_base_gh.tim                rusty_fence.tim      time-shared (streaming)
+  poison_flower_base_gh.tim                stable glyphs.tim    time-shared (streaming)
+  poison_flower_base_gh.tim                upstairs.tim         time-shared (streaming)
   prpl_wlppr.tim                           stove.tim            time-shared (streaming)
   rafflesia1.tim                           spdr_rst.tim         time-shared (streaming)
   rafflesia2.tim                           spdr_wk.tim          time-shared (streaming)
