@@ -97,7 +97,7 @@ static void greenhouse_floor_zones_init(void) {
                                                                        (borrowed)
      5 flowerbed         the planting in the beds         (hedge page,   x384 y0)
                                                                            OWNED
-     6 cuniform pipes    the marked pipework           (grdn_gte page, x512 y0)
+     6 cuneiform _symbols the marked pipework          (grdn_gte page, x512 y0)
                                                                            OWNED
      7 poison_flower_base the bed soil, a 4bpp CLONE (stable glyphs page, x704 y0)
                                                                            OWNED
@@ -135,7 +135,7 @@ static void greenhouse_floor_zones_init(void) {
                         cncrte, kchn_tile, piano_keys, xt_dr_outr) are mansion
                         art this room never draws and every one is re-uploaded
                         by its own room on entry.
-     cuniform pipes  -> x512 y0, likewise GRDN_GTE's page — no gate here — and
+     cuneiform _symbols -> x512 y0, likewise GRDN_GTE's page — no gate here, and
                         shared with dresser and kchn_wl, both streamed.
      poison_flower_base_gh -> x704 y0, likewise STABLE GLYPHS'. 4bpp, so it
                         occupies only x[704,736) and stays clear of anzu3/anzu6
@@ -163,7 +163,7 @@ static void greenhouse_floor_zones_init(void) {
    256-word CLUT run left in the whole map (y=511, x[288,544)), and two 8bpp
    textures would have eaten it and left the next room with none. Instead each
    takes the palette row of the texture whose pixels it is already replacing —
-   flowerbed on hedge's at (672,489), cuniform pipes on grdn_gte's at (672,490),
+   flowerbed on hedge's at (672,489), cuneiform _symbols on grdn_gte's at (672,490),
    poison_flower_base_gh on stable glyphs' at (256,511). One swap, pixels and
    palette, restored by one uploader. Only the two small 4bpp clones needed new
    palette space, and they took 32 words out of a 128-word gap at y=502 that
@@ -214,14 +214,15 @@ static uint16_t tex_clut[GREENHOUSE_TEX_COUNT];
 #define GREENHOUSE_NEW_TEX 5
 static const char *new_tex_file[GREENHOUSE_NEW_TEX] = {
     "\\TEX\\FLWRBED.TIM;1",    /* slot 5 */
-    "\\TEX\\CUNIPIPE.TIM;1",   /* slot 6 */
+    "\\TEX\\CUNEISYM.TIM;1",   /* slot 6 */
     "\\TEX\\PSNFLGH.TIM;1",    /* slot 7 */
     "\\TEX\\PIPEGH.TIM;1",     /* slot 8 */
     "\\TEX\\PIPEBTNO.TIM;1",   /* slot 9 */
 };
 
-/* Biggest of the five is 16928 bytes (an 8bpp 128x128 plus its CLUT) = nine
-   sectors. One buffer serves all five, in turn. */
+/* Biggest of the five is CUNEISYM at 16928 bytes (an 8bpp 128x128 plus its
+   CLUT) = nine sectors; the other four are 4640 bytes or less since they shrank
+   to their real sizes. One buffer serves all five, in turn. */
 #define GH_TEX_SCRATCH  (10 * 2048)
 
 /* ---- Cull keys -------------------------------------------------------------
@@ -288,7 +289,7 @@ void greenhouse_load_assets(void) {
 
     /* This room's own five, streamed on entry — the header is still a constant. */
     TIM_SLOT(5, FLWRBED);
-    TIM_SLOT(6, CUNIPIPE);
+    TIM_SLOT(6, CUNEISYM);
     TIM_SLOT(7, PSNFLGH);
     TIM_SLOT(8, PIPEGH);
     TIM_SLOT(9, PIPEBTNO);
@@ -300,7 +301,7 @@ void greenhouse_load_assets(void) {
    ORDER MATTERS. stables_upload_textures() runs the Garden Courtyard's uploader
    and then its own four, and between them they stamp x384 y0 (hedge), x512 y0
    (grdn_gte) and x704 y0 (stable glyphs) — which are exactly where this room's
-   flowerbed, cuniform pipes and flower-bed soil go, palettes included. So all
+   flowerbed, cuneiform _symbols and flower-bed soil go, palettes included. So all
    five of this room's own textures go up AFTER that call, never before. Three of
    the five would be silently replaced by the Stables' art otherwise, which looks
    exactly like a texture that failed to load.
@@ -361,7 +362,7 @@ void greenhouse_upload_textures(void) {
     for (int i = 0; i < GREENHOUSE_NEW_TEX; i++)
         gh_stream_tim(new_tex_file[i], scratch, GH_TEX_SCRATCH);
     cdaudio_resume();
-    free(scratch);                        /* flowerbed -> hedge, cuniform pipes ->
+    free(scratch);                        /* flowerbed -> hedge, cuneiform _symbols ->
                                              grdn_gte, soil -> stable glyphs,
                                              pipe -> stove, button -> wd_dr_crk */
 }

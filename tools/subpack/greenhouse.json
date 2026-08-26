@@ -1,0 +1,40 @@
+{
+  "_note": [
+    "Greenhouse sub-pack table. See tools/TEXTURING_NOTES.txt PART 5.",
+    "",
+    "ALL OFFSETS ARE 0 - these three textures are SHRUNK IN PLACE, each at its",
+    "own page origin. They do NOT share a tile: the Greenhouse reaches them",
+    "through 4bpp clones on three DIFFERENT pages (see the redirection notes at",
+    "the top of src/greenhouse.c) -",
+    "     poison_flower_base -> PSNFLGH  4bpp (704,  0)",
+    "     pipe_button_off    -> PIPEBTNO 4bpp (512,256)",
+    "     greenhouse door    -> GRNHSDR  4bpp (320,256)",
+    "so a non-zero u_off/v_off would address a neighbour, not the texture.",
+    "Shrinking in place keeps every tpage/clut constant valid: no tim_slots.h",
+    "change, no disc.xml change, no C change for these three.",
+    "",
+    "The freed space is the REST of each page. Consolidating all three into one",
+    "page tile would free two whole pages, but it would move them - new tpage",
+    "and clut, and every consumer re-pointed. Left for a later pass.",
+    "",
+    "poison_flower_base and greenhouse door are SHARED. Their OTHER consumers",
+    "must scale UVs identically, so maze_one/maze_two/outside_catacombs.json and",
+    "stables.json mirror this file. poison_flower_base has TWO TIMs of the same",
+    "art (PSNFLGH 4bpp here, PSNFLWR 8bpp in the mazes) - BOTH must shrink.",
+    "",
+    "cuniform pipes IS NOT HERE, and the reason is worth keeping. It was tried",
+    "as a 4bpp 256x256 and had to be reverted: the exporter leaves each face's",
+    "UV minimum in [0,S), so the maximum reaches S+span. At S=128 that is 192,",
+    "which fits 8 bits AND the mask-128 window wraps it correctly. At S=256 it",
+    "is 320, which does not fit 8 bits at all, and a 256 texture has no window",
+    "that can wrap it. 16 of its 40 faces straddled a tile edge and had to be",
+    "shifted onto a different part of the art - the pipes lost their symbols.",
+    "A 256 texture needs a UV layout where NO face crosses a tile edge, which",
+    "is a Blender job. See TEXTURING_NOTES.txt PART 5."
+  ],
+  "textures": {
+    "poison_flower_base": {"size":  64, "u_off": 0, "v_off": 0},
+    "greenhouse door":    {"size":  64, "u_off": 0, "v_off": 0},
+    "pipe_button_off":    {"size":  32, "u_off": 0, "v_off": 0}
+  }
+}

@@ -50,7 +50,9 @@ NAME_TO_SLOT = {
     'greenhouse door':    4,   # x320 y256, 4bpp - also this room's door panel
     # The five this room OWNS.
     'flowerbed':          5,   # x384 y0,   8bpp, over hedge (pixels AND CLUT)
-    'cuniform pipes':     6,   # x512 y0,   8bpp, over grdn_gte (pixels AND CLUT)
+    # NOTE THE SPACE in 'cuneiform _symbols' - that is the Blender image name
+    # and the SMX carries it verbatim, so this key must match it exactly.
+    'cuneiform _symbols': 6,   # x512 y0,   8bpp, over grdn_gte (pixels AND CLUT)
     'poison_flower_base': 7,   # -> PSNFLGH, x704 y0,  4bpp, over stable glyphs
     'pipe':               8,   # -> PIPEGH,  x384 y256, 4bpp
     'pipe_button_off':    9,   # x512 y256, 4bpp

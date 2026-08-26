@@ -283,7 +283,14 @@ COORDINATE CONVENTIONS (memorise these):
 
 3d. Convert. Source MUST be 128x128 (the exporter maps 1 UV tile = 128 texels;
     a 64x64 source sampled 0..128 reads past itself into neighbouring VRAM —
-    stretch it first and save as <name>_128.png, as clsd_drwr/dresser did):
+    stretch it first and save as <name>_128.png, as clsd_drwr/dresser did).
+
+    EXCEPTION, for a texture that neither TILES nor is SHARED with another
+    level: it can keep its real size and share one 128x128 tile with up to three
+    others, at a quarter of the VRAM each. tools/subpack_uvs.py bakes the scale
+    and offset into the UVs; no C change is needed. Check eligibility first —
+      python tools\subpack_uvs.py --report assets\<Level>.smx
+    — and read TEXTURING_NOTES.txt PART 5 before using it:
 
       Set-Location "c:\Users\virtu\Documents\ps1game\textures"
       & <python> png_to_tim.py bed.png --bpp 8 --tx 768 --ty 0 `

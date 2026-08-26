@@ -559,7 +559,9 @@
                      which this room calls wholesale). The other five are its:
                        FLWRBED  -> x384 y0, the page the Stables has just put
                                    HEDGE on, and this room has no hedge. 8bpp.
-                       CUNIPIPE -> x512 y0, likewise GRDNGTE's page; no gate.
+                       CUNEISYM -> x512 y0, likewise GRDNGTE's page; no gate.
+                                   Replaced CUNIPIPE when the pipework was
+                                   retextured (cuneiform _symbols, 8bpp 128).
                        PSNFLGH  -> x704 y0, likewise STBLGLPH's; no glyphs. A
                                    4bpp CLONE of poison_flower_base, whose own
                                    TIM is at x640 y0 where GRNHOUSE lives —
@@ -586,7 +588,7 @@
                      Its .smx exports live in assets/garden/. -->
                 <file name="GRNHSE.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\greenhouse.smd"/>
                 <file name="FLWRBED.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\flowerbed.tim"/>
-                <file name="CUNIPIPE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\cuniform pipes.tim"/>
+                <file name="CUNEISYM.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\cuneiform _symbols.tim"/>
                 <file name="PSNFLGH.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\poison_flower_base_gh.tim"/>
                 <file name="PIPEGH.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe_gh.tim"/>
                 <file name="PIPEBTNO.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe_button_off.tim"/>

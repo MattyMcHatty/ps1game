@@ -103,9 +103,9 @@
 #define TIM_TPAGE_CRFXICON 0x0095
 #define TIM_CLUT_CRFXICON  0x7d00
 
-/* cuniform pipes.tim  8bpp  VRAM ( 512,  0)  \TEX\CUNIPIPE.TIM */
-#define TIM_TPAGE_CUNIPIPE 0x0088
-#define TIM_CLUT_CUNIPIPE  0x7aaa
+/* cuneiform _symbols.tim  8bpp  VRAM ( 512,  0)  \TEX\CUNEISYM.TIM */
+#define TIM_TPAGE_CUNEISYM 0x0088
+#define TIM_CLUT_CUNEISYM  0x7aaa
 
 /* double_door.tim  4bpp  VRAM ( 832,  0)  \DBLDOOR.TIM */
 #define TIM_TPAGE_DBLDOOR  0x000d

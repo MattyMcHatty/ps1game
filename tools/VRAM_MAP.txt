@@ -44,7 +44,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   xt_dr_outr.tim       8       384     0   128   128     0   672,484
   wd_flr.tim           4       448     0   128   128     0   0,491
   anzu1.tim            8       480     0    64    64     0   256,483
-  cuniform pipes.tim   8       512     0   128   128     0   672,490
+  cuneiform _symbols.tim 8       512     0   128   128     0   672,490
   dresser.tim          8       512     0   128   128     0   0,507
   grdn_gte.tim         8       512     0   128   128     0   672,490
   kchn_wl.tim          8       512     0   128   128     0   0,503
@@ -54,11 +54,11 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   gravel_texture.tim   4       640     0   128   128     0   0,480
   greenhouse.tim       8       640     0   128   128     0   672,497
   plinth_rg.tim        8       640     0   128   128     0   256,506
-  poison_flower_base.tim 8       640     0   128   128     0   672,496
+  poison_flower_base.tim 8       640     0    64    64     0   672,496
   trck_clue.tim        8       640     0   128   128     0   768,481
   trees.tim            4       640     0   128   128     0   48,511
   gravel_gs.tim        4       704     0   128   128     0   240,511
-  poison_flower_base_gh.tim 4       704     0   128   128     0   256,511
+  poison_flower_base_gh.tim 4       704     0    64    64     0   256,511
   rusty_fence.tim      4       704     0   128   128     0   256,480
   stable glyphs.tim    4       704     0   128   128     0   256,511
   upstairs.tim         4       704     0   128   128     0   64,511
@@ -103,7 +103,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   shadow.tim           8       640   160    64    32   160   0,486  <-- Voff>=128
   dbl_dr_rg.tim        4       320   256   128   128     0   512,506
   frnt_dr.tim          4       320   256   128   128     0   0,506
-  greenhouse door.tim  4       320   256   128   128     0   272,511
+  greenhouse door.tim  4       320   256    64    64     0   272,511
   red_crpt.tim         4       320   256   128   128     0   0,493
   graveolver.tim       8       352   256    64    64     0   0,508
   pipe_gh.tim          4       384   256   128   128     0   512,502
@@ -112,7 +112,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   stnd_rnds.tim        8       416   256    64    64     0   0,509
   din_cl.tim           4       448   256   128   128     0   0,495
   flm_rnds.tim         8       480   256    64    64     0   256,481
-  pipe_button_off.tim  4       512   256   128   128     0   528,502
+  pipe_button_off.tim  4       512   256    32    32     0   528,502
   wd_dr_crk.tim        4       512   256   128   128     0   0,497
   wx_cb.tim            4       544   256    32    32     0   192,511
   grn_ky_stn.tim       4       552   256    32    32     0   208,511
@@ -182,7 +182,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=489  x[0,16)  stn_stl.tim
   y=489  x[256,512)  ylw_ky_stn.tim
   y=490  x[256,512)  clsd_drwr.tim
-  y=490  x[672,928)  cuniform pipes.tim
+  y=490  x[672,928)  cuneiform _symbols.tim
   y=490  x[672,928)  grdn_gte.tim
   y=490  x[0,16)  kchn_tile.tim
   y=491  x[672,928)  fountain.tim
@@ -312,9 +312,9 @@ OVERLAP CHECK
   con_tile.tim                             stables wood.tim     time-shared (streaming)
   con_tile.tim                             xt_dr_cg.tim         time-shared (streaming)
   cppr_pt.tim                              key.tim              time-shared (streaming)
-  cuniform pipes.tim                       dresser.tim          time-shared (streaming)
-  cuniform pipes.tim                       grdn_gte.tim         time-shared (streaming)
-  cuniform pipes.tim                       kchn_wl.tim          time-shared (streaming)
+  cuneiform _symbols.tim                   dresser.tim          time-shared (streaming)
+  cuneiform _symbols.tim                   grdn_gte.tim         time-shared (streaming)
+  cuneiform _symbols.tim                   kchn_wl.tim          time-shared (streaming)
   dbl_dr_rg.tim                            frnt_dr.tim          time-shared (streaming)
   dbl_dr_rg.tim                            greenhouse door.tim  time-shared (streaming)
   dbl_dr_rg.tim                            red_crpt.tim         time-shared (streaming)

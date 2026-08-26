@@ -41,18 +41,18 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   --------------------------------------------
   kitchen_dining.c         7         79872
   garden_stairs.c          4         57344
-  stables.c                4         57344
   delivery_area.c          5         51200
+  stables.c                4         51200
   attic_exit.c             2         36864
   fountain_square.c        2         36864
   garden_courtyard.c       2         36864
-  outside_catacombs.c      2         36864
   rafflesia.c              2         36864
   spider.c                 2         36864
   trick_drawers.c          2         36864
   conservatory.c           3         30720
   piano_props.c            3         30720
   rear_gate.c              2         28672
+  outside_catacombs.c      2         24576
   hall_2f.c                2         20480
   attic_stairwell.c        1         18432
   dresser.c                1         18432
@@ -65,7 +65,7 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   east_stairwell.c         1         10240
   piano_room.c             1         10240
   reception.c              1         10240
-  TOTAL                    55       784384
+  TOTAL                    55       765952
 
 DUPLICATE REGISTRATIONS  (the same TIM held in RAM more than once)
   DBLDOOR.TIM        10240 wasted   delivery_area.c, kitchen_dining.c
@@ -95,14 +95,14 @@ KEPT BUFFERS  (read once, pointer stashed, never freed)
   TOTAL                                     157696
 
 THE HEAP
-  _end (heap start)   0x800D501C
+  _end (heap start)   0x800D502C
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size            1224668 bytes (1196 KB)
+  heap size            1224652 bytes (1196 KB)
 
-  texmgr resident       784384 bytes (766 KB)  64.0%
+  texmgr resident       765952 bytes (748 KB)  62.5%
   kept buffers          157696 bytes (154 KB)  12.9%
-  PERMANENT TOTAL       942080 bytes (920 KB)  76.9%
-  FREE AT REST          282588 bytes (276 KB)  23.1%
+  PERMANENT TOTAL       923648 bytes (902 KB)  75.4%
+  FREE AT REST          301004 bytes (294 KB)  24.6%
 
   The largest single transient allocation still has to fit in what is
   free, and startup makes several: the kitchen's 32768-byte scratch, and

@@ -19,3 +19,8 @@ release/*.zip
 # Generated artifacts (regenerable from tools/)
 __pycache__/
 tools/preview_4bpp.png
+
+# subpack_uvs.py intermediates. <Level>.packed.smx is regenerated from the
+# committed <Level>.smx plus tools/subpack/<level>.json on the way to the .smd,
+# so it is a build step's scratch file, not an asset.
+*.packed.smx

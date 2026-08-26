@@ -110,7 +110,7 @@ BANK = {
     # already, but at x640 y0 and x768 y0 - which is where `greenhouse` and
     # `brick_wall` live, and this room draws those. See src/greenhouse.c.
     "flowerbed.tim":       "Greenhouse: the beds along the aisles       OWNED",
-    "cuniform pipes.tim":  "Greenhouse: the marked pipework             OWNED",
+    "cuneiform _symbols.tim":  "Greenhouse: the marked pipework             OWNED",
     "poison_flower_base_gh.tim":
                            "Greenhouse: flower-bed soil, 4bpp clone     OWNED",
     "pipe_gh.tim":         "Greenhouse: the standing pipe, 4bpp clone   OWNED",

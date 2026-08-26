@@ -1,0 +1,11 @@
+{
+  "_note": [
+    "Sub-pack table for Maze One. MIRRORS tools/subpack/greenhouse.json - the TIM",
+    "is global, so this level must address the same sub-rect the Greenhouse",
+    "does. If the tile layout changes there, change it here too.",
+    "See tools/TEXTURING_NOTES.txt PART 5."
+  ],
+  "textures": {
+    "poison_flower_base": {"size": 64, "u_off": 0, "v_off": 0}
+  }
+}

@@ -345,13 +345,13 @@ KNOWN_STREAM_PAIRS = [
     # free 256-word CLUT run left in the whole map (y=511, x[288,544)) and
     # spending it on garden decoration would have been the last of it. So the two
     # 8bpp textures take the CLUT of the very texture whose PIXELS they replace:
-    # flowerbed sits on hedge's page AND on hedge's palette row, cuniform pipes
+    # flowerbed sits on hedge's page AND on hedge's palette row, cuneiform _symbols
     # on grdn_gte's. A CLUT is only words in VRAM and it streams with the pixels
     # (texmgr_upload uploads both), so "replaces hedge, palette and all" restores
     # for free the moment garden_courtyard_upload_textures runs again. Same trick
     # for the 4bpp flower-bed clone over stable glyphs.
     #   flowerbed             -> hedge's page      (x384 y0) + hedge's CLUT
-    #   cuniform pipes        -> grdn_gte's page   (x512 y0) + grdn_gte's CLUT
+    #   cuneiform _symbols    -> grdn_gte's page   (x512 y0) + grdn_gte's CLUT
     #   poison_flower_base_gh -> stable glyphs'    (x704 y0) + its CLUT. A 4bpp
     #                            CLONE of poison_flower_base, which cannot be
     #                            used as it stands: its own TIM is at x640 y0,
@@ -373,9 +373,9 @@ KNOWN_STREAM_PAIRS = [
     ("piano_keys.tim",         "flowerbed.tim"),
     ("piano_keys_full.tim",    "flowerbed.tim"),
     ("xt_dr_outr.tim",         "flowerbed.tim"),
-    ("dresser.tim",            "cuniform pipes.tim"),
-    ("grdn_gte.tim",           "cuniform pipes.tim"),
-    ("kchn_wl.tim",            "cuniform pipes.tim"),
+    ("dresser.tim",            "cuneiform _symbols.tim"),
+    ("grdn_gte.tim",           "cuneiform _symbols.tim"),
+    ("kchn_wl.tim",            "cuneiform _symbols.tim"),
     ("gravel_gs.tim",          "poison_flower_base_gh.tim"),
     ("rusty_fence.tim",        "poison_flower_base_gh.tim"),
     ("stable glyphs.tim",      "poison_flower_base_gh.tim"),

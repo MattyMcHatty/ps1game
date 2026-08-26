@@ -83,7 +83,20 @@ THE FIX (two parts):
        tu0,tv0..tu3,tv3 at byte offsets 20-27) into the POLY_FT4.
      - Add a 128x128 TEXTURE WINDOW (DR_TWIN) so UV values past the texture edge
        WRAP (tile) within the texture's page instead of reading neighbouring
-       VRAM. Mask value = texels>>3 (128>>3 = 16); SDK RECT is {0,0,16,16}.
+       VRAM. SDK RECT is {0,0,16,16} for the 128 window every room uses.
+
+       >>> DO NOT compute the mask as texels>>3. That formula is a COINCIDENCE
+           that holds at 128 and 256 and is WRONG everywhere else. The field is
+           "bits to CLEAR, >>3", not a size: the GPU does
+               u' = (u & ~(mask<<3)) | ((offset & mask)<<3)
+           so the mask must be of the form (256-size)>>3:
+               mod 128 -> 16     mod 64 -> 24     mod 32 -> 28
+               mod 256 ->  0 (no wrap at all)
+           64>>3 = 8 does NOT wrap at 64; it clears bit 6 and leaves bit 7.
+
+       >>> RECT.x/y are an OFFSET (also in 8-texel units), letting the window
+           address a SUB-RECT of the page. It is the escape hatch behind
+           tools/subpack_uvs.py (PART 5).
      - The DR_TWIN is sorted at OT_LENGTH-1 and the textured polys are clamped to
        OT_LENGTH-2, so the window is applied by the GPU before any textured poly.
 
@@ -99,6 +112,8 @@ PART 2 — VRAM / TEXTURE FORMAT RULES (learned the hard way)
 - 8bpp textures: a texture PAGE is only 128 texels wide. A 256-wide 8bpp
   texture spills across page boundaries and renders wrong / can crash. So:
   >>> Keep textures 128x128 (8bpp). We resized the oversized ones down.
+  >>> The 128 WIDTH is hardware at 8bpp. The rest of this rule is not: a texture
+      SMALLER than 128 can share a tile with three others — see PART 5.
 
 - Texture page X must be a multiple of 64; page Y must be 0 or 256.
   >>> Place textures at x in {320,384,448,576,...} (64-aligned) and y in {0,256}
@@ -229,3 +244,137 @@ missing edges. This ate the top edge of every box on the HUD panel.
 
 Either way, decode the .tim back and compare it to the source before trusting
 it. A missing 1px line is invisible in a thumbnail and glaring on a TV.
+
+
+==========================================================================
+PART 5 — BREAKING THE 128x128 RULE: SUB-PACKING SMALL TEXTURES
+==========================================================================
+"Every texture must be 128x128" is THREE constraints wearing one hat, and only
+one of them is hardware:
+
+  HARD    An 8bpp texture page is 64 VRAM halfwords = 128 texels WIDE. Nothing
+          gets past that at 8bpp. (A 4bpp page is 256 texels wide.)
+  SOFT    io_export_smx_v3.py scales every UV in an export to ONE texel size
+          (exp_tex_size = 128), for the WHOLE export. This — not the hardware —
+          is why a 64x64 source has to be stretched to 128x128.
+  SOFT    Each room sorts ONE DR_TWIN at OT_LENGTH-1, so one window serves every
+          texture in the room.
+
+So a small texture currently burns a full 64x128 VRAM block for detail it does
+not have. tools/subpack_uvs.py fixes that WITHOUT touching either soft rule.
+
+HOW IT WORKS
+  It runs on the .smx BEFORE smxlink and rewrites the UVs of chosen textures
+  from the 128 tile the exporter emitted onto a sub-rect of that same tile:
+
+      u' = round(u * size / 128) + u_off
+
+  Four 64x64 textures then share ONE 128x128 footprint at a quarter of the VRAM
+  each (an eighth at 4bpp), and each keeps its OWN CLUT — `clut` is a per-poly
+  field and each sub-texture is still its own TIM.
+
+  NO C CHANGE IS NEEDED, for two reasons worth understanding:
+    - The room's mask-128 window leaves any UV already in [0,128) completely
+      alone, and the sub-rect is inside that range. No bracket, no second
+      DR_TWIN, no per-poly window.
+    - The sub-TIM sits at a NON-page-aligned tx inside the tile, so getTPage()
+      floors to the SAME tpage as its neighbours. tex_tpage[]/tex_clut[] get
+      the ordinary one entry per texture and nothing else changes.
+
+THE PRECONDITION — THE TEXTURE MUST NOT TILE
+  Wrapping is mod 128 across the WHOLE tile, so a sub-texture that tiles would
+  wrap into its neighbour. Any texture with a UV over 128 is REFUSED. Most
+  wall/floor textures tile; small props and decals usually do not. Check with:
+
+      python tools\subpack_uvs.py --report assets\garden\Greenhouse.smx
+
+  Sub-packing also costs the far-edge texel: a full-tile span of 0..128 becomes
+  0..63, because a sub-rect cannot wrap. That is a half-texel inset, invisible.
+
+THE OTHER TRAP — SHARED TEXTURES
+  A TIM is global. Packing a texture in one level while another level still
+  addresses the full 128 tile makes that other level sample the new neighbour.
+  --report names every level that shares each texture; pack it in all of them
+  or in none. (grss is in 12 levels; poison_flower_base is in 4.)
+
+STEPS
+  1. Report, and pick textures that neither tile nor are shared:
+       python tools\subpack_uvs.py --report assets\<Level>.smx
+  2. Write a table, e.g. tools\subpack\<level>.json — see the script's header
+     for the format. Entries sharing a "page" label are checked for overlap.
+  3. Pack (the input is never modified; output is <Level>.packed.smx):
+       python tools\subpack_uvs.py assets\<Level>.smx tools\subpack\<level>.json
+  4. Re-make each packed texture as a TIM at its real size, inside the tile:
+       8bpp:  --tx <page_x + u_off/2>   --ty <page_y + v_off>
+       4bpp:  --tx <page_x + u_off/4>   --ty <page_y + v_off>
+     page_x stays 64-aligned and page_y in {0,256}; the sub-TIM's own tx is
+     deliberately NOT page-aligned.
+  5. GREP THE C FOR HAND-WRITTEN UVs ON THAT TEXTURE. This pass rewrites MESH
+     UVs only. Anything that draws the texture from UV CONSTANTS in C still
+     spans the old 128 tile and will read off the end of the shrunk texture into
+     whatever shares its page.
+       >>> This bit us. `greenhouse door` shrank to 64x64 and the mesh was fine,
+           but DOOR_PANEL_GREENHOUSE in src/door_anim.c draws the transition
+           panel from GH_U_HINGE/GH_V_BOT, still 127. Three quarters of the panel
+           sampled frnt_dr/red_crpt/dbl_dr_rg beside it and the transition showed
+           a double-door texture. The fix is to halve the constants, not the TIM.
+       grep -rn "TIM_TPAGE_<SLOT>" src/*.c    and check every hit's UV constants.
+
+  6. Convert from the PACKED file:
+       smxlink -tp textures -o assets\<Level>.smd assets\<Level>.packed.smx
+  6. Re-run tools\vram_map.py and CHECK IT. It assumes 128x128 everywhere, so
+     teach it the new extents or its collision check is quietly lying to you.
+
+  Re-exporting from Blender overwrites the source .smx, so step 3 is re-run
+  after every export. The tex-map generator may read either file — this pass
+  changes no texture list, no poly order and no poly count.
+
+GOING THE OTHER WAY — BIGGER THAN 128
+  Only ONE dimension can grow, and only at 4bpp: a 4bpp page is 256 texels wide,
+  so 256x256 fits exactly one tpage. At 8bpp 128 is the hard ceiling on WIDTH.
+  subpack_uvs.py accepts "size": 256 and doubles the UVs for you.
+
+  >>> BUT THE EXPORTER'S TILING SCHEME CANNOT FEED A 256 TEXTURE, AND THIS IS
+      THE THING TO UNDERSTAND BEFORE YOU TRY. The exporter leaves each face's UV
+      minimum in [0,S) and relies on the texture window to wrap anything past the
+      edge, so the maximum reaches S+span:
+
+        S=128 -> max <= 192.  Fits 8 bits, and the mask-128 window wraps it.
+        S=256 -> max <= 320.  DOES NOT FIT 8 BITS, and a 256 texture has no
+                              window that can wrap it (mask 0 = no wrap, and the
+                              UV field is 8-bit, so the value is simply lost).
+
+      A face that straddles a tile edge therefore CANNOT be represented. The tool
+      shifts it the rest of the way, which fits it but lands it on a different
+      part of the art. WE SHIPPED THAT ONCE: the Greenhouse's `cuniform pipes`
+      went 4bpp 256x256, 16 of its 40 faces straddled, and the pipes lost their
+      symbols. It was reverted to 8bpp 128x128.
+
+      So a 256 texture needs a UV layout where NO FACE CROSSES A TILE EDGE. That
+      is a Blender job, not a tooling one: keep every face for that material
+      inside one 0..1 tile, re-export, and THEN pack. Check the straddle count in
+      the pack report before believing it worked — if it is not zero, stop.
+
+  IF YOU DO GET A CLEAN 256 LAYOUT, it still costs four things, all of which the
+  cuniform pipes attempt actually hit and solved before the UV problem sank it:
+    1. A WHOLE TPAGE — 64 units x 256 ROWS, i.e. BOTH Voff halves. That breaks
+       the Voff-0/Voff-128 sharing the VRAM map is built on. There is almost
+       certainly nothing free: every y0 page's lower half had a real occupant,
+       and every y256 page is disqualified because the CLUT band at y[480,512)
+       runs through it. Check BOTH halves before planning.
+    2. A RESTORE OBLIGATION for whatever you displace — and check what the room's
+       own door transitions draw, since a door panel's page is the worst thing to
+       take. (512,0)'s lower half is dbl_dr_hlf, i.e. DOOR_PANEL_OUTER.
+    3. A PER-POLY BRACKET, because the room's mask-128 window would wrap 0..255
+       UVs at 128 and draw the left half twice. Window off before the poly, the
+       128 window after — src/copper_pot.c's shape. Reserve both DR_TWINs in the
+       buffer check as well as the poly.
+    4. A BIGGER STREAM BUFFER: 4bpp 256x256 is 32832 bytes = 17 sectors against
+       16928 for an 8bpp 128x128. Run tools/heap_budget.py.
+    ...and 16 colours, since 4bpp is forced.
+
+  THE CHEAP ALTERNATIVE, if all you want is horizontal density: 4bpp 256x128 is
+  64 units x 128 rows — EXACTLY an 8bpp 128x128's footprint. No page to find, no
+  restore, no bracket, no scratch growth. It is the right trade whenever the art
+  is used wider than it is tall; compare the max U span against the max V span
+  first. (For cuniform pipes it was the wrong way round: U span 19, V span 32.)

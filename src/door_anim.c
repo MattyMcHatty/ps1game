@@ -123,15 +123,22 @@
  * which still lands inside the screen.
  *
  * AND ITS TEXTURE IS ROOM ART, not a reserved panel. greenhouse door.tim is
- * 4bpp at VRAM x320 y256 - Voff 0, so U and V both run 0..127 exactly as the
- * 16bpp wd_dr does - on a page shared with frnt_dr, red_crpt and dbl_dr_rg. It
- * is therefore NOT read off the CD by door_anim_load_assets; see the note
- * there. */
+ * 4bpp at VRAM x320 y256 - Voff 0 - on a page shared with frnt_dr, red_crpt and
+ * dbl_dr_rg. It is therefore NOT read off the CD by door_anim_load_assets; see
+ * the note there.
+ *
+ * >>> IT IS 64x64, NOT 128x128, so U and V run 0..63. It was sub-packed to its
+ *     real size (tools/TEXTURING_NOTES.txt PART 5) and these UVs are HAND
+ *     WRITTEN here, so shrinking the TIM does not fix them the way it fixes the
+ *     mesh's. At 0..127 the panel read three quarters of its area straight off
+ *     the end of the texture and into frnt_dr/red_crpt/dbl_dr_rg beside it,
+ *     which looked like a double-door panel pasted over the greenhouse door.
+ *     ANY hand-written UV in this file must match its TIM's real size. */
 #define GH_PANEL_W      ((PANEL_W * 12) / 10)   /* 96 */
 #define GH_U_FREE        0
-#define GH_U_HINGE     127
+#define GH_U_HINGE      63
 #define GH_V_TOP         0
-#define GH_V_BOT       127
+#define GH_V_BOT        63
 
 #define DOOR_PANEL_COUNT  6
 
