@@ -74,6 +74,8 @@ RESERVED = {
     "bl_ky_stn.tim":      "blue key stone",
     "mgn_ky_stn.tim":     "magenta key stone",
     "pno_key.tim":        "piano key item",
+    "helluminator.tim":   "the Helluminator (menu icon in every room)",
+    "vlv_hndl.tim":       "the Valve Handle item (menu icon in every room)",
     # --- The door-transition panels ----------------------------------------
     "grdngtl.tim":        "GATE panel, left half - THIS bank's own transition",
     "grdngtr.tim":        "GATE panel, right half - THIS bank's own transition",
@@ -115,6 +117,11 @@ BANK = {
                            "Greenhouse: flower-bed soil, 4bpp clone     OWNED",
     "pipe_gh.tim":         "Greenhouse: the standing pipe, 4bpp clone   OWNED",
     "pipe_button_off.tim": "Greenhouse: the button on the pipework      OWNED",
+    # The VINES prop. Not mesh art - the only prop texture this bank owns -
+    # and 8bpp, so unlike pipe_gh and pipe_button_off it could not squeeze
+    # onto a 4bpp left-half and needed a whole page. It took the Rabisu's,
+    # which is why "Rabisu tex.tim" is no longer in NEEDS_RESTORE below.
+    "vines.tim":           "Greenhouse: the vines prop                  OWNED",
 }
 
 # Textures that are startup-resident and are NOT re-uploaded by any room. Taking
@@ -137,7 +144,12 @@ NEEDS_RESTORE = {
     "ddog_sleep.tim", "ddog_alert.tim", "ddog_alert2.tim",
     "ls_idle.tim", "ls_atk.tim",
     "hadad_idle_64.tim", "hadad_stp1_64.tim", "hadad_stp2_64.tim",
-    "Rabisu tex.tim",
+    # NOT "Rabisu tex.tim" any more. It WAS startup-upload-once, and the
+    # Greenhouse's vines took its page (x704 y256) - so
+    # garden_courtyard_upload_textures() now re-uploads it on entry to the room
+    # the boss actually fights in. That makes it reclaimable like any other
+    # room-restored texture, and it is the reason this set shrank rather than
+    # grew when a page was taken.
 }
 
 tims = {}

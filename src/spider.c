@@ -14,6 +14,7 @@
 #include "spider.h"
 #include "web.h"
 #include "fatdoor.h"
+#include "vines.h"   /* solid on the same terms; area-gated, so free elsewhere */
 #include "texmgr.h"
 #include "sound.h"
 
@@ -279,6 +280,7 @@ void update_spiders(void) {
             crates_collide(&s->x, s->y, &s->z, 80);
             dining_tables_collide(&s->x, s->y, &s->z, 75);
             fatdoors_collide(&s->x, s->y, &s->z, SPD_DOOR_CLEARANCE);
+            vines_collide(&s->x, s->y, &s->z, SPD_DOOR_CLEARANCE);
             if (s->kb_vx > 0) s->kb_vx =  (  s->kb_vx * 7) >> 3;
             else              s->kb_vx = -((-s->kb_vx * 7) >> 3);
             if (s->kb_vz > 0) s->kb_vz =  (  s->kb_vz * 7) >> 3;
@@ -473,6 +475,7 @@ void update_spiders(void) {
         crates_collide(&s->x, s->y, &s->z, 80);
         dining_tables_collide(&s->x, s->y, &s->z, 75);
         fatdoors_collide(&s->x, s->y, &s->z, SPD_DOOR_CLEARANCE);
+        vines_collide(&s->x, s->y, &s->z, SPD_DOOR_CLEARANCE);
     }
 
     /* Start/stop the shared loop. Forced off on game-over, which stops the area

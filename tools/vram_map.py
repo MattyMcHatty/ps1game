@@ -383,6 +383,32 @@ KNOWN_STREAM_PAIRS = [
     ("prpl_wlppr.tim",         "pipe_gh.tim"),
     ("stove.tim",              "pipe_gh.tim"),
     ("wd_dr_crk.tim",          "pipe_button_off.tim"),
+    # ---- THE GREENHOUSE'S VINES PROP ---------------------------------------
+    # vines.tim is an 8bpp 128x128 and the only NON-mesh art in this bank, so it
+    # could not go on a 4bpp left-half the way pipe_gh and pipe_button_off did.
+    # It takes x704 y256 - the Rabisu's skin - which was the cheapest full 8bpp
+    # page left in the bank: every other one carried either the Anzu tiles, the
+    # kitchen's resident set, wd_dr (which is also the GLOBAL door-panel art) or
+    # stn_gls, and stn_gls in particular is captured-not-uploaded by reception
+    # and the master bedroom, so clobbering it breaks two mansion rooms that
+    # never put it back.
+    #
+    # THE RABISU IS THE ONE RESTORE THIS BANK'S PROPS COST. Its skin is a texmgr
+    # registration uploaded ONCE, inside rabisus_load_assets, and the boss fights
+    # in the Garden Courtyard - which the player reaches by walking back out of
+    # here. So garden_courtyard_upload_textures() now re-uploads it, one
+    # LoadImage off a RAM copy that already exists. That call also sits at the
+    # HEAD of this room's own uploader chain (greenhouse -> stables -> courtyard),
+    # so entering the Greenhouse restores the Rabisu and then immediately
+    # replaces it again, which is exactly the behaviour every other slot in this
+    # bank already has.
+    #
+    # Its 256-word CLUT is a fresh run at y=509 x[672,928) rather than a borrowed
+    # palette row: the pixels it displaces belong to a texmgr texture, and
+    # texmgr_upload puts pixels AND palette back together, so borrowing the
+    # Rabisu's CLUT line would have worked too - but the y=499..511 x[672,1024)
+    # band still had free runs and a prop that is drawn every frame is worth one.
+    ("Rabisu tex.tim",         "vines.tim"),
 ]
 
 def read_tim(path):

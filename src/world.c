@@ -10,6 +10,8 @@
 #include "player.h"      /* GRAVEOLVER_CAPACITY */
 #include "door.h"
 #include "fatdoor.h"
+#include "vines.h"
+#include "valve_handle.h"
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
@@ -52,6 +54,10 @@ typedef struct {
     int       mushroom_count;
     LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
     int          living_statue_count;
+    Vine      vines[MAX_VINES];           /* ditto: one global area-tagged array */
+    int       vine_count;
+    ValveMount valve_mounts[MAX_VALVE_MOUNTS]; /* ditto — see valve_handle.h    */
+    int        valve_mount_count;
     Hadad     hadads[MAX_HADADS];         /* ditto: the five scripted encounters
                                              — the Reception's ceiling drop, the
                                              Rear Gate's plinth, the West
@@ -77,6 +83,8 @@ _Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow"
 _Static_assert(MAX_LIVING_STATUES <= WD_MAX_LIVING_STATUES,
                "living_statues_dead too narrow");
 _Static_assert(MAX_HADADS        <= WD_MAX_HADADS,  "hadads_state too narrow");
+_Static_assert(MAX_VINES         <= WD_MAX_VINES,   "vine_health too short");
+_Static_assert(MAX_VALVE_MOUNTS  <= 8,              "valve_present too narrow");
 /* The `visited` bitmap is what caps the room count — one bit per room. It was a
    uint16_t and the sixteenth room filled it exactly; Maze One is the seventeenth
    and widened it to 32 bits. This assert is what makes the NEXT overflow a
@@ -96,6 +104,9 @@ extern Mushroom  mushrooms[MAX_MUSHROOMS];     extern int mushroom_count;
 extern LivingStatue living_statues[MAX_LIVING_STATUES];
 extern int          living_statue_count;
 extern Hadad     hadads[MAX_HADADS];           extern int hadad_count;
+extern Vine      vines[MAX_VINES];             extern int vine_count;
+extern ValveMount valve_mounts[MAX_VALVE_MOUNTS];
+extern int        valve_mount_count;
 extern Crate     crates[MAX_CRATES];           extern int crate_count;
 extern KeyPickup keys[MAX_KEYS];               extern int key_count;
 extern SmlMed    sml_meds[MAX_SML_MEDS];       extern int sml_med_count;
@@ -187,6 +198,10 @@ static void snapshot_fatdoors(void) {
     world.living_statue_count = living_statue_count;
     memcpy(world.hadads, hadads, sizeof hadads);
     world.hadad_count = hadad_count;
+    memcpy(world.vines, vines, sizeof vines);
+    world.vine_count = vine_count;
+    memcpy(world.valve_mounts, valve_mounts, sizeof valve_mounts);
+    world.valve_mount_count = valve_mount_count;
 }
 
 void world_new_game(void) {
@@ -1034,6 +1049,17 @@ void world_save_delta(WorldDelta *d) {
     for (i = 0; i < MAX_TENTACLES; i++)
         d->tentacle_health[i] = (world.tentacles[i].health > 0)
                               ? (uint8_t)world.tentacles[i].health : 0;
+    /* Same shape as the fat doors': health, with 0 standing for gone. An
+       INDESTRUCTIBLE curtain saves at VINE_MAX_HEALTH and reloads there, which
+       is why the load below restores health without touching `destructible` —
+       that flag is a property of the placement, not of the run. */
+    for (i = 0; i < MAX_VINES; i++)
+        d->vine_health[i] = (world.vines[i].state == VINE_CLEARED)
+                          ? 0 : (uint8_t)world.vines[i].health;
+    d->valve_present = 0;
+    for (i = 0; i < MAX_VALVE_MOUNTS; i++)
+        if (world.valve_mounts[i].present)
+            d->valve_present |= (uint8_t)(1u << i);
 
     {
         GameState areas[MAX_SPIDERS];
@@ -1101,6 +1127,8 @@ void world_load_delta(const WorldDelta *d) {
     hadads_reset();
     fatdoors_reset();
     tentacles_reset();
+    vines_reset();
+    valve_handles_reset();
     /* Not rebuilt by the room walk (its placements are fixed at startup, like
        the tentacles'), and nothing about it is in the delta — a load simply puts
        every flower back. */
@@ -1148,6 +1176,15 @@ void world_load_delta(const WorldDelta *d) {
     }
     for (i = 0; i < tentacle_count; i++)
         tentacles[i].health = (int32_t)d->tentacle_health[i];
+    for (i = 0; i < vine_count; i++) {
+        vines[i].health = (int32_t)d->vine_health[i];
+        vines[i].state  = d->vine_health[i] ? VINE_INTACT : VINE_CLEARED;
+    }
+    /* A mid-turn wheel is NOT saved: valve_handles_reset above put every mount
+       back at rest, and only `present` is restored. Freezing a partial spin into
+       the blob would mean reloading into an animation nothing is waiting on. */
+    for (i = 0; i < valve_mount_count; i++)
+        valve_handle_set_present(i, (d->valve_present >> i) & 1);
 
     /* The room walk placed these in canonical order, so the delta's bit i and
        array slot i now mean the same thing. */

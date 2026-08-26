@@ -175,6 +175,18 @@ void garden_courtyard_upload_textures(void) {
     garden_stairs_upload_textures();
     for (int i = 0; i < GARDEN_COURTYARD_NEW_TEX; i++)
         texmgr_upload(new_tex_id[i]);
+    /* THE RABISU'S SKIN, which is not this room's art but is this room's
+       problem: the boss fights here, and the Greenhouse's vine curtain now
+       shares its VRAM page (x704 y256). One LoadImage off a RAM copy that
+       already exists — see rabisus_restore_texture and
+       tools/VRAM_MAP_GARDEN_WEST.txt.
+
+       This call is also reached from INSIDE the Greenhouse, because that room's
+       uploader runs the Stables', which runs this one. That is harmless and in
+       fact the correct order: the restore happens first and the vines go up over
+       it a moment later, exactly as every other time-shared slot in this bank
+       behaves. */
+    rabisus_restore_texture();
 }
 
 /* ---- The east-wall door back to the Garden Stairs --------------------------

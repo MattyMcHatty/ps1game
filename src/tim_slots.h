@@ -235,6 +235,10 @@
 #define TIM_TPAGE_HEDGE    0x0086
 #define TIM_CLUT_HEDGE     0x7a6a
 
+/* helluminator.tim  8bpp  VRAM ( 544,288)  \TEX\HELLUMIN.TIM */
+#define TIM_TPAGE_HELLUMIN 0x0098
+#define TIM_CLUT_HELLUMIN  0x7faa
+
 /* hud.tim         4bpp  VRAM ( 384,384)  \TEX\HUD.TIM */
 #define TIM_TPAGE_HUD      0x0016
 #define TIM_CLUT_HUD       0x7fcb
@@ -438,6 +442,14 @@
 /* upstairs.tim    4bpp  VRAM ( 704,  0)  \TEX\UPSTAIRS.TIM */
 #define TIM_TPAGE_UPSTAIRS 0x000b
 #define TIM_CLUT_UPSTAIRS  0x7fc4
+
+/* vines.tim       8bpp  VRAM ( 704,256)  \TEX\VINES.TIM */
+#define TIM_TPAGE_VINES    0x009b
+#define TIM_CLUT_VINES     0x7f6a
+
+/* vlv_hndl.tim    8bpp  VRAM ( 608,288)  \TEX\VLVHNDL.TIM */
+#define TIM_TPAGE_VLVHNDL  0x0099
+#define TIM_CLUT_VLVHNDL   0x7df0
 
 /* wdcrate.tim    16bpp  VRAM ( 896,  0)  \WCRATE.TIM */
 #define TIM_TPAGE_WCRATE   0x010e

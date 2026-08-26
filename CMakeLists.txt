@@ -134,6 +134,8 @@ add_executable(horror_game
     src/savegame.c
     src/world.c
     src/fatdoor.c
+    src/vines.c
+    src/valve_handle.c
     src/door_anim.c
     src/intro.c
     src/debug_opts.c

@@ -13,6 +13,7 @@
 #include "particles.h"
 #include "mushroom.h"
 #include "fatdoor.h"
+#include "vines.h"   /* solid on the same terms; area-gated, so free elsewhere */
 #include "sound.h"
 
 Mushroom mushrooms[MAX_MUSHROOMS];
@@ -382,6 +383,7 @@ static int msh_steer(Mushroom *m, int32_t goal_dx, int32_t goal_dz,
     crates_collide(&m->x, m->y, &m->z, 80);
     dining_tables_collide(&m->x, m->y, &m->z, 75);
     fatdoors_collide(&m->x, m->y, &m->z, MSH_DOOR_CLEARANCE);
+    vines_collide(&m->x, m->y, &m->z, MSH_DOOR_CLEARANCE);
 
     return (blend_x != 0 || blend_z != 0);
 }
@@ -496,6 +498,7 @@ void update_mushrooms(void) {
             crates_collide(&m->x, m->y, &m->z, 80);
             dining_tables_collide(&m->x, m->y, &m->z, 75);
             fatdoors_collide(&m->x, m->y, &m->z, MSH_DOOR_CLEARANCE);
+            vines_collide(&m->x, m->y, &m->z, MSH_DOOR_CLEARANCE);
             if (m->kb_vx > 0) m->kb_vx =  (  m->kb_vx * 7) >> 3;
             else              m->kb_vx = -((-m->kb_vx * 7) >> 3);
             if (m->kb_vz > 0) m->kb_vz =  (  m->kb_vz * 7) >> 3;

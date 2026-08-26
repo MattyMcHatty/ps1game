@@ -17,7 +17,11 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   18            /* v18: hatch_keys — the Keystone Maze's
+#define SAVE_VERSION   19            /* v19: vine_health + valve_present. Both
+                                        widen the WorldDelta, so delta_size
+                                        already rejects a v18 save; the bump is
+                                        what makes the reason legible.
+                                    v18: hatch_keys — the Keystone Maze's
                                         plinth reward is a Hatch Key now, not a
                                         box of Flame Rounds, and it is COUNTED
                                         (two keys share one inventory slot), so

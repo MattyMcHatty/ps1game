@@ -12,6 +12,7 @@
 #include "grinder.h"
 #include "grinder_puzzle.h"  /* the corridor gate's backstop, collided as a prop */
 #include "fatdoor.h"
+#include "vines.h"
 #include "save_point.h"
 #include "rafflesia.h"
 #include "living_statue.h"
@@ -74,6 +75,7 @@ int collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius) {
 static int props_block_point(int32_t x, int32_t y, int32_t z) {
     if (crates_point_solid(x, y, z, SHOT_PROP_SLACK))        return 1;
     if (fatdoors_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
+    if (vines_point_solid(x, y, z, SHOT_PROP_SLACK))         return 1;
     if (dressers_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
     if (grinders_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
     if (dining_tables_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
@@ -104,6 +106,7 @@ static int props_block_point(int32_t x, int32_t y, int32_t z) {
    — this changes cost, never answers. */
 static int props_any_solid(void) {
     return crates_any_solid()        || fatdoors_any_solid()      ||
+           vines_any_solid()         ||
            dressers_any_solid()      || dining_tables_any_solid() ||
            piano_props_any_solid()   || concrete_props_any_solid()||
            attic_stairwell_altar_any_solid() ||
@@ -728,6 +731,9 @@ void apply_collision_kitchen_dining(void) {
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly(&r->walls[i], &cam_x, &cam_z, radius);
     fatdoors_collide(&cam_x, cam_y, &cam_z, radius);
+    /* Vine curtains, on the same terms as the fat doors: solid while
+       intact, area-gated, so this is a no-op in any room without one. */
+    vines_collide(&cam_x, cam_y, &cam_z, radius);
     dining_tables_collide(&cam_x, cam_y, &cam_z, table_radius);
 }
 
@@ -839,6 +845,10 @@ void apply_collision_reception(void) {
        doors) rather than the wide wall radius, so the player can walk up close
        enough to smash it. fatdoors_collide skips doors of other areas. */
     fatdoors_collide(&cam_x, cam_y, &cam_z, 125);
+    /* Vine curtains. THIS is the call the Greenhouse gets — that room uses
+       this routine, not the kitchen one. Same radius as the fat doors and
+       for the same reason: close enough to swing the axe at it. */
+    vines_collide(&cam_x, cam_y, &cam_z, 125);
     /* Save point: solid, using its own mesh footprint (radius = player standoff). */
     save_points_collide(&cam_x, cam_y, &cam_z, 55);
     /* Piano-room props (this routine is shared with the piano room); the module

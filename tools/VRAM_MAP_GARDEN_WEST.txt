@@ -75,6 +75,8 @@ RESERVED  (a global; overwriting it breaks something)
   bl_ky_stn.tim        8     624   256    32    32     0  768,482     blue key stone
   sml_med.tim          8     640   256    64    64     0  0,482       small medkit
   mgn_ky_stn.tim       8     672   256    32    32     0  256,494     magenta key stone
+  helluminator.tim     8     544   288    64    64    32  672,510     the Helluminator (menu icon in every room)
+  vlv_hndl.tim         8     608   288    64    64    32  768,503     the Valve Handle item (menu icon in every room)
   crucifaxe.tim        8     320   384    64    64   128  0,500       the weapon, world sprite and menu icon
   hud.tim              4     384   384   320    56   128  176,511     the HUD panel
   mushy_run.tim        8     464   384    96    96   128  256,498     Mushroom Head, running
@@ -99,6 +101,7 @@ THIS BANK'S ROOM ART
   greenhouse door.tim  4     320   256    64    64     0  272,511     Stables: the shut door in the west wall     OWNED
   pipe_gh.tim          4     384   256   128   128     0  512,502     Greenhouse: the standing pipe, 4bpp clone   OWNED
   pipe_button_off.tim  4     512   256    32    32     0  528,502     Greenhouse: the button on the pipework      OWNED
+  vines.tim            8     704   256   128   128     0  672,509     Greenhouse: the vines prop                  OWNED
 
 WHAT IS LEFT FOR THE GREENHOUSE
 
@@ -132,7 +135,7 @@ WHAT IS LEFT FOR THE GREENHOUSE
   x512  y256  IN USE by this bank: pipe_button_off.tim
   x576  y256  4bpp ONLY - right half reserved: bl_ky_stn.tim, pno_key.tim
   x640  y256  TAKEN - reserved: sml_med.tim
-  x704  y256  FREE - 8bpp full page  [RESTORE: Rabisu tex.tim]
+  x704  y256  IN USE by this bank: vines.tim
   x768  y256  FREE - 8bpp full page  [RESTORE: wd_dr.tim]
   x832  y256  FREE - 8bpp full page  [RESTORE: wd_dr.tim]
   x896  y256  FREE - 8bpp full page  [RESTORE: stn_gls.tim]

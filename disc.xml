@@ -200,6 +200,22 @@
                      boundary and the console hung at the PlayStation logo. The
                      root list is full — see the comment above it. -->
                 <file name="RABISU.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Rabisu-tex.smd"/>
+                <!-- THE GREENHOUSE'S TWO PROP MESHES, AND THEY ARE IN HERE FOR
+                     THE REASON RABISU.SMD IS. Both are read once at startup like
+                     every other prop's (CD access is unsafe after the render loop
+                     starts) and both are tiny - 2 KB and 4 KB - so the disc root
+                     would have held them fine on SIZE. What is scarce at the
+                     root is DIRECTORY RECORDS: tools/check_disc_root.py reports
+                     36 free bytes in its first sector, and SYSTEM.CNF falling
+                     past that boundary is a hang at the console logo rather than
+                     an error. Two more 60-byte records is not a margin worth
+                     spending on props, so they went where RABISU.SMD went. Run
+                     that script after touching the root either way.
+                     Their TEXTURES are not here: the vines' is streamed with the
+                     Greenhouse's own set (VINES.TIM, below) and the valve handle
+                     reuses whichever pipe art the room it is in already put up. -->
+                <file name="VINES.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\vines.smd"/>
+                <file name="VALVEH.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\valve_handle.smd"/>
                 <!-- The boss's one skin. 128x128 8bpp at VRAM (704,256): Voff 0
                      and page-aligned, so the courtyard's own 128x128 texture
                      window applies to it unchanged and no bracket is needed. -->
@@ -334,6 +350,23 @@
                      texture window is 128x128 at offset 0, so a V range of
                      64..127 maps to itself. -->
                 <file name="HATCHKEY.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\hatch_key.tim"/>
+                <!-- TWO COLLECTIBLE ICONS AHEAD OF THEIR ITEMS. The Helluminator
+                     and the Valve Handle are global menu/HUD art: they have to
+                     survive every room, the garden-west bank included, so they
+                     are RESERVED in both VRAM maps now, before anything else can
+                     take their slots. Both are 8bpp 64x64 in the y=288 band,
+                     which is Voff 32 - a V range of 32..95, inside the 0..127
+                     that every room's 128x128 texture window wraps to. That is
+                     the same rule the Hatch Key's Voff 64 slot relies on.
+                       HELLUMIN -> x544 y288, CLUT (672,510)
+                       VLVHNDL  -> x608 y288, CLUT (768,503)
+                     NOTHING UPLOADS THEM YET. Neither has a PickupKind, so
+                     item_pickups_load_textures() does not see them; wiring the
+                     items is what adds them to kind_tim[]. What these entries buy
+                     today is the reservation and the TIM_SLOT constants.
+                     See tools/ADDING_AN_ITEM.txt. -->
+                <file name="HELLUMIN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\helluminator.tim"/>
+                <file name="VLVHNDL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\vlv_hndl.tim"/>
                 <!-- Garden Stairs: the caged switchback stairway behind the
                      Attic Exit's unlocked door. XTDRCG/XTDROUTR are its two new
                      mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the
@@ -592,6 +625,31 @@
                 <file name="PSNFLGH.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\poison_flower_base_gh.tim"/>
                 <file name="PIPEGH.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe_gh.tim"/>
                 <file name="PIPEBTNO.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe_button_off.tim"/>
+                <!-- The VINES prop (src/vines.c). Greenhouse-only, so its
+                     texture is streamed with this room's five rather than held
+                     resident, and it lives in the garden-west bank like them:
+                       VINES -> x704 y256, 8bpp full page. It is the only 8bpp
+                                texture this bank added after the Stables, and
+                                the page it took is the RABISU's skin - the
+                                cheapest one left, because every other free page
+                                carried the Anzu tiles, the kitchen's resident
+                                set, WDDR (which is also the global door-panel
+                                art) or STNGLS (which reception and the master
+                                bedroom capture without ever re-uploading).
+                                The boss fights in the Garden Courtyard, which
+                                the player reaches by walking back out of here,
+                                so garden_courtyard_upload_textures() now
+                                re-uploads the Rabisu's skin on entry - one
+                                LoadImage off the texmgr RAM copy that exists
+                                already.
+                     Unlike the room's own five it takes a FRESH 256-word CLUT
+                     (y=509, x[672,928)) rather than borrowing the palette row of
+                     what it displaces. See tools/VRAM_MAP_GARDEN_WEST.txt.
+                     The two prop MESHES are in this same \TEX\ dir
+                     (VINES.SMD, VALVEH.SMD) rather than at the disc root, which
+                     had no directory-record space left - they are read once at
+                     startup, not on this transition. -->
+                <file name="VINES.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\vines.tim"/>
             </dir>
         </directory_tree>
     </track>

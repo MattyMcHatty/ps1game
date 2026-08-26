@@ -25,6 +25,8 @@
 #include "bullet_hit.h"
 #include "graveolver.h"
 #include "weapon.h"
+#include "vines.h"      /* the one PROP the gun can destroy */
+#include "damage.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -300,6 +302,25 @@ static void graveolver_fire(void) {
         best_kind = 2;
     }
 
+    /* VINE CURTAINS, and they are the only PROP that competes for the
+       crosshair. They are deliberately tested LAST and outside the pattern
+       above: vines_point_solid puts them in props_block_point, so
+       crosshair_clear would reject a curtain on account of the curtain itself
+       if it were tested the way an enemy is. Testing it here, against the best
+       depth the enemies produced, gets both halves right — a curtain nearer
+       than the enemy behind it eats the round, and one further away does not.
+       The `depth < best_depth` comparison is the whole of that logic. */
+    for (i = 0; i < vine_count; i++) {
+        Vine *vn = &vines[i];
+        if (!vn->active || vn->state != VINE_INTACT || vn->area != current_area) continue;
+        int32_t cyc, hh, hw;
+        vines_body(i, &cyc, &hh, &hw);
+        if (enemy_in_circle(vn->x, cyc, vn->z, hw, hh, fx, fz, &depth) &&
+            depth < best_depth) {
+            best_depth = depth; best_kind = 8; best_idx = i;
+        }
+    }
+
     /* Nothing hittable in the circle (or a wall/prop was the nearest thing under
        it): no damage, no impact sprite — ghit only marks enemy hits. */
     if (best_kind < 0)
@@ -332,6 +353,11 @@ static void graveolver_fire(void) {
            chambered (see mushroom.h). */
         mushroom_damage(&mushrooms[best_idx],
                         mushroom_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 8) {
+        /* Not an enemy and not scaled by a weakness table: a curtain asks the
+           DAMAGE TYPE directly. DMG_FLAME clears a destructible one outright,
+           a Standard Round does nothing but scatter leaves. */
+        vines_shoot(best_idx, (int)dmg_type);
     } else if (best_kind == 5) {
         /* Boss: 1 from a Standard Round, 2 from a Flame Round (its weakness
            table doubles DMG_FLAME) — so 20 or 10 shots to kill. */

@@ -13,6 +13,7 @@
 #include "particles.h"
 #include "zombie.h"
 #include "fatdoor.h"
+#include "vines.h"   /* solid on the same terms; area-gated, so free elsewhere */
 #include "sound.h"
 
 Zombie zombies[MAX_ZOMBIES];
@@ -353,6 +354,7 @@ void update_zombies(void) {
             crates_collide(&d->x, d->y, &d->z, 80);
             dining_tables_collide(&d->x, d->y, &d->z, 75);   /* same radius as the player */
             fatdoors_collide(&d->x, d->y, &d->z, ZMB_DOOR_CLEARANCE);
+            vines_collide(&d->x, d->y, &d->z, ZMB_DOOR_CLEARANCE);
             if (d->kb_vx > 0) d->kb_vx =  (  d->kb_vx * 7) >> 3;
             else               d->kb_vx = -((-d->kb_vx * 7) >> 3);
             if (d->kb_vz > 0) d->kb_vz =  (  d->kb_vz * 7) >> 3;
@@ -477,6 +479,7 @@ void update_zombies(void) {
                 int32_t tz = d->z + (gdz * step) / gd;
                 int32_t cx = tx, cz = tz;
                 fatdoors_collide(&cx, d->y, &cz, ZMB_BODY_RADIUS);
+                vines_collide(&cx, d->y, &cz, ZMB_BODY_RADIUS);
                 if ((cx != tx || cz != tz) &&
                     fatdoors_damage_at(nav_nodes[node].x, nav_nodes[node].z, 0, 1))
                     d->door_timer = ZMB_DOOR_COOLDOWN;
@@ -602,6 +605,7 @@ void update_zombies(void) {
         crates_collide(&d->x, d->y, &d->z, 80);
         dining_tables_collide(&d->x, d->y, &d->z, 75);   /* same radius as the player */
         fatdoors_collide(&d->x, d->y, &d->z, ZMB_DOOR_CLEARANCE);
+        vines_collide(&d->x, d->y, &d->z, ZMB_DOOR_CLEARANCE);
     }
 
     /* --- Zombie vs zombie hard collision (after every zombie has moved) --- */

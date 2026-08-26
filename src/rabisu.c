@@ -133,11 +133,28 @@ void rabisus_load_assets(void) {
     rabisu_buff = read_file("\\TEX\\RABISU.SMD;1");
     if (rabisu_buff) rabisu_smd = smdInitData(rabisu_buff);
 
-    /* Uploaded immediately and never again: the slot is not time-shared. */
+    /* Uploaded here AND, since the Greenhouse's vines took this slot, again on
+       entry to the room the boss actually fights in — see
+       rabisus_restore_texture below. */
     rabisu_tex = texmgr_register("\\TEX\\RABISU.TIM;1");
     if (rabisu_tex >= 0) texmgr_upload(rabisu_tex);
 
     rabisus_load_anim();
+}
+
+/* PUT THE SKIN BACK. x704 y256 stopped being the boss's alone when the
+   Greenhouse's vine curtain took the page (it was the cheapest full 8bpp page
+   left in the garden-west bank — every other one carried the Anzu tiles, the
+   kitchen's resident set, the global door-panel art or stn_gls). The boss fights
+   in the Garden Courtyard, which the player reaches by walking back out of the
+   Greenhouse, so that room's uploader calls this on the way in.
+
+   It is one LoadImage off the RAM copy texmgr_register already keeps — no CD
+   access, so it is safe on a transition — and a no-op if the registration failed
+   (past texmgr's cap), which is the same condition the draw already falls back
+   on. See tools/VRAM_MAP_GARDEN_WEST.txt. */
+void rabisus_restore_texture(void) {
+    if (rabisu_tex >= 0) texmgr_upload(rabisu_tex);
 }
 
 /* The vertex block this boss is posed on for this frame. Falls back to the

@@ -90,6 +90,8 @@
 #include "delivery_intro.h"
 #include "world.h"
 #include "fatdoor.h"
+#include "vines.h"
+#include "valve_handle.h"
 #include "door_anim.h"
 #include "stair_anim.h"
 #include "intro.h"
@@ -192,6 +194,8 @@ void reset_game(RenderContext *ctx) {
                               (see the frontend hook), so it never cancels the
                               one it is about to start. */
     fatdoors_reset();
+    vines_reset();          /* ...and every vine curtain back to intact   */
+    valve_handles_reset();  /* ...and the valve handle back on its pipe   */
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
 }
@@ -1239,6 +1243,10 @@ static void update_current_area(GameState area) {
     weapons_update();
     update_particles();
     bullet_hits_update();
+    /* Every valve mount, not just this room's: a turn started in one room
+       and walked out of should still be finished on the way back, and the
+       list is four entries long either way. */
+    valve_handles_update();
     /* Area-tagged like the webs, so this one call covers every room branch above
        and costs nothing in the rooms with no flowers in them. */
     update_rafflesias();
@@ -1534,6 +1542,16 @@ int main(int argc, const char **argv) {
     copper_pot_load_assets();  /* copper pot collectible (texture deferred, key slot) */
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
     fatdoors_init();
+    vines_load_assets();       /* vine curtains: GEOMETRY ONLY. Their texture
+                                  is streamed by the Greenhouse on entry, not
+                                  held resident — the prop appears in that
+                                  room and nowhere else. See src/vines.c. */
+    vines_init();
+    valve_handles_load_assets();/* valve handle: geometry only too, and not
+                                  even that much texture work — it draws with
+                                  whichever pipe texture the room it is in
+                                  already has up. */
+    valve_handles_init();
     tentacles_load_assets();   /* tentacle enemy sprites (resident) */
     tentacles_init();          /* conservatory + attic exit tentacles */
     intro_load_assets();       /* opening sequence's mansion still (texture) */

@@ -489,6 +489,10 @@ extern Rabisu rabisus[MAX_RABISUS];
 extern int    rabisu_count;
 
 void rabisus_load_assets(void);   /* startup: load RABISU.SMD (resident)        */
+/* Re-upload the boss's skin to VRAM. Required because the Greenhouse's vine
+   curtain shares its page; called by garden_courtyard_upload_textures(), which
+   is the room the boss fights in. Pure LoadImage, transition-safe. */
+void rabisus_restore_texture(void);
 void rabisus_init(void);          /* startup: the array starts empty            */
 void rabisus_reset(void);         /* new game: clear every placement            */
 /* Place one hovering RBS_HOVER above `ground_y` at (x,z). `ground_y` is the

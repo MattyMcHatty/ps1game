@@ -31,6 +31,9 @@
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
+#include "vines.h"          /* the annexe-gap curtain (its own texture, below) */
+#include "valve_handle.h"   /* the wheel on the south bay's pipe            */
+#include "rabisu.h"         /* whose skin the vines' VRAM page displaces    */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -211,18 +214,34 @@ static uint16_t tex_clut[GREENHOUSE_TEX_COUNT];
    compile-time constants from tim_slots.h, set once in greenhouse_load_assets.
    Keep this table in step with the slot numbering above and with NAME_TO_SLOT in
    gen_greenhouse_tex_map.py. */
-#define GREENHOUSE_NEW_TEX 5
+#define GREENHOUSE_NEW_TEX 6
 static const char *new_tex_file[GREENHOUSE_NEW_TEX] = {
     "\\TEX\\FLWRBED.TIM;1",    /* slot 5 */
     "\\TEX\\CUNEISYM.TIM;1",   /* slot 6 */
     "\\TEX\\PSNFLGH.TIM;1",    /* slot 7 */
     "\\TEX\\PIPEGH.TIM;1",     /* slot 8 */
     "\\TEX\\PIPEBTNO.TIM;1",   /* slot 9 */
+    /* NO SLOT: THE VINES PROP'S TEXTURE, NOT A MESH TEXTURE. It is here because
+       this is the only place on the disc that puts it in VRAM — src/vines.c
+       holds no RAM copy and registers nothing, and smxlink baked vines.tim's own
+       tpage/clut into VINES.SMD, so the prop needs the pixels up and nothing
+       else. It has no entry in tex_tpage/tex_clut and no TIM_SLOT line, which is
+       why the count above is 6 while GREENHOUSE_TEX_COUNT stays 10.
+
+       IT TAKES THE RABISU'S PAGE (x704 y256, 8bpp full). That was the cheapest
+       one left in the bank — see disc.xml and tools/VRAM_MAP_GARDEN_WEST.txt —
+       and it is the reason garden_courtyard_upload_textures() now re-uploads the
+       boss's skin. Note the ordering that makes that work: the courtyard's
+       uploader runs at the HEAD of this room's chain (below), so entering here
+       restores the Rabisu and then immediately covers it again, and walking back
+       out to the courtyard restores it for the fight. */
+    "\\TEX\\VINES.TIM;1",
 };
 
-/* Biggest of the five is CUNEISYM at 16928 bytes (an 8bpp 128x128 plus its
-   CLUT) = nine sectors; the other four are 4640 bytes or less since they shrank
-   to their real sizes. One buffer serves all five, in turn. */
+/* Biggest is CUNEISYM at 16928 bytes (an 8bpp 128x128 plus its CLUT) = nine
+   sectors, and VINES is the same size and shape; the other four are 4640 bytes
+   or less since they shrank to their real sizes. One buffer serves all six, in
+   turn, and ten sectors still covers the largest of them with room over. */
 #define GH_TEX_SCRATCH  (10 * 2048)
 
 /* ---- Cull keys -------------------------------------------------------------
@@ -498,6 +517,13 @@ void greenhouse_init(void) {
        the nearest is on the Garden Stairs' top landing. */
     save_points_clear();
     dressers_clear();
+
+    /* The two props this room owns are NOT cleared here and must not be: both
+       are global area-tagged arrays (the fat door's model), so their Greenhouse
+       instances are the only ones that can ever match current_area, and
+       vines_init/valve_handles_init placed them once at startup. Re-placing them
+       on every entry would also throw away a cleared curtain or a lifted handle,
+       which is exactly the state the save blob carries. */
 }
 
 static void draw_greenhouse_smd(RenderContext *ctx) {
@@ -777,6 +803,12 @@ void greenhouse_draw(RenderContext *ctx) {
     if (DEBUG_CULL_DIST()) g_fog_far = DEBUG_CULL_DIST();
 
     if (exp != DBG_EXP_NO_MESH) draw_greenhouse_smd(ctx);
+
+    /* The room's two props, inside the 128 window set above and after the mesh
+       so they sort against it. Both restore the camera view matrix on the way
+       out, so the sprite draws below still project correctly. */
+    vines_draw(ctx);
+    valve_handles_draw(ctx);
 
     /* Every sprite enemy renderer is handed this room's texture window, because
        all of their sprites live at Voff >= 128 and must bracket it rather than

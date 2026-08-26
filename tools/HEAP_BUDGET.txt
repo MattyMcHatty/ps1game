@@ -84,6 +84,8 @@ KEPT BUFFERS  (read once, pointer stashed, never freed)
   dining_table.c           DINTABLE.SMD       4096  -> table_buffer
   piano_props.c            BOOKCSE.SMD        4096  -> bookcase_buf
   trick_drawers.c          TRKDRWR.SMD        4096  -> drawer_buf
+  valve_handle.c           VALVEH.SMD         4096  -> valve_buffer
+  vines.c                  VINES.SMD          4096  -> vine_buffer
   chainlink_door.c         CHNLNKDR.SMD       2048  -> cldoor_buf
   dresser.c                DRESSER.SMD        2048  -> dresser_buffer
   fatdoor.c                FATDOOR.SMD        2048  -> fatdoor_buffer
@@ -92,17 +94,17 @@ KEPT BUFFERS  (read once, pointer stashed, never freed)
   piano_props.c            PIANO.SMD          2048  -> piano_buf
   piano_props.c            TABLETS.SMD        2048  -> tablets_buf
   save_point.c             SAVEPT.SMD         2048  -> sp_buffer
-  TOTAL                                     157696
+  TOTAL                                     165888
 
 THE HEAP
-  _end (heap start)   0x800D502C
+  _end (heap start)   0x800D7754
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size            1224652 bytes (1196 KB)
+  heap size            1214628 bytes (1186 KB)
 
-  texmgr resident       765952 bytes (748 KB)  62.5%
-  kept buffers          157696 bytes (154 KB)  12.9%
-  PERMANENT TOTAL       923648 bytes (902 KB)  75.4%
-  FREE AT REST          301004 bytes (294 KB)  24.6%
+  texmgr resident       765952 bytes (748 KB)  63.1%
+  kept buffers          165888 bytes (162 KB)  13.7%
+  PERMANENT TOTAL       931840 bytes (910 KB)  76.7%
+  FREE AT REST          282788 bytes (276 KB)  23.3%
 
   The largest single transient allocation still has to fit in what is
   free, and startup makes several: the kitchen's 32768-byte scratch, and

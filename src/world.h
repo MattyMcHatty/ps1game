@@ -98,6 +98,14 @@ void world_silence_monsters(void);
    in savegame.h is what makes the reason legible. */
 #define WD_MAX_HADADS         8
 
+/* The vine curtains, and the valve handle's mounts. Both are global area-tagged
+   arrays placed once at startup, exactly like the fat doors, so an array index
+   is stable across a save and needs no canonical remap. Both are also tiny, and
+   deliberately: MAX_VINES bytes plus one bitmask is what the whole feature costs
+   the delta, against the ~2.5 KB the blob has spare. */
+#define WD_MAX_VINES          8
+#define WD_MAX_VALVE_MOUNTS   8
+
 typedef struct {
     uint8_t  zombies_dead;    /* bit i: zombies[i] was killed        */
     uint8_t  dogs_dead;       /* bit i: demon_dogs[i] was killed     */
@@ -122,6 +130,8 @@ typedef struct {
     RoomDelta rooms[WORLD_NUM_ROOMS];
     uint8_t   fatdoor_health[WD_MAX_FATDOORS];    /* 0 = smashed              */
     uint8_t   tentacle_health[WD_MAX_TENTACLES];  /* 0 = killed               */
+    uint8_t   vine_health[WD_MAX_VINES];          /* 0 = cleared              */
+    uint8_t   valve_present;                      /* bit i: mount i is filled */
 } WorldDelta;
 
 /* Encode the current world into `d`. Call after world_leave() has flushed the

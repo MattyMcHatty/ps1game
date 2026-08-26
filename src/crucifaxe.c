@@ -20,6 +20,7 @@
 #include "spider.h"
 #include "sound.h"
 #include "fatdoor.h"
+#include "vines.h"
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
@@ -37,6 +38,10 @@ static int ddog_hit_this_swing  = 0;
 static int zomb_hit_this_swing  = 0;
 static int spdr_hit_this_swing  = 0;
 static int fatdoor_hit_this_swing = 0;
+/* Vine curtains get their own per-swing latch rather than sharing the fat
+   door's: the two families are independent, and one swing that reaches both
+   should damage both. */
+static int vine_hit_this_swing    = 0;
 static int tent_hit_this_swing  = 0;
 static int raf_hit_this_swing   = 0;
 static int msh_hit_this_swing   = 0;
@@ -79,6 +84,7 @@ void update_crucifaxe(void) {
         zomb_hit_this_swing    = 0;
         spdr_hit_this_swing    = 0;
         fatdoor_hit_this_swing = 0;
+        vine_hit_this_swing    = 0;
         tent_hit_this_swing    = 0;
         raf_hit_this_swing     = 0;
         msh_hit_this_swing     = 0;
@@ -325,6 +331,13 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !fatdoor_hit_this_swing) {
             if (fatdoors_try_smash())
                 fatdoor_hit_this_swing = 1;
+        }
+        if (swing_timer <= SWING_DURATION && !vine_hit_this_swing) {
+            /* Five hits to clear a destructible curtain; an indestructible
+               one reports the hit and loses nothing. vines_try_smash skips
+               every curtain whose area != current_area, as the doors do. */
+            if (vines_try_smash())
+                vine_hit_this_swing = 1;
         }
 
         if (++swing_timer > SWING_TOTAL)

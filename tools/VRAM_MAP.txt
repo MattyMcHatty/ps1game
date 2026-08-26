@@ -123,10 +123,13 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   sml_med.tim          8       640   256    64    64     0   0,482
   mgn_ky_stn.tim       8       672   256    32    32     0   256,494
   Rabisu tex.tim       8       704   256   128   128     0   672,488
+  vines.tim            8       704   256   128   128     0   672,509
   wd_dr.tim            16      768   256   128   128     0   -
   stn_gls.tim          8       896   256   128   128     0   0,488
   trees_dl.tim         4       960   256   128   128     0   16,480
   grinder.tim          8       992   256    64    64     0   768,507
+  helluminator.tim     8       544   288    64    64    32   672,510
+  vlv_hndl.tim         8       608   288    64    64    32   768,503
   hatch_key.tim        8       480   320    64    64    64   672,505
   crucifaxe.tim        8       320   384    64    64   128   0,500  <-- Voff>=128
   hadad_idle_64.tim    8       352   384    64    96   128   256,507  <-- Voff>=128
@@ -221,6 +224,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=502  x[512,528)  pipe_gh.tim
   y=503  x[0,256)  kchn_wl.tim
   y=503  x[256,512)  plinth.tim
+  y=503  x[768,1024)  vlv_hndl.tim
   y=504  x[256,512)  ls_idle.tim
   y=504  x[0,16)  strs.tim
   y=505  x[0,256)  cppr_pt.tim
@@ -236,7 +240,9 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=508  x[256,512)  hadad_stp1_64.tim
   y=509  x[256,512)  hadad_stp2_64.tim
   y=509  x[0,256)  stnd_rnds.tim
+  y=509  x[672,928)  vines.tim
   y=510  x[0,256)  ghit.tim
+  y=510  x[672,928)  helluminator.tim
   y=510  x[256,512)  plinth_diamond.tim
   y=511  x[16,32)  bookshelf.tim
   y=511  x[160,176)  chnlnk.tim
@@ -260,6 +266,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=511  x[192,208)  wx_cb.tim
 
 OVERLAP CHECK
+  Rabisu tex.tim                           vines.tim            time-shared (streaming)
   bed.tim                                  brick_wall.tim       time-shared (streaming)
   bed.tim                                  fountain.tim         time-shared (streaming)
   bed.tim                                  grss.tim             time-shared (streaming)
