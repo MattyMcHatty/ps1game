@@ -112,8 +112,13 @@
 #define GATE_R_U_OUTER  127
 
 /* DOOR_PANEL_GREENHOUSE, the door between the Stables and the Greenhouse. The
- * WOOD variant's geometry - one leaf, hinged on its right edge, the whole door
- * swinging - on the shared clock and with SFX_DOOR. Two things differ.
+ * WOOD variant's geometry - one leaf, the whole door swinging - on the shared
+ * clock and with SFX_DOOR. Three things differ.
+ *
+ * IT IS HINGED ON ITS LEFT EDGE, where the wooden door is hinged on its right,
+ * so it swings open the other way. That is `hinge_sign` in door_anim_draw. The
+ * artwork is NOT mirrored to match - it reads the same way round as it always
+ * did, only the swing changed.
  *
  * IT IS WIDER. A greenhouse door is a broader thing than a house door, and at
  * the shared PANEL_W it read as a house door with the wrong picture on it. 96 is
@@ -392,17 +397,25 @@ void door_anim_draw(RenderContext *ctx) {
     int32_t top = DOOR_CENTER_Y - DOOR_HALF_H;
     int32_t bot = DOOR_CENTER_Y + DOOR_HALF_H;
 
-    /* Single-leaf doors: one quad, centred, hinged on its right edge. Same
-     * swing math as the double door's right leaf, but the leaf is the whole
-     * door and the hinge sits at centre + W/2 so the door stays centred.
+    /* Single-leaf doors: one quad, centred, the whole door swinging about one
+     * vertical edge. The hinge sits half a leaf either side of centre so the
+     * closed door stays centred, and the free edge rotates away into the screen
+     * - its X collapsing toward the hinge as it foreshortens vertically.
      *
-     * TWO VARIANTS SHARE THIS BODY and differ only in how wide the leaf is and
-     * which texture it carries: the wooden house door at PANEL_W, and the
-     * greenhouse door at GH_PANEL_W (20% broader - see the note by that
-     * define). Both textures happen to be 128x128 at Voff 0, so the UV corners
-     * come out as the same four numbers either way; they are still selected
-     * per variant rather than assumed, so a third single door with a
-     * differently-shaped source stays a two-line change here. */
+     * TWO VARIANTS SHARE THIS BODY and differ in how wide the leaf is, which
+     * texture it carries, and WHICH EDGE THE HINGE IS ON:
+     *   wooden house door - PANEL_W,    hinged on its RIGHT edge
+     *   greenhouse door   - GH_PANEL_W, hinged on its LEFT edge (20% broader
+     *                       too - see the note by that define)
+     * `hinge_sign` is +1 for a right-hand hinge and -1 for a left-hand one, and
+     * is the only thing the two paths differ by geometrically: the hinge moves
+     * to the other side of centre and the free edge travels the other way. The
+     * TEXTURE IS NOT MIRRORED WITH IT - the UV ends stay pinned to the screen,
+     * so both leaves draw the same picture the same way round. See the note at
+     * the emit below.
+     *
+     * UVs are selected per variant rather than assumed, so a third single door
+     * with a differently-shaped source stays a two-line change here. */
     if (anim_variant == DOOR_PANEL_WOOD || anim_variant == DOOR_PANEL_GREENHOUSE) {
         int     gh      = (anim_variant == DOOR_PANEL_GREENHOUSE);
         int32_t w       = gh ? GH_PANEL_W : PANEL_W;
@@ -410,23 +423,46 @@ void door_anim_draw(RenderContext *ctx) {
         int     u_hinge = gh ? GH_U_HINGE : WOOD_U_HINGE;
         int     v_top   = gh ? GH_V_TOP   : WOOD_V_TOP;
         int     v_bot   = gh ? GH_V_BOT   : WOOD_V_BOT;
+        int32_t hinge_sign = gh ? -1 : 1;   /* -1 = hinged on the LEFT edge */
 
         int32_t swing  = swing_angle();
         int32_t cos_t  = icos(swing);
         int32_t sin_t  = isin(swing);
         int32_t z      = w * sin_t / 4096;
         int32_t persp  = PERSP_D * 256 / (PERSP_D + z);
-        int32_t hinge_x = DOOR_CENTER_X + w / 2;
-        int32_t xoff    = (-w * cos_t / 4096) * persp / 256;
+        int32_t hinge_x = DOOR_CENTER_X + hinge_sign * (w / 2);
+        int32_t xoff    = (-hinge_sign * w * cos_t / 4096) * persp / 256;
         int32_t free_x  = hinge_x + xoff;
         int32_t free_hh = DOOR_HALF_H * persp / 256;
 
-        emit_panel(ctx, buf_end,
-                   free_x,  DOOR_CENTER_Y - free_hh,  hinge_x, top,
-                   free_x,  DOOR_CENTER_Y + free_hh,  hinge_x, bot,
-                   u_free, v_top,  u_hinge, v_top,
-                   u_free, v_bot,  u_hinge, v_bot,
-                   intensity, zoom);
+        /* Corners go in TL, TR, BL, BR SCREEN order, so which of the two edges
+           is the left-hand pair flips with the hinge.
+
+           THE UVS DO NOT FLIP WITH IT. U_FREE stays on the screen-LEFT corners
+           and U_HINGE on the screen-RIGHT ones either way, so the artwork reads
+           left-to-right on screen exactly as it always has. Only the geometry
+           is mirrored: on a left-hinged leaf the screen-left corners are the
+           hinge and the screen-right ones the free edge, which is the reverse
+           of which end of the texture they carry. That is deliberate — hanging
+           the door on the other side is not meant to reprint the picture on
+           it. (Note it means the texture's fixed end travels and its moving end
+           stays put; nothing in the swing cares, because the quad is textured
+           by its corners.) */
+        if (hinge_sign > 0) {
+            emit_panel(ctx, buf_end,
+                       free_x,  DOOR_CENTER_Y - free_hh,  hinge_x, top,
+                       free_x,  DOOR_CENTER_Y + free_hh,  hinge_x, bot,
+                       u_free, v_top,  u_hinge, v_top,
+                       u_free, v_bot,  u_hinge, v_bot,
+                       intensity, zoom);
+        } else {
+            emit_panel(ctx, buf_end,
+                       hinge_x, top,  free_x,  DOOR_CENTER_Y - free_hh,
+                       hinge_x, bot,  free_x,  DOOR_CENTER_Y + free_hh,
+                       u_free, v_top,  u_hinge, v_top,
+                       u_free, v_bot,  u_hinge, v_bot,
+                       intensity, zoom);
+        }
         return;
     }
 

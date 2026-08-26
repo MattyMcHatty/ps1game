@@ -36,10 +36,12 @@
                                  the PNG becomes CLUT 0), so the black behind
                                  shows through the bars.                          */
 #define DOOR_PANEL_GREENHOUSE 5 /* greenhouse door — the door between the Stables
-                                 and the Greenhouse. A SINGLE leaf hinged on its
-                                 right edge, exactly like DOOR_PANEL_WOOD, on the
-                                 shared clock and with SFX_DOOR; the only thing
-                                 that differs is the width. A greenhouse door is
+                                 and the Greenhouse. A SINGLE leaf, like
+                                 DOOR_PANEL_WOOD, on the shared clock and with
+                                 SFX_DOOR; it differs in the width, and in
+                                 swinging about its LEFT edge where the wooden
+                                 door swings about its right (the artwork itself
+                                 is NOT mirrored to match). A greenhouse door is
                                  a broader thing than a house door, so the panel
                                  is 96 rather than 80 — the same 20% widening,
                                  and for the same reason, as the garden gate's.
