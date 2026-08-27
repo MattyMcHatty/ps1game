@@ -171,6 +171,18 @@
                      largest bank, so `spare` does not move. -->
                 <file name="HADDIE.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\hadad_die.vag"/>
                 <file name="WOOSH.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\spirit_woosh.vag"/>
+                <!-- The Greenhouse's vine curtain winding up (src/greenhouse_puzzle.c):
+                     MCHNE.VAG's recording again, RE-CUT for the garden bank at
+                     8000 Hz and 1.8 s. The original is HOUSE-only and 17.3 KB
+                     against 9.2 KB of garden headroom, so a two-bank tag on it
+                     would have overflowed the region - and an overflow is
+                     SILENT. A separate clip rather than a re-cut of the shared
+                     one because MCHNE's 2.8 s is load-bearing at both its
+                     existing call sites. 8.1 KB, which takes the garden bank to
+                     188 KB of the region's 189 - so GARDEN is now the LARGEST
+                     bank and `spare` is 1.2 KB, down from 3.3. Re-run STEP 3 of
+                     tools/ADDING_A_SOUND.txt before adding anything at all. -->
+                <file name="MCHNEGH.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\mchne_gh.vag"/>
                 <!-- SND_BANK_INTRO, a bank of one: the Order of Ninurta line
                      over the opening sequence's white flash. Banked because
                      21.6 KB will not fit the resident headroom, and it is only
@@ -216,6 +228,15 @@
                      reuses whichever pipe art the room it is in already put up. -->
                 <file name="VINES.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\vines.smd"/>
                 <file name="VALVEH.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\valve_handle.smd"/>
+                <!-- The HELLUMINATOR's model. In \TEX\ rather than at the
+                     disc root for the same reason VINES.SMD and VALVEH.SMD are:
+                     check_disc_root.py reports 36 free bytes in the root's first
+                     sector and one more directory record is 60. The Grave-olver
+                     is at the root only because it got there first. It is a
+                     WEAPON, so it is read once at startup like the other two
+                     (src/helluminator.c) rather than streamed on a transition.
+                     Its texture is HELLUMIN.TIM, reserved above. -->
+                <file name="HELLUM.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\helluminator.smd"/>
                 <!-- The boss's one skin. 128x128 8bpp at VRAM (704,256): Voff 0
                      and page-aligned, so the courtyard's own 128x128 texture
                      window applies to it unchanged and no bracket is needed. -->
@@ -609,6 +630,15 @@
                                    startup-resident (src/fatdoor.c) and is now
                                    put back by KITCHEN_SHARED_TEX on kitchen
                                    entry.
+                       PIPEBTNN -> x520 y256, the SAME page, immediately to
+                                   PIPEBTNO's right. The LIT button of the
+                                   pipe-button puzzle (src/greenhouse_puzzle.c).
+                                   It shares a page on purpose: the button
+                                   polys' UVs are baked at u 0..31 by
+                                   tools/subpack_uvs.py, so the draw loop
+                                   reaches the lit art from the same tpage by
+                                   adding 32 to u, and the restore obligation
+                                   above was already paid.
                      The first three take the CLUT of the texture whose pixels
                      they replace, not new palette space: there is one free
                      256-word CLUT run left in the whole map and this room does
@@ -625,6 +655,7 @@
                 <file name="PSNFLGH.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\poison_flower_base_gh.tim"/>
                 <file name="PIPEGH.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe_gh.tim"/>
                 <file name="PIPEBTNO.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe_button_off.tim"/>
+                <file name="PIPEBTNN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe_button_on.tim"/>
                 <!-- The VINES prop (src/vines.c). Greenhouse-only, so its
                      texture is streamed with this room's five rather than held
                      resident, and it lives in the garden-west bank like them:

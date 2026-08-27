@@ -115,6 +115,10 @@ void zombies_reset(void);
    these, even where the table is empty, so a weakness is a one-line addition. */
 int32_t zombie_scale_damage(int32_t base, DamageType type);
 
+/* Apply `dmg` and handle the death. See the note on demon_dog_damage: this was
+   a static in graveolver.c until the Helluminator needed the same call. */
+void zombie_damage(Zombie *z, int32_t dmg);
+
 void zombies_rest(void);
 /* Kill every living zombie in the live array, silently and permanently — for a
    room the STORY empties rather than the player. This array is room-swapped, so

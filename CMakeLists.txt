@@ -29,6 +29,7 @@ add_executable(horror_game
     src/crucifaxe.c
     src/weapon.c
     src/graveolver.c
+    src/helluminator.c
     src/sml_med.c
     src/particles.c
     src/title.c
@@ -135,6 +136,7 @@ add_executable(horror_game
     src/world.c
     src/fatdoor.c
     src/vines.c
+    src/greenhouse_puzzle.c
     src/valve_handle.c
     src/door_anim.c
     src/intro.c

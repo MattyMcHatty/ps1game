@@ -202,6 +202,21 @@ typedef enum {
     FLAG_KEYSTONE_NE,
     FLAG_KEYSTONE_SE,
     FLAG_KEYSTONE_REWARD,
+    /* The GREENHOUSE'S TEN PIPE BUTTONS have been set to 3/4/5/6 and the vine
+       curtain over the west annexe has wound up into the roof
+       (src/greenhouse_puzzle.c). A flag rather than a reading of the world for
+       the usual reason: the puzzle awards no item and consumes none, and the one
+       world change it does make — the cleared curtain — is not enough on its
+       own. Without this bit a returning player would find the annexe open and
+       the board dark, and could press the four again; with it the room installs
+       the lit set on entry and the buttons go inert.
+
+       It does NOT gate the Helluminator. That sits in the annexe from the
+       Greenhouse's first visit, unreachable rather than unspawned, so the
+       ordinary per-room pickup persistence is what remembers whether it has been
+       taken — see world_seed_room(). Declared at the END of the enum, as the
+       note above instructs. */
+    FLAG_GREENHOUSE_BUTTONS,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */
@@ -214,6 +229,7 @@ static inline void game_flag_set(GameFlag f) { game_flags |= (1 << f); }
 typedef enum {
     WEAPON_CRUCIFAXE = 0,
     WEAPON_GRAVEOLVER,
+    WEAPON_HELLUMINATOR,   /* the lantern, found in the Greenhouse's west annexe */
     MAX_WEAPON_TYPES
 } WeaponType;
 
@@ -249,6 +265,23 @@ extern int       graveolver_loaded;  /* rounds currently in the cylinder (0..6) 
    how many are carried, not merely that one is. */
 #define HATCH_KEYS_MAX  2
 extern int player_hatch_keys;
+
+/* --- The Helluminator's oil -------------------------------------------------
+   >>> IT IS NOT AN AmmoType, AND THAT IS THE POINT. <<< The cylinder swap (R2)
+   walks ammo_info[] and will chamber anything the player holds reserve of, so an
+   AMMO_OIL would have had to be excluded by hand in next_available_ammo() — a
+   conditional in exactly the place tools/ADDING_AN_ITEM.txt warns not to put
+   one, and one that would need re-remembering for every later weapon. A separate
+   scalar cannot be loaded into a revolver at all.
+
+   It is also not COLLECTED. There is no oil pickup and there is not meant to be:
+   the lantern arrives full and is topped up at refill points placed in the
+   world. So the only two operations on it are "burn a unit" and "fill to
+   HELL_OIL_MAX", which is what player_oil_refill() is for — the second call
+   site, wherever the first refill point lands, then costs nothing. */
+#define HELL_OIL_MAX  100
+extern int player_oil;
+void player_oil_refill(void);   /* top up to HELL_OIL_MAX; 1 if it took any */
 
 extern int player_save_count;  /* total successful saves this playthrough (any slot/card) */
 extern WeaponType current_weapon;  /* the equipped weapon; L2 cycles owned ones */

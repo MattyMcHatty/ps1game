@@ -77,11 +77,34 @@ int zombie_add(int32_t x, int32_t y, int32_t z) {
     return i;
 }
 
-/* Zombies burn: Flame Rounds do double damage. Add another line here to give
-   them a second weakness (see damage.h). */
+/* Zombies burn: Flame Rounds do double damage, and holy fire TRIPLE — the
+   biggest modifier in the game, because a walking corpse is the thing the
+   Helluminator was built for. It has to be that big to matter: the lantern
+   spends a whole second and a unit of oil per tick, so at 100% it would take
+   five seconds of standing still to clear one zombie and nobody would ever
+   choose it over the gun. At 300 the tick takes 3 off a zombie's 5 and two
+   seconds does it, while the SAME second still does its flat 1 to everything
+   else in the cone. Add another line here to give them a third weakness (see
+   damage.h). */
 static const Weakness zombie_weakness[] = {
     { DMG_FLAME, 200 },
+    { DMG_HOLY,  300 },
 };
+
+/* Ranged damage. Moved here from a static in graveolver.c — see zombie.h. */
+void zombie_damage(Zombie *z, int32_t dmg) {
+    if (!z->active || z->state == ZMB_DEAD) return;
+    z->health   -= dmg;
+    z->hit_timer = ZMB_BAR_TIMER_MAX;
+    if (z->health <= 0) {
+        z->state = ZMB_DEAD;
+        spawn_blood_burst(z->x, z->y, z->z);
+        sound_stop(SFX_ZOMBIE);
+        sound_play(SFX_ZOMBIEDIE);
+    } else {
+        sound_play(SFX_AXEHIT);
+    }
+}
 
 int32_t zombie_scale_damage(int32_t base, DamageType type) {
     return damage_scale(base, type, zombie_weakness,

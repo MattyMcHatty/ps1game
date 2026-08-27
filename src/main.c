@@ -72,6 +72,7 @@
 #include "west_corridor.h"
 #include "stables.h"
 #include "greenhouse.h"
+#include "greenhouse_puzzle.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -326,6 +327,13 @@ static void update_current_area(GameState area) {
        winching up, nothing else in the room runs. */
     if (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) {
         lightswitch_update();
+        return;
+    }
+    /* The Greenhouse's pipe buttons, same shape and for the same reason: the
+       buttons are pressed in free play (below), and only the shot of the vine
+       curtain winding out of the annexe doorway takes the camera. */
+    if (area == STATE_GREENHOUSE && greenhouse_puzzle_active()) {
+        greenhouse_puzzle_update();
         return;
     }
     /* The same room's exit-door puzzle DOES take the camera and input for its
@@ -979,7 +987,21 @@ static void update_current_area(GameState area) {
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
-        if (!lock && greenhouse_door_triggered()) {
+        /* THE ORDER AND THE TWO RESULTS BOTH MATTER. Buttons 6 and 7 stand on
+           the east wall at z=813 and z=308, and the greenhouse door's own
+           trigger is a 500-unit Manhattan radius about (100,-100) — so a spot
+           exists (around x=-95, z=104) that is inside the door's reach AND
+           inside button 7's. One Circle tap there would otherwise press the
+           button and walk the player out of the room.
+
+           greenhouse_puzzle_update() reports whether it CONSUMED the tap, and
+           that veto is what resolves it. greenhouse_door_triggered() is still
+           called on every frame regardless: it keeps its own Circle edge state
+           and skipping a call would leave `just` armed for the following
+           frame, firing the door one frame late instead of not at all. */
+        int gh_button = greenhouse_puzzle_update();
+        int gh_door   = greenhouse_door_triggered();
+        if (!lock && !gh_button && !greenhouse_puzzle_active() && gh_door) {
             /* East back through the same door, into the Stables. The only way
                out: this room is the end of the line. */
             pending_area = STATE_STABLES;
@@ -2407,6 +2429,9 @@ int main(int argc, const char **argv) {
                              (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && exit_door_puzzle_active()) ||
+                             /* The Greenhouse's pipe-button payoff: the shot of
+                                the vine curtain winding into the roof. */
+                             (area == STATE_GREENHOUSE && greenhouse_puzzle_active()) ||
                              /* The Keystone Maze's plinth picker, and the cut to
                                 the keystone that ends the puzzle. */
                              (area == STATE_KEYSTONE_MAZE && keystone_plinths_active()) ||

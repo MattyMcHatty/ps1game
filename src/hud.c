@@ -7,6 +7,7 @@
 #include "player.h"
 #include "camera.h"   /* sprint_stamina, SPRINT_STAMINA_MAX, sprint_cooldown */
 #include "menu.h"     /* menu_draw_weapon_icon */
+#include "helluminator.h" /* helluminator_burning: the oil count's lit tell */
 
 /* ---- Where the panel sits ------------------------------------------------
    The art is authored at screen resolution, so a source-texture coordinate and
@@ -383,6 +384,21 @@ void hud_draw(RenderContext *ctx) {
                         0, 0, 0, HUD_OT_COUNT_SHADE);
         hud_draw_number(ctx, graveolver_loaded, x, y, 2,
                         ai->flash_r, ai->flash_g, ai->flash_b, HUD_OT_COUNT);
+    } else if (current_weapon == WEAPON_HELLUMINATOR) {
+        /* OIL REMAINING, in the same corner, in the flame's own orange. It is
+           the reserve rather than a chambered count — there is no cylinder — so
+           it runs to three digits, which is why the width is computed from the
+           value rather than assumed to be one glyph. It brightens to white while
+           the lantern is lit, the same tell the reticule carries. */
+        int n  = hud_digit_count(player_oil);
+        int w  = n * 8 - 2;
+        int x  = WPN_X + WPN_SIZE - 2 - w;
+        int y  = HUD_Y + WPN_Y + WPN_SIZE - 2 - 10;
+        int lit = helluminator_burning();
+        hud_draw_number(ctx, player_oil, x + 1, y + 1, 2,
+                        0, 0, 0, HUD_OT_COUNT_SHADE);
+        hud_draw_number(ctx, player_oil, x, y, 2,
+                        255, lit ? 240 : 170, lit ? 200 : 40, HUD_OT_COUNT);
     }
 
     /* 6. The log, inside the right box. */

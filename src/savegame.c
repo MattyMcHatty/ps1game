@@ -69,6 +69,7 @@ void savegame_capture(SaveData *sd) {
     sd->keys    = player_keys;
     sd->items   = player_items;
     sd->hatch_keys = player_hatch_keys;
+    sd->oil        = player_oil;
     sd->flags   = game_flags;
     menu_inventory_save(sd->item_order);
     sd->counter = 0;
@@ -239,6 +240,12 @@ void savegame_apply_pending(void) {
     player_hatch_keys = (sd->hatch_keys < 0) ? 0
                       : (sd->hatch_keys > HATCH_KEYS_MAX) ? HATCH_KEYS_MAX
                       : (int)sd->hatch_keys;
+    /* Clamped on the way in like every other counter: the HUD and the menu both
+       print it and the lantern spends it, so a corrupt value would show as a
+       nonsense reading and burn for an implausible length of time. */
+    player_oil        = (sd->oil < 0) ? 0
+                      : (sd->oil > HELL_OIL_MAX) ? HELL_OIL_MAX
+                      : (int)sd->oil;
     game_flags        = sd->flags;
     player_save_count = (int)sd->counter;
     /* AFTER the inventory fields above: the arrangement is reconciled against

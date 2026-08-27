@@ -7,6 +7,7 @@ int debug_opts[DEBUG_OPT_COUNT] = { 0 };   /* all cheats off by default; the
 
 const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "HAS GRAVE-OLVER",
+    "HAS HELLUMINATOR",   /* 16 chars — the label limit exactly (debug_opts.h) */
     "HAS WAX AND POT",
     "HAS PIANO KEY",
     "HAS KEY STONES",
@@ -78,6 +79,37 @@ void debug_opts_apply_grants(void) {
         }
         graveolver_ammo   = AMMO_STANDARD;
         graveolver_loaded = GRAVEOLVER_CAPACITY;
+    }
+
+    /* The lantern, exactly as walking over the Greenhouse annexe pickup leaves
+       it: owned, equipped, tank full.
+
+       >>> THIS USED TO BE PART OF THE BLOCK ABOVE. <<< The gun handed the
+       lantern over as well, on the argument that "the ranged weapons" is one
+       decision for someone scrolling a menu. It is its own option now because
+       the two stopped being interchangeable: the Helluminator is the only
+       weapon that can touch a stalking Living Statue and it does triple to
+       zombies, so "in the maze with the lantern and no gun" is a state worth
+       testing and one the bundle made unreachable. Ticking both gives what the
+       single option used to.
+
+       AFTER the Grave-olver block and setting current_weapon second on purpose:
+       with both ticked the lantern is what you are holding when the room comes
+       up, because it is the more specific request of the two.
+
+       player_oil_refill() rather than an assignment, so the one place that
+       knows what "full" means stays player.c (player.h). A full tank matters
+       more here than a deep ammo reserve does above — there is no oil pickup
+       anywhere in the game, and no refill point is placed yet, so what is
+       granted is all there will ever be.
+
+       No texture upload: hellumin.tim owns its VRAM and menu_init LoadImages it
+       once at startup, so the inventory icon is already right on a direct jump
+       (the same reason the piano key needs none). */
+    if (debug_opts[DBG_HAS_HELLUMINATOR]) {
+        player_weapons |= (1 << WEAPON_HELLUMINATOR);
+        current_weapon  = WEAPON_HELLUMINATOR;
+        player_oil_refill();
     }
 
     if (debug_opts[DBG_HAS_WAX_AND_POT]) {

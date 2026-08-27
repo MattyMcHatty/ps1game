@@ -39,10 +39,10 @@ extern volatile size_t  pad_buff_len[2];
    they only decide which candidate is nearer. An enemy is a candidate when any
    part of its body projects inside the circle AND the crosshair line to its
    depth isn't blocked by a nearer wall/prop. "Body" means the sprite's whole
-   on-screen rectangle, width included — see enemy_in_circle. */
+   on-screen rectangle, width included — see weapon_aim_in_circle in weapon.h,
+   which owns the test itself. */
 #define GUN_RANGE        4000  /* max forward distance a shot reaches           */
 #define GUN_AIM_RADIUS     14  /* crosshair hit circle, in screen pixels        */
-#define GUN_PROJ_H        256  /* projection distance — matches gte_SetGeomScreen*/
 #define GUN_DAMAGE         1   /* one crucifaxe hit                           */
 #define GUN_FLASH_FRAMES   4   /* white screen-flash duration                */
 #define GUN_HIT_BACKOFF   30   /* pull the hit sprite toward the camera a bit */
@@ -111,103 +111,18 @@ void graveolver_init(void) {
     graveolver_smd = smdInitData(graveolver_buff);
 }
 
-/* --- enemy damage (mirrors the crucifaxe's per-enemy handling, no knockback) --- */
+/* --- enemy damage -----------------------------------------------------------
+   damage_dog() and damage_zombie() used to live here as statics. They are now
+   demon_dog_damage() and zombie_damage(), in the enemies' own modules alongside
+   spider_damage() and mushroom_damage(), because the Helluminator burns the same
+   two from a second call site (see demondog.h). Nothing about the behaviour
+   changed in the move. */
 
-static void damage_dog(DemonDog *d, int32_t dmg) {
-    d->health   -= dmg;
-    d->hit_timer = DDOG_BAR_TIMER_MAX;
-    if (d->health <= 0) {
-        d->state = DDOG_DEAD;
-        spawn_blood_burst(d->x, d->y, d->z);
-        sound_play(SFX_DOGDIE);
-    } else {
-        sound_play(SFX_AXEHIT);
-    }
-}
-
-static void damage_zombie(Zombie *z, int32_t dmg) {
-    z->health   -= dmg;
-    z->hit_timer = ZMB_BAR_TIMER_MAX;
-    if (z->health <= 0) {
-        z->state = ZMB_DEAD;
-        spawn_blood_burst(z->x, z->y, z->z);
-        sound_stop(SFX_ZOMBIE);
-        sound_play(SFX_ZOMBIEDIE);
-    } else {
-        sound_play(SFX_AXEHIT);
-    }
-}
-
-/* Crosshair centre in screen pixels — its live position (moves while aiming). */
-static int gun_crosshair_x(void) { return aim_x; }
-static int gun_crosshair_y(void) { return aim_y; }
-
-/* World point along the crosshair line at forward distance `depth`. Back-projects
-   the crosshair's screen offset from centre into view X (perp) and view Y, then
-   places it: forward*depth + right*viewX, with viewY straight down. Generalises
-   the aim ray for an off-centre (aimed) crosshair. */
-static void crosshair_ray_point(int32_t fx, int32_t fz, int32_t depth,
-                                int32_t *px, int32_t *py, int32_t *pz) {
-    int32_t view_x = ((aim_x - SCREEN_XRES / 2) * depth) / GUN_PROJ_H;
-    int32_t view_y = ((aim_y - SCREEN_YRES / 2) * depth) / GUN_PROJ_H;
-    *px = cam_x + ((fx * depth) >> 12) + ((fz * view_x) >> 12);   /* right = (fz,-fx) */
-    *pz = cam_z + ((fz * depth) >> 12) - ((fx * view_x) >> 12);
-    *py = cam_y + view_y;
-}
-
-/* Project a world point to screen pixels by hand (no GTE state needed, so this
-   is safe in the update phase where firing runs). Rotation is Y-only, so the
-   view X is the point's perpendicular offset from the aim axis and the view Z is
-   its forward depth; the perspective divide uses the renderer's H and centre. */
-static int project_world(int32_t x, int32_t y, int32_t z,
-                         int32_t fx, int32_t fz, int *sx, int *sy) {
-    int32_t dx = x - cam_x, dy = y - cam_y, dz = z - cam_z;
-    int32_t depth = (dx * fx + dz * fz) >> 12;        /* view Z (forward) */
-    if (depth <= 0) return 0;
-    int32_t vx = (dx * fz - dz * fx) >> 12;           /* view X (perp)    */
-    *sx = SCREEN_XRES / 2 + (vx * GUN_PROJ_H) / depth;
-    *sy = SCREEN_YRES / 2 + (dy * GUN_PROJ_H) / depth;
-    return 1;
-}
-
-/* 1 if the enemy's body silhouette passes within the crosshair circle. The body
-   is the sprite's full on-screen RECTANGLE — world half-width hw and half-height
-   hh about centre cyc — grown by the aim radius; a shot lands when the crosshair
-   falls inside that box. Every enemy is drawn as a camera-facing billboard, so
-   its width projects exactly like its height and one divide covers each axis.
-   Testing only the centre line (as this once did) left most of a wide sprite
-   unhittable: a tentacle is 262 units across, ~84px at close range against a
-   flat 14px of aim slop, so only the middle strip of the visible body scored.
-   out_depth = forward distance for nearest-first ordering. */
-static int enemy_in_circle(int32_t ex, int32_t cyc, int32_t ez,
-                           int32_t hw, int32_t hh,
-                           int32_t fx, int32_t fz, int32_t *out_depth) {
-    int32_t depth = ((ex - cam_x) * fx + (ez - cam_z) * fz) >> 12;
-    if (depth <= 0 || depth > GUN_RANGE) return 0;
-
-    int cx, cy;
-    if (!project_world(ex, cyc, ez, fx, fz, &cx, &cy)) return 0;
-
-    /* World half-extents -> screen pixels at the body's depth, plus the slop. */
-    int32_t phw = (hw * GUN_PROJ_H) / depth + GUN_AIM_RADIUS;
-    int32_t phh = (hh * GUN_PROJ_H) / depth + GUN_AIM_RADIUS;
-
-    int32_t ax = gun_crosshair_x() - cx; if (ax < 0) ax = -ax;
-    int32_t ay = gun_crosshair_y() - cy; if (ay < 0) ay = -ay;
-    if (ax > phw || ay > phh) return 0;
-
-    *out_depth = depth;
-    return 1;
-}
-
-/* 1 if the crosshair line is clear out to `depth` — i.e. no wall or solid prop
-   sits nearer than the target under the crosshair (so a closer table blocks the
-   shot even when the enemy is still inside the circle). */
-static int crosshair_clear(int32_t fx, int32_t fz, int32_t depth) {
-    int32_t px, py, pz;
-    crosshair_ray_point(fx, fz, depth, &px, &py, &pz);
-    return !collision_segment_blocked(cam_x, cam_y, cam_z, px, py, pz);
-}
+/* The aim geometry — the crosshair ray, the screen projection, the circle test
+   and the blocked-line test — was hoisted into the shared weapon layer when the
+   Helluminator needed the same maths with a wider circle. See weapon.h; the gun
+   supplies GUN_AIM_RADIUS and GUN_RANGE where those functions were previously
+   reading them out of this file. */
 
 /* Fire one round: flash + hitscan the nearest enemy under the reticule. The
    caller has already confirmed a round is chambered and spends it. */
@@ -229,27 +144,27 @@ static void graveolver_fire(void) {
     for (i = 0; i < demon_dog_count; i++) {
         DemonDog *d = &demon_dogs[i];
         if (!d->active || d->state == DDOG_DEAD) continue;
-        if (enemy_in_circle(d->x, d->y + DDOG_Y_OFFSET, d->z,
-                            DDOG_HALF_W, DDOG_HALF_H, fx, fz, &depth) &&
-            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+        if (weapon_aim_in_circle(d->x, d->y + DDOG_Y_OFFSET, d->z,
+                            DDOG_HALF_W, DDOG_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 0; best_idx = i;
         }
     }
     for (i = 0; i < zombie_count; i++) {
         Zombie *z = &zombies[i];
         if (!z->active || z->state == ZMB_DEAD) continue;
-        if (enemy_in_circle(z->x, z->y + ZMB_Y_OFFSET, z->z,
-                            ZMB_HALF_W, ZMB_HALF_H, fx, fz, &depth) &&
-            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+        if (weapon_aim_in_circle(z->x, z->y + ZMB_Y_OFFSET, z->z,
+                            ZMB_HALF_W, ZMB_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 1; best_idx = i;
         }
     }
     for (i = 0; i < spider_count; i++) {
         Spider *s = &spiders[i];
         if (!s->active || s->state == SPD_DEAD || s->area != current_area) continue;
-        if (enemy_in_circle(s->x, s->y + SPD_Y_OFFSET, s->z,
-                            SPD_HALF_W, SPD_HALF_H, fx, fz, &depth) &&
-            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+        if (weapon_aim_in_circle(s->x, s->y + SPD_Y_OFFSET, s->z,
+                            SPD_HALF_W, SPD_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 4; best_idx = i;
         }
     }
@@ -258,8 +173,8 @@ static void graveolver_fire(void) {
         if (!t->active || t->health <= 0 || t->area != current_area) continue;
         int32_t cyc, hh, hw;
         tentacle_body(t, &cyc, &hh, &hw);
-        if (enemy_in_circle(t->x, cyc, t->z, hw, hh, fx, fz, &depth) &&
-            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+        if (weapon_aim_in_circle(t->x, cyc, t->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 3; best_idx = i;
         }
     }
@@ -268,8 +183,8 @@ static void graveolver_fire(void) {
         if (!rf->active || rf->health <= 0 || rf->area != current_area) continue;
         int32_t cyc, hh, hw;
         rafflesia_body(rf, &cyc, &hh, &hw);
-        if (enemy_in_circle(rf->x, cyc, rf->z, hw, hh, fx, fz, &depth) &&
-            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+        if (weapon_aim_in_circle(rf->x, cyc, rf->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 6; best_idx = i;
         }
     }
@@ -278,8 +193,8 @@ static void graveolver_fire(void) {
         if (!m->active || m->state == MSH_DEAD || m->area != current_area) continue;
         int32_t cyc, hh, hw;
         mushroom_body(m, &cyc, &hh, &hw);
-        if (enemy_in_circle(m->x, cyc, m->z, hw, hh, fx, fz, &depth) &&
-            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+        if (weapon_aim_in_circle(m->x, cyc, m->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 7; best_idx = i;
         }
     }
@@ -290,22 +205,22 @@ static void graveolver_fire(void) {
         if (!rb->active || rb->dead || rb->dying || rb->area != current_area) continue;
         int32_t cyc, hh, hw;
         rabisu_body(rb, &cyc, &hh, &hw);
-        if (enemy_in_circle(rb->x, cyc, rb->z, hw, hh, fx, fz, &depth) &&
-            depth < best_depth && crosshair_clear(fx, fz, depth)) {
+        if (weapon_aim_in_circle(rb->x, cyc, rb->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
             best_depth = depth; best_kind = 5; best_idx = i;
         }
     }
     if (vampire_health > 0 &&
-        enemy_in_circle(vampire_x, vampire_y + VAMPIRE_Y, vampire_z,
-                        VAMPIRE_HALF_W, VAMPIRE_HALF_H, fx, fz, &depth) &&
-        depth < best_depth && crosshair_clear(fx, fz, depth)) {
+        weapon_aim_in_circle(vampire_x, vampire_y + VAMPIRE_Y, vampire_z,
+                        VAMPIRE_HALF_W, VAMPIRE_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+        depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
         best_kind = 2;
     }
 
     /* VINE CURTAINS, and they are the only PROP that competes for the
        crosshair. They are deliberately tested LAST and outside the pattern
        above: vines_point_solid puts them in props_block_point, so
-       crosshair_clear would reject a curtain on account of the curtain itself
+       weapon_aim_clear would reject a curtain on account of the curtain itself
        if it were tested the way an enemy is. Testing it here, against the best
        depth the enemies produced, gets both halves right — a curtain nearer
        than the enemy behind it eats the round, and one further away does not.
@@ -315,7 +230,7 @@ static void graveolver_fire(void) {
         if (!vn->active || vn->state != VINE_INTACT || vn->area != current_area) continue;
         int32_t cyc, hh, hw;
         vines_body(i, &cyc, &hh, &hw);
-        if (enemy_in_circle(vn->x, cyc, vn->z, hw, hh, fx, fz, &depth) &&
+        if (weapon_aim_in_circle(vn->x, cyc, vn->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
             depth < best_depth) {
             best_depth = depth; best_kind = 8; best_idx = i;
         }
@@ -332,10 +247,10 @@ static void graveolver_fire(void) {
     DamageType dmg_type = ammo_info[graveolver_ammo].damage;
 
     if (best_kind == 0) {
-        damage_dog(&demon_dogs[best_idx],
+        demon_dog_damage(&demon_dogs[best_idx],
                    demon_dog_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 1) {
-        damage_zombie(&zombies[best_idx],
+        zombie_damage(&zombies[best_idx],
                       zombie_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 3) {
         tentacle_shoot(&tentacles[best_idx],
@@ -376,7 +291,7 @@ static void graveolver_fire(void) {
         int32_t d = best_depth - GUN_HIT_BACKOFF;
         if (d < 1) d = 1;
         int32_t hx, hy, hz;
-        crosshair_ray_point(fx, fz, d, &hx, &hy, &hz);
+        weapon_aim_ray_point(fx, fz, d, &hx, &hy, &hz);
         bullet_hit_spawn(hx, hy, hz);
     }
 }
@@ -606,7 +521,7 @@ void graveolver_debug_draw(RenderContext *ctx) {
     if (debug_mode != 3) return;  /* aim-circle viz only in full-debug (level 3) */
 
     const int SEGS = 20;
-    int cx = gun_crosshair_x(), cy = gun_crosshair_y();
+    int cx = aim_x, cy = aim_y;
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     int prev_x = cx + GUN_AIM_RADIUS, prev_y = cy;   /* isin/icos: angle 0 -> +X */
     int s;

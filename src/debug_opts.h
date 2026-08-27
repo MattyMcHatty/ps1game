@@ -10,8 +10,8 @@
  *   - Continuous (INFINITE LIFE / STAMINA): the systems that would spend the
  *     resource read the flag every frame, so they can be flipped between runs
  *     and take effect on the next jump with no extra plumbing.
- *   - One-shot grants (GRAVE-OLVER / WAX AND POT / PIANO KEY / KEY STONES /
- *     EXIT DOOR SOLVED / the three HADAD flags): they hand the
+ *   - One-shot grants (GRAVE-OLVER / HELLUMINATOR / WAX AND POT / PIANO KEY /
+ *     KEY STONES / EXIT DOOR SOLVED / the three HADAD flags): they hand the
  *     player things, so they must fire exactly once, AFTER the destination room
  *     has finished initialising (a room init can reset the inventory, and
  *     item_pickups_reset clears the piano key's bit). The debug menu arms
@@ -21,6 +21,16 @@
 
 typedef enum {
     DBG_HAS_GRAVEOLVER = 0,  /* own the Grave-olver, loaded, with a deep reserve */
+    /* Own the Helluminator, tank full.
+       >>> IT USED TO COME FREE WITH THE GRAVE-OLVER, AND NO LONGER DOES. <<<
+       The two ranged weapons were one tick on the argument that "the ranged
+       weapons" is a single decision; they are two now because they are not
+       interchangeable any more. The lantern is the ONLY thing that can burn a
+       stalking Living Statue and it triples against zombies (see damage.h), so
+       "jump into the maze with the lantern and nothing else" is a real test of
+       an encounter, and it was impossible to set up while the gun carried it.
+       Tick both for what the old single option gave. */
+    DBG_HAS_HELLUMINATOR,
     DBG_HAS_WAX_AND_POT,     /* both non-key inventory items from the start      */
     DBG_HAS_PIANO_KEY,       /* the Attic Stairwell altar's piano key            */
     DBG_HAS_KEY_STONES,      /* blue + yellow + green: the exit door's inputs    */

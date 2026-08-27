@@ -319,6 +319,10 @@
 #define TIM_TPAGE_PIPE     0x008c
 #define TIM_CLUT_PIPE      0x7d90
 
+/* pipe_button_on.tim  4bpp  VRAM ( 520,256)  \TEX\PIPEBTNN.TIM */
+#define TIM_TPAGE_PIPEBTNN 0x0018
+#define TIM_CLUT_PIPEBTNN  0x7da2
+
 /* pipe_button_off.tim  4bpp  VRAM ( 512,256)  \TEX\PIPEBTNO.TIM */
 #define TIM_TPAGE_PIPEBTNO 0x0018
 #define TIM_CLUT_PIPEBTNO  0x7da1

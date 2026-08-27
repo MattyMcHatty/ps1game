@@ -87,6 +87,12 @@ static uint8_t  crfx_u0, crfx_v0, crfx_u1, crfx_v1;
 static uint16_t grav_tpage   = 0;
 static uint16_t grav_clut    = 0;
 static uint8_t  grav_u0, grav_v0, grav_u1, grav_v1;
+/* The Helluminator. Its art sits at VRAM y=288, i.e. Voff 32, with a height of
+   64 — a V range of 32..95, inside the 0..127 that every room's 128x128 texture
+   window wraps to, so like the hatch key it needs no window reset. */
+static uint16_t hell_tpage   = 0;
+static uint16_t hell_clut    = 0;
+static uint8_t  hell_u0, hell_v0, hell_u1, hell_v1;
 static uint16_t rnds_tpage   = 0;
 static uint16_t rnds_clut    = 0;
 static uint8_t  rnds_u0, rnds_v0, rnds_u1, rnds_v1;
@@ -146,6 +152,7 @@ static const char *item_descriptions[] = {
 static const char *weapon_descriptions[] = {
     "Crucifaxe\n\nA crucifix\nforged into\nan axe head.\nThe quintessential\nweapon of a\nDemon Hunter",
     "Grave-olver\n\nA revolver\nforged to lay\nthe risen dead\nback in their\ngraves",
+    "Helluminator\n\nA lantern to\nlight the way\nto hell. Burns\nholy anointing\noil",
 };
 
 /* Load TIM from disc, computing tpage/clut and the UV rect within the tpage. */
@@ -489,6 +496,10 @@ void menu_draw_weapon_icon(RenderContext *ctx, int weapon, int x, int y, int siz
             draw_icon(ctx, x, y, size, grav_tpage, grav_clut,
                       grav_u0, grav_v0, grav_u1, grav_v1, 255, ot_idx);
             break;
+        case WEAPON_HELLUMINATOR:
+            draw_icon(ctx, x, y, size, hell_tpage, hell_clut,
+                      hell_u0, hell_v0, hell_u1, hell_v1, 255, ot_idx);
+            break;
         default: break;
     }
 }
@@ -502,6 +513,8 @@ void menu_init(void) {
                   &crfx_u0, &crfx_v0, &crfx_u1, &crfx_v1);
     load_icon_tim("\\TEX\\GRAVOLVR.TIM;1", &grav_tpage, &grav_clut,
                   &grav_u0, &grav_v0, &grav_u1, &grav_v1);
+    load_icon_tim("\\TEX\\HELLUMIN.TIM;1", &hell_tpage, &hell_clut,
+                  &hell_u0, &hell_v0, &hell_u1, &hell_v1);
     load_icon_tim("\\TEX\\STNDRNDS.TIM;1", &rnds_tpage, &rnds_clut,
                   &rnds_u0, &rnds_v0, &rnds_u1, &rnds_v1);
     load_icon_tim("\\TEX\\FLMRNDS.TIM;1", &flmr_tpage, &flmr_clut,
@@ -771,6 +784,18 @@ void menu_draw(RenderContext *ctx) {
                 draw_number(ctx, wx + ICON_SIZE - 3 * 2, wy + ICON_SIZE,
                             graveolver_loaded, 2, OT_COUNT);
             }
+            if (i == 2 && (player_weapons & (1 << WEAPON_HELLUMINATOR))) {
+                draw_icon(ctx, wx, wy, ICON_SIZE, hell_tpage, hell_clut,
+                          hell_u0, hell_v0, hell_u1, hell_v1, 255, OT_ICON);
+                /* OIL, which runs to THREE digits where the cylinder count is
+                   one — so it is right-aligned off its own width rather than off
+                   a single glyph, or a full 100 would hang off the icon. */
+                {
+                    int n = player_oil >= 100 ? 3 : (player_oil >= 10 ? 2 : 1);
+                    draw_number(ctx, wx + ICON_SIZE - n * 3 * 2, wy + ICON_SIZE,
+                                player_oil, 2, OT_COUNT);
+                }
+            }
         }
     }
 
@@ -814,6 +839,8 @@ void menu_draw(RenderContext *ctx) {
                 desc = weapon_descriptions[0];
             else if (slot == 1 && (player_weapons & (1 << WEAPON_GRAVEOLVER)))
                 desc = weapon_descriptions[1];
+            else if (slot == 2 && (player_weapons & (1 << WEAPON_HELLUMINATOR)))
+                desc = weapon_descriptions[2];
         }
         FntPrint(menu_fnt, desc);
         FntFlush(menu_fnt);

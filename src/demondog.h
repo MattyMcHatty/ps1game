@@ -90,6 +90,14 @@ void demon_dogs_reset(void);
 /* Scale a hit by this enemy's weaknesses (see damage.h). */
 int32_t demon_dog_scale_damage(int32_t base, DamageType type);
 
+/* Apply `dmg` and handle the death. The counterpart of spider_damage /
+   mushroom_damage, which the dog and the zombie went without for as long as the
+   Grave-olver was the only thing that shot them — it lived as a static in
+   graveolver.c. The Helluminator burns the same enemies from a second call site,
+   so it moved here rather than being copied. No knockback: the gun and the
+   lantern both damage at range. */
+void demon_dog_damage(DemonDog *d, int32_t dmg);
+
 void demon_dogs_rest(void);
 void update_demon_dogs(void);
 void draw_demon_dogs(RenderContext *ctx);

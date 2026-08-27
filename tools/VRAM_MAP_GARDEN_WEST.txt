@@ -101,6 +101,7 @@ THIS BANK'S ROOM ART
   greenhouse door.tim  4     320   256    64    64     0  272,511     Stables: the shut door in the west wall     OWNED
   pipe_gh.tim          4     384   256   128   128     0  512,502     Greenhouse: the standing pipe, 4bpp clone   OWNED
   pipe_button_off.tim  4     512   256    32    32     0  528,502     Greenhouse: the button on the pipework      OWNED
+  pipe_button_on.tim   4     520   256    32    32     0  544,502     Greenhouse: the button, lit                 OWNED
   vines.tim            8     704   256   128   128     0  672,509     Greenhouse: the vines prop                  OWNED
 
 WHAT IS LEFT FOR THE GREENHOUSE
@@ -132,7 +133,7 @@ WHAT IS LEFT FOR THE GREENHOUSE
   x320  y256  IN USE by this bank: greenhouse door.tim
   x384  y256  IN USE by this bank: pipe_gh.tim
   x448  y256  4bpp ONLY - right half reserved: flm_rnds.tim
-  x512  y256  IN USE by this bank: pipe_button_off.tim
+  x512  y256  IN USE by this bank: pipe_button_off.tim, pipe_button_on.tim
   x576  y256  4bpp ONLY - right half reserved: bl_ky_stn.tim, pno_key.tim
   x640  y256  TAKEN - reserved: sml_med.tim
   x704  y256  IN USE by this bank: vines.tim

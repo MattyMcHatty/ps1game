@@ -49,6 +49,54 @@ void vines_load_assets(void) {
         vine_smd = smdInitData(vine_buffer);
 }
 
+/* ---- The raise ------------------------------------------------------------
+   One in flight at a time; see the block on vines_raise_start in vines.h for why
+   `lift` is draw-only. raise_len is kept per-raise rather than as a constant so
+   the puzzle that starts one owns its pacing. */
+static int     raise_index = -1;
+static int32_t raise_off   = 0;
+static int32_t raise_t     = 0;
+static int32_t raise_len   = 0;
+
+void vines_raise_start(int i, int32_t frames) {
+    if (i < 0 || i >= vine_count) return;
+    if (!vines[i].active || vines[i].state != VINE_INTACT) return;
+    if (frames < 1) frames = 1;
+    raise_index = i;
+    raise_len   = frames;
+    raise_t     = 0;
+    raise_off   = 0;
+    vines[i].lift = 0;
+}
+
+int vines_raise_update(void) {
+    if (raise_index < 0) return 1;
+
+    Vine *v = &vines[raise_index];
+    raise_t++;
+    raise_off = (VINE_HEIGHT * raise_t) / raise_len;
+    if (raise_t >= raise_len) {
+        raise_off = VINE_HEIGHT;
+        /* Ends where a burnt curtain ends, so world.c's delta records it with
+           the bit it already had: health 0 reads back as VINE_CLEARED. */
+        v->lift   = VINE_HEIGHT;
+        v->health = 0;
+        v->state  = VINE_CLEARED;
+        raise_index = -1;
+        return 1;
+    }
+    v->lift = raise_off;
+    return 0;
+}
+
+int vine_in_area(GameState area) {
+    int i;
+    for (i = 0; i < vine_count; i++)
+        if (vines[i].active && vines[i].state == VINE_INTACT && vines[i].area == area)
+            return i;
+    return -1;
+}
+
 void vines_init(void) {
     int i = 0;
 
@@ -65,9 +113,15 @@ void vines_init(void) {
        hangs up to -900 — see VINE_HEIGHT. Centring it the way a fat door is
        centred would bury the bottom half.
 
-       INDESTRUCTIBLE. The annexe is meant to stay shut from this side; the
-       curtain is scenery that reads as a route, not one the axe opens. */
+       INDESTRUCTIBLE, AND THAT IS THE PUZZLE'S DOING RATHER THAN A DEAD END.
+       Neither the axe nor a Flame Round touches it; what opens it is the ten
+       pipe buttons on the nave's two walls, which wind it up into the roof
+       (src/greenhouse_puzzle.c calls vines_raise_start on this instance). So it
+       reads as a route the whole time and is one only once the board is
+       answered — which is the reason it is `destructible = 0` and not simply
+       tough. */
     vines[i].x = -3150; vines[i].y = 0; vines[i].z = -1700;
+    vines[i].lift  = 0;
     vines[i].rot_y = 0;
     vines[i].half_x = VINE_HALF_X; vines[i].half_z = VINE_HALF_Z;
     vines[i].destructible = 0;
@@ -85,6 +139,13 @@ void vines_init(void) {
 
 void vines_reset(void) {
     int i;
+    /* Also drops a raise in flight. Nothing can legitimately be mid-travel here
+       — a reset is a new game or a save rebuild — but leaving raise_index
+       pointing into a re-placed array would wind the wrong curtain up. */
+    raise_index = -1;
+    raise_off   = 0;
+    raise_t     = 0;
+    raise_len   = 0;
     for (i = 0; i < vine_count; i++)
         vines[i] = vine_defaults[i];
 }
@@ -266,7 +327,10 @@ void vines_draw(RenderContext *ctx) {
         MATRIX vine_m, combined;
         SVECTOR dr = {0, (short)vine->rot_y, 0, 0};
         RotMatrix(&dr, &vine_m);
-        VECTOR pos = {vine->x, vine->y, vine->z};
+        /* -Y is up, so a raise SUBTRACTS from the foot's height and the curtain
+           travels into the ceiling. `lift` is 0 for every curtain that is not
+           being wound up, so this costs nothing in the ordinary case. */
+        VECTOR pos = {vine->x, vine->y - vine->lift, vine->z};
         TransMatrix(&vine_m, &pos);
         CompMatrixLV(&view, &vine_m, &combined);
         gte_SetRotMatrix(&combined);

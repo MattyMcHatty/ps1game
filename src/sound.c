@@ -76,6 +76,7 @@ static const char *sfx_files[SFX_COUNT] = {
     NULL,                       /* SFX_RUMBLE_5                                */
     "\\SND\\HADDIE.VAG;1",
     "\\SND\\WOOSH.VAG;1",
+    "\\SND\\MCHNEGH.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -178,6 +179,11 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        big for the 3.3 KB of resident headroom. Full reasoning in sound.h. */
     [SFX_HAD_DIE]    = SND_BANK_GARDEN,
     [SFX_WOOSH]      = SND_BANK_GARDEN,
+    /* The Greenhouse vine curtain's grind: SFX_MCHNE re-cut for this bank,
+       because the original is HOUSE-only and too big to copy here. See the
+       block on SFX_MCHNE_GH in sound.h — it is what makes GARDEN the
+       largest bank, so `spare` is now sized by this list. */
+    [SFX_MCHNE_GH]   = SND_BANK_GARDEN,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool

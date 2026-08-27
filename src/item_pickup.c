@@ -37,6 +37,7 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\YLKYSTN.TIM;1",    /* PICKUP_YELLOW_KEY_STONE */
     "\\TEX\\MGNKYSTN.TIM;1",   /* PICKUP_MAGENTA_KEY_STONE */
     "\\TEX\\HATCHKEY.TIM;1",   /* PICKUP_HATCH_KEY         */
+    "\\TEX\\HELLUMIN.TIM;1",   /* PICKUP_HELLUMINATOR      */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
@@ -47,6 +48,7 @@ static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Yellow Key Stone",        /* PICKUP_YELLOW_KEY_STONE */
     "Magenta Key Stone",       /* PICKUP_MAGENTA_KEY_STONE */
     "Hatch Key",               /* PICKUP_HATCH_KEY         */
+    "Helluminator",            /* PICKUP_HELLUMINATOR      */
 };
 
 /* Load one TIM into VRAM and record its tpage/clut and UV rect. The UV's U0 is
@@ -113,6 +115,7 @@ void item_pickups_reset(void) {
     player_items &= ~((1 << ITEM_PIANO_KEY) | (1 << ITEM_BLUE_KEY_STONE) |
                       (1 << ITEM_MAGENTA_KEY_STONE));
     player_hatch_keys = 0;
+    player_oil        = 0;   /* a new game holds no lantern and no oil */
 }
 
 int item_pickup_spawn_range(int32_t x, int32_t y, int32_t z, PickupKind kind,
@@ -165,6 +168,15 @@ static void collect(ItemPickup *p) {
         case PICKUP_HATCH_KEY:
             player_hatch_keys += p->amount;
             if (player_hatch_keys > HATCH_KEYS_MAX) player_hatch_keys = HATCH_KEYS_MAX;
+            break;
+        /* The lantern arrives FULL, and auto-equips the way the Grave-olver
+           does. player_oil_refill() rather than an assignment so the one place
+           that knows what "full" means stays player.c — the refill points that
+           come later call the same function. */
+        case PICKUP_HELLUMINATOR:
+            player_weapons |= (1 << WEAPON_HELLUMINATOR);
+            current_weapon  = WEAPON_HELLUMINATOR;
+            player_oil_refill();
             break;
         default: break;
     }

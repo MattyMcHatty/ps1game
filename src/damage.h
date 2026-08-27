@@ -31,6 +31,22 @@
 typedef enum {
     DMG_KINETIC = 0,   /* plain lead — Standard Rounds */
     DMG_FLAME,         /* fire — Flame Rounds          */
+    /* Blessed fire — the Helluminator, which burns holy anointing oil. It is
+       NOT an AmmoType: the Grave-olver's cylinder can never hold oil, so this
+       type reaches an enemy only from the lantern (see helluminator.h).
+
+       ZOMBIES ARE 3x WEAK TO IT ({ DMG_HOLY, 300 } in zombie.c) and nothing
+       else is, which is exactly why it has its own type rather than reusing
+       DMG_FLAME: that one line raised the lantern's tick against the walking
+       dead from 1 to 3 without touching what Flame Rounds do to them. Every
+       other enemy's table still falls through to the unmodified base, so the
+       lantern does its stated 1 hp/sec to all of them.
+
+       A weakness is not the only way an enemy can answer holy fire. The Living
+       Statue takes the plain 1 but is the one enemy the lantern can damage at
+       all while it stalks — a STATE gate, not a multiplier, and it lives in
+       living_statue_burn rather than in any table here. */
+    DMG_HOLY,
     MAX_DAMAGE_TYPES
 } DamageType;
 

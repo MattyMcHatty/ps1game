@@ -17,6 +17,11 @@ int     player_weapons = (1 << WEAPON_CRUCIFAXE);  /* crucifaxe always owned */
 int      player_ammo[MAX_AMMO_TYPES] = {0};
 AmmoType graveolver_ammo = AMMO_STANDARD;          /* cylinder starts on lead  */
 int      graveolver_loaded = GRAVEOLVER_CAPACITY;  /* cylinder starts loaded   */
+/* Starts EMPTY, not full: the lantern is not owned at the start of a run, and
+   collecting it is what fills it (see item_pickup.c). Zero here means a save
+   that predates the weapon, or a new game, comes back with a dry lantern rather
+   than a hundred units the player never earned. */
+int      player_oil = 0;
 int      player_hatch_keys = 0;                    /* 0..HATCH_KEYS_MAX        */
 
 /* One row per AmmoType (see player.h). The muzzle-flash colour is the whole
@@ -28,6 +33,10 @@ const AmmoInfo ammo_info[MAX_AMMO_TYPES] = {
     { "Standard Rounds", "Loaded Standard Rounds", DMG_KINETIC, 255, 255, 255 },
     { "Flame Rounds",    "Loaded Fire Rounds",     DMG_FLAME,   255, 140,  20 },
 };
+
+void player_oil_refill(void) {
+    player_oil = HELL_OIL_MAX;
+}
 
 int player_ammo_total(void) {
     int i, total = 0;

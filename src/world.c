@@ -926,6 +926,27 @@ void world_seed_room(GameState area) {
        Sound: SND_BANK_GARDEN (main.c's STATE_LOADING keys this room to it), so
        SFX_HISS sounds for the mushroom's scream and SFX_RUMBLE for a statue's
        teleport and death, as do the resident SFX_AXEHIT / SFX_HURT. */
+    /* THE GREENHOUSE: the Helluminator, alone in the middle of the WEST ANNEXE
+       (x[-4400,-3200] z[-2600,-800], so its centre is (-3800,-1700)) — the room
+       behind the vine curtain that the ten pipe buttons wind up.
+
+       >>> IT IS SPAWNED ON THE FIRST VISIT, NOT WHEN THE PUZZLE IS SOLVED. <<<
+       The annexe has exactly one way in and the curtain fills it, so an
+       unsolved player cannot reach the sprite however long they stand there;
+       putting it here rather than behind FLAG_GREENHOUSE_BUTTONS means the
+       ORDINARY per-room pickup persistence is what remembers whether it has
+       been taken, with no reward-catch-up branch of the kind the Keystone
+       Maze needed (see FLAG_KEYSTONE_REWARD). It also means the player can see
+       it through the greenery from the gap, which is the point.
+
+       y = -50 is the floor-level convention for this room's y=0 floor:
+       item_pickup_spawn adds IP_FLOAT_Y = 50, so the sprite hovers just above
+       the boards. AUTHORED, not probed — world_seed_room runs for rooms whose
+       geometry is not resident. */
+    if (area == STATE_GREENHOUSE) {
+        item_pickup_spawn(-3800, -50, -1700, PICKUP_HELLUMINATOR);
+    }
+
     if (area == STATE_KEYSTONE_MAZE) {
         mushroom_add(5398, 5012,     /* A: east end of the northern lane */
                      3706, 5012,     /* B: west end of the same lane     */

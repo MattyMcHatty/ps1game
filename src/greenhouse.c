@@ -33,6 +33,7 @@
 #include "sml_med.h"
 #include "vines.h"          /* the annexe-gap curtain (its own texture, below) */
 #include "valve_handle.h"   /* the wheel on the south bay's pipe            */
+#include "greenhouse_puzzle.h" /* the ten pipe buttons: which are lit        */
 #include "rabisu.h"         /* whose skin the vines' VRAM page displaces    */
 
 extern volatile uint8_t pad_buff[2][34];
@@ -109,6 +110,12 @@ static void greenhouse_floor_zones_init(void) {
                                                                            OWNED
      9 pipe_button_off   the button on it            (wd_dr_crk page, x512 y256)
                                                                            OWNED
+    10 pipe_button_on    the SAME button, LIT. NOT a mesh texture: no poly in
+                         "Greenhouse.smx" references it and greenhouse_tex_map
+                         never emits slot 10. It is a tpage/clut pair the draw
+                         loop SUBSTITUTES for slot 9 on the buttons the puzzle
+                         has switched on   (the same page, x520 y256)
+                                                                           OWNED
 
    Slots 0-4 cost this room NOTHING. Two come from the Garden Courtyard's
    uploader (which itself runs the Garden Stairs' first, and it is that call
@@ -146,6 +153,16 @@ static void greenhouse_floor_zones_init(void) {
                         texture on this page.
      pipe_gh         -> x384 y256, the prpl_wlppr/stove page. 4bpp, left half
                         only, clear of stnd_rnds at x416.
+     pipe_button_on  -> x520 y256, IMMEDIATELY RIGHT OF IT on the same page.
+                        It shares that page ON PURPOSE rather than taking one of
+                        its own, and the reason is the UVs: tools/subpack_uvs.py
+                        shrank pipe_button_off IN PLACE, so all ten button polys
+                        are authored at u 0..31 of that page. A texture one
+                        sub-rect along is therefore reachable from the SAME
+                        tpage by adding GH_BUTTON_LIT_U to u at draw time — no
+                        second page, no second window, no second restore, and
+                        the tpage constant the two share is the proof (both
+                        TIM_TPAGE_PIPEBTN* are 0x0018).
      pipe_button_off -> x512 y256, the wd_dr_crk page. 4bpp, left half only,
                         clear of wx_cb at x544. THE ONE SLOT IN THIS ROOM THAT
                         COST SOMEBODY A RESTORE: wd_dr_crk is the cracked
@@ -172,9 +189,21 @@ static void greenhouse_floor_zones_init(void) {
    palette space, and they took 32 words out of a 128-word gap at y=502 that
    could never have held a 256-word CLUT anyway.
 
-   All ten sit at Voff 0, so the one 128 texture window in greenhouse_draw serves
-   them all. */
-#define GREENHOUSE_TEX_COUNT 10
+   All eleven sit at Voff 0, so the one 128 texture window in greenhouse_draw
+   serves them all. */
+#define GREENHOUSE_TEX_COUNT 11
+
+/* Slot 9 is the UNLIT button and is what greenhouse_tex_map carries for all ten
+   button polys; slot 10 is the LIT art, substituted per-poly by the draw loop
+   from src/greenhouse_puzzle.c's on/off state. GH_BUTTON_LIT_U is the u distance
+   between the two sub-rects on their shared page: pipe_button_on sits at VRAM
+   x520 against pipe_button_off's x512, and a 4bpp page is 4 texels per VRAM
+   word, so (520 - 512) * 4 = 32. Both sub-rects are 32 wide, so the lit UVs land
+   on 32..63 — still inside the 128 texture window, which is what makes the
+   substitution free. */
+#define GH_TEX_BUTTON_OFF   9
+#define GH_TEX_BUTTON_ON   10
+#define GH_BUTTON_LIT_U    32
 
 static uint16_t tex_tpage[GREENHOUSE_TEX_COUNT];
 static uint16_t tex_clut[GREENHOUSE_TEX_COUNT];
@@ -214,19 +243,20 @@ static uint16_t tex_clut[GREENHOUSE_TEX_COUNT];
    compile-time constants from tim_slots.h, set once in greenhouse_load_assets.
    Keep this table in step with the slot numbering above and with NAME_TO_SLOT in
    gen_greenhouse_tex_map.py. */
-#define GREENHOUSE_NEW_TEX 6
+#define GREENHOUSE_NEW_TEX 7
 static const char *new_tex_file[GREENHOUSE_NEW_TEX] = {
     "\\TEX\\FLWRBED.TIM;1",    /* slot 5 */
     "\\TEX\\CUNEISYM.TIM;1",   /* slot 6 */
     "\\TEX\\PSNFLGH.TIM;1",    /* slot 7 */
     "\\TEX\\PIPEGH.TIM;1",     /* slot 8 */
-    "\\TEX\\PIPEBTNO.TIM;1",   /* slot 9 */
+    "\\TEX\\PIPEBTNO.TIM;1",   /* slot 9  */
+    "\\TEX\\PIPEBTNN.TIM;1",   /* slot 10 */
     /* NO SLOT: THE VINES PROP'S TEXTURE, NOT A MESH TEXTURE. It is here because
        this is the only place on the disc that puts it in VRAM — src/vines.c
        holds no RAM copy and registers nothing, and smxlink baked vines.tim's own
        tpage/clut into VINES.SMD, so the prop needs the pixels up and nothing
        else. It has no entry in tex_tpage/tex_clut and no TIM_SLOT line, which is
-       why the count above is 6 while GREENHOUSE_TEX_COUNT stays 10.
+       why the count above is 7 while GREENHOUSE_TEX_COUNT is 11.
 
        IT TAKES THE RABISU'S PAGE (x704 y256, 8bpp full). That was the cheapest
        one left in the bank — see disc.xml and tools/VRAM_MAP_GARDEN_WEST.txt —
@@ -306,12 +336,15 @@ void greenhouse_load_assets(void) {
     TIM_SLOT(3, STBLWOOD);
     TIM_SLOT(4, GRNHSDR);
 
-    /* This room's own five, streamed on entry — the header is still a constant. */
+    /* This room's own SIX, streamed on entry — the header is still a constant.
+       Six now rather than five: the lit button shares the unlit one's page but
+       is a separate TIM with its own CLUT, so it is its own LoadImage. */
     TIM_SLOT(5, FLWRBED);
     TIM_SLOT(6, CUNEISYM);
     TIM_SLOT(7, PSNFLGH);
     TIM_SLOT(8, PIPEGH);
     TIM_SLOT(9, PIPEBTNO);
+    TIM_SLOT(10, PIPEBTNN);
 }
 
 /* Upload the streamed textures. Pure LoadImage — no CD access — safe during the
@@ -518,6 +551,11 @@ void greenhouse_init(void) {
     save_points_clear();
     dressers_clear();
 
+    /* The ten pipe buttons. Arms the Circle edge state and installs the lit set
+       if the board has already been answered — no props and no arrays, so this
+       is the whole of its entry work. */
+    greenhouse_puzzle_init();
+
     /* The two props this room owns are NOT cleared here and must not be: both
        are global area-tagged arrays (the fat door's model), so their Greenhouse
        instances are the only ones that can ever match current_area, and
@@ -686,6 +724,27 @@ static void draw_greenhouse_smd(RenderContext *ctx) {
            texture window set in greenhouse_draw. */
         uint8_t tex_idx = (i < GREENHOUSE_PRIM_COUNT) ? greenhouse_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < GREENHOUSE_TEX_COUNT);
+
+        /* ---- THE ONE PER-POLY TEXTURE OVERRIDE IN THIS ROOM ----------------
+           The ten pipe buttons all carry slot 9 (pipe_button_off) in the tex
+           map, because a mesh can only say what a poly is textured WITH, not
+           what state it is in. Which of them are LIT is a runtime fact owned by
+           src/greenhouse_puzzle.c, so it is applied here: the lit art shares
+           slot 9's tpage (see the note on GH_BUTTON_LIT_U above), and swapping
+           to it is one CLUT and a constant u bias. Nothing else in the mesh is
+           ever overridden, and the test costs a compare per primitive that
+           reached this far — the cull has already thrown most of them out.
+
+           u_bias is added to the poly's own UVs rather than replacing them so
+           the button keeps whatever orientation the exporter gave it: four of
+           the ten are wound the other way round (see the tu0/tu2 pairs in
+           Greenhouse.packed.smx) and a fixed UV rect would mirror them. */
+        uint16_t use_clut = textured ? tex_clut[tex_idx] : 0;
+        uint8_t  u_bias   = 0;
+        if (tex_idx == GH_TEX_BUTTON_OFF && greenhouse_button_prim_lit(i)) {
+            use_clut = tex_clut[GH_TEX_BUTTON_ON];
+            u_bias   = GH_BUTTON_LIT_U;
+        }
         /* Purple fog, the same night sky the rest of the garden looks out on,
            at the bank's 575/2500 — the Stables next door, the Rear Gate beyond
            it and Fountain Square all run exactly this. The glass makes no
@@ -702,11 +761,11 @@ static void draw_greenhouse_smd(RenderContext *ctx) {
             setPolyFT4(poly);
             setRGB0(poly, r, g, b);
             poly->tpage = tex_tpage[tex_idx];
-            poly->clut  = tex_clut[tex_idx];
-            poly->u0=uv[0]; poly->v0=uv[1];
-            poly->u1=uv[2]; poly->v1=uv[3];
-            poly->u2=uv[4]; poly->v2=uv[5];
-            poly->u3=uv[6]; poly->v3=uv[7];
+            poly->clut  = use_clut;
+            poly->u0=uv[0]+u_bias; poly->v0=uv[1];
+            poly->u1=uv[2]+u_bias; poly->v1=uv[3];
+            poly->u2=uv[4]+u_bias; poly->v2=uv[5];
+            poly->u3=uv[6]+u_bias; poly->v3=uv[7];
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
             poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
@@ -731,10 +790,10 @@ static void draw_greenhouse_smd(RenderContext *ctx) {
             setPolyFT3(poly);
             setRGB0(poly, r, g, b);
             poly->tpage = tex_tpage[tex_idx];
-            poly->clut  = tex_clut[tex_idx];
-            poly->u0=uv[0]; poly->v0=uv[1];
-            poly->u1=uv[2]; poly->v1=uv[3];
-            poly->u2=uv[4]; poly->v2=uv[5];
+            poly->clut  = use_clut;
+            poly->u0=uv[0]+u_bias; poly->v0=uv[1];
+            poly->u1=uv[2]+u_bias; poly->v1=uv[3];
+            poly->u2=uv[4]+u_bias; poly->v2=uv[5];
             poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
             poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
             poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
@@ -809,6 +868,11 @@ void greenhouse_draw(RenderContext *ctx) {
        out, so the sprite draws below still project correctly. */
     vines_draw(ctx);
     valve_handles_draw(ctx);
+
+    /* The buttons' floating prompts. After the props and before the sprites, in
+       the same 128 window: the glyphs come out of the door font, which lives in
+       the top rows of its own page and is window-safe (see hud.c). */
+    greenhouse_puzzle_draw(ctx);
 
     /* Every sprite enemy renderer is handed this room's texture window, because
        all of their sprites live at Voff >= 128 and must bracket it rather than

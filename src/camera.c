@@ -58,21 +58,34 @@ void player_knockback(int32_t from_x, int32_t from_z, int32_t speed) {
 int sprint_stamina  = SPRINT_STAMINA_MAX;
 int sprint_cooldown = 0;
 
-/* Aiming: hold L2 with the grave-olver to reposition the crosshair. While
+/* Aiming: hold L2 with a RANGED weapon to reposition the crosshair. While
    aiming the player is rooted (walk + turn disabled) and the d-pad drives the
    crosshair; releasing L2 recentres it and frees movement. aim_x/aim_y are the
-   crosshair's live screen position, read by the gun's hitscan and reticule. */
+   crosshair's live screen position, read by the weapon's hitscan and reticule.
+
+   RANGED means the Grave-olver OR the Helluminator — see has_ranged below. They
+   share aim_x/aim_y and so share the rest position, which is what makes the
+   lantern's crosshair start exactly where the gun's does. */
 #define AIM_REST_X     (SCREEN_XRES / 2)
 #define AIM_REST_Y     (SCREEN_YRES / 2 + 20)   /* rests a touch below centre */
 #define AIM_MOVE_SPEED 3     /* crosshair pixels per frame                     */
 #define AIM_MARGIN     10    /* keep the crosshair this far from screen edges  */
-/* Lowest the crosshair goes: the reticule's bottom arm ends exactly on the top
-   edge of the HUD panel, so the cross never disappears behind it. The panel is
-   56px tall and bottom-aligned (hud.c's HUD_Y), and the reticule's lower arm
-   reaches 14px below aim_y (graveolver.c's draw). */
+/* Lowest the crosshair goes: the reticule's bottom edge ends exactly on the top
+   edge of the HUD panel, so it never disappears behind it. The panel is 56px
+   tall and bottom-aligned (hud.c's HUD_Y).
+
+   >>> THE REACH IS PER-WEAPON. <<< The Grave-olver's cross reaches 14px below
+   aim_y; the Helluminator's ring is three times the size and reaches 42
+   (HELL_AIM_RADIUS). One shared 14 would let the lantern's ring sink 28px into
+   the panel, so the floor is computed from whatever is in hand. */
 #define AIM_HUD_TOP (SCREEN_YRES - 56)
 #define AIM_RETICULE_REACH 14
-#define AIM_MAX_Y   (AIM_HUD_TOP - AIM_RETICULE_REACH)
+#define AIM_RETICULE_REACH_HELL 42
+static int32_t aim_max_y(void) {
+    int reach = (current_weapon == WEAPON_HELLUMINATOR) ? AIM_RETICULE_REACH_HELL
+                                                        : AIM_RETICULE_REACH;
+    return AIM_HUD_TOP - reach;
+}
 int     aiming = 0;
 int32_t aim_x  = AIM_REST_X;
 int32_t aim_y  = AIM_REST_Y;
@@ -224,16 +237,20 @@ void update_camera(void) {
        so holding L2 across the whole reload does not re-arm the aim). */
     static int aim_prev_held = 0;
     int aim_held  = (btn & PAD_L2) ? 1 : 0;
-    int has_gun   = (current_weapon == WEAPON_GRAVEOLVER);
-    int reloading = graveolver_is_reloading() || weapon_switching();
+    /* Both ranged weapons aim. The lantern has no reload of its own, so
+       graveolver_is_reloading() is only ever true with the gun in hand and the
+       one test still covers both. */
+    int has_ranged = (current_weapon == WEAPON_GRAVEOLVER) ||
+                     (current_weapon == WEAPON_HELLUMINATOR);
+    int reloading  = graveolver_is_reloading() || weapon_switching();
 
     if (aiming) {
-        if (reloading || !has_gun || !aim_held) {
+        if (reloading || !has_ranged || !aim_held) {
             aiming = 0;
             aim_x  = AIM_REST_X;
             aim_y  = AIM_REST_Y;
         }
-    } else if (has_gun && !reloading && aim_held && !aim_prev_held) {
+    } else if (has_ranged && !reloading && aim_held && !aim_prev_held) {
         aiming = 1;
     }
     aim_prev_held = aim_held;
@@ -286,7 +303,8 @@ void update_camera(void) {
         if (aim_x < AIM_MARGIN)                aim_x = AIM_MARGIN;
         if (aim_x > SCREEN_XRES - AIM_MARGIN)  aim_x = SCREEN_XRES - AIM_MARGIN;
         if (aim_y < AIM_MARGIN)                aim_y = AIM_MARGIN;
-        if (aim_y > AIM_MAX_Y)                 aim_y = AIM_MAX_Y;
+        { int32_t max_y = aim_max_y();
+          if (aim_y > max_y)                   aim_y = max_y; }
         goto debug_toggle;   /* skip all walk/turn/sprint while aiming */
     }
 

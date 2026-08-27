@@ -268,16 +268,20 @@ void update_crucifaxe(void) {
                there is nowhere for a shove to put it that its own next teleport
                would not immediately overrule.
              - >>> IT IS SKIPPED UNLESS IT IS IN ATTACK. <<< The axe is
-               specified to be ineffective against an idle or stalking statue
-               for now, and the skip is BEFORE the reach test on purpose: it
-               leaves lst_hit_this_swing unset, so the same swing can still go
-               on to land on something that can actually be hurt. (The second
-               half of the same rule lives in living_statue_damage, which
-               refuses a hit in any other state — that is the one to relax when
-               the weapon that CAN break a stalking statue is designed.)
+               ineffective against an idle or stalking statue, and the skip is
+               BEFORE the reach test on purpose: it leaves lst_hit_this_swing
+               unset, so the same swing can still go on to land on something
+               that can actually be hurt. (The second half of the same rule
+               lives in living_statue_damage, which refuses a hit in any other
+               state.)
 
            There is no Grave-olver block for this enemy ANYWHERE, for the same
-           reason: only the crucifaxe can spend its 2 HP.
+           reason. The HELLUMINATOR is the one weapon that reaches past this
+           rule — it can burn a statue that is still stalking, provided the
+           statue has teleported at least once, and doing so drops it into
+           ATTACK. That exception lives entirely in living_statue_burn and
+           deliberately does NOT come through living_statue_damage, so the axe's
+           rule here could not be loosened by a change made for the lantern.
 
            The whole test lives in the module — the shape the tentacle and the
            Rafflesia already use — rather than being inlined here like the

@@ -28,7 +28,11 @@
  *           that is irreversible. It still does nothing while it can be seen
  *           or while the player is close; the teleport cycle only turns over
  *           under the two gates below.
- *   ATTACK  It has closed to one floor poly. The texture swaps to
+ *           A stalking statue can be HURT, but only by the Helluminator and
+ *           only after its first teleport — and burning one ends the stalk,
+ *           dropping it straight into ATTACK. See living_statue_burn.
+ *   ATTACK  It has closed to one floor poly, or was burnt out of its stalk.
+ *           The texture swaps to
  *           living_statue_atk, the quad flares out to its full height in width
  *           (LST_ATK_HALF_W), and it takes a fifth of the player's health away
  *           every second for as long as they are inside LST_CATCH_DIST.
@@ -87,15 +91,27 @@
  * matters in a hedge maze: most bearings at 1200 units are inside a hedge, and
  * the alternative to searching is a statue embedded in the greenery.
  *
- * DAMAGE. 2 HP, and the crucifaxe is the ONLY thing that can spend them — there
- * is no Grave-olver targeting loop for this enemy anywhere in the codebase, on
- * purpose, so a round fired at one is simply a wasted round. Worse, the axe
- * only bites while the statue is in ATTACK: a swing at a stalking one is a
- * silent no-op that does not even consume the swing (crucifaxe.c skips
- * non-ATTACK statues before its reach test, so the same swing can still land on
- * something else). That is the specified behaviour and it is meant to be a dead
- * end for now — the weapon that can break a stalking statue is not designed
- * yet. Death is grey, not red: LST_BLOOD_* are the stone chips.
+ * DAMAGE. 2 HP, and exactly TWO weapons can spend them. There is still no
+ * Grave-olver targeting loop for this enemy anywhere in the codebase, on
+ * purpose, so a round fired at one is simply a wasted round.
+ *
+ *   THE CRUCIFAXE bites only while the statue is in ATTACK. A swing at a
+ *   stalking one is a silent no-op that does not even consume the swing
+ *   (crucifaxe.c skips non-ATTACK statues before its reach test, so the same
+ *   swing can still land on something else).
+ *
+ *   THE HELLUMINATOR is the answer to that, and the only thing in the game that
+ *   can touch a statue which is not striking — but not from the moment it is
+ *   armed. It has to have TELEPORTED AT LEAST ONCE first: a statue still
+ *   standing where it was authored is masonry to the lantern, because otherwise
+ *   a player could sweep a room's ornaments with a few units of oil and learn
+ *   which of them are alive before any of them had moved. Once one has jumped,
+ *   the player has been shown it is alive and may fight back. Burning a
+ *   stalking statue puts it into ATTACK ON THE SPOT — holy fire does not
+ *   whittle a frozen statue down from safety, it starts the fight early. See
+ *   living_statue_burn.
+ *
+ * Death is grey, not red: LST_BLOOD_* are the stone chips.
  *
  * THE DEAD ONES. living_statue_add() takes a `living` flag, so the same enemy
  * places as either the real thing or as ordinary masonry. A `living` = 0 statue
@@ -137,7 +153,9 @@
  * ----------------------------------------------------------------------- */
 
 #define MAX_LIVING_STATUES    6    /* WHOLE-GAME budget — see above       */
-#define LST_MAX_HEALTH        2    /* two crucifaxe swings, in ATTACK only     */
+#define LST_MAX_HEALTH        2    /* two crucifaxe swings in ATTACK, or two    */
+                                   /* seconds of the Helluminator (which can   */
+                                   /* also reach it in STALK — see the states) */
 
 /* ---- Ranges.
    LST_ACTIVATE_RADIUS is TRUE RADIAL, so 600 means 600 whichever way the player
@@ -391,11 +409,21 @@ void update_living_statues(void);
 void draw_living_statues(RenderContext *ctx);
 
 /* Deal damage. Refused unless the statue is in ATTACK — the crucifaxe already
-   skips the others, so this is the second half of the same rule and the place
-   to relax it when the weapon that CAN break a stalking statue arrives. */
+   skips the others, so this is the second half of the same rule. Holy fire is
+   the one exception and it does NOT come through here; see below. */
 void living_statue_damage(LivingStatue *s, int dmg);
 
-/* Scale a hit by this enemy's weaknesses — there are none yet, by design. */
+/* Deal HOLY damage — the Helluminator's door, and the only one that opens on a
+   statue that is not striking. It lands on a STALKING statue provided the
+   statue has already teleported at least once (i.e. it has left the spot it was
+   authored on), and a statue burnt while stalking drops into ATTACK on the
+   spot and walks. A statue still standing where it was placed, or one that
+   never came alive at all, is refused as silently as the axe is. The full
+   reasoning is on the definition in living_statue.c. */
+void living_statue_burn(LivingStatue *s, int dmg);
+
+/* Scale a hit by this enemy's weaknesses — there are none, by design: what the
+   lantern gets is the state gate above, not a multiplier. */
 int32_t living_statue_scale_damage(int32_t base, DamageType type);
 
 /* Sprite-centre Y, half-height and half-width, for anything that needs the hit

@@ -145,6 +145,21 @@ static const Weakness demon_dog_weakness[] = {
     { DMG_KINETIC, 100 },   /* placeholder: 100% = no change. Replace or append. */
 };
 
+/* Ranged damage. Moved here from a static in graveolver.c when the Helluminator
+   became a second thing that hurts a dog from a distance — see demondog.h. */
+void demon_dog_damage(DemonDog *d, int32_t dmg) {
+    if (!d->active || d->state == DDOG_DEAD) return;
+    d->health   -= dmg;
+    d->hit_timer = DDOG_BAR_TIMER_MAX;
+    if (d->health <= 0) {
+        d->state = DDOG_DEAD;
+        spawn_blood_burst(d->x, d->y, d->z);
+        sound_play(SFX_DOGDIE);
+    } else {
+        sound_play(SFX_AXEHIT);
+    }
+}
+
 int32_t demon_dog_scale_damage(int32_t base, DamageType type) {
     return damage_scale(base, type, demon_dog_weakness,
                         WEAKNESS_COUNT(demon_dog_weakness));

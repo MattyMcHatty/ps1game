@@ -201,10 +201,12 @@ void living_statues_rest(void) {
     }
 }
 
-/* No weaknesses yet. The whole damage model for this enemy is "the crucifaxe,
-   and only while it is striking"; the weapon that is meant to break a stalking
-   one has not been designed, and when it is, it belongs here as a Weakness
-   entry plus the state gate in living_statue_damage. */
+/* No weaknesses. The damage model for this enemy is a STATE GATE, not a
+   multiplier: what changes between the crucifaxe and the Helluminator is WHEN a
+   hit is allowed to land (living_statue_damage vs living_statue_burn), not how
+   much it takes off. Holy fire deliberately does its plain 1 — the lantern's
+   privilege is that it can touch a stalking statue at all, and giving it a
+   multiplier on top would make the crucifaxe pointless against this enemy. */
 static const Weakness living_statue_weakness[] = {
     { DMG_KINETIC, 100 },   /* 100% = no change */
 };
@@ -221,16 +223,33 @@ void living_statue_body(const LivingStatue *s,
     *hw  = LST_HALF_W;      /* the idle width, in every state — see the header */
 }
 
-void living_statue_damage(LivingStatue *s, int dmg) {
-    if (!s->active || s->state == LST_DEAD) return;
-    /* >>> ONLY WHILE IT IS STRIKING. <<< A hit on an idle or stalking statue is
-       specified to be ineffective for now, and "ineffective" means completely
-       silent: no chip, no health-bar flash, no sound. Anything else would read
-       as a weapon that works and a health bar that is not going down, which is
-       a worse lie than nothing happening at all. crucifaxe.c skips these before
-       its reach test so the swing is not consumed either. */
-    if (s->state != LST_ATTACK) return;
+/* Drop a statue into ATTACK, from wherever it currently stands.
+   Shared by the two ways in: the fourth teleport arriving one poly out, and a
+   stalking statue being burnt (see living_statue_burn). Both need the same
+   three things done, and doing them in one place is what stops the second
+   entrance being a half-formed version of the first.
 
+   Seeding `facing` toward the player matters as much here as at the teleport:
+   ls_steer blends a new heading into the old one, so a statue that woke with a
+   zeroed facing would crawl out of the wake-up at a third speed for the first
+   few frames — the exact moment it should look like it has decided. */
+static void ls_enter_attack(LivingStatue *s) {
+    int32_t adx = player_x() - s->x, adz = player_z() - s->z;
+    int32_t ad  = (adx < 0 ? -adx : adx) + (adz < 0 ? -adz : adz);
+    if (ad > 0) {
+        int32_t mx = (adx * LST_CHASE_SPEED) / ad;
+        int32_t mz = (adz * LST_CHASE_SPEED) / ad;
+        s->facing = ((int32_t)(int16_t)mx << 16) | (uint16_t)(int16_t)mz;
+    }
+    s->vy    = 0;
+    s->state = LST_ATTACK;
+}
+
+/* Take the health off, and everything that goes with it. The gates that decide
+   WHETHER a hit lands live in the two callers below; this is only what happens
+   once one has, so the axe and the lantern can never disagree about what a
+   wounded or destroyed statue looks and sounds like. */
+static void ls_wound(LivingStatue *s, int dmg) {
     s->health   -= dmg;
     s->hit_timer = LST_BAR_TIMER_MAX;
     if (s->health <= 0) {
@@ -246,6 +265,61 @@ void living_statue_damage(LivingStatue *s, int dmg) {
     } else {
         sound_play(SFX_AXEHIT);
     }
+}
+
+void living_statue_damage(LivingStatue *s, int dmg) {
+    if (!s->active || s->state == LST_DEAD) return;
+    /* >>> ONLY WHILE IT IS STRIKING. <<< A hit on an idle or stalking statue is
+       ineffective for everything EXCEPT holy fire, and "ineffective" means
+       completely silent: no chip, no health-bar flash, no sound. Anything else
+       would read as a weapon that works and a health bar that is not going
+       down, which is a worse lie than nothing happening at all. crucifaxe.c
+       skips these before its reach test so the swing is not consumed either.
+       The lantern's exception does NOT come through here — it has its own door
+       in living_statue_burn, so relaxing that rule could not loosen this one by
+       accident. */
+    if (s->state != LST_ATTACK) return;
+    ls_wound(s, dmg);
+}
+
+/* ---- Holy fire -------------------------------------------------------------
+   The Helluminator's door into this enemy, and the ONE weapon that does not
+   have to wait for the statue to strike first. Two things separate it from
+   living_statue_damage, and both are the design rather than a shortcut:
+
+     1. IT LANDS IN STALK, BUT ONLY ONCE THE STATUE HAS MOVED. `tp_stage > 0`
+        is the test, i.e. it has made at least one teleport, which is exactly
+        "it has left its starting position". A statue standing where it was
+        authored is still masonry as far as the lantern is concerned — burning
+        the garden's ornaments to find out which of them are alive would give
+        away every ambush in the game for the price of a few units of oil. The
+        moment one has jumped, the player has been shown it is alive and is
+        allowed to fight back.
+        (`living` is not tested: a plain-masonry statue never leaves LST_IDLE,
+        so the state gate below already covers it.)
+     2. IT WAKES WHAT IT BURNS. A stalking statue that is hit stops stalking
+        immediately and comes for the player — it does not teleport again, and
+        the two gates stop applying to it. Holy fire is not a way to whittle a
+        statue down from safety while it is frozen by your gaze; it is a way to
+        force the confrontation early, on the player's terms but at the cost of
+        having it walking at them for the rest of the fight.
+
+   LST_IDLE is refused outright, as is a burn on a statue that has not moved:
+   both are silent, for the same reason the crucifaxe's refusal is. */
+void living_statue_burn(LivingStatue *s, int dmg) {
+    if (!s->active || s->state == LST_DEAD) return;
+
+    if (s->state == LST_STALK) {
+        if (s->tp_stage == 0) return;    /* still on its plinth: masonry */
+        /* Wake it BEFORE the wound, so that if this same tick is the killing
+           one the death still runs from a consistent state rather than a corpse
+           in mid-transition. ls_enter_attack only seeds the walk. */
+        ls_enter_attack(s);
+    } else if (s->state != LST_ATTACK) {
+        return;
+    }
+
+    ls_wound(s, dmg);
 }
 
 /* ---- The landing search -----------------------------------------------------
@@ -569,21 +643,11 @@ void update_living_statues(void) {
 
         /* One poly away is the definition of arrival, whether it got there by
            working through the stages or by the close-quarters shortcut above.
-           Seed `facing` toward the player as it arrives: ls_steer blends the new
-           heading into the old one, so a zeroed facing would have it creep out
-           of the teleport at a third speed for the first few frames — which is
-           exactly the wrong moment to look sluggish. */
-        if (range == LST_TP_R3) {
-            int32_t adx = px - s->x, adz = pz - s->z;
-            int32_t ad  = (adx < 0 ? -adx : adx) + (adz < 0 ? -adz : adz);
-            if (ad > 0) {
-                int32_t mx = (adx * LST_CHASE_SPEED) / ad;
-                int32_t mz = (adz * LST_CHASE_SPEED) / ad;
-                s->facing = ((int32_t)(int16_t)mx << 16) | (uint16_t)(int16_t)mz;
-            }
-            s->vy    = 0;
-            s->state = LST_ATTACK;
-        }
+           ls_enter_attack seeds the facing it will walk on — see it for why a
+           statue must never arrive with a zeroed one. It is the same door holy
+           fire uses to wake a stalking statue early (living_statue_burn). */
+        if (range == LST_TP_R3)
+            ls_enter_attack(s);
     }
 }
 

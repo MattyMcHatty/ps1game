@@ -270,7 +270,32 @@ typedef enum {
        covers: it is still sounding as the camera turns back to the player. */
     SFX_HAD_DIE    = 42,  /* BANKED (garden). Hadad's death roar, 3.45 s      */
     SFX_WOOSH      = 43,  /* BANKED (garden). The spirit flying away, 4.49 s  */
-    SFX_COUNT      = 44,
+    /* >>> A SECOND COPY OF SFX_MCHNE, RE-CUT TO FIT THE GARDEN BANK. <<< The
+       Greenhouse's vine curtain winds up to the same grinding machinery the
+       piano-room bookcase and the Attic Exit's cage gate use, but SFX_MCHNE is
+       HOUSE-only and 17.3 KB, and the garden bank had 9.2 KB of headroom left.
+       A two-bank tag on the existing effect would have overflowed the region by
+       8 KB — and an overflow is SILENT (load_vag_at drops the clip and it is
+       mute forever), which is why the STEP 3 arithmetic in
+       tools/ADDING_A_SOUND.txt comes before the code.
+
+       So this is the same recording at 8000 Hz and trimmed to 1.8 s: 8.1 KB,
+       which fits. It is a SEPARATE EFFECT rather than a re-cut of the shared
+       one because SFX_MCHNE's 2.8 s length is load-bearing at both its existing
+       call sites — chainlink_door.c and piano_props.c each fire it twice back
+       to back and time their travel to it — and the runbook's rule is that a
+       shared clip is shared.
+
+       >>> ITS LENGTH IS LOAD-BEARING TOO. <<< GHB_RAISE_FRAMES in
+       src/greenhouse_puzzle.c is cut to these 1.8 s (108 frames) so the grind
+       covers the whole travel and stops with it, the same contract SFX_GRIND
+       has with GP_TRAVEL_FRAMES.
+
+       >>> AND IT MAKES GARDEN THE LARGEST BANK. <<< `spare` was 3.3 KB and is
+       now 1.2 KB, and it is the GARDEN bank that sets it from here rather than
+       HOUSE. Re-run the STEP 3 arithmetic before adding anything at all. */
+    SFX_MCHNE_GH   = 44,  /* BANKED (garden). SFX_MCHNE re-cut, 1.8 s          */
+    SFX_COUNT      = 45,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

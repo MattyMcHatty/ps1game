@@ -9,16 +9,81 @@
 #include "camera.h"
 #include "player.h"
 #include "title.h"
+#include "collision.h"   /* collision_segment_blocked, for the shared aim test */
 #include "crucifaxe.h"
 #include "graveolver.h"
+#include "helluminator.h"
 #include "weapon.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
+/* ---- Shared ranged aim -----------------------------------------------------
+   Moved wholesale out of graveolver.c when the Helluminator needed the same
+   geometry with a three-times-wider circle. The only changes are that the radius
+   and the range are now parameters instead of that file's GUN_AIM_RADIUS and
+   GUN_RANGE. See weapon.h for the model. */
+
+/* Project a world point to screen pixels BY HAND (no GTE state needed, so this
+   is safe in the update phase, where firing runs). Rotation is Y-only, so view X
+   is the point's perpendicular offset from the aim axis and view Z its forward
+   depth; the perspective divide uses the renderer's H and centre. */
+static int aim_project(int32_t x, int32_t y, int32_t z,
+                       int32_t fx, int32_t fz, int *sx, int *sy) {
+    int32_t dx = x - cam_x, dy = y - cam_y, dz = z - cam_z;
+    int32_t depth = (dx * fx + dz * fz) >> 12;        /* view Z (forward) */
+    if (depth <= 0) return 0;
+    int32_t vx = (dx * fz - dz * fx) >> 12;           /* view X (perp)    */
+    *sx = SCREEN_XRES / 2 + (vx * WEAPON_PROJ_H) / depth;
+    *sy = SCREEN_YRES / 2 + (dy * WEAPON_PROJ_H) / depth;
+    return 1;
+}
+
+void weapon_aim_ray_point(int32_t fx, int32_t fz, int32_t depth,
+                          int32_t *px, int32_t *py, int32_t *pz) {
+    int32_t view_x = ((aim_x - SCREEN_XRES / 2) * depth) / WEAPON_PROJ_H;
+    int32_t view_y = ((aim_y - SCREEN_YRES / 2) * depth) / WEAPON_PROJ_H;
+    *px = cam_x + ((fx * depth) >> 12) + ((fz * view_x) >> 12);   /* right = (fz,-fx) */
+    *pz = cam_z + ((fz * depth) >> 12) - ((fx * view_x) >> 12);
+    *py = cam_y + view_y;
+}
+
+int weapon_aim_in_circle(int32_t ex, int32_t cyc, int32_t ez,
+                         int32_t hw, int32_t hh,
+                         int32_t fx, int32_t fz,
+                         int32_t radius, int32_t range, int32_t *out_depth) {
+    int32_t depth = ((ex - cam_x) * fx + (ez - cam_z) * fz) >> 12;
+    if (depth <= 0 || depth > range) return 0;
+
+    int cx, cy;
+    if (!aim_project(ex, cyc, ez, fx, fz, &cx, &cy)) return 0;
+
+    /* World half-extents -> screen pixels at the body's depth, plus the slop.
+       Testing only the centre LINE (as this once did) left most of a wide sprite
+       unhittable: a tentacle is 262 units across, ~84px at close range against a
+       flat 14px of aim slop, so only the middle strip of the visible body
+       scored. */
+    int32_t phw = (hw * WEAPON_PROJ_H) / depth + radius;
+    int32_t phh = (hh * WEAPON_PROJ_H) / depth + radius;
+
+    int32_t ax = aim_x - cx; if (ax < 0) ax = -ax;
+    int32_t ay = aim_y - cy; if (ay < 0) ay = -ay;
+    if (ax > phw || ay > phh) return 0;
+
+    *out_depth = depth;
+    return 1;
+}
+
+int weapon_aim_clear(int32_t fx, int32_t fz, int32_t depth) {
+    int32_t px, py, pz;
+    weapon_aim_ray_point(fx, fz, depth, &px, &py, &pz);
+    return !collision_segment_blocked(cam_x, cam_y, cam_z, px, py, pz);
+}
+
 void weapons_init(void) {
     crucifaxe_init();
     graveolver_init();
+    helluminator_init();
 }
 
 /* Weapon-switch animation. Phase 1 lowers the outgoing weapon off the bottom;
@@ -82,6 +147,10 @@ void weapons_update(void) {
             /* Switching away mid-reload interrupts it — the cylinder stays empty
                and the reload must be restarted after switching back. */
             graveolver_cancel_reload();
+            /* And a lantern being put away goes out. Nothing is lost by it —
+               oil is spent per second of burning, so releasing Square early and
+               switching are the same act. */
+            helluminator_cancel_burn();
             switch_target = target;
             switch_phase  = 1;
             switch_timer  = 0;
@@ -97,11 +166,15 @@ void weapons_update(void) {
         update_crucifaxe();
     else if (current_weapon == WEAPON_GRAVEOLVER)
         graveolver_update();
+    else if (current_weapon == WEAPON_HELLUMINATOR)
+        helluminator_update();
 }
 
 void weapons_draw(RenderContext *ctx) {
     if (current_weapon == WEAPON_GRAVEOLVER)
         draw_graveolver(ctx);
+    else if (current_weapon == WEAPON_HELLUMINATOR)
+        draw_helluminator(ctx);
     else
         draw_crucifaxe(ctx);
 }

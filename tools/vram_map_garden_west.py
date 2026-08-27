@@ -117,6 +117,10 @@ BANK = {
                            "Greenhouse: flower-bed soil, 4bpp clone     OWNED",
     "pipe_gh.tim":         "Greenhouse: the standing pipe, 4bpp clone   OWNED",
     "pipe_button_off.tim": "Greenhouse: the button on the pipework      OWNED",
+    # The lit half of the same button. It sits immediately to pipe_button_off's
+    # RIGHT on the same page, at x[520,528), so the draw loop reaches it from
+    # the SAME tpage by adding 32 to the poly's u - see src/greenhouse.c.
+    "pipe_button_on.tim":  "Greenhouse: the button, lit                 OWNED",
     # The VINES prop. Not mesh art - the only prop texture this bank owns -
     # and 8bpp, so unlike pipe_gh and pipe_button_off it could not squeeze
     # onto a 4bpp left-half and needed a whole page. It took the Rabisu's,

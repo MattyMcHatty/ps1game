@@ -363,7 +363,17 @@ KNOWN_STREAM_PAIRS = [
     #                            page and this room draws brick_wall.
     #   pipe_button_off       -> the wd_dr_crk page (x512 y256), 4bpp left half,
     #                            clear of wx_cb at x544.
-    # The last two take 16-word CLUTs at y=502 x[512,544) — a 128-word gap that
+    #   pipe_button_on        -> THE SAME PAGE, immediately to its right at
+    #                            x[520,528). The lit half of the greenhouse
+    #                            button puzzle. It shares pipe_button_off's page
+    #                            ON PURPOSE rather than taking one of its own:
+    #                            the button polys' UVs are baked at u 0..31 by
+    #                            tools/subpack_uvs.py, so a texture one sub-rect
+    #                            to the right is reachable from the SAME tpage by
+    #                            adding 32 to u at draw time (src/greenhouse.c),
+    #                            and the page already carried a restore
+    #                            obligation that pipe_button_off had paid.
+    # The last three take 16-word CLUTs at y=502 x[512,560) — a 128-word gap that
     # could never have held a 256-word CLUT anyway, so y=511's run survives whole.
     ("chnlnk_dl.tim",          "flowerbed.tim"),
     ("clsd_drwr.tim",          "flowerbed.tim"),
@@ -383,6 +393,7 @@ KNOWN_STREAM_PAIRS = [
     ("prpl_wlppr.tim",         "pipe_gh.tim"),
     ("stove.tim",              "pipe_gh.tim"),
     ("wd_dr_crk.tim",          "pipe_button_off.tim"),
+    ("wd_dr_crk.tim",          "pipe_button_on.tim"),
     # ---- THE GREENHOUSE'S VINES PROP ---------------------------------------
     # vines.tim is an 8bpp 128x128 and the only NON-mesh art in this bank, so it
     # could not go on a 4bpp left-half the way pipe_gh and pipe_button_off did.

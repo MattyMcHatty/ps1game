@@ -17,7 +17,20 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   19            /* v19: vine_health + valve_present. Both
+#define SAVE_VERSION   20            /* v20: oil — the Helluminator's fuel. It is
+                                        NOT an AmmoType (see player.h), so it
+                                        could not ride in the existing ammo[]
+                                        array and SaveData grew a field. The
+                                        WorldDelta is unchanged in SHAPE, so the
+                                        delta_size check cannot catch a v19 save:
+                                        the bump is the only thing that does.
+                                        The new weapon itself needed nothing —
+                                        `weapons` is a bitmask and a third bit is
+                                        free — and the Greenhouse's button puzzle
+                                        needed nothing either, since its flag is
+                                        a bit in the `flags` word that is already
+                                        saved wholesale;
+                                    v19: vine_health + valve_present. Both
                                         widen the WorldDelta, so delta_size
                                         already rejects a v18 save; the bump is
                                         what makes the reason legible.
@@ -111,6 +124,7 @@ typedef struct {
     int32_t  keys;                  /* held-key bitmask */
     int32_t  items;                 /* held non-key item bitmask (player_items) */
     int32_t  hatch_keys;            /* hatch keys carried, 0..HATCH_KEYS_MAX */
+    int32_t  oil;                   /* Helluminator oil, 0..HELL_OIL_MAX      */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     uint8_t  item_order[MENU_ITEM_CELLS];  /* inventory grid: cell -> item ID + 1,
                                        0 = empty. Purely the ARRANGEMENT; what is

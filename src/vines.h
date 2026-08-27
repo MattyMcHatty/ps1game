@@ -56,6 +56,12 @@ typedef enum {
 
 typedef struct {
     int32_t   x, y, z;            /* y = the FLOOR it stands on (see VINE_HEIGHT) */
+    int32_t   lift;               /* how far the RAISE has wound it up, 0..VINE_HEIGHT.
+                                     DRAW ONLY: a rising curtain is still solid,
+                                     and only goes passable when the raise ends
+                                     and sets state = VINE_CLEARED. Transient —
+                                     the save carries the cleared state, not the
+                                     travel (see vines_raise_start). */
     int32_t   rot_y;
     int32_t   half_x, half_z;     /* world-axis collision half-widths             */
     int32_t   health;             /* hits remaining; inert while !destructible    */
@@ -92,5 +98,35 @@ int  vines_try_smash(void);
    else does nothing but spark. */
 void vines_body(int i, int32_t *out_cy, int32_t *out_half_h, int32_t *out_half_w);
 void vines_shoot(int i, int damage_type);
+
+/* ---- Winding a curtain up into the ceiling ---------------------------------
+   The other way a curtain leaves the world, and the way an INDESTRUCTIBLE one
+   has to: a puzzle answers, and the greenery winds up out of the doorway. It
+   ends in exactly the same place a burnt one does — state = VINE_CLEARED,
+   health = 0 — so the WorldDelta records it with the bit it already had and no
+   save-format change was needed.
+
+   >>> IT IS SOLID FOR THE WHOLE TRAVEL. <<< `lift` moves the DRAWN model only;
+   vines_collide, vines_point_solid and vines_any_solid are untouched until the
+   final frame flips the state. That is deliberate and it is the cheap answer to
+   a real question — what a half-raised curtain does to a player standing under
+   it — rather than an oversight: at a couple of seconds nobody is waiting on it,
+   and a shrinking collision box would have had to answer for the gun and the
+   zombie movers too.
+
+   ONE AT A TIME. There is one raise in flight across the whole game, because
+   there is one puzzle that starts one; a second vines_raise_start while another
+   is travelling replaces it, which would strand the first half-way. Nothing does
+   that today and the assert is the comment. */
+void vines_raise_start(int i, int32_t frames);
+/* Advance the raise. Returns 1 on the frame it finishes AND on every frame
+   after — i.e. "there is nothing travelling" — so a caller can poll it the way
+   chainlink_doors_raise_update is polled. */
+int  vines_raise_update(void);
+
+/* Index of the (first) intact curtain in `area`, or -1. The puzzle that opens
+   one has to name it somehow, and naming it by room keeps the placement table
+   in vines_init the single source of truth for where curtains are. */
+int  vine_in_area(GameState area);
 
 #endif

@@ -22,6 +22,14 @@ typedef enum {
     PICKUP_YELLOW_KEY_STONE, /* yellow key stone-> ITEM_YELLOW_KEY_STONE bit  */
     PICKUP_MAGENTA_KEY_STONE,/* magenta key stone->ITEM_MAGENTA_KEY_STONE bit */
     PICKUP_HATCH_KEY,        /* hatch key       -> player_hatch_keys (stacks) */
+    PICKUP_HELLUMINATOR,     /* the lantern -> WEAPON_HELLUMINATOR, and a full
+                                tank of oil. The second WEAPON pickup, and the
+                                only one that grants its own ammunition: there is
+                                no oil pickup and there is not meant to be (see
+                                player.h), so if collecting it did not fill the
+                                lantern the player would find a weapon that could
+                                not be used until a refill point they have not
+                                reached yet.                                    */
     PICKUP_KIND_COUNT
 } PickupKind;
 
