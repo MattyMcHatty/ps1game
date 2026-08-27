@@ -308,9 +308,11 @@ void keystone_plinths_apply_flags(void) {
        between the fourth placement and the spawn. Hand the key over here
        instead of replaying the scene, and record it so this fires once. */
     if (all_placed() && !game_flag(FLAG_KEYSTONE_REWARD)) {
-        item_pickup_spawn_range(KP_REWARD_X, KP_KEY_TOP, KP_REWARD_Z,
-                                PICKUP_HATCH_KEY, KP_REWARD_AMT,
-                                KP_REWARD_RANGE);
+        item_pickup_set_display(
+            item_pickup_spawn_range(KP_REWARD_X, KP_KEY_TOP, KP_REWARD_Z,
+                                    PICKUP_HATCH_KEY, KP_REWARD_AMT,
+                                    KP_REWARD_RANGE),
+            0, ITEM_PICKUP_ROOM_BIAS);   /* see finish_payoff */
         game_flag_set(FLAG_KEYSTONE_REWARD);
         top_level = 256;
     }
@@ -381,9 +383,19 @@ static void start_payoff(void) {
 
 static void finish_payoff(void) {
     top_level = 256;
-    item_pickup_spawn_range(KP_REWARD_X, KP_KEY_TOP, KP_REWARD_Z,
-                            PICKUP_HATCH_KEY, KP_REWARD_AMT,
-                            KP_REWARD_RANGE);
+    /* The sprite is centred 50 above KP_KEY_TOP and reaches 70 world units
+       down from there, so its bottom 20 units overlap the keystone it stands
+       on. With no depth bias a pickup deliberately sorts in FRONT of room
+       geometry at the same depth, so that overlap showed the key straight
+       through the stone. ITEM_PICKUP_ROOM_BIAS puts it on the room mesh's own
+       footing and the top of the plinth clips it, which is what standing on
+       something looks like. Size is left alone — this one is a reward meant to
+       be seen from across the court. */
+    item_pickup_set_display(
+        item_pickup_spawn_range(KP_REWARD_X, KP_KEY_TOP, KP_REWARD_Z,
+                                PICKUP_HATCH_KEY, KP_REWARD_AMT,
+                                KP_REWARD_RANGE),
+        0, ITEM_PICKUP_ROOM_BIAS);
     game_flag_set(FLAG_KEYSTONE_REWARD);
     sound_play(SFX_PICKUP);
     show_pickup_msg_raw("The keystones light the way");

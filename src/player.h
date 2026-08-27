@@ -217,6 +217,26 @@ typedef enum {
        taken — see world_seed_room(). Declared at the END of the enum, as the
        note above instructs. */
     FLAG_GREENHOUSE_BUTTONS,
+    /* MAZE ONE'S BIRD CAGE (src/birdcage.c). The cage hangs 328 above the
+       player's eye with a Hatch Key locked inside it, and the prompt under it
+       reads one of three lines depending how far the puzzle has got. TWO bits
+       for THREE states because the progression is one-way and each bit names a
+       world fact of its own:
+
+         neither          the key is in the cage and out of reach
+         _OPEN            the cage has been opened and the key has dropped into
+                          the drain that crosses the path below it
+         _OPEN | _WASHED  the drain has run and the key has gone with it
+
+       _WASHED is only ever set on top of _OPEN, so birdcage_state() reads them
+       in that order and a save that somehow carried _WASHED alone still shows
+       the last line rather than an impossible fourth state. Neither can be read
+       off the world instead: the key pickup's own taken-bit says nothing here
+       (it is never collected from the cage, which is the whole point), and the
+       cage art does not change. Declared at the END of the enum, as the note at
+       the top instructs. */
+    FLAG_BIRDCAGE_OPEN,
+    FLAG_BIRDCAGE_WASHED,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

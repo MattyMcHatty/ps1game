@@ -82,8 +82,22 @@ void door_draw_string_2d(RenderContext *ctx, const char *str,
                          int32_t sx, int32_t sy,
                          uint8_t r, uint8_t g, uint8_t b, int ot_idx);
 
+/* World-space pixel-font text in a vertical plane at an ARBITRARY YAW, centred
+   on (wx,wy,wz) — no +200 nudge and no mirror flag, unlike the axis-aligned
+   door_draw_string_3d above. The reading direction is the world "right" of
+   `yaw`, so the sign's face looks back along it; yaw is measured the way
+   cam_rot is (0 = facing +Z, increasing toward +X, 4096 = a full turn). Use it
+   for a sign that stands at an angle to the world grid, where TEXT_PLANE_XY/_YZ
+   can only offer the four square facings. Caller must have the camera view
+   matrix loaded in the GTE. */
+void door_draw_string_3d_yaw(RenderContext *ctx, const char *str,
+                             int32_t wx, int32_t wy, int32_t wz,
+                             uint8_t r, uint8_t g, uint8_t b,
+                             int fade_factor, int32_t yaw, int pixel);
+
 /* Camera-facing (billboard) variant of the pixel-font text, centred on
-   (wx,wy,wz). Caller must have the camera view matrix loaded in the GTE. */
+   (wx,wy,wz) — the call above at yaw = cam_rot. Caller must have the camera
+   view matrix loaded in the GTE. */
 void door_draw_string_billboard(RenderContext *ctx, const char *str,
                                 int32_t wx, int32_t wy, int32_t wz,
                                 uint8_t r, uint8_t g, uint8_t b,

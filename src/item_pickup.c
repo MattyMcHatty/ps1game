@@ -17,7 +17,8 @@ int        item_pickup_count = 0;
 #define IP_FLOAT_Y     50   /* units above the spawn point — floats above ground */
 #define IP_BOB_RATE    16   /* vertical bob speed */
 #define IP_BOB_AMP     18   /* bob amplitude in world units */
-#define IP_WORLD_HALF  70   /* half-size in world units for depth scaling */
+/* Default half-size in world units: ITEM_PICKUP_WORLD_HALF in the header, so
+   a per-pickup override can be documented next to the field that carries it. */
 
 /* Per-kind VRAM sprite handle, filled at startup. */
 typedef struct {
@@ -130,12 +131,22 @@ int item_pickup_spawn_range(int32_t x, int32_t y, int32_t z, PickupKind kind,
             item_pickups[i].kind      = kind;
             item_pickups[i].amount    = amount;
             item_pickups[i].radius    = radius;
+            item_pickups[i].world_half = 0;   /* ITEM_PICKUP_WORLD_HALF */
+            item_pickups[i].otz_bias   = 0;   /* sort in front of ties  */
             item_pickups[i].active    = 1;
             if (i >= item_pickup_count) item_pickup_count = i + 1;
             return i;
         }
     }
     return -1;
+}
+
+void item_pickup_set_display(int index, int32_t world_half, int32_t otz_bias) {
+    /* A negative index is what a spawn into a full array returns, so swallowing
+       it here means a caller never has to guard the call. */
+    if (index < 0 || index >= MAX_ITEM_PICKUPS) return;
+    item_pickups[index].world_half = world_half;
+    item_pickups[index].otz_bias   = otz_bias;
 }
 
 int item_pickup_spawn_amount(int32_t x, int32_t y, int32_t z, PickupKind kind,
@@ -253,12 +264,21 @@ void item_pickups_draw(RenderContext *ctx) {
         gte_stsxy(&screen);
         gte_avsz3();
         gte_stotz(&otz);
+        /* This pickup's own depth bias, if it was given one. Zero — the default —
+           leaves the sprite in front of any room prim at the same true depth,
+           which is what stops the floor beneath a pickup swallowing it. A bias
+           of ITEM_PICKUP_ROOM_BIAS instead puts it on the SAME footing as the
+           room mesh, so a wall, a bar or a plinth genuinely nearer than the
+           sprite occludes it. See the note in item_pickup.h. */
+        otz += p->otz_bias;
         if (otz < SCENE_OT_MIN)     otz = SCENE_OT_MIN;
         if (otz > OT_LENGTH - 2)    otz = OT_LENGTH - 2;
         if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) continue;
 
         if (wdist < 1) wdist = 1;
-        int32_t half = (IP_WORLD_HALF * 256) / wdist;
+        int32_t world_half = p->world_half > 0 ? p->world_half
+                                               : ITEM_PICKUP_WORLD_HALF;
+        int32_t half = (world_half * 256) / wdist;
         if (half < 4)  half = 4;
         if (half > 70) half = 70;
 

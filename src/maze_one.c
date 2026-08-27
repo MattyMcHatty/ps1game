@@ -30,6 +30,7 @@
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
+#include "birdcage.h"           /* the caged Hatch Key's examine prompt */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -542,6 +543,12 @@ void maze_one_init(void) {
        landing. */
     save_points_clear();
     dressers_clear();
+
+    /* The bird cage's examine prompt keeps its own Circle edge state, so it is
+       armed here for the reason all three gates are: a press held through the
+       transition must not post a log line on the arrival frame. After the spawn,
+       so it reads the same input frame the gates did. */
+    birdcage_init();
 }
 
 static void draw_maze_one_smd(RenderContext *ctx) {
@@ -864,8 +871,10 @@ void maze_one_draw(RenderContext *ctx) {
         sml_meds_draw(ctx);
     }
 
-    /* Last: the gate signs. */
+    /* Last: the gate signs, and the bird cage's examine prompt. All four are
+       world-space pixel text and want the view matrix that is still loaded. */
     gate_text(ctx);
     ngate_text(ctx);
     egate_text(ctx);
+    birdcage_text(ctx);
 }

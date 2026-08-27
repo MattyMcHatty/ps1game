@@ -15,6 +15,7 @@
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
+#include "birdcage.h"    /* BIRDCAGE_X/_Z/_MID_Y: the caged Hatch Key */
 #include "living_statue.h"
 #include "hadad.h"
 #include "rabisu.h"
@@ -614,6 +615,48 @@ void world_seed_room(GameState area) {
     if (area == STATE_MAZE_ONE) {
         mushroom_add( 668, 3942, 6765, 3942, -149, STATE_MAZE_ONE);
         mushroom_add(3825,  418, 5279,  418, -149, STATE_MAZE_ONE);
+
+        /* THE BIRD CAGE'S HATCH KEY. It hangs inside the wire cage over the
+           south-east pocket — see src/birdcage.h for where the cage is and
+           src/birdcage.c for the examine prompt under it.
+
+           >>> THE RADIUS IS 1 SO IT CANNOT BE COLLECTED, AND THAT IS THE
+           POINT. <<< item_pickups_update takes a pickup when the Manhattan X/Z
+           distance is STRICTLY LESS than its reach, so a reach of 1 needs the
+           camera on the cage's exact unit square — and the vertical test would
+           still reject it, because the key sits 371 above the standing eye and
+           ITEM_PICKUP_HEIGHT is 150. Either gate alone is enough; both together
+           mean no amount of walking about under the cage picks it up. The key
+           is there to be SEEN and refused, which is what the prompt's first
+           line says.
+
+           Deliberately a live pickup rather than a decorative sprite: when the
+           puzzle is eventually resolved the answer is to widen this reach (or
+           move the pickup), and every other thing a collectible needs — the
+           sprite, the bob, the fog, the pickup log line, the per-room taken bit
+           in WorldState.items_gone — is then already wired.
+
+           y is BIRDCAGE_MID_Y + IP_FLOAT_Y: item_pickup_spawn_range subtracts
+           IP_FLOAT_Y = 50 from whatever it is passed, so passing mid + 50 lands
+           the sprite halfway up the inside of the cage. Amount 1 — one hatch,
+           one key. AUTHORED, not probed; world_seed_room runs for rooms whose
+           geometry is not resident. */
+        int bck = item_pickup_spawn_range(BIRDCAGE_X, BIRDCAGE_MID_Y + 50,
+                                          BIRDCAGE_Z, PICKUP_HATCH_KEY, 1, 1);
+        /* BOTH DISPLAY OVERRIDES, because a pickup shut inside a prop needs
+           both halves of "inside" to be true on screen.
+
+           45 (a 90-unit sprite) fits the cage's 110 x 134 x 166 interior with
+           room to spare, where the default 70 makes a 140-unit sprite WIDER
+           than the cage — which is what read as the key sitting on top of it
+           rather than in it.
+
+           ITEM_PICKUP_ROOM_BIAS puts the sprite on the same depth footing as
+           the room mesh, so the cage's near bars sort in FRONT of the key
+           instead of 40 slots behind it. The chain texture is see-through
+           where its PNG had alpha, so the result is a key seen through wire
+           rather than a key pasted over it. */
+        item_pickup_set_display(bck, 45, ITEM_PICKUP_ROOM_BIAS);
     }
 
     /* Maze Two: ONE Mushroom Head on the southern lane, and ONE Living Statue

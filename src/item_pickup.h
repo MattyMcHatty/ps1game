@@ -48,6 +48,27 @@ typedef enum {
    (ITEM_PICKUP_HEIGHT) is NOT widened by it — a bigger reach must never let a
    pickup be taken through the floor above or below. */
 
+/* ---- Per-pickup DISPLAY overrides ------------------------------------------
+   Both default to 0, which is the behaviour every pickup had before they
+   existed, and both are set through item_pickup_set_display() after a spawn.
+   They are what a pickup needs when it sits INSIDE or ON a piece of room
+   geometry rather than floating in clear air:
+
+   world_half — half-size in world units, i.e. ITEM_PICKUP_WORLD_HALF for this
+     one sprite. A pickup shut inside a small prop has to be smaller than the
+     prop or it pokes out of it however well it sorts (Maze One's bird cage is
+     110 x 134 across the inside, against the default sprite's 140).
+
+   otz_bias — added to the sprite's OT index, exactly as every room mesh adds
+     ITEM_PICKUP_ROOM_BIAS to its own prims. Leaving it 0 is what makes a pickup
+     win a tie against the floor under it; setting it to the room bias restores
+     TRUE depth order against the room, so geometry genuinely in front of the
+     sprite occludes it instead of the sprite showing through. rabisu.c does the
+     same thing for the same reason. Use it for a pickup behind bars, in a
+     recess, or overlapping a surface it stands on. */
+#define ITEM_PICKUP_WORLD_HALF  70   /* default sprite half-size, world units */
+#define ITEM_PICKUP_ROOM_BIAS   40   /* what every room mesh adds to its prims */
+
 typedef struct {
     int32_t    x, y, z;
     int32_t    bob_angle;
@@ -55,6 +76,8 @@ typedef struct {
     PickupKind kind;
     int32_t    amount;   /* rounds granted (PICKUP_ROUNDS only; unused otherwise) */
     int32_t    radius;   /* 0 = use ITEM_PICKUP_RADIUS; else this pickup's reach */
+    int32_t    world_half; /* 0 = ITEM_PICKUP_WORLD_HALF; else this one's size  */
+    int32_t    otz_bias;   /* 0 = sort in front of ties; else added to its OTZ  */
 } ItemPickup;
 
 extern ItemPickup item_pickups[MAX_ITEM_PICKUPS];
@@ -75,6 +98,12 @@ int  item_pickup_spawn_amount(int32_t x, int32_t y, int32_t z, PickupKind kind,
    0 for radius to fall back to ITEM_PICKUP_RADIUS. */
 int  item_pickup_spawn_range(int32_t x, int32_t y, int32_t z, PickupKind kind,
                              int32_t amount, int32_t radius);
+
+/* Set one pickup's display overrides (see the notes on the struct above). Pass
+   the index a spawn returned; a negative index is a no-op, so the return value
+   of a spawn into a full array can be handed straight in. 0 for either field
+   means "leave it at the default". */
+void item_pickup_set_display(int index, int32_t world_half, int32_t otz_bias);
 
 void item_pickups_update(void);
 void item_pickups_draw(RenderContext *ctx);

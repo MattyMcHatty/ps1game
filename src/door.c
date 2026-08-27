@@ -270,19 +270,23 @@ void door_draw_string_3d(
 }
 
 /* -----------------------------------------------------------------------
- * Camera-facing (billboard) variant: draws the string as pixel quads centred on
- * (wx,wy,wz), always facing the player. Text extends along the camera's world
- * right axis and downward in Y. Used for free-standing labels (e.g. the save
- * point) where a fixed wall plane would sit edge-on from some angles. The caller
- * must have the camera view matrix loaded in the GTE.
+ * Free-yaw variant: draws the string as pixel quads centred on (wx,wy,wz), in a
+ * vertical plane whose reading direction is the world "right" of the given yaw
+ * and whose face therefore looks back along that yaw. TEXT_PLANE_XY/_YZ between
+ * them can only give a sign the four axis-aligned facings, so this is what a
+ * sign standing at an angle to the world grid has to use — Maze One's bird cage
+ * prompt is the first. The yaw is measured the way cam_rot is (0 = facing +Z,
+ * increasing toward +X, 4096 = a full turn), so passing cam_rot back in is
+ * exactly the camera-facing billboard, which is how it is implemented below.
+ * The caller must have the camera view matrix loaded in the GTE.
  * ----------------------------------------------------------------------- */
-void door_draw_string_billboard(
+void door_draw_string_3d_yaw(
     RenderContext *ctx, const char *str,
     int32_t wx, int32_t wy, int32_t wz,
     uint8_t r, uint8_t g, uint8_t b,
-    int fade_factor, int pixel
+    int fade_factor, int32_t yaw, int pixel
 ) {
-    int32_t rx = icos(cam_rot), rz = -isin(cam_rot);   /* world screen-right */
+    int32_t rx = icos(yaw), rz = -isin(yaw);   /* the plane's reading direction */
     int      char_w = 6 * pixel;
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
@@ -355,6 +359,19 @@ void door_draw_string_billboard(
             }
         }
     }
+}
+
+/* Camera-facing (billboard) text: the free-yaw plane above, turned to the
+ * camera's own yaw every frame. Used for free-standing labels (e.g. the save
+ * point) where a fixed plane would sit edge-on from some angles. */
+void door_draw_string_billboard(
+    RenderContext *ctx, const char *str,
+    int32_t wx, int32_t wy, int32_t wz,
+    uint8_t r, uint8_t g, uint8_t b,
+    int fade_factor, int pixel
+) {
+    door_draw_string_3d_yaw(ctx, str, wx, wy, wz, r, g, b,
+                            fade_factor, cam_rot, pixel);
 }
 
 /* ----------------------------------------------------------------------- */

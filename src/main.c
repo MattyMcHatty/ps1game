@@ -65,6 +65,7 @@
 #include "fountain_square.h"
 #include "outside_catacombs.h"
 #include "maze_one.h"
+#include "birdcage.h"
 #include "maze_two.h"
 #include "keystone_maze.h"
 #include "keystone_plinths.h"
@@ -1069,20 +1070,33 @@ static void update_current_area(GameState area) {
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
-        if (!lock && maze_one_gate_triggered()) {
+        /* The bird cage's examine prompt reports whether it CONSUMED this
+           frame's Circle tap, and that veto goes in front of the three gates —
+           the shape greenhouse_puzzle_update() established next door. No gate is
+           within reach of the cage today, so the overlap it guards against is
+           not live; it is here so that moving either one can never quietly make
+           a single press do two things. The gate triggers are still called on
+           every frame regardless: each keeps its own Circle edge state, and
+           skipping a call would leave `just` armed for the following frame,
+           firing the gate one frame late instead of not at all. */
+        int cage  = birdcage_update();
+        int wgate = !lock && maze_one_gate_triggered();
+        int ngate = !lock && maze_one_ngate_triggered();
+        int egate = !lock && maze_one_egate_triggered();
+        if (!cage && wgate) {
             /* West back through the same gate, into Fountain Square. */
             pending_area = STATE_FOUNTAIN_SQUARE;
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
-        } else if (!lock && maze_one_ngate_triggered()) {
+        } else if (!cage && ngate) {
             /* North through the gate in the far hedge, on into Maze Two. The
                same iron leaf, so the same DOOR_PANEL_GATE transition. */
             pending_area = STATE_MAZE_TWO;
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
-        } else if (!lock && maze_one_egate_triggered()) {
+        } else if (!cage && egate) {
             /* East through the gate in the far corner, on into the Keystone
                Maze. The same iron leaf again. */
             pending_area = STATE_KEYSTONE_MAZE;
