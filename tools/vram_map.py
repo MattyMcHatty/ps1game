@@ -190,7 +190,8 @@ KNOWN_STREAM_PAIRS = [
     # Maze One, east of Fountain Square through that room's east gate. It draws
     # hedge, grdn_gte and grss_gs from the Garden Courtyard's slots, drain from
     # Fountain Square's narrow upload and poison_flower_base from the Outside
-    # Catacombs' — so of its six textures exactly ONE needed a home of its own:
+    # Catacombs' — so of its SEVEN textures exactly TWO needed a home of their
+    # own:
     #   pipe -> the brick_wall page (x768 y0), shared with grss / bed /
     #           xt_dr_lckd / xt_dr_cmplt / fountain / lamashtu tablet. Note this
     #           room draws NO gravel at all, so unlike every other garden room
@@ -198,6 +199,16 @@ KNOWN_STREAM_PAIRS = [
     #           keep the pipe with the rest of the already-shared 8bpp set. The
     #           Garden Stairs uploader puts brick_wall here on the way in, so
     #           pipe must go up AFTER it — see maze_one_upload_textures.
+    #   chain -> and this is where that spare gravel_gs page finally went, at the
+    #           ONE width it can take: 4bpp. Read Maze Two's note below before
+    #           touching this — gravel_gs, rusty_fence, upstairs and the two
+    #           4bpp clones are all 32 VRAM columns and cover x[704,736) only,
+    #           while anzu3/anzu6 sit in the right half at x736, so an 8bpp
+    #           chain here would have landed on the Anzu exactly as a full-page
+    #           plinth would have. The art is pure greyscale (25 distinct 5-bit
+    #           levels), so 16 colours costs it nothing visible. Same ordering
+    #           rule as pipe: the courtyard's uploader puts gravel_gs here on the
+    #           way in, so chain must go up AFTER it.
     ("brick_wall.tim",     "pipe.tim"),
     ("grss.tim",           "pipe.tim"),
     ("bed.tim",            "pipe.tim"),
@@ -205,6 +216,11 @@ KNOWN_STREAM_PAIRS = [
     ("xt_dr_cmplt.tim",    "pipe.tim"),
     ("fountain.tim",       "pipe.tim"),
     ("lamashtu tablet.tim","pipe.tim"),
+    ("gravel_gs.tim",      "chain.tim"),
+    ("rusty_fence.tim",    "chain.tim"),
+    ("upstairs.tim",       "chain.tim"),
+    ("stable glyphs.tim",  "chain.tim"),
+    ("poison_flower_base_gh.tim", "chain.tim"),
     # Maze Two, north of Maze One through that room's north gate. It draws
     # hedge, grdn_gte and grss_gs from the Garden Courtyard's slots,
     # poison_flower_base from the Outside Catacombs' narrow upload and pipe from

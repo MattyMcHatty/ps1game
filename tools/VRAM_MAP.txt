@@ -57,6 +57,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   poison_flower_base.tim 8       640     0    64    64     0   672,496
   trck_clue.tim        8       640     0   128   128     0   768,481
   trees.tim            4       640     0   128   128     0   48,511
+  chain.tim            4       704     0   128   128     0   560,502
   gravel_gs.tim        4       704     0   128   128     0   240,511
   poison_flower_base_gh.tim 4       704     0    64    64     0   256,511
   rusty_fence.tim      4       704     0   128   128     0   256,480
@@ -219,6 +220,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=500  x[256,512)  mushy_closed.tim
   y=501  x[0,16)  brick_wall.tim
   y=501  x[256,512)  mushy_open.tim
+  y=502  x[560,576)  chain.tim
   y=502  x[0,256)  inr_dbl_dr_half.tim
   y=502  x[256,512)  pipe.tim
   y=502  x[528,544)  pipe_button_off.tim
@@ -287,6 +289,11 @@ OVERLAP CHECK
   brick_wall.tim                           plinth_diamond.tim   time-shared (streaming)
   brick_wall.tim                           xt_dr_cmplt.tim      time-shared (streaming)
   brick_wall.tim                           xt_dr_lckd.tim       time-shared (streaming)
+  chain.tim                                gravel_gs.tim        time-shared (streaming)
+  chain.tim                                poison_flower_base_gh.tim time-shared (streaming)
+  chain.tim                                rusty_fence.tim      time-shared (streaming)
+  chain.tim                                stable glyphs.tim    time-shared (streaming)
+  chain.tim                                upstairs.tim         time-shared (streaming)
   chnlnk.tim                               gravel_texture.tim   time-shared (streaming)
   chnlnk.tim                               greenhouse.tim       time-shared (streaming)
   chnlnk.tim                               plinth_rg.tim        time-shared (streaming)

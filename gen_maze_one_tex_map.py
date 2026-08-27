@@ -37,8 +37,10 @@ NAME_TO_SLOT = {
     # than registering a second RAM copy of either (see src/maze_one.c).
     'drain':              3,
     'poison_flower_base': 4,
-    # The one texture this room OWNS: the pipe standing in the maze.
+    # The two textures this room OWNS: the pipe standing in the maze, and the
+    # chain hanging in it.
     'pipe':               5,
+    'chain':              6,
 }
 UNTEXTURED = 0xFF
 

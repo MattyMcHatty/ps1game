@@ -445,17 +445,25 @@
                 <file name="PSNFLWR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\poison_flower_base.tim"/>
 
                 <!-- Maze One: the hedge maze east of Fountain Square, through
-                     that room's east gate. FIVE of its six textures belong to
+                     that room's east gate. FIVE of its seven textures belong to
                      other rooms - HEDGE, GRDNGTE and GRSSGS via the courtyard's
                      uploader, DRAIN via Fountain Square's narrow one and PSNFLWR
-                     via the Outside Catacombs' - so PIPE alone is its own. It
-                     went to the brick_wall page (x768 y0), which this room draws
-                     nothing from and which was already time-shared six ways.
-                     At 117 KB its SMD is by some way the largest on the disc and
+                     via the Outside Catacombs' - so PIPE and CHAIN are its own.
+                     PIPE went to the brick_wall page (x768 y0), which this room
+                     draws nothing from and which was already time-shared six
+                     ways. CHAIN is 4bpp and went to the gravel_gs page (x704 y0)
+                     — 4bpp is the ONLY thing that page can take, because its
+                     three 4bpp occupants cover x[704,736) and anzu3/anzu6 sit in
+                     the right half at x736 (the mistake Maze Two nearly made).
+                     Its TIM is the 32x32 chain.png TILED 4x4, not stretched to
+                     128: this mesh is UV'd for 32-texel art, and stretching made
+                     the links taller than the player. TEXTURING_NOTES PART 7.
+                     At 118 KB its SMD is by some way the largest on the disc and
                      it is what sizes the room arena (tools/gen_room_arena.py).
                      Its .smx exports live in assets/garden/ too. -->
                 <file name="MAZEONE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\maze_one.smd"/>
                 <file name="PIPE.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe.tim"/>
+                <file name="CHAIN.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\chain.tim"/>
 
                 <!-- Maze Two: the second hedge maze, north through Maze One's
                      north gate. FIVE of its six textures belong to other rooms —

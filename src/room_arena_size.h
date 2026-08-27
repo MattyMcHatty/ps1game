@@ -11,10 +11,10 @@
  *
  * The ten largest meshes on the disc at generation time:
  *
- *    117492 bytes   58 sectors  maze_one.smd
+ *    118764 bytes   58 sectors  maze_one.smd
  *    109324 bytes   54 sectors  maze_two.smd
  *     82820 bytes   41 sectors  keystone_maze.smd
- *     70172 bytes   35 sectors  greenhouse.smd
+ *     69948 bytes   35 sectors  greenhouse.smd
  *     68444 bytes   34 sectors  rear_gate.smd
  *     67860 bytes   34 sectors  Reception.smd
  *     65836 bytes   33 sectors  outside_catacombs.smd

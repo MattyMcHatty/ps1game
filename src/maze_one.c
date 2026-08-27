@@ -47,7 +47,7 @@ static void *maze_one_buff = NULL;
    continuous walled garden either side of a gate, and matching them means the
    step through it changes the plan of the place but not the weather.
 
-   It suits this room on its own account too. The mesh is 2037 prims, two and a
+   It suits this room on its own account too. The mesh is 2056 prims, two and a
    half times the square's 802, and it covers 7600 x 6600 units — at 2500
    Manhattan the cull is holding roughly three-quarters of it out of the packet
    buffer at any moment. The maze corridors are only ~600 wide, so the hedge
@@ -76,7 +76,7 @@ static void maze_one_floor_zones_init(void) {
 }
 
 /* ---- Per-room textures -----------------------------------------------------
-   Six mesh textures and the room owns exactly ONE of them. The other five are
+   Seven mesh textures and the room owns exactly TWO of them. The other five are
    already put in VRAM by rooms this one is reached through, so for those it owns
    no texture RAM at all: it takes the tpage/clut headers as compile-time
    constants and delegates the entry-time LoadImage to whichever module holds the
@@ -91,6 +91,7 @@ static void maze_one_floor_zones_init(void) {
      3 drain              the channel across the paths     (opn_drwr page,  x832 y0)
      4 poison_flower_base the five flower beds             (trck_clue page, x640 y0)
      5 pipe               the standpipe                    (brick_wall page, x768 y0) OWNED
+     6 chain              the hanging chain                (gravel_gs page, x704 y0) OWNED, 4bpp
 
    Slots 0-2 come from the Garden Courtyard's uploader (which itself runs
    garden_stairs_upload_textures first). As in Fountain Square and the Outside
@@ -106,40 +107,64 @@ static void maze_one_floor_zones_init(void) {
    this room's pipe lives. Calling either one wholesale would put the fountain
    basin on the standpipe.
 
-   Slot 5 is the one thing this room owns, and it went to the only full 8bpp page
-   this room draws nothing from. Note that unlike every other garden room, Maze
-   One draws NO gravel at all, so the gravel_gs page (x704 y0) was free too;
-   brick_wall was picked to keep the pipe among the already-shared 8bpp set
-   rather than to start sharing a page that currently is not. It adds no restore
-   obligation either way: that page is already time-shared six ways (grss, bed,
-   fountain, the tablet, xt_dr_lckd, xt_dr_cmplt) and everyone who needs the
-   original re-uploads on their own entry.
+   Slot 5 is the first of the two things this room owns, and it went to the only
+   full 8bpp page this room draws nothing from. It adds no restore obligation:
+   that page is already time-shared six ways (grss, bed, fountain, the tablet,
+   xt_dr_lckd, xt_dr_cmplt) and everyone who needs the original re-uploads on
+   their own entry.
 
-   All six sit at Voff 0, so the one 128 texture window set in maze_one_draw
+   Slot 6 is the second, and it is what finally spends the gravel_gs page at
+   x704 y0 — free for this room because, unlike every other garden room, Maze One
+   draws NO gravel at all. >>> IT IS 4bpp AND IT HAS TO BE. <<< Every occupant of
+   that page (gravel_gs, rusty_fence, upstairs, stable glyphs and the Greenhouse's
+   flower-bed clone) is 4bpp, so they cover only x[704,736); anzu3 and anzu6 sit
+   in the RIGHT half at x736. A full-page 8bpp texture here lands on the Anzu —
+   the mistake Maze Two came within one slot of shipping, which is why its plinth
+   went to x832 instead (see tools/vram_map.py). The chain art is pure greyscale
+   — 25 distinct 5-bit levels — so 16 colours costs it nothing visible. It adds
+   no restore obligation: gravel_gs comes back through the courtyard's uploader
+   and the mansion's three through their own rooms'.
+
+   >>> ITS TIM IS THE 32x32 ART TILED 4x4, NOT STRETCHED 4x. DO NOT "FIX" IT. <<<
+   chain.png is 32x32 and the exporter maps 1 UV tile to 128 texels, so the
+   obvious conversion — stretch to 128 and convert, the way hedge/pipe/drain go
+   64 -> 128 — gives one copy of the art per 128 texels. That is four times too
+   coarse for how this mesh is UV'd: it put the nine long strand quads at 300-580
+   world units per copy, against 90 for the chain prop beside them and 95-100 for
+   the pipe, i.e. individual links taller than the player. Tiling the 32x32 art
+   4x4 into the same 128x128 footprint gives the art a period of 32 texels
+   instead of 128, which lands the strands at ~100 units per copy — on top of the
+   pipe — and keeps every texel a source pixel at 1:1 with no interpolation.
+   Seamless because the exporter shifts each poly's UV minimum by whole multiples
+   of 128 and the 128 window wraps mod 128, and 32 divides 128 both times.
+   See tools/TEXTURING_NOTES.txt PART 7 and textures/chain_128.png.
+
+   All seven sit at Voff 0, so the one 128 texture window set in maze_one_draw
    serves them all. */
-#define MAZE_ONE_TEX_COUNT 6
+#define MAZE_ONE_TEX_COUNT 7
 
 static uint16_t tex_tpage[MAZE_ONE_TEX_COUNT];
 static uint16_t tex_clut[MAZE_ONE_TEX_COUNT];
 
-/* The one texture this room OWNS: RAM-resident from startup so the entry-time
-   upload is a pure LoadImage with no CD read. Keep this in step with the slot
+/* The two textures this room OWNS: RAM-resident from startup so the entry-time
+   upload is a pure LoadImage with no CD read. Keep these in step with the slot
    numbering above and with NAME_TO_SLOT in gen_maze_one_tex_map.py. */
 static int pipe_tex_id;
+static int chain_tex_id;
 
 /* Load this room's geometry into the shared arena. Called on ENTRY, from main's
    STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
    this overwrites whatever the player just walked out of; that is safe because
    collision and floor heights come from compile-time tables, not from the mesh.
-   See src/room_arena.h for the whole rationale — and note that at 117 KB it is
+   See src/room_arena.h for the whole rationale — and note that at 118 KB it is
    THIS mesh that now sets the arena's size. */
 /* ---- Cull keys -------------------------------------------------------------
    >>> THE REJECT PATH, NOT THE DRAW PATH, IS WHAT THIS ROOM SPENDS ITS FRAME ON.
    <<< Timed with the section counters: the frame is CPU-bound (the GPU wait sits
    at 2 hblanks of a 262-hblank frame) and the draw section runs 232. Only ~120
-   of the 2037 primitives survive the distance cull, so roughly 1900 of them are
+   of the 2056 primitives survive the distance cull, so roughly 1900 of them are
    pure overhead — and each one still cost a read of the primitive header for its
-   stride, a read of its first vertex INDEX, and then a chase into the 117 KB
+   stride, a read of its first vertex INDEX, and then a chase into the 118 KB
    vertex array for the coordinates. The R3000 has no data cache behind any of
    that; every one of those is a main-memory stall, and the mesh is far too big
    for the scratchpad.
@@ -150,7 +175,7 @@ static int pipe_tex_id;
    sequential 6-byte read and never touches the mesh. Identical output — this
    changes what the reject path READS, not what it decides.
 
-   6 bytes x 2037 = 12 KB of BSS, alongside the 2 KB maze_one_nocull table that
+   6 bytes x 2056 = 12 KB of BSS, alongside the 2 KB maze_one_nocull table that
    is already indexed the same way. Indices match the draw loop's `i`. */
 typedef struct { int16_t x, z; uint8_t stride, pad; } MoCullKey;
 static MoCullKey mo_keys[MAZE_ONE_PRIM_COUNT];
@@ -181,9 +206,9 @@ void maze_one_load_geometry(void) {
     mo_build_cull_keys();
 }
 
-/* Read at STARTUP — the only safe time for CD access — the one texture this room
-   owns. Geometry moved to maze_one_load_geometry above, and the other five slots
-   are compile-time constants that cost nothing here. */
+/* Read at STARTUP — the only safe time for CD access — the two textures this
+   room owns. Geometry moved to maze_one_load_geometry above, and the other five
+   slots are compile-time constants that cost nothing here. */
 void maze_one_load_assets(void) {
     /* Every one of these is uploaded by another module; header only — no
        LoadImage, no second RAM copy. */
@@ -193,26 +218,29 @@ void maze_one_load_assets(void) {
     TIM_SLOT(3, DRAIN);
     TIM_SLOT(4, PSNFLWR);
 
-    /* This room's own: a RAM-resident copy for a CD-free re-upload. */
-    pipe_tex_id = texmgr_register("\\TEX\\PIPE.TIM;1");
+    /* This room's own: RAM-resident copies for a CD-free re-upload. */
+    pipe_tex_id  = texmgr_register("\\TEX\\PIPE.TIM;1");
     TIM_SLOT(5, PIPE);
+    chain_tex_id = texmgr_register("\\TEX\\CHAIN.TIM;1");
+    TIM_SLOT(6, CHAIN);
 }
 
 /* Upload the streamed textures. Pure LoadImage — no CD access — safe during the
    room transition (the caller DrawSyncs first, as main's STATE_LOADING does).
 
    ORDER MATTERS on every line here. The courtyard's uploader (via the Garden
-   Stairs') puts xt_dr_cg on x832 y0, chnlnk on x640 y0 and brick_wall on
-   x768 y0 — which are where the drain, the flower beds and the pipe live — so
-   all three of the following must go up AFTER it, never before. The two
-   delegated calls are the NARROW ones by design: fountain_square_upload_textures
-   and outside_catacombs_upload_textures would each also drop their own second
-   texture on x768 y0, straight over the pipe. */
+   Stairs') puts xt_dr_cg on x832 y0, chnlnk on x640 y0, brick_wall on x768 y0
+   and gravel_gs on x704 y0 — which are where the drain, the flower beds, the
+   pipe and the chain live — so all four of the following must go up AFTER it,
+   never before. The two delegated calls are the NARROW ones by design:
+   fountain_square_upload_textures and outside_catacombs_upload_textures would
+   each also drop their own second texture on x768 y0, straight over the pipe. */
 void maze_one_upload_textures(void) {
     garden_courtyard_upload_textures();   /* hedge, grdn_gte, grss_gs, gravel_gs */
     fountain_square_upload_drain();       /* drain   -> the xt_dr_cg slot        */
     outside_catacombs_upload_flowers();   /* flowers -> the chnlnk slot          */
     texmgr_upload(pipe_tex_id);           /* pipe    -> the brick_wall slot      */
+    texmgr_upload(chain_tex_id);          /* chain   -> the gravel_gs slot       */
 }
 
 /* Just the pipe, for Maze Two through the north gate — which draws the same
@@ -526,7 +554,7 @@ static void draw_maze_one_smd(RenderContext *ctx) {
     /* Hoisted: all constant for the whole frame, and every one of them was being
        recomputed per primitive inside the hottest loop in the room — the two
        trig lookups once for each poly that passed the distance cull, the cull
-       distance and the debug test all 2037 times. */
+       distance and the debug test all 2056 times. */
     int32_t cull = DEBUG_CULL_DIST();
     if (!cull) cull = MO_CULL_DIST;
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);

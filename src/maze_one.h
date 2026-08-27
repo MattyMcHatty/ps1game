@@ -56,7 +56,7 @@
 
    Rendered the same way as Fountain Square (per-poly tex map + one 128 texture
    window + purple outdoor fog), with that room's fog distances exactly, and it
-   borrows five of its six textures from three other modules' uploaders.
+   borrows five of its seven textures from three other modules' uploaders.
 
    >>> ITS EXPORTS LIVE IN assets/garden/, NOT assets/. <<< "Maze One.smx" and
    "Maze One mesh.smx" are both in that subdirectory, as Fountain Square's and
@@ -64,7 +64,7 @@
    the two conversion commands in tools/ADDING_A_ROOM.txt STEP 4 need it spelled
    out. Nothing else in the build reads them.
 
-   >>> ITS MESH SIZES THE ROOM ARENA. <<< maze_one.smd is 117 KB, nearly twice
+   >>> ITS MESH SIZES THE ROOM ARENA. <<< maze_one.smd is 118 KB, nearly twice
    the previous largest (outside_catacombs.smd, 66 KB), so tools/gen_room_arena.py
    now derives src/room_arena_size.h from THIS file. Re-export the room smaller
    and the arena shrinks with it; grow it further and the arena must be

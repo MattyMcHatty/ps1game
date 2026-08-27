@@ -285,6 +285,14 @@ COORDINATE CONVENTIONS (memorise these):
     a 64x64 source sampled 0..128 reads past itself into neighbouring VRAM —
     stretch it first and save as <name>_128.png, as clsd_drwr/dresser did).
 
+    >>> STRETCH IS NOT ALWAYS THE RIGHT WAY TO FILL THE TILE. <<< If the art is a
+    small REPEATING unit (chain, mesh, grating) rather than one whole thing, the
+    artist UV'd it expecting a 32- or 64-texel period, and stretching makes it
+    4x/2x too big on the wall — silently, since it still renders perfectly. Fill
+    the 128 tile by TILING the source NxN instead. Measure before choosing:
+    TEXTURING_NOTES.txt PART 7 has the world-units-per-tile test and the case
+    (Maze One's chain) that this bit.
+
     EXCEPTION, for a texture that neither TILES nor is SHARED with another
     level: it can keep its real size and share one 128x128 tile with up to three
     others, at a quarter of the VRAM each. tools/subpack_uvs.py bakes the scale

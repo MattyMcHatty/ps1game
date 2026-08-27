@@ -247,6 +247,67 @@ it. A missing 1px line is invisible in a thumbnail and glaring on a TV.
 
 
 ==========================================================================
+PART 7 — A SMALL SOURCE: STRETCH IT, OR TILE IT INTO THE 128 TILE?
+==========================================================================
+PART 3 step 4 and ADDING_A_ROOM step 3d both say a sub-128 source must be
+stretched to 128x128 before conversion (<name>_128.png, as clsd_drwr and dresser
+did). That is only HALF the rule, and picking the wrong half is silent: the
+texture renders perfectly and is simply the wrong SIZE on the wall.
+
+The exporter maps 1 UV tile to 128 texels, always. So the question a small source
+asks is: when the artist laid out these UVs, how big did they think one copy of
+the art was?
+
+  STRETCH (<name>_128.png = the source scaled up)
+      The art is one whole "thing" that spans a UV tile — a door, a poster, a
+      flower bed, a panel. One copy per UV tile is what was drawn, and 128 texels
+      is just the resolution it gets. hedge, pipe and drain are all 64 -> 128
+      this way.
+
+  TILE (<name>_128.png = the source repeated to fill 128)
+      The art is a small REPEATING unit at its own natural scale — chain links,
+      mesh, scales, grating, tread. The artist UV'd it expecting the unit to be
+      32 (or 64) texels, and one copy per 128-texel tile then comes out 4x (or
+      2x) too big. Repeating the source NxN into the same 128x128 footprint gives
+      the art a period of 32 (or 64) texels while every texel stays a source
+      pixel at 1:1 — no interpolation, no 4x4 blocks.
+
+HOW TO TELL WHICH, WITHOUT GUESSING
+  Measure the mesh. For each poly of that material, take a quad edge's world
+  length and its UV length, and compute  world_len / uv_len * 128  — the world
+  units one full tile of the art covers. Then compare it against a texture in the
+  SAME model that already reads correctly. They should be the same order.
+
+  Maze One's chain: the nine long strand quads came out at 300-580 world units
+  per copy, while the small chain prop ten polys earlier was 90 and the pipe was
+  95-100. That 4-6x gap IS the answer — the art wanted a 32-texel period. After
+  tiling 4x4 the strands sit at ~100, on top of the pipe.
+
+  The player's eye is 186 units above the floor. A chain link coming out taller
+  than the player is the kind of thing this measurement catches before the disc
+  does.
+
+WHY TILING NEEDS NO C CHANGE, AND WHY IT STAYS SEAMLESS
+  The alternative fix is a narrower TEXTURE WINDOW on those polys (mask 28 = mod
+  32, PART 1) over a real 32x32 TIM, which is the same picture on screen and uses
+  a quarter of the VRAM. It costs a DR_TWIN bracket around every one of those
+  polys, in the SAME OT bucket, after the content (PART 5 rule 5) — 19 brackets
+  for the chain, in a room whose frame is already CPU-bound on its reject path.
+  Not worth it unless the page is actually contended.
+
+  Tiling instead costs nothing at all: the room's existing mask-128 window wraps
+  mod 128, and the exporter shifts each poly's UV minimum by whole multiples of
+  128. A period of 32 divides 128 both times, so tiling stays continuous across
+  faces and across the wrap. Any power-of-two period that divides 128 is safe;
+  one that does not (e.g. 48) is not.
+
+  >>> DECODE THE .tim AND LOOK AT IT. <<< A tiled TIM that is off by a pixel
+  shows a seam every 32 texels, which is invisible in a thumbnail and obvious on
+  a TV. Check the cells are byte-identical, and check the transparent texel count
+  is what you expect.
+
+
+==========================================================================
 PART 5 — BREAKING THE 128x128 RULE: SUB-PACKING SMALL TEXTURES
 ==========================================================================
 "Every texture must be 128x128" is THREE constraints wearing one hat, and only

@@ -51,6 +51,7 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   trick_drawers.c          2         36864
   conservatory.c           3         30720
   piano_props.c            3         30720
+  maze_one.c               2         28672
   rear_gate.c              2         28672
   outside_catacombs.c      2         24576
   hall_2f.c                2         20480
@@ -58,14 +59,13 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   dresser.c                1         18432
   keystone_maze.c          1         18432
   master_bedroom.c         1         18432
-  maze_one.c               1         18432
   maze_two.c               1         18432
   rabisu.c                 1         18432
   concrete_props.c         1         10240
   east_stairwell.c         1         10240
   piano_room.c             1         10240
   reception.c              1         10240
-  TOTAL                    55       765952
+  TOTAL                    56       776192
 
 DUPLICATE REGISTRATIONS  (the same TIM held in RAM more than once)
   DBLDOOR.TIM        10240 wasted   delivery_area.c, kitchen_dining.c
@@ -97,14 +97,14 @@ KEPT BUFFERS  (read once, pointer stashed, never freed)
   TOTAL                                     165888
 
 THE HEAP
-  _end (heap start)   0x800D7754
+  _end (heap start)   0x800DA0A0
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size            1214628 bytes (1186 KB)
+  heap size            1204056 bytes (1176 KB)
 
-  texmgr resident       765952 bytes (748 KB)  63.1%
-  kept buffers          165888 bytes (162 KB)  13.7%
-  PERMANENT TOTAL       931840 bytes (910 KB)  76.7%
-  FREE AT REST          282788 bytes (276 KB)  23.3%
+  texmgr resident       776192 bytes (758 KB)  64.5%
+  kept buffers          165888 bytes (162 KB)  13.8%
+  PERMANENT TOTAL       942080 bytes (920 KB)  78.2%
+  FREE AT REST          261976 bytes (256 KB)  21.8%
 
   The largest single transient allocation still has to fit in what is
   free, and startup makes several: the kitchen's 32768-byte scratch, and

@@ -1818,7 +1818,8 @@ int main(int argc, const char **argv) {
                                                        flower bed through their
                                                        owners' NARROW uploads,
                                                        and its own pipe over
-                                                       brick_wall */
+                                                       brick_wall and chain over
+                                                       gravel_gs */
             } else if (pending_area == STATE_MAZE_TWO) {
                 maze_two_upload_textures();         /* ditto, plus the flower bed
                                                        and Maze One's pipe through

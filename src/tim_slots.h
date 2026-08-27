@@ -75,6 +75,10 @@
 #define TIM_TPAGE_BRIKWLL  0x000c
 #define TIM_CLUT_BRIKWLL   0x7d40
 
+/* chain.tim       4bpp  VRAM ( 704,  0)  \TEX\CHAIN.TIM */
+#define TIM_TPAGE_CHAIN    0x000b
+#define TIM_CLUT_CHAIN     0x7da3
+
 /* chnlnk.tim      4bpp  VRAM ( 640,  0)  \TEX\CHNLNK.TIM */
 #define TIM_TPAGE_CHNLNK   0x000a
 #define TIM_CLUT_CHNLNK    0x7fca
