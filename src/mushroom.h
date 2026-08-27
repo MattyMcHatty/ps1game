@@ -64,17 +64,19 @@
  * current_area — current_area and NEVER game_state, or the enemy freezes for
  * as long as the inventory menu is open (see tools/ADDING_AN_ENEMY.txt STEP 6).
  * MAX_MUSHROOMS is therefore the budget for the WHOLE GAME, not per room:
- * one in the Outside Catacombs, two in Maze One, one in Maze Two and one in
- * the Keystone Maze fill all five of them, and mushroom_add drops SILENTLY
- * once it is full. Raise it (and check it against WD_MAX_MUSHROOMS, 8, in
- * src/world.h) before placing a sixth.
+ * one in the Outside Catacombs, two in Maze One, one in Maze Two, one in the
+ * Keystone Maze and FOUR in the Greenhouse fill all nine of them, and
+ * mushroom_add drops SILENTLY once it is full. Raise it (and check it against
+ * WD_MAX_MUSHROOMS in src/world.h, which the Greenhouse's four already pushed
+ * from 8 to 16 and mushrooms_dead from a uint8_t to a uint16_t) before placing
+ * a tenth.
  *
  * SOUND. SFX_HISS is in the GARDEN bank only — it does not fit the house
  * bank's 6.6 KB of spare. A mushroom placed inside the house would still work
  * but would scream silently; see src/sound.h before moving one indoors.
  * ----------------------------------------------------------------------- */
 
-#define MAX_MUSHROOMS         5    /* WHOLE-GAME budget — see above       */
+#define MAX_MUSHROOMS         9    /* WHOLE-GAME budget — see above       */
 #define MSH_MAX_HEALTH        5    /* five crucifaxe swings or five rounds     */
 
 /* ---- Speeds, in units per frame. The player walks at 12 and sprints at 20
@@ -205,8 +207,25 @@
 #define MSH_SHADOW_W        150
 #define MSH_SHADOW_D         70
 
+/* ---- Falling in ------------------------------------------------------------
+   The Greenhouse's four do not start on the floor: they come down out of the
+   roof when the room floods (src/greenhouse_flood.c). MSH_FALL is a straight
+   vertical drop from an authored ceiling height onto the patrol anchor, and
+   like MSH_LEAP it consults nothing — no floor probe, no feelers, no walls,
+   no contact damage. It lands on `spawn_y`, which mushroom_add was already
+   given, so no new authored number rides in the struct.
+
+   MSH_FALL_GRAVITY is the leap's arc in reverse and is tuned against the same
+   roof the water falls from: the Greenhouse's wall-top line is at y = -900 and
+   its patrol anchor is -149, so the drop is 751 units, which at +4 a frame
+   takes 20 frames — a third of a second, which is what "falls from the sky"
+   should read as rather than a float. (It was 1056 units and 23 frames while
+   the mesh still had an apex ridge at -1205; see GHF_JET_Y.) */
+#define MSH_FALL_GRAVITY      4
+
 typedef enum {
     MSH_PACE,     /* unalerted: walking the two-point patrol            */
+    MSH_FALL,     /* dropping in from the ceiling; ignores the level    */
     MSH_SCREAM,   /* rooted, facing the player, cap closed then open    */
     MSH_LEAP,     /* airborne, on a fixed arc, ignoring the level       */
     MSH_CHASE,    /* closing and biting                                 */
@@ -265,6 +284,11 @@ void mushrooms_load_textures(void);
    global pool is full. */
 int  mushroom_add(int32_t ax, int32_t az, int32_t bx, int32_t bz,
                   int32_t y, GameState area);
+
+/* Lift mushroom `i` to `from_y` and drop it onto its patrol anchor. A no-op on
+   a dead or missing one, so a caller can fire it over a list without checking.
+   The body is untouchable and harmless for the whole fall — see MSH_FALL. */
+void mushroom_drop_in(int i, int32_t from_y);
 
 void mushrooms_init(void);
 void mushrooms_reset(void);

@@ -77,6 +77,9 @@ extern int  vine_count;
 void vines_load_assets(void);   /* load VINES.SMD — STARTUP only (no CD later) */
 void vines_init(void);          /* place every curtain in the game             */
 void vines_reset(void);
+/* Advance every curtain that is dropping in (see vines_drop_start). Cheap and
+   unconditional; call it once a frame from the area update. */
+void vines_drop_update(void);
 void vines_draw(RenderContext *ctx);
 void vines_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 
@@ -124,9 +127,43 @@ void vines_raise_start(int i, int32_t frames);
    chainlink_doors_raise_update is polled. */
 int  vines_raise_update(void);
 
+/* ---- Dropping a curtain IN ------------------------------------------------
+   The mirror of the raise, and the way a curtain ARRIVES: the Greenhouse's
+   flood sends five down out of the roof at once (src/greenhouse_flood.c).
+
+   Three differences from the raise, all of them forced by "five at once":
+
+     IT IS PER-CURTAIN, not one-in-flight. The raise keeps a single module
+     index because one puzzle starts one; a drop keeps a timer per slot.
+
+     IT ACTIVATES THE SLOT. A curtain that has not dropped yet is `active = 0`,
+     which is what keeps it out of the draw, the collision, the hitscan and
+     vine_in_area alike — there is no separate "hidden" bit to forget to test.
+     vines_drop_start is what turns it on.
+
+     IT IS SOLID FROM THE FIRST FRAME, for the same reason the raise stays
+     solid to the last: `lift` moves the drawn model only. A curtain still half
+     in the roof already blocks the aisle under it. Nobody is standing there —
+     the drop happens under a camera cut — and a growing collision box would
+     have had to answer for the gun and the enemy movers too.
+
+   Passing 0 frames places it down and finished, which is what a room entry
+   does when the flood has already happened. */
+void vines_drop_start(int i, int32_t frames);
+
 /* Index of the (first) intact curtain in `area`, or -1. The puzzle that opens
    one has to name it somehow, and naming it by room keeps the placement table
    in vines_init the single source of truth for where curtains are. */
 int  vine_in_area(GameState area);
+
+/* The (first) intact INDESTRUCTIBLE curtain in `area`, or -1. A puzzle that
+   winds a curtain up must ask for it this way and not with vine_in_area: the
+   Greenhouse holds six, and once the annexe curtain is cleared vine_in_area
+   starts answering with one of the flood's five instead — which would have
+   greenhouse_puzzle_init quietly delete an aisle curtain on every later entry.
+   `destructible = 0` IS the distinguishing fact rather than a tag invented for
+   the purpose: a curtain nothing else can remove is exactly the kind a puzzle
+   has to open. */
+int  vine_locked_in_area(GameState area);
 
 #endif

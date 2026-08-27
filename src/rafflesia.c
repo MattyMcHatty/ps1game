@@ -394,14 +394,33 @@ void rafflesias_upload_textures(void) {
     texmgr_upload(raf_tex_id[1]);
 }
 
-static void add_rafflesia(int32_t x, int32_t y, int32_t z, GameState area) {
+static void add_rafflesia_state(int32_t x, int32_t y, int32_t z, GameState area,
+                                int active) {
     if (rafflesia_count >= MAX_RAFFLESIAS) return;
     Rafflesia *r = &rafflesias[rafflesia_count++];
     *r = (Rafflesia){0};
     r->x = x; r->y = y; r->z = z;
     r->health = RAFFLESIA_MAX_HEALTH;
-    r->active = 1;
+    r->active = active;
     r->area   = area;
+}
+
+static void add_rafflesia(int32_t x, int32_t y, int32_t z, GameState area) {
+    add_rafflesia_state(x, y, z, area, 1);
+}
+
+/* A flower that is PLACED but not yet in the world. Its slot is inert
+   everywhere — update, draw, collide, the axe, the gun — because every one of
+   those loops already tests `active`, so there is no second bit to remember.
+   See the note on the Greenhouse's six in rafflesia.h. */
+static void add_rafflesia_dormant(int32_t x, int32_t y, int32_t z, GameState area) {
+    add_rafflesia_state(x, y, z, area, 0);
+}
+
+void rafflesias_wake_area(GameState area) {
+    int i;
+    for (i = 0; i < rafflesia_count; i++)
+        if (rafflesias[i].area == area) rafflesias[i].active = 1;
 }
 
 void rafflesias_init(void) {
@@ -499,6 +518,50 @@ void rafflesias_init(void) {
     add_rafflesia(-3700, -149, 4300, STATE_MAZE_TWO);
     add_rafflesia( -700, -149,  902, STATE_MAZE_TWO);
     add_rafflesia( 3700, -149,  901, STATE_MAZE_TWO);
+
+    /* Greenhouse: one on each of the FOUR poison_flower_base polys in its drawn
+       mesh (assets/garden/Greenhouse.smx, texture index 6 in the Aug 2026
+       decimated export — the index moves between exports, the NAME does not,
+       which is why gen_greenhouse_tex_map.py resolves by name). Poly centroids:
+           x[-4400,-4200] z[-1000, -800] -> (-4300, -900)   west annexe, north
+           x[-4400,-4200] z[-2600,-2400] -> (-4300,-2500)   west annexe, south
+           x[-1322,-1099] z[ -300, -100] -> (-1211, -200)   east of bed B
+           x[-2211,-1988] z[  850, 1100] -> (-2100,  975)   south of bed C
+
+       >>> THERE WERE SIX, AND THE FIFTH BED LOST ITS TEXTURE IN THE DECIMATED
+       EXPORT. <<< The old mesh carried a bed at x[-2878,-2656] z[-1200,-1000],
+       cut into two coplanar halves at z = -1068, and it held two of these
+       flowers. In the new export that footprint is a SINGLE quad — which is the
+       merge working as intended — but it now carries `grss` instead of
+       poison_flower_base, so there is no bed there any more, only lawn. The two
+       flowers went with it rather than being left standing on grass.
+
+       IT LOOKS LIKE AN ACCIDENT OF THE MERGE RATHER THAN A DESIGN CHANGE: the
+       quad is still exactly the bed's old footprint and only its material
+       differs. Re-assign poison_flower_base to it in Blender, re-export, and add
+       a fifth line below at (-2767, -1100) — ONE flower, not two, because the
+       two halves are now a single poly.
+
+       y is the STANDING ANCHOR: this room's floor is one flat plane at world
+       y = 0 (greenhouse_floor_zones_init says all five collision planes are), so
+       the anchor is -149, the same as every other garden room's.
+
+       REACH, per mistake 9 in the enemy runbook. This room uses the default 195
+       wall radius, so the two ANNEXE flowers — the only two tucked into a corner
+       — are held 95 off in each axis, i.e. 134 away, well inside RAF_BITE_DIST
+       (340). The other four stand in open nave floor with the player able to
+       walk right onto them. No push circle severs a route: the annexe is
+       1200x1800 with its only doorway at the far side, and the four in the nave
+       stand in aisles 600 or wider.
+
+       ALL SIX ARE DORMANT until the room floods — see rafflesias_wake_area and
+       src/greenhouse_flood.c. Sound-legal either way: the Greenhouse is on
+       SND_BANK_GARDEN, which is where both of the flowers' looped ambiences
+       live. */
+    add_rafflesia_dormant(-4300, -149,  -900, STATE_GREENHOUSE);
+    add_rafflesia_dormant(-4300, -149, -2500, STATE_GREENHOUSE);
+    add_rafflesia_dormant(-1211, -149,  -200, STATE_GREENHOUSE);
+    add_rafflesia_dormant(-2100, -149,   975, STATE_GREENHOUSE);
 
     int i;
     for (i = 0; i < rafflesia_count; i++)

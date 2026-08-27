@@ -60,7 +60,10 @@ void valve_handles_init(void) {
     /* GREENHOUSE, the standing pipe in the far south bay. The pipe is a 50x50
        column at x[-1460,-1410] z[-3825,-3775], and the BLACK HOLE in its texture
        falls on the +Z face — the one that looks back up the room — at
-       (-1435, -197). Mapping it: the face is greenhouse mesh primitive 919, with
+       (-1435, -197). Mapping it: the face is the +Z quad spanning y[-225,-167]
+       (primitive 726 in the Aug 2026 decimated export, 919 in the one before it
+       -- the INDEX moves with every re-export and the COORDINATES do not, so
+       trust these rather than the number), with
        u 66..130 across x -1460..-1410 and v 122..203 across y -225..-166.84, and
        the hole's centre in pipe_128.png is texel (97.5, 33.4); 33.4 + 128 = 161.4
        lands inside that v span because the window wraps at 128.

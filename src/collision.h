@@ -8,9 +8,9 @@
 
 extern int debug_mode;  /* toggled by Select; always available. 0 off, 1 perf
                            meter, 2 authoring overlay, 3 collision viz,
-                           4-7 perf meter + an isolation switch (see camera.c) */
+                           4-9 perf meter + an isolation switch (see camera.c) */
 
-/* Which isolation switch is active: 0 = none, 1..5 = debug levels 4..8. A room's
+/* Which isolation switch is active: 0 = none, 1..6 = debug levels 4..9. A room's
    draw consults this to leave part of the scene out, so a frame's cost can be
    bisected in one sitting instead of one rebuild per hypothesis. See the Select
    note in camera.c.
@@ -27,6 +27,24 @@ extern int debug_mode;  /* toggled by Select; always available. 0 off, 1 perf
 #define DBG_EXP_NO_FRUSTUM     2   /* side-plane cull off: is it paying for itself? */
 #define DBG_EXP_CULL_2000      3
 #define DBG_EXP_CULL_1800      4
+/* The counterpart to DBG_EXP_NO_MESH: the room WITHOUT its enemies, water and
+   props, so the draw section can be split between the mesh and everything
+   standing in it. Added when the Greenhouse's flood put six Rafflesias, four
+   Mushroom Heads, six vine curtains and a spray pool into the largest room in
+   the game — the first room where the sprite half was ever plausibly the cost.
+   Maze One's original "no sprites" reading was taken with the VB meter, which
+   tools/DIAGNOSING_FRAME_RATE.txt STEP 2 shows could not resolve it; this is
+   that reading done with an instrument that can. */
+#define DBG_EXP_NO_ENTITIES    5
+/* The switch for U, which levels 4 and 8 cannot touch because both of them only
+   change what is DRAWN. It freezes the area-tagged enemy AI — the flowers, the
+   mushrooms, the statues and Hadad — everywhere, so U read with and without it
+   says how much of the game's logic is the monsters and how much is everything
+   else. Added when the Greenhouse came back under budget at U70 D180 G1 with a
+   margin of only eleven hblanks, and U was the third of the frame nobody had
+   ever put a number on. STEP 5 point 5 of tools/DIAGNOSING_FRAME_RATE.txt has
+   been asking for this since Maze One. */
+#define DBG_EXP_NO_AI          6
 
 /* View distance for the active experiment, or 0 for "use the room's own". */
 #define DEBUG_CULL_DIST()                                        \

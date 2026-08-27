@@ -174,6 +174,21 @@ int mushroom_add(int32_t ax, int32_t az, int32_t bx, int32_t bz,
     return i;
 }
 
+/* Lift it into the roof and let go. Everything that could touch the body while
+   it is up there is skipped by the MSH_FALL branch in update_mushrooms, so no
+   other module needs to know this is happening. `spawn_y` is the anchor
+   mushroom_add was given, which is where it lands. */
+void mushroom_drop_in(int i, int32_t from_y) {
+    if (i < 0 || i >= mushroom_count) return;
+    Mushroom *m = &mushrooms[i];
+    if (!m->active || m->state == MSH_DEAD) return;
+    if (from_y >= m->spawn_y) return;   /* already at or below the floor */
+    m->y     = from_y;
+    m->vy    = 0;
+    m->state = MSH_FALL;
+    m->kb_vx = m->kb_vz = 0;
+}
+
 void mushrooms_init(void) {
     /* Placements are seeded on a room's first entry by the world system (see
        world_seed_room in world.c). The array starts empty. */
@@ -223,7 +238,7 @@ int32_t mushroom_scale_damage(int32_t base, DamageType type) {
 }
 
 int mushroom_airborne(const Mushroom *m) {
-    return m->state == MSH_LEAP;
+    return m->state == MSH_LEAP || m->state == MSH_FALL;
 }
 
 void mushroom_body(const Mushroom *m, int32_t *cyc, int32_t *hh, int32_t *hw) {
@@ -278,8 +293,39 @@ void mushroom_damage(Mushroom *m, int dmg) {
    move's own collision push already slides the body along anything it grazes.
 
    Returns 1 if the body actually travelled this frame. */
+/* >>> THE SIGHTLINE IS PASSED AS A TARGET, NOT AS AN ANSWER, AND THAT IS A
+   FRAME-RATE FIX RATHER THAN A STYLE ONE. <<<
+
+   Both callers used to work out `sight_clear` themselves and hand it in, which
+   meant collision_segment_blocked ran for every mushroom on every frame. In the
+   Greenhouse that is a segment the full length of a patrol leg — up to 1692
+   units, so ~56 samples, each one walking the room's live prop families — four
+   times over, every frame, and measured (debug level 9 against level 1) the
+   whole area-tagged AI was 63 of the game's 70 hblanks of update time with the
+   Rafflesias costing one integer square root apiece. This call was the rest.
+
+   >>> AND THE ANSWER IS USUALLY NOT CONSULTED. <<< Trace what sight_clear did:
+   it cleared `blocked` and `steer_timer`, and those two are read by exactly two
+   branches below, both of which are already dead when blocked == 0 and
+   steer_timer == 0. So on any frame where the feeler hit nothing and no
+   wall-follow commit was running — which is most frames, in a room whose
+   mushrooms patrol open aisles — the sightline was computed, and then changed
+   nothing at all.
+
+   So the caller now passes WHERE to look and this function decides whether to
+   look. The result is identical on every frame, by construction: the test is
+   still exactly the one that was run before, run whenever its answer can
+   change the outcome and skipped only when it provably cannot.
+
+   The ALERT sightline in update_mushrooms is untouched and must stay eager —
+   its answer starts a scream, so it is consulted the moment it is taken.
+
+   src/spider.c has this same shape and has NOT been given this treatment: it is
+   not in the room that was measured, and tools/DIAGNOSING_FRAME_RATE.txt is
+   emphatic about not optimising a room nobody has put a number on. */
 static int msh_steer(Mushroom *m, int32_t goal_dx, int32_t goal_dz,
-                     int32_t speed, int sight_clear) {
+                     int32_t speed,
+                     int32_t sight_x, int32_t sight_y, int32_t sight_z) {
     int i;
 
     /* Separation: a soft shove away from any other mushroom standing too close,
@@ -313,7 +359,17 @@ static int msh_steer(Mushroom *m, int32_t goal_dx, int32_t goal_dz,
     dining_tables_collide(&fx, m->y, &fz, 75);
     apply_flat_entity_collision(&fx, &fz, MSH_BODY_RADIUS);
     int blocked = (fx != feeler_x || fz != feeler_z);
-    if (sight_clear) { blocked = 0; m->steer_timer = 0; }
+    /* Lazily, and only when it can matter — see the block above this function.
+       Both consumers (`blocked` and `steer_timer`) are already inert when both
+       are zero, so the segment trace is skipped on exactly the frames where its
+       answer could not have been read. */
+    if (blocked || m->steer_timer > 0) {
+        if (!collision_segment_blocked(m->x, m->y, m->z,
+                                       sight_x, sight_y, sight_z)) {
+            blocked = 0;
+            m->steer_timer = 0;
+        }
+    }
 
     int32_t pl_x = -goal_dz, pl_z =  goal_dx;   /* slide left  */
     int32_t pr_x =  goal_dz, pr_z = -goal_dx;   /* slide right */
@@ -464,6 +520,25 @@ void update_mushrooms(void) {
         int32_t dy = py - m->y;
         int32_t dz = pz - m->z;
 
+        /* --- Falling in from the ceiling. Straight down, and like the leap it
+           consults nothing: no floor probe, no feelers, no walls, no contact
+           damage. It is over in well under a second (see MSH_FALL_GRAVITY) and
+           happens under a camera cut, so nothing is waiting on it. --- */
+        if (m->state == MSH_FALL) {
+            m->vy += MSH_FALL_GRAVITY;
+            m->y  += m->vy;
+            if (m->y >= m->spawn_y) {
+                m->y     = m->spawn_y;
+                m->vy    = 0;
+                /* Lands unalerted and on patrol. It does NOT arrive screaming:
+                   the fall is the entrance, and being noticed afterwards is
+                   what starts the ritual — the same door every other mushroom
+                   in the game comes through. */
+                m->state = MSH_PACE;
+            }
+            continue;
+        }
+
         /* --- Airborne: the arc owns x, y and z outright. No gravity, no floor
            probe, no wall passes, no knockback. --- */
         if (m->state == MSH_LEAP) {
@@ -553,10 +628,9 @@ void update_mushrooms(void) {
             }
             /* The sightline shortcut is to the WAYPOINT here, not to the
                player: it is the goal that has to be unobstructed for the
-               wall-follow to be safely switched off. */
-            int clear = !collision_segment_blocked(m->x, m->y, m->z,
-                                                   wx, m->y, wz);
-            msh_steer(m, gx, gz, MSH_WALK_SPEED, clear);
+               wall-follow to be safely switched off. msh_steer takes the target
+               and traces it only if it is going to read the answer. */
+            msh_steer(m, gx, gz, MSH_WALK_SPEED, wx, m->y, wz);
             continue;
         }
 
@@ -628,10 +702,7 @@ void update_mushrooms(void) {
 
         if (dist2d < MSH_CATCH_DIST) { msh_face(m, dx, dz); continue; }
 
-        {
-            int clear = !collision_segment_blocked(m->x, m->y, m->z, px, py, pz);
-            msh_steer(m, dx, dz, MSH_CHASE_SPEED, clear);
-        }
+        msh_steer(m, dx, dz, MSH_CHASE_SPEED, px, py, pz);
     }
 
     /* --- Mushroom vs mushroom hard collision, after every one has moved.
@@ -640,10 +711,12 @@ void update_mushrooms(void) {
     for (a = 0; a < mushroom_count; a++) {
         Mushroom *ma = &mushrooms[a];
         if (!ma->active || ma->state == MSH_DEAD || ma->state == MSH_LEAP ||
+            ma->state == MSH_FALL ||
             ma->area != current_area) continue;
         for (b = a + 1; b < mushroom_count; b++) {
             Mushroom *mb = &mushrooms[b];
             if (!mb->active || mb->state == MSH_DEAD || mb->state == MSH_LEAP ||
+                mb->state == MSH_FALL ||
                 mb->area != current_area) continue;
             int32_t cdx  = ma->x - mb->x;
             int32_t cdz  = ma->z - mb->z;
@@ -695,7 +768,12 @@ static void draw_msh_shadow(RenderContext *ctx, Mushroom *m) {
     if (!shadow_tpage) return;
     if (ctx->next_packet + sizeof(DR_TPAGE) + sizeof(POLY_FT4) > buf_end) return;
 
-    int32_t gy = (m->state == MSH_LEAP) ? m->leap_ground_y : m->y;
+    /* Mid-fall the ground is the anchor it is coming down onto — the same
+       reading as the leap's take-off height, and what makes the drop read as a
+       drop rather than as the whole enemy sliding into frame. */
+    int32_t gy = (m->state == MSH_LEAP) ? m->leap_ground_y
+               : (m->state == MSH_FALL) ? m->spawn_y
+                                        : m->y;
     int32_t sx = m->x, sz = m->z;
 
     int32_t rx  = icos(cam_rot);
@@ -898,7 +976,8 @@ void draw_mushrooms(RenderContext *ctx) {
                worth its pixels. The 3/2 converts the Manhattan wdist to cover a
                true radius on every bearing (Manhattan overstates by up to
                sqrt(2) on the diagonals). */
-        if (m->state != MSH_LEAP && wdist > (MSH_LEAP_MAX * 3) / 2 &&
+        if (m->state != MSH_LEAP && m->state != MSH_FALL &&
+            wdist > (MSH_LEAP_MAX * 3) / 2 &&
             collision_hidden_from_camera(m->x, m->y + MSH_Y_OFFSET, m->z))
             continue;
 
@@ -913,6 +992,9 @@ void draw_mushrooms(RenderContext *ctx) {
             break;
         case MSH_LEAP:
             tex = MSH_TEX_OPEN;    /* the lunge comes out of the scream */
+            break;
+        case MSH_FALL:
+            tex = MSH_TEX_CLOSED;  /* cap shut on the way down; it opens later */
             break;
         case MSH_WAIT:
             tex = MSH_TEX_CLOSED;  /* stopped, listening */

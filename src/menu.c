@@ -128,6 +128,15 @@ static uint8_t  mkst_u0, mkst_v0, mkst_u1, mkst_v1;
 static uint16_t htky_tpage   = 0;
 static uint16_t htky_clut    = 0;
 static uint8_t  htky_u0, htky_v0, htky_u1, htky_v1;
+/* The valve handle. Its art sits at VRAM y=288 alongside the Helluminator's,
+   i.e. Voff 32 with a height of 64 - a V range of 32..95, inside the 0..127
+   that every room's 128x128 window wraps to, so it needs no window reset
+   either. The slot was RESERVED in both VRAM maps when the 3D prop was added,
+   before there was an item to hang it on; see the note beside VLVHNDL.TIM in
+   disc.xml. */
+static uint16_t vlvh_tpage   = 0;
+static uint16_t vlvh_clut    = 0;
+static uint8_t  vlvh_u0, vlvh_v0, vlvh_u1, vlvh_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -147,6 +156,7 @@ static const char *item_descriptions[] = {
     "Yellow Key Stone\n\nA yellow jewel\nwith a key\nprotruding from\nthe back",
     "Magenta Key Stone\n\nA magenta jewel\nwith a key\nprotruding from\nthe back",
     "Hatch Key\n\nA key for the\nhatch at the back\nof the garden",
+    "Valve Handle\n\nA wheel unbolted\nfrom a pipe in\nthe greenhouse\n",
 };
 
 static const char *weapon_descriptions[] = {
@@ -331,6 +341,7 @@ int menu_item_held(int slot) {
         case MENU_SLOT_MAGENTA_KEY_STONE:
                                        return (player_items & (1 << ITEM_MAGENTA_KEY_STONE)) != 0;
         case MENU_SLOT_HATCH_KEY:      return player_hatch_keys > 0;
+        case MENU_SLOT_VALVE_HANDLE:   return (player_items & (1 << ITEM_VALVE_HANDLE)) != 0;
         default: return 0;
     }
 }
@@ -348,6 +359,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_YELLOW_KEY_STONE:return "Yellow Key Stone";
         case MENU_SLOT_MAGENTA_KEY_STONE:return "Magenta Key Stone";
         case MENU_SLOT_HATCH_KEY:      return "Hatch Key";
+        case MENU_SLOT_VALVE_HANDLE:   return "Valve Handle";
         default: return "";
     }
 }
@@ -476,6 +488,11 @@ void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
             draw_icon(ctx, x, y, size, htky_tpage, htky_clut,
                       htky_u0, htky_v0, htky_u1, htky_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_VALVE_HANDLE:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, vlvh_tpage, vlvh_clut,
+                      vlvh_u0, vlvh_v0, vlvh_u1, vlvh_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -533,6 +550,8 @@ void menu_init(void) {
                   &mkst_u0, &mkst_v0, &mkst_u1, &mkst_v1);
     load_icon_tim("\\TEX\\HATCHKEY.TIM;1", &htky_tpage, &htky_clut,
                   &htky_u0, &htky_v0, &htky_u1, &htky_v1);
+    load_icon_tim("\\TEX\\VLVHNDL.TIM;1", &vlvh_tpage, &vlvh_clut,
+                  &vlvh_u0, &vlvh_v0, &vlvh_u1, &vlvh_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);

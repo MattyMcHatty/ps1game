@@ -82,7 +82,11 @@ void world_silence_monsters(void);
 #define WD_MAX_TENTACLES 10
 #define WD_MAX_SPIDERS    8   /* bits: one global area-tagged array */
 #define WD_MAX_RABISUS    8
-#define WD_MAX_MUSHROOMS  8   /* bits: likewise one global area-tagged array */
+#define WD_MAX_MUSHROOMS 16   /* bits: likewise one global area-tagged array. 16
+                                 rather than 8 since the Greenhouse's flood
+                                 brought the whole-game total to nine — which is
+                                 why mushrooms_dead below is a uint16_t while
+                                 its neighbours are still bytes. */
 #define WD_MAX_LIVING_STATUES 8 /* bits: likewise. Only the LIVING ones can die, but
                                    the bit index counts every placement, so plain
                                    masonry occupies a bit it never sets. */
@@ -124,7 +128,8 @@ typedef struct {
     uint32_t  visited;
     uint8_t   spiders_dead;                       /* keyed by (area, ordinal) */
     uint8_t   rabisus_dead;                       /* likewise                 */
-    uint8_t   mushrooms_dead;                     /* likewise                 */
+    uint16_t  mushrooms_dead;                     /* likewise; 16 bits — see
+                                                     WD_MAX_MUSHROOMS          */
     uint8_t   living_statues_dead;                /* likewise                 */
     uint16_t  hadads_state;                       /* 2 bits each: dead, spent */
     RoomDelta rooms[WORLD_NUM_ROOMS];

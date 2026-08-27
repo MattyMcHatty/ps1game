@@ -72,24 +72,40 @@ int collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius) {
    height handling); a bullet wants the geometry, not the walking clearance. */
 #define SHOT_PROP_SLACK  12   /* bullet half-width added to each prop footprint */
 #define SHOT_PROP_STEP   30   /* segment sample spacing; < thinnest prop depth   */
-static int props_block_point(int32_t x, int32_t y, int32_t z) {
-    if (crates_point_solid(x, y, z, SHOT_PROP_SLACK))        return 1;
-    if (fatdoors_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
-    if (vines_point_solid(x, y, z, SHOT_PROP_SLACK))         return 1;
-    if (dressers_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
-    if (grinders_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
-    if (dining_tables_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
-    if (piano_props_point_solid(x, y, z, SHOT_PROP_SLACK))   return 1;
-    if (concrete_props_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
-    if (attic_stairwell_altar_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
-    if (chainlink_doors_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
-    if (levers_point_solid(x, y, z, SHOT_PROP_SLACK))          return 1;
+/* ONE BIT PER PROP FAMILY, so the "has this room got any?" question can be
+   asked ONCE per segment instead of at every sample point. See props_solid_mask
+   below for why that matters. */
+#define PS_CRATE      0x0001
+#define PS_FATDOOR    0x0002
+#define PS_VINE       0x0004
+#define PS_DRESSER    0x0008
+#define PS_GRINDER    0x0010
+#define PS_TABLE      0x0020
+#define PS_PIANO      0x0040
+#define PS_CONCRETE   0x0080
+#define PS_ALTAR      0x0100
+#define PS_CHAINLINK  0x0200
+#define PS_LEVER      0x0400
+
+static int props_block_point(int32_t x, int32_t y, int32_t z, int mask) {
+    if ((mask & PS_CRATE)     && crates_point_solid(x, y, z, SHOT_PROP_SLACK))        return 1;
+    if ((mask & PS_FATDOOR)   && fatdoors_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
+    if ((mask & PS_VINE)      && vines_point_solid(x, y, z, SHOT_PROP_SLACK))         return 1;
+    if ((mask & PS_DRESSER)   && dressers_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
+    if ((mask & PS_GRINDER)   && grinders_point_solid(x, y, z, SHOT_PROP_SLACK))      return 1;
+    if ((mask & PS_TABLE)     && dining_tables_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
+    if ((mask & PS_PIANO)     && piano_props_point_solid(x, y, z, SHOT_PROP_SLACK))   return 1;
+    if ((mask & PS_CONCRETE)  && concrete_props_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
+    if ((mask & PS_ALTAR)     && attic_stairwell_altar_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
+    if ((mask & PS_CHAINLINK) && chainlink_doors_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
+    if ((mask & PS_LEVER)     && levers_point_solid(x, y, z, SHOT_PROP_SLACK))          return 1;
     return 0;
 }
 
-/* Does the current area hold ANY solid prop at all? The same nine families, but
-   asking only their active/state/area gates — no coordinates, so it is one pass
-   over nine short arrays rather than one per sample point.
+/* WHICH prop families the current area holds anything solid of. The same eleven
+   families as above, but asking only their active/state/area gates — no
+   coordinates, so it is one pass over eleven short arrays, and it is done ONCE
+   per segment rather than once per sample point.
 
    >>> THIS IS WHAT KEEPS THE SAMPLER OFF THE PER-FRAME PATH. <<< The sampling
    loop below was sized for GUNFIRE, which happens a few times a second; its own
@@ -97,21 +113,47 @@ static int props_block_point(int32_t x, int32_t y, int32_t z) {
    the AI, which calls collision_segment_blocked up to four times a frame per
    enemy (src/mushroom.c has five call sites), and the sample COUNT scales with
    the segment's length — a mushroom's pacing sightline runs the full length of
-   its patrol leg, so Maze One's 6097-unit leg alone hit 203 samples x 9 prop
-   calls x 60 fps for a room that contains no props whatsoever.
+   its patrol leg, so Maze One's 6097-unit leg alone hit 203 samples x 11 prop
+   calls x 60 fps for a room that contains no props whatsoever. That was one of
+   the two changes that dragged Maze One back to 60fps — see
+   tools/DIAGNOSING_FRAME_RATE.txt STEP 3A.
 
-   The gardens, the maze and Fountain Square hold nothing this test can find, so
+   The gardens, the mazes and Fountain Square hold nothing this test can find, so
    the whole pass is skipped there and the function collapses to its exact
-   wall-crossing loop. Rooms that DO hold props are unaffected, sample for sample
-   — this changes cost, never answers. */
-static int props_any_solid(void) {
-    return crates_any_solid()        || fatdoors_any_solid()      ||
-           vines_any_solid()         ||
-           dressers_any_solid()      || dining_tables_any_solid() ||
-           piano_props_any_solid()   || concrete_props_any_solid()||
-           attic_stairwell_altar_any_solid() ||
-           chainlink_doors_any_solid() || levers_any_solid() ||
-           grinders_any_solid();
+   wall-crossing loop.
+
+   >>> IT RETURNS A MASK RATHER THAN A BOOLEAN, AND THAT IS THE GREENHOUSE'S HALF
+   OF THE SAME FIX. <<< A yes/no answer only ever helps a room with NO props. It
+   does nothing for a room that holds ONE family and pays for eleven at every
+   sample, and the Greenhouse is exactly that room: vine curtains and nothing
+   else. It is also the only garden room with sprite enemies standing in it, so
+   it is the one place where a per-frame sightline meets a live sampler — six
+   Rafflesias and four Mushroom Heads each testing their own line to the camera,
+   over segments that run to the room's 2500 fog distance, i.e. up to 83 samples
+   apiece. Carrying the mask into props_block_point turns that inner loop from
+   eleven calls into one.
+
+   The mask is recomputed per call rather than cached: a prop can be smashed,
+   burnt or wound up between two calls in the same frame, and a stale "no vines
+   here" would let a shot through a curtain. Eleven array-header reads was never
+   the expensive part — the sampling was.
+
+   Rooms that DO hold props are unaffected, sample for sample. This changes cost,
+   never answers. */
+static int props_solid_mask(void) {
+    int m = 0;
+    if (crates_any_solid())                 m |= PS_CRATE;
+    if (fatdoors_any_solid())               m |= PS_FATDOOR;
+    if (vines_any_solid())                  m |= PS_VINE;
+    if (dressers_any_solid())               m |= PS_DRESSER;
+    if (grinders_any_solid())               m |= PS_GRINDER;
+    if (dining_tables_any_solid())          m |= PS_TABLE;
+    if (piano_props_any_solid())            m |= PS_PIANO;
+    if (concrete_props_any_solid())         m |= PS_CONCRETE;
+    if (attic_stairwell_altar_any_solid())  m |= PS_ALTAR;
+    if (chainlink_doors_any_solid())        m |= PS_CHAINLINK;
+    if (levers_any_solid())                 m |= PS_LEVER;
+    return m;
 }
 
 /* The WALL half of collision_segment_blocked, shared by it and by
@@ -234,11 +276,14 @@ int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
        ~60-unit-deep door). SHOT_PROP_STEP < the thinnest prop's depth guarantees
        at least one sample lands inside.
 
-       Skipped entirely in an area with no solid props — see props_any_solid.
+       Skipped entirely in an area with no solid props, and narrowed to the
+       families that area actually holds where it is not — see props_solid_mask.
        That guard is load-bearing now that the AI calls this every frame; without
        it the cost of the loop is paid by every room, in proportion to how long
        the segment is. */
-    if (props_any_solid()) {
+    {
+    int mask = props_solid_mask();
+    if (mask) {
         int32_t adx = rx < 0 ? -rx : rx;
         int32_t adz = rz < 0 ? -rz : rz;
         int32_t span = adx > adz ? adx : adz;   /* dominant horizontal extent */
@@ -250,8 +295,9 @@ int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
             int32_t px = ax + (rx * k) / steps;
             int32_t py = ay + ((by - ay) * k) / steps;
             int32_t pz = az + (rz * k) / steps;
-            if (props_block_point(px, py, pz)) return 1;
+            if (props_block_point(px, py, pz, mask)) return 1;
         }
+    }
     }
 
     return 0;
@@ -259,7 +305,7 @@ int collision_segment_blocked(int32_t ax, int32_t ay, int32_t az,
 
 /* Draw-side occlusion test — see the long note in collision.h for the rules
    every caller has to keep. Cheap in the rooms that need it most: a prop-less
-   room skips the sampling pass entirely (props_any_solid), so this is one pass
+   room skips the sampling pass entirely (props_solid_mask), so this is one pass
    over the room's walls per sprite. */
 int collision_hidden_from_camera(int32_t x, int32_t y, int32_t z) {
     return collision_segment_blocked(cam_x, cam_y, cam_z, x, y, z);

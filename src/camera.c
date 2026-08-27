@@ -405,8 +405,18 @@ debug_toggle:
                    5  side-plane frustum cull OFF - does it pay for itself?
                    6  view distance 2000
                    7  view distance 1800
-                 Only Maze One honours them today (maze_one.c); every other room
-                 ignores them and just shows the meter.
+                   8  the room WITHOUT its enemies, water and props
+                   9  the enemy AI frozen (the only switch that moves U)
+                 Maze One honours 4-7 (maze_one.c) and the Greenhouse all five
+                 (greenhouse.c); every other room ignores them and just shows the
+                 meter.
+
+                 LEVEL 8 IS THE ONE TO REACH FOR IN A ROOM FULL OF THINGS. It is
+                 4's mirror image: 4 leaves the mesh out, 8 leaves everything
+                 else out, and D read at the two of them splits the draw section
+                 in half without a rebuild. It was added for the Greenhouse's
+                 flood, which is the first time a room's population was a
+                 plausible answer rather than an assumed innocent.
 
            These found the Maze One regression: no-mesh read VB1 and no-sprites
            read VB2, so the room's geometry was the cost and the enemies in it
@@ -427,7 +437,7 @@ debug_toggle:
            level with nothing else in it. */
         static int select_prev = 0;
         int select_held = (btn & PAD_SELECT) ? 1 : 0;
-        if (select_held && !select_prev) debug_mode = (debug_mode + 1) % 8;
+        if (select_held && !select_prev) debug_mode = (debug_mode + 1) % 10;
         select_prev = select_held;
     }
 

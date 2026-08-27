@@ -74,6 +74,7 @@
 #include "stables.h"
 #include "greenhouse.h"
 #include "greenhouse_puzzle.h"
+#include "greenhouse_flood.h"
 #include "lightswitch_puzzle.h"
 #include "exit_door_puzzle.h"
 #include "chainlink_door.h"
@@ -156,6 +157,7 @@ void reset_game(RenderContext *ctx) {
     vampire_health   = VAMPIRE_MAX_HEALTH;
     vampire_hit_timer = 0;
     reset_particles();
+    reset_spray();          /* ...and any Greenhouse water still in the air */
     bullet_hits_reset();
     webs_reset();
     player_poison_timer = 0;   /* status effects never survive a reset */
@@ -198,6 +200,8 @@ void reset_game(RenderContext *ctx) {
     fatdoors_reset();
     vines_reset();          /* ...and every vine curtain back to intact   */
     valve_handles_reset();  /* ...and the valve handle back on its pipe   */
+    greenhouse_flood_reset();/* ...and back OUT of the inventory, or a new
+                               playthrough starts holding one              */
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
 }
@@ -335,6 +339,24 @@ static void update_current_area(GameState area) {
        curtain winding out of the annexe doorway takes the camera. */
     if (area == STATE_GREENHOUSE && greenhouse_puzzle_active()) {
         greenhouse_puzzle_update();
+        return;
+    }
+    /* The same room's FLOOD — the shot over the nave while the roof sprinklers
+       run and the room fills up behind them. Same shape again, and it goes
+       BEFORE the buttons' branch would matter because the two can never be
+       active at once: the buttons go inert the moment their board is answered,
+       and this one runs from a wheel at the other end of the room. */
+    if (area == STATE_GREENHOUSE && greenhouse_flood_active()) {
+        greenhouse_flood_update();
+        /* >>> AND THE TWO ENEMIES IT SUMMONS KEEP RUNNING. <<< Unlike the pipe
+           buttons' payoff, which suspends a room with nothing in it, the whole
+           point of this shot is what arrives during it: the mushrooms are in
+           MSH_FALL for the first 23 frames of the hold and would hang in the
+           roof until control came back without this call, and the flowers'
+           idle animation would start a beat late. Both are area-tagged, so
+           these are the same two calls the shared tail makes. */
+        update_rafflesias();
+        update_mushrooms();
         return;
     }
     /* The same room's exit-door puzzle DOES take the camera and input for its
@@ -1000,9 +1022,22 @@ static void update_current_area(GameState area) {
            called on every frame regardless: it keeps its own Circle edge state
            and skipping a call would leave `just` armed for the following
            frame, firing the door one frame late instead of not at all. */
+        /* The vine curtains the flood dropped, if any are still travelling.
+           Cheap and unconditional — see vines_drop_update. */
+        vines_drop_update();
+        /* THE VALVE WHEEL GETS THE FIRST REFUSAL on this frame's Circle tap,
+           for the reason the buttons get it before the door: it reports whether
+           it CONSUMED the press. Nothing else is within its 450 of the pipe
+           today, so the overlap it guards against is not live; it is here so
+           that moving either one can never quietly make one press do two
+           things. Both of the others are still called every frame regardless —
+           each keeps its own Circle edge state, and skipping a call would leave
+           `just` armed for the following frame. */
+        int gh_valve  = greenhouse_flood_update();
         int gh_button = greenhouse_puzzle_update();
         int gh_door   = greenhouse_door_triggered();
-        if (!lock && !gh_button && !greenhouse_puzzle_active() && gh_door) {
+        if (!lock && !gh_valve && !gh_button &&
+            !greenhouse_puzzle_active() && !greenhouse_flood_active() && gh_door) {
             /* East back through the same door, into the Stables. The only way
                out: this room is the end of the line. */
             pending_area = STATE_STABLES;
@@ -1283,6 +1318,21 @@ static void update_current_area(GameState area) {
        and walked out of should still be finished on the way back, and the
        list is four entries long either way. */
     valve_handles_update();
+    /* >>> DEBUG LEVEL 9 STOPS HERE. <<< Everything from this point to
+       player_status_update is the area-tagged enemy AI, and it is the only part
+       of U that an isolation switch can remove without changing what the room
+       IS. Read U at level 1 and again at level 9 and the difference is the
+       monsters; what is left is collision, the floor probe, the weapon and the
+       room's own triggers. See DBG_EXP_NO_AI.
+
+       It is a MEASUREMENT switch and it makes the game unplayable while it is
+       on — nothing chases, nothing bites. That is the point; do not leave it
+       cycled on and wonder why the Greenhouse got easy. */
+    if (DEBUG_EXPERIMENT() == DBG_EXP_NO_AI) {
+        webs_update();
+        player_status_update();
+        return;
+    }
     /* Area-tagged like the webs, so this one call covers every room branch above
        and costs nothing in the rooms with no flowers in them. */
     update_rafflesias();
@@ -1403,13 +1453,22 @@ static void draw_debug_overlay(RenderContext *ctx) {
            it as "the GPU is doing something", NOT as proof that fill is the
            bottleneck. The isolation switches below are what actually answer
            that, by removing one part of the scene at a time. */
-        static const char *exp_name[5] = {
-            "", "no mesh", "no frustum", "cull 2000", "cull 1800"
+        /* >>> ONE ENTRY PER ISOLATION SWITCH, AND THE LENGTH IS LOAD-BEARING.
+           <<< This is indexed by DEBUG_EXPERIMENT() with no bounds check, so a
+           switch added to collision.h without a label added here reads a
+           garbage pointer straight into snprintf's %s. That is exactly what
+           happened when DBG_EXP_NO_ENTITIES was added: level 8 froze the game
+           on the frame the meter was drawn. Keep this array in step with the
+           DBG_EXP_* list and size it from that list, not from a literal. */
+        static const char *exp_name[DBG_EXP_NO_AI + 1] = {
+            "", "no mesh", "no frustum", "cull 2000", "cull 1800", "no entities",
+            "no AI"
         };
         char pbuf[64];
         int vb  = perf_frame_vblanks < 1 ? 1 : perf_frame_vblanks;
         int fps = 60 / vb;   /* assumes 60Hz NTSC; VB is region-independent */
         int exp = DEBUG_EXPERIMENT();
+        if (exp < 0 || exp > DBG_EXP_NO_AI) exp = 0;         /* never index out */
         /* U/D/G are HBLANKS — 262 to a 60Hz frame, so they read almost as
            percentages of one. U = game logic, D = queueing the scene (CPU, and
            where the culls' own cost lands), G = time spent WAITING for the GPU.
@@ -2447,6 +2506,12 @@ int main(int argc, const char **argv) {
                              /* The Greenhouse's pipe-button payoff: the shot of
                                 the vine curtain winding into the roof. */
                              (area == STATE_GREENHOUSE && greenhouse_puzzle_active()) ||
+                             /* ...and the same room's flood: the shot over the
+                                nave while the sprinklers run. In THIS list and
+                                not the cutscene one below for the East Hall
+                                quake's reason — its arrival posts a log line
+                                and only `puzzle` keeps the log box up. */
+                             (area == STATE_GREENHOUSE && greenhouse_flood_active()) ||
                              /* The Keystone Maze's plinth picker, and the cut to
                                 the keystone that ends the puzzle. */
                              (area == STATE_KEYSTONE_MAZE && keystone_plinths_active()) ||

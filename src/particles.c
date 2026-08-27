@@ -163,8 +163,11 @@ void update_fire(void) {
     }
 }
 
-/* Shared billboard renderer for both particle pools. */
-static void draw_pool(RenderContext *ctx, Particle *pool, int count) {
+/* Shared billboard renderer for the burst and spray pools. `fade` scales the
+   colour by remaining life, which is right for debris that dims as it settles
+   and wrong for water, which is as bright in the last frame of its fall as in
+   the first — so the spray passes 0 and keeps its colour flat. */
+static void draw_pool(RenderContext *ctx, Particle *pool, int count, int fade) {
     int i;
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
@@ -190,7 +193,7 @@ static void draw_pool(RenderContext *ctx, Particle *pool, int count) {
         if (otz <= 0 || otz >= OT_LENGTH) continue;
         if (ctx->next_packet + sizeof(TILE) > buf_end) continue;
 
-        int32_t t = (p->life << 8) / p->max_life;
+        int32_t t = fade ? ((p->life << 8) / p->max_life) : 256;
         uint8_t r = (uint8_t)(((int32_t)p->r0 * t) >> 8);
         uint8_t g = (uint8_t)(((int32_t)p->g0 * t) >> 8);
         uint8_t b = (uint8_t)(((int32_t)p->b0 * t) >> 8);
@@ -207,7 +210,83 @@ static void draw_pool(RenderContext *ctx, Particle *pool, int count) {
 }
 
 void draw_particles(RenderContext *ctx) {
-    draw_pool(ctx, particles, particle_count);
+    draw_pool(ctx, particles, particle_count, 1);
+}
+
+/* ---- The water spray ------------------------------------------------------
+   See particles.h for why this is a third pool. The physics is deliberately
+   the plainest of the three: a droplet leaves the jet already moving DOWN
+   (world +Y is down) and accelerates, with a token sideways wander so the
+   column is a spray and not a wire.
+
+   THE NUMBERS ARE SOLVED AGAINST THE GREENHOUSE'S ROOF, which is the only
+   place this runs. That roof is the wall-top line at y = -900 over a y = 0
+   floor, so a droplet has 900 units to cover: at SPRAY_VY0 = 20 and
+   +SPRAY_GRAVITY = 2 a frame it has fallen 20n + n(n-1) units after n frames,
+   which passes 900 at n = 22. SPRAY_LIFE is 24, a little past that, so the
+   column reaches the ground and the droplets die just under it rather than
+   sinking on through the boards for a third of a second.
+
+   >>> RETUNE THE ROOF AND ALL OF THESE MOVE. <<< They were cut to y = -1205
+   when the mesh had an apex ridge; the Aug 2026 decimated export removed it and
+   every number in this block had to be re-solved against -900. GHF_JET_Y in
+   src/greenhouse_flood.c is the height itself and is the one to read first. */
+#define SPRAY_LIFE         24
+#define SPRAY_EMIT_EVERY    3
+#define SPRAY_VY0          20
+#define SPRAY_GRAVITY       2
+#define SPRAY_SPREAD        5   /* jet width, units/frame either way */
+
+static Particle spray[MAX_SPRAY];
+static int32_t  spray_phase = 0;   /* free-running; gates the emission rate */
+
+void spray_emit(int32_t x, int32_t y, int32_t z) {
+    int i;
+    if (spray_phase % SPRAY_EMIT_EVERY) return;
+    for (i = 0; i < MAX_SPRAY; i++) {
+        Particle *p = &spray[i];
+        if (p->life > 0) continue;
+        p->x  = x + rng_range(SPRAY_SPREAD * 2);
+        p->y  = y;
+        p->z  = z + rng_range(SPRAY_SPREAD * 2);
+        p->vx = rng_range(SPRAY_SPREAD);
+        p->vy = SPRAY_VY0;
+        p->vz = rng_range(SPRAY_SPREAD);
+        p->life     = SPRAY_LIFE;
+        p->max_life = SPRAY_LIFE;
+        p->sw = 3 + (uint8_t)(rng_next() % 4);
+        p->sh = (uint8_t)(p->sw + 2);   /* taller than wide: a falling streak */
+        /* Blue-green, and varied per droplet rather than flat so the column
+           reads as water rather than as a strip of one colour. */
+        p->r0 = (uint8_t)(30  + (rng_next() % 30));
+        p->g0 = (uint8_t)(150 + (rng_next() % 60));
+        p->b0 = (uint8_t)(170 + (rng_next() % 60));
+        return;
+    }
+}
+
+void update_spray(void) {
+    int i;
+    spray_phase++;
+    for (i = 0; i < MAX_SPRAY; i++) {
+        Particle *p = &spray[i];
+        if (p->life <= 0) continue;
+        p->x  += p->vx;
+        p->y  += p->vy;
+        p->z  += p->vz;
+        p->vy += SPRAY_GRAVITY;
+        p->life--;
+    }
+}
+
+void draw_spray(RenderContext *ctx) {
+    draw_pool(ctx, spray, MAX_SPRAY, 0);
+}
+
+void reset_spray(void) {
+    int i;
+    for (i = 0; i < MAX_SPRAY; i++) spray[i].life = 0;
+    spray_phase = 0;
 }
 
 /* Linear blend a->b by f (0..256). */

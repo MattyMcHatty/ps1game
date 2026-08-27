@@ -31,9 +31,11 @@
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
+#include "particles.h"     /* the flood's ceiling water — drawn here, see below */
 #include "vines.h"          /* the annexe-gap curtain (its own texture, below) */
 #include "valve_handle.h"   /* the wheel on the south bay's pipe            */
 #include "greenhouse_puzzle.h" /* the ten pipe buttons: which are lit        */
+#include "greenhouse_flood.h"  /* the valve handle, and what taking it lets in */
 #include "rabisu.h"         /* whose skin the vines' VRAM page displaces    */
 
 extern volatile uint8_t pad_buff[2][34];
@@ -282,13 +284,57 @@ static const char *new_tex_file[GREENHOUSE_NEW_TEX] = {
    Identical output; this changes what the reject path READS, not what it
    decides.
 
-   The margin is the best of any room that has it: 1230 primitives over
-   4500 x 5300 against a 2500 Manhattan cull, so from most of the nave well over
-   half of them are rejected on the key alone. It costs 6 bytes a primitive
-   (7.2 KB of BSS). Indices match the draw loop's `i`. */
+   The margin is the best of any room that has it: 1025 primitives over
+   4500 x 5300 against a 2500 Manhattan cull. It costs 6 bytes a primitive
+   (6.0 KB of BSS). Indices match the draw loop's `i`.
+
+   >>> AND IT WAS ONLY HALF THE JOB, WHICH IS WHAT THE FLOOD'S LAG EXPOSED. <<<
+   Measured in the flooded room: U60 D210 G1, and D drops to 30 with the mesh
+   left out (debug level 4), so 180 of the 210 draw hblanks are this loop. But
+   counting the mesh offline says only ~122 primitives are actually DRAWN from
+   the middle of the nave. The gap is the reject path, and the key above was not
+   covering all of it:
+
+       1230 walked      -> key only, 6 sequential bytes each   (pre-decimation)
+        573 pass distance   the room is open, so nearly half the mesh is within
+                            2500 of the player at any time - unlike Maze One,
+                            where the hedges keep it to ~120 of 2056
+        296 ENTER THE SIDE-PLANE TEST'S EXACT LOOP, and that loop reads v1..v3
+            out of the 69 KB vertex array. Three scattered, uncached reads
+        276 of those 296 are then thrown away
+        122 drawn
+
+   So ~296 primitives a frame were chasing the mesh purely to be rejected -
+   exactly the stall gh_keys exists to prevent, reintroduced one test later.
+
+   THE FIX IS A SECOND KEY: each primitive's XZ BOUNDING BOX, tested against the
+   side planes instead of its vertices. The plane predicate is LINEAR in (x,z),
+   so a linear function over a convex box takes its minimum at a corner: if all
+   four corners are outside a plane, every point of the box is, and therefore
+   every vertex is. That makes the box test HOLE-FREE by construction rather
+   than by measurement - it can never cull a primitive with a vertex on screen.
+   Counted offline over 16 headings from the nave centre it culls 279 against
+   the exact test's 276, so it is also very slightly STRONGER: most of this mesh
+   is axis-aligned wall and glazing quads, whose XZ box is the quad.
+
+   >>> IT IS A SEPARATE ARRAY, NOT MORE FIELDS ON GhCullKey, AND THAT IS
+   DELIBERATE. <<< The key is read for every primitive every frame; the box
+   is read only by the ~573 that pass the distance cull, and not at all when the
+   frustum test is switched off (debug level 5). Widening the key to 14 bytes
+   would have put 8 extra bytes of traffic on the hot path to save reads on the
+   cold one. 8 bytes x 1025 = 8.2 KB more BSS, on top of the key's 6.0 KB.
+
+   >>> THE COUNTS IN THE BLOCK ABOVE ARE FROM THE 1230-PRIMITIVE MESH. <<< They
+   are left as they were measured, because they are what motivated the box key
+   and re-stating them against a mesh that has since been decimated to 1025
+   would make the reasoning unreadable. The fix is worth the same either way:
+   it scales with primitives REJECTED. */
 typedef struct { int16_t x, z; uint8_t stride, pad; } GhCullKey;
 static GhCullKey gh_keys[GREENHOUSE_PRIM_COUNT];
 static int       gh_key_count = 0;
+
+typedef struct { int16_t min_x, max_x, min_z, max_z; } GhCullBox;
+static GhCullBox gh_box[GREENHOUSE_PRIM_COUNT];
 
 static void gh_build_cull_keys(void) {
     gh_key_count = 0;
@@ -300,10 +346,23 @@ static void gh_build_cull_keys(void) {
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
         uint16_t     *vi = (uint16_t *)(p + 4);
         SVECTOR      *v0 = &greenhouse_smd->p_verts[vi[0]];
+        int nv = (pt->type >= 2) ? 4 : 3;
+        int16_t lo_x = v0->vx, hi_x = v0->vx;
+        int16_t lo_z = v0->vz, hi_z = v0->vz;
+        int k;
+        for (k = 1; k < nv; k++) {
+            SVECTOR *vk = &greenhouse_smd->p_verts[vi[k]];
+            if (vk->vx < lo_x) lo_x = vk->vx;
+            if (vk->vx > hi_x) hi_x = vk->vx;
+            if (vk->vz < lo_z) lo_z = vk->vz;
+            if (vk->vz > hi_z) hi_z = vk->vz;
+        }
         gh_keys[i].x      = v0->vx;
         gh_keys[i].z      = v0->vz;
         gh_keys[i].stride = pt->len;
         gh_keys[i].pad    = 0;
+        gh_box[i].min_x = lo_x; gh_box[i].max_x = hi_x;
+        gh_box[i].min_z = lo_z; gh_box[i].max_z = hi_z;
         p += pt->len;
     }
     gh_key_count = n;
@@ -519,7 +578,7 @@ void greenhouse_spawn_east(void) {
 void greenhouse_init(void) {
     greenhouse_collision_init(&current_collision_room);
     /* The shell is DRAWN to y=-900 at the eaves and the glass ridge runs on up
-       to -1205; the collision runs stop at -675, which is the height of the door
+       to -900; the collision runs stop at -675, which is the height of the door
        and of the walls the player can actually be pushed by. STATE THE DRAWN
        VALUE, not the collision one, so anything ceiling-mounted hangs where the
        room really has a ceiling (see tools/ADDING_A_ROOM.txt on visual-vs-
@@ -555,6 +614,12 @@ void greenhouse_init(void) {
        if the board has already been answered — no props and no arrays, so this
        is the whole of its entry work. */
     greenhouse_puzzle_init();
+    /* AFTER the puzzle, and it has to be: greenhouse_puzzle_init may clear
+       the annexe curtain as its own catch-up, and this then walks the same
+       array to put the flood's five back. Both read the world rather than
+       each other, so the order is not load-bearing today — it is stated
+       because the pair share vines[]. */
+    greenhouse_flood_init();
 
     /* The two props this room owns are NOT cleared here and must not be: both
        are global area-tagged arrays (the fat door's model), so their Greenhouse
@@ -573,7 +638,7 @@ static void draw_greenhouse_smd(RenderContext *ctx) {
     /* Hoisted: all constant for the whole frame, and every one of them would
        otherwise be recomputed per primitive inside the hottest loop in the room —
        the two trig lookups once for each poly that passed the distance cull, the
-       cull distance and the debug test all 1230 times. */
+       cull distance and the debug test once per primitive. */
     int32_t cull = DEBUG_CULL_DIST();
     if (!cull) cull = GH_CULL_DIST;
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
@@ -619,39 +684,56 @@ static void draw_greenhouse_smd(RenderContext *ctx) {
                at this room's scale the products stay far inside an int32.
 
                >>> A POLY IS ONLY CULLED WHEN EVERY VERTEX IS OUTSIDE THE SAME
-               PLANE. <<< That makes the test exact rather than conservative —
-               it can never remove a poly with a vertex inside the true frustum,
-               whatever the mesh — and it is why the loop is written this way
-               rather than around a bounding sphere on v0, which measured barely
-               half as effective on Maze One's mesh.
+               PLANE, AND HERE THAT IS DECIDED FROM ITS BOUNDING BOX RATHER THAN
+               ITS VERTICES. <<< Maze One walks v1..v3 out of the mesh to decide
+               it. That is exact, but in THIS room it was the frame: ~296
+               primitives a frame entered that loop from the middle of the nave
+               and 276 of them were thrown away, each having chased three
+               scattered reads into a 69 KB vertex array with no data cache
+               behind it. See the long note on gh_box above for the measurement.
+
+               The box is not an approximation of the test, it is a cheaper way
+               of taking it: the plane predicate is LINEAR in (x,z), so over a
+               convex box its minimum is at a corner. All four corners outside a
+               plane therefore PROVES every vertex is outside it — no holes,
+               whatever the mesh, and no offline verification needed. Counted
+               over 16 headings it culls slightly MORE than the vertex loop did
+               (279 vs 276), because most of this mesh is axis-aligned wall and
+               glazing quads whose XZ box is the quad itself.
+
+               The arithmetic stays in the <<12 fixed-point domain rather than
+               shifting down first, as Maze One's does. That is not a style
+               difference: >>12 floors, and a floored comparison can go the wrong
+               way by a unit right at the screen edge — harmless when the answer
+               is only being confirmed per vertex, not harmless when it is a
+               proof about a box. The products stay far inside an int32 at this
+               room's scale (the widest span is 5300 x 4096 x 8).
 
                Y is not tested, and that is right here: the floor is one flat
                plane at y=0 everywhere, so adding top and bottom planes would
-               cost multiplies to reject nothing. The glass ridge at -1205 is the
+               cost multiplies to reject nothing. The wall tops at -900 are the
                tallest thing in the room and the camera never leaves standing
-               height under it.
+               height under them.
                ------------------------------------------------------------- */
             int32_t fwd = kdx * sn + kdz * cs;
             if (fwd < -(700 << 12))
                 { p += stride; continue; }
             if (!no_frustum) {
-                int32_t f0 = fwd >> 12;                      /* world units */
-                int32_t s0 = (kdx * cs - kdz * sn) >> 12;
-                int     sign = 0;
-                if      ( s0 * 8 > f0 * 5) sign =  1;        /* v0 off right */
-                else if (-s0 * 8 > f0 * 5) sign = -1;        /* v0 off left  */
-                if (sign) {
-                    int nv = is_quad ? 4 : 3, k, all_out = 1;
-                    for (k = 1; k < nv; k++) {
-                        SVECTOR *vk = &greenhouse_smd->p_verts[vi[k]];
-                        int32_t ex = (int32_t)vk->vx - cam_x;
-                        int32_t ez = (int32_t)vk->vz - cam_z;
-                        int32_t f  = (ex * sn + ez * cs) >> 12;
-                        int32_t sd = (ex * cs - ez * sn) >> 12;
-                        if (!(sign * sd * 8 > f * 5)) { all_out = 0; break; }
-                    }
-                    if (all_out) { p += stride; continue; }
+                int32_t bx0 = (int32_t)gh_box[i].min_x - cam_x;
+                int32_t bx1 = (int32_t)gh_box[i].max_x - cam_x;
+                int32_t bz0 = (int32_t)gh_box[i].min_z - cam_z;
+                int32_t bz1 = (int32_t)gh_box[i].max_z - cam_z;
+                int out_r = 1, out_l = 1, c;
+                for (c = 0; c < 4; c++) {
+                    int32_t ex = (c & 1) ? bx1 : bx0;
+                    int32_t ez = (c & 2) ? bz1 : bz0;
+                    int32_t f  = ex * sn + ez * cs;
+                    int32_t sd = ex * cs - ez * sn;
+                    if (!( sd * 8 > f * 5)) out_r = 0;
+                    if (!(-sd * 8 > f * 5)) out_l = 0;
+                    if (!out_r && !out_l) break;
                 }
+                if (out_r || out_l) { p += stride; continue; }
             }
         }
 
@@ -866,13 +948,17 @@ void greenhouse_draw(RenderContext *ctx) {
     /* The room's two props, inside the 128 window set above and after the mesh
        so they sort against it. Both restore the camera view matrix on the way
        out, so the sprite draws below still project correctly. */
-    vines_draw(ctx);
-    valve_handles_draw(ctx);
+    if (exp != DBG_EXP_NO_ENTITIES) {
+        vines_draw(ctx);
+        valve_handles_draw(ctx);
+    }
 
     /* The buttons' floating prompts. After the props and before the sprites, in
        the same 128 window: the glyphs come out of the door font, which lives in
        the top rows of its own page and is window-safe (see hud.c). */
     greenhouse_puzzle_draw(ctx);
+    greenhouse_flood_draw(ctx);   /* ...and the valve wheel's, same font,
+                                     same window */
 
     /* Every sprite enemy renderer is handed this room's texture window, because
        all of their sprites live at Voff >= 128 and must bracket it rather than
@@ -902,7 +988,11 @@ void greenhouse_draw(RenderContext *ctx) {
         hadads_set_texwindow(&tw);
     }
 
-    {
+    /* DEBUG LEVEL 8 leaves every one of these out — the mirror of level 4's
+       "no mesh", so the draw section can be split between this room's mesh
+       primitives and the population the flood put in it. See DBG_EXP_NO_ENTITIES
+       and tools/DIAGNOSING_FRAME_RATE.txt STEP 1: bisect before optimising. */
+    if (exp != DBG_EXP_NO_ENTITIES) {
         draw_zombies(ctx);
         draw_spiders(ctx);
         draw_rafflesias(ctx);
@@ -913,6 +1003,19 @@ void greenhouse_draw(RenderContext *ctx) {
         item_pickups_draw(ctx);
         sml_meds_draw(ctx);
     }
+
+    /* THE FLOOD'S CEILING WATER, AND IT HAS TO BE DRAWN HERE RATHER THAN WITH
+       THE OTHER PARTICLE POOLS. draw_particles rides in main.c's
+       draw_player_systems, which is SUPPRESSED for the whole of a camera-locked
+       puzzle — and this spray only ever runs during one, so on that path it
+       would never appear at all. The room draws it instead.
+
+       The billboards are untextured TILEs, so the 128 window above is nothing to
+       them; what they do need is the plain camera view matrix, which the sprite
+       renderers just above leave in whatever state suits them. Reload it. */
+    gte_SetRotMatrix(&rot_matrix);
+    gte_SetTransMatrix(&rot_matrix);
+    if (exp != DBG_EXP_NO_ENTITIES) draw_spray(ctx);
 
     /* Last: the door's sign, the only one in the room. */
     door_text(ctx);

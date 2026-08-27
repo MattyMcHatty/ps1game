@@ -97,6 +97,46 @@ int vine_in_area(GameState area) {
     return -1;
 }
 
+int vine_locked_in_area(GameState area) {
+    int i;
+    for (i = 0; i < vine_count; i++)
+        if (vines[i].active && vines[i].state == VINE_INTACT &&
+            !vines[i].destructible && vines[i].area == area)
+            return i;
+    return -1;
+}
+
+/* ---- The drop -------------------------------------------------------------
+   See the block on vines_drop_start in vines.h. Per-curtain, unlike the raise:
+   the five that come out of the Greenhouse's roof travel together. A slot with
+   drop_t == 0 is not travelling, which is every curtain in the ordinary case,
+   so vines_drop_update is a walk over a short array and nothing else. */
+static int32_t drop_t[MAX_VINES];
+static int32_t drop_len[MAX_VINES];
+
+void vines_drop_start(int i, int32_t frames) {
+    if (i < 0 || i >= vine_count) return;
+    Vine *v = &vines[i];
+    v->active = 1;
+    if (v->state != VINE_INTACT) { drop_t[i] = 0; return; }  /* burnt: stays gone */
+    if (frames < 1) { v->lift = 0; drop_t[i] = 0; return; }
+    v->lift     = VINE_HEIGHT;      /* starts fully inside the roof */
+    drop_len[i] = frames;
+    drop_t[i]   = frames;
+}
+
+void vines_drop_update(void) {
+    int i;
+    for (i = 0; i < vine_count; i++) {
+        if (drop_t[i] <= 0) continue;
+        drop_t[i]--;
+        /* Derived from the REMAINING frames rather than accumulated, so the
+           last frame lands exactly on lift 0 — the valve wheel's spin is
+           written the same way and for the same reason. */
+        vines[i].lift = (VINE_HEIGHT * drop_t[i]) / drop_len[i];
+    }
+}
+
 void vines_init(void) {
     int i = 0;
 
@@ -128,6 +168,91 @@ void vines_init(void) {
     vines[i].state = VINE_INTACT; vines[i].active = 1;
     vines[i].area = STATE_GREENHOUSE; i++;
 
+    /* ---- THE GREENHOUSE'S FLOOD: five curtains across the nave's aisles -----
+       They are NOT here at the start of the game. Taking the Valve Handle off
+       the standing pipe opens the roof sprinklers, and these come down out of
+       the ceiling with the water (src/greenhouse_flood.c). Until then every one
+       of them is `active = 0`, which keeps it out of the draw, the collision,
+       the hitscan, the axe and vine_in_area alike; vines_drop_start turns the
+       slot on, and greenhouse_flood_init turns it on with no travel for a
+       player who arrives after the event.
+
+       WHERE THE GAPS ARE. The nave x[-3100,100] z[-2600,1400] is divided by
+       four waist-high planting beds, and the gaps these fill are the openings
+       between them (greenhouse_mesh_collision.c's walls 0-11 and 15 are the
+       beds; the numbers below are read straight off them):
+
+         bed A  x[-2433, -500]  z[-2000,-1400]   walls 0-3
+         bed B  x[-3100,-1766]  z[ -800, -300]   walls 4-6
+         bed C  x[-3100,-1099]  z[ 1100, 1400]   walls 7-8
+         bed D  x[-1099, -500]  z[ -800,  350]   walls 9-11, 15
+
+       >>> THE MODEL IS 600 WIDE AND THREE OF THESE ARE EXACTLY 600. <<< That is
+       what identifies them: bed A's south face and the room's south wall leave
+       a 600-deep corridor whose two MOUTHS are 600 across, and bed D's east
+       face and the room's east wall leave one whose south mouth is 600 across.
+       The other two are 667 and 750 and the curtain leaves 33 and 75 of daylight
+       at each edge, which is the closest the one model gets.
+
+       ORIENTATION. rot_y = 0 lays the model's 600 axis along Z (a curtain the
+       player walks through heading east/west); rot_y = 1024 turns it a quarter
+       and lays it along X. half_x/half_z are WORLD-axis half-widths, so they
+       swap with it — get that pair wrong and the box is 100 across where the
+       art is 600.
+
+       ALL FIVE ARE DESTRUCTIBLE: five axe swings or one Flame Round each. They
+       are an obstacle laid over a room the player has already walked, not a
+       lock, so the answer to them is the ordinary one. That also keeps
+       vine_locked_in_area's answer unambiguous — the annexe curtain above is
+       still the only indestructible one in the room. */
+
+    /* 1. The WEST mouth of the corridor between bed A and the south wall.
+          Line x = -2433 (bed A's west face), z[-2000,-2600] = 600. */
+    vines[i].x = -2433; vines[i].y = 0; vines[i].z = -2300;
+    vines[i].lift = VINE_HEIGHT; vines[i].rot_y = 0;
+    vines[i].half_x = VINE_HALF_X; vines[i].half_z = VINE_HALF_Z;
+    vines[i].destructible = 1;
+    vines[i].state = VINE_INTACT; vines[i].active = 0;
+    vines[i].area = STATE_GREENHOUSE; i++;
+
+    /* 2. The EAST mouth of that same corridor.
+          Line x = -500 (bed A's east face), z[-2000,-2600] = 600. */
+    vines[i].x = -500; vines[i].y = 0; vines[i].z = -2300;
+    vines[i].lift = VINE_HEIGHT; vines[i].rot_y = 0;
+    vines[i].half_x = VINE_HALF_X; vines[i].half_z = VINE_HALF_Z;
+    vines[i].destructible = 1;
+    vines[i].state = VINE_INTACT; vines[i].active = 0;
+    vines[i].area = STATE_GREENHOUSE; i++;
+
+    /* 3. The SOUTH mouth of the aisle between bed D and the east wall.
+          Line z = -800 (bed D's south face), x[-500,100] = 600. Turned a
+          quarter, so half_x/half_z swap. */
+    vines[i].x = -200; vines[i].y = 0; vines[i].z = -800;
+    vines[i].lift = VINE_HEIGHT; vines[i].rot_y = 1024;
+    vines[i].half_x = VINE_HALF_Z; vines[i].half_z = VINE_HALF_X;
+    vines[i].destructible = 1;
+    vines[i].state = VINE_INTACT; vines[i].active = 0;
+    vines[i].area = STATE_GREENHOUSE; i++;
+
+    /* 4. Across the aisle BETWEEN beds B and D, x[-1766,-1099] = 667, hung
+          half way down the stretch where both beds flank it (z[-800,-300], so
+          z = -550). Turned a quarter, as 3. */
+    vines[i].x = -1433; vines[i].y = 0; vines[i].z = -550;
+    vines[i].lift = VINE_HEIGHT; vines[i].rot_y = 1024;
+    vines[i].half_x = VINE_HALF_Z; vines[i].half_z = VINE_HALF_X;
+    vines[i].destructible = 1;
+    vines[i].state = VINE_INTACT; vines[i].active = 0;
+    vines[i].area = STATE_GREENHOUSE; i++;
+
+    /* 5. The slot between beds C and D on the x = -1099 line they share,
+          z[350,1100] = 750 — the widest of the five. */
+    vines[i].x = -1099; vines[i].y = 0; vines[i].z = 725;
+    vines[i].lift = VINE_HEIGHT; vines[i].rot_y = 0;
+    vines[i].half_x = VINE_HALF_X; vines[i].half_z = VINE_HALF_Z;
+    vines[i].destructible = 1;
+    vines[i].state = VINE_INTACT; vines[i].active = 0;
+    vines[i].area = STATE_GREENHOUSE; i++;
+
     vine_count = i;
 
     int j;
@@ -139,6 +264,7 @@ void vines_init(void) {
 
 void vines_reset(void) {
     int i;
+    for (i = 0; i < MAX_VINES; i++) { drop_t[i] = 0; drop_len[i] = 0; }
     /* Also drops a raise in flight. Nothing can legitimately be mid-travel here
        — a reset is a new game or a save rebuild — but leaving raise_index
        pointing into a re-placed array would wind the wrong curtain up. */

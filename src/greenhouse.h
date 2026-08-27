@@ -20,8 +20,17 @@
    it is worth stating because the door is the only opening either room has.
 
    Bounds x[-4400,100] z[-3900,1400] — 4500 x 5300, the largest footprint of any
-   room in the game, and 1230 prims. The mesh is 69 KB, well inside the arena
+   room in the game, and 1025 prims. The mesh is 58 KB, well inside the arena
    Maze One's 117 KB sizes, so nothing there had to change.
+
+   >>> IT WAS 1230 PRIMS AND 69 KB UNTIL THE Aug 2026 DECIMATION. <<< The room
+   was modelled on a ~200-unit grid and its shell was cut into five horizontal
+   bands, which cost the frame rate rather than the eye — see STEP 6 of
+   tools/DIAGNOSING_FRAME_RATE.txt for the count that led to the re-export. Two
+   things in the CODE were keyed to the old mesh and had to move with it: the
+   ten button primitive indices in src/greenhouse_puzzle.c, and the roof height
+   the flood's water, mushrooms and camera hang from (the apex ridge at y=-1205
+   is gone; nothing is above y=-900 now). Read both before the next re-export.
 
    THE LAYOUT, east to west:
 
@@ -107,6 +116,10 @@ void greenhouse_draw(RenderContext *ctx);
 /* The east-wall door back to the Stables. The only way in or out. */
 void greenhouse_door_arm(void);        /* seed the Circle edge state */
 int  greenhouse_door_triggered(void);  /* 1 on a fresh Circle press in range */
+
+/* The Valve Handle on the standing pipe, and the flood that taking it starts:
+   src/greenhouse_flood.c. greenhouse_init() runs its init and greenhouse_draw()
+   its prompt; main.c owns the update and the camera gate. */
 
 /* Arriving through that door: just inside it, facing west down the nave. */
 void greenhouse_spawn_east(void);

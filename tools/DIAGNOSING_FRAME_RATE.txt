@@ -20,7 +20,7 @@ Companion docs:
 ##########################################################################
  STEP 0 — THE INSTRUMENT. DO NOT SKIP THIS.
 ##########################################################################
-Press SELECT in game. It cycles eight levels:
+Press SELECT in game. It cycles nine levels:
 
     0  off
     1  PERF METER ONLY  <- read every number here
@@ -31,6 +31,21 @@ Press SELECT in game. It cycles eight levels:
        whatever cull is currently on trial)
     6  perf meter + view distance 2000
     7  perf meter + view distance 1800
+    8  perf meter + the room's ENEMIES, WATER AND PROPS not drawn
+    9  perf meter + the enemy AI FROZEN (the only switch that moves U)
+
+Level 8 is 4's mirror image and was added for the Greenhouse's flood (see the
+GREENHOUSE section at the bottom). D read at 4 and at 8 splits the draw section
+between the mesh and everything standing in it, in one sitting. Maze One's
+original "no sprites" reading was taken on the VB meter, which STEP 2 shows
+could not resolve 43 hblanks — level 8 is that reading done with an instrument
+that can. Maze One honours 4-7; the Greenhouse honours all five.
+
+>>> LEVEL 9 IS THE ONLY ONE THAT MOVES U. <<< Every switch above it changes what
+is DRAWN, so all of them leave the game's logic exactly where it was. 9 freezes
+the area-tagged enemy AI everywhere, and U read at 1 against U at 9 is the first
+number anyone has ever had for "how much of the frame is the monsters". It makes
+the game unplayable while it is on; that is the point.
 
 Level 1 reads:
 
@@ -179,6 +194,321 @@ directly, as the SDK's own example does (share/psn00bsdk/examples/system/timer):
     ticks = TIMER_VALUE(1) & 0xFFFF;     /* wraps every 4.2 s; deltas & 0xFFFF */
 
 The T field on the meter exists so this can never silently happen again.
+
+
+##########################################################################
+ STEP 3A, PART TWO — THE GREENHOUSE (Aug 2026)
+##########################################################################
+The Greenhouse's flood — six Rafflesias, four Mushroom Heads, five vine curtains
+and a 60-droplet water pool, dropped into the largest room in the game — was
+reported as lag, and the first question was whether Maze One's two winners
+applied. They half did, and the half that did not is the interesting part.
+
+WHAT WAS ALREADY THERE. The Greenhouse was built after Maze One was fixed and
+inherited every mesh-side change wholesale: the cull-key table (gh_keys, STEP 3B),
+the side-plane frustum cull, the hoisted trig and cull distance, and
+render_set_clear_colour instead of a second full-screen fill. There was nothing
+of STEP 3B left to do — do check this before assuming, but a room written after
+August 2026 probably has it.
+
+WHAT DID NOT APPLY, AND WHY. STEP 3A's props_any_solid() gate is a BOOLEAN, and
+a boolean only ever helps a room with NO props: it skips the sampling pass
+entirely in the gardens, the mazes and Fountain Square. The Greenhouse holds vine
+curtains, so the gate passes and the sampler runs — and then paid for ELEVEN prop
+families at every sample point to find the one family that could possibly answer.
+
+That had never mattered before, because until the flood no room combined the two
+halves: the rooms with props had no sprite enemies doing per-frame sightlines,
+and the rooms with sprite enemies had no props. The Greenhouse is the first room
+that is both, and it is also the largest, so its segments are the longest:
+collision_hidden_from_camera runs from the camera to each of ten sprites, up to
+the room's 2500 fog distance, i.e. up to 83 samples apiece, plus the Mushroom
+Heads' own alert and chase sightlines.
+
+THE FIX: props_any_solid() became props_solid_mask(), one bit per family,
+computed once per segment and carried into props_block_point. The inner loop goes
+from eleven calls to one in this room. Behaviour-neutral by the same argument the
+boolean gate already relied on — a family whose *_any_solid() is false cannot
+have a *_point_solid() return true, because point_solid tests the same
+active/state/area gates and then some. Every other room is unaffected sample for
+sample.
+
+>>> THE GENERAL LESSON, WHICH IS THE SAME ONE AS BEFORE. <<< A guard that asks
+"is there any work here at all" is worth writing, and it is worth checking
+whether it is asking the question at the right granularity. Maze One needed
+"none"; the Greenhouse needed "which". The same loop, the same fix, one level
+down.
+
+THE READINGS, taken in the flooded nave:
+
+    level 1 (everything)   U60  D210  G1     271 of 262 -> VB2
+    level 4 (no mesh)      U50  D30   G1
+    level 8 (no entities)  froze the game -- see THE FIFTH WRONG TURN below
+
+G1. CPU-bound, exactly as Maze One was; fill is not the problem however much
+water is on screen. And D falls from 210 to 30 with the mesh left out, so THE
+MESH IS 180 OF THE 210 and everything the flood added — ten sprites, six
+curtains, sixty droplets, the prompts — is the other 30. The room was over by
+nine hblanks, which is 3.4%.
+
+>>> THE POPULATION WAS NOT THE COST, AND THE PROP-MASK FIX ABOVE WAS AIMED AT
+THE WRONG THIRD OF THE FRAME. <<< It went in before any of these numbers
+existed, on the strength of the reasoning in the section above, and the reasoning
+was sound but the target was U — which is 60, a fifth of the frame and not what
+put the room over. It is kept because it is behaviour-neutral and it does make
+that fifth cheaper, but it is the fifth wrong turn's cousin: written before a
+measurement, and lucky rather than right. The measurement said MESH.
+
+
+##########################################################################
+ STEP 3B, PART TWO — THE GREENHOUSE'S FRUSTUM TEST WAS STILL READING THE MESH
+##########################################################################
+With D=180 in the mesh loop, the obvious question is how much it is drawing.
+Counted offline against Greenhouse.smx over 16 headings from the middle of the
+nave (the tool is a twenty-line script; write one, do not estimate):
+
+    1230 primitives walked      the whole mesh, gh_keys only, 6 bytes each
+     573 pass the distance cull the room is OPEN. Nearly half the mesh is within
+                                2500 of the player from anywhere in the nave —
+                                where Maze One's hedges keep it to ~120 of 2056
+     296 ENTER THE SIDE-PLANE TEST'S VERTEX LOOP
+     276 of those 296 are thrown away
+     122 actually drawn
+
+The drawn count is fine — 122 is the same order as Maze One at VB1. The cost was
+the middle line. STEP 3B lifted the DISTANCE key out of the mesh, and then the
+frustum test put the mesh back on the reject path one test later: ~296 primitives
+a frame reading v1..v3 out of a 69 KB vertex array, scattered, with no data cache,
+and 93% of them discarded.
+
+FIX: a second key, gh_box[] — each primitive's XZ BOUNDING BOX — tested against
+the side planes instead of its vertices.
+
+  IT IS NOT AN APPROXIMATION. The plane predicate is LINEAR in (x,z), so over a
+  convex box its minimum is at a corner: all four corners outside a plane PROVES
+  every vertex is outside it. Hole-free by construction, whatever the mesh —
+  which is a stronger guarantee than the vertex loop's, since that one was only
+  verified against one mesh at one moment. Checked anyway: 3,845,254 primitive/
+  pose combinations over the whole walkable footprint at 32 headings, ZERO holes,
+  and it culls 1.1% MORE than the vertex loop did (most of this mesh is
+  axis-aligned wall and glazing quads, whose XZ box IS the quad).
+
+  IT IS A SEPARATE ARRAY FROM gh_keys, AND THAT MATTERS. The key is read for all
+  1230 primitives every frame; the box is read only by the ~573 that pass the
+  distance cull. Folding four more int16s into GhCullKey would have put 8 bytes
+  of extra traffic on the hot path to save reads on the cold one.
+
+  ARITHMETIC STAYS IN THE <<12 DOMAIN rather than shifting down first the way
+  Maze One's does. >>12 floors, and a floored comparison can go the wrong way by
+  a unit at the screen edge — tolerable when it only confirms a per-vertex answer,
+  not tolerable when it is a proof about a box.
+
+>>> MAZE ONE HAS NOT HAD THIS AND SHOULD NOT GET IT UNMEASURED. <<< Its vertex
+loop runs on ~120 primitives, not 296, because a maze is not an open room. The
+win there would be small and the room is at 60fps. Measure before porting it.
+
+
+##########################################################################
+ THE FIFTH WRONG TURN — AN INSTRUMENT THAT CRASHED THE GAME
+##########################################################################
+Debug level 8 froze on the frame it was selected. Not the switch: the METER.
+
+    static const char *exp_name[5] = { "", "no mesh", ... };
+    ... exp_name[DEBUG_EXPERIMENT()] ...
+
+DEBUG_EXPERIMENT() now returns 5, the array holds 5 entries, and the garbage
+pointer went straight into snprintf's %s. Adding a DBG_EXP_* to collision.h and
+forgetting its label in main.c's meter is a hang, not a missing string.
+
+The array is sized from DBG_EXP_NO_ENTITIES + 1 now and the index is clamped, so
+the next switch added without a label prints blank instead of dying. But the
+lesson is the older one from this document, wearing different clothes: the
+instrument is code too, and STEP 0 says do not skip it — which is no use if
+reaching for it is what breaks the run.
+
+
+AFTER THE BOX KEY, measured in the same spot:
+
+    level 1  (everything)        U70  D180  G1     251 of 262   <- under budget
+    level 5  (frustum cull off)  U60  D176  G1
+    level 6  (view distance 2000)U80  D150  G1     231
+    level 7  (view distance 1800)U65  D145  G1     211
+
+D 210 -> 180. Thirty hblanks, which is the 296 mesh chases a frame gone, and it
+is what took the room from 271 to 251 and back under the 262 budget. That is the
+whole of the fix; nothing else moved D.
+
+>>> THE MARGIN IS ELEVEN HBLANKS, AND U SWINGS BY TWENTY. <<< U reads 60, 65, 70
+and 80 across the four readings above with nothing in the update path changed
+between them, so it is genuinely varying with where the player stands and what
+the monsters are doing. Eleven hblanks of headroom against that is not a lot: the
+room is at 60fps on average and will still drop the odd frame. THAT is why level
+9 exists.
+
+>>> AND THE SIDE-PLANE FRUSTUM CULL IS NOT PAYING FOR ITSELF. <<< D is 180 with
+it and 176 WITHOUT it. Maze One measured the same test exactly neutral and kept
+it for the packet-buffer headroom; here it is four hblanks on the wrong side of
+neutral, and the box key is what made it cheap enough for that to even be close.
+DO NOT DELETE IT ON THIS READING ALONE. What it is really buying is packet buffer,
+and an overflowing buffer does not slow down — the draw loops silently stop
+emitting primitives and geometry vanishes. Read the B/~p line at level 1 and at
+level 5 before touching it; if B is comfortably inside BUFFER_LENGTH either way,
+it is dead weight and can go.
+
+THE VIEW DISTANCE is the biggest lever left: 1800 buys another 35 hblanks of D
+and takes the frame to 211, a 20% margin. It is also the only change here that
+alters what the room LOOKS like — greenhouse.h argues the long view down the nave
+is the point of the place — so it is a design call, not a performance one, and it
+needs a person to look at it rather than a number.
+
+
+##########################################################################
+ STEP 3A, PART THREE — U, AND THE THIRD CONVICTION OF THE SAME FUNCTION
+##########################################################################
+    level 9 (AI frozen)   U7  D180  G0
+
+>>> SIXTY-THREE OF THE SEVENTY HBLANKS OF U ARE THE ENEMY AI. <<< Ninety per cent
+of the game's logic, a quarter of the whole frame, for ten enemies. This is the
+number STEP 5 point 5 has been asking for since Maze One, and it took a switch
+that moves U to get it — every earlier level only changes what is DRAWN.
+
+WHICH ten. Not the flowers: update_rafflesias is one integer square root and some
+arithmetic per instance, no sightline anywhere in it (the Rafflesia's two
+collision_hidden_from_camera calls are in its DRAW, so they land in D). That
+leaves the FOUR Mushroom Heads holding essentially all of it — about 16 hblanks,
+a full millisecond, each, every frame.
+
+And the cost is collision_segment_blocked. Again. Third time in this document.
+
+    if (m->state == MSH_PACE) {
+        ...
+        int clear = !collision_segment_blocked(m->x, m->y, m->z, wx, m->y, wz);
+        msh_steer(m, gx, gz, MSH_WALK_SPEED, clear);
+
+That segment is the full remaining length of the patrol leg — up to 1692 units in
+this room, so ~56 samples — and it ran for every mushroom on every frame.
+
+>>> AND THE ANSWER WAS USUALLY NEVER READ. <<< Trace what `clear` does inside
+msh_steer: it zeroes `blocked` and `steer_timer`, and the only two branches that
+read those are already dead when both are zero. So on any frame where the feeler
+probe hit nothing and no wall-follow commit was running — which is most frames,
+for a mushroom patrolling an open aisle — the trace was computed and then changed
+nothing whatsoever.
+
+FIX: msh_steer now takes the sightline's TARGET rather than its ANSWER, and
+traces it only inside `if (blocked || m->steer_timer > 0)`. Identical on every
+frame by construction, not by measurement:
+
+    blocked == 0 && steer_timer == 0  ->  both branches inert either way, so the
+                                          answer cannot be read. Skip.
+    otherwise                         ->  the same test, run as before.
+
+The ALERT sightline higher up is untouched and must stay eager: its answer starts
+a scream, so it is consulted the instant it is taken.
+
+>>> src/spider.c HAS THE SAME SHAPE AND HAS NOT BEEN CHANGED. <<< It is not in
+the room anyone measured, and the whole of this document is about not doing that.
+
+>>> THE PATTERN, THREE TIMES OVER. <<< Every one of this function's three
+convictions was the same mistake in a different coat: work sized for a rare
+event (a gunshot) sitting on a path walked every frame.
+
+    Maze One    the sampler ran in a room with no props at all   -> gate it
+    Greenhouse  the sampler asked eleven families to find one    -> mask it
+    Greenhouse  the answer was computed and then not read        -> defer it
+
+None of the three changed a single answer. If there is a fourth, expect it to be
+the same shape.
+
+
+    level 1, after the deferred sightline   U35  D180  G1     216 of 262
+
+U 70 -> 35, and the lag in the measured spot is gone.
+
+
+##########################################################################
+ STEP 6 — WHEN THE CODE IS DONE AND THE ROOM IS STILL HEAVY
+##########################################################################
+The Greenhouse ended at U35 D180 G1 in the nave, and D still climbs past 200 in
+some parts of the room. At that point the question stops being "what is the code
+doing wrong" and becomes "is this simply too much room for the machine".
+
+>>> IT IS NOT. AND THE WAY TO KNOW THAT IS TO COUNT THE MESH, NOT TO GUESS. <<<
+STEP 2 point 3 already says primitive count is not frame cost — Reception draws
+~951 at full rate. The Greenhouse draws between 122 and 211. Nothing about what
+is ON SCREEN is near this machine's limit. What was over the limit is how many
+primitives the room is DESCRIBED with: 1230, walked in full every frame.
+
+So count what those 1230 actually are. Grouping every wall quad by texture and
+XZ footprint, and every floor quad by grid cell:
+
+    740 wall quads          sitting in only 225 vertical COLUMNS
+                            105 of those columns are FIVE quads tall
+    490 floor quads         a plain ~200 x 200 grid over 4500 x 5300
+      -- no other geometry to speak of
+
+>>> TEN BUTTONS CUT THE WHOLE ROOM INTO FIVE HORIZONTAL STRIPS. <<< The wall
+bands are y[-900,-675], [-675,-450], [-450,-243], [-243,-158] and [-158,0], and
+that fourth one — 113 quads of it, right round the room — is the height of the
+pipe buttons in greenhouse_puzzle.c. There are TEN buttons. A loop cut made to
+place ten quads was carried around the entire shell, and it and the band above it
+account for most of the 740.
+
+None of that subdivision carries any detail. A 200 x 200 floor tile is flat and
+identical to its neighbour; a wall column of five stacked strips is one wall.
+
+    merge each wall column (contiguous strips only)   740 -> 242   saves 498
+    merge the floor 2x2                               490 -> 140   saves 350
+    ------------------------------------------------------------------------
+    1230 -> ~358 primitives, and the room looks the same
+
+UV headroom is not the constraint: a 200-unit tile spans ~34 texels of the 128
+window, and POLY_FT4's UVs are uint8, so a merged quad has room for seven tiles
+per axis before it overflows 255. WARPING is the constraint — the PS1 has no
+perspective-correct texturing, so a big polygon swims. That is almost certainly
+why the grid is there in the first place, and it is why the two merges are not
+equally safe:
+
+  WALL COLUMNS ARE THE SAFE ONE and the bigger win. A wall is seen close to
+  face-on from standing height, which is where affine warping is least visible,
+  and the merge is purely vertical — the horizontal 200-unit spacing stays. 498
+  primitives, 40% of the mesh, for very little risk.
+
+  THE FLOOR IS THE RISKY ONE. Floors are seen at grazing angles, which is
+  exactly where warping shows. Do the walls first, measure, and only go to the
+  floor if it is still needed — and then 2x2, not 4x4.
+
+>>> RE-EXPORTING MOVES EVERY PRIMITIVE INDEX. <<< Three things are keyed by
+index and all three must be redone in the same sitting:
+    src/greenhouse_tex_map.h   regenerate: py gen_greenhouse_tex_map.py
+    greenhouse_nocull[]        same generator, same file
+    BUTTON[].prim in src/greenhouse_puzzle.c   RE-DERIVE, do not nudge. That
+        file already says so: the check is that exactly ten prims carry slot 9
+        in the tex map and the same ten appear in the table.
+Collision is generated from a SEPARATE mesh ("Greenhouse mesh.smx") and is not
+affected, so the room's walls and floors do not move.
+
+THE ALTERNATIVE, IF THE MESH IS NOT TO BE TOUCHED, is view distance: 1800 was
+measured at D145 against 180. It costs the long view down the nave, which
+greenhouse.h argues is the point of the room. That is a design decision and it
+wants a person looking at the screen, not a number.
+
+>>> AND THE GENERAL RULE THIS ROOM ADDS. <<< Before removing anything from a
+level, count how many primitives its geometry is DESCRIBED with against how many
+it NEEDS. Grid subdivision left over from modelling is invisible on screen and
+costs the whole frame, every frame — it is always the first thing to spend, and
+it is cheaper than any content decision.
+
+
+>>> WHAT HAS STILL NOT BEEN MEASURED. <<<
+  the B/~p line, at levels 1 and 5, which decides the frustum cull's fate (D is
+      180 with it and 176 without, so it is currently dead weight unless it is
+      protecting the packet buffer).
+  VB/FPS at level 1, to confirm what U+D+G already says.
+  the worst spots themselves. Swept offline, D peaks around the middle of the
+      nave looking WEST — (-2100,-1600) and (-1700,-1800) at cam_rot ~3072 draw
+      211 and 204 against the 122 typical of the nave centre. Stand there with
+      the meter up before and after any mesh change.
 
 
 ##########################################################################

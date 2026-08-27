@@ -11,6 +11,7 @@
 #include "door.h"
 #include "fatdoor.h"
 #include "vines.h"
+#include "greenhouse_flood.h"
 #include "valve_handle.h"
 #include "tentacle.h"
 #include "rafflesia.h"
@@ -988,6 +989,46 @@ void world_seed_room(GameState area) {
        geometry is not resident. */
     if (area == STATE_GREENHOUSE) {
         item_pickup_spawn(-3800, -50, -1700, PICKUP_HELLUMINATOR);
+
+        /* THE FLOOD'S FOUR MUSHROOM HEADS, and they are seeded ONLY once the
+           room has flooded. Unlike the Helluminator above, these do not exist
+           in an un-flooded Greenhouse at all — the player takes the Valve
+           Handle off the standing pipe, the roof opens, and they come down out
+           of it (src/greenhouse_flood.c, which calls mushroom_add itself on the
+           frame that happens).
+
+           >>> THIS BRANCH IS THE SAVE REBUILD, NOT THE EVENT. <<< world_load_delta
+           empties the global mushroom array and replays world_seed_room for
+           every visited room, so a save made after the flood has to put the
+           four back here or they vanish on load. The flag is already restored
+           by then — savegame_apply_pending sets game_flags before it stages the
+           delta, precisely so seeds may read it.
+
+           SEED ORDER IS LOAD-BEARING, as it is for the Keystone Maze's statues:
+           mushrooms_dead indexes instances by (room in room_areas[] order, then
+           seed order within the room). The Greenhouse is room 23, the LAST, so
+           these four append after every existing mushroom and no older save's
+           bits move — which is why widening mushrooms_dead to a uint16_t was the
+           only change the field needed.
+
+           The four patrols, all on the -149 standing anchor this room's flat
+           y = 0 floor takes (authored, never probed — this runs for rooms whose
+           geometry is not resident). Each was checked against the planting beds
+           in greenhouse_mesh_collision.c: no leg crosses one, and the fourth
+           runs down the 667-wide connector slot at x[-1766,-1099] from the nave
+           into the south bay, which is the only route between them. */
+        if (game_flag(FLAG_GREENHOUSE_FLOOD)) {
+            /* The flowers and the vine curtains first. They are switched on
+               rather than built, and this is the ONLY hook that runs after
+               world_load_delta's rafflesias_reset()/vines_reset() — see the
+               note on greenhouse_flood_seed. */
+            greenhouse_flood_seed();
+
+            mushroom_add( -221,  1018,   -221,  -467, -149, STATE_GREENHOUSE);
+            mushroom_add(-2748,   874,  -1729,   120, -149, STATE_GREENHOUSE);
+            mushroom_add( -424, -1114,  -2116, -1114, -149, STATE_GREENHOUSE);
+            mushroom_add(-1424, -2232,  -1424, -3336, -149, STATE_GREENHOUSE);
+        }
     }
 
     if (area == STATE_KEYSTONE_MAZE) {
@@ -1146,7 +1187,7 @@ void world_save_delta(WorldDelta *d) {
         for (i = 0; i < world.mushroom_count; i++) areas[i] = world.mushrooms[i].area;
         for (i = 0; i < world.mushroom_count; i++)
             if (world.mushrooms[i].state == MSH_DEAD)
-                d->mushrooms_dead |= (uint8_t)
+                d->mushrooms_dead |= (uint16_t)
                     (1u << canonical_index(areas, world.mushroom_count, i));
     }
     {

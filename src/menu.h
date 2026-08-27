@@ -27,7 +27,8 @@ void menu_draw(RenderContext *ctx);
 #define MENU_SLOT_YELLOW_KEY_STONE 8
 #define MENU_SLOT_MAGENTA_KEY_STONE 9
 #define MENU_SLOT_HATCH_KEY        10
-#define MENU_ITEM_SLOTS           11   /* number of item IDs that exist */
+#define MENU_SLOT_VALVE_HANDLE     11
+#define MENU_ITEM_SLOTS           12   /* number of item IDs that exist */
 
 /* ---- Inventory order ------------------------------------------------------
    The ITEMS column is 3x4 = 12 CELLS, and which item ID lives in which cell is
@@ -38,7 +39,13 @@ void menu_draw(RenderContext *ctx);
    Stone made a 9th item.
 
    The arrangement is part of the save (SaveData.item_order), so it survives a
-   save/load rather than snapping back to ID order. */
+   save/load rather than snapping back to ID order.
+
+   >>> AND IT IS NOW EXACTLY FULL. <<< MENU_ITEM_SLOTS reached 12 with the Valve
+   Handle, so a player holding one of everything occupies every cell. A 13th item
+   needs the grid enlarged before it needs an ID — see tools/ADDING_AN_ITEM.txt,
+   which also records that 13 is the wall for the stove/piano/exit-door pickers
+   for an unrelated reason. */
 #define MENU_ITEM_CELLS           12
 
 void menu_inventory_reset(void);   /* new game: empty every cell */

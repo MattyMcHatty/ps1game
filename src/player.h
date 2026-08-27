@@ -27,6 +27,11 @@ typedef enum {
                                that from its own copy of the same TIM); nothing places
                                a magenta pickup yet, so the bit is only reachable from
                                a PICKUP_MAGENTA_KEY_STONE spawn added later */
+    ITEM_VALVE_HANDLE,      /* the wheel taken off the Greenhouse's standing pipe.
+                               Not a PickupKind: there is no sprite to walk into,
+                               the player unbolts the 3D prop itself
+                               (src/greenhouse_flood.c) and the mount's `present`
+                               bit is what the world remembers */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */
@@ -237,6 +242,22 @@ typedef enum {
        the top instructs. */
     FLAG_BIRDCAGE_OPEN,
     FLAG_BIRDCAGE_WASHED,
+    /* THE GREENHOUSE HAS FLOODED (src/greenhouse_flood.c). Taking the Valve
+       Handle off the standing pipe in the south bay opens the roof sprinklers,
+       and what comes down with the water stays: six Rafflesias on the room's
+       poison_flower_base beds, four Mushroom Heads, and five vine curtains
+       across the aisles between the planting beds.
+
+       A flag rather than a reading of the world, for a reason none of the three
+       populations can cover on its own. The mount's `present` bit says the
+       handle was TAKEN, but nothing says the scene has RUN — a debug grant of
+       the item would leave a room that should be overgrown standing empty. The
+       flowers have no save state at all by design (rafflesia.h), the curtains'
+       health bytes cannot distinguish "never dropped" from "cleared", and the
+       mushrooms are seeded by world_seed_room(), which needs to know on a save
+       rebuild whether this room's four exist. This bit is what all three read.
+       Declared at the END of the enum, as the note at the top instructs. */
+    FLAG_GREENHOUSE_FLOOD,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

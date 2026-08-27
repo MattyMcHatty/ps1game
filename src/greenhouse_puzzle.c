@@ -44,17 +44,25 @@ static const struct {
     int32_t  sign_x;
     int      mirror;
 } BUTTON[GH_BUTTON_COUNT] = {
-    /*  1 */ { 1162, -3100,   813, -3100 + GHB_TEXT_STANDOFF, 0 },
-    /*  2 */ { 1163, -3100,   308, -3100 + GHB_TEXT_STANDOFF, 0 },
-    /*  3 */ { 1083, -3100,   -50, -3100 + GHB_TEXT_STANDOFF, 0 },
-    /*  4 */ {  998, -3100, -1034, -3100 + GHB_TEXT_STANDOFF, 0 },
-    /*  5 */ {  614, -3100, -2370, -3100 + GHB_TEXT_STANDOFF, 0 },
-    /*  6 */ {  653,   100,   813,   100 - GHB_TEXT_STANDOFF, 1 },
-    /*  7 */ {  644,   100,   308,   100 - GHB_TEXT_STANDOFF, 1 },
-    /*  8 */ { 1078,   100, -1034,   100 - GHB_TEXT_STANDOFF, 1 },
-    /*  9 */ { 1172,   100, -1765,   100 - GHB_TEXT_STANDOFF, 1 },
-    /* 10 */ { 1176,   100, -2370,   100 - GHB_TEXT_STANDOFF, 1 },
+    /*  1 */ {  874, -3100,   813, -3100 + GHB_TEXT_STANDOFF, 0 },
+    /*  2 */ {  875, -3100,   308, -3100 + GHB_TEXT_STANDOFF, 0 },
+    /*  3 */ {  804, -3100,   -50, -3100 + GHB_TEXT_STANDOFF, 0 },
+    /*  4 */ {  780, -3100, -1034, -3100 + GHB_TEXT_STANDOFF, 0 },
+    /*  5 */ {  487, -3100, -2370, -3100 + GHB_TEXT_STANDOFF, 0 },
+    /*  6 */ {  519,   100,   813,   100 - GHB_TEXT_STANDOFF, 1 },
+    /*  7 */ {  510,   100,   308,   100 - GHB_TEXT_STANDOFF, 1 },
+    /*  8 */ {  801,   100, -1034,   100 - GHB_TEXT_STANDOFF, 1 },
+    /*  9 */ {  884,   100, -1765,   100 - GHB_TEXT_STANDOFF, 1 },
+    /* 10 */ {  888,   100, -2370,   100 - GHB_TEXT_STANDOFF, 1 },
 };
+
+/* >>> THE PRIM COLUMN WAS RE-DERIVED FOR THE Aug 2026 DECIMATED EXPORT. <<<
+   The room went from 1230 primitives to 1025 and every index moved; the x/z
+   column did NOT change, because the buttons themselves were not touched. The
+   check the block above prescribes was run and passes: exactly ten prims carry
+   slot 9 in src/greenhouse_tex_map.h, and they are the ten listed here, at the
+   ten coordinates that were already here. Re-derive again on the next
+   re-export — do not nudge these. */
 
 /* Buttons 3, 4, 5 and 6 — bits 2, 3, 4 and 5. The whole solve test is
    `lit_mask == GH_SOLUTION_MASK`, so a sixth button left on, or one of these
@@ -169,7 +177,7 @@ void greenhouse_puzzle_init(void) {
        already had it or has arrived by a route that never earned one (a debug
        grant of the flag). Either way what they need is the doorway open. */
     if (solved()) {
-        int v = vine_in_area(STATE_GREENHOUSE);
+        int v = vine_locked_in_area(STATE_GREENHOUSE);
         if (v >= 0) {
             vines[v].lift   = VINE_HEIGHT;
             vines[v].health = 0;
@@ -214,10 +222,16 @@ static void end_cutscene(void) {
 }
 
 static void solve(void) {
-    int v = vine_in_area(STATE_GREENHOUSE);
+    int v = vine_locked_in_area(STATE_GREENHOUSE);
 
     game_flag_set(FLAG_GREENHOUSE_BUTTONS);
 
+    /* vine_locked_in_area, NOT vine_in_area: since the flood this room holds
+       six curtains and the five in the aisles are destructible. Once the annexe
+       curtain is cleared vine_in_area would start answering with one of those,
+       and the catch-up branch below would delete an aisle curtain on every
+       later entry. The one this puzzle opens is by construction the one nothing
+       else can remove — see vines.h. */
     /* The curtain may already be gone — a save made mid-raise reloads with it
        cleared, and a debug grant of the flag can arrive with no curtain at all.
        Setting the flag is the part that must happen either way; there is nothing

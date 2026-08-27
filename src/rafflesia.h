@@ -42,11 +42,19 @@
  * ----------------------------------------------------------------------- */
 
 /* Whole-game budget, not per room: three in the Outside Catacombs, five in
-   Maze One and three in Maze Two fill eleven of these, so the pool is kept two
-   clear of the current planting — add_rafflesia drops silently once it is full.
-   Raising it costs RAM only and nothing on the memory card: rafflesias have no
-   WorldState section at all (see rafflesias_rest below). */
-#define MAX_RAFFLESIAS        13
+   Maze One, three in Maze Two and four in the Greenhouse fill fifteen of
+   these, so the pool is kept four clear of the current planting —
+   add_rafflesia drops silently once it is full. Raising it costs RAM only and
+   nothing on the memory card: rafflesias have no WorldState section at all
+   (see rafflesias_rest below).
+
+   >>> THE GREENHOUSE'S SIX ARE PLACED DORMANT. <<< They are seeded by
+   rafflesias_init like every other flower but with active = 0, and only the
+   room's flood turns them on (rafflesias_wake_area). That is what keeps a
+   "which flowers exist" question out of the save: the placement is a
+   compile-time constant either way and FLAG_GREENHOUSE_FLOOD is the one bit
+   that decides whether they are in the world. */
+#define MAX_RAFFLESIAS        19
 #define RAFFLESIA_MAX_HEALTH   4
 
 typedef struct {
@@ -79,6 +87,11 @@ void rafflesias_init(void);       /* place every room's rafflesias            */
 void rafflesias_reset(void);      /* new game / load: restore the layout      */
 void rafflesias_rest(void);       /* room change: full health, asleep, no mist */
 void rafflesias_silence(void);    /* stop both looped ambiences + clear latches */
+/* Turn on every DORMANT flower tagged with `area` — the Greenhouse's six, and
+   nothing else today. Idempotent, so a room entry can call it unconditionally
+   once the flood's flag is set. Note it can only ever ACTIVATE: there is no
+   counterpart, because nothing in the game un-plants a bed. */
+void rafflesias_wake_area(GameState area);
 void update_rafflesias(void);
 void draw_rafflesias(RenderContext *ctx);
 

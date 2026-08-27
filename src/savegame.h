@@ -17,7 +17,23 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   20            /* v20: oil — the Helluminator's fuel. It is
+#define SAVE_VERSION   21            /* v21: mushrooms_dead is a uint16_t. The
+                                        Greenhouse's flood puts FOUR more
+                                        Mushroom Heads in the game, taking the
+                                        whole-game total to nine against the
+                                        eight bits the field had, so
+                                        WD_MAX_MUSHROOMS went 8 -> 16 with it.
+                                        The WorldDelta grew a byte, so
+                                        delta_size would already reject a v20
+                                        save; the bump makes the reason
+                                        legible. Nothing else about the flood
+                                        needed a format change — the Valve
+                                        Handle is a bit in the `items` word,
+                                        FLAG_GREENHOUSE_FLOOD a bit in the
+                                        `flags` word, and the five new vine
+                                        curtains fit the eight vine_health
+                                        bytes that already existed;
+                                    v20: oil — the Helluminator's fuel. It is
                                         NOT an AmmoType (see player.h), so it
                                         could not ride in the existing ammo[]
                                         array and SaveData grew a field. The

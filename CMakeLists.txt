@@ -137,6 +137,7 @@ add_executable(horror_game
     src/fatdoor.c
     src/vines.c
     src/greenhouse_puzzle.c
+    src/greenhouse_flood.c
     src/birdcage.c
     src/valve_handle.c
     src/door_anim.c

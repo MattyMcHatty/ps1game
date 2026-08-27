@@ -272,9 +272,14 @@ giving it one would silently rescale every existing swing.
                count, which travels with the icon rather than sitting in a fixed
                cell.
 
-  GRID CAPACITY: MENU_ITEM_CELLS is 12 (3 cols x 4 rows) against 10 item IDs, so
-  two are free. Past 12 the grid itself has to grow again, and MENU_ITEM_CELLS
-  must keep matching ITEM_COLS * GRID_ROWS — menu.c static-asserts it.
+  GRID CAPACITY: >>> THE GRID IS NOW EXACTLY FULL. <<< MENU_ITEM_CELLS is 12
+  (3 cols x 4 rows) and the Valve Handle made MENU_ITEM_SLOTS 12 as well, so a
+  player holding one of everything fills every cell and there is no spare. A
+  THIRTEENTH item cannot simply be appended: the grid itself has to grow first
+  (it went 2x4 -> 3x4, with smaller icons, when the Yellow Key Stone made a 9th),
+  and MENU_ITEM_CELLS must keep matching ITEM_COLS * GRID_ROWS — menu.c
+  static-asserts it. Note 13 is also the wall for the three PICKERS below, for a
+  completely unrelated reason, so both have to be answered at once.
 
   >>> AND CHECK THE THREE PICKERS' COLUMN COUNT. <<< The stove, piano and
   exit-door pickers each lay MENU_ITEM_SLOTS out in a PICK_COLS x PICK_ROWS grid
