@@ -198,6 +198,17 @@
                 <file name="CURSOR.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\cursor.vag"/>
                 <file name="SELECT.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\select.vag"/>
                 <file name="BACK.VAG"    type="data" source="C:\Users\virtu\Documents\ps1game\sounds\back.vag"/>
+
+                <!-- THE VALVE PUZZLE'S RUNNING WATER. Garden bank, 1.98 s at
+                     11025 Hz, and the VAG is encoded with the wav_to_vag loop flag so the SPU
+                     repeats it in hardware for as long as its voice is keyed on
+                     (the spider scuttle's arrangement; see src/sound.c).
+                     PAID FOR BY RE-CUTTING SPDR_WLK.VAG AND TNTCL_DIE.VAG from
+                     22050 Hz to the house 11025 — the last two clips that were
+                     off the standard — which freed 23.5 KB across the garden and
+                     house banks. Before that the garden bank had 1200 bytes free
+                     and this clip needs 12.5 KB. -->
+                <file name="WATER.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\water.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

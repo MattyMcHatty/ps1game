@@ -96,6 +96,7 @@
 #include "fatdoor.h"
 #include "vines.h"
 #include "valve_handle.h"
+#include "valve_puzzle.h"
 #include "door_anim.h"
 #include "stair_anim.h"
 #include "intro.h"
@@ -201,6 +202,11 @@ void reset_game(RenderContext *ctx) {
     fatdoors_reset();
     vines_reset();          /* ...and every vine curtain back to intact   */
     valve_handles_reset();  /* ...and the valve handle back on its pipe   */
+    valve_puzzle_reset();   /* ...its three pipes unturned, and the drain
+                               that one of them opens silenced. The water is
+                               HARDWARE-looped, so a new game started while it
+                               was running would otherwise carry the sound
+                               into the mansion — see src/sound.h.        */
     greenhouse_flood_reset();/* ...and back OUT of the inventory, or a new
                                playthrough starts holding one              */
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
@@ -327,6 +333,35 @@ static void update_current_area(GameState area) {
         item_pickups_update();
         sml_meds_update();
         keystone_plinths_update();
+        return;
+    }
+    /* The Valve Puzzle's board, its fit animation and its two log beats, in
+       whichever of the three pipe rooms the player is standing in. Enemies keep
+       running for the reason the stove's board and the Keystone Maze's picker
+       keep theirs running: the player is stood at the pipe the whole time and
+       nothing has taken them out of the room.
+
+       >>> IT HAS TO TICK valve_handles_update() ITSELF. <<< That call lives
+       BELOW the area dispatch, past this early return, and it is what advances
+       the fit — the wheel sliding in and taking its three turns. Without it the
+       animation would freeze on its first frame for exactly as long as the
+       puzzle owns the screen, which is the whole of it. update_particles() is
+       here for the same reason the stove's copy is. */
+    if (valve_puzzle_active()) {
+        update_zombies();
+        update_spiders();
+        update_rabisus();
+        update_rafflesias();
+        update_mushrooms();
+        update_living_statues();
+        update_hadads();
+        webs_update();
+        item_pickups_update();
+        sml_meds_update();
+        player_status_update();
+        valve_puzzle_update();
+        valve_handles_update();
+        update_particles();
         return;
     }
     /* The Attic Exit's lightswitch puzzle only takes the camera for its PAYOFF —
@@ -1116,24 +1151,35 @@ static void update_current_area(GameState area) {
            every frame regardless: each keeps its own Circle edge state, and
            skipping a call would leave `just` armed for the following frame,
            firing the gate one frame late instead of not at all. */
+        /* THE STANDPIPE GETS THE FIRST REFUSAL, ahead of the cage and the three
+           gates, the way the Greenhouse's valve wheel does over that room's
+           buttons and door. It reports whether it CONSUMED this frame's tap.
+           Nothing is within reach of anything else today — the pipe is at
+           (5358, 953), the cage at (3730, 780) and the nearest gate thousands
+           away — so none of these vetoes is live; they are here so that moving
+           any one of them can never quietly make a single press do two things.
+           Every trigger below is still CALLED on every frame regardless: each
+           keeps its own Circle edge state, and skipping a call would leave
+           `just` armed for the following frame. */
+        int valve = valve_puzzle_update();
         int cage  = birdcage_update();
         int wgate = !lock && maze_one_gate_triggered();
         int ngate = !lock && maze_one_ngate_triggered();
         int egate = !lock && maze_one_egate_triggered();
-        if (!cage && wgate) {
+        if (!valve && !cage && wgate) {
             /* West back through the same gate, into Fountain Square. */
             pending_area = STATE_FOUNTAIN_SQUARE;
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
-        } else if (!cage && ngate) {
+        } else if (!valve && !cage && ngate) {
             /* North through the gate in the far hedge, on into Maze Two. The
                same iron leaf, so the same DOOR_PANEL_GATE transition. */
             pending_area = STATE_MAZE_TWO;
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
-        } else if (!cage && egate) {
+        } else if (!valve && !cage && egate) {
             /* East through the gate in the far corner, on into the Keystone
                Maze. The same iron leaf again. */
             pending_area = STATE_KEYSTONE_MAZE;
@@ -1152,14 +1198,17 @@ static void update_current_area(GameState area) {
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
-        if (!lock && maze_two_gate_triggered()) {
+        /* The standpipe first, as in Maze One: it reports whether it consumed
+           this frame's Circle tap and both gates stand down if it did. */
+        int mt_valve = valve_puzzle_update();
+        if (!lock && !mt_valve && maze_two_gate_triggered()) {
             /* South back through the same gate, into Maze One. */
             pending_area = STATE_MAZE_ONE;
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
-        if (!lock && maze_two_egate_triggered()) {
+        if (!lock && !mt_valve && maze_two_egate_triggered()) {
             /* East through the gate in the far wall, into the Chain Room. */
             pending_area = STATE_CHAIN_ROOM;
             door_anim_start(DOOR_PANEL_GATE);
@@ -1208,14 +1257,16 @@ static void update_current_area(GameState area) {
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
-        if (!lock && chain_room_wgate_triggered()) {
+        /* The standpipe first, as in both mazes. */
+        int cr_valve = valve_puzzle_update();
+        if (!lock && !cr_valve && chain_room_wgate_triggered()) {
             /* West back through the same gate, into Maze Two. */
             pending_area = STATE_MAZE_TWO;
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
-        if (!lock && chain_room_sgate_triggered()) {
+        if (!lock && !cr_valve && chain_room_sgate_triggered()) {
             /* South through the same gate, into the Keystone Maze. */
             pending_area = STATE_KEYSTONE_MAZE;
             door_anim_start(DOOR_PANEL_GATE);
@@ -2514,6 +2565,21 @@ int main(int argc, const char **argv) {
             if (pending_area == STATE_EAST_HALL)
                 east_hall_apply_flags();    /* re-reads FLAG_HADAD_TWO: the hall's
                                                monsters die with the Library */
+            /* THE VALVE PUZZLE, and it runs for EVERY area rather than for one,
+               because two of the three things it reconciles are not about the
+               room the puzzle is in:
+                 - the looping water, started or stopped for whatever room is
+                   being entered (it plays in three of them and must be silenced
+                   in all the rest);
+                 - Maze One's caged Hatch Key, gone once the chain has been wound
+                   in;
+                 - the Rear Gate's Hatch Key, placed the first time that room is
+                   entered after the drain has washed the cage key down it.
+               HERE and not in any area init, for keystone_plinths_apply_flags's
+               reason exactly: it writes to item_pickups, which world_enter above
+               has only just restored, and it reads flags that
+               savegame_apply_pending has only just installed. */
+            valve_puzzle_apply_flags(pending_area);
             if (pending_area == STATE_KEYSTONE_MAZE)
                 keystone_plinths_apply_flags();  /* re-reads the five keystone
                                                     flags, and spawns the reward
@@ -2594,6 +2660,16 @@ int main(int argc, const char **argv) {
                              /* The Keystone Maze's plinth picker, and the cut to
                                 the keystone that ends the puzzle. */
                              (area == STATE_KEYSTONE_MAZE && keystone_plinths_active()) ||
+                             /* The Valve Puzzle's board and the fit animation
+                                after it. NOT area-qualified like its neighbours:
+                                it is the one puzzle that lives in three rooms,
+                                and it can only ever be active in one of them, so
+                                the module's own flag is the whole test. It
+                                belongs in THIS list rather than the cutscene one
+                                below for the East Hall quake's reason — the fit
+                                ends on a log line, and only `puzzle` keeps the
+                                log box up. */
+                             valve_puzzle_active() ||
                              /* The East Hall's collapse. A cutscene by shape,
                                 but it belongs in THIS list and not the one
                                 below: the quake's whole payload is a log line

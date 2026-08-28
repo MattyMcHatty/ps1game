@@ -21,6 +21,8 @@
 #include "garden_courtyard.h"    /* garden_courtyard_upload_textures      */
 #include "outside_catacombs.h"   /* outside_catacombs_upload_flowers      */
 #include "maze_one.h"            /* maze_one_upload_pipe                  */
+#include "valve_puzzle.h"      /* the pipe in this room, and the gate it locks */
+#include "valve_handle.h"      /* the wheel on this room's standpipe */
 #include "save_point.h"
 #include "zombie.h"
 #include "spider.h"
@@ -349,6 +351,11 @@ int maze_two_egate_triggered(void) {
     int just = held && !egate_circle_prev;
     egate_circle_prev = held;
     if (!just) return 0;
+    /* THE VALVE LOCK. This gate is the outside approach to the Chain Room and it
+       does not open until THIS ROOM'S OWN standpipe has been worked -- see
+       src/valve_puzzle.c. After the edge state, not before, so the held press is
+       still consumed while it is refused. */
+    if (!valve_puzzle_gates_unlocked()) return 0;
 
     int32_t dx = cam_x - MT_EGATE_X;
     int32_t dz = cam_z - MT_EGATE_Z;
@@ -372,6 +379,15 @@ static void egate_text(RenderContext *ctx) {
         int prog  = xz - MT_FADE_NEAR;
         if (prog > range) prog = range;
         fade = 256 - ((prog * 256) / range);
+    }
+
+    /* Red and glyphless until the valve in this room is turned, as Reception's
+       sealed doors and the Garden Stairs' read. */
+    if (!valve_puzzle_gates_unlocked()) {
+        door_draw_string_3d(ctx, "Locked by some mechanism",
+                            MT_EGATE_X - 11, MT_TEXT_Y, MT_EGATE_Z - 200,
+                            255, 50, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+        return;
     }
 
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
@@ -424,6 +440,11 @@ void maze_two_init(void) {
        this room's own; the nearest is on the Garden Stairs' top landing. */
     save_points_clear();
     dressers_clear();
+
+    /* The valve pipe's prompt keeps its own Circle edge state, so it is armed
+       here for the reason both gates are: a press held through the transition
+       must not open the board on the arrival frame. */
+    valve_puzzle_arm();
 }
 
 static void draw_maze_two_smd(RenderContext *ctx) {
@@ -707,6 +728,15 @@ void maze_two_draw(RenderContext *ctx) {
     if (DEBUG_CULL_DIST()) g_fog_far = DEBUG_CULL_DIST();
 
     if (exp != DBG_EXP_NO_MESH) draw_maze_two_smd(ctx);
+    /* THE VALVE WHEEL, if one is fitted to this room's standpipe. After the mesh
+       so it sorts against it and inside the 128 texture window set above, which
+       is what its pipe texture wants; it restores the plain view matrix on the
+       way out, so the sprite draws below still project correctly. The Greenhouse
+       draws its own the same way and in the same place. Nothing is drawn at all
+       until the puzzle fits one -- valve_handles_draw skips a mount whose
+       `present` is clear. */
+    if (exp != DBG_EXP_NO_ENTITIES) valve_handles_draw(ctx);
+
 
     /* Every sprite enemy renderer is handed this room's texture window, because
        all of their sprites live at Voff >= 128 and must bracket it rather than
@@ -738,7 +768,12 @@ void maze_two_draw(RenderContext *ctx) {
         sml_meds_draw(ctx);
     }
 
-    /* Last: the two gate signs. */
+    /* Last: the two gate signs, and the standpipe's. */
     gate_text(ctx);
     egate_text(ctx);
+    valve_puzzle_text(ctx);
+
+    /* Dead last, and NOT world-space: the valve board is a 2D overlay on the
+       menu's OT range, so it goes on top of everything the room has drawn. */
+    valve_puzzle_draw(ctx);
 }

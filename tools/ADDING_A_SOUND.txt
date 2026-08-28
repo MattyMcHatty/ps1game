@@ -193,31 +193,45 @@ once against house or boss, once against garden. Omit the second entry and the
 script under-reports the bank you are about to overflow.
 
 The lists must be kept in the SAME ORDER as the enum in sound.h, because
-sound_init() allocates in enum order. As of the Hadad Death Scene:
+sound_init() allocates in enum order. As of the VALVE PUZZLE'S WATER:
 
     bank_base 0x51C10   region 189424
-    house 186048   boss 142528   garden 179968   intro 22080
-    spare 3376
+    house 162560   boss 142528   garden 177216   intro 22080
+    spare 12208
 
->>> THE GARDEN BANK IS NOW WITHIN 6 KB OF THE HOUSE BANK, AND THAT IS THE
-    NUMBER TO WATCH. <<< `spare` is sized by the LARGEST bank, so garden has
-been free to grow all along. hadad_die (21.3 KB) and spirit_woosh (27.7 KB) took
-it from 130 KB to 180 KB against house's 186 KB. The next garden clip over
-~6 KB makes GARDEN the largest bank, at which point `spare` stops meaning
-"house's headroom", starts shrinking with every garden addition, and the
-resident total has to come down before anything else goes in. There is still
-~9 KB between garden and the region ceiling either way.
+GARDEN IS THE LARGEST BANK AND HAS BEEN SINCE mchne_gh. `spare` is sized by the
+largest bank, so it is the garden list that sets it now: every garden clip comes
+straight off that 12 KB, and house has 26 KB of slack it cannot lend.
 
-(Before it: house 182656, spare 6768. Putting SFX_RUMBLE in the house bank as
+>>> THE RE-SAMPLING TRICK IS SPENT. THERE IS NOTHING LEFT OFF THE STANDARD. <<<
+Twice now a bank has been paid for by finding a clip running at 22050 Hz for no
+recorded reason and re-cutting it to the house 11025:
+
+    dogdie        (house)          re-cut for SFX_RUMBLE      freed  9.8 KB
+    spdr_wlk      (house + garden) re-cut for SFX_WATER       freed 11.7 KB
+    tntcl_die     (house + garden) re-cut for SFX_WATER       freed 11.8 KB
+
+That was ALL of them. Every clip in the game is now at 11025 or below, so the
+next effect that does not fit has to be TRIMMED, BANKED or refused — there is no
+third copy of this trick. And note what the last two cost: both are shared with
+the HOUSE bank, so re-cutting them for a garden sound took the top octave off
+the spider's scuttle and the tentacle's death everywhere in the game, not just
+in the garden. That is the user's call every time; ask before spending one.
+
+(Before the water: house 186048, garden 188224, spare 1200. The garden bank had
+less than a sector free and mchne_gh had just made it the largest, which is the
+state the paragraph below was written about.)
+
+(Historical, from when HOUSE was still the largest bank: house 182656,
+spare 6768. Putting SFX_RUMBLE in the house bank as
 well as the garden one needed 13376 B against 6768 free. It was paid for NOT by
 trimming rumble — hadad.h's HAD_RUMBLE_FRAMES is cut to that clip's exact length
 — but by finding a clip that was off the house standard for no recorded reason:
-dogdie.vag was 22050 Hz, and re-cutting it to 11025 freed 9.8 KB. FOUR of the
-house bank's clips are still at 22050 — dogbark, tntcl_die, spdr_wlk and spit —
-so the trick has roughly 42 KB left in it. Two caveats: tntcl_die and spdr_wlk
-are in the garden bank as well, so re-cutting either shrinks BOTH; and every use
-costs an existing sound its top octave, which is the user's call and not a free
-lunch. Ask before spending one.)
+dogdie.vag was 22050 Hz, and re-cutting it to 11025 freed 9.8 KB. That note
+used to say four more clips were still at 22050 and the trick had ~42 KB left in
+it; tntcl_die and spdr_wlk have since been spent on SFX_WATER, and dogbark and
+spit turned out to be at the standard already. See the list above: the trick is
+finished.)
 
 (GATE is the worked example of a NON-obvious bank choice, and worth reading
 before you place anything else. It is a door sound — the sort of thing that

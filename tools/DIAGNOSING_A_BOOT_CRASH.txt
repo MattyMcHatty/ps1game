@@ -193,11 +193,55 @@ Result: texmgr resident 776192 -> 765952, FREE AT REST 231 KB -> 236 KB, clean
 boot verified under OpenBIOS and SCPH-1001.
 
   >>> THE MARGIN IS STILL THIN. <<< 236 KB against a ~234 KB cliff is single-
-  digit kilobytes. The next registration will break the boot again. The next
-  easy reclaim to look at is grinder.c, which keeps GRINDER.TIM (6144 bytes) in
-  RAM although its own comment says the texture owns its VRAM outright and is
-  uploaded once at startup with no per-entry restore — if that is true the RAM
-  copy is dead weight.
+  digit kilobytes. The next registration will break the boot again.
+
+  (That paragraph used to name grinder.c's GRINDER.TIM as the next easy reclaim.
+  IT IS NOT ONE: grinder.c frees that buffer, and so does chainlink_door.c with
+  CHNLNK.TIM. heap_budget.py lists both under KEPT BUFFERS because it matches on
+  a read_file() into a file-scope variable and does not look for the free() —
+  16 KB of its PERMANENT TOTAL is not permanent at all. That does not make the
+  cliff wrong: the cliff was MEASURED against the same over-counting figure, so
+  the two are still comparable. It only means there is nothing to reclaim there.)
+
+
+------------------------------------------------------------------------------
+ 7. THE SECOND TIME IT HAPPENED — AND THE FIX THAT IS NOT ABOUT TEXTURES
+------------------------------------------------------------------------------
+
+August 2026, the VALVE PUZZLE. No new texture, no new registration, no new kept
+buffer — PERMANENT TOTAL did not move by one byte. The build simply added about
+10 KB of CODE (a new module, three rooms' hooks, the wheel's fit animation), and
+10 KB of .text pushes _end up exactly as 10 KB of BSS does:
+
+    HEAD                        _end 0x800E18A0    241496 free   boots
+    HEAD + the Valve Puzzle     _end 0x800E40F8    231168 free   DEAD
+
+and dead in precisely the way section 2 describes:
+
+    Attempted unaligned JR to 0x0cd0dffd from 0x8008a4c8, firing exception!
+    First chance exception: LoadAddressError from 0x8008a4c8
+
+>>> SO THE LESSON OF SECTION 6 IS TOO NARROW. <<< "Do not add a registration"
+is not the rule. The rule is DO NOT ADD TEN KILOBYTES OF ANYTHING, and a
+medium-sized feature is ten kilobytes. Run heap_budget.py after writing code,
+not only after adding art.
+
+THE FIX WAS -Os ON THE COLD MODULES. See the block above
+target_include_directories in CMakeLists.txt for the list and the rule about
+what may join it. Every file in it is code that runs with the world stopped or
+once per room change — the puzzles, the menus, the saves, the transitions, the
+scripted beats. The hot loops (every room's *_draw, collision, the enemies, the
+weapons, particles, render.c, camera.c) stay at -O2, because
+tools/DIAGNOSING_FRAME_RATE.txt is what happens when you optimise this engine by
+reasoning instead of measuring.
+
+    231168 -> 247856 free at rest (226 KB -> 242 KB), 16.2 KB reclaimed.
+    Clean boot verified under OpenBIOS and a real SCPH-1001.
+
+That leaves 242 KB against the ~234 KB cliff — the most headroom this heap has
+had since the Greenhouse, and 6 KB more than the tree had BEFORE the puzzle went
+in. It is also a ONE-TIME reclaim: the cold list is now the cold list, and the
+next feature has to pay for itself out of that 8 KB.
 
 
 ------------------------------------------------------------------------------

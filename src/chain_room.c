@@ -31,6 +31,8 @@
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
+#include "valve_puzzle.h"      /* the lock on both of this room's gates */
+#include "valve_handle.h"      /* the wheel on this room's standpipe */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -316,6 +318,11 @@ static int gate_triggered(int32_t gx, int32_t gz, int *circle_prev) {
     int just = held && !*circle_prev;
     *circle_prev = held;
     if (!just) return 0;
+    /* THE VALVE LOCK, and it goes AFTER the edge state is updated and not
+       before: the press still has to be consumed even when it is refused, or a
+       Circle held through a locked gate would fire the moment the lock came
+       off. Both gates take it -- see the block above wgate_text. */
+    if (!valve_puzzle_gates_unlocked()) return 0;
     return gate_dist(gx, gz) < CR_TRIGGER_RADIUS && interact_facing(gx, gz);
 }
 
@@ -337,10 +344,30 @@ static void gate_text(RenderContext *ctx, int32_t gx, int32_t gz,
         fade = 256 - ((prog * 256) / range);
     }
 
+    if (!valve_puzzle_gates_unlocked()) {
+        door_draw_string_3d(ctx, "Locked by some mechanism",
+                            tx, CR_TEXT_Y, tz,
+                            255, 50, 50, fade, mirror, plane, DOOR_PIXEL_SIZE);
+        return;
+    }
+
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
                         tx, CR_TEXT_Y, tz,
                         50, 255, 50, fade, mirror, plane, DOOR_PIXEL_SIZE);
 }
+
+/* ---- THE CHAIN ROOM'S GATES ARE LOCKED UNTIL MAZE TWO'S VALVE IS TURNED -----
+   Both of this room's gates, from all four sides, are shut by the Valve Puzzle
+   until FLAG_VALVE_MAZE_TWO is set (src/valve_puzzle.c). There is NO world state
+   behind it: the leaves are drawn shut either way, their collision walls never
+   move, and the trigger is the only thing that ever let the player through — so
+   refusing the trigger IS the lock, and the red sign is the only tell.
+
+   All FOUR sides carry it, not just the two outside approaches. The two inside
+   ones can only be seen by a player who is somehow already in the room, which no
+   normal route allows -- but a debug level-select jump lands there, and a sign
+   that offered "Press O to enter" on a gate that would not open is the kind of
+   thing that reads as a bug rather than as a locked door. */
 
 /* ---- The WEST-wall gate, back into Maze Two --------------------------------
    The grdn_gte leaf at x=-200 spanning z[-300,300], y[-600,0], in the YZ plane.
@@ -465,6 +492,11 @@ void chain_room_init(void) {
        the nearest is on the Garden Stairs' top landing. */
     save_points_clear();
     dressers_clear();
+
+    /* The valve pipe's prompt keeps its own Circle edge state, so it is armed
+       here for the reason both gates are: a press held through the transition
+       must not open the board on the arrival frame. */
+    valve_puzzle_arm();
 }
 
 static void draw_chain_room_smd(RenderContext *ctx) {
@@ -749,6 +781,15 @@ void chain_room_draw(RenderContext *ctx) {
     if (DEBUG_CULL_DIST()) g_fog_far = DEBUG_CULL_DIST();
 
     if (exp != DBG_EXP_NO_MESH) draw_chain_room_smd(ctx);
+    /* THE VALVE WHEEL, if one is fitted to this room's standpipe. After the mesh
+       so it sorts against it and inside the 128 texture window set above, which
+       is what its pipe texture wants; it restores the plain view matrix on the
+       way out, so the sprite draws below still project correctly. The Greenhouse
+       draws its own the same way and in the same place. Nothing is drawn at all
+       until the puzzle fits one -- valve_handles_draw skips a mount whose
+       `present` is clear. */
+    if (exp != DBG_EXP_NO_ENTITIES) valve_handles_draw(ctx);
+
 
     /* Every sprite enemy renderer is handed this room's texture window, because
        all of their sprites live at Voff >= 128 and must bracket it rather than
@@ -780,7 +821,12 @@ void chain_room_draw(RenderContext *ctx) {
         sml_meds_draw(ctx);
     }
 
-    /* Last: the two gate signs. */
+    /* Last: the two gate signs, and the standpipe's. */
     wgate_text(ctx);
     sgate_text(ctx);
+    valve_puzzle_text(ctx);
+
+    /* Dead last, and NOT world-space: the valve board is a 2D overlay on the
+       menu's OT range, so it goes on top of everything the room has drawn. */
+    valve_puzzle_draw(ctx);
 }

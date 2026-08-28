@@ -142,9 +142,81 @@ add_executable(horror_game
     src/greenhouse_flood.c
     src/birdcage.c
     src/valve_handle.c
+    src/valve_puzzle.c
     src/door_anim.c
     src/intro.c
     src/debug_opts.c
+)
+
+# ---- SIZE-OPTIMISE THE COLD MODULES -----------------------------------------
+# >>> THIS IS A HEAP FIX, NOT A TIDY-UP. <<< The heap top IS the stack (see
+# tools/HEAP_BUDGET.txt): everything from the end of BSS to 0x801FFFF8 is heap,
+# the BIOS stack grows down into the same region, and the measured boot cliff is
+# about 234 KB of "free at rest". Every kilobyte of .text pushes _end up and
+# eats that margin directly. Adding the Valve Puzzle cost 10 KB of code and took
+# the build from 236 KB to 226 KB -- straight through the cliff, into the
+# unaligned-JR-inside-CdReadSync crash that tools/DIAGNOSING_A_BOOT_CRASH.txt
+# describes. This is what paid it back.
+#
+# WHAT IS IN THE LIST AND WHY. Every file here is code that does NOT run inside
+# a per-frame render or AI loop:
+#
+#   the puzzles           each one owns the screen while it runs. The room is
+#                         frozen or nearly so, and the whole module executes a
+#                         few hundred instructions a frame.
+#   the menus and saves   menu, save menu, savegame, memcard, title, intro: all
+#                         of them run with the world stopped.
+#   the transitions       door/stair animations, CD audio, the room arena: once
+#                         per room change.
+#   world.c               room swaps and the save delta, once per transition.
+#   the scripted beats    the quake, the two Hadad set-pieces, the boss cutscene
+#                         driver, the delivery intro.
+#
+# WHAT IS DELIBERATELY NOT IN IT: every room's own *_draw, the collision and
+# floor code, the enemies, the weapons, particles, render.c and camera.c. Those
+# are the hot loops tools/DIAGNOSING_FRAME_RATE.txt is about, they stay at -O2,
+# and NOTHING here should be moved into this list to save a few more bytes
+# without measuring U/D/G first -- that document exists because optimising this
+# engine by reasoning alone made it 56% worse.
+#
+# Measured on this build: 231168 -> 247856 bytes free at rest (226 KB -> 242 KB),
+# i.e. 16.2 KB reclaimed. That is 6 KB BETTER than the tree stood at before the
+# Valve Puzzle was added (236 KB) and 8 KB clear of the cliff -- the first real
+# headroom this heap has had since the Greenhouse. Do not spend it casually.
+set_source_files_properties(
+    src/menu.c
+    src/save_menu.c
+    src/savegame.c
+    src/memcard.c
+    src/title.c
+    src/intro.c
+    src/debug_opts.c
+    src/world.c
+    src/room_arena.c
+    src/texmgr.c
+    src/cdaudio.c
+    src/spi.c
+    src/door_anim.c
+    src/stair_anim.c
+    src/stove_puzzle.c
+    src/piano_puzzle.c
+    src/anzu_puzzle.c
+    src/keystone_plinths.c
+    src/exit_door_puzzle.c
+    src/lightswitch_puzzle.c
+    src/trick_drawers.c
+    src/grinder_puzzle.c
+    src/greenhouse_puzzle.c
+    src/greenhouse_flood.c
+    src/valve_puzzle.c
+    src/birdcage.c
+    src/delivery_intro.c
+    src/east_hall_quake.c
+    src/reception_hadad.c
+    src/hadad_grinder.c
+    src/hadad_library.c
+    src/rabisu_boss.c
+    PROPERTIES COMPILE_OPTIONS "-Os"
 )
 
 target_include_directories(horror_game PRIVATE

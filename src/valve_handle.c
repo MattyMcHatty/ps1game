@@ -45,7 +45,13 @@ void valve_handles_load_assets(void) {
    4bpp clone pipe_gh.tim up at x384 y256 instead, so there the handle has to be
    pointed at the clone. One line per room; the default is the original. */
 static void valve_pipe_slot(GameState area, uint16_t *tpage, uint16_t *clut) {
-    if (area == STATE_GREENHOUSE) {
+    /* The Chain Room is in here for the SAME reason the Greenhouse is and by
+       the same route: its east wall is brick_wall on x768 y0, so it cannot draw
+       pipe.tim either, and it streams the Greenhouse's 4bpp clone PIPEGH.TIM
+       into x384 y256 on entry (see the slot table in src/chain_room.c). Maze One
+       and Maze Two both draw the original at its own page and take the default.
+       Get this wrong and the wheel wears the room's wallpaper. */
+    if (area == STATE_GREENHOUSE || area == STATE_CHAIN_ROOM) {
         *tpage = TIM_TPAGE_PIPEGH;
         *clut  = TIM_CLUT_PIPEGH;
     } else {
@@ -77,10 +83,100 @@ void valve_handles_init(void) {
     valve_mounts[i].x = -1435; valve_mounts[i].y = -197;
     valve_mounts[i].z = -3775 + VALVE_STEM_LEN;
     valve_mounts[i].rot_x = -1024; valve_mounts[i].rot_y = 0;
+    valve_mounts[i].rot_z = 0;
+    valve_mounts[i].face_x = 0; valve_mounts[i].face_z = 1;
     valve_mounts[i].present = 1;
     valve_mounts[i].spin = 0; valve_mounts[i].turn_timer = 0;
+    valve_mounts[i].fit_timer = 0; valve_mounts[i].offset = 0;
     valve_mounts[i].active = 1;
     valve_mounts[i].area = STATE_GREENHOUSE; i++;
+
+    /* ---- THE VALVE PUZZLE'S THREE, and every one was derived the same way as
+       the Greenhouse's above. That derivation is the only thing that matters
+       here, so it is written out once and the three that follow only state
+       their own numbers:
+
+         1. Find the pipe's polys in the room's .smx (the standpipe is a handful
+            of quads carrying the `pipe` or `pipe_128` material).
+         2. Find the one whose UV window contains the BLACK HOLE in the pipe
+            texture. Its centre is texel (97.5, 33.4) of pipe_128.png, and the
+            128 texture window every one of these rooms sets means a v of 161.4
+            is the same texel -- which is why the faces below have v spans in the
+            120s and 190s and still contain it.
+         3. Interpolate that texel through the quad's UV-to-world mapping to get
+            the MARKER point on the pipe's surface.
+         4. Back the model ORIGIN off it by VALVE_STEM_LEN along the face's
+            outward normal, and set the rotation that points the stem the other
+            way -- into the pipe.
+
+       >>> RE-EXPORT A ROOM AND THESE HAVE TO BE RE-DERIVED, NOT NUDGED. <<< The
+       primitive INDEX moves with every export and the coordinates do not, so the
+       faces are identified below by their world extents rather than by index --
+       the same contract the Greenhouse's note keeps. */
+
+    /* MAZE ONE, the standpipe at x[5332,5382] z[973,1025] in the south-east of
+       the maze, 209 tall. The hole falls on its -Z face, the upper band
+       y[-208.7,-136.1] at z=973.3, whose u runs 65..128 across x 5332..5382 and
+       whose v runs 114..206 across that y span. (97.5, 161.4) lands at
+       (5358, -171).
+
+       So the stem points +Z, which is rot_x = +1024 -- the OPPOSITE hand from
+       the Greenhouse's -1024, because this is the pipe's -Z face and that one
+       was a +Z face. The drain this valve opens crosses the paths just south of
+       here at z[764,831]. */
+    valve_mounts[i].x = 5358; valve_mounts[i].y = -171;
+    valve_mounts[i].z = 973 - VALVE_STEM_LEN;
+    valve_mounts[i].rot_x = 1024; valve_mounts[i].rot_y = 0;
+    valve_mounts[i].rot_z = 0;
+    valve_mounts[i].face_x = 0; valve_mounts[i].face_z = -1;
+    valve_mounts[i].present = 0;
+    valve_mounts[i].spin = 0; valve_mounts[i].turn_timer = 0;
+    valve_mounts[i].fit_timer = 0; valve_mounts[i].offset = 0;
+    valve_mounts[i].active = 1;
+    valve_mounts[i].area = STATE_MAZE_ONE; i++;
+
+    /* MAZE TWO, the standpipe at x[4667,4733] z[2271,2329], 230 tall. Here the
+       hole is on the -X face, the upper band y[-230.1,-113.0] at x=4666.7, whose
+       u runs 137..56 across z 2329.3..2270.7 (note the REVERSED sense -- u falls
+       as z rises on this face) and whose v runs 103..218 across the y span.
+       (97.5, 161.4) lands at (2301, -171).
+
+       >>> THIS IS THE MOUNT rot_z WAS ADDED FOR. <<< The stem has to point +X
+       and rot_x can only ever swing it within the YZ plane -- see the note on
+       the three angles in valve_handle.h. rot_z = -1024 is what puts it there,
+       and it stands the ring up in the YZ plane facing back out at the player. */
+    valve_mounts[i].x = 4667 - VALVE_STEM_LEN; valve_mounts[i].y = -171;
+    valve_mounts[i].z = 2301;
+    valve_mounts[i].rot_x = 0; valve_mounts[i].rot_y = 0;
+    valve_mounts[i].rot_z = -1024;
+    valve_mounts[i].face_x = -1; valve_mounts[i].face_z = 0;
+    valve_mounts[i].present = 0;
+    valve_mounts[i].spin = 0; valve_mounts[i].turn_timer = 0;
+    valve_mounts[i].fit_timer = 0; valve_mounts[i].offset = 0;
+    valve_mounts[i].active = 1;
+    valve_mounts[i].area = STATE_MAZE_TWO; i++;
+
+    /* THE CHAIN ROOM, the standpipe at x[1683,1767] z[556,644] in the yard's
+       north-east corner. It is by far the tallest of the four -- it runs the
+       full 700 to the top of the brick wall -- but the hole is low on it, on the
+       -X face band y[-214.6,-130.0] at x=1683, u 65..135 across z 555.9..644.1
+       (reversed again) and v 122..195. (97.5, 161.4) lands at (597, -169).
+
+       The -X face is the one that looks back into the yard; the other three are
+       boxed in by collision walls 13/14/15 and the wall the pipe stands against,
+       so this is also the only face the player can get to. Same rot_z as Maze
+       Two's, and this is the mount whose texture comes from PIPEGH rather than
+       PIPE -- see valve_pipe_slot above. */
+    valve_mounts[i].x = 1683 - VALVE_STEM_LEN; valve_mounts[i].y = -169;
+    valve_mounts[i].z = 597;
+    valve_mounts[i].rot_x = 0; valve_mounts[i].rot_y = 0;
+    valve_mounts[i].rot_z = -1024;
+    valve_mounts[i].face_x = -1; valve_mounts[i].face_z = 0;
+    valve_mounts[i].present = 0;
+    valve_mounts[i].spin = 0; valve_mounts[i].turn_timer = 0;
+    valve_mounts[i].fit_timer = 0; valve_mounts[i].offset = 0;
+    valve_mounts[i].active = 1;
+    valve_mounts[i].area = STATE_CHAIN_ROOM; i++;
 
     valve_mount_count = i;
 
@@ -106,6 +202,13 @@ void valve_handle_set_present(int mount, int present) {
     if (mount < 0 || mount >= valve_mount_count) return;
     valve_mounts[mount].present    = present ? 1 : 0;
     valve_mounts[mount].turn_timer = 0;      /* taking it off cancels a turn */
+    /* ...and a fit, and the offset it may have been part way through. This is
+       the path a save load takes (world.c calls it once per mount from the
+       valve_present mask), so it has to leave a mount at rest and not half way
+       down a slide that nothing will finish. */
+    valve_mounts[mount].fit_timer  = 0;
+    valve_mounts[mount].offset     = 0;
+    valve_mounts[mount].spin       = 0;
 }
 
 int valve_handle_present(int mount) {
@@ -125,6 +228,26 @@ int valve_handle_turning(int mount) {
     return valve_mounts[mount].turn_timer > 0;
 }
 
+void valve_handle_begin_fit(int mount) {
+    if (mount < 0 || mount >= valve_mount_count) return;
+    ValveMount *m = &valve_mounts[mount];
+    if (m->present || m->fit_timer > 0) return;
+    /* The handle IS on the pipe from this frame on -- what follows is only where
+       it is drawn. Setting present here rather than at the end of the script is
+       what makes the wheel visible for the slide at all: the draw loop skips an
+       absent mount, so a script that waited would animate nothing. */
+    m->present    = 1;
+    m->spin       = 0;
+    m->turn_timer = 0;
+    m->offset     = VALVE_FIT_DIST;
+    m->fit_timer  = VALVE_FIT_FRAMES;
+}
+
+int valve_handle_fitting(int mount) {
+    if (mount < 0 || mount >= valve_mount_count) return 0;
+    return valve_mounts[mount].fit_timer > 0;
+}
+
 /* The whole animation. A turn is VALVE_TURN_REVS revolutions spread evenly over
    VALVE_TURN_FRAMES, and the angle is derived from the REMAINING frames rather
    than accumulated, so a turn always lands back on the angle it started from and
@@ -137,7 +260,56 @@ void valve_handles_update(void) {
     int i;
     for (i = 0; i < valve_mount_count; i++) {
         ValveMount *m = &valve_mounts[i];
-        if (!m->active || !m->present || m->turn_timer <= 0) continue;
+        if (!m->active || !m->present) continue;
+
+        /* THE FIT SCRIPT, and it is driven off ELAPSED frames for the reason the
+           plain turn is driven off remaining ones: every phase boundary is then
+           an exact comparison against a constant rather than an accumulation, so
+           the wheel cannot drift a frame either way over a long script and the
+           last step always lands on the same angle.
+
+           It is checked BEFORE the turn below and continues past it, so the two
+           can never be running on one mount at once -- begin_fit refuses a mount
+           mid-turn implicitly (a fitting mount is present, and begin_turn is a
+           no-op on one already turning) and begin_turn is refused here by the
+           `continue`. */
+        if (m->fit_timer > 0) {
+            m->fit_timer--;
+            int32_t t = VALVE_FIT_FRAMES - m->fit_timer;   /* 1..FRAMES */
+
+            if (t <= VALVE_FIT_IN_FRAMES) {
+                /* THE SLIDE. Linear, not eased: this is a wheel being pushed on
+                   to a spindle by hand, and an ease-out would read as it
+                   floating into place. */
+                m->offset = (VALVE_FIT_DIST * (VALVE_FIT_IN_FRAMES - t))
+                            / VALVE_FIT_IN_FRAMES;
+                m->spin   = 0;
+            } else if (t <= VALVE_FIT_IN_FRAMES + VALVE_FIT_HOLD) {
+                m->offset = 0;
+                m->spin   = 0;
+            } else {
+                int32_t k    = t - VALVE_FIT_IN_FRAMES - VALVE_FIT_HOLD; /* 1.. */
+                int32_t span = VALVE_FIT_STEP_FRAMES + VALVE_FIT_STEP_PAUSE;
+                int32_t step = (k - 1) / span;              /* 0..STEPS-1 */
+                int32_t into = k - step * span;             /* 1..span    */
+                int32_t part = into < VALVE_FIT_STEP_FRAMES
+                             ? (VALVE_FIT_STEP_DEG * into) / VALVE_FIT_STEP_FRAMES
+                             : VALVE_FIT_STEP_DEG;
+                /* NEGATED: clockwise as the player sees it. See the note in
+                   valve_handle.h -- the stem points away from the camera, so the
+                   right-handed sense about it is the wrong one on screen. */
+                m->offset = 0;
+                m->spin   = (-(step * VALVE_FIT_STEP_DEG + part)) & 4095;
+            }
+
+            if (m->fit_timer == 0) {
+                m->offset = 0;
+                m->spin   = (-(VALVE_FIT_STEPS * VALVE_FIT_STEP_DEG)) & 4095;
+            }
+            continue;
+        }
+
+        if (m->turn_timer <= 0) continue;
 
         m->turn_timer--;
 
@@ -165,7 +337,14 @@ void valve_handles_draw(RenderContext *ctx) {
         if (!m->active || !m->present) continue;
         if (m->area != current_area) continue;
 
-        int32_t ddx = m->x - cam_x, ddz = m->z - cam_z;
+        /* WHERE IT IS DRAWN, which is only the mount's own spot once the fit
+           script has finished sliding it in. `offset` is measured along the
+           mount's outward facing, so a wheel part way through a fit stands that
+           far out in front of the pipe and moves straight at it. */
+        int32_t dx_pos = m->x + m->face_x * m->offset;
+        int32_t dz_pos = m->z + m->face_z * m->offset;
+
+        int32_t ddx = dx_pos - cam_x, ddz = dz_pos - cam_z;
         int32_t ddist = (ddx < 0 ? -ddx : ddx) + (ddz < 0 ? -ddz : ddz);
         if (ddist > g_fog_far) continue;
 
@@ -186,12 +365,12 @@ void valve_handles_draw(RenderContext *ctx) {
            c = a * b, so mount * spin applies the spin first. */
         MATRIX spin_m, mount_m, world_m, combined;
         SVECTOR spin_r  = {0, (short)m->spin, 0, 0};
-        SVECTOR mount_r = {(short)m->rot_x, (short)m->rot_y, 0, 0};
+        SVECTOR mount_r = {(short)m->rot_x, (short)m->rot_y, (short)m->rot_z, 0};
         RotMatrix(&spin_r,  &spin_m);
         RotMatrix(&mount_r, &mount_m);
         MulMatrix0(&mount_m, &spin_m, &world_m);
 
-        VECTOR pos = {m->x, m->y, m->z};
+        VECTOR pos = {dx_pos, m->y, dz_pos};
         TransMatrix(&world_m, &pos);
         CompMatrixLV(&view, &world_m, &combined);
         gte_SetRotMatrix(&combined);

@@ -13,6 +13,7 @@
 #include "vines.h"
 #include "greenhouse_flood.h"
 #include "valve_handle.h"
+#include "valve_puzzle.h"   /* VP_DRAIN_KEY_* — the Rear Gate's washed-down key */
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
@@ -805,6 +806,31 @@ void world_seed_room(GameState area) {
        mushroom head or a living statue could still be dropped in — rear_gate_draw
        hands every one of those renderers this room's texture window already. */
     if (area == STATE_REAR_GATE) {
+        /* THE HATCH KEY THE DRAIN WASHED DOWN HERE, and this is the REBUILD
+           path, not the placement one. The key is not a reward this room hands
+           out: it started in Maze One's bird cage, and the Valve Puzzle's chain
+           dropped it into the drain and its water carried it to the far end of
+           the channel (src/valve_puzzle.h). The moment it arrives, the player is
+           standing in another room entirely, so it cannot be added live — it is
+           spawned by valve_puzzle_apply_flags() on the first entry to this room
+           after the wash, and FLAG_DRAIN_KEY_PLACED records that that has
+           happened.
+
+           >>> WHICH IS WHY THIS TESTS _PLACED AND NOT _BIRDCAGE_WASHED. <<< This
+           line runs on a save rebuild, when the room's WorldDelta already
+           carries an items_gone bit describing whether the key was collected.
+           Keyed off the wash it could seed a key the live path had not yet
+           placed, and the bit would then describe a pickup that never existed.
+
+           It is this room's ONLY pickup on either path, so it takes slot 0 both
+           ways and items_gone stays keyed to the same thing. The coordinates are
+           VP_DRAIN_KEY_* so the two placements cannot drift apart. AUTHORED, not
+           probed — world_seed_room runs for rooms whose geometry is not
+           resident. */
+        if (game_flag(FLAG_DRAIN_KEY_PLACED))
+            item_pickup_spawn_amount(VP_DRAIN_KEY_X, VP_DRAIN_KEY_Y,
+                                     VP_DRAIN_KEY_Z, PICKUP_HATCH_KEY, 1);
+
         hadad_add(HAD_PLINTH_X, HAD_PLINTH_Z, HAD_PLINTH_ANCHOR,
                   STATE_REAR_GATE, HAD_ROLE_PLINTH);
     }

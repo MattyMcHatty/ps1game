@@ -258,6 +258,56 @@ typedef enum {
        rebuild whether this room's four exist. This bit is what all three read.
        Declared at the END of the enum, as the note at the top instructs. */
     FLAG_GREENHOUSE_FLOOD,
+    /* THE VALVE PUZZLE (src/valve_puzzle.c). One bit per pipe, and each one
+       means "this pipe has been turned and is now inert". Three pipes carry the
+       pipe texture — Maze One's standpipe, Maze Two's and the Chain Room's — and
+       the Valve Handle taken off the Greenhouse fits all three in any order.
+
+       A flag per pipe rather than a reading of the world, because what each one
+       leaves behind is either invisible or shared:
+
+         _MAZE_ONE    opens the drain. What it produces is a SOUND (SFX_WATER,
+                      looping in this room, Fountain Square and the Rear Gate)
+                      and nothing else — there is no world state at all to read
+                      it back off, which is why the bit is the only record.
+         _MAZE_TWO    unlocks BOTH of the Chain Room's gates, from all four
+                      sides. The gates have no state of their own: the leaves
+                      are drawn shut either way and their collision walls never
+                      move, so this bit IS the lock (see chain_room.c,
+                      maze_two.c and keystone_maze.c, which all read it).
+         _CHAIN_ROOM  winds the chain in over Maze One's bird cage. It advances
+                      FLAG_BIRDCAGE_OPEN, but that bit cannot stand in for this
+                      one: the cage advances to _WASHED by two different routes
+                      depending which pipe was turned first, so the cage state
+                      says nothing about whether THIS pipe is spent.
+
+       All three set means the handle is CONSUMED — see valve_puzzle.c's
+       retire_handle(). That is deliberately not readable off the inventory
+       either: the item is also gone before the player ever finds it, and a
+       debug grant would put it back. Declared at the END of the enum, as the
+       note at the top instructs. */
+    FLAG_VALVE_MAZE_ONE,
+    FLAG_VALVE_MAZE_TWO,
+    FLAG_VALVE_CHAIN_ROOM,
+    /* THE REAR GATE'S HATCH KEY HAS BEEN PLACED. The drain that Maze One's valve
+       opens washes the bird cage's key out of the maze and drops it at the far
+       end of the channel, on the Rear Gate's path just north of the grinders
+       (valve_puzzle_apply_flags()).
+
+       IT IS A "PLACED" BIT, NOT A "TAKEN" ONE, and that distinction is the
+       whole reason it exists. The key appears in a room the player has almost
+       certainly already visited, so it cannot be seeded: world_enter() restores
+       that room from its RoomState snapshot and never runs the seed again. It is
+       therefore spawned on the first entry after FLAG_BIRDCAGE_WASHED — and
+       without a record of having done so, every later entry would spawn another,
+       and the player could farm hatch keys off it.
+
+       Once set, the ordinary per-room persistence owns the pickup: it rides in
+       the Rear Gate's snapshot, and world_seed_room() re-places it under THIS
+       flag on a save rebuild so WorldDelta.items_gone still clears it if it has
+       been collected. Declared at the END of the enum, as the note at the top
+       instructs. */
+    FLAG_DRAIN_KEY_PLACED,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

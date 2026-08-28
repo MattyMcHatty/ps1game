@@ -77,6 +77,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\HADDIE.VAG;1",
     "\\SND\\WOOSH.VAG;1",
     "\\SND\\MCHNEGH.VAG;1",
+    "\\SND\\WATER.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -184,6 +185,13 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        block on SFX_MCHNE_GH in sound.h — it is what makes GARDEN the
        largest bank, so `spare` is now sized by this list. */
     [SFX_MCHNE_GH]   = SND_BANK_GARDEN,
+    /* The Valve Puzzle's running water. GARDEN because all three rooms it plays
+       in — Maze One, Fountain Square and the Rear Gate — are on that bank in
+       main.c's sound_bank_select. It is HARDWARE-looped (see sound.h), so the
+       eviction pass at the top of load_bank is what keeps it from reading the
+       next bank's samples; valve_puzzle_area_sound() stops it properly on every
+       room exit and does not rely on that. */
+    [SFX_WATER]      = SND_BANK_GARDEN,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -283,6 +291,20 @@ static int sfx_channel(SfxID id) {
        that ends it (BACK, at 1.23 s, would be cut by almost anything). Off the
        pool they also stay clear of the footsteps and the weapon sounds, which
        keep playing under the pause menu's frozen room. */
+    /* THE RUNNING WATER, and it needs a voice NOTHING ELSE CAN TOUCH. It is
+       hardware-looped and stays keyed on for as long as the player is in one of
+       its three rooms, so any other effect sharing its voice would not merely
+       cut it — it would end the loop for good and the drain would go silent
+       until the next room change. The pool is therefore out on principle, not
+       on length.
+       19 is SFX_EMERGE's, and borrowing it is legal for the reason SFX_HAD_DIE
+       borrows SFX_DMNSPEAK's: EMERGE is BOSS-bank, fired only by the Rabisu
+       (src/rabisu.c and src/rabisu_boss.c), and the boss bank is loaded in the
+       Garden Courtyard alone — a room the water never plays in. Voices 13..15
+       and 9 are NOT available here, for the same reason they are not available
+       to the Hadad's death: they belong to garden-bank monsters that may be
+       placed in any of these three rooms. */
+    if (id == SFX_WATER)       return 19;   /* SFX_EMERGE's (BOSS-bank only)  */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

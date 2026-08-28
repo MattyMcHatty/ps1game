@@ -30,6 +30,7 @@
 #include "item_pickup.h"
 #include "sml_med.h"
 #include "keystone_plinths.h"
+#include "valve_puzzle.h"      /* the lock on the north gate */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -343,6 +344,11 @@ int keystone_maze_ngate_triggered(void) {
     int just = held && !ngate_circle_prev;
     ngate_circle_prev = held;
     if (!just) return 0;
+    /* THE VALVE LOCK. This is the Chain Room's other outside approach, and it is
+       held shut by the same bit Maze Two's east gate is -- see
+       src/valve_puzzle.c. After the edge state, not before, so the held press is
+       still consumed while it is refused. */
+    if (!valve_puzzle_gates_unlocked()) return 0;
 
     int32_t dx = cam_x - KM_NGATE_X;
     int32_t dz = cam_z - KM_NGATE_Z;
@@ -366,6 +372,15 @@ static void ngate_text(RenderContext *ctx) {
         int prog  = xz - KM_FADE_NEAR;
         if (prog > range) prog = range;
         fade = 256 - ((prog * 256) / range);
+    }
+
+    /* Red and glyphless until Maze Two's valve is turned, as Reception's sealed
+       doors and the Garden Stairs' read. */
+    if (!valve_puzzle_gates_unlocked()) {
+        door_draw_string_3d(ctx, "Locked by some mechanism",
+                            KM_NGATE_X - 200, KM_TEXT_Y, KM_NGATE_Z - 11,
+                            255, 50, 50, fade, 0, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+        return;
     }
 
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",

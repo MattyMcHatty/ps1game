@@ -293,9 +293,45 @@ typedef enum {
 
        >>> AND IT MAKES GARDEN THE LARGEST BANK. <<< `spare` was 3.3 KB and is
        now 1.2 KB, and it is the GARDEN bank that sets it from here rather than
-       HOUSE. Re-run the STEP 3 arithmetic before adding anything at all. */
+       HOUSE. Re-run the STEP 3 arithmetic before adding anything at all.
+       (That 1.2 KB is history — SFX_WATER below paid the bank back; the numbers
+       to trust are the ones in its block, not this one.) */
     SFX_MCHNE_GH   = 44,  /* BANKED (garden). SFX_MCHNE re-cut, 1.8 s          */
-    SFX_COUNT      = 45,
+    /* RUNNING WATER, and the only HARDWARE-LOOPED effect outside the monsters.
+       The Valve Puzzle's Maze One pipe opens a drain and this is what the drain
+       sounds like, in Maze One, Fountain Square and the Rear Gate, from the
+       moment that pipe is turned until the game is reset. Started and stopped
+       by valve_puzzle_area_sound() on every room entry — see src/valve_puzzle.c.
+
+       >>> IT LOOPS IN THE SPU, NOT IN C. <<< water.vag was encoded with
+       wav_to_vag.py's --loop, which marks the first ADPCM block 0x06 and the
+       last 0x03, so the voice repeats the sample forever once keyed on and one
+       sound_play() is the whole of "start it". sound_stop() is therefore
+       MANDATORY on the way out of those three rooms: nothing else ever ends it,
+       and a loop left running would go on reading whatever the next bank load
+       puts at that address (the note above load_bank in sound.c is about
+       exactly this trap, which the spider scuttle found first).
+
+       BANKED (garden). All three rooms it plays in are on SND_BANK_GARDEN —
+       check main.c's sound_bank_select if a fourth is ever added, because a
+       banked loop is silent, not broken, in a room whose bank lacks it.
+
+       >>> IT COST TWO OTHER CLIPS THEIR TOP OCTAVE. <<< At 1.98 s / 11025 Hz it
+       is 12.5 KB and the garden bank had 1.2 KB free. spdr_wlk.vag and
+       tntcl_die.vag were the last two clips still at 22050 Hz for no recorded
+       reason; re-cutting both to the house 11025 freed 23.5 KB — from HOUSE as
+       well as GARDEN, since both are in both banks. After it:
+
+           bank_base 0x51C10   region 189424
+           house 162560   boss 142528   garden 177216   intro 22080
+           spare 12208
+
+       so GARDEN is the largest bank still, but with real headroom for the first
+       time since the Hadad death scene. Nothing else is left off the standard —
+       the next clip that does not fit has to be trimmed or banked, not
+       re-sampled. */
+    SFX_WATER      = 45,  /* BANKED (garden). HARDWARE-LOOPED, 1.98 s          */
+    SFX_COUNT      = 46,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

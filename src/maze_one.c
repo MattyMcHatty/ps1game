@@ -30,7 +30,9 @@
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
-#include "birdcage.h"           /* the caged Hatch Key's examine prompt */
+#include "birdcage.h"
+#include "valve_handle.h"      /* the wheel on this room's standpipe */
+#include "valve_puzzle.h"      /* ...and the board that fits it       */           /* the caged Hatch Key's examine prompt */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -561,6 +563,9 @@ void maze_one_init(void) {
        transition must not post a log line on the arrival frame. After the spawn,
        so it reads the same input frame the gates did. */
     birdcage_init();
+    /* The valve pipe's prompt keeps its own Circle edge state too, and is armed
+       for the same reason and at the same moment. */
+    valve_puzzle_arm();
 }
 
 static void draw_maze_one_smd(RenderContext *ctx) {
@@ -853,6 +858,15 @@ void maze_one_draw(RenderContext *ctx) {
     if (DEBUG_CULL_DIST()) g_fog_far = DEBUG_CULL_DIST();
 
     if (exp != DBG_EXP_NO_MESH) draw_maze_one_smd(ctx);
+    /* THE VALVE WHEEL, if one is fitted to this room's standpipe. After the mesh
+       so it sorts against it and inside the 128 texture window set above, which
+       is what its pipe texture wants; it restores the plain view matrix on the
+       way out, so the sprite draws below still project correctly. The Greenhouse
+       draws its own the same way and in the same place. Nothing is drawn at all
+       until the puzzle fits one -- valve_handles_draw skips a mount whose
+       `present` is clear. */
+    if (exp != DBG_EXP_NO_ENTITIES) valve_handles_draw(ctx);
+
 
     /* Every sprite enemy renderer is handed this room's texture window, because
        all of their sprites live at Voff >= 128 and must bracket it rather than
@@ -889,4 +903,10 @@ void maze_one_draw(RenderContext *ctx) {
     ngate_text(ctx);
     egate_text(ctx);
     birdcage_text(ctx);
+    valve_puzzle_text(ctx);   /* ...and the standpipe's, same font, same window */
+
+    /* Dead last, and NOT world-space: the valve board is a 2D overlay on the
+       menu's OT range, so it goes on top of everything the room has drawn. The
+       kitchen calls stove_puzzle_draw from the same place for the same reason. */
+    valve_puzzle_draw(ctx);
 }

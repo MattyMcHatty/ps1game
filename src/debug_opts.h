@@ -34,6 +34,27 @@ typedef enum {
     DBG_HAS_WAX_AND_POT,     /* both non-key inventory items from the start      */
     DBG_HAS_PIANO_KEY,       /* the Attic Stairwell altar's piano key            */
     DBG_HAS_KEY_STONES,      /* blue + yellow + green: the exit door's inputs    */
+    /* The Valve Handle, off the Greenhouse's standing pipe, so the garden's
+       three-room Valve Puzzle (src/valve_puzzle.h) can be jumped straight into.
+       Without it that puzzle is unreachable from a level jump: the handle is the
+       only key to all three pipes and the only place in the game it exists is a
+       room at the far end of the garden chain.
+
+       >>> IT IS A ONE-SHOT GRANT AND IT FLOODS THE GREENHOUSE. <<< Taking the
+       handle IS what opens that room's roof sprinklers, so "holding the handle"
+       and "the Greenhouse is dry" is not a state the game can reach and this
+       option does not fabricate it — it sets FLAG_GREENHOUSE_FLOOD and clears
+       the Greenhouse mount's wheel, which is what the pipe looks like after the
+       player has been there. The same reasoning DBG_HAS_WAX_AND_POT gives for
+       setting the flags that say where ITS two items came from.
+
+       KNOWN GAP, and it is the one greenhouse_flood.c's own init note describes:
+       jumping DIRECTLY INTO the Greenhouse with this ticked arrives with the
+       flag set but the flowers, mushrooms and vine curtains not placed, because
+       greenhouse_flood_init() ran in the area init a moment before the grant
+       landed. Every other room is unaffected, and walking back into the
+       Greenhouse through its door puts it right. */
+    DBG_HAS_VALVE_HANDLE,    /* the Greenhouse's wheel; floods that room too     */
     /* The Attic Exit's exit-door puzzle, already solved: the door stands open,
        carries the xt_dr_cmplt art and its prompt is the way OUT, so the room
        behind it can be walked into without placing a stone.

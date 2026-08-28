@@ -1,6 +1,7 @@
 #include "debug_opts.h"
 #include "player.h"
 #include "copper_pot.h"
+#include "valve_handle.h"   /* DBG_HAS_VALVE_HANDLE takes the wheel off its pipe */
 
 int debug_opts[DEBUG_OPT_COUNT] = { 0 };   /* all cheats off by default; the
                                               rest zero-initialise with it */
@@ -11,6 +12,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "HAS WAX AND POT",
     "HAS PIANO KEY",
     "HAS KEY STONES",
+    "HAS VALVE HANDLE",   /* 16 chars — the label limit exactly */
     "EXIT DOOR SOLVED",
     "INFINITE LIFE",
     "INFINITE STAMINA",
@@ -106,6 +108,31 @@ void debug_opts_apply_grants(void) {
        No texture upload: hellumin.tim owns its VRAM and menu_init LoadImages it
        once at startup, so the inventory icon is already right on a direct jump
        (the same reason the piano key needs none). */
+    /* The Valve Handle, put where a player who had taken it would have left the
+       world: in their inventory, OFF the Greenhouse's pipe, and with that room
+       flooded. All three are one event in real play (greenhouse_flood.c's
+       take()), so granting the item alone would leave the wheel still hanging on
+       a pipe whose prompt still reads "Press O to remove" — the same kind of
+       disagreement grant_exit_door_solved() exists to avoid.
+
+       The mount is cleared through valve_handle_set_present() rather than by
+       touching valve_mounts directly, so the one function that knows what
+       "taken" means to that module stays the only one that does it (it also
+       cancels any turn or fit in progress, which cannot be live here but is the
+       contract). valve_mounts is a GLOBAL area-tagged array, not a room-swapped
+       one, so this holds whichever room the jump lands in.
+
+       No texture upload and no menu work: the handle's inventory icon is part of
+       menu_init's startup LoadImage, the same reason the piano key needs none. */
+    if (debug_opts[DBG_HAS_VALVE_HANDLE]) {
+        player_items |= (1 << ITEM_VALVE_HANDLE);
+        game_flag_set(FLAG_GREENHOUSE_FLOOD);
+        {
+            int m = valve_mount_in_area(STATE_GREENHOUSE);
+            if (m >= 0) valve_handle_set_present(m, 0);
+        }
+    }
+
     if (debug_opts[DBG_HAS_HELLUMINATOR]) {
         player_weapons |= (1 << WEAPON_HELLUMINATOR);
         current_weapon  = WEAPON_HELLUMINATOR;
