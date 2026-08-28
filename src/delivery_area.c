@@ -149,6 +149,24 @@ void delivery_restore_textures(void) {
    delivery_area.h. */
 void delivery_upload_brick_wall(void) { texmgr_upload(shared_id[2]); }
 
+/* gravel ONLY (index 0 above), for the Chain Room. That room draws gravel at
+   its OWN x640 y0 rather than through the garden's gravel_gs clone at x704 y0,
+   because it needs x704 free for Maze One's chain; and it must not call
+   delivery_restore_textures() wholesale, which would also stamp rusty_fence,
+   brick_wall and double_door. Same pattern as delivery_upload_brick_wall above
+   and hall_2f_upload_strs. The caller must run the courtyard's uploader first —
+   chnlnk lands on this slot. */
+void delivery_upload_gravel(void) { texmgr_upload(shared_id[0]); }
+
+/* double_door ONLY (index 3 above). This module owns the ONE RAM copy of
+   DBLDOOR.TIM: the kitchen used to register a second one, which cost 10 KB of
+   permanent heap for a byte-identical image at the same VRAM rect. The kitchen
+   and the West Corridor now come through here instead — see
+   kitchen_upload_double_door(). delivery_area_init() runs before
+   kitchen_load_assets() in main's startup, so this id is always live by the
+   time either of them asks. */
+void delivery_upload_double_door(void) { texmgr_upload(shared_id[3]); }
+
 void delivery_area_init(void) {
     CdInit();
     scSetClipRect(0, 0, SCREEN_XRES, SCREEN_YRES);

@@ -69,6 +69,12 @@ typedef enum {
                                 second and last room of the garden-west VRAM
                                 bank, and a dead end. Appended, not inserted:
                                 saves store raw enum values. */
+    STATE_CHAIN_ROOM,        /* the walled yard joining Maze Two's east gate to
+                                the Keystone Maze's north gate — the first room
+                                in the garden that is not itself a maze, and the
+                                first that opened with BOTH its gates connected.
+                                Appended, not inserted: saves store raw enum
+                                values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

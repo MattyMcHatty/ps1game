@@ -23,4 +23,15 @@ void delivery_restore_textures(void);
    Same pattern as hall_2f_upload_strs(). */
 void delivery_upload_brick_wall(void);
 
+/* Narrow, single-texture re-upload of this module's gravel RAM copy, for the
+   Chain Room — which draws gravel_texture on its own page at x640 y0 rather
+   than through the garden's gravel_gs clone, so that x704 y0 is free for Maze
+   One's chain. Same pattern as delivery_upload_brick_wall above. */
+void delivery_upload_gravel(void);
+
+/* Narrow, single-texture re-upload of this module's double_door RAM copy. This
+   is the only RAM copy of DBLDOOR.TIM in the game; kitchen_upload_double_door()
+   forwards here. */
+void delivery_upload_double_door(void);
+
 #endif

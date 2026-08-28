@@ -82,6 +82,11 @@ void maze_one_draw(RenderContext *ctx);
    first. */
 void maze_one_upload_pipe(void);
 
+/* Just the chain, for the Chain Room, which draws the same four strands. It
+   lands on the gravel_gs slot at x704 y0, which that room deliberately leaves
+   free by taking its gravel from x640 y0 instead (see src/chain_room.c). */
+void maze_one_upload_chain(void);
+
 /* The west-wall gate back to Fountain Square. */
 void maze_one_gate_arm(void);        /* seed the Circle edge state */
 int  maze_one_gate_triggered(void);  /* 1 on a fresh Circle press in range */

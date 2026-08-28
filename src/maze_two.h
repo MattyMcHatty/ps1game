@@ -41,7 +41,7 @@
      cannot reach the ground they occupy anyway. Same arrangement as Maze One's
      pipe.
 
-   TWO gates are modelled; BOTH are connected... almost:
+   TWO gates are modelled, and BOTH are connected:
 
      SOUTH   the grdn_gte leaf at z=0, x[-1600,-1000], y[-600,0], in the XY
      WALL    plane. The far side of the gate in Maze One's north hedge. Its
@@ -52,9 +52,15 @@
              Note that is the OPPOSITE hand from Maze One's side of the same
              gate, whose wall faces -Z.
 
-     EAST    the leaf at x=6200, z[3400,4000], y[-600,0], in the YZ plane. Drawn
-     WALL    shut and backing onto solid collision (walls 24/28) — it is there
-             for a room that does not exist yet.
+     EAST    the leaf at x=6200, z[3400,4000], y[-600,0], in the YZ plane. The
+     WALL    far side of the gate in the Chain Room's west wall
+             (src/chain_room.h). Its corridor is collision FLOOR 9,
+             x(5400,6200) z(3400,4000), which fixes the centre at z=3700.
+             Collision wall 28 runs across the opening with nx = -4096, so it is
+             approached from -X — from inside this maze — which for a YZ sign is
+             mirror=1 and a sign on the x-11 side. That is the OPPOSITE hand from
+             the south gate above, and from the Chain Room's side of this same
+             gate, whose wall faces +X.
 
    Rendered the same way as Maze One (per-poly tex map + one 128 texture window +
    purple outdoor fog + the cull-key reject path and side-plane frustum cull),
@@ -82,7 +88,13 @@ void maze_two_upload_plinth(void);
 void maze_two_gate_arm(void);        /* seed the Circle edge state */
 int  maze_two_gate_triggered(void);  /* 1 on a fresh Circle press in range */
 
-/* The room's only spawn, just inside the south gate. */
-void maze_two_spawn_south(void);
+/* The east-wall gate, into the Chain Room. */
+void maze_two_egate_arm(void);        /* seed the Circle edge state */
+int  maze_two_egate_triggered(void);  /* 1 on a fresh Circle press in range */
+
+/* One spawn per gate; main.c picks between them on the arriving area. Both arm
+   both gates. */
+void maze_two_spawn_south(void);     /* arriving from Maze One, facing +Z */
+void maze_two_spawn_east(void);      /* arriving from the Chain Room, facing -X */
 
 #endif

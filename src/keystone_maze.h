@@ -52,7 +52,7 @@
                 it. Add four faces for it to "Keystone Maze mesh.smx" and
                 regenerate if that matters. <<<
 
-   THREE gates are modelled; ONE is connected:
+   THREE gates are modelled; TWO are connected:
 
      WEST    the grdn_gte leaf at x=-300, z[-300,300], y[-600,0], in the YZ
      WALL    plane. The far side of the gate in Maze One's east hedge. Collision
@@ -61,8 +61,14 @@
              mirror=0 and a sign on the x+11 side. Note that is the OPPOSITE hand
              from Maze One's side of the same gate, whose wall faces -X.
 
-     NORTH   the leaf at z=5900, x[900,1500]. Drawn shut, backing onto collision
-     WALL    wall 13 — there for a room that does not exist yet.
+     NORTH   the leaf at z=5900, x[900,1500]. The far side of the gate in the
+     WALL    Chain Room's south wall (src/chain_room.h). Its alcove is collision
+             FLOOR 7, x(900,1500) z(5700,5900), which fixes the centre at
+             x=1200. Collision wall 13 runs across the opening with nz = -4096,
+             so it is approached from -Z — from inside this maze — which for an
+             XY sign is mirror=0 and a sign on the z-11 side. That is the
+             OPPOSITE hand from the Chain Room's side of this same gate, whose
+             wall faces +Z.
 
      EAST    the leaf at x=5900, z[2100,2700]. Drawn shut, backing onto collision
      WALL    wall 28 — likewise.
@@ -84,11 +90,17 @@ void keystone_maze_upload_textures(void); /* room entry: pure LoadImage from RAM
 void keystone_maze_init(void);            /* set collision/floor zones + spawn */
 void keystone_maze_draw(RenderContext *ctx);
 
-/* The west-wall gate back to Maze One — this room's only connection. */
+/* The west-wall gate back to Maze One. */
 void keystone_maze_gate_arm(void);        /* seed the Circle edge state */
 int  keystone_maze_gate_triggered(void);  /* 1 on a fresh Circle press in range */
 
-/* The room's only spawn, just inside the west gate. */
-void keystone_maze_spawn_west(void);
+/* The north-wall gate, into the Chain Room. */
+void keystone_maze_ngate_arm(void);       /* seed the Circle edge state */
+int  keystone_maze_ngate_triggered(void); /* 1 on a fresh Circle press in range */
+
+/* One spawn per connected gate; main.c picks between them on the arriving area.
+   Both arm both gates. */
+void keystone_maze_spawn_west(void);      /* arriving from Maze One, facing +X */
+void keystone_maze_spawn_north(void);     /* arriving from the Chain Room, facing -Z */
 
 #endif

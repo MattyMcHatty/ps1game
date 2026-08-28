@@ -1,0 +1,214 @@
+==============================================================================
+ DIAGNOSING A BOOT CRASH   "it does not get past the Loading screen"
+==============================================================================
+
+Written after the August 2026 Chain Room crash, which took a long time to find
+because three of this repo's own diagnostic documents pointed the wrong way and
+the emulator's most obvious signal is a lie. Read this BEFORE re-running the
+investigation those documents describe.
+
+The short version: the game stopped booting because MAIN RAM ran out, the fix
+was to stop holding the same texture in RAM twice, and every single one of the
+checks that were supposed to catch that reported "OK" while it was broken.
+
+
+------------------------------------------------------------------------------
+ 1. GET A REAL VERDICT FIRST.  THE PROGRAM COUNTER IS NOT ONE.
+------------------------------------------------------------------------------
+
+Run the disc headless and read the LOG, not the PC:
+
+    cd C:\Users\virtu\Documents\pcsx-redux-23726-20260420-7
+    .\pcsx-redux.exe -interpreter -bios <bios> -iso <disc.bin> -run -logfile <log>
+
+    grep -icE "first chance exception|reserved opcode|unaligned JR|Unrecoverable" <log>
+
+  0        = clean
+  non-zero = crash, and the matching line names the fault
+
+>>> DO NOT JUDGE BY A SAMPLED PC. <<< A PC of 0x000000b0, 0x000005d4,
+0x00002ad8 or 0xbfc0xxxx is the BIOS A/B/C call vector or a ROM routine. They
+appear constantly in a PERFECTLY HEALTHY run. Reading them as "jumped into
+garbage" is what made this investigation declare HEAD broken and then bisect
+eight completely innocent commits. The logs for those same runs contained zero
+exceptions.
+
+Two more traps in the harness itself:
+
+  -bios PERSISTS.  Passing -bios writes that path into
+  %APPDATA%\pcsx-redux\pcsx.json and every later run silently inherits it. Two
+  "results" in this investigation were void because of it. Pass -bios on every
+  run, and put the user's setting back when you are done.
+
+  A STALLED FRAME COUNTER IS NOT A HANG.  GPU::Vsync events stop arriving while
+  the game blocks on a long CD read, so a Lua frame probe freezes at f=420 on a
+  perfectly healthy boot. Only the log decides.
+
+Use both BIOSes before concluding anything about the emulator: openbios.bin and
+a real SCPH-1001. This crash reproduced under both, which is what proved it was
+the game and not OpenBIOS.
+
+
+------------------------------------------------------------------------------
+ 2. WHAT THE CRASH ACTUALLY LOOKS LIKE WHEN RAM RUNS OUT
+------------------------------------------------------------------------------
+
+    Attempted unaligned JR to 0x33221211 from 0x80087e88, firing exception!
+    First chance exception: LoadAddressError from 0x80087e88
+
+0x80087e88 is inside CdReadSync. The jump target is not code, it is DATA — the
+value differs per BIOS (0x33221211 under OpenBIOS, 0xf0f0ff00 under SCPH-1001)
+because it is whatever the CD happened to DMA over the stack that run.
+
+That is the mechanism HEAP_BUDGET.txt describes: the heap runs from _end to the
+top of RAM, the stack grows down into the same region, nothing separates them,
+so malloc SUCCEEDS and hands back memory the stack is using and the next CdRead
+writes through a saved return address. The recompiler blames whatever function
+was on the stack — here sound_init, the first CdSearchFile that switches from
+TEX to SND — which has NOTHING to do with the code that used the memory up.
+
+  >>> THE FUNCTION NAMED IN THE CRASH IS NOT THE CULPRIT. <<<
+
+
+------------------------------------------------------------------------------
+ 3. PROVE IT IS RAM IN ONE BUILD, THEN MEASURE THE CLIFF
+------------------------------------------------------------------------------
+
+Do not reason about the budget. Change ONE knob and rebuild:
+
+    src/room_arena_size.h:  #define ROOM_ARENA_SECTORS 58  ->  8
+
+That frees 100 KB of BSS and nothing else. Rooms will not load (room_arena_load
+refuses and they draw empty) but the boot path does not care, and the boot path
+is what is broken. If the crash disappears, it is RAM pressure. If it does not,
+stop looking at memory and go find a logic bug.
+
+Then walk the knob back a sector at a time to find the actual cliff. Measured in
+August 2026, with the Chain Room in the tree:
+
+    arena 58  (baseline)      CRASH        231 KB free at rest
+    arena 57  (frees  2 KB)   CRASH        233 KB
+    arena 56  (frees  4 KB)   clean        235 KB
+    arena 54  (frees  8 KB)   clean
+    arena 52  (frees 12 KB)   clean
+    arena 48  (frees 20 KB)   clean
+
+So the boot cliff sits between 233 KB and 235 KB of FREE AT REST, and the whole
+margin between "ships" and "does not boot" was FOUR KILOBYTES. Put the arena
+back to 58 when you are done.
+
+
+------------------------------------------------------------------------------
+ 4. THINGS THAT WERE CHECKED AND WERE NOT THE CAUSE
+------------------------------------------------------------------------------
+
+All of these reported healthy while the game would not boot. Checking them is
+still worth doing; believing them is not.
+
+  tools/heap_budget.py       Said "226 KB free - OK: comfortable margin" with a
+                             dead console. Its FREE AT REST is a RESTING total
+                             and does not model the startup PEAK, which is what
+                             collides with the stack. Its warning threshold was
+                             160 KB, i.e. 70 KB BELOW the real cliff. Both are
+                             fixed now; see the note it prints.
+
+                             It also UNDER-COUNTS. Its KEPT BUFFERS table misses
+                             modules whose load function mallocs and keeps the
+                             buffer inline instead of through a read_file()
+                             helper it recognises: copper_pot.c, crucifaxe.c,
+                             graveolver.c, key.c, helluminator.c — about 14 KB
+                             it never mentions.
+
+  tools/vram_map.py          "No unexpected pixel collisions." VRAM was fine.
+  vram_map_garden_west.py    Fine.
+
+  tools/check_disc_root.py   Root and TEX both within limits.
+
+  disc contents              All 205 CD paths referenced in src/*.c cross-checked
+                             against the 208 files in the built ISO. None missing.
+
+  room arena overflow        room_arena_load() has a correct guard and refuses
+                             rather than overrunning.
+
+  texmgr registration cap    56 registrations against TEXMGR_MAX 72, and
+                             texmgr_register() bounds-checks properly.
+
+  sound tables               sfx_files[] and sfx_bank[] both exactly SFX_COUNT
+                             (45). load_vag_at() frees its buffer on every path.
+
+  save blob / room count     Every _Static_assert in world.c and savegame.c
+                             holds at WORLD_NUM_ROOMS 25.
+
+  entity array bounds        mushroom_add, add_rafflesia_state and friends all
+                             bounds-check before writing.
+
+
+------------------------------------------------------------------------------
+ 5. >>> THE TEX-DIRECTORY THEORY IS WRONG.  DO NOT CHASE IT AGAIN. <<<
+------------------------------------------------------------------------------
+
+check_disc_root.py and ADDING_A_ROOM.txt used to state, at length, that this
+same crash was caused by the TEX directory record spilling from four 2048-byte
+sectors into a fifth, and that the cure was to ship fewer files. That claim was
+TESTED and DISPROVEN:
+
+  - The ISO was rebuilt with CHNROOM.SMD removed, putting TEX back to exactly
+    its pre-Chain-Room size (132 records, 1936 bytes, still four sectors — the
+    precise state the note called safe). THE GAME STILL CRASHED, identically.
+
+  - The executable, not the disc, was the variable. HEAD booted clean; HEAD plus
+    the Chain Room sources did not, with the SAME disc layout either way.
+
+The TEX directory was a coincidence. What actually changed when the Chain Room
+was added was _end: 0x800DEBD8 -> 0x800E1890, ~11.4 KB of new BSS taken straight
+out of a heap that had about 4 KB of real headroom left.
+
+The root-directory rule in check_disc_root.py is still REAL and still enforced —
+SYSTEM.CNF and HORROR.BIN must live in the first root sector or the BIOS cannot
+boot the disc. Only the TEX subdirectory story was fiction.
+
+
+------------------------------------------------------------------------------
+ 6. THE FIX THAT WAS APPLIED
+------------------------------------------------------------------------------
+
+DBLDOOR.TIM was registered with texmgr TWICE — once in delivery_area.c and once
+in kitchen_dining.c — two byte-identical 10240-byte RAM copies of one image that
+lands at one VRAM rect. heap_budget.py had been reporting it as reclaimable for
+some time.
+
+  delivery_area.c   owns the single copy; new delivery_upload_double_door()
+                    exposes it, matching delivery_upload_brick_wall/_gravel.
+  kitchen_dining.c  KITCHEN_SHARED_TEX 7 -> 6, DBLDOOR dropped from its list,
+                    kitchen_upload_double_door() forwards to delivery's copy so
+                    every existing caller (the West Corridor) is unaffected, and
+                    kitchen_restore_textures() stamps it explicitly so the
+                    restore still covers the same set as before.
+
+Safe because the kitchen's tpage/clut for that texture come from its own
+streaming load (slot 10), not from the registration, and because
+delivery_area_init() runs before kitchen_load_assets() in main's startup.
+
+Result: texmgr resident 776192 -> 765952, FREE AT REST 231 KB -> 236 KB, clean
+boot verified under OpenBIOS and SCPH-1001.
+
+  >>> THE MARGIN IS STILL THIN. <<< 236 KB against a ~234 KB cliff is single-
+  digit kilobytes. The next registration will break the boot again. The next
+  easy reclaim to look at is grinder.c, which keeps GRINDER.TIM (6144 bytes) in
+  RAM although its own comment says the texture owns its VRAM outright and is
+  uploaded once at startup with no per-entry restore — if that is true the RAM
+  copy is dead weight.
+
+
+------------------------------------------------------------------------------
+ 7. ORDER TO WORK IN NEXT TIME
+------------------------------------------------------------------------------
+
+  1. Reproduce headless and confirm the crash from the LOG.
+  2. Try both BIOSes — rules the emulator in or out immediately.
+  3. Build the last commit in a throwaway worktree. Working tree bad + commit
+     good tells you it is uncommitted work and saves a bisect.
+     (git worktree add --detach <dir> <sha>, and remember to repoint the
+     HORROR2.BIN source path in that worktree's disc.xml.)
+  4. Shrink ROOM_ARENA_SECTORS to prove RAM in one build.
+  5. Only then read the budget scripts, and treat them as hints.

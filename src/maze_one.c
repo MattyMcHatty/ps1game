@@ -255,6 +255,18 @@ void maze_one_upload_pipe(void) {
     texmgr_upload(pipe_tex_id);
 }
 
+/* Just the chain, for the Chain Room — which hangs the same four strands but
+   draws no drain, no flower bed and no 8bpp pipe. The same reasoning as
+   maze_one_upload_pipe above: this module owns the only RAM copy, and
+   maze_one_upload_textures() wholesale would ALSO drop this room's pipe on
+   x768 y0, which is precisely where the Chain Room's brick wall goes. The
+   caller must have run the courtyard's uploader first — gravel_gs lands on this
+   slot, and the Chain Room takes its gravel from x640 y0 instead so that this
+   one is free. */
+void maze_one_upload_chain(void) {
+    texmgr_upload(chain_tex_id);
+}
+
 /* ---- The west-wall gate back to Fountain Square -----------------------------
    The grdn_gte polys on this side span z[-300,500] at x=-100, y[-600,0]. It is
    the same gate leaf as the one in Fountain Square's east hedge, which is 72

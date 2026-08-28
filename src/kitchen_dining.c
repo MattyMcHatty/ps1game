@@ -17,6 +17,7 @@
 #include "btn_glyph.h"
 #include "door.h"
 #include "fatdoor.h"
+#include "delivery_area.h"   /* delivery_upload_double_door */
 #include "zombie.h"
 #include "spider.h"
 #include "rabisu.h"
@@ -206,7 +207,7 @@ void kitchen_stream_textures(void) {
    Registering it here rather than in fatdoor.c keeps the ONE RAM copy where the
    restore happens, and its tpage/clut — captured at startup and unchanged by a
    re-upload to the same rect — still work. */
-#define KITCHEN_SHARED_TEX 7
+#define KITCHEN_SHARED_TEX 6
 static int shared_id[KITCHEN_SHARED_TEX];
 static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
     "\\TEX\\STNSTL.TIM;1",
@@ -214,7 +215,10 @@ static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
     "\\TEX\\REDCRPT.TIM;1",
     "\\TEX\\KCHNWL.TIM;1",
     "\\TEX\\STOVE.TIM;1",
-    "\\DBLDOOR.TIM;1",
+    /* DBLDOOR.TIM is deliberately NOT here: delivery_area.c owns the one RAM
+       copy and this room borrows it (see kitchen_upload_double_door below).
+       Registering it twice cost 10 KB of permanent heap for nothing, and on
+       this machine the heap is what runs out first - tools/HEAP_BUDGET.txt. */
     "\\WDDRCRK.TIM;1",
 };
 
@@ -245,6 +249,9 @@ void kitchen_load_assets(void) {
 void kitchen_restore_textures(void) {
     for (int i = 0; i < KITCHEN_SHARED_TEX; i++)
         texmgr_upload(shared_id[i]);
+    /* double_door is no longer one of ours - stamp it from delivery's copy
+       so this restore still covers the same set of textures as before. */
+    delivery_upload_double_door();
 }
 
 /* Narrow, single-texture uploads of two of the RAM copies above, for rooms that
@@ -255,7 +262,7 @@ void kitchen_restore_textures(void) {
    copy instead of registering another one — texmgr has a hard TEXMGR_MAX and
    overruns fail SILENTLY. The West Corridor uses both. */
 void kitchen_upload_red_crpt(void)    { texmgr_upload(shared_id[2]); }
-void kitchen_upload_double_door(void) { texmgr_upload(shared_id[5]); }
+void kitchen_upload_double_door(void) { delivery_upload_double_door(); }
 
 void kitchen_dining_init(void) {
     kitchen_dining_collision_init(&current_collision_room);

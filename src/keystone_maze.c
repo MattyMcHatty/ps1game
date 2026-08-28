@@ -307,6 +307,87 @@ void keystone_maze_spawn_west(void) {
     cam_z   = KM_GATE_Z;
     cam_rot = 1024;   /* facing +X, into the room */
     keystone_maze_gate_arm();
+    keystone_maze_ngate_arm();
+}
+
+/* ---- The north-wall gate, into the Chain Room -------------------------------
+   The grdn_gte polys on this side span x[900,1500] at z=5900, y[-600,0], in the
+   XY plane. It was drawn shut and backed onto solid collision until the Chain
+   Room was built; it now opens on that room's south gate (src/chain_room.h). Its
+   own alcove is collision FLOOR 7, x(900,1500) z(5700,5900), which is what fixes
+   the centre at x=1200.
+
+   >>> IT IS THE OPPOSITE HAND FROM THE WEST GATE, AND ONLY THE NORMAL SAYS SO.
+   <<< Collision wall 13 runs across this opening with nz = -4096, so the
+   walkable side is -Z and the player approaches from inside this maze heading
+   NORTH. For a sign in the XY plane that is mirror=0 and the sign stands 11
+   units SOUTH of the wall (z - 11) - Fountain Square's north gate exactly, and
+   the opposite hand from the Chain Room's side of this same gate, whose wall 9
+   faces +Z. Getting either backwards comes out as mirrored text or a sign buried
+   in the hedge.
+
+   The wall STAYS in the collision list, as wall 44 does on the west side: the
+   leaf is shut as far as collision is concerned and it is the trigger, not a
+   hole, that lets the player through. */
+#define KM_NGATE_X          1200   /* (900 + 1500) / 2, and FLOOR 7's centre */
+#define KM_NGATE_Z          5900
+
+static int ngate_circle_prev = 1;
+
+void keystone_maze_ngate_arm(void) {
+    ngate_circle_prev = circle_held();
+}
+
+int keystone_maze_ngate_triggered(void) {
+    int held = circle_held();
+    int just = held && !ngate_circle_prev;
+    ngate_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - KM_NGATE_X;
+    int32_t dz = cam_z - KM_NGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < KM_TRIGGER_RADIUS && interact_facing(KM_NGATE_X, KM_NGATE_Z);
+}
+
+/* XY plane, mirror=0, and 11 units SOUTH of the wall - see the note above for
+   why both differ from the west gate's. Everything else (the radii, the fade
+   ramp, the eye-level Y) is that gate's verbatim: it is the same leaf in the
+   same perimeter at the same height. */
+static void ngate_text(RenderContext *ctx) {
+    int32_t dx = cam_x - KM_NGATE_X;
+    int32_t dz = cam_z - KM_NGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= KM_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > KM_FADE_NEAR) {
+        int range = KM_TEXT_RADIUS - KM_FADE_NEAR;
+        int prog  = xz - KM_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        KM_NGATE_X - 200, KM_TEXT_Y, KM_NGATE_Z - 11,
+                        50, 255, 50, fade, 0, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+}
+
+/* Arriving back from the Chain Room: stand in the top corridor south of the
+   z=5900 wall, clear of the 195 push radius, facing -Z - the direction of travel
+   through the gate, looking back down into the maze. z lands at 5680, which is
+   20 past the alcove's own FLOOR 7 and inside FLOOR 8's x(99,2700) z(5100,5700)
+   run, so the floor is under the player immediately; and at x=1200 the nearest
+   ends of the walls around the opening (15 and 16 at z=5700, 11 and 12 at x=1500
+   and x=900) are all 300 away. */
+void keystone_maze_spawn_north(void) {
+    cam_x   = KM_NGATE_X;
+    cam_y   = KM_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = KM_NGATE_Z - COLLISION_WALL_RADIUS - 25;
+    cam_rot = 2048;   /* facing -Z, into the room */
+    keystone_maze_gate_arm();
+    keystone_maze_ngate_arm();
 }
 
 void keystone_maze_init(void) {
@@ -326,8 +407,9 @@ void keystone_maze_init(void) {
 
     keystone_maze_floor_zones_init();
 
-    /* Only one gate is connected, so there is one spawn and no main.c override
-       to go with it. */
+    /* Two gates are connected now, so main.c overrides this default with
+       keystone_maze_spawn_north() when the player arrives from the Chain Room.
+       Both spawns arm both gates. */
     keystone_maze_spawn_west();
 
     /* Save points and dresser props are global (not room-swapped) and neither is
@@ -672,6 +754,7 @@ void keystone_maze_draw(RenderContext *ctx) {
        the menu-reserved OT range and is unaffected by the order. */
     keystone_plinths_draw(ctx);
 
-    /* Last: the gate sign. */
+    /* Last: the two gate signs. */
     gate_text(ctx);
+    ngate_text(ctx);
 }

@@ -68,6 +68,7 @@
 #include "birdcage.h"
 #include "maze_two.h"
 #include "keystone_maze.h"
+#include "chain_room.h"
 #include "keystone_plinths.h"
 #include "rear_gate.h"
 #include "west_corridor.h"
@@ -237,6 +238,7 @@ static void load_area_geometry(GameState area) {
         case STATE_MAZE_ONE:         maze_one_load_geometry();         break;
         case STATE_MAZE_TWO:         maze_two_load_geometry();         break;
         case STATE_KEYSTONE_MAZE:    keystone_maze_load_geometry();    break;
+        case STATE_CHAIN_ROOM:       chain_room_load_geometry();       break;
         case STATE_REAR_GATE:        rear_gate_load_geometry();        break;
         case STATE_WEST_CORRIDOR:    west_corridor_load_geometry();    break;
         case STATE_STABLES:          stables_load_geometry();          break;
@@ -1157,6 +1159,13 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        if (!lock && maze_two_egate_triggered()) {
+            /* East through the gate in the far wall, into the Chain Room. */
+            pending_area = STATE_CHAIN_ROOM;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_KEYSTONE_MAZE) {
         /* Flat maze, exactly as the other two: all thirteen collision floor
            planes are at y=0, so the shared wall collision routine (generic over
@@ -1175,6 +1184,40 @@ static void update_current_area(GameState area) {
         if (!lock && !keystone_plinths_active() && keystone_maze_gate_triggered()) {
             /* West back through the same gate, into Maze One. */
             pending_area = STATE_MAZE_ONE;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        if (!lock && !keystone_plinths_active() && keystone_maze_ngate_triggered()) {
+            /* North through the gate in the top hedge, into the Chain Room. The
+               same keystone_plinths_active() guard as the west gate: while a
+               plinth owns the camera no gate in this room accepts a press. */
+            pending_area = STATE_CHAIN_ROOM;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_CHAIN_ROOM) {
+        /* Flat yard, exactly as the three mazes: all three collision floor
+           planes are at y=0, so the shared wall collision routine (generic over
+           current_collision_room) and a single floor zone are the whole of it. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed - the room is seeded empty, but */
+        update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        if (!lock && chain_room_wgate_triggered()) {
+            /* West back through the same gate, into Maze Two. */
+            pending_area = STATE_MAZE_TWO;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        if (!lock && chain_room_sgate_triggered()) {
+            /* South through the same gate, into the Keystone Maze. */
+            pending_area = STATE_KEYSTONE_MAZE;
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -1394,6 +1437,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         maze_two_draw(ctx);
     else if (area == STATE_KEYSTONE_MAZE)
         keystone_maze_draw(ctx);
+    else if (area == STATE_CHAIN_ROOM)
+        chain_room_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -1613,6 +1658,12 @@ int main(int argc, const char **argv) {
     maze_one_load_assets();    /* maze one texture slots (owns only PIPE) */
     maze_two_load_assets();    /* maze two texture slots (owns only PLINTH) */
     keystone_maze_load_assets();/* keystone maze slots (owns only PLNTHDMD) */
+    chain_room_load_assets();  /* chain room slots — TIM_SLOT only, no CD access
+                                  and no registration: its two own textures
+                                  (PIPECR/CHAINCR, the pipe and chain retargeted
+                                  off the brick_wall and gravel_gs pages this
+                                  room draws) are STREAMED on entry, as the
+                                  Greenhouse's are */
     rear_gate_load_assets();   /* rear gate texture slots (owns the two retargets,
                                   PLNTHRG and DBLDRRG) */
     west_corridor_load_assets();/* west corridor texture slots — TIM_SLOT only; it
@@ -1838,6 +1889,7 @@ int main(int argc, const char **argv) {
                  pending_area == STATE_MAZE_ONE ||
                  pending_area == STATE_MAZE_TWO ||
                  pending_area == STATE_KEYSTONE_MAZE ||
+                 pending_area == STATE_CHAIN_ROOM ||
                  pending_area == STATE_REAR_GATE ||
                  pending_area == STATE_STABLES ||
                  pending_area == STATE_GREENHOUSE) ? SND_BANK_GARDEN :
@@ -1904,6 +1956,11 @@ int main(int argc, const char **argv) {
                                                        NARROW upload, and its own
                                                        plinth_diamond over
                                                        brick_wall */
+            } else if (pending_area == STATE_CHAIN_ROOM) {
+                chain_room_upload_textures();       /* the courtyard's four plus
+                                                       brick_wall, then its own
+                                                       retargeted pipe and chain
+                                                       over chnlnk and xt_dr_cg */
             } else if (pending_area == STATE_REAR_GATE) {
                 rear_gate_upload_textures();        /* ditto, plus the drain
                                                        through Fountain Square's
@@ -2267,10 +2324,13 @@ int main(int argc, const char **argv) {
                    level-select jump all pass through this branch. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_MAZE_TWO) {
-                maze_two_init();  /* only one gate is connected: the south one,
-                                     back into Maze One. No spawn override
-                                     needed — there is nowhere else to arrive
-                                     from. */
+                maze_two_init();  /* defaults to the south gate, back into
+                                     Maze One. */
+                /* Coming back west out of the Chain Room, arrive at the gate in
+                   the east wall instead. Both spawns arm both gates, so
+                   whichever branch runs the other one is safe. */
+                if (current_area == STATE_CHAIN_ROOM)
+                    maze_two_spawn_east();
                 /* THE SAME TRACK as Maze One through the gate — the user asked
                    for it explicitly, and it is what the rest of the garden runs
                    on anyway. Restarted on arrival rather than carried across:
@@ -2282,10 +2342,13 @@ int main(int argc, const char **argv) {
                    through this branch. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_KEYSTONE_MAZE) {
-                keystone_maze_init();  /* only one gate is connected: the west
-                                          one, back into Maze One. No spawn
-                                          override needed — there is nowhere
-                                          else to arrive from. */
+                keystone_maze_init();  /* defaults to the west gate, back into
+                                          Maze One. */
+                /* Coming back south out of the Chain Room, arrive at the gate in
+                   the north hedge instead. Both spawns arm both gates, so
+                   whichever branch runs the other one is safe. */
+                if (current_area == STATE_CHAIN_ROOM)
+                    keystone_maze_spawn_north();
                 /* THE SAME TRACK as the rest of the garden, restarted on
                    arrival rather than carried across: streaming this room's
                    83 KB mesh suspends CD-DA over the load, and what the player
@@ -2293,6 +2356,21 @@ int main(int argc, const char **argv) {
                    the gate trigger so every route in gets it: the gate, a
                    title-screen load and a debug level-select jump all pass
                    through this branch. */
+                cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
+            } else if (pending_area == STATE_CHAIN_ROOM) {
+                chain_room_init();  /* defaults to the west gate, back into Maze
+                                       Two. */
+                /* Coming north out of the Keystone Maze, arrive at the south
+                   gate instead. Every spawn arms BOTH gates, so whichever branch
+                   runs the other one is safe. */
+                if (current_area == STATE_KEYSTONE_MAZE)
+                    chain_room_spawn_south();
+                /* THE SAME TRACK as the rest of the garden, restarted on arrival
+                   rather than carried across, exactly as both mazes and the
+                   Keystone Maze do it. This room's mesh is only 14 KB and its
+                   load barely interrupts CD-DA at all, but what decides this is
+                   the route and not the size: played HERE so the gate, a
+                   title-screen load and a debug level-select jump all get it. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_REAR_GATE) {
                 rear_gate_init();  /* defaults to the east gate, back into
@@ -2481,6 +2559,7 @@ int main(int argc, const char **argv) {
                    game_state == STATE_MAZE_ONE ||
                    game_state == STATE_MAZE_TWO ||
                    game_state == STATE_KEYSTONE_MAZE ||
+                   game_state == STATE_CHAIN_ROOM ||
                    game_state == STATE_REAR_GATE ||
                    game_state == STATE_WEST_CORRIDOR ||
                    game_state == STATE_STABLES ||

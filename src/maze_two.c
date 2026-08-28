@@ -313,6 +313,85 @@ void maze_two_spawn_south(void) {
     cam_z   = MT_GATE_Z + COLLISION_WALL_RADIUS + 25;
     cam_rot = 0;      /* facing +Z, into the room */
     maze_two_gate_arm();
+    maze_two_egate_arm();
+}
+
+/* ---- The east-wall gate, into the Chain Room --------------------------------
+   The grdn_gte polys on this side span z[3400,4000] at x=6200, y[-600,0], in the
+   YZ plane. It was drawn shut and backed onto solid collision until the Chain
+   Room was built; it now opens on that room's west gate (src/chain_room.h). Its
+   own corridor is collision FLOOR 9, x(5400,6200) z(3400,4000), which is what
+   fixes the centre at z=3700.
+
+   >>> IT IS THE OPPOSITE HAND FROM THE SOUTH GATE, AND ONLY THE NORMAL SAYS SO.
+   <<< Collision wall 28 runs across this opening with nx = -4096, so the
+   walkable side is -X and the player approaches from inside this maze heading
+   EAST. For a sign in the YZ plane that is mirror=1 and the sign stands 11 units
+   WEST of the wall (x - 11) - the Rear Gate's EAST gate exactly, and the
+   opposite hand from the Chain Room's side of this same gate, whose wall 12
+   faces +X. Getting either backwards comes out as mirrored text or a sign buried
+   in the hedge.
+
+   The wall STAYS in the collision list, as wall 30 does on the south side: the
+   leaf is shut as far as collision is concerned and it is the trigger, not a
+   hole, that lets the player through. */
+#define MT_EGATE_X          6200
+#define MT_EGATE_Z          3700   /* (3400 + 4000) / 2, and FLOOR 9's centre */
+
+static int egate_circle_prev = 1;
+
+void maze_two_egate_arm(void) {
+    egate_circle_prev = circle_held();
+}
+
+int maze_two_egate_triggered(void) {
+    int held = circle_held();
+    int just = held && !egate_circle_prev;
+    egate_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - MT_EGATE_X;
+    int32_t dz = cam_z - MT_EGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < MT_TRIGGER_RADIUS && interact_facing(MT_EGATE_X, MT_EGATE_Z);
+}
+
+/* YZ plane, mirror=1, and 11 units WEST of the wall - see the note above for why
+   both differ from the south gate's. Everything else (the radii, the fade ramp,
+   the eye-level Y) is that gate's verbatim: it is the same leaf in the same
+   perimeter at the same height. */
+static void egate_text(RenderContext *ctx) {
+    int32_t dx = cam_x - MT_EGATE_X;
+    int32_t dz = cam_z - MT_EGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= MT_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > MT_FADE_NEAR) {
+        int range = MT_TEXT_RADIUS - MT_FADE_NEAR;
+        int prog  = xz - MT_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        MT_EGATE_X - 11, MT_TEXT_Y, MT_EGATE_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
+/* Arriving back from the Chain Room: stand in the east corridor west of the
+   x=6200 wall, clear of the 195 push radius, facing -X - the direction of travel
+   through the gate, looking back down the corridor into the maze. x lands at
+   5980, and at z=3700 the nearest ends of the corridor's own walls (27 and 29 at
+   x=5400 and z=3400, 21 and 24 at z=4000 and x=6000) are all 300 away. */
+void maze_two_spawn_east(void) {
+    cam_x   = MT_EGATE_X - COLLISION_WALL_RADIUS - 25;
+    cam_y   = MT_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = MT_EGATE_Z;
+    cam_rot = 3072;   /* facing -X, into the room */
+    maze_two_gate_arm();
+    maze_two_egate_arm();
 }
 
 void maze_two_init(void) {
@@ -332,8 +411,9 @@ void maze_two_init(void) {
 
     maze_two_floor_zones_init();
 
-    /* Only one gate is connected, so there is one spawn and no main.c override
-       to go with it. */
+    /* Two gates now, so main.c overrides this default with
+       maze_two_spawn_east() when the player arrives from the Chain Room. Both
+       spawns arm both gates. */
     maze_two_spawn_south();
 
     /* Save points and dresser props are global (not room-swapped) and neither is
@@ -658,6 +738,7 @@ void maze_two_draw(RenderContext *ctx) {
         sml_meds_draw(ctx);
     }
 
-    /* Last: the gate sign. */
+    /* Last: the two gate signs. */
     gate_text(ctx);
+    egate_text(ctx);
 }

@@ -497,6 +497,44 @@
                 <file name="KEYSTONE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\keystone_maze.smd"/>
                 <file name="PLNTHDMD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\plinth_diamond.tim"/>
 
+                <!-- Chain Room: the walled yard joining Maze Two's east gate to
+                     the Keystone Maze's north gate, and the first room in the
+                     garden that is not itself a maze. ONE new file, and that is
+                     not incidental - it is the constraint the room was built
+                     around.
+
+                     >>> THE RESOURCE THAT RAN OUT WAS MAIN RAM, NOT THIS
+                     DIRECTORY. <<< An earlier note here blamed the TEX
+                     directory record spilling into a fifth 2048-byte
+                     sector for the boot crash this room caused. That was
+                     tested and disproven: TEX was put back to its previous
+                     size and the game crashed identically. The cause was
+                     the room's ~11.4 KB of new BSS pushing the heap into
+                     the stack, and the cure was reclaiming the duplicated
+                     DBLDOOR.TIM RAM copy. See
+                     tools/DIAGNOSING_A_BOOT_CRASH.txt.
+
+                     The borrowing below is still right, for VRAM reasons
+                     rather than directory ones, and shipping one file
+                     instead of three is still cheaper in RAM.
+
+                     So all seven of this room's textures are borrowed. HEDGE,
+                     GRDNGTE, GRSSGS and BRIKWLL come through the courtyard's
+                     uploader (which runs the Garden Stairs' first, and it is
+                     that call which puts brick_wall up); CHAIN through the
+                     narrow maze_one_upload_chain(); PIPEGH - the Greenhouse's
+                     4bpp clone, since Maze One's 8bpp PIPE sits on the
+                     brick_wall page - is streamed on entry. The unusual one is
+                     GRAVEL: this room takes gravel from its OWN page at x640 y0
+                     rather than the gravel_gs clone at x704 y0 that every other
+                     garden room uses, precisely so x704 is free for the chain.
+                     GRAVEL.TIM also lives in the disc ROOT rather than in here,
+                     so borrowing it costs no TEX bytes either.
+                     At 14 KB its SMD is the SMALLEST on the disc; the room
+                     arena is still sized by Maze One's 118 KB.
+                     Its .smx exports live in assets/garden/ too. -->
+                <file name="CHNROOM.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\chain_room.smd"/>
+
                 <!-- The gate's two leaves as the door-anim transition draws them
                      (DOOR_PANEL_GATE). Like XTDRLHLF/XTDRRHLF these are separate
                      per-leaf images, but unlike them they could not be

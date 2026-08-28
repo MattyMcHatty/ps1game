@@ -617,6 +617,30 @@ Touch these files, in this order:
                      within one 2048-byte sector or the disc will not boot
                      (freezes at the BIOS logo).
 
+                     >>> THE TEX-SECTOR WARNING THAT USED TO BE HERE WAS
+                     WRONG. <<< It claimed the August 2026 Chain Room boot
+                     crash came from TEX spilling into a fifth 2048-byte
+                     sector. That was tested and disproven - TEX was put
+                     back to the size the note called safe and the game
+                     crashed identically. The cause was MAIN RAM: the new
+                     room's ~11.4 KB of BSS took the heap into the stack,
+                     with only ~4 KB of real headroom to begin with.
+
+                     So the thing to check before adding a room is the HEAP,
+                     not the TEX directory: run py tools/heap_budget.py and
+                     read FREE AT REST. The measured boot cliff is ~234 KB.
+                     A room costs BSS whether or not it ships any file at
+                     all. See tools/DIAGNOSING_A_BOOT_CRASH.txt.
+
+                     A related trap when a material name has no TIM: smxlink
+                     resolves a Blender material NAME to textures/<name>.tim, so
+                     a mesh whose material is "pipe_128" will not convert until
+                     that file exists. If the room is borrowing another
+                     texture's art, make the file a byte-identical copy at the
+                     BORROWED texture's address, leave it out of disc.xml, and
+                     add it to EXPORTER_ALIASES in tools/vram_map.py so the map
+                     does not report it colliding with its own original.
+
   regenerate         After disc.xml is updated, both generated headers are stale:
                          py tools/gen_tim_slots.py      # tpage/clut constants
                          py tools/gen_room_arena.py     # arena size vs new mesh

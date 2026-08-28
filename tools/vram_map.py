@@ -461,9 +461,22 @@ def rects_overlap(a, b):
 # tools can `from vram_map import read_tim, KNOWN_STREAM_PAIRS` without this
 # file printing the whole map at them — tools/vram_map_garden_west.py does
 # exactly that, so the two maps read the same TIMs through the same parser.
+# EXPORTER ALIASES: files that exist in textures/ ONLY so smxlink can resolve a
+# Blender material NAME to a .tim, and which are byte-identical copies of a
+# texture that IS on the disc. They are not shipped and never occupy VRAM of
+# their own, so counting them here would report a collision with their own
+# original on every run. Each entry names the file it duplicates.
+EXPORTER_ALIASES = {
+    "pipe_128.tim":  "pipe_gh.tim",   # Chain Room's 'pipe_128' material
+    "chain_128.tim": "chain.tim",     # Chain Room's 'chain_128' material
+}
+
+
 def main():
     tims = {}
     for p in sorted(glob.glob(os.path.join(TEXDIR, "*.tim"))):
+        if os.path.basename(p) in EXPORTER_ALIASES:
+            continue
         r = read_tim(p)
         if r: tims[os.path.basename(p)] = r
 
