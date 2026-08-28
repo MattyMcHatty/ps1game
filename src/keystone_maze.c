@@ -8,6 +8,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "room_arena.h"
+#include "cull_arena.h"
 #include "tim_slots.h"
 #include "camera.h"
 #include "keystone_maze.h"
@@ -150,8 +151,13 @@ static int plinth_diamond_tex_id;
    6 bytes x 1439 = 8.6 KB of BSS, alongside the 1.4 KB keystone_maze_nocull
    table that is already indexed the same way. Indices match the draw loop's
    `i`. */
-typedef struct { int16_t x, z; uint8_t stride, pad; } KmCullKey;
-static KmCullKey km_keys[KEYSTONE_MAZE_PRIM_COUNT];
+/* Both tables live in the shared cull arena now rather than in this
+   room's own BSS: only one room's are ever live, for exactly the reason
+   only one room's MESH is (src/cull_arena.h). The names below are this
+   file's own view of the arena, so everything under them reads as it
+   always did. */
+#define KmCullKey CullKey
+#define km_keys     cull_keys
 static int       km_key_count = 0;
 
 static void km_build_cull_keys(void) {

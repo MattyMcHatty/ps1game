@@ -892,7 +892,25 @@ int rafflesias_try_hit(void) {
    from the tentacle's, which is the reference for a rooted sprite: world-space
    quad along the camera's right axis so the GTE gives true perspective scaling,
    fog to match the room mesh, red flash on a fresh hit. */
-static void draw_billboard(RenderContext *ctx, Rafflesia *r, const Sprite *s) {
+/* ---- The camera sightline, taken AT MOST ONCE PER FLOWER PER FRAME ---------
+   >>> BOTH DRAWS BELOW ASKED THE SAME QUESTION ABOUT THE SAME POINT. <<< The
+   body's occlusion cull and the mist's are both collision_hidden_from_camera
+   (r->x, r->y, r->z) — identical arguments, same frame, and nothing between
+   them moves the flower or the camera. A misting flower outside the pull radius
+   therefore traced the segment twice, and in Maze One that is five flowers
+   against a 76-wall room.
+
+   `cache` starts at -1 and is filled by whichever site asks first, so the answer
+   is computed on exactly the frames it was computed on before — the body still
+   only asks outside RAF_PULL_RADIUS, the mist still asks whenever it has a
+   cloud in the air — and never twice. Cost only; the answers are unchanged. */
+static int raf_hidden(Rafflesia *r, int *cache) {
+    if (*cache < 0) *cache = collision_hidden_from_camera(r->x, r->y, r->z) ? 1 : 0;
+    return *cache;
+}
+
+static void draw_billboard(RenderContext *ctx, Rafflesia *r, const Sprite *s,
+                           int *hidden_cache) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     if (ctx->next_packet + sizeof(POLY_FT4) + 2 * sizeof(DR_TWIN) > buf_end) return;
 
@@ -920,8 +938,7 @@ static void draw_billboard(RenderContext *ctx, Rafflesia *r, const Sprite *s) {
        flower gripping the player from 700 away on a diagonal reads as 990 and
        would be culled mid-grab — exactly the case the exemption exists for.
        3/2 > sqrt(2) covers every bearing. */
-    if (wdist > (RAF_PULL_RADIUS * 3) / 2 &&
-        collision_hidden_from_camera(r->x, r->y, r->z))
+    if (wdist > (RAF_PULL_RADIUS * 3) / 2 && raf_hidden(r, hidden_cache))
         return;
 
     int32_t floor_y = r->y + GROUND_FLOOR_Y;
@@ -989,7 +1006,7 @@ static void draw_billboard(RenderContext *ctx, Rafflesia *r, const Sprite *s) {
  *
  * The brightness follows a triangle over the cloud's life so it blooms and
  * disperses instead of popping on and off. */
-static void draw_mist(RenderContext *ctx, Rafflesia *r) {
+static void draw_mist(RenderContext *ctx, Rafflesia *r, int *hidden_cache) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     if (!mist_loaded) return;
     if (ctx->next_packet + sizeof(POLY_FT4) + 2 * sizeof(DR_TWIN) > buf_end) return;
@@ -1035,7 +1052,7 @@ static void draw_mist(RenderContext *ctx, Rafflesia *r) {
        No close-radius exemption here, unlike the body below: a cloud has nothing
        to aim at and nothing to read off, so there is no distance at which one
        hidden behind a hedge is worth its fill. */
-    if (collision_hidden_from_camera(r->x, r->y, r->z)) return;
+    if (raf_hidden(r, hidden_cache)) return;
 
     int32_t floor_y = r->y + GROUND_FLOOR_Y;
     int32_t cy      = floor_y - RAF_MIST_HALF_H;
@@ -1109,7 +1126,8 @@ void draw_rafflesias(RenderContext *ctx) {
 
         /* Alternate the two sprites while awake; sprite 0 alone at rest. */
         int frame = (r->awake && ((r->anim / RAF_OSC_RATE) & 1)) ? 1 : 0;
-        draw_billboard(ctx, r, &spr[frame]);
-        if (r->mist_life > 0) draw_mist(ctx, r);
+        int hidden_cache = -1;   /* see raf_hidden: one sightline per flower */
+        draw_billboard(ctx, r, &spr[frame], &hidden_cache);
+        if (r->mist_life > 0) draw_mist(ctx, r, &hidden_cache);
     }
 }

@@ -118,6 +118,7 @@ add_executable(horror_game
     src/grinder_puzzle.c
     src/texmgr.c
     src/room_arena.c
+    src/cull_arena.c
     src/key.c
     src/item_pickup.c
     src/bullet_hit.c
@@ -193,6 +194,7 @@ set_source_files_properties(
     src/debug_opts.c
     src/world.c
     src/room_arena.c
+    src/cull_arena.c
     src/texmgr.c
     src/cdaudio.c
     src/spi.c

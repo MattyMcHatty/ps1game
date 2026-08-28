@@ -8,6 +8,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "room_arena.h"
+#include "cull_arena.h"
 #include "tim_slots.h"
 #include "camera.h"
 #include "chain_room.h"
@@ -169,8 +170,13 @@ static const char *stream_tex_file[CHAIN_ROOM_STREAM_TEX] = {
    the distance test rejects nothing at all — but the array is 6 bytes x 243 =
    1.5 KB of BSS and the loop below is then the mazes' line for line, which is
    worth more than the 1.5 KB. Indices match the draw loop's `i`. */
-typedef struct { int16_t x, z; uint8_t stride, pad; } CrCullKey;
-static CrCullKey cr_keys[CHAIN_ROOM_PRIM_COUNT];
+/* Both tables live in the shared cull arena now rather than in this
+   room's own BSS: only one room's are ever live, for exactly the reason
+   only one room's MESH is (src/cull_arena.h). The names below are this
+   file's own view of the arena, so everything under them reads as it
+   always did. */
+#define CrCullKey CullKey
+#define cr_keys     cull_keys
 static int       cr_key_count = 0;
 
 static void cr_build_cull_keys(void) {

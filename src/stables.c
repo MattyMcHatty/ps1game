@@ -8,6 +8,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "room_arena.h"
+#include "cull_arena.h"
 #include "tim_slots.h"
 #include "camera.h"
 #include "stables.h"
@@ -180,8 +181,13 @@ static const char *new_tex_file[STABLES_NEW_TEX] = {
    primitive (5.5 KB of BSS) and because the draw loop is otherwise copied
    verbatim from that room — diverging the two would make the next optimisation
    land in one and not the other. Indices match the draw loop's `i`. */
-typedef struct { int16_t x, z; uint8_t stride, pad; } StCullKey;
-static StCullKey st_keys[STABLES_PRIM_COUNT];
+/* Both tables live in the shared cull arena now rather than in this
+   room's own BSS: only one room's are ever live, for exactly the reason
+   only one room's MESH is (src/cull_arena.h). The names below are this
+   file's own view of the arena, so everything under them reads as it
+   always did. */
+#define StCullKey CullKey
+#define st_keys     cull_keys
 static int       st_key_count = 0;
 
 static void st_build_cull_keys(void) {

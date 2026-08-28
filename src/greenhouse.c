@@ -8,6 +8,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "room_arena.h"
+#include "cull_arena.h"
 #include "tim_slots.h"
 #include "camera.h"
 #include "greenhouse.h"
@@ -322,19 +323,27 @@ static const char *new_tex_file[GREENHOUSE_NEW_TEX] = {
    is read only by the ~573 that pass the distance cull, and not at all when the
    frustum test is switched off (debug level 5). Widening the key to 14 bytes
    would have put 8 extra bytes of traffic on the hot path to save reads on the
-   cold one. 8 bytes x 1025 = 8.2 KB more BSS, on top of the key's 6.0 KB.
+   cold one. Neither costs this room any BSS of its own any more: both are
+   windows on the shared cull arena (src/cull_arena.h), which Maze One's
+   2056-primitive mesh sizes and which the seven rooms carrying these tables
+   between them gave 31 KB back by sharing.
 
    >>> THE COUNTS IN THE BLOCK ABOVE ARE FROM THE 1230-PRIMITIVE MESH. <<< They
    are left as they were measured, because they are what motivated the box key
    and re-stating them against a mesh that has since been decimated to 1025
    would make the reasoning unreadable. The fix is worth the same either way:
    it scales with primitives REJECTED. */
-typedef struct { int16_t x, z; uint8_t stride, pad; } GhCullKey;
-static GhCullKey gh_keys[GREENHOUSE_PRIM_COUNT];
+/* Both tables live in the shared cull arena now rather than in this
+   room's own BSS: only one room's are ever live, for exactly the reason
+   only one room's MESH is (src/cull_arena.h). The names below are this
+   file's own view of the arena, so everything under them reads as it
+   always did. */
+#define GhCullKey CullKey
+#define gh_keys     cull_keys
 static int       gh_key_count = 0;
 
-typedef struct { int16_t min_x, max_x, min_z, max_z; } GhCullBox;
-static GhCullBox gh_box[GREENHOUSE_PRIM_COUNT];
+#define GhCullBox CullBox
+#define gh_box      cull_boxes
 
 static void gh_build_cull_keys(void) {
     gh_key_count = 0;

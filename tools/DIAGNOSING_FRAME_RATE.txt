@@ -303,9 +303,30 @@ the side planes instead of its vertices.
   a unit at the screen edge — tolerable when it only confirms a per-vertex answer,
   not tolerable when it is a proof about a box.
 
->>> MAZE ONE HAS NOT HAD THIS AND SHOULD NOT GET IT UNMEASURED. <<< Its vertex
-loop runs on ~120 primitives, not 296, because a maze is not an open room. The
-win there would be small and the room is at 60fps. Measure before porting it.
+>>> MAZE ONE HAS NOW HAD IT, AND THE PARAGRAPH THAT USED TO STAND HERE WAS
+WRONG. <<< It said the box key should not be ported unmeasured, because Maze
+One's vertex loop "runs on ~120 primitives, not 296, because a maze is not an
+open room". The first half of that was right and the number was not: it was
+taken AT THE GATES, which are the cheap corners of the room. Counted offline
+over 16 headings, primitives ENTERING THE VERTEX LOOP:
+
+    west gate spawn    154        maze centre         294
+    north gate spawn   153        BIRD CAGE POCKET    329
+    east gate spawn    141
+
+329 is MORE than the 296 that justified the box key in the Greenhouse, and 94%
+of them were thrown away after chasing v1..v3 through a 118 KB vertex array.
+Maze One's mesh is the biggest on the disc; a maze is not an open room, but it
+is a room whose middle nobody had put a number on. The box key went in
+(src/maze_one.c, mo_box), hole-checked over the whole walkable footprint:
+10,897,337 primitive/pose combinations, zero holes, and it culls 0.9% more than
+the vertex loop did.
+
+>>> THE LESSON IS THE DOCUMENT'S OWN, TURNED ON THE DOCUMENT. <<< "Measure
+before porting it" was the right instruction and it was written next to a
+measurement taken in the wrong place. STEP 5 point 1 says to read the numbers
+IN THE WORST SPOT IN THE ROOM. That applies to the offline counts as well as to
+the meter: sweep the room, do not sample the doorway.
 
 
 ##########################################################################
@@ -408,6 +429,19 @@ a scream, so it is consulted the instant it is taken.
 
 >>> src/spider.c HAS THE SAME SHAPE AND HAS NOT BEEN CHANGED. <<< It is not in
 the room anyone measured, and the whole of this document is about not doing that.
+
+>>> AND A FOURTH CONVICTION, ONE LEVEL BELOW ALL THREE. <<< walls_crossed() —
+the wall half of collision_segment_blocked, and the only half that runs in a
+prop-less room — tested EVERY wall in the room with six multiplies and a
+sign-normalise. A crossing point lies inside both segments and therefore inside
+both bounding boxes, so a wall whose XZ box is disjoint from the segment's
+cannot be crossed: four comparisons, exact, removes work and never an answer.
+Counted offline over Maze One's footprint at 8 headings with a 1200-unit
+sightline: 304,000 wall tests, 6,960 survive the box. 97.7% of the loop now
+costs two compares instead of six multiplies, in every room, and it is the
+first of these four fixes that helps the rooms with no props at all — which is
+every garden room, the mazes and Fountain Square, i.e. everywhere the sampler
+gate already collapses to this loop and this loop alone.
 
 >>> THE PATTERN, THREE TIMES OVER. <<< Every one of this function's three
 convictions was the same mistake in a different coat: work sized for a rare

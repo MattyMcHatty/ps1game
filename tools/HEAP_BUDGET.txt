@@ -93,14 +93,14 @@ KEPT BUFFERS  (read once, pointer stashed, never freed)
   TOTAL                                     165888
 
 THE HEAP
-  _end (heap start)   0x800E005C
+  _end (heap start)   0x800D859C
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size            1179548 bytes (1152 KB)
+  heap size            1210972 bytes (1183 KB)
 
-  texmgr resident       765952 bytes (748 KB)  64.9%
-  kept buffers          165888 bytes (162 KB)  14.1%
-  PERMANENT TOTAL       931840 bytes (910 KB)  79.0%
-  FREE AT REST          247708 bytes (242 KB)  21.0%
+  texmgr resident       765952 bytes (748 KB)  63.3%
+  kept buffers          165888 bytes (162 KB)  13.7%
+  PERMANENT TOTAL       931840 bytes (910 KB)  76.9%
+  FREE AT REST          279132 bytes (273 KB)  23.1%
 
   The largest single transient allocation still has to fit in what is
   free, and startup makes several: the kitchen's 32768-byte scratch, and
@@ -112,9 +112,6 @@ THE HEAP
   it booted - between 233 KB and 235 KB free at rest. Treat anything
   under 256 KB as already in trouble, whatever this line says.
 
-  *** WARNING: under 256 KB free. The measured boot cliff is ~234 KB
-      of FREE AT REST. Do not add a registration without
-      reclaiming one first. See the two no-cost patterns in the
-      docstring at the top of this file. ***
+  OK: comfortable margin.
 
 Regenerate with:  python tools/heap_budget.py > tools/HEAP_BUDGET.txt

@@ -8,6 +8,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "room_arena.h"
+#include "cull_arena.h"
 #include "tim_slots.h"
 #include "camera.h"
 #include "maze_one.h"
@@ -44,22 +45,54 @@ static SMD  *maze_one_smd  = NULL;
 static void *maze_one_buff = NULL;
 
 /* ---- View distance ---------------------------------------------------------
-   FOUNTAIN SQUARE'S EXACTLY, and deliberately so: 575/2500, the same purple
-   SKY_FOG_* colour, and the cull equal to the fog-far so nothing is dropped
-   until the fog has already faded it into the background. The two rooms are one
-   continuous walled garden either side of a gate, and matching them means the
-   step through it changes the plan of the place but not the weather.
+   2200, AND THE CULL AND THE FOG-FAR MOVE TOGETHER. That pairing is the rule
+   here, not a coincidence: the cull is set equal to the fog-far so nothing is
+   ever dropped until the fog has already faded it into the background colour,
+   and the background is painted in that same colour (render_set_clear_colour in
+   maze_one_draw). Change one of these two and the other has to follow, or the
+   room grows a visible cull line where geometry pops out of a sky it had not
+   finished fading into.
+
+   >>> IT USED TO BE 2500, WHICH WAS FOUNTAIN SQUARE'S EXACTLY. <<< The two
+   rooms are one continuous walled garden either side of a gate, and matching
+   the square's 575/2500 and its purple SKY_FOG_* meant the step through that
+   gate changed the plan of the place but not the weather. THAT MATCH IS NOW
+   BROKEN ON PURPOSE and it is the one thing to look at first if the gate ever
+   reads wrong: the fog NEAR is still the square's 575, so the near half of the
+   picture is unchanged and only the far edge closes in by 300 units.
+
+   The reason is frame cost, and this is the lever the room had left after the
+   cull-key and bounding-box work (see mo_box below, and STEP 6 of
+   tools/DIAGNOSING_FRAME_RATE.txt). Counted offline over 16 headings, at 2500
+   against 2200:
+
+       camera at            pass the distance cull    submitted to the GTE
+       BIRD CAGE POCKET          588 -> 480                123 -> 102
+       maze centre               562 -> 412                121 ->  92
+       west gate spawn           263 -> 227                 60 ->  53
+
+   Roughly a fifth off both, and most of it in the middle and the south-east of
+   the maze — which is exactly where the room was heavy.
 
    It suits this room on its own account too. The mesh is 2056 prims, two and a
-   half times the square's 802, and it covers 7600 x 6600 units — at 2500
-   Manhattan the cull is holding roughly three-quarters of it out of the packet
-   buffer at any moment. The maze corridors are only ~600 wide, so the hedge
-   runs occlude far more than the fog does anyway; what the player actually sees
-   is a couple of junctions ahead fading into the murk, which is the point of
-   putting them in a maze at night. */
-#define MO_CULL_DIST      2500
+   half times the square's 802, and it covers 7600 x 6600 units, so even at 2500
+   the cull was holding three-quarters of it out of the packet buffer at any
+   moment. The maze corridors are only ~600 wide, so the hedge runs occlude far
+   more than the fog does anyway; what the player actually sees is a couple of
+   junctions ahead fading into the murk, which is the point of putting them in a
+   maze at night. 2200 still clears the room's longest straight sightline.
+
+   >>> IT ALSO TIGHTENS THE SPRITE ENEMIES, AND THAT IS BY DESIGN. <<<
+   maze_one_draw publishes MO_FOG_FAR as g_fog_far, and both sprite families
+   read it: the Rafflesias WAKE at it (rafflesia.c wakes at "the room's own draw
+   distance", so that a flower can never be awake and gassing while culled), and
+   both the flowers and the Mushroom Heads distance-cull their billboards
+   against it. So the five flowers here now wake at 2200 rather than 2500. That
+   coupling is deliberate and must stay — the wake radius has to track whatever
+   the room can show, not a constant of its own. */
+#define MO_CULL_DIST      2200
 #define MO_FOG_NEAR        575
-#define MO_FOG_FAR        2500
+#define MO_FOG_FAR        2200
 
 /* ---- Floor zones -----------------------------------------------------------
    ONE zone, exactly as Fountain Square. The collision generator found twenty-
@@ -180,9 +213,64 @@ static int chain_tex_id;
 
    6 bytes x 2056 = 12 KB of BSS, alongside the 2 KB maze_one_nocull table that
    is already indexed the same way. Indices match the draw loop's `i`. */
-typedef struct { int16_t x, z; uint8_t stride, pad; } MoCullKey;
-static MoCullKey mo_keys[MAZE_ONE_PRIM_COUNT];
+/* Both tables live in the shared cull arena now rather than in this
+   room's own BSS: only one room's are ever live, for exactly the reason
+   only one room's MESH is (src/cull_arena.h). The names below are this
+   file's own view of the arena, so everything under them reads as it
+   always did. */
+#define MoCullKey CullKey
+#define mo_keys     cull_keys
 static int       mo_key_count = 0;
+
+/* ---- The SECOND key: each primitive's XZ bounding box ----------------------
+   >>> THE DISTANCE CULL STOPPED READING THE MESH AND THE FRUSTUM TEST PUT IT
+   BACK ONE TEST LATER. <<< This is the Greenhouse's gh_box, ported here after
+   the measurement tools/DIAGNOSING_FRAME_RATE.txt asked for. That document says
+   Maze One's vertex loop "runs on ~120 primitives, not 296, because a maze is
+   not an open room" and should not get this unmeasured. IT WAS MEASURED, AND
+   THAT FIGURE WAS TAKEN AT THE GATES. Counted offline against this mesh over
+   16 headings (the tool is twenty lines; write one, do not estimate):
+
+       camera at        distance-cull pass   ENTER THE VERTEX LOOP   submitted
+       west gate spawn         263                  154                 60
+       north gate spawn        271                  153                 60
+       east gate spawn         254                  141                 56
+       maze centre             562                  294                121
+       BIRD CAGE POCKET        588                  329                123   <--
+
+   The three gates are where the ~120 came from. The middle of the maze and the
+   south-east pocket -- which is where the cage hangs, and where the lag was
+   reported -- run at DOUBLE that, and 329 is more than the 296 that justified
+   the box key in the Greenhouse. Ninety-four per cent of those 329 are then
+   thrown away, each having chased v1..v3 out of a 118 KB vertex array with no
+   data cache behind it. The gates are the cheap corners of this room; nobody
+   had counted the middle of it.
+
+   IT IS NOT AN APPROXIMATION OF THE VERTEX TEST, it is a cheaper way of taking
+   it. The plane predicate is LINEAR in (x,z), so over a convex box its minimum
+   is at a corner: all four corners outside a plane PROVES every vertex is
+   outside it. Hole-free by construction. Verified anyway over the whole
+   walkable footprint (x -100..7300, z -1300..4700 at 200-unit steps, 32
+   headings): 10,897,337 primitive/pose combinations, ZERO holes, and it culls
+   7,797,880 against the vertex loop's 7,727,873 -- 0.9% MORE, because most of
+   this mesh is axis-aligned hedge and floor quads whose XZ box IS the quad.
+
+   A SEPARATE ARRAY FROM mo_keys, for the Greenhouse's reason: the key is read
+   for all 2056 primitives every frame, the box only by the ~590 that pass the
+   distance cull. Widening the key to 14 bytes would put 8 bytes of extra
+   traffic on the hot path to save reads on the cold one. Both live in the
+   shared cull arena (src/cull_arena.h) and cost this room no BSS of its own:
+   the arena is sized to 2056 primitives BECAUSE of this mesh, so the box came
+   in free and the seven rooms between them gave 31 KB back.
+
+   THE ARITHMETIC STAYS IN THE <<12 DOMAIN rather than shifting down first the
+   way the vertex loop did. >>12 floors, and a floored comparison can go the
+   wrong way by a unit at the screen edge -- tolerable when it only confirms a
+   per-vertex answer, not tolerable when it is a proof about a box. The widest
+   span here is 7600 x 4096 x 8, far inside an int32 (checked in the sweep
+   above: zero overflows). */
+#define MoCullBox CullBox
+#define mo_box      cull_boxes
 
 static void mo_build_cull_keys(void) {
     mo_key_count = 0;
@@ -194,10 +282,23 @@ static void mo_build_cull_keys(void) {
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
         uint16_t     *vi = (uint16_t *)(p + 4);
         SVECTOR      *v0 = &maze_one_smd->p_verts[vi[0]];
+        int nv = (pt->type >= 2) ? 4 : 3;
+        int16_t lo_x = v0->vx, hi_x = v0->vx;
+        int16_t lo_z = v0->vz, hi_z = v0->vz;
+        int k;
+        for (k = 1; k < nv; k++) {
+            SVECTOR *vk = &maze_one_smd->p_verts[vi[k]];
+            if (vk->vx < lo_x) lo_x = vk->vx;
+            if (vk->vx > hi_x) hi_x = vk->vx;
+            if (vk->vz < lo_z) lo_z = vk->vz;
+            if (vk->vz > hi_z) hi_z = vk->vz;
+        }
         mo_keys[i].x      = v0->vx;
         mo_keys[i].z      = v0->vz;
         mo_keys[i].stride = pt->len;
         mo_keys[i].pad    = 0;
+        mo_box[i].min_x = lo_x; mo_box[i].max_x = hi_x;
+        mo_box[i].min_z = lo_z; mo_box[i].max_z = hi_z;
         p += pt->len;
     }
     mo_key_count = n;
@@ -583,6 +684,10 @@ static void draw_maze_one_smd(RenderContext *ctx) {
     if (!cull) cull = MO_CULL_DIST;
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     int     no_frustum = (DEBUG_EXPERIMENT() == DBG_EXP_NO_FRUSTUM);
+    /* The packet-buffer limit too: ctx->active_buffer cannot change inside a
+       draw, so this was a double indirection recomputed for every primitive
+       that got as far as being queued. */
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     if (mo_key_count < n) n = mo_key_count;   /* keys not built: draw nothing */
 
     for (i = 0; i < n; i++) {
@@ -595,14 +700,6 @@ static void draw_maze_one_smd(RenderContext *ctx) {
         int32_t kdz = (int32_t)mo_keys[i].z - cam_z;
         if ((kdx < 0 ? -kdx : kdx) + (kdz < 0 ? -kdz : kdz) > cull)
             { p += stride; continue; }
-
-        SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
-        int is_quad = (pt->type >= 2);
-
-        uint16_t *vi = (uint16_t *)(p + 4);
-        SVECTOR *v0 = &maze_one_smd->p_verts[vi[0]];
-        SVECTOR *v1 = &maze_one_smd->p_verts[vi[1]];
-        SVECTOR *v2 = &maze_one_smd->p_verts[vi[2]];
 
         {
 
@@ -624,26 +721,34 @@ static void draw_maze_one_smd(RenderContext *ctx) {
                160/256, so a point is outside the right plane when
                    side > (5/8) * fwd,  i.e.  8*side > 5*fwd
                and outside the left when the same holds for -side. Both sides of
-               that comparison are world units (the >>12 undoes isin/icos), and
-               at this room's scale the products stay far inside an int32.
+               that comparison carry isin/icos's <<12 scale, which cancels
+               across the inequality, and at this room's scale the products stay
+               far inside an int32 (the widest is 7600 x 4096 x 8).
 
                >>> A POLY IS ONLY CULLED WHEN EVERY VERTEX IS OUTSIDE THE SAME
-               PLANE. <<< Testing v0 alone would slice through polys that
-               straddle the screen edge. The cheap alternative — v0 plus a
-               bounding sphere of the mesh's largest poly radius — was written
-               first and measured against this: over a full heading sweep the
-               sphere version removed 46% of submitted primitives and the exact
-               one removes 72%, because a 400-unit sphere around v0 is far bigger
-               than the poly it stands for. The exact test costs up to three more
-               vertex evaluations, but ONLY for polys whose v0 is already outside
-               a plane — a poly in view exits on the first test — and each one it
-               rejects saves a full GTE transform and a queued primitive.
+               PLANE, AND HERE THAT IS DECIDED FROM ITS BOUNDING BOX RATHER THAN
+               ITS VERTICES. <<< Testing v0 alone would slice through polys that
+               straddle the screen edge. This used to walk v1..v3 out of the mesh
+               to settle it — exact, and exactly the 118 KB scattered chase
+               mo_keys exists to avoid, reintroduced one test later. Counted
+               offline, ~329 primitives a frame entered that loop from the bird
+               cage pocket and 94% of them were thrown away. See the long note on
+               mo_box above for the measurement and the proof.
 
-               Verified against the mesh offline before it was written: over 16
-               headings at the entry pose it removes 72% of the 3604 primitives
-               that would have been submitted, and introduces ZERO holes — where
-               a hole means culling a poly with any vertex inside the true
-               frustum. Re-run that check if the mesh is re-exported.
+               The box is not an approximation of the test, it is a cheaper way
+               of taking it: the plane predicate is LINEAR in (x,z), so over a
+               convex box its minimum is at a corner. All four corners outside a
+               plane therefore PROVES every vertex is outside it — no holes,
+               whatever the mesh, and no offline verification needed. Checked
+               anyway over the whole walkable footprint: 10.9M primitive/pose
+               combinations, zero holes, and it culls 0.9% MORE than the vertex
+               loop did.
+
+               The arithmetic stays in the <<12 fixed-point domain rather than
+               shifting down first, as the vertex loop did. >>12 floors, and a
+               floored comparison can go the wrong way by a unit right at the
+               screen edge — harmless when the answer is only being confirmed per
+               vertex, not harmless when it is a proof about a box.
 
                Y is not tested. The camera is at standing height in a room whose
                hedges are drawn to y=-500 and whose floor is flat, so nothing is
@@ -654,26 +759,35 @@ static void draw_maze_one_smd(RenderContext *ctx) {
             if (fwd < -(700 << 12))
                 { p += stride; continue; }
             if (!no_frustum) {
-                int32_t f0 = fwd >> 12;                      /* world units */
-                int32_t s0 = (kdx * cs - kdz * sn) >> 12;
-                int     sign = 0;
-                if      ( s0 * 8 > f0 * 5) sign =  1;        /* v0 off right */
-                else if (-s0 * 8 > f0 * 5) sign = -1;        /* v0 off left  */
-                if (sign) {
-                    int n = is_quad ? 4 : 3, k, all_out = 1;
-                    for (k = 1; k < n; k++) {
-                        SVECTOR *vk = &maze_one_smd->p_verts[vi[k]];
-                        int32_t ex = (int32_t)vk->vx - cam_x;
-                        int32_t ez = (int32_t)vk->vz - cam_z;
-                        int32_t f  = (ex * sn + ez * cs) >> 12;
-                        int32_t sd = (ex * cs - ez * sn) >> 12;
-                        if (!(sign * sd * 8 > f * 5)) { all_out = 0; break; }
-                    }
-                    if (all_out) { p += stride; continue; }
+                int32_t bx0 = (int32_t)mo_box[i].min_x - cam_x;
+                int32_t bx1 = (int32_t)mo_box[i].max_x - cam_x;
+                int32_t bz0 = (int32_t)mo_box[i].min_z - cam_z;
+                int32_t bz1 = (int32_t)mo_box[i].max_z - cam_z;
+                int out_r = 1, out_l = 1, c;
+                for (c = 0; c < 4; c++) {
+                    int32_t ex = (c & 1) ? bx1 : bx0;
+                    int32_t ez = (c & 2) ? bz1 : bz0;
+                    int32_t f  = ex * sn + ez * cs;
+                    int32_t sd = ex * cs - ez * sn;
+                    if (!( sd * 8 > f * 5)) out_r = 0;
+                    if (!(-sd * 8 > f * 5)) out_l = 0;
+                    if (!out_r && !out_l) break;
                 }
+                if (out_r || out_l) { p += stride; continue; }
             }
 
         }
+
+        /* SURVIVED BOTH CULLS: only now is the primitive header read and the
+           vertex array addressed. Everything above answers out of mo_keys and
+           mo_box, so a rejected primitive touches neither. */
+        SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
+        int is_quad = (pt->type >= 2);
+
+        uint16_t *vi = (uint16_t *)(p + 4);
+        SVECTOR *v0 = &maze_one_smd->p_verts[vi[0]];
+        SVECTOR *v1 = &maze_one_smd->p_verts[vi[1]];
+        SVECTOR *v2 = &maze_one_smd->p_verts[vi[2]];
 
         DVECTOR sv[4];
         int32_t sz[4];
@@ -734,8 +848,6 @@ static void draw_maze_one_smd(RenderContext *ctx) {
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
         int32_t fog = dist < MO_FOG_NEAR ? MO_FOG_NEAR : (dist > MO_FOG_FAR ? MO_FOG_FAR : dist);
         int32_t fog_factor = ((MO_FOG_FAR - fog) << 8) / (MO_FOG_FAR - MO_FOG_NEAR);
-
-        uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
