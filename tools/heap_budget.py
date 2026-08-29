@@ -29,12 +29,26 @@ WHAT COUNTS AS PERMANENT
                      entry can be a pure LoadImage. Never freed. This is by far
                      the biggest consumer and the one that grows per room.
   kept buffers       a model or clip read once at startup whose pointer is stashed
-                     in a file-scope variable (the prop SMDs, the Rabisu's idle
-                     clip). Never freed.
-  NOT counted        loads that are freed again (kitchen_stream_textures' scratch,
-                     fatdoor's two TIM buffers, greenhouse_upload_textures'
-                     scratch), and room_arena_load, which reads into a BSS array
-                     rather than the heap.
+                     in a file-scope variable (the prop SMDs). Never freed.
+  NOT counted        loads that are freed again - listed separately as ROOM-SCOPED
+                     so nothing vanishes from the report. That covers the scratch
+                     buffers (kitchen_stream_textures, fatdoor's two TIMs, the
+                     Greenhouse's and the Chain Room's texture streams) AND the
+                     boss models, which are read on entry to the room the boss
+                     fights in and freed on the way out. Also not counted:
+                     room_arena_load, which reads into a BSS array rather than
+                     the heap.
+
+>>> A BOSS MODEL IS ROOM-SCOPED, NOT RESIDENT, AND THAT IS LOAD-BEARING. <<<
+The Rabisu's RABISU.SMD + RBSIDLE.PVA are 104,448 bytes and WERE read at startup
+and never freed, for a boss that exists in exactly one room. That was the single
+largest avoidable item in this budget and it was blocking the second boss from
+having a model at all. They are now loaded from main.c's STATE_LOADING when the
+destination is the Garden Courtyard and freed on every other transition - the
+same move room_arena.c made for room meshes, on the heap rather than in BSS
+because unlike a room, NO boss is loaded almost all of the time.
+Do not give a new boss a startup load. See src/rabisu.c and
+tools/ADDING_THE_ASAG_FIGHT.txt PART 6.
 
 The transient allocations still have to FIT in whatever is left, so treat the
 "free at rest" figure as the budget, not as slack.
@@ -91,18 +105,44 @@ regs = [(n, m) for n, m in regs if n in disc]
 # ---------------------------------------------------------------------------
 # 2. buffers whose pointer is kept - permanent
 # ---------------------------------------------------------------------------
-kept = []
+kept   = []    # never released: permanent
+scoped = []    # released again: transient, and only the PEAK has to fit
+
+# >>> THE TEST IS "DOES THIS MODULE EVER free() THIS POINTER". <<< It used to be
+# "...within the next 800 characters", which only recognised a load and a free
+# inside one function. That misses the shape that actually matters now: a buffer
+# read on ROOM ENTRY and freed on the way out, whose free lives in a separate
+# function (rabisus_load_model / rabisus_free_model). Those are not permanent and
+# must not be counted as though they were.
+#
+# The heuristic is deliberately generous - any free of that variable anywhere in
+# the file counts - so a module that frees only on an ERROR path would be
+# under-reported. Nothing in the tree does that today; if you add one, either
+# free it honestly on the success path too or it will flatter this report.
+# Nothing DISAPPEARS from the output either way: everything excluded from the
+# permanent total is still listed, under ROOM-SCOPED below.
+#
+# >>> FIXING THIS ALSO CORRECTED A 16,384-BYTE OVER-COUNT THAT HAD ALWAYS BEEN
+# HERE. <<< chainlink_door.c's CHNLNK.TIM (10,240) and grinder.c's GRINDER.TIM
+# (6,144) are plain local scratch - read, GetTimInfo, LoadImage, free, all inside
+# one function - and were never permanent. The old read_file branch checked for
+# no free at all, so it counted both. FREE AT REST therefore rises by 16 KB on
+# this commit for reasons that have nothing to do with the boss model; if you are
+# comparing against an older HEAP_BUDGET.txt, that is where the difference is.
+def _frees(src, var):
+    return re.search(r'\bfree\s*\(\s*' + re.escape(var) + r'\s*\)', src) is not None
+
 for c in sorted(glob.glob('src/*.c')):
     src = open(c, encoding='utf-8', errors='replace').read()
     mod = os.path.basename(c)
     for m in re.finditer(r'(\w+)\s*=\s*(?:\([\w\s*]*\)\s*)?read_file\(\s*"([^"]+)"', src):
-        n = basename(m.group(2))
+        n, var = basename(m.group(2)), m.group(1)
         if n in disc:
-            kept.append((n, mod, m.group(1)))
+            (scoped if _frees(src, var) else kept).append((n, mod, var))
     for m in re.finditer(r'load_file\(\s*"([^"]+)"\s*,\s*&(\w+)\s*\)', src):
         n, var = basename(m.group(1)), m.group(2)
-        if n in disc and ('free(' + var) not in src[m.end():m.end() + 800]:
-            kept.append((n, mod, var))
+        if n in disc:
+            (scoped if _frees(src, var) else kept).append((n, mod, var))
 
 # ---------------------------------------------------------------------------
 print("=" * 78)
@@ -154,6 +194,21 @@ for n, m, var in sorted(kept, key=lambda r: -rounded(r[0])):
 print("  %-24s %-14s %8d" % ("TOTAL", "", kept_total))
 print()
 
+print("ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)")
+scoped_total = 0
+for n, m, var in sorted(scoped, key=lambda r: -rounded(r[0])):
+    scoped_total += rounded(n)
+    print("  %-24s %-14s %8d  -> %s" % (m, n, rounded(n), var))
+if not scoped:
+    print("  none")
+else:
+    print("  %-24s %-14s %8d   <- PEAK, not a resting cost" % ("TOTAL", "", scoped_total))
+    print()
+    print("  These cost nothing at rest and everything at the moment they are in.")
+    print("  The transition that loads them is the peak this heap has to survive,")
+    print("  so FREE AT REST must stay comfortably above the largest of them.")
+print()
+
 out = subprocess.run([NM, ELF], capture_output=True, text=True).stdout
 end = [int(l.split()[0], 16) & 0xFFFFFFFF for l in out.splitlines()
        if len(l.split()) == 3 and l.split()[2] == '_end']
@@ -175,7 +230,25 @@ print("  PERMANENT TOTAL     %8d bytes (%.0f KB)  %4.1f%%" % (perm, perm / 1024.
 print("  FREE AT REST        %8d bytes (%.0f KB)  %4.1f%%" % (heap - perm, (heap - perm) / 1024.0, 100.0 * (heap - perm) / heap))
 print()
 
-biggest = max((rounded(n) for n, _, _ in kept), default=0)
+biggest = max((rounded(n) for n, _, _ in kept + scoped), default=0)
+print("  >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.")
+print("      THAT IS WHAT KILLS YOU, AND IT IS PER-ROOM. <<<")
+print("      The GARDEN COURTYARD is the tightest door in the game: it is the")
+print("      only transition that loads SND_BANK_BOSS, whose EMERGE clip is a")
+print("      71,680-byte malloc — the largest single transient anywhere here —")
+print("      and the Rabisu's 104,448-byte model is loaded at the same door.")
+print("      Held together that is 176,128 bytes at one instant; main.c now")
+print("      SEQUENCES them (free before the bank swap, load after) so the peak")
+print("      is 104,448. Work the peak out by hand for any room you touch.")
+print("      See tools/DIAGNOSING_A_BOOT_CRASH.txt section 8.")
+print()
+print("  >>> AND THE ~234 KB CLIFF IN THAT DOCUMENT IS IN OLDER UNITS. <<<")
+print("      It was measured when this script still counted chainlink_door.c's")
+print("      and grinder.c's TIM scratch as permanent. It no longer does, so the")
+print("      figure above is ~16 KB higher than the one that cliff was measured")
+print("      against: in today's units it is about 218 KB. Re-measure (section 3")
+print("      of that file) before trusting either number.")
+print()
 print("  The largest single transient allocation still has to fit in what is")
 print("  free, and startup makes several: the kitchen's 32768-byte scratch, and")
 print("  every read_file above (largest %d bytes). Keep FREE AT REST well clear" % biggest)

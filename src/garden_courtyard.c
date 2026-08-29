@@ -389,6 +389,17 @@ static void draw_garden_courtyard_smd(RenderContext *ctx) {
     uint8_t *p = (uint8_t *)garden_courtyard_smd->p_prims;
     int i;
 
+    /* >>> HOISTED OUT OF THE LOOP. <<< isin/icos are SDK function calls and
+       cam_rot does not change while a frame is being queued, so calling them
+       per primitive was 2 x 526 calls a frame to compute one pair of constants.
+       This is half of the pair of changes that dragged Maze One back to 60fps —
+       tools/DIAGNOSING_FRAME_RATE.txt STEP 3B ends with "hoisting isin/icos and
+       the cull distance out of the loop went in at the same time". This room
+       never got either; it is one of the older ones. Behaviour-neutral: the
+       same two values, computed once. */
+    const int32_t cam_sin = isin(cam_rot);
+    const int32_t cam_cos = icos(cam_rot);
+
     for (i = 0; i < garden_courtyard_smd->n_prims; i++) {
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
         uint8_t stride = pt->len;
@@ -406,7 +417,7 @@ static void draw_garden_courtyard_smd(RenderContext *ctx) {
                are already invisible — see the view-distance note above. */
             if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > GC_CULL_DIST)
                 { p += stride; continue; }
-            int32_t fwd = dx * isin(cam_rot) + dz * icos(cam_rot);
+            int32_t fwd = dx * cam_sin + dz * cam_cos;
             if (fwd < -(700 << 12))
                 { p += stride; continue; }
         }
@@ -552,14 +563,16 @@ void garden_courtyard_draw(RenderContext *ctx) {
 
     /* Background in the SAME colour the fog saturates to, so a poly that has
        faded out is indistinguishable from the void behind it and the cull never
-       shows a seam. Purple here, matching the Garden Stairs and delivery. */
-    TILE *bg = (TILE *)ctx->next_packet;
-    setTile(bg);
-    setXY0(bg, 0, 0);
-    setWH(bg, SCREEN_XRES, SCREEN_YRES);
-    setRGB0(bg, SKY_FOG_R, SKY_FOG_G, SKY_FOG_B);
-    addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], bg);
-    ctx->next_packet += sizeof(TILE);
+       shows a seam. Purple here, matching the Garden Stairs and delivery.
+
+       >>> PAINTED BY THE HARDWARE CLEAR, NOT BY A FULL-SCREEN TILE. <<< The draw
+       environments already carry isbg=1, so DrawOTagEnv fills the whole
+       framebuffer before a single primitive is drawn; the TILE this used to
+       queue was a SECOND 77,000-pixel fill every frame, purely to choose the
+       colour. That is wrong turn #3 in tools/DIAGNOSING_FRAME_RATE.txt — real
+       waste, and free to remove. Maze One took it; this room is one of the
+       eighteen that had not. Identical output. */
+    render_set_clear_colour(ctx, SKY_FOG_R, SKY_FOG_G, SKY_FOG_B);
 
     /* 128x128 texture window so per-poly UVs wrap (tile) within each texture's
        page. All of this room's textures sit at page-top (Voff 0), so one window
@@ -584,7 +597,36 @@ void garden_courtyard_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
 
-    draw_garden_courtyard_smd(ctx);
+    /* ---- ISOLATION SWITCHES (debug levels 4, 5 and 8; SELECT cycles them) ---
+       Added when the boss fight was reported as lagging "the whole time the boss
+       is in the level". This room honoured NONE of them before, which meant the
+       only available readings were U/D/G with everything on and the level-9 AI
+       freeze — enough to split logic from drawing, and nothing more.
+       tools/DIAGNOSING_FRAME_RATE.txt STEP 1: add a switch for anything you are
+       about to spend an afternoon on; ten lines each, and they are the
+       difference between knowing and believing.
+
+       The three-way split this gives, read as D at each level against D at 1:
+
+         4  NO_MESH      the room's own geometry
+         5  the BOSS'S ADDITIVE GEOMETRY only — the model still draws
+         8  NO_ENTITIES  the boss entirely: model AND additive
+
+       So (1 - 8) is the whole boss, (1 - 5) is its light, and the difference
+       between them is its 476-poly model. That distinction is the one that
+       matters here, because the two cost different halves of the machine: the
+       model is CPU (GTE transforms, so it lands in D with G near zero), while
+       the lights are SEMI-TRANSPARENT FILL (so they land in G). Optimising the
+       wrong one is wrong turn #1 in that document — 133 hblanks a frame spent
+       saving fill nobody was short of.
+
+       >>> LEVEL 5 IS THE A/B SLOT, REPOINTED. <<< DBG_EXP_NO_FRUSTUM is
+       documented as "an A/B slot; repoint it at whatever cull is currently on
+       trial". This room has no frustum cull on trial, so it is pointed at the
+       additive draws instead. Point it somewhere else when this is settled. */
+    int exp = DEBUG_EXPERIMENT();
+
+    if (exp != DBG_EXP_NO_MESH) draw_garden_courtyard_smd(ctx);
 
     /* The Rabisu (this room's boss) is the only enemy placed here, and it is a
        MODEL. Its skin sits at VRAM (704,256) — page-aligned, Voff 0 — so the
@@ -599,15 +641,21 @@ void garden_courtyard_draw(RenderContext *ctx) {
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
-    draw_rabisus(ctx);
+    if (exp != DBG_EXP_NO_ENTITIES) draw_rabisus(ctx);
     /* Both of these want the PLAIN camera view matrix, which draw_rabisus puts
        back after composing the boss's own — so they must come after it, not
        before. The first is everything the boss's ATTACKS put in the world —
        fireballs, the light beam's charge and burning path, the shockwave — and
        the second is the ENCOUNTER's own: the reveal's lawn lights and the
-       death glow. */
-    rbs_attacks_draw(ctx);
-    rabisu_boss_draw(ctx);
+       death glow.
+
+       Both are ADDITIVE (semi-transparent) and therefore cost FILL rather than
+       CPU, so they are the half of the boss that shows up in G. Levels 5 and 8
+       both drop them; only 8 also drops the model. */
+    if (exp != DBG_EXP_NO_FRUSTUM && exp != DBG_EXP_NO_ENTITIES) {
+        rbs_attacks_draw(ctx);
+        rabisu_boss_draw(ctx);
+    }
     webs_draw(ctx);
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);

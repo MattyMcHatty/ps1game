@@ -70,6 +70,7 @@
 #include "keystone_maze.h"
 #include "chain_room.h"
 #include "the_hatch.h"
+#include "asag_arena.h"
 #include "hatch_doors.h"
 #include "hatch_puzzle.h"
 #include "keystone_plinths.h"
@@ -266,6 +267,7 @@ static void load_area_geometry(GameState area) {
         case STATE_WEST_CORRIDOR:    west_corridor_load_geometry();    break;
         case STATE_STABLES:          stables_load_geometry();          break;
         case STATE_GREENHOUSE:       greenhouse_load_geometry();       break;
+        case STATE_ASAG_ARENA:       asag_arena_load_geometry();       break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -393,11 +395,10 @@ static void update_current_area(GameState area) {
 
        THE DROP'S TRANSITION IS TAKEN HERE and not in the room's block below,
        because the descent never reaches it: hatch_puzzle_active() is true for
-       the whole of the fall. >>> AND THE DESTINATION IS A PLACEHOLDER. <<< The
-       shaft is meant to land in a boss encounter that is not built yet, so for
-       now it gates back into THE HATCH ITSELF, which re-enters at the west gate
-       with the doors still open. Point pending_area at the new room when it
-       exists; nothing else here changes. */
+       the whole of the fall. It lands in STATE_ASAG_ARENA (src/asag_arena.h),
+       which is a ONE-WAY pocket — the shaft cannot be climbed back up, and the
+       arena's own exit is the only other way out. That was a placeholder gating
+       back into The Hatch itself until the arena existed. */
     if (area == STATE_THE_HATCH && hatch_puzzle_active()) {
         update_zombies();
         update_spiders();
@@ -409,7 +410,13 @@ static void update_current_area(GameState area) {
         hatch_doors_update();
         update_particles();
         if (hatch_puzzle_drop_done()) {
-            pending_area = STATE_THE_HATCH;
+            /* The shaft lands in ASAG'S ARENA. This used to be the placeholder
+               that gated back into The Hatch itself because the room at the
+               bottom did not exist; it does now (src/asag_arena.h), so the drop
+               goes where it was always meant to. The arena is a ONE-WAY pocket:
+               there is no way back up this shaft, and its own exit is the only
+               other way out. */
+            pending_area = STATE_ASAG_ARENA;
             door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -1344,6 +1351,60 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+    } else if (area == STATE_ASAG_ARENA) {
+        /* ASAG'S ARENA — free play. The encounter's own CUTSCENE branch does not
+           live here: it goes at the TOP of this function beside the Hatch's and
+           the Attic Exit's, as an early return, because a cutscene must not run
+           update_camera, collision or the door trigger. See
+           tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9, which spells out the exact
+           shape:
+
+               if (area == STATE_ASAG_ARENA && asag_boss_cutscene()) {
+                   update_asags(); player_status_update();
+                   asag_boss_update(); update_particles();
+                   return;
+               }
+
+           Skipping update_camera is also what holds a crane shot at its own
+           height — apply_height() would otherwise drag cam_y down to the floor.
+
+           Flat box, one floor plane at y=0, so the shared wall routine (generic
+           over current_collision_room) and a single floor zone are the whole of
+           the collision — as the mazes and the Chain Room. Re-check that when
+           the real arena has a terrace in it. */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed, and none ever will be: a sealed */
+        update_spiders();      /* one-way arena holds the boss and nothing else. */
+        update_rabisus();      /* The updaters cost nothing on empty arrays, and */
+        item_pickups_update(); /* leaving them in means a debug placement works. */
+        sml_meds_update();
+        /* >>> asag_boss_update() GOES HERE TOO, not only in the cutscene branch:
+           the fight in the middle is free play and must fall through to it. <<<
+
+           AND THE SEAL GOES ON THE LINE BELOW, BEFORE THE TRIGGER, so the
+           trigger is never polled while sealed:
+
+               if (!lock && !asag_boss_seals_door() && asag_arena_exit_triggered())
+
+           with asag_arena_exit_arm() called at the moment the seal LIFTS. A
+           trigger that has not been polled for four minutes holds a stale Circle
+           edge: without the re-arm the player's first press after the fight is
+           swallowed, or a press held through the death sequence fires instantly.
+           (asag_arena_exit_sealed() is the one place that predicate belongs, so
+           this test and the floating sign cannot disagree — it returns 0 until
+           there is an encounter to ask.) */
+        if (!lock && asag_arena_exit_triggered()) {
+            /* >>> PLACEHOLDER DESTINATION. <<< Back up into The Hatch, arriving
+               at its west gate. There is no way back UP the shaft in the
+               fiction, so this is a stand-in for wherever the arena actually
+               leads once that is decided — change this one line and nothing else
+               here moves. */
+            pending_area = STATE_THE_HATCH;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_CHAIN_ROOM) {
         /* Flat yard, exactly as the three mazes: all three collision floor
            planes are at y=0, so the shared wall collision routine (generic over
@@ -1590,6 +1651,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         chain_room_draw(ctx);
     else if (area == STATE_THE_HATCH)
         the_hatch_draw(ctx);
+    else if (area == STATE_ASAG_ARENA)
+        asag_arena_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -1656,9 +1719,15 @@ static void draw_debug_overlay(RenderContext *ctx) {
            happened when DBG_EXP_NO_ENTITIES was added: level 8 froze the game
            on the frame the meter was drawn. Keep this array in step with the
            DBG_EXP_* list and size it from that list, not from a literal. */
+        /* Level 5 (DBG_EXP_NO_FRUSTUM) is the documented A/B slot and is
+           currently REPOINTED in the Garden Courtyard at the boss's ADDITIVE
+           draws — the reveal's lawn lights, the death glow and the attacks —
+           so the label says what it does rather than what the constant is
+           called. Every other room that honours it still means "no frustum";
+           rename this again when the slot is pointed somewhere else. */
         static const char *exp_name[DBG_EXP_NO_AI + 1] = {
-            "", "no mesh", "no frustum", "cull 2000", "cull 1800", "no entities",
-            "no AI"
+            "", "no mesh", "no frustum/glow", "cull 2000", "cull 1800",
+            "no entities", "no AI"
         };
         char pbuf[64];
         int vb  = perf_frame_vblanks < 1 ? 1 : perf_frame_vblanks;
@@ -1821,6 +1890,14 @@ int main(int argc, const char **argv) {
                                   STREAMED on entry, as the Chain Room's and the
                                   Greenhouse's are. The heap has no 18 KB to
                                   spare - see the note in src/the_hatch.c */
+    asag_arena_load_assets();  /* ASAG'S ARENA: does NOTHING, on purpose. It owns
+                                  no texture yet, and when it does they will be
+                                  streamed on entry with their tpage/clut
+                                  captured from the TIM rather than baked here —
+                                  so this stays empty even then. It is called
+                                  anyway because a room missing from this list is
+                                  the sort of thing that is noticed three
+                                  features later. See src/asag_arena.h */
     rear_gate_load_assets();   /* rear gate texture slots (owns the two retargets,
                                   PLNTHRG and DBLDRRG) */
     west_corridor_load_assets();/* west corridor texture slots — TIM_SLOT only; it
@@ -1900,10 +1977,9 @@ int main(int argc, const char **argv) {
                                   sprites own their VRAM slots in the same
                                   96-row band under the HUD — see hadad.h */
     hadads_init();
-    rabisus_load_assets();     /* boss MODEL, not sprites: one CD read for
-                                  RABISU.SMD. Startup-only for the same reason —
-                                  CD access is unsafe once the render loop runs.
-                                  It owns no VRAM, so there is no upload step. */
+    rabisus_load_assets();     /* the boss's SKIN only: one texmgr registration.
+                                  The MODEL is room-scoped — loaded and freed by
+                                  STATE_LOADING. See src/rabisu.c. */
     rabisus_init();            /* array starts empty; world_enter places it */
     weapons_init();
     sound_init();
@@ -2012,6 +2088,12 @@ int main(int argc, const char **argv) {
                (tools/TEXTURE_STREAMING_DEBUG.txt). */
             load_area_geometry(pending_area);
 
+            /* RELEASE THE OUTGOING BOSS'S MODEL, AND DO IT HERE — FIRST, BEFORE
+               ANYTHING ELSE ALLOCATES. See the block below sound_bank_select for
+               the load half and for why the two are split apart rather than
+               written as one if/else. */
+            if (pending_area != STATE_GARDEN_COURTYARD) rabisus_free_model();
+
             /* Per-room SOUND streaming, and the one thing here that DOES touch
                the drive. The Rabisu's reveal clips are too big to keep in SPU
                RAM alongside the monster effects, so the sets timeshare one
@@ -2051,7 +2133,71 @@ int main(int argc, const char **argv) {
                  pending_area == STATE_REAR_GATE ||
                  pending_area == STATE_STABLES ||
                  pending_area == STATE_GREENHOUSE) ? SND_BANK_GARDEN :
+                /* ASAG'S ARENA -> its OWN bank, and that bank is EMPTY. The room
+                   is reached only by the one-way drop down The Hatch's shaft, so
+                   no monster in the game can be heard down there and nothing has
+                   to be carried in. Everything the PLAYER makes a noise with —
+                   the axe, the gun, the footsteps, the hurt and the death, the
+                   menu blips — is RESIDENT and unaffected by which bank is in.
+                   The whole 232 KB region is the fight's. See src/sound.h. */
+                (pending_area == STATE_ASAG_ARENA) ? SND_BANK_ASAG :
                 SND_BANK_HOUSE);
+
+            /* LOAD THE INCOMING BOSS'S MODEL — AND IT GOES *AFTER* THE BANK
+               SWAP, WHICH IS NOT A STYLE CHOICE. IT IS THE FIX FOR A CRASH.
+               =====================================================================
+               RABISU.SMD + RBSIDLE.PVA are 104,448 bytes, held only while the
+               player is in the Garden Courtyard. They used to be read at startup
+               and never freed, which cost that much permanently for a boss that
+               exists in one room — the largest avoidable item in
+               tools/HEAP_BUDGET.txt, and what was blocking a second boss from
+               having a model at all.
+
+               >>> THE GARDEN COURTYARD IS THE TIGHTEST MOMENT IN THE GAME. <<<
+               It is the only transition that loads SND_BANK_BOSS, and that bank
+               contains EMERGE — 70,208 bytes, which load_vag_at mallocs whole
+               (71,680 rounded to sectors). That is the single largest transient
+               allocation anywhere in this program.
+
+               Load the model BEFORE the bank swap and both are live at once:
+               104,448 + 71,680 = 176,128 bytes on top of everything permanent.
+               That is what the ORIGINAL startup-resident code also cost here,
+               and it was already close enough to the edge that adding Asag's
+               arena (12,316 bytes of permanent RAM) tipped it over. The failure
+               is the one tools/DIAGNOSING_A_BOOT_CRASH.txt section 2 describes:
+               the heap top IS the stack, malloc succeeds on memory the stack is
+               using, and the next CdRead DMAs through a saved return address —
+
+                   Attempted unaligned JR to 0xe00628e5 from 0x8008b6a0
+                   First chance exception: LoadAddressError from 0x8008b6a0
+
+               0x8008b6a0 is inside CdReadSync, exactly as that document says it
+               will be. The function named is never the culprit.
+
+               Ordered THIS way, the bank's 71,680 has been allocated, DMA'd to
+               SPU RAM and freed before the model is asked for, so the peak here
+               is 104,448 — SEVENTY KILOBYTES BELOW what the shipped code used to
+               reach at this door.
+
+               >>> AND THAT IS WHY THE FREE IS SPLIT OFF ABOVE. <<< Leaving the
+               courtyard has the mirror problem: the outgoing 104 KB must be gone
+               before the incoming room's bank is read, or the two overlap on the
+               way out instead of on the way in. One if/else in a single place
+               cannot do both. Free first, load last.
+
+               Keyed on pending_area like sound_bank_select, so every path in —
+               door, drop, title-screen Load Game, debug level-select jump — is
+               covered by one line. Idempotent: re-entering does not re-read.
+               rabisus_load_model brackets its own CdRead with
+               cdaudio_suspend/resume.
+
+               >>> ASAG'S ARENA GETS ITS OWN LINE HERE when the boss exists, and
+               it goes in THIS block, not in a startup init, and not above the
+               bank swap. Its bank is empty today, so its peak is its model
+               alone — but that is a property of the bank being empty, and the
+               moment the fight has clips it stops being true. See
+               tools/ADDING_THE_ASAG_FIGHT.txt PART 6. <<< */
+            if (pending_area == STATE_GARDEN_COURTYARD) rabisus_load_model();
 
             /* Upload reception's unique textures into VRAM from their resident RAM
                copies. Pure LoadImage, no CD access (the bytes were preloaded at
@@ -2165,6 +2311,24 @@ int main(int argc, const char **argv) {
                                                        palettes included, so the
                                                        order inside that function
                                                        is load-bearing. */
+            } else if (pending_area == STATE_ASAG_ARENA) {
+                /* ASAG'S ARENA. It BORROWS NOTHING — no neighbour's uploader at
+                   the head of the chain, unlike every other garden room — and it
+                   RESTORES NOTHING on the way out. Both follow from the same
+                   fact: the room is a one-way pocket, so no art it overwrites
+                   can be seen again until the player leaves through a transition
+                   that puts the destination's own art back.
+
+                   That is what makes tools/VRAM_MAP_ASAG.txt's "reclaimable"
+                   column so large, and it is the room's whole VRAM budget.
+
+                   >>> IT STREAMS OFF THE CD, like the Greenhouse's and the Chain
+                   Room's uploaders and unlike every other room's, so that it
+                   costs ZERO permanent main RAM (tools/HEAP_BUDGET.txt is the
+                   budget that actually binds here — see src/asag_arena.h). It
+                   brackets its own read with cdaudio_suspend/resume. With no
+                   textures on the disc yet it returns immediately. <<< */
+                asag_arena_upload_textures();
             } else if (pending_area == STATE_WEST_CORRIDOR) {
                 west_corridor_upload_textures();    /* owns nothing: three NARROW
                                                        uploads on the kitchen's
@@ -2207,7 +2371,17 @@ int main(int argc, const char **argv) {
                 pending_area == STATE_STABLES ||
                 pending_area == STATE_GREENHOUSE)
                 rafflesias_upload_textures();
-            else
+            /* ASAG'S ARENA takes NEITHER. It is a sealed one-way pocket holding
+               one boss, so no spider and no flower can be in it, and both slots
+               (x320/x384, y128 — a 128-row pair, the largest contiguous hole in
+               VRAM) are listed RECLAIMABLE in tools/VRAM_MAP_ASAG.txt for the
+               arena's own art. Skipping the upload is what makes that true
+               rather than merely intended: uploading a pair here and then
+               overwriting it would work, but it would also mean the map was
+               describing something the code did not do.
+               Nothing has to be put back on the way out — the exit is a
+               transition and this same line runs on the far side of it. */
+            else if (pending_area != STATE_ASAG_ARENA)
                 spiders_upload_textures();
             {
                 TILE *bg = (TILE *)ctx.next_packet;
@@ -2539,6 +2713,23 @@ int main(int argc, const char **argv) {
                    the size: played HERE so the gate, a title-screen load and a
                    debug level-select jump all get it. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
+            } else if (pending_area == STATE_ASAG_ARENA) {
+                asag_arena_init();   /* one arrival — the drop — so its spawn is
+                                        not a default but the only one. Nothing
+                                        to override. */
+                /* >>> cdaudio_stop(), NOT cdaudio_play(). <<< The arena's track
+                   is the BOSS'S track, not the room's, so the room is silent
+                   before the encounter and after it and the phase machine starts
+                   CDAUDIO_ASAG_TRACK at the beat the brief names
+                   (tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9).
+
+                   Stopping is not the same as doing nothing, and doing nothing
+                   is the bug: the drop's own transition stops the music, but a
+                   title-screen Load Game or a debug level-select jump into this
+                   room does not pass through it and would arrive with The
+                   Hatch's track still playing under a silent arena. Every route
+                   in passes through THIS line. */
+                cdaudio_stop();
             } else if (pending_area == STATE_CHAIN_ROOM) {
                 chain_room_init();  /* defaults to the west gate, back into Maze
                                        Two. */
@@ -2758,6 +2949,7 @@ int main(int argc, const char **argv) {
                    game_state == STATE_KEYSTONE_MAZE ||
                    game_state == STATE_CHAIN_ROOM ||
                    game_state == STATE_THE_HATCH ||
+                   game_state == STATE_ASAG_ARENA ||
                    game_state == STATE_REAR_GATE ||
                    game_state == STATE_WEST_CORRIDOR ||
                    game_state == STATE_STABLES ||
@@ -2877,6 +3069,13 @@ int main(int argc, const char **argv) {
                    otherwise start the new game with the boss bank still in and
                    every monster in the house silent. */
                 sound_bank_select(SND_BANK_HOUSE);
+                /* ...and the boss's model, for the third time on that same
+                   reasoning: this path does NOT go through STATE_LOADING, so a
+                   session that reached the Garden Courtyard and then went back
+                   to the title would otherwise start the new game still holding
+                   104 KB of a boss it has just left behind. Idempotent, so the
+                   usual cold-boot case does nothing. */
+                rabisus_free_model();
                 /* COLLISION, for the same "the arena may hold any room at all"
                    reason as the geometry above. These two install the delivery
                    area's wall list and floor zones; every other room's _init

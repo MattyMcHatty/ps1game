@@ -571,9 +571,18 @@ static void debug_draw_shot_props(RenderContext *ctx) {
         debug_fill_box(ctx, cx, cz, base - DRESSER_SOLID_H, base,
                        DBG_BLOCK_R, DBG_BLOCK_G, DBG_BLOCK_B);
     }
+    /* >>> AREA-GATED, AND IT WAS NOT. <<< The tables are a GLOBAL array that
+       is never room-swapped, and both real users of it — dining_tables_collide
+       and dining_tables_any_solid — gate on current_area. This viewer did not,
+       so it drew the kitchen's five in whatever room the player was standing
+       in, in that room's coordinates. In the Garden Courtyard that put five
+       boxes in the sky to the north-west (the tables sit at y=-149 against a
+       floor at y=800), which reads as five mystery colliders and is not one.
+       Cosmetic — nothing collided with them — but a debug view that lies is
+       worse than no debug view. */
     for (i = 0; i < dining_table_count; i++) {
         DiningTable *t = &dining_tables[i];
-        if (!t->active) continue;
+        if (!t->active || current_area != STATE_KITCHEN_DINING) continue;
         int32_t base = t->y + GROUND_FLOOR_Y;
         dbg_aabb_corners(t->x, t->z, t->half_w + SHOT_PROP_SLACK, t->half_d + SHOT_PROP_SLACK, cx, cz);
         debug_fill_box(ctx, cx, cz, base - DTABLE_TOP_REACH, base,

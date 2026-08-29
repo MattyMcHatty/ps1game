@@ -131,6 +131,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_LIBRARY_DESTROYED, STATE_STABLES,
     STATE_KEYSTONE_MAZE,  STATE_GREENHOUSE,
     STATE_CHAIN_ROOM,     STATE_THE_HATCH,
+    STATE_ASAG_ARENA,
 };
 
 static int room_index(GameState area) {
@@ -161,6 +162,13 @@ static int room_index(GameState area) {
         case STATE_GREENHOUSE:        return 23;
         case STATE_CHAIN_ROOM:        return 24;
         case STATE_THE_HATCH:         return 25;
+        /* Asag's arena. It is seeded EMPTY — world_seed_room has no branch for
+           it — and that is not a stub: nothing but the boss belongs in a sealed
+           one-way arena, and the boss is not built yet. It still needs a slot,
+           because without one it would fall through the default below and share
+           the DELIVERY AREA's, which is how a room silently inherits another
+           room's smashed crates and dead enemies. */
+        case STATE_ASAG_ARENA:        return 26;
         default:                   return 0;
     }
 }

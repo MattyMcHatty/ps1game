@@ -97,6 +97,12 @@ static const char *area_name(int area) {
         case STATE_WEST_CORRIDOR:     return "WEST CORRIDOR";
         case STATE_STABLES:           return "STABLES";
         case STATE_GREENHOUSE:        return "GREENHOUSE";
+        /* Unreachable in normal play — the arena has no save point, and that is
+           deliberate (a sealed encounter is only sealed if a save/reload is not
+           an exit; see src/asag_arena.h). Here so a debug jump followed by a
+           card write does not display "MANSION" for a room a thousand units
+           under the garden. */
+        case STATE_ASAG_ARENA:        return "ASAG'S ARENA";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

@@ -10,6 +10,16 @@ the game's first boss fight, and records every step that was actually
 performed — including the ten things that were wrong first, which are listed
 at the bottom and are the most useful part of the file.
 
+>>> IF THE BOSS IS ASAG, START AT tools/ADDING_THE_ASAG_FIGHT.txt INSTEAD. <<<
+That file is the handover for the game's SECOND boss: the arena, its VRAM bank,
+its SPU bank and its music track are already built and budgeted, and it lists
+what is reserved, what each piece may spend, and the order to build in.
+
+>>> ITS PART 6 IS WORTH READING EVEN IF THE BOSS IS NOT ASAG. <<< A boss model
+is ROOM-SCOPED in this engine now, not resident: the Rabisu's model and clip are
+loaded on entry to the Garden Courtyard and freed on the way out, the same move
+room_arena.c made for room meshes. Do not give a new boss a startup load.
+
 Companion docs, in the order you will want them:
   tools/ADDING_A_3D_ENEMY.txt    - get the BODY in the room first. Nothing here
                                    works until the boss exists, hovers, takes

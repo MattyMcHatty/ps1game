@@ -17,7 +17,22 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   21            /* v21: mushrooms_dead is a uint16_t. The
+#define SAVE_VERSION   22            /* v22: ASAG'S ARENA. Two shape changes,
+                                        both of them reservations rather than
+                                        features, and taken TOGETHER on purpose
+                                        so the fight itself costs no third bump:
+                                          - WORLD_NUM_ROOMS 26 -> 27, which grows
+                                            the delta by one 10-byte RoomDelta;
+                                          - a new `asags_dead' byte, which is
+                                            written as zero until there is a boss
+                                            to kill. Adding the entity later then
+                                            fills in the encode and decode halves
+                                            of world.c and changes NOTHING about
+                                            the card format.
+                                        delta_size would already reject a v21
+                                        save on the first of those; the bump
+                                        makes the reason legible;
+                                    v21: mushrooms_dead is a uint16_t. The
                                         Greenhouse's flood puts FOUR more
                                         Mushroom Heads in the game, taking the
                                         whole-game total to nine against the

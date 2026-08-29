@@ -245,7 +245,62 @@ next feature has to pay for itself out of that 8 KB.
 
 
 ------------------------------------------------------------------------------
- 7. ORDER TO WORK IN NEXT TIME
+ 8. THE THIRD TIME — AND IT WAS NOT A BOOT CRASH AT ALL
+------------------------------------------------------------------------------
+August 2026, ASAG'S ARENA. The game booted fine, played fine, and died on ONE
+door: the Garden Courtyard. Same signature as sections 2 and 7 —
+
+    Attempted unaligned JR to 0xe00628e5 from 0x8008b6a0, firing exception!
+    First chance exception: LoadAddressError from 0x8008b6a0
+
+and 0x8008b6a0 resolves inside CdReadSync, exactly as this document predicts.
+(Resolve it yourself rather than guessing:
+     mipsel-none-elf-nm -n build/HORROR.exe | sed 's/^ffffffff//'
+ and find the last symbol at or below the faulting address.)
+
+>>> SO THE TITLE OF THIS FILE IS TOO NARROW. THE SAME FAILURE HAPPENS AT A ROOM
+    TRANSITION, AND FREE AT REST WILL NOT WARN YOU. <<<
+
+WHAT CHANGED: the new room cost 12,316 bytes of PERMANENT RAM — ~9,700 of it one
+more RoomState in world.c's BSS, the rest code. No registration, no kept buffer.
+Nothing that any budget script flagged; it printed "OK: comfortable margin".
+
+WHY THE COURTYARD AND NOTHING ELSE: it is the tightest moment in the game and
+always has been, for a reason that is not obvious from any resting total. It is
+the only transition that loads SND_BANK_BOSS, and that bank holds EMERGE —
+70,208 bytes, which load_vag_at mallocs WHOLE. That is the largest single
+transient allocation anywhere in this program. On top of it sat the Rabisu's
+model and idle clip, 104,448 bytes. 176,128 bytes live at once, at one door,
+every time.
+
+  >>> THE PEAK IS PER-TRANSITION AND heap_budget.py DOES NOT MODEL IT. <<<
+  Its FREE AT REST is a resting figure. Work out the peak by hand for the room
+  you are touching: permanent + the biggest malloc live at that instant.
+
+THE FIX WAS ORDERING, NOT RECLAIMING. main.c's STATE_LOADING now frees the
+outgoing boss's model BEFORE the bank swap and loads the incoming one AFTER it,
+so the 104 KB and the 71,680 are never live together. The courtyard's peak went
+176,128 -> 104,448 — seventy kilobytes BELOW what the shipped code had always
+reached at that door. Splitting the free and the load apart is what makes it
+work in both directions; a single if/else in one place cannot.
+
+  THE GENERAL RULE: two large transients at one transition must be SEQUENCED,
+  not merely each-small-enough. Free early, load late, and put the biggest
+  allocation on its own.
+
+A REPORTING TRAP THIS CREATED, AND IT MATTERS FOR EVERY FIGURE ABOVE:
+heap_budget.py used to count chainlink_door.c's CHNLNK.TIM and grinder.c's
+GRINDER.TIM as permanent when both are freed (the parenthetical in section 6).
+That was fixed at the same time, along with teaching it about ROOM-SCOPED loads.
+So its FREE AT REST is now ~16 KB HIGHER than the figure the ~234 KB cliff in
+section 3 was MEASURED against. The two are no longer directly comparable:
+in today's units that cliff is about 218 KB. Do not read a 240 KB report as
+"6 KB of margin" — it is about 22 KB. Re-measure the cliff (section 3) before
+relying on either number.
+
+
+------------------------------------------------------------------------------
+ 9. ORDER TO WORK IN NEXT TIME
 ------------------------------------------------------------------------------
 
   1. Reproduce headless and confirm the crash from the LOG.

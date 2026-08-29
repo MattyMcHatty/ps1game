@@ -122,9 +122,16 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_SPDR_WLK]   = SND_BANK_HOUSE | SND_BANK_GARDEN,  /* the flower's bite */
     [SFX_SPIT]       = SND_BANK_HOUSE,
     [SFX_MCHNE]      = SND_BANK_HOUSE,
-    [SFX_FIREBALL]   = SND_RESIDENT,   /* the three below fire mid-fight, and a */
-    [SFX_BOOM]       = SND_RESIDENT,   /* bank swap is a CD read — it cannot    */
-    [SFX_EXPLODE]    = SND_RESIDENT,   /* happen inside a room. See sound.h.    */
+    /* >>> THESE THREE WERE SND_RESIDENT AND DID NOT NEED TO BE. <<< They fire
+       mid-fight and a bank swap is a CD read, so residency looked like the only
+       way to guarantee they were loaded. It was not: they are played by
+       src/rabisu.c and src/rabisu_boss.c alone, world.c places a Rabisu in the
+       Garden Courtyard alone, and the BOSS bank is in for the whole of that
+       room. The bank was already making the guarantee the residency was paying
+       for — 47 KB of permanent SPU RAM, charged twice over (see sound.h). */
+    [SFX_FIREBALL]   = SND_BANK_BOSS,
+    [SFX_BOOM]       = SND_BANK_BOSS,
+    [SFX_EXPLODE]    = SND_BANK_BOSS,
     [SFX_EMERGE]     = SND_BANK_BOSS,
     [SFX_DMNSPEAK]   = SND_BANK_BOSS,
     [SFX_RBS_SWING]  = SND_RESIDENT,   /* aliases a resident, so: resident      */
@@ -277,14 +284,14 @@ static int sfx_channel(SfxID id) {
        (43 % 8) = 4 — SFX_SMASH and SFX_DIE among others — and the grinders'
        three-play travel is running under both of them.
        >>> BORROWED VOICES, LEGAL FOR THE REASON SFX_RUMBLE_2's ARE. <<< 20 is
-       SFX_DMNSPEAK's and 22 is SFX_BOOM's; the first is BOSS-bank and the second
-       is resident but fired only by the Rabisu's light beam, so both are
-       guaranteed idle in a GARDEN room. Voices 13..15 and 9 are NOT available
+       SFX_DMNSPEAK's and 22 is SFX_BOOM's; BOTH are BOSS-bank now, so both are
+       guaranteed idle in a GARDEN room. (BOOM was resident-but-boss-only when
+       this was written, which was a weaker guarantee than the one it now has.) Voices 13..15 and 9 are NOT available
        here the way they are to the quake: those belong to the flower, the
        mushroom and the Living Statue, all three of which are garden-bank
        monsters and any of which may one day be placed in this very corridor. */
     if (id == SFX_HAD_DIE)     return 20;   /* SFX_DMNSPEAK's (BOSS)          */
-    if (id == SFX_WOOSH)       return 22;   /* SFX_BOOM's (resident, boss-only) */
+    if (id == SFX_WOOSH)       return 22;   /* SFX_BOOM's (BOSS bank)           */
     /* The menu blips, one voice each out of the free 10..15. They are short
        enough for the pool, but a menu is the one place the player fires sounds
        back to back at speed, and in the pool a cursor run would cut the confirm
@@ -433,10 +440,17 @@ void sound_init(void) {
        past it to protect, and the only thing worth catching is a bank that
        overruns SPU RAM itself, which load_vag_at's limit does.
 
-       As of writing: residents end at 0x51C10, so the region is 0x2E3F0
-       (185 KB). The house bank uses 178.4 KB of it, the boss bank 139.2 KB, the
-       garden bank 83.9 KB and the intro bank 21.6 KB. The house bank is the one
-       with no slack left (6.6 KB); the others have room. */
+       As of writing: residents end at 0x46150, so the region is 0x39EB0
+       (231.7 KB). The house bank uses 158.8 KB of it, the boss bank 185.9 KB,
+       the garden bank 173.1 KB, the intro bank 21.6 KB and the ASAG bank 0 —
+       it is empty until the fight has clips. `spare` (the region less the
+       LARGEST bank) is 45.8 KB, up from 12.2 KB: moving the Rabisu's
+       FIREBALL/BOOM/EXPLODE off the residents and into the boss bank handed
+       47 KB back to every bank at once. See sound.h.
+
+       >>> RE-RUN THE ARITHMETIC, DO NOT QUOTE THESE. <<< STEP 3 of
+       tools/ADDING_A_SOUND.txt is the script; a bank that overruns is SILENT,
+       not broken — load_vag_at drops the clip and it is mute forever. */
     bank_base  = next_spu_addr;
     bank_bytes = SPU_RAM_END - bank_base;
 

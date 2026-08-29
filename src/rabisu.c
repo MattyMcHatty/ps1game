@@ -14,6 +14,7 @@
 #include "sound.h"
 #include "title.h"          /* game_state */
 #include "texmgr.h"
+#include "cdaudio.h"      /* suspend/resume around the entry-time model read */
 #include "rabisu.h"
 
 /* Rabisu — the first boss, and the first 3D-model enemy. See rabisu.h for the
@@ -122,24 +123,102 @@ static void rabisus_load_anim(void) {
     rabisu_anim_count  = n_frames;
 }
 
-/* Startup: load the model, its skin and its idle clip. Both the CD reads and
-   the LoadImage are only safe before the render loop begins
-   (tools/TEXTURING_NOTES.txt), which is why all three happen here and nothing
-   the boss owns is touched on a room transition. */
+/* Startup: the SKIN only. >>> THE MODEL AND THE CLIP ARE NO LONGER LOADED HERE.
+   <<< See rabisus_load_model below for where they went and why. */
 void rabisus_load_assets(void) {
+    /* Uploaded here AND, since the Greenhouse's vines took this slot, again on
+       entry to the room the boss actually fights in — see
+       rabisus_restore_texture below.
+
+       This one IS still startup-resident, and deliberately: at 18 KB it is a
+       sixth of what the model and the clip cost, and its entry-time hook is
+       reached from the Stables and the Greenhouse as well as the courtyard
+       (garden_courtyard_upload_textures runs at the head of both chains), so
+       streaming it would put a CD read on two transitions that do not need one.
+       If the 18 KB is ever wanted back, that is the thing to solve first. */
+    rabisu_tex = texmgr_register("\\TEX\\RABISU.TIM;1");
+    if (rabisu_tex >= 0) texmgr_upload(rabisu_tex);
+}
+
+/* ---- THE MODEL AND THE CLIP: LOADED ON ENTRY TO THE COURTYARD, FREED ON THE
+   WAY OUT. -------------------------------------------------------------------
+   These two were read at STARTUP and never freed, which cost 104,448 permanent
+   bytes for a boss that exists in exactly ONE room:
+
+       RABISU.SMD     28,672     the model
+       RBSIDLE.PVA    75,776     one 19-frame clip, and the .pva cost scales
+                                 LINEARLY per clip (see the note above)
+
+   Main RAM is this project's tightest resource — tools/HEAP_BUDGET.txt has the
+   whole story, including the fact that the heap top IS the stack and that
+   overrunning it hands out memory the stack is already using rather than
+   failing an allocation. 104 KB held permanently for one room was the single
+   largest avoidable item in that budget, and it was blocking the SECOND boss
+   from having a model at all (tools/ADDING_THE_ASAG_FIGHT.txt PART 6).
+
+   >>> THIS IS THE SAME MOVE room_arena.c MADE FOR ROOM MESHES. <<< Exactly one
+   boss is ever live, which one is known at the transition, and the transition
+   already makes several bracketed CD reads behind a black screen. The only
+   difference is that this uses the HEAP rather than a BSS array, and that
+   difference is the entire point: unlike a room, NO boss is loaded almost all
+   of the time, and a BSS block would cost its full size in every room in the
+   game. Freeing is what turns 104 KB spent into 104 KB free.
+
+   WHAT MADE IT SAFE, and it is worth writing down because it is the check to
+   repeat before doing the same to any other entity:
+
+     - rabisu_smd and rabisu_anim_frames are read by ONE thing, the draw. Every
+       path to them runs behind draw_rabisus()'s existing
+       `if (!rabisu_smd || rabisu_count == 0) return;`, and rbs_verts() — the
+       only other dereference — is called from inside that draw and nowhere
+       else.
+     - update_rabisus(), rabisus_collide() and rabisu_anchor_world() touch NO
+       model data. The first two skip anything whose r->area is not
+       current_area; the third is arithmetic on stored fields.
+     - rabisu_add() (world.c's placement, which world_seed_room runs for rooms
+       that are NOT loaded) reads nothing from the mesh either.
+
+   So with the model unloaded the boss is simply not drawn, which is the state
+   every room but the courtyard is already in. Nothing else changes.
+
+   Both calls are IDEMPOTENT and are meant to be run unconditionally from
+   main.c's STATE_LOADING on every transition — the same shape as
+   sound_bank_select(), and for the same reason: every path into a room (door,
+   drop, title-screen Load Game, debug level-select jump) goes through that one
+   line, and keying off a door trigger instead would leave some of them wrong.
+
+   THE CD BRACKET IS MANDATORY. Unlike the startup read this replaced, this one
+   happens mid-game, and a data read issued while CD-DA streams HANGS THE DRIVE
+   (tools/TEXTURE_STREAMING_DEBUG.txt). cdaudio_suspend/resume are no-ops when
+   nothing is playing; the case they exist for is a debug level-select jump that
+   arrives with a track running.
+
+   IF THE ALLOCATION FAILS the boss is invisible but still solid and still
+   attacking, which is a horrible thing to debug — so do not let it. After this
+   change free-at-rest is over 350 KB against a 104 KB request; if that margin
+   is ever spent, this is one of the places that goes wrong quietly. */
+void rabisus_load_model(void) {
+    if (rabisu_smd) return;                  /* already in */
+
+    cdaudio_suspend();
     /* In TEX, not the disc root: the root directory records must all fit
        the first 2048-byte sector or the boot ROM cannot find SYSTEM.CNF
        and the console hangs at the logo. See the comment in disc.xml. */
     rabisu_buff = read_file("\\TEX\\RABISU.SMD;1");
     if (rabisu_buff) rabisu_smd = smdInitData(rabisu_buff);
+    rabisus_load_anim();                     /* needs rabisu_smd for its check */
+    cdaudio_resume();
+}
 
-    /* Uploaded here AND, since the Greenhouse's vines took this slot, again on
-       entry to the room the boss actually fights in — see
-       rabisus_restore_texture below. */
-    rabisu_tex = texmgr_register("\\TEX\\RABISU.TIM;1");
-    if (rabisu_tex >= 0) texmgr_upload(rabisu_tex);
-
-    rabisus_load_anim();
+void rabisus_free_model(void) {
+    if (rabisu_buff)      { free(rabisu_buff);      rabisu_buff      = NULL; }
+    if (rabisu_anim_buff) { free(rabisu_anim_buff); rabisu_anim_buff = NULL; }
+    /* Every derived pointer goes with them, in one place, so there is no way to
+       free the block and leave something still pointing into it. rabisu_smd is
+       the one the draw tests, so it is the one that must not be missed. */
+    rabisu_smd         = NULL;
+    rabisu_anim_frames = NULL;
+    rabisu_anim_count  = 0;
 }
 
 /* PUT THE SKIN BACK. x704 y256 stopped being the boss's alone when the
@@ -1298,6 +1377,16 @@ static void rbs_update_ai(Rabisu *r, int self) {
 
 void update_rabisus(void) {
     int i;
+    /* >>> LEVEL 9 (DBG_EXP_NO_AI) HAS TO STOP THIS TOO, AND IT DID NOT. <<<
+       That switch's early return lives at the FOOT of update_current_area, past
+       the per-room branches — and every one of those branches calls this
+       function itself, so the boss went on moving and attacking with the meter
+       claiming "no AI". A measurement switch that lies is worse than no switch:
+       U read at 9 was being compared against U read at 1 as though the
+       difference were the monsters, and for this room the difference was zero.
+       Gated here rather than at each of the ~30 call sites for the reason the
+       area tag is: one place, and it cannot be forgotten. */
+    if (DEBUG_EXPERIMENT() == DBG_EXP_NO_AI) return;
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *r = &rabisus[i];
         if (!r->active || r->dead) continue;

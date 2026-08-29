@@ -80,6 +80,15 @@ typedef enum {
                                 end of the garden's eastern line, and a dead end
                                 like the Greenhouse. Appended, not inserted:
                                 saves store raw enum values. */
+    STATE_ASAG_ARENA,        /* ASAG'S ARENA, at the bottom of The Hatch's
+                                1200-unit shaft. The game's second boss room and
+                                the first that is reached by a one-way drop: the
+                                only ways out are the exit in its south wall and
+                                dying. That shape is what lets it take a VRAM
+                                bank and an SPU bank of its own — see
+                                src/asag_arena.h and
+                                tools/ADDING_THE_ASAG_FIGHT.txt. Appended, not
+                                inserted: saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

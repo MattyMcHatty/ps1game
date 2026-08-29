@@ -10,8 +10,8 @@
  * THE PROBLEM
  *   The SPU has 512 KB of sample RAM and no more. The first 0x1000 is the
  *   CD-DA capture area, so 0x1010 upward is ours. The resident effects below
- *   already fill ~325 KB of it, and the Rabisu's five clips want another
- *   172 KB. There is nowhere near that much left. This is the same squeeze
+ *   fill ~279 KB of it, and the monsters and set-pieces want far more than the
+ *   rest between them. This is the same squeeze
  *   VRAM is under, and it gets the same answer: a shared region that holds
  *   one BANK at a time, swapped on a room transition.
  *
@@ -20,38 +20,52 @@
  *     0x00000  +---------------------------+
  *              | CD-DA capture + SpuInit   |  reserved
  *     0x01010  +---------------------------+
- *              | RESIDENT effects          |  always loaded, never moves
- *              |  ...including FIREBALL,   |
- *              |     BOOM, EXPLODE and the |
- *              |     three menu blips      |
- *     0x51C10  +---------------------------+  <- bank_base
- *              | THE BANK REGION           |  185 KB, all that is left:
- *              |   HOUSE (182 KB) *or*     |  nothing follows it, so it takes
- *              |   BOSS  (139 KB) *or*     |  the whole tail and the slack
- *              |   GARDEN (127 KB)         |  (house leaves only 3.3 KB of it)
- *     0x80000  +---------------------------+  lands in whichever bank is in
+ *              | RESIDENT effects          |  always loaded, never moves:
+ *              |  the player's own kit and |  the weapons, the footsteps, the
+ *              |  the three menu blips     |  hurt/die pair, the door, and the
+ *              |                           |  cursor/select/back triple
+ *     0x46150  +---------------------------+  <- bank_base
+ *              | THE BANK REGION           |  232 KB, all that is left:
+ *              |   HOUSE  (159 KB) *or*    |  nothing follows it, so it takes
+ *              |   BOSS   (186 KB) *or*    |  the whole tail and the slack
+ *              |   GARDEN (173 KB) *or*    |  lands in whichever bank is in
+ *              |   ASAG   (  0 KB)         |
+ *     0x80000  +---------------------------+
  *
  *   Every effect carries a bank tag (see sfx_bank[] in sound.c):
  *     SND_RESIDENT    - loaded once at startup, playable in every room.
  *     SND_BANK_HOUSE  - the monster effects. Loaded at startup, evicted while
  *                       another bank is in.
- *     SND_BANK_BOSS   - the Rabisu's own two clips plus the gate. Only ever in
+ *     SND_BANK_BOSS   - the Rabisu's five clips plus the gate. Only ever in
  *                       the Garden Courtyard.
  *     SND_BANK_GARDEN - the outdoor rooms: the gate again, plus the Rafflesia's
  *                       four. Fountain Square and the Outside Catacombs.
+ *     SND_BANK_ASAG   - Asag's arena, and EMPTY as of writing. See the enum.
  *
  *   The tag is a MASK, not a single value — an effect can be in more than one
  *   bank, at the cost of one copy in each. See the SoundBank enum below.
  *
- * WHY THESE THREE ARE RESIDENT AND NOT BANKED
+ * WHY THE RABISU'S FIVE ARE ALL BANKED, AND WHY THREE OF THEM USED TO BE NOT
  *   FIREBALL, BOOM and EXPLODE fire DURING the fight, and a bank swap is a CD
- *   read — it cannot happen mid-room. They are small enough (47 KB together)
- *   to live in what was previously the spare tail, so they do. Only EMERGE and
- *   DMNSPEAK, which are enormous (70 KB and 54 KB), are worth banking. Note
- *   that EMERGE is no longer reveal-only — it is also the light beam's charge
- *   tell, so it now plays mid-fight. That is safe for exactly one reason: the
- *   boss bank is loaded for the whole of the Garden Courtyard, cutscene and
- *   fight alike, and the fight cannot happen anywhere else.
+ *   read — it cannot happen mid-room. That is why they were made RESIDENT: at
+ *   the time it was the only way to guarantee they would be loaded when the
+ *   fight ran. It was 47 KB, and A RESIDENT CLIP IS CHARGED TWICE — once
+ *   against the permanent block, and again against the region, which is
+ *   whatever is left after it.
+ *
+ *   >>> IT WAS NEVER NECESSARY, AND ASAG'S ARENA IS WHAT MADE IT WORTH FIXING.
+ *   <<< The three are played by src/rabisu.c and src/rabisu_boss.c and by
+ *   nothing else, world.c places a Rabisu in the Garden Courtyard and nowhere
+ *   else, and the BOSS bank is loaded for the whole of that room — cutscene and
+ *   fight alike. So the guarantee the residency was buying was already being
+ *   bought by the bank. Moving all three onto SND_BANK_BOSS took bank_base from
+ *   0x51C10 to 0x46150 and the region from 185 KB to 232 KB, which is 47 KB
+ *   handed to EVERY bank at once. `spare' went from 12.2 KB to 45.8 KB.
+ *
+ *   THE SAME MISTAKE IS THE EASIEST ONE TO MAKE WITH ASAG. Its arena is a
+ *   one-way pocket with a bank of its own that is loaded for the entire room, so
+ *   an effect that plays mid-fight belongs in SND_BANK_ASAG, not in the
+ *   residents. See the note on that enum value.
  *
  * WHY THE HOUSE BANK IS THE MONSTERS
  *   world.c places nothing in the Garden Courtyard but the Rabisu itself — no
@@ -100,15 +114,16 @@ typedef enum {
     SFX_MCHNE      = 21, /* grinding machinery — the piano room's sinking bookcase.
                             2.80 s at 11025 Hz; piano_props.c plays it twice back
                             to back and times the descent to match. */
-    /* ---- The Rabisu. See the bank note above for which of these are resident
-       and why. ---- */
-    SFX_FIREBALL   = 22, /* a fireball leaves the boss's chest (1.1 s)          */
-    SFX_BOOM       = 23, /* one poly of the light-beam path erupting (1.1 s).
+    /* ---- The Rabisu. ALL FIVE are SND_BANK_BOSS; three of them used to be
+       resident and did not need to be. See the bank note above. ---- */
+    SFX_FIREBALL   = 22, /* BANKED (boss). A fireball leaves the boss's chest
+                            (1.1 s)                                             */
+    SFX_BOOM       = 23, /* BANKED (boss). One poly of the light-beam path erupting (1.1 s).
                             Retriggered every RBS_BEAM_STEP (0.3 s) as the beam
                             walks, so each one is cut short by the next and the
                             attack reads as a chain of detonations — only the
                             last plays its tail out. */
-    SFX_EXPLODE    = 24, /* the death lights come up and the body starts coming
+    SFX_EXPLODE    = 24, /* BANKED (boss). The death lights come up and the body starts coming
                             apart (RBE_D_BURN). 5.374 s, and the burn plus the
                             fade are cut to exactly that: the lights are lit for
                             the length of this clip. Retrim it and see
@@ -374,6 +389,29 @@ typedef enum {
                              load that is NOT behind a door transition, and it
                              is legal for the same reason those are: the drive
                              is idle. */
+    /* ASAG'S ARENA, and NOTHING ELSE IS ON IT. It is EMPTY as of writing — the
+       fight has no clips yet — and that empty bank is the point of it: the room
+       is reached only by a one-way drop (src/asag_arena.h), so no monster in the
+       game can be heard down there and not one shared effect has to be carried.
+       The whole 232 KB bank region is Asag's, which is by a wide margin the
+       largest sound budget any room in this game has ever had.
+
+       WHAT PLAYS DOWN THERE WITHOUT BEING IN IT: everything the player brings.
+       SWING, AXEHIT, GR_SHOT, GR_RELOAD, HURT, DIE, STEP1/STEP2, PICKUP, DOOR,
+       UNLOCK, SLAM and the three menu blips are all RESIDENT and stay put under
+       every bank. That is the list the arena was designed around and it is
+       already complete — nothing needs adding to this bank to make the player
+       work.
+
+       >>> ANYTHING THE FIGHT PLAYS MUST BE IN HERE OR RESIDENT, AND HERE IS THE
+       RIGHT ANSWER. <<< A bank swap is a CD read and cannot happen inside a
+       room, so an effect in another bank is simply silent down there — the
+       Rabisu's FIREBALL/BOOM/EXPLODE were made RESIDENT for exactly that reason
+       and it cost the whole game 47 KB of permanent SPU RAM. It does not have to
+       cost that again: the arena's bank is loaded for the WHOLE of the room,
+       cutscene and fight alike, and the fight cannot happen anywhere else. Put
+       Asag's clips HERE, not in the residents. */
+    SND_BANK_ASAG  = 16,
 } SoundBank;
 
 void sound_init(void);

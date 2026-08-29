@@ -14,6 +14,25 @@
    note in cdaudio.c — the offset is a property of the TRACK, so it lives beside
    the track number here rather than at the call site in hadad.c. */
 #define CDAUDIO_STALKER_TRACK   8   /* Hadad's stalker music (20.0 s) */
+/* ASAG'S ARENA. >>> THE TRACK IS RESERVED; THE AUDIO IS NOT ON THE DISC YET.
+   <<< Adding it is one <track type="audio"> line at the foot of disc.xml, after
+   track 8 and in that order — the track NUMBER is the line's position in that
+   file and nothing else, so a track inserted rather than appended renumbers
+   every one after it and every room in the game plays the wrong music.
+
+   It must be 44100 Hz 16-bit STEREO (Redbook). mkpsxiso accepts anything and
+   silently converts, and what comes out of a mono source is upsampled mono;
+   music/mp3_to_wav.py is NOT the tool (it is the sound-effect path and always
+   mixes to mono). Convert with ffmpeg or pydub straight to 44100 stereo.
+
+   >>> AND IT IS THE BOSS'S TRACK, NOT THE ROOM'S. <<< main.c's STATE_LOADING
+   branch calls cdaudio_stop() for this room rather than cdaudio_play(), so the
+   arena is SILENT before the encounter and after it, and the encounter's phase
+   machine starts this at the beat the brief names. Replacing the stop with
+   nothing would be a bug, not a simplification: a title-screen load or a debug
+   level-select jump into this room does not pass through the drop's own stop and
+   would arrive with The Hatch's music still playing. */
+#define CDAUDIO_ASAG_TRACK      9   /* Asag's arena (RESERVED — see above) */
 
 void cdaudio_init(void);
 void cdaudio_play(int track, int loop);

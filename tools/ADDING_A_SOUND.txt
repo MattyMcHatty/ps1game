@@ -169,22 +169,24 @@ Run this, with your clip added to the right list:
     import os
     def a(f): return (os.path.getsize(f)-48+63)&~63
     res=['swing','hurt','pickup','smash','axehit','unlock','dropen','DIE',
-         'gr_shot','gr_reload','step1','step2','slam','fireball','boom','explode',
+         'gr_shot','gr_reload','step1','step2','slam',
          'cursor','select','back']
     house=['dogbark','dogdie','zombie_2','ZOMBIEDIE','tntcl_wrth_2','tntcl_die',
            'spdr_wlk','spit','mchne','rumble']
-    boss=['emerge','dmnspeak','gate']
+    boss=['fireball','boom','explode','emerge','dmnspeak','gate']
     garden=['tntcl_wrth_2','tntcl_die','spdr_wlk','gate','gas','pullin','hiss',
-            'rumble','grind','hadad_die','spirit_woosh']
+            'rumble','grind','hadad_die','spirit_woosh','mchne_gh','water']
     intro=['ninurta']
+    asag=[]
     p=4112
     for f in res: p+=a(f+'.vag')
-    h=sum(a(f+'.vag') for f in house); b=sum(a(f+'.vag') for f in boss)
-    g=sum(a(f+'.vag') for f in garden); i=sum(a(f+'.vag') for f in intro)
+    banks=[('house',house),('boss',boss),('garden',garden),
+           ('intro',intro),('asag',asag)]
+    tot=[(n,sum(a(f+'.vag') for f in l)) for n,l in banks]
     print('bank_base   0x%05X'%p, ' region', 524288-p)
-    for n,v in (('house',h),('boss',b),('garden',g),('intro',i)):
+    for n,v in tot:
         print(n, v, 'OK' if p+v<=524288 else 'OVERFLOW')
-    print('spare', 524288-p-max(h,b,g,i))
+    print('spare', 524288-p-max(v for _,v in tot))
     "
 
 >>> A CLIP IN TWO BANKS MUST APPEAR IN BOTH LISTS. <<< The mask is per-effect,
@@ -193,15 +195,37 @@ once against house or boss, once against garden. Omit the second entry and the
 script under-reports the bank you are about to overflow.
 
 The lists must be kept in the SAME ORDER as the enum in sound.h, because
-sound_init() allocates in enum order. As of the VALVE PUZZLE'S WATER:
+sound_init() allocates in enum order. As of ASAG'S ARENA:
 
-    bank_base 0x51C10   region 189424
-    house 162560   boss 142528   garden 177216   intro 22080
-    spare 12208
+    bank_base 0x46150   region 237232
+    house 162560   boss 190336   garden 177216   intro 22080   asag 0
+    spare 46896
 
-GARDEN IS THE LARGEST BANK AND HAS BEEN SINCE mchne_gh. `spare` is sized by the
-largest bank, so it is the garden list that sets it now: every garden clip comes
-straight off that 12 KB, and house has 26 KB of slack it cannot lend.
+>>> THE REGION GREW BY 47 KB, AND WHY IS WORTH KNOWING BECAUSE THE MISTAKE IS
+    EASY TO REPEAT. <<< FIREBALL, BOOM and EXPLODE used to be SND_RESIDENT, on
+the reasoning that they fire mid-fight and a bank swap is a CD read. Sound
+reasoning, wrong conclusion: all three are played by the Rabisu alone, world.c
+places a Rabisu in the Garden Courtyard alone, and SND_BANK_BOSS is loaded for
+the whole of that room — so the bank was already making the guarantee the
+residency was paying for. And a resident clip is charged TWICE: bank_base up by
+its own size AND the region down by it. Moving them onto the boss bank took
+bank_base 0x51C10 -> 0x46150 and the region 189424 -> 237232, handing 47 KB of
+ceiling to every bank at once and taking `spare` from 12.2 KB to 45.8 KB.
+
+    Before that move, as of the VALVE PUZZLE'S WATER:
+        bank_base 0x51C10   region 189424
+        house 162560   boss 142528   garden 177216   intro 22080
+        spare 12208
+
+THE RULE THAT FALLS OUT OF IT: an effect that plays mid-fight belongs in the
+bank its room loads, not in the residents — PROVIDED that room loads exactly one
+bank for its whole length, which a boss arena does by construction. Asag's arena
+(SND_BANK_ASAG, empty as of writing) is the next place this will come up; see
+tools/ADDING_THE_ASAG_FIGHT.txt PART 3.
+
+GARDEN IS THE LARGEST BANK AND HAS BEEN SINCE mchne_gh, so it is still the
+garden list that sets `spare` — but BOSS is now within 13 KB of it and would
+take over if the Rabisu gained another clip.
 
 >>> THE RE-SAMPLING TRICK IS SPENT. THERE IS NOTHING LEFT OFF THE STANDARD. <<<
 Twice now a bank has been paid for by finding a clip running at 22050 Hz for no

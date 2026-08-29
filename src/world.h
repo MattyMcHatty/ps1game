@@ -22,13 +22,14 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 26  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 27  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
                                fountain_square, outside_catacombs, maze_one,
                                maze_two, rear_gate, west_corridor,
-                               library_destroyed, stables.
+                               library_destroyed, stables, keystone_maze,
+                               greenhouse, chain_room, the_hatch, asag_arena.
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
                                are alternative rooms behind the same doors, and
@@ -82,6 +83,10 @@ void world_silence_monsters(void);
 #define WD_MAX_TENTACLES 10
 #define WD_MAX_SPIDERS    8   /* bits: one global area-tagged array */
 #define WD_MAX_RABISUS    8
+/* Asag. Eight like the Rabisu's, and eight is generous: the arena is sealed and
+   holds one. It is a whole byte either way — the point of the number is the
+   ceiling it puts on placements, not the storage. */
+#define WD_MAX_ASAGS      8
 #define WD_MAX_MUSHROOMS 16   /* bits: likewise one global area-tagged array. 16
                                  rather than 8 since the Greenhouse's flood
                                  brought the whole-game total to nine — which is
@@ -131,6 +136,13 @@ typedef struct {
     uint16_t  mushrooms_dead;                     /* likewise; 16 bits — see
                                                      WD_MAX_MUSHROOMS          */
     uint8_t   living_statues_dead;                /* likewise                 */
+    /* ASAG. >>> RESERVED, AND NOTHING WRITES IT YET. <<< There is no Asag entity
+       and no arena content; this byte exists so that adding them is a change to
+       world.c's encode and decode halves ONLY, with no third SAVE_VERSION bump
+       and no save invalidated a second time. Keyed by canonical_index() like
+       every other global area-tagged array when it arrives — a raw array index
+       is not stable across playthroughs that took different routes. */
+    uint8_t   asags_dead;                         /* likewise; see WD_MAX_ASAGS */
     uint16_t  hadads_state;                       /* 2 bits each: dead, spent */
     RoomDelta rooms[WORLD_NUM_ROOMS];
     uint8_t   fatdoor_health[WD_MAX_FATDOORS];    /* 0 = smashed              */

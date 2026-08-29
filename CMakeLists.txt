@@ -91,6 +91,8 @@ add_executable(horror_game
     src/chain_room.c
     src/the_hatch_mesh_collision.c
     src/the_hatch.c
+    src/asag_arena_mesh_collision.c
+    src/asag_arena.c
     src/hatch_doors.c
     src/hatch_puzzle.c
     src/rear_gate_mesh_collision.c
@@ -223,6 +225,12 @@ set_source_files_properties(
     src/hadad_grinder.c
     src/hadad_library.c
     src/rabisu_boss.c
+    # ASAG'S ARENA's collision table. Init-only -- it fills a CollisionRoom once
+    # on room entry and is never touched again -- so it belongs here for the
+    # reason every other transition-time module does. The room's own *_draw is
+    # DELIBERATELY not in this list: it is a hot loop like every other room's,
+    # even while all it draws is a placeholder box.
+    src/asag_arena_mesh_collision.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )
 

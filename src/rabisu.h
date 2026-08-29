@@ -488,10 +488,32 @@ typedef struct {
 extern Rabisu rabisus[MAX_RABISUS];
 extern int    rabisu_count;
 
-void rabisus_load_assets(void);   /* startup: load RABISU.SMD (resident)        */
+void rabisus_load_assets(void);   /* startup: the SKIN only (see the .c)        */
+
+/* ---- The MODEL and the idle clip: ROOM-SCOPED, NOT RESIDENT -----------------
+   RABISU.SMD (28,672 B) and RBSIDLE.PVA (75,776 B) are read on entry to the
+   Garden Courtyard and FREED on the way out. They used to be read at startup
+   and never released, which cost 104,448 permanent bytes of a heap whose top is
+   the stack — the single largest avoidable item in tools/HEAP_BUDGET.txt, and
+   what was blocking a second boss from having a model at all.
+
+   >>> CALL BOTH UNCONDITIONALLY FROM main.c's STATE_LOADING, KEYED ON
+   pending_area. <<< Both are idempotent and cheap when there is nothing to do,
+   the same contract sound_bank_select() has, and for the same reason: every
+   path into a room passes through that one line and a door-trigger key would
+   miss the title-screen load and the debug jump.
+
+   With the model unloaded the boss is simply NOT DRAWN — draw_rabisus() already
+   returns early on a NULL model, and nothing else in the entity reads it. The
+   AI, the collision cylinder and rabisu_anchor_world() are unaffected. See the
+   long note in src/rabisu.c for the audit that established that. */
+void rabisus_load_model(void);    /* room entry: read the model + clip (CD)     */
+void rabisus_free_model(void);    /* room exit:  release them                   */
+
 /* Re-upload the boss's skin to VRAM. Required because the Greenhouse's vine
    curtain shares its page; called by garden_courtyard_upload_textures(), which
-   is the room the boss fights in. Pure LoadImage, transition-safe. */
+   is the room the boss fights in. Pure LoadImage, transition-safe.
+   The skin is still startup-resident (18 KB) — see rabisus_load_assets. */
 void rabisus_restore_texture(void);
 void rabisus_init(void);          /* startup: the array starts empty            */
 void rabisus_reset(void);         /* new game: clear every placement            */
