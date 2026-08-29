@@ -248,6 +248,24 @@
                      (src/helluminator.c) rather than streamed on a transition.
                      Its texture is HELLUMIN.TIM, reserved above. -->
                 <file name="HELLUM.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\helluminator.smd"/>
+                <!-- THE HATCH DOORS: two animated leaves over the pit in The
+                     Hatch's yard. Four files rather than two, because an animated
+                     prop is a topology .smd plus a baked-positions .pva - see
+                     tools/ANIMATING_A_3D_MODEL.txt. They are in \TEX\ for the
+                     reason VINES.SMD and VALVEH.SMD are: the root's first sector
+                     has 36 free bytes and one directory record is 60.
+                     Both .smd files are read once at STARTUP (CD access is unsafe
+                     once the render loop is running) and the four together cost
+                     9 KB - see the budget note in src/hatch_doors.c.
+                     No texture of their own: the leaves are UV'd against `hatch`,
+                     which The Hatch already streams on entry (HATCH.TIM). -->
+                <file name="HATCHDL.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\hatch_door_left.smd"/>
+                <file name="HATCHDR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\hatch_door_right.smd"/>
+                <!-- The opening clips, 10 frames each: frame 1 shut, 2-9 the
+                     swing, 10 open. Re-bake BOTH whenever the leaves' topology
+                     changes, or the positions stop matching the .smd indices. -->
+                <file name="HATCHDL.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\hatch_door_left.pva"/>
+                <file name="HATCHDR.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\hatch_door_right.pva"/>
                 <!-- The boss's one skin. 128x128 8bpp at VRAM (704,256): Voff 0
                      and page-aligned, so the courtyard's own 128x128 texture
                      window applies to it unchanged and no bracket is needed. -->
@@ -738,6 +756,46 @@
                      had no directory-record space left - they are read once at
                      startup, not on this transition. -->
                 <file name="VINES.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\vines.tim"/>
+
+                <!-- THE HATCH: the walled lawn east of the Keystone Maze, and
+                     the end of the garden's eastern line. Seven mesh textures
+                     and SIX are borrowed, so it ships exactly one TIM of its
+                     own. HEDGE, GRDNGTE, GRSSGS and BRIKWLL come through the
+                     Garden Courtyard's uploader (which runs the Garden Stairs'
+                     first, and it is that call which puts brick_wall up);
+                     PLINTH through the narrow maze_two_upload_plinth() and
+                     CHAIN through maze_one_upload_chain(), the two accessors
+                     the Keystone Maze and the Chain Room already added for
+                     exactly this clash - either room's FULL uploader would also
+                     drop a pipe on x768 y0, which is this room's brick wall.
+
+                     HATCH -> x640 y0, the trck_clue page: the one 8bpp full
+                              page this room draws nothing from, once the six
+                              borrowed slots are accounted for. No chnlnk, no
+                              gravel of any kind (this is the first garden room
+                              since Maze One with no paving at all), no flower
+                              bed, no trees, no plinth_rg, no greenhouse.
+                              Already time-shared seven ways and every consumer
+                              re-uploads on its own entry, so it adds no restore
+                              obligation. Its CLUT is BORROWED too - plinth_rg's
+                              row at (256,506), a texture whose pixels it is
+                              already displacing - because y=511 x[288,544) is
+                              the last free 256-word CLUT run in the map and a
+                              hatch lid is not what to spend it on. The
+                              Greenhouse's trick; see tools/VRAM_MAP.txt.
+
+                     Like the Greenhouse's five and the Chain Room's PIPEGH it
+                     is read at TRANSITION time rather than held in RAM from
+                     startup: 273 KB free at rest is only 40 KB clear of the
+                     measured boot cliff, and an 18 KB registration for thirteen
+                     polys is not the way to spend it. See tools/HEAP_BUDGET.txt
+                     and the table in src/the_hatch.c.
+                     At 37 KB its SMD is a third of Maze One's 118 KB, so the
+                     room arena is still sized by that room, as is the cull
+                     arena at 2056 prims against this room's 661.
+                     Its .smx exports live in assets/garden/. -->
+                <file name="THEHATCH.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\the_hatch.smd"/>
+                <file name="HATCH.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\hatch.tim"/>
             </dir>
         </directory_tree>
     </track>

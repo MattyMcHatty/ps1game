@@ -315,6 +315,7 @@ void keystone_maze_spawn_west(void) {
     cam_rot = 1024;   /* facing +X, into the room */
     keystone_maze_gate_arm();
     keystone_maze_ngate_arm();
+    keystone_maze_egate_arm();
 }
 
 /* ---- The north-wall gate, into the Chain Room -------------------------------
@@ -409,6 +410,91 @@ void keystone_maze_spawn_north(void) {
     cam_rot = 2048;   /* facing -Z, into the room */
     keystone_maze_gate_arm();
     keystone_maze_ngate_arm();
+    keystone_maze_egate_arm();
+}
+
+/* ---- The east-wall gate, into The Hatch -------------------------------------
+   The grdn_gte polys on this side span z[2100,2700] at x=5900, y[-600,0], in the
+   YZ plane. It was drawn shut and backed onto solid collision until The Hatch
+   was built; it now opens on that room's west gate (src/the_hatch.h). Its own
+   alcove is collision FLOOR 4, x(3899,5900) z(2100,2700), which is what fixes
+   the centre at z=2400.
+
+   >>> IT IS THE OPPOSITE HAND FROM THE WEST GATE, THOUGH BOTH ARE YZ. <<<
+   Collision wall 28 runs across this opening with nx = -4096, so the walkable
+   side is -X and the player approaches from inside this maze heading EAST. For a
+   sign in the YZ plane that is mirror=1 and the sign stands 11 units WEST of the
+   wall (x - 11) - where the west gate, whose wall 44 faces +X, is mirror=0 and
+   sits at x + 11. It is likewise the opposite hand from The Hatch's side of this
+   same gate, whose wall 0 faces +X. Getting either backwards comes out as
+   mirrored text or a sign buried in the hedge.
+
+   The wall STAYS in the collision list, as walls 44 and 13 do at the other two:
+   the leaf is shut as far as collision is concerned and it is the trigger, not a
+   hole, that lets the player through.
+
+   NO VALVE LOCK, unlike the north gate. That bit guards the Chain Room from both
+   its outside approaches; this gate leads the other way, into a room behind this
+   one, and a player standing here has already come through Maze One. */
+#define KM_EGATE_X          5900
+#define KM_EGATE_Z          2400   /* (2100 + 2700) / 2, and FLOOR 4's centre */
+
+static int egate_circle_prev = 1;
+
+void keystone_maze_egate_arm(void) {
+    egate_circle_prev = circle_held();
+}
+
+int keystone_maze_egate_triggered(void) {
+    int held = circle_held();
+    int just = held && !egate_circle_prev;
+    egate_circle_prev = held;
+    if (!just) return 0;
+
+    int32_t dx = cam_x - KM_EGATE_X;
+    int32_t dz = cam_z - KM_EGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    return xz < KM_TRIGGER_RADIUS && interact_facing(KM_EGATE_X, KM_EGATE_Z);
+}
+
+/* YZ plane, mirror=1, and 11 units WEST of the wall - see the note above for why
+   both differ from the west gate's, which is in the same plane. Everything else
+   (the radii, the fade ramp, the eye-level Y) is that gate's verbatim: it is the
+   same leaf in the same perimeter at the same height. */
+static void egate_text(RenderContext *ctx) {
+    int32_t dx = cam_x - KM_EGATE_X;
+    int32_t dz = cam_z - KM_EGATE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= KM_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > KM_FADE_NEAR) {
+        int range = KM_TEXT_RADIUS - KM_FADE_NEAR;
+        int prog  = xz - KM_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        KM_EGATE_X - 11, KM_TEXT_Y, KM_EGATE_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+}
+
+/* Arriving back from The Hatch: stand in the east corridor west of the x=5900
+   hedge, clear of the 195 push radius, facing -X - the direction of travel
+   through the gate, looking back down into the maze. x lands at 5680, inside
+   FLOOR 4's x(3899,5900) z(2100,2700) run so the floor is under the player
+   immediately; and at z=2400 the walls around the opening (27 and 29, at z=2100
+   and z=2700) are both 300 away. */
+void keystone_maze_spawn_east(void) {
+    cam_x   = KM_EGATE_X - COLLISION_WALL_RADIUS - 25;
+    cam_y   = KM_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = KM_EGATE_Z;
+    cam_rot = 3072;   /* facing -X, into the room */
+    keystone_maze_gate_arm();
+    keystone_maze_ngate_arm();
+    keystone_maze_egate_arm();
 }
 
 void keystone_maze_init(void) {
@@ -778,4 +864,5 @@ void keystone_maze_draw(RenderContext *ctx) {
     /* Last: the two gate signs. */
     gate_text(ctx);
     ngate_text(ctx);
+    egate_text(ctx);
 }

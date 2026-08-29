@@ -308,9 +308,29 @@ typedef enum {
        been collected. Declared at the END of the enum, as the note at the top
        instructs. */
     FLAG_DRAIN_KEY_PLACED,
+
+    /* THE HATCH'S TWO LEAVES HAVE BEEN THROWN OPEN. The pair of doors over the
+       pit in the middle of The Hatch's yard (src/hatch_doors.c), which is NOT
+       the lid on the brick well in that room's north chamber — that one is part
+       of the room mesh and does not move.
+
+       Set on the PRESS rather than on the last frame of the swing, so a save
+       taken while the doors are still moving comes back with them open instead
+       of shut. There is deliberately no second bit for "halfway": the whole
+       animation is under a second and hatch_doors_init() poses the pair straight
+       onto its last frame off this one bit.
+
+       Declared at the END of the enum, as the note at the top instructs — these
+       are bit positions in a saved word and inserting one renumbers every flag
+       after it. This is bit 28 of 32. */
+    FLAG_HATCH_DOORS_OPEN,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */
+
+/* game_flags is a 32-bit word in the save blob (SaveData.flags), so the enum
+   cannot outgrow it without widening that field and versioning every save. */
+_Static_assert(MAX_GAME_FLAGS <= 32, "game_flags is 32 bits wide");
 
 static inline int game_flag(GameFlag f) { return (game_flags & (1 << f)) != 0; }
 static inline void game_flag_set(GameFlag f) { game_flags |= (1 << f); }

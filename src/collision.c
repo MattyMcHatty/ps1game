@@ -24,6 +24,7 @@
 #include "chainlink_door.h"    /* placeable solid fence-gate prop */
 #include "lever.h"             /* placeable wall-lever prop */
 #include "rabisu.h"            /* the Rabisu boss is solid (area-tagged) */
+#include "hatch_doors.h"       /* The Hatch's pit doors, solid at any pose */
 
 CollisionRoom current_collision_room;
 
@@ -950,6 +951,13 @@ void apply_collision_reception(void) {
        standoff — the crucifaxe has to be able to reach it, and its own
        RBS_BODY_RADIUS already holds the player 170 off its centre. */
     rabisus_collide(&cam_x, cam_y, &cam_z, 75);
+    /* The Hatch's two pit doors; area-tagged like the props above, so this is a
+       no-op everywhere else and in every room where they are not even loaded.
+       PROP radius rather than the 195 wall standoff: the open leaves lie flat on
+       the lawn 62 and 261 tall, and holding the player a full wall's width off
+       something ankle-high would read as an invisible barrier. Their footprint
+       is this frame's pose, not a fixed box — see src/hatch_doors.c. */
+    hatch_doors_collide(&cam_x, cam_y, &cam_z, 75);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

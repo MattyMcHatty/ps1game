@@ -52,7 +52,7 @@
                 it. Add four faces for it to "Keystone Maze mesh.smx" and
                 regenerate if that matters. <<<
 
-   THREE gates are modelled; TWO are connected:
+   THREE gates are modelled, and ALL THREE are now connected:
 
      WEST    the grdn_gte leaf at x=-300, z[-300,300], y[-600,0], in the YZ
      WALL    plane. The far side of the gate in Maze One's east hedge. Collision
@@ -70,8 +70,17 @@
              OPPOSITE hand from the Chain Room's side of this same gate, whose
              wall faces +Z.
 
-     EAST    the leaf at x=5900, z[2100,2700]. Drawn shut, backing onto collision
-     WALL    wall 28 — likewise.
+     EAST    the leaf at x=5900, z[2100,2700]. Drawn shut and backing onto
+     WALL    collision wall 28 until The Hatch was built; it now opens on that
+             room's west gate (src/the_hatch.h). Its alcove is collision FLOOR 4,
+             x(3899,5900) z(2100,2700), which fixes the centre at z=2400.
+             Wall 28 runs across the opening with nx = -4096, so it is approached
+             from -X — from inside this maze — which for a YZ sign is mirror=1
+             and a sign on the x-11 side. That is the OPPOSITE hand from BOTH the
+             west gate above (whose wall faces +X) and from The Hatch's side of
+             this same gate, whose wall 0 faces +X. The wall STAYS: the leaf is
+             shut as far as collision is concerned and it is the trigger, not a
+             hole, that lets the player through.
 
    Rendered the same way as both mazes (per-poly tex map + one 128 texture window
    + purple outdoor fog + the cull-key reject path and side-plane frustum cull),
@@ -98,9 +107,14 @@ int  keystone_maze_gate_triggered(void);  /* 1 on a fresh Circle press in range 
 void keystone_maze_ngate_arm(void);       /* seed the Circle edge state */
 int  keystone_maze_ngate_triggered(void); /* 1 on a fresh Circle press in range */
 
+/* The east-wall gate, into The Hatch. */
+void keystone_maze_egate_arm(void);       /* seed the Circle edge state */
+int  keystone_maze_egate_triggered(void); /* 1 on a fresh Circle press in range */
+
 /* One spawn per connected gate; main.c picks between them on the arriving area.
-   Both arm both gates. */
+   Every one of them arms ALL THREE gates. */
 void keystone_maze_spawn_west(void);      /* arriving from Maze One, facing +X */
 void keystone_maze_spawn_north(void);     /* arriving from the Chain Room, facing -Z */
+void keystone_maze_spawn_east(void);      /* arriving from The Hatch, facing -X */
 
 #endif

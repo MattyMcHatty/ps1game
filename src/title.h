@@ -75,6 +75,11 @@ typedef enum {
                                 first that opened with BOTH its gates connected.
                                 Appended, not inserted: saves store raw enum
                                 values. */
+    STATE_THE_HATCH,         /* the walled lawn EAST of the Keystone Maze,
+                                through the gate in that room's east hedge — the
+                                end of the garden's eastern line, and a dead end
+                                like the Greenhouse. Appended, not inserted:
+                                saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

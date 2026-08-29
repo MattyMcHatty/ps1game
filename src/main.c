@@ -69,6 +69,8 @@
 #include "maze_two.h"
 #include "keystone_maze.h"
 #include "chain_room.h"
+#include "the_hatch.h"
+#include "hatch_doors.h"
 #include "keystone_plinths.h"
 #include "rear_gate.h"
 #include "west_corridor.h"
@@ -223,6 +225,15 @@ void reset_game(RenderContext *ctx) {
    is safe to discard. A room missing from this switch loads no geometry and
    draws empty — add new rooms here as well as to draw_current_area(). */
 static void load_area_geometry(GameState area) {
+    /* THE HATCH'S DOORS ARE NOT PART OF THE ROOM ARENA, so nothing evicts them
+       the way the incoming mesh evicts the outgoing one. They are 12 KB of
+       malloc'd .smd and .pva held only while the player is in that room (see the
+       memory note in hatch_doors.h), and this is the one call that runs on every
+       transition — so it is where they are given back. the_hatch_load_geometry()
+       reads them again below when the room being entered is that one, and
+       hatch_doors_unload() is a no-op when they are not loaded. */
+    hatch_doors_unload();
+
     switch (area) {
         case STATE_DELIVERY_AREA:    delivery_load_geometry();         break;
         case STATE_KITCHEN_DINING:   kitchen_load_geometry();          break;
@@ -245,6 +256,7 @@ static void load_area_geometry(GameState area) {
         case STATE_MAZE_TWO:         maze_two_load_geometry();         break;
         case STATE_KEYSTONE_MAZE:    keystone_maze_load_geometry();    break;
         case STATE_CHAIN_ROOM:       chain_room_load_geometry();       break;
+        case STATE_THE_HATCH:        the_hatch_load_geometry();        break;
         case STATE_REAR_GATE:        rear_gate_load_geometry();        break;
         case STATE_WEST_CORRIDOR:    west_corridor_load_geometry();    break;
         case STATE_STABLES:          stables_load_geometry();          break;
@@ -1246,6 +1258,45 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        if (!lock && !keystone_plinths_active() && keystone_maze_egate_triggered()) {
+            /* East through the gate in the far hedge, into The Hatch. That leaf
+               was drawn shut and backed onto solid collision until that room was
+               built; the collision wall stays, and it is this trigger and not a
+               hole that lets the player through. Same plinth guard as the other
+               two gates. */
+            pending_area = STATE_THE_HATCH;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_THE_HATCH) {
+        /* Flat lawn, exactly as the three mazes and the Chain Room: all eight
+           collision floor planes are at y=0, so the shared wall collision
+           routine (generic over current_collision_room) and a single floor zone
+           are the whole of it. The pit in the middle of the yard is a hole with
+           no floor under it, and it needs nothing here either — walls 20..23
+           fence it on all four sides (see the_hatch.h). */
+        apply_collision_reception();
+        apply_height();
+        update_zombies();      /* none placed - the room is seeded empty, but */
+        update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        /* The pit's two doors, BEFORE the gate: both are on Circle, and a press
+           made at the lip is meant for whichever of the two is in reach. They
+           cannot both be — the gate is at x=-200 and the pit's lip at x=3000,
+           3200 apart against a 500/600 reach — but the doors are tested first
+           anyway so the room has one unambiguous order. */
+        hatch_doors_update(lock);
+        if (!lock && the_hatch_gate_triggered()) {
+            /* West back through the same gate, into the Keystone Maze. The only
+               way out: this room is the end of the garden's eastern line. */
+            pending_area = STATE_KEYSTONE_MAZE;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_CHAIN_ROOM) {
         /* Flat yard, exactly as the three mazes: all three collision floor
            planes are at y=0, so the shared wall collision routine (generic over
@@ -1490,6 +1541,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         keystone_maze_draw(ctx);
     else if (area == STATE_CHAIN_ROOM)
         chain_room_draw(ctx);
+    else if (area == STATE_THE_HATCH)
+        the_hatch_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -1715,6 +1768,12 @@ int main(int argc, const char **argv) {
                                   off the brick_wall and gravel_gs pages this
                                   room draws) are STREAMED on entry, as the
                                   Greenhouse's are */
+    the_hatch_load_assets();   /* the hatch slots - TIM_SLOT only, no CD access
+                                  and no registration: its one own texture
+                                  (HATCH, the lid, on the trck_clue page) is
+                                  STREAMED on entry, as the Chain Room's and the
+                                  Greenhouse's are. The heap has no 18 KB to
+                                  spare - see the note in src/the_hatch.c */
     rear_gate_load_assets();   /* rear gate texture slots (owns the two retargets,
                                   PLNTHRG and DBLDRRG) */
     west_corridor_load_assets();/* west corridor texture slots — TIM_SLOT only; it
@@ -1941,6 +2000,7 @@ int main(int argc, const char **argv) {
                  pending_area == STATE_MAZE_TWO ||
                  pending_area == STATE_KEYSTONE_MAZE ||
                  pending_area == STATE_CHAIN_ROOM ||
+                 pending_area == STATE_THE_HATCH ||
                  pending_area == STATE_REAR_GATE ||
                  pending_area == STATE_STABLES ||
                  pending_area == STATE_GREENHOUSE) ? SND_BANK_GARDEN :
@@ -2012,6 +2072,14 @@ int main(int argc, const char **argv) {
                                                        brick_wall, then its own
                                                        retargeted pipe and chain
                                                        over chnlnk and xt_dr_cg */
+            } else if (pending_area == STATE_THE_HATCH) {
+                the_hatch_upload_textures();        /* the courtyard's four plus
+                                                       brick_wall, Maze Two's
+                                                       plinth and Maze One's
+                                                       chain through NARROW
+                                                       uploads, then its own
+                                                       STREAMED hatch over
+                                                       chnlnk */
             } else if (pending_area == STATE_REAR_GATE) {
                 rear_gate_upload_textures();        /* ditto, plus the drain
                                                        through Fountain Square's
@@ -2400,6 +2468,11 @@ int main(int argc, const char **argv) {
                    whichever branch runs the other one is safe. */
                 if (current_area == STATE_CHAIN_ROOM)
                     keystone_maze_spawn_north();
+                /* Coming back west out of The Hatch, arrive at the gate in the
+                   east hedge instead. Every spawn arms all three gates, so
+                   whichever branch runs the others are safe. */
+                if (current_area == STATE_THE_HATCH)
+                    keystone_maze_spawn_east();
                 /* THE SAME TRACK as the rest of the garden, restarted on
                    arrival rather than carried across: streaming this room's
                    83 KB mesh suspends CD-DA over the load, and what the player
@@ -2407,6 +2480,17 @@ int main(int argc, const char **argv) {
                    the gate trigger so every route in gets it: the gate, a
                    title-screen load and a debug level-select jump all pass
                    through this branch. */
+                cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
+            } else if (pending_area == STATE_THE_HATCH) {
+                the_hatch_init();   /* one gate, so its spawn is not a default
+                                       but the only arrival: west, back into the
+                                       Keystone Maze. Nothing to override. */
+                /* THE SAME TRACK as the rest of the garden, restarted on arrival
+                   rather than carried across, exactly as the three mazes and the
+                   Chain Room do it. This room's mesh is 37 KB and its load does
+                   interrupt CD-DA, but what decides this is the route and not
+                   the size: played HERE so the gate, a title-screen load and a
+                   debug level-select jump all get it. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_CHAIN_ROOM) {
                 chain_room_init();  /* defaults to the west gate, back into Maze
@@ -2626,6 +2710,7 @@ int main(int argc, const char **argv) {
                    game_state == STATE_MAZE_TWO ||
                    game_state == STATE_KEYSTONE_MAZE ||
                    game_state == STATE_CHAIN_ROOM ||
+                   game_state == STATE_THE_HATCH ||
                    game_state == STATE_REAR_GATE ||
                    game_state == STATE_WEST_CORRIDOR ||
                    game_state == STATE_STABLES ||

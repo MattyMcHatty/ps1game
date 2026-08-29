@@ -89,6 +89,9 @@ add_executable(horror_game
     src/keystone_plinths.c
     src/chain_room_mesh_collision.c
     src/chain_room.c
+    src/the_hatch_mesh_collision.c
+    src/the_hatch.c
+    src/hatch_doors.c
     src/rear_gate_mesh_collision.c
     src/rear_gate.c
     src/west_corridor_mesh_collision.c

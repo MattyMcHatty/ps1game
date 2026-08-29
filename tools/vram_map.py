@@ -436,6 +436,39 @@ KNOWN_STREAM_PAIRS = [
     # Rabisu's CLUT line would have worked too - but the y=499..511 x[672,1024)
     # band still had free runs and a prop that is drawn every frame is worth one.
     ("Rabisu tex.tim",         "vines.tim"),
+    # ---- THE HATCH, east of the Keystone Maze through that room's east gate --
+    # SEVEN mesh textures and six of them cost nothing: hedge, grdn_gte, grss_gs
+    # and brick_wall come through the Garden Courtyard's uploader (brick_wall via
+    # the Garden Stairs' inside it), plinth through maze_two_upload_plinth() and
+    # chain through maze_one_upload_chain() - the same two narrow accessors the
+    # Keystone Maze and the Chain Room already use, for the same reason: either
+    # module's FULL uploader would also stamp a page this room draws.
+    #
+    #   hatch -> the trck_clue page (x640 y0), an 8bpp FULL page this room draws
+    #            NOTHING from. It is the one big page left over once the six
+    #            borrowed slots are accounted for: no chnlnk, no gravel of any
+    #            kind (this room is grass and brick throughout), no flower bed,
+    #            no trees, no plinth_rg, no greenhouse. Already time-shared seven
+    #            ways and every consumer re-uploads on its own entry - delivery
+    #            restores gravel_texture+trees, the stairwells chnlnk, the attic
+    #            stairwell trck_clue, the catacombs and all three mazes the
+    #            flower bed, the Rear Gate plinth_rg, the Stables greenhouse - so
+    #            it adds no restore obligation. The courtyard's uploader puts
+    #            chnlnk here on the way in, so hatch must go up AFTER it; it is
+    #            streamed last of all in the_hatch_upload_textures.
+    #
+    # ITS CLUT IS BORROWED TOO, on the Greenhouse's argument: y=511 x[288,544)
+    # is still the ONLY free 256-word run in the map and a hatch lid is not what
+    # to spend it on. hatch takes plinth_rg's row at (256,506) - a texture whose
+    # PIXELS it is already displacing on x640 y0, so the pair is restored
+    # together the moment rear_gate_upload_textures runs again, palette and all.
+    ("chnlnk.tim",             "hatch.tim"),
+    ("gravel_texture.tim",     "hatch.tim"),
+    ("trees.tim",              "hatch.tim"),
+    ("trck_clue.tim",          "hatch.tim"),
+    ("poison_flower_base.tim", "hatch.tim"),
+    ("plinth_rg.tim",          "hatch.tim"),
+    ("greenhouse.tim",         "hatch.tim"),
 ]
 
 def read_tim(path):

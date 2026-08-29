@@ -130,7 +130,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_REAR_GATE,      STATE_WEST_CORRIDOR,
     STATE_LIBRARY_DESTROYED, STATE_STABLES,
     STATE_KEYSTONE_MAZE,  STATE_GREENHOUSE,
-    STATE_CHAIN_ROOM,
+    STATE_CHAIN_ROOM,     STATE_THE_HATCH,
 };
 
 static int room_index(GameState area) {
@@ -160,6 +160,7 @@ static int room_index(GameState area) {
         case STATE_KEYSTONE_MAZE:     return 22;
         case STATE_GREENHOUSE:        return 23;
         case STATE_CHAIN_ROOM:        return 24;
+        case STATE_THE_HATCH:         return 25;
         default:                   return 0;
     }
 }

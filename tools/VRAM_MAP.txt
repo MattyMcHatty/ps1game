@@ -53,6 +53,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   chnlnk.tim           4       640     0   128   128     0   160,511
   gravel_texture.tim   4       640     0   128   128     0   0,480
   greenhouse.tim       8       640     0   128   128     0   672,497
+  hatch.tim            8       640     0   128   128     0   256,506
   plinth_rg.tim        8       640     0   128   128     0   256,506
   poison_flower_base.tim 8       640     0    64    64     0   672,496
   trck_clue.tim        8       640     0   128   128     0   768,481
@@ -236,6 +237,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=505  x[256,512)  ls_atk.tim
   y=506  x[512,528)  dbl_dr_rg.tim
   y=506  x[0,16)  frnt_dr.tim
+  y=506  x[256,512)  hatch.tim
   y=506  x[256,512)  plinth_rg.tim
   y=507  x[0,256)  dresser.tim
   y=507  x[768,1024)  grinder.tim
@@ -296,6 +298,7 @@ OVERLAP CHECK
   chain.tim                                upstairs.tim         time-shared (streaming)
   chnlnk.tim                               gravel_texture.tim   time-shared (streaming)
   chnlnk.tim                               greenhouse.tim       time-shared (streaming)
+  chnlnk.tim                               hatch.tim            time-shared (streaming)
   chnlnk.tim                               plinth_rg.tim        time-shared (streaming)
   chnlnk.tim                               poison_flower_base.tim time-shared (streaming)
   chnlnk.tim                               trck_clue.tim        time-shared (streaming)
@@ -363,12 +366,14 @@ OVERLAP CHECK
   gravel_gs.tim                            stable glyphs.tim    time-shared (streaming)
   gravel_gs.tim                            upstairs.tim         time-shared (streaming)
   gravel_texture.tim                       greenhouse.tim       time-shared (streaming)
+  gravel_texture.tim                       hatch.tim            time-shared (streaming)
   gravel_texture.tim                       plinth_rg.tim        time-shared (streaming)
   gravel_texture.tim                       poison_flower_base.tim time-shared (streaming)
   gravel_texture.tim                       trck_clue.tim        time-shared (streaming)
   gravel_texture.tim                       trees.tim            time-shared (streaming)
   grdn_gte.tim                             kchn_wl.tim          time-shared (streaming)
   greenhouse door.tim                      red_crpt.tim         time-shared (streaming)
+  greenhouse.tim                           hatch.tim            time-shared (streaming)
   greenhouse.tim                           plinth_rg.tim        time-shared (streaming)
   greenhouse.tim                           poison_flower_base.tim time-shared (streaming)
   greenhouse.tim                           trck_clue.tim        time-shared (streaming)
@@ -380,6 +385,10 @@ OVERLAP CHECK
   grss.tim                                 xt_dr_lckd.tim       time-shared (streaming)
   grss_gs.tim                              stn_stl.tim          time-shared (streaming)
   grss_gs.tim                              strs.tim             time-shared (streaming)
+  hatch.tim                                plinth_rg.tim        time-shared (streaming)
+  hatch.tim                                poison_flower_base.tim time-shared (streaming)
+  hatch.tim                                trck_clue.tim        time-shared (streaming)
+  hatch.tim                                trees.tim            time-shared (streaming)
   hedge.tim                                kchn_tile.tim        time-shared (streaming)
   hedge.tim                                piano_keys.tim       time-shared (streaming)
   hedge.tim                                piano_keys_full.tim  time-shared (streaming)

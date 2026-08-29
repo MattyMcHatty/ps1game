@@ -231,6 +231,10 @@
 #define TIM_TPAGE_HADSTP2  0x009f
 #define TIM_CLUT_HADSTP2   0x7f50
 
+/* hatch.tim       8bpp  VRAM ( 640,  0)  \TEX\HATCH.TIM */
+#define TIM_TPAGE_HATCH    0x008a
+#define TIM_CLUT_HATCH     0x7e90
+
 /* hatch_key.tim   8bpp  VRAM ( 480,320)  \TEX\HATCHKEY.TIM */
 #define TIM_TPAGE_HATCHKEY 0x0097
 #define TIM_CLUT_HATCHKEY  0x7e6a
