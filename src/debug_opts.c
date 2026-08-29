@@ -2,6 +2,7 @@
 #include "player.h"
 #include "copper_pot.h"
 #include "valve_handle.h"   /* DBG_HAS_VALVE_HANDLE takes the wheel off its pipe */
+#include "birdcage.h"       /* DBG_HAS_HATCH_KEYS washes Maze One's cage out     */
 
 int debug_opts[DEBUG_OPT_COUNT] = { 0 };   /* all cheats off by default; the
                                               rest zero-initialise with it */
@@ -13,6 +14,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "HAS PIANO KEY",
     "HAS KEY STONES",
     "HAS VALVE HANDLE",   /* 16 chars — the label limit exactly */
+    "HAS HATCH KEYS",
     "EXIT DOOR SOLVED",
     "INFINITE LIFE",
     "INFINITE STAMINA",
@@ -235,4 +237,89 @@ void debug_opts_apply_grants(void) {
                         (1 << ITEM_MAGENTA_KEY_STONE);
     }
     if (debug_opts[DBG_HADAD_FLAG_THREE]) game_flag_set(FLAG_HADAD_THREE);
+
+    /* BOTH HATCH KEYS, and the two long chains that mint them, finished.
+       See the option's own note in debug_opts.h for why the chains come with the
+       keys rather than the keys arriving on their own: two hatch keys in the
+       pocket is not a state the game can reach with either puzzle still live,
+       and a grant that left them live would let the player mint a second pair.
+
+       LAST IN THE FUNCTION, on purpose and in two directions:
+
+         it must run AFTER DBG_HADAD_FLAG_TWO, which hands all four key stones
+         back over. These four are the SAME stones — a player who has lit the
+         keystone has necessarily pulled them out of the exit door first — so
+         with both ticked the honest end state is "and then placed them in the
+         plinths", which is this block winning;
+
+         and it must run after DBG_HAS_VALVE_HANDLE, which it supersedes: that
+         option is the handle in hand with the three pipes untouched, this one is
+         the same run finished and the handle spent.
+
+       WHAT IT DOES NOT CLAIM: the Attic Exit's own door state. The stones reach
+       the maze through FLAG_HADAD_TWO, so strictly this implies that flag and the
+       whole encounter behind it — but that seals a door and changes two other
+       rooms, which is a great deal to smuggle into a grant about hatch keys. Tick
+       the Hadad options alongside for that; they are additive and this block does
+       not fight them. */
+    if (debug_opts[DBG_HAS_HATCH_KEYS]) {
+        /* ---- The keys themselves ---- */
+        player_hatch_keys = HATCH_KEYS_MAX;
+
+        /* ---- KEY ONE: the Keystone Maze, solved ----
+           All four stones are IN the alcove plinths, so the flags go on and the
+           inventory bits come OFF — keystone_plinths_apply_flags() runs a moment
+           after this and installs the lights, the four lit keystone faces and the
+           white top from exactly these bits.
+
+           FLAG_KEYSTONE_REWARD is what stops that same call spawning the Hatch
+           Key on the keystone: its catch-up branch fires on "four placed, no
+           reward recorded", which is precisely the state this block would leave
+           without it — and the key it handed over would be a THIRD. */
+        game_flag_set(FLAG_KEYSTONE_NW);
+        game_flag_set(FLAG_KEYSTONE_W);
+        game_flag_set(FLAG_KEYSTONE_NE);
+        game_flag_set(FLAG_KEYSTONE_SE);
+        game_flag_set(FLAG_KEYSTONE_REWARD);
+        player_items &= ~((1 << ITEM_GREEN_KEY_STONE)   |
+                          (1 << ITEM_MAGENTA_KEY_STONE) |
+                          (1 << ITEM_YELLOW_KEY_STONE)  |
+                          (1 << ITEM_BLUE_KEY_STONE));
+
+        /* ---- KEY TWO: the Valve Puzzle, run to its end ----
+           The handle came off the Greenhouse's pipe (which floods that room —
+           the two are one event, see the DBG_HAS_VALVE_HANDLE block above), all
+           three garden pipes were turned, and the handle was SPENT on the third:
+           valve_puzzle.c retires it the moment the last flag goes on, so leaving
+           it in the inventory here would contradict the three bits below.
+
+           All four mounts are cleared through valve_handle_set_present() for the
+           reason that block gives — one function knows what "taken" means. */
+        game_flag_set(FLAG_GREENHOUSE_FLOOD);
+        game_flag_set(FLAG_VALVE_MAZE_ONE);
+        game_flag_set(FLAG_VALVE_MAZE_TWO);
+        game_flag_set(FLAG_VALVE_CHAIN_ROOM);
+        player_items &= ~(1 << ITEM_VALVE_HANDLE);
+        {
+            static const GameState VP_ROOMS[4] = {
+                STATE_GREENHOUSE, STATE_MAZE_ONE, STATE_MAZE_TWO, STATE_CHAIN_ROOM
+            };
+            int i;
+            for (i = 0; i < 4; i++) {
+                int m = valve_mount_in_area(VP_ROOMS[i]);
+                if (m >= 0) valve_handle_set_present(m, 0);
+            }
+        }
+        /* ...and the bird cage that key came out of, at the END of its own three
+           states: the chain wound in, the drain running, the key washed down it.
+           birdcage_wash() sets both bits and is what makes birdcage_state() read
+           WASHED, which is in turn what valve_puzzle_apply_flags() uses to take
+           the caged Hatch Key out of Maze One on the next entry. */
+        birdcage_wash();
+        /* The "it has already been laid on the Rear Gate's path" bit, so the LIVE
+           spawn in valve_puzzle_apply_flags() does not fire. See the KNOWN GAP in
+           debug_opts.h: world_seed_room() still lays one out on a first entry to
+           that room, and nothing short of a new flag could know otherwise. */
+        game_flag_set(FLAG_DRAIN_KEY_PLACED);
+    }
 }

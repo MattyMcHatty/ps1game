@@ -324,6 +324,27 @@ typedef enum {
        are bit positions in a saved word and inserting one renumbers every flag
        after it. This is bit 28 of 32. */
     FLAG_HATCH_DOORS_OPEN,
+
+    /* ONE OF THE HATCH'S TWO KEYHOLES HAS BEEN UNLOCKED, and the key that did it
+       snapped off in the lock. The pair of doors takes TWO Hatch Keys, used one
+       at a time from the board in src/hatch_puzzle.c, and each is CONSUMED on
+       use — so the player can be left part way through with no key in hand, and
+       the board has to come back up saying so.
+
+       >>> THERE IS NO SECOND BIT FOR "BOTH". <<< FLAG_HATCH_DOORS_OPEN is that
+       bit: the leaves are thrown the instant the second key turns, so "both
+       keyholes unlocked" and "the doors are open" are the same world state and a
+       second flag could only ever disagree with the first. The three the puzzle
+       reads are therefore:
+
+         neither          "A hatch. There are 2 keyholes"
+         this one         "A hatch. There are 2 keyholes. One is unlocked."
+         DOORS_OPEN       the board is retired; the lip offers the drop instead
+
+       Declared at the END of the enum, as the note at the top instructs — these
+       are bit positions in a saved word and inserting one renumbers every flag
+       after it. This is bit 29 of 32. */
+    FLAG_HATCH_LOCK_ONE,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

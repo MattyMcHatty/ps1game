@@ -16,6 +16,7 @@
 #include "the_hatch_mesh_collision.h"
 #include "the_hatch_tex_map.h"
 #include "hatch_doors.h"        /* the two leaves over the pit */
+#include "hatch_puzzle.h"       /* ...their two keyholes, and the drop */
 #include "btn_glyph.h"
 #include "door.h"
 #include "texmgr.h"
@@ -59,6 +60,52 @@ static void *the_hatch_buff = NULL;
 #define TH_CULL_DIST      2500
 #define TH_FOG_NEAR        575
 #define TH_FOG_FAR        2500
+
+/* ---- The red light in the pit ----------------------------------------------
+   See the_hatch.h for what this is and why it is a vertex tint rather than a
+   light. These are its shape.
+
+   THE HOLE, restated here because the light is measured off it and off nothing
+   else: x(3000,4200) z(-300,300) in a lawn at y=0, with grass sides falling to
+   the black floor 1200 below. Re-export the room and these four numbers move
+   with it — they are the same ones the collision fence (walls 20..23) and the
+   doors' own placement are built on, so they can be checked against either.
+
+   THE SPILL is 350 units, taken on a SQUARE falloff (the larger of the two axis
+   distances) rather than a radial one. The hole is a rectangle and its light
+   comes out of a rectangular opening, so a square pool is the honest shape; a
+   radial one would leave the four corners of the lip conspicuously dark. 350 is
+   a little under a third of the hole's short side — enough that the grass round
+   the rim is clearly catching something, not so much that it reaches the plinths
+   or reads as a second light source sitting on the lawn.
+
+   THE VERTICAL falloff is TWO segments meeting at the lawn line, because the
+   light does two different things there. INSIDE the shaft it runs from
+   TH_GLOW_LIP at the rim up to full at the floor, so the whole 1200 of grass
+   wall is lit and the bottom is plainly the source. ABOVE the lawn it runs from
+   TH_GLOW_LIP back down to nothing over TH_GLOW_RISE, which is the glow dying in
+   the air just over the rim. One straight ramp across the whole span would have
+   made the rim almost black — 250 of 1450 is a sixth — and the pit would have
+   read as a black hole with a red dot in it rather than as a lit shaft.
+
+   TH_GLOW_LIP is therefore the ONE number to move to make the pit hotter or
+   cooler overall; the two ramps meet at it and both scale from it. */
+#define TH_PIT_MIN_X      3000
+#define TH_PIT_MAX_X      4200
+#define TH_PIT_MIN_Z     (-300)
+#define TH_PIT_MAX_Z       300
+#define TH_PIT_FLOOR_Y    1200   /* the black quads; +Y is DOWN */
+#define TH_GLOW_BLEED      350   /* how far out over the lawn it reaches   */
+#define TH_GLOW_RISE       250   /* ...and how far up into the air above it */
+#define TH_GLOW_LIP        110   /* the level at the lawn line, 0..256      */
+
+/* THE COLOUR, at full strength. Almost pure red: the 24 and 12 are there so the
+   hottest polys — the black floor, which starts from nothing and takes the whole
+   of this — land on a red that still has somewhere to go rather than on a flat
+   clipped 255,0,0 that would band against its neighbours. */
+#define TH_GLOW_R          255
+#define TH_GLOW_G           24
+#define TH_GLOW_B           12
 
 /* ---- Floor zones -----------------------------------------------------------
    ONE zone, as all three mazes and the Chain Room. The collision generator found
@@ -432,6 +479,62 @@ void the_hatch_init(void) {
        through the gate transition does not throw them open on the arrival
        frame. */
     hatch_doors_init();
+    /* ...and the two keyholes in front of them. Armed here, beside the doors
+       and the gate, so a Circle held through the gate transition cannot fire
+       the lip's prompt on the arrival frame. It also drops any half-played
+       scene, which is what a debug level-select jump out of the descent needs. */
+    hatch_puzzle_arm();
+}
+
+/* ---- The red light in the pit, evaluated at a point ------------------------
+   The horizontal and vertical falloffs are independent and multiplied, which is
+   what makes the lit volume a box with soft walls rather than a sphere: the
+   shaft is lit from top to bottom at full width, and the spill outside it is
+   just as tall as the light above the rim. Both early-outs matter — the great
+   majority of this room's 661 polys are nowhere near the hole, and they are
+   rejected on one comparison each. */
+int the_hatch_pit_glow(int32_t x, int32_t y, int32_t z) {
+    /* Vertical first: it rejects the whole hedge line, the well and the north
+       chamber's roof in one test, and it is the cheaper of the two. */
+    int32_t v;
+    if (y <= -TH_GLOW_RISE) return 0;                 /* too high in the air */
+    if (y < 0)                                        /* in the air over the rim */
+        v = (TH_GLOW_LIP * (y + TH_GLOW_RISE)) / TH_GLOW_RISE;
+    else if (y >= TH_PIT_FLOOR_Y)                     /* at or below the source */
+        v = 256;
+    else                                              /* down the shaft */
+        v = TH_GLOW_LIP + ((256 - TH_GLOW_LIP) * y) / TH_PIT_FLOOR_Y;
+
+    /* Horizontal: how far OUTSIDE the hole's rectangle the point lies, on the
+       axis it is furthest out on. 0 anywhere over the hole itself. */
+    int32_t dx = (x < TH_PIT_MIN_X) ? TH_PIT_MIN_X - x
+               : (x > TH_PIT_MAX_X) ? x - TH_PIT_MAX_X : 0;
+    int32_t dz = (z < TH_PIT_MIN_Z) ? TH_PIT_MIN_Z - z
+               : (z > TH_PIT_MAX_Z) ? z - TH_PIT_MAX_Z : 0;
+    int32_t d  = (dx > dz) ? dx : dz;
+    if (d >= TH_GLOW_BLEED) return 0;
+
+    return (v * (256 - (d * 256) / TH_GLOW_BLEED)) >> 8;
+}
+
+void the_hatch_pit_glow_apply(int32_t *r, int32_t *g, int32_t *b,
+                              int32_t x, int32_t y, int32_t z, int32_t level)
+{
+    if (level <= 0) return;                    /* the hole is still covered */
+    int32_t f = the_hatch_pit_glow(x, y, z);
+    if (f <= 0) return;                        /* out of the light's reach  */
+    f = (f * level) >> 8;
+
+    /* ADDED, not blended: the light falls ON the surface, so a lit patch of
+       grass keeps its own colour underneath and the black floor — which has none
+       — becomes the light itself. Clamped rather than allowed to wrap, which on
+       an 8-bit channel would turn the brightest polys black. */
+    int32_t rr = *r + ((TH_GLOW_R * f) >> 8);
+    int32_t gg = *g + ((TH_GLOW_G * f) >> 8);
+    int32_t bb = *b + ((TH_GLOW_B * f) >> 8);
+    *r = rr > 255 ? 255 : rr;
+    *g = gg > 255 ? 255 : gg;
+    *b = bb > 255 ? 255 : bb;
 }
 
 static void draw_the_hatch_smd(RenderContext *ctx) {
@@ -449,6 +552,11 @@ static void draw_the_hatch_smd(RenderContext *ctx) {
     if (!cull) cull = TH_CULL_DIST;
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     int     no_frustum = (DEBUG_EXPERIMENT() == DBG_EXP_NO_FRUSTUM);
+    /* ...and the pit's light, read ONCE. It is a property of the doors' current
+       pose, not of any poly, and 0 for the whole of the game up to the frame the
+       second Hatch Key turns — which is what makes the per-poly cost of this
+       feature nothing at all until there is something to see. */
+    int32_t pit_glow = hatch_doors_open_level();
     if (th_key_count < n) n = th_key_count;   /* keys not built: draw nothing */
 
     for (i = 0; i < n; i++) {
@@ -607,12 +715,24 @@ static void draw_the_hatch_smd(RenderContext *ctx) {
            texture window set in the_hatch_draw. */
         uint8_t tex_idx = (i < THE_HATCH_PRIM_COUNT) ? the_hatch_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < THE_HATCH_TEX_COUNT);
+        /* THE PIT'S RED LIGHT, added to the baked colour BEFORE the fog and not
+           after, so a lit poly fades with distance like every other one — see
+           the_hatch.h. face_cy is only wanted here, which is why it is not
+           computed up with the other two: the fog is a flat-world distance and
+           has no use for a height. */
+        int32_t cr = col[0], cg = col[1], cb = col[2];
+        if (pit_glow) {
+            int32_t face_cy = ((int32_t)v0->vy + v2->vy) / 2;
+            the_hatch_pit_glow_apply(&cr, &cg, &cb,
+                                     face_cx, face_cy, face_cz, pit_glow);
+        }
+
         /* Purple fog, the same night sky the rest of the garden looks out on,
            and at Maze One's exact near/far — this is one continuous outdoors and
            the gate between them is not a change in the weather. */
-        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8);
-        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8);
-        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8);
+        uint8_t r = (uint8_t)((cr * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8);
+        uint8_t g = (uint8_t)((cg * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8);
+        uint8_t b = (uint8_t)((cb * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8);
 
         if (is_quad && textured) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
@@ -757,8 +877,13 @@ void the_hatch_draw(RenderContext *ctx) {
        in world space. */
     hatch_doors_draw(ctx);
 
-    /* Last: the two signs. The doors' prompt takes itself off the moment they
-       start moving. */
-    hatch_doors_text(ctx);
+    /* Last: the two signs. The pit's takes itself off the moment the leaves
+       start moving, and reads "to interact" or "to drop" depending on whether
+       they are shut or open (src/hatch_puzzle.c). */
+    hatch_puzzle_text(ctx);
     gate_text(ctx);
+
+    /* ...and the keyhole board OVER them, in 2D, on the menu-reserved OT layers.
+       It draws nothing unless the puzzle is showing it. */
+    hatch_puzzle_draw(ctx);
 }

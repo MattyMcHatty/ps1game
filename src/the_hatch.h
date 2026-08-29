@@ -119,4 +119,35 @@ int  the_hatch_gate_triggered(void);  /* 1 on a fresh Circle press in range */
 /* The room's only arrival. Arms every interaction in the room. */
 void the_hatch_spawn_west(void);      /* arriving from the Keystone Maze, facing +X */
 
+/* ---- THE RED LIGHT IN THE PIT ----------------------------------------------
+   Something down the shaft is lit, and it shows the moment the leaves come off
+   the hole. The source is the floor of eighteen flat-black quads at y=1200: the
+   glow is strongest there, washes the grass sides all the way up, and spills a
+   little way out over the lawn round the lip before it dies.
+
+   IT IS A VERTEX TINT AND NOT A LIGHT. There is no second pass, no additive
+   prim and no blend state — the contribution is added to a poly's BAKED COLOUR
+   and then fogged with it, so a glowing poly fades into the distance exactly as
+   its neighbours do and costs a handful of integer operations in a loop that was
+   already computing a colour. (Adding it AFTER the fog would have left the pit
+   burning red through a wall of purple at the far end of the yard.)
+
+   >>> IT IS APPLIED IN TWO PLACES AND BOTH ARE NEEDED. <<< The room mesh's own
+   loop paints the shaft and the lawn; src/hatch_doors.c's paints the two leaves,
+   which come to rest ON that lit lawn at x[2360,2981] and x[4214,4800]. Their
+   near ends sit inside the spill, so a leaf left out of this would be a slab of
+   unlit grey lying across a red patch of grass — which is exactly where the eye
+   is at the moment the doors finish opening. One helper, two callers.
+
+   `level` is hatch_doors_open_level(): 0 with the hole covered, ramping to 256
+   over the swing, so the light comes UP as the leaves come off rather than
+   snapping on. A caller reads it once per frame and hands it to every poly. */
+int  the_hatch_pit_glow(int32_t x, int32_t y, int32_t z);   /* 0..256 at a point */
+
+/* Add the glow at (x,y,z) into a poly's pre-fog colour. A no-op when the point
+   is out of the light's reach or the hole is still covered, which is the common
+   case — the early-out is why this is cheap enough to call per poly. */
+void the_hatch_pit_glow_apply(int32_t *r, int32_t *g, int32_t *b,
+                              int32_t x, int32_t y, int32_t z, int32_t level);
+
 #endif

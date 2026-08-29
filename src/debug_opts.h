@@ -55,6 +55,35 @@ typedef enum {
        landed. Every other room is unaffected, and walking back into the
        Greenhouse through its door puts it right. */
     DBG_HAS_VALVE_HANDLE,    /* the Greenhouse's wheel; floods that room too     */
+    /* BOTH HATCH KEYS, so The Hatch's two keyholes (src/hatch_puzzle.h) and the
+       drop into the pit behind them can be jumped straight into. Without it that
+       puzzle is unreachable from a level jump by a very long way: the two keys
+       are the payoffs of the two LONGEST chains in the garden, and neither is a
+       pickup lying anywhere a jump can land.
+
+       >>> IT THEREFORE SOLVES BOTH OF THOSE CHAINS, AND THAT IS THE POINT. <<<
+       "Holding two hatch keys" is not a state the game can reach without them,
+       so the grant does not fabricate it — it puts the whole of both puzzles
+       where a player who had earned the keys would have left them:
+
+         THE KEYSTONE MAZE   all four stones are IN the four alcove plinths (the
+                             flags set, the stones cleared from the inventory)
+                             and the keystone's reward has been taken.
+         THE VALVE PUZZLE    all three garden pipes turned, the Greenhouse
+                             flooded and its wheel gone, the handle SPENT out of
+                             the inventory (it is consumed on the third pipe),
+                             and Maze One's bird cage opened and washed out.
+
+       It SUPERSEDES DBG_HAS_VALVE_HANDLE rather than needing it: that option is
+       the handle in hand with the pipes untouched, this one is the same run
+       finished. Ticking both is legal and this one wins, because it runs later.
+
+       KNOWN GAP, the same class as the blue key stone's under DBG_HAS_KEY_STONES
+       and for the same reason: a first entry into the Rear Gate still lays a
+       washed-down Hatch Key out on the path. Nothing records that a key in a
+       room the player has never opened was already collected. player_hatch_keys
+       caps at HATCH_KEYS_MAX, so it cannot be farmed past two. */
+    DBG_HAS_HATCH_KEYS,      /* both keys; the maze and the valves solved with them */
     /* The Attic Exit's exit-door puzzle, already solved: the door stands open,
        carries the xt_dr_cmplt art and its prompt is the way OUT, so the room
        behind it can be walked into without placing a stone.

@@ -105,24 +105,33 @@ void hatch_doors_load(void);     /* ROOM ENTRY: read both .smd and both .pva  */
 void hatch_doors_unload(void);   /* leaving: free all four. Safe if not loaded */
 
 /* Room entry, after the flag is restored: poses the pair shut or open to match
-   FLAG_HATCH_DOORS_OPEN and arms the Circle edge state. */
+   FLAG_HATCH_DOORS_OPEN. */
 void hatch_doors_init(void);
 
-/* Per frame. Fires the swing on a fresh Circle press in reach of the west lip
-   while they are still shut, and advances a swing already running. Returns 1 on
-   the frame the press is taken, so the caller can play off it.
+/* Throw them. Called by src/hatch_puzzle.c on the frame the SECOND Hatch Key
+   turns, and by nothing else: the leaves have no interaction of their own any
+   more (they used to open on a bare Circle at the lip, before the two keyholes
+   were put in front of them). Sets FLAG_HATCH_DOORS_OPEN itself, on the frame
+   the swing STARTS, for the reason hatch_doors_init() gives. A no-op on a pair
+   that is already moving or already open. */
+void hatch_doors_begin_open(void);
 
-   `lock` is main.c's menu lock, and it is passed IN rather than checked at the
-   call site (the way grinder_puzzle_update takes it) because the two halves of
-   this function want opposite answers: a swing already running keeps ticking
-   under an open menu, as every other animation in a locked area does, while the
-   PRESS that starts one is a player interaction and is refused. Calling this
-   only when unlocked would freeze a hatch mid-travel for as long as the player
-   left the inventory up. */
-int  hatch_doors_update(int lock);
+/* Per frame. Advances a swing already running and nothing else — it reads no
+   input, so it is called unconditionally and keeps ticking under an open menu
+   the way every other animation in a locked area does. */
+void hatch_doors_update(void);
 
 void hatch_doors_draw(RenderContext *ctx);   /* the pair, at their frame  */
-void hatch_doors_text(RenderContext *ctx);   /* the floating prompt       */
+
+/* THE PIT'S SOUTH LIP, and the point every prompt and reach test in this room's
+   middle is measured from. +Z is north here, so south is -Z: the pit spans
+   x(3000,4200) z(-300,300) and this is the middle of its near edge, which is
+   also the leaves' own centre line. PUBLIC because src/hatch_puzzle.c's sign,
+   its reach test and its camera shot are all derived from it, and a prompt that
+   appears where the press does not work is worse than no prompt. */
+#define HATCH_LIP_X          3600
+#define HATCH_LIP_Z         (-300)
+#define HATCH_TRIGGER_RADIUS  600   /* 195 of that is the wall push itself */
 
 /* Push the player out of whichever leaf they are standing in, at this frame's
    pose. Area-gated to The Hatch, so the shared reception collision routine calls
@@ -131,5 +140,18 @@ void hatch_doors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 
 int  hatch_doors_open(void);      /* 1 once the swing has finished          */
 int  hatch_doors_swinging(void);  /* 1 while it is running                  */
+
+/* HOW FAR OPEN, 0..256 — 0 shut, 256 fully open, and a SMOOTH ramp in between.
+   The pit's red light is driven off this (the_hatch_pit_glow_apply), so the glow
+   comes up over the whole 54-frame swing instead of appearing when it ends.
+
+   >>> IT IS FINER THAN THE ANIMATION IT DESCRIBES. <<< The leaves snap between
+   ten baked frames at 10 fps and cannot do otherwise; this counts the TICKS
+   inside each of those frames as well, so what it reports is a continuous 0..256
+   over the same 54 game frames. That mismatch is deliberate — a light that
+   stepped up in nine visible jumps would draw attention to the snapping the
+   doors get away with, because an edge lit at ten discrete levels reads as a
+   fault where a rotating slab does not. */
+int  hatch_doors_open_level(void);
 
 #endif

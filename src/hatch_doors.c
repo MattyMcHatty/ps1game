@@ -9,10 +9,9 @@
 #include "camera.h"
 #include "tim_slots.h"
 #include "player.h"      /* game_flag / game_flag_set */
-#include "btn_glyph.h"   /* BTN_CIRCLE */
-#include "door.h"        /* door_draw_string_3d_yaw, DOOR_PIXEL_SIZE */
 #include "cdaudio.h"     /* suspend/resume around the entry-time reads */
 #include "title.h"       /* current_area: the leaves are solid in ONE room */
+#include "the_hatch.h"   /* the_hatch_pit_glow_apply: the red light in the hole */
 #include "hatch_doors.h"
 
 /* The two leaves over the pit in The Hatch's yard. See hatch_doors.h for the
@@ -52,59 +51,14 @@ static int hd_frame    = 0;   /* 0-based: 0 is authored frame 1, shut     */
 static int hd_tick     = 0;
 static int hd_swinging = 0;
 
-/* Circle edge-detect, seeded by hatch_doors_init(). Starts "held" so a press
-   carried in through the gate transition does not throw the doors open on the
-   arrival frame -- the same contract the birdcage and every gate here keep. */
-static int hd_circle_prev = 1;
-
-/* ---- Reach and the sign ----------------------------------------------------
-   BOTH ARE ON THE SOUTH SIDE, and the two have to agree: a prompt that appears
-   where the press does not work is worse than no prompt. So the reach, the fade
-   and the sign are all measured from ONE point, the middle of the pit's SOUTH
-   lip.
-
-   +Z IS NORTH in this room -- the passage into the chamber leaves the yard's
-   north hedge at z(1500,2100) -- so south is -Z and the south lip is z=-300.
-   The pit spans x(3000,4200), so its middle is x=3600, which is also the doors'
-   own centre line.
-
-   MEASURED FROM THE LIP, not from the doors' centre, even though on this side
-   the two share an x. The player cannot get onto the pit -- walls 20..23 fence
-   it -- so the nearest they ever stand is the default 195 wall radius back from
-   z=-300, and the lip is the edge they actually walk up to. */
-#define HD_LIP_X          3600
-#define HD_LIP_Z         (-300)
-#define HD_TRIGGER_RADIUS  600   /* 195 of that is the wall push itself       */
-#define HD_TEXT_RADIUS    1200
-#define HD_FADE_NEAR       800
-
-/* = TH_TEXT_Y, the height every sign in The Hatch stands at over its y=0 lawn:
-   the glyph TOP, so the line hangs at eye level rather than over the player's
-   head. Not shared through a header because it is one number that has been the
-   same in every garden room since Maze One. */
-#define HD_TEXT_Y        (-186)
-
-/* FACING SOUTH, back at a player standing on the lawn below the pit. The yaw is
-   measured the way cam_rot is (0 = facing +Z, increasing toward +X), and
-   door_draw_string_3d_yaw treats the value handed to it as the direction the
-   VIEWER is looking -- passing cam_rot itself is the camera-facing billboard. A
-   player who has walked round to the south side and turned to face the hole is
-   looking north, i.e. +Z, i.e. cam_rot 0. So the yaw is 0, and the line reads
-   left-to-right along +X, which is that player's right hand.
-
-   FIXED rather than cam_rot itself, so the sign belongs to the pit's south edge:
-   a player circling round to the north or east sees it edge-on and reads it from
-   the side it is meant to be read from. */
-#define HD_TEXT_YAW          0
-
-/* The line floats just south of the leaves' own south edge (z=-310), between it
-   and the closest the fence lets the player stand (z=-495). It reads over the
-   lip rather than over the grass in front of it, and at 145 units from that
-   standing point it sits at the same reading distance the room's gate sign does
-   (184 from its own wall). x is the doors' centre line, so the line is centred
-   on the hatch. */
-#define HD_TEXT_X         3600
-#define HD_TEXT_Z        (-350)
+/* >>> THERE IS NO INPUT AND NO SIGN IN THIS FILE ANY MORE. <<< The leaves used
+   to open on a bare Circle press at the pit's south lip, and this is where the
+   edge-detect, the reach test and the "Press O to open" line lived. Both keyholes
+   now stand in front of them: src/hatch_puzzle.c owns the sign, the press, the
+   board and the two Hatch Keys, and calls hatch_doors_begin_open() on the frame
+   the second key turns. What is left here is the clip, the pose and the box.
+   The lip itself is still the point everything is measured from — the constants
+   moved to hatch_doors.h so the puzzle reads the same three numbers. */
 
 static void *hd_read_file(const char *name) {
     CdlFILE file;
@@ -196,6 +150,17 @@ static SVECTOR *hd_verts(int leaf) {
 
 int hatch_doors_open(void)     { return !hd_swinging && hd_frame >= hd_frames - 1; }
 int hatch_doors_swinging(void) { return hd_swinging; }
+
+/* See hatch_doors.h for why this is finer-grained than the clip it reads.
+   hd_frames == 1 is the "neither leaf loaded" case (every room but this one),
+   where there is no swing to be part way through and no light to drive. */
+int hatch_doors_open_level(void) {
+    if (hd_frames <= 1) return 0;
+    int32_t span = (hd_frames - 1) * HATCH_DOORS_ANIM_TICKS;
+    int32_t at   = (int32_t)hd_frame * HATCH_DOORS_ANIM_TICKS + hd_tick;
+    if (at >= span) return 256;
+    return (at * 256) / span;
+}
 
 /* ---- Collision -------------------------------------------------------------
    THE FOOTPRINT IS READ OUT OF THE CLIP, ONE FRAME AT A TIME, rather than being
@@ -325,86 +290,37 @@ void hatch_doors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
 void hatch_doors_init(void) {
     /* POSED OFF THE FLAG, which savegame_apply_pending has already restored by
        the time a room init runs. A save taken mid-swing comes back fully open
-       rather than part way: the flag is set on the PRESS, and there is no second
-       bit for "halfway", because a hatch caught between two frames is not a
-       state worth a bit of the save blob. */
+       rather than part way: the flag is set on the frame the swing STARTS, and
+       there is no second bit for "halfway", because a hatch caught between two
+       frames is not a state worth a bit of the save blob. */
     hd_swinging = 0;
     hd_tick     = 0;
     hd_frame    = game_flag(FLAG_HATCH_DOORS_OPEN) ? hd_frames - 1 : 0;
-    hd_circle_prev = interact_tapped();
 }
 
-/* Manhattan reach plus a facing test, as every other Circle prompt in the garden
-   uses: doors behind you are not doors you are opening. */
-static int lip_in_reach(void) {
-    int32_t dx = cam_x - HD_LIP_X;
-    int32_t dz = cam_z - HD_LIP_Z;
-    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    return xz < HD_TRIGGER_RADIUS && interact_facing(HD_LIP_X, HD_LIP_Z);
-}
-
-int hatch_doors_update(int lock) {
-    /* THE CLOCK RUNS BEFORE THE PRESS IS READ, so the frame the swing starts on
-       is the frame the press was taken and not the one after it. */
-    if (hd_swinging) {
-        if (++hd_tick >= HATCH_DOORS_ANIM_TICKS) {
-            hd_tick = 0;
-            /* ONE-SHOT: it stops on the last frame and holds it. A looping clip
-               would wrap to 0 here, which on this one would slam the doors shut
-               again every second. */
-            if (++hd_frame >= hd_frames - 1) {
-                hd_frame    = hd_frames - 1;
-                hd_swinging = 0;
-            }
-        }
-    }
-
-    /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, and that is the
-       point of doing it before the lock test rather than after: a Circle held
-       down across the menu closing must not read as a fresh press on the frame
-       the lock lifts. */
-    int held = interact_tapped();
-    int just = held && !hd_circle_prev;
-    hd_circle_prev = held;
-    if (lock) return 0;
-
-    /* The press is consumed either way -- the edge state is updated above -- but
-       it only does anything on doors that are still shut and standing still. */
-    if (!just || hd_swinging || hd_frame > 0) return 0;
-    if (!lip_in_reach()) return 0;
-
+/* Thrown by the puzzle, on the frame the second Hatch Key turns. Refused on a
+   pair that is already moving or already open, so a second call cannot restart
+   the swing from shut. */
+void hatch_doors_begin_open(void) {
+    if (hd_swinging || hd_frame > 0) return;
     hd_swinging = 1;
     hd_tick     = 0;
-    /* SET ON THE PRESS, not on the last frame of the swing. See the note in
+    /* SET AS THE SWING STARTS, not on its last frame. See the note in
        hatch_doors_init() on what a save taken mid-swing comes back as. */
     game_flag_set(FLAG_HATCH_DOORS_OPEN);
-    return 1;
 }
 
-/* ---- The prompt -------------------------------------------------------------
-   GONE ONCE THEY ARE MOVING, not once they are open: offering "Press O to open"
-   over doors that are already swinging reads as a press that did not take. */
-void hatch_doors_text(RenderContext *ctx) {
-    if (hd_swinging || hd_frame > 0) return;
-
-    int32_t dx = cam_x - HD_LIP_X;
-    int32_t dz = cam_z - HD_LIP_Z;
-    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    if (xz >= HD_TEXT_RADIUS) return;
-
-    int fade = 256;
-    if (xz > HD_FADE_NEAR) {
-        int range = HD_TEXT_RADIUS - HD_FADE_NEAR;
-        int prog  = xz - HD_FADE_NEAR;
-        if (prog > range) prog = range;
-        fade = 256 - ((prog * 256) / range);
+void hatch_doors_update(void) {
+    if (!hd_swinging) return;
+    if (++hd_tick < HATCH_DOORS_ANIM_TICKS) return;
+    hd_tick = 0;
+    /* ONE-SHOT: it stops on the last frame and holds it. A looping clip would
+       wrap to 0 here, which on this one would slam the doors shut again every
+       second. */
+    if (++hd_frame >= hd_frames - 1) {
+        hd_frame    = hd_frames - 1;
+        hd_swinging = 0;
     }
-
-    /* The garden's sign green. The Circle control code inside the string
-       supplies its own red and the fade still applies to both. */
-    door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to open",
-                            HD_TEXT_X, HD_TEXT_Y, HD_TEXT_Z,
-                            50, 255, 50, fade, HD_TEXT_YAW, DOOR_PIXEL_SIZE);
 }
 
 /* ---- Drawing ---------------------------------------------------------------
@@ -426,7 +342,7 @@ void hatch_doors_text(RenderContext *ctx) {
      already sets for the whole frame; drawing them anywhere else needs that
      window set too. */
 static void hd_draw_leaf(RenderContext *ctx, int leaf, MATRIX *view,
-                         int32_t fog_factor)
+                         int32_t fog_factor, int32_t pit_glow)
 {
     SMD *smd = hd_smd[leaf];
     if (!smd) return;
@@ -518,9 +434,29 @@ static void hd_draw_leaf(RenderContext *ctx, int leaf, MATRIX *view,
         if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
 
         uint8_t *col = p + 16;
-        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8);
-        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8);
-        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8);
+        /* THE PIT'S RED LIGHT, on the same terms the room mesh takes it (see
+           the_hatch.h): added to the baked colour before the fog, so an open
+           leaf lying in the spill round the lip is lit like the grass under it
+           instead of staying a grey slab on a red patch.
+
+           >>> THE FACE CENTRE HAS TO BE LIFTED INTO WORLD SPACE FIRST. <<< These
+           vertices are in the PAIR'S OWN space, whose origin is the middle of the
+           hole, and the glow is measured against world coordinates. That is what
+           the three HATCH_DOORS_* are doing here — they are the same translation
+           the GTE matrix above applies, done by hand, exactly as hd_leaf_box does
+           it for the collision. */
+        int32_t cr = col[0], cg = col[1], cb = col[2];
+        if (pit_glow) {
+            the_hatch_pit_glow_apply(
+                &cr, &cg, &cb,
+                (((int32_t)v0->vx + v2->vx) / 2) + HATCH_DOORS_X,
+                (((int32_t)v0->vy + v2->vy) / 2) + HATCH_DOORS_Y,
+                (((int32_t)v0->vz + v2->vz) / 2) + HATCH_DOORS_Z,
+                pit_glow);
+        }
+        uint8_t r = (uint8_t)((cr * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8);
+        uint8_t g = (uint8_t)((cg * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8);
+        uint8_t b = (uint8_t)((cb * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8);
 
         uint8_t *uv = p + 20;   /* UVs sit at +20 for FT3 and FT4 alike */
 
@@ -601,8 +537,12 @@ void hatch_doors_draw(RenderContext *ctx) {
     MATRIX view;
     camera_build_view(&view);
 
-    hd_draw_leaf(ctx, HD_LEFT,  &view, fog_factor);
-    hd_draw_leaf(ctx, HD_RIGHT, &view, fog_factor);
+    /* The pit's light, read once for the pair — it is a property of the pose
+       both leaves share, and 0 until the second Hatch Key turns. */
+    int32_t pit_glow = hatch_doors_open_level();
+
+    hd_draw_leaf(ctx, HD_LEFT,  &view, fog_factor, pit_glow);
+    hd_draw_leaf(ctx, HD_RIGHT, &view, fog_factor, pit_glow);
 
     /* Restore the plain view matrix so later world-space draws project right --
        the room's own gate sign is drawn after this. */

@@ -71,6 +71,7 @@
 #include "chain_room.h"
 #include "the_hatch.h"
 #include "hatch_doors.h"
+#include "hatch_puzzle.h"
 #include "keystone_plinths.h"
 #include "rear_gate.h"
 #include "west_corridor.h"
@@ -211,6 +212,10 @@ void reset_game(RenderContext *ctx) {
                                into the mansion — see src/sound.h.        */
     greenhouse_flood_reset();/* ...and back OUT of the inventory, or a new
                                playthrough starts holding one              */
+    hatch_puzzle_reset();   /* ...and The Hatch's board, its shot and any
+                               half-played descent dropped. The two keyholes
+                               themselves are GameFlags and are cleared with
+                               the rest of game_flags.                      */
     setRGB0(&ctx->buffers[0].draw_env, 0, 0, 0);
     setRGB0(&ctx->buffers[1].draw_env, 0, 0, 0);
 }
@@ -374,6 +379,41 @@ static void update_current_area(GameState area) {
         valve_puzzle_update();
         valve_handles_update();
         update_particles();
+        return;
+    }
+    /* THE HATCH'S TWO KEYHOLES, the swing that follows the second key, and the
+       descent into the pit. Same shape as the valve's branch above and for the
+       same reasons: the player is stood at the lip the whole time, nothing has
+       taken them out of the room, so the enemies keep running.
+
+       >>> IT HAS TO TICK hatch_doors_update() ITSELF. <<< That is what advances
+       the swing, and the swing plays out entirely inside this branch — the
+       leaves are thrown while the puzzle still owns the camera. Without it they
+       would freeze on their first frame.
+
+       THE DROP'S TRANSITION IS TAKEN HERE and not in the room's block below,
+       because the descent never reaches it: hatch_puzzle_active() is true for
+       the whole of the fall. >>> AND THE DESTINATION IS A PLACEHOLDER. <<< The
+       shaft is meant to land in a boss encounter that is not built yet, so for
+       now it gates back into THE HATCH ITSELF, which re-enters at the west gate
+       with the doors still open. Point pending_area at the new room when it
+       exists; nothing else here changes. */
+    if (area == STATE_THE_HATCH && hatch_puzzle_active()) {
+        update_zombies();
+        update_spiders();
+        update_rabisus();
+        item_pickups_update();
+        sml_meds_update();
+        player_status_update();
+        hatch_puzzle_update(0);   /* the scene owns the screen: never locked */
+        hatch_doors_update();
+        update_particles();
+        if (hatch_puzzle_drop_done()) {
+            pending_area = STATE_THE_HATCH;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
         return;
     }
     /* The Attic Exit's lightswitch puzzle only takes the camera for its PAYOFF —
@@ -1283,13 +1323,20 @@ static void update_current_area(GameState area) {
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
-        /* The pit's two doors, BEFORE the gate: both are on Circle, and a press
+        /* The pit's leaves, if they happen to be mid-swing. They cannot be from
+           here — the swing runs entirely inside the puzzle's own branch above —
+           but it reads no input and costs nothing on a pair standing still, and
+           having it unconditional means a swing can never be left frozen by a
+           state that forgot to tick it. */
+        hatch_doors_update();
+        /* The pit's KEYHOLES, before the gate: both are on Circle, and a press
            made at the lip is meant for whichever of the two is in reach. They
-           cannot both be — the gate is at x=-200 and the pit's lip at x=3000,
-           3200 apart against a 500/600 reach — but the doors are tested first
-           anyway so the room has one unambiguous order. */
-        hatch_doors_update(lock);
-        if (!lock && the_hatch_gate_triggered()) {
+           cannot both be — the gate is at x=-200 and the pit's lip at x=3600,
+           3800 apart against a 500/600 reach — but the pit is tested first
+           anyway so the room has one unambiguous order, and its return value is
+           the veto the gate takes. */
+        int th_hatch = hatch_puzzle_update(lock);
+        if (!lock && !th_hatch && the_hatch_gate_triggered()) {
             /* West back through the same gate, into the Keystone Maze. The only
                way out: this room is the end of the garden's eastern line. */
             pending_area = STATE_KEYSTONE_MAZE;
@@ -2755,6 +2802,14 @@ int main(int argc, const char **argv) {
                                 ends on a log line, and only `puzzle` keeps the
                                 log box up. */
                              valve_puzzle_active() ||
+                             /* The Hatch's keyhole board, the swing after the
+                                second key, and the descent into the pit. In
+                                THIS list rather than the cutscene one below for
+                                the valve's reason: every beat of it lands on a
+                                log line, and only `puzzle` keeps the log box
+                                up — including the drop, which has the board's
+                                own "A hatch..." still on screen behind it. */
+                             (area == STATE_THE_HATCH && hatch_puzzle_active()) ||
                              /* The East Hall's collapse. A cutscene by shape,
                                 but it belongs in THIS list and not the one
                                 below: the quake's whole payload is a log line

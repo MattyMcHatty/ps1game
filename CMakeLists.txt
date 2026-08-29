@@ -92,6 +92,7 @@ add_executable(horror_game
     src/the_hatch_mesh_collision.c
     src/the_hatch.c
     src/hatch_doors.c
+    src/hatch_puzzle.c
     src/rear_gate_mesh_collision.c
     src/rear_gate.c
     src/west_corridor_mesh_collision.c
@@ -214,6 +215,7 @@ set_source_files_properties(
     src/greenhouse_puzzle.c
     src/greenhouse_flood.c
     src/valve_puzzle.c
+    src/hatch_puzzle.c
     src/birdcage.c
     src/delivery_intro.c
     src/east_hall_quake.c
