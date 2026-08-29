@@ -197,6 +197,83 @@ The T field on the meter exists so this can never silently happen again.
 
 
 ##########################################################################
+ STEP 2A — >>> G IS NOT THE VERDICT ONCE VB IS ALREADY 2. <<<
+##########################################################################
+Added after the Rabisu fight (Aug 2026), which was diagnosed twice from the
+wrong number because STEP 2's rule is stated more strongly than it holds.
+
+"G near zero = CPU-bound" is true at VB1. At VB2 IT IS A FALSE NEGATIVE, and
+the reason is in the definition: G is the wait at DrawSync for the PREVIOUS
+frame's GPU work. A dropped frame hands the GPU a whole spare vblank of wall
+clock, so it finishes during the VSync wait and the CPU never waits for it. The
+meter then reads G0 — "the GPU is idle" — about a frame the GPU is setting the
+length of.
+
+THE READING THAT EXPOSED IT. Two isolation levels in the Garden Courtyard came
+back with the same numbers and different frame rates:
+
+    level 4  (no room mesh, boss only)   U4 D118 G0    LAGS
+    level 8  (no boss, room only)        U5 D117 G0    FINE
+
+Identical U, D and G cannot produce different frame rates, so the cost was
+somewhere none of the three was looking. It was pixels: 526 room primitives that
+are mostly small and distant against 476 boss primitives that are large and
+close. Same primitive count, same CPU cost, wildly different fill.
+
+  >>> SO ALWAYS RECORD FPS/VB ALONGSIDE U/D/G. <<< STEP 2 says "use VB to
+  DETECT, U/D/G to MEASURE" and that is right — but a U/D/G reading with no VB
+  beside it cannot be interpreted at all, because you cannot tell whether G0
+  means "the GPU is idle" or "the GPU had a free vblank to hide in".
+
+  THE FREE TEST FOR FILL, when G cannot be trusted: MOVE THE CAMERA. Fill scales
+  with the screen area a thing covers; CPU cost per primitive does not care.
+  Smooth from across the arena and choppy up close is pixels, every time.
+
+
+##########################################################################
+ STEP 3C — WHAT FIXED THE RABISU FIGHT (Aug 2026)
+##########################################################################
+Reported as "it lags the whole time the boss is in the level", where it used to
+lag only during certain attacks. Three changes, in the order they were made;
+the first two took the fight itself to a clean 60 and the third was aimed at
+what was left.
+
+1. isin/icos HOISTED OUT OF THE COURTYARD'S REJECT LOOP. Two SDK calls per
+   primitive, 1052 a frame, to compute one pair of constants that cannot change
+   while a frame is being queued. This is the tail of STEP 3B — the room never
+   got it because it predates that work.
+
+2. THE DOUBLE SCREEN CLEAR REMOVED (wrong turn #3). The room queued its own
+   full-screen TILE over a framebuffer DrawOTagEnv had already cleared: a second
+   77,000-pixel fill every frame, for the colour alone. render_set_clear_colour.
+
+3. THE LAWN LIGHTS' BACK WALLS CULLED. What was left was the REVEAL only — the
+   one moment with sixteen light columns on screen. Each is a pool quad plus a
+   shaft drawn as a CLOSED BOX of four walls in three bands: 13 additive quads
+   per light, 208 in total, all semi-transparent and heavily overlapping.
+
+   Two things that look like savings there and are not:
+     - CUTTING THE BAND COUNT saves primitives and not one pixel. The bands
+       exist for the GTE's +/-1023 clamp; the shaft covers the same screen area
+       whether it is three quads or one.
+     - SKIPPING DIM QUADS. The unlit cells are already skipped, and the shaft's
+       height falloff bottoms out around 13% rather than at black, so there is
+       nothing contributing zero.
+
+   >>> WHAT DID WORK: BACKFACE-CULLING THE SHAFT. <<< Every camera sees two of a
+   box's four walls from in front and two from behind. Culling an ADDITIVE quad
+   is not free the way culling a solid one is — an additive back face is not
+   hidden by the front face, it adds through it — so this genuinely removes
+   light and has to be paid for: RBS_SHAFT_LEVEL went 60 -> 120, and two walls
+   at 120 sum through the middle of a beam to the same 240 four walls at 60 did.
+   Half the shaft's pixels for a look one constant restores.
+
+   THE REMAINING LEVERS, if a future effect needs more, all of them pure fill
+   and all of them a LOOK decision rather than a code one: RBS_SHAFT_H (900),
+   RBS_SHAFT_FLARE (150), and the number of cells lit at once.
+
+
+##########################################################################
  STEP 3A, PART TWO — THE GREENHOUSE (Aug 2026)
 ##########################################################################
 The Greenhouse's flood — six Rafflesias, four Mushroom Heads, five vine curtains

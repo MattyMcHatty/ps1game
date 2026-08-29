@@ -502,19 +502,40 @@ void rbs_glow_pulse(int32_t clock, int32_t level,
     *b = (uint8_t)((bb * level) >> 8);
 }
 
-void rbs_glow_quad(RenderContext *ctx, const SVECTOR v[4],
-                   uint8_t r, uint8_t g, uint8_t b) {
+/* The body of rbs_glow_quad, plus an optional BACKFACE CULL.
+ *
+ * >>> CULLING AN ADDITIVE QUAD IS NOT FREE THE WAY CULLING A SOLID ONE IS. <<<
+ * A solid back face is hidden by the front face and costs only fill. An
+ * ADDITIVE one is not hidden by anything — it adds through whatever is in front
+ * of it — so dropping it genuinely removes light from the picture. It is
+ * therefore an option here rather than something done everywhere, and the
+ * caller that takes it PAYS FOR IT IN BRIGHTNESS: see RBS_SHAFT_LEVEL.
+ *
+ * It is worth it for one shape only: a CLOSED BOX of additive walls, which is
+ * what a light shaft is. Every camera sees two of its four walls from in front
+ * and two from behind, and the sum through the middle is the same whether it is
+ * two walls at level L or four at level L/2 — so the cull halves the pixels for
+ * a look that one constant restores. The pool quad and the glow-point rings are
+ * NOT closed boxes and must never take it; they would simply disappear when
+ * viewed from the wrong side. */
+static void rbs_glow_quad_ex(RenderContext *ctx, const SVECTOR v[4],
+                             uint8_t r, uint8_t g, uint8_t b, int cull) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     if (ctx->next_packet + sizeof(POLY_F4) + sizeof(DR_TPAGE) > buf_end) return;
 
     DVECTOR sv[4];
-    int32_t sz[4], otz;
+    int32_t sz[4], otz, nclip;
     int k;
 
     gte_ldv3(&v[0], &v[1], &v[2]);
     gte_rtpt();
     gte_stsxy3c(sv);
     gte_stsz4c(sz);
+    if (cull) {
+        gte_nclip();
+        gte_stopz(&nclip);
+        if (nclip <= 0) return;
+    }
     gte_ldv0(&v[3]);
     gte_rtps();
     gte_stsxy(&sv[3]);
@@ -548,6 +569,14 @@ void rbs_glow_quad(RenderContext *ctx, const SVECTOR v[4],
     setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
     addPrim(&ot[otz], tp);
     ctx->next_packet += sizeof(DR_TPAGE);
+}
+
+/* The public one: never culled, because every other user of it — the pool, the
+   light beam's burning path, the shockwave's band and skirt — is a single
+   surface rather than a closed volume. */
+void rbs_glow_quad(RenderContext *ctx, const SVECTOR v[4],
+                   uint8_t r, uint8_t g, uint8_t b) {
+    rbs_glow_quad_ex(ctx, v, r, g, b, 0);
 }
 
 #define RBS_GLOW_WORLD       230   /* world half-size of the outermost square */
@@ -618,7 +647,19 @@ void rbs_glow_point(RenderContext *ctx, const VECTOR *at, int32_t bright,
    shaft is faint because sixteen of them overlap during the reveal and would
    otherwise white out the middle of the garden. */
 #define RBS_POOL_LEVEL       210
-#define RBS_SHAFT_LEVEL       60
+/* >>> DOUBLED WHEN THE SHAFT'S BACK WALLS WERE CULLED. <<< It was 60 while all
+   four walls of the box were drawn, so the middle of a beam summed two of them.
+   Two walls at 120 sum to the same 240 through the middle; what changes is only
+   the silhouette edges, where a single wall is now seen at 120 rather than 60.
+   Judged the better trade: the reveal is the one moment in the fight that is
+   FILL-bound (sixteen beams x four walls x three bands = 192 overlapping
+   semi-transparent quads, plus sixteen bright pools), and this halves the
+   shaft's share of it.
+   >>> IF THE BEAMS EVER LOOK WRONG, CHANGE THIS NUMBER, NOT THE CULL. <<< The
+   two are a pair: restore the cull to 0 in rbs_glow_pillar and this goes back
+   to 60. The runbook's ceiling still applies — keep it well under the pool's
+   210, or sixteen overlapping beams white out the middle of the arena. */
+#define RBS_SHAFT_LEVEL      120
 #define RBS_SHAFT_H          900   /* how far up the beam reaches               */
 #define RBS_SHAFT_FLARE      150   /* how far out each corner is pushed at the top */
 #define RBS_SHAFT_SEGS         3
@@ -674,7 +715,9 @@ void rbs_glow_pillar(RenderContext *ctx, int32_t x0, int32_t x1,
                 v[3].vx = (int16_t)PUSHX(cx[n], o1); v[3].vz = (int16_t)PUSHZ(cz[n], o1); v[3].vy = (int16_t)y1;
                 #undef PUSHX
                 #undef PUSHZ
-                rbs_glow_quad(ctx, v, r, g, b);
+                /* CULLED: this is a closed box, so two of these four walls face
+                   away from any camera. See rbs_glow_quad_ex. */
+                rbs_glow_quad_ex(ctx, v, r, g, b, 1);
             }
         }
     }
