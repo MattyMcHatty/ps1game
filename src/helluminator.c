@@ -89,9 +89,10 @@ extern volatile size_t  pad_buff_len[2];
 
 /* ---- The glow ---------------------------------------------------------------
    The three lamp faces — two orange panes and the yellow end cap — get an
-   additive white quad laid over them, grown out from the face's own screen
-   centre so the light spills past the glass. Two levels: a small permanent one
-   (the wick is always lit) and a larger, brighter one while Square is held.
+   additive quad laid over them, grown out from the face's own screen centre so
+   the light spills past the glass. Two levels: a small permanent white one (the
+   wick is always lit) and a larger, brighter, light-blue one while Square is
+   held — see the tint block below.
 
    >>> IT LIGHTS THE MODEL, NOT THE ROOM. <<< Every room's mesh loop shades from
    its own fog curve and nothing else; making the lantern brighten nearby world
@@ -110,6 +111,29 @@ extern volatile size_t  pad_buff_len[2];
 /* Frames the burn glow takes to come up and to die away, so the light swells
    rather than snapping. */
 #define HELL_GLOW_RAMP          10
+
+/* ---- The burn's colour ------------------------------------------------------
+   The idle wick is white; the burn is HOLY FIRE and reads light blue. The tint
+   is a per-channel scale in 256ths, lerped from 256 (white) up the same ten
+   frames the glow swells on, so the light warms into blue as it grows rather
+   than switching colour the instant Square goes down.
+
+   BLUE IS LEFT AT 256 and the other two come down. The glow quad is ADDITIVE,
+   so a channel scaled up would clip against whatever is already behind it while
+   a channel scaled down cannot — tinting downwards keeps the burn exactly as
+   bright as the white glow was and only drains the red and green out of it.
+
+   The SAME two numbers tint the reticule below, and that is the point: the ring
+   and the lamp are one "it is lit" tell, and a player reading it off either
+   should be reading the same colour. */
+#define HELL_TINT_R   96   /* of 256, at full burn */
+#define HELL_TINT_G  176
+/* Blue has no constant: nothing may scale it. */
+
+/* One channel's 256ths tint, lerped from white (256) to TINT across the ramp.
+   Reads glow_ramp from the caller's scope, like the two glow lerps do. */
+#define HELL_TINT(TINT) \
+    (256 + (((TINT) - 256) * glow_ramp) / HELL_GLOW_RAMP)
 
 /* The model's own marker colours, matched exactly against the SMD's per-prim
    base RGB (offset 16). They come through smxlink unchanged — that is checked,
@@ -303,13 +327,14 @@ void helluminator_update(void) {
    and the three lamp faces get their screen coordinates captured on the way past
    so the glow can be laid over them without projecting anything twice. */
 
-/* One additive white quad, in 2D, over four already-projected screen points,
+/* One additive quad, in 2D, over four already-projected screen points,
    grown out from their centre by `scale`/256. Additive means a DR_TPAGE has to
    be IN FRONT of the poly in OT order, and since the OT is LIFO within a bucket
    that means adding the TPAGE to the same node immediately AFTER the quad — the
    same shape the Attic Exit's light cones use. */
 static void hell_glow_quad(RenderContext *ctx, const DVECTOR *sv,
-                           int32_t scale, int32_t level, int otz) {
+                           int32_t scale, int32_t lr, int32_t lg, int32_t lb,
+                           int otz) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     if (ctx->next_packet + sizeof(POLY_F4) + sizeof(DR_TPAGE) > buf_end) return;
 
@@ -333,7 +358,7 @@ static void hell_glow_quad(RenderContext *ctx, const DVECTOR *sv,
     POLY_F4 *p = (POLY_F4 *)ctx->next_packet;
     setPolyF4(p);
     setSemiTrans(p, 1);
-    setRGB0(p, (uint8_t)level, (uint8_t)level, (uint8_t)level);
+    setRGB0(p, (uint8_t)lr, (uint8_t)lg, (uint8_t)lb);
     p->x0 = gx[0]; p->y0 = gy[0];
     p->x1 = gx[1]; p->y1 = gy[1];
     p->x2 = gx[2]; p->y2 = gy[2];
@@ -433,6 +458,10 @@ void draw_helluminator(RenderContext *ctx) {
     int32_t glow_level = HELL_GLOW_LEVEL_IDLE +
                          ((HELL_GLOW_LEVEL_BURN - HELL_GLOW_LEVEL_IDLE) * glow_ramp) /
                          HELL_GLOW_RAMP;
+    /* White at rest, light blue at full burn. */
+    int32_t glow_r = (glow_level * HELL_TINT(HELL_TINT_R)) >> 8;
+    int32_t glow_g = (glow_level * HELL_TINT(HELL_TINT_G)) >> 8;
+    int32_t glow_b =  glow_level;
 
     /* Pass 2 — project again and emit. */
     p = (uint8_t *)hell_smd->p_prims;
@@ -516,7 +545,8 @@ void draw_helluminator(RenderContext *ctx) {
             /* The halo, at the FRONT of the weapon band so it blooms over the
                lamp's own frame rather than being hidden by it. */
             if (is_lamp)
-                hell_glow_quad(ctx, sv, glow_scale, glow_level, SCENE_OT_MIN);
+                hell_glow_quad(ctx, sv, glow_scale, glow_r, glow_g, glow_b,
+                               SCENE_OT_MIN);
         } else {
             if (ctx->next_packet + sizeof(POLY_F3) > buf_end) { p += stride; continue; }
             POLY_F3 *poly = (POLY_F3 *)ctx->next_packet;
@@ -566,7 +596,12 @@ void draw_helluminator(RenderContext *ctx) {
     if (aiming) {
         const int SEGS = 24;
         int cx = aim_x, cy = aim_y;
-        uint8_t v = (uint8_t)(200 + ((255 - 200) * glow_ramp) / HELL_GLOW_RAMP);
+        /* Same swell and the same tint as the lamp: white while the wick is
+           merely lit, brighter and light blue while it burns. */
+        int32_t v  = 200 + ((255 - 200) * glow_ramp) / HELL_GLOW_RAMP;
+        uint8_t vr = (uint8_t)((v * HELL_TINT(HELL_TINT_R)) >> 8);
+        uint8_t vg = (uint8_t)((v * HELL_TINT(HELL_TINT_G)) >> 8);
+        uint8_t vb = (uint8_t)v;
         uint8_t *buf_end2 = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
         int ring;
         for (ring = 0; ring < 2; ring++) {
@@ -582,7 +617,7 @@ void draw_helluminator(RenderContext *ctx) {
                 if (ctx->next_packet + sizeof(LINE_F2) > buf_end2) return;
                 LINE_F2 *ln = (LINE_F2 *)ctx->next_packet;
                 setLineF2(ln);
-                setRGB0(ln, v, v, v);
+                setRGB0(ln, vr, vg, vb);
                 setXY2(ln, prev_x, prev_y, nx, ny);
                 addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_HELL_RETICULE], ln);
                 ctx->next_packet += sizeof(LINE_F2);
