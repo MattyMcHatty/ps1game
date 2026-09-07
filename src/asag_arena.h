@@ -42,16 +42,23 @@
    dying. There is deliberately NO SAVE POINT here, which is what makes that
    true rather than wishful (tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9).
 
-   ---- THE PLACEHOLDER GEOMETRY ---------------------------------------------
-   Own coordinate space, like every garden room. Floor y=0 throughout; a
-   4000 x 4000 square, x[-2000,2000] z[-2000,2000], under a 900-tall wall. The
-   reasoning for both numbers is in src/asag_arena_mesh_collision.c and it is
-   sized off the Rabisu's fight, not invented.
+   ---- THE GEOMETRY ---------------------------------------------------------
+   Own coordinate space, like every garden room. \TEX\ASAGARNA.SMD, exported
+   from assets/bosses/Asag/Asag-Arena.smx: 674 flat-shaded, UNTEXTURED
+   primitives over x[-1500,1500] z[0,3700], floor y=0, perimeter walls to
+   y=-1000 and detail up to y=-1624. It is read into the shared room arena on
+   entry and drawn by this module's own loop, which is chain_room.c's without
+   the textured branches.
 
-   The player lands under the shaft mouth at the NORTH edge and faces +Z, across
-   the room. The exit is a door in the middle of the SOUTH wall, as far from the
-   arrival as the room allows — so the fight happens between the two and the
-   player crosses the arena to leave it.
+   COLLISION DOES NOT FOLLOW IT YET: src/asag_arena_mesh_collision.c is that
+   mesh's bounding box, by hand, so the room can be walked end to end while the
+   arena is judged for size and feel. Nothing inside the perimeter stops the
+   player.
+
+   The player lands under the shaft mouth at the NORTH edge (low z) and faces
+   +Z, across the room. The exit is a door in the middle of the SOUTH wall, as
+   far from the arrival as the room allows - so the fight happens between the
+   two and the player crosses the arena to leave it.
 
    ---- THE TEXTURES: STREAMED, NOT RESIDENT. THIS IS NOT OPTIONAL. -----------
    texmgr keeps the WHOLE TIM in main RAM for the life of the run, and main RAM
@@ -86,8 +93,13 @@
    matters; it will not.
 
    ---- WHAT IS STILL MISSING (all of it is content, none of it is plumbing) --
-     - the mesh                 \TEX\ASAGARNA.SMD, and the collision to match
-     - the textures             ASAG_TEX[] below is empty
+     - the collision            the perimeter box in
+                                src/asag_arena_mesh_collision.c is the mesh's
+                                BOUNDING BOX, hand-written; nothing inside it
+                                collides. Export a proxy .smx and generate it.
+     - the textures             the mesh is UNTEXTURED (its .smx has an empty
+                                <textures> list) and is drawn flat-shaded off
+                                its baked vertex colours
      - the boss                 no body module, no director module
      - the music                CDAUDIO_ASAG_TRACK is defined; track 9 is not
                                 yet on the disc

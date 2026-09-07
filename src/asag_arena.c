@@ -24,21 +24,21 @@ static SMD  *asag_arena_smd  = NULL;
 static void *asag_arena_buff = NULL;
 
 /* ---- View distance ---------------------------------------------------------
-   The room is 4000 square, so its far corner is 8000 Manhattan from the near
-   one — well past any of the garden's fog settings. These are the garden's
-   numbers stretched to fit an indoor space the player must be able to see
-   across in one glance: a boss fight where the boss fades out at the far wall is
-   not a boss fight, it is a guessing game.
+   THE REAL MESH'S NUMBERS. The arena is 3000 wide (x[-1500,1500]) by 3700 deep
+   (z[0,3700]), so its far corner is 6700 Manhattan from the near one — the
+   distance the cull and the fog both have to reach, because a boss fight where
+   the far wall fades out is a guessing game and not a fight.
 
-   >>> RE-DERIVE THESE FROM THE REAL MESH. <<< 3000/4500 is chosen against the
-   PLACEHOLDER box and against nothing else. Once the arena is modelled, set the
-   far distance so the whole playable floor is inside it from any standing
-   position, and the near distance so the fog is doing something rather than
-   nothing. tools/DIAGNOSING_FRAME_RATE.txt is the file to read if the finished
-   room is heavy — measure U/D/G before shortening either of these. */
-#define AA_CULL_DIST      4500
-#define AA_FOG_NEAR       3000
-#define AA_FOG_FAR        4500
+   >>> THESE ARE SET FOR VISIBILITY, NOT FOR SPEED. <<< 674 primitives is a
+   third of Maze One's 2056 and the whole room is inside the cull from anywhere
+   in it, so nothing is being rejected by distance today — the frustum test in
+   the draw below is doing all the work. If the finished room is heavy, measure
+   U/D/G per tools/DIAGNOSING_FRAME_RATE.txt before shortening either of these.
+   The fog only starts at 2500 so that the near half of the arena reads at the
+   mesh's own vertex colours and the depth cue lands on the far wall. */
+#define AA_CULL_DIST      7000
+#define AA_FOG_NEAR       2500
+#define AA_FOG_FAR        7000
 
 /* The arena is UNDERGROUND — the player fell 1200 units to get here — so it
    does NOT take the garden's purple sky. Near-black is both the honest colour
@@ -53,16 +53,20 @@ static void *asag_arena_buff = NULL;
 #define AA_CLEAR_B 10
 
 /* ---- Floor zones -----------------------------------------------------------
-   ONE zone over the whole footprint: the placeholder box has a single flat
-   plane at y=0, so there is nothing to describe. A real arena with a terrace,
-   a step or a pit in it needs one zone per level here AND multi_level set in
-   asag_arena_mesh_collision.c — and if it gains a low lip, it needs
-   collision_shoot_over_short_walls() in asag_arena_init() too, or every
-   projectile in the fight dies on it. See the note at the top of that file. */
+   ONE zone over the mesh's footprint, x[-1500,1500] z[0,3700], read off
+   assets/bosses/Asag/Asag-Arena.smx: 1656 of its vertices sit at y=0 and none
+   of the walkable ground is at any other height, so the arena really is one
+   flat plane and one zone describes all of it.
+
+   >>> IF THE MESH EVER GAINS A TERRACE, A STEP OR A PIT, THIS NEEDS ONE ZONE
+   PER LEVEL <<< and multi_level in asag_arena_mesh_collision.c with it — and if
+   it gains a low lip, collision_shoot_over_short_walls() in asag_arena_init()
+   too, or every projectile in the fight dies on it. See the note at the top of
+   that file. */
 static void asag_arena_floor_zones_init(void) {
     floor_zones[0].type  = FLOOR_FLAT;
-    floor_zones[0].min_x = -2000; floor_zones[0].max_x = 2000;
-    floor_zones[0].min_z = -2000; floor_zones[0].max_z = 2000;
+    floor_zones[0].min_x = -1500; floor_zones[0].max_x = 1500;
+    floor_zones[0].min_z =     0; floor_zones[0].max_z = 3700;
     floor_zones[0].y     = 0;
     floor_zone_count = 1;
 }
@@ -107,17 +111,23 @@ static uint16_t tex_clut[ASAG_ARENA_TEX_COUNT];
 #define AA_EYE_Y  (0 - GROUND_FLOOR_Y - 40)
 
 /* ---- The shaft mouth and the exit ------------------------------------------
-   The drop lands at the NORTH edge; the exit is the middle of the SOUTH wall.
-   Both are 300 in from their wall — 220 is the minimum that clears the default
-   COLLISION_WALL_RADIUS of 195 plus the arrival margin, and 300 leaves the
-   player's first frame of free play clear of the push-out boundary. Handing
-   control back ON the boundary makes the first frame a shove, which is the
-   trap tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 2E is about. */
+   MOVED ONTO THE MESH. The room used to be a 4000 square centred on the origin;
+   the modelled arena is x[-1500,1500] z[0,3700], so the old shaft at z=-1700 is
+   now outside the geometry entirely and the player would have landed in the
+   void looking at the back of a wall.
+
+   The drop still lands at the NORTH end (low z) and the exit is still the
+   middle of the SOUTH wall (high z), which is what keeps the fight between the
+   player and the way out. Both are 300 in from their wall — 220 is the minimum
+   that clears the default COLLISION_WALL_RADIUS of 195 plus the arrival margin,
+   and 300 leaves the player's first frame of free play clear of the push-out
+   boundary. Handing control back ON the boundary makes the first frame a shove,
+   which is the trap tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 2E is about. */
 #define AA_SHAFT_X            0
-#define AA_SHAFT_Z       (-1700)
+#define AA_SHAFT_Z          300
 
 #define AA_EXIT_X             0
-#define AA_EXIT_Z          2000    /* on the south wall itself */
+#define AA_EXIT_Z          3700    /* on the south wall itself */
 
 #define AA_TEXT_Y        (-186)    /* eye level on the y=0 floor */
 #define AA_TEXT_RADIUS     1500
@@ -125,16 +135,16 @@ static uint16_t tex_clut[ASAG_ARENA_TEX_COUNT];
 #define AA_TRIGGER_RADIUS   500
 
 /* ---- Geometry --------------------------------------------------------------
-   Read on ENTRY into the shared 116 KB arena, not at startup — the invariant
-   every room in this game keeps (src/room_arena.h). A MISSING FILE IS NOT AN
-   ERROR HERE: room_arena_load returns NULL, asag_arena_smd stays NULL, and the
-   draw falls back to the placeholder box below. That is what lets the room be
-   walked and the encounter be scripted before the mesh exists.
+   Read on ENTRY into the shared arena, not at startup — the invariant every
+   room in this game keeps (src/room_arena.h). A MISSING FILE IS NOT AN ERROR
+   HERE: room_arena_load returns NULL, asag_arena_smd stays NULL, and the room
+   simply draws nothing but its clear colour and the exit sign.
 
-   >>> RUN tools/gen_room_arena.py WHEN THE MESH LANDS. <<< The arena is sized to
-   the largest .smd on the disc (Maze One, 118 KB / 58 sectors). A bigger mesh
-   than that is refused at load time and the room draws empty — which looks
-   exactly like the placeholder state below and will waste an afternoon. */
+   ASAGARNA.SMD is 30 KB against the arena's 118 KB (Maze One still sets that
+   size), so it fits with room to spare — but re-run tools/gen_room_arena.py if
+   the mesh is ever re-exported much larger. A mesh bigger than the arena is
+   REFUSED at load time and the room draws empty, which looks exactly like a
+   missing file and will waste an afternoon. */
 void asag_arena_load_geometry(void) {
     asag_arena_buff = room_arena_load("\\TEX\\ASAGARNA.SMD;1");
     asag_arena_smd  = asag_arena_buff ? smdInitData(asag_arena_buff) : NULL;
@@ -294,13 +304,14 @@ void asag_arena_spawn_shaft(void) {
 void asag_arena_init(void) {
     asag_arena_collision_init(&current_collision_room);
 
-    /* The placeholder box's walls run y[-900,0], and with no mesh to disagree
-       that IS the roofline. >>> RE-READ THIS OFF THE .smx WHEN THE MESH LANDS.
-       <<< A collision proxy wall is routinely SHORTER than the drawn geometry
-       above it, and a ceiling probe wants the height over the walkable ground,
-       not the tallest thing in the room. Anything hung higher than this — and a
-       boss reveal camera very likely is — takes its own literal. */
-    collision_set_ceiling_y(-900);
+    /* READ OFF THE MESH, not off the collision proxy. Asag-Arena.smx's
+       perimeter walls top out at y=-1000 and that is the roofline over the
+       walkable ground; the mesh does reach y=-1624 in places, but a ceiling
+       probe wants the height above where the player stands and not the tallest
+       thing in the room (the "visual vs collision heights" rule in
+       tools/ADDING_A_ROOM.txt). Anything hung higher than this — and a boss
+       reveal camera very likely is — takes its own literal. */
+    collision_set_ceiling_y(-1000);
 
     /* No collision_set_wall_radius: the default 195 is right for an open square
        with no necks in it. main.c resets to the default before every room init,
@@ -319,7 +330,7 @@ void asag_arena_init(void) {
     /* Save points and dresser props are GLOBAL (not room-swapped) and neither is
        area-gated in its collide routine, so another room's instances would block
        the player invisibly if they fell inside this room's bounds — and this
-       room spans x[-2000,2000] z[-2000,2000] in its own space, which contains
+       room spans x[-1500,1500] z[0,3700] in its own space, which contains
        plenty of them. Clearing is safe: every room that owns one re-places it on
        entry.
 
@@ -332,101 +343,196 @@ void asag_arena_init(void) {
     dressers_clear();
 }
 
-/* ---- The placeholder box ---------------------------------------------------
-   >>> DELETE THIS WHOLE SECTION WHEN THE MESH LANDS. <<< It draws the arena's
-   collision footprint as flat-shaded quads so the room can be walked, framed and
-   camera-tested with no art on the disc: a floor grid and four walls, 21
-   primitives, untextured, no VRAM at all.
+/* ---- The mesh --------------------------------------------------------------
+   THE ARENA IS DRAWN UNTEXTURED, AND THAT IS THE MESH'S DOING, NOT A STUB.
+   assets/bosses/Asag/Asag-Arena.smx carries <textures count="0">: all 674 of
+   its primitives are flat-shaded (F3/F4) with a baked vertex colour and there
+   are no UVs on them to use. So this loop is chain_room.c's
+   draw_chain_room_smd() with the textured branches and the per-poly tex map
+   removed - POLY_F3/POLY_F4 only, no tpage, no clut, no VRAM at all.
 
-   It is NOT a rendering pattern to copy. The real draw is chain_room.c's
-   draw_chain_room_smd() — the per-poly tex map, the one 128 texture window, the
-   cull-key reject path and the frustum test — and that is what replaces this
-   once there is a mesh and a generated <room>_tex_map.h to index. */
-#define AA_GRID 4      /* 4x4 floor cells over the 4000 square = 1000 apiece */
+   >>> WHEN THE ARENA IS TEXTURED, THIS GROWS THE FT3/FT4 BRANCHES BACK. <<<
+   Copy them from chain_room.c verbatim, along with a generated
+   src/asag_arena_tex_map.h to index and the tex_tpage/tex_clut arrays the
+   streamer above already fills. Nothing else in the file changes.
 
-static void aa_quad(RenderContext *ctx, const SVECTOR v[4],
-                    uint8_t r, uint8_t g, uint8_t b) {
+   WHAT IS DELIBERATELY NOT HERE: the cull-key table. chain_room.c and the mazes
+   precompute one cache line per primitive so the distance reject never touches
+   the mesh; at 674 primitives inside a 6700-unit room NOTHING is ever rejected
+   by distance here, so a key table would cost BSS to answer a question that is
+   always "yes". The frustum test below is what does the work. Revisit if the
+   mesh ever grows several-fold. */
+static void draw_asag_arena_smd(RenderContext *ctx) {
+    if (!asag_arena_smd) return;
+
+    uint8_t *p = (uint8_t *)asag_arena_smd->p_prims;
+    int i, n = asag_arena_smd->n_prims;
+
+    /* Hoisted out of the loop: constant for the whole frame, and every one of
+       them would otherwise be recomputed 674 times. */
+    int32_t cull = DEBUG_CULL_DIST();
+    if (!cull) cull = AA_CULL_DIST;
+    int32_t sn = isin(cam_rot), cs = icos(cam_rot);
+    int     no_frustum = (DEBUG_EXPERIMENT() == DBG_EXP_NO_FRUSTUM);
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-    if (ctx->next_packet + sizeof(POLY_F4) > buf_end) return;
 
-    DVECTOR sv[4];
-    int32_t sz[4], otz;
+    for (i = 0; i < n; i++) {
+        SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
+        int is_quad = (pt->type >= 2);
+        int stride  = pt->len;   /* bytes; the walk advances by it */
 
-    gte_ldv3(&v[0], &v[1], &v[2]);
-    gte_rtpt();
-    gte_stsxy3c(sv);
-    gte_stsz4c(sz);
-    gte_ldv0(&v[3]);
-    gte_rtps();
-    gte_stsxy(&sv[3]);
-    gte_stsz(&sz[3]);
-    if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) return;
+        uint16_t *vi = (uint16_t *)(p + 4);
+        SVECTOR *v0 = &asag_arena_smd->p_verts[vi[0]];
+        SVECTOR *v1 = &asag_arena_smd->p_verts[vi[1]];
+        SVECTOR *v2 = &asag_arena_smd->p_verts[vi[2]];
 
-    /* The GTE clamps screen coordinates to +/-1023 and a quad with a corner past
-       it comes out folded. Dropping the whole quad is the cheap, correct answer
-       for a debug grid — see the same guard, and the same reason, in
-       lightswitch_puzzle.c's ls_quad. */
-    for (int k = 0; k < 4; k++)
-        if (sv[k].vx <= -1023 || sv[k].vx >= 1023 ||
-            sv[k].vy <= -1023 || sv[k].vy >= 1023) return;
+        int32_t kdx = (int32_t)v0->vx - cam_x;
+        int32_t kdz = (int32_t)v0->vz - cam_z;
+        if ((kdx < 0 ? -kdx : kdx) + (kdz < 0 ? -kdz : kdz) > cull)
+            { p += stride; continue; }
 
-    gte_avsz4();
-    gte_stotz(&otz);
-    if (otz <= SCENE_OT_MIN) return;
-    if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
+        /* ---- SIDE-PLANE FRUSTUM CULL ---------------------------------------
+           Maze One's test, carried over unchanged and load-bearing for the same
+           reason: in a closed room the geometry within the cull radius is all
+           AROUND the camera rather than behind it, so the behind-the-camera
+           test rejects almost nothing on its own, and everything else would be
+           transformed by the GTE and then queued as a primitive the GPU takes
+           in and throws away.
 
-    POLY_F4 *p = (POLY_F4 *)ctx->next_packet;
-    setPolyF4(p);
-    setRGB0(p, r, g, b);
-    p->x0 = sv[0].vx; p->y0 = sv[0].vy;
-    p->x1 = sv[1].vx; p->y1 = sv[1].vy;
-    p->x2 = sv[2].vx; p->y2 = sv[2].vy;
-    p->x3 = sv[3].vx; p->y3 = sv[3].vy;
-    addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], p);
-    ctx->next_packet += sizeof(POLY_F4);
-}
+           With gte_SetGeomScreen(256) on a 320-wide screen the half-field is
+           160/256, so a point is outside the right plane when
+               side > (5/8) * fwd,  i.e.  8*side > 5*fwd.
+           Both sides are world units (the >>12 undoes isin/icos).
 
-static void draw_placeholder_box(RenderContext *ctx) {
-    const int32_t lo = -2000, hi = 2000, top = -900, step = 4000 / AA_GRID;
-    int i, j;
+           >>> A POLY IS ONLY CULLED WHEN EVERY VERTEX IS OUTSIDE THE SAME
+           PLANE. <<< Testing v0 alone would slice through polys that straddle
+           the screen edge, and this room's walls are single large quads - that
+           would open holes in them. The exact test is what makes it safe to
+           carry the cull over to a new mesh unmeasured.
 
-    /* Floor: a checker so the grid reads as a scale and not as one flat plane. */
-    for (j = 0; j < AA_GRID; j++) {
-        for (i = 0; i < AA_GRID; i++) {
-            int32_t x0 = lo + i * step, x1 = x0 + step;
-            int32_t z0 = lo + j * step, z1 = z0 + step;
-            SVECTOR v[4] = {
-                { (short)x0, 0, (short)z0, 0 }, { (short)x1, 0, (short)z0, 0 },
-                { (short)x0, 0, (short)z1, 0 }, { (short)x1, 0, (short)z1, 0 },
-            };
-            int dark = (i + j) & 1;
-            aa_quad(ctx, v, dark ? 26 : 40, dark ? 22 : 34, dark ? 30 : 46);
+           Y is not tested: the camera stands on a flat y=0 floor under a
+           1000-tall roofline, so nothing inside the side planes is ever outside
+           the top or bottom ones. */
+        {
+            int32_t fwd = kdx * sn + kdz * cs;
+            if (fwd < -(1200 << 12)) { p += stride; continue; }
+            if (!no_frustum) {
+                int32_t f0 = fwd >> 12;
+                int32_t s0 = (kdx * cs - kdz * sn) >> 12;
+                int     sign = 0;
+                if      ( s0 * 8 > f0 * 5) sign =  1;
+                else if (-s0 * 8 > f0 * 5) sign = -1;
+                if (sign) {
+                    int cnt = is_quad ? 4 : 3, k, all_out = 1;
+                    for (k = 1; k < cnt; k++) {
+                        SVECTOR *vk = &asag_arena_smd->p_verts[vi[k]];
+                        int32_t ex = (int32_t)vk->vx - cam_x;
+                        int32_t ez = (int32_t)vk->vz - cam_z;
+                        int32_t f  = (ex * sn + ez * cs) >> 12;
+                        int32_t sd = (ex * cs - ez * sn) >> 12;
+                        if (!(sign * sd * 8 > f * 5)) { all_out = 0; break; }
+                    }
+                    if (all_out) { p += stride; continue; }
+                }
+            }
         }
-    }
 
-    /* Four walls, one quad each, a shade lighter than the floor so the corners
-       of the box are legible from the middle of it. */
-    {
-        SVECTOR n[4] = { { (short)lo, (short)top, (short)lo, 0 },
-                         { (short)hi, (short)top, (short)lo, 0 },
-                         { (short)lo,         0, (short)lo, 0 },
-                         { (short)hi,         0, (short)lo, 0 } };
-        SVECTOR s[4] = { { (short)hi, (short)top, (short)hi, 0 },
-                         { (short)lo, (short)top, (short)hi, 0 },
-                         { (short)hi,         0, (short)hi, 0 },
-                         { (short)lo,         0, (short)hi, 0 } };
-        SVECTOR w[4] = { { (short)lo, (short)top, (short)hi, 0 },
-                         { (short)lo, (short)top, (short)lo, 0 },
-                         { (short)lo,         0, (short)hi, 0 },
-                         { (short)lo,         0, (short)lo, 0 } };
-        SVECTOR e[4] = { { (short)hi, (short)top, (short)lo, 0 },
-                         { (short)hi, (short)top, (short)hi, 0 },
-                         { (short)hi,         0, (short)lo, 0 },
-                         { (short)hi,         0, (short)hi, 0 } };
-        aa_quad(ctx, n, 52, 44, 60);
-        aa_quad(ctx, s, 52, 44, 60);
-        aa_quad(ctx, w, 44, 38, 52);
-        aa_quad(ctx, e, 44, 38, 52);
+        DVECTOR sv[4];
+        int32_t sz[4];
+        int32_t otz, nclip;
+
+        gte_ldv3(v0, v1, v2);
+        gte_rtpt();
+        gte_stsxy3c(sv);
+
+        /* The GTE clamps screen coordinates to +/-1023 and a primitive with a
+           corner past it comes out folded. Drop the whole thing. */
+        if (sv[0].vx <= -1023 || sv[0].vx >= 1023 || sv[0].vy <= -1023 || sv[0].vy >= 1023 ||
+            sv[1].vx <= -1023 || sv[1].vx >= 1023 || sv[1].vy <= -1023 || sv[1].vy >= 1023 ||
+            sv[2].vx <= -1023 || sv[2].vx >= 1023 || sv[2].vy <= -1023 || sv[2].vy >= 1023) {
+            p += stride; continue;
+        }
+
+        /* Backface cull, honouring the SMD's own per-primitive nocull flag.
+           There is NO generated nocull table for this room: the other rooms'
+           tables exist to rescue degenerate triangle-shaped quads the exporter
+           emitted, and if a face here turns out to vanish from the side it
+           should be visible from, that is the table to generate. */
+        if (!pt->nocull) {
+            gte_nclip();
+            gte_stopz(&nclip);
+            if (nclip <= 0) { p += stride; continue; }
+        }
+
+        gte_stsz4c(sz);
+        if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) { p += stride; continue; }
+
+        SVECTOR *v3    = 0;
+        int32_t  v2_sz = sz[3];   /* v2's SZ, before the quad path reuses sz[3] */
+        if (is_quad) {
+            v3 = &asag_arena_smd->p_verts[vi[3]];
+            gte_ldv0(v3);
+            gte_rtps();
+            gte_stsxy(&sv[3]);
+            gte_stsz(&sz[3]);
+            if (sv[3].vx <= -1023 || sv[3].vx >= 1023 ||
+                sv[3].vy <= -1023 || sv[3].vy >= 1023) { p += stride; continue; }
+            if (sz[3] == 0) { p += stride; continue; }
+            gte_avsz4();
+        } else {
+            gte_avsz3();
+        }
+
+        gte_stotz(&otz);
+        /* Horizontal polys sort by their farthest corner, not their average, so
+           the floor stays behind whatever stands on it (see render.h). */
+        if (poly_is_flat_y(v0, v1, v2, v3))
+            otz = is_quad ? otz_far4(sz[1], sz[2], v2_sz, sz[3])
+                          : otz_far3(sz[1], sz[2], sz[3]);
+        if (otz <= 0) { p += stride; continue; }
+        otz += 40;
+        if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
+
+        /* Fog toward the CLEAR COLOUR, not toward the garden's purple sky: this
+           is a pit, it fades to near-black, and the clear is what the far wall
+           has to meet or the cull line becomes visible. */
+        uint8_t *col = p + 16;
+        int32_t face_cx = ((int32_t)v0->vx + v2->vx) / 2;
+        int32_t face_cz = ((int32_t)v0->vz + v2->vz) / 2;
+        int32_t dx = face_cx - cam_x;
+        int32_t dz = face_cz - cam_z;
+        int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        int32_t fog = dist < AA_FOG_NEAR ? AA_FOG_NEAR
+                                         : (dist > AA_FOG_FAR ? AA_FOG_FAR : dist);
+        int32_t ff  = ((AA_FOG_FAR - fog) << 8) / (AA_FOG_FAR - AA_FOG_NEAR);
+        uint8_t r = (uint8_t)(((int32_t)col[0] * ff + AA_CLEAR_R * (256 - ff)) >> 8);
+        uint8_t g = (uint8_t)(((int32_t)col[1] * ff + AA_CLEAR_G * (256 - ff)) >> 8);
+        uint8_t b = (uint8_t)(((int32_t)col[2] * ff + AA_CLEAR_B * (256 - ff)) >> 8);
+
+        if (is_quad) {
+            if (ctx->next_packet + sizeof(POLY_F4) > buf_end) { p += stride; continue; }
+            POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
+            setPolyF4(poly);
+            setRGB0(poly, r, g, b);
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_F4);
+        } else {
+            if (ctx->next_packet + sizeof(POLY_F3) > buf_end) { p += stride; continue; }
+            POLY_F3 *poly = (POLY_F3 *)ctx->next_packet;
+            setPolyF3(poly);
+            setRGB0(poly, r, g, b);
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_F3);
+        }
+
+        p += stride;
     }
 }
 
@@ -469,19 +575,7 @@ void asag_arena_draw(RenderContext *ctx) {
     int exp = DEBUG_EXPERIMENT();
     if (DEBUG_CULL_DIST()) g_fog_far = DEBUG_CULL_DIST();
 
-    if (exp != DBG_EXP_NO_MESH) {
-        if (asag_arena_smd) {
-            /* THE REAL MESH IS NOT DRAWN YET. Nothing renders an SMD generically
-               in this engine — every room's draw loop is its own, because the
-               per-poly texture map, the fog ramp and the cull are per-room. Copy
-               chain_room.c's draw_chain_room_smd() here when the mesh and its
-               generated tex map exist; until then the pointer is loaded and
-               unused, which is harmless and is what makes the mesh's arrival a
-               one-function change. */
-        } else {
-            draw_placeholder_box(ctx);
-        }
-    }
+    if (exp != DBG_EXP_NO_MESH) draw_asag_arena_smd(ctx);
 
     /* The exit sign, after the room so it sorts against it. */
     exit_text(ctx);

@@ -5,14 +5,16 @@
 
 /* >>> HAND-WRITTEN PLACEHOLDER, NOT GENERATOR OUTPUT. <<<
    Every other *_mesh_collision.c in src/ is smx_to_collision.py's output copied
-   out of assets/. This one is not: Asag's arena has no mesh yet, so this file
-   states the arena's INTENDED footprint by hand so the room can be entered,
-   walked and tested before any art exists.
+   out of assets/. This one is not: Asag's arena has a VISUAL mesh but no
+   collision proxy exported for it yet, so this file states that mesh's
+   BOUNDING BOX by hand so the room can be entered and
+   walked while the mesh is being judged for size and feel. Nothing INSIDE the
+   perimeter collides.
 
-   WHEN THE REAL MESH LANDS, THIS FILE IS DELETED AND REGENERATED. Follow
+   WHEN THE COLLISION PROXY IS EXPORTED, THIS FILE IS DELETED AND REGENERATED. Follow
    tools/ADDING_A_ROOM.txt STEP 2 exactly as for any other room:
 
-       py tools\smx_to_collision.py "assets\garden\Asag Arena mesh.smx"
+       py tools\smx_to_collision.py "assets\bosses\Asag\Asag-Arena_mesh.smx"
 
    and copy its output over both halves of this pair, re-applying the two
    hand-edits the generator does not emit (the lowercase #include, and

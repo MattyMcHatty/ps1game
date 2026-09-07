@@ -796,6 +796,17 @@
                      Its .smx exports live in assets/garden/. -->
                 <file name="THEHATCH.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\the_hatch.smd"/>
                 <file name="HATCH.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\hatch.tim"/>
+
+                <!-- ASAG'S ARENA. The visual mesh only: 674 vertex-coloured
+                     polys, NO textures on it at all (its .smx carries an empty
+                     <textures> list), so asag_arena.c draws it flat-shaded and
+                     stream_tex_file[] stays empty. At 30 KB it is a quarter of
+                     Maze One's 118 KB, so the room arena is still sized by that
+                     room. Collision is still the hand-written placeholder box
+                     in src/asag_arena_mesh_collision.c and does NOT follow this
+                     mesh - see tools/ADDING_THE_ASAG_FIGHT.txt PART 7 step 2.
+                     Its .smx export lives in assets/bosses/Asag/. -->
+                <file name="ASAGARNA.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag-Arena.smd"/>
             </dir>
         </directory_tree>
     </track>
