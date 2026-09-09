@@ -106,24 +106,50 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   rabisu.c                 RBSIDLE.PVA       75776  -> p
   fatdoor.c                WDDR.TIM          34816  -> tim_buf
   rabisu.c                 RABISU.SMD        28672  -> rabisu_buff
+  asag.c                   ASGHLAS.PVA       20480  -> asags_free_model()
+  asag.c                   ASGHVOM.PVA       18432  -> asags_free_model()
   chainlink_door.c         CHNLNK.TIM        10240  -> tim
   fatdoor.c                WDDRCRK.TIM       10240  -> crk_buf
+  asag.c                   ASGBODY.SMD        6144  -> asags_free_model()
+  asag.c                   ASGHIDLE.PVA       6144  -> asags_free_model()
+  asag.c                   ASGHSPK.PVA        6144  -> asags_free_model()
+  asag.c                   ASGHEMRG.PVA       6144  -> asags_free_model()
+  asag.c                   ASGHRETR.PVA       6144  -> asags_free_model()
+  asag.c                   ASGTLIDL.PVA       6144  -> asags_free_model()
+  asag.c                   ASGTLATK.PVA       6144  -> asags_free_model()
+  asag.c                   ASGTRIDL.PVA       6144  -> asags_free_model()
+  asag.c                   ASGTRATK.PVA       6144  -> asags_free_model()
   grinder.c                GRINDER.TIM        6144  -> tbuf
-  TOTAL                                     165888   <- PEAK, not a resting cost
+  asag.c                   ASGLEAFT.SMD       4096  -> asags_free_model()
+  asag.c                   ASGLEAFB.SMD       4096  -> asags_free_model()
+  asag.c                   ASGLEAFL.SMD       4096  -> asags_free_model()
+  asag.c                   ASGLEAFR.SMD       4096  -> asags_free_model()
+  asag.c                   ASGTENTL.SMD       4096  -> asags_free_model()
+  asag.c                   ASGTENTR.SMD       4096  -> asags_free_model()
+  asag.c                   ASGLFTOP.PVA       4096  -> asags_free_model()
+  asag.c                   ASGLFBOT.PVA       4096  -> asags_free_model()
+  asag.c                   ASGLFLFT.PVA       4096  -> asags_free_model()
+  asag.c                   ASGLFRGT.PVA       4096  -> asags_free_model()
+  asag.c                   ASGBOILS.SMD       2048  -> asags_free_model()
+  TOTAL                                     303104   <- PEAK, not a resting cost
 
   These cost nothing at rest and everything at the moment they are in.
   The transition that loads them is the peak this heap has to survive,
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x800DF33C
+  _end (heap start)   0x800E1CFC
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size            1182908 bytes (1155 KB)
+  heap size            1024068 bytes (1000 KB)
+  stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
+  stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr resident       765952 bytes (748 KB)  64.8%
-  kept buffers           45056 bytes (44 KB)   3.8%
-  PERMANENT TOTAL       811008 bytes (792 KB)  68.6%
-  FREE AT REST          371900 bytes (363 KB)  31.4%
+  texmgr resident       765952 bytes (748 KB)  74.8%
+  kept buffers           45056 bytes (44 KB)   4.4%
+  PERMANENT TOTAL       811008 bytes (792 KB)  79.2%
+  FREE AT REST          213060 bytes (208 KB)  20.8%   <- STACK ALREADY SUBTRACTED
+                                  (was 361212 before the stack was counted;
+                                   THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
       THAT IS WHAT KILLS YOU, AND IT IS PER-ROOM. <<<
@@ -136,22 +162,27 @@ THE HEAP
       is 104,448. Work the peak out by hand for any room you touch.
       See tools/DIAGNOSING_A_BOOT_CRASH.txt section 8.
 
-  >>> AND THE ~234 KB CLIFF IN THAT DOCUMENT IS IN OLDER UNITS. <<<
-      It was measured when this script still counted chainlink_door.c's
-      and grinder.c's TIM scratch as permanent. It no longer does, so the
-      figure above is ~16 KB higher than the one that cliff was measured
-      against: in today's units it is about 218 KB. Re-measure (section 3
-      of that file) before trusting either number.
+  >>> AND THE ~234 KB CLIFF IN THAT DOCUMENT WAS A UNITS BUG. <<<
+      It was measured against a FREE AT REST that did not subtract
+      main()'s 145 KB RenderContext stack frame, and was ~16 KB out on
+      top of that for the TIM-scratch miscount. In the units printed
+      above, that cliff is about 74 KB - i.e. it was simply the heap
+      being full, not a threshold. Asag's arena proved it in September
+      2026: 229 KB of boss loads against a reported 361 KB free crashed
+      inside CdReadSync with $sp INSIDE the buffer being read. See
+      tools/ADDING_THE_ASAG_FIGHT.txt PART 6A.
 
   The largest single transient allocation still has to fit in what is
   free, and startup makes several: the kitchen's 32768-byte scratch, and
   every read_file above (largest 75776 bytes). Keep FREE AT REST well clear
-  of six figures. >>> THIS FIGURE IS A RESTING TOTAL AND FLATTERS YOU. <<<
-  The startup PEAK is what collides with the stack, and it is far above
-  this: in August 2026 the Chain Room would not boot with 226 KB free at
-  rest. The cliff was MEASURED by shrinking BSS a sector at a time until
-  it booted - between 233 KB and 235 KB free at rest. Treat anything
-  under 256 KB as already in trouble, whatever this line says.
+  of six figures. >>> AND IT IS STILL A RESTING TOTAL. <<< A transition
+  can hold several of the loads above at once, and the room whose door
+  is tightest is not the room you are editing. Work the peak out by
+  hand: permanent, plus everything live at that one instant.
+  MEASURED at the tightest door in the game (Asag's arena, where the
+  boss model is read): ~171 KB actually free, against the 208 KB
+  printed above. The difference is other transients still held at that
+  moment. Treat anything under 128 KB free as already in trouble.
 
   OK: comfortable margin.
 

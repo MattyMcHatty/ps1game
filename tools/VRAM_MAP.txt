@@ -39,17 +39,20 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   flowerbed.tim        8       384     0   128   128     0   672,489
   hedge.tim            8       384     0   128   128     0   672,489
   kchn_tile.tim        4       384     0   128   128     0   0,490
+  mud.tim              8       384     0   128   128     0   672,499
   piano_keys.tim       4       384     0   128   128     0   32,511
   piano_keys_full.tim  4       384     0   128   128     0   32,511
   xt_dr_outr.tim       8       384     0   128   128     0   672,484
   wd_flr.tim           4       448     0   128   128     0   0,491
   anzu1.tim            8       480     0    64    64     0   256,483
+  Boss Wall.tim        8       512     0   128   128     0   672,500
   cuneiform _symbols.tim 8       512     0   128   128     0   672,490
   dresser.tim          8       512     0   128   128     0   0,507
   grdn_gte.tim         8       512     0   128   128     0   672,490
   kchn_wl.tim          8       512     0   128   128     0   0,503
   red_wlppr.tim        4       576     0   128   128     0   0,492
   anzu2.tim            8       608     0    64    64     0   256,484
+  asag.tim             8       640     0   128   128     0   672,501
   chnlnk.tim           4       640     0   128   128     0   160,511
   gravel_texture.tim   4       640     0   128   128     0   0,480
   greenhouse.tim       8       640     0   128   128     0   672,497
@@ -70,6 +73,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   fountain.tim         8       768     0   128   128     0   672,491
   grss.tim             4       768     0   128   128     0   80,511
   lamashtu tablet.tim  8       768     0   128   128     0   672,495
+  leaf.tim             8       768     0   128   128     0   672,502
   pipe.tim             8       768     0   128   128     0   256,502
   plinth_diamond.tim   8       768     0   128   128     0   256,510
   xt_dr_cmplt.tim      8       768     0   128   128     0   672,483
@@ -80,6 +84,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   opn_drwr.tim         8       832     0   128   128     0   256,491
   plinth.tim           8       832     0   128   128     0   256,503
   stables wood.tim     8       832     0   128   128     0   672,498
+  tentacle.tim         8       832     0   128   128     0   672,504
   xt_dr_cg.tim         8       832     0   128   128     0   672,485
   wdcrate.tim          16      896     0    64    64     0   -
   tntcl_idle.tim       4       352    64    64    64    64   128,511
@@ -103,6 +108,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   xt_dr_lft_hlf.tim    8       832   128    64   128   128   672,486  <-- Voff>=128
   xt_dr_rt_hlf.tim     8       896   128    64   128   128   672,487  <-- Voff>=128
   shadow.tim           8       640   160    64    32   160   0,486  <-- Voff>=128
+  chain_128.tim        4       320   256   128   128     0   288,511
   dbl_dr_rg.tim        4       320   256   128   128     0   512,506
   frnt_dr.tim          4       320   256   128   128     0   0,506
   greenhouse door.tim  4       320   256    64    64     0   272,511
@@ -126,6 +132,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   sml_med.tim          8       640   256    64    64     0   0,482
   mgn_ky_stn.tim       8       672   256    32    32     0   256,494
   Rabisu tex.tim       8       704   256   128   128     0   672,488
+  boil.tim             8       704   256   128   128     0   672,506
   vines.tim            8       704   256   128   128     0   672,509
   wd_dr.tim            16      768   256   128   128     0   -
   stn_gls.tim          8       896   256   128   128     0   0,488
@@ -215,14 +222,18 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=498  x[256,512)  mushy_run.tim
   y=498  x[672,928)  stables wood.tim
   y=498  x[0,256)  zombie_sleep.tim
+  y=499  x[672,928)  mud.tim
   y=499  x[256,512)  mushy_behind.tim
   y=499  x[0,256)  zombie_alert.tim
+  y=500  x[672,928)  Boss Wall.tim
   y=500  x[0,256)  crucifaxe.tim
   y=500  x[256,512)  mushy_closed.tim
+  y=501  x[672,928)  asag.tim
   y=501  x[0,16)  brick_wall.tim
   y=501  x[256,512)  mushy_open.tim
   y=502  x[560,576)  chain.tim
   y=502  x[0,256)  inr_dbl_dr_half.tim
+  y=502  x[672,928)  leaf.tim
   y=502  x[256,512)  pipe.tim
   y=502  x[528,544)  pipe_button_off.tim
   y=502  x[544,560)  pipe_button_on.tim
@@ -232,9 +243,11 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=503  x[768,1024)  vlv_hndl.tim
   y=504  x[256,512)  ls_idle.tim
   y=504  x[0,16)  strs.tim
+  y=504  x[672,928)  tentacle.tim
   y=505  x[0,256)  cppr_pt.tim
   y=505  x[672,928)  hatch_key.tim
   y=505  x[256,512)  ls_atk.tim
+  y=506  x[672,928)  boil.tim
   y=506  x[512,528)  dbl_dr_rg.tim
   y=506  x[0,16)  frnt_dr.tim
   y=506  x[256,512)  hatch.tim
@@ -251,6 +264,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=510  x[672,928)  helluminator.tim
   y=510  x[256,512)  plinth_diamond.tim
   y=511  x[16,32)  bookshelf.tim
+  y=511  x[288,304)  chain_128.tim
   y=511  x[160,176)  chnlnk.tim
   y=511  x[112,128)  cncrte.tim
   y=511  x[96,112)  con_tile.tim
@@ -272,21 +286,37 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=511  x[192,208)  wx_cb.tim
 
 OVERLAP CHECK
+  Boss Wall.tim                            cuneiform _symbols.tim time-shared (streaming)
+  Boss Wall.tim                            dresser.tim          time-shared (streaming)
+  Boss Wall.tim                            grdn_gte.tim         time-shared (streaming)
+  Boss Wall.tim                            kchn_wl.tim          time-shared (streaming)
+  Rabisu tex.tim                           boil.tim             time-shared (streaming)
   Rabisu tex.tim                           vines.tim            time-shared (streaming)
+  asag.tim                                 chnlnk.tim           time-shared (streaming)
+  asag.tim                                 gravel_texture.tim   time-shared (streaming)
+  asag.tim                                 greenhouse.tim       time-shared (streaming)
+  asag.tim                                 hatch.tim            time-shared (streaming)
+  asag.tim                                 plinth_rg.tim        time-shared (streaming)
+  asag.tim                                 poison_flower_base.tim time-shared (streaming)
+  asag.tim                                 trck_clue.tim        time-shared (streaming)
+  asag.tim                                 trees.tim            time-shared (streaming)
   bed.tim                                  brick_wall.tim       time-shared (streaming)
   bed.tim                                  fountain.tim         time-shared (streaming)
   bed.tim                                  grss.tim             time-shared (streaming)
   bed.tim                                  lamashtu tablet.tim  time-shared (streaming)
+  bed.tim                                  leaf.tim             time-shared (streaming)
   bed.tim                                  pipe.tim             time-shared (streaming)
   bed.tim                                  plinth_diamond.tim   time-shared (streaming)
   bed.tim                                  xt_dr_cmplt.tim      time-shared (streaming)
   bed.tim                                  xt_dr_lckd.tim       time-shared (streaming)
+  boil.tim                                 vines.tim            time-shared (streaming)
   bookshelf.tim                            grss_gs.tim          time-shared (streaming)
   bookshelf.tim                            stn_stl.tim          time-shared (streaming)
   bookshelf.tim                            strs.tim             time-shared (streaming)
   brick_wall.tim                           fountain.tim         time-shared (streaming)
   brick_wall.tim                           grss.tim             time-shared (streaming)
   brick_wall.tim                           lamashtu tablet.tim  time-shared (streaming)
+  brick_wall.tim                           leaf.tim             time-shared (streaming)
   brick_wall.tim                           pipe.tim             time-shared (streaming)
   brick_wall.tim                           plinth_diamond.tim   time-shared (streaming)
   brick_wall.tim                           xt_dr_cmplt.tim      time-shared (streaming)
@@ -296,6 +326,10 @@ OVERLAP CHECK
   chain.tim                                rusty_fence.tim      time-shared (streaming)
   chain.tim                                stable glyphs.tim    time-shared (streaming)
   chain.tim                                upstairs.tim         time-shared (streaming)
+  chain_128.tim                            dbl_dr_rg.tim        time-shared (streaming)
+  chain_128.tim                            frnt_dr.tim          time-shared (streaming)
+  chain_128.tim                            greenhouse door.tim  time-shared (streaming)
+  chain_128.tim                            red_crpt.tim         time-shared (streaming)
   chnlnk.tim                               gravel_texture.tim   time-shared (streaming)
   chnlnk.tim                               greenhouse.tim       time-shared (streaming)
   chnlnk.tim                               hatch.tim            time-shared (streaming)
@@ -308,6 +342,7 @@ OVERLAP CHECK
   chnlnk_dl.tim                            flowerbed.tim        time-shared (streaming)
   chnlnk_dl.tim                            hedge.tim            time-shared (streaming)
   chnlnk_dl.tim                            kchn_tile.tim        time-shared (streaming)
+  chnlnk_dl.tim                            mud.tim              time-shared (streaming)
   chnlnk_dl.tim                            piano_keys.tim       time-shared (streaming)
   chnlnk_dl.tim                            piano_keys_full.tim  time-shared (streaming)
   chnlnk_dl.tim                            xt_dr_outr.tim       time-shared (streaming)
@@ -315,12 +350,14 @@ OVERLAP CHECK
   clsd_drwr.tim                            flowerbed.tim        time-shared (streaming)
   clsd_drwr.tim                            hedge.tim            time-shared (streaming)
   clsd_drwr.tim                            kchn_tile.tim        time-shared (streaming)
+  clsd_drwr.tim                            mud.tim              time-shared (streaming)
   clsd_drwr.tim                            piano_keys.tim       time-shared (streaming)
   clsd_drwr.tim                            piano_keys_full.tim  time-shared (streaming)
   clsd_drwr.tim                            xt_dr_outr.tim       time-shared (streaming)
   cncrte.tim                               flowerbed.tim        time-shared (streaming)
   cncrte.tim                               hedge.tim            time-shared (streaming)
   cncrte.tim                               kchn_tile.tim        time-shared (streaming)
+  cncrte.tim                               mud.tim              time-shared (streaming)
   cncrte.tim                               piano_keys.tim       time-shared (streaming)
   cncrte.tim                               piano_keys_full.tim  time-shared (streaming)
   cncrte.tim                               xt_dr_outr.tim       time-shared (streaming)
@@ -329,6 +366,7 @@ OVERLAP CHECK
   con_tile.tim                             opn_drwr.tim         time-shared (streaming)
   con_tile.tim                             plinth.tim           time-shared (streaming)
   con_tile.tim                             stables wood.tim     time-shared (streaming)
+  con_tile.tim                             tentacle.tim         time-shared (streaming)
   con_tile.tim                             xt_dr_cg.tim         time-shared (streaming)
   cppr_pt.tim                              key.tim              time-shared (streaming)
   cuneiform _symbols.tim                   dresser.tim          time-shared (streaming)
@@ -341,20 +379,24 @@ OVERLAP CHECK
   double_door.tim                          opn_drwr.tim         time-shared (streaming)
   double_door.tim                          plinth.tim           time-shared (streaming)
   double_door.tim                          stables wood.tim     time-shared (streaming)
+  double_door.tim                          tentacle.tim         time-shared (streaming)
   double_door.tim                          xt_dr_cg.tim         time-shared (streaming)
   drain.tim                                opn_drwr.tim         time-shared (streaming)
   drain.tim                                plinth.tim           time-shared (streaming)
   drain.tim                                stables wood.tim     time-shared (streaming)
+  drain.tim                                tentacle.tim         time-shared (streaming)
   drain.tim                                xt_dr_cg.tim         time-shared (streaming)
   dresser.tim                              grdn_gte.tim         time-shared (streaming)
   dresser.tim                              kchn_wl.tim          time-shared (streaming)
   flowerbed.tim                            hedge.tim            time-shared (streaming)
   flowerbed.tim                            kchn_tile.tim        time-shared (streaming)
+  flowerbed.tim                            mud.tim              time-shared (streaming)
   flowerbed.tim                            piano_keys.tim       time-shared (streaming)
   flowerbed.tim                            piano_keys_full.tim  time-shared (streaming)
   flowerbed.tim                            xt_dr_outr.tim       time-shared (streaming)
   fountain.tim                             grss.tim             time-shared (streaming)
   fountain.tim                             lamashtu tablet.tim  time-shared (streaming)
+  fountain.tim                             leaf.tim             time-shared (streaming)
   fountain.tim                             pipe.tim             time-shared (streaming)
   fountain.tim                             plinth_diamond.tim   time-shared (streaming)
   fountain.tim                             xt_dr_cmplt.tim      time-shared (streaming)
@@ -379,6 +421,7 @@ OVERLAP CHECK
   greenhouse.tim                           trck_clue.tim        time-shared (streaming)
   greenhouse.tim                           trees.tim            time-shared (streaming)
   grss.tim                                 lamashtu tablet.tim  time-shared (streaming)
+  grss.tim                                 leaf.tim             time-shared (streaming)
   grss.tim                                 pipe.tim             time-shared (streaming)
   grss.tim                                 plinth_diamond.tim   time-shared (streaming)
   grss.tim                                 xt_dr_cmplt.tim      time-shared (streaming)
@@ -390,18 +433,29 @@ OVERLAP CHECK
   hatch.tim                                trck_clue.tim        time-shared (streaming)
   hatch.tim                                trees.tim            time-shared (streaming)
   hedge.tim                                kchn_tile.tim        time-shared (streaming)
+  hedge.tim                                mud.tim              time-shared (streaming)
   hedge.tim                                piano_keys.tim       time-shared (streaming)
   hedge.tim                                piano_keys_full.tim  time-shared (streaming)
   hedge.tim                                xt_dr_outr.tim       time-shared (streaming)
+  kchn_tile.tim                            mud.tim              time-shared (streaming)
   kchn_tile.tim                            piano_keys.tim       time-shared (streaming)
   kchn_tile.tim                            piano_keys_full.tim  time-shared (streaming)
   kchn_tile.tim                            xt_dr_outr.tim       time-shared (streaming)
+  lamashtu tablet.tim                      leaf.tim             time-shared (streaming)
   lamashtu tablet.tim                      pipe.tim             time-shared (streaming)
   lamashtu tablet.tim                      plinth_diamond.tim   time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_cmplt.tim      time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_lckd.tim       time-shared (streaming)
+  leaf.tim                                 pipe.tim             time-shared (streaming)
+  leaf.tim                                 plinth_diamond.tim   time-shared (streaming)
+  leaf.tim                                 xt_dr_cmplt.tim      time-shared (streaming)
+  leaf.tim                                 xt_dr_lckd.tim       time-shared (streaming)
+  mud.tim                                  piano_keys.tim       time-shared (streaming)
+  mud.tim                                  piano_keys_full.tim  time-shared (streaming)
+  mud.tim                                  xt_dr_outr.tim       time-shared (streaming)
   opn_drwr.tim                             plinth.tim           time-shared (streaming)
   opn_drwr.tim                             stables wood.tim     time-shared (streaming)
+  opn_drwr.tim                             tentacle.tim         time-shared (streaming)
   opn_drwr.tim                             xt_dr_cg.tim         time-shared (streaming)
   piano_keys.tim                           piano_keys_full.tim  time-shared (streaming)
   piano_keys.tim                           xt_dr_outr.tim       time-shared (streaming)
@@ -414,6 +468,7 @@ OVERLAP CHECK
   pipe_gh.tim                              prpl_wlppr.tim       time-shared (streaming)
   pipe_gh.tim                              stove.tim            time-shared (streaming)
   plinth.tim                               stables wood.tim     time-shared (streaming)
+  plinth.tim                               tentacle.tim         time-shared (streaming)
   plinth.tim                               xt_dr_cg.tim         time-shared (streaming)
   plinth_diamond.tim                       xt_dr_cmplt.tim      time-shared (streaming)
   plinth_diamond.tim                       xt_dr_lckd.tim       time-shared (streaming)
@@ -431,8 +486,10 @@ OVERLAP CHECK
   rusty_fence.tim                          stable glyphs.tim    time-shared (streaming)
   rusty_fence.tim                          upstairs.tim         time-shared (streaming)
   stable glyphs.tim                        upstairs.tim         time-shared (streaming)
+  stables wood.tim                         tentacle.tim         time-shared (streaming)
   stables wood.tim                         xt_dr_cg.tim         time-shared (streaming)
   stn_stl.tim                              strs.tim             time-shared (streaming)
+  tentacle.tim                             xt_dr_cg.tim         time-shared (streaming)
   trck_clue.tim                            trees.tim            time-shared (streaming)
   xt_dr_cmplt.tim                          xt_dr_lckd.tim       time-shared (streaming)
   No unexpected pixel collisions.

@@ -11,6 +11,8 @@
 #include "collision.h"
 #include "asag_arena.h"
 #include "asag_arena_mesh_collision.h"
+#include "asag_arena_tex_map.h"
+#include "asag.h"            /* the boss body: loaded per-room, drawn here */
 #include "btn_glyph.h"
 #include "door.h"
 #include "cdaudio.h"          /* suspend/resume around the entry-time read */
@@ -36,9 +38,9 @@ static void *asag_arena_buff = NULL;
    U/D/G per tools/DIAGNOSING_FRAME_RATE.txt before shortening either of these.
    The fog only starts at 2500 so that the near half of the arena reads at the
    mesh's own vertex colours and the depth cue lands on the far wall. */
-#define AA_CULL_DIST      7000
+#define AA_CULL_DIST      ASAG_CULL_DIST
 #define AA_FOG_NEAR       2500
-#define AA_FOG_FAR        7000
+#define AA_FOG_FAR        ASAG_CULL_DIST
 
 /* The arena is UNDERGROUND — the player fell 1200 units to get here — so it
    does NOT take the garden's purple sky. Near-black is both the honest colour
@@ -48,27 +50,41 @@ static void *asag_arena_buff = NULL;
    is what buys the contrast. Not pure black — a fog that saturates to 0,0,0
    makes the cull line invisible, which sounds good and is actually how you lose
    an hour to "the far wall is missing". */
-#define AA_CLEAR_R  6
-#define AA_CLEAR_G  4
-#define AA_CLEAR_B 10
+#define AA_CLEAR_R  ASAG_FOG_R
+#define AA_CLEAR_G  ASAG_FOG_G
+#define AA_CLEAR_B  ASAG_FOG_B
 
 /* ---- Floor zones -----------------------------------------------------------
-   ONE zone over the mesh's footprint, x[-1500,1500] z[0,3700], read off
-   assets/bosses/Asag/Asag-Arena.smx: 1656 of its vertices sit at y=0 and none
-   of the walkable ground is at any other height, so the arena really is one
-   flat plane and one zone describes all of it.
+   TWO zones, and they are the two floor planes
+   tools/gen_asag_arena_collision.py read out of the proxy mesh, verbatim:
 
-   >>> IF THE MESH EVER GAINS A TERRACE, A STEP OR A PIT, THIS NEEDS ONE ZONE
-   PER LEVEL <<< and multi_level in asag_arena_mesh_collision.c with it — and if
-   it gains a low lip, collision_shoot_over_short_walls() in asag_arena_init()
-   too, or every projectile in the fight dies on it. See the note at the top of
-   that file. */
+       FLOOR 0   y=0   x[-1500,1500]  z[0,2613]     the arena itself
+       FLOOR 1   y=0   x[ -300, 300]  z[2613,3248]  the alcove Asag sits in
+
+   BOTH ARE AT y=0, so this is still one walkable height and multi_level stays
+   0 in the collision file. They are two zones rather than one box because the
+   alcove is NARROWER than the arena: a single zone spanning z[0,3248] at full
+   width would hand the player a floor in the solid rock either side of the
+   recess, and apply_height() would hold them up there if collision ever let
+   them past the back wall.
+
+   >>> IF THE MESH EVER GAINS A TERRACE, A STEP OR A PIT, ADD ONE ZONE PER
+   LEVEL <<< and set multi_level in the generator with it — and if it gains a
+   low lip, collision_shoot_over_short_walls() in asag_arena_init() too, or
+   every projectile in the fight dies on it. See the head of
+   src/asag_arena_mesh_collision.c. */
 static void asag_arena_floor_zones_init(void) {
     floor_zones[0].type  = FLOOR_FLAT;
     floor_zones[0].min_x = -1500; floor_zones[0].max_x = 1500;
-    floor_zones[0].min_z =     0; floor_zones[0].max_z = 3700;
+    floor_zones[0].min_z =     0; floor_zones[0].max_z = 2613;
     floor_zones[0].y     = 0;
-    floor_zone_count = 1;
+
+    floor_zones[1].type  = FLOOR_FLAT;
+    floor_zones[1].min_x =  -300; floor_zones[1].max_x =  300;
+    floor_zones[1].min_z =  2613; floor_zones[1].max_z = 3248;
+    floor_zones[1].y     = 0;
+
+    floor_zone_count = 2;
 }
 
 /* ---- Per-room textures -----------------------------------------------------
@@ -88,15 +104,31 @@ static void asag_arena_floor_zones_init(void) {
    THE COST OF A ROW: its VRAM rectangle, its bytes on the disc, and ~9 sectors
    of read on the one loading screen that reaches this room. NOT one byte of
    main RAM — which is the constraint that actually binds. See the header. */
-#define ASAG_ARENA_STREAM_TEX 0
+#define ASAG_ARENA_STREAM_TEX 7
 static const char *stream_tex_file[] = {
-    /* e.g. "\\TEX\\ASAGFLR.TIM;1",     slot 0 */
-    /* e.g. "\\TEX\\ASAGWALL.TIM;1",    slot 1 */
-    0   /* the array may not be empty; ASAG_ARENA_STREAM_TEX is the real count */
+    "\\TEXASAG\\ASGMUD.TIM;1",   /* 0 ASAG_TEX_MUD    x384 y0    8bpp  the floor */
+    "\\TEXASAG\\ASGWALL.TIM;1",  /* 1 ASAG_TEX_WALL   x512 y0    8bpp  "Boss Wall" */
+    "\\TEXASAG\\ASGCHN.TIM;1",   /* 2 ASAG_TEX_CHAIN  x320 y256  4bpp  chain_128 */
+    /* --- Asag's own skins. Streamed here, not registered by src/asag.c; the
+       argument is in the header beside the ASAG_TEX_* slot numbers. --- */
+    "\\TEXASAG\\ASGSKIN.TIM;1",  /* 3 ASAG_TEX_SKIN   x640 y0    8bpp  the head */
+    "\\TEXASAG\\ASGLEAF.TIM;1",  /* 4 ASAG_TEX_LEAF   x768 y0    8bpp  four leaves */
+    "\\TEXASAG\\ASGTENT.TIM;1",  /* 5 ASAG_TEX_TENT   x832 y0    8bpp  both arms */
+    "\\TEXASAG\\ASGBOIL.TIM;1",  /* 6 ASAG_TEX_BOIL   x704 y256  8bpp  six boils */
 };
 
 static uint16_t tex_tpage[ASAG_ARENA_TEX_COUNT];
 static uint16_t tex_clut[ASAG_ARENA_TEX_COUNT];
+
+/* src/asag.c reads the boss's four skins back through these. Zero for a slot
+   that never streamed, which draws that part in whatever art sits at tpage 0 -
+   ugly, and better than a crash on a bad CD read. */
+uint16_t asag_arena_tex_page(int slot) {
+    return (slot >= 0 && slot < ASAG_ARENA_TEX_COUNT) ? tex_tpage[slot] : 0;
+}
+uint16_t asag_arena_tex_clut(int slot) {
+    return (slot >= 0 && slot < ASAG_ARENA_TEX_COUNT) ? tex_clut[slot] : 0;
+}
 
 /* Scratch for the entry-time stream. Nine sectors covers the largest thing a
    TIM can be here — an 8bpp 128x128 plus its 256-word CLUT is 16,928 bytes —
@@ -126,8 +158,15 @@ static uint16_t tex_clut[ASAG_ARENA_TEX_COUNT];
 #define AA_SHAFT_X            0
 #define AA_SHAFT_Z          300
 
+/* >>> PLACEHOLDER, AND THE MESH IS WHY. <<< The previous arena had a door in
+   the middle of the south wall. This one has no door anywhere: the collision
+   proxy's only opening is the alcove at z[2613,3248], which is Asag's throat.
+   So the prompt sits at the SHAFT MOUTH the player fell through - the one
+   feature in the room that is a way in or out of it - and main.c's destination
+   for the trigger is flagged as a placeholder in the same words. Move both
+   together when the way out is decided. */
 #define AA_EXIT_X             0
-#define AA_EXIT_Z          3700    /* on the south wall itself */
+#define AA_EXIT_Z             0    /* the north wall, under the shaft */
 
 #define AA_TEXT_Y        (-186)    /* eye level on the y=0 floor */
 #define AA_TEXT_RADIUS     1500
@@ -140,13 +179,13 @@ static uint16_t tex_clut[ASAG_ARENA_TEX_COUNT];
    HERE: room_arena_load returns NULL, asag_arena_smd stays NULL, and the room
    simply draws nothing but its clear colour and the exit sign.
 
-   ASAGARNA.SMD is 30 KB against the arena's 118 KB (Maze One still sets that
+   ASAGARNA.SMD is 38 KB against the arena's 118 KB (Maze One still sets that
    size), so it fits with room to spare — but re-run tools/gen_room_arena.py if
    the mesh is ever re-exported much larger. A mesh bigger than the arena is
    REFUSED at load time and the room draws empty, which looks exactly like a
    missing file and will waste an afternoon. */
 void asag_arena_load_geometry(void) {
-    asag_arena_buff = room_arena_load("\\TEX\\ASAGARNA.SMD;1");
+    asag_arena_buff = room_arena_load("\\TEXASAG\\ASAGARNA.SMD;1");
     asag_arena_smd  = asag_arena_buff ? smdInitData(asag_arena_buff) : NULL;
 }
 
@@ -341,20 +380,28 @@ void asag_arena_init(void) {
        tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9. */
     save_points_clear();
     dressers_clear();
+
+    /* The boss, back to eight visible parts on their bind poses with every
+       clock stopped. NOTHING PLAYS UNTIL THE DIRECTOR SAYS SO - see src/asag.h.
+       This is not the load: asags_load_model() runs in main.c's STATE_LOADING
+       beside the Rabisu's, and this only resets the playback state, so it is
+       safe on a debug jump that arrives before the read has happened. */
+    asag_reset();
 }
 
 /* ---- The mesh --------------------------------------------------------------
-   THE ARENA IS DRAWN UNTEXTURED, AND THAT IS THE MESH'S DOING, NOT A STUB.
-   assets/bosses/Asag/Asag-Arena.smx carries <textures count="0">: all 674 of
-   its primitives are flat-shaded (F3/F4) with a baked vertex colour and there
-   are no UVs on them to use. So this loop is chain_room.c's
-   draw_chain_room_smd() with the textured branches and the per-poly tex map
-   removed - POLY_F3/POLY_F4 only, no tpage, no clut, no VRAM at all.
+   chain_room.c's draw_chain_room_smd(), textured branches and all. The arena's
+   674 primitives are FT3/FT4 over three textures - mud (524), "Boss Wall" (129)
+   and chain_128 (21) - indexed per polygon by src/asag_arena_tex_map.h, which
+   gen_asag_arena_tex_map.py writes by TEXTURE NAME rather than by the SMX's own
+   index. That matters: the Blender exporter renumbers its texture list whenever
+   the material set changes, and a raw-index map then silently shifts every
+   texture past the one that moved.
 
-   >>> WHEN THE ARENA IS TEXTURED, THIS GROWS THE FT3/FT4 BRANCHES BACK. <<<
-   Copy them from chain_room.c verbatim, along with a generated
-   src/asag_arena_tex_map.h to index and the tex_tpage/tex_clut arrays the
-   streamer above already fills. Nothing else in the file changes.
+   The tpage and clut come from tex_tpage/tex_clut, which the entry-time stream
+   captured from each TIM - NOT from the values smxlink baked into the .smd. The
+   .smd's are correct today and would stop being correct the moment a TIM moved
+   in VRAM without a re-link.
 
    WHAT IS DELIBERATELY NOT HERE: the cull-key table. chain_room.c and the mazes
    precompute one cache line per primitive so the distance reject never touches
@@ -453,12 +500,15 @@ static void draw_asag_arena_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        /* Backface cull, honouring the SMD's own per-primitive nocull flag.
-           There is NO generated nocull table for this room: the other rooms'
-           tables exist to rescue degenerate triangle-shaped quads the exporter
-           emitted, and if a face here turns out to vanish from the side it
-           should be visible from, that is the table to generate. */
-        if (!pt->nocull) {
+        /* Backface cull, honouring both the SMD's own per-primitive nocull flag
+           and the generated table. asag_arena_nocull[] rescues degenerate
+           "triangle-shaped" quads, whose fourth corner is collinear and whose
+           winding the GTE therefore cannot judge. This mesh currently has ZERO
+           of them, so the table is all zeroes - it costs 674 bytes of rodata to
+           stay honest the next time the mesh is re-exported. */
+        int no_cull = pt->nocull ||
+                      (i < ASAG_ARENA_PRIM_COUNT && asag_arena_nocull[i]);
+        if (!no_cull) {
             gte_nclip();
             gte_stopz(&nclip);
             if (nclip <= 0) { p += stride; continue; }
@@ -509,7 +559,31 @@ static void draw_asag_arena_smd(RenderContext *ctx) {
         uint8_t g = (uint8_t)(((int32_t)col[1] * ff + AA_CLEAR_G * (256 - ff)) >> 8);
         uint8_t b = (uint8_t)(((int32_t)col[2] * ff + AA_CLEAR_B * (256 - ff)) >> 8);
 
-        if (is_quad) {
+        /* Per-prim texture index; SMD prim order matches the generated map.
+           UVs come straight from the SMD primitive (offset 20+) and wrap via the
+           128 texture window set in asag_arena_draw. */
+        uint8_t tex_idx = (i < ASAG_ARENA_PRIM_COUNT) ? asag_arena_tex_map[i] : 0xFF;
+        int     textured = (tex_idx != 0xFF && tex_idx < ASAG_ARENA_TEX_COUNT);
+
+        if (is_quad && textured) {
+            if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
+            uint8_t *uv = p + 20;
+            POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
+            setPolyFT4(poly);
+            setRGB0(poly, r, g, b);
+            poly->tpage = tex_tpage[tex_idx];
+            poly->clut  = tex_clut[tex_idx];
+            poly->u0=uv[0]; poly->v0=uv[1];
+            poly->u1=uv[2]; poly->v1=uv[3];
+            poly->u2=uv[4]; poly->v2=uv[5];
+            poly->u3=uv[6]; poly->v3=uv[7];
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_FT4);
+        } else if (is_quad) {
             if (ctx->next_packet + sizeof(POLY_F4) > buf_end) { p += stride; continue; }
             POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
             setPolyF4(poly);
@@ -520,6 +594,22 @@ static void draw_asag_arena_smd(RenderContext *ctx) {
             poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
             addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
             ctx->next_packet += sizeof(POLY_F4);
+        } else if (textured) {
+            if (ctx->next_packet + sizeof(POLY_FT3) > buf_end) { p += stride; continue; }
+            uint8_t *uv = p + 20;
+            POLY_FT3 *poly = (POLY_FT3 *)ctx->next_packet;
+            setPolyFT3(poly);
+            setRGB0(poly, r, g, b);
+            poly->tpage = tex_tpage[tex_idx];
+            poly->clut  = tex_clut[tex_idx];
+            poly->u0=uv[0]; poly->v0=uv[1];
+            poly->u1=uv[2]; poly->v1=uv[3];
+            poly->u2=uv[4]; poly->v2=uv[5];
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_FT3);
         } else {
             if (ctx->next_packet + sizeof(POLY_F3) > buf_end) { p += stride; continue; }
             POLY_F3 *poly = (POLY_F3 *)ctx->next_packet;
@@ -547,9 +637,12 @@ void asag_arena_draw(RenderContext *ctx) {
     render_set_clear_colour(ctx, AA_CLEAR_R, AA_CLEAR_G, AA_CLEAR_B);
 
     /* 128x128 texture window so per-poly UVs tile within each texture's page.
-       Set even though nothing textured is drawn yet: the sprite renderers and
-       the weapon overlay are handed this room's window, and one that was never
-       established is one that carries in from whatever ran last. */
+       Every texture this room and this boss use sits at Voff 0 on a 64-aligned
+       x, so ONE window serves all seven and no primitive needs a bracket of its
+       own (tools/TEXTURING_NOTES.txt). It is also what the sprite renderers and
+       the weapon overlay are handed, so it must be set whether or not the mesh
+       needs it - a window that was never established carries in from whatever
+       ran last. */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         DR_TWIN *twin = (DR_TWIN *)ctx->next_packet;
@@ -580,11 +673,22 @@ void asag_arena_draw(RenderContext *ctx) {
     /* The exit sign, after the room so it sorts against it. */
     exit_text(ctx);
 
-    /* >>> THE ENCOUNTER'S DRAWS GO HERE, IN THIS ORDER. <<<
+    /* THE BODY. Eight parts, every one already in this room's coordinate space,
+       so it draws under the view built above and loads no matrix of its own -
+       see the long note in src/asag.h about why this boss needs no model matrix
+       and the Rabisu does. It goes after the room so its primitives sort against
+       the room's. */
+    /* DBG_EXP_NO_ENTITIES (debug level 8) is the counterpart to level 4's
+       DBG_EXP_NO_MESH: D read at 4 and at 8 splits the draw section between the
+       room's 674 primitives and the boss's eight parts, in one sitting rather
+       than one rebuild per hypothesis. tools/DIAGNOSING_FRAME_RATE.txt STEP 1 -
+       add the switch BEFORE spending an afternoon on either half. */
+    if (exp != DBG_EXP_NO_ENTITIES) asag_draw(ctx);
+
+    /* >>> THE REST OF THE ENCOUNTER'S DRAWS GO HERE, IN THIS ORDER. <<<
        tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 10:
-         asag_draw(ctx);                 the body — restores the plain view
-                                         matrix on its way out
-         asag_projectiles_draw(ctx);     after it, wanting that plain matrix
+         asag_projectiles_draw(ctx);     wants the plain view matrix, which
+                                         asag_draw above leaves untouched
          asag_boss_draw(ctx);            the lights: additive world geometry
          asag_boss_draw_overlay(ctx);    LAST of all — screen space, subtitles */
 }

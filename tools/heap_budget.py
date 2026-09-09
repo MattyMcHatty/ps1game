@@ -72,6 +72,32 @@ NM   = r'C:/Users/virtu/Documents/PSn00bSDK/bin/mipsel-none-elf-nm.exe'
 HEAP_TOP  = 0x801FFFF8   # what _start_inner passes to InitHeap
 STACK_TOP = 0x801FFF00   # BIOS default SP, grows down into the same region
 
+# >>> AND THE STACK IS NOT A FEW KILOBYTES. IT IS 148, BECAUSE main()'s
+# RenderContext IS A LOCAL. <<<
+#
+# src/main.c declares `RenderContext ctx;` on the stack, and a RenderContext is
+# two RenderBuffers, each an OT_LENGTH(2048)-entry uint32 table plus a
+# BUFFER_LENGTH(65536) packet buffer plus two envs:
+#
+#     2 * (2048*4 + 65536 + sizeof(DISPENV) + sizeof(DRAWENV))  =  ~147,600
+#
+# That frame lives at the TOP of RAM for the whole run, so the heap can only
+# ever grow to just underneath it. Every figure this script printed before
+# September 2026 ignored it and OVERSTATED FREE AT REST BY ~145 KB.
+#
+# THAT IS NOT A ROUNDING ERROR, IT IS THE REASON THE ~234 KB "CLIFF" IN
+# tools/DIAGNOSING_A_BOOT_CRASH.txt EXISTS AT ALL: 234 KB reported was about
+# 86 KB real. Asag's arena walked straight into it - 229 KB of boss meshes and
+# clips against a reported 361 KB of free heap, which was really 171 KB. The
+# console crashed inside CdReadSync with the unaligned-JR signature, because
+# malloc handed out the address the stack pointer was already sitting at
+# (measured: sp = 0x801DBD40, buffer 0x801D46D0..0x801DE6D0).
+#
+# MEASURED, not modelled: the number below is $sp read inside read_file() on
+# the arena transition, which is as deep as this game's call chain gets. Re-read
+# it the same way if main()'s frame ever changes.
+STACK_FLOOR = 0x801DBD40   # measured $sp, September 2026 - see above
+
 disc = {}
 for f in ET.parse('disc.xml').getroot().iter('file'):
     disc[f.get('name').upper()] = f.get('source')
@@ -132,9 +158,41 @@ scoped = []    # released again: transient, and only the PEAK has to fit
 def _frees(src, var):
     return re.search(r'\bfree\s*\(\s*' + re.escape(var) + r'\s*\)', src) is not None
 
+# >>> AND A MODULE THAT LOADS FROM A TABLE IS INVISIBLE TO BOTH PATTERNS. <<<
+# Both regexes below want the FILENAME to appear as a literal argument at the
+# call site. src/asag.c does not work that way: it reads twenty-two files
+# through two const tables (part_def[] and clip_def[]) and one read_file(
+# def->file ) call, so a scan for read_file("...") finds nothing and 204 KB of
+# room-scoped loads would VANISH from this report - which is exactly the thing
+# the note above promises never happens.
+#
+# Rather than teach the regex to follow a table, this is an explicit opt-in:
+# name the module and the function that releases everything it read, and every
+# disc filename that appears as a literal anywhere in it is counted as
+# ROOM-SCOPED. That is honest for a module whose ONLY reads are the table's -
+# check that before adding a row here, and check the named free really does
+# release all of them.
+#
+# The scan is by BASENAME against disc.xml rather than by matching a path shape.
+# An earlier version matched the path, and it silently reported nothing the day
+# Asag's files moved from \TEX\ to \TEXASAG\ - which is the same class of quiet
+# under-report this whole block exists to fix.
+TABLE_DRIVEN_SCOPED = {
+    'asag.c': 'asags_free_model',   # 8 part meshes + 14 .pva clips
+}
+
 for c in sorted(glob.glob('src/*.c')):
     src = open(c, encoding='utf-8', errors='replace').read()
     mod = os.path.basename(c)
+    if mod in TABLE_DRIVEN_SCOPED:
+        freer = TABLE_DRIVEN_SCOPED[mod]
+        assert ('void ' + freer) in src, \
+            '%s: %s() is gone - re-check what frees its table loads' % (mod, freer)
+        for m in re.finditer(r'"([^"]*);1"', src):
+            n = basename(m.group(1))
+            if n in disc:
+                scoped.append((n, mod, freer + '()'))
+        continue
     for m in re.finditer(r'(\w+)\s*=\s*(?:\([\w\s*]*\)\s*)?read_file\(\s*"([^"]+)"', src):
         n, var = basename(m.group(2)), m.group(1)
         if n in disc:
@@ -215,7 +273,7 @@ end = [int(l.split()[0], 16) & 0xFFFFFFFF for l in out.splitlines()
 if not end:
     sys.exit("could not find _end in " + ELF + " - build first")
 end = end[0]
-heap = HEAP_TOP - end
+heap = STACK_FLOOR - end   # NOT HEAP_TOP: the top 145 KB is main()'s stack frame
 perm = reg_total + kept_total
 
 print("THE HEAP")
@@ -223,11 +281,19 @@ print("  _end (heap start)   0x%08X" % end)
 print("  heap top            0x%08X   <- InitHeap; the STACK starts at 0x%08X"
       % (HEAP_TOP, STACK_TOP))
 print("  heap size           %8d bytes (%.0f KB)" % (heap, heap / 1024.0))
+print("  stack floor         0x%08X   <- MEASURED $sp; main()'s RenderContext"
+      % STACK_FLOOR)
+print("  stack reserve       %8d bytes (%.0f KB)  <- NOT usable heap"
+      % (HEAP_TOP - STACK_FLOOR, (HEAP_TOP - STACK_FLOOR) / 1024.0))
 print()
 print("  texmgr resident     %8d bytes (%.0f KB)  %4.1f%%" % (reg_total, reg_total / 1024.0, 100.0 * reg_total / heap))
 print("  kept buffers        %8d bytes (%.0f KB)  %4.1f%%" % (kept_total, kept_total / 1024.0, 100.0 * kept_total / heap))
 print("  PERMANENT TOTAL     %8d bytes (%.0f KB)  %4.1f%%" % (perm, perm / 1024.0, 100.0 * perm / heap))
-print("  FREE AT REST        %8d bytes (%.0f KB)  %4.1f%%" % (heap - perm, (heap - perm) / 1024.0, 100.0 * (heap - perm) / heap))
+print("  FREE AT REST        %8d bytes (%.0f KB)  %4.1f%%   <- STACK ALREADY SUBTRACTED"
+      % (heap - perm, (heap - perm) / 1024.0, 100.0 * (heap - perm) / heap))
+print("                                  (was %d before the stack was counted;"
+      % (heap + (HEAP_TOP - STACK_FLOOR) - perm))
+print("                                   THAT figure is what the old cliff was measured in)")
 print()
 
 biggest = max((rounded(n) for n, _, _ in kept + scoped), default=0)
@@ -242,28 +308,33 @@ print("      SEQUENCES them (free before the bank swap, load after) so the peak"
 print("      is 104,448. Work the peak out by hand for any room you touch.")
 print("      See tools/DIAGNOSING_A_BOOT_CRASH.txt section 8.")
 print()
-print("  >>> AND THE ~234 KB CLIFF IN THAT DOCUMENT IS IN OLDER UNITS. <<<")
-print("      It was measured when this script still counted chainlink_door.c's")
-print("      and grinder.c's TIM scratch as permanent. It no longer does, so the")
-print("      figure above is ~16 KB higher than the one that cliff was measured")
-print("      against: in today's units it is about 218 KB. Re-measure (section 3")
-print("      of that file) before trusting either number.")
+print("  >>> AND THE ~234 KB CLIFF IN THAT DOCUMENT WAS A UNITS BUG. <<<")
+print("      It was measured against a FREE AT REST that did not subtract")
+print("      main()'s 145 KB RenderContext stack frame, and was ~16 KB out on")
+print("      top of that for the TIM-scratch miscount. In the units printed")
+print("      above, that cliff is about 74 KB - i.e. it was simply the heap")
+print("      being full, not a threshold. Asag's arena proved it in September")
+print("      2026: 229 KB of boss loads against a reported 361 KB free crashed")
+print("      inside CdReadSync with $sp INSIDE the buffer being read. See")
+print("      tools/ADDING_THE_ASAG_FIGHT.txt PART 6A.")
 print()
 print("  The largest single transient allocation still has to fit in what is")
 print("  free, and startup makes several: the kitchen's 32768-byte scratch, and")
 print("  every read_file above (largest %d bytes). Keep FREE AT REST well clear" % biggest)
-print("  of six figures. >>> THIS FIGURE IS A RESTING TOTAL AND FLATTERS YOU. <<<")
-print("  The startup PEAK is what collides with the stack, and it is far above")
-print("  this: in August 2026 the Chain Room would not boot with 226 KB free at")
-print("  rest. The cliff was MEASURED by shrinking BSS a sector at a time until")
-print("  it booted - between 233 KB and 235 KB free at rest. Treat anything")
-print("  under 256 KB as already in trouble, whatever this line says.")
+print("  of six figures. >>> AND IT IS STILL A RESTING TOTAL. <<< A transition")
+print("  can hold several of the loads above at once, and the room whose door")
+print("  is tightest is not the room you are editing. Work the peak out by")
+print("  hand: permanent, plus everything live at that one instant.")
+print("  MEASURED at the tightest door in the game (Asag's arena, where the")
+print("  boss model is read): ~171 KB actually free, against the %d KB" % ((heap - perm) // 1024))
+print("  printed above. The difference is other transients still held at that")
+print("  moment. Treat anything under 128 KB free as already in trouble.")
 print()
-if heap - perm < 256 * 1024:
-    print("  *** WARNING: under 256 KB free. The measured boot cliff is ~234 KB")
-    print("      of FREE AT REST. Do not add a registration without")
-    print("      reclaiming one first. See the two no-cost patterns in the")
-    print("      docstring at the top of this file. ***")
+if heap - perm < 128 * 1024:
+    print("  *** WARNING: under 128 KB free at rest, with the stack already")
+    print("      subtracted. Do not add a registration without reclaiming one")
+    print("      first. See the two no-cost patterns in the docstring at the")
+    print("      top of this file. ***")
 else:
     print("  OK: comfortable margin.")
 print()

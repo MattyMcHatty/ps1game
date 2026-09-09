@@ -469,6 +469,66 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim", "hatch.tim"),
     ("plinth_rg.tim",          "hatch.tim"),
     ("greenhouse.tim",         "hatch.tim"),
+    # ============ ASAG'S ARENA ============================================
+    # Seven textures, and EVERY ONE of them lands on a page some other room
+    # already uses. That is not carelessness, it is the whole design of this
+    # bank: the arena is reached only by a one-way drop, nothing else in the
+    # game is drawn while the player is in it, and its only exit is a transition
+    # that runs the destination room's own uploader. So it may overwrite
+    # anything that is re-uploaded on entry somewhere, and it owes nobody a
+    # restore. tools/VRAM_MAP_ASAG.txt is the map that says which pages those
+    # are; this list is that decision written where the collision checker can
+    # see it. asag_arena_upload_textures() streams all seven.
+    #   mud.tim
+    ("chnlnk_dl.tim", "mud.tim"),
+    ("clsd_drwr.tim", "mud.tim"),
+    ("cncrte.tim", "mud.tim"),
+    ("flowerbed.tim", "mud.tim"),
+    ("hedge.tim", "mud.tim"),
+    ("kchn_tile.tim", "mud.tim"),
+    ("piano_keys.tim", "mud.tim"),
+    ("piano_keys_full.tim", "mud.tim"),
+    ("xt_dr_outr.tim", "mud.tim"),
+    #   Boss Wall.tim
+    ("cuneiform _symbols.tim", "Boss Wall.tim"),
+    ("dresser.tim", "Boss Wall.tim"),
+    ("grdn_gte.tim", "Boss Wall.tim"),
+    ("kchn_wl.tim", "Boss Wall.tim"),
+    #   asag.tim
+    ("chnlnk.tim", "asag.tim"),
+    ("gravel_texture.tim", "asag.tim"),
+    ("greenhouse.tim", "asag.tim"),
+    ("hatch.tim", "asag.tim"),
+    ("plinth_rg.tim", "asag.tim"),
+    ("poison_flower_base.tim", "asag.tim"),
+    ("trck_clue.tim", "asag.tim"),
+    ("trees.tim", "asag.tim"),
+    #   leaf.tim
+    ("bed.tim", "leaf.tim"),
+    ("brick_wall.tim", "leaf.tim"),
+    ("fountain.tim", "leaf.tim"),
+    ("grss.tim", "leaf.tim"),
+    ("lamashtu tablet.tim", "leaf.tim"),
+    ("pipe.tim", "leaf.tim"),
+    ("plinth_diamond.tim", "leaf.tim"),
+    ("xt_dr_cmplt.tim", "leaf.tim"),
+    ("xt_dr_lckd.tim", "leaf.tim"),
+    #   tentacle.tim
+    ("con_tile.tim", "tentacle.tim"),
+    ("double_door.tim", "tentacle.tim"),
+    ("drain.tim", "tentacle.tim"),
+    ("opn_drwr.tim", "tentacle.tim"),
+    ("plinth.tim", "tentacle.tim"),
+    ("stables wood.tim", "tentacle.tim"),
+    ("xt_dr_cg.tim", "tentacle.tim"),
+    #   boil.tim
+    ("Rabisu tex.tim", "boil.tim"),
+    ("vines.tim", "boil.tim"),
+    #   chain_128.tim
+    ("dbl_dr_rg.tim", "chain_128.tim"),
+    ("frnt_dr.tim", "chain_128.tim"),
+    ("greenhouse door.tim", "chain_128.tim"),
+    ("red_crpt.tim", "chain_128.tim"),
 ]
 
 def read_tim(path):
@@ -501,7 +561,13 @@ def rects_overlap(a, b):
 # original on every run. Each entry names the file it duplicates.
 EXPORTER_ALIASES = {
     "pipe_128.tim":  "pipe_gh.tim",   # Chain Room's 'pipe_128' material
-    "chain_128.tim": "chain.tim",     # Chain Room's 'chain_128' material
+    # chain_128.tim STOPPED BEING AN ALIAS when Asag's arena shipped. Its mesh
+    # uses the same Blender material name, but the arena cannot take chain.tim's
+    # page (x704 y0 is a RESTORE page in that bank), so chain_128.tim was
+    # retargeted to x320 y256, added to disc.xml as ASGCHN.TIM and is now a real
+    # shipped texture with a VRAM footprint of its own. The Chain Room is
+    # unaffected: it reads its tpage from TIM_SLOT, not from the .smd, and both
+    # x values are 64-aligned so the UVs smxlink baked are identical either way.
 }
 
 

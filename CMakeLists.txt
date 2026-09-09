@@ -93,6 +93,7 @@ add_executable(horror_game
     src/the_hatch.c
     src/asag_arena_mesh_collision.c
     src/asag_arena.c
+    src/asag.c
     src/hatch_doors.c
     src/hatch_puzzle.c
     src/rear_gate_mesh_collision.c
@@ -227,9 +228,10 @@ set_source_files_properties(
     src/rabisu_boss.c
     # ASAG'S ARENA's collision table. Init-only -- it fills a CollisionRoom once
     # on room entry and is never touched again -- so it belongs here for the
-    # reason every other transition-time module does. The room's own *_draw is
-    # DELIBERATELY not in this list: it is a hot loop like every other room's,
-    # even while all it draws is a placeholder box.
+    # reason every other transition-time module does. At 48 walls it is now the
+    # merge of three meshes (the room proxy plus both of Asag's tentacles), which
+    # makes it bigger but no hotter. Neither the room's own *_draw nor src/asag.c
+    # is in this list: both are per-frame prim loops.
     src/asag_arena_mesh_collision.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )

@@ -796,18 +796,92 @@
                      Its .smx exports live in assets/garden/. -->
                 <file name="THEHATCH.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\the_hatch.smd"/>
                 <file name="HATCH.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\hatch.tim"/>
-
-                <!-- ASAG'S ARENA. The visual mesh only: 674 vertex-coloured
-                     polys, NO textures on it at all (its .smx carries an empty
-                     <textures> list), so asag_arena.c draws it flat-shaded and
-                     stream_tex_file[] stays empty. At 30 KB it is a quarter of
-                     Maze One's 118 KB, so the room arena is still sized by that
-                     room. Collision is still the hand-written placeholder box
-                     in src/asag_arena_mesh_collision.c and does NOT follow this
-                     mesh - see tools/ADDING_THE_ASAG_FIGHT.txt PART 7 step 2.
-                     Its .smx export lives in assets/bosses/Asag/. -->
-                <file name="ASAGARNA.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag-Arena.smd"/>
             </dir>
+        <dir name="TEXASAG">
+        <!-- ================= ASAG'S ARENA AND ASAG ==========================
+             THIRTY FILES IN A DIRECTORY OF THEIR OWN, AND THE DIRECTORY IS THE
+             POINT.
+
+             >>> THESE DO NOT GO IN \TEX\. <<< That directory's ISO9660 record
+             already spans FIVE 2048-byte sectors, and the note in
+             src/chain_room.c records a boot crash caused by growing it by TWO
+             files - the game died inside sound_init, in the first CdSearchFile
+             that switched from \TEX\ to \SND\, with 200 KB of heap spare and
+             a clean VRAM map. Putting Asag's thirty files there took it to six
+             sectors, which is further into untested territory than a boss is
+             worth. Its own directory costs ONE record in the root and starts
+             again at sector 1, with room for the fight's sounds and clips.
+
+             >>> AND IT IS CALLED TEXASAG RATHER THAN ASAG FOR ONE REASON:
+             ISO9660 SORTS THE ROOT. <<< mkpsxiso writes root records in
+             identifier order, not in the order this file lists them, and
+             SYSTEM.CNF is the LAST record in the root's first sector with 36
+             bytes to spare. A directory called ASAG sorts BEFORE it, pushes it
+             past byte 2048, and the boot ROM then cannot find it - which
+             tools/check_disc_root.py reported as *** PAST 2048: WILL NOT BOOT
+             *** the moment it was tried. TEXASAG sorts after SYSTEM.CNF (and
+             right after TEX), so its record lands in the root's SECOND sector
+             where there is 1.5 KB spare. Run py tools/check_disc_root.py after
+             ANY change here.
+
+             THE MESH. 674 TEXTURED polys over three textures, replacing the
+             flat-shaded placeholder arena. At 38 KB its SMD is a third of Maze
+             One's 118 KB, so the room arena is still sized by that room.
+             Collision now FOLLOWS it, and follows both tentacles too -
+             tools/gen_asag_arena_collision.py.
+
+             THE TEXTURES. Seven, all streamed on the one transition that
+             reaches this room and NONE registered with texmgr: that would be
+             ~115 KB permanent for art visible in one room. Slots and VRAM
+             rectangles are in tools/VRAM_MAP_ASAG.txt; the four skins belong to
+             the BOSS but are streamed by the ROOM, which is argued in
+             src/asag_arena.h.
+
+             THE BODY. Eight meshes and fourteen .pva clips, read on entry by
+             asags_load_model() and freed on every other transition. 204 KB at
+             the door against ~353 KB free. EVERY CLIP IS BAKED AT HALF THE
+             AUTHORED 24 fps: at full rate the same fourteen are 359 KB and do
+             not fit, and the failure mode is the stack being handed out rather
+             than a failed malloc. tools/ADDING_THE_ASAG_FIGHT.txt PART 6.
+
+             THE SIX BOILS SHIP AS ONE JOINED MESH (tools/export_asag.py): they
+             never animate and are always drawn together, so six files bought
+             nothing.
+
+             All exports live in assets/garden/asag/ (.smx) and
+             assets/bosses/Asag/ (.smd, .pva). -->
+            <file name="ASAGARNA.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_Arena.smd"/>
+            <file name="ASGMUD.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\mud.tim"/>
+            <file name="ASGWALL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\Boss Wall.tim"/>
+            <file name="ASGCHN.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\chain_128.tim"/>
+            <file name="ASGSKIN.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\asag.tim"/>
+            <file name="ASGLEAF.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\leaf.tim"/>
+            <file name="ASGTENT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\tentacle.tim"/>
+            <file name="ASGBOIL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\boil.tim"/>
+            <file name="ASGBODY.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_Body.smd"/>
+            <file name="ASGBOILS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_Boils.smd"/>
+            <file name="ASGLEAFT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_Top_Leaf.smd"/>
+            <file name="ASGLEAFB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_Bottom_Leaf.smd"/>
+            <file name="ASGLEAFL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_Left_Leaf.smd"/>
+            <file name="ASGLEAFR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_Right_Leaf.smd"/>
+            <file name="ASGTENTL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_Left_Tentacle.smd"/>
+            <file name="ASGTENTR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_Right_Tentacle.smd"/>
+            <file name="ASGHIDLE.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_head_idle.pva"/>
+            <file name="ASGHSPK.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_head_speak.pva"/>
+            <file name="ASGHEMRG.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_head_emerge.pva"/>
+            <file name="ASGHRETR.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_head_retract.pva"/>
+            <file name="ASGHVOM.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_head_vomit.pva"/>
+            <file name="ASGHLAS.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_head_laser.pva"/>
+            <file name="ASGLFTOP.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_leaf_top.pva"/>
+            <file name="ASGLFBOT.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_leaf_bottom.pva"/>
+            <file name="ASGLFLFT.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_leaf_left.pva"/>
+            <file name="ASGLFRGT.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_leaf_right.pva"/>
+            <file name="ASGTLIDL.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_tent_l_idle.pva"/>
+            <file name="ASGTLATK.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_tent_l_atk.pva"/>
+            <file name="ASGTRIDL.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_tent_r_idle.pva"/>
+            <file name="ASGTRATK.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag\Asag_tent_r_atk.pva"/>
+        </dir>
+
         </directory_tree>
     </track>
 

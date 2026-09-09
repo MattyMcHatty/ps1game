@@ -105,14 +105,33 @@ def _frame_positions(obj, scale):
         obj_eval.to_mesh_clear()
 
 
-def bake(obj, frame_start, frame_end, scale, trim_loop=True, report=print):
-    """Evaluate `obj` over the frame range. Returns (frames, looped)."""
+def bake(obj, frame_start, frame_end, scale, trim_loop=True, report=print,
+         step=1):
+    """Evaluate `obj` over the frame range. Returns (frames, looped).
+
+    `step` > 1 bakes every Nth frame and is the CHEAPEST lever in
+    tools/ANIMATING_A_3D_MODEL.txt's budget list: the .pva cost is
+    frames x verts x 8, so step 2 halves it exactly. The clip then plays at
+    scene_fps/step, and the caller must divide the stamped fps to match --
+    <PFX>_ANIM_TICKS is 60/effective_fps, not 60/authored_fps. Asag's whole
+    clip set is baked at step 2 (24 fps authored, 12 fps played, ANIM_TICKS 5)
+    because at full rate it was 359 KB against 371 KB of free heap.
+
+    The last frame of the range is ALWAYS baked even when the step would skip
+    it, so a loop's duplicate end frame is still present for the trim below to
+    detect -- otherwise an odd-length clip silently stops looping seamlessly."""
     scene = bpy.context.scene
     saved = scene.frame_current
+    if step < 1:
+        step = 1
+
+    seq = list(range(frame_start, frame_end + 1, step))
+    if seq and seq[-1] != frame_end:
+        seq.append(frame_end)
 
     frames = []
     try:
-        for f in range(frame_start, frame_end + 1):
+        for f in seq:
             scene.frame_set(f)
             frames.append(_frame_positions(obj, scale))
     finally:
@@ -193,7 +212,7 @@ def write_pva(path, frames, fps, looped, report=print):
 
 
 def export(obj, path, scale=100.0, frame_start=None, frame_end=None,
-           fps=None, trim_loop=True, report=print):
+           fps=None, trim_loop=True, report=print, step=1):
     scene = bpy.context.scene
     if frame_start is None:
         frame_start = scene.frame_start
@@ -201,10 +220,13 @@ def export(obj, path, scale=100.0, frame_start=None, frame_end=None,
         frame_end = scene.frame_end
     if fps is None:
         fps = scene.render.fps
+    if step > 1:
+        fps = max(1, int(round(fps / float(step))))   # the rate it PLAYS at
 
-    report("baking %s frames %d..%d at scale %g"
-           % (obj.name, frame_start, frame_end, scale))
-    frames, looped = bake(obj, frame_start, frame_end, scale, trim_loop, report)
+    report("baking %s frames %d..%d step %d at scale %g"
+           % (obj.name, frame_start, frame_end, step, scale))
+    frames, looped = bake(obj, frame_start, frame_end, scale, trim_loop, report,
+                          step)
     return write_pva(path, frames, fps, looped, report)
 
 
@@ -283,6 +305,8 @@ def _main(argv):
     p.add_argument("--end", type=int, default=None)
     p.add_argument("--fps", type=int, default=None)
     p.add_argument("--no-trim-loop", action="store_true")
+    p.add_argument("--step", type=int, default=1,
+                   help="bake every Nth frame; halves the .pva for step 2")
     a = p.parse_args(argv)
 
     obj = bpy.data.objects.get(a.object)
@@ -294,7 +318,8 @@ def _main(argv):
 
     out = os.path.abspath(a.out)
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    export(obj, out, a.scale, a.start, a.end, a.fps, not a.no_trim_loop)
+    export(obj, out, a.scale, a.start, a.end, a.fps, not a.no_trim_loop,
+           step=a.step)
 
 
 if __name__ == "__main__":

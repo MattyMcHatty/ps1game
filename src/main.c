@@ -71,6 +71,7 @@
 #include "chain_room.h"
 #include "the_hatch.h"
 #include "asag_arena.h"
+#include "asag.h"           /* the boss body; room-scoped, like the Rabisu */
 #include "hatch_doors.h"
 #include "hatch_puzzle.h"
 #include "keystone_plinths.h"
@@ -1368,10 +1369,13 @@ static void update_current_area(GameState area) {
            Skipping update_camera is also what holds a crane shot at its own
            height — apply_height() would otherwise drag cam_y down to the floor.
 
-           Flat box, one floor plane at y=0, so the shared wall routine (generic
-           over current_collision_room) and a single floor zone are the whole of
-           the collision — as the mazes and the Chain Room. Re-check that when
-           the real arena has a terrace in it. */
+           Flat, but no longer a box: the real mesh's proxy is a perimeter with
+           an ALCOVE cut into its back wall, and both tentacles' own geometry is
+           merged into the same wall list (48 walls, from
+           tools/gen_asag_arena_collision.py). Every floor plane is still at
+           y=0, so the shared wall routine (generic over current_collision_room)
+           and TWO flat floor zones are the whole of it. Re-check that when the
+           arena has a terrace in it. */
         apply_collision_reception();
         apply_height();
         update_zombies();      /* none placed, and none ever will be: a sealed */
@@ -1379,6 +1383,13 @@ static void update_current_area(GameState area) {
         update_rabisus();      /* The updaters cost nothing on empty arrays, and */
         item_pickups_update(); /* leaving them in means a debug placement works. */
         sml_meds_update();
+        /* The body's animation clocks. This ADVANCES clips; it does not start
+           any. Every part sits on its bind pose until a director calls
+           asag_play(), so today this walks eight parts, finds ASAG_CLIP_NONE on
+           each and returns - see src/asag.h. It belongs in free play AND in the
+           cutscene branch above, because the reveal animates too. */
+        asag_update();
+
         /* >>> asag_boss_update() GOES HERE TOO, not only in the cutscene branch:
            the fight in the middle is free play and must fall through to it. <<<
 
@@ -2093,6 +2104,7 @@ int main(int argc, const char **argv) {
                the load half and for why the two are split apart rather than
                written as one if/else. */
             if (pending_area != STATE_GARDEN_COURTYARD) rabisus_free_model();
+            if (pending_area != STATE_ASAG_ARENA)       asags_free_model();
 
             /* Per-room SOUND streaming, and the one thing here that DOES touch
                the drive. The Rabisu's reveal clips are too big to keep in SPU
@@ -2198,6 +2210,24 @@ int main(int argc, const char **argv) {
                moment the fight has clips it stops being true. See
                tools/ADDING_THE_ASAG_FIGHT.txt PART 6. <<< */
             if (pending_area == STATE_GARDEN_COURTYARD) rabisus_load_model();
+            /* >>> ASAG'S MODEL IS NOT LOADED HERE. IT IS LOADED AFTER ITS
+               TEXTURE STREAM, further down. <<< The FREE half is still above
+               the bank swap with the Rabisu's, exactly as PART 6 requires -
+               only the LOAD half moved, and it moved to shrink the peak.
+
+               asag_arena_upload_textures() takes a 20 KB scratch buffer and
+               frees it again. Loading the model first means those 20 KB are
+               taken while 119 KB of meshes and clips are already held, so the
+               transition peaks at the sum. Loading it after means the scratch
+               has been freed before the big read starts and the peak is the
+               larger of the two, not the total.
+
+               THAT MATTERS BECAUSE THE REAL BUDGET IS 171 KB, NOT 371.
+               tools/heap_budget.py used to count the top 145 KB of RAM as heap
+               when it is main()'s RenderContext sitting on the stack; sized
+               against that phantom figure, this room crashed inside CdReadSync
+               with $sp INSIDE the buffer being read. See the head of that
+               script. */
 
             /* Upload reception's unique textures into VRAM from their resident RAM
                copies. Pure LoadImage, no CD access (the bytes were preloaded at
@@ -2329,6 +2359,18 @@ int main(int argc, const char **argv) {
                    brackets its own read with cdaudio_suspend/resume. With no
                    textures on the disc yet it returns immediately. <<< */
                 asag_arena_upload_textures();
+
+                /* THE BOSS'S MESHES AND CLIPS, AFTER the stream above and not
+                   before it. The uploader's 20 KB scratch is freed by the time
+                   this line runs, so the transition's peak is this read alone
+                   (~119 KB) instead of this read plus that scratch. See the
+                   long note where the Rabisu's load lives, and PART 6 of
+                   tools/ADDING_THE_ASAG_FIGHT.txt for why a boss model is
+                   room-scoped in the first place.
+
+                   asags_free_model() is still up with the Rabisu's, above the
+                   bank swap: free early, load late is the whole contract. */
+                asags_load_model();
             } else if (pending_area == STATE_WEST_CORRIDOR) {
                 west_corridor_upload_textures();    /* owns nothing: three NARROW
                                                        uploads on the kitchen's
@@ -3076,6 +3118,11 @@ int main(int argc, const char **argv) {
                    104 KB of a boss it has just left behind. Idempotent, so the
                    usual cold-boot case does nothing. */
                 rabisus_free_model();
+                /* ...and Asag's, on identical reasoning. A session that reached
+                   the arena and then went back to the title would otherwise
+                   start the new game still holding 204 KB of a boss it has just
+                   left behind. Idempotent, so a cold boot does nothing. */
+                asags_free_model();
                 /* COLLISION, for the same "the arena may hold any room at all"
                    reason as the geometry above. These two install the delivery
                    area's wall list and floor zones; every other room's _init

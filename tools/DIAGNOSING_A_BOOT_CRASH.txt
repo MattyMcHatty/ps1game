@@ -50,6 +50,33 @@ the game and not OpenBIOS.
 
 
 ------------------------------------------------------------------------------
+ 1A. >>> SEPTEMBER 2026: THE "~234 KB CLIFF" WAS A UNITS BUG. READ THIS. <<<
+------------------------------------------------------------------------------
+Every free-heap figure this document and tools/HEAP_BUDGET.txt quoted before
+September 2026 was ~145 KB too high, and that is why the cliff never made sense.
+
+src/main.c declares `RenderContext ctx;` as a LOCAL in main(). A RenderContext is
+two 64 KB packet buffers plus two 8 KB ordering tables - ~147,600 bytes - and it
+sits on the stack at the top of RAM for the whole run. heap_budget.py counted
+that span as heap.
+
+So "the console would not boot with 226 KB free at rest" was really ~81 KB, and
+"the cliff is between 233 and 235 KB" was really ~86 KB. There was never a
+mysterious threshold: the heap was simply full.
+
+tools/heap_budget.py now subtracts a MEASURED stack floor and prints it as its
+own line. TODAY'S REAL NUMBERS: 208 KB free at rest, ~171 KB at the tightest
+door measured (Asag's arena). If you are comparing against an older figure,
+subtract 145 KB from it first.
+
+The same bug bit Asag's arena in September 2026 - 229 KB of boss meshes and
+clips sized against a reported 361 KB - and produced exactly the signature in
+section 2 below, on every entry to that room. See PART 6A of
+tools/ADDING_THE_ASAG_FIGHT.txt for the full write-up, including the
+instrumented log that caught it.
+
+
+------------------------------------------------------------------------------
  2. WHAT THE CRASH ACTUALLY LOOKS LIKE WHEN RAM RUNS OUT
 ------------------------------------------------------------------------------
 

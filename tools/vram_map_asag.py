@@ -117,7 +117,19 @@ RESERVED = {
 # code cannot drift.
 # ---------------------------------------------------------------------------
 BANK = {
-    # e.g. "asag_floor.tim":  "Arena: the floor          OWNED",
+    # Streamed on the one transition that reaches this room, by
+    # asag_arena_upload_textures(). None is registered with texmgr and none
+    # costs a permanent byte; the room owes no restore on the way out because
+    # its only exit is a transition that runs the destination's own uploader.
+    "mud.tim":        "Arena: floor and mud banks    OWNED  x384 y0",
+    "Boss Wall.tim":  "Arena: the perimeter wall     OWNED  x512 y0",
+    "chain_128.tim":  "Arena: hanging chains, 4bpp   OWNED  x320 y256",
+    # Asag's four skins. They belong to the BOSS but are streamed by the ROOM -
+    # see src/asag_arena.h beside the ASAG_TEX_* slot numbers.
+    "asag.tim":       "Asag: the head                OWNED  x640 y0",
+    "leaf.tim":       "Asag: the four leaves         OWNED  x768 y0",
+    "tentacle.tim":   "Asag: both tentacles          OWNED  x832 y0",
+    "boil.tim":       "Asag: the six boils           OWNED  x704 y256",
 }
 
 # Textures that are startup-resident and are NOT re-uploaded by any room. Taking
