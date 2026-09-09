@@ -163,10 +163,9 @@ static const uint8_t FONT[26][GLYPH_H] = {
 static const uint8_t GLYPH_COMMA[GLYPH_H] = {0,0,0,0,0x04,0x04,0x02};
 static const uint8_t GLYPH_DOT[GLYPH_H]   = {0,0,0,0,0,0x01,0x01};
 /* Three the opening sequence itself never uses — a handle, a contraction and an
-   exclamation — added for the trial build's sign-off screen, which has since
-   been removed. Kept because they cost a few bytes of table and the font is
-   public for exactly this sort of caller. Same convention: bit 0 is the left
-   column. */
+   exclamation — added for the sign-off screen (src/trial_end.c), which needs all
+   three in "@ELECTRICRELOAD", "WHAT'S TO COME" and "THANK YOU!". Same
+   convention: bit 0 is the left column. */
 static const uint8_t GLYPH_AT[GLYPH_H]    = {0x0E,0x11,0x1D,0x15,0x1D,0x01,0x0E};
 static const uint8_t GLYPH_APOS[GLYPH_H]  = {0x04,0x04,0x02,0,0,0,0};
 static const uint8_t GLYPH_BANG[GLYPH_H]  = {0x04,0x04,0x04,0x04,0x04,0,0x04};
@@ -344,10 +343,9 @@ int intro_text_width(const char *s) {
    one TILE per pixel, which roughly halves the primitive count for a screenful
    of text.
 
-   PUBLIC so any other screen that fades text on can use it for the reason the
-   opening sequence has to: the SDK's font streams draw at a fixed brightness, so
-   they cannot be faded at all. (The trial build's sign-off screen was the other
-   caller; it has been removed.) */
+   PUBLIC because the sign-off screen (src/trial_end.c) fades text on in exactly
+   the same way and for the same reason the opening sequence does: the SDK's font
+   streams draw at a fixed brightness, so they cannot be faded at all. */
 void intro_text_draw(RenderContext *ctx, const char *s, int y, int level, int ot) {
     if (level <= 0) return;
     uint8_t r = (uint8_t)(TEXT_R * level / 255);

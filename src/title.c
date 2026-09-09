@@ -117,7 +117,13 @@ static const char *const level_names[] = {
     "GREENHOUSE",
     "CHAIN ROOM",
     "THE HATCH",
-    "ASAG ARENA",
+    /* >>> NO "ASAG ARENA" ROW. <<< The fight is LOCKED OUT of this build, and
+       this list was one of its two ways in — the other was The Hatch's drop
+       (src/main.c, at hatch_puzzle_drop_done()), which now ends the build on the
+       sign-off screen instead. The arena itself is untouched and still builds:
+       STATE_ASAG_ARENA still exists in title.h and every branch that handles it
+       is still in main.c. Put the row back HERE and in level_states /
+       level_pending below — all three, in the same position — to reopen it. */
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -125,7 +131,6 @@ static const char *const level_names[] = {
    STATE_LOADING use level_pending[] below to say which area to switch to. */
 static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_DELIVERY_AREA,
-    STATE_LOADING,
     STATE_LOADING,
     STATE_LOADING,
     STATE_LOADING,
@@ -181,7 +186,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_GREENHOUSE,
     STATE_CHAIN_ROOM,
     STATE_THE_HATCH,
-    STATE_ASAG_ARENA,
+    /* (no ASAG ARENA row — see level_names) */
 };
 
 /* ---- Letter bitmasks: 7 rows x 5 cols, row 0 = top ---- */

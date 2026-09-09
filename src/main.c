@@ -96,6 +96,7 @@
 #include "hadad.h"
 #include "rabisu.h"
 #include "rabisu_boss.h"
+#include "trial_end.h"
 #include "delivery_intro.h"
 #include "world.h"
 #include "fatdoor.h"
@@ -200,6 +201,7 @@ void reset_game(RenderContext *ctx) {
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
+    trial_end_reset();     /* ...and the sign-off screen The Hatch drops into */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
                               BEFORE the arrival is armed on the New Game path
                               (see the frontend hook), so it never cancels the
@@ -394,12 +396,19 @@ static void update_current_area(GameState area) {
        leaves are thrown while the puzzle still owns the camera. Without it they
        would freeze on their first frame.
 
-       THE DROP'S TRANSITION IS TAKEN HERE and not in the room's block below,
-       because the descent never reaches it: hatch_puzzle_active() is true for
-       the whole of the fall. It lands in STATE_ASAG_ARENA (src/asag_arena.h),
-       which is a ONE-WAY pocket — the shaft cannot be climbed back up, and the
-       arena's own exit is the only other way out. That was a placeholder gating
-       back into The Hatch itself until the arena existed. */
+       THE BOTTOM OF THE SHAFT IS THE END OF THE BUILD. It is taken here and not
+       in the room's block below because the descent never reaches that:
+       hatch_puzzle_active() is true for the whole of the fall. The drop used to
+       hand off to STATE_ASAG_ARENA (src/asag_arena.h); it now arms the sign-off
+       screen (src/trial_end.h) instead, which fades the shaft to purple and ends
+       on PRESS START TO RETURN.
+
+       >>> THE ASAG FIGHT IS LOCKED OUT, NOT DELETED. <<< Everything about the
+       arena — the room, the boss, the meshes, the textures, every branch in this
+       file that names STATE_ASAG_ARENA — is still here and still builds. Only
+       the two ways IN were closed: this line, and the ASAG ARENA row that was
+       taken out of title.c's level-select tables. Those two are what to undo to
+       put it back. */
     if (area == STATE_THE_HATCH && hatch_puzzle_active()) {
         update_zombies();
         update_spiders();
@@ -411,16 +420,17 @@ static void update_current_area(GameState area) {
         hatch_doors_update();
         update_particles();
         if (hatch_puzzle_drop_done()) {
-            /* The shaft lands in ASAG'S ARENA. This used to be the placeholder
-               that gated back into The Hatch itself because the room at the
-               bottom did not exist; it does now (src/asag_arena.h), so the drop
-               goes where it was always meant to. The arena is a ONE-WAY pocket:
-               there is no way back up this shaft, and its own exit is the only
-               other way out. */
-            pending_area = STATE_ASAG_ARENA;
-            door_anim_start(DOOR_PANEL_GATE);
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
+            /* Bottom of the shaft: the sign-off, not the arena. No transition
+               and no room change — game_state stays STATE_THE_HATCH and the
+               screen's own branch further down takes the frame from here, the
+               same way the game-over screen does. The room keeps being drawn
+               for the four seconds of the fade because that is what is being
+               faded, so there is nothing to load and nothing to unload.
+
+               NO cdaudio_stop() either: trial_end_start() switches straight to
+               the sign-off's track, and stopping first would leave a hole in
+               the audio at the exact moment the picture starts going out. */
+            trial_end_start();
         }
         return;
     }
@@ -2998,6 +3008,25 @@ int main(int argc, const char **argv) {
                    game_state == STATE_GREENHOUSE) {
             if (game_over) {
                 draw_lose_screen(&ctx);
+            } else if (trial_end_active()) {
+                /* THE END OF THE BUILD (src/trial_end.h), armed by The Hatch the
+                   frame the descent reaches the bottom of the shaft. It owns the
+                   screen exactly the way the game-over screen does: nothing in
+                   the room ticks, no menu, no HUD, and Start goes to the title.
+
+                   The room is still DRAWN for the four seconds of the fade —
+                   that is what is being faded — and not for a frame longer. It
+                   is drawn WITHOUT its update, so the hatch descent is frozen on
+                   its last frame under the wash, which is what is wanted: the
+                   fall is over. */
+                trial_end_update();
+                if (trial_end_world_visible())
+                    draw_current_area(&ctx, game_state);
+                trial_end_draw(&ctx);
+                if (trial_end_finished()) {
+                    reset_game(&ctx);
+                    game_state = STATE_TITLE;
+                }
             } else {
                 /* Capture the area first: handle_menu_open may switch game_state
                    to STATE_MENU mid-frame, but the rest of this frame must keep

@@ -105,6 +105,7 @@ add_executable(horror_game
     src/greenhouse_mesh_collision.c
     src/stables.c
     src/rabisu_boss.c
+    src/trial_end.c
     src/hadad_library.c
     src/hadad_grinder.c
     src/reception_hadad.c
@@ -226,6 +227,7 @@ set_source_files_properties(
     src/hadad_grinder.c
     src/hadad_library.c
     src/rabisu_boss.c
+    src/trial_end.c
     # ASAG'S ARENA's collision table. Init-only -- it fills a CollisionRoom once
     # on room entry and is never touched again -- so it belongs here for the
     # reason every other transition-time module does. At 48 walls it is now the

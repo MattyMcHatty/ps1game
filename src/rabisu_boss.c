@@ -669,10 +669,12 @@ void rabisu_boss_update(void) {
                sequence's cdaudio_stop) with both exits open — rabisu_boss_seals_
                door() is false at RBE_DONE. Free play resumes.
 
-               This used to arm a sign-off screen here (src/trial_end.c: a fade
-               to purple, a closing message and PRESS START TO RETURN), which was
-               the trial build's stopping point. Removed — killing the boss is no
-               longer the end of the game, so it just ends the encounter. */
+               This used to arm the sign-off screen here (src/trial_end.c: a fade
+               to purple, a closing message and PRESS START TO RETURN), because
+               killing the Rabisu was the trial build's stopping point. It is not
+               any more — the build now ends at the bottom of The Hatch's shaft,
+               which is where that screen is armed from today (src/main.c). This
+               path just ends the encounter. */
         }
         break;
 
