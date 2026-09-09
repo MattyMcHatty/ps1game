@@ -67,6 +67,22 @@ const char *menu_item_name(int slot);
    caller must have reset the texture window — see the note in menu_draw. */
 void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
                          int ot_idx);
+/* ---- The reserve count over an icon ---------------------------------------
+   menu_item_count is the ONE answer to "does this slot show a number, and what
+   number" — the ammo reserves, and the Hatch Keys once there are two of them
+   (one is not worth a glyph). 0 means draw nothing. The hatch puzzle's board
+   shows the same icons this menu does and asks the same question of it, so the
+   two can never disagree about what the player is carrying.
+
+   menu_draw_count paints it in the menu's yellow-over-black-shadow digits, with
+   (left_x, bottom_y) the number's left/bottom corner and the shadow one OT step
+   behind ot_idx. menu_count_width is what the pixels will span, so a caller that
+   wants the number in the icon's bottom-RIGHT can subtract it from the right
+   edge — which is what the puzzle board does. */
+int  menu_item_count(int slot);
+int  menu_count_width(int value, int scale);
+void menu_draw_count(RenderContext *ctx, int left_x, int bottom_y, int value,
+                     int scale, int ot_idx);
 /* Draw a WeaponType's icon at an arbitrary screen rect (the HUD's weapon box).
    No ownership check — the caller passes the weapon it wants drawn. The caller
    must have reset the texture window, as for menu_draw_item_icon. */

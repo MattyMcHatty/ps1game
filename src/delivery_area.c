@@ -29,6 +29,18 @@
 static SMD  *room_smd  = NULL;
 static void *room_buff = NULL;
 
+/* ---- Fog / draw distance ---------------------------------------------------
+   DA_FOG_FAR is BOTH the fog-out distance and the polygon cull distance, so the
+   yard never drops a face the fog has not already faded into the sky.
+
+   >>> IT IS TIED TO THE DEMON DOG'S WAKE RADIUS. <<< The dogs out here wake at
+   DDOG_WAKE_RADIUS (demondog.h), measured with the SAME Manhattan sum used
+   below, so the fog has to reach slightly PAST that or a dog wakes and starts
+   barking at a player who cannot see anything but sky. If DDOG_WAKE_RADIUS
+   moves, this moves with it and stays the larger of the two.                  */
+#define DA_FOG_NEAR  455
+#define DA_FOG_FAR  2600   /* DDOG_WAKE_RADIUS (2400) + a little headroom */
+
 /* ---- Per-room textures -----------------------------------------------------
    The remodelled yard draws SEVEN textures where the old one drew four. Three of
    the new set (grss, chnlnk, trees) already exist on the disc for other rooms —
@@ -248,7 +260,7 @@ static void draw_smd_room(RenderContext *ctx) {
         {
             int32_t dx = (int32_t)v0->vx - cam_x;
             int32_t dz = (int32_t)v0->vz - cam_z;
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 1950)
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > DA_FOG_FAR)
                 { p += stride; continue; }
         }
 
@@ -314,7 +326,7 @@ static void draw_smd_room(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog_start = 455, fog_end = 1950;
+        int32_t fog_start = DA_FOG_NEAR, fog_end = DA_FOG_FAR;
         int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
         int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
 
@@ -456,8 +468,8 @@ static void draw_panel(
             int32_t dz = face_cz - cam_z;
             int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
 
-            int32_t fog_start = 455;
-            int32_t fog_end   = 1950;
+            int32_t fog_start = DA_FOG_NEAR;
+            int32_t fog_end   = DA_FOG_FAR;
             int32_t fog = dist;
             if (fog < fog_start) fog = fog_start;
             if (fog > fog_end)   fog = fog_end;
@@ -496,7 +508,7 @@ static void draw_room(RenderContext *ctx) {
 
 void delivery_area_draw(RenderContext *ctx) {
     /* Entities fog with the same near/far as the mesh (matches kitchen/reception). */
-    g_fog_near = 455; g_fog_far = 1950;
+    g_fog_near = DA_FOG_NEAR; g_fog_far = DA_FOG_FAR;
 
     draw_sky_gradient(ctx);
 

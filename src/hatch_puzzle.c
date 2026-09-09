@@ -187,6 +187,9 @@ extern GameState current_area;
 #define HP_OT_LINE            10
 #define HP_OT_TEXWIN           8
 #define HP_OT_ICON             7
+#define HP_OT_COUNT            5   /* the reserve number over an icon: yellow at
+                                      5, its shadow at 6, both in front of the
+                                      icon at 7 — the menu's own three layers */
 #define HP_OT_CURSOR           3
 #define HP_OT_TEXT             1
 
@@ -696,6 +699,25 @@ static void hp_cursor(RenderContext *ctx, int x, int y, int w, int h) {
     hp_outline(ctx, x - 2, y - 2, w + 4, h + 4, 180, 180, 255, HP_OT_CURSOR);
 }
 
+/* The reserve count in an icon's BOTTOM-RIGHT corner, in the menu's digits.
+   >>> THIS IS WHY IT IS HERE AND NOT ONLY IN THE MENU. <<< The hatch eats TWO
+   Hatch Keys, one keyhole at a time, and after the first turn the board comes
+   straight back so the second can be worked without leaving the shot. A player
+   who cannot see that they are still carrying a key has no way to tell the
+   board's "Use" apart from a dead end — so the pair reads as a "2" over the key
+   exactly as it does in the inventory.
+
+   Right-aligned rather than the inventory's left, because these icons sit in
+   boxes with the cell's own outline hard against their left edge. The number is
+   still the menu's — the count, the glyphs and the shadow all come from there
+   (menu_item_count / menu_draw_count), so nothing about it can drift. */
+static void hp_icon_count(RenderContext *ctx, int slot, int x, int y, int size) {
+    int count = menu_item_count(slot);
+    if (!count) return;
+    menu_draw_count(ctx, x + size - menu_count_width(count, 2), y + size,
+                    count, 2, HP_OT_COUNT);
+}
+
 void hatch_puzzle_draw(RenderContext *ctx) {
     /* Nothing while the camera is still flying, nothing over a key's log beat,
        and nothing over the swing or the descent: those are the room and the
@@ -719,11 +741,12 @@ void hatch_puzzle_draw(RenderContext *ctx) {
     /* --- The item box and USE, on the right --- */
     hp_rect(ctx, HP_BOX_X, HP_BOX_Y, HP_BOX_W, HP_BOX_H, 35, 30, 45, HP_OT_PANEL);
     hp_outline(ctx, HP_BOX_X, HP_BOX_Y, HP_BOX_W, HP_BOX_H, 80, 70, 100, HP_OT_LINE);
-    if (box_item >= 0)
-        menu_draw_item_icon(ctx, box_item,
-                            HP_BOX_X + (HP_BOX_W - HP_BOX_ICON) / 2,
-                            HP_BOX_Y + (HP_BOX_H - HP_BOX_ICON) / 2,
-                            HP_BOX_ICON, HP_OT_ICON);
+    if (box_item >= 0) {
+        int ix = HP_BOX_X + (HP_BOX_W - HP_BOX_ICON) / 2;
+        int iy = HP_BOX_Y + (HP_BOX_H - HP_BOX_ICON) / 2;
+        menu_draw_item_icon(ctx, box_item, ix, iy, HP_BOX_ICON, HP_OT_ICON);
+        hp_icon_count(ctx, box_item, ix, iy, HP_BOX_ICON);
+    }
 
     hp_rect(ctx, HP_BOX_X, HP_USE_Y, HP_BOX_W, HP_USE_H, 45, 25, 25, HP_OT_PANEL);
     hp_outline(ctx, HP_BOX_X, HP_USE_Y, HP_BOX_W, HP_USE_H, 120, 70, 70, HP_OT_LINE);
@@ -751,6 +774,8 @@ void hatch_puzzle_draw(RenderContext *ctx) {
             hp_outline(ctx, cx, cy, HP_PICK_CELL, HP_PICK_CELL, 80, 70, 100, HP_OT_LINE);
             menu_draw_item_icon(ctx, s, cx + HP_PICK_PAD, cy + HP_PICK_PAD,
                                 HP_PICK_ICON, HP_OT_ICON);
+            hp_icon_count(ctx, s, cx + HP_PICK_PAD, cy + HP_PICK_PAD,
+                          HP_PICK_ICON);
         }
 
         {

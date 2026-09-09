@@ -61,6 +61,33 @@ static void *the_hatch_buff = NULL;
 #define TH_FOG_NEAR        575
 #define TH_FOG_FAR        2500
 
+/* ---- ...AND THE VIEW DISTANCE THE SCRIPTED CAMERA GETS ---------------------
+   The numbers above are the WALKING view: they are chosen for a camera behind
+   the player's shoulder in a hedged yard, where nothing worth seeing is ever
+   2500 away because the hedges are in the way.
+
+   The hatch puzzle breaks that assumption twice. Its board stands the camera
+   south-east of the hole looking back ACROSS the yard, and its drop rides the
+   camera down 1200 units into the pit; in both shots the sight line is open and
+   long, and geometry a walking camera would never have seen either popped off
+   at the cull line or had already faded flat into the sky. The fix is not to
+   raise the room's view distance -- that would pay for the open shot on every
+   frame of ordinary play, in a room whose mesh is 661 primitives -- but to
+   raise it FOR THE LENGTH OF THE SCENE ONLY, which is what the two variables
+   below are for. hatch_puzzle_active() is the switch: it is 1 from the intro
+   pan through the board, the swing, the look and the whole of the fall.
+
+   The fog-far moves WITH the cull, as everywhere else in this room, so the far
+   end of the yard is drawn dimmed rather than saturated flat into the sky. The
+   near stays at 575: the scene should reach further, not become clearer close
+   up, and moving the near would change the look of everything by the hole. */
+#define TH_SCENE_CULL_DIST 6000
+
+/* This frame's pair, read by the mesh loop below. Set once at the top of
+   the_hatch_draw and left alone by everything else. */
+static int32_t th_cull_dist = TH_CULL_DIST;
+static int32_t th_fog_far   = TH_FOG_FAR;
+
 /* ---- The red light in the pit ----------------------------------------------
    See the_hatch.h for what this is and why it is a vertex tint rather than a
    light. These are its shape.
@@ -549,7 +576,7 @@ static void draw_the_hatch_smd(RenderContext *ctx) {
        — the two trig lookups once for each poly that passed the distance cull,
        the cull distance and the debug test all 661 times. */
     int32_t cull = DEBUG_CULL_DIST();
-    if (!cull) cull = TH_CULL_DIST;
+    if (!cull) cull = th_cull_dist;
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     int     no_frustum = (DEBUG_EXPERIMENT() == DBG_EXP_NO_FRUSTUM);
     /* ...and the pit's light, read ONCE. It is a property of the doors' current
@@ -705,8 +732,8 @@ static void draw_the_hatch_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog = dist < TH_FOG_NEAR ? TH_FOG_NEAR : (dist > TH_FOG_FAR ? TH_FOG_FAR : dist);
-        int32_t fog_factor = ((TH_FOG_FAR - fog) << 8) / (TH_FOG_FAR - TH_FOG_NEAR);
+        int32_t fog = dist < TH_FOG_NEAR ? TH_FOG_NEAR : (dist > th_fog_far ? th_fog_far : dist);
+        int32_t fog_factor = ((th_fog_far - fog) << 8) / (th_fog_far - TH_FOG_NEAR);
 
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
@@ -795,8 +822,22 @@ static void draw_the_hatch_smd(RenderContext *ctx) {
     }
 }
 void the_hatch_draw(RenderContext *ctx) {
-    /* Entities in this room fog with the same near/far as the mesh below. */
-    g_fog_near = TH_FOG_NEAR; g_fog_far = TH_FOG_FAR;
+    /* THIS FRAME'S VIEW DISTANCE, before anything reads it. The puzzle's two
+       scripted shots see further than the walking camera does -- see the note
+       on TH_SCENE_CULL_DIST. One test covers both, because
+       hatch_puzzle_active() is true for the board AND for the drop. */
+    if (hatch_puzzle_active()) {
+        th_cull_dist = TH_SCENE_CULL_DIST;
+        th_fog_far   = TH_SCENE_CULL_DIST;
+    } else {
+        th_cull_dist = TH_CULL_DIST;
+        th_fog_far   = TH_FOG_FAR;
+    }
+
+    /* Entities in this room fog with the same near/far as the mesh below --
+       including the pit's two leaves, which read these on their way through
+       hatch_doors_draw at the bottom of this function. */
+    g_fog_near = TH_FOG_NEAR; g_fog_far = th_fog_far;
 
     /* Background in the SAME colour the fog saturates to, so a poly that has
        faded out is indistinguishable from the void behind it and the cull never

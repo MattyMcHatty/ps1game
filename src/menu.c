@@ -322,6 +322,43 @@ static void draw_number(RenderContext *ctx, int left_x, int bottom_y,
     }
 }
 
+/* ---- The reserve count, shared with the puzzle boards ----------------------
+   The hatch puzzle shows the SAME item icons this menu does (its USE box and its
+   picker call menu_draw_item_icon), so it must be able to show the same numbers
+   over them — a player holding two Hatch Keys has to be able to see that from
+   inside the board, because the puzzle spends one key per keyhole and the second
+   turn happens without leaving the shot.
+
+   Both halves are exported rather than a single draw-the-cell call, because the
+   board right-aligns its number in the icon where this menu left-aligns it; the
+   caller needs the width to do that. WHICH slots carry a number, and from what
+   counter, lives here and only here. */
+int menu_item_count(int slot) {
+    if (slot == MENU_SLOT_ROUNDS       && player_ammo[AMMO_STANDARD] > 0)
+        return player_ammo[AMMO_STANDARD];
+    if (slot == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0)
+        return player_ammo[AMMO_FLAME];
+    /* Hatch keys stack two to a cell. Only worth a number once there are two —
+       a "1" over the icon of a thing you obviously hold once is noise, which is
+       not true of ammo, where the exact reserve is the point. */
+    if (slot == MENU_SLOT_HATCH_KEY    && player_hatch_keys > 1)
+        return player_hatch_keys;
+    return 0;
+}
+
+/* The pixel width draw_number will occupy: digits 3*scale wide, one scale-wide
+   gap between them and none after the last. */
+int menu_count_width(int value, int scale) {
+    int n = 1, v = value;
+    while (v >= 10) { v /= 10; n++; }
+    return n * 3 * scale + (n - 1) * scale;
+}
+
+void menu_draw_count(RenderContext *ctx, int left_x, int bottom_y, int value,
+                     int scale, int ot_idx) {
+    draw_number(ctx, left_x, bottom_y, value, scale, ot_idx);
+}
+
 /* ---- Shared inventory-slot accessors -------------------------------------
    The stove puzzle's item picker shows the SAME items as this column, so the
    slot table below is the single description of what lives in each grid cell
@@ -692,16 +729,13 @@ void menu_update(void) {
 static void draw_item_cell(RenderContext *ctx, int item, int x, int y) {
     if (item < 0) return;
     menu_draw_item_icon(ctx, item, x, y, ICON_SIZE, OT_ICON);
-    /* Ammo count, yellow, tucked into the icon's bottom-left. */
-    if (item == MENU_SLOT_ROUNDS && player_ammo[AMMO_STANDARD] > 0)
-        draw_number(ctx, x, y + ICON_SIZE, player_ammo[AMMO_STANDARD], 2, OT_COUNT);
-    if (item == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0)
-        draw_number(ctx, x, y + ICON_SIZE, player_ammo[AMMO_FLAME], 2, OT_COUNT);
-    /* Hatch keys stack two to a cell. Only worth a number once there are two —
-       a "1" over the icon of a thing you obviously hold once is noise, which is
-       not true of ammo, where the exact reserve is the point. */
-    if (item == MENU_SLOT_HATCH_KEY && player_hatch_keys > 1)
-        draw_number(ctx, x, y + ICON_SIZE, player_hatch_keys, 2, OT_COUNT);
+    /* The reserve count, yellow, tucked into the icon's bottom-left. WHICH items
+       carry one is menu_item_count's business, so this column and the hatch
+       puzzle's board cannot drift apart. */
+    {
+        int count = menu_item_count(item);
+        if (count) draw_number(ctx, x, y + ICON_SIZE, count, 2, OT_COUNT);
+    }
 }
 
 void menu_draw(RenderContext *ctx) {
