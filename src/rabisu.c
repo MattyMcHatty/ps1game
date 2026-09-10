@@ -644,7 +644,7 @@ void rbs_glow_point(RenderContext *ctx, const VECTOR *at, int32_t bright,
 }
 
 /* Brightness split between the pool on the ground and the shaft above it. The
-   shaft is faint because sixteen of them overlap during the reveal and would
+   shaft is faint because twelve of them overlap during the reveal and would
    otherwise white out the middle of the garden. */
 #define RBS_POOL_LEVEL       210
 /* >>> DOUBLED WHEN THE SHAFT'S BACK WALLS WERE CULLED. <<< It was 60 while all
@@ -652,13 +652,13 @@ void rbs_glow_point(RenderContext *ctx, const VECTOR *at, int32_t bright,
    Two walls at 120 sum to the same 240 through the middle; what changes is only
    the silhouette edges, where a single wall is now seen at 120 rather than 60.
    Judged the better trade: the reveal is the one moment in the fight that is
-   FILL-bound (sixteen beams x four walls x three bands = 192 overlapping
-   semi-transparent quads, plus sixteen bright pools), and this halves the
+   FILL-bound (twelve beams x four walls x three bands = 144 overlapping
+   semi-transparent quads, plus twelve bright pools), and this halves the
    shaft's share of it.
    >>> IF THE BEAMS EVER LOOK WRONG, CHANGE THIS NUMBER, NOT THE CULL. <<< The
    two are a pair: restore the cull to 0 in rbs_glow_pillar and this goes back
    to 60. The runbook's ceiling still applies — keep it well under the pool's
-   210, or sixteen overlapping beams white out the middle of the arena. */
+   210, or twelve overlapping beams white out the middle of the arena. */
 #define RBS_SHAFT_LEVEL      120
 #define RBS_SHAFT_H          900   /* how far up the beam reaches               */
 #define RBS_SHAFT_FLARE      150   /* how far out each corner is pushed at the top */
@@ -2063,7 +2063,7 @@ static void draw_rbs_shockwave(RenderContext *ctx, const Rabisu *r) {
     int32_t inner = reach - RBS_SHOCK_BAND;
     if (inner < 0) inner = 0;
 
-    /* One clock for the whole ring: unlike the sixteen lawn lights, this is a
+    /* One clock for the whole ring: unlike the twelve lawn lights, this is a
        single object and shimmering its segments out of phase would break it up
        into twenty separate flickers. */
     uint8_t gr, gg, gb, wr, wg, wb;

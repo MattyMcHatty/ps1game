@@ -57,26 +57,29 @@
    only creep forward — which is why the near shot goes to eye level rather
    than to something merely nearer.
 
-   >>> IT CANNOT COME MUCH CLOSER THAN THIS, AND THE LIMIT IS THE LIGHTS. <<<
-   The lawn lights' shafts FLARE by RBS_SHAFT_FLARE (150) as they rise, so the
-   near row's top corners lean BACK TOWARD THE CAMERA, to z = -721 — and
+   >>> THE LIGHTS USED TO LIMIT HOW CLOSE THIS SHOT COULD COME. NOT ANY MORE. <<<
+   The lawn lights' shafts FLARE by RBS_SHAFT_FLARE (150) as they rise, and
    rbs_glow_quad drops any quad with a vertex past the GTE's +/-1023 screen
-   clamp. From z = -900 those corners project at (997, -836), inside it with
-   nothing to spare, and 180 forward of that they are behind the camera plane
-   entirely. What is at stake is not those quads — at -836 they are far above
-   a +/-120 screen and contribute nothing either way — but the band BELOW
-   them, which does cross the frame and would take the front row of beams out
-   with it. Checked the whole 600-frame path, all sixteen cells, pool and all
-   three bands: nothing that covers screen area is ever dropped. Move this
-   shot forward and that stops being true, and it reads as the beams
-   flickering rather than as a clip.
+   clamp. When the patch still had its fourth row at z[-571,-286], that row's
+   top corners leaned BACK TOWARD THE CAMERA to z = -721; from z = -900 they
+   projected at (997, -836), inside the clamp with nothing to spare, and 180
+   forward of that they were behind the camera plane entirely. What was at
+   stake was never those quads — at -836 they are far above a +/-120 screen
+   and contribute nothing either way — but the band BELOW them, which does
+   cross the frame and would have taken the front row of beams with it.
 
-   The near row's POOLS are below the bottom of the frame here, as the crane
-   shot's near corners are: 571 of ground off-axis at 900 out cannot be held
-   by a 422 half-field, at any pitch that still holds the aim point. Their
-   shafts stand in the foreground instead, which is what the shot is for — and
-   the two outermost of them are the LAST pair to light, so the frame fills
-   from the middle outward as the camera opens.
+   That row is gone (see the twelve lights below). The nearest row now starts
+   at z = -286, so its flared corners reach only z = -436, and from z = -900
+   they project nowhere near the clamp. The shot is UNCHANGED all the same:
+   it was derived from the aim point, not fitted to the lights, and bringing
+   it forward now would be a separate decision with its own reasons.
+
+   The near row's POOLS are still below the bottom of the frame here, as the
+   crane shot's near corners are: 286 of ground off-axis at 900 out is held by
+   a 422 half-field only at a pitch that loses the aim point. Their shafts
+   stand in the foreground instead, which is what the shot is for — and the
+   LAST pair to light are opposite corners of the patch, so the frame still
+   fills from the middle outward as the camera opens.
 
    SHOT 3, the fight. On the south terrace, one wall standoff clear of the z =
    -2000 wall, on the boss's X, at ordinary standing eye height for a y=800
@@ -115,7 +118,7 @@
    Everything the brief states in seconds, stated here once. */
 #define RBE_T_CAM_IN          90   /* 1.5 s glide out to the NEAR shot       */
 #define RBE_T_WATCH          120   /* 2 s of nothing, as specified          */
-#define RBE_T_LIGHTS_UP      180   /* 3 s, sixteen lights two at a time     */
+#define RBE_T_LIGHTS_UP      180   /* 3 s, twelve lights two at a time      */
 #define RBE_T_RISE           300   /* 5 s coming up through the lawn        */
 #define RBE_T_LIGHTS_DOWN    120   /* 2 s fade                              */
 #define RBE_T_LINE           360   /* 6 s per line of scripture             */
@@ -146,29 +149,38 @@
    breadth of soil. */
 #define RBE_RISE_DEPTH       750
 
-/* ---- The sixteen lights -----------------------------------------------------
-   THE central 16 polys of the lawn: the 4x4 block of grass quads centred
-   exactly on the boss's spawn at (-290, 0).
+/* ---- The twelve lights ------------------------------------------------------
+   THE central 12 polys of the lawn: a 4-column by 3-row block of grass quads
+   sitting just north of the boss's spawn at (-290, 0).
 
    These edges are read off "Garden Courtyard.smx", not invented. The sunken
    lawn is an 8x8 grid of flat y=900 quads spanning x[-1437,857] z[-571,1714];
-   its columns are ~286 wide and its rows ~286 deep. The four columns and four
-   rows below are the ones straddling the spawn, and their centre works out at
-   (-291, 0) — the spawn, to within a unit of the mesh's own rounding.
+   its columns are ~286 wide and its rows ~286 deep.
+
+   IT WAS A 4x4 BLOCK CENTRED ON THE SPAWN. The fourth row — the one NEAREST
+   THE CAMERA, z[-571,-286] — was dropped to buy frame time in the reveal: it
+   stood closest to the lens, so its four shafts covered more screen than any
+   other four and cost the most to blend. What is left is no longer centred on
+   the spawn in Z (it runs z[-286,571], centred at 142), and that is fine for
+   the read: the crane looks NORTH at the thing, so the patch now sits behind
+   and around the crown instead of sprawling into the foreground. In X it is
+   unmoved and still straddles the spawn.
 
    Re-export the courtyard mesh and these have to be re-read. */
-#define RBE_LIGHTS            16
+#define RBE_LIGHTS            12
 #define RBE_LAWN_Y           900
 static const int16_t LAWN_X[5] = { -866, -580, -294, -6, 283 };
-static const int16_t LAWN_Z[5] = { -571, -286,    0, 286, 571 };
+static const int16_t LAWN_Z[4] = { -286,    0, 286, 571 };
 
-/* Which pair lights when. Cells are row*4+col, and the order pairs each cell
-   with its diagonal opposite so the patch opens outward from the middle rather
-   than filling in from a corner — the middle is where the thing is coming up.
-   Eight pairs across RBE_T_LIGHTS_UP is one pair every 22 frames. */
+/* Which pair lights when. Cells are row*4+col over 3 rows, and the order pairs
+   each cell with its diagonal opposite so the patch opens outward from the
+   middle rather than filling in from a corner — the middle is where the thing
+   is coming up. On a 4x3 block that opposite is simply 11 - cell, so the
+   pairing survives the dropped row intact: every pair below sums to 11.
+   Six pairs across RBE_T_LIGHTS_UP is one pair every 30 frames. */
 static const uint8_t LIGHT_ORDER[RBE_LIGHTS] = {
-    5, 10,  6,  9,   1, 14,  2, 13,
-    4, 11,  7,  8,   0, 15,  3, 12,
+    5,  6,   1, 10,   2,  9,
+    4,  7,   0, 11,   3,  8,
 };
 static uint8_t light_slot[RBE_LIGHTS];   /* cell -> its position in LIGHT_ORDER */
 
@@ -180,7 +192,7 @@ static uint8_t light_slot[RBE_LIGHTS];   /* cell -> its position in LIGHT_ORDER 
    the beam and the death to read as the same phenomenon as this reveal, and
    one colour ramp and one blend is what actually delivers that rather than
    three effects that merely resemble each other. See the block comment on them
-   in rabisu.h. All this file adds is WHICH sixteen polys, and WHEN. */
+   in rabisu.h. All this file adds is WHICH twelve polys, and WHEN. */
 
 /* ---- Death lights ----------------------------------------------------------
    Four of them, hung on the model's own anchors (RBS_A_* in rabisu.h) via
@@ -524,7 +536,7 @@ void rabisu_boss_update(void) {
 
     case RBE_LIGHTS_UP:
         if (phase_t >= RBE_T_LIGHTS_UP) {
-            /* All sixteen burning. Now it comes up, and only now: the brief
+            /* All twelve burning. Now it comes up, and only now: the brief
                puts the rise AFTER the last pair lights, not overlapping it. */
             r->fade   = 256;
             r->clip_y = RBE_LAWN_Y;
@@ -689,7 +701,7 @@ void rabisu_boss_update(void) {
    drift apart. What belongs here is only WHICH cell and HOW BRIGHT. */
 static void draw_lawn_light(RenderContext *ctx, int cell, int32_t bright) {
     int col = cell & 3, row = cell >> 2;
-    /* Each light runs its own clock, offset by cell, so the sixteen shimmer out
+    /* Each light runs its own clock, offset by cell, so the twelve shimmer out
        of step instead of strobing the whole patch as one lamp. */
     rbs_glow_pillar(ctx, LAWN_X[col], LAWN_X[col + 1],
                     LAWN_Z[row], LAWN_Z[row + 1], RBE_LAWN_Y,
@@ -712,7 +724,7 @@ void rabisu_boss_draw(RenderContext *ctx) {
                    three-quarter brightness when the rise begins and would pop
                    the rest of the way. */
                 int32_t on = ((int32_t)(light_slot[cell] >> 1) *
-                              (RBE_T_LIGHTS_UP - RBE_LIGHT_FADE)) / 7;
+                              (RBE_T_LIGHTS_UP - RBE_LIGHT_FADE)) / 5;
                 bright = ((phase_t - on) * 256) / RBE_LIGHT_FADE;
                 if (bright < 0)   bright = 0;
                 if (bright > 256) bright = 256;
