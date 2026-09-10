@@ -21,6 +21,10 @@
                                       "stepped clear of the opening" */
 #define ZMB_LOS_COMMIT       30    /* frames a zombie keeps charging straight after
                                       last seeing the player (LOS-flicker hysteresis) */
+#define ZMB_LOS_WIDTH        90    /* half-width of the BODY sightline (see
+                                      los_body_blocked). Manhattan-normalised, so the
+                                      real offset lands in [0.7*this, this] -- i.e. 64
+                                      to 90, straddling ZMB_BODY_RADIUS. */
 #define ZMB_HALF_W           62    /* sprite half width (world units), ~1/4 wider */
 #define ZMB_HALF_H          125    /* half height (half the earlier height bump) */
 #define ZMB_Y_OFFSET         25    /* feet stay planted: y_offset + half_h = 150 */

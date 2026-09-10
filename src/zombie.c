@@ -190,15 +190,26 @@ typedef struct {
     int32_t bx, bz;      /* clearance point a little inside zone zb */
 } NavNode;
 
+/* Zones 0 and 1 meet ON the partition node's centre (x=-614), the way East Hall's
+   two zones meet on its fatdoor's z. The partition doorway is the 29-deep tunnel
+   x[-629,-600] z[-500,-249] (FLOOR 3), and each zone swallows half of it: zone 0
+   is tested first, so x<=-614 is zone 0 and the node's own centre reads as zone 0
+   -- the boundary. The earlier pairing put the node at x=-596 with zone 0 running
+   to x=-590, i.e. the node sat 6 units INSIDE its own zone while ZMB_SPEED is 8.
+   A zombie that reached it was still zone 0, still routed to the node it was
+   standing on, and oscillated in that band instead of crossing (the same "parks
+   on the node and never crosses" bug as the 2F Corridor Turn -- see the note
+   above hall_nav_nodes). x=-614 is also the tunnel's true centre and still inside
+   the partition fatdoor's box (x[-645,-585]), so fatdoors_damage_at still lands. */
 static const NavZone kitchen_nav_zones[] = {
-    { -3294, -590, -1000,  1000 },  /* 0: big kitchen room       */
-    {  -640,  600, -1040,  1000 },  /* 1: dining / entry (hub)   */
+    { -3294, -614, -1000,  1000 },  /* 0: big kitchen room       */
+    {  -614,  600, -1040,  1000 },  /* 1: dining / entry (hub)   */
     {  -581,   -8, -1699,  -980 },  /* 2: south corridor         */
     {    18,  591, -1699,  -980 },  /* 3: SE little room         */
 };
 static const NavNode kitchen_nav_nodes[] = {
     /* door x   z    za zb   za-clearance   zb-clearance  */
-    { -596,  -371, 0, 1,  -785, -371,  -445, -371 },  /* big-room <-> dining   */
+    { -614,  -371, 0, 1,  -785, -371,  -445, -371 },  /* big-room <-> dining   */
     { -300, -1013, 1, 2,  -300, -843,  -300, -1183 }, /* dining   <-> corridor */
     {  300, -1013, 1, 3,   300, -843,   300, -1183 }, /* dining   <-> SE-room  */
 };
@@ -352,6 +363,48 @@ static int nav_next_node(int from, int to) {
     return prev_node[z];
 }
 
+/* Is the player out of sight for a BODY this wide?
+ *
+ * >>> A ZERO-WIDTH LINE THREADS GAPS A ZOMBIE CANNOT WALK, AND THAT IS WHAT
+ * WEDGED THEM IN THE KITCHEN DOORWAY. <<< collision_segment_blocked is an exact
+ * test, so no wall ever leaks -- but it asks about the line from the zombie's
+ * CENTRE to the player's, and the zombie is ZMB_BODY_RADIUS*2 = 120 wide while
+ * the kitchen partition's opening is 251. Standing beside that opening a zombie
+ * gets a clean centre line through the CORNER of the gap, whereupon the caller
+ * cancels the doorway staging AND forces blocked=0 (no wall-follow) -- so it
+ * charges the diagonal, catches a shoulder on the jamb, and deadlocks there,
+ * re-arming los_timer every frame because the centre line is still clear.
+ * Sweeping the room's real wall table offline, 17,696 zombie/player sample pairs
+ * across the kitchen have a clear centre line and a blocked body corridor, and
+ * the densest of them sit exactly at the door mouth (x -480..-560, z -280..-520).
+ *
+ * So test the corridor the body would actually sweep: the two lines offset
+ * +/-ZMB_LOS_WIDTH perpendicular to the sightline. Blocked on either shoulder
+ * counts as unseen, and nav routes the zombie to the doorway node instead --
+ * which is what the graph is for.
+ *
+ * The offset is Manhattan-normalised (|dx|+|dz|) to keep it divide-only, no
+ * sqrt: that under-estimates the true length by up to sqrt(2), so the realised
+ * offset lands in [0.7*W, W] rather than exactly W. ZMB_LOS_WIDTH 90 therefore
+ * sweeps 64..90 either side -- at or just above the body radius, which is the
+ * safe direction (slightly over-cautious sight, never over-confident).
+ *
+ * The caller pays for this ONLY when nav says the player is in another zone;
+ * same-zone chases keep the single centre test, so the common case costs what it
+ * always did. */
+static int los_body_blocked(const Zombie *d, int32_t px, int32_t py, int32_t pz) {
+    int32_t dx = px - d->x;
+    int32_t dz = pz - d->z;
+    int32_t m  = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (m == 0) return 0;                       /* on top of us: seen */
+    int32_t ox = (-dz * ZMB_LOS_WIDTH) / m;
+    int32_t oz = ( dx * ZMB_LOS_WIDTH) / m;
+    return collision_segment_blocked(d->x + ox, d->y, d->z + oz,
+                                     px    + ox, py,  pz    + oz) ||
+           collision_segment_blocked(d->x - ox, d->y, d->z - oz,
+                                     px    - ox, py,  pz    - oz);
+}
+
 void update_zombies(void) {
     static int hurt_sfx_cooldown = 0;
     int i;
@@ -454,8 +507,18 @@ void update_zombies(void) {
            and grind on the spot. A short commit timer keeps it charging for a
            beat after the sightline flickers (which it does at that corner), so it
            doesn't flip between "chase" and "stage" every frame. Nav still handles
-           the genuinely out-of-sight case: round the stairwell + batter the door. */
-        if (!collision_segment_blocked(d->x, d->y, d->z, px, py, pz))
+           the genuinely out-of-sight case: round the stairwell + batter the door.
+
+           WHICH sightline depends on whether nav is routing us. Same zone
+           (node < 0) is the hot path and the centre line is enough. Routing
+           across a doorway, ask los_body_blocked instead: a centre line fits
+           through the CORNER of an opening that the body does not, and letting
+           that cancel the staging is what wedged zombies in the kitchen
+           partition. See the note on los_body_blocked. */
+        int seen = (node < 0)
+                     ? !collision_segment_blocked(d->x, d->y, d->z, px, py, pz)
+                     : !los_body_blocked(d, px, py, pz);
+        if (seen)
             d->los_timer = ZMB_LOS_COMMIT;
         else if (d->los_timer > 0)
             d->los_timer--;
@@ -465,18 +528,50 @@ void update_zombies(void) {
             d->nav_clear = -1;   /* seen recently: forget the doorway staging */
         }
         if (node >= 0) {
-            /* Thread the doorway deliberately: first walk to the NEAR-side
-               staging point so we line up square with the opening, THEN step to
-               the door centre (and on to the far-side clearance below once
-               through). Approaching the door centre directly on a diagonal snags
-               the jamb. */
+            /* Thread the doorway deliberately, in TWO stages: walk to the
+               NEAR-side staging point to line up square with the opening, then
+               aim at the FAR-side one. A node's near clearance, its centre and
+               its far clearance are collinear by construction, so aiming at the
+               far point walks straight through the gap.
+               (Approaching the centre on a diagonal instead snags the jamb --
+               that is what the near-side stage is for.)
+
+               >>> NEVER AIM AT THE DOOR CENTRE ITSELF. <<< It was the second
+               stage before, and a zombie that reached it STOPPED: the centre now
+               sits on the zone boundary, so standing there it is still in zone
+               `from`, still routed to this same node, and its goal is the spot
+               it already occupies -- zero drive, parked in the gap. It only ever
+               broke out when the player stepped into the opening and the
+               sightline took over. The far clearance is always on the other side
+               of the boundary, so the zombie keeps a live heading until it has
+               crossed and the zone flip retires the node.
+
+               THE `md <= nd` CLAUSE IS THE LATCH, not an optimisation. Once
+               committed and moving toward the far point, distance to the near
+               point grows back past ZMB_DOOR_CLEAR_DIST, which on its own would
+               flip the goal back and ping-pong the zombie on an 80-radius ring
+               around the near point. Comparing our distance-to-centre against
+               the near point's says "we are already deeper into the throat than
+               the staging point is" -- true for the whole run from the near
+               point to the centre, and past the centre the zone has flipped and
+               the branch below takes over. So the commit never unwinds. */
             const NavNode *N = &nav_nodes[node];
-            int32_t nx = (zfrom == N->za) ? N->ax : N->bx;
-            int32_t nz = (zfrom == N->za) ? N->az : N->bz;
-            int32_t nd = (nx - d->x < 0 ? d->x - nx : nx - d->x) +
-                         (nz - d->z < 0 ? d->z - nz : nz - d->z);
-            if (nd > ZMB_DOOR_CLEAR_DIST) { goal_x = nx;    goal_z = nz;    }
-            else                         { goal_x = N->x;   goal_z = N->z;  }
+            int     from_a = (zfrom == N->za);
+            int32_t nx = from_a ? N->ax : N->bx;   /* near-side staging  */
+            int32_t nz = from_a ? N->az : N->bz;
+            int32_t fx = from_a ? N->bx : N->ax;   /* far-side clearance */
+            int32_t fz = from_a ? N->bz : N->az;
+            int32_t to_near = (nx - d->x < 0 ? d->x - nx : nx - d->x) +
+                              (nz - d->z < 0 ? d->z - nz : nz - d->z);
+            int32_t md = (N->x - d->x < 0 ? d->x - N->x : N->x - d->x) +
+                         (N->z - d->z < 0 ? d->z - N->z : N->z - d->z);
+            int32_t nd = (N->x - nx < 0 ? nx - N->x : N->x - nx) +
+                         (N->z - nz < 0 ? nz - N->z : N->z - nz);
+            if (to_near <= ZMB_DOOR_CLEAR_DIST || md <= nd) {
+                goal_x = fx; goal_z = fz;   /* in the throat: drive straight through */
+            } else {
+                goal_x = nx; goal_z = nz;   /* line up square with the opening first */
+            }
             d->nav_clear = node;          /* remember to clear this door's far side */
         } else if (d->nav_clear >= 0) {
             const NavNode *N = &nav_nodes[d->nav_clear];
