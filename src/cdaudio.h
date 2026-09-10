@@ -6,6 +6,12 @@
 #define CDAUDIO_RECEPTION_TRACK 3   /* reception music */
 #define CDAUDIO_PIANO_TRACK     4   /* piano room music */
 #define CDAUDIO_ANZU_TRACK      5   /* piano room music once the Anzu Tablet is solved */
+/* ...and the SAME track under the title screen, where it plays ONCE and is not
+   heard again until the player reaches the piano room. One track, three uses
+   (title, solved piano room, the end of the game), so it is spelled with its own
+   name at the title's call site rather than the room's — nothing but the number
+   is shared, and a future title track is then a one-line change here. */
+#define CDAUDIO_TITLE_TRACK     CDAUDIO_ANZU_TRACK
 #define CDAUDIO_COURTYARD_TRACK 6   /* garden courtyard music */
 #define CDAUDIO_FOUNTAIN_TRACK  7   /* fountain square music */
 /* Hadad's stalk. The only track in the game that does NOT loop back to its own
@@ -35,6 +41,10 @@
 #define CDAUDIO_ASAG_TRACK      9   /* Asag's arena (RESERVED — see above) */
 
 void cdaudio_init(void);
+/* loop = 1 repeats the track for as long as the room lasts; loop = 0 plays it
+   ONCE and stops the drive at the end of it. A one-shot is still driven by
+   cdaudio_update(), which must therefore keep being called after it starts —
+   without CdlModeAP the drive would otherwise run on into the next track. */
 void cdaudio_play(int track, int loop);
 void cdaudio_update(void);
 void cdaudio_suspend(void);   /* halt CD-DA so the drive is free for data reads */

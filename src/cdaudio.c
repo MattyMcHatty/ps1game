@@ -335,8 +335,23 @@ void cdaudio_play(int track, int loop) {
     issue_play();
 }
 
+/* What to do when any of the end-of-track signals below fires. A LOOPING track
+   goes round again; a ONE-SHOT (cdaudio_play's loop = 0) stops the drive here.
+
+   >>> A ONE-SHOT STILL HAS TO BE POLLED, AND THIS IS WHY. <<< CdlPlay is issued
+   without CdlModeAP (see the strategy note at the top), so the drive does not
+   stop at the end of a track — it runs straight on into the next one. Track 5
+   played once at the title would therefore be followed by tracks 6, 7 and 8,
+   which is the whole of the garden and Hadad's stalk played over the menu. The
+   same polling that finds the loop point is what ends a one-shot cleanly, so
+   cdaudio_update runs for BOTH modes; it used to return early unless looping. */
+static void end_of_track(void) {
+    if (cd_loop_mode) issue_replay();
+    else              cdaudio_stop();
+}
+
 void cdaudio_update(void) {
-    if (!cd_audio_playing || !cd_loop_mode) return;
+    if (!cd_audio_playing) return;
 
     if (++poll_tick < poll_interval) return;
     poll_tick = 0;
@@ -370,7 +385,7 @@ void cdaudio_update(void) {
        direct indicator and is what catches PCSX-Redux. */
     int playing = drive_is_playing();
     if (playing == 0) {
-        if (++notplay_count >= notplay_limit) { issue_replay(); return; }
+        if (++notplay_count >= notplay_limit) { end_of_track(); return; }
     } else if (playing == 1) {
         notplay_count = 0;
     }
@@ -380,7 +395,7 @@ void cdaudio_update(void) {
     int      cur_track = 0;
     if (!read_position(&cur, &cur_track)) {
         /* Signal 2: position reads keep failing — drive has likely stopped. */
-        if (++fail_count >= fail_limit) { issue_replay(); return; }
+        if (++fail_count >= fail_limit) { end_of_track(); return; }
         return;
     }
     fail_count = 0;
@@ -393,21 +408,21 @@ void cdaudio_update(void) {
     if (cd_end_sector > CD_END_MARGIN &&
         cur >= (cd_end_sector - CD_END_MARGIN) &&
         cur <= (cd_end_sector + (75 * 5))) {
-        issue_replay();
+        end_of_track();
         return;
     }
 
     /* Signal 4: playback left our track (into the next track or the lead-out).
        cur_track == 0 is treated as "unknown" and ignored. */
     if (cur_track != 0 && cur_track != cd_track_num) {
-        issue_replay();
+        end_of_track();
         return;
     }
 
     /* Signal 5: position stopped advancing — drive reached end of disc. */
     if (cur <= last_sector) {
         if (++stall_count >= stall_limit) {
-            issue_replay();
+            end_of_track();
             return;
         }
     } else {

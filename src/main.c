@@ -2155,6 +2155,14 @@ int main(int argc, const char **argv) {
     menu_init();
     title_init();
 
+    /* The title's piano, ONCE (see the return-to-title hook at the foot of the
+       loop for the other way in). This is the cold-boot path, and it is a
+       separate call because that hook is keyed on a state CHANGE into the title
+       and prev_state starts out as STATE_TITLE already — so nothing there ever
+       fires on the first screen the player sees. The drive is idle by now: every
+       startup read is above this line, and the title itself reads nothing. */
+    cdaudio_play(CDAUDIO_TITLE_TRACK, 0);
+
     GameState prev_state = STATE_TITLE;
 
     for (;;) {
@@ -2181,6 +2189,16 @@ int main(int argc, const char **argv) {
                exactly what they were).
                New Game is deliberately not included: it goes to STATE_INTRO,
                which opens on a white flash and reads nothing off the disc. */
+            /* ...and if it did route us out, CUT THE MUSIC HERE. One test
+               covers every exit — New Game, a memory-card Load, a debug level
+               jump — because all three do the same thing: set game_state and
+               return. It has to be on THIS line rather than in the destination
+               state, because what comes next on two of those three paths is
+               seconds of blocking disc reads, and CD-DA streaming over a CdRead
+               hangs the drive. (Only New Game would otherwise be covered, and
+               only incidentally, by intro_end's own stop.) */
+            if (game_state != STATE_TITLE) cdaudio_stop();
+
             if (game_state == STATE_TITLE)
                 draw_title(&ctx);
             else if (game_state == STATE_LOADING ||
@@ -3374,6 +3392,10 @@ int main(int argc, const char **argv) {
                then always a no-op. (The read is safe because cdaudio_stop above
                has just freed the drive.) */
             sound_bank_select(SND_BANK_INTRO);
+            /* The title's piano again, once. AFTER the bank select, not before:
+               that call is a CD read, and starting the music first would only
+               make it suspend and resume the drive around it for nothing. */
+            cdaudio_play(CDAUDIO_TITLE_TRACK, 0);
             /* Put the title's purple back. The screen we are coming from owns
                the clear colour and left its own in place — gameplay's black,
                or the game-over screen's red — and draw_title paints only the
