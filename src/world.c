@@ -596,6 +596,29 @@ void world_seed_room(GameState area) {
         mushroom_add(-4039, -1055,   /* A: south end of the west wall run */
                      -4039,   871,   /* B: north end of it                */
                      -149, STATE_OUTSIDE_CATACOMBS);
+
+        /* A small medipac and four Flame Rounds out on the SOUTH-EAST LAWN,
+           the pocket east of the avenue between the south hedge and the
+           z=1406 one. Both sit on the same north-south line 347 and 329 clear
+           of the east perimeter (wall 38, x=4399), and 2100 apart in z, so
+           they are two separate detours off the avenue rather than one pile:
+           the medipac at the south end near the gate, the rounds at the north
+           end where the lawn meets wall 9.
+
+           Nothing else is placed in this half of the room — the mushroom above
+           patrols the WESTERLY room — so neither pickup is contested.
+
+           y: this room's ground is flat at y=0 throughout. -149 is the body
+           reference every sml_med_spawn call passes (spawn floats it above the
+           boards from there), and -50 is the matching floor-level value for
+           item_pickup_spawn, which adds IP_FLOAT_Y=50. Both AUTHORED, not
+           probed: world_seed_room runs for rooms whose geometry is not loaded.
+
+           The count is stated explicitly rather than left to
+           ROUNDS_PER_PICKUP, so a retune of that constant cannot silently
+           change the four rounds asked for here. */
+        sml_med_spawn(4052, -149, -1062);
+        item_pickup_spawn_amount(4070, -50, 1042, PICKUP_FLAME_ROUNDS, 4);
     }
 
     /* Maze One: TWO Mushroom Heads, on the two patrol lines the design asked
@@ -670,6 +693,30 @@ void world_seed_room(GameState area) {
            where its PNG had alpha, so the result is a key seen through wire
            rather than a key pasted over it. */
         item_pickup_set_display(bck, 45, ITEM_PICKUP_ROOM_BIAS);
+
+        /* A small medipac in the CENTRAL POCKET, the stub off the middle of the
+           maze bounded east by the long x=4800 hedge (collision wall 56,
+           z[1300,3700]), south by the z=1300 run (wall 54) and west by the
+           x=4198 / z=1901 corner (walls 62 and 63). Clearance is 226 to the
+           nearest of them, so the pocket is comfortably wider than the player's
+           195 push radius and this is standing floor, not a corner they have to
+           scrape into. Checked reachable by flooding the collision walls at the
+           195 radius out from the west gate spawn.
+
+           It is the maze's only supply and it is deliberately NOT on a route:
+           the through-lines between the three gates all run past this stub
+           rather than into it, so it costs a detour. Nothing contests it — the
+           long northern patrol is at z=3942 and the short south-eastern one at
+           z=418, both far outside MSH_ALERT_RADIUS of here, the nearest
+           rafflesia is (4651,3400) 1763 away, and the bird cage is 1090 south-
+           west at (3730,780).
+
+           y: this maze's floor is flat at y=0 throughout (all twenty-seven
+           collision floor planes agree), so -149 is the body reference every
+           sml_med_spawn call passes — spawn adds SML_MED_FLOAT_Y=50 to float it
+           above the grass from there. AUTHORED, not probed: world_seed_room
+           runs for rooms whose geometry is not resident. */
+        sml_med_spawn(4574, -149, 1639);
     }
 
     /* Maze Two: ONE Mushroom Head on the southern lane, and ONE Living Statue
@@ -745,6 +792,42 @@ void world_seed_room(GameState area) {
                      5691, 517,      /* B: east end of the same lane     */
                      -149, STATE_MAZE_TWO);
         living_statue_add(685, 2330, -281, 1, STATE_MAZE_TWO);
+
+        /* TWO caches of ammunition, one at each far end of the room, so that
+           neither is on the way to the other and the south lane's mushroom
+           stands between them.
+
+           FOUR FLAME ROUNDS in the north-west pocket, the strip between the
+           x=810 hedge (collision wall 46, z[2445,4599]) and the room's north
+           perimeter at z=4599 (wall 44), with the x=210 / z=3999 corner (walls
+           3 and 4) closing it to the south-west. 327 clear of the nearest, so
+           it is open floor. This is the deepest corner of the maze from the
+           south gate and the flame rounds are the scarcer type — a real detour
+           for the better ammunition.
+
+           SIX STANDARD ROUNDS in the south-east alcove, the 600-wide dead-end
+           corridor between the x=5400 and x=6000 hedges (walls 38 and 42)
+           capped at its north end by z=2000 (wall 41). 257 clear. Its mouth
+           opens onto the southern lane at z=802, which is the mushroom's own
+           patrol line — so this one is cheap to reach but has to be taken with
+           the mushroom somewhere on a 4078-unit walk past the entrance.
+
+           Neither is near anything else: the statue's plinth is at (685,2330),
+           the mushroom's lane is z~520, and the closest rafflesia to either is
+           (3700,901), 2150 from the standard rounds. Both were flood-checked
+           reachable from the south gate spawn at the player's 195 wall radius.
+
+           y: this maze is flat at y=0 like Maze One next door, so -50 is the
+           floor-level value for item_pickup_spawn_amount, which adds
+           IP_FLOAT_Y=50 to hover the sprite just above the grass. AUTHORED, not
+           probed — world_seed_room runs for rooms whose geometry is not
+           resident.
+
+           Both counts are stated explicitly rather than left to
+           ROUNDS_PER_PICKUP, so a retune of that constant cannot silently
+           change the quantities asked for here. */
+        item_pickup_spawn_amount( 483, -50, 4239, PICKUP_FLAME_ROUNDS, 4);
+        item_pickup_spawn_amount(5743, -50, 1583, PICKUP_ROUNDS,       6);
     }
 
     /* Reception: HADAD, the ceiling drop. Placed on his APPEARANCE POINT — in
@@ -894,6 +977,27 @@ void world_seed_room(GameState area) {
                   STATE_WEST_CORRIDOR, HAD_ROLE_WEST_CORR_RET);
     }
 
+    /* West Corridor: two boxes of Standard Rounds down the long north-south
+       leg, one cylinder each. Both sit on FLOOR 2 of
+       west_corridor_mesh_collision.c (x[-2044,-6] z[398,1986]) at x=-833,
+       roughly mid-width between that leg's two side walls (-2044 and -6), so
+       neither is against a wall the player is pushed off. The 379 of Z between
+       them clears the sprites' IP_WORLD_HALF=70 several times over, so they
+       read as two separate boxes passed one after the other rather than a pile.
+
+       y=-50 is the floor-level convention for a y=0 room — every floor plane in
+       here is y=0 (the room's multi_level is 0) and item_pickup_spawn adds
+       IP_FLOAT_Y=50, putting each sprite just above the boards.
+
+       Six each, stated explicitly with the _amount form so a retune of
+       ROUNDS_PER_PICKUP cannot silently change the specified quantity. */
+    if (area == STATE_WEST_CORRIDOR) {
+        item_pickup_spawn_amount(-833, -50,  997, PICKUP_ROUNDS,
+                                 GRAVEOLVER_CAPACITY);
+        item_pickup_spawn_amount(-833, -50, 1376, PICKUP_ROUNDS,
+                                 GRAVEOLVER_CAPACITY);
+    }
+
     /* Library Destroyed: a THIRD HADAD, the U-shaped chase. Placed at the east
        end of the west spur, which is where he APPEARS — HAD_ROLE_LIBRARY seeds
        in HAD_ABSENT, so the room is empty until the player reaches its
@@ -1027,6 +1131,34 @@ void world_seed_room(GameState area) {
     if (area == STATE_GREENHOUSE) {
         item_pickup_spawn(-3800, -50, -1700, PICKUP_HELLUMINATOR);
 
+        /* A small medipac and six Standard Rounds in the SOUTH BAY, the
+           room-height chamber at x[-2400,-500] z[-2700,-3900] reached through
+           the 667-wide connector slot at x[-1766,-1099] in the z=-2600/-2700
+           wall pair. Both stand on the same z=-2894 line, 194 clear of the
+           bay's north wall (walls 35/36 at z=-2700) and 1327 apart in x, so
+           they read as two finds in one room rather than a single cache: the
+           medipac at x=-2090 in the WEST half, the rounds at x=-763 in the
+           EAST, either side of the slot the player enters by.
+
+           Clear of the beds: every waist-high bed wall in this room (walls
+           0-11 and 15) sits at z >= -2000, i.e. entirely in the nave and the
+           annexe, so nothing in the south bay is inside one. The bay is also
+           where the fourth mushroom's patrol ends (-1424,-3336) once the room
+           has flooded, which is the point of putting supplies in it.
+
+           y: all FIVE of this room's floor planes are genuinely at y=0, so
+           -149 is the body reference every sml_med_spawn call passes (spawn
+           adds SML_MED_FLOAT_Y=50) and -50 the matching floor-level value for
+           item_pickup_spawn_amount (which adds IP_FLOAT_Y=50). Both AUTHORED,
+           not probed: world_seed_room runs for rooms whose geometry is not
+           resident.
+
+           The count is stated explicitly rather than left to
+           ROUNDS_PER_PICKUP, so a retune of that constant cannot silently
+           change the six rounds asked for here. */
+        sml_med_spawn(-2090, -149, -2894);
+        item_pickup_spawn_amount(-763, -50, -2894, PICKUP_ROUNDS, 6);
+
         /* THE FLOOD'S FOUR MUSHROOM HEADS, and they are seeded ONLY once the
            room has flooded. Unlike the Helluminator above, these do not exist
            in an un-flooded Greenhouse at all — the player takes the Valve
@@ -1078,6 +1210,39 @@ void world_seed_room(GameState area) {
         living_statue_add(1600, 1600, -270, 1, STATE_KEYSTONE_MAZE);
         living_statue_add(3200, 1600, -270, 0, STATE_KEYSTONE_MAZE);
         living_statue_add(4985, -185, -270, 1, STATE_KEYSTONE_MAZE);
+    }
+
+    /* The Chain Room, which until now had NO seed branch at all and so fell
+       through this function seeding nothing. It still holds no enemies — see
+       main.c's update block, whose "the room is seeded empty" note is about
+       those — but it does now hold one small medipac, and that is the reason
+       this branch exists.
+
+       It sits in the SOUTH-EAST CORNER of the yard, 243 in from the brick east
+       wall (collision wall 8, x=1800 over z[-900,500]) and 330 north of the
+       south hedge (wall 3, z=-900), just east of the mouth of the south neck
+       that leads on into the Keystone Maze. Open gravel, well clear of the
+       player's 195 push radius, and flood-checked reachable at that radius from
+       the west gate spawn. Nothing else is near it: the standpipe boxed in by
+       walls 13/14/15 is diagonally opposite at x[1683,1767] z[556,644], and the
+       chains overhead at y=-700 are not collidable.
+
+       Placed here on purpose. This yard is the last breath between Maze Two and
+       the Keystone Maze — the first room in the garden that is not itself a
+       maze — and the corner it is in is passed on the way to the south gate, so
+       it tops the player up going INTO the statues rather than rewarding them
+       for coming out.
+
+       y: one flat plane at y=0 throughout (all three collision floor planes
+       agree, which is why multi_level is 0), so -149 is the body reference
+       every sml_med_spawn call passes and spawn adds SML_MED_FLOAT_Y=50 from
+       there. AUTHORED, not probed: world_seed_room runs for rooms whose
+       geometry is not resident. Note this is a FLOOR placement, so the y=-700
+       caveat in chain_room.h — about anything HUNG in this room taking the
+       brick wall's height rather than the -500 collision ceiling — does not
+       apply. */
+    if (area == STATE_CHAIN_ROOM) {
+        sml_med_spawn(1557, -149, -570);
     }
 }
 
