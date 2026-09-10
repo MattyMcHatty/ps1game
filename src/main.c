@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <psxgpu.h>
 #include <psxgte.h>
+#include <psxcd.h>   /* CdInit: the drive comes up in main now, see the startup block */
 #include <psxpad.h>
 #include <inline_c.h>
 #include "spi.h"
@@ -1821,6 +1822,10 @@ static void draw_debug_overlay(RenderContext *ctx) {
     }
 }
 
+/* Is the red LOADING screen the thing the player is looking at? Gates
+   loading_screen_pump below — see the note there. */
+static int loading_screen_up = 0;
+
 /* Put the red LOADING screen on the television NOW, part-way through a frame,
    instead of at the bottom of it.
 
@@ -1834,11 +1839,44 @@ static void draw_debug_overlay(RenderContext *ctx) {
    would put an empty buffer up and the screen would blink to the clear colour
    mid-load. */
 static void show_loading_screen_now(RenderContext *ctx) {
+    loading_screen_up = 1;
     draw_loading_screen(ctx);
     flip_buffers(ctx);
     draw_loading_screen(ctx);
     flip_buffers(ctx);
     draw_loading_screen(ctx);
+}
+
+/* Put ONE fresh frame of the loading screen on the television, from part-way
+   through a load.
+
+   A load is a single blocking pass inside one frame: the disc reads, the VRAM
+   uploads and the room's setup all run back to back and nothing reaches the
+   screen until the flip at the bottom of the loop, minutes of CD access later.
+   That is why the LOADING screen used to sit perfectly still through a load and
+   read as a hung console. Calling this between the steps of a load draws and
+   flips, which advances the animated axe (src/title.c) by one frame — so the
+   axe is a genuine progress indicator: it moves when a step finishes, and the
+   pauses between its frames are the steps' real durations.
+
+   Costs one VSync per call, which is nothing against the hundreds of
+   milliseconds of blocking CD access either side of it. The DrawSync afterwards
+   is not optional: flip_buffers kicks an asynchronous DrawOTagEnv, and the very
+   next thing a load step does is usually a LoadImage, which must not run while
+   the GPU is drawing.
+
+   Does nothing unless the loading screen is actually the thing on screen.
+   >>> A DOOR TRANSITION DELIBERATELY DOES NOT SHOW IT. <<< That path has
+   already faded to black and has seconds of door animation as runway, so its
+   load is invisible and putting a red LOADING screen in the middle of it would
+   be a regression, not a progress indicator. loading_screen_up is set only by
+   show_loading_screen_now (title-screen Load Game, debug level select) and by
+   the startup block, and cleared the moment a room takes the screen over. */
+static void loading_screen_pump(RenderContext *ctx) {
+    if (!loading_screen_up) return;
+    draw_loading_screen(ctx);
+    flip_buffers(ctx);
+    DrawSync(0);
 }
 
 /* Game-over / restart screen (area-agnostic). */
@@ -1873,7 +1911,18 @@ int main(int argc, const char **argv) {
     SPI_Init(&poll_cb);
 
     /* Show loading screen while CD assets initialise.
-       Two flips fill both double-buffer framebuffers before blocking reads begin. */
+       Two flips fill both double-buffer framebuffers before blocking reads begin.
+       The block below is the longest freeze in the game, so it is pumped
+       throughout (loading_screen_pump) to keep the axe swinging through it. */
+    loading_screen_up = 1;
+
+    /* THE DRIVE COMES UP HERE, not in delivery_area_init() where it used to.
+       The whole point of the axe is to cover the startup block below, so its
+       icon has to be read BEFORE that block starts — and nothing can be read
+       until CdInit has run. Both are one CD access on an otherwise idle drive. */
+    CdInit();
+    loading_screen_load_axe();
+
     draw_loading_screen(&ctx);
     flip_buffers(&ctx);
     draw_loading_screen(&ctx);
@@ -1887,40 +1936,65 @@ int main(int argc, const char **argv) {
 
        LoadImage itself is only safe before the main render loop starts, which is
        why the texture work still happens here and not on entry. */
+    loading_screen_pump(&ctx);
     delivery_area_init();
+    loading_screen_pump(&ctx);
     kitchen_load_assets();     /* kitchen textures (geometry streams on entry) */
+    loading_screen_pump(&ctx);
     reception_load_assets();   /* reception's unique textures -> RAM */
+    loading_screen_pump(&ctx);
     piano_room_load_assets();  /* piano room textures (prpl_wlppr streamed) */
+    loading_screen_pump(&ctx);
     piano_props_load_assets(); /* piano + bookcase props (streamed textures) */
+    loading_screen_pump(&ctx);
     conservatory_load_assets();/* conservatory streamed textures */
+    loading_screen_pump(&ctx);
     hall_2f_load_assets();     /* 2F hall streamed textures */
+    loading_screen_pump(&ctx);
     master_bedroom_load_assets();/* master bedroom streamed textures */
+    loading_screen_pump(&ctx);
     east_hall_load_assets();   /* east hall texture slots (all owned elsewhere) */
+    loading_screen_pump(&ctx);
     library_load_assets();     /* library texture slots (all owned elsewhere) */
+    loading_screen_pump(&ctx);
     library_destroyed_load_assets();/* same seven slots, likewise all owned elsewhere */
+    loading_screen_pump(&ctx);
     east_stairwell_load_assets();/* east stairwell streamed textures */
+    loading_screen_pump(&ctx);
     attic_stairwell_load_assets();/* attic stairwell streamed textures */
+    loading_screen_pump(&ctx);
     attic_exit_load_assets();  /* attic exit streamed textures */
+    loading_screen_pump(&ctx);
     exit_door_puzzle_load_assets();/* the exit door's fixed magenta stone icon */
+    loading_screen_pump(&ctx);
     garden_stairs_load_assets();/* garden stairs streamed textures */
+    loading_screen_pump(&ctx);
     garden_courtyard_load_assets();/* garden courtyard texture slots */
+    loading_screen_pump(&ctx);
     fountain_square_load_assets(); /* fountain square texture slots  */
+    loading_screen_pump(&ctx);
     outside_catacombs_load_assets();/* outside catacombs texture slots */
+    loading_screen_pump(&ctx);
     maze_one_load_assets();    /* maze one texture slots (owns only PIPE) */
+    loading_screen_pump(&ctx);
     maze_two_load_assets();    /* maze two texture slots (owns only PLINTH) */
+    loading_screen_pump(&ctx);
     keystone_maze_load_assets();/* keystone maze slots (owns only PLNTHDMD) */
+    loading_screen_pump(&ctx);
     chain_room_load_assets();  /* chain room slots — TIM_SLOT only, no CD access
                                   and no registration: its two own textures
                                   (PIPECR/CHAINCR, the pipe and chain retargeted
                                   off the brick_wall and gravel_gs pages this
                                   room draws) are STREAMED on entry, as the
                                   Greenhouse's are */
+    loading_screen_pump(&ctx);
     the_hatch_load_assets();   /* the hatch slots - TIM_SLOT only, no CD access
                                   and no registration: its one own texture
                                   (HATCH, the lid, on the trck_clue page) is
                                   STREAMED on entry, as the Chain Room's and the
                                   Greenhouse's are. The heap has no 18 KB to
                                   spare - see the note in src/the_hatch.c */
+    loading_screen_pump(&ctx);
     asag_arena_load_assets();  /* ASAG'S ARENA: does NOTHING, on purpose. It owns
                                   no texture yet, and when it does they will be
                                   streamed on entry with their tpage/clut
@@ -1929,14 +2003,18 @@ int main(int argc, const char **argv) {
                                   anyway because a room missing from this list is
                                   the sort of thing that is noticed three
                                   features later. See src/asag_arena.h */
+    loading_screen_pump(&ctx);
     rear_gate_load_assets();   /* rear gate texture slots (owns the two retargets,
                                   PLNTHRG and DBLDRRG) */
+    loading_screen_pump(&ctx);
     west_corridor_load_assets();/* west corridor texture slots — TIM_SLOT only; it
                                    owns no texture and registers nothing */
+    loading_screen_pump(&ctx);
     stables_load_assets();     /* stables textures: the FOUR it owns — the most
                                   of any room — plus four TIM_SLOT lines for the
                                   garden chain's. See src/stables.h on the
                                   garden-west VRAM bank they are the start of */
+    loading_screen_pump(&ctx);
     greenhouse_load_assets();  /* greenhouse texture slots — TIM_SLOT only. It
                                   owns FIVE textures, more than any room, but it
                                   registers NOTHING: five come through the
@@ -1946,75 +2024,127 @@ int main(int argc, const char **argv) {
                                   choice — see the table in src/greenhouse.c and
                                   tools/HEAP_BUDGET.txt. Costs no CD access at
                                   all here. */
+    loading_screen_pump(&ctx);
     chainlink_doors_load_assets();/* chainlink gate prop geometry + texture header */
+    loading_screen_pump(&ctx);
     levers_load_assets();      /* wall lever prop geometry (flat-shaded, no texture) */
+    loading_screen_pump(&ctx);
     trick_drawers_load_assets();/* 2F hall chest-of-drawers prop + texture */
+    loading_screen_pump(&ctx);
     concrete_props_load_assets();/* concrete block/chair props + shared texture */
+    loading_screen_pump(&ctx);
     copper_pot_load_assets();  /* copper pot collectible (texture deferred, key slot) */
+    loading_screen_pump(&ctx);
     fatdoors_load_assets();    /* kitchen entryway doors (texture + geometry) */
+    loading_screen_pump(&ctx);
     fatdoors_init();
+    loading_screen_pump(&ctx);
     vines_load_assets();       /* vine curtains: GEOMETRY ONLY. Their texture
                                   is streamed by the Greenhouse on entry, not
                                   held resident — the prop appears in that
                                   room and nowhere else. See src/vines.c. */
+    loading_screen_pump(&ctx);
     vines_init();
+    loading_screen_pump(&ctx);
     valve_handles_load_assets();/* valve handle: geometry only too, and not
                                   even that much texture work — it draws with
                                   whichever pipe texture the room it is in
                                   already has up. */
+    loading_screen_pump(&ctx);
     valve_handles_init();
+    loading_screen_pump(&ctx);
     tentacles_load_assets();   /* tentacle enemy sprites (resident) */
+    loading_screen_pump(&ctx);
     tentacles_init();          /* conservatory + attic exit tentacles */
+    loading_screen_pump(&ctx);
     intro_load_assets();       /* opening sequence's mansion still (texture) */
+    loading_screen_pump(&ctx);
     door_anim_load_assets();   /* level-transition door panel (texture) */
+    loading_screen_pump(&ctx);
     stair_anim_load_assets();  /* conservatory<->2F stair-climb transition (upstairs tex) */
+    loading_screen_pump(&ctx);
     collision_init();
+    loading_screen_pump(&ctx);
     floor_zones_init();
+    loading_screen_pump(&ctx);
     crates_init();
+    loading_screen_pump(&ctx);
     dining_tables_init();      /* static kitchen props (loads DINTABLE.SMD) */
+    loading_screen_pump(&ctx);
     save_points_init();        /* reusable save-point prop (loads SAVEPT.SMD) */
+    loading_screen_pump(&ctx);
     dresser_load_assets();     /* reusable dresser prop: geometry + preload its
                                   streamed texture (uploaded on reception entry) */
+    loading_screen_pump(&ctx);
     grinder_load_assets();     /* reusable grinder prop: geometry + its texture,
                                   which owns its VRAM outright and so goes up
                                   here ONCE — there is no per-entry upload */
+    loading_screen_pump(&ctx);
     keys_init();
+    loading_screen_pump(&ctx);
     sml_meds_init();
+    loading_screen_pump(&ctx);
     anzu_tex_load();               /* the six Anzu tiles (LoadImage: startup only) */
+    loading_screen_pump(&ctx);
     item_pickups_load_textures();  /* Grave-olver + rounds sprites (LoadImage: startup only) */
+    loading_screen_pump(&ctx);
     bullet_hits_load_texture();    /* bullet-impact sprite (resident, all levels) */
+    loading_screen_pump(&ctx);
     door_init();
+    loading_screen_pump(&ctx);
     demon_dogs_init();
+    loading_screen_pump(&ctx);
     zombies_load_textures();   /* LoadImage at startup only (see TEXTURING_NOTES) */
+    loading_screen_pump(&ctx);
     zombies_init();            /* capture spawn defaults (none placed yet) */
+    loading_screen_pump(&ctx);
     spiders_load_textures();   /* same rule: CD read at startup only. The two body
                                   sprites go through texmgr because the Rafflesia
                                   time-shares their VRAM slots — see below. */
+    loading_screen_pump(&ctx);
     spiders_init();
+    loading_screen_pump(&ctx);
     rafflesias_load_assets();  /* garden flower sprites: REGISTERED here, uploaded
                                   on entry to the Outside Catacombs (they sit in
                                   the spiders' two VRAM slots; see rafflesia.h) */
+    loading_screen_pump(&ctx);
     rafflesias_init();         /* the three Outside Catacombs beds */
+    loading_screen_pump(&ctx);
     mushrooms_load_textures(); /* startup CD read only, as above. The four
                                   sprites OWN their VRAM slots (no time-share,
                                   so nothing to re-upload on a transition) —
                                   see mushroom.h */
+    loading_screen_pump(&ctx);
     mushrooms_init();
+    loading_screen_pump(&ctx);
     living_statues_load_textures(); /* startup CD read only, as above. Both
                                   sprites OWN their VRAM slots in the 96-row
                                   band under the HUD — see living_statue.h */
+    loading_screen_pump(&ctx);
     living_statues_init();
+    loading_screen_pump(&ctx);
     hadads_load_textures();    /* startup CD read only, as above. All THREE
                                   sprites own their VRAM slots in the same
                                   96-row band under the HUD — see hadad.h */
+    loading_screen_pump(&ctx);
     hadads_init();
+    loading_screen_pump(&ctx);
     rabisus_load_assets();     /* the boss's SKIN only: one texmgr registration.
                                   The MODEL is room-scoped — loaded and freed by
                                   STATE_LOADING. See src/rabisu.c. */
+    loading_screen_pump(&ctx);
     rabisus_init();            /* array starts empty; world_enter places it */
+    loading_screen_pump(&ctx);
     weapons_init();
+    loading_screen_pump(&ctx);
     sound_init();
+    loading_screen_pump(&ctx);
     cdaudio_init();
+    loading_screen_pump(&ctx);
+
+    /* The startup block is done and the title screen is about to take the
+       television over, so the pump goes quiet until the next real load. */
+    loading_screen_up = 0;
 
     FntLoad(960, 0);
     gameover_fnt = FntOpen(40,  104, 240, 32, 0, 128);
@@ -2118,6 +2248,7 @@ int main(int argc, const char **argv) {
                while CD-DA streams hangs the drive
                (tools/TEXTURE_STREAMING_DEBUG.txt). */
             load_area_geometry(pending_area);
+            loading_screen_pump(&ctx);
 
             /* RELEASE THE OUTGOING BOSS'S MODEL, AND DO IT HERE — FIRST, BEFORE
                ANYTHING ELSE ALLOCATES. See the block below sound_bank_select for
@@ -2125,6 +2256,7 @@ int main(int argc, const char **argv) {
                written as one if/else. */
             if (pending_area != STATE_GARDEN_COURTYARD) rabisus_free_model();
             if (pending_area != STATE_ASAG_ARENA)       asags_free_model();
+            loading_screen_pump(&ctx);
 
             /* Per-room SOUND streaming, and the one thing here that DOES touch
                the drive. The Rabisu's reveal clips are too big to keep in SPU
@@ -2230,6 +2362,7 @@ int main(int argc, const char **argv) {
                moment the fight has clips it stops being true. See
                tools/ADDING_THE_ASAG_FIGHT.txt PART 6. <<< */
             if (pending_area == STATE_GARDEN_COURTYARD) rabisus_load_model();
+            loading_screen_pump(&ctx);
             /* >>> ASAG'S MODEL IS NOT LOADED HERE. IT IS LOADED AFTER ITS
                TEXTURE STREAM, further down. <<< The FREE half is still above
                the bank swap with the Rabisu's, exactly as PART 6 requires -
@@ -2454,6 +2587,7 @@ int main(int argc, const char **argv) {
                 addPrim(&ctx.buffers[ctx.active_buffer].ot[OT_LENGTH - 1], bg);
                 ctx.next_packet += sizeof(TILE);
             }
+            loading_screen_pump(&ctx);
             /* Snapshot the room we're leaving so its progress (defeated enemies,
                smashed crates, collected pickups, door state) persists. */
             world_leave(current_area);
@@ -2892,6 +3026,10 @@ int main(int argc, const char **argv) {
                                                            kitchen, restarted on
                                                            arrival — see there */
             }
+            /* The room is built; it draws itself from the bottom of this frame
+               on, so the loading screen is finished with. */
+            loading_screen_up = 0;
+
             /* Restore the entered room's entities into the live arrays. */
             world_enter(pending_area);
             current_area = pending_area;
@@ -3140,6 +3278,7 @@ int main(int argc, const char **argv) {
                    loading it. Music is not playing yet on this path, so the read
                    is uncontended. */
                 delivery_load_geometry();
+                loading_screen_pump(&ctx);
                 /* Then the slots the conservatory may have streamed over in a
                    previous session segment. GPU idled first (pure LoadImage from
                    RAM, same rule as the loading branch). */
@@ -3162,6 +3301,7 @@ int main(int argc, const char **argv) {
                    start the new game still holding 204 KB of a boss it has just
                    left behind. Idempotent, so a cold boot does nothing. */
                 asags_free_model();
+                loading_screen_pump(&ctx);
                 /* COLLISION, for the same "the arena may hold any room at all"
                    reason as the geometry above. These two install the delivery
                    area's wall list and floor zones; every other room's _init
@@ -3186,6 +3326,14 @@ int main(int argc, const char **argv) {
                    title-screen Load Game reaches this same block straight from
                    STATE_TITLE and must drop the player in unceremoniously. */
                 if (prev_state == STATE_INTRO) delivery_intro_start();
+
+                /* Delivery is built and takes the screen from the bottom of this
+                   frame, so the loading screen is finished with. Cleared INSIDE
+                   this branch, not outside it: a title-screen Load Game into any
+                   OTHER room reaches this same block with game_state still
+                   STATE_LOADING, and its load — the one that most needs the axe
+                   — has not run yet. */
+                loading_screen_up = 0;
             }
             /* The room we are "coming from" is now the fresh start, not
                whatever room the previous session ended in. STATE_LOADING reads

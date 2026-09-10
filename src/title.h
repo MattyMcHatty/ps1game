@@ -124,6 +124,15 @@ void update_title(void);
 void draw_title(RenderContext *ctx);
 void draw_loading_screen(RenderContext *ctx);
 
+/* Read the crucifaxe icon the loading screen's animated axe is drawn with.
+   >>> CALL THIS BEFORE THE FIRST draw_loading_screen. <<< It is the very first
+   thing main() loads, ahead of the whole startup asset block, because that
+   block is the longest freeze in the game and the axe is what tells the player
+   it is a freeze with something happening behind it. Without it the loading
+   screen simply draws no axe (it is not an error — the icon is a nice-to-have,
+   not a dependency). */
+void loading_screen_load_axe(void);
+
 /* The game's title alone, at the title screen's own size and position, in an
    arbitrary colour. The opening sequence (src/intro.c) takes the title over at
    the moment New Game is confirmed and fades this out; the letter bitmaps and

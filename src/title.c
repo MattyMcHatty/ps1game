@@ -1,5 +1,9 @@
 #include <stdint.h>
+#include <stdlib.h>
 #include <psxgpu.h>
+#include <psxgte.h>
+#include <psxetc.h>
+#include <psxcd.h>
 #include <psxpad.h>
 #include "render.h"
 #include "title.h"
@@ -923,6 +927,138 @@ void update_title(void) {
     }
 }
 
+/* ---- The loading screen's slashing crucifaxe ------------------------------
+   The red LOADING screen used to be completely static apart from three dots,
+   which on a long room build reads as a hung console rather than a busy one.
+   The axe gives it constant motion: it swings down and back on the spot while
+   travelling from one side of the screen to the other, then flips and comes
+   back the other way.
+
+   >>> THIS ONLY MOVES IF SOMEBODY PUMPS IT. <<< A load is one long BLOCKING
+   pass inside a single frame (main.c's STATE_LOADING), so nothing on screen
+   changes for its whole duration unless the loader stops between steps to draw
+   and flip. main.c's loading_screen_pump() is that stop; the animation state
+   below advances once per draw, so the number of frames the player sees is
+   exactly the number of pump calls. Adding a step to a load without pumping
+   after it simply freezes the axe for that step's duration.
+
+   The icon is the menu's CRFXICON.TIM, loaded again here rather than borrowed
+   from menu.c: menu_init() runs at the END of main()'s startup block, and the
+   longest freeze in the game is that block itself. Loading it first thing means
+   the axe is already on screen for it. The second LoadImage in menu_init hits
+   the same VRAM address with the same pixels, so the two copies cost a CD read,
+   not VRAM. */
+
+static uint16_t axe_tpage = 0;   /* 0 = not loaded; the loading screen skips it */
+static uint16_t axe_clut  = 0;
+static uint8_t  axe_u0 = 0, axe_v0 = 0, axe_u1 = 0, axe_v1 = 0;
+
+/* The spin rate is per DRAWN FRAME, and a load draws nowhere near sixty of
+   those a second — it draws one per loading_screen_pump() call, which is one
+   per step of the load. It is therefore tuned against the number of pumps a
+   load makes (a few dozen), not against a frame rate: at 30 degrees a frame the
+   axe turns a full circle every twelve steps. Slower and it reads as a still
+   image with a twitch in it, which is the thing this is here to avoid. */
+#define AXE_SIZE     24   /* on-screen square, in pixels                     */
+#define AXE_MARGIN   16   /* gap kept between the icon and the screen edges  */
+#define AXE_SPIN_DEG 30   /* degrees turned per drawn frame                  */
+
+void loading_screen_load_axe(void) {
+    CdlFILE file;
+    if (!CdSearchFile(&file, "\\CRFXICON.TIM;1")) return;
+    int   sectors = (file.size + 2047) / 2048;
+    void *buf     = malloc(sectors * 2048);
+    if (!buf) return;
+    CdControl(CdlSetloc, &file.pos, NULL);
+    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
+    CdReadSync(0, NULL);
+
+    TIM_IMAGE tim;
+    GetTimInfo((uint32_t *)buf, &tim);
+    LoadImage(tim.prect, tim.paddr);
+    DrawSync(0);
+    if (tim.mode & 0x8) {
+        LoadImage(tim.crect, tim.caddr);
+        DrawSync(0);
+        axe_clut = getClut(tim.crect->x, tim.crect->y);
+    }
+
+    /* UV within the tpage - same derivation as menu.c's load_icon_tim. */
+    int bpp_mode = tim.mode & 3;
+    int px_mult  = (bpp_mode == 0) ? 4 : (bpp_mode == 1) ? 2 : 1;
+    int u_off    = (tim.prect->x & 63) * px_mult;
+    axe_u0 = (uint8_t)u_off;
+    axe_v0 = (uint8_t)(tim.prect->y % 256);
+    axe_u1 = (uint8_t)(u_off + tim.prect->w * px_mult - 1);
+    axe_v1 = (uint8_t)(axe_v0 + tim.prect->h - 1);
+
+    axe_tpage = getTPage(bpp_mode, 0, tim.prect->x, tim.prect->y);
+    free(buf);
+}
+
+/* One frame of the axe: advance the walk and the swing, then sort a rotated
+   POLY_FT4 for it. Called from draw_loading_screen only. */
+static void draw_loading_axe(RenderContext *ctx) {
+    if (!axe_tpage) return;
+
+    /* Parked in the bottom-left corner, one margin in from both edges. It does
+       not travel: the spin alone is the "something is still happening" signal,
+       and a fixed position keeps it out of the way of the word above it. */
+    const int32_t half = AXE_SIZE / 2;
+    const int32_t cx   = AXE_MARGIN + half;
+    const int32_t cy   = 240 - AXE_MARGIN - half;
+
+    /* Turned a fixed amount every drawn frame, wrapping at a full circle.
+       Measured in ONE units (4096 = 360 degrees) rather than degrees so the
+       wrap is exact and nothing accumulates rounding. */
+    static int32_t ang = 0;
+    ang = (ang + (AXE_SPIN_DEG * ONE) / 360) & (ONE - 1);
+    int32_t sn = isin(ang), cs = icos(ang);
+
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    if (ctx->next_packet + sizeof(POLY_FT4) + sizeof(DR_TWIN) > buf_end) return;
+
+    POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
+    setPolyFT4(poly);
+    setRGB0(poly, 255, 255, 255);  /* dark source art, drawn at 2x as the HUD's is */
+
+    /* Corners TL, TR, BL, BR, each rotated about the centre - which is the
+       centre of the icon's own square, so the axe turns on the spot. The quad
+       is the whole trick: the GPU shears the texture to fit whatever four
+       corners it is given. */
+    int32_t cos_h = (cs * half) >> 12;   /* half-diagonal components, once */
+    int32_t sin_h = (sn * half) >> 12;
+    setXY4(poly,
+           cx - cos_h + sin_h, cy - sin_h - cos_h,   /* top-left     */
+           cx + cos_h + sin_h, cy + sin_h - cos_h,   /* top-right    */
+           cx - cos_h - sin_h, cy - sin_h + cos_h,   /* bottom-left  */
+           cx + cos_h - sin_h, cy + sin_h + cos_h);  /* bottom-right */
+
+    poly->u0 = axe_u0;  poly->v0 = axe_v0;
+    poly->u1 = axe_u1;  poly->v1 = axe_v0;
+    poly->u2 = axe_u0;  poly->v2 = axe_v1;
+    poly->u3 = axe_u1;  poly->v3 = axe_v1;
+
+    poly->tpage = axe_tpage;
+    poly->clut  = axe_clut;
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[2], poly);
+    ctx->next_packet += sizeof(POLY_FT4);
+
+    /* Reset the texture window before the icon, for the reason menu.c does it:
+       a room that sorted a 128x128 window at the top of the OT is still active
+       here, and this icon's texture sits at V offset 128 within its page - with
+       the window left in place it samples the texture above it instead.
+       RECT{0,0,0,0} = full page. Sorted BEHIND the icon (higher OT index) so the
+       GPU applies it before the icon is drawn. */
+    {
+        RECT full = {0, 0, 0, 0};
+        DR_TWIN *tw = (DR_TWIN *)ctx->next_packet;
+        setTexWindow(tw, &full);
+        addPrim(&ctx->buffers[ctx->active_buffer].ot[3], tw);
+        ctx->next_packet += sizeof(DR_TWIN);
+    }
+}
+
 void draw_loading_screen(RenderContext *ctx) {
     /* Full-screen red background */
     TILE *bg = (TILE *)ctx->next_packet;
@@ -935,17 +1071,16 @@ void draw_loading_screen(RenderContext *ctx) {
 
     int32_t tile_size    = 4;
     int32_t letter_width = 5 * tile_size + tile_size;  /* 24 */
-    int32_t start_x      = (320 - (7 * letter_width)) / 2;
+    int32_t start_x      = (320 - (7 * letter_width)) / 2;   /* "LOADING" = 7 */
     int32_t start_y      = 100;
     draw_title_string(ctx, "LOADING", start_x, start_y, tile_size, 255, 255, 255);
 
-    /* Animated dots centred below the word, cycling 0->1->2->3 every 30 frames */
-    static int32_t dot_timer = 0;
-    dot_timer++;
-    int32_t dot_count = (dot_timer / 30) % 4;
-    int32_t dot_y     = start_y + 7 * tile_size + tile_size * 2;
-    int32_t dot_x     = (320 - (3 * letter_width)) / 2;
-    if (dot_count >= 1) draw_title_string(ctx, ".", dot_x,                    dot_y, tile_size, 255, 255, 255);
-    if (dot_count >= 2) draw_title_string(ctx, ".", dot_x + letter_width,     dot_y, tile_size, 255, 255, 255);
-    if (dot_count >= 3) draw_title_string(ctx, ".", dot_x + letter_width * 2, dot_y, tile_size, 255, 255, 255);
+    /* NO ANIMATED DOTS. There used to be three, cycling every thirty frames,
+       and at tile_size 4 the title font draws each one as a plain white block.
+       They never cycled either: a load draws one frame per step (see the pump
+       note above), so thirty of them is longer than most loads and what the
+       player actually saw was a couple of white squares sitting still under the
+       word. The axe is the progress indicator now. */
+
+    draw_loading_axe(ctx);
 }

@@ -180,7 +180,11 @@ void delivery_upload_gravel(void) { texmgr_upload(shared_id[0]); }
 void delivery_upload_double_door(void) { texmgr_upload(shared_id[3]); }
 
 void delivery_area_init(void) {
-    CdInit();
+    /* NO CdInit HERE ANY MORE. main() does it, several lines earlier, so that
+       the loading screen's axe icon can be read off the disc BEFORE the startup
+       asset block rather than after this function — which is itself a second of
+       that block. Calling it again here would reset a drive that is already up
+       and mid-use. */
     scSetClipRect(0, 0, SCREEN_XRES, SCREEN_YRES);
 
     load_tim_to_vram("\\GRAVEL.TIM;1",  0);
