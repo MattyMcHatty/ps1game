@@ -17,7 +17,7 @@
 
 /* ------------------------------------------------------------------- layout */
 #define TE_LINE_SPACING   14
-#define TE_ROWS            9   /* seven lines and the two blank rows between   */
+#define TE_ROWS           12   /* nine lines and the three blank rows between  */
 #define TE_TOP     (120 - TE_ROWS * TE_LINE_SPACING / 2)
 
 /* OT buckets. Lower draws later, so the text sits over the wash. The HUD and
@@ -52,9 +52,17 @@ static const TeLine SCRIPT[TE_ROWS] = {
     { "THANK YOU!",                                        405 },
     { 0,                                                     0 },
     { "PRESS START TO RETURN",                             510 },
+    { 0,                                                     0 },
+    /* The debug-mode hint. Both halves share a start time because they are one
+       sentence: staggering them would read as the second line being a separate
+       thought rather than the end of the first. At the font's advances they are
+       207px and 205px, so they sit well inside the 320px the longest line above
+       already tests. */
+    { "HOLD L1, L2, R1, R2, SELECT AND START",             585 },
+    { "ON THE MAIN MENU TO ENTER DEBUG MODE!",             585 },
 };
 
-#define TE_T_TEXT_END (510 + TE_LINE_FADE + TE_HOLD_AFTER)
+#define TE_T_TEXT_END (585 + TE_LINE_FADE + TE_HOLD_AFTER)
 
 /* -------------------------------------------------------------------- state */
 static int      active   = 0;

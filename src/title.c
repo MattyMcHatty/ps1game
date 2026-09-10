@@ -745,6 +745,11 @@ void title_init(void) {
 #define NAV_RATE    4   /* frames between repeats after that    */
 #define NAV_DIRS   (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT)
 
+/* What has to be held at once to open the debug menu from the title screen.
+   Kept in step with the hint the trial-end screen prints (src/trial_end.c) —
+   change one and the other is wrong. */
+#define DEBUG_COMBO (PAD_L1 | PAD_L2 | PAD_R1 | PAD_R2 | PAD_SELECT | PAD_START)
+
 /* Returns the directions that should act THIS frame: the newly pressed ones,
    plus the held ones once their timer comes round. */
 static uint16_t nav_repeat(uint16_t held, uint16_t pressed) {
@@ -776,13 +781,23 @@ void update_title(void) {
     uint16_t nav = nav_repeat(held, pressed);
 
     if (!debug_menu_open && tmenu == TM_CLOSED) {
-        if (pressed & PAD_SELECT) {
+        /* The debug menu is behind a deliberate handful: all four shoulders plus
+           Select and Start, held together. It fires on the frame the LAST of the
+           six goes down (`pressed` touches the set and `held` has all of it), so
+           the order they are pressed in does not matter and a held combo cannot
+           re-fire.
+
+           Start is part of the combo, so the plain-Start branch has to be an
+           `else if` AND has to see that none of the other five are down —
+           otherwise rolling onto the combo with Start first would open New Game
+           on the way in. */
+        if ((pressed & DEBUG_COMBO) && (held & DEBUG_COMBO) == DEBUG_COMBO) {
             debug_menu_open   = 1;
             debug_menu_cursor = 0;
             debug_scroll      = 0;
             debug_scroll_follow();
             sound_play(SFX_SELECT);
-        } else if (pressed & PAD_START) {
+        } else if ((pressed & PAD_START) && !(held & (DEBUG_COMBO & ~PAD_START))) {
             tmenu        = TM_MAIN;   /* New Game / Load Game */
             tmenu_cursor = 0;
             tmenu_msg    = 0;
@@ -794,7 +809,9 @@ void update_title(void) {
     if (debug_menu_open) {
         /* Up/Down moves within the active column, Left/Right switches column,
            Circle loads (levels) or flips the toggle (options), Cross backs out.
-           Select still closes the menu as well — it is the key that opened it. */
+           Select on its own still closes the menu: closing it does not need to
+           be as awkward as reaching it, and Select is the part of the combo a
+           player's thumb is already on. */
         /* One cursor blip for any move, whichever column it happens in — a
            column switch reads as a cursor move to the player exactly as an
            up/down step does. */
