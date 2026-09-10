@@ -17,7 +17,22 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   22            /* v22: ASAG'S ARENA. Two shape changes,
+#define SAVE_VERSION   23            /* v23: living_statues_dead is a uint16_t.
+                                        THE HATCH stands a Living Statue on each
+                                        of its four corner plinths, taking the
+                                        whole-game total to ten against the eight
+                                        bits the field had, so
+                                        WD_MAX_LIVING_STATUES went 8 -> 16 with
+                                        it and MAX_LIVING_STATUES 6 -> 10. The
+                                        WorldDelta grew a byte, so delta_size
+                                        would already reject a v22 save; the bump
+                                        makes the reason legible. The four
+                                        placements themselves needed no format
+                                        change — The Hatch is room 25, AFTER the
+                                        Keystone Maze, so canonical_index appends
+                                        them at bits 6..9 and no older save's
+                                        bits move;
+                                    v22: ASAG'S ARENA. Two shape changes,
                                         both of them reservations rather than
                                         features, and taken TOGETHER on purpose
                                         so the fight itself costs no third bump:

@@ -92,9 +92,14 @@ void world_silence_monsters(void);
                                  brought the whole-game total to nine — which is
                                  why mushrooms_dead below is a uint16_t while
                                  its neighbours are still bytes. */
-#define WD_MAX_LIVING_STATUES 8 /* bits: likewise. Only the LIVING ones can die, but
-                                   the bit index counts every placement, so plain
-                                   masonry occupies a bit it never sets. */
+#define WD_MAX_LIVING_STATUES 16 /* bits: likewise. Only the LIVING ones can die,
+                                   but the bit index counts every placement, so
+                                   plain masonry occupies a bit it never sets.
+                                   16 rather than 8 since The Hatch put a statue
+                                   on each of its four corner plinths and took
+                                   the whole-game total to ten — which is why
+                                   living_statues_dead below is a uint16_t, the
+                                   same widening mushrooms_dead took. */
 /* Hadad needs TWO bits per placement, not one: as well as being dead he can be
    SPENT — the flag-three encounter has been met and burned out, which is the one
    fact about him that the two GameFlags cannot reconstruct (see hadads_rest).
@@ -135,7 +140,8 @@ typedef struct {
     uint8_t   rabisus_dead;                       /* likewise                 */
     uint16_t  mushrooms_dead;                     /* likewise; 16 bits — see
                                                      WD_MAX_MUSHROOMS          */
-    uint8_t   living_statues_dead;                /* likewise                 */
+    uint16_t  living_statues_dead;                /* likewise; 16 bits — see
+                                                     WD_MAX_LIVING_STATUES     */
     /* ASAG. >>> RESERVED, AND NOTHING WRITES IT YET. <<< There is no Asag entity
        and no arena content; this byte exists so that adding them is a change to
        world.c's encode and decode halves ONLY, with no third SAVE_VERSION bump

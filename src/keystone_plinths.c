@@ -494,6 +494,10 @@ void keystone_plinths_update(void) {
             cam_rot = PLINTH[cur].crot; cam_pitch = PLINTH[cur].cpitch; cam_vy = 0;
             state = KP_PICKER;
             kp_btn_prev = btn;   /* arm: the Circle that opened this is still held */
+            /* Said as the picker comes up rather than on the Circle that started
+               the glide: the recess is what the player is being shown in this
+               shot, so the line lands with the picture of it. */
+            show_pickup_msg_raw("There is a diamond shaped recess");
         }
         return;
     }

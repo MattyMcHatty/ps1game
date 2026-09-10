@@ -1244,6 +1244,60 @@ void world_seed_room(GameState area) {
     if (area == STATE_CHAIN_ROOM) {
         sml_med_spawn(1557, -149, -570);
     }
+
+    /* THE HATCH: a Living Statue on each of the yard's FOUR corner plinths, and
+       all four of them are alive.
+
+       THE PLINTHS ARE THE MESH'S, not a placement of ours. "The Hatch.smx" has
+       four plinth-textured blocks 200 x 200 and 130 tall, one bitten out of each
+       corner of the 3000 x 3000 lawn — x[2000,2200] and x[4400,4600] crossed
+       with z[-1300,-1100] and z[1100,1300] (the_hatch.h, SET DRESSING) — so the
+       centres below are the only four numbers this branch invents, and they are
+       the blocks' own midpoints.
+
+       ANCHORS. All four cap at mesh y = -130 on a y=0 lawn, verified against the
+       .smx rather than assumed. A statue's `y` is the STANDING ANCHOR and its
+       feet are at y + 150, so the anchor is -130 - 150 = -280 for all four and
+       the body runs from -452 (crown) to -130 (feet, flush with the cap). Two
+       units lower than the Keystone Maze's five, whose blocks are 120 tall.
+       AUTHORED, not probed, for the usual reason — world_seed_room runs for
+       rooms whose geometry is not resident — and lst_floor_anchor is only ever
+       consulted on a teleport, which is the first moment one leaves its plinth.
+
+       >>> ALL FOUR ARM, AND THE CORNER FENCES DO NOT STOP THAT. <<< Unlike the
+       Keystone Maze's, these blocks are NOT reachable: the collision mesh fences
+       the whole 400 x 400 corner square round each one (the_hatch.h, THE PROXY
+       IS THE WHOLE CORNER), so the player is held out at the square's edge plus
+       their own 195 push radius. That is nowhere near far enough to matter —
+       from the closest standable lawn a corner-plinth centre is about 296 away
+       against LST_ACTIVATE_RADIUS's 600, so simply walking the lawn past a
+       corner arms the statue on it. Nothing else is needed to "come within
+       range": arming is the enemy's own proximity test and it is one-way.
+
+       >>> AND THE PIT CANNOT BE TELEPORTED INTO. <<< This room's single
+       FLOOR_FLAT zone deliberately spans the hole at x(3000,4200) z(-300,300)
+       (the_hatch.c), so lst_floor_anchor alone would happily place a statue in
+       mid-air over the shaft. What refuses it is ls_pick_landing's second test:
+       collision walls 20..23 fence the hole facing OUTWARD, so
+       apply_flat_entity_collision moves any candidate point inside the rectangle
+       and the landing is dropped. The same fences turn a walking statue back at
+       the lip.
+
+       SEED ORDER IS LOAD-BEARING, as it is for the Keystone Maze's five.
+       living_statues_dead indexes instances by (room, then seed order within the
+       room) through canonical_index(), and this room is 25 against the Keystone
+       Maze's 22, so these four append at bits 6..9 behind Maze Two's one and the
+       maze's five. The BIT WIDTH is what had to move, not the ordering — see the
+       SAVE_VERSION 23 note in savegame.h.
+
+       Sound: SND_BANK_GARDEN (main.c's STATE_LOADING keys this room to it), so
+       SFX_RUMBLE reaches the teleports and the deaths. */
+    if (area == STATE_THE_HATCH) {
+        living_statue_add(2100, -1200, -280, 1, STATE_THE_HATCH);
+        living_statue_add(2100,  1200, -280, 1, STATE_THE_HATCH);
+        living_statue_add(4500, -1200, -280, 1, STATE_THE_HATCH);
+        living_statue_add(4500,  1200, -280, 1, STATE_THE_HATCH);
+    }
 }
 
 void world_enter(GameState area) {

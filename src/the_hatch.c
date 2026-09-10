@@ -883,11 +883,13 @@ void the_hatch_draw(RenderContext *ctx) {
 
     /* Every sprite enemy renderer is handed this room's texture window, because
        all of their sprites live at Voff >= 128 and must bracket it rather than
-       sample the hedge (see tools/TEXTURING_NOTES.txt PART 5). NOTHING is seeded
-       into this room today — world_seed_room() places no enemy and no pickup
-       here — so every one of these calls runs over an empty array and costs
-       nothing. They are here so that the first thing ever placed on the lawn
-       draws correctly without anyone having to remember this paragraph.
+       sample the hedge (see tools/TEXTURING_NOTES.txt PART 5). The only thing
+       world_seed_room() puts in this room is FOUR LIVING STATUES, one on each of
+       the yard's corner plinths (world.c), so draw_living_statues is the only
+       one of these that has anything to walk over today; the rest run over empty
+       arrays and cost nothing. They stay wired up so that the next thing placed
+       on the lawn draws correctly without anyone having to remember this
+       paragraph.
 
        This room is on SND_BANK_GARDEN (main.c's STATE_LOADING), so anything put
        here reaches SFX_HISS and the flowers' loops; check any placement against

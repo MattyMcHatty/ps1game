@@ -139,10 +139,11 @@
  * not current_area — current_area and NEVER game_state, or the enemy freezes
  * for as long as the inventory menu is open (tools/ADDING_AN_ENEMY.txt STEP 6).
  * MAX_LIVING_STATUES is the budget for the WHOLE GAME, not per room: Maze
- * Two's single stalker plus the Keystone Maze's five plinth statues (three
- * living, two masonry) fill all six of them, and living_statue_add returns -1
- * once it is full. Raise it (and check it against WD_MAX_LIVING_STATUES, 8, in
- * src/world.h) before placing a seventh. THE MASONRY ONES COST A SLOT TOO —
+ * Two's single stalker, the Keystone Maze's five plinth statues (three living,
+ * two masonry) and The Hatch's four corner-plinth statues (all living) fill all
+ * ten of them, and living_statue_add returns -1 once it is full. Raise it (and
+ * check it against WD_MAX_LIVING_STATUES, 16, in src/world.h) before placing an
+ * eleventh. THE MASONRY ONES COST A SLOT TOO —
  * a `living` = 0 statue is a full entry in the same array.
  *
  * SOUND. SFX_RUMBLE, on the teleport and on the death, and nothing else — a
@@ -152,7 +153,7 @@
  * axe hit borrows the resident SFX_AXEHIT like every other enemy's.
  * ----------------------------------------------------------------------- */
 
-#define MAX_LIVING_STATUES    6    /* WHOLE-GAME budget — see above       */
+#define MAX_LIVING_STATUES   10    /* WHOLE-GAME budget — see above       */
 #define LST_MAX_HEALTH        2    /* two crucifaxe swings in ATTACK, or two    */
                                    /* seconds of the Helluminator (which can   */
                                    /* also reach it in STALK — see the states) */

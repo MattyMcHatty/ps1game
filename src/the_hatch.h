@@ -82,6 +82,15 @@
    Do not read 400 as the DRAWN size of anything — the blocks are 200 x 200 and
    130 tall, and the drawn height is the one to hang anything from.
 
+   >>> AND THERE IS A LIVING STATUE ON ALL FOUR OF THEM. <<< world_seed_room()
+   places one per plinth, every one of them `living` = 1 — the only enemies in
+   this room. Their standing anchor is -280 (the caps at -130, less the 150 an
+   anchor sits above the feet), which is the "drawn height is the one to hang
+   anything from" rule above being used. The corner fences do NOT keep them
+   asleep: the closest standable lawn is about 296 from a plinth centre against
+   the 600 arming radius, so walking the yard arms them. See src/world.c for the
+   full placement note and src/living_statue.h for the enemy.
+
    ONE gate, and it is connected:
 
      WEST    the grdn_gte leaf at x=-200, z[-300,300], y[-600,0], in the YZ

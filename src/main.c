@@ -415,6 +415,16 @@ static void update_current_area(GameState area) {
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
+        /* THE FOUR CORNER STATUES KEEP RUNNING, and this call is why the
+           branch needs one at all: the board and the drop point the camera at
+           a fixed shot, and a statue behind the player would otherwise be
+           frozen for the whole scene — this enemy acts on the CAMERA's facing,
+           so a camera-locked puzzle is exactly where it must not be skipped
+           (see the same call in the shared tail, and in the Attic Exit's
+           exit-door branch). It cannot reach the player down the shaft: the
+           strike tests horizontal and vertical separately and the drop rides
+           the camera 1200 below the lip, well past LST_CATCH_DIST. */
+        update_living_statues();
         player_status_update();
         hatch_puzzle_update(0);   /* the scene owns the screen: never locked */
         hatch_doors_update();

@@ -25,6 +25,7 @@ static int debug_menu_open   = 0;
 static int debug_menu_cursor = 0;    /* row in the left (level) column  */
 static int debug_opt_cursor  = 0;    /* row in the right (option) column */
 static int debug_col         = DBG_COL_LEVELS;
+static int debug_scroll      = 0;    /* first VISIBLE row of the level column */
 static int level_select_fnt  = -1;
 static int debug_fnt         = -1;   /* left column, top-left  */
 
@@ -40,9 +41,18 @@ static int debug_fnt         = -1;   /* left column, top-left  */
 #define DBG_OPT_TOP_Y    24   /* first row: below "OPTIONS" + blank */
 /* The footer is pinned to the bottom of the screen rather than trailing the
    longer of the two lists, so it does not jump around as entries are added.
-   The taller column (levels: 2 header lines + LEVEL_SELECT_COUNT rows of 8px
-   from y=8) has to stay clear of it. */
+   The taller column (levels) SCROLLS to stay clear of it — see DBG_LIST_ROWS. */
 #define DBG_FOOTER_Y    224
+
+/* Rows of the level column that are on screen at once. The column opens at y=8
+   with "LEVEL SELECT" and a blank row, so the list itself runs from y=24, and
+   the last row has to end by DBG_FOOTER_Y - 8 to leave a clear line above the
+   button prompt. The list is longer than that (the rooms plus the chapter
+   headings below), so it scrolls with the cursor instead of running off the
+   bottom of the screen underneath the footer, which is what the last few
+   entries used to do. */
+#define DBG_LIST_TOP_Y   24
+#define DBG_LIST_ROWS   ((DBG_FOOTER_Y - 8 - DBG_LIST_TOP_Y) / 8)
 
 /* ---- Start menu (opened with Start): New Game / Load Game ------------------
    Load Game walks card slot -> save file, reads the chosen SaveData, stages it
@@ -188,6 +198,81 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_THE_HATCH,
     /* (no ASAG ARENA row — see level_names) */
 };
+
+/* ---- Chapter headings in the level column ---------------------------------
+   `first` is the index in level_names of the chapter's first room; the chapter
+   runs to the room before the next chapter's first, so the list only has to
+   stay in chapter order (it already is) for the headings to fall in the right
+   places. Adding a room in the middle of a chapter needs nothing here; adding
+   one at the head of a chapter means bumping the `first` below it.
+
+   The split is by position in this list rather than by anything the rooms know
+   about themselves because it does not follow the geography: WEST CORRIDOR is
+   a house room and sits with the garden rooms of chapter two. */
+typedef struct {
+    int         first;
+    const char *name;
+} DebugChapter;
+
+static const DebugChapter debug_chapters[] = {
+    {  0, "CHAPTER 1" },
+    { 14, "CHAPTER 2" },   /* FOUNTAIN SQR onwards, WEST CORRIDOR included */
+};
+#define DEBUG_CHAPTER_COUNT \
+    ((int)(sizeof(debug_chapters) / sizeof(debug_chapters[0])))
+
+/* The rule drawn under each heading, and the rows a heading costs: the name and
+   its rule, plus a blank spacer row for every chapter after the first (the
+   first sits directly under "LEVEL SELECT" and needs no gap). */
+#define DBG_CHAPTER_RULE  "---------"
+#define DBG_CHAPTER_ROWS(c)  ((c) ? 3 : 2)
+
+/* Index of the room one past the end of chapter c. */
+static int debug_chapter_end(int c) {
+    return (c + 1 < DEBUG_CHAPTER_COUNT) ? debug_chapters[c + 1].first
+                                         : LEVEL_SELECT_COUNT;
+}
+
+/* Row of the drawn list a room sits on, counting the headings — the cursor
+   indexes ROOMS, the scroll window counts ROWS, and this is the bridge. */
+static int debug_level_row(int lvl) {
+    int row = 0, c;
+    for (c = 0; c < DEBUG_CHAPTER_COUNT; c++) {
+        int end = debug_chapter_end(c);
+        row += DBG_CHAPTER_ROWS(c);
+        if (lvl < end) return row + (lvl - debug_chapters[c].first);
+        row += end - debug_chapters[c].first;
+    }
+    return row;
+}
+
+/* Chapter the cursor is in, so a room at the head of one can drag its heading
+   into view with it rather than sitting on the top line orphaned. */
+static int debug_level_chapter(int lvl) {
+    int c;
+    for (c = DEBUG_CHAPTER_COUNT - 1; c > 0; c--)
+        if (lvl >= debug_chapters[c].first) return c;
+    return 0;
+}
+
+/* Pull the scroll window onto the cursor: the fewest rows that puts it back on
+   screen, so the list only moves when it has to. Called on every cursor move
+   and when the menu opens. */
+static void debug_scroll_follow(void) {
+    int row   = debug_level_row(debug_menu_cursor);
+    int total = debug_level_row(LEVEL_SELECT_COUNT - 1) + 1;
+    int c     = debug_level_chapter(debug_menu_cursor);
+    int top   = row;
+
+    /* Stepping onto a chapter's first room shows that chapter's heading too. */
+    if (debug_menu_cursor == debug_chapters[c].first)
+        top -= DBG_CHAPTER_ROWS(c);
+
+    if (top < debug_scroll)                     debug_scroll = top;
+    if (row >= debug_scroll + DBG_LIST_ROWS)    debug_scroll = row - DBG_LIST_ROWS + 1;
+    if (debug_scroll > total - DBG_LIST_ROWS)   debug_scroll = total - DBG_LIST_ROWS;
+    if (debug_scroll < 0)                       debug_scroll = 0;
+}
 
 /* ---- Letter bitmasks: 7 rows x 5 cols, row 0 = top ---- */
 
@@ -518,15 +603,35 @@ void draw_title(RenderContext *ctx) {
         draw_title_captions(ctx);
 
     if (debug_menu_open) {
-        int k;
-        /* Left column: rooms. The cursor only shows while this column is active,
-           so it is always clear which one Cross will act on. */
+        int k, c, row = 0;
+        /* Left column: rooms under their chapter headings, windowed to the rows
+           that fit above the footer (see DBG_LIST_ROWS). Only the rows inside
+           the window are printed at all — FntPrint advances a line per string
+           printed, so skipping the rest is what does the scrolling, and it
+           keeps the stream's per-frame character budget down as a bonus.
+           The cursor only shows while this column is active, so it is always
+           clear which room Circle will act on. */
+#define DBG_ROW_SHOWN(r)  ((r) >= debug_scroll && (r) < debug_scroll + DBG_LIST_ROWS)
         FntPrint(debug_fnt, "LEVEL SELECT\n\n");
-        for (k = 0; k < LEVEL_SELECT_COUNT; k++)
-            FntPrint(debug_fnt, "%s %s\n",
-                     (debug_col == DBG_COL_LEVELS && k == debug_menu_cursor)
-                         ? "*" : " ",
-                     level_names[k]);
+        for (c = 0; c < DEBUG_CHAPTER_COUNT; c++) {
+            int end = debug_chapter_end(c);
+            if (c) {
+                if (DBG_ROW_SHOWN(row)) FntPrint(debug_fnt, "\n");
+                row++;
+            }
+            if (DBG_ROW_SHOWN(row)) FntPrint(debug_fnt, "%s\n", debug_chapters[c].name);
+            row++;
+            if (DBG_ROW_SHOWN(row)) FntPrint(debug_fnt, "%s\n", DBG_CHAPTER_RULE);
+            row++;
+            for (k = debug_chapters[c].first; k < end; k++, row++) {
+                if (!DBG_ROW_SHOWN(row)) continue;
+                FntPrint(debug_fnt, "%s %s\n",
+                         (debug_col == DBG_COL_LEVELS && k == debug_menu_cursor)
+                             ? "*" : " ",
+                         level_names[k]);
+            }
+        }
+#undef DBG_ROW_SHOWN
         FntFlush(debug_fnt);
 
         /* Right column: cheat toggles, as "*[X] NAME" — cursor, then a checkbox
@@ -623,6 +728,34 @@ void title_init(void) {
     debug_fnt = FntOpen(8, 8, 128, 224, 0, 512);
 }
 
+/* ---- Held-direction auto-repeat -------------------------------------------
+   Every menu on this screen navigates with the d-pad, and a long list (the
+   debug room column especially) is miserable to walk one full press at a time.
+   A held direction therefore repeats: NAV_DELAY frames after the press, then
+   one step every NAV_RATE frames for as long as it is held. The confirm and
+   back buttons deliberately do NOT repeat — a held Circle must not fire twice.
+
+   Fresh presses still come through the moment they happen, so a quick tap is
+   exactly as responsive as it was; the repeat only ever ADDS steps. */
+#define NAV_DELAY  14   /* frames held before the first repeat  */
+#define NAV_RATE    4   /* frames between repeats after that    */
+#define NAV_DIRS   (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT)
+
+/* Returns the directions that should act THIS frame: the newly pressed ones,
+   plus the held ones once their timer comes round. */
+static uint16_t nav_repeat(uint16_t held, uint16_t pressed) {
+    static int timer = 0;
+    uint16_t dirs = held & NAV_DIRS;
+    uint16_t fresh = pressed & NAV_DIRS;
+
+    if (!dirs) { timer = 0; return 0; }
+    /* A new direction restarts the wait, so rolling from one to another does
+       not inherit the previous one's part-spent timer. */
+    if (fresh) { timer = NAV_DELAY; return fresh; }
+    if (--timer <= 0) { timer = NAV_RATE; return dirs; }
+    return 0;
+}
+
 void update_title(void) {
     if (!pad_buff_len[0]) return;
     PadResponse *pad = (PadResponse *)pad_buff[0];
@@ -633,10 +766,17 @@ void update_title(void) {
     uint16_t pressed = held & ~prev_held;
     prev_held = held;
 
+    /* Directions go through the auto-repeat; everything else stays edge-only.
+       Called once, unconditionally, so the timer keeps ticking whichever menu
+       state is up and cannot be left part-wound by a state change. */
+    uint16_t nav = nav_repeat(held, pressed);
+
     if (!debug_menu_open && tmenu == TM_CLOSED) {
         if (pressed & PAD_SELECT) {
             debug_menu_open   = 1;
             debug_menu_cursor = 0;
+            debug_scroll      = 0;
+            debug_scroll_follow();
             sound_play(SFX_SELECT);
         } else if (pressed & PAD_START) {
             tmenu        = TM_MAIN;   /* New Game / Load Game */
@@ -654,21 +794,27 @@ void update_title(void) {
         /* One cursor blip for any move, whichever column it happens in — a
            column switch reads as a cursor move to the player exactly as an
            up/down step does. */
-        if (pressed & (PAD_LEFT | PAD_RIGHT | PAD_UP | PAD_DOWN))
+        if ((nav & (PAD_UP | PAD_DOWN)) || (pressed & (PAD_LEFT | PAD_RIGHT)))
             sound_play(SFX_CURSOR);
 
+        /* Only UP/DOWN auto-repeats here. Left/Right is a two-way switch, so a
+           held direction would flap between the columns several times a second
+           instead of settling on the one being pointed at. */
         if (pressed & (PAD_LEFT | PAD_RIGHT))
             debug_col = (debug_col == DBG_COL_LEVELS) ? DBG_COL_OPTS : DBG_COL_LEVELS;
 
         if (debug_col == DBG_COL_LEVELS) {
-            if (pressed & PAD_UP)
+            if (nav & PAD_UP)
                 debug_menu_cursor = (debug_menu_cursor + LEVEL_SELECT_COUNT - 1) % LEVEL_SELECT_COUNT;
-            if (pressed & PAD_DOWN)
+            if (nav & PAD_DOWN)
                 debug_menu_cursor = (debug_menu_cursor + 1) % LEVEL_SELECT_COUNT;
+            /* After every move, not only the ones that leave the window: a wrap
+               round either end of the list jumps the window the whole way. */
+            debug_scroll_follow();
         } else {
-            if (pressed & PAD_UP)
+            if (nav & PAD_UP)
                 debug_opt_cursor = (debug_opt_cursor + DEBUG_OPT_COUNT - 1) % DEBUG_OPT_COUNT;
-            if (pressed & PAD_DOWN)
+            if (nav & PAD_DOWN)
                 debug_opt_cursor = (debug_opt_cursor + 1) % DEBUG_OPT_COUNT;
         }
 
@@ -705,7 +851,11 @@ void update_title(void) {
        menu acts on, including the ones that end in an inline error (NO MEMORY
        CARD, LOAD FAILED): the press was registered and the player needs to hear
        that, and the message on screen is what says it did not work. */
-    if (pressed & (PAD_UP | PAD_DOWN)) sound_play(SFX_CURSOR);
+    /* The save list is the only start-menu state long enough to be worth
+       holding a direction on; the other two are two-way toggles that would
+       flap under auto-repeat, so they stay on the fresh press. */
+    if (((tmenu == TM_FILE ? nav : pressed) & (PAD_UP | PAD_DOWN)))
+        sound_play(SFX_CURSOR);
     if (back)    sound_play(SFX_BACK);
     if (confirm) sound_play(SFX_SELECT);
 
@@ -746,9 +896,9 @@ void update_title(void) {
             tmenu_msg    = 0;
         }
     } else if (tmenu == TM_FILE) {
-        if (pressed & PAD_UP)
+        if (nav & PAD_UP)
             tmenu_cursor = (tmenu_cursor + tmenu_slot_count - 1) % tmenu_slot_count;
-        if (pressed & PAD_DOWN)
+        if (nav & PAD_DOWN)
             tmenu_cursor = (tmenu_cursor + 1) % tmenu_slot_count;
         if (back) { tmenu = TM_CARD; tmenu_cursor = tmenu_port; tmenu_msg = 0; return; }
         if (confirm) {

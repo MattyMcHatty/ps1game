@@ -176,9 +176,9 @@ void keystone_maze_collision_init(CollisionRoom *r) {
     r->walls[24].y_min =    -500;  r->walls[24].y_max =       0;
 
     /* Wall 25 (avg Y: -250) */
-    r->walls[25].x1 =    4500;  r->walls[25].z1 =    2700;
-    r->walls[25].x2 =    4500;  r->walls[25].z2 =    4500;
-    r->walls[25].nx =   -4096;  r->walls[25].nz =       0;
+    r->walls[25].x1 =    4500;  r->walls[25].z1 =    4500;
+    r->walls[25].x2 =    4500;  r->walls[25].z2 =    2700;
+    r->walls[25].nx =    4096;  r->walls[25].nz =       0;
     r->walls[25].y_min =    -500;  r->walls[25].y_max =       0;
 
     /* Wall 26 (avg Y: -250) */
@@ -206,9 +206,9 @@ void keystone_maze_collision_init(CollisionRoom *r) {
     r->walls[29].y_min =    -500;  r->walls[29].y_max =       0;
 
     /* Wall 30 (avg Y: -250) */
-    r->walls[30].x1 =    3899;  r->walls[30].z1 =    2100;
-    r->walls[30].x2 =    3899;  r->walls[30].z2 =     900;
-    r->walls[30].nx =    4096;  r->walls[30].nz =       0;
+    r->walls[30].x1 =    3899;  r->walls[30].z1 =     900;
+    r->walls[30].x2 =    3899;  r->walls[30].z2 =    2100;
+    r->walls[30].nx =   -4096;  r->walls[30].nz =       0;
     r->walls[30].y_min =    -500;  r->walls[30].y_max =       0;
 
     /* Wall 31 (avg Y: -250) */
