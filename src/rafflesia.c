@@ -12,6 +12,9 @@
 #include "particles.h"
 #include "texmgr.h"
 #include "web.h"            /* WEB_DAMAGE — the mist carries the spider's poison */
+#include "door_anim.h"      /* door_anim_active — see the guard in update_rafflesias */
+#include "tentacle.h"      /* the writhe voice's real owner — see raf_voice_is_ours */
+#include "spider.h"        /* ditto the scuttle voice */
 #include "rafflesia.h"
 #include "sound.h"
 
@@ -32,6 +35,22 @@ static Rafflesia raf_defaults[MAX_RAFFLESIAS];
 #define RAF_HALF_H           190
 
 #define RAF_OSC_RATE          24   /* frames per sprite swap while awake (~0.4s) */
+
+/* EARSHOT for the two looped ambiences, TRUE RADIAL. A flower is awake out to
+   the room's whole draw distance — 2200-2500 Manhattan in the garden rooms,
+   which is 1550-1770 radial — and the SPU plays these loops at a flat 0x3fff
+   with no distance attenuation of any kind. So without this a flower two hedge
+   corridors away, that the player has never seen and cannot reach, wriggles in
+   their ear at exactly the volume of the one biting them; and with several
+   flowers to a room, killing the near one left the loop running off a far one
+   and read as "the sound did not stop when it died".
+
+   It gates the SOUND ONLY. Waking, the mist and the grip are all still on
+   g_fog_far/RAF_PULL_RADIUS: a flower you cannot hear still gasses you if you
+   walk into its cloud. 1200 is 12 m — comfortably outside RAF_PULL_RADIUS
+   (700), so anything that can reach the player is always audible, and it is the
+   one number to turn if the flowers want a longer or shorter voice. */
+#define RAF_LOOP_RADIUS     1200
 
 /* The MIST. 5 s between clouds, 2 s in the air, 300 units of radius. The damage
    is the web's, once per cloud — the poison status is refreshed for as long as
@@ -215,10 +234,16 @@ static int32_t raf_isqrt(int32_t v) {
    60 frames and at most TWO clouds are ever in the air at once — 5x120 > 300, so
    zero overlap is arithmetically impossible and two is the floor.
 
-   Always ADDED to a full interval, never subtracted from one: nothing here may
-   make a flower gas the player sooner after waking than it did before (mistake 8
-   again). Worst case the fifth flower's first cloud is four seconds late, and
-   after that every flower is on the ordinary five-second beat. */
+   THE PHASE IS THE WHOLE OF THE FIRST DELAY. A flower used to wait a full
+   RAF_MIST_INTERVAL on top of its phase before its first cloud, so the room
+   stayed harmless for five seconds after waking; now the wake arms the timer at
+   the phase alone, and the first flower in an area exhales on the very frame it
+   wakes. The stagger itself has to stay: the period is fixed at
+   RAF_MIST_INTERVAL, so the offsets a bed starts with are the offsets it keeps
+   for good, and 300/n spacing is what holds the room to at most TWO clouds in
+   the air at once (see the arithmetic above). Waking every flower straight into
+   a cloud would put five up together for the whole of their 120 frames, and a
+   cloud is the most expensive thing this enemy draws. */
 static int raf_mist_phase(int idx) {
     int j, ordinal = 0, in_area = 0;
     GameState a = rafflesias[idx].area;
@@ -607,8 +632,43 @@ void rafflesias_silence(void) {
     chew_on   = 0;
 }
 
+/* "Is voice 17 / 18 ours to key off?" — i.e. is there no live tentacle (or
+   spider) in this area that might be sounding it right now. See the assertion
+   at the bottom of update_rafflesias for why the answer is needed every frame.
+   Both arrays are 8 slots, so this is a handful of compares. */
+static int raf_area_has_tentacle(void) {
+    int i;
+    for (i = 0; i < tentacle_count; i++)
+        if (tentacles[i].active && tentacles[i].health > 0 &&
+            tentacles[i].area == current_area) return 1;
+    return 0;
+}
+
+static int raf_area_has_spider(void) {
+    int i;
+    for (i = 0; i < spider_count; i++)
+        if (spiders[i].active && spiders[i].health > 0 &&
+            spiders[i].area == current_area) return 1;
+    return 0;
+}
+
 void update_rafflesias(void) {
     int i, any_idle = 0, any_chewing = 0;
+
+    /* >>> A ROOM TRANSITION HAS ALREADY BEGUN: DO NOTHING, AND SOUND NOTHING.
+       <<< The door-trigger branches sit in the MIDDLE of update_current_area,
+       so this call — which is in the shared tail below them — still runs once
+       on the frame the door is opened. door_anim_start() has by then called
+       world_silence_monsters() -> rafflesias_silence(), which stopped both
+       loops AND cleared their latches; without this guard the latch test at the
+       bottom would find the flowers still awake in still-current_area, see the
+       latches clear, and key the writhe straight back on for the whole of the
+       transition and into the next room. That is the bug the same guard at the
+       top of update_hadads was written for. */
+    if (door_anim_active()) {
+        rafflesias_silence();
+        return;
+    }
 
     /* Drop a stale claim BEFORE anything else can take it: the holder may have
        been shot, or the player may have walked out of the room, since last
@@ -653,12 +713,13 @@ void update_rafflesias(void) {
         r->awake = (mdist < g_fog_far);
         if (r->awake) {
             r->anim++;
-            /* Arm the cooldown on the WAKING edge, not at zero: a fresh timer
-               would exhale a cloud on the first frame the player came into view
-               (tools/ADDING_AN_ENEMY.txt, mistake 8).
-               PLUS A PER-FLOWER PHASE, which is what keeps a bed of them from
-               breathing in unison — see raf_mist_phase. */
-            if (!was_awake) r->mist_timer = RAF_MIST_INTERVAL + raf_mist_phase(i);
+            /* Arm the cooldown on the WAKING edge, at THIS FLOWER'S PHASE and
+               nothing more: the attack is meant to start the moment the enemy
+               notices you, so the first flower of an area (phase 0, hence a
+               timer of 1) exhales on this very frame, and the rest follow it
+               around one cycle so a bed does not breathe in unison — see
+               raf_mist_phase for why that spacing may not be tightened. */
+            if (!was_awake) r->mist_timer = 1 + raf_mist_phase(i);
         } else {
             /* Asleep: no cloud, no grip, and the distance history is stale. */
             r->mist_life  = 0;
@@ -773,21 +834,51 @@ void update_rafflesias(void) {
         /* Every awake flower is doing exactly one of the two: chewing, or idle.
            The two ambiences are therefore mutually exclusive PER FLOWER but not
            across them — with three in a bed, one can be chewing while the others
-           writhe, and both loops run. */
-        if (chewing_now) any_chewing = 1;
-        else             any_idle    = 1;
+           writhe, and both loops run. Only flowers WITHIN EARSHOT get a say (see
+           RAF_LOOP_RADIUS); a chewing flower is inside RAF_PULL_RADIUS by
+           definition, so that test only ever bites on the writhe. */
+        if (dist < RAF_LOOP_RADIUS) {
+            if (chewing_now) any_chewing = 1;
+            else             any_idle    = 1;
+        }
 
         r->last_dist = dist;
     }
 
     /* Start/stop the two shared loops. Forced off on game-over: the area update
        stops running from that frame, so a keyed-on voice would otherwise sound
-       right through the death screen (the same reason update_tentacles does it). */
+       right through the death screen (the same reason update_tentacles does it).
+
+       >>> THE OFF SIDE IS ASSERTED, NOT LATCHED. <<< Keying a voice on is an
+       edge — play it once and the hardware loop does the rest — but keying it
+       OFF is free (one SpuSetKey write), and a latch can only ever stop a voice
+       THIS module knows it started. A stray writhe that outlived its flower —
+       started under a latch that some transition then cleared, which is exactly
+       the shape of every leak this enemy has had — would otherwise run until
+       the next room transition happened to silence it, which is what "the sound
+       followed me through the door" was. Asserting it means any room that runs
+       this update and wants silence GETS silence, within one frame, however the
+       voice came to be on.
+
+       It may only be asserted while nothing else could own the voice, because
+       both are BORROWED (see the note at writhe_on): voice 17 is the tentacle's
+       writhe and 18 is the spider's scuttle. The two enemies can never share a
+       room with a flower, so "no live tentacle/spider in this area" is the same
+       test as "this voice is ours to silence" — and it holds even in a room with
+       no rafflesias in it at all, which is where the stray had to be caught. */
     if (game_over) { any_idle = 0; any_chewing = 0; }
-    if (any_idle && !writhe_on)      { sound_play(SFX_TNTCL_WRTH); writhe_on = 1; }
-    else if (!any_idle && writhe_on) { sound_stop(SFX_TNTCL_WRTH); writhe_on = 0; }
-    if (any_chewing && !chew_on)      { sound_play(SFX_SPDR_WLK); chew_on = 1; }
-    else if (!any_chewing && chew_on) { sound_stop(SFX_SPDR_WLK); chew_on = 0; }
+
+    if (any_idle) {
+        if (!writhe_on) { sound_play(SFX_TNTCL_WRTH); writhe_on = 1; }
+    } else if (writhe_on || !raf_area_has_tentacle()) {
+        sound_stop(SFX_TNTCL_WRTH); writhe_on = 0;
+    }
+
+    if (any_chewing) {
+        if (!chew_on) { sound_play(SFX_SPDR_WLK); chew_on = 1; }
+    } else if (chew_on || !raf_area_has_spider()) {
+        sound_stop(SFX_SPDR_WLK); chew_on = 0;
+    }
 }
 
 /* Push the player (or anything else with a radius) out of every live flower in
@@ -823,6 +914,32 @@ void rafflesias_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     }
 }
 
+/* Both loops off NOW if nothing in the current area can still be sounding
+   them, rather than on the next update's latch test. One frame is usually
+   invisible, but the frame a flower dies is exactly the frame the player is
+   listening to it die, and a writhe that outlives its flower reads as a second
+   one still out there. `except_idx` is the flower being killed: its health is
+   already <= 0 by the time this runs, but skipping it explicitly keeps this
+   honest if it is ever called from somewhere the health is not written yet. */
+static void raf_stop_loops_if_last(int except_idx) {
+    int j;
+    for (j = 0; j < rafflesia_count; j++) {
+        Rafflesia *o = &rafflesias[j];
+        if (j == except_idx) continue;
+        if (!o->active || o->health <= 0) continue;
+        if (o->area != current_area) continue;
+        if (!o->awake) continue;
+        {   /* Awake is not enough: it has to be one the player can HEAR, or the
+               loop it is holding open is one this frame's assertion at the
+               bottom of update_rafflesias would key off anyway. Same radius and
+               same metric as that test — see RAF_LOOP_RADIUS. */
+            int32_t dx = cam_x - o->x, dz = cam_z - o->z;
+            if (raf_isqrt(dx * dx + dz * dz) < RAF_LOOP_RADIUS) return;
+        }
+    }
+    rafflesias_silence();
+}
+
 /* Apply `amount` damage. Never knocked back — a rafflesia is rooted. */
 static void rafflesia_take_damage(Rafflesia *r, int amount) {
     r->health   -= amount;
@@ -832,8 +949,11 @@ static void rafflesia_take_damage(Rafflesia *r, int amount) {
                     RAF_BLOOD_R, RAF_BLOOD_G, RAF_BLOOD_B);
         sound_play(SFX_TNTCL_DIE);
         r->mist_life = 0;
-        /* Its cloud goes with it, and so may the loops — if this was the last
-           awake flower they stop on the next update's latch test. */
+        r->awake     = 0;
+        /* Its cloud goes with it, and so do the loops the moment it was the
+           last awake flower in the room — on THIS frame, under the death cry,
+           not on the next update's latch test. */
+        raf_stop_loops_if_last((int)(r - rafflesias));
     } else {
         sound_play(SFX_AXEHIT);
     }

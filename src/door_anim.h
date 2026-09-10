@@ -24,7 +24,11 @@
                                  unlocked exit door onto the Garden Stairs. Unlike
                                  the two above, BOTH leaves swing away from the
                                  camera, and each has its OWN texture rather than
-                                 one leaf image used twice.                       */
+                                 one leaf image used twice. It is also WIDER than
+                                 a house door — sized to the proportions of the
+                                 450x467 xt_dr panel the player walks up to in
+                                 the Attic Exit. Also plays Garden Stairs ->
+                                 Garden Courtyard.                                */
 #define DOOR_PANEL_GATE   4   /* grdngtl + grdngtr — the wrought-iron garden gate
                                  between the Garden Courtyard and Fountain Square.
                                  Two textures like the exit door, but only the

@@ -68,20 +68,27 @@ static const struct {
 
 /* ---- Interaction ------------------------------------------------------------
    A BOX, not a radius, measured to the lever. Depth is the axis that matters:
-   the north pair are guarded by four tentacles standing at z=745, 180 south of
-   the levers (see tentacles_init), and a plain 500-Manhattan reach let those
-   levers be thrown from z~425 - a third of the room away, outside even
-   TENT_LIVE_RANGE, so the guards could be skipped entirely. LS_TRIGGER_DEPTH is
-   150, shorter than that 180 gap: to be in reach of a north lever the player has
-   to stand north of z=775, which means they have already walked through the
-   pair's 130 damage range to get there.
+   the north pair are guarded by four tentacles (see tentacles_init), and a plain
+   500-Manhattan reach let those levers be thrown from z~425 - a third of the
+   room away, outside even TENT_LIVE_RANGE, so the guards could be skipped
+   entirely. The depth is what shuts that door; the guarantee that the player has
+   to walk through the tentacles' 130 damage range is enforced by where the
+   tentacles STAND, not by clipping the reach.
 
-   The depth still clears the throw spot itself - the 195 wall standoff parks the
-   player about 120 out - but only just, so the width is kept generous rather
-   than letting a Manhattan sum trade slack on one axis for slack on the other.
-   The two levers sharing a wall are ~2100 apart, so even this width leaves no
-   ambiguity about which one a press means. */
-#define LS_TRIGGER_DEPTH      150    /* |dz|: shorter than the tentacle standoff */
+   THE DEPTH HAS TO CLEAR THE LEVER'S OWN COLLISION BOX. The lever prop is a
+   150-long shaft lying down the Z axis (LEVER_MIN/MAX_Z_OFF), and levers_collide
+   pushes the player out to shaft + 75 player radius + 30 LEVER_PUSH_MARGIN: a
+   head-on approach is parked EXACTLY 180 out and can get no closer. At a depth
+   of 150 the levers were therefore unthrowable from the front - the only way in
+   was from the side, where |dx| is past the box (8+75+30 = 113) so nothing
+   pushes on Z and the 195 wall standoff lets z come within ~120. 220 is that
+   180 standoff plus 40 of slack, so straight-on works and the throw spot is not
+   on a knife edge.
+
+   The width is kept generous rather than letting a Manhattan sum trade slack on
+   one axis for slack on the other. The two levers sharing a wall are ~2100
+   apart, so even this width leaves no ambiguity about which one a press means. */
+#define LS_TRIGGER_DEPTH      220    /* |dz|: past the 180 the lever's box parks  */
 #define LS_TRIGGER_WIDTH      260    /* |dx|: room to be off-centre at the wall  */
 #define LS_TEXT_RADIUS        900
 #define LS_FADE_NEAR          600

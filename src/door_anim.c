@@ -81,12 +81,28 @@
 #define EXIT_R_U_SEAM    0
 #define EXIT_R_U_OUTER  63
 
+/* And it is WIDER than the house doors, because the door it stands in for is.
+ * The xt_dr panel in the Attic Exit's north wall spans x[-225,225] y[-467,0]
+ * (see attic_exit.h) — 450 wide by 467 tall, very nearly square, where a house
+ * door at the shared PANEL_W is 160 by 200. At PANEL_W the transition read as a
+ * tall narrow doorway that did not match the one the player had just walked up
+ * to, at either end of it: the same panel plays the Garden Stairs -> Garden
+ * Courtyard transition too.
+ *
+ * The height stays at DOOR_HALF_H — widening only is the point, as with the
+ * gate below — and the WIDTH is solved for the real door's proportions:
+ * 200 * 450/467 = 192 across, VISIBLE. Visible is 2*(W - EXIT_INSET), so W is
+ * 106 and the leaves still overlap by a tenth of themselves each. The final
+ * dolly takes the outer edge to 96 * ZOOM_MAX/256 = 134 either side of centre,
+ * the same reach the garden gate has and still inside the 320-wide screen. */
+#define EXIT_PANEL_W    106
+
 /* The two leaves are drawn closer together than their own width, so the closed
  * door has no hairline of background showing down the centre seam. EACH leaf
  * crosses the centre line by 10% of its own width, making the overlapping strip
  * 20% of a leaf. Each is translated inward by that amount, hinge and all, so the
  * swing still pivots about its own outer edge and neither image is stretched. */
-#define EXIT_INSET       (PANEL_W / 10)
+#define EXIT_INSET       (EXIT_PANEL_W / 10)
 
 /* DOOR_PANEL_GATE, the garden gate. Two 64x128 TIMs like the exit door, but
  * they could NOT be page-aligned — there is no free 64-word column left at a
@@ -475,14 +491,14 @@ void door_anim_draw(RenderContext *ctx) {
         int32_t swing  = swing_angle();
         int32_t cos_t  = icos(swing);
         int32_t sin_t  = isin(swing);
-        int32_t z      = PANEL_W * sin_t / 4096;
+        int32_t z      = EXIT_PANEL_W * sin_t / 4096;
         int32_t persp  = PERSP_D * 256 / (PERSP_D + z);
         int32_t free_hh = DOOR_HALF_H * persp / 256;
-        int32_t xoff    = (PANEL_W * cos_t / 4096) * persp / 256;
+        int32_t xoff    = (EXIT_PANEL_W * cos_t / 4096) * persp / 256;
 
         /* Left leaf: hinge on the left, free (seam) edge swinging right. */
         {
-            int32_t hinge_x = DOOR_CENTER_X - PANEL_W + EXIT_INSET;
+            int32_t hinge_x = DOOR_CENTER_X - EXIT_PANEL_W + EXIT_INSET;
             int32_t free_x  = hinge_x + xoff;
             emit_panel(ctx, buf_end,
                        hinge_x, top,  free_x, DOOR_CENTER_Y - free_hh,
@@ -495,7 +511,7 @@ void door_anim_draw(RenderContext *ctx) {
         /* Right leaf: hinge on the right, free (seam) edge swinging left. Its
            own texture, hence emit_panel_tex rather than the macro. */
         {
-            int32_t hinge_x = DOOR_CENTER_X + PANEL_W - EXIT_INSET;
+            int32_t hinge_x = DOOR_CENTER_X + EXIT_PANEL_W - EXIT_INSET;
             int32_t free_x  = hinge_x - xoff;
             emit_panel_tex(ctx, buf_end,
                        panel_r_tpage[anim_variant], panel_r_clut[anim_variant],

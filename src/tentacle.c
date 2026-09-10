@@ -156,23 +156,30 @@ void tentacles_init(void) {
        lightswitch_puzzle.c). The chainlink cage walls the middle of the north
        half off at x[-543,544], so each lever sits at the head of a corridor the
        player can only work down the middle of; the pair straddles that line 120
-       either side of the lever's x, at z=745.
+       either side of the lever's x, at z=660.
 
-       That spacing is deliberate: TENT_DAMAGE_RANGE is 130 Manhattan, so
-       crossing z=745 to reach a lever costs a lash from both, while the spot the
-       195 wall standoff parks the player on to throw it (z~804) is 179 out —
-       clear. Tentacles have no collision, so they threaten the approach without
-       ever sealing it.
+       That placement is deliberate, and it is set FROM the lever's reach rather
+       than from the lever. LS_TRIGGER_DEPTH is 220, so the southern edge of a
+       north lever's reach is z=705; the pair stands 45 south of that edge, just
+       outside it. TENT_DAMAGE_RANGE is 130 Manhattan, so crossing z=660 up the
+       middle of a corridor still costs a lash from both, but no spot the player
+       can throw the lever from is inside that range: the nearest is the reach
+       edge itself at 120+45 = 165 out, and the head-on throw spot the lever's
+       own collision box parks them on (z=745) is 205. They used to stand at
+       z=745 — on top of that throw spot, 120 out — so widening the reach without
+       moving them would have left the player lashed while working the lever.
+       Tentacles have no collision, so they threaten the approach without ever
+       sealing it.
 
        y is the STANDING ANCHOR, not the floor surface: draw_billboard rests the
        sprite bottom on y + GROUND_FLOOR_Y. The attic exit's floor plane is world
        y=0 (attic_exit_floor_zones_init), so the anchor is -149 — the same value
        the conservatory pair above uses over its own y=0 floor. Passing the floor
        surface itself buries them to the waist. */
-    add_tentacle(-1172, -149, 745, STATE_ATTIC_EXIT);   /* NW lever, west side  */
-    add_tentacle( -932, -149, 745, STATE_ATTIC_EXIT);   /* NW lever, cage side  */
-    add_tentacle( 1009, -149, 745, STATE_ATTIC_EXIT);   /* NE lever, cage side  */
-    add_tentacle( 1249, -149, 745, STATE_ATTIC_EXIT);   /* NE lever, east side  */
+    add_tentacle(-1172, -149, 660, STATE_ATTIC_EXIT);   /* NW lever, west side  */
+    add_tentacle( -932, -149, 660, STATE_ATTIC_EXIT);   /* NW lever, cage side  */
+    add_tentacle( 1009, -149, 660, STATE_ATTIC_EXIT);   /* NE lever, cage side  */
+    add_tentacle( 1249, -149, 660, STATE_ATTIC_EXIT);   /* NE lever, east side  */
 
     /* The east-most conservatory tentacle (x=-1000, added first) faces the
        opposite way from the rest — mirror its sprite. Mirror one of each attic
