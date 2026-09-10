@@ -75,8 +75,39 @@ RECONFIGURE (only needed if CMakeLists.txt itself changes)
 
 DISC OUTPUT
 -----------
-    build\HORROR.bin   — binary disc image (load this in emulator)
-    build\HORROR.cue   — cue sheet (points to HORROR.bin)
+    build\HORROR.cue   — LOAD THIS ONE IN THE EMULATOR
+    build\HORROR.bin   — the disc data itself (keep it next to the .cue)
+
+
+>>> ALWAYS LOAD THE .CUE, NEVER THE .BIN. <<<
+----------------------------------------------
+The music is CD-DA: tracks 2-8 are real audio tracks on the disc, and the
+ONLY thing that says where they start is the cue sheet. A bare .bin has no
+table of contents at all.
+
+    PCSX-Redux papers over this. Hand it HORROR.bin and it quietly loads the
+    HORROR.cue sitting beside it — its log says "HORROR.bin[+cue]" and it
+    lists all 8 tracks.
+
+    DuckStation does not. Hand it HORROR.bin and it takes the file at its
+    word: one data track, no audio. The game reports "GetTN 1, 1", every
+    music track comes back "GetTD Out-of-range", and NOTHING PLAYS — while
+    sound effects (which are VAGs in the executable's own data) work fine,
+    so the disc looks healthy and only the music is missing.
+
+That asymmetry is why "no music in DuckStation, fine in Redux" is a LOADING
+problem and not a code problem — it has been diagnosed as a code bug more
+than once. cdaudio_play() now refuses to start the drive when the track is
+not in the TOC, so a .bin loaded on its own is silent rather than seeking
+into the data track, but silent is all it can be: the audio is unreachable
+without the cue.
+
+Note tools\DIAGNOSING_A_BOOT_CRASH.txt passes "-iso build\HORROR.bin" to
+PCSX-Redux. That is fine THERE and only there, because of the +cue pickup
+above. Anywhere else, and always for DuckStation, use the .cue.
+
+The shipped release folder already gets this right: its README tells players
+to load the .cue and to keep both files together.
 
 
 DISC CONTENTS (from disc.xml)

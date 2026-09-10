@@ -294,6 +294,31 @@ void cdaudio_init(void) {
 
 void cdaudio_play(int track, int loop) {
     cd_loc_valid  = resolve_track_loc(track, &cd_track_loc);
+
+    /* >>> NO TOC ENTRY FOR THE TRACK MEANS THE DISC HAS NO MUSIC ON IT. <<<
+     * ------------------------------------------------------------------
+     * This is what a DISC IMAGE LOADED WITHOUT ITS CUE SHEET looks like from
+     * in here. The audio tracks live in build\HORROR.bin, but only the .cue
+     * says where they start — a bare .bin has no table of contents, so the
+     * drive reports one track (the data track) and CdlGetTD for anything else
+     * comes back an error. PCSX-Redux hides this by quietly loading the .cue
+     * sitting next to any .bin it is given ("HORROR.bin[+cue]" in its log);
+     * DuckStation does not, and takes the .bin at its word.
+     *
+     * Playing anyway is worse than staying silent: with no location resolved,
+     * issue_play() would CdlPlay from wherever the head happens to be, which
+     * is the DATA track — silence at best, static on some hardware, and a
+     * drive left streaming under the next CdRead. So bail out here instead,
+     * with cd_audio_playing clear so cdaudio_update/suspend/resume all stay
+     * out of it. Every caller is fire-and-forget, and a room whose music never
+     * started still plays perfectly. */
+    if (!cd_loc_valid) {
+        cd_audio_playing = 0;
+        cd_loop_mode     = 0;
+        cd_end_sector    = 0;
+        return;
+    }
+
     cd_end_sector = resolve_track_end(track);
 
     /* Sanity check: only trust the end sector if the track is plausibly long

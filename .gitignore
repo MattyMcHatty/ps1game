@@ -24,3 +24,7 @@ tools/preview_4bpp.png
 # committed <Level>.smx plus tools/subpack/<level>.json on the way to the .smd,
 # so it is a build step's scratch file, not an asset.
 *.packed.smx
+
+# DuckStation's crash-reporter scratch, dropped in whatever folder it is run
+# from. Nothing here is ours.
+.sentry-native/
