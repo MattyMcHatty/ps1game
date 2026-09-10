@@ -418,6 +418,29 @@ static void load_bank(SoundBank b) {
     bank_loaded = b;
 }
 
+/* ---- The boot splash's one sound -------------------------------------------
+   sound_init() below runs at the END of main()'s startup block. The splash's
+   yellow flash happens BEFORE that block starts (src/splash.h), so at the
+   moment it needs a gunshot there is no SPU set up and no sample in SPU RAM —
+   sound_play would take its `!loaded` exit and the flash would be silent.
+
+   This brings up the SPU and uploads that ONE clip, and nothing else. It is
+   called from main() alongside the splash's own texture read, on the same idle
+   drive, and costs one 31 KB read.
+
+   >>> IT DOES NOT ADVANCE next_spu_addr, AND GRSHOT IS READ TWICE. <<< That is
+   deliberate. sound_init lays the residents down as one unbroken run from
+   ALLOC_START and derives the shared region's base from where that run ends;
+   letting this steal a slot out of the front of it would either leave a hole or
+   shift every resident, for the sake of saving a fifth of a second on a boot
+   that is already reading a hundred times this much. The second upload lands
+   the sample at its proper address and rewrites the slot, so the only trace of
+   this one is the sound the player already heard. */
+void sound_splash_init(void) {
+    SpuInit();
+    load_vag_at(SFX_GR_SHOT, ALLOC_START, SPU_RAM_END);
+}
+
 void sound_init(void) {
     SpuInit();
 

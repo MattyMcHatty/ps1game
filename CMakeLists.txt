@@ -33,6 +33,7 @@ add_executable(horror_game
     src/sml_med.c
     src/particles.c
     src/title.c
+    src/splash.c
     src/spi.c
     src/collision.c
     src/delivery_area_mesh_collision.c
@@ -198,6 +199,7 @@ set_source_files_properties(
     src/savegame.c
     src/memcard.c
     src/title.c
+    src/splash.c
     src/intro.c
     src/debug_opts.c
     src/world.c

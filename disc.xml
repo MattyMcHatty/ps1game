@@ -796,6 +796,17 @@
                      Its .smx exports live in assets/garden/. -->
                 <file name="THEHATCH.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\the_hatch.smd"/>
                 <file name="HATCH.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\hatch.tim"/>
+                <!-- THE BOOT SPLASH'S LOGO (src/splash.c). Read once, before the
+                     startup asset block, and never again — the very first thing
+                     off the disc after CdInit alongside the loading screen's axe.
+                     In TEX and not the root for the reason RABISU.SMD is: the
+                     root's first directory sector has about 36 bytes spare and a
+                     record costs 60, so a file there is a hang at the console
+                     logo (tools/check_disc_root.py).
+                     128x128 at 4bpp, halved from the 256x256 original: that is
+                     32 VRAM words by 128 rows, and x=672 y=128 is the only hole
+                     of that shape VRAM has left. -->
+                <file name="ERLOGO.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\menus\er_logo_128.tim"/>
             </dir>
         <dir name="TEXASAG">
         <!-- ================= ASAG'S ARENA AND ASAG ==========================

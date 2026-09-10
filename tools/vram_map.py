@@ -573,7 +573,10 @@ EXPORTER_ALIASES = {
 
 def main():
     tims = {}
-    for p in sorted(glob.glob(os.path.join(TEXDIR, "*.tim"))):
+    # RECURSIVE: textures/ has subdirectories now (menus/ holds the boot
+    # splash's logo), and a TIM that this scan cannot see is a TIM whose slot
+    # this map will happily hand to something else.
+    for p in sorted(glob.glob(os.path.join(TEXDIR, "**", "*.tim"), recursive=True)):
         if os.path.basename(p) in EXPORTER_ALIASES:
             continue
         r = read_tim(p)

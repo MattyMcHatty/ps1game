@@ -21,6 +21,7 @@
 #include "sml_med.h"
 #include "particles.h"
 #include "title.h"
+#include "splash.h"
 #include "collision.h"
 #include "crate.h"
 #include "dining_table.h"
@@ -1873,6 +1874,17 @@ static void show_loading_screen_now(RenderContext *ctx) {
    show_loading_screen_now (title-screen Load Game, debug level select) and by
    the startup block, and cleared the moment a room takes the screen over. */
 static void loading_screen_pump(RenderContext *ctx) {
+    /* THE BOOT SPLASH OUTRANKS THE LOADING SCREEN while it is up. The startup
+       block sets loading_screen_up before its first step, but the Electric
+       Reload logo is still on the television for the first several seconds of
+       it — so those steps pump the splash's animation instead, and the red
+       screen only appears underneath once the logo has faded out (or given up
+       waiting on a slow drive). See src/splash.h. */
+    if (splash_active()) {
+        splash_pump(ctx);
+        DrawSync(0);
+        return;
+    }
     if (!loading_screen_up) return;
     draw_loading_screen(ctx);
     flip_buffers(ctx);
@@ -1910,23 +1922,33 @@ int main(int argc, const char **argv) {
 
     SPI_Init(&poll_cb);
 
-    /* Show loading screen while CD assets initialise.
-       Two flips fill both double-buffer framebuffers before blocking reads begin.
-       The block below is the longest freeze in the game, so it is pumped
-       throughout (loading_screen_pump) to keep the axe swinging through it. */
+    /* Cover the startup block. It is the longest freeze in the game, and TWO
+       screens share the job now: the Electric Reload splash (src/splash.h) runs
+       first and hides the front of it behind an animation, and the red LOADING
+       screen picks up whatever is left when the logo fades. Both are driven by
+       loading_screen_pump, which is called after every step below and knows
+       which of the two is currently up. */
     loading_screen_up = 1;
 
     /* THE DRIVE COMES UP HERE, not in delivery_area_init() where it used to.
-       The whole point of the axe is to cover the startup block below, so its
-       icon has to be read BEFORE that block starts — and nothing can be read
-       until CdInit has run. Both are one CD access on an otherwise idle drive. */
+       The whole point of both cover screens is to hide the startup block below,
+       so their art has to be read BEFORE that block starts — and nothing can be
+       read until CdInit has run. Same for the one sound the splash makes. All
+       four are one CD access apiece on an otherwise idle drive. */
     CdInit();
+    splash_load_assets();
+    sound_splash_init();   /* SPU up + the gunshot the splash's flash fires */
     loading_screen_load_axe();
 
-    draw_loading_screen(&ctx);
-    flip_buffers(&ctx);
-    draw_loading_screen(&ctx);
-    flip_buffers(&ctx);
+    /* The logo rolls in and the screen flashes yellow, at a true 60fps with the
+       disc idle behind it. This is the ONE part of the boot that is not
+       overlapped with a load: it is also the only part with anything moving in
+       it. It leaves both framebuffers primed, which is what the two loading
+       screen flips that used to sit here were for.
+
+       Everything from here to splash_finish() below draws UNDER the splash's
+       later, static phases — the hold and the fade — one frame per step. */
+    splash_prelude(&ctx);
 
     /* ROOM GEOMETRY IS NOT LOADED HERE. Each room's mesh is read into the shared
        arena when the player walks into it (<room>_load_geometry, called from the
@@ -2142,8 +2164,15 @@ int main(int argc, const char **argv) {
     cdaudio_init();
     loading_screen_pump(&ctx);
 
-    /* The startup block is done and the title screen is about to take the
-       television over, so the pump goes quiet until the next real load. */
+    /* THE STARTUP BLOCK IS DONE — tell the splash so. If the logo is still up
+       it releases its hold and fades to black at 60fps with nothing competing
+       for the CPU; if it already timed out and handed over to the red screen
+       partway through the block, this returns immediately. Either way the
+       screen is black or red when it does, and the title takes over. */
+    splash_finish(&ctx);
+
+    /* The title screen is about to take the television over, so the pump goes
+       quiet until the next real load. */
     loading_screen_up = 0;
 
     FntLoad(960, 0);

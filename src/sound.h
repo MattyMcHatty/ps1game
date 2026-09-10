@@ -415,6 +415,14 @@ typedef enum {
 } SoundBank;
 
 void sound_init(void);
+
+/* Bring the SPU up and upload SFX_GR_SHOT alone, so the boot splash's yellow
+   flash has a gunshot to fire (src/splash.h). Call after CdInit() and before
+   splash_prelude(); sound_init() below still runs in its usual place at the end
+   of the startup block and re-lays the sample properly. See the note on the
+   definition for why the double upload is the right trade. */
+void sound_splash_init(void);
+
 void sound_play(SfxID id);
 void sound_stop(SfxID id);
 
