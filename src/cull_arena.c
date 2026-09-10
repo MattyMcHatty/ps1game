@@ -14,6 +14,7 @@ CullBox cull_boxes[CULL_ARENA_PRIMS];
 #include "keystone_maze_tex_map.h"
 #include "maze_one_tex_map.h"
 #include "maze_two_tex_map.h"
+#include "reception_tex_map.h"
 #include "rear_gate_tex_map.h"
 #include "stables_tex_map.h"
 
@@ -27,5 +28,6 @@ CULL_ARENA_FITS(greenhouse,    GREENHOUSE_PRIM_COUNT);
 CULL_ARENA_FITS(keystone_maze, KEYSTONE_MAZE_PRIM_COUNT);
 CULL_ARENA_FITS(maze_one,      MAZE_ONE_PRIM_COUNT);
 CULL_ARENA_FITS(maze_two,      MAZE_TWO_PRIM_COUNT);
+CULL_ARENA_FITS(reception,     RECEPTION_PRIM_COUNT);
 CULL_ARENA_FITS(rear_gate,     REAR_GATE_PRIM_COUNT);
 CULL_ARENA_FITS(stables,       STABLES_PRIM_COUNT);

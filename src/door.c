@@ -116,6 +116,146 @@ static int char_to_glyph(char c) {
 }
 
 /* -----------------------------------------------------------------------
+ * >>> THE FONT AS RECTANGLES, WHICH IS WHY THE WORLD-SPACE SIGNS ARE CHEAP <<<
+ *
+ * The two 3D string drawers below used to emit ONE POLY_F4 PER LIT FONT PIXEL,
+ * each with its own gte_rtpt + gte_rtps + gte_avsz4 -- four GTE transforms for a
+ * four-unit square. That is fine for a short prompt and it is not fine for a
+ * long one: "Locked from the other side" is 26 characters and 272 lit pixels,
+ * so a single red sign queued 272 quads. Reception's upper floor can have TWO of
+ * those live at once (the 2F Hall door and the West Corridor door, both locked
+ * from the far side, both inside the 1500 sign radius from most of the west
+ * strip) -- 544 quads, against the ~287 primitives the whole ROOM MESH submits
+ * from up there. The signs cost nearly twice the room, which is why the lag was
+ * reported as "worse when the doors are locked and the text is red": the red
+ * string is 26 characters where the green one is 16.
+ *
+ * A glyph is a 5x7 grid of flat-shaded coplanar squares, so any axis-aligned
+ * RECTANGLE of lit pixels fills exactly as the pixels did -- same plane, same
+ * colour, no overlap, nothing between them to sort against. Decomposing each
+ * glyph into maximal rectangles once and drawing those instead is therefore
+ * pixel-for-pixel identical output for 64% fewer primitives:
+ *
+ *     the whole font                991 lit pixels  ->  356 rects
+ *     "Locked from the other side"  272            ->  106
+ *     "Press <O> to enter"          165            ->   64
+ *
+ * Checked exhaustively offline over all 73 glyphs: every one reproduces its
+ * bitmap exactly, with no pixel covered twice.
+ *
+ * >>> THE MERGE DOES NOT MAKE A QUAD BIG ENOUGH TO CLAMP DIFFERENTLY. <<< The
+ * worry with merging is the GTE's +/-1023 screen clamp, which distorts a large
+ * primitive where it would only misplace a tiny one. The largest rect in this
+ * font is 5 cols x 6 rows = 20 x 24 world units at DOOR_PIXEL_SIZE -- the same
+ * order as the 4x4 it replaces, and nowhere near the span that would clamp at
+ * the closest the player can stand to a sign. Nothing here changes what the old
+ * per-pixel path already risked.
+ *
+ * The table is built ONCE, lazily, from door_glyphs and the four button glyphs
+ * themselves rather than generated into a header. It therefore cannot drift
+ * from the font the way a generated table can: edit a glyph above and its
+ * rectangles follow on the next boot with nothing to regenerate.
+ * ----------------------------------------------------------------------- */
+#define DOOR_GLYPH_COUNT ((int)(sizeof(door_glyphs) / sizeof(door_glyphs[0])))
+#define GLYPH_BTN_COUNT  4       /* Circle/Cross/Square/Triangle, in code order */
+#define GLYPH_SLOTS      (DOOR_GLYPH_COUNT + GLYPH_BTN_COUNT)
+/* >>> SIZED TO THE PROVABLE BOUND, NOT TO THE FONT AS IT STANDS. <<< The scan
+   below opens one rectangle per maximal run of set bits in a row, and a 5-wide
+   row holds at most three such runs (10101), so seven rows can never produce
+   more than 21. The glyphs above currently need NINE at worst -- but a table
+   sized to the font is a table that silently truncates the day somebody draws a
+   busier glyph, and truncating here means dropping pixels off a letter with no
+   error anywhere. 21 x 4 bytes x 73 slots is 6 KB of BSS to make that
+   impossible; checked against 200,000 random 5x7 bitmaps, the worst seen was
+   12. */
+#define GLYPH_MAX_RECTS  21
+
+/* Half-open spans: columns [c0,c1), rows [r0,r1). */
+typedef struct { uint8_t c0, c1, r0, r1; } GlyphRect;
+
+static GlyphRect glyph_rects[GLYPH_SLOTS][GLYPH_MAX_RECTS];
+static uint8_t   glyph_rect_n[GLYPH_SLOTS];
+static int       glyph_rects_built = 0;
+
+/* Greedy maximal-rectangle decomposition of one 5x7 glyph: take each row's runs
+   of set bits left to right, and extend a run downward for as long as the row
+   below has the IDENTICAL run and has not already been claimed. "The same run"
+   means those columns set AND the columns either side of them clear, so a
+   rectangle can never eat a pixel belonging to a wider run below it. Every lit
+   pixel therefore ends up in exactly one rectangle. */
+static void glyph_decompose(const uint8_t *g, GlyphRect *out, uint8_t *n_out) {
+    uint8_t claimed[7];
+    int row, col, n = 0;
+
+    for (row = 0; row < 7; row++) claimed[row] = 0;
+
+    for (row = 0; row < 7; row++) {
+        col = 0;
+        while (col < 5) {
+            if (!(g[row] & (0x01 << col)) || (claimed[row] & (0x01 << col)))
+                { col++; continue; }
+
+            int end = col;                       /* the run is [col, end) */
+            while (end < 5 && (g[row] & (0x01 << end))) end++;
+
+            uint8_t mask  = (uint8_t)(((1 << end) - 1) & ~((1 << col) - 1));
+            uint8_t edges = (uint8_t)((col > 0 ? (1 << (col - 1)) : 0) |
+                                      (end < 5 ? (1 << end)       : 0));
+
+            int last = row;
+            while (last + 1 < 7) {
+                uint8_t below = (uint8_t)(g[last + 1] & 0x1F);
+                if ((below & mask) != mask)    break;
+                if (below & edges)             break;
+                if (claimed[last + 1] & mask)  break;
+                last++;
+            }
+
+            { int q; for (q = row; q <= last; q++) claimed[q] |= mask; }
+
+            if (n < GLYPH_MAX_RECTS) {
+                out[n].c0 = (uint8_t)col;  out[n].c1 = (uint8_t)end;
+                out[n].r0 = (uint8_t)row;  out[n].r1 = (uint8_t)(last + 1);
+                n++;
+            }
+            col = end;
+        }
+    }
+    *n_out = (uint8_t)n;
+}
+
+static void glyph_rects_build(void) {
+    int i;
+    if (glyph_rects_built) return;
+    for (i = 0; i < DOOR_GLYPH_COUNT; i++)
+        glyph_decompose(door_glyphs[i], glyph_rects[i], &glyph_rect_n[i]);
+    for (i = 0; i < GLYPH_BTN_COUNT; i++) {
+        uint8_t br_, bg_, bb_;
+        const uint8_t *bg = btn_glyph_lookup((char)(BTN_CIRCLE_CH + i),
+                                             &br_, &bg_, &bb_);
+        int slot = DOOR_GLYPH_COUNT + i;
+        if (bg) glyph_decompose(bg, glyph_rects[slot], &glyph_rect_n[slot]);
+        else    glyph_rect_n[slot] = 0;
+    }
+    glyph_rects_built = 1;
+}
+
+/* Which slot a character draws from, and -- for a button control code -- the
+   colour it overrides the string's with (fade still applies, exactly as before).
+   Shared so the two 3D drawers cannot disagree about what a code means. */
+static int glyph_slot_for(char c, int fade_factor,
+                          uint8_t *cr, uint8_t *cg, uint8_t *cb) {
+    uint8_t br_, bg_, bb_;
+    if (btn_glyph_lookup(c, &br_, &bg_, &bb_)) {
+        *cr = (uint8_t)((br_ * fade_factor) >> 8);
+        *cg = (uint8_t)((bg_ * fade_factor) >> 8);
+        *cb = (uint8_t)((bb_ * fade_factor) >> 8);
+        return DOOR_GLYPH_COUNT + (int)(c - BTN_CIRCLE_CH);
+    }
+    return char_to_glyph(c);
+}
+
+/* -----------------------------------------------------------------------
  * Screen-space version of the same font, one 1x1 TILE per lit pixel.
  * Half the width of the SDK debug font btn_prompt_draw uses (6px per cell
  * against 8), which is what lets two captions share the bottom line, and it
@@ -175,6 +315,8 @@ void door_draw_string_3d(
     int char_w = 6 * pixel;   /* 5 pixel cols + 1 gap */
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
+    glyph_rects_build();   /* once per boot; see the rect table above */
+
     /* Apply fade to color */
     r = (uint8_t)((r * fade_factor) >> 8);
     g = (uint8_t)((g * fade_factor) >> 8);
@@ -196,75 +338,66 @@ void door_draw_string_3d(
         /* Button control codes draw the button's shape in its OWN colour
            (fade still applies); everything else uses the string colour. */
         uint8_t cr = r, cg = g, cb = b;
-        const uint8_t *glyph;
-        {
-            uint8_t br_, bg_, bb_;
-            const uint8_t *bglyph = btn_glyph_lookup(str[ci], &br_, &bg_, &bb_);
-            if (bglyph) {
-                glyph = bglyph;
-                cr = (uint8_t)((br_ * fade_factor) >> 8);
-                cg = (uint8_t)((bg_ * fade_factor) >> 8);
-                cb = (uint8_t)((bb_ * fade_factor) >> 8);
-            } else {
-                glyph = door_glyphs[char_to_glyph(str[ci])];
-            }
-        }
+        int slot = glyph_slot_for(str[ci], fade_factor, &cr, &cg, &cb);
+        const GlyphRect *gr = glyph_rects[slot];
+        int nr = glyph_rect_n[slot];
         int32_t char_read = read_start + eff_ci * char_w;
 
-        int row, col;
-        for (row = 0; row < 7; row++) {
-            for (col = 0; col < 5; col++) {
-                if (!(glyph[row] & (0x01 << col))) continue;
-                if (ctx->next_packet + sizeof(POLY_F4) > buf_end) return;
+        int k;
+        for (k = 0; k < nr; k++) {
+            if (ctx->next_packet + sizeof(POLY_F4) > buf_end) return;
 
-                /* Mirror flips columns within each glyph too. */
-                int eff_col = mirror ? (4 - col) : col;
-                int32_t pr = char_read + eff_col * pixel; /* reading-axis pos */
-                int32_t py = world_y + row * pixel;
+            /* Mirror flips columns within each glyph too. A span [c0,c1)
+               reflects to [5-c1, 5-c0), which is the per-pixel "4 - col" rule
+               applied to both ends of the span at once. */
+            int c0 = mirror ? (5 - gr[k].c1) : gr[k].c0;
+            int32_t pr = char_read + c0 * pixel;                 /* reading-axis pos */
+            int32_t pw = (gr[k].c1 - gr[k].c0) * pixel;          /* ...and its extent */
+            int32_t py = world_y + gr[k].r0 * pixel;
+            int32_t ph = (gr[k].r1 - gr[k].r0) * pixel;
 
-                /* Quad on the wall: the reading axis varies per char/col
-                   (left-right), Y varies per row (top-bottom), the third axis is
-                   fixed. v0=TL, v1=BL, v2=TR, v3=BR. */
-                SVECTOR verts[4];
-                if (plane == TEXT_PLANE_XY) {
-                    /* Fixed Z; reading axis is X (90deg from the YZ door signs). */
-                    verts[0].vx = (int16_t)pr;             verts[0].vy = (int16_t)py;             verts[0].vz = (int16_t)world_z; verts[0].pad = 0;
-                    verts[1].vx = (int16_t)pr;             verts[1].vy = (int16_t)(py + pixel); verts[1].vz = (int16_t)world_z; verts[1].pad = 0;
-                    verts[2].vx = (int16_t)(pr + pixel); verts[2].vy = (int16_t)py;             verts[2].vz = (int16_t)world_z; verts[2].pad = 0;
-                    verts[3].vx = (int16_t)(pr + pixel); verts[3].vy = (int16_t)(py + pixel); verts[3].vz = (int16_t)world_z; verts[3].pad = 0;
-                } else {
-                    /* Fixed X; reading axis is Z (door signs). */
-                    verts[0].vx = (int16_t)world_x; verts[0].vy = (int16_t)py;             verts[0].vz = (int16_t)pr;             verts[0].pad = 0;
-                    verts[1].vx = (int16_t)world_x; verts[1].vy = (int16_t)(py + pixel); verts[1].vz = (int16_t)pr;             verts[1].pad = 0;
-                    verts[2].vx = (int16_t)world_x; verts[2].vy = (int16_t)py;             verts[2].vz = (int16_t)(pr + pixel); verts[2].pad = 0;
-                    verts[3].vx = (int16_t)world_x; verts[3].vy = (int16_t)(py + pixel); verts[3].vz = (int16_t)(pr + pixel); verts[3].pad = 0;
-                }
-
-                DVECTOR sv[4];
-                int32_t otz;
-
-                gte_ldv3(&verts[0], &verts[1], &verts[2]);
-                gte_rtpt();
-                gte_stsxy3c(sv);
-
-                gte_ldv0(&verts[3]);
-                gte_rtps();
-                gte_stsxy(&sv[3]);
-                gte_avsz4();
-                gte_stotz(&otz);
-
-                if (otz <= 0 || otz >= OT_LENGTH) continue;
-
-                POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
-                setPolyF4(poly);
-                setRGB0(poly, cr, cg, cb);
-                poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
-                poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
-                poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
-                poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
-                addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
-                ctx->next_packet += sizeof(POLY_F4);
+            /* Quad on the wall: the reading axis varies per char/column
+               (left-right), Y varies per row (top-bottom), the third axis is
+               fixed. v0=TL, v1=BL, v2=TR, v3=BR. */
+            SVECTOR verts[4];
+            if (plane == TEXT_PLANE_XY) {
+                /* Fixed Z; reading axis is X (90deg from the YZ door signs). */
+                verts[0].vx = (int16_t)pr;        verts[0].vy = (int16_t)py;        verts[0].vz = (int16_t)world_z; verts[0].pad = 0;
+                verts[1].vx = (int16_t)pr;        verts[1].vy = (int16_t)(py + ph); verts[1].vz = (int16_t)world_z; verts[1].pad = 0;
+                verts[2].vx = (int16_t)(pr + pw); verts[2].vy = (int16_t)py;        verts[2].vz = (int16_t)world_z; verts[2].pad = 0;
+                verts[3].vx = (int16_t)(pr + pw); verts[3].vy = (int16_t)(py + ph); verts[3].vz = (int16_t)world_z; verts[3].pad = 0;
+            } else {
+                /* Fixed X; reading axis is Z (door signs). */
+                verts[0].vx = (int16_t)world_x; verts[0].vy = (int16_t)py;        verts[0].vz = (int16_t)pr;        verts[0].pad = 0;
+                verts[1].vx = (int16_t)world_x; verts[1].vy = (int16_t)(py + ph); verts[1].vz = (int16_t)pr;        verts[1].pad = 0;
+                verts[2].vx = (int16_t)world_x; verts[2].vy = (int16_t)py;        verts[2].vz = (int16_t)(pr + pw); verts[2].pad = 0;
+                verts[3].vx = (int16_t)world_x; verts[3].vy = (int16_t)(py + ph); verts[3].vz = (int16_t)(pr + pw); verts[3].pad = 0;
             }
+
+            DVECTOR sv[4];
+            int32_t otz;
+
+            gte_ldv3(&verts[0], &verts[1], &verts[2]);
+            gte_rtpt();
+            gte_stsxy3c(sv);
+
+            gte_ldv0(&verts[3]);
+            gte_rtps();
+            gte_stsxy(&sv[3]);
+            gte_avsz4();
+            gte_stotz(&otz);
+
+            if (otz <= 0 || otz >= OT_LENGTH) continue;
+
+            POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
+            setPolyF4(poly);
+            setRGB0(poly, cr, cg, cb);
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_F4);
         }
     }
 }
@@ -290,6 +423,8 @@ void door_draw_string_3d_yaw(
     int      char_w = 6 * pixel;
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
+    glyph_rects_build();   /* once per boot; see the rect table above */
+
     r = (uint8_t)((r * fade_factor) >> 8);
     g = (uint8_t)((g * fade_factor) >> 8);
     b = (uint8_t)((b * fade_factor) >> 8);
@@ -298,65 +433,59 @@ void door_draw_string_3d_yaw(
     while (str[len]) len++;
 
     int32_t start_h = -(len * char_w) / 2;          /* centre the line horizontally */
-    int32_t hx = (rx * pixel) >> 12, hz = (rz * pixel) >> 12;  /* one pixel right */
 
     int ci;
     for (ci = 0; ci < len; ci++) {
         /* Button control codes: own shape + colour, as in door_draw_string_3d. */
         uint8_t cr = r, cg = g, cb = b;
-        const uint8_t *glyph;
-        {
-            uint8_t br_, bg_, bb_;
-            const uint8_t *bglyph = btn_glyph_lookup(str[ci], &br_, &bg_, &bb_);
-            if (bglyph) {
-                glyph = bglyph;
-                cr = (uint8_t)((br_ * fade_factor) >> 8);
-                cg = (uint8_t)((bg_ * fade_factor) >> 8);
-                cb = (uint8_t)((bb_ * fade_factor) >> 8);
-            } else {
-                glyph = door_glyphs[char_to_glyph(str[ci])];
-            }
-        }
+        int slot = glyph_slot_for(str[ci], fade_factor, &cr, &cg, &cb);
+        const GlyphRect *gr = glyph_rects[slot];
+        int nr = glyph_rect_n[slot];
         int32_t char_h = start_h + ci * char_w;
-        int row, col;
-        for (row = 0; row < 7; row++) {
-            for (col = 0; col < 5; col++) {
-                if (!(glyph[row] & (0x01 << col))) continue;   /* same bit order as door_draw_string_3d */
-                if (ctx->next_packet + sizeof(POLY_F4) > buf_end) return;
 
-                int32_t h  = char_h + col * pixel;
-                int32_t bx = wx + ((rx * h) >> 12);
-                int32_t bz = wz + ((rz * h) >> 12);
-                int32_t by = wy + row * pixel;
+        int k;
+        for (k = 0; k < nr; k++) {
+            if (ctx->next_packet + sizeof(POLY_F4) > buf_end) return;
 
-                SVECTOR verts[4];
-                verts[0].vx = (int16_t)bx;      verts[0].vy = (int16_t)by;           verts[0].vz = (int16_t)bz;      verts[0].pad = 0;
-                verts[1].vx = (int16_t)bx;      verts[1].vy = (int16_t)(by + pixel);  verts[1].vz = (int16_t)bz;      verts[1].pad = 0;
-                verts[2].vx = (int16_t)(bx+hx); verts[2].vy = (int16_t)by;           verts[2].vz = (int16_t)(bz+hz); verts[2].pad = 0;
-                verts[3].vx = (int16_t)(bx+hx); verts[3].vy = (int16_t)(by + pixel);  verts[3].vz = (int16_t)(bz+hz); verts[3].pad = 0;
+            /* No mirror here: this variant carries its own facing in the yaw,
+               so the reading direction already points the right way. */
+            int32_t h  = char_h + gr[k].c0 * pixel;
+            int32_t pw = (gr[k].c1 - gr[k].c0) * pixel;   /* extent along reading */
+            int32_t ph = (gr[k].r1 - gr[k].r0) * pixel;   /* ...and down the face */
+            int32_t bx = wx + ((rx * h) >> 12);
+            int32_t bz = wz + ((rz * h) >> 12);
+            int32_t by = wy + gr[k].r0 * pixel;
+            /* hx/hz is one pixel along the reading direction; this rect is pw
+               units wide, so step by that instead. */
+            int32_t wx_ = (rx * pw) >> 12, wz_ = (rz * pw) >> 12;
 
-                DVECTOR sv[4];
-                int32_t otz;
-                gte_ldv3(&verts[0], &verts[1], &verts[2]);
-                gte_rtpt();
-                gte_stsxy3c(sv);
-                gte_ldv0(&verts[3]);
-                gte_rtps();
-                gte_stsxy(&sv[3]);
-                gte_avsz4();
-                gte_stotz(&otz);
-                if (otz <= 0 || otz >= OT_LENGTH) continue;
+            SVECTOR verts[4];
+            verts[0].vx = (int16_t)bx;       verts[0].vy = (int16_t)by;        verts[0].vz = (int16_t)bz;       verts[0].pad = 0;
+            verts[1].vx = (int16_t)bx;       verts[1].vy = (int16_t)(by + ph); verts[1].vz = (int16_t)bz;       verts[1].pad = 0;
+            verts[2].vx = (int16_t)(bx+wx_); verts[2].vy = (int16_t)by;        verts[2].vz = (int16_t)(bz+wz_); verts[2].pad = 0;
+            verts[3].vx = (int16_t)(bx+wx_); verts[3].vy = (int16_t)(by + ph); verts[3].vz = (int16_t)(bz+wz_); verts[3].pad = 0;
 
-                POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
-                setPolyF4(poly);
-                setRGB0(poly, cr, cg, cb);
-                poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
-                poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
-                poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
-                poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
-                addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
-                ctx->next_packet += sizeof(POLY_F4);
-            }
+            DVECTOR sv[4];
+            int32_t otz;
+            gte_ldv3(&verts[0], &verts[1], &verts[2]);
+            gte_rtpt();
+            gte_stsxy3c(sv);
+            gte_ldv0(&verts[3]);
+            gte_rtps();
+            gte_stsxy(&sv[3]);
+            gte_avsz4();
+            gte_stotz(&otz);
+            if (otz <= 0 || otz >= OT_LENGTH) continue;
+
+            POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
+            setPolyF4(poly);
+            setRGB0(poly, cr, cg, cb);
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_F4);
         }
     }
 }

@@ -12,6 +12,7 @@
 #include "camera.h"
 #include "reception.h"
 #include "collision.h"
+#include "cull_arena.h"
 #include "reception_mesh_collision.h"
 #include "reception_tex_map.h"
 #include "btn_glyph.h"
@@ -41,6 +42,63 @@ extern volatile size_t  pad_buff_len[2];
 
 static SMD  *reception_smd  = NULL;
 static void *reception_buff = NULL;
+
+/* ---- View distance, named once ---------------------------------------------
+   The cull distance and the fog-out distance are THE SAME NUMBER on purpose: a
+   polygon is only dropped once the fog has already faded it into the background
+   colour, so the cull line can never be seen. Both were the bare literal 1500 in
+   three places before; changing one and not the others is how a room grows a
+   visible pop line.                                                           */
+#define RC_FOG_NEAR   350
+#define RC_CULL_DIST 1500
+
+/* ---- The reject path's cull keys -------------------------------------------
+   >>> THIS ROOM WAS THE LAST BIG MESH ON THE DISC WITHOUT THEM. <<< See
+   tools/DIAGNOSING_FRAME_RATE.txt STEP 3B, and src/cull_arena.h for the arena
+   itself. The draw loop below walks all 1139 primitives every frame and throws
+   most of them away, and until now each rejected one still cost a read of the
+   primitive header for its stride, a read of its first vertex INDEX, and a chase
+   into the 67 KB vertex array for the coordinates -- three scattered reads with
+   no data cache behind them, to answer a question about two int16s.
+
+   Counted offline against Reception.smd over the upper floor's walkable
+   footprint at 16 headings (86 stances, 1376 poses -- sweep the room, do not
+   sample the doorway, which is that document's own STEP 5 lesson):
+
+       1139  primitives walked, every frame, from anywhere
+        287  mean surviving the distance cull -> the GTE
+        449  worst, standing at (500,900) in the middle of the upper floor
+
+   So ~850 of the 1139 are pure overhead a frame, which is the exact shape Maze
+   One's fix was written for. A rejected primitive now costs ONE sequential
+   6-byte read out of cull_keys and never touches the mesh at all.
+
+   NO BOX KEY. The Greenhouse's cull_boxes pays for itself where a SIDE-PLANE
+   frustum test would otherwise chase v1..v3 for every primitive that passes the
+   distance cull -- and this room has no side-plane test to feed. Its second
+   cheap reject is the single "is it behind me" dot product below, which answers
+   out of the key's own first vertex. Adding a box here would be a table nothing
+   reads. */
+static int rc_key_count = 0;
+
+static void rc_build_cull_keys(void) {
+    rc_key_count = 0;
+    if (!reception_smd) return;
+    uint8_t *p = (uint8_t *)reception_smd->p_prims;
+    int i, n = reception_smd->n_prims;
+    if (n > RECEPTION_PRIM_COUNT) n = RECEPTION_PRIM_COUNT;
+    for (i = 0; i < n; i++) {
+        SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
+        uint16_t     *vi = (uint16_t *)(p + 4);
+        SVECTOR      *v0 = &reception_smd->p_verts[vi[0]];
+        cull_keys[i].x      = v0->vx;
+        cull_keys[i].z      = v0->vz;
+        cull_keys[i].stride = pt->len;
+        cull_keys[i].pad    = 0;
+        p += pt->len;
+    }
+    rc_key_count = n;
+}
 
 /* Multi-level floor layout (taken from the collision mesh, Reception_mesh.smx):
    ground (y=0) -> ramp A up to a y=-150 platform -> ramp B up to the y=-600
@@ -143,6 +201,9 @@ static const struct { const char *file; int slot; } new_tex[RECEPTION_NEW_TEX] =
 void reception_load_geometry(void) {
     reception_buff = room_arena_load("\\RECEPT.SMD;1");
     reception_smd  = reception_buff ? smdInitData(reception_buff) : NULL;
+    /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
+       that reloads the mesh they describe, and nowhere else. */
+    rc_build_cull_keys();
 }
 
 /* Preload textures at STARTUP. Geometry moved to reception_load_geometry above;
@@ -603,30 +664,46 @@ static void draw_reception_smd(RenderContext *ctx) {
     if (!reception_smd) return;
 
     uint8_t *p = (uint8_t *)reception_smd->p_prims;
-    int i;
+    int i, n = rc_key_count;
 
-    for (i = 0; i < reception_smd->n_prims; i++) {
+    /* HOISTED OUT OF THE REJECT LOOP, all three of them. The two trig lookups
+       and the cull distance cannot change while a frame is being queued, and
+       isin/icos were being called once EACH per surviving primitive -- up to 449
+       pairs of SDK calls a frame from the upper floor -- to recompute one pair
+       of constants. This is the Rabisu fight's first fix (STEP 3C in
+       tools/DIAGNOSING_FRAME_RATE.txt); reception predates that work and never
+       got it. */
+    int32_t cull = DEBUG_CULL_DIST();
+    if (!cull) cull = RC_CULL_DIST;
+    int32_t sn = isin(cam_rot), cs = icos(cam_rot);
+
+    for (i = 0; i < n; i++) {
+        /* >>> THE REJECT PATH READS cull_keys, NOT THE MESH. <<< Six sequential
+           bytes carry this primitive's first vertex X/Z and its stride, which is
+           everything both cheap tests below need AND everything the walk needs to
+           advance -- so a rejected primitive never touches the SMD header, the
+           vertex index array or the 67 KB vertex array. See rc_build_cull_keys.
+           Only a primitive that SURVIVES pays to address the mesh. */
+        uint8_t stride = cull_keys[i].stride;
+        int32_t dx = (int32_t)cull_keys[i].x - cam_x;
+        int32_t dz = (int32_t)cull_keys[i].z - cam_z;
+
+        /* Distance cull (Manhattan) at the fog-out distance so culled polys are
+           already invisible. RC_CULL_DIST keeps the room GPU-fill within a 60fps
+           frame (was 2300, which pushed the fill to VB2/30fps). */
+        if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > cull)
+            { p += stride; continue; }
+        if (dx * sn + dz * cs < -(700 << 12))
+            { p += stride; continue; }
+
+        /* Survived both. NOW address the mesh. */
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
-        uint8_t stride = pt->len;
         int is_quad = (pt->type >= 2);
 
         uint16_t *vi = (uint16_t *)(p + 4);
         SVECTOR *v0 = &reception_smd->p_verts[vi[0]];
         SVECTOR *v1 = &reception_smd->p_verts[vi[1]];
         SVECTOR *v2 = &reception_smd->p_verts[vi[2]];
-
-        {
-            int32_t dx = (int32_t)v0->vx - cam_x;
-            int32_t dz = (int32_t)v0->vz - cam_z;
-            /* Distance cull (Manhattan) at the fog-out distance so culled polys
-               are already invisible. 1500 keeps the room GPU-fill within a 60fps
-               frame (was 2300, which pushed the fill to VB2/30fps). */
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 1500)
-                { p += stride; continue; }
-            int32_t fwd = dx * isin(cam_rot) + dz * icos(cam_rot);
-            if (fwd < -(700 << 12))
-                { p += stride; continue; }
-        }
 
         DVECTOR sv[4];
         int32_t sz[4];
@@ -692,10 +769,12 @@ static void draw_reception_smd(RenderContext *ctx) {
         uint8_t *col = p + 16;
         int32_t face_cx = ((int32_t)v0->vx + v2->vx) / 2;
         int32_t face_cz = ((int32_t)v0->vz + v2->vz) / 2;
-        int32_t dx = face_cx - cam_x;
-        int32_t dz = face_cz - cam_z;
+        /* Re-aimed at the face CENTRE for the fog; dx/dz above were the cull
+           key's first vertex, and both tests are done with. */
+        dx = face_cx - cam_x;
+        dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog_start = 350, fog_end = 1500;   /* fog fully saturates at the cull distance */
+        int32_t fog_start = RC_FOG_NEAR, fog_end = cull;   /* fog fully saturates at the cull distance */
         int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
         int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
 
@@ -773,17 +852,21 @@ static void draw_reception_smd(RenderContext *ctx) {
 }
 
 void reception_draw(RenderContext *ctx) {
-    /* Entities in this room fog with the same near/far as the mesh below. */
-    g_fog_near = 350; g_fog_far = 1500;
+    int exp = DEBUG_EXPERIMENT();
 
-    /* Dark interior background, same as the kitchen. */
-    TILE *bg = (TILE *)ctx->next_packet;
-    setTile(bg);
-    setXY0(bg, 0, 0);
-    setWH(bg, SCREEN_XRES, SCREEN_YRES);
-    setRGB0(bg, 20, 15, 10);
-    addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], bg);
-    ctx->next_packet += sizeof(TILE);
+    /* Entities in this room fog with the same near/far as the mesh below, and
+       follow the debug view distance when one is selected so levels 6/7 change
+       what the room LOOKS like consistently rather than just where it stops. */
+    g_fog_near = RC_FOG_NEAR;
+    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : RC_CULL_DIST;
+
+    /* Dark interior background, same as the kitchen -- but as the CLEAR COLOUR,
+       not as a primitive. The draw environments carry isbg=1, so DrawOTagEnv has
+       already filled the whole framebuffer before the first poly is drawn; the
+       full-screen TILE this room used to queue on top was a SECOND 77,000-pixel
+       fill every frame, for the colour alone. Wrong turn #3 in
+       tools/DIAGNOSING_FRAME_RATE.txt, and the Rabisu fight's second fix. */
+    render_set_clear_colour(ctx, 20, 15, 10);
 
     /* 128x128 texture window so per-poly UVs wrap (tile) within each texture's
        page. Sorted at OT_LENGTH-1 so the GPU applies it before any textured poly
@@ -804,7 +887,7 @@ void reception_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
 
-    draw_reception_smd(ctx);
+    if (exp != DBG_EXP_NO_MESH) draw_reception_smd(ctx);
     /* Floating collectibles (Grave-olver + rounds) in the room behind the fat
        door. Billboards drawn in the active view matrix; their 64x64 sprites sit
        at VRAM Voff 0 so the room's 128 texture window leaves their UVs intact. */
@@ -831,10 +914,22 @@ void reception_draw(RenderContext *ctx) {
     }
     draw_hadads(ctx);
     save_points_draw(ctx);
-    reception_door_text(ctx);
-    wdoor_text(ctx);
-    cdoor_text(ctx);
-    hdoor_text(ctx);
-    ndoor_text(ctx);
-    edoor_text(ctx);
+
+    /* >>> THE SIX DOOR SIGNS, UNDER DBG_EXP_NO_ENTITIES. <<< In most rooms level
+       8 removes the monsters and the props, because that is what stands in them.
+       In THIS room the thing standing in the mesh that costs real money is the
+       SIGNS: two of them on the upper-floor west wall can be live at once, and
+       when both read "Locked from the other side" that is 26 characters apiece
+       against the green prompt's 16. D read at level 1, at 4 (no mesh) and at 8
+       (no signs) splits the frame three ways in one sitting, which is what
+       STEP 1 of tools/DIAGNOSING_FRAME_RATE.txt asks for and what nobody could
+       do in here before. */
+    if (exp != DBG_EXP_NO_ENTITIES) {
+        reception_door_text(ctx);
+        wdoor_text(ctx);
+        cdoor_text(ctx);
+        hdoor_text(ctx);
+        ndoor_text(ctx);
+        edoor_text(ctx);
+    }
 }

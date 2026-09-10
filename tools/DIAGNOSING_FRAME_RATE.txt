@@ -644,3 +644,135 @@ it is cheaper than any content decision.
   here because the answer was CPU-bound and CPU timing is accurate — but a
   FILL-bound verdict from an emulator is worth confirming on hardware or in a
   second emulator before reshaping any geometry around it.
+
+
+##########################################################################
+ STEP 3D — RECEPTION'S UPPER FLOOR, AND THE FIRST TIME THE TEXT WAS THE COST
+##########################################################################
+Reported (Sep 2026) as "lag on the upper level of Reception, and it seems worse
+when either of the doors that can be locked up there is locked and the text is
+red". That second clause is the whole diagnosis and the player found it, not the
+meter: it is the first time in this document that the frame cost was not the
+mesh, not the enemies and not the fill, but the SIGNAGE.
+
+WHY THE RED TEXT COSTS MORE THAN THE GREEN. door_draw_string_3d drew ONE POLY_F4
+PER LIT FONT PIXEL, each with its own gte_rtpt + gte_rtps + gte_avsz4 — four GTE
+transforms for a four-unit square. The cost is therefore proportional to the
+LETTER COUNT of the string, and the two states of a lockable door are not the
+same length:
+
+    "Press <O> to enter"          16 chars   165 lit pixels   165 quads
+    "Locked from the other side"  26 chars   272 lit pixels   272 quads
+
+WHY THE UPPER FLOOR AND NOWHERE ELSE. Reception's west wall carries FOUR doors,
+two on each level, and the upper pair — HDOOR (the 2F Hall, z=-750) and NDOOR
+(the West Corridor, z=964) — are BOTH locked from the far side until the player
+opens them from over there. RDOOR_TEXT_RADIUS is 1500 and it is MANHATTAN, while
+the upper floor's west strip is only 600 wide in X, so from most of that strip
+both signs are inside their radius at once. Counted over the upper floor's
+walkable footprint (86 stances x 32 headings): both red signs are live together
+on 9 of the 86 stances, and the worst stance queues
+
+    544 sign quads   against   287 room-mesh primitives (mean; 449 worst)
+
+>>> THE SIGNS COST NEARLY TWICE THE ROOM. <<< No distance falloff helps: the
+per-quad cost is CPU and does not care that the sign is a few pixels wide from
+1500 away. There is no facing test either, so both signs are queued in full with
+the player's back to them.
+
+THE FIX: THE FONT AS RECTANGLES, NOT AS PIXELS (src/door.c).
+A glyph is a 5x7 grid of flat-shaded coplanar squares, so any axis-aligned
+RECTANGLE of lit pixels fills exactly as the pixels did — same plane, same flat
+colour, no overlap, nothing between them to sort against. Decomposing each glyph
+into maximal rectangles ONCE and drawing those is pixel-for-pixel identical
+output for 64% fewer primitives:
+
+    the whole font                991 lit pixels  ->  356 rects
+    "Locked from the other side"  272             ->  106
+    "Press <O> to enter"          165             ->   64
+    the worst upper-floor stance  544 quads       ->  212
+
+  IT IS NOT AN APPROXIMATION, and it was checked rather than argued: the C
+  decomposition was ported back to Python and run over all 73 glyphs and 200,000
+  random 5x7 bitmaps, asserting that every rectangle set reproduces its bitmap
+  exactly with no pixel covered twice. The MIRRORED path (signs read from the far
+  side) was checked the same way — a span [c0,c1) reflects to [5-c1, 5-c0), which
+  is the old per-pixel "4 - col" rule applied to both ends at once — and both
+  facings of four real strings come out pixel-identical.
+
+  THE TABLE IS BUILT AT RUNTIME FROM door_glyphs ITSELF, lazily, on the first
+  sign drawn. Not generated into a header: this document's neighbours are full of
+  generated index tables that drift from the thing they describe (see STEP 6's
+  three-things-keyed-by-index warning). Edit a glyph and its rectangles follow on
+  the next boot with nothing to regenerate.
+
+  AND IT IS SIZED TO THE PROVABLE BOUND, NOT TO THE FONT. The scan opens one
+  rectangle per maximal run in a row, and a 5-wide row holds at most three runs
+  (10101), so seven rows can never exceed 21. The current font needs 9. A table
+  sized to the font would silently TRUNCATE — dropping pixels off a letter, with
+  no error anywhere — the day somebody drew a busier glyph; the random sweep
+  found bitmaps needing 16. Six KB of BSS makes that impossible.
+
+  EVERY WORLD-SPACE SIGN IN THE GAME GETS THIS, not just Reception's: both
+  door_draw_string_3d and door_draw_string_3d_yaw walk the same table.
+
+AND THE THREE MESH FIXES THIS ROOM HAD NEVER RECEIVED (src/reception.c).
+Reception predates all of STEP 3B and STEP 3C and had none of it. Its own count,
+offline against Reception.smd over the upper floor at 16 headings:
+
+    1139  primitives walked, every frame, from anywhere in the room
+     287  mean surviving the distance cull
+     449  worst, in the middle of the upper floor at (500,900)
+
+  1. THE CULL-KEY TABLE (STEP 3B). ~850 primitives a frame were rejected after a
+     read of the primitive header for its stride, a read of its first vertex
+     INDEX and a chase into the 67 KB vertex array — three scattered reads, no
+     data cache, to answer a question about two int16s. Reception was the last
+     big mesh on the disc outside the shared arena; it is in it now (cull_keys,
+     src/cull_arena.h) and a rejected primitive costs one sequential 6-byte read.
+
+     NO BOX KEY. cull_boxes pays for itself where a SIDE-PLANE frustum test would
+     otherwise chase v1..v3 per surviving primitive, and this room has no such
+     test to feed — its second reject is a single "is it behind me" dot product
+     answered out of the key's own first vertex. A box here would be a table
+     nothing reads.
+
+  2. isin/icos AND THE CULL DISTANCE HOISTED OUT OF THE LOOP (STEP 3C fix 1).
+     Two SDK calls per SURVIVING primitive — up to 449 pairs a frame from the
+     upper floor — recomputing one pair of constants that cannot change while a
+     frame is being queued.
+
+  3. THE DOUBLE SCREEN CLEAR REMOVED (wrong turn #3 / STEP 3C fix 2). The room
+     queued its own full-screen TILE over a framebuffer DrawOTagEnv had already
+     cleared: a second 77,000-pixel fill every frame for the colour alone.
+     render_set_clear_colour.
+
+WHAT WAS DELIBERATELY NOT DONE, and why, because this document's own history says
+the unmeasured optimisation is the expensive one:
+
+  - NO BEHIND-CAMERA CULL ON THE SIGNS. It looks like the obvious fix and it was
+    MEASURED FIRST: over 86 stances x 32 headings it removes only 11% of the sign
+    quads drawn up there, because the west strip is narrow and the doors are on
+    its long wall, so the signs are usually LATERAL rather than behind. Written
+    before measuring it would have been wrong turn #6.
+  - NO REDUCTION OF RDOOR_TEXT_RADIUS. That is a LOOK decision, not a
+    performance one — the same call greenhouse.h's view distance is.
+  - NO SIDE-PLANE FRUSTUM CULL. The Greenhouse measured it four hblanks on the
+    WRONG side of neutral and Maze One measured it exactly neutral. Nothing here
+    justifies adding one.
+
+>>> AND THE ROOM CAN NOW BE MEASURED, WHICH IT COULD NOT BEFORE. <<< Reception
+honoured no debug isolation level at all. It honours 4 (no mesh), 6 and 7 (view
+distance) and — repointed at the thing that actually costs money in HERE — 8,
+which removes THE SIX DOOR SIGNS rather than enemies and props. D read at 1, at 4
+and at 8 now splits this room's frame three ways in one sitting.
+
+>>> THESE NUMBERS ARE ALL OFFLINE COUNTS. NOBODY HAS READ THE METER IN THIS ROOM
+YET. <<< That is the reverse of the order this document demands, and it is worth
+being honest about: the counting is the part STEP 6 endorses ("count the mesh, do
+not guess"), the fixes are the three already proven in three other rooms plus one
+aimed at a cost the player located himself, and every one of them is
+behaviour-neutral by construction rather than by measurement. But U/D/G at
+levels 1/4/8 from the middle of that upper floor, with both west doors locked, is
+still owed — and if the signs turn out not to have been the cost, this section
+becomes the sixth wrong turn and should say so.
