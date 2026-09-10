@@ -28,3 +28,8 @@ tools/preview_4bpp.png
 # DuckStation's crash-reporter scratch, dropped in whatever folder it is run
 # from. Nothing here is ours.
 .sentry-native/
+
+# Superseded release packages, kept on disk so an old build can be handed out
+# again but never committed: the zip is over 100MB and the README inside is a
+# stale copy of the tracked one next door.
+release/old-*/
