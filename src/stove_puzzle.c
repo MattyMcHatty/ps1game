@@ -20,8 +20,8 @@ extern volatile size_t  pad_buff_len[2];
    Interact point = the burner the flame rises from (STOVE_FIRE_* in
    kitchen_dining.c), with the same Manhattan trigger radius the old ignite
    prompt used. */
-#define SP_STOVE_X          (-107)
-#define SP_STOVE_Z           1080
+#define SP_STOVE_X           (-39)
+#define SP_STOVE_Z           1041
 #define SP_INTERACT_RADIUS    500
 
 /* Fixed camera: stands south-east of the hob at the author-specified spot and

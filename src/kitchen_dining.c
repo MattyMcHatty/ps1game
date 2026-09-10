@@ -52,8 +52,8 @@ extern volatile size_t  pad_buff_len[2];
 /* Stove flame: where it burns. FIRE_Y is the burner height the flame rises from
    (negative Y = up; floor ~0, eye level -149). The puzzle lights it for the
    cook (see stove_puzzle.c); nothing else does. */
-#define STOVE_FIRE_X        (-107)   /* moved 120 toward the dining room (-X) */
-#define STOVE_FIRE_Z        1080
+#define STOVE_FIRE_X         (-39)   /* centre of the large front-left burner */
+#define STOVE_FIRE_Z        1041
 #define STOVE_FIRE_Y        (-105)
 #define STOVE_FIRE_RATE        2   /* new flame particles emitted per frame */
 

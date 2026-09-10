@@ -8,6 +8,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "room_arena.h"
+#include "cull_arena.h"
 #include "tim_slots.h"
 #include "camera.h"
 #include "master_bedroom.h"
@@ -76,6 +77,61 @@ static const struct { const char *file; int slot; } new_tex[MASTER_BEDROOM_NEW_T
 static uint16_t tex_tpage[MASTER_BEDROOM_TEX_COUNT];
 static uint16_t tex_clut[MASTER_BEDROOM_TEX_COUNT];
 
+/* ---- The reject path's cull keys -------------------------------------------
+   See tools/DIAGNOSING_FRAME_RATE.txt STEP 3B and src/cull_arena.h for the arena
+   itself. This room was written in Aug 2026 and inherited NONE of that work: the
+   draw loop below walked all 622 primitives every frame and, for every one of
+   them, read the primitive header for its stride, read three vertex INDICES and
+   chased v0/v1/v2 into the vertex array -- all BEFORE either of the two cheap
+   culls had a chance to throw the primitive away.
+
+   Counted offline against assets/master_bedroom.smd over the walkable footprint
+   (X -1594..1245, Z -441..319) at 16 headings, 960 poses -- sweep the room, do
+   not sample the doorway, which is STEP 5's own lesson:
+
+        622  primitives walked, every frame, from anywhere in the room
+        384  mean reaching the second cull (i.e. the trig below)
+        482  mean surviving BOTH culls -> the GTE
+        542  worst, standing at (6,-41) facing -Z -- WHICH IS THE BED
+
+   >>> THE LAST LINE IS THE PLAYER'S REPORT. <<< (6,-41) is the middle of the
+   suite and rot 2048 is the heading that looks down the bed chamber. The
+   distance cull is at its most useless from that stance (542 of 622 primitives
+   pass it, because the room is 2840 x 1293 and the cull is 1500 Manhattan) and
+   the "behind me" cull is at its most useless on that heading (542 survive
+   against 437 with the bed at the player's back). The worst stance and the worst
+   heading in this room are the same pose, and it is the one he named.
+
+   A rejected primitive now costs ONE sequential 6-byte read out of cull_keys and
+   never addresses the mesh at all.
+
+   NO BOX KEY, for reception's reason (src/reception.c): cull_boxes pays for
+   itself only where a SIDE-PLANE frustum test would otherwise chase v1..v3 for
+   every primitive that survives the distance cull, and this room has no such
+   test to feed -- nor should it get one. The Greenhouse measured a side-plane
+   cull four hblanks on the WRONG side of neutral and Maze One measured it
+   exactly neutral. A box here would be a table nothing reads. */
+static int mb_key_count = 0;
+
+static void mb_build_cull_keys(void) {
+    mb_key_count = 0;
+    if (!master_bedroom_smd) return;
+    uint8_t *p = (uint8_t *)master_bedroom_smd->p_prims;
+    int i, n = master_bedroom_smd->n_prims;
+    if (n > MASTER_BEDROOM_PRIM_COUNT) n = MASTER_BEDROOM_PRIM_COUNT;
+    for (i = 0; i < n; i++) {
+        SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
+        uint16_t     *vi = (uint16_t *)(p + 4);
+        SVECTOR      *v0 = &master_bedroom_smd->p_verts[vi[0]];
+        cull_keys[i].x      = v0->vx;
+        cull_keys[i].z      = v0->vz;
+        cull_keys[i].stride = pt->len;
+        cull_keys[i].pad    = 0;
+        p += pt->len;
+    }
+    mb_key_count = n;
+}
+
 /* Load this room's geometry into the shared arena. Called on ENTRY, from main's
    STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
    this overwrites whatever the player just walked out of; that is safe because
@@ -84,6 +140,9 @@ static uint16_t tex_clut[MASTER_BEDROOM_TEX_COUNT];
 void master_bedroom_load_geometry(void) {
     master_bedroom_buff = room_arena_load("\\TEX\\MSTRBED.SMD;1");
     master_bedroom_smd  = master_bedroom_buff ? smdInitData(master_bedroom_buff) : NULL;
+    /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
+       that reloads the mesh they describe, and nowhere else. */
+    mb_build_cull_keys();
 }
 
 /* Register this room's streamed textures at STARTUP. Geometry is NOT loaded
@@ -129,6 +188,11 @@ void master_bedroom_upload_textures(void) {
    respectively. The player approaches both from the -Z (room) side, so the
    signs lie in the XY plane with mirror=0 — the same orientation as the hall's
    own "descend" sign, and the opposite of the conservatory's ascend sign. */
+/* The room's view distance, and the near end of its fog. The mesh culls at the
+   far one so a culled poly has already fogged out to the background colour. */
+#define MB_CULL_DIST             1500
+#define MB_FOG_NEAR               350
+
 #define MBDOOR_Z                  315
 #define MBDOOR_W_X              (-808)
 #define MBDOOR_E_X                769
@@ -238,29 +302,47 @@ static void draw_master_bedroom_smd(RenderContext *ctx) {
     if (!master_bedroom_smd) return;
 
     uint8_t *p = (uint8_t *)master_bedroom_smd->p_prims;
-    int i;
+    int i, n = mb_key_count;
 
-    for (i = 0; i < master_bedroom_smd->n_prims; i++) {
+    /* HOISTED OUT OF THE REJECT LOOP, all three of them. The two trig lookups
+       and the cull distance cannot change while a frame is being queued, and
+       isin/icos were being called once EACH for every primitive that passed the
+       distance cull -- up to 542 pairs of SDK calls a frame from the middle of
+       this room, to recompute one pair of constants. That count PEAKS at the
+       stance the lag was reported from (see mb_build_cull_keys above). This is
+       the Rabisu fight's first fix, STEP 3C in tools/DIAGNOSING_FRAME_RATE.txt;
+       the bedroom predates that work and never got it. */
+    int32_t cull = DEBUG_CULL_DIST();
+    if (!cull) cull = MB_CULL_DIST;
+    int32_t sn = isin(cam_rot), cs = icos(cam_rot);
+
+    for (i = 0; i < n; i++) {
+        /* >>> THE REJECT PATH READS cull_keys, NOT THE MESH. <<< Six sequential
+           bytes carry this primitive's first vertex X/Z and its stride, which is
+           everything both cheap tests below need AND everything the walk needs to
+           advance -- so a rejected primitive never touches the SMD header, the
+           vertex index array or the vertex array. Only a primitive that SURVIVES
+           pays to address the mesh. */
+        uint8_t stride = cull_keys[i].stride;
+        {
+            int32_t dx = (int32_t)cull_keys[i].x - cam_x;
+            int32_t dz = (int32_t)cull_keys[i].z - cam_z;
+            /* Distance cull (Manhattan) at the fog-out distance so culled polys
+               are already invisible (same budget as the other rooms). */
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > cull)
+                { p += stride; continue; }
+            if (dx * sn + dz * cs < -(700 << 12))
+                { p += stride; continue; }
+        }
+
+        /* Survived both. NOW address the mesh. */
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
-        uint8_t stride = pt->len;
         int is_quad = (pt->type >= 2);
 
         uint16_t *vi = (uint16_t *)(p + 4);
         SVECTOR *v0 = &master_bedroom_smd->p_verts[vi[0]];
         SVECTOR *v1 = &master_bedroom_smd->p_verts[vi[1]];
         SVECTOR *v2 = &master_bedroom_smd->p_verts[vi[2]];
-
-        {
-            int32_t dx = (int32_t)v0->vx - cam_x;
-            int32_t dz = (int32_t)v0->vz - cam_z;
-            /* Distance cull (Manhattan) at the fog-out distance so culled polys
-               are already invisible (same budget as the other rooms). */
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 1500)
-                { p += stride; continue; }
-            int32_t fwd = dx * isin(cam_rot) + dz * icos(cam_rot);
-            if (fwd < -(700 << 12))
-                { p += stride; continue; }
-        }
 
         DVECTOR sv[4];
         int32_t sz[4];
@@ -319,7 +401,7 @@ static void draw_master_bedroom_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog_start = 350, fog_end = 1500;   /* fog saturates at the cull distance */
+        int32_t fog_start = MB_FOG_NEAR, fog_end = cull;   /* fog saturates at the cull distance */
         int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
         int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
 
@@ -396,17 +478,21 @@ static void draw_master_bedroom_smd(RenderContext *ctx) {
 }
 
 void master_bedroom_draw(RenderContext *ctx) {
-    /* Entities in this room fog with the same near/far as the mesh below. */
-    g_fog_near = 350; g_fog_far = 1500;
+    int exp = DEBUG_EXPERIMENT();
 
-    /* Dark interior background, same as the other rooms. */
-    TILE *bg = (TILE *)ctx->next_packet;
-    setTile(bg);
-    setXY0(bg, 0, 0);
-    setWH(bg, SCREEN_XRES, SCREEN_YRES);
-    setRGB0(bg, 20, 15, 10);
-    addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], bg);
-    ctx->next_packet += sizeof(TILE);
+    /* Entities in this room fog with the same near/far as the mesh below, and
+       follow the debug view distance when one is selected so levels 6/7 change
+       what the room LOOKS like consistently rather than just where it stops. */
+    g_fog_near = MB_FOG_NEAR;
+    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : MB_CULL_DIST;
+
+    /* Dark interior background -- but as the CLEAR COLOUR, not as a primitive.
+       The draw environments carry isbg=1, so DrawOTagEnv has already filled the
+       whole framebuffer before the first poly is drawn; the full-screen TILE
+       this room used to queue on top was a SECOND 77,000-pixel fill every frame,
+       for the colour alone. Wrong turn #3 in tools/DIAGNOSING_FRAME_RATE.txt,
+       and the Rabisu fight's second fix. */
+    render_set_clear_colour(ctx, 20, 15, 10);
 
     /* 128x128 texture window so per-poly UVs wrap (tile) within each texture's
        page. All eight bedroom textures sit at page-top (Voff 0), so one window
@@ -426,7 +512,7 @@ void master_bedroom_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
 
-    draw_master_bedroom_smd(ctx);
+    if (exp != DBG_EXP_NO_MESH) draw_master_bedroom_smd(ctx);
 
     /* No enemies placed here yet; the room's 128 texture window is still handed
        to the zombie renderer so a future spawn brackets its Voff>=128 sprite
@@ -436,12 +522,36 @@ void master_bedroom_draw(RenderContext *ctx) {
         zombies_set_texwindow(&tw);
         spiders_set_texwindow(&tw);
     }
-    draw_zombies(ctx);
-    draw_spiders(ctx);
-    draw_rabisus(ctx);
-    webs_draw(ctx);
-    item_pickups_draw(ctx);
+    /* >>> LEVEL 8 REMOVES THE ENTITIES *AND* THE TWO DOOR SIGNS. <<< In most
+       rooms level 8 takes out the monsters and the props, because that is what
+       stands in them. This room is empty of both today, and the thing standing
+       in its mesh that costs real money is the SIGNAGE: both north-wall prompts
+       are inside their 1500 Manhattan radius from 1.20 stances out of 2 on
+       average across the walkable footprint, and door_draw_string_3d has no
+       facing test, so they are queued in full with the player's back to them --
+       which is exactly the pose he is standing in to look at the bed.
 
-    mbdoor_text(ctx, MBDOOR_W_X);
-    mbdoor_text(ctx, MBDOOR_E_X);
+       A BEHIND-CAMERA CULL ON THE SIGNS WAS MEASURED AND REJECTED, not skipped.
+       Over the footprint at 32 headings it removes only 9.3% of the live sign
+       work (13.5% for the headings that face the bed), because the mesh's own
+       -700 "behind me" threshold is slack and the doors sit on the long wall of
+       a wide room. That is Reception's 11% again, and STEP 3D rejected it there
+       for the same number. What the signs already have is the rectangle
+       decomposition (STEP 3D, src/door.c), which took this prompt from 165 quads
+       to 64.
+
+       D read at level 1, at 4 (no mesh) and at 8 (no signs) now splits this
+       room's frame three ways in one sitting, which is what STEP 1 asks for and
+       what nobody could do in here before -- the room honoured no isolation
+       level at all. */
+    if (exp != DBG_EXP_NO_ENTITIES) {
+        draw_zombies(ctx);
+        draw_spiders(ctx);
+        draw_rabisus(ctx);
+        webs_draw(ctx);
+        item_pickups_draw(ctx);
+
+        mbdoor_text(ctx, MBDOOR_W_X);
+        mbdoor_text(ctx, MBDOOR_E_X);
+    }
 }

@@ -67,10 +67,22 @@ static const struct {
 #define LS_SOLVE_HOLD     30    /* beat on the opened cage before cutting back  */
 
 /* ---- Interaction ------------------------------------------------------------
-   Manhattan, measured to the lever. The 195 wall standoff parks the player about
-   120 from the nearest lever, and the two levers sharing a wall are ~2100 apart,
-   so there is no ambiguity about which one a press means. */
-#define LS_TRIGGER_RADIUS     500
+   A BOX, not a radius, measured to the lever. Depth is the axis that matters:
+   the north pair are guarded by four tentacles standing at z=745, 180 south of
+   the levers (see tentacles_init), and a plain 500-Manhattan reach let those
+   levers be thrown from z~425 - a third of the room away, outside even
+   TENT_LIVE_RANGE, so the guards could be skipped entirely. LS_TRIGGER_DEPTH is
+   150, shorter than that 180 gap: to be in reach of a north lever the player has
+   to stand north of z=775, which means they have already walked through the
+   pair's 130 damage range to get there.
+
+   The depth still clears the throw spot itself - the 195 wall standoff parks the
+   player about 120 out - but only just, so the width is kept generous rather
+   than letting a Manhattan sum trade slack on one axis for slack on the other.
+   The two levers sharing a wall are ~2100 apart, so even this width leaves no
+   ambiguity about which one a press means. */
+#define LS_TRIGGER_DEPTH      150    /* |dz|: shorter than the tentacle standoff */
+#define LS_TRIGGER_WIDTH      260    /* |dx|: room to be off-centre at the wall  */
 #define LS_TEXT_RADIUS        900
 #define LS_FADE_NEAR          600
 #define LS_TEXT_PIXEL           3    /* "Press O to deactivate" is 21 chars: 378 wide */
@@ -220,11 +232,15 @@ void lightswitch_place(void) {
 /* Index of the lever the player is standing at, or -1. */
 static int lever_in_reach(void) {
     int i, best = -1;
-    int32_t best_d = LS_TRIGGER_RADIUS;
+    int32_t best_d = LS_TRIGGER_DEPTH + LS_TRIGGER_WIDTH;
     for (i = 0; i < LS_COUNT; i++) {
         int32_t dx = cam_x - FIXTURE[i].lx;
         int32_t dz = cam_z - FIXTURE[i].lz;
-        int32_t d  = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        int32_t ax = dx < 0 ? -dx : dx;
+        int32_t az = dz < 0 ? -dz : dz;
+        int32_t d;
+        if (ax > LS_TRIGGER_WIDTH || az > LS_TRIGGER_DEPTH) continue;
+        d = ax + az;   /* a tie-break only, between boxes near enough to overlap */
         if (d >= best_d) continue;
         /* Has to be in view as well as in range — a lever behind you is not
            one you can throw. */

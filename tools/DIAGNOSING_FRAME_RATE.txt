@@ -776,3 +776,97 @@ behaviour-neutral by construction rather than by measurement. But U/D/G at
 levels 1/4/8 from the middle of that upper floor, with both west doors locked, is
 still owed — and if the signs turn out not to have been the cost, this section
 becomes the sixth wrong turn and should say so.
+
+
+##########################################################################
+ STEP 3E — THE MASTER BEDROOM, AND A ROOM THAT HAD NONE OF THIS DOCUMENT
+##########################################################################
+Reported (Sep 2026) as "lag in the Master Bedroom when I look at the bed".
+Diagnosed offline against assets/master_bedroom.smd, because the room honoured
+no isolation level at all and there was nothing to read a meter against.
+
+WHAT IT HAD: nothing. src/master_bedroom.c was written in Aug 2026 — after Maze
+One was fixed, but it inherited none of that work the way the Greenhouse did. It
+had no cull-key table, it called isin/icos INSIDE the draw loop, and it queued a
+full-screen TILE over a framebuffer DrawOTagEnv had already cleared. That is the
+same three-item list Reception came in with (STEP 3D) and the fixes are the same
+three.
+
+THE COUNT, over the walkable footprint (X -1594..1245, Z -441..319) at 16
+headings, 960 poses:
+
+    622  primitives walked, every frame, from anywhere in the room
+    384  mean reaching the second cull, i.e. the trig
+    482  mean surviving BOTH culls -> the GTE
+    542  worst, at (6,-41) facing -Z
+
+>>> THE WORST STANCE AND THE WORST HEADING ARE THE SAME POSE, AND IT IS THE ONE
+THE PLAYER NAMED. <<< (6,-41) is the middle of the suite; rot 2048 looks down the
+bed chamber. Both culls bottom out there at once:
+
+  THE DISTANCE CULL is nearly inert in this room. 1500 Manhattan over a
+  2840 x 1293 footprint passes 542 of 622 from the middle — where Maze One's
+  hedges keep it to ~120 of 2056. It rejects 80 primitives at the worst stance.
+
+  THE "BEHIND ME" CULL is the only heading-dependent test the room has, and its
+  -700 threshold is slack: 542 survive facing the bed against 437 facing away.
+
+So looking at the bed costs ~105 more primitives through the full GTE path than
+looking away, on top of a per-frame walk that was paying three scattered vertex
+reads for all 622 whatever the heading.
+
+FILL IS NOT THE ANSWER, and it was checked before anything was written. Projected
+offline with the room's own camera (gte_SetGeomScreen(256), 320x240, eye y=-189)
+and clipped to the screen, the drawn mesh covers
+
+    1.60x the screen at rot 2048 (the bed)    1.0-1.5x on every other heading
+
+i.e. ~123,000 textured pixels a frame at the worst. That is not near this
+machine's limit and it is the same verdict every room in this document has
+returned: G is small, the frame is CPU. The bed itself is 15 flat quads.
+
+THE THREE FIXES (src/master_bedroom.c), all behaviour-neutral by construction:
+  1. THE CULL-KEY TABLE (STEP 3B). mb_build_cull_keys, into the shared arena
+     (src/cull_arena.h), built in master_bedroom_load_geometry per that file's
+     one rule. Before, EVERY primitive — including the ~140 about to be rejected
+     — paid a header read for its stride, three vertex index reads and three
+     chases into the vertex array, all of it BEFORE either cull ran. Now a
+     rejected primitive is one sequential 6-byte read and never addresses the
+     mesh. NO BOX KEY: reception's reason, one room over.
+  2. isin/icos AND THE CULL DISTANCE HOISTED OUT OF THE LOOP (STEP 3C fix 1).
+     Two SDK calls per primitive that passed the distance cull — up to 542 pairs
+     a frame, and that count peaks at the reported stance — recomputing one pair
+     of constants that cannot change while a frame is being queued.
+  3. THE DOUBLE SCREEN CLEAR REMOVED (wrong turn #3 / STEP 3C fix 2).
+     render_set_clear_colour, 77,000 pixels of second fill a frame gone.
+
+AND THE ROOM CAN NOW BE MEASURED. It honours 4 (no mesh), 6 and 7 (view
+distance) and 8 — repointed, as reception's is, at the DOOR SIGNS as well as the
+entities, because signage is the only thing standing in this mesh.
+
+WHAT WAS MEASURED AND REJECTED, so nobody writes it later:
+  - NO BEHIND-CAMERA CULL ON THE SIGNS. Both north-wall prompts are inside their
+    1500 Manhattan radius from most of the room (1.20 of 2 live on average) and
+    door_draw_string_3d has no facing test, so both are queued in full with the
+    player's back to them — which IS the pose he is standing in. It looks like
+    the obvious fix. Over the footprint at 32 headings it removes 9.3% of the
+    live sign work, 13.5% for bed-facing headings only, because the mesh's own
+    -700 threshold is slack and the doors sit on the long wall of a wide room.
+    That is STEP 3D's 11% again, rejected for the same number. The signs already
+    have the rectangle decomposition, which took this prompt from 165 quads to 64.
+  - NO SIDE-PLANE FRUSTUM CULL. The Greenhouse measured it four hblanks on the
+    wrong side of neutral and Maze One measured it exactly neutral. This room's
+    542-to-103 gap between "survives the cheap culls" and "actually on screen"
+    makes it look more attractive here than anywhere else in the document — and
+    that is exactly the shape of reasoning that produced all five wrong turns
+    above. It stays out until a meter says otherwise.
+  - NO REDUCTION OF THE 1500 VIEW DISTANCE. Levels 6 and 7 now exist to try it
+    with, but it is a LOOK decision and it wants a person at the screen.
+
+>>> THESE ARE ALL OFFLINE COUNTS. NOBODY HAS READ THE METER IN THIS ROOM. <<<
+Same honest note as STEP 3D: the counting is what STEP 6 endorses, the three
+fixes are proven in four other rooms and are behaviour-neutral by construction,
+and the one change that would have been aimed at the player's own clue was
+measured and thrown out. But U/D/G at levels 1, 4 and 8, standing at (6,-41)
+facing the bed, is still owed — and if the mesh turns out not to have been the
+cost, this section becomes the sixth wrong turn and should say so.
