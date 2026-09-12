@@ -537,36 +537,51 @@ depending on a measured constant. Worth doing; not a win.
 
 
 ##########################################################################
- PART 7A — COLLISION, WHICH IS TWO MESHES AND NOT ONE
+ PART 7A — COLLISION: THE ROOM IS A TABLE, THE BOSS IS NOT
 ##########################################################################
-tools/gen_asag_arena_collision.py merges smx_to_collision.py's output for TWO
-meshes into src/asag_arena_mesh_collision.c:
+tools/gen_asag_arena_collision.py builds src/asag_arena_mesh_collision.c from
+the room proxy alone: 12 walls and 3 floor planes against MAX_WALLS_PER_ROOM
+128.
 
-    Asag Version Two mesh.smx   walls  0..11   the room proxy
-    Asag Version Two_Boss.smx   walls 12..37   THE BOSS'S OWN DRAWN GEOMETRY
+>>> THE BOSS WAS IN THAT TABLE FOR ONE PASS AND HAD TO COME OUT. THIS IS THE
+MOST USEFUL THING IN THIS SECTION. <<< Its drawn geometry was converted to 26
+static walls, on the reasoning that the mesh the player sees should be the mesh
+the player cannot walk through. The walls were baked from frame 1 of
+Head_Idle_Baked, where the body rests at y[-960,-528] — 528 above the floor and
+342 above the player's eye — so collision.c's vertical gate rejected every one
+of them and they never fired at all. They were, honestly, placeholders for the
+day the art came down.
 
-38 walls against MAX_WALLS_PER_ROOM 128. The boss is in there because it has no
-separate collision proxy: the mesh the player sees is the mesh the player cannot
-walk through.
+The old version of this file said so, and said what to do about it: "when the
+encounter animates them, either accept the resting silhouette or replace those
+walls with a runtime capsule the way rabisus_collide() does. Do NOT try to
+re-bake walls per frame — CollisionRoom is a fixed table read by every movement
+query in the frame."
 
->>> AND NOT ONE OF THOSE 26 WALLS CAN FIRE AT REST. <<< The bind pose spans
-y[-960,-528], so its LOWEST point is 528 units above the y=0 floor and 342 above
-the player's eye. collision.c's vertical gate ("body_top > y_max || y_min >
-body_bot") rejects every one of them. They are generated anyway because they
-cost 26 rows in a table with 90 spare and they become the right answer the
-instant the art comes down to floor level — which is the whole point of deriving
-collision from the drawn mesh rather than a proxy.
+THAT IS EXACTLY WHAT HAPPENED. The position track slides the body up to 969
+units into the arena, and the slam and the faint bring it to floor level, so the
+baked table went wrong in Z and in Y in the same pass. asag_collide() in
+src/asag.c replaces it.
 
-The rule in tools/ADDING_A_ROOM.txt applies in reverse here: read the height off
-the mesh, and do not assume a boss occupies the ground just because it is large.
+HOW THE RUNTIME COLLIDER WORKS, and the one idea in it worth keeping: it takes
+an AABB over ONLY THE VERTICES INSIDE THE PLAYER'S VERTICAL BAND, from the same
+posed vertices the draw uses, every frame. Selecting on Y FIRST is what makes a
+single box enough. A box round the whole body would be 1669 long in Z and would
+wall off a third of the arena whenever Asag leaned in, nearly all of it well
+over the player's head. Selecting first means the box is EMPTY for most of the
+fight — measured, the idle, the laser and the vomit never reach body height at
+all — and small when it is not: the slam is solid for 3.9 of its 6.2 seconds and
+the faint for 2.8 of its 5.0.
 
->>> THE BOSS WALLS ARE STATIC AND THE BOSS IS NOT. <<< They are baked from frame
-1 of Head_Idle_Baked. The slam clip travels the head a long way and NONE of that
-moves these walls. That is the right trade while the fight does not exist; when
-it does, either accept the resting silhouette or replace those walls with a
-runtime capsule the way rabisus_collide() does. Do NOT try to re-bake walls per
-frame — CollisionRoom is a fixed table read by every movement query in the
-frame.
+The band is widened by 60 units (ASAG_SOLID_Y_SLACK) because vertex spacing on
+this model is 100-200 units against a 179-unit band, so a steeply descending
+part could otherwise cross it with no vertex landing inside and let the player
+walk through a leg. More slack than that starts fattening the box while the body
+is merely passing overhead, which reads as an invisible barrier.
+
+The rule in tools/ADDING_A_ROOM.txt applies in reverse throughout: read the
+height off the mesh, and do not assume a boss occupies the ground just because
+it is large. Asag spends most of the fight over the player's head.
 
 
 ##########################################################################

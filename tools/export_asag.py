@@ -70,7 +70,11 @@ BIND_ACTION = "Head_Idle_Baked"
 # the order the demo director cycles them in.
 CLIPS = [
     ("Asag_head_idle",   "Head_Idle_Baked"),
-    ("Asag_head_emerge", "Head_Emerge_Baked"),
+    # NO EMERGE. Head_Emerge_Baked is still in the .blend and is deliberately
+    # not baked: the travel it did by hand is now the position track in
+    # src/asag.c (see asag.h), which every attack carries for itself. Put the
+    # row back here, in src/asag.h's AsagClip, in clip_file[] and in disc.xml to
+    # bring it back.
     ("Asag_head_laser",  "Head_Laser_Baked"),          # NOT Head_Attack_Laser_Baked
     ("Asag_head_slam",   "Head_Attack_Slam_Baked"),
     ("Asag_head_vomit",  "Head_Vomit_Baked"),          # NOT Head_Attack_Vomit_Baked

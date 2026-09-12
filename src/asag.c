@@ -10,6 +10,7 @@
 #include "collision.h"     /* DEBUG_CULL_DIST */
 #include "cdaudio.h"       /* the bracket around the entry-time reads */
 #include "asag_arena.h"    /* the ROOM streams the skin; this reads it back */
+#include "title.h"         /* STATE_ASAG_ARENA, for the area gate on collide */
 #include "asag.h"
 
 /* ASAG — the body. See asag.h for the whole argument; this file is the
@@ -40,11 +41,41 @@
    playback. */
 static const char *const clip_file[ASAG_CLIP_COUNT] = {
     /* IDLE   */ "\\TEXASAG\\ASGHIDLE.PVA;1",
-    /* EMERGE */ "\\TEXASAG\\ASGHEMRG.PVA;1",
     /* LASER  */ "\\TEXASAG\\ASGHLAS.PVA;1",
     /* SLAM   */ "\\TEXASAG\\ASGHSLAM.PVA;1",
     /* VOMIT  */ "\\TEXASAG\\ASGHVOM.PVA;1",
     /* FAINT  */ "\\TEXASAG\\ASGHFNT.PVA;1",
+};
+
+/* ---- The position track ----------------------------------------------------
+   How far each clip travels from HOME toward EMERGED, and when. See asag.h for
+   where EMERGED comes from and why the travel is not baked into the clips.
+
+   THE SHAPE IS ALWAYS THE SAME: ramp out, hold, ramp back. Only the two ramp
+   lengths differ, and they are in GAME FRAMES because that is what the brief
+   was written in (60 = one second).
+
+       out   Home -> Emerged, linear, from the first frame of the clip
+       hold  whatever is left in the middle
+       back  Emerged -> Home, linear, ending exactly on the clip's last frame
+
+   >>> IDLE IS out = -1, WHICH MEANS "DO NOT TOUCH THE POSITION". <<< It is not
+   zero and it is not a ramp: the idle inherits whatever offset was in effect
+   when it started and holds it. In practice that is always Home, because every
+   other clip ends its back-ramp at Home — but a director that wants Asag to sit
+   breathing while emerged can start an idle mid-lunge and get exactly that, for
+   free and with no extra state. */
+typedef struct {
+    int16_t out_ticks;    /* <0 = hold the inherited offset (idle)            */
+    int16_t back_ticks;
+} AsagMove;
+
+static const AsagMove clip_move[ASAG_CLIP_COUNT] = {
+    /* IDLE  */ { -1, -1 },   /* inherits; see above                          */
+    /* LASER */ { 60, 60 },   /* out over 1.0s, back over 1.0s                */
+    /* SLAM  */ { 30, 60 },   /* out over 0.5s, back over 1.0s                */
+    /* VOMIT */ { 90, 60 },   /* out over 1.5s, back over 1.0s                */
+    /* FAINT */ { 60, 30 },   /* out over 1.0s, back over 0.5s                */
 };
 
 #define PVA_HEADER_SIZE  12
@@ -73,6 +104,15 @@ static int16_t anim_acc;      /* 60ths; see ASAG_ANIM_FPS in the header */
 static int8_t  clip_loop;
 static int8_t  clip_held;     /* 1 = one-shot sitting on its last frame */
 static int8_t  body_vis;
+
+/* The position track's own clock and output. clip_ticks runs in GAME frames
+   (60/s), NOT animation frames, because the brief's ramps are in seconds and
+   because sliding the body at 60 Hz under a pose that steps at 8 reads as a
+   smooth glide rather than a stutter. pos_dz is what the draw adds to every
+   vertex's Z, and it SURVIVES a clip change on purpose - that is what lets the
+   idle inherit a position. */
+static int32_t clip_ticks;
+static int32_t pos_dz;
 
 static int model_loaded = 0;
 
@@ -233,6 +273,48 @@ int asag_model_loaded(void) { return model_loaded; }
 
 /* ---- The clip API ------------------------------------------------------- */
 
+/* Total length of a clip in GAME frames. n animation frames at ASAG_ANIM_FPS
+   is n*60/FPS, which for 8 fps is n*7.5 - so this is deliberately integer
+   division of the product and not (n/FPS)*60, which would throw away the half
+   frame and drift the back-ramp off the end of the clip. */
+static int32_t clip_total_ticks(int c) {
+    return ((int32_t)clip_count[c] * 60) / ASAG_ANIM_FPS;
+}
+
+/* Ramp out, hold, ramp back. Linear, because that is what the brief specified;
+   an ease would go here and nowhere else. */
+static void update_pos(int c) {
+    int32_t out = clip_move[c].out_ticks;
+    if (out < 0) return;                  /* idle: hold the inherited offset */
+
+    int32_t back  = clip_move[c].back_ticks;
+    int32_t total = clip_total_ticks(c);
+    int32_t t     = clip_ticks;
+
+    /* A clip too short to hold both ramps would otherwise ramp back before it
+       has finished ramping out and never reach Emerged at all. Give each ramp
+       its share of what there is instead, so the shape degrades to
+       "out then straight back" rather than to nonsense. Nothing in the current
+       table hits this - the tightest is the vomit at 150 of 300 ticks - but a
+       re-bake at a different rate could. */
+    if (out + back > total && out + back > 0) {
+        out  = (out  * total) / (out + back);
+        back = total - out;
+    }
+
+    if (out > 0 && t < out) {
+        pos_dz = ((int32_t)ASAG_EMERGE_DZ * t) / out;
+    } else if (t < total - back) {
+        pos_dz = ASAG_EMERGE_DZ;
+    } else if (back > 0) {
+        int32_t left = total - t;         /* counts down to 0 on the last tick */
+        if (left < 0) left = 0;
+        pos_dz = ((int32_t)ASAG_EMERGE_DZ * left) / back;
+    } else {
+        pos_dz = 0;
+    }
+}
+
 void asag_play(AsagClip clip, int loop) {
     if (clip < 0 || clip >= ASAG_CLIP_COUNT) return;
     cur_clip   = (int8_t)clip;
@@ -240,6 +322,9 @@ void asag_play(AsagClip clip, int loop) {
     anim_acc   = 0;
     clip_loop  = loop ? 1 : 0;
     clip_held  = 0;
+    clip_ticks = 0;
+    /* pos_dz is NOT reset. A clip with a ramp overwrites it on the first
+       update; the idle is supposed to inherit it. */
 }
 
 void asag_stop(void) {
@@ -247,6 +332,8 @@ void asag_stop(void) {
     anim_frame = 0;
     anim_acc   = 0;
     clip_held  = 0;
+    clip_ticks = 0;
+    pos_dz     = 0;           /* the bind pose IS Home, by definition */
 }
 
 AsagClip asag_playing(void) { return (AsagClip)cur_clip; }
@@ -279,24 +366,36 @@ void asag_update(void) {
     if (c == ASAG_CLIP_NONE) return;
     int n = clip_count[c];
     if (n <= 0) return;             /* clip absent or rejected */
-    if (clip_held) return;          /* one-shot, holding its last frame */
 
-    anim_acc += ASAG_ANIM_FPS;
-    while (anim_acc >= 60) {
-        anim_acc -= 60;
-        if (++anim_frame >= n) {
-            if (clip_loop) {
-                anim_frame = 0;
-            } else {
-                /* HOLD the last frame rather than snapping back to the bind
-                   pose. That is what lets a one-shot leave the body where the
-                   animator left it, and it is why asag_clip_done() is a
-                   separate question from "is a clip set". */
-                anim_frame = (int16_t)(n - 1);
-                clip_held  = 1;
-                break;
+    if (!clip_held) {
+        anim_acc += ASAG_ANIM_FPS;
+        while (anim_acc >= 60) {
+            anim_acc -= 60;
+            if (++anim_frame >= n) {
+                if (clip_loop) {
+                    anim_frame = 0;
+                } else {
+                    /* HOLD the last frame rather than snapping back to the bind
+                       pose. That is what lets a one-shot leave the body where
+                       the animator left it, and it is why asag_clip_done() is a
+                       separate question from "is a clip set". */
+                    anim_frame = (int16_t)(n - 1);
+                    clip_held  = 1;
+                    break;
+                }
             }
         }
+    }
+
+    /* >>> THE POSITION CLOCK RUNS EVEN ON A HELD FRAME, AND THAT IS THE POINT.
+       <<< It is what guarantees the back-ramp reaches Home: the pose stops
+       advancing the moment clip_held goes up, and if the travel stopped with it
+       the body would be left stranded wherever the ramp had got to. Clamped at
+       the total so a clip held for a minute does not run pos_dz past Home. */
+    {
+        int32_t total = clip_total_ticks(c);
+        if (clip_ticks < total) clip_ticks++;
+        update_pos(c);
     }
 }
 
@@ -315,23 +414,40 @@ void asag_update(void) {
    a saving of 80 iterations on a model this size. If a later Asag is thousands
    of vertices, cache it then and key the cache on (cur_clip, anim_frame). */
 static SVECTOR *body_verts(void) {
-    int c = cur_clip;
-    if (c == ASAG_CLIP_NONE || !clip_data[c] || clip_count[c] <= 0)
-        return mesh_smd->p_verts;
-    int f = anim_frame;
-    if (f < 0 || f >= clip_count[c]) f = 0;
-
     int nv = mesh_smd->n_verts;
-    int16_t *src = clip_data[c] + (int32_t)f * nv * clip_stride[c];
+    int c  = cur_clip;
 
-    if (clip_stride[c] == 4) return (SVECTOR *)src;
+    int16_t *src    = NULL;
+    int      stride = 0;
+
+    if (c != ASAG_CLIP_NONE && clip_data[c] && clip_count[c] > 0) {
+        int f = anim_frame;
+        if (f < 0 || f >= clip_count[c]) f = 0;
+        stride = clip_stride[c];
+        src    = clip_data[c] + (int32_t)f * nv * stride;
+    } else {
+        src    = (int16_t *)mesh_smd->p_verts;   /* the bind pose = Home */
+        stride = 4;
+    }
+
+    /* THE ONE CASE THAT COSTS NOTHING: an unpacked PVA1 frame (or the .smd's own
+       vertices) sitting at Home is already an SVECTOR array in the right place,
+       so hand it straight to the draw. Everything else has to be built. */
+    if (stride == 4 && pos_dz == 0) return (SVECTOR *)src;
 
     if (!pose_buf) return mesh_smd->p_verts;   /* no scratch: hold the bind pose */
+
+    /* Unpack and/or translate into the scratch. The Z add is FREE here - this
+       loop already exists to turn PVA2's three int16 into an SVECTOR, so
+       sliding the body between Home and Emerged costs one addition per vertex
+       and no matrix at all. That is why asag.h can still say this boss loads no
+       model matrix and restores no view. */
     SVECTOR *d = pose_buf;
     for (int v = 0; v < nv; v++) {
         d[v].vx  = *src++;
         d[v].vy  = *src++;
-        d[v].vz  = *src++;
+        d[v].vz  = (int16_t)(*src++ + pos_dz);
+        if (stride == 4) src++;            /* PVA1/SMD pad */
         d[v].pad = 0;
     }
     return pose_buf;
@@ -369,8 +485,11 @@ void asag_draw(RenderContext *ctx) {
 
     /* Whole-body distance reject and whole-body fog, both from the mesh centre
        taken at load. */
+    /* The fog and the distance reject follow the body OUT. mesh_cz is the bind
+       pose's centre, i.e. Home; without pos_dz a lunging Asag would keep Home's
+       fog and stay dimmer than the ground it is standing over. */
     int32_t pdx  = (int32_t)mesh_cx - cam_x;
-    int32_t pdz  = (int32_t)mesh_cz - cam_z;
+    int32_t pdz  = (int32_t)mesh_cz + pos_dz - cam_z;
     int32_t pdst = (pdx < 0 ? -pdx : pdx) + (pdz < 0 ? -pdz : pdz);
     if (pdst > cull) return;
 
@@ -503,6 +622,78 @@ void asag_draw(RenderContext *ctx) {
     }
 }
 
+/* ---- Solidity --------------------------------------------------------------
+   See asag.h for why this exists at all and why it replaced 26 baked walls.
+
+   HOW MUCH SLACK THE VERTICAL BAND GETS, AND WHY IT IS NOT ZERO. The selection
+   takes vertices whose Y lies within the player's span WIDENED BY
+   ASAG_SOLID_Y_SLACK. Without the slack a part of the body could pass THROUGH
+   the band steeply enough that no vertex landed inside it — the edge crosses,
+   both its endpoints miss, and the player walks through a leg. Vertex spacing
+   along this model is 100-200 units against a 179-unit band, so that is a real
+   case and not a hypothetical. The slack is deliberately modest: every unit of
+   it also fattens the box when the body is merely PASSING overhead, and an
+   invisible barrier under a boss that is clearly above you is worse than a
+   rare clip through a thin part. */
+#define ASAG_SOLID_Y_SLACK  60
+
+void asag_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
+    /* Area-gated inside, like every prop family in apply_collision_reception,
+       so the call site stays unconditional. */
+    if (current_area != STATE_ASAG_ARENA) return;
+    if (!model_loaded || !mesh_smd || !body_vis) return;
+
+    /* The player's body span, the same expression rabisus_collide uses. */
+    int32_t band_top = (py - 30)  - ASAG_SOLID_Y_SLACK;
+    int32_t band_bot = (py + GROUND_FLOOR_Y) + ASAG_SOLID_Y_SLACK;
+
+    /* THIS FRAME'S POSE AND POSITION, straight out of the draw's own accessor -
+       so the thing that pushes the player is by construction the thing on the
+       screen. body_verts() has already applied pos_dz. */
+    SVECTOR *vp = body_verts();
+    int nv = mesh_smd->n_verts;
+
+    int32_t min_x = 32767, max_x = -32768, min_z = 32767, max_z = -32768;
+    int found = 0;
+    for (int v = 0; v < nv; v++) {
+        int32_t y = vp[v].vy;
+        if (y < band_top || y > band_bot) continue;
+        int32_t x = vp[v].vx, z = vp[v].vz;
+        if (x < min_x) min_x = x;
+        if (x > max_x) max_x = x;
+        if (z < min_z) min_z = z;
+        if (z > max_z) max_z = z;
+        found = 1;
+    }
+    if (!found) return;        /* nothing of Asag is at body height this frame */
+
+    min_x -= radius; max_x += radius;
+    min_z -= radius; max_z += radius;
+
+    if (*px <= min_x || *px >= max_x) return;
+    if (*pz <= min_z || *pz >= max_z) return;
+
+    /* SMALLEST PENETRATION, all four candidates. src/hatch_doors.c had to drop
+       two of its four because the far side of a pit door is the hole itself and
+       the shortest way out led somewhere the walls immediately pushed back
+       from. Nothing like that applies here: Asag comes down in the middle of an
+       open floor - the slam's lowest frames sit around z[1380,2006] with the
+       side walls 1500 out and the back wall 600 further on - so every direction
+       out of this box leads somewhere the player can stand. */
+    int32_t push_w = *px - min_x;      /* out to -X */
+    int32_t push_e = max_x - *px;      /* out to +X */
+    int32_t push_n = *pz - min_z;      /* out to -Z, toward the shaft */
+    int32_t push_s = max_z - *pz;      /* out to +Z, toward the back wall */
+
+    int32_t best = push_w, dx = -push_w, dz = 0;
+    if (push_e < best) { best = push_e; dx =  push_e; dz = 0; }
+    if (push_n < best) { best = push_n; dx = 0; dz = -push_n; }
+    if (push_s < best) {                dx = 0; dz =  push_s; }
+
+    *px += dx;
+    *pz += dz;
+}
+
 /* Visible and on the bind pose. This runs from asag_arena_init(), i.e. on every
    arrival, so a debug jump into the room finds the same state a real drop does.
    It is not the load: asags_load_model() runs in main.c's STATE_LOADING beside
@@ -515,4 +706,6 @@ void asag_reset(void) {
     anim_acc   = 0;
     clip_loop  = 0;
     clip_held  = 0;
+    clip_ticks = 0;
+    pos_dz     = 0;           /* Home */
 }

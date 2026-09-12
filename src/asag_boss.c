@@ -6,17 +6,20 @@
    end on a loop so the animation can be looked at, and it is meant to be
    replaced wholesale by the real encounter. */
 
-/* The cycle. ASAG_CLIP_* order, which is also tools/export_asag.py's bake order
-   — except that EMERGE leads, because it is the only one of the six that reads
-   as a beginning: it brings the body up out of the rock, and the other five all
-   start from where it leaves off. Watching the loop from a cold start therefore
-   looks like an arrival rather than like joining something already in progress.
+/* The cycle. ASAG_CLIP_* order, which is also tools/export_asag.py's bake
+   order. EMERGE used to lead it and no longer exists: the travel it did by hand
+   is now the position track in src/asag.c, which every attack carries for
+   itself, so the loop starts on the IDLE instead.
+
+   IDLE FIRST IS ALSO WHAT MAKES THE POSITION TRACK READ CORRECTLY. The idle
+   INHERITS whatever offset it starts on rather than driving one (asag.h), and
+   every attack ends its back-ramp at Home - so the cycle begins at Home,
+   breathes there, and each attack lunges out of it and returns.
 
    Every one is played NON-LOOPING, which is what makes the chain work at all:
    a looping clip never reports asag_clip_done() and the cycle would stop on it
    forever. */
 static const AsagClip demo_seq[] = {
-    ASAG_CLIP_EMERGE,
     ASAG_CLIP_IDLE,
     ASAG_CLIP_LASER,
     ASAG_CLIP_SLAM,

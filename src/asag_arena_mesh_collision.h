@@ -8,9 +8,8 @@
    tentacle walls do not follow the tentacle animation. */
 
 /* walls   0..11   the room proxy: perimeter + a recess at each end */
-/* walls  12..37   the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
 
-#define ASAG_ARENA_WALL_COUNT  38
+#define ASAG_ARENA_WALL_COUNT  12
 #define ASAG_ARENA_FLOOR_COUNT 3
 
 void asag_arena_collision_init(CollisionRoom *r);

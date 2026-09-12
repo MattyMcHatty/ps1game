@@ -846,7 +846,7 @@
              BOSS but is streamed by the ROOM, which is argued in
              src/asag_arena.h.
 
-             THE BODY. ONE mesh and SIX .pva clips, read on entry by
+             THE BODY. ONE mesh and FIVE .pva clips, read on entry by
              asags_load_model() and freed on every other transition. 108,544
              bytes at the door against 121-147 KB measured free there.
 
@@ -866,7 +866,6 @@
             <file name="ASGSKIN.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\asag.tim"/>
             <file name="ASGBODY.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag Version Two_Boss.smd"/>
             <file name="ASGHIDLE.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag_head_idle.pva"/>
-            <file name="ASGHEMRG.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag_head_emerge.pva"/>
             <file name="ASGHLAS.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag_head_laser.pva"/>
             <file name="ASGHSLAM.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag_head_slam.pva"/>
             <file name="ASGHVOM.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag_head_vomit.pva"/>

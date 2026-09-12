@@ -1,12 +1,32 @@
-"""Merge Asag's arena collision out of TWO meshes into one CollisionRoom.
+"""Build Asag's arena collision from the room proxy alone.
 
     py assets/smx_to_collision.py "assets/bosses/Asag Version Two/Asag Version Two mesh.smx"      --room asag_arena
     py assets/smx_to_collision.py "assets/bosses/Asag Version Two/Asag Version Two_Boss.smx"      --room asag_boss
     py tools/gen_asag_arena_collision.py
 
-WHY A MERGE STEP EXISTS HERE AND NOWHERE ELSE IN THE GAME. Every other room's
-collision is one proxy mesh through smx_to_collision.py, copied into src/. This
-room is two, because one of the two is the BOSS rather than part of the room:
+WHY THIS SCRIPT EXISTS AT ALL, NOW THAT IT HAS ONE SOURCE. It was a MERGE: the
+boss had no collision proxy of its own, so its drawn geometry was converted and
+its walls appended to the room's. That is gone - see below - and what is left is
+the two edits smx_to_collision.py never emits (the lowercase #include and the
+two CollisionRoom flags), plus a place for the next source if the room ever
+grows one.
+
+>>> THE BOSS'S 26 WALLS WERE REMOVED, AND THE REASON IS THE WHOLE LESSON HERE.
+<<< They were baked from frame 1 of Head_Idle_Baked and were defensible exactly
+as long as the body never moved: it rested at y[-960,-528], 528 above the floor,
+so collision.c's vertical gate rejected all of them and they were harmless
+placeholders for the day the art came down.
+
+The day came in the same pass that added the position track. The body now slides
+up to 969 units into the arena, and the slam and the faint bring it to floor
+level - so a table baked from the bind pose is wrong in Z and in Y at once. A
+CollisionRoom is a FIXED table read by every movement query in the frame and
+cannot be re-baked per frame, which is the warning the old version of this file
+already carried. asag_collide() in src/asag.c does the job instead, from the
+same posed vertices the draw uses. DO NOT PUT THE WALLS BACK: they would fight
+that collider, and they would be wrong.
+
+The original note on why a merge existed:
 
   Asag Version Two mesh.smx   the room proxy - a purpose-built low-poly box with
                               a recess at each end. 12 walls, 3 floor planes.
@@ -49,7 +69,11 @@ OUT_H = os.path.join(ROOT, "src", "asag_arena_mesh_collision.h")
 
 SOURCES = [
     ("Asag Version Two mesh_collision.c",      "the room proxy: perimeter + a recess at each end"),
-    ("Asag Version Two_Boss_collision.c",      "the boss's own drawn geometry, resting (Head_Idle_Baked frame 1)"),
+    # >>> THE BOSS USED TO BE THE SECOND SOURCE AND IS NOT ANY MORE. <<< See the
+    # docstring. Its 26 walls were baked from the bind pose; the body now slides
+    # up to 969 units into the arena and comes down to floor level, so a static
+    # table is wrong in both axes. asag_collide() in src/asag.c replaces them
+    # with a per-frame box. Re-adding a row here would fight that collider.
 ]
 
 WALL_RE = re.compile(

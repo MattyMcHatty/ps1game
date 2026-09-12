@@ -3,11 +3,10 @@
  *
  * Merged from three meshes (see the generator for the argument):
  *   walls   0..11   the room proxy: perimeter + a recess at each end
- *   walls  12..37   the boss's own drawn geometry, resting (Head_Idle_Baked frame 1)
  *
- * Walls:  38   (MAX_WALLS_PER_ROOM is 128)
+ * Walls:  12   (MAX_WALLS_PER_ROOM is 128)
  * Floors: 3
- * Bounds: X(-1500 to 1500)  Z(0 to 3931)
+ * Bounds: X(-1500 to 1500)  Z(0 to 2700)
  * Normal scale: 4096 = 1.0 (fixed point)
  */
 
@@ -18,7 +17,7 @@ void asag_arena_collision_init(CollisionRoom *r) {
     r->min_x = -1500;
     r->max_x = 1500;
     r->min_z = 0;
-    r->max_z = 3931;
+    r->max_z = 2700;
 
     /* SINGLE LEVEL. Both floor planes the proxy carries are at y=0 - the
        arena floor and the head alcove's - so there is one walkable height
@@ -109,162 +108,6 @@ void asag_arena_collision_init(CollisionRoom *r) {
     r->walls[11].x2 =  -1500;  r->walls[11].z2 =   2613;
     r->walls[11].nx =    -68;  r->walls[11].nz =  -4095;
     r->walls[11].y_min =  -1000;  r->walls[11].y_max =      0;
-
-    /* Wall 12 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[12].x1 =   -100;  r->walls[12].z1 =   3606;
-    r->walls[12].x2 =   -100;  r->walls[12].z2 =   3931;
-    r->walls[12].nx =  -4096;  r->walls[12].nz =      0;
-    r->walls[12].y_min =   -727;  r->walls[12].y_max =   -527;
-
-    /* Wall 13 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[13].x1 =    100;  r->walls[13].z1 =   3931;
-    r->walls[13].x2 =    100;  r->walls[13].z2 =   3606;
-    r->walls[13].nx =   4095;  r->walls[13].nz =      0;
-    r->walls[13].y_min =   -727;  r->walls[13].y_max =   -527;
-
-    /* Wall 14 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[14].x1 =    -98;  r->walls[14].z1 =   3506;
-    r->walls[14].x2 =    -98;  r->walls[14].z2 =   3660;
-    r->walls[14].nx =  -4095;  r->walls[14].nz =    -40;
-    r->walls[14].y_min =   -714;  r->walls[14].y_max =   -527;
-
-    /* Wall 15 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[15].x1 =    101;  r->walls[15].z1 =   3658;
-    r->walls[15].x2 =    101;  r->walls[15].z2 =   3504;
-    r->walls[15].nx =   4095;  r->walls[15].nz =     38;
-    r->walls[15].y_min =   -716;  r->walls[15].y_max =   -527;
-
-    /* Wall 16 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[16].x1 =   -102;  r->walls[16].z1 =   3370;
-    r->walls[16].x2 =    -98;  r->walls[16].z2 =   3660;
-    r->walls[16].nx =  -4094;  r->walls[16].nz =     90;
-    r->walls[16].y_min =   -844;  r->walls[16].y_max =   -568;
-
-    /* Wall 17 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[17].x1 =    101;  r->walls[17].z1 =   3658;
-    r->walls[17].x2 =     97;  r->walls[17].z2 =   3367;
-    r->walls[17].nx =   4095;  r->walls[17].nz =    -42;
-    r->walls[17].y_min =   -845;  r->walls[17].y_max =   -571;
-
-    /* Wall 18 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[18].x1 =     98;  r->walls[18].z1 =   3453;
-    r->walls[18].x2 =     97;  r->walls[18].z2 =   3367;
-    r->walls[18].nx =   4095;  r->walls[18].nz =    -36;
-    r->walls[18].y_min =   -875;  r->walls[18].y_max =   -650;
-
-    /* Wall 19 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[19].x1 =   -102;  r->walls[19].z1 =   3370;
-    r->walls[19].x2 =   -101;  r->walls[19].z2 =   3455;
-    r->walls[19].nx =  -4095;  r->walls[19].nz =     36;
-    r->walls[19].y_min =   -875;  r->walls[19].y_max =   -650;
-
-    /* Wall 20 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[20].x1 =     97;  r->walls[20].z1 =   3374;
-    r->walls[20].x2 =     94;  r->walls[20].z2 =   3118;
-    r->walls[20].nx =   4095;  r->walls[20].nz =    -75;
-    r->walls[20].y_min =   -952;  r->walls[20].y_max =   -650;
-
-    /* Wall 21 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[21].x1 =   -105;  r->walls[21].z1 =   3121;
-    r->walls[21].x2 =   -102;  r->walls[21].z2 =   3378;
-    r->walls[21].nx =  -4095;  r->walls[21].nz =     54;
-    r->walls[21].y_min =   -952;  r->walls[21].y_max =   -650;
-
-    /* Wall 22 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[22].x1 =   -106;  r->walls[22].z1 =   3096;
-    r->walls[22].x2 =   -105;  r->walls[22].z2 =   3146;
-    r->walls[22].nx =  -4095;  r->walls[22].nz =     55;
-    r->walls[22].y_min =   -952;  r->walls[22].y_max =   -717;
-
-    /* Wall 23 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[23].x1 =     94;  r->walls[23].z1 =   3143;
-    r->walls[23].x2 =     93;  r->walls[23].z2 =   3093;
-    r->walls[23].nx =   4095;  r->walls[23].nz =    -56;
-    r->walls[23].y_min =   -952;  r->walls[23].y_max =   -717;
-
-    /* Wall 24 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[24].x1 =    -96;  r->walls[24].z1 =   2857;
-    r->walls[24].x2 =    -96;  r->walls[24].z2 =   2887;
-    r->walls[24].nx =  -4095;  r->walls[24].nz =     69;
-    r->walls[24].y_min =   -822;  r->walls[24].y_max =   -717;
-
-    /* Wall 25 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[25].x1 =    -96;  r->walls[25].z1 =   2879;
-    r->walls[25].x2 =   -105;  r->walls[25].z2 =   3108;
-    r->walls[25].nx =  -4092;  r->walls[25].nz =   -171;
-    r->walls[25].y_min =   -844;  r->walls[25].y_max =   -731;
-
-    /* Wall 26 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[26].x1 =     76;  r->walls[26].z1 =   2862;
-    r->walls[26].x2 =     97;  r->walls[26].z2 =   2825;
-    r->walls[26].nx =   3344;  r->walls[26].nz =   2365;
-    r->walls[26].y_min =   -821;  r->walls[26].y_max =   -716;
-
-    /* Wall 27 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[27].x1 =   -167;  r->walls[27].z1 =   2715;
-    r->walls[27].x2 =   -117;  r->walls[27].z2 =   2835;
-    r->walls[27].nx =  -3717;  r->walls[27].nz =   1718;
-    r->walls[27].y_min =   -938;  r->walls[27].y_max =   -684;
-
-    /* Wall 28 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[28].x1 =     97;  r->walls[28].z1 =   2825;
-    r->walls[28].x2 =    145;  r->walls[28].z2 =   2713;
-    r->walls[28].nx =   3792;  r->walls[28].nz =   1546;
-    r->walls[28].y_min =   -937;  r->walls[28].y_max =   -683;
-
-    /* Wall 29 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[29].x1 =    144;  r->walls[29].z1 =   2510;
-    r->walls[29].x2 =     59;  r->walls[29].z2 =   2417;
-    r->walls[29].nx =   3009;  r->walls[29].nz =  -2778;
-    r->walls[29].y_min =   -921;  r->walls[29].y_max =   -670;
-
-    /* Wall 30 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[30].x1 =    145;  r->walls[30].z1 =   2713;
-    r->walls[30].x2 =    115;  r->walls[30].z2 =   2504;
-    r->walls[30].nx =   4094;  r->walls[30].nz =   -101;
-    r->walls[30].y_min =   -937;  r->walls[30].y_max =   -670;
-
-    /* Wall 31 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[31].x1 =   -168;  r->walls[31].z1 =   2512;
-    r->walls[31].x2 =   -135;  r->walls[31].z2 =   2725;
-    r->walls[31].nx =  -4094;  r->walls[31].nz =    113;
-    r->walls[31].y_min =   -938;  r->walls[31].y_max =   -671;
-
-    /* Wall 32 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[32].x1 =    -84;  r->walls[32].z1 =   2358;
-    r->walls[32].x2 =    -83;  r->walls[32].z2 =   2425;
-    r->walls[32].nx =  -3959;  r->walls[32].nz =  -1047;
-    r->walls[32].y_min =   -859;  r->walls[32].y_max =   -709;
-
-    /* Wall 33 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[33].x1 =    -83;  r->walls[33].z1 =   2418;
-    r->walls[33].x2 =   -168;  r->walls[33].z2 =   2512;
-    r->walls[33].nx =  -3068;  r->walls[33].nz =  -2713;
-    r->walls[33].y_min =   -922;  r->walls[33].y_max =   -671;
-
-    /* Wall 34 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[34].x1 =     59;  r->walls[34].z1 =   2430;
-    r->walls[34].x2 =     58;  r->walls[34].z2 =   2359;
-    r->walls[34].nx =   4053;  r->walls[34].nz =   -587;
-    r->walls[34].y_min =   -859;  r->walls[34].y_max =   -708;
-
-    /* Wall 35 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[35].x1 =     94;  r->walls[35].z1 =   3105;
-    r->walls[35].x2 =     77;  r->walls[35].z2 =   2876;
-    r->walls[35].nx =   4083;  r->walls[35].nz =   -318;
-    r->walls[35].y_min =   -843;  r->walls[35].y_max =   -730;
-
-    /* Wall 36 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[36].x1 =     58;  r->walls[36].z1 =   2356;
-    r->walls[36].x2 =     27;  r->walls[36].z2 =   2261;
-    r->walls[36].nx =   3898;  r->walls[36].nz =  -1256;
-    r->walls[36].y_min =   -859;  r->walls[36].y_max =   -708;
-
-    /* Wall 37 - the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
-    r->walls[37].x1 =    -56;  r->walls[37].z1 =   2263;
-    r->walls[37].x2 =    -66;  r->walls[37].z2 =   2365;
-    r->walls[37].nx =  -4079;  r->walls[37].nz =    366;
-    r->walls[37].y_min =   -859;  r->walls[37].y_max =   -709;
 
     /*
      * Floor planes from the room proxy. These are what

@@ -110,7 +110,6 @@ typedef enum {
     ASAG_CLIP_NONE = -1,
 
     ASAG_CLIP_IDLE = 0,      /* 10f   the resting bob                         */
-    ASAG_CLIP_EMERGE,        /* 13f   rises out of the rock                   */
     ASAG_CLIP_LASER,         /* 43f   the beam attack                         */
     ASAG_CLIP_SLAM,          /* 50f   the slam attack                         */
     ASAG_CLIP_VOMIT,         /* 40f   the spew attack                         */
@@ -118,6 +117,60 @@ typedef enum {
 
     ASAG_CLIP_COUNT
 } AsagClip;
+
+/* There WAS an ASAG_CLIP_EMERGE, 13 frames, and it is gone at the user's
+   request: the travel it did by hand is now done by the position track below,
+   which every attack carries for itself. Its .pva is deleted, its disc.xml row
+   is gone and tools/export_asag.py no longer bakes Head_Emerge_Baked — the
+   action is still in the .blend if it is ever wanted back. */
+
+/* =========================================================================
+   POSITION: HOME AND EMERGED
+   =========================================================================
+   >>> THE CLIPS DO NOT TRAVEL. THE BODY IS SLID UNDERNEATH THEM. <<<
+   Every .pva is authored around ONE resting place — HOME, the fully retracted
+   position, which is simply the baked coordinates with nothing added. The
+   attacks are supposed to lunge into the arena and withdraw again, and that
+   lunge is NOT in the animation data: it is a straight translation along Z that
+   this module ramps in and out underneath whatever pose the clip is holding.
+
+   That is the cheap way round and it is also the flexible one. Re-timing the
+   lunge is a number in clip_move[] in the .c; re-timing it in Blender would be
+   a re-bake of every clip, and a clip that travels can only ever travel the one
+   distance it was baked with.
+
+   ---- WHERE "EMERGED" COMES FROM. IT IS DERIVED, NOT CHOSEN. ---------------
+   The brief was "his tail-end polys half-in, half-out of the wall". Both halves
+   of that are measurable:
+
+     THE TAIL-END POLYS are the rear-most cluster of the mesh — the four
+     primitives over vertices 0..7, which span z[3607, 3931] in the bind pose.
+     Their midpoint is z = 3769.
+
+     THE WALL is the arena's back face at z = 2800. The mesh has an ALCOVE cut
+     into it there (mouth at z=2800, back plate at z=2900, opening
+     x[-215.5, 215.5] y[-1015.5, -584.5]) which is Asag's throat; 2800 is the
+     surface the player actually sees.
+
+   So the offset that lands the tail's midpoint on the wall is 2800 - 3769:
+
+       HOME       z[2262, 3931]      tail z[3607, 3931]
+       EMERGED    z[1293, 2962]      tail z[2638, 2962]   straddling 2800
+
+   which leaves 76 of the 80 vertices in front of the wall (38 at Home) and
+   stops 993 units short of the player's landing spot at z=300.
+
+   >>> IT IS Z ONLY. <<< The brief said one axis and the geometry agrees: the
+   body is already centred on the alcove in X (x[-168, 146] inside an opening of
+   x[-215.5, 215.5]), so any X or Y component would push it into the rock.
+
+   NOTE THE SIGN. Emerging means DECREASING z, because the arena runs from the
+   player's landing at z=300 up to the back wall at z=2800. Comments elsewhere
+   in this room call low z "north"; the brief called this direction "south". The
+   geometry is what is implemented and it is not ambiguous — there is exactly
+   one direction that puts the tail through the wall.
+   ========================================================================= */
+#define ASAG_EMERGE_DZ  (-969)
 
 /* >>> THE PLAYED RATE, AND WHY IT IS AN fps AND NOT A TICK COUNT. <<< The clips
    are baked at a third of the authored 24 (tools/export_asag.py, STEP), so they
@@ -203,5 +256,38 @@ int  asag_clip_done(void);
    want it hidden until it emerges. */
 void asag_set_visible(int visible);
 int  asag_visible(void);
+
+/* ---- Solidity -------------------------------------------------------------
+   Push the player out of the body, from THIS FRAME'S POSE AND THIS FRAME'S
+   POSITION. Called from apply_collision_reception() alongside every other prop
+   family, and area-gated inside, so the call is unconditional.
+
+   >>> THE COLLISION USED TO BE 26 BAKED WALLS AND THEY HAD TO GO. <<<
+   tools/gen_asag_arena_collision.py used to merge the boss's own geometry into
+   src/asag_arena_mesh_collision.c as static walls. That was defensible while
+   the body never moved: it sat at y[-960,-528], 528 above the floor and 342
+   above the player's eye, so collision.c's vertical gate rejected every one of
+   them and they were harmless placeholders for the day the art came down.
+
+   The day came. The position track slides the body up to 969 units into the
+   arena and the slam and the faint bring it to floor level, so a table baked
+   from the bind pose is now wrong in both axes at once — and CollisionRoom is a
+   FIXED table read by every movement query in the frame, so it cannot be
+   re-baked per frame. The walls are gone from the generator and this replaces
+   them, which is the move src/hatch_doors.c already made for its leaves.
+
+   >>> IT IS AN AABB OVER ONLY THE VERTICES AT THE PLAYER'S HEIGHT, AND THAT IS
+   WHAT MAKES ONE BOX ENOUGH. <<< A box round the WHOLE body would be 1669 long
+   in Z and would wall off a third of the arena whenever Asag leaned in, most of
+   it nowhere near the floor. Selecting first on Y and only then taking the
+   footprint means the box is empty for most of the fight — the idle, the laser
+   and the vomit never reach body height at all — and when it is not empty it is
+   small: the slam's worst frame is 38 vertices inside 314 x 626, the faint's is
+   22 inside 251 x 266.
+
+   `radius` is the player's, added to the box Minkowski-style. See the .c for
+   why the push is smallest-penetration here where the hatch doors' could not
+   be. */
+void asag_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 
 #endif /* ASAG_H */

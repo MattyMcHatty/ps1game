@@ -112,28 +112,27 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   asag.c                   ASGHFNT.PVA       20480  -> asags_free_model()
   chainlink_door.c         CHNLNK.TIM        10240  -> tim
   fatdoor.c                WDDRCRK.TIM       10240  -> crk_buf
-  asag.c                   ASGHEMRG.PVA       8192  -> asags_free_model()
   asag.c                   ASGBODY.SMD        6144  -> asags_free_model()
   asag.c                   ASGHIDLE.PVA       6144  -> asags_free_model()
   grinder.c                GRINDER.TIM        6144  -> tbuf
-  TOTAL                                     274432   <- PEAK, not a resting cost
+  TOTAL                                     266240   <- PEAK, not a resting cost
 
   These cost nothing at rest and everything at the moment they are in.
   The transition that loads them is the peak this heap has to survive,
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x800E5924
+  _end (heap start)   0x800E5764
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size            1008668 bytes (985 KB)
+  heap size            1009116 bytes (985 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
   texmgr resident       765952 bytes (748 KB)  75.9%
   kept buffers           45056 bytes (44 KB)   4.5%
   PERMANENT TOTAL       811008 bytes (792 KB)  80.4%
-  FREE AT REST          197660 bytes (193 KB)  19.6%   <- STACK ALREADY SUBTRACTED
-                                  (was 345812 before the stack was counted;
+  FREE AT REST          198108 bytes (193 KB)  19.6%   <- STACK ALREADY SUBTRACTED
+                                  (was 346260 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.

@@ -24,7 +24,8 @@
 #include "chainlink_door.h"    /* placeable solid fence-gate prop */
 #include "lever.h"             /* placeable wall-lever prop */
 #include "rabisu.h"            /* the Rabisu boss is solid (area-tagged) */
-#include "hatch_doors.h"       /* The Hatch's pit doors, solid at any pose */
+#include "hatch_doors.h"
+#include "asag.h"       /* The Hatch's pit doors, solid at any pose */
 
 CollisionRoom current_collision_room;
 
@@ -960,6 +961,18 @@ void apply_collision_reception(void) {
        standoff — the crucifaxe has to be able to reach it, and its own
        RBS_BODY_RADIUS already holds the player 170 off its centre. */
     rabisus_collide(&cam_x, cam_y, &cam_z, 75);
+    /* ASAG. Area-tagged like the props above, so this is a no-op everywhere
+       else and in every room where the model is not even loaded. PROP radius
+       rather than the 195 wall standoff, for the reason the Rabisu gets one:
+       the player has to be able to reach the boss with the crucifaxe when the
+       fight is real, and holding them a full wall's width off a body that is
+       only briefly at floor level would read as an invisible barrier.
+
+       ITS FOOTPRINT IS THIS FRAME'S POSE AND POSITION, not a fixed box and no
+       longer a set of baked walls - the position track slides the body up to
+       969 units into the room and the slam and faint bring it to floor level.
+       See src/asag.h. */
+    asag_collide(&cam_x, cam_y, &cam_z, 75);
     /* The Hatch's two pit doors; area-tagged like the props above, so this is a
        no-op everywhere else and in every room where they are not even loaded.
        PROP radius rather than the 195 wall standoff: the open leaves lie flat on
