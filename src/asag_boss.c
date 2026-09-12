@@ -25,18 +25,41 @@ static const AsagClip demo_seq[] = {
 };
 #define DEMO_SEQ_COUNT ((int)(sizeof(demo_seq) / sizeof(demo_seq[0])))
 
-/* >>> THE WATCHDOG IS NOT PADDING. <<< src/asag.c's read_file() REFUSES a read
-   that would reach the stack, and load_clip() refuses a .pva whose vertex count
-   disagrees with the mesh. Either way the clip ends up with clip_count 0, and a
-   clip with no frames never advances, so it never reports done and this cycle
-   would stop dead on it — which looks exactly like the boss being frozen and
-   says nothing about why.
+/* >>> AN ABSENT CLIP IS SKIPPED, NOT WAITED ON, AND THAT IS A DIAGNOSTIC AS
+   MUCH AS A FIX. <<< src/asag.c's read_file() REFUSES a read that would reach
+   the stack, and load_clip() refuses a .pva whose vertex count disagrees with
+   the mesh. Both are SILENT: the clip ends up with clip_count 0, the body falls
+   back to its bind pose, and because a clip with no frames never advances it
+   never reports asag_clip_done() either.
 
-   Ten seconds is comfortably longer than the longest clip (the 50-frame slam at
-   8 fps is 6.25s) and short enough that a missing clip reads as a pause rather
-   than a hang. If the demo visibly stalls for ten seconds on one clip, that
-   clip did not load: check it is in disc.xml's TEXASAG dir and re-run
-   tools/heap_budget.py. */
+   A cycle that just played such a clip would sit on the bind pose until the
+   watchdog below fired - and a boss standing still on its rest pose for ten
+   seconds looks EXACTLY like a clip that played and had no motion in it. That
+   ambiguity cost a debugging session: the faint appeared to "play but not
+   move", and telling "the clip is missing" from "the clip is dull" needed a
+   stopwatch.
+
+   So next_loaded() steps over anything asag_clip_loaded() disowns. The failure
+   is then unmistakable in the room itself - the clip is simply ABSENT from the
+   cycle - and it can no longer be mistaken for an animation problem.
+
+   WHICH CLIP GOES MISSING IS NOT RANDOM: asags_load_model() reads them in
+   AsagClip order and the heap is what runs out, so it is always the LAST ones
+   in that order. If a clip vanishes from the cycle, the fix is the budget (PART
+   6 of tools/ADDING_THE_ASAG_FIGHT.txt), not the art. */
+static int next_loaded(int from) {
+    for (int n = 1; n <= DEMO_SEQ_COUNT; n++) {
+        int i = (from + n) % DEMO_SEQ_COUNT;
+        if (asag_clip_loaded(demo_seq[i])) return i;
+    }
+    return -1;                /* nothing loaded at all - see start() */
+}
+
+/* >>> THE WATCHDOG IS STILL NOT PADDING. <<< next_loaded() covers a clip that
+   is absent; this covers one that is PRESENT and still fails to finish, which
+   is the case no table can predict. Ten seconds is comfortably longer than the
+   longest clip (the 50-frame slam at 8 fps is 6.25s) and short enough to read
+   as a pause rather than a hang. */
 #define DEMO_WATCHDOG_FRAMES  600
 
 static int demo_index;
@@ -50,9 +73,10 @@ void asag_boss_reset(void) {
 }
 
 static void start(int i) {
+    if (i < 0) { asag_stop(); return; }   /* no clip loaded: hold the bind pose */
     demo_index = i;
     demo_age   = 0;
-    asag_play(demo_seq[i], 0);   /* never looping — see demo_seq above */
+    asag_play(demo_seq[i], 0);   /* never looping - see demo_seq above */
 }
 
 void asag_boss_update(void) {
@@ -61,7 +85,12 @@ void asag_boss_update(void) {
        the emerge against a body that is not there yet. */
     if (!asag_model_loaded()) return;
 
-    if (asag_playing() == ASAG_CLIP_NONE) { start(0); return; }
+    /* Start on the first clip that is actually in memory, not blindly on
+       demo_seq[0] - the emerge could be the missing one. */
+    if (asag_playing() == ASAG_CLIP_NONE) {
+        start(asag_clip_loaded(demo_seq[0]) ? 0 : next_loaded(0));
+        return;
+    }
 
     demo_age++;
 
@@ -72,5 +101,5 @@ void asag_boss_update(void) {
        instead and the switch happens in the same frame the flag goes up, so
        every clip's last frame is skipped and each one ends a beat early. */
     if (asag_clip_done() || demo_age >= DEMO_WATCHDOG_FRAMES)
-        start((demo_index + 1) % DEMO_SEQ_COUNT);
+        start(next_loaded(demo_index));
 }

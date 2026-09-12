@@ -847,11 +847,15 @@
              src/asag_arena.h.
 
              THE BODY. ONE mesh and SIX .pva clips, read on entry by
-             asags_load_model() and freed on every other transition. ~139 KB at
-             the door against ~171 KB measured free there. EVERY CLIP IS BAKED
-             AT A THIRD OF THE AUTHORED 24 fps and plays at 8: at full rate the
-             same six are ~370 KB and do not fit, and the failure mode is the
-             stack being handed out rather than a failed malloc.
+             asags_load_model() and freed on every other transition. 108,544
+             bytes at the door against 121-147 KB measured free there.
+
+             EVERY CLIP IS BAKED AT A THIRD OF THE AUTHORED 24 fps and plays at
+             8, AND EVERY CLIP IS PACKED (PVA2, three int16 per vertex instead
+             of PVA1's four, whose fourth is always zero). Unpacked they came to
+             139,264 and the LAST of them was silently REFUSED by src/asag.c's
+             stack guard on real hardware - the faint never loaded and the boss
+             held its bind pose where it should have played.
              tools/ADDING_THE_ASAG_FIGHT.txt PART 6.
 
              All exports live in assets/bosses/Asag Version Two/ and are

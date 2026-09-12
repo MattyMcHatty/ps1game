@@ -79,8 +79,31 @@ import sys
 import bpy
 
 MAGIC = b"PVA1"
+MAGIC_PACKED = b"PVA2"
 HEADER_SIZE = 12
 FLAG_LOOP = 1
+
+# >>> PVA1 STORES A HALFWORD PER VERTEX PER FRAME THAT IS ALWAYS ZERO. <<<
+# The console wants an SVECTOR, which is four int16 (x, y, z, pad), and the
+# writer below duly packs "<hhhh" with a literal 0 in the fourth slot. That pad
+# is 2 bytes in every 8 - a quarter of the entire payload - spent on nothing.
+#
+# It was free when the Rabisu was the only client: one 19-frame clip, and the
+# format matching SVECTOR exactly meant the draw could point straight into the
+# file with no unpack step at all. It stopped being free the moment a boss had
+# SIX clips. Asag's six came to 133,120 bytes sector-rounded and the LAST of
+# them was refused by the heap guard on a real console - the faint simply never
+# loaded, and the boss stood on its bind pose where that clip should have been.
+#
+# PVA2 drops the pad and stores three int16 per vertex. Same coordinates, same
+# frame order, same header; 25% smaller. The cost is an unpack into a scratch
+# SVECTOR array before the draw walks it, which for one 80-vertex model is
+# nothing (see body_verts() in src/asag.c).
+#
+# BOTH FORMATS STAY READABLE. src/rabisu.c points directly into its PVA1 buffer
+# and is deliberately untouched; src/asag.c accepts either. The Blender add-on
+# still defaults to PVA1, so a hand export through the UI keeps working - only
+# tools/export_asag.py asks for packing.
 
 INT16_MIN, INT16_MAX = -32768, 32767
 
@@ -165,10 +188,14 @@ def bake(obj, frame_start, frame_end, scale, trim_loop=True, report=print,
     return frames, looped
 
 
-def write_pva(path, frames, fps, looped, report=print):
+def write_pva(path, frames, fps, looped, report=print, pack=False):
+    """Write a .pva. `pack` selects PVA2 (3 int16 per vertex) over PVA1 (4, the
+    fourth always zero) - see the note beside MAGIC_PACKED for why that pad is
+    worth dropping and what it costs to read back."""
     n_verts = len(frames[0])
     clamped = 0
 
+    fmt = "<hhh" if pack else "<hhhh"
     body = bytearray()
     for fr in frames:
         for (x, y, z) in fr:
@@ -179,10 +206,14 @@ def write_pva(path, frames, fps, looped, report=print):
                     i = max(INT16_MIN, min(INT16_MAX, i))
                     clamped += 1
                 vals.append(i)
-            body += struct.pack("<hhhh", vals[0], vals[1], vals[2], 0)
+            if pack:
+                body += struct.pack(fmt, vals[0], vals[1], vals[2])
+            else:
+                body += struct.pack(fmt, vals[0], vals[1], vals[2], 0)
 
     flags = FLAG_LOOP if looped else 0
-    header = MAGIC + struct.pack("<HHHH", n_verts, len(frames), fps, flags)
+    header = (MAGIC_PACKED if pack else MAGIC) + \
+        struct.pack("<HHHH", n_verts, len(frames), fps, flags)
 
     with open(path, "wb") as f:
         f.write(header)
@@ -193,8 +224,9 @@ def write_pva(path, frames, fps, looped, report=print):
                "larger than the engine's vertex range" % clamped)
 
     report("  wrote %s" % path)
-    report("  %d frames x %d verts = %d bytes (%.1f KB), loops=%s"
-           % (len(frames), n_verts, HEADER_SIZE + len(body),
+    report("  %s %d frames x %d verts = %d bytes (%.1f KB), loops=%s"
+           % ("PVA2" if pack else "PVA1", len(frames), n_verts,
+              HEADER_SIZE + len(body),
               (HEADER_SIZE + len(body)) / 1024.0, looped))
 
     # The union bounding box over ALL frames, which is what the collision
@@ -212,7 +244,7 @@ def write_pva(path, frames, fps, looped, report=print):
 
 
 def export(obj, path, scale=100.0, frame_start=None, frame_end=None,
-           fps=None, trim_loop=True, report=print, step=1):
+           fps=None, trim_loop=True, report=print, step=1, pack=False):
     scene = bpy.context.scene
     if frame_start is None:
         frame_start = scene.frame_start
@@ -227,7 +259,7 @@ def export(obj, path, scale=100.0, frame_start=None, frame_end=None,
            % (obj.name, frame_start, frame_end, step, scale))
     frames, looped = bake(obj, frame_start, frame_end, scale, trim_loop, report,
                           step)
-    return write_pva(path, frames, fps, looped, report)
+    return write_pva(path, frames, fps, looped, report, pack)
 
 
 # --------------------------------------------------------------------------

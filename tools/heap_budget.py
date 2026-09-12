@@ -88,7 +88,7 @@ STACK_TOP = 0x801FFF00   # BIOS default SP, grows down into the same region
 # THAT IS NOT A ROUNDING ERROR, IT IS THE REASON THE ~234 KB "CLIFF" IN
 # tools/DIAGNOSING_A_BOOT_CRASH.txt EXISTS AT ALL: 234 KB reported was about
 # 86 KB real. Asag's arena walked straight into it - 229 KB of boss meshes and
-# clips against a reported 361 KB of free heap, which was really 171 KB. The
+# clips against a reported 361 KB of free heap, which was really far less. The
 # console crashed inside CdReadSync with the unaligned-JR signature, because
 # malloc handed out the address the stack pointer was already sitting at
 # (measured: sp = 0x801DBD40, buffer 0x801D46D0..0x801DE6D0).
@@ -326,7 +326,21 @@ print("  can hold several of the loads above at once, and the room whose door")
 print("  is tightest is not the room you are editing. Work the peak out by")
 print("  hand: permanent, plus everything live at that one instant.")
 print("  MEASURED at the tightest door in the game (Asag's arena, where the")
-print("  boss model is read): ~171 KB actually free, against the %d KB" % ((heap - perm) // 1024))
+# >>> THAT BRACKET IS A REAL CONSOLE MEASUREMENT AND THE OLD "~171 KB" WAS NOT.
+# <<< The 171 was inferred once, during the FIRST Asag, and then quoted for
+# months as though it had been re-measured. It had not, and it was too
+# optimistic. Asag Version Two pinned it properly: its seven reads go in a fixed
+# order, and on hardware the run succeeded through a cumulative 112,640 bytes
+# (the vomit) and was REFUSED at 139,264 (the faint), with read_file()'s 8 KB
+# stack margin on top of each. So free at that instant is somewhere in
+# [121 KB, 147 KB) and nowhere near 171.
+#
+# The failure was silent, which is the part worth remembering: nothing crashed
+# and nothing logged. The clip was simply absent, the boss stood on its bind
+# pose for the five seconds it should have animated, and it read as an art
+# problem rather than a memory one. src/asag_boss.c now steps over a clip that
+# asag_clip_loaded() disowns, precisely so the next one announces itself.
+print("  boss model is read): 121-147 KB actually free, against the %d KB" % ((heap - perm) // 1024))
 print("  printed above. The difference is other transients still held at that")
 print("  moment. Treat anything under 128 KB free as already in trouble.")
 print()

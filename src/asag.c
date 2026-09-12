@@ -55,8 +55,13 @@ static SMD    *mesh_smd;
 static int16_t mesh_cx, mesh_cz;   /* mesh centre, for the whole-body fog */
 
 static void    *clip_buff  [ASAG_CLIP_COUNT];
-static SVECTOR *clip_frames[ASAG_CLIP_COUNT];
-static int      clip_count [ASAG_CLIP_COUNT];   /* 0 = rejected or absent */
+static int16_t *clip_data  [ASAG_CLIP_COUNT];   /* first vertex of frame 0    */
+static int8_t   clip_stride[ASAG_CLIP_COUNT];   /* int16s per vertex: 4 or 3  */
+static int      clip_count [ASAG_CLIP_COUNT];   /* 0 = rejected or absent     */
+
+/* Scratch for ONE unpacked frame, n_verts SVECTORs, allocated with the mesh and
+   freed with it. Only PVA2 needs it; see body_verts(). */
+static SVECTOR *pose_buf;
 
 /* ---- Playback state — survives a free/load, because it is a statement about
    the FIGHT and not about what is in memory. A director that started the emerge
@@ -124,21 +129,45 @@ static void *read_file(const char *name) {
     return buf;
 }
 
-/* >>> THE CHECK THAT KEEPS A STALE CLIP FROM DRAWING GARBAGE. <<< Positions are
-   indexed by the .smd's polygon indices, so a clip baked from a mesh with a
-   different vertex count reads off the end of every frame. Refuse it and the
-   body falls back to its bind pose, which always renders — a motionless boss
-   instead of an exploded one. Mistake 5 in tools/ANIMATING_A_3D_MODEL.txt. */
+/* ---- Loading a clip, and the TWO formats -----------------------------------
+   PVA1 stores four int16 per vertex (x, y, z and a pad that is ALWAYS ZERO),
+   which is exactly an SVECTOR, so the draw can point straight into the file.
+   PVA2 drops the pad and stores three. Same coordinates, same frame order, same
+   header - a quarter smaller.
+
+   >>> THE PAD COST THIS BOSS A CLIP. <<< Unpacked, Asag's six clips came to
+   133,120 bytes sector-rounded on top of a 6,144-byte mesh, and on a real
+   console the LAST read - the faint - was refused by read_file()'s stack guard
+   below. Nothing crashed and nothing was logged: the clip was simply absent,
+   the body fell back to its bind pose for the five seconds the faint should
+   have played, and it looked for all the world like an animation with no motion
+   in it. Packed, the same six are 102,400 and all of them fit.
+
+   BOTH ARE ACCEPTED HERE. src/rabisu.c still points directly into its PVA1
+   buffer and is deliberately untouched, and the Blender add-on still writes
+   PVA1 by default - only tools/export_asag.py asks for packing. A PVA1 clip
+   dropped into this table keeps working, it is just bigger.
+
+   >>> AND THE VERTEX-COUNT CHECK IS WHAT KEEPS A STALE CLIP FROM DRAWING
+   GARBAGE. <<< Positions are indexed by the .smd's polygon indices, so a clip
+   baked from a mesh with a different vertex count reads off the end of every
+   frame. Refuse it and the body falls back to its bind pose, which always
+   renders - a motionless boss instead of an exploded one. Mistake 5 in
+   tools/ANIMATING_A_3D_MODEL.txt. */
 static void load_clip(int c) {
     if (!mesh_smd) return;
     uint8_t *p = (uint8_t *)read_file(clip_file[c]);
     if (!p) return;
-    if (p[0] != 'P' || p[1] != 'V' || p[2] != 'A' || p[3] != '1') { free(p); return; }
+    int stride;
+    if (p[0] == 'P' && p[1] == 'V' && p[2] == 'A' && p[3] == '1')      stride = 4;
+    else if (p[0] == 'P' && p[1] == 'V' && p[2] == 'A' && p[3] == '2') stride = 3;
+    else { free(p); return; }
     int n_verts  = p[4] | (p[5] << 8);
     int n_frames = p[6] | (p[7] << 8);
     if (n_verts != mesh_smd->n_verts || n_frames <= 0) { free(p); return; }
     clip_buff[c]   = p;
-    clip_frames[c] = (SVECTOR *)(p + PVA_HEADER_SIZE);
+    clip_data[c]   = (int16_t *)(p + PVA_HEADER_SIZE);
+    clip_stride[c] = (int8_t)stride;
     clip_count[c]  = n_frames;
 }
 
@@ -163,6 +192,12 @@ static void load_mesh(void) {
     }
     mesh_cx = (int16_t)((mnx + mxx) / 2);
     mesh_cz = (int16_t)((mnz + mxz) / 2);
+
+    /* One frame's worth of unpacked vertices, for PVA2 (see body_verts). 640
+       bytes for this model, and it is taken BEFORE the clips so that if the
+       heap is tight it is a CLIP that goes missing and not this - without it
+       every packed clip would draw the bind pose. */
+    pose_buf = (SVECTOR *)malloc(mesh_smd->n_verts * sizeof(SVECTOR));
 }
 
 void asags_load_model(void) {
@@ -184,9 +219,11 @@ void asags_load_model(void) {
 void asags_free_model(void) {
     if (mesh_buff) { free(mesh_buff); mesh_buff = NULL; }
     mesh_smd = NULL;                      /* the pointer the draw tests */
+    if (pose_buf) { free(pose_buf); pose_buf = NULL; }
     for (int c = 0; c < ASAG_CLIP_COUNT; c++) {
         if (clip_buff[c]) { free(clip_buff[c]); clip_buff[c] = NULL; }
-        clip_frames[c] = NULL;
+        clip_data[c]   = NULL;
+        clip_stride[c] = 0;
         clip_count[c]  = 0;
     }
     model_loaded = 0;
@@ -213,6 +250,11 @@ void asag_stop(void) {
 }
 
 AsagClip asag_playing(void) { return (AsagClip)cur_clip; }
+
+int asag_clip_loaded(AsagClip clip) {
+    if (clip < 0 || clip >= ASAG_CLIP_COUNT) return 0;
+    return clip_count[clip] > 0;
+}
 
 int asag_clip_done(void) { return clip_held; }
 
@@ -259,15 +301,40 @@ void asag_update(void) {
 }
 
 /* The vertex block the body is posed on this frame. Falls back to the .smd's
-   own bind pose whenever the clip is missing or was rejected — which is also
-   the state the body is in until a director starts something. */
+   own bind pose whenever the clip is missing or was rejected - which is also
+   the state the body is in until a director starts something.
+
+   PVA1 IS RETURNED IN PLACE: four int16 per vertex is an SVECTOR, the header is
+   12 bytes so every frame is 4-byte aligned, and the draw walks the file.
+
+   PVA2 IS UNPACKED into pose_buf first, because three int16 per vertex is not
+   an SVECTOR and the GTE load wants the real thing. >>> AND IT IS UNPACKED
+   UNCONDITIONALLY, EVERY FRAME, RATHER THAN CACHED. <<< Caching it would mean
+   tracking which clip and which frame the buffer currently holds and
+   invalidating that on play, stop, free and load - four places to get wrong for
+   a saving of 80 iterations on a model this size. If a later Asag is thousands
+   of vertices, cache it then and key the cache on (cur_clip, anim_frame). */
 static SVECTOR *body_verts(void) {
     int c = cur_clip;
-    if (c == ASAG_CLIP_NONE || !clip_frames[c] || clip_count[c] <= 0)
+    if (c == ASAG_CLIP_NONE || !clip_data[c] || clip_count[c] <= 0)
         return mesh_smd->p_verts;
     int f = anim_frame;
     if (f < 0 || f >= clip_count[c]) f = 0;
-    return clip_frames[c] + (f * mesh_smd->n_verts);
+
+    int nv = mesh_smd->n_verts;
+    int16_t *src = clip_data[c] + (int32_t)f * nv * clip_stride[c];
+
+    if (clip_stride[c] == 4) return (SVECTOR *)src;
+
+    if (!pose_buf) return mesh_smd->p_verts;   /* no scratch: hold the bind pose */
+    SVECTOR *d = pose_buf;
+    for (int v = 0; v < nv; v++) {
+        d[v].vx  = *src++;
+        d[v].vy  = *src++;
+        d[v].vz  = *src++;
+        d[v].pad = 0;
+    }
+    return pose_buf;
 }
 
 /* ---- The draw --------------------------------------------------------------

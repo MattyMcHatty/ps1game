@@ -22,7 +22,15 @@ WHY IT STILL EXISTS RATHER THAN TWO COMMAND LINES:
      Head_Idle_Baked and frame 1 before exporting, so the pose the game draws at
      rest IS the pose its idle clip starts from.
 
-  2. EVERY CLIP IS BAKED AT step=3: 24 fps authored, 8 fps PLAYED, which is
+  2. EVERY CLIP IS BAKED PACKED (PVA2, pack=True). PVA1 stores a halfword per
+     vertex per frame that is always zero, which is a quarter of the payload;
+     at six clips that mattered. The unpacked six came to 133,120 bytes
+     sector-rounded and the LAST of them - the faint - was REFUSED by
+     src/asag.c's heap guard on a real console, so the boss stood on its bind
+     pose where that clip should have been. Packed they are 102,400. Do not
+     export these through the Blender UI, which still writes PVA1.
+
+  3. EVERY CLIP IS BAKED AT step=3: 24 fps authored, 8 fps PLAYED, which is
      ASAG_ANIM_FPS in src/asag.h. Note 60/8 is 7.5, so asag_update() runs an
      ACCUMULATOR rather than a tick countdown - the first Asag could use a whole
      ASAG_ANIM_TICKS because its 6 fps divided 60 and this one cannot.
@@ -134,7 +142,8 @@ def main():
         fs, fe = clip_range(bpy.data.actions[action])
         set_action(obj, action)
         out = os.path.join(OUT_DIR, base + ".pva")
-        n = pva.export(obj, out, 100.0, fs, fe, None, True, step=STEP)
+        n = pva.export(obj, out, 100.0, fs, fe, None, True, step=STEP,
+                       pack=True)
         total += n
         print("@@@ PVA %-20s <- %-24s %3d..%-3d %7d bytes"
               % (base, action, fs, fe, n))

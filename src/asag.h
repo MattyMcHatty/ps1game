@@ -62,26 +62,38 @@
    tools/ADDING_THE_ASAG_FIGHT.txt PART 6. Never a startup load: a boss that
    lives in one room must not be resident in the other twenty-six.
 
-       1 mesh, 80 verts                  4,468 bytes
-       6 clips, 196 frames             125,512 bytes
-                                     -----------
-                                       129,980 bytes, 139,264 sector-rounded
+       1 mesh, 80 verts                  4,468 bytes ->   6,144 sector-rounded
+       6 clips, 196 frames, PACKED      94,152 bytes -> 102,400
+                                                      ---------
+                                                        108,544 at the door
 
-   >>> AGAINST 171 KB, NOT 371 KB, AND THE DIFFERENCE COST THE FIRST ASAG A
-   CRASH. <<< tools/heap_budget.py used to report 371 KB free at rest because it
-   treated the whole span from _end to the top of RAM as heap. The top 145 KB of
-   that is main()'s RenderContext, which is a LOCAL — two 64 KB packet buffers
-   and two 8 KB ordering tables sitting on the stack for the life of the run.
-   Real free at rest is ~208 KB; real free at the moment this room loads,
-   measured, is ~171 KB. The first build of the first Asag was sized against the
-   phantom figure and died inside CdReadSync every single time, with the stack
-   pointer INSIDE the buffer being read.
+   >>> AND THE DOOR HAS 121-147 KB, NOT 171. <<< That is a real measurement and
+   it was paid for. tools/heap_budget.py long quoted "~171 KB free at the arena
+   door", a figure inferred once during the FIRST Asag and never re-checked.
+   This boss pinned it: the seven reads go in a fixed order, and on hardware the
+   run SUCCEEDED through a cumulative 112,640 bytes and was REFUSED at 139,264 —
+   so the truth is somewhere in [121 KB, 147 KB).
 
-   So the clips are baked at a THIRD of the authored 24 fps
+   >>> THE REFUSAL WAS SILENT, AND THAT IS THE LESSON. <<< read_file() below
+   declines an allocation that would reach the stack, which is exactly right and
+   far better than the alternative (the first Asag died inside CdReadSync with
+   $sp INSIDE the buffer being read). But a declined clip does not crash and
+   does not log. It is simply ABSENT: the body falls back to its bind pose, and
+   because a clip with no frames never advances it never reports
+   asag_clip_done() either. The faint went missing this way and looked for all
+   the world like an animation with no motion in it. src/asag_boss.c now steps
+   over any clip asag_clip_loaded() disowns, so the next one is obvious.
+
+   WHAT BOUGHT THE ROOM: the clips are PACKED (PVA2, three int16 per vertex)
+   rather than PVA1's four, whose fourth halfword is always zero. That pad was
+   a quarter of the payload — 30,720 bytes across six clips, more than dropping
+   the whole boss from 8 fps to 6 would have saved, and it costs nothing
+   visually. See load_clip() and body_verts() in the .c.
+
+   The clips are also baked at a THIRD of the authored 24 fps
    (tools/export_asag.py, STEP 3) and play at 8. Re-baking one by hand WITHOUT
-   --step 3 will not fit, and "will not fit" means the CD DMA writing through
-   the stack, not a failed malloc — read_file() in the .c refuses such a read
-   outright.
+   --step 3, or through the Blender UI (which still writes unpacked PVA1), puts
+   this back over the line.
 
    The transition also loads the model AFTER the room's texture stream rather
    than before it, so the stream's 20 KB scratch is freed before the big read
@@ -168,6 +180,19 @@ void asag_stop(void);
 
 /* What is playing, or ASAG_CLIP_NONE for the bind pose. */
 AsagClip asag_playing(void);
+
+/* 1 if this clip's .pva actually made it into memory. A clip can be ABSENT for
+   two reasons and both are silent: read_file() refused the allocation because it
+   would have reached the stack (see the .c), or load_clip() rejected a .pva
+   whose vertex count disagreed with the mesh. Either way the body falls back to
+   its bind pose and simply never animates.
+
+   >>> A DIRECTOR THAT CHAINS CLIPS MUST ASK THIS. <<< An absent clip has no
+   frames, so it never advances and never reports asag_clip_done() - a sequence
+   that waits on it stalls forever. src/asag_boss.c uses this to step over one
+   rather than hang on it, which also makes the failure OBVIOUS (the clip is
+   missing from the cycle) instead of looking like a boss that froze. */
+int  asag_clip_loaded(AsagClip clip);
 
 /* 1 when a non-looping clip has reached its last frame and is holding it.
    Always 0 for a looping clip and on the bind pose — so a director can poll

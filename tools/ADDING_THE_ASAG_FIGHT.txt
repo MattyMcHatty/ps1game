@@ -379,15 +379,43 @@ late so the bank's buffer is already freed.
 ASAG'S OWN TRANSITION PEAK, worked out by hand as this part demands — the seven
 reads asags_load_model() makes, every one sector-rounded, all held at once:
 
-    ASGHSLAM.PVA    32,768
-    ASGHLAS.PVA     28,672
-    ASGHVOM.PVA     26,624
-    ASGHFNT.PVA     26,624
-    ASGHEMRG.PVA    10,240
-    ASGHIDLE.PVA     8,192
+    ASGHSLAM.PVA    24,576
+    ASGHLAS.PVA     22,528
+    ASGHVOM.PVA     20,480
+    ASGHFNT.PVA     20,480
+    ASGHEMRG.PVA     8,192
+    ASGHIDLE.PVA     6,144
     ASGBODY.SMD      6,144
                    -------
-                   139,264   against ~171 KB measured. ~32 KB clear.
+                   108,544
+
+>>> AND THE DOOR HAS 121-147 KB, NOT THE ~171 KB THIS FILE USED TO CLAIM. <<<
+That claim was inferred once during the FIRST Asag and then quoted for months as
+though it had been re-measured. It had not. Version Two pinned it on hardware:
+the reads go in a FIXED order (mesh, then clips in AsagClip order), the run
+SUCCEEDED through a cumulative 112,640 bytes and was REFUSED at 139,264, so free
+at that instant is somewhere in [121 KB, 147 KB).
+
+>>> AND THE REFUSAL WAS SILENT. <<< read_file()'s stack guard declined the LAST
+clip in the order - the faint - and nothing crashed, nothing logged. The clip
+was simply absent, the body held its bind pose for the five seconds the faint
+should have played, and it presented as an ART problem: "the animation plays but
+doesn't move". It cost a full debugging pass to work out that the file was on
+the disc, correct, and never read. TWO THINGS CAME OUT OF THAT AND BOTH ARE
+WORTH KEEPING:
+
+  - src/asag_boss.c steps over any clip asag_clip_loaded() disowns, so a missing
+    clip is ABSENT FROM THE CYCLE rather than a frozen boss. Which clip goes
+    missing is not random: it is always the last in AsagClip order, because that
+    is the order they are read in.
+  - THE CLIPS ARE PACKED. PVA1 stores four int16 per vertex and the fourth is
+    always zero - a quarter of the payload. PVA2 (tools/io_export_pva.py,
+    pack=True) stores three. That saved 30,720 bytes across six clips, which is
+    MORE than dropping the whole boss from 8 fps to 6 would have saved, and it
+    costs nothing visually - src/asag.c unpacks one frame into a 640-byte
+    scratch before the draw. src/rabisu.c still reads PVA1 in place and is
+    untouched; the Blender add-on still writes PVA1, so hand exports are the way
+    to put this back over the line.
 
 The arena's 20 KB texture scratch is NOT added to that: main.c loads the model
 AFTER asag_arena_upload_textures() rather than before it, so the scratch has
@@ -481,7 +509,8 @@ depending on a measured constant. Worth doing; not a win.
      return-to-title path.
 
      THE CLIP BUDGET. Every clip is baked at a THIRD of the authored 24 fps
-     (tools/export_asag.py, STEP 3) and plays at 8. >>> 60/8 IS 7.5, SO THERE IS
+     (tools/export_asag.py, STEP 3) and plays at 8, and every clip is PACKED
+     (PVA2) - see PART 6, where not packing them cost the faint. >>> 60/8 IS 7.5, SO THERE IS
      NO WHOLE NUMBER OF GAME FRAMES PER ANIMATION FRAME. <<< The first Asag used
      `#define ASAG_ANIM_TICKS 10` because its 6 fps divided 60; this one cannot,
      and a rounded 7 or 8 drifts most of a second across the 50-frame slam. So
@@ -609,8 +638,9 @@ order below. Frame counts are POST-BAKE at step 3; every one plays at 8 fps.
   ASAG_CLIP_VOMIT    40f   ASGHVOM.PVA    25,612   the spew attack
   ASAG_CLIP_FAINT    40f   ASGHFNT.PVA    25,612   collapses
 
-  125,512 bytes of clips, 4,468 of mesh; 139,264 once every read is rounded up
-  to whole CD sectors, which is what actually has to fit.
+   94,152 bytes of clips (PACKED - see PART 6), 4,468 of mesh; 108,544 once
+  every read is rounded up to whole CD sectors, which is what actually has to
+  fit, against 121-147 KB measured free at that door.
 
 EMERGE LEADS THE CYCLE rather than IDLE, because it is the only one of the six
 that reads as a beginning — the other five all start from where it leaves off,
