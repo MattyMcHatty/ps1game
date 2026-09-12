@@ -123,13 +123,11 @@ BANK = {
     # its only exit is a transition that runs the destination's own uploader.
     "mud.tim":        "Arena: floor and mud banks    OWNED  x384 y0",
     "Boss Wall.tim":  "Arena: the perimeter wall     OWNED  x512 y0",
-    "chain_128.tim":  "Arena: hanging chains, 4bpp   OWNED  x320 y256",
-    # Asag's four skins. They belong to the BOSS but are streamed by the ROOM -
-    # see src/asag_arena.h beside the ASAG_TEX_* slot numbers.
-    "asag.tim":       "Asag: the head                OWNED  x640 y0",
-    "leaf.tim":       "Asag: the four leaves         OWNED  x768 y0",
-    "tentacle.tim":   "Asag: both tentacles          OWNED  x832 y0",
-    "boil.tim":       "Asag: the six boils           OWNED  x704 y256",
+    # Asag's ONE skin. It belongs to the BOSS but is streamed by the ROOM - see
+    # src/asag_arena.h beside the ASAG_TEX_* slot numbers. The first Asag had
+    # four (head, leaves, tentacles, boils) plus a chain texture for the room;
+    # that model is gone and so are they.
+    "asag.tim":       "Asag: the body                OWNED  x640 y0",
 }
 
 # Textures that are startup-resident and are NOT re-uploaded by any room. Taking

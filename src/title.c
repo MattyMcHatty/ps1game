@@ -131,13 +131,13 @@ static const char *const level_names[] = {
     "GREENHOUSE",
     "CHAIN ROOM",
     "THE HATCH",
-    /* >>> NO "ASAG ARENA" ROW. <<< The fight is LOCKED OUT of this build, and
-       this list was one of its two ways in — the other was The Hatch's drop
-       (src/main.c, at hatch_puzzle_drop_done()), which now ends the build on the
-       sign-off screen instead. The arena itself is untouched and still builds:
-       STATE_ASAG_ARENA still exists in title.h and every branch that handles it
-       is still in main.c. Put the row back HERE and in level_states /
-       level_pending below — all three, in the same position — to reopen it. */
+    /* ASAG ARENA. One of the room's two ways in; the other is The Hatch's drop
+       (src/main.c, at hatch_puzzle_drop_done()). >>> AND IT IS THE ONLY WAY
+       OUT. <<< The arena has no exit in this build, so a session that walks in
+       through the drop is stuck there until it dies; this row is what makes the
+       room testable without one. A row here needs the matching entry in
+       level_states and level_pending below - all three, in the same position. */
+    "ASAG ARENA",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -170,6 +170,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,
     STATE_LOADING,
     STATE_LOADING,
+    STATE_LOADING,        /* ASAG ARENA */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -200,7 +201,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_GREENHOUSE,
     STATE_CHAIN_ROOM,
     STATE_THE_HATCH,
-    /* (no ASAG ARENA row — see level_names) */
+    STATE_ASAG_ARENA,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

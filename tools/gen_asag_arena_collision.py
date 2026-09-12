@@ -1,30 +1,38 @@
-"""Merge Asag's arena collision out of THREE meshes into one CollisionRoom.
+"""Merge Asag's arena collision out of TWO meshes into one CollisionRoom.
 
-    py assets/smx_to_collision.py "assets/garden/asag/Asag_Arena mesh.smx"      --room asag_arena
-    py assets/smx_to_collision.py "assets/garden/asag/Asag_Left_Tentacle.smx"   --room asag_tent_l
-    py assets/smx_to_collision.py "assets/garden/asag/Asag_Right_Tentacle.smx"  --room asag_tent_r
+    py assets/smx_to_collision.py "assets/bosses/Asag Version Two/Asag Version Two mesh.smx"      --room asag_arena
+    py assets/smx_to_collision.py "assets/bosses/Asag Version Two/Asag Version Two_Boss.smx"      --room asag_boss
     py tools/gen_asag_arena_collision.py
 
 WHY A MERGE STEP EXISTS HERE AND NOWHERE ELSE IN THE GAME. Every other room's
 collision is one proxy mesh through smx_to_collision.py, copied into src/. This
-room is three, because two of the three are parts of the BOSS rather than parts
-of the room:
+room is two, because one of the two is the BOSS rather than part of the room:
 
-  Asag_Arena mesh.smx    the room proxy - perimeter, and the alcove the head
-                         sits in
-  Asag_Left_Tentacle     the tentacle's OWN geometry, at the user's request:
-  Asag_Right_Tentacle    the two arms lie along the arena's side walls and the
-                         player must not walk through them
+  Asag Version Two mesh.smx   the room proxy - a purpose-built low-poly box with
+                              a recess at each end. 12 walls, 3 floor planes.
+  Asag Version Two_Boss.smx   THE BOSS'S OWN DRAWN GEOMETRY, at the user's
+                              request: this model has no separate collision
+                              proxy, so the mesh the player sees is the mesh the
+                              player cannot walk through. 26 walls.
 
->>> THE TENTACLE WALLS ARE STATIC AND THE TENTACLES ARE NOT. <<< They are baked
-from frame 1 of Tentacle_Idle, where each arm lies low along its wall (y span
-[-204,-4], about 200 tall). The attack clip rears them up through 1464 units of
-travel, and NONE of that moves these walls. That is the right trade while the
-fight does not exist yet - the player cannot walk through the resting arms, which
-is what was asked for - but when the encounter animates them, either accept that
-the collision is the resting silhouette or replace these walls with a runtime
-capsule the way rabisus_collide() does. Do not try to re-bake walls per frame:
-CollisionRoom is a fixed table read by every movement query in the frame.
+>>> THOSE 26 WALLS ARE ENTIRELY ABOVE THE PLAYER, AND THAT IS NOT A BUG. <<<
+The bind pose spans y[-960,-528], i.e. its LOWEST point is 528 units above the
+y=0 floor, and the player's eye is 186 above it. Nothing about the resting boss
+is at body height, so these walls gate on Y and never fire (collision.c's
+vertical gate, "body_top > y_max || y_min > body_bot"). They are generated
+anyway because they cost 26 rows in a table with 90 spare and they are what
+makes the answer right the moment the art comes down to floor level - which is
+the whole point of deriving collision from the drawn mesh instead of a proxy.
+The rule in tools/ADDING_A_ROOM.txt applies in reverse here: read the height off
+the mesh, and do not assume a boss occupies the ground just because it is large.
+
+>>> AND THE WALLS ARE STATIC WHILE THE BOSS IS NOT. <<< They are baked from
+frame 1 of Head_Idle_Baked. The slam clip travels the head a long way and NONE
+of that moves these walls. That is the right trade while the fight is a clip
+cycle and nothing else; when the encounter is real, either accept the resting
+silhouette or replace these walls with a runtime capsule the way
+rabisus_collide() does. Do NOT try to re-bake walls per frame - CollisionRoom is
+a fixed table read by every movement query in the frame.
 
 The generator's output is not hand-editable, so the two edits the runbook says
 smx_to_collision.py never emits are applied HERE instead:
@@ -35,14 +43,13 @@ import os
 import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GEN = os.path.join(ROOT, "assets", "garden", "asag")
+GEN = os.path.join(ROOT, "assets", "bosses", "Asag Version Two")
 OUT_C = os.path.join(ROOT, "src", "asag_arena_mesh_collision.c")
 OUT_H = os.path.join(ROOT, "src", "asag_arena_mesh_collision.h")
 
 SOURCES = [
-    ("Asag_Arena mesh_collision.c",         "the room proxy: perimeter + head alcove"),
-    ("Asag_Left_Tentacle_collision.c",      "the left arm, resting (Tentacle_Idle frame 1)"),
-    ("Asag_Right_Tentacle_collision.c",     "the right arm, resting (Tentacle_Idle frame 1)"),
+    ("Asag Version Two mesh_collision.c",      "the room proxy: perimeter + a recess at each end"),
+    ("Asag Version Two_Boss_collision.c",      "the boss's own drawn geometry, resting (Head_Idle_Baked frame 1)"),
 ]
 
 WALL_RE = re.compile(
@@ -63,7 +70,7 @@ def main():
         first = len(walls)
         walls += [(tuple(int(v) for v in m), what) for m in w]
         groups.append((what, first, len(w)))
-        if "Arena mesh" in fname:
+        if "Two mesh" in fname:
             floors = [tuple(int(v) for v in m) for m in FLOOR_RE.findall(text)]
 
     xs = [w[0][0] for w in walls] + [w[0][2] for w in walls]

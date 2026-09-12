@@ -12,6 +12,23 @@
    textures are ALL STILL HERE and still build. There is simply no longer a way
    in, and this screen is what the shaft lands on instead.
 
+   >>> AND IT IS THIS SCREEN THAT IS BOXED OUT NOW, NOT THE FIGHT. <<< The Asag
+   arena is back on the end of the drop, so NOTHING CALLS trial_end_start()
+   ANY MORE. trial_end_active() is therefore false forever, main.c's branch that
+   owns the frame for this screen is dead code, and every function below is
+   unreachable. All of it is kept, and kept COMPILING, because the screen itself
+   is fine and the build may want it again.
+
+   TO BRING IT BACK: call trial_end_start() from somewhere. The natural place is
+   the one it used to live in - src/main.c at hatch_puzzle_drop_done(), in place
+   of the transition into STATE_ASAG_ARENA - and that single line is the whole
+   of it. reset_game() already calls trial_end_reset(), the draw branch is still
+   in main(), and the sign-off's CD track is still on the disc.
+
+   The paragraph below is the original note from when the gating ran the other
+   way. It is kept because it is still the map of where the two switches are.
+
+   ---------------------------------------------------------------------------
    >>> THE ASAG FIGHT IS LOCKED OUT, NOT DELETED. <<< Two places gate it, and
    they are the two to undo if it ever comes back: the arming call in main.c's
    hatch branch, and the ASAG ARENA row that was taken out of title.c's

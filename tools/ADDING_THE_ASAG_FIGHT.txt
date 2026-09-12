@@ -2,18 +2,16 @@ PS1 HORROR GAME — ASAG'S ARENA: WHAT IS RESERVED, AND WHAT IT COST
 ===================================================================
 Asag is the game's SECOND boss.
 
->>> SEPTEMBER 2026: THE ROOM AND THE BODY ARE BOTH BUILT. <<< The arena's real
-textured mesh, its collision, seven textures, EIGHT drawable body parts and
-FOURTEEN animation clips are all in and drawn. What does NOT exist is the FIGHT:
-no phases, no attacks, no camera work, no sounds, no music, no encounter script.
-Every clip loads and NONE of them plays - src/asag.h's asag_play() is the whole
-of what a director drives, and until something calls it the boss stands on its
-bind pose.
+>>> SEPTEMBER 2026, SECOND PASS: THE WHOLE BOSS WAS REPLACED. <<< Everything
+the first version built — eight drawn parts, fourteen clips, seven textures and
+the arena they stood in — was thrown away and rebuilt from new art. What exists
+now is a new arena mesh, a new collision proxy, a ONE-PART animated body with
+SIX clips, three textures, and a DEMO director (src/asag_boss.c) that plays the
+six clips end to end on a loop so they can be looked at.
 
-The original text of this file described a room with a placeholder box in it.
-It is kept below because every BUDGET argument in it is still exactly right and
-is what the finished room was built against; PART 7 records what each step
-actually cost.
+WHAT STILL DOES NOT EXIST IS THE FIGHT: no phases, no attacks, no camera work,
+no sounds, no music, no encounter script — and, new in this pass, NO WAY OUT OF
+THE ROOM AT ALL.
 
 This file is the handover. It says what was built, what it cost, what is
 reserved for the fight, and the order the pieces go in. It is NOT a substitute
@@ -27,24 +25,59 @@ for the runbooks — those are still the authority on HOW:
   tools/HEAP_BUDGET.txt              >>> READ THIS ONE FIRST. See PART 6. <<<
 
   src/asag_arena.h                   the room, and the argument for its shape
+  src/asag.h                         the body, and why it needs no model matrix
+  src/asag_boss.h                    the DEMO director, and what replaces it
   src/rabisu.c / rabisu_boss.c       THE reference boss. Read both end to end.
+
+
+##########################################################################
+ PART 0 — WHAT CHANGED IN THE SECOND PASS, AND WHAT DID NOT
+##########################################################################
+GONE, deleted from the tree and from the disc:
+  assets/bosses/Asag/            9 .smd and 14 .pva
+  assets/garden/Asag/            the old .smx exports and their collision
+  textures/leaf, tentacle, boil  .png and .tim
+  the head/leaves/tentacles/boils model, its AsagPart enum, its per-part clocks,
+  the joined-boils export, the three-way collision merge, and the arena's
+  hanging-chain texture.
+
+NEW, in assets/bosses/Asag Version Two/:
+  Asag Version Two_Arena.smx     522 textured polys, mud + Boss Wall
+  Asag Version Two mesh.smx      the collision proxy: 12 walls, 3 floor planes
+  Asag Version Two_Boss.smx      80 verts, 79 polys, one texture
+  Asag_head_{idle,emerge,laser,slam,vomit,faint}.pva
+
+STILL TRUE, and this is the important half: EVERY BUDGET ARGUMENT IN THIS FILE
+SURVIVED THE REBUILD UNCHANGED. The room is still a one-way pocket, so VRAM is
+still almost entirely reclaimable, the SPU bank is still empty and still Asag's
+whole 232 KB, and the model is still ROOM-SCOPED rather than resident. The
+second pass is smaller than the first in every dimension, so nothing that fit
+before has stopped fitting.
 
 
 ##########################################################################
  PART 1 — WHAT THE ARENA IS, AND WHY ITS SHAPE IS LOAD-BEARING
 ##########################################################################
 ONE WAY IN: the 1200-unit drop down the pit in The Hatch's yard, after both
-keyholes are turned. That drop used to gate back into The Hatch itself as a
-placeholder; it now lands in STATE_ASAG_ARENA.
+keyholes are turned. main.c takes that transition at hatch_puzzle_drop_done().
 
-ONE WAY OUT — still the rule, but WHERE it is has not been decided. The
-placeholder arena had a door in the middle of the south wall; the real mesh has
-no door anywhere (see THE REAL GEOMETRY below). No save point, and there will
-not be one.
+>>> AND, AS OF THIS PASS, NO WAY OUT. <<< The first arena had a placeholder exit
+standing at the shaft mouth, offering to climb a shaft the fiction says cannot
+be climbed, with main.c's destination for it gating back into The Hatch and
+flagged as a placeholder in as many words. The new mesh has no door in it
+either, and where the room actually leads has still not been decided — so rather
+than ship the lie a second time, the exit is GONE: no prompt, no trigger, no
+destination, and no asag_arena_exit_* API at all.
 
->>> EVERY BUDGET BELOW FOLLOWS FROM THAT AND FROM NOTHING ELSE. <<< Because
-nothing else in the game is drawn, heard or updated while the player is down
-there, and because the player cannot arrive from anywhere but the shaft:
+The only ways out of the room today are the DEBUG LEVEL SELECT (the "ASAG ARENA"
+row, which is back in title.c for exactly this reason) and dying. A save made
+BEFORE the drop is the only route back into the rest of the game. That is a
+deliberate hole, it is written down in src/asag_arena.h, and it is the first
+thing to fix when the fight is real.
+
+>>> EVERY BUDGET BELOW FOLLOWS FROM THAT ONE-WAY SHAPE AND FROM NOTHING ELSE.
+<<< Because nothing else in the game is drawn, heard or updated while the player
+is down there, and because the player cannot arrive from anywhere but the shaft:
 
   - almost all of VRAM may be overwritten, and nothing has to be put back;
   - the SPU bank can be empty of shared effects;
@@ -52,96 +85,105 @@ there, and because the player cannot arrive from anywhere but the shaft:
     and dying are the only two exits, so there is no re-entry case and no
     "replay or skip the reveal" question.
 
-Change the room's shape — give it a second door, a save point, a way back up
-the shaft — and every one of those goes away. That is the one decision in this
-whole feature that is expensive to revisit.
+Give the room a second door, a save point, or a way back up the shaft and every
+one of those goes away. That is the one decision in this whole feature that is
+expensive to revisit.
 
-THE REAL GEOMETRY, as built: x[-1500,1500] z[0,3698], floor y=0, perimeter
-walls to y=-1000, with an ALCOVE cut into the back wall at x[-300,300]
-z[2613,3248] which is where Asag's head sits.
+THE REAL GEOMETRY, as built: x[-1500,1500] z[0,2900], floor y=0, perimeter walls
+to y=-1000, mesh detail up to y=-1534. The collision proxy is a perimeter with a
+RECESS AT EACH END, both floored at y=0 and both narrower than the middle
+(x[-1300,1300] against x[-1500,1500]):
 
->>> AND THE MESH HAS NO DOOR IN IT. <<< The alcove is the collision proxy's only
-opening and it is the boss's throat. The exit prompt therefore sits at the SHAFT
-MOUTH the player fell through (AA_EXIT_X/Z in src/asag_arena.c) and main.c's
-destination for it is a placeholder too. That is the one thing about this room
-that is still an open design question rather than an unbuilt one: ONE WAY OUT is
-still the rule the budgets depend on, but where that way out IS has not been
-decided or modelled.
+    FLOOR 0   y=0   x[-1300,1300]  z[2613,2700]   the SOUTH recess, under Asag
+    FLOOR 1   y=0   x[-1300,1300]  z[   0, 186]   the NORTH recess, the landing
+    FLOOR 2   y=0   x[-1500,1500]  z[ 186,2613]   the arena floor itself
+
+The player lands at x=0 z=300 facing +Z, straight down the arena at Asag.
+
+>>> AND THE BOSS IS NOT IN THE ROOM. <<< Its bind pose spans z[2262,3931] —
+a thousand units BEHIND the arena's own back wall — and y[-960,-528], so its
+lowest point is 528 above the floor. Asag hangs over the arena out of the rock
+behind it. Two consequences worth knowing before touching anything:
+
+  - the cull distance is 7000 and NOT the room's own 5900 Manhattan diagonal,
+    because a cull tight to the room would clip the far end of the boss off;
+  - none of the boss's own collision walls can ever fire at rest (PART 7A).
 
 
 ##########################################################################
- PART 2 — VRAM: 14 FULL 8bpp PAGES, PLUS THE 128-ROW SPRITE PAIR
+ PART 2 — VRAM: THREE TEXTURES, AND TWELVE FULL PAGES STILL FREE
 ##########################################################################
 tools/VRAM_MAP_ASAG.txt is this room's map, generated by tools/vram_map_asag.py.
 It is the third such map (after the whole-disc one and the garden-west bank's)
 and by far the emptiest.
 
-RESERVED — 21 textures, and they are exactly "what the player brought":
-  the HUD panel, the bullet-impact sprite, entity drop shadows;
-  the Crucifaxe, the Grave-olver, standard rounds, flame rounds, the
-  Helluminator;
-  the small medkit;
-  every collectible menu icon (door key / copper pot, wax cube, the four key
-  stones, the piano key, the valve handle, the hatch key);
-  grdngtl + grdngtr — the GATE door panel, which BOTH the arrival and the exit
-  transition draw with.
+RESERVED — and it is exactly "what the player brought": the HUD panel, the
+bullet-impact sprite, entity drop shadows; the Crucifaxe, the Grave-olver,
+standard rounds, flame rounds, the Helluminator; the small medkit; every
+collectible menu icon; and grdngtl + grdngtr, the GATE door panel.
 
 >>> THE DOOR PANEL IS THE SUBTLE ONE. <<< door_anim draws its panel after the
 room's update and BEFORE STATE_LOADING, so the arena's own textures are still in
-VRAM while the exit transition plays. Only the panel the exit actually uses has
-to survive. Give the exit a different panel in main.c and RESERVED in
-tools/vram_map_asag.py moves with it.
+VRAM while a transition plays. Only the panel an actual transition uses has to
+survive. The ARRIVAL uses DOOR_PANEL_GATE; when the room grows an exit, give it
+a different panel and RESERVED in tools/vram_map_asag.py moves with it.
 
-RECLAIMABLE — everything else, and unlike the garden-west bank most of it is
-free rather than merely available: every mansion and garden room re-uploads its
-own art on entry, and the arena is only ever left through a transition that runs
-one of those uploaders. THE ARENA OWES NOBODY A RESTORE ON THE WAY OUT.
+RECLAIMABLE — everything else, and most of it is free rather than merely
+available: every mansion and garden room re-uploads its own art on entry. THE
+ARENA OWES NOBODY A RESTORE ON THE WAY OUT — trivially so today, since it has no
+way out.
 
-WHAT THAT LEAVES:
-  14 full 8bpp 128x128 pages at Voff 0. Six of them cost nothing at all; the
-  other eight hold a startup-resident texture and taking one obliges you to
-  restore it (the map names which, per page).
-  5 more pages are 4bpp-only (their right half holds a reserved menu icon).
-  AND the whole Voff-128 band, including x320/x384 y128 — the shared
-  spider/rafflesia sprite pair, 128 rows by 128 columns, the largest contiguous
-  hole in the bank. main.c's STATE_LOADING branch SKIPS that upload for this
-  room specifically, so it is honestly free rather than merely intended to be.
-  It is the right shape for a boss sprite sheet.
-
-For comparison: the Greenhouse, the most texture-hungry room in the game, owns
-six. There is room here for roughly twice that.
-
-WHAT WAS TAKEN, of those 14 (September 2026). SEVEN pages, all reclaimable,
-none owing a restore:
+WHAT THIS BANK TAKES. THREE pages, all reclaimable, none owing a restore:
 
     mud        x384 y0    8bpp   the arena floor and its mud banks
     Boss Wall  x512 y0    8bpp   the perimeter
-    asag       x640 y0    8bpp   the head        }
-    leaf       x768 y0    8bpp   the four leaves } ASAG'S OWN SKINS, streamed
-    tentacle   x832 y0    8bpp   both arms       } by the ROOM - see below
-    boil       x704 y256  8bpp   the six boils   }
-    chain_128  x320 y256  4bpp   the hanging chains, left half of the page
+    asag       x640 y0    8bpp   THE BOSS'S SKIN — streamed by the ROOM
 
->>> THE BOSS'S FOUR SKINS ARE IN THE ROOM'S TABLE, NOT REGISTERED BY THE BOSS.
-<<< tools/ADDING_A_3D_ENEMY.txt STEP 3 says a textured enemy registers through
-texmgr, which is right for the Rabisu and wrong here: that is ~66 KB of PERMANENT
-main RAM for art that can only be seen behind a one-way drop, and this room
-already makes a bracketed CD read on the only transition that reaches it. Zero
-permanent bytes instead. src/asag.c reads the tpage/clut back through
+That leaves TWELVE full 8bpp pages plus the whole Voff-128 band, including
+x320/x384 y128 — the shared spider/rafflesia sprite pair, 128 rows by 128
+columns, the largest contiguous hole in the bank. main.c's STATE_LOADING branch
+SKIPS that upload for this room specifically, so it is honestly free rather than
+merely intended to be. It is the right shape for a boss sprite sheet.
+
+For comparison: the Greenhouse, the most texture-hungry room in the game, owns
+six pages. There is room here for twice that.
+
+>>> THE BOSS'S SKIN IS IN THE ROOM'S TABLE, NOT REGISTERED BY THE BOSS. <<<
+tools/ADDING_A_3D_ENEMY.txt STEP 3 says a textured enemy registers through
+texmgr, which is right for the Rabisu and wrong here: that is ~17 KB of
+PERMANENT main RAM for art that can only be seen behind a one-way drop, and this
+room already makes a bracketed CD read on the only transition that reaches it.
+Zero permanent bytes instead. src/asag.c reads the tpage/clut back through
 asag_arena_tex_page()/asag_arena_tex_clut().
 
->>> AND MIND THE CLUT BAND. <<< The first attempt put three CLUTs at x512 in the
-y>=480 band, where they landed inside ddog_alert.tim's PIXELS (x[640,672)
-y[448,512)) - the exact trap ADDING_A_3D_ENEMY.txt STEP 3 warns about. Do not
-reason about that band by hand: place the TIM, regenerate tools/VRAM_MAP.txt and
-read its CLUT OVERLAP CHECK, which caught all three. They live at x672 now.
+>>> ALL THREE TEXTURES ARE 128x128, AND THAT IS THE SMX'S DECISION, NOT THE
+ENGINE'S. <<< The source art in textures/asag/ is three different sizes (asag
+128, Boss wall 256, mud 64). io_export_smx_v3.py normalises every UV in an
+export to exp_tex_size=128 regardless of the image it came from, and the arena's
+own UVs prove it — mud runs u[10..147] and Boss Wall u[7..117], both addressed
+over a 128-texel tile. Ship mud at its native 64 and UV 127 reads off its right
+edge into whatever sits next in VRAM; ship Boss Wall at 256 and only its
+top-left quarter is ever sampled. So the three are RESAMPLED to 128x128 on the
+way from textures/asag/*.png to textures/*.png, and png_to_tim.py runs on those.
+
+  Going genuinely bigger is possible and is not worth it: 256 forces 4bpp (16
+  colours), a whole VRAM tpage across BOTH Voff halves, and a per-poly DR_TWIN
+  bracket. tools/TEXTURING_NOTES.txt PART 5 has the full cost, and records that
+  the one 256x256 attempt in this game — the Greenhouse's cuniform pipes — was
+  reverted after 16 of its 40 faces straddled a tile edge and lost their art.
+
+>>> AND MIND THE CLUT BAND. <<< The first pass put three CLUTs at x512 in the
+y>=480 band, where they landed inside ddog_alert.tim's PIXELS — the exact trap
+ADDING_A_3D_ENEMY.txt STEP 3 warns about. Do not reason about that band by hand:
+place the TIM, regenerate tools/VRAM_MAP.txt and read its CLUT OVERLAP CHECK.
+The three live at 672,499 / 672,500 / 672,501.
 
 ADDING ONE: put the .tim in textures/, add a <file> to disc.xml's TEXASAG dir
-(NOT the TEX dir - see PART 4A), add a row to stream_tex_file[] in
+(NOT the TEX dir — see PART 4A), add a row to stream_tex_file[] in
 src/asag_arena.c, a row to ASAG_TEX_* in src/asag_arena.h, a row to BANK in
 tools/vram_map_asag.py and, if an arena polygon uses it, a row to NAME_TO_SLOT
 in gen_asag_arena_tex_map.py. Then regenerate BOTH maps. No generator run for
-tim_slots.h - this room captures tpage/clut from the TIM at read time precisely
+tim_slots.h — this room captures tpage/clut from the TIM at read time precisely
 so a texture can be added without one.
 
 
@@ -191,8 +233,8 @@ an overflowing bank is SILENT, not broken.
 Voices: 0..23, and Asag inherits a crowded map (sfx_channel in src/sound.c).
 Voices 19, 20, 21 and 22 are EMERGE, DMNSPEAK, EXPLODE and BOOM — all BOSS-bank
 now, so all four are guaranteed idle in the arena and are the natural borrowings
-for Asag's long clips, exactly as SFX_HAD_DIE and SFX_WATER borrow them today.
-13, 14 and 15 (GAS, PULL, HISS) are GARDEN-bank and likewise idle here.
+for Asag's long clips. 13, 14 and 15 (GAS, PULL, HISS) are GARDEN-bank and
+likewise idle here.
 
 
 ##########################################################################
@@ -213,16 +255,16 @@ jump into the arena does not pass through the drop's own stop.
 ##########################################################################
  PART 4A — THE DISC DIRECTORY, WHICH IS NOT WHERE YOU EXPECT
 ##########################################################################
-ASAG'S THIRTY FILES ARE IN \TEXASAG\, NOT \TEX\, and both halves of that name
-are load-bearing.
+ASAG'S TEN FILES ARE IN \TEXASAG\, NOT \TEX\, and both halves of that name are
+load-bearing.
 
 WHY NOT \TEX\: its ISO9660 record already spans FIVE 2048-byte sectors, and the
 note at the head of src/chain_room.c records a boot crash caused by growing it by
-TWO files - the game died inside sound_init, in the first CdSearchFile that
-switched from \TEX\ to \SND\, with 200 KB of heap spare and a clean VRAM map.
-Putting Asag's files there took it to six sectors. A directory of its own costs
-ONE record in the root, starts again at sector 1, and leaves room for the
-fight's sounds and clips.
+TWO files — the game died inside sound_init, in the first CdSearchFile that
+switched from \TEX\ to \SND\, with 200 KB of heap spare and a clean VRAM map. A
+directory of its own costs ONE record in the root, starts again at sector 1, and
+leaves room for the fight's sounds and clips. The second pass took it from 32
+records to 13, i.e. 764 of 2048 bytes used — there is room for the fight.
 
 WHY "TEXASAG" AND NOT "ASAG": >>> mkpsxiso SORTS THE ROOT. <<< It writes root
 records in identifier order, not in disc.xml order, and SYSTEM.CNF is the LAST
@@ -236,15 +278,15 @@ TEXASAG sorts after SYSTEM.CNF (and right after TEX), so its record lands in the
 root's second sector where 1.5 KB is free. RUN check_disc_root.py AFTER ANY
 CHANGE to disc.xml.
 
-The same pressure is why the six boils ship as ONE joined mesh
-(tools/export_asag.py): they never animate and are always drawn together, so six
-records bought nothing.
-
 
 ##########################################################################
  PART 5 — WHAT ELSE IS ALREADY WIRED
 ##########################################################################
   src/title.h        STATE_ASAG_ARENA, appended
+  src/title.c        the "ASAG ARENA" debug level-select row, in all THREE
+                     tables. It was REMOVED when the fight was locked out and is
+                     back now, and it matters more than it used to: with no exit
+                     in the room it is the only way out that is not dying.
   src/world.c/.h     room_index 26, WORLD_NUM_ROOMS 27, seeded EMPTY (there is
                      nothing in a sealed arena but the boss). Without the slot
                      it would share the DELIVERY AREA's, which is how a room
@@ -257,22 +299,32 @@ records bought nothing.
   src/savegame.h     SAVE_VERSION 22 (both reservations taken together)
   src/main.c         geometry dispatch, SND_BANK_ASAG, the texture upload, the
                      area init + cdaudio_stop, the draw dispatch, the free-play
-                     update branch, the exit trigger, the playable-state list,
-                     the shaft's destination, and the spider/rafflesia skip
-  src/title.c        debug level select entry "ASAG ARENA"
+                     update branch, the playable-state list, the shaft's
+                     destination, and the spider/rafflesia skip
   src/save_menu.c    the area's display name
-  CMakeLists.txt     both new sources; the collision table in the cold-size list
+  CMakeLists.txt     all three new sources; the collision table in the cold list
+
+>>> AND src/trial_end.c IS NOW THE THING THAT IS BOXED OUT. <<< For one build
+the drop armed that sign-off screen instead of this room. The fight is back, so
+trial_end_start() is called from NOWHERE: trial_end_active() is false forever
+and main()'s branch for it is dead code. All of it still compiles and
+src/trial_end.h says what the one line to re-arm it is. That gating runs in
+exactly the opposite direction to the way this file described it last pass.
 
 WHERE THE ENCOUNTER'S OWN CODE GOES — every hook is marked in place with the
 runbook step beside it:
   - the CUTSCENE early-return branch at the TOP of update_current_area(), NOT in
     the room's free-play branch (main.c, beside the Hatch's and Attic Exit's)
-  - asag_boss_update() in the free-play branch too — the fight is free play
-  - the seal, ahead of the exit trigger, via asag_arena_exit_sealed(), which is
-    the single place that predicate belongs so the trigger and the floating sign
-    cannot disagree
+  - asag_boss_update() in the free-play branch too — the fight is free play. It
+    is ALREADY THERE, calling the demo; the real director takes its place.
+  - >>> asag_boss_update() BEFORE asag_update(), AND THE ORDER IS WORTH A FRAME.
+    <<< asag_update() raises the "holding the last frame" flag and the director
+    reads it. In this order the flag was raised on the PREVIOUS frame, so a
+    clip's final pose has been drawn once before the switch. Swap them and every
+    clip in a chained sequence ends a beat early.
+  - the seal, ahead of a restored exit trigger, via asag_arena_exit_sealed()
   - asag_arena_exit_arm() on the frame the seal LIFTS
-  - the four draw calls, in order, at the foot of asag_arena_draw()
+  - the draw calls at the foot of asag_arena_draw()
   - the `puzzle`/`cutscene` flags and the HUD exception in main.c's big branch
 
 
@@ -282,91 +334,35 @@ runbook step beside it:
 IT IS NOT VRAM AND IT IS NOT THE SPU. Read tools/HEAP_BUDGET.txt before doing
 anything that allocates.
 
-WHAT THE ARENA COST. 12,316 bytes:
-    ~9,700 bytes   one more RoomState in world.c's BSS. Every room in the game
-                   pays this; it is the fixed-capacity entity arrays, and the
-                   arena's copy will hold nothing but zeroes forever.
-     2,649 bytes   the two new modules' code and BSS.
+    FREE AT REST    198,236 bytes (194 KB)
+    MEASURED FREE AT THE ARENA'S OWN DOOR   ~171 KB
+
 The room's own textures cost NOTHING — they stream on entry into a scratch that
-is freed — and it registers nothing with texmgr. That was deliberate: six
-registrations would have been ~110 KB and would not have booted.
+is freed — and it registers nothing with texmgr. That was deliberate: the first
+pass's six registrations would have been ~110 KB and would not have booted.
 
->>> AND THEN 104,448 BYTES WERE RECLAIMED, BECAUSE THE BOSS MODEL WOULD NOT
-    OTHERWISE HAVE FITTED. <<<
-
-The Rabisu held its model and its one clip from startup and never released them:
+THE BOSS IS ROOM-SCOPED, WHICH IS WHAT MAKES ANY OF THIS FIT. The Rabisu used to
+hold its model and its one clip from startup and never release them:
 
     RBSIDLE.PVA    75,776 bytes    ONE idle clip, 19 frames x 496 verts
     RABISU.SMD     28,672 bytes    the model
                   ---------
                   104,448 bytes    for a boss that exists in exactly one room
 
-Asag is specified with animationS, plural, and tools/ANIMATING_A_3D_MODEL.txt
-says the .pva cost scales linearly per clip. A model plus three or four clips is
-150–250 KB. Against the 245 KB the tree had at that point — with a MEASURED boot
-cliff at ~234 KB, and a failure mode that is not a tidy malloc error but the
-stack being handed out — that was simply not going to boot.
-
-So the Rabisu's two buffers are now ROOM-SCOPED, which is the move
-src/room_arena.c already made for room meshes: exactly one boss is ever live,
-which one is known at the transition, and the transition already makes several
-bracketed CD reads behind a black screen. main.c's STATE_LOADING calls
-rabisus_load_model() when the destination is the Garden Courtyard and
-rabisus_free_model() on every other transition, unconditionally and keyed on
-pending_area — the same contract sound_bank_select() has.
-
-THE HEAP, not BSS, and that is the whole point: unlike a room, NO boss is loaded
-almost all of the time, so a BSS block would cost its full size in every room in
-the game. Freeing is what turns 104 KB spent into 104 KB free.
-
-WHERE IT LEAVES THINGS:
-
-    FREE AT REST    371,932 bytes (363 KB), 31.4% of the heap
-    ROOM-SCOPED     165,888 bytes total, largest single item 75,776
-
-That is the most headroom this heap has had since before the Greenhouse, and it
-is 137 KB clear of the measured cliff. (16 KB of the improvement is a REPORTING
-correction, not a reclaim: heap_budget.py used to count chainlink_door.c's and
-grinder.c's local TIM scratch as permanent. See the note in that script.)
-
-WHAT MADE THE RABISU CHANGE SAFE — repeat this audit before doing the same to
-any other entity:
-  - rabisu_smd and rabisu_anim_frames are read by ONE thing, the draw, and every
-    path to them is behind draw_rabisus()'s existing
-    `if (!rabisu_smd || rabisu_count == 0) return;`
-  - update_rabisus(), rabisus_collide() and rabisu_anchor_world() touch no model
-    data; the first two skip anything whose r->area is not current_area
-  - rabisu_add() — which world_seed_room() runs for rooms that are NOT loaded —
-    reads nothing from the mesh either
-With the model unloaded the boss is simply not drawn, which is the state every
-room but the courtyard was already in.
+Both are now loaded from main.c's STATE_LOADING when the destination is the
+Garden Courtyard and freed on every other transition — the same move
+src/room_arena.c already made for room meshes. THE HEAP, not BSS, and that is
+the whole point: unlike a room, NO boss is loaded almost all of the time, so a
+BSS block would cost its full size in every room in the game.
 
 >>> AND THE ORDER OF THOSE CALLS IS LOAD-BEARING. IT COST A CRASH TO FIND. <<<
 Wiring the model up naively — one if/else, before the sound bank swap — made the
 Garden Courtyard die on entry with the signature in
 tools/DIAGNOSING_A_BOOT_CRASH.txt section 2. That door is the TIGHTEST MOMENT IN
 THE GAME: it is the only transition that loads SND_BANK_BOSS, whose EMERGE clip
-is a 71,680-byte malloc (the largest single transient in the program), and the
-104,448-byte model was being loaded alongside it. 176,128 bytes live at one
-instant, which is also what the old startup-resident code cost there — and the
-arena's 12,316 permanent bytes were enough to tip it over.
-
-So main.c SEQUENCES them, and the free and the load are deliberately NOT one
+is a 71,680-byte malloc, and the 104,448-byte model was being loaded alongside
+it. So main.c SEQUENCES them, and the free and the load are deliberately NOT one
 if/else:
-
-    /* before the bank swap */
-    if (pending_area != STATE_GARDEN_COURTYARD) rabisus_free_model();
-    ...
-    sound_bank_select(...);
-    /* after it */
-    if (pending_area == STATE_GARDEN_COURTYARD) rabisus_load_model();
-
-Free early so the outgoing model is gone before the incoming bank is read; load
-late so the bank's buffer is already freed. Peak at that door: 104,448 instead
-of 176,128 — seventy kilobytes below what the shipped code always reached there.
-
->>> WHAT THIS MEANS FOR ASAG. <<< Do NOT give it a startup load, and put its
-calls in the SAME TWO PLACES, not in one:
 
     /* before the bank swap */
     if (pending_area != STATE_GARDEN_COURTYARD) rabisus_free_model();
@@ -377,118 +373,51 @@ calls in the SAME TWO PLACES, not in one:
     if (pending_area == STATE_GARDEN_COURTYARD) rabisus_load_model();
     if (pending_area == STATE_ASAG_ARENA)       asags_load_model();
 
-Asag's bank is EMPTY today, so its transition peak is its model alone — but that
-is a property of the bank being empty and it stops being true the moment the
-fight has clips. Work the peak out by hand: permanent + the largest malloc live
-at that instant. FREE AT REST does not model it.
+Free early so the outgoing model is gone before the incoming bank is read; load
+late so the bank's buffer is already freed.
 
-Because the two bosses can never be co-resident, Asag's budget is the whole
-363 KB minus its own transient peak — comfortably enough for a model and several
-clips. Keep an eye on tools/ANIMATING_A_3D_MODEL.txt all the same: 75 KB for one
-19-frame clip is what the baked-vertex approach costs, and four of those is
-300 KB.
+ASAG'S OWN TRANSITION PEAK, worked out by hand as this part demands — the seven
+reads asags_load_model() makes, every one sector-rounded, all held at once:
 
-STILL OUTSTANDING, and each is small:
-  - the Rabisu's SKIN (RABISU.TIM, 18 KB) is still a startup texmgr
-    registration. It could be streamed like the arena's textures, but its entry
-    hook (garden_courtyard_upload_textures) is also reached from the Stables and
-    the Greenhouse, so a naive change puts a CD read on two transitions that do
-    not need one. Solve that first if the 18 KB is wanted.
-  - the ~9,700-byte RoomState per room is paid by all 27 rooms whether or not
-    they hold anything. That is a world.c refactor, not a boss one.
+    ASGHSLAM.PVA    32,768
+    ASGHLAS.PVA     28,672
+    ASGHVOM.PVA     26,624
+    ASGHFNT.PVA     26,624
+    ASGHEMRG.PVA    10,240
+    ASGHIDLE.PVA     8,192
+    ASGBODY.SMD      6,144
+                   -------
+                   139,264   against ~171 KB measured. ~32 KB clear.
 
+The arena's 20 KB texture scratch is NOT added to that: main.c loads the model
+AFTER asag_arena_upload_textures() rather than before it, so the scratch has
+been freed before the big read starts and the peak is the larger of the two
+rather than their sum.
 
-##########################################################################
- PART 7 — WHAT IS BUILT, WHAT IT COST, AND WHAT IS LEFT
-##########################################################################
-Steps 1-4 of the original order are DONE. What each actually cost is recorded
-here because the numbers are the useful part.
-
-  1. HEAP. Done, re-run, AND THE SCRIPT ITSELF WAS WRONG. See PART 6A - this is
-     the single most important thing in this file now. FREE AT REST is 213,060
-     bytes (208 KB), not the 371 KB every earlier version of this document was
-     written against. Everything Asag reads is ROOM-SCOPED and none of it is in
-     that figure; tools/heap_budget.py now REPORTS those loads, which took a
-     small change (see TABLE_DRIVEN_SCOPED in that script - the old scan wanted
-     the filename as a literal at the read_file call site, and asag.c reads
-     twenty-two files through two const tables, so it was all invisible).
-
-  2. THE ARENA MESH. Done. assets/garden/asag/Asag_Arena.smx -> ASAGARNA.SMD,
-     38 KB, 674 textured prims. Collision regenerated and MERGED with both
-     tentacles (PART 7A). Floor zones are two flat planes at y=0, both read off
-     the proxy. Ceiling stays at -1000. AA_FOG/CULL unchanged: the new mesh's
-     far corner is 6698 Manhattan against the 6700 the old numbers assumed.
-     multi_level 0 and shoot_over_mask 0, both argued in the generator.
-
-  3. THE TEXTURES. Done, seven of them. PART 2 records which pages and the CLUT
-     trap that nearly shipped.
-
-  4. THE BODY. Done, and it is a DIFFERENT SHAPE from the Rabisu's - read
-     src/asag.h before src/rabisu.c. Eight parts, fourteen clips, no per-part
-     model matrix (every part's vertices are already in the arena's coordinate
-     space because the SMX exporter bakes matrix_world), and therefore no view
-     matrix to restore. asags_load_model()/asags_free_model() are in main.c's
-     STATE_LOADING in the SAME TWO PLACES the Rabisu's are - free before the
-     bank swap, load after - and asags_free_model() is also on the return-to-
-     title path.
-
-     THE CLIP BUDGET IS THE THING TO KNOW, AND IT IS TIGHTER THAN IT LOOKS.
-     Every clip is baked at a QUARTER of the authored 24 fps
-     (tools/export_asag.py, STEP 4) and plays at 6, so ASAG_ANIM_TICKS is 10.
-     Re-baking one by hand WITHOUT --step 4 will not fit.
-
-     TRANSITION PEAK, worked out by hand as PART 6 demands:
-         137,216  the eight meshes and fourteen clips, sector-rounded
-         -------
-         137,216  against ~171,368 measured free at that door. ~34 KB clear.
-
-     The arena's 20 KB texture scratch is NOT added to that any more: main.c now
-     loads the model AFTER asag_arena_upload_textures() rather than before it, so
-     the scratch has been freed before the big read starts and the peak is the
-     larger of the two rather than their sum.
-
-     THAT IS TODAY'S PEAK AND IT ASSUMES AN EMPTY SPU BANK. Re-do it in step 5.
-
-  STILL TO DO, in this order:
-  5. THE SOUNDS. tools/ADDING_A_SOUND.txt, STEP 3 arithmetic first, everything
-     tagged SND_BANK_ASAG. >>> AND REDO THE PEAK ABOVE. <<< The bank being empty
-     is the only reason the model read is the whole of this transition; the
-     largest clip in it lands on top of 249,856.
-  6. THE MUSIC. PART 4.
-  7. THE ENCOUNTER. tools/ADDING_A_BOSS_ENCOUNTER.txt, then src/asag_boss.c/.h,
-     into the hooks listed in PART 5. Read that runbook's list of ten things
-     that were wrong first — it is the most useful part of the file.
-     The body is waiting for it: asag_play(), asag_stop(), asag_clip_done() and
-     asag_set_visible() are the entire interface, and asag_update() is already
-     called from the arena's free-play branch.
-  8. THE EXIT. Where the room leads, and the geometry of the way out. See
-     PART 1.
+>>> THAT FIGURE ASSUMES AN EMPTY SPU BANK, AND THE BANK BEING EMPTY IS THE ONLY
+REASON THE MODEL READ IS THE WHOLE OF THIS TRANSITION. <<< The moment the fight
+has sounds, the largest clip in SND_BANK_ASAG lands on top of 139,264. REDO THE
+ARITHMETIC THEN. FREE AT REST does not model it.
 
 
 ##########################################################################
- PART 6A — >>> heap_budget.py WAS WRONG BY 145 KB, AND IT COST THIS BOSS <<<
+ PART 6A — >>> heap_budget.py WAS WRONG BY 145 KB, AND IT COST A BOSS <<<
 ##########################################################################
-READ THIS BEFORE BELIEVING ANY EARLIER FIGURE IN THIS FILE.
+READ THIS BEFORE BELIEVING ANY PRE-SEPTEMBER FIGURE ANYWHERE IN THE TREE.
 
-Every "371 KB free" and "363 KB free" above was produced by a script that
-computed the heap as everything from _end to 0x801FFFF8 and subtracted only
-texmgr and the kept buffers. THE TOP 145 KB OF THAT SPAN IS NOT HEAP. src/main.c
-declares
+Every "371 KB free" and "363 KB free" in the first pass's documents was produced
+by a script that computed the heap as everything from _end to 0x801FFFF8 and
+subtracted only texmgr and the kept buffers. THE TOP 145 KB OF THAT SPAN IS NOT
+HEAP. src/main.c declares
 
     RenderContext ctx;
 
-as a LOCAL in main(), and a RenderContext is two RenderBuffers - each an
-OT_LENGTH(2048)-entry uint32 table plus a BUFFER_LENGTH(65536) packet buffer -
-so main()'s stack frame is ~147,600 bytes and it sits at the top of RAM for the
-entire run. The heap can only ever grow to just underneath it.
+as a LOCAL in main(), and a RenderContext is two RenderBuffers — each an
+OT_LENGTH(2048)-entry uint32 table plus a BUFFER_LENGTH(65536) packet buffer —
+so main()'s stack frame is ~148 KB and it sits at the top of RAM for the entire
+run. The heap can only ever grow to just underneath it.
 
-    reported FREE AT REST   361,212
-    stack reserve          -148,152
-    ---------------------------------
-    real FREE AT REST       213,060      (208 KB)
-    measured free at the arena door      ~171,368
-
-WHAT IT COST. Asag's first build was sized against the phantom figure: 229 KB of
+WHAT IT COST. The first Asag was sized against the phantom figure: 229 KB of
 meshes and clips at half rate, which "fit" 361 KB with 110 KB to spare. The
 console crashed on EVERY entry to the arena, by the drop and by the debug menu
 alike. Headless, with the model reads instrumented:
@@ -513,10 +442,10 @@ WHAT WAS DONE ABOUT IT:
     as $sp inside read_file on this very transition) and prints the reserve as
     its own line. Re-measure it the same way if main()'s frame ever changes.
   - src/asag.c's read_file() reads $sp and REFUSES any allocation that would
-    reach within 8 KB of it. A refused read leaves a part or a clip absent - a
-    bind pose, or nothing drawn - which is visible and harmless. It can no
+    reach within 8 KB of it. A refused read leaves the mesh or a clip absent —
+    a bind pose, or nothing drawn — which is visible and harmless. It can no
     longer corrupt the stack.
-  - the clips were re-baked at STEP 4.
+  - the clips are baked down (step 3 in this pass; the first pass needed 4).
   - the model load moved after the texture stream, so their peaks do not add.
 
 >>> THE STACK RESERVE IS NOT RECOVERABLE BY MOVING ctx TO BSS. <<< It would move
@@ -526,112 +455,170 @@ depending on a measured constant. Worth doing; not a win.
 
 
 ##########################################################################
- PART 7A — COLLISION, WHICH IS THREE MESHES AND NOT ONE
+ PART 7 — WHAT IS BUILT, WHAT IT COST, AND WHAT IS LEFT
 ##########################################################################
-tools/gen_asag_arena_collision.py merges smx_to_collision.py's output for THREE
+  1. HEAP. Done, re-run. PART 6 has the peak. Everything Asag reads is
+     ROOM-SCOPED and none of it is in FREE AT REST; tools/heap_budget.py REPORTS
+     those loads (see TABLE_DRIVEN_SCOPED in that script — the old scan wanted
+     the filename as a literal at the read_file call site, and asag.c reads
+     through const tables, so it was all invisible).
+
+  2. THE ARENA MESH. Done. Asag Version Two_Arena.smx -> ASAGARNA.SMD, 29 KB,
+     522 textured prims over two textures (mud 401, Boss Wall 121). Collision
+     regenerated from a purpose-built proxy and MERGED with the boss (PART 7A).
+     Floor zones are three flat planes at y=0, all read off the proxy. Ceiling
+     stays at -1000. multi_level 0 and shoot_over_mask 0, both argued in the
+     generator.
+
+  3. THE TEXTURES. Done, three of them. PART 2 records which pages, why they are
+     resampled to 128x128, and the CLUT trap that nearly shipped.
+
+  4. THE BODY. Done. ONE mesh, SIX clips, no model matrix (the vertices are
+     already in the arena's coordinate space because the SMX exporter bakes
+     matrix_world), and therefore no view matrix to restore.
+     asags_load_model()/asags_free_model() are in main.c's STATE_LOADING in the
+     SAME TWO PLACES the Rabisu's are, and asags_free_model() is also on the
+     return-to-title path.
+
+     THE CLIP BUDGET. Every clip is baked at a THIRD of the authored 24 fps
+     (tools/export_asag.py, STEP 3) and plays at 8. >>> 60/8 IS 7.5, SO THERE IS
+     NO WHOLE NUMBER OF GAME FRAMES PER ANIMATION FRAME. <<< The first Asag used
+     `#define ASAG_ANIM_TICKS 10` because its 6 fps divided 60; this one cannot,
+     and a rounded 7 or 8 drifts most of a second across the 50-frame slam. So
+     src/asag.h defines ASAG_ANIM_FPS and asag_update() runs an ACCUMULATOR.
+
+  5. THE DEMO DIRECTOR. Done, and it is a placeholder: src/asag_boss.c plays the
+     six clips end to end on an endless loop and decides nothing. It exists so
+     the animation can be looked at. It has a WATCHDOG, which is not padding —
+     a clip that failed to load has no frames, so it never reports done and
+     would stop the cycle dead. Ten seconds of one clip means that clip did not
+     load.
+
+  STILL TO DO, in this order:
+  6. THE SOUNDS. tools/ADDING_A_SOUND.txt, STEP 3 arithmetic first, everything
+     tagged SND_BANK_ASAG. >>> AND REDO THE PEAK IN PART 6. <<<
+  7. THE MUSIC. PART 4.
+  8. THE ENCOUNTER. tools/ADDING_A_BOSS_ENCOUNTER.txt, then a real
+     src/asag_boss.c in place of the demo, into the hooks listed in PART 5. Read
+     that runbook's list of ten things that were wrong first — it is the most
+     useful part of the file.
+  9. THE EXIT. Where the room leads, and the geometry of the way out. See
+     PART 1. This is now the most urgent of the four, because there is no exit
+     at all rather than a placeholder one.
+
+
+##########################################################################
+ PART 7A — COLLISION, WHICH IS TWO MESHES AND NOT ONE
+##########################################################################
+tools/gen_asag_arena_collision.py merges smx_to_collision.py's output for TWO
 meshes into src/asag_arena_mesh_collision.c:
 
-    Asag_Arena mesh.smx       walls  0..7    the room proxy + the head alcove
-    Asag_Left_Tentacle.smx    walls  8..27   the left arm's own geometry
-    Asag_Right_Tentacle.smx   walls 28..47   the right arm's
+    Asag Version Two mesh.smx   walls  0..11   the room proxy
+    Asag Version Two_Boss.smx   walls 12..37   THE BOSS'S OWN DRAWN GEOMETRY
 
-48 walls against MAX_WALLS_PER_ROOM 128. The two arms are there because they lie
-along the side walls and the player must not walk through them.
+38 walls against MAX_WALLS_PER_ROOM 128. The boss is in there because it has no
+separate collision proxy: the mesh the player sees is the mesh the player cannot
+walk through.
 
->>> THE TENTACLE WALLS ARE STATIC AND THE TENTACLES ARE NOT. <<< They are baked
-from frame 1 of Tentacle_Idle, where each arm lies low (y span [-204,-4]). The
-attack clip rears them through 1464 units of travel and none of that moves these
-walls. That is the right trade while the fight does not exist; when it does,
-either accept the resting silhouette or replace those walls with a runtime
-capsule the way rabisus_collide() does. Do NOT try to re-bake walls per frame -
-CollisionRoom is a fixed table read by every movement query in the frame.
+>>> AND NOT ONE OF THOSE 26 WALLS CAN FIRE AT REST. <<< The bind pose spans
+y[-960,-528], so its LOWEST point is 528 units above the y=0 floor and 342 above
+the player's eye. collision.c's vertical gate ("body_top > y_max || y_min >
+body_bot") rejects every one of them. They are generated anyway because they
+cost 26 rows in a table with 90 spare and they become the right answer the
+instant the art comes down to floor level — which is the whole point of deriving
+collision from the drawn mesh rather than a proxy.
+
+The rule in tools/ADDING_A_ROOM.txt applies in reverse here: read the height off
+the mesh, and do not assume a boss occupies the ground just because it is large.
+
+>>> THE BOSS WALLS ARE STATIC AND THE BOSS IS NOT. <<< They are baked from frame
+1 of Head_Idle_Baked. The slam clip travels the head a long way and NONE of that
+moves these walls. That is the right trade while the fight does not exist; when
+it does, either accept the resting silhouette or replace those walls with a
+runtime capsule the way rabisus_collide() does. Do NOT try to re-bake walls per
+frame — CollisionRoom is a fixed table read by every movement query in the
+frame.
 
 
 ##########################################################################
- PART 7B — THE ART PIPELINE, AND THE TWO BUGS IT CAUGHT
+ PART 7B — THE ART PIPELINE
 ##########################################################################
-ONE COMMAND RE-EXPORTS EVERYTHING:
+RE-EXPORT THE BODY AND ITS CLIPS (one command, and it is the only correct way):
 
-    blender -b "blender models/Garden/Asag.blend" -P tools/export_asag.py
-    smxlink -tp textures -o assets/bosses/Asag/<X>.smd assets/garden/asag/<X>.smx
-    py tools/gen_asag_arena_tex_map.py
-    py assets/smx_to_collision.py ... && py tools/gen_asag_arena_collision.py
+    blender -b "blender models/Garden/Asag Version Two.blend" -P tools/export_asag.py
 
-export_asag.py exists because thirteen meshes and fourteen clips have to agree
-with each other, and two of the agreements are easy to break by hand. It sets
-each part's IDLE action and frame 1 before exporting its mesh, so the .smd's bind
-pose IS frame 1 of the clip that part rests on (mistake 2 in
-tools/ANIMATING_A_3D_MODEL.txt: the Rabisu's shipped mesh sat 216 units off its
-clip's first frame and playback snapped). Verified: every clip's frame 1 matches
-its .smd exactly, except head_emerge, which starts buried and is meant to.
+THEN THE BINARIES:
 
-TWO REAL BUGS IN THE ART, both found by tools/check_model_winding.py:
+    smxlink -tp textures -o "assets/bosses/Asag Version Two/Asag Version Two_Boss.smd" \
+                            "assets/bosses/Asag Version Two/Asag Version Two_Boss.smx"
+    smxlink -tp textures -o "assets/bosses/Asag Version Two/Asag Version Two_Arena.smd" \
+                            "assets/bosses/Asag Version Two/Asag Version Two_Arena.smx"
+    py gen_asag_arena_tex_map.py
+    py assets/smx_to_collision.py "assets/bosses/Asag Version Two/Asag Version Two mesh.smx" --room asag_arena
+    py assets/smx_to_collision.py "assets/bosses/Asag Version Two/Asag Version Two_Boss.smx" --room asag_boss
+    py tools/gen_asag_arena_collision.py
+    py tools/check_model_winding.py "assets/bosses/Asag Version Two/Asag Version Two_Boss.smd"
 
-  1. ALL SIX BOILS AND THE RIGHT TENTACLE WERE WOUND BACKWARDS - the mirror
-     signature from ANIMATING_A_3D_MODEL.txt mistake 1, so the draw's backface
-     cull would have shown their insides.
-     >>> AND "Recalculate Outside" DID NOT FIX THEM. <<< Every one is an OPEN
-     mesh (the boils are 5-quad boxes with the wall-facing side deleted; the
-     tentacles are capped tubes with 4 open edges), and for an open mesh
-     "outside" is ambiguous - bmesh picks an orientation and both are
-     defensible. The right tentacle had a second cause on top: a -1 determinant
-     world matrix, being the mirror of the left. FLIPPING THE FACES fixes both,
-     and it was done at source in the .blend.
+THE TEXTURES, from textures/asag/*.png, resampled to 128x128 (PART 2) and then:
 
-  2. The blend carries DUPLICATE ACTIONS, plain and "_Baked". export_asag.py
-     bakes both and diffs them rather than assuming. Head pairs are identical in
-     motion (sub-unit rounding apart). Teneacle_Left_Baked and
-     Tentacle_Right_Baked are NOT the attack clips - they travel 89 units where
-     the real ones travel ~1470 - so the plain *_Attack actions are the ones
-     that ship.
+    py textures/png_to_tim.py textures/mud.png        --bpp 8 --tx 384 --ty 0 --cx 672 --cy 499
+    py textures/png_to_tim.py "textures/Boss Wall.png" --bpp 8 --tx 512 --ty 0 --cx 672 --cy 500
+    py textures/png_to_tim.py textures/asag.png       --bpp 8 --tx 640 --ty 0 --cx 672 --cy 501
+
+>>> export_asag.py EXISTS BECAUSE THE .smd's BIND POSE MUST BE FRAME 1 OF THE
+IDLE CLIP, AND THE HAND EXPORT THIS BOSS ARRIVED AS DID NOT HAVE IT. <<< The SMX
+exporter applies modifiers, so it bakes whatever pose the armature happens to be
+in. The delivered Asag Version Two_Boss.smx was saved with Head_Faint_Baked
+active and sat UP TO 164 UNITS off frame 1 of the idle — byte-identical topology
+and UVs, wrong pose. That is mistake 2 in tools/ANIMATING_A_3D_MODEL.txt, the
+one that made the Rabisu's playback snap on its first tick. The script sets
+Head_Idle_Baked and frame 1 before exporting, so the pose the game draws at rest
+IS the pose its idle clip starts from. Do not hand-export the mesh.
+
+>>> AND THE BLEND'S ACTION NAMES DO NOT ALL MATCH THE CLIP NAMES. <<< Four of
+the six _Baked actions are named for their clip; two are not. The laser's is
+Head_Laser_Baked and NOT Head_Attack_Laser_Baked, and the vomit's is
+Head_Vomit_Baked. Both are unambiguous — one candidate each, frame ranges
+matching their plain counterparts exactly — but the mapping is EXPLICIT in
+export_asag.py's CLIPS table rather than derived, so a rename in the blend fails
+with a KeyError instead of silently baking the rest pose.
+
+The blend also stashes clips in NLA tracks. An unmuted stashed track OVERRIDES
+the active action and the bake then produces the wrong clip with no error
+anywhere; set_action() mutes them all. Blender 4.4+ actions are also SLOTTED,
+and without a slot assignment the action is attached but evaluates to nothing —
+which looks like a clip that exists and does not move.
 
 >>> AND THE ARENA MESH READS "INSIDE-OUT" TO check_model_winding.py, WHICH IS
-CORRECT. <<< So do chain_room.smd and every other room: a room is viewed from
-inside. That tool's OK/inverted verdict applies to PROPS AND MODELS. Compare a
-new room mesh against an existing one before believing it.
+CORRECT. <<< So does every other room mesh: a room is viewed from inside. That
+tool's OK/inverted verdict applies to PROPS AND MODELS. The boss reads OK
+(1 shell, 4 open edges). The first Asag shipped six boils and a tentacle
+inside-out, so re-run it after any re-export.
 
 
 ##########################################################################
  PART 8 — THE CLIPS THAT EXIST
 ##########################################################################
-All fourteen are on the disc, all load, and NONE plays until asag_play() is
-called. Frame counts are post-bake at step 2; every one plays at 12 fps.
+All six are on the disc, all load, and the DEMO director cycles them in the
+order below. Frame counts are POST-BAKE at step 3; every one plays at 8 fps.
 
-  ASAG_PART_BODY        (76 verts)  ASGBODY.SMD
-      HEAD_IDLE       8f  loops    ASGHIDLE.PVA    4,876   the resting bob
-      HEAD_SPEAK      9f           ASGHSPK.PVA     5,484   mouth working
-      HEAD_EMERGE    10f           ASGHEMRG.PVA    6,092   rises from the alcove
-      HEAD_RETRACT   10f           ASGHRETR.PVA    6,092   drops back into it
-      HEAD_VOMIT     30f  loops    ASGHVOM.PVA    18,252   the spew attack
-      HEAD_LASER     33f  loops    ASGHLAS.PVA    20,076   the beam attack
-  ASAG_PART_LEAF_TOP    (50)  ASGLEAFT.SMD  LEAF_TOP     8f  ASGLFTOP.PVA 3,612
-  ASAG_PART_LEAF_BOTTOM (50)  ASGLEAFB.SMD  LEAF_BOTTOM  8f  ASGLFBOT.PVA 3,612
-  ASAG_PART_LEAF_LEFT   (50)  ASGLEAFL.SMD  LEAF_LEFT    8f  ASGLFLFT.PVA 3,612
-  ASAG_PART_LEAF_RIGHT  (50)  ASGLEAFR.SMD  LEAF_RIGHT   8f  ASGLFRGT.PVA 3,612
-  ASAG_PART_TENT_L      (41)  ASGTENTL.SMD
-      TENT_L_IDLE    15f  loops    ASGTLIDL.PVA    4,932
-      TENT_L_ATTACK  15f  loops    ASGTLATK.PVA    4,932   rears and strikes
-  ASAG_PART_TENT_R      (41)  ASGTENTR.SMD
-      TENT_R_IDLE    15f  loops    ASGTRIDL.PVA    4,932
-      TENT_R_ATTACK  15f  loops    ASGTRATK.PVA    4,932
-  ASAG_PART_BOILS       (48)  ASGBOILS.SMD   NO CLIPS - six boils joined, static
+  ASAG_CLIP_EMERGE   13f   ASGHEMRG.PVA    8,332   rises out of the rock
+  ASAG_CLIP_IDLE     10f   ASGHIDLE.PVA    6,412   the resting bob
+  ASAG_CLIP_LASER    43f   ASGHLAS.PVA    27,532   the beam attack
+  ASAG_CLIP_SLAM     50f   ASGHSLAM.PVA   32,012   the slam attack
+  ASAG_CLIP_VOMIT    40f   ASGHVOM.PVA    25,612   the spew attack
+  ASAG_CLIP_FAINT    40f   ASGHFNT.PVA    25,612   collapses
 
-  95,048 bytes of clips, 21,940 of meshes; 137,216 once every read is rounded up
+  125,512 bytes of clips, 4,468 of mesh; 139,264 once every read is rounded up
   to whole CD sectors, which is what actually has to fit.
 
->>> EVERY FRAME COUNT ABOVE IS A QUARTER OF THE AUTHORED ONE. <<< The clips are
-authored at 24 fps and baked at STEP 4, so they play at 6 (ASAG_ANIM_TICKS 10).
-That is the trade PART 6A forced: at half rate the same fourteen clips are
-229 KB against 171 KB of real heap.
+EMERGE LEADS THE CYCLE rather than IDLE, because it is the only one of the six
+that reads as a beginning — the other five all start from where it leaves off,
+so watching the loop from a cold start looks like an arrival rather than like
+joining something already in progress.
 
-THE FOUR LEAF CLIPS ARE ONE ANIMATION ON FOUR MESHES, not one clip shared four
-ways: a .pva holds WORLD-SPACE positions and the leaves sit at four places
-around the mouth, so they cannot share a file. If the budget ever needs another
-25 KB, exporting ONE leaf clip in local space and giving each leaf a model
-matrix is where it is - but that gives up this module's no-matrix draw.
-
-"loops" above is what the EXPORTER detected (the clip's last frame duplicates its
-first, so it trimmed the duplicate). It is a property of the art. Whether a clip
-actually repeats is the `loop` argument to asag_play(), which the director
-chooses - a non-looping play HOLDS the last frame, which is how HEAD_RETRACT
-leaves the head down and what asag_clip_done() reports.
+EVERY ONE IS PLAYED NON-LOOPING, and that is what makes the chain work at all: a
+looping clip never reports asag_clip_done() and the cycle would stop on it
+forever. Whether a clip actually repeats is the `loop` argument to asag_play(),
+which the director chooses — a non-looping play HOLDS the last frame, which is
+what asag_clip_done() reports and what lets one clip hand over to the next.

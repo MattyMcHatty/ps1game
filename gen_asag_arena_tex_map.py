@@ -1,6 +1,6 @@
 """
 gen_asag_arena_tex_map.py - generate src/asag_arena_tex_map.h from
-"assets/garden/asag/Asag_Arena.smx". Same name-based scheme as
+"assets/bosses/Asag Version Two/Asag Version Two_Arena.smx". Same name-based scheme as
 gen_chain_room_tex_map.py: the Blender exporter renumbers the SMX's own texture
 list whenever the material set changes, so a raw-index map silently mis-assigns
 every texture past the one that moved.
@@ -12,34 +12,33 @@ from GetTimInfo at read time, precisely so a texture can be added here and to
 disc.xml without a generator run. The SLOT INDEX is still the row position, so
 this map and that table have to agree.
 
->>> SLOTS 3..6 ARE NOT THE ROOM'S. <<< They are the boss's four skins, and they
-are streamed by the ROOM because the room already owns the one loading screen
-that reaches this area and the boss owns none. src/asag.c reads them back
-through asag_arena_tex_slot(). No arena polygon uses them, so they never appear
-in the map below - if one ever does, that is a texturing mistake, not a feature.
+>>> SLOT 2 IS NOT THE ROOM'S. <<< It is the boss's one skin, streamed by the
+ROOM because the room already owns the one loading screen that reaches this area
+and the boss owns none. src/asag.c reads it back through
+asag_arena_tex_page()/asag_arena_tex_clut(). No arena polygon uses it, so it
+never appears in the map below - if one ever does, that is a texturing mistake,
+not a feature.
 
 Usage:
-    python gen_asag_arena_tex_map.py       # assets/garden/asag/Asag_Arena.smx ->
-                                           # src/asag_arena_tex_map.h
+    python gen_asag_arena_tex_map.py       # the arena SMX -> src/asag_arena_tex_map.h
     python gen_asag_arena_tex_map.py <smx> <out>
 """
 import xml.etree.ElementTree as ET
 import sys
 
-SMX = sys.argv[1] if len(sys.argv) > 1 else 'assets/garden/asag/Asag_Arena.smx'
+SMX = (sys.argv[1] if len(sys.argv) > 1 else
+       'assets/bosses/Asag Version Two/Asag Version Two_Arena.smx')
 OUT = sys.argv[2] if len(sys.argv) > 2 else 'src/asag_arena_tex_map.h'
 
 # Engine VRAM slot for each texture name. MUST match stream_tex_file[] in
 # src/asag_arena.c. VRAM slots come from tools/VRAM_MAP_ASAG.txt: every one is a
 # full 8bpp page at Voff 0 whose occupants are all reclaimable in this bank, so
-# taking them costs nothing and owes nobody a restore. chain_128 is the
-# exception and is 4bpp - it needs only the left half of its page.
+# taking them costs nothing and owes nobody a restore.
 NAME_TO_SLOT = {
     'mud':       0,   # x384 y0    the arena floor and its mud banks
     'Boss Wall': 1,   # x512 y0    the perimeter wall
-    'chain_128': 2,   # x320 y256, 4bpp, left half of the page
-    # 3 asag / 4 leaf / 5 tentacle / 6 boil are the BOSS's, streamed by the room
-    # but never referenced by an arena polygon. See the header.
+    # 2 asag is the BOSS's own skin, streamed by the room but never referenced
+    # by an arena polygon. See the header.
 }
 UNTEXTURED = 0xFF
 

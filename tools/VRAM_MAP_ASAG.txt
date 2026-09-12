@@ -105,11 +105,7 @@ THIS BANK'S ROOM ART
   --------------------------------------------------------------------------
   mud.tim              8     384     0   128   128     0  672,499     Arena: floor and mud banks    OWNED  x384 y0
   Boss Wall.tim        8     512     0   128   128     0  672,500     Arena: the perimeter wall     OWNED  x512 y0
-  asag.tim             8     640     0   128   128     0  672,501     Asag: the head                OWNED  x640 y0
-  leaf.tim             8     768     0   128   128     0  672,502     Asag: the four leaves         OWNED  x768 y0
-  tentacle.tim         8     832     0   128   128     0  672,504     Asag: both tentacles          OWNED  x832 y0
-  chain_128.tim        4     320   256   128   128     0  288,511     Arena: hanging chains, 4bpp   OWNED  x320 y256
-  boil.tim             8     704   256   128   128     0  672,506     Asag: the six boils           OWNED  x704 y256
+  asag.tim             8     640     0   128   128     0  672,501     Asag: the body                OWNED  x640 y0
 
 WHAT IS LEFT FOR THE ARENA
 
@@ -146,23 +142,23 @@ WHAT IS LEFT FOR THE ARENA
   x576  y0    FREE - 8bpp full page  [RESTORE: anzu2.tim, anzu5.tim, red_wlppr.tim]
   x640  y0    IN USE by this bank: asag.tim
   x704  y0    FREE - 8bpp full page  [RESTORE: anzu3.tim, anzu6.tim]
-  x768  y0    IN USE by this bank: leaf.tim
-  x832  y0    IN USE by this bank: tentacle.tim
+  x768  y0    FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
+  x832  y0    FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
   x896  y0    TAKEN - reserved: ghit.tim
   x960  y0    FONT - never available
-  x320  y256  IN USE by this bank: chain_128.tim
+  x320  y256  4bpp ONLY - right half reserved: graveolver.tim
   x384  y256  4bpp ONLY - right half reserved: stnd_rnds.tim
   x448  y256  4bpp ONLY - right half reserved: flm_rnds.tim, hatch_key.tim
   x512  y256  4bpp ONLY - right half reserved: grn_ky_stn.tim, helluminator.tim
   x576  y256  4bpp ONLY - right half reserved: bl_ky_stn.tim, pno_key.tim
   x640  y256  TAKEN - reserved: sml_med.tim
-  x704  y256  IN USE by this bank: boil.tim
+  x704  y256  FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
   x768  y256  FREE - 8bpp full page  [RESTORE: wd_dr.tim]
   x832  y256  FREE - 8bpp full page  [RESTORE: wd_dr.tim]
   x896  y256  FREE - 8bpp full page  [RESTORE: stn_gls.tim]
   x960  y256  FREE - 8bpp full page  [RESTORE: grinder.tim, trees_dl.tim]
 
-  FULL 8bpp PAGES AVAILABLE TO THE ARENA: 8
+  FULL 8bpp PAGES AVAILABLE TO THE ARENA: 11
 
 Regenerate with:  py tools/vram_map_asag.py > tools/VRAM_MAP_ASAG.txt
 And keep tools/VRAM_MAP.txt regenerated too - it is still the authority on

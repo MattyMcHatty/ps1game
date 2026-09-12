@@ -74,6 +74,7 @@
 #include "the_hatch.h"
 #include "asag_arena.h"
 #include "asag.h"           /* the boss body; room-scoped, like the Rabisu */
+#include "asag_boss.h"      /* ...and the DEMO director that cycles its clips */
 #include "hatch_doors.h"
 #include "hatch_puzzle.h"
 #include "keystone_plinths.h"
@@ -398,19 +399,18 @@ static void update_current_area(GameState area) {
        leaves are thrown while the puzzle still owns the camera. Without it they
        would freeze on their first frame.
 
-       THE BOTTOM OF THE SHAFT IS THE END OF THE BUILD. It is taken here and not
-       in the room's block below because the descent never reaches that:
-       hatch_puzzle_active() is true for the whole of the fall. The drop used to
-       hand off to STATE_ASAG_ARENA (src/asag_arena.h); it now arms the sign-off
-       screen (src/trial_end.h) instead, which fades the shaft to purple and ends
-       on PRESS START TO RETURN.
+       THE DROP'S TRANSITION IS TAKEN HERE and not in the room's block below,
+       because the descent never reaches it: hatch_puzzle_active() is true for
+       the whole of the fall. It lands in STATE_ASAG_ARENA (src/asag_arena.h).
 
-       >>> THE ASAG FIGHT IS LOCKED OUT, NOT DELETED. <<< Everything about the
-       arena — the room, the boss, the meshes, the textures, every branch in this
-       file that names STATE_ASAG_ARENA — is still here and still builds. Only
-       the two ways IN were closed: this line, and the ASAG ARENA row that was
-       taken out of title.c's level-select tables. Those two are what to undo to
-       put it back. */
+       >>> AND THE SIGN-OFF SCREEN IS NOW THE THING THAT IS BOXED OUT. <<< For
+       one build this line armed src/trial_end.c instead, which ended the trial
+       at the bottom of the shaft. The Asag fight is back and that screen is
+       UNREACHABLE BY DESIGN: trial_end_start() is called from nowhere, so
+       trial_end_active() is false forever and the branch that owns the frame
+       further down this file is dead code. It is kept, it still compiles, and
+       src/trial_end.h says in as many words that arming it again is one line —
+       THIS one. Nothing else has to change to bring it back. */
     if (area == STATE_THE_HATCH && hatch_puzzle_active()) {
         update_zombies();
         update_spiders();
@@ -432,17 +432,21 @@ static void update_current_area(GameState area) {
         hatch_doors_update();
         update_particles();
         if (hatch_puzzle_drop_done()) {
-            /* Bottom of the shaft: the sign-off, not the arena. No transition
-               and no room change — game_state stays STATE_THE_HATCH and the
-               screen's own branch further down takes the frame from here, the
-               same way the game-over screen does. The room keeps being drawn
-               for the four seconds of the fade because that is what is being
-               faded, so there is nothing to load and nothing to unload.
+            /* The shaft lands in ASAG'S ARENA (src/asag_arena.h). >>> AND THERE
+               IS NO WAY BACK. <<< The arena has no exit at all in this build:
+               the shaft cannot be climbed and where the room actually leads has
+               not been decided, so the only ways out of it are the debug level
+               select and dying. That is deliberate and it is written down in
+               the arena's header — it means a save made BEFORE this drop is the
+               only route back into the rest of the game.
 
-               NO cdaudio_stop() either: trial_end_start() switches straight to
-               the sign-off's track, and stopping first would leave a hole in
-               the audio at the exact moment the picture starts going out. */
-            trial_end_start();
+               For one build this line armed the trial-end sign-off instead
+               (src/trial_end.h). That screen is still here and is now reachable
+               from nowhere; putting it back is this line and nothing else. */
+            pending_area = STATE_ASAG_ARENA;
+            door_anim_start(DOOR_PANEL_GATE);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
         return;
     }
@@ -1383,21 +1387,20 @@ static void update_current_area(GameState area) {
            shape:
 
                if (area == STATE_ASAG_ARENA && asag_boss_cutscene()) {
-                   update_asags(); player_status_update();
-                   asag_boss_update(); update_particles();
+                   asag_boss_update(); asag_update();
+                   player_status_update(); update_particles();
                    return;
                }
 
            Skipping update_camera is also what holds a crane shot at its own
            height — apply_height() would otherwise drag cam_y down to the floor.
 
-           Flat, but no longer a box: the real mesh's proxy is a perimeter with
-           an ALCOVE cut into its back wall, and both tentacles' own geometry is
-           merged into the same wall list (48 walls, from
-           tools/gen_asag_arena_collision.py). Every floor plane is still at
-           y=0, so the shared wall routine (generic over current_collision_room)
-           and TWO flat floor zones are the whole of it. Re-check that when the
-           arena has a terrace in it. */
+           Flat, but no longer a box: the proxy is a perimeter with a RECESS at
+           each end, and the boss's own drawn geometry is merged into the same
+           wall list (38 walls, from tools/gen_asag_arena_collision.py). Every
+           floor plane is still at y=0, so the shared wall routine (generic over
+           current_collision_room) and THREE flat floor zones are the whole of
+           it. Re-check that when the arena has a terrace in it. */
         apply_collision_reception();
         apply_height();
         update_zombies();      /* none placed, and none ever will be: a sealed */
@@ -1405,39 +1408,44 @@ static void update_current_area(GameState area) {
         update_rabisus();      /* The updaters cost nothing on empty arrays, and */
         item_pickups_update(); /* leaving them in means a debug placement works. */
         sml_meds_update();
-        /* The body's animation clocks. This ADVANCES clips; it does not start
-           any. Every part sits on its bind pose until a director calls
-           asag_play(), so today this walks eight parts, finds ASAG_CLIP_NONE on
-           each and returns - see src/asag.h. It belongs in free play AND in the
-           cutscene branch above, because the reveal animates too. */
+        /* >>> THE DIRECTOR FIRST, THEN THE CLOCK, AND THE ORDER IS WORTH ONE
+           FRAME. <<< asag_update() is what raises the "holding the last frame"
+           flag; asag_boss_update() is what reads it to chain the next clip. In
+           this order the flag was raised on the PREVIOUS frame, so every clip's
+           final pose has been drawn once before the switch. Swap them and each
+           clip ends a beat early. See src/asag_boss.c.
+
+           asag_boss_update() is a DEMO - it cycles the six clips end to end and
+           decides nothing (src/asag_boss.h). The real encounter replaces it and
+           wants a call in BOTH places: here, because the fight in the middle is
+           free play, and in the cutscene early-return at the top of this
+           function, because the reveal animates too. */
+        asag_boss_update();
+
+        /* The body's animation clock. This ADVANCES the playing clip; it does
+           not start one. It belongs in free play AND in that cutscene branch,
+           for the same reason. See src/asag.h. */
         asag_update();
 
-        /* >>> asag_boss_update() GOES HERE TOO, not only in the cutscene branch:
-           the fight in the middle is free play and must fall through to it. <<<
+        /* >>> AND THERE IS NO EXIT TEST, BECAUSE THERE IS NO EXIT. <<< The
+           previous arena polled asag_arena_exit_triggered() here and sent the
+           player back up into The Hatch, which the fiction does not support and
+           which was flagged as a placeholder in as many words. The whole exit -
+           prompt, trigger and destination - is gone from src/asag_arena.c
+           rather than left switched off, and that header says what has to be
+           decided before it can come back.
 
-           AND THE SEAL GOES ON THE LINE BELOW, BEFORE THE TRIGGER, so the
+           WHEN IT DOES, the seal goes on the line BEFORE the trigger so the
            trigger is never polled while sealed:
 
-               if (!lock && !asag_boss_seals_door() && asag_arena_exit_triggered())
+               if (!lock && !asag_arena_exit_sealed() && asag_arena_exit_triggered())
 
            with asag_arena_exit_arm() called at the moment the seal LIFTS. A
-           trigger that has not been polled for four minutes holds a stale Circle
-           edge: without the re-arm the player's first press after the fight is
-           swallowed, or a press held through the death sequence fires instantly.
-           (asag_arena_exit_sealed() is the one place that predicate belongs, so
-           this test and the floating sign cannot disagree — it returns 0 until
-           there is an encounter to ask.) */
-        if (!lock && asag_arena_exit_triggered()) {
-            /* >>> PLACEHOLDER DESTINATION. <<< Back up into The Hatch, arriving
-               at its west gate. There is no way back UP the shaft in the
-               fiction, so this is a stand-in for wherever the arena actually
-               leads once that is decided — change this one line and nothing else
-               here moves. */
-            pending_area = STATE_THE_HATCH;
-            door_anim_start(DOOR_PANEL_GATE);
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
-        }
+           trigger that has not been polled for four minutes holds a stale
+           Circle edge: without the re-arm the player's first press after the
+           fight is swallowed, or a press held through the death sequence fires
+           instantly. asag_arena_exit_sealed() is the one place that predicate
+           belongs, so that this test and the floating sign cannot disagree. */
     } else if (area == STATE_CHAIN_ROOM) {
         /* Flat yard, exactly as the three mazes: all three collision floor
            planes are at y=0, so the shared wall collision routine (generic over

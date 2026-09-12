@@ -503,27 +503,6 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim", "asag.tim"),
     ("trck_clue.tim", "asag.tim"),
     ("trees.tim", "asag.tim"),
-    #   leaf.tim
-    ("bed.tim", "leaf.tim"),
-    ("brick_wall.tim", "leaf.tim"),
-    ("fountain.tim", "leaf.tim"),
-    ("grss.tim", "leaf.tim"),
-    ("lamashtu tablet.tim", "leaf.tim"),
-    ("pipe.tim", "leaf.tim"),
-    ("plinth_diamond.tim", "leaf.tim"),
-    ("xt_dr_cmplt.tim", "leaf.tim"),
-    ("xt_dr_lckd.tim", "leaf.tim"),
-    #   tentacle.tim
-    ("con_tile.tim", "tentacle.tim"),
-    ("double_door.tim", "tentacle.tim"),
-    ("drain.tim", "tentacle.tim"),
-    ("opn_drwr.tim", "tentacle.tim"),
-    ("plinth.tim", "tentacle.tim"),
-    ("stables wood.tim", "tentacle.tim"),
-    ("xt_dr_cg.tim", "tentacle.tim"),
-    #   boil.tim
-    ("Rabisu tex.tim", "boil.tim"),
-    ("vines.tim", "boil.tim"),
     #   chain_128.tim
     ("dbl_dr_rg.tim", "chain_128.tim"),
     ("frnt_dr.tim", "chain_128.tim"),

@@ -13,8 +13,7 @@
 #include "asag_arena_mesh_collision.h"
 #include "asag_arena_tex_map.h"
 #include "asag.h"            /* the boss body: loaded per-room, drawn here */
-#include "btn_glyph.h"
-#include "door.h"
+#include "asag_boss.h"       /* the DEMO director: cycles the six clips     */
 #include "cdaudio.h"          /* suspend/resume around the entry-time read */
 #include "dresser.h"
 #include "save_point.h"
@@ -26,16 +25,19 @@ static SMD  *asag_arena_smd  = NULL;
 static void *asag_arena_buff = NULL;
 
 /* ---- View distance ---------------------------------------------------------
-   THE REAL MESH'S NUMBERS. The arena is 3000 wide (x[-1500,1500]) by 3700 deep
-   (z[0,3700]), so its far corner is 6700 Manhattan from the near one — the
+   THE REAL MESH'S NUMBERS. The arena is 3000 wide (x[-1500,1500]) by 2900 deep
+   (z[0,2900]), so its far corner is 5900 Manhattan from the near one — the
    distance the cull and the fog both have to reach, because a boss fight where
-   the far wall fades out is a guessing game and not a fight.
+   the far wall fades out is a guessing game and not a fight. The 7000 below is
+   deliberately longer than that: the BOSS reaches out to z=3931, a thousand
+   units behind the arena's own back wall, and a cull tight to the room would
+   clip the far end of it off.
 
-   >>> THESE ARE SET FOR VISIBILITY, NOT FOR SPEED. <<< 674 primitives is a
-   third of Maze One's 2056 and the whole room is inside the cull from anywhere
-   in it, so nothing is being rejected by distance today — the frustum test in
-   the draw below is doing all the work. If the finished room is heavy, measure
-   U/D/G per tools/DIAGNOSING_FRAME_RATE.txt before shortening either of these.
+   >>> THESE ARE SET FOR VISIBILITY, NOT FOR SPEED. <<< 522 primitives is a
+   quarter of Maze One's 2056 and the whole room is inside the cull from
+   anywhere in it, so nothing is being rejected by distance today — the frustum
+   test in the draw below is doing all the work. If the finished room is heavy,
+   measure U/D/G per tools/DIAGNOSING_FRAME_RATE.txt before shortening either.
    The fog only starts at 2500 so that the near half of the arena reads at the
    mesh's own vertex colours and the depth cue lands on the far wall. */
 #define AA_CULL_DIST      ASAG_CULL_DIST
@@ -55,18 +57,20 @@ static void *asag_arena_buff = NULL;
 #define AA_CLEAR_B  ASAG_FOG_B
 
 /* ---- Floor zones -----------------------------------------------------------
-   TWO zones, and they are the two floor planes
+   THREE zones, and they are the three floor planes
    tools/gen_asag_arena_collision.py read out of the proxy mesh, verbatim:
 
-       FLOOR 0   y=0   x[-1500,1500]  z[0,2613]     the arena itself
-       FLOOR 1   y=0   x[ -300, 300]  z[2613,3248]  the alcove Asag sits in
+       FLOOR 0   y=0   x[-1300,1300]  z[2613,2700]  the SOUTH recess, under Asag
+       FLOOR 1   y=0   x[-1300,1300]  z[   0, 186]  the NORTH recess, where the
+                                                    player lands off the shaft
+       FLOOR 2   y=0   x[-1500,1500]  z[ 186,2613]  the arena floor itself
 
-   BOTH ARE AT y=0, so this is still one walkable height and multi_level stays
-   0 in the collision file. They are two zones rather than one box because the
-   alcove is NARROWER than the arena: a single zone spanning z[0,3248] at full
-   width would hand the player a floor in the solid rock either side of the
-   recess, and apply_height() would hold them up there if collision ever let
-   them past the back wall.
+   ALL THREE ARE AT y=0, so this is one walkable height and multi_level stays 0
+   in the collision file. They are three zones rather than one box because both
+   recesses are NARROWER than the middle: a single zone spanning z[0,2700] at
+   full width would hand the player a floor in the solid rock either side of
+   each recess, and apply_height() would hold them up there if collision ever
+   let them past a wall.
 
    >>> IF THE MESH EVER GAINS A TERRACE, A STEP OR A PIT, ADD ONE ZONE PER
    LEVEL <<< and set multi_level in the generator with it — and if it gains a
@@ -75,16 +79,21 @@ static void *asag_arena_buff = NULL;
    src/asag_arena_mesh_collision.c. */
 static void asag_arena_floor_zones_init(void) {
     floor_zones[0].type  = FLOOR_FLAT;
-    floor_zones[0].min_x = -1500; floor_zones[0].max_x = 1500;
-    floor_zones[0].min_z =     0; floor_zones[0].max_z = 2613;
+    floor_zones[0].min_x = -1300; floor_zones[0].max_x = 1300;
+    floor_zones[0].min_z =  2613; floor_zones[0].max_z = 2700;
     floor_zones[0].y     = 0;
 
     floor_zones[1].type  = FLOOR_FLAT;
-    floor_zones[1].min_x =  -300; floor_zones[1].max_x =  300;
-    floor_zones[1].min_z =  2613; floor_zones[1].max_z = 3248;
+    floor_zones[1].min_x = -1300; floor_zones[1].max_x = 1300;
+    floor_zones[1].min_z =     0; floor_zones[1].max_z =  186;
     floor_zones[1].y     = 0;
 
-    floor_zone_count = 2;
+    floor_zones[2].type  = FLOOR_FLAT;
+    floor_zones[2].min_x = -1500; floor_zones[2].max_x = 1500;
+    floor_zones[2].min_z =   186; floor_zones[2].max_z = 2613;
+    floor_zones[2].y     = 0;
+
+    floor_zone_count = 3;
 }
 
 /* ---- Per-room textures -----------------------------------------------------
@@ -104,25 +113,21 @@ static void asag_arena_floor_zones_init(void) {
    THE COST OF A ROW: its VRAM rectangle, its bytes on the disc, and ~9 sectors
    of read on the one loading screen that reaches this room. NOT one byte of
    main RAM — which is the constraint that actually binds. See the header. */
-#define ASAG_ARENA_STREAM_TEX 7
+#define ASAG_ARENA_STREAM_TEX 3
 static const char *stream_tex_file[] = {
-    "\\TEXASAG\\ASGMUD.TIM;1",   /* 0 ASAG_TEX_MUD    x384 y0    8bpp  the floor */
-    "\\TEXASAG\\ASGWALL.TIM;1",  /* 1 ASAG_TEX_WALL   x512 y0    8bpp  "Boss Wall" */
-    "\\TEXASAG\\ASGCHN.TIM;1",   /* 2 ASAG_TEX_CHAIN  x320 y256  4bpp  chain_128 */
-    /* --- Asag's own skins. Streamed here, not registered by src/asag.c; the
+    "\\TEXASAG\\ASGMUD.TIM;1",   /* 0 ASAG_TEX_MUD    x384 y0  8bpp  the floor */
+    "\\TEXASAG\\ASGWALL.TIM;1",  /* 1 ASAG_TEX_WALL   x512 y0  8bpp  "Boss Wall" */
+    /* --- Asag's own skin. Streamed here, not registered by src/asag.c; the
        argument is in the header beside the ASAG_TEX_* slot numbers. --- */
-    "\\TEXASAG\\ASGSKIN.TIM;1",  /* 3 ASAG_TEX_SKIN   x640 y0    8bpp  the head */
-    "\\TEXASAG\\ASGLEAF.TIM;1",  /* 4 ASAG_TEX_LEAF   x768 y0    8bpp  four leaves */
-    "\\TEXASAG\\ASGTENT.TIM;1",  /* 5 ASAG_TEX_TENT   x832 y0    8bpp  both arms */
-    "\\TEXASAG\\ASGBOIL.TIM;1",  /* 6 ASAG_TEX_BOIL   x704 y256  8bpp  six boils */
+    "\\TEXASAG\\ASGSKIN.TIM;1",  /* 2 ASAG_TEX_SKIN   x640 y0  8bpp  the body  */
 };
 
 static uint16_t tex_tpage[ASAG_ARENA_TEX_COUNT];
 static uint16_t tex_clut[ASAG_ARENA_TEX_COUNT];
 
-/* src/asag.c reads the boss's four skins back through these. Zero for a slot
-   that never streamed, which draws that part in whatever art sits at tpage 0 -
-   ugly, and better than a crash on a bad CD read. */
+/* src/asag.c reads the boss's skin back through these. Zero for a slot that
+   never streamed, which draws the body in whatever art sits at tpage 0 - ugly,
+   and better than a crash on a bad CD read. */
 uint16_t asag_arena_tex_page(int slot) {
     return (slot >= 0 && slot < ASAG_ARENA_TEX_COUNT) ? tex_tpage[slot] : 0;
 }
@@ -142,36 +147,23 @@ uint16_t asag_arena_tex_clut(int slot) {
    The same expression the whole garden chain uses. */
 #define AA_EYE_Y  (0 - GROUND_FLOOR_Y - 40)
 
-/* ---- The shaft mouth and the exit ------------------------------------------
-   MOVED ONTO THE MESH. The room used to be a 4000 square centred on the origin;
-   the modelled arena is x[-1500,1500] z[0,3700], so the old shaft at z=-1700 is
-   now outside the geometry entirely and the player would have landed in the
-   void looking at the back of a wall.
+/* ---- The shaft mouth -------------------------------------------------------
+   ON THE MESH, at the NORTH end (low z), which is the recess the proxy cuts at
+   x[-1300,1300] z[0,186]. 300 puts the player just clear of it and looking down
+   the length of the arena at Asag.
 
-   The drop still lands at the NORTH end (low z) and the exit is still the
-   middle of the SOUTH wall (high z), which is what keeps the fight between the
-   player and the way out. Both are 300 in from their wall — 220 is the minimum
-   that clears the default COLLISION_WALL_RADIUS of 195 plus the arrival margin,
-   and 300 leaves the player's first frame of free play clear of the push-out
-   boundary. Handing control back ON the boundary makes the first frame a shove,
-   which is the trap tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 2E is about. */
+   300 rather than something tighter because 220 is the minimum that clears the
+   default COLLISION_WALL_RADIUS of 195 plus the arrival margin, and the extra
+   80 leaves the first frame of free play clear of the push-out boundary.
+   Handing control back ON the boundary makes that frame a shove, which is the
+   trap tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 2E is about.
+
+   >>> AND THERE IS NO EXIT TO GO WITH IT. <<< See the header: the way out of
+   this room has not been decided, so rather than stand a prompt somewhere that
+   offers to climb an unclimbable shaft, there is no prompt, no trigger and no
+   destination at all. */
 #define AA_SHAFT_X            0
 #define AA_SHAFT_Z          300
-
-/* >>> PLACEHOLDER, AND THE MESH IS WHY. <<< The previous arena had a door in
-   the middle of the south wall. This one has no door anywhere: the collision
-   proxy's only opening is the alcove at z[2613,3248], which is Asag's throat.
-   So the prompt sits at the SHAFT MOUTH the player fell through - the one
-   feature in the room that is a way in or out of it - and main.c's destination
-   for the trigger is flagged as a placeholder in the same words. Move both
-   together when the way out is decided. */
-#define AA_EXIT_X             0
-#define AA_EXIT_Z             0    /* the north wall, under the shaft */
-
-#define AA_TEXT_Y        (-186)    /* eye level on the y=0 floor */
-#define AA_TEXT_RADIUS     1500
-#define AA_FADE_NEAR       1000
-#define AA_TRIGGER_RADIUS   500
 
 /* ---- Geometry --------------------------------------------------------------
    Read on ENTRY into the shared arena, not at startup — the invariant every
@@ -179,7 +171,7 @@ uint16_t asag_arena_tex_clut(int slot) {
    HERE: room_arena_load returns NULL, asag_arena_smd stays NULL, and the room
    simply draws nothing but its clear colour and the exit sign.
 
-   ASAGARNA.SMD is 38 KB against the arena's 118 KB (Maze One still sets that
+   ASAGARNA.SMD is 29 KB against the arena's 118 KB (Maze One still sets that
    size), so it fits with room to spare — but re-run tools/gen_room_arena.py if
    the mesh is ever re-exported much larger. A mesh bigger than the arena is
    REFUSED at load time and the room draws empty, which looks exactly like a
@@ -191,7 +183,7 @@ void asag_arena_load_geometry(void) {
 
 /* Startup. NOTHING. No CD access, no LoadImage, no RAM copy, no texmgr
    registration — the shape west_corridor.c and garden_courtyard.c already have,
-   and the reason this room costs zero permanent bytes.
+   and the reason this room costs zero permanent bytes in textures.
 
    It exists rather than being deleted because main() calls one *_load_assets()
    per room and a room that is missing from that list is the sort of thing that
@@ -246,9 +238,10 @@ void asag_arena_upload_textures(void) {
        here: there is one way in, it is a drop, and the room the player fell out
        of is not visible from anywhere down here. That is the whole reason
        tools/VRAM_MAP_ASAG.txt can call so much of VRAM reclaimable — and it is
-       also why NOTHING NEEDS PUTTING BACK on the way out: the exit is a
-       transition like any other, and the destination room's own uploader runs
-       on the far side of it. */
+       also why NOTHING NEEDS PUTTING BACK on the way out: whatever exit this
+       room eventually grows will be a transition like any other, and the
+       destination room's own uploader runs on the far side of it. Today there
+       is no exit at all, which makes the point moot rather than wrong. */
     if (ASAG_ARENA_STREAM_TEX == 0) return;   /* no art yet; nothing to read */
 
     uint8_t *scratch = malloc(AA_TEX_SCRATCH);
@@ -262,94 +255,30 @@ void asag_arena_upload_textures(void) {
     free(scratch);
 }
 
-/* ---- The exit --------------------------------------------------------------
-   One door, in the middle of the south wall, in the XZ sense: it faces -Z (back
-   into the room), so its sign lies in TEXT_PLANE_XY and stands 11 units north
-   of the wall. */
-static int circle_held(void) {
-    return interact_tapped();
-}
-
-static int32_t exit_dist(void) {
-    int32_t dx = cam_x - AA_EXIT_X;
-    int32_t dz = cam_z - AA_EXIT_Z;
-    return (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-}
-
-/* Circle edge state, seeded by the arm below. Starts "held" so a press carried
-   in through the transition cannot fire on the arrival frame. */
-static int exit_circle_prev = 1;
-
-void asag_arena_exit_arm(void) {
-    exit_circle_prev = circle_held();
-}
-
-/* >>> WHEN THE ENCOUNTER EXISTS, THIS RETURNS ITS SEAL PREDICATE. <<<
-   asag_boss_seals_door() — true from the moment the reveal arms until the death
-   sequence has finished, covering the reveal AND the death and not just the
-   fight. main.c must test it BEFORE the trigger so the trigger is never polled
-   while sealed, and must call asag_arena_exit_arm() on the frame it lifts. See
-   tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9. */
-int asag_arena_exit_sealed(void) {
-    return 0;
-}
-
-int asag_arena_exit_triggered(void) {
-    int held = circle_held();
-    int just = held && !exit_circle_prev;
-    exit_circle_prev = held;
-    if (!just) return 0;
-    /* The seal goes AFTER the edge state is updated and not before, the way the
-       Chain Room's valve lock does: a press held through a sealed door must
-       still be consumed, or it fires the instant the seal comes off. */
-    if (asag_arena_exit_sealed()) return 0;
-    return exit_dist() < AA_TRIGGER_RADIUS &&
-           interact_facing(AA_EXIT_X, AA_EXIT_Z);
-}
-
-static void exit_text(RenderContext *ctx) {
-    /* Suppressed while sealed. Offering "Press O to leave" on a door that will
-       not answer is worse than offering nothing. */
-    if (asag_arena_exit_sealed()) return;
-
-    int32_t xz = exit_dist();
-    if (xz >= AA_TEXT_RADIUS) return;
-
-    int fade = 256;
-    if (xz > AA_FADE_NEAR) {
-        int range = AA_TEXT_RADIUS - AA_FADE_NEAR;
-        int prog  = xz - AA_FADE_NEAR;
-        if (prog > range) prog = range;
-        fade = 256 - ((prog * 256) / range);
-    }
-
-    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to leave",
-                        AA_EXIT_X, AA_TEXT_Y, AA_EXIT_Z - 11,
-                        50, 255, 50, fade, 0, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
-}
-
 /* ---- Arrival ---------------------------------------------------------------
-   The one way in: dropped down the shaft. Faces +Z, across the arena at the
-   exit — which is what puts the fight between the player and the way out. */
+   The one way in: dropped down the shaft. Faces +Z, straight down the length of
+   the arena at Asag — which is the whole of the staging this room does, since
+   there is no reveal camera yet and no exit to put the boss in front of. */
 void asag_arena_spawn_shaft(void) {
     cam_x   = AA_SHAFT_X;
     cam_y   = AA_EYE_Y;
     cam_vy  = 0;
     cam_z   = AA_SHAFT_Z;
     cam_rot = 0;      /* facing +Z */
-    asag_arena_exit_arm();
 }
 
 void asag_arena_init(void) {
     asag_arena_collision_init(&current_collision_room);
 
-    /* READ OFF THE MESH, not off the collision proxy. Asag-Arena.smx's
-       perimeter walls top out at y=-1000 and that is the roofline over the
-       walkable ground; the mesh does reach y=-1624 in places, but a ceiling
-       probe wants the height above where the player stands and not the tallest
-       thing in the room (the "visual vs collision heights" rule in
-       tools/ADDING_A_ROOM.txt). Anything hung higher than this — and a boss
-       reveal camera very likely is — takes its own literal. */
+    /* READ OFF THE MESH, not off the collision proxy. The arena's perimeter
+       walls top out at y=-1000 and that is the roofline over the walkable
+       ground; the mesh does reach y=-1534 in places, but a ceiling probe wants
+       the height above where the player STANDS and not the tallest thing in the
+       room (the "visual vs collision heights" rule in tools/ADDING_A_ROOM.txt).
+       Anything hung higher than this — and a boss reveal camera very likely is
+       — takes its own literal. Note the BOSS is above this line too, at
+       y[-960,-528], which is fine: a ceiling is a limit on the camera, not a
+       claim about what can be drawn above it. */
     collision_set_ceiling_y(-1000);
 
     /* No collision_set_wall_radius: the default 195 is right for an open square
@@ -381,18 +310,22 @@ void asag_arena_init(void) {
     save_points_clear();
     dressers_clear();
 
-    /* The boss, back to eight visible parts on their bind poses with every
-       clock stopped. NOTHING PLAYS UNTIL THE DIRECTOR SAYS SO - see src/asag.h.
+    /* The boss, back to visible and on its bind pose with its clock stopped.
        This is not the load: asags_load_model() runs in main.c's STATE_LOADING
        beside the Rabisu's, and this only resets the playback state, so it is
        safe on a debug jump that arrives before the read has happened. */
     asag_reset();
+
+    /* ...and the DEMO director that cycles the six clips, from the top. It is
+       reset here rather than only at load so that a second arrival replays the
+       emerge instead of picking up mid-slam. src/asag_boss.h. */
+    asag_boss_reset();
 }
 
 /* ---- The mesh --------------------------------------------------------------
    chain_room.c's draw_chain_room_smd(), textured branches and all. The arena's
-   674 primitives are FT3/FT4 over three textures - mud (524), "Boss Wall" (129)
-   and chain_128 (21) - indexed per polygon by src/asag_arena_tex_map.h, which
+   522 primitives are FT4 over two textures - mud (401) and "Boss Wall" (121) -
+   indexed per polygon by src/asag_arena_tex_map.h, which
    gen_asag_arena_tex_map.py writes by TEXTURE NAME rather than by the SMX's own
    index. That matters: the Blender exporter renumbers its texture list whenever
    the material set changes, and a raw-index map then silently shifts every
@@ -405,7 +338,7 @@ void asag_arena_init(void) {
 
    WHAT IS DELIBERATELY NOT HERE: the cull-key table. chain_room.c and the mazes
    precompute one cache line per primitive so the distance reject never touches
-   the mesh; at 674 primitives inside a 6700-unit room NOTHING is ever rejected
+   the mesh; at 522 primitives inside a 5900-unit room NOTHING is ever rejected
    by distance here, so a key table would cost BSS to answer a question that is
    always "yes". The frustum test below is what does the work. Revisit if the
    mesh ever grows several-fold. */
@@ -504,7 +437,7 @@ static void draw_asag_arena_smd(RenderContext *ctx) {
            and the generated table. asag_arena_nocull[] rescues degenerate
            "triangle-shaped" quads, whose fourth corner is collinear and whose
            winding the GTE therefore cannot judge. This mesh currently has ZERO
-           of them, so the table is all zeroes - it costs 674 bytes of rodata to
+           of them, so the table is all zeroes - it costs 522 bytes of rodata to
            stay honest the next time the mesh is re-exported. */
         int no_cull = pt->nocull ||
                       (i < ASAG_ARENA_PRIM_COUNT && asag_arena_nocull[i]);
@@ -637,12 +570,14 @@ void asag_arena_draw(RenderContext *ctx) {
     render_set_clear_colour(ctx, AA_CLEAR_R, AA_CLEAR_G, AA_CLEAR_B);
 
     /* 128x128 texture window so per-poly UVs tile within each texture's page.
-       Every texture this room and this boss use sits at Voff 0 on a 64-aligned
-       x, so ONE window serves all seven and no primitive needs a bracket of its
-       own (tools/TEXTURING_NOTES.txt). It is also what the sprite renderers and
-       the weapon overlay are handed, so it must be set whether or not the mesh
-       needs it - a window that was never established carries in from whatever
-       ran last. */
+       All THREE textures this room and this boss use are 128x128 at Voff 0 on a
+       64-aligned x, so ONE window serves them and no primitive needs a bracket
+       of its own (tools/TEXTURING_NOTES.txt PART 5). That is not luck - it is
+       why the three are resampled to 128 in the first place, since the SMX's
+       UVs are normalised to a 128-texel tile whatever the source art measured.
+       The window is also what the sprite renderers and the weapon overlay are
+       handed, so it must be set whether or not the mesh needs it - a window
+       that was never established carries in from whatever ran last. */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         DR_TWIN *twin = (DR_TWIN *)ctx->next_packet;
@@ -670,19 +605,17 @@ void asag_arena_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_asag_arena_smd(ctx);
 
-    /* The exit sign, after the room so it sorts against it. */
-    exit_text(ctx);
+    /* NO EXIT SIGN, because there is no exit - see the header. */
 
-    /* THE BODY. Eight parts, every one already in this room's coordinate space,
-       so it draws under the view built above and loads no matrix of its own -
-       see the long note in src/asag.h about why this boss needs no model matrix
-       and the Rabisu does. It goes after the room so its primitives sort against
-       the room's. */
+    /* THE BODY. Already in this room's coordinate space, so it draws under the
+       view built above and loads no matrix of its own - see the long note in
+       src/asag.h about why this boss needs no model matrix and the Rabisu does.
+       It goes after the room so its primitives sort against the room's. */
     /* DBG_EXP_NO_ENTITIES (debug level 8) is the counterpart to level 4's
        DBG_EXP_NO_MESH: D read at 4 and at 8 splits the draw section between the
-       room's 674 primitives and the boss's eight parts, in one sitting rather
-       than one rebuild per hypothesis. tools/DIAGNOSING_FRAME_RATE.txt STEP 1 -
-       add the switch BEFORE spending an afternoon on either half. */
+       room's 522 primitives and the boss's 79, in one sitting rather than one
+       rebuild per hypothesis. tools/DIAGNOSING_FRAME_RATE.txt STEP 1 - add the
+       switch BEFORE spending an afternoon on either half. */
     if (exp != DBG_EXP_NO_ENTITIES) asag_draw(ctx);
 
     /* >>> THE REST OF THE ENCOUNTER'S DRAWS GO HERE, IN THIS ORDER. <<<

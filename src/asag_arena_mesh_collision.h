@@ -7,12 +7,11 @@
    See that script for what the three source meshes are and for why the
    tentacle walls do not follow the tentacle animation. */
 
-/* walls   0..7    the room proxy: perimeter + head alcove */
-/* walls   8..27   the left arm, resting (Tentacle_Idle frame 1) */
-/* walls  28..47   the right arm, resting (Tentacle_Idle frame 1) */
+/* walls   0..11   the room proxy: perimeter + a recess at each end */
+/* walls  12..37   the boss's own drawn geometry, resting (Head_Idle_Baked frame 1) */
 
-#define ASAG_ARENA_WALL_COUNT  48
-#define ASAG_ARENA_FLOOR_COUNT 2
+#define ASAG_ARENA_WALL_COUNT  38
+#define ASAG_ARENA_FLOOR_COUNT 3
 
 void asag_arena_collision_init(CollisionRoom *r);
 
