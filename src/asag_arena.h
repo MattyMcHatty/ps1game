@@ -152,6 +152,31 @@
    its top-left quarter is ever sampled. tools/TEXTURING_NOTES.txt PART 5 spells
    this out, and records that the one 256x256 attempt in this game — the
    Greenhouse's cuniform pipes — was reverted. */
+/* ---- THE BOILS ------------------------------------------------------------
+   Two clusters of four polys on the back wall, one either side of Asag, which
+   the art gives a red cast: the raised front plates of two lumps pushed 66
+   units out of the wall's z=2800 plane. They are 312 x 312 each, centred at
+   x=-700 y=-400 and x=+900 y=-600.
+
+   >>> WHICH EIGHT POLYS IS DETECTED, NOT LISTED. <<< asag_arena_boil[] in the
+   generated src/asag_arena_tex_map.h marks them, found by their depth plus
+   their texture; the reasoning, and why eight literal indices would rot on the
+   next re-export, is the BOIL_Z note in gen_asag_arena_tex_map.py.
+
+   THE GLOW IS A COLOUR, NOT GEOMETRY. These are already textured polys in the
+   room's own mesh, so lighting them costs nothing but a brighter setRGB0 —
+   there is no additive quad, no extra primitive and nothing to sort. That is
+   the one respect in which they are cheaper than the Rabisu's lawn lights, and
+   it is only possible because the art put them there.
+
+   `level` is 0..256. 0 is the wall as drawn, 256 is fully lit. The encounter
+   ramps it up over two seconds and then leaves it PULSING — the pulse is this
+   module's business and runs off its own clock, so the director sets one number
+   and never has to tick anything. See the .c. */
+#define ASAG_BOIL_LEVEL_MAX  256
+void asag_arena_set_boil_glow(int32_t level);
+int32_t asag_arena_boil_glow(void);
+
 #define ASAG_TEX_MUD    0    /* the arena floor and its mud banks   */
 #define ASAG_TEX_WALL   1    /* "Boss Wall", the perimeter          */
 #define ASAG_TEX_SKIN   2    /* Asag's own skin                     */
@@ -175,6 +200,25 @@ uint16_t asag_arena_tex_clut(int slot);
 void asag_arena_load_assets(void);     /* startup: nothing. See the .c.        */
 void asag_arena_load_geometry(void);   /* ROOM ENTRY: mesh -> the shared arena */
 void asag_arena_upload_textures(void); /* ROOM ENTRY: stream this room's TIMs  */
+
+/* >>> THE MUD, EARLY, FOR THE TRANSITION THAT ARRIVES HERE. <<< src/door_anim.c
+   plays the drop down the shaft as four mud-textured quads rushing at the
+   camera (DOOR_PANEL_FALL), and a door transition draws BEFORE STATE_LOADING —
+   so at that moment VRAM still holds The Hatch's art and the arena's own upload
+   has not run. This puts ASGMUD.TIM in place on its own, at the transition's
+   first frame, so the panel has something to sample.
+
+   IT IS THE SAME UPLOAD, NOT A SECOND COPY: one slot of the table above, into
+   the same VRAM rect and recorded in the same tex_tpage/tex_clut that
+   asag_arena_tex_page(ASAG_TEX_MUD) reads back. What it overwrites is whatever
+   The Hatch had at x384 y0, which is safe for the one reason everything else
+   about this room is safe — the transition covers the screen with black, the
+   outgoing room is never drawn again, and a minute later the room's own
+   uploader puts the same pixels back.
+
+   Call it from door_anim_start() and nowhere else; asag_arena_upload_textures()
+   does not need it and calling both is harmless but pointless. */
+void asag_arena_upload_mud(void);
 void asag_arena_init(void);            /* collision, floor zones, spawn        */
 void asag_arena_draw(RenderContext *ctx);
 

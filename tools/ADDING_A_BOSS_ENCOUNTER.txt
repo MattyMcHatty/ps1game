@@ -278,6 +278,38 @@ move under three phases that each have their own business. Two rules:
   - Ease IN and out for a long move. glide_step's ease-out is right for a 1.5 s
     glide and reads as a yank over ten seconds.
 
+    >>> "LONG" IS ABOUT THE ANGLE AS WELL AS THE DURATION, AND HERE IS THE
+    NUMBER. <<< Asag's pan up off the floor is 107 degrees in 0.8 s — short in
+    time, enormous in travel. With ease-out, 70% of the swing is spent in the
+    first TWELVE FRAMES and the remaining 36 creep through the last thirty
+    degrees: a whip-pan followed by a crawl. Smoothstep over 72 frames reads as
+    somebody deliberately raising their head. Judge the curve by degrees per
+    frame at the start, not by the phase length.
+
+    THE HANDOVER STILL WANTS EASE-OUT, and that is not inconsistent: it is the
+    move the player did not ask for and should not notice starting. The two
+    curves in one file with a note saying which is which beats one curve used
+    everywhere.
+
+  - A LANDING IS A FALL PLUS A BOUNCE PLUS A SOUND, and all three are cheap.
+    Asag's arena is entered by a drop, so its scene opens with the camera in the
+    air looking straight down, falls to the landing on t^2, bounces twice and
+    plays SFX_HURT on the touchdown. Three things about it:
+      - RUN THE FALL ON t^2, matching whatever fall led into it. This one is the
+        third leg of one continuous drop — hatch_puzzle.c's HP_FALL, then the
+        transition's rushing plane, then this — and all three accelerate. A
+        linear fall reads as a descent on a wire.
+      - TWO LOBES OF |sin| MEANS SWEEPING **ONE** FULL TURN, because |sin| has
+        two humps per revolution. Sweeping two turns is the easy mistake and
+        gives four: measured, dips of 60, 33, 26 and 7, where the first two are
+        close enough together to read as a rattle rather than a bounce. Decay
+        the amplitude with (1 - p) so the phase lands exactly back on eye
+        height.
+      - THE HURT SOUND IS A SOUND, NOT DAMAGE. Nothing can touch the player
+        during a cutscene, and taking health off them for an arrival they did
+        not choose is a different design decision from the one the brief made.
+        Check the clip is RESIDENT (SFX_HURT is) or the arena's bank has it.
+
 >>> CHECK A CLOSE SHOT AGAINST THE ADDITIVE GEOMETRY BEFORE COMMITTING TO IT.
     <<< rbs_glow_quad drops any quad with a vertex past the GTE's +/-1023 screen
 clamp, and the lawn lights' shafts are 900 tall and FLARE 150 outward as they
@@ -307,6 +339,88 @@ the boss renders through a different projection than the room it stands in.
 
 Both conversions are no-ops for every other frame the player spends in the
 room, so there is no reason not to do them.
+
+>>> MEASURE EVERY SHOT OFF THE SPAWN AND CAPTURE THE SPAWN AT RUN TIME. <<<
+Asag's opening (src/asag_boss.c, September 2026) states all three of its camera
+positions as OFFSETS from wherever the player landed, captured on the frame the
+scene arms, rather than as world literals:
+
+    save_cx/cy/cz/crot = cam_*;                 /* on the arm */
+    ...
+    cam_y = save_cy - ABE_DROP_RISE;            /* above it   */
+    cam_x = save_cx + ABE_VANTAGE_DX;           /* right of it*/
+    ...
+    cam_x = save_cx; ... cam_pitch = 0;         /* back to it */
+
+Two things fall out of that and both are worth having. The scene ENDS on the
+same numbers it started from, so "control returns where the player was standing"
+is guaranteed by construction instead of asserted by a second copy of the spawn
+constants. And the whole scene follows the room if the landing ever moves — the
+room owns where the player arrives, and the director does not restate it.
+
+>>> AND MIND THE CEILING WHEN A SHOT GOES UP. <<< Asag's vantage wanted to look
+"slightly down" at a face 1990 away, which needs dy = 1990*tan(angle) of height:
+3 degrees is 104 units up, 4 is 139, and 6 is 209 — which puts the camera at
+y=-994 against a roofline of -1000, i.e. inside the ceiling, where it would see
+over the perimeter and out of the room. The shot is four degrees because that is
+what the room allows, not because four degrees was the taste. Read the roofline
+off the mesh before promising an angle; src/asag_arena.c's init comment is where
+that room's is written down, and it says in as many words that a reveal camera
+is likely to want its own literal above it.
+
+>>> AND IF THE AIM POINT IS ALIVE, IT HAS TO BE SMOOTHED. THIS IS THE ONE
+    GENUINELY NEW MECHANIC SINCE THE RABISU. <<<
+The Rabisu's shots hold a FIXED point — its spawn — so the pitch is one binary
+search and a constant, and re-solving it per frame (above) is only about not
+lerping between two end angles. A camera asked to FOLLOW AN ANIMATING BODY is a
+different problem:
+
+    THE POSE STEPS SLOWER THAN THE CAMERA. Baked clips play at 6-8 fps; the
+    camera runs at 60. So an aim taken raw off the body's live vertices JUMPS
+    six to eight times a second. Measured on Asag's faint, the worst single step
+    is 54 units of pitch in one frame — which does not read as a camera
+    following something, it reads as a camera being kicked.
+
+Chase the solved target instead of taking it:
+
+    target = solve_aim();                       /* every frame */
+    gap    = target - cam_pitch;
+    if (|gap| < SNAP) cam_pitch  = target;      /* integer divisions stall */
+    else              cam_pitch += gap / LAG;   /* LAG 8 ~= 0.13 s         */
+
+  The SNAP is not decoration: at gap 1 an integer gap/8 is 0 and the chase would
+  park a unit short forever.
+
+  START ON THE SOLVED AIM, not at level. The opening frame is the one frame of a
+  reveal everybody looks at, and a pan that begins by swinging up off the floor
+  announces the machinery instead of the boss.
+
+  ASK THE BODY WHERE IT IS; do not reconstruct it. Asag's director calls
+  asag_body_centre(), which takes an AABB over the same posed vertices the draw
+  uses. The alternative — bind centre plus a guess at how far along the travel
+  ramp the clip is — is wrong about the pose as well as the position, and
+  re-derives something the body module owns.
+
+  AND A LONG BOSS NEEDS THREE ACCESSORS, NOT ONE. Asag ended up with all three
+  and each has a different job, which is not over-engineering — using the wrong
+  one is a visible mistake:
+      asag_collide()'s box   selects on Y FIRST, because a collider wants only
+                             the part of the boss at the player's height
+      asag_body_centre()     the whole silhouette, for a WIDE shot
+      asag_face_point()      the front end, for a shot OF HIM
+  He is 1669 units long and lies along the view axis, so his centre is his flank
+  and sits 800 units further from the camera than his head. Aim a close shot at
+  the centre and it frames his middle while the face drifts out of the top of
+  the screen.
+
+  DEFINE THE FACE BY A WINDOW, NOT BY A VERTEX COUNT. "Average the eight
+  front-most vertices" is right for the rest pose and wrong as soon as the body
+  deforms: measured across Asag's faint, the front-eight-by-Z is NINE DIFFERENT
+  INDEX SETS, because a count has to keep taking eight whether or not eight
+  belong to the face. "Every vertex within 90 units of the front-most one" takes
+  8 at rest and 21 when the clip has him flattened, needs no sort, and is a
+  statement about the geometry rather than the topology. The two agree to within
+  50 units of Y across the whole clip.
 
 RESTORE ON THE WAY OUT. Every exit path — the good one and the "the boss
 vanished out from under the script" one — must put cam_pitch back to 0 and call
@@ -408,6 +522,25 @@ The director moves the body by writing entity fields, not by calling into the
 AI. Four fields carry the whole death sequence and the reveal.
 
   frozen   1 = hold the current animation frame. The idle flap stops dead.
+
+           >>> AND IF THE BODY HAS A POSITION TRACK, THE FREEZE MUST STOP THAT
+           TOO. <<< Asag's clips do not travel; a separate ramp slides the whole
+           body between two places underneath whatever pose is playing
+           (src/asag.h), and that ramp's clock is deliberately allowed to run on
+           past the end of a held clip so a back-ramp always reaches home. Right
+           for a clip that has FINISHED, wrong for one a director is HOLDING:
+           the first version of Asag's opening froze the pose only, and he went
+           on sliding out of the wall for the second and a half the camera spent
+           falling down the shaft. One early return in the body's update covers
+           both tracks. The general rule is that "frozen" has to mean every
+           clock the body owns, not just the one that picks the frame.
+
+           A HELD POSE IS ALSO HOW YOU STAGE A BOSS MID-CLIP. Asag's brief said
+           he is "sitting two seconds into his faint" while the player lands —
+           which is a pose held, not a clip playing. Seed the clip part way in
+           (asag_play_at, and see the note there about seeking in TICKS rather
+           than animation frames when two tracks run at two rates), freeze it,
+           and release it on the beat the camera is ready.
   shake    world units of jitter. >>> APPLY IT TO THE DRAW'S TRANSLATION
            ONLY, NEVER TO r->x/r->z. <<< Jittering the entity jitters its
            collision cylinder, its health bar and its light anchors with it;
@@ -846,6 +979,35 @@ them is a frame of UI insisting on a fight that is not on.
   already packed by the enemy step, and the lights and text are code. If you do
   add a file, the root directory is FULL: read STEP 8 of ADDING_A_3D_ENEMY.txt
   before touching it.
+
+>>> ONE THING THAT IS NOT ON THIS LIST AND MAY BE ON YOURS: THE TRANSITION THAT
+    ARRIVES AT THE ARENA. <<< An encounter inherits whatever door_anim variant
+    main.c already used to get into the room, and that variant may be wrong in a
+    way nobody noticed while the room was a placeholder. Asag's arena is reached
+    by a 1200-unit fall down a shaft and borrowed DOOR_PANEL_GATE, so the drop
+    was announced by a garden gate creaking open.
+
+    A NEW VARIANT IS CHEAP — src/door_anim.c is a switch over panel geometry —
+    but ITS TEXTURE MAY NOT BE IN VRAM, and that is the trap. door_anim draws
+    AFTER the outgoing room's update and BEFORE STATE_LOADING, so what is in
+    VRAM is the room being LEFT. Every existing panel handles this one of two
+    ways: a startup LoadImage into a rect nobody overwrites (most of them), or a
+    guarantee that both ends of the transition upload the texture anyway (the
+    greenhouse door). If neither is available — Asag's mud is the destination
+    room's own art, streamed on entry — the transition has to read it ITSELF at
+    start time, and then:
+
+      - DrawSync(0) FIRST. LoadImage collides with an in-flight DrawOTagEnv and
+        hard-crashes after a few calls (PROBLEM A in tools/TEXTURING_NOTES.txt).
+        STATE_LOADING gets away with LoadImage precisely because it idles the GPU
+        first; a door trigger runs mid-frame with the previous draw in flight and
+        must do the same.
+      - BRACKET THE READ in cdaudio_suspend/resume, and STOP THE MUSIC BEFORE
+        starting the transition rather than after. Otherwise resume restarts the
+        outgoing room's track for the length of the transition.
+      - PUT IT IN THE DESTINATION ROOM'S OWN RECT and read the tpage/clut back
+        from that room, so the transition reserves no VRAM of its own and the
+        room stays the authority on where its art landed.
 
 
 ##########################################################################

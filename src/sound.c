@@ -133,7 +133,24 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_BOOM]       = SND_BANK_BOSS,
     [SFX_EXPLODE]    = SND_BANK_BOSS,
     [SFX_EMERGE]     = SND_BANK_BOSS,
-    [SFX_DMNSPEAK]   = SND_BANK_BOSS,
+    /* THE DEMON SPEAKS IN BOTH BOSS ROOMS, so it is in both banks — the same
+       two-copies answer SFX_GATE and SFX_RUMBLE below already take. Asag's
+       opening puts one line of it over each of its two subtitles, exactly as
+       the Rabisu's reveal does, and SND_BANK_ASAG is the ONLY bank loaded in
+       that arena: a BOSS-only tag would have left the speech silently mute
+       there, which is the failure mode at the head of this table.
+
+       IT IS FREE. The arena's bank was EMPTY, so this is the whole of it —
+       54,016 bytes against a 237,232-byte region, and BOSS at 190,336 still
+       sets `spare` at 46,896. The STEP 3 arithmetic is re-run and recorded in
+       tools/ADDING_A_SOUND.txt.
+
+       AND IT DOES NOT MOVE THE ARENA'S HEAP PEAK, which is the constraint that
+       actually binds down there (tools/ADDING_THE_ASAG_FIGHT.txt PART 6).
+       sound_bank_select's read is a 55,296-byte malloc that is freed before
+       main.c loads the boss model, and main.c sequences the two deliberately,
+       so the door's peak is still the 108,544-byte model read and not the sum. */
+    [SFX_DMNSPEAK]   = SND_BANK_BOSS | SND_BANK_ASAG,
     [SFX_RBS_SWING]  = SND_RESIDENT,   /* aliases a resident, so: resident      */
     [SFX_NINURTA]    = SND_BANK_INTRO, /* title screen only; see sound.h        */
     [SFX_CURSOR]     = SND_RESIDENT,   /* the menus open under every bank there */
@@ -284,9 +301,13 @@ static int sfx_channel(SfxID id) {
        (43 % 8) = 4 — SFX_SMASH and SFX_DIE among others — and the grinders'
        three-play travel is running under both of them.
        >>> BORROWED VOICES, LEGAL FOR THE REASON SFX_RUMBLE_2's ARE. <<< 20 is
-       SFX_DMNSPEAK's and 22 is SFX_BOOM's; BOTH are BOSS-bank now, so both are
-       guaranteed idle in a GARDEN room. (BOOM was resident-but-boss-only when
-       this was written, which was a weaker guarantee than the one it now has.) Voices 13..15 and 9 are NOT available
+       SFX_DMNSPEAK's and 22 is SFX_BOOM's; both are guaranteed idle in a GARDEN
+       room. (BOOM was resident-but-boss-only when this was written, which was a
+       weaker guarantee than the one it now has.) DMNSPEAK is BOSS *and ASAG*
+       bank as of Asag's opening, and the guarantee survives that: what this
+       borrowing needs is only that DMNSPEAK cannot be loaded in the rooms
+       SFX_HAD_DIE plays in, and Hadad is not placeable in a sealed arena
+       reached by a one-way drop. Voices 13..15 and 9 are NOT available
        here the way they are to the quake: those belong to the flower, the
        mushroom and the Living Statue, all three of which are garden-bank
        monsters and any of which may one day be placed in this very corridor. */

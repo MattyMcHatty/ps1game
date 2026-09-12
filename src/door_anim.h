@@ -60,6 +60,37 @@
                                  and BOTH upload it on entry, so the pixels are
                                  always in VRAM when the panel is drawn. See
                                  door_anim_load_assets.                           */
+#define DOOR_PANEL_FALL       6 /* >>> NOT A DOOR AT ALL. <<< The 1200-unit drop
+                                 down the pit in The Hatch's yard into Asag's
+                                 arena. There is no door on that transition and
+                                 there never was one: it used to borrow
+                                 DOOR_PANEL_GATE, so falling down a shaft played
+                                 a garden gate creaking open, which is the wrong
+                                 picture and the wrong sound.
+
+                                 WHAT IT DRAWS instead is a flat 2x2 square of
+                                 four mud quads, far off down the view axis, with
+                                 the camera accelerating at them and fading to
+                                 black before it arrives: the ground coming up at
+                                 a falling player. It carries straight on from the
+                                 in-room fall hatch_puzzle.c has already played
+                                 (its HP_FALL runs y on t^2 for the same reason
+                                 this runs z on t^2).
+
+                                 IT IS SILENT, unlike every other variant. The
+                                 drop in the yard is silent too, and the brief
+                                 asks for the rush of the plane and nothing else.
+
+                                 ITS TEXTURE IS THE ARENA'S OWN MUD, and it is
+                                 not in VRAM when this starts - a transition draws
+                                 BEFORE STATE_LOADING, so the destination room's
+                                 upload has not run and The Hatch's art is still
+                                 up. This is the one variant that reads its
+                                 texture off the CD AT START TIME rather than at
+                                 startup or not at all; door_anim_start calls
+                                 asag_arena_upload_mud() for it. See there, and
+                                 see door_anim_draw's fall branch for the
+                                 projection.                                      */
 
 void door_anim_load_assets(void);   /* load the panel TIMs into VRAM (startup) */
 void door_anim_start(int variant);  /* begin the animation; plays the sound */

@@ -42,6 +42,37 @@ NAME_TO_SLOT = {
 }
 UNTEXTURED = 0xFF
 
+# ---------------------------------------------------------------------------
+# THE BOILS, AND WHY THEY ARE DETECTED RATHER THAN LISTED
+# ---------------------------------------------------------------------------
+# Asag has two clusters of four polys on the back wall, one either side of him,
+# which the art gives a red cast and which the encounter lights up. They are the
+# raised FRONT FACES of two lumps pushed out of the wall - the wall's plane is
+# z=2800 and these stand 66 units proud of it at z=2734.
+#
+# >>> THAT ONE NUMBER IDENTIFIES THEM EXACTLY, AND NOTHING ELSE IN THE MESH
+# COMES NEAR IT. <<< Exactly EIGHT primitives in all 522 lie flat at z=2734 with
+# every corner on that plane; all eight are "Boss Wall"; they fall into two
+# 312x312 squares of four, centred at x=-700 y=-400 and x=+900 y=-600; and their
+# UVs land on the two reddest patches of textures/Boss Wall.png (u[31,41]
+# v[82,103] and u[94,107] v[65,91], against redness peaks at u~36 v~88 and u~100
+# v~76). Four separate properties agreeing is what makes this a detection and
+# not a guess.
+#
+# >>> AND IT IS DONE HERE RATHER THAN AS EIGHT LITERALS IN THE .c FOR THE REASON
+# THE TEXTURE MAP ITSELF IS. <<< Primitive indices shuffle on every re-export.
+# They happen to be 440..447 today, which is contiguous and therefore especially
+# inviting to write as a range - and a range would go quietly wrong, lighting up
+# eight arbitrary wall panels, the next time the mesh is touched. The plane does
+# not move; the indices do.
+#
+# If this ever finds a count other than 8 it FAILS rather than emitting a
+# half-right table: at that point either the art changed or the plane did, and
+# both want a human.
+BOIL_Z       = 2734.0
+BOIL_Z_TOL   = 2.0
+BOIL_EXPECT  = 8
+
 root = ET.parse(SMX).getroot()
 
 smx_tex = [t.get('file') for t in root.find('textures').findall('texture')]
@@ -60,6 +91,7 @@ def _collinear(a, b, c):
 
 entries = []   # tex slot per prim
 nocull = []    # 1 = do NOT backface-cull (degenerate "triangle-shaped" quad)
+boil = []      # 1 = one of Asag's eight boil faces (see BOIL_Z above)
 for p in root.find('primitives').findall('poly'):
     n = p.get('texture')
     if n is None:
@@ -79,6 +111,15 @@ for p in root.find('primitives').findall('poly'):
                for a, b, c in ((0, 1, 2), (0, 1, 3), (0, 2, 3), (1, 2, 3))):
             deg = 1
     nocull.append(deg)
+
+    # A boil face: every corner flat on the z=2734 plane, and Boss Wall. The
+    # texture test is not redundant — it is what stops a future mud prop that
+    # happens to sit at the same depth from being lit up as an organ.
+    ks = [int(p.get(f'v{k}')) for k in range(4) if p.get(f'v{k}') is not None]
+    zs = [verts[k][2] for k in ks]
+    is_boil = (n is not None and smx_tex[int(n)] == 'Boss Wall'
+               and all(abs(z - BOIL_Z) <= BOIL_Z_TOL for z in zs))
+    boil.append(1 if is_boil else 0)
 
 inv = {v: k for k, v in NAME_TO_SLOT.items()}
 counts = {}
@@ -114,6 +155,32 @@ for i, e in enumerate(nocull):
         row = []
 lines.append("};")
 print(f"degenerate (never-cull) quads: {sum(nocull)}")
+
+# ---- The boils. FAIL rather than emit a half-right table; see BOIL_Z. -------
+if sum(boil) != BOIL_EXPECT:
+    idx = [i for i, b in enumerate(boil) if b]
+    sys.exit(f"ERROR: found {sum(boil)} boil faces at z={BOIL_Z}, expected "
+             f"{BOIL_EXPECT} (prims {idx}). Either the art changed or the "
+             f"lumps moved off that plane - read the BOIL_Z note in this "
+             f"script and re-derive it before shipping a glow that lights up "
+             f"the wrong polygons.")
+bidx = [i for i, b in enumerate(boil) if b]
+lcen = [i for i in bidx if min(verts[int(root.find('primitives').findall('poly')[i]
+        .get(f'v{k}'))][0] for k in range(4)) < 0]
+print(f"boil faces: {sum(boil)} -> prims {bidx} "
+      f"({len(lcen)} left of centre, {len(bidx) - len(lcen)} right)")
+lines.append("/* 1 = one of Asag's eight boil faces: the raised z=2734 front")
+lines.append("   plates of the two lumps either side of him, which the encounter")
+lines.append("   lights up. DETECTED off that plane, not listed - see the BOIL_Z")
+lines.append("   note in gen_asag_arena_tex_map.py for why indices would rot. */")
+lines.append(f"static const uint8_t asag_arena_boil[{len(boil)}] = {{")
+row = []
+for i, e in enumerate(boil):
+    row.append(str(e))
+    if len(row) == 32 or i == len(boil) - 1:
+        lines.append("    " + ",".join(row) + ",")
+        row = []
+lines.append("};")
 
 with open(OUT, 'w') as f:
     f.write('\n'.join(lines) + '\n')

@@ -177,7 +177,7 @@ Run this, with your clip added to the right list:
     garden=['tntcl_wrth_2','tntcl_die','spdr_wlk','gate','gas','pullin','hiss',
             'rumble','grind','hadad_die','spirit_woosh','mchne_gh','water']
     intro=['ninurta']
-    asag=[]
+    asag=['dmnspeak']
     p=4112
     for f in res: p+=a(f+'.vag')
     banks=[('house',house),('boss',boss),('garden',garden),
@@ -195,11 +195,24 @@ once against house or boss, once against garden. Omit the second entry and the
 script under-reports the bank you are about to overflow.
 
 The lists must be kept in the SAME ORDER as the enum in sound.h, because
-sound_init() allocates in enum order. As of ASAG'S ARENA:
+sound_init() allocates in enum order. As of ASAG'S OPENING SCENE:
 
     bank_base 0x46150   region 237232
-    house 162560   boss 190336   garden 177216   intro 22080   asag 0
+    house 162560   boss 190336   garden 177216   intro 22080   asag 54016
     spare 46896
+
+>>> NOTE WHAT DID *NOT* MOVE. <<< Asag's bank went from 0 to 54,016 — the whole
+of SFX_DMNSPEAK, which is now BOSS|ASAG because both bosses open with it — and
+`spare` did not budge, because `spare` is the region less the LARGEST bank and
+BOSS is still 190,336. Filling an empty bank is free until it becomes the
+largest one, which for Asag means another 136 KB of clips. The dmnspeak entry
+appears in BOTH the boss and asag lists above, per the rule immediately below.
+
+AND THE SPU IS NOT WHAT BINDS IN THAT ROOM. The arena door's HEAP peak is the
+thing to re-check, and it did not move either: sound_bank_select's read is a
+55,296-byte malloc that is freed before main.c loads the boss model, and main.c
+sequences the two apart on purpose, so the peak is still the 108,544-byte model
+read rather than the sum. See PART 6 of tools/ADDING_THE_ASAG_FIGHT.txt.
 
 >>> THE REGION GREW BY 47 KB, AND WHY IS WORTH KNOWING BECAUSE THE MISTAKE IS
     EASY TO REPEAT. <<< FIREBALL, BOOM and EXPLODE used to be SND_RESIDENT, on

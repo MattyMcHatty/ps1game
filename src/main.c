@@ -204,6 +204,12 @@ void reset_game(RenderContext *ctx) {
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
     rabisus_reset();
     rabisu_boss_reset();   /* forget any half-played boss encounter */
+    asag_boss_reset();     /* ...and any half-played opening in Asag's arena.
+                              asag_arena_init() also calls it on every arrival,
+                              which covers walking in; this covers quitting to
+                              the title mid-scene, which would otherwise carry a
+                              pitched camera and a running speech clip out of the
+                              room with it. */
     trial_end_reset();     /* ...and the sign-off screen The Hatch drops into */
     delivery_intro_reset();/* ...and any half-played arrival sequence. This runs
                               BEFORE the arrival is armed on the New Game path
@@ -389,6 +395,32 @@ static void update_current_area(GameState area) {
         update_particles();
         return;
     }
+    /* ASAG'S OPENING SCENE. The camera is the script's from the moment the
+       player lands at the bottom of the shaft until it hands it back: the faint
+       resolving, the pan after him, the boils, and the two lines of speech. See
+       src/asag_boss.h.
+
+       >>> WHAT THIS BRANCH IS FOR IS EVERYTHING IT DOES *NOT* CALL. <<< No
+       update_camera — which is also what holds the scene's pitch, since
+       apply_height() would drag cam_y to the floor and nothing would put the
+       tilt back. No apply_collision_reception, because the player is anchored
+       and is not walking into anything. No door trigger, because this room has
+       no door. tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9 is the shape and this
+       is it exactly.
+
+       THE DIRECTOR BEFORE THE CLOCK, as in the free-play branch further down
+       and for the identical one-frame reason spelled out there.
+
+       The fight in the middle is FREE PLAY and must not come through here,
+       which is why the gate is asag_boss_cutscene() and not "is the encounter
+       running" — the predicate is false in ABE_FIGHT on purpose. */
+    if (area == STATE_ASAG_ARENA && asag_boss_cutscene()) {
+        asag_boss_update();
+        asag_update();
+        player_status_update();
+        update_particles();
+        return;
+    }
     /* THE HATCH'S TWO KEYHOLES, the swing that follows the second key, and the
        descent into the pit. Same shape as the valve's branch above and for the
        same reasons: the player is stood at the lip the whole time, nothing has
@@ -444,9 +476,23 @@ static void update_current_area(GameState area) {
                (src/trial_end.h). That screen is still here and is now reachable
                from nowhere; putting it back is this line and nothing else. */
             pending_area = STATE_ASAG_ARENA;
-            door_anim_start(DOOR_PANEL_GATE);
-            game_state   = STATE_DOOR_ANIM;
+            /* >>> THE MUSIC STOPS BEFORE THE TRANSITION STARTS, NOT AFTER. <<<
+               It used to be the other way round and could not stay that way:
+               DOOR_PANEL_FALL reads the arena's mud TIM off the disc from inside
+               door_anim_start(), and a data read issued while CD-DA is streaming
+               hangs the drive. The read has its own cdaudio_suspend/resume
+               bracket, which would be enough — but resume would then restart The
+               Hatch's track for the length of the fall, which is not what the
+               player should hear on the way down. Stopping first makes the
+               bracket a no-op and the fall silent. */
             cdaudio_stop();
+            /* NOT a door. Four mud quads rushing the camera — the ground coming
+               up at a falling player, carrying straight on from the drop
+               hatch_puzzle.c has just played. This borrowed DOOR_PANEL_GATE
+               until now, so a 1200-unit fall down a shaft used to be announced
+               by a garden gate creaking open. See door_anim.h. */
+            door_anim_start(DOOR_PANEL_FALL);
+            game_state   = STATE_DOOR_ANIM;
         }
         return;
     }
@@ -1379,28 +1425,23 @@ static void update_current_area(GameState area) {
             cdaudio_stop();
         }
     } else if (area == STATE_ASAG_ARENA) {
-        /* ASAG'S ARENA — free play. The encounter's own CUTSCENE branch does not
-           live here: it goes at the TOP of this function beside the Hatch's and
-           the Attic Exit's, as an early return, because a cutscene must not run
-           update_camera, collision or the door trigger. See
-           tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9, which spells out the exact
-           shape:
-
-               if (area == STATE_ASAG_ARENA && asag_boss_cutscene()) {
-                   asag_boss_update(); asag_update();
-                   player_status_update(); update_particles();
-                   return;
-               }
-
-           Skipping update_camera is also what holds a crane shot at its own
-           height — apply_height() would otherwise drag cam_y down to the floor.
+        /* ASAG'S ARENA — free play, which here means the fight AFTER the opening
+           scene has handed the camera back. The scene itself runs in the
+           CUTSCENE early-return at the TOP of this function, beside the Hatch's
+           and the Attic Exit's, because it must not run update_camera,
+           collision or a door trigger. Both branches call asag_boss_update():
+           this one because the fight is free play, that one because the opening
+           animates too.
 
            Flat, but no longer a box: the proxy is a perimeter with a RECESS at
-           each end, and the boss's own drawn geometry is merged into the same
-           wall list (38 walls, from tools/gen_asag_arena_collision.py). Every
-           floor plane is still at y=0, so the shared wall routine (generic over
-           current_collision_room) and THREE flat floor zones are the whole of
-           it. Re-check that when the arena has a terrace in it. */
+           each end — 12 walls and 3 floor planes, from
+           tools/gen_asag_arena_collision.py. The BOSS is not in that table; it
+           is solid at runtime through asag_collide(), called from
+           apply_collision_reception() below, because the position track moves it
+           and a CollisionRoom is fixed (src/asag.h). Every floor plane is at
+           y=0, so the shared wall routine (generic over current_collision_room)
+           and THREE flat floor zones are the whole of it. Re-check that when the
+           arena has a terrace in it. */
         apply_collision_reception();
         apply_height();
         update_zombies();      /* none placed, and none ever will be: a sealed */
@@ -1415,11 +1456,13 @@ static void update_current_area(GameState area) {
            final pose has been drawn once before the switch. Swap them and each
            clip ends a beat early. See src/asag_boss.c.
 
-           asag_boss_update() is a DEMO - it cycles the six clips end to end and
-           decides nothing (src/asag_boss.h). The real encounter replaces it and
-           wants a call in BOTH places: here, because the fight in the middle is
-           free play, and in the cutscene early-return at the top of this
-           function, because the reveal animates too. */
+           asag_boss_update() is the real director now: it runs the opening
+           scene and then, once control is back, the old clip-cycling demo as a
+           stand-in for the fight that has not been written (src/asag_boss.h
+           marks which half is which). It wants a call in BOTH places: here,
+           because the fight in the middle is free play, and in the cutscene
+           early-return at the top of this function, because the opening
+           animates too. */
         asag_boss_update();
 
         /* The body's animation clock. This ADVANCES the playing clip; it does
@@ -3289,6 +3332,15 @@ int main(int argc, const char **argv) {
                                 list for the same reason. */
                              (area == STATE_RECEPTION && reception_hadad_active());
                 int cutscene = (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()) ||
+                               /* Asag's opening: the faint, the pan, the boils
+                                  and the two lines of speech. In the CUTSCENE
+                                  list and not the puzzle one — it posts no log
+                                  line, and the subtitles are its own, drawn from
+                                  asag_arena_draw(). A log box left up over it
+                                  would park stale text across the scene, which
+                                  is the same reason the Rabisu's reveal is
+                                  here. */
+                               (area == STATE_ASAG_ARENA && asag_boss_cutscene()) ||
                                (area == STATE_DELIVERY_AREA && delivery_intro_active()) ||
                                (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene()) ||
                                (area == STATE_REAR_GATE && hadad_grinder_cutscene());

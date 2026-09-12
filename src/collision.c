@@ -24,8 +24,8 @@
 #include "chainlink_door.h"    /* placeable solid fence-gate prop */
 #include "lever.h"             /* placeable wall-lever prop */
 #include "rabisu.h"            /* the Rabisu boss is solid (area-tagged) */
-#include "hatch_doors.h"
-#include "asag.h"       /* The Hatch's pit doors, solid at any pose */
+#include "hatch_doors.h"       /* The Hatch's pit doors, solid at any pose  */
+#include "asag.h"              /* ...and Asag, solid at any pose OR position */
 
 CollisionRoom current_collision_room;
 

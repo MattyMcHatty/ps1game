@@ -40,7 +40,8 @@
  *                       the Garden Courtyard.
  *     SND_BANK_GARDEN - the outdoor rooms: the gate again, plus the Rafflesia's
  *                       four. Fountain Square and the Outside Catacombs.
- *     SND_BANK_ASAG   - Asag's arena, and EMPTY as of writing. See the enum.
+ *     SND_BANK_ASAG   - Asag's arena. ONE clip: the demon speech, shared with
+ *                       the boss bank because both bosses open with it.
  *
  *   The tag is a MASK, not a single value — an effect can be in more than one
  *   bank, at the cost of one copy in each. See the SoundBank enum below.
@@ -133,8 +134,13 @@ typedef enum {
                             its 5 s rise. Also the light beam's charge tell,
                             where it is deliberately cut after ~1.5 s by the
                             first poly igniting.                                */
-    SFX_DMNSPEAK   = 26, /* BANKED. One line of scripture; played once per line,
-                            the second retriggering over the first.             */
+    SFX_DMNSPEAK   = 26, /* BANKED, in BOTH boss banks. One line of scripture;
+                            played once per line, the second retriggering over
+                            the first. Two bosses now open with it — the
+                            Rabisu's reveal and Asag's — and they sit in
+                            different banks, so it is tagged BOSS|ASAG and
+                            carries a copy in each. It is the whole of
+                            SND_BANK_ASAG, which was empty; see sound.c.        */
     /* SFX_SWING's sample on a voice of its own. Not a second clip: no file on
        the disc, no second copy in SPU RAM, just an alias set up by sound_init.
        It exists because the boss's foot-slash wind-up and the player's own axe
@@ -410,7 +416,17 @@ typedef enum {
        and it cost the whole game 47 KB of permanent SPU RAM. It does not have to
        cost that again: the arena's bank is loaded for the WHOLE of the room,
        cutscene and fight alike, and the fight cannot happen anywhere else. Put
-       Asag's clips HERE, not in the residents. */
+       Asag's clips HERE, not in the residents.
+
+       >>> IT IS NO LONGER EMPTY: SFX_DMNSPEAK IS IN IT. <<< Asag's opening puts
+       one line of the demon speech over each of its two subtitles, the way the
+       Rabisu's reveal does, and the clip is tagged BOSS|ASAG so a copy sits in
+       each bank. That is 54,016 of the region's 237,232 and it does not touch
+       `spare`, which the 190,336-byte boss bank still sets. Room for the
+       fight's own clips remains; re-run STEP 3 of tools/ADDING_A_SOUND.txt
+       before spending it, and re-do the arena door's HEAP peak with it (PART 6
+       of tools/ADDING_THE_ASAG_FIGHT.txt) — the SPU is not the binding
+       constraint down there and the heap is. */
     SND_BANK_ASAG  = 16,
 } SoundBank;
 

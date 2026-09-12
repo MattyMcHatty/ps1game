@@ -41,14 +41,31 @@ they are in the arena, or during the transition out of it:
                                  draws the icon for anything in the inventory,
                                  so an icon whose page was taken renders as a
                                  square of arena wall.
-  THE EXIT'S DOOR PANEL          >>> AND ONLY THE ONE THE EXIT ACTUALLY USES.
-                                 <<< door_anim draws the panel AFTER the room's
-                                 update and BEFORE STATE_LOADING, so the arena's
-                                 own textures are still in VRAM while it plays.
-                                 The arena's exit is DOOR_PANEL_GATE, so grdngtl
-                                 and grdngtr are reserved and the other panels
-                                 are not. Change the exit's panel in main.c and
-                                 this list moves with it.
+  NO DOOR PANEL AT ALL, ANY MORE. >>> AND THAT IS A CHANGE WORTH READING. <<<
+                                 door_anim draws its panel AFTER the outgoing
+                                 room's update and BEFORE STATE_LOADING, so
+                                 whichever panel a transition uses has to survive
+                                 in VRAM across it. grdngtl and grdngtr were
+                                 reserved here because the ARRIVAL borrowed
+                                 DOOR_PANEL_GATE - a garden gate creaking open to
+                                 announce a 1200-unit fall down a shaft.
+
+                                 The arrival is DOOR_PANEL_FALL now (four mud
+                                 quads rushing the camera; see door_anim.h), and
+                                 its texture is this room's OWN mud, already
+                                 OWNED below. So the gate halves are reclaimable
+                                 and this bank reserves no panel.
+
+                                 >>> IT ALSO INVERTS THE USUAL RULE. <<< Every
+                                 other panel is in VRAM before its transition
+                                 starts; this one is NOT - the arena's upload has
+                                 not run yet and The Hatch's art is still at x384
+                                 y0 - so door_anim_start() streams it in itself
+                                 through asag_arena_upload_mud(). The rect is the
+                                 same one, which is why nothing new is reserved.
+
+                                 WHEN THE ROOM GROWS AN EXIT, whatever panel that
+                                 uses comes back onto this list.
 
   EVERYTHING ELSE IS RECLAIMABLE, and unlike in the garden-west bank almost all
   of it is FREE rather than merely available: every mansion and garden room
@@ -106,9 +123,10 @@ RESERVED = {
     "vlv_hndl.tim":       "the Valve Handle item",
     "hatch_key.tim":      "hatch key (both break in the lock, but a save made"
                           " carrying one arrives here with it)",
-    # --- The ONE door panel this room's transitions use --------------------
-    "grdngtl.tim":        "GATE panel, left half  - the arrival AND the exit",
-    "grdngtr.tim":        "GATE panel, right half - the arrival AND the exit",
+    # --- NO DOOR PANEL. See the RESERVED note at the head of this file: the
+    # --- arrival is DOOR_PANEL_FALL and its texture is this room's own mud,
+    # --- so grdngtl/grdngtr are reclaimable again. An EXIT will put its own
+    # --- panel back here.
 }
 
 # ---------------------------------------------------------------------------

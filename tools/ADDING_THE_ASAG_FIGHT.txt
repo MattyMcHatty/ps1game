@@ -6,12 +6,27 @@ Asag is the game's SECOND boss.
 the first version built — eight drawn parts, fourteen clips, seven textures and
 the arena they stood in — was thrown away and rebuilt from new art. What exists
 now is a new arena mesh, a new collision proxy, a ONE-PART animated body with
-SIX clips, three textures, and a DEMO director (src/asag_boss.c) that plays the
-six clips end to end on a loop so they can be looked at.
+SIX clips — FIVE today; the emerge went in the third pass, see PART 8 — three
+textures, and a DEMO director (src/asag_boss.c) that played them end to end on a
+loop so they could be looked at.
 
-WHAT STILL DOES NOT EXIST IS THE FIGHT: no phases, no attacks, no camera work,
-no sounds, no music, no encounter script — and, new in this pass, NO WAY OUT OF
-THE ROOM AT ALL.
+>>> SEPTEMBER 2026, THIRD PASS: THE OPENING SCENE IS BUILT. <<< The demo
+director is gone and src/asag_boss.c is a real encounter script for as long as
+the scene lasts: the camera falls out of the air onto the landing and BOUNCES,
+pans up onto Asag held two seconds into his faint, then drifts UP AND TO THE
+RIGHT as the faint carries him back to Home until it is looking slightly down at
+his face; he drops into a looping idle, his two boils light up over two seconds
+and are left pulsing, the demon speech and the boss music start together over
+two lines of subtitle, and then the camera returns to the landing and the player
+has it back exactly where they arrived. The same pass replaced the
+ARRIVING TRANSITION — the drop used to play a garden gate creaking open and now
+plays four mud quads rushing the camera (DOOR_PANEL_FALL) — and filled the
+arena's SPU bank, which was empty.
+
+WHAT STILL DOES NOT EXIST IS THE FIGHT: no health, no attacks, no damage, no
+death sequence, no seal — and NO WAY OUT OF THE ROOM AT ALL. Past the handover,
+asag_boss.c runs the OLD DEMO's clip cycle as a placeholder, and src/asag_boss.h
+marks exactly where the finished half stops.
 
 This file is the handover. It says what was built, what it cost, what is
 reserved for the fight, and the order the pieces go in. It is NOT a substitute
@@ -26,7 +41,8 @@ for the runbooks — those are still the authority on HOW:
 
   src/asag_arena.h                   the room, and the argument for its shape
   src/asag.h                         the body, and why it needs no model matrix
-  src/asag_boss.h                    the DEMO director, and what replaces it
+  src/asag_boss.h                    the director: which half is finished, and
+                                     what the other half still needs
   src/rabisu.c / rabisu_boss.c       THE reference boss. Read both end to end.
 
 
@@ -46,13 +62,18 @@ NEW, in assets/bosses/Asag Version Two/:
   Asag Version Two mesh.smx      the collision proxy: 12 walls, 3 floor planes
   Asag Version Two_Boss.smx      80 verts, 79 polys, one texture
   Asag_head_{idle,emerge,laser,slam,vomit,faint}.pva
+      (the emerge is deleted as of the third pass — PART 8)
 
 STILL TRUE, and this is the important half: EVERY BUDGET ARGUMENT IN THIS FILE
 SURVIVED THE REBUILD UNCHANGED. The room is still a one-way pocket, so VRAM is
-still almost entirely reclaimable, the SPU bank is still empty and still Asag's
-whole 232 KB, and the model is still ROOM-SCOPED rather than resident. The
-second pass is smaller than the first in every dimension, so nothing that fit
-before has stopped fitting.
+still almost entirely reclaimable, the SPU bank is still Asag's whole 232 KB,
+and the model is still ROOM-SCOPED rather than resident. The second pass is
+smaller than the first in every dimension, so nothing that fit before has
+stopped fitting.
+
+  (The bank is no longer EMPTY — the third pass put SFX_DMNSPEAK in it for the
+   opening's speech — but it is still the arena's alone and still 232 KB. See
+   PART 3.)
 
 
 ##########################################################################
@@ -122,11 +143,33 @@ bullet-impact sprite, entity drop shadows; the Crucifaxe, the Grave-olver,
 standard rounds, flame rounds, the Helluminator; the small medkit; every
 collectible menu icon; and grdngtl + grdngtr, the GATE door panel.
 
->>> THE DOOR PANEL IS THE SUBTLE ONE. <<< door_anim draws its panel after the
-room's update and BEFORE STATE_LOADING, so the arena's own textures are still in
-VRAM while a transition plays. Only the panel an actual transition uses has to
-survive. The ARRIVAL uses DOOR_PANEL_GATE; when the room grows an exit, give it
-a different panel and RESERVED in tools/vram_map_asag.py moves with it.
+>>> THE DOOR PANEL WAS THE SUBTLE ONE, AND IT IS NOW RESERVED AT ALL. <<<
+door_anim draws its panel after the OUTGOING room's update and BEFORE
+STATE_LOADING, so whichever panel a transition uses has to be in VRAM across it.
+The arrival used to borrow DOOR_PANEL_GATE, which reserved grdngtl and grdngtr
+in this bank — and meant a 1200-unit fall down a shaft was announced by a garden
+gate creaking open.
+
+The arrival is DOOR_PANEL_FALL now: four mud quads, flat in a 2x2 square, a long
+way down the view axis, with the camera accelerating into them on t^2 and fading
+to black before it arrives. Its texture is THIS ROOM'S OWN MUD, already owned at
+x384 y0, so the bank reserves no panel any more.
+
+>>> AND IT INVERTS THE USUAL RULE, WHICH IS THE PART WORTH KNOWING. <<< Every
+other panel in the game is in VRAM before its transition starts — put there once
+at startup, or (the greenhouse door) guaranteed because both ends of the
+transition upload it. Neither is true here: at the moment the fall begins, the
+arena's uploader has not run and The Hatch's art is still at x384 y0. So
+door_anim_start() streams the one TIM itself, through
+asag_arena_upload_mud() — which owns the DrawSync(0) and the cdaudio bracket
+that make a mid-game LoadImage legal (PROBLEM A in tools/TEXTURING_NOTES.txt).
+It goes into the same rect and the same recorded tpage/clut the room will use,
+which is why nothing new is reserved, and main.c calls cdaudio_stop() BEFORE
+door_anim_start() rather than after so the bracket's resume cannot restart The
+Hatch's music under the fall.
+
+WHEN THE ROOM GROWS AN EXIT, whatever panel that uses comes back onto
+RESERVED in tools/vram_map_asag.py.
 
 RECLAIMABLE — everything else, and most of it is free rather than merely
 available: every mansion and garden room re-uploads its own art on entry. THE
@@ -190,12 +233,34 @@ so a texture can be added without one.
 ##########################################################################
  PART 3 — SPU: THE WHOLE 232 KB REGION, AND HOW IT WAS PAID FOR
 ##########################################################################
-SND_BANK_ASAG (bit 16, src/sound.h) exists and is EMPTY. main.c's STATE_LOADING
-selects it for STATE_ASAG_ARENA and for nothing else.
+SND_BANK_ASAG (bit 16, src/sound.h) exists and holds ONE CLIP. main.c's
+STATE_LOADING selects it for STATE_ASAG_ARENA and for nothing else.
 
-An empty bank is the point. The arena can hold no monster, so not one shared
-effect has to be carried, and everything the PLAYER makes a noise with is
-RESIDENT and unaffected by which bank is in:
+>>> THE ONE CLIP IS SFX_DMNSPEAK, AND IT IS TAGGED BOSS|ASAG. <<< The opening
+scene puts one line of the demon speech over each of its two subtitles, exactly
+as the Rabisu's reveal does, and the two bosses sit in different banks — so the
+clip carries a copy in each, the same two-copies answer SFX_GATE and SFX_RUMBLE
+already take. It cost nothing anybody will notice:
+
+                    bank_base   region    house    boss   garden   intro   asag   spare
+    before          0x46150     237232   162560  190336  177216   22080      0    46896
+    after           0x46150     237232   162560  190336  177216   22080  54016    46896
+
+`spare` is the region less the LARGEST bank, and BOSS still sets it. So filling
+this bank stays free until it becomes the largest, which for Asag means another
+136 KB of clips.
+
+AND IT DID NOT MOVE THE ARENA DOOR'S HEAP PEAK EITHER, which is the constraint
+that actually binds down there (PART 6). sound_bank_select's read is a
+55,296-byte malloc that is FREED before main.c loads the boss model, and main.c
+sequences the two apart on purpose — so the peak is still the 108,544-byte model
+read rather than the sum. Re-do that arithmetic when the fight's own clips land;
+PART 6's warning below was written for exactly this and it has now been paid
+once without cost, which is not a guarantee about the next one.
+
+An almost-empty bank is still the point. The arena can hold no monster, so not
+one shared effect has to be carried, and everything the PLAYER makes a noise
+with is RESIDENT and unaffected by which bank is in:
 
     SWING  AXEHIT  GR_SHOT  GR_RELOAD  HURT  DIE  STEP1  STEP2
     PICKUP  SMASH  SLAM  UNLOCK  DOOR  RBS_SWING  CURSOR  SELECT  BACK
@@ -240,10 +305,25 @@ likewise idle here.
 ##########################################################################
  PART 4 — MUSIC
 ##########################################################################
-CDAUDIO_ASAG_TRACK = 9 is reserved in src/cdaudio.h. The audio is NOT on the
-disc: adding it is one <track type="audio"> line APPENDED at the foot of
-disc.xml, 44100 Hz 16-bit stereo. A track inserted rather than appended
-renumbers every track after it and every room plays the wrong music.
+>>> CDAUDIO_ASAG_TRACK POINTS AT TRACK 6 AND IS BORROWING IT. <<< The opening
+scene needs music on its first subtitle and there is no master for this fight on
+the disc, so the name currently resolves to the GARDEN COURTYARD'S track
+(alex-morgan-dark-suspense-thriller). Both fights therefore sound the same
+today, and that is a placeholder rather than a decision.
+
+GIVING ASAG HIS OWN IS TWO EDITS: one <track type="audio"> line APPENDED at the
+foot of disc.xml, 44100 Hz 16-bit STEREO, and change the 6 in src/cdaudio.h back
+to 9. Slot 9 is still reserved for it. Nothing else: no call site mentions a
+number, they all go through the name, which is why the name exists.
+
+A track INSERTED rather than appended renumbers every track after it and every
+room in the game plays the wrong music.
+
+mkpsxiso accepts anything and silently converts, and what comes out of a mono
+source is upsampled mono; music/mp3_to_wav.py is NOT the tool (it is the
+sound-effect path and always mixes to mono). Convert with ffmpeg or pydub
+straight to 44100 stereo. The one file in music/ not already on the disc is
+elijah_k-unsolved-crime-473168.mp3, which has no .wav yet.
 
 >>> IT IS THE BOSS'S TRACK, NOT THE ROOM'S. <<< main.c's STATE_LOADING branch
 calls cdaudio_stop() for this room, so the arena is silent before the encounter
@@ -311,21 +391,30 @@ and main()'s branch for it is dead code. All of it still compiles and
 src/trial_end.h says what the one line to re-arm it is. That gating runs in
 exactly the opposite direction to the way this file described it last pass.
 
-WHERE THE ENCOUNTER'S OWN CODE GOES — every hook is marked in place with the
-runbook step beside it:
-  - the CUTSCENE early-return branch at the TOP of update_current_area(), NOT in
-    the room's free-play branch (main.c, beside the Hatch's and Attic Exit's)
-  - asag_boss_update() in the free-play branch too — the fight is free play. It
-    is ALREADY THERE, calling the demo; the real director takes its place.
+WHERE THE ENCOUNTER'S OWN CODE GOES. >>> EVERY HOOK BELOW IS NOW WIRED, NOT
+MARKED. <<< The opening scene uses all of them, so the fight inherits the wiring
+and should not need to touch main.c at all:
+  - the CUTSCENE early-return branch at the TOP of update_current_area(), beside
+    the Hatch's and the Attic Exit's — gated on asag_boss_cutscene(), which is
+    FALSE during the fight so free play falls through
+  - asag_boss_update() in the free-play branch too — the fight is free play
   - >>> asag_boss_update() BEFORE asag_update(), AND THE ORDER IS WORTH A FRAME.
     <<< asag_update() raises the "holding the last frame" flag and the director
     reads it. In this order the flag was raised on the PREVIOUS frame, so a
     clip's final pose has been drawn once before the switch. Swap them and every
-    clip in a chained sequence ends a beat early.
+    clip in a chained sequence ends a beat early. Both call sites do this.
+  - asag_boss_draw_overlay(ctx) LAST at the foot of asag_arena_draw()
+  - asag_boss_cutscene() in main.c's `cutscene` flag, which suppresses the Start
+    menu, the weapon overlay and the HUD — including the log box, since the
+    scene's subtitles are its own
+  - asag_boss_reset() in reset_game(), beside the Rabisu's
+
+STILL TO WIRE, and only because the thing it gates does not exist:
   - the seal, ahead of a restored exit trigger, via asag_arena_exit_sealed()
   - asag_arena_exit_arm() on the frame the seal LIFTS
-  - the draw calls at the foot of asag_arena_draw()
-  - the `puzzle`/`cutscene` flags and the HUD exception in main.c's big branch
+  - asag_boss_draw(ctx) and the projectile draw, between asag_draw() and the
+    overlay at the foot of asag_arena_draw() — the comment there names them in
+    order
 
 
 ##########################################################################
@@ -376,18 +465,45 @@ if/else:
 Free early so the outgoing model is gone before the incoming bank is read; load
 late so the bank's buffer is already freed.
 
-ASAG'S OWN TRANSITION PEAK, worked out by hand as this part demands — the seven
+ASAG'S OWN TRANSITION PEAK, worked out by hand as this part demands — the six
 reads asags_load_model() makes, every one sector-rounded, all held at once:
 
     ASGHSLAM.PVA    24,576
     ASGHLAS.PVA     22,528
     ASGHVOM.PVA     20,480
     ASGHFNT.PVA     20,480
-    ASGHEMRG.PVA     8,192
     ASGHIDLE.PVA     6,144
     ASGBODY.SMD      6,144
                    -------
-                   108,544
+                   100,352
+
+    (108,544 while there were still seven, the seventh being the 8,192-byte
+     ASGHEMRG.PVA. The emerge is gone — the travel it did by hand is the
+     position track in src/asag.c now — so the door got 8 KB back. Older
+     quotations of 108,544 elsewhere in the tree mean this same number BEFORE
+     that; the figure that has to fit is 100,352.)
+
+TWO OTHER TRANSIENTS TOUCH THIS DOOR AND NEITHER ADDS TO THAT PEAK, which is
+the whole reason the sequencing in main.c is worth defending:
+
+    the SPU bank read     55,296   sound_bank_select, for SFX_DMNSPEAK. Freed
+                                   before the model load begins; main.c puts the
+                                   frees before the bank swap and the loads
+                                   after it, deliberately.
+    the texture scratch   20,480   asag_arena_upload_textures. Freed before the
+                                   model load, because main.c loads the model
+                                   AFTER the upload rather than before it.
+
+    ...and, on the DROP specifically, the same 20,480 scratch a second time
+    inside door_anim_start() for the fall's mud (PART 2). That one is a whole
+    transition EARLIER — the arena's own loading screen has not begun — and it
+    is freed before STATE_LOADING runs, so it never coexists with any of the
+    above.
+
+So the peak is max(100352, 55296, 20480) and not their sum. >>> IF YOU EVER
+MERGE THOSE STEPS INTO ONE if/else IT BECOMES THE SUM, which is 176 KB against
+121-147 KB free, and the room stops booting. <<< That is not hypothetical; it is
+what happened at the Garden Courtyard's door and it is written up below.
 
 >>> AND THE DOOR HAS 121-147 KB, NOT THE ~171 KB THIS FILE USED TO CLAIM. <<<
 That claim was inferred once during the FIRST Asag and then quoted for months as
@@ -410,7 +526,8 @@ WORTH KEEPING:
     is the order they are read in.
   - THE CLIPS ARE PACKED. PVA1 stores four int16 per vertex and the fourth is
     always zero - a quarter of the payload. PVA2 (tools/io_export_pva.py,
-    pack=True) stores three. That saved 30,720 bytes across six clips, which is
+    pack=True) stores three. That saved 30,720 bytes across the six clips there
+    were then, which is
     MORE than dropping the whole boss from 8 fps to 6 would have saved, and it
     costs nothing visually - src/asag.c unpacks one frame into a 640-byte
     scratch before the draw. src/rabisu.c still reads PVA1 in place and is
@@ -501,7 +618,7 @@ depending on a measured constant. Worth doing; not a win.
   3. THE TEXTURES. Done, three of them. PART 2 records which pages, why they are
      resampled to 128x128, and the CLUT trap that nearly shipped.
 
-  4. THE BODY. Done. ONE mesh, SIX clips, no model matrix (the vertices are
+  4. THE BODY. Done. ONE mesh, FIVE clips, no model matrix (the vertices are
      already in the arena's coordinate space because the SMX exporter bakes
      matrix_world), and therefore no view matrix to restore.
      asags_load_model()/asags_free_model() are in main.c's STATE_LOADING in the
@@ -516,24 +633,96 @@ depending on a measured constant. Worth doing; not a win.
      and a rounded 7 or 8 drifts most of a second across the 50-frame slam. So
      src/asag.h defines ASAG_ANIM_FPS and asag_update() runs an ACCUMULATOR.
 
-  5. THE DEMO DIRECTOR. Done, and it is a placeholder: src/asag_boss.c plays the
-     six clips end to end on an endless loop and decides nothing. It exists so
-     the animation can be looked at. It has a WATCHDOG, which is not padding —
-     a clip that failed to load has no frames, so it never reports done and
-     would stop the cycle dead. Ten seconds of one clip means that clip did not
-     load.
+  5. THE OPENING SCENE. Done, and it is the real thing. src/asag_boss.c drops
+     the camera in from the air onto the landing, bounces it, pans up onto Asag
+     held two seconds into his faint, releases the faint and drifts the camera up
+     and to the right as he returns to Home, ends looking slightly down at his
+     face, puts him on a looping idle, ramps the boils up over two seconds and
+     leaves them pulsing, plays the speech and the two subtitles, then brings the
+     camera back to the landing and hands it over. Its header marks which half of
+     the file is finished and which is not.
+
+     EVERY CAMERA POSITION IS AN OFFSET FROM THE LANDING, captured on the arm —
+     so the scene ends on the numbers it started from and "control returns where
+     they landed" is guaranteed rather than asserted, and the whole thing follows
+     AA_SHAFT_X/Z and AA_EYE_Y if the landing moves.
+
+     >>> AND THE ROOF DECIDES THE FINAL SHOT. <<< The vantage looks down at his
+     face by only 3.8 degrees, and that is arithmetic rather than taste: his face
+     sits 1990 away, so each degree of downward look costs 35 units of height,
+     and 6 degrees would put the camera at y=-994 against a roofline of -1000 —
+     inside the ceiling, seeing over the perimeter. ABE_VANTAGE_RISE is 730
+     because 811 is all the air this room has.
+
+     Four more pieces of it are worth knowing about before touching anything:
+
+     THE AIM POINT IS ALIVE, AND THAT NEEDED SMOOTHING. The Rabisu's crane holds
+     a fixed point, so its pitch is one binary search and a constant. Asag
+     ANIMATES through the whole shot, so the pitch is re-solved every frame from
+     asag_body_centre() — and because the pose steps at 8 fps under a 60 Hz
+     camera, an aim taken raw off the body JUMPS eight times a second (worst
+     measured step: 54 units of pitch, which reads as the camera being kicked).
+     cam_pitch chases the solved target exponentially instead. There is no
+     equivalent of this anywhere in the Rabisu.
+
+     >>> THE YAW IS SOLVED TOO, AND THE REASON IT DID NOT USED TO BE IS WORTH
+     READING BEFORE TOUCHING THE SHOT. <<< The first version of this scene never
+     moved the camera, and on that shot the yaw was a constant: Asag's posed
+     centre sits at x = -11 on every frame of both clips, so from a camera at
+     x = 0 at 2100 range the yaw to him is under half a unit in 4096ths — below
+     the binary search's own resolution. The file said so, at length, and cited
+     STEP 3's advice to ENGINEER exactly that property.
+
+     It was true of ONE SHOT and never of the geometry. The scene now drifts the
+     camera to x = +650, where the yaw to him is -210, i.e. 18 degrees. Both
+     angles go through one aim_angle() routine now, and the invariance is gone
+     for good the moment any shot leaves the centre line.
+
+     AIM AT THE FACE, NOT THE CENTRE. He is 1669 units long and lies along the
+     view axis, so his centre is his flank and sits 800 units further off than
+     his head. asag_face_point() is the accessor; there are now THREE, because
+     the collider wants only the part at the player's height and a wide shot
+     wants the whole silhouette. The face is defined by a Z WINDOW rather than a
+     vertex count, because a count is unstable the moment the body deforms —
+     nine different index sets across the faint.
+
+     HE IS HELD, NOT PLAYED, FOR THE ARRIVAL. The brief has him "sitting two
+     seconds into his faint" while the player lands, which is a pose held rather
+     than a clip playing — so the clip is seeded with asag_play_at() and then
+     frozen with asag_set_frozen(), and released when the camera has panned up
+     onto him. >>> THE FREEZE HAD TO STOP THE POSITION TRACK AS WELL AS THE
+     POSE. <<< The travel clock is deliberately allowed to run past the end of a
+     held clip so a back-ramp always reaches Home, which is right for a finished
+     clip and wrong for a held one: the first version froze the pose only and he
+     slid out of the wall for the whole second and a half of the fall.
+
+     THE BOILS COST NO GEOMETRY. They are two clusters of four polys already in
+     the arena mesh — the raised z=2734 front plates of the lumps either side of
+     him — so lighting them is a brighter setRGB0 and nothing else: no additive
+     quad, no extra primitive, nothing to sort. WHICH eight polys is DETECTED,
+     not listed: gen_asag_arena_tex_map.py finds them off that plane plus their
+     texture and emits asag_arena_boil[], and FAILS rather than emit a partial
+     table. They are 440..447 today, which is contiguous and therefore especially
+     inviting to hard-code — and a range would quietly light up eight arbitrary
+     wall panels the next time the mesh is re-exported.
+
+  6. THE SOUNDS. One of them: SFX_DMNSPEAK, BOSS|ASAG. PART 3 has the
+     arithmetic and why it was free. >>> THE PEAK WARNING IN PART 6 STILL
+     STANDS FOR THE NEXT ONE. <<<
+
+  7. THE MUSIC. Borrowed, not built. PART 4 says what the two edits are.
 
   STILL TO DO, in this order:
-  6. THE SOUNDS. tools/ADDING_A_SOUND.txt, STEP 3 arithmetic first, everything
-     tagged SND_BANK_ASAG. >>> AND REDO THE PEAK IN PART 6. <<<
-  7. THE MUSIC. PART 4.
-  8. THE ENCOUNTER. tools/ADDING_A_BOSS_ENCOUNTER.txt, then a real
-     src/asag_boss.c in place of the demo, into the hooks listed in PART 5. Read
-     that runbook's list of ten things that were wrong first — it is the most
-     useful part of the file.
+  8. THE FIGHT. tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 6 (movement and
+     attacks), STEP 11 (`dying` vs `dead` — two flags, not one) and STEP 7 (the
+     lights), growing inside the phase machine src/asag_boss.c already has. The
+     hooks in PART 5 are wired, so this should not touch main.c. Read that
+     runbook's list of ten things that were wrong first — it is the most useful
+     part of the file.
   9. THE EXIT. Where the room leads, and the geometry of the way out. See
-     PART 1. This is now the most urgent of the four, because there is no exit
-     at all rather than a placeholder one.
+     PART 1. It also blocks the SEAL (STEP 9), which is the one hook in PART 5
+     still unwired, and it is the most urgent item here: there is no exit at all
+     rather than a placeholder one.
 
 
 ##########################################################################
@@ -643,27 +832,35 @@ inside-out, so re-run it after any re-export.
 ##########################################################################
  PART 8 — THE CLIPS THAT EXIST
 ##########################################################################
-All six are on the disc, all load, and the DEMO director cycles them in the
-order below. Frame counts are POST-BAKE at step 3; every one plays at 8 fps.
+All FIVE are on the disc and all load. Frame counts are POST-BAKE at step 3;
+every one plays at 8 fps.
 
-  ASAG_CLIP_EMERGE   13f   ASGHEMRG.PVA    8,332   rises out of the rock
   ASAG_CLIP_IDLE     10f   ASGHIDLE.PVA    6,412   the resting bob
   ASAG_CLIP_LASER    43f   ASGHLAS.PVA    27,532   the beam attack
   ASAG_CLIP_SLAM     50f   ASGHSLAM.PVA   32,012   the slam attack
   ASAG_CLIP_VOMIT    40f   ASGHVOM.PVA    25,612   the spew attack
   ASAG_CLIP_FAINT    40f   ASGHFNT.PVA    25,612   collapses
 
-   94,152 bytes of clips (PACKED - see PART 6), 4,468 of mesh; 108,544 once
+   85,820 bytes of clips (PACKED - see PART 6), 4,468 of mesh; 100,352 once
   every read is rounded up to whole CD sectors, which is what actually has to
   fit, against 121-147 KB measured free at that door.
 
-EMERGE LEADS THE CYCLE rather than IDLE, because it is the only one of the six
-that reads as a beginning — the other five all start from where it leaves off,
-so watching the loop from a cold start looks like an arrival rather than like
-joining something already in progress.
+>>> THERE WAS A SIXTH, ASAG_CLIP_EMERGE, AND IT IS GONE ON PURPOSE. <<< 13
+frames, ASGHEMRG.PVA, 8,332 bytes, and it rose out of the rock by hand. The
+travel it did is now the POSITION TRACK in src/asag.c, which every attack
+carries for itself — so it is out of AsagClip, off the disc and out of
+tools/export_asag.py's bake list. Head_Emerge_Baked is still in the .blend if it
+is ever wanted; asag.h says what the four edits to bring it back are.
 
-EVERY ONE IS PLAYED NON-LOOPING, and that is what makes the chain work at all: a
-looping clip never reports asag_clip_done() and the cycle would stop on it
-forever. Whether a clip actually repeats is the `loop` argument to asag_play(),
-which the director chooses — a non-looping play HOLDS the last frame, which is
-what asag_clip_done() reports and what lets one clip hand over to the next.
+WHO PLAYS WHAT NOW. The OPENING SCENE plays the faint (seeded two seconds in,
+via asag_play_at) and then the idle, LOOPING — the one place in this boss a
+`loop` argument of 1 is right, because the idle has to hold under the boils and
+the whole of the speech, which is 14 seconds against the clip's 1.25. The
+placeholder fight after the handover cycles the other four and then the idle
+again, all NON-LOOPING.
+
+NON-LOOPING IS WHAT MAKES A CHAIN WORK AT ALL: a looping clip never reports
+asag_clip_done() and a cycle would stop on it forever. A non-looping play HOLDS
+the last frame, which is what asag_clip_done() reports and what lets one clip
+hand over to the next. The corollary is that the scene's own phases, which run
+UNDER a looping idle, are all on frame counts instead.

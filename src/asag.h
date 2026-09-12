@@ -224,6 +224,20 @@ void asag_draw(RenderContext *ctx);
    Starting the clip already playing RESTARTS it. */
 void asag_play(AsagClip clip, int loop);
 
+/* Start `clip` PART WAY IN — `start_ticks` GAME FRAMES from its beginning, so
+   "two seconds into the faint" is 120 and needs no conversion here.
+
+   >>> TICKS AND NOT ANIMATION FRAMES, BECAUSE A CLIP IS TWO TRACKS. <<< The
+   baked pose steps at ASAG_ANIM_FPS and the position ramp runs at 60 (see
+   ASAG_EMERGE_DZ above). Seeking one without the other would put the body in a
+   mid-clip POSTURE at its resting POSITION, which on a reveal is exactly the
+   frame the player is looking at. Ticks are the unit both tracks share.
+
+   A seek past the clip's end clamps and comes up HELD, i.e. in the state a
+   finished one-shot is in, so asag_clip_done() is true immediately rather than
+   never. asag_play(clip, loop) is this with start_ticks 0. */
+void asag_play_at(AsagClip clip, int loop, int32_t start_ticks);
+
 /* Back to the .smd bind pose, clock stopped. That pose is frame 1 of the IDLE
    clip, so this is visually the same as holding still on the idle's first frame
    — tools/export_asag.py guarantees that alignment, and the hand export this
@@ -257,6 +271,26 @@ int  asag_clip_done(void);
 void asag_set_visible(int visible);
 int  asag_visible(void);
 
+/* ---- Hold everything where it is ------------------------------------------
+   1 = asag_update() does nothing at all. This is the `frozen` field
+   tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 5 lists among the four a director
+   writes, and it exists here because the opening scene needs Asag to SIT two
+   seconds into his faint while the camera falls down the shaft and lands —
+   "currently sitting in the faint position" is a pose being held, not a clip
+   being played.
+
+   >>> IT STOPS THE POSITION TRACK TOO, WHICH IS THE POINT WORTH KNOWING. <<<
+   asag_update() deliberately runs the travel clock on past the end of a held
+   clip, so a back-ramp always reaches Home (see the .c). That is right for a
+   clip that has finished and wrong for one a director is holding: without the
+   freeze covering both, Asag would go on sliding out of the wall underneath a
+   motionless pose.
+
+   Cleared by asag_reset(), i.e. on every arrival, so a hold cannot leak into
+   the next visit. */
+void asag_set_frozen(int frozen);
+int  asag_frozen(void);
+
 /* ---- Solidity -------------------------------------------------------------
    Push the player out of the body, from THIS FRAME'S POSE AND THIS FRAME'S
    POSITION. Called from apply_collision_reception() alongside every other prop
@@ -289,5 +323,41 @@ int  asag_visible(void);
    why the push is smallest-penetration here where the hatch doors' could not
    be. */
 void asag_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
+
+/* ---- Where the body is, for a camera ---------------------------------------
+   The centre of an AABB over EVERY posed vertex, this frame — pose and position
+   both, out of the same block the draw uses. A director pans with this.
+
+   >>> IT IS DELIBERATELY NOT asag_collide's BOX. <<< That one selects on Y
+   first, because a collider wants only the part of Asag at the player's height.
+   A camera wants the whole silhouette: what it is framing is the animal, not
+   its footprint.
+
+   And it is worth asking rather than computing: a director could aim at the
+   bind centre plus some guess at how far along ASAG_EMERGE_DZ the ramp is, and
+   would be wrong about the pose as well (the faint drops the body to the floor,
+   the idle bobs) and would be re-deriving a ramp this module owns.
+
+   Returns 0 with `out` untouched when there is nothing posed. A camera given 0
+   should hold its last aim, not swing to the origin. */
+int asag_body_centre(VECTOR *out);
+
+/* ---- ...and where his FACE is, which is what a camera usually wants --------
+   The centroid of the posed vertices at the front-most end of him. Asag lies
+   along Z with his head at the LOW end (the bind pose spans z[2262,3931] and
+   the tail cluster ASAG_EMERGE_DZ is derived from is the high end), so the
+   front in Z is the head.
+
+   >>> PREFER THIS TO asag_body_centre() FOR ANY SHOT OF HIM. <<< He is 1669
+   units long; his centre is his flank. The opening scene aims at the face
+   throughout for exactly that reason, and the difference is not subtle — at
+   Home the face sits 800 units nearer the player than the centre does.
+
+   It is defined by a Z WINDOW rather than a vertex count, which matters
+   because the count version is unstable the moment the body deforms. The .c
+   has the measurement.
+
+   Returns 0 with `out` untouched when there is nothing posed. */
+int asag_face_point(VECTOR *out);
 
 #endif /* ASAG_H */

@@ -103,6 +103,7 @@ static int16_t anim_frame;
 static int16_t anim_acc;      /* 60ths; see ASAG_ANIM_FPS in the header */
 static int8_t  clip_loop;
 static int8_t  clip_held;     /* 1 = one-shot sitting on its last frame */
+static int8_t  clip_frozen;   /* 1 = asag_update() does nothing; see the header */
 static int8_t  body_vis;
 
 /* The position track's own clock and output. clip_ticks runs in GAME frames
@@ -316,15 +317,62 @@ static void update_pos(int c) {
 }
 
 void asag_play(AsagClip clip, int loop) {
+    asag_play_at(clip, loop, 0);
+}
+
+/* >>> SEEKING IS DONE IN TICKS, NOT IN ANIMATION FRAMES, AND THAT IS THE WHOLE
+   REASON THIS FUNCTION EXISTS RATHER THAN A `start_frame` ARGUMENT. <<<
+   A clip is TWO tracks running at two different rates: the baked pose at
+   ASAG_ANIM_FPS, and the position ramp at 60 (see the header). Seeking the pose
+   alone would drop the body in a mid-faint posture at Home, when the whole
+   point of starting two seconds in is that the lunge is two seconds in as well.
+   Ticks are the unit both tracks share, they are game frames, and the brief is
+   written in seconds — so "2 s in" is 120 and needs no conversion at the call
+   site.
+
+   The pose is then DERIVED from the tick count by the same arithmetic
+   asag_update's accumulator would have reached, remainder included, so a seek to
+   t and t frames of play land on the identical frame and the identical phase. A
+   seek past the end clamps and comes up HELD, which is the state a finished
+   one-shot is in — so a director that over-seeks gets the last frame rather than
+   a clip that never reports done. */
+void asag_play_at(AsagClip clip, int loop, int32_t start_ticks) {
     if (clip < 0 || clip >= ASAG_CLIP_COUNT) return;
     cur_clip   = (int8_t)clip;
-    anim_frame = 0;
-    anim_acc   = 0;
     clip_loop  = loop ? 1 : 0;
     clip_held  = 0;
-    clip_ticks = 0;
-    /* pos_dz is NOT reset. A clip with a ramp overwrites it on the first
-       update; the idle is supposed to inherit it. */
+    if (start_ticks < 0) start_ticks = 0;
+
+    int32_t total = clip_total_ticks(clip);
+    if (start_ticks > total) start_ticks = total;
+    clip_ticks = start_ticks;
+
+    /* The accumulator's state at this tick: whole frames and the leftover
+       60ths. Exactly what asag_update() would be holding. */
+    int32_t units = start_ticks * ASAG_ANIM_FPS;
+    int32_t f     = units / 60;
+    anim_acc      = (int16_t)(units % 60);
+
+    int n = clip_count[clip];
+    if (n <= 0) {
+        anim_frame = 0;               /* absent clip: the bind pose, as always */
+    } else if (f >= n) {
+        if (clip_loop) {
+            anim_frame = (int16_t)(f % n);
+        } else {
+            anim_frame = (int16_t)(n - 1);
+            clip_held  = 1;
+        }
+    } else {
+        anim_frame = (int16_t)f;
+    }
+
+    /* And the travel, so the FIRST FRAME DRAWN is already at the right offset.
+       Without this the body would be posed mid-clip at Home for one frame and
+       then snap, which on a reveal is the only frame anybody is looking at.
+       pos_dz is otherwise never reset here — a clip with a ramp overwrites it,
+       and the idle is supposed to inherit it (see asag_play's old note). */
+    update_pos(clip);
 }
 
 void asag_stop(void) {
@@ -349,6 +397,10 @@ void asag_set_visible(int visible) { body_vis = visible ? 1 : 0; }
 
 int asag_visible(void) { return body_vis; }
 
+void asag_set_frozen(int frozen) { clip_frozen = frozen ? 1 : 0; }
+
+int asag_frozen(void) { return clip_frozen; }
+
 /* >>> AN ACCUMULATOR, NOT A TICK COUNTDOWN, AND THE HEADER SAYS WHY. <<< The
    clips play at 8 fps and 60/8 is 7.5, so there is no whole number of game
    frames per animation frame. Adding ASAG_ANIM_FPS per game frame and stepping
@@ -366,6 +418,14 @@ void asag_update(void) {
     if (c == ASAG_CLIP_NONE) return;
     int n = clip_count[c];
     if (n <= 0) return;             /* clip absent or rejected */
+
+    /* >>> FROZEN STOPS BOTH TRACKS, NOT JUST THE POSE. <<< The position clock
+       below is deliberately allowed to run on past the end of a held clip, so
+       a back-ramp always reaches Home — but a DIRECTOR that has asked for the
+       body to hold still wants it to hold still in space as well, or Asag goes
+       on sliding out of the wall underneath a motionless pose. One early
+       return covers both. See the header. */
+    if (clip_frozen) return;
 
     if (!clip_held) {
         anim_acc += ASAG_ANIM_FPS;
@@ -694,6 +754,103 @@ void asag_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     *pz += dz;
 }
 
+/* ---- Where the body IS, for a camera to aim at -----------------------------
+   The centre of an AABB over EVERY posed vertex — no Y band, unlike
+   asag_collide's. The two want opposite things: a collider wants only the part
+   at the player's height, and a camera wants the whole silhouette, because what
+   it is framing is the animal and not its footprint.
+
+   >>> IT IS THE SAME VERTEX BLOCK THE DRAW USES, WHICH IS WHAT MAKES IT WORTH
+   HAVING. <<< A director could instead aim at Home plus ASAG_EMERGE_DZ times
+   some guess at the ramp's progress, and it would be wrong twice over: it would
+   miss the pose entirely (the faint drops the body to floor level and the idle
+   bobs) and it would have to re-derive a ramp that asag.h is explicit about
+   owning. Asking the body where it is costs one pass over 80 vertices.
+
+   Returns 0 and leaves `out` untouched when there is nothing posed — no model,
+   or hidden. A camera that gets 0 should hold its last aim rather than swing to
+   the origin. */
+int asag_body_centre(VECTOR *out) {
+    if (!out) return 0;
+    if (!model_loaded || !mesh_smd) return 0;
+
+    SVECTOR *vp = body_verts();
+    int nv = mesh_smd->n_verts;
+    if (nv <= 0) return 0;
+
+    int32_t min_x = vp[0].vx, max_x = min_x;
+    int32_t min_y = vp[0].vy, max_y = min_y;
+    int32_t min_z = vp[0].vz, max_z = min_z;
+    for (int v = 1; v < nv; v++) {
+        int32_t x = vp[v].vx, y = vp[v].vy, z = vp[v].vz;
+        if (x < min_x) min_x = x; else if (x > max_x) max_x = x;
+        if (y < min_y) min_y = y; else if (y > max_y) max_y = y;
+        if (z < min_z) min_z = z; else if (z > max_z) max_z = z;
+    }
+
+    out->vx = (min_x + max_x) / 2;
+    out->vy = (min_y + max_y) / 2;
+    out->vz = (min_z + max_z) / 2;
+    return 1;
+}
+
+/* ---- The FACE, which is what a camera actually wants to look at -----------
+   The centroid of every posed vertex within ASAG_FACE_WINDOW of the front-most
+   one. Asag lies along Z with his head at the low end and his tail at the high
+   end (the bind pose spans z[2262,3931], and the tail cluster at 3607..3931 is
+   what ASAG_EMERGE_DZ is derived from), so "front-most in Z" IS the head.
+
+   >>> A WINDOW AND NOT A COUNT, AND THAT IS THE WHOLE DESIGN OF IT. <<< The
+   obvious version is "average the eight front-most vertices", and eight is
+   right for the rest pose — the head's front cluster is exactly eight, spanning
+   52 units. It is wrong the moment the body deforms: measured across the faint,
+   the front-eight-by-Z is NINE DIFFERENT INDEX SETS, because a count has to
+   keep taking eight vertices whether or not eight belong to the face. The
+   window takes however many are actually up there — 8 at rest, 21 when the
+   faint has him flattened and much of him is near the front — which is a
+   statement about the geometry rather than about the topology, and it needs no
+   sort.
+
+   The two agree to within 50 units of Y and 32 of Z across the whole faint,
+   i.e. well under a degree of aim at this room's ranges, so the cheap robust
+   one is simply better.
+
+   >>> AND IT IS NOT asag_body_centre(). <<< That is the middle of a
+   1669-unit-long animal; aiming a close shot at it points the camera at his
+   flank. Three accessors, three jobs: the collider wants the part at the
+   player's height, a wide shot wants the whole silhouette, and a shot of his
+   face wants his face.
+
+   Returns 0 with `out` untouched when there is nothing posed. */
+#define ASAG_FACE_WINDOW  90
+
+int asag_face_point(VECTOR *out) {
+    if (!out) return 0;
+    if (!model_loaded || !mesh_smd) return 0;
+
+    SVECTOR *vp = body_verts();
+    int nv = mesh_smd->n_verts;
+    if (nv <= 0) return 0;
+
+    int32_t front = vp[0].vz;
+    for (int v = 1; v < nv; v++)
+        if (vp[v].vz < front) front = vp[v].vz;
+
+    int32_t lim = front + ASAG_FACE_WINDOW;
+    int32_t sx = 0, sy = 0, sz = 0, n = 0;
+    for (int v = 0; v < nv; v++) {
+        if (vp[v].vz > lim) continue;
+        sx += vp[v].vx; sy += vp[v].vy; sz += vp[v].vz;
+        n++;
+    }
+    if (n <= 0) return 0;       /* impossible — the front vertex is its own */
+
+    out->vx = sx / n;
+    out->vy = sy / n;
+    out->vz = sz / n;
+    return 1;
+}
+
 /* Visible and on the bind pose. This runs from asag_arena_init(), i.e. on every
    arrival, so a debug jump into the room finds the same state a real drop does.
    It is not the load: asags_load_model() runs in main.c's STATE_LOADING beside
@@ -707,5 +864,6 @@ void asag_reset(void) {
     clip_loop  = 0;
     clip_held  = 0;
     clip_ticks = 0;
+    clip_frozen = 0;          /* a director's hold does not survive an arrival */
     pos_dz     = 0;           /* Home */
 }

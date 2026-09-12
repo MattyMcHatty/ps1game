@@ -7,6 +7,10 @@
 #include "tim_slots.h"   /* TIM_TPAGE_GRNHSDR / TIM_CLUT_GRNHSDR */
 #include "sound.h"
 #include "world.h"   /* world_silence_monsters */
+/* DOOR_PANEL_FALL borrows Asag's arena for two things and only two: the mud
+   TIM's VRAM rect, and the CD read that puts it there. See that variant's note
+   in door_anim.h. */
+#include "asag_arena.h"
 
 /* ------------------------------------------------------------------ timing */
 /* All in frames @ 60fps. The door fades in from black, holds closed briefly,
@@ -161,7 +165,83 @@
 #define GH_V_TOP         0
 #define GH_V_BOT        63
 
-#define DOOR_PANEL_COUNT  6
+/* ==========================================================================
+   DOOR_PANEL_FALL — the drop into Asag's arena. NOT A DOOR.
+   ==========================================================================
+   No leaf, no hinge, no swing and no sound. Four mud quads in a flat 2x2
+   square, a long way down the view axis, with the camera accelerating into
+   them and fading to black before it gets there. See door_anim.h.
+
+   ---- THE PROJECTION IS DONE BY HAND, AND ON PURPOSE -----------------------
+   Everything else in this file is screen-space with a fake-perspective fudge
+   (PERSP_D). This one needs a real divide, because the whole effect IS the
+   1/z: a plane closing on the camera at constant speed reads as a lift, and
+   one closing on t^2 reads as a fall. So a corner at plane offset `o` and
+   depth `z` lands at
+
+       screen = CENTRE + o * FALL_FOCAL / z
+
+   FALL_FOCAL is 256 to match gte_SetGeomScreen(256), which is the projection
+   every other thing in this game is drawn through — the plane therefore
+   foreshortens at the same rate the arena will a second later, rather than at
+   some rate of its own that happens to look similar.
+
+   >>> IT DOES NOT USE THE GTE. <<< This runs in STATE_DOOR_ANIM, which draws
+   no world and loads no view matrix; four corner divides a frame is cheaper
+   than standing one up.
+
+   ---- THE NUMBERS, AND WHERE EACH ONE COMES FROM ---------------------------
+   FALL_SIDE is the square's world size. 2048 is the scale of the room being
+   fallen into — the arena is 3000 across — so the mud reads as ground rather
+   than as a texture swatch.
+
+   The on-screen half-size is (FALL_SIDE/2) * FALL_FOCAL / z = 262144/z, which
+   pins both ends of the travel:
+     Z_FAR  4096  ->  64 px half: a 128 px square of mud in the middle of a
+                      320x240 screen. Small, clearly distant, clearly a floor.
+     Z_NEAR  600  -> 437 px half: past 160 and 120 in both axes, so the mud
+                      covers the screen completely and nothing can be seen
+                      past its edge at the moment the fade finishes.
+
+   THE CLOCK IS ONE RUSH WITH BOTH FADES INSIDE IT, not the doors' five-stage
+   sequence: 150 frames (2.5 s) end to end, fading up over the first 36 while
+   ALREADY MOVING, and down over the last 45.
+
+   The fade-out is timed to END on the last frame rather than to start on it,
+   which is what "fading out before they collide" actually needs. At frame 105,
+   where it begins, the depth is 2389 and the half-size 110 px — the plane's
+   edges are still on screen and it plainly has somewhere left to fall. By frame
+   150 it is 437 px and covers the screen completely, and the screen is black by
+   then, so nothing is ever visible past the mud's edge. The camera never
+   reaches the plane: z bottoms out at Z_NEAR and the state ends there.
+
+   2.5 s IS SHORTER THAN EVERY DOOR, and that is fine. The note in
+   main.c's STATE_LOADING about a transition's "five seconds of runway" is about
+   the black screen being continuous across the blocking CD read, not about the
+   transition pre-loading anything — the read happens after this finishes and
+   pumps its own loading screen. A fall wants to be quick.
+
+   THE UVs ARE 0..127 AND MUST STAY THERE. Each sub-quad carries one whole copy
+   of mud, so the square tiles 2x2. mud.tim is 128 texels wide at VRAM x384 and
+   "Boss Wall" is the NEXT 128 texels of the same 8bpp page, so a u of 128 or
+   more samples the arena's wall instead of its floor — the same hand-written-UV
+   trap the greenhouse door's note in door_anim.h records, and the reason
+   door_anim_draw resets the texture window to no-wrapping. */
+#define FALL_FOCAL       256
+#define FALL_SIDE       2048
+#define FALL_HALF       (FALL_SIDE / 2)
+#define FALL_Z_FAR      4096
+#define FALL_Z_NEAR      600
+#define FALL_T_LO          0
+#define FALL_T_HI        127
+
+#define FALL_RUSH_FRAMES     150   /* 2.5 s: the whole thing. z runs FAR->NEAR */
+#define FALL_FADE_IN_FRAMES   36   /* 0.6 s up from black, already moving      */
+#define FALL_FADE_OUT_FRAMES  45   /* 0.75 s down, ENDING on the last frame    */
+#define FALL_TOTAL_FRAMES    FALL_RUSH_FRAMES
+#define FALL_FADE_START      (FALL_TOTAL_FRAMES - FALL_FADE_OUT_FRAMES)  /* 105 */
+
+#define DOOR_PANEL_COUNT  7
 
 static int32_t  anim_timer  = 0;
 static int      anim_active = 0;
@@ -263,6 +343,24 @@ void door_anim_start(int variant) {
     anim_active  = 1;
     anim_variant = (variant >= 0 && variant < DOOR_PANEL_COUNT) ? variant
                                                                 : DOOR_PANEL_OUTER;
+    /* THE FALL READS ITS TEXTURE OFF THE DISC HERE, and it is the only variant
+       that does. Every panel above is either put in VRAM once at startup into a
+       rect nobody else writes, or (the greenhouse door) guaranteed to be in VRAM
+       already because both ends of its transition upload it. Neither is true of
+       the arena's mud: this transition draws BEFORE STATE_LOADING, so the
+       destination room's uploader has not run and what is at x384 y0 is still
+       The Hatch's art.
+
+       So it is streamed now, into the same rect and the same recorded
+       tpage/clut the room itself will use — see asag_arena_upload_mud(), which
+       owns the DrawSync and the cdaudio bracket that makes a mid-game LoadImage
+       legal. Reading the pair back rather than caching it is deliberate: the
+       room is the authority on where its own art landed. */
+    if (anim_variant == DOOR_PANEL_FALL) {
+        asag_arena_upload_mud();
+        panel_tpage[DOOR_PANEL_FALL] = asag_arena_tex_page(ASAG_TEX_MUD);
+        panel_clut [DOOR_PANEL_FALL] = asag_arena_tex_clut(ASAG_TEX_MUD);
+    }
     /* Kill every monster sound the moment the transition begins: from here the
        area update stops running, so a looped scuttle/writhe would otherwise
        follow the player into the next room. */
@@ -276,16 +374,26 @@ void door_anim_start(int variant) {
  * the fade and the total out with it. Kept as four accessors rather than four
  * `if`s scattered through the file so there is one place the two clocks are
  * stated, and so a third variant with its own timing is a one-line change. */
+/* THREE CLOCKS NOW. The fall has no swing at all, so its swing_* answers are
+   never read — the fall branch of door_anim_draw returns before swing_angle()
+   is reached. Only its fade and its total matter here, and they matter because
+   door_anim_finished() is what hands off to STATE_LOADING. */
 static int is_gate(void)             { return anim_variant == DOOR_PANEL_GATE; }
+static int is_fall(void)             { return anim_variant == DOOR_PANEL_FALL; }
 static int32_t swing_start(void)     { return is_gate() ? GATE_SWING_START  : SWING_START;  }
 static int32_t swing_frames(void)    { return is_gate() ? GATE_SWING_FRAMES : SWING_FRAMES; }
-static int32_t fade_start(void)      { return is_gate() ? GATE_FADE_START   : FADE_START;   }
-static int32_t total_frames(void)    { return is_gate() ? GATE_TOTAL_FRAMES : TOTAL_FRAMES; }
+static int32_t fade_start(void)      { return is_fall() ? FALL_FADE_START :
+                                              is_gate() ? GATE_FADE_START   : FADE_START;   }
+static int32_t total_frames(void)    { return is_fall() ? FALL_TOTAL_FRAMES :
+                                              is_gate() ? GATE_TOTAL_FRAMES : TOTAL_FRAMES; }
 
 void door_anim_update(void) {
     if (!anim_active) return;
     anim_timer++;
-    /* The gate has a sound of its own — see DOOR_PANEL_GATE in door_anim.h. */
+    /* The gate has a sound of its own — see DOOR_PANEL_GATE in door_anim.h —
+       and the FALL has none: the drop in the yard that leads into it is silent
+       too, and the brief asks for the rush of the plane and nothing over it. */
+    if (is_fall()) return;
     if (anim_timer == FADE_IN_FRAMES)
         sound_play(is_gate() ? SFX_GATE : SFX_DOOR);
 }
@@ -393,6 +501,73 @@ void door_anim_draw(RenderContext *ctx) {
         setTexWindow(twin, &tw);
         addPrim(&ctx->buffers[ctx->active_buffer].ot[300], twin);
         ctx->next_packet += sizeof(DR_TWIN);
+    }
+
+    /* ---- THE FALL. It shares nothing below this point but the black
+     * background and the texture window, so it is handled here and returns.
+     *
+     * FOUR QUADS, 2x2, one copy of mud each. The subdivision is not decoration:
+     * a single quad the size of this plane would be interpolated across the
+     * whole screen from four corners, and the PS1 has no perspective-correct
+     * texturing - the affine warp on one enormous face rushing at the camera is
+     * the classic PS1 floor wobble. Splitting it once halves the error, and at
+     * four polys a frame it is free.
+     *
+     * THE DEPTH RUNS ON t^2, NOT LINEARLY. That is the difference between this
+     * reading as a fall and reading as a lift, and it matches the in-room drop
+     * this carries on from: hatch_puzzle.c's HP_FALL runs cam_y on the same
+     * curve for the same reason.
+     *
+     * ITS OWN FADE, on its own two constants, because its clock is nothing like
+     * the doors': it fades UP over the first FALL_FADE_IN_FRAMES while already
+     * moving, holds, and then fades to black over the LAST
+     * FALL_FADE_OUT_FRAMES - ending on the final frame rather than starting on
+     * it. See the note by those defines for why that is what the brief's "fading
+     * out before they collide" actually requires. */
+    if (anim_variant == DOOR_PANEL_FALL) {
+        int32_t t = anim_timer;
+        if (t > FALL_RUSH_FRAMES) t = FALL_RUSH_FRAMES;
+
+        /* Depth: FAR -> NEAR on t^2, in 256ths. */
+        int32_t p   = t * 256 / FALL_RUSH_FRAMES;      /* 0..256 */
+        int32_t acc = (p * p) / 256;                   /* 0..256, t^2 */
+        int32_t z   = FALL_Z_FAR + ((FALL_Z_NEAR - FALL_Z_FAR) * acc) / 256;
+        if (z < 1) z = 1;                              /* the divide's guard */
+
+        /* Half the square, projected. */
+        int32_t h = (FALL_HALF * FALL_FOCAL) / z;
+
+        int32_t fi;
+        if (anim_timer < FALL_FADE_IN_FRAMES) {
+            fi = 128 * anim_timer / FALL_FADE_IN_FRAMES;
+        } else if (anim_timer > FALL_FADE_START) {
+            int32_t f = (anim_timer - FALL_FADE_START) * 256
+                        / FALL_FADE_OUT_FRAMES;
+            if (f > 256) f = 256;
+            fi = 128 * (256 - f) / 256;
+        } else {
+            fi = 128;
+        }
+
+        /* Split ONCE per axis, so three gridlines per axis: the two edges and
+           the centre. The cells are the four (col,row) pairs the loops walk. */
+        const int32_t gx[3] = { DOOR_CENTER_X - h, DOOR_CENTER_X,
+                                DOOR_CENTER_X + h };
+        const int32_t gy[3] = { DOOR_CENTER_Y - h, DOOR_CENTER_Y,
+                                DOOR_CENTER_Y + h };
+        for (int row = 0; row < 2; row++) {
+            for (int col = 0; col < 2; col++) {
+                emit_panel_tex(ctx, buf_end,
+                               panel_tpage[DOOR_PANEL_FALL],
+                               panel_clut [DOOR_PANEL_FALL],
+                               gx[col],   gy[row],     gx[col+1], gy[row],
+                               gx[col],   gy[row+1],   gx[col+1], gy[row+1],
+                               FALL_T_LO, FALL_T_LO,   FALL_T_HI, FALL_T_LO,
+                               FALL_T_LO, FALL_T_HI,   FALL_T_HI, FALL_T_HI,
+                               fi, 256 /* no dolly: the depth IS the dolly */);
+            }
+        }
+        return;
     }
 
     /* Door brightness: 0 -> 128 over the fade-in, full through the middle, then

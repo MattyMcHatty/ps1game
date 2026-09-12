@@ -20,11 +20,22 @@
    note in cdaudio.c — the offset is a property of the TRACK, so it lives beside
    the track number here rather than at the call site in hadad.c. */
 #define CDAUDIO_STALKER_TRACK   8   /* Hadad's stalker music (20.0 s) */
-/* ASAG'S ARENA. >>> THE TRACK IS RESERVED; THE AUDIO IS NOT ON THE DISC YET.
-   <<< Adding it is one <track type="audio"> line at the foot of disc.xml, after
-   track 8 and in that order — the track NUMBER is the line's position in that
-   file and nothing else, so a track inserted rather than appended renumbers
-   every one after it and every room in the game plays the wrong music.
+/* ASAG'S ARENA. >>> IT BORROWS THE COURTYARD'S TRACK, AND IT IS SUPPOSED TO
+   GIVE IT BACK. <<< Asag's opening starts music on its first subtitle, the way
+   the Rabisu's reveal does, and there is no sixty-megabyte stereo master for
+   this fight yet — so the number below points at track 6, which is
+   alex-morgan-dark-suspense-thriller and is already on the disc as the Garden
+   Courtyard's music.
+
+   THAT IS A PLACEHOLDER AND THE TWO FIGHTS CURRENTLY SOUND THE SAME. Giving
+   Asag his own track is ONE line appended to the foot of disc.xml and CHANGING
+   THE 6 BELOW BACK TO 9. Nothing else: no call site mentions a number, they all
+   go through this name, which is why the name exists.
+
+   >>> SLOT 9 STAYS RESERVED FOR THAT. <<< The track NUMBER is a line's position
+   in disc.xml and nothing else, so the new track must be APPENDED after track 8
+   — inserted anywhere else it renumbers every track after it and every room in
+   the game plays the wrong music.
 
    It must be 44100 Hz 16-bit STEREO (Redbook). mkpsxiso accepts anything and
    silently converts, and what comes out of a mono source is upsampled mono;
@@ -38,7 +49,9 @@
    nothing would be a bug, not a simplification: a title-screen load or a debug
    level-select jump into this room does not pass through the drop's own stop and
    would arrive with The Hatch's music still playing. */
-#define CDAUDIO_ASAG_TRACK      9   /* Asag's arena (RESERVED — see above) */
+#define CDAUDIO_ASAG_TRACK      6   /* BORROWED from the courtyard — see above.
+                                       Slot 9 is still reserved; put a track
+                                       there and change this 6 to a 9.        */
 
 void cdaudio_init(void);
 /* loop = 1 repeats the track for as long as the room lasts; loop = 0 plays it

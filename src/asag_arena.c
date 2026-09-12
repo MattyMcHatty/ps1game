@@ -125,6 +125,13 @@ static const char *stream_tex_file[] = {
 static uint16_t tex_tpage[ASAG_ARENA_TEX_COUNT];
 static uint16_t tex_clut[ASAG_ARENA_TEX_COUNT];
 
+/* The boils' two pieces of state. Declared up here rather than beside the code
+   that uses them because asag_arena_init() — which zeroes both on arrival — is
+   above that code, and the block comment on the mechanism belongs with the
+   mechanism. See boil_lit() further down, and the header. */
+static int32_t boil_level;      /* 0..ASAG_BOIL_LEVEL_MAX, the director's     */
+static int32_t boil_clock;      /* game frames; ticked by the draw            */
+
 /* src/asag.c reads the boss's skin back through these. Zero for a slot that
    never streamed, which draws the body in whatever art sits at tpage 0 - ugly,
    and better than a crash on a bad CD read. */
@@ -255,6 +262,36 @@ void asag_arena_upload_textures(void) {
     free(scratch);
 }
 
+/* ---- The mud, on its own, for the arriving transition ----------------------
+   See the header. door_anim.c's DOOR_PANEL_FALL draws four mud quads rushing at
+   the camera, and it draws them BEFORE main.c's STATE_LOADING has run — so the
+   arena's own upload above has not happened and VRAM still holds The Hatch's
+   art. This is that one row of the table, early.
+
+   >>> THE DrawSync IS MINE TO DO HERE, WHICH IT IS NOT ABOVE. <<< LoadImage
+   collides with an async DrawOTagEnv still in flight and hard-crashes after a
+   few calls — the whole of PROBLEM A in tools/TEXTURING_NOTES.txt. The uploader
+   above is safe because STATE_LOADING has already idled the GPU for it; this one
+   runs from a door trigger inside update_current_area(), with the PREVIOUS
+   frame's draw very much in flight, so it has to idle the GPU itself. Two
+   LoadImage calls behind one DrawSync is exactly the shape STATE_LOADING uses.
+
+   The cdaudio bracket is for the same reason the uploader's is: a data read
+   issued while CD-DA streams hangs the drive. The drop stops the music a line
+   later in main.c, so this bracket is doing real work rather than covering an
+   edge case. */
+void asag_arena_upload_mud(void) {
+    uint8_t *scratch = malloc(AA_TEX_SCRATCH);
+    if (!scratch) return;    /* the panel then draws in whatever is at tpage 0 —
+                                ugly for five seconds, and not a crash        */
+    DrawSync(0);
+    cdaudio_suspend();
+    aa_stream_tim(stream_tex_file[ASAG_TEX_MUD], ASAG_TEX_MUD,
+                  scratch, AA_TEX_SCRATCH);
+    cdaudio_resume();
+    free(scratch);
+}
+
 /* ---- Arrival ---------------------------------------------------------------
    The one way in: dropped down the shaft. Faces +Z, straight down the length of
    the arena at Asag — which is the whole of the staging this room does, since
@@ -316,9 +353,18 @@ void asag_arena_init(void) {
        safe on a debug jump that arrives before the read has happened. */
     asag_reset();
 
-    /* ...and the DEMO director that cycles the six clips, from the top. It is
-       reset here rather than only at load so that a second arrival replays the
-       emerge instead of picking up mid-slam. src/asag_boss.h. */
+    /* The boils go DARK on every arrival, before the director touches them.
+       The encounter ramps them up in its own phase, so a second arrival — a
+       debug level-select jump, or a load — has to start from unlit or the
+       lighting beat plays to boils that are already on. The clock is zeroed
+       with it so the breath starts at the trough rather than wherever the last
+       visit left it. */
+    asag_arena_set_boil_glow(0);
+    boil_clock = 0;
+
+    /* ...and the director, from the top. It is reset here rather than only at
+       load so that a second arrival replays the opening instead of picking up
+       mid-fight. src/asag_boss.h. */
     asag_boss_reset();
 }
 
@@ -342,8 +388,86 @@ void asag_arena_init(void) {
    by distance here, so a key table would cost BSS to answer a question that is
    always "yes". The frustum test below is what does the work. Revisit if the
    mesh ever grows several-fold. */
+/* ---- The boils -------------------------------------------------------------
+   See the header for what they are and why they cost no geometry. This is the
+   whole mechanism: a level the director sets, a clock this module ticks, and
+   four lines in the draw loop below.
+
+   >>> LIGHTING A TEXTURED POLY MEANS setRGB0 ABOVE 128. <<< 128 is neutral on
+   the PS1's texture blend and 255 doubles, so the boils can be brightened
+   in place with no additive pass, no second primitive and nothing to sort —
+   which is the one way they are cheaper than the Rabisu's lawn lights, and it
+   is only available because the art already put them in the wall.
+
+   THE RED IS IN THE GAIN, NOT ONLY IN THE TEXTURE. The art is reddish already;
+   pushing all three channels equally would just make it a brighter grey-red. R
+   goes to ASAG_BOIL_R_GAIN and G/B to ASAG_BOIL_GB_GAIN, so the hue moves
+   toward the red as it lights rather than washing out of it.
+
+   AND IT IS APPLIED AFTER THE FOG, not before. The fog lerps toward the clear
+   colour by distance; a boost applied first would be fogged back down again,
+   and the back wall is 2500 out — most of the way to AA_FOG_NEAR — so the
+   brightest the boils could ever get would be whatever survived the lerp. They
+   are meant to be a light source, and a light source does not dim with the
+   wall it is in.
+
+   ---- THE PULSE -------------------------------------------------------------
+   "They light up over two seconds, then pulse slowly." The ramp is the
+   director's (it sets `level`); the pulse is here, on this module's own clock,
+   so the director sets one number once and has nothing to tick.
+
+   ONE CLOCK FOR BOTH BOILS, and that is a choice against the runbook's default.
+   tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 7A says to offset a bank of lamps per
+   cell or the whole bank strobes as one lamp — right for sixteen lawn lights,
+   wrong here. These are two organs on one animal, symmetric either side of it,
+   and breathing out of phase would read as two independent lights rather than
+   as one thing breathing. Same reason the same runbook gives the shockwave ring
+   a single clock.
+
+   THE TROUGH IS NOT ZERO. A pulse to black reads as a fault; ASAG_BOIL_PULSE_LO
+   keeps them lit at three-quarters, so what breathes is the intensity and not
+   the existence. */
+#define ASAG_BOIL_R_GAIN      255   /* fully lit: 128 is neutral, 255 is x2    */
+#define ASAG_BOIL_GB_GAIN     168   /* G/B rise less, so the hue goes redder   */
+#define ASAG_BOIL_PULSE_TICKS 210   /* 3.5 s a breath                          */
+#define ASAG_BOIL_PULSE_LO    192   /* trough, in 256ths of `level`            */
+
+/* boil_level and boil_clock are declared at the head of the file; see there. */
+
+void asag_arena_set_boil_glow(int32_t level) {
+    if (level < 0) level = 0;
+    if (level > ASAG_BOIL_LEVEL_MAX) level = ASAG_BOIL_LEVEL_MAX;
+    boil_level = level;
+}
+
+int32_t asag_arena_boil_glow(void) { return boil_level; }
+
+/* `level` with the breath applied, 0..256. isin gives -4096..4096 over a full
+   turn, so (isin + 4096) / 8192 is the 0..1 the lerp wants; done in 256ths to
+   stay in integers. */
+static int32_t boil_lit(void) {
+    if (boil_level <= 0) return 0;
+    int32_t phase = ((boil_clock * 4096) / ASAG_BOIL_PULSE_TICKS) & 4095;
+    int32_t s     = (isin(phase) + 4096) / 32;      /* 0..256 */
+    int32_t env   = ASAG_BOIL_PULSE_LO
+                    + ((256 - ASAG_BOIL_PULSE_LO) * s) / 256;
+    return (boil_level * env) / 256;
+}
+
 static void draw_asag_arena_smd(RenderContext *ctx) {
     if (!asag_arena_smd) return;
+
+    /* THE PULSE CLOCK IS TICKED HERE, in the draw, which wants justifying. It
+       is not a general licence: this room's draw runs exactly once per game
+       frame, the clock drives nothing but a colour, and the alternative is an
+       asag_arena_update() that exists solely to add 1 — one more call for
+       main.c's two branches to keep in step, and a silently frozen pulse the
+       day one of them forgets it. rbs_glow_clock is ticked in
+       update_rabisus() because the Rabisu HAS an update; this room does not.
+       It runs on under the inventory menu, which is harmless and arguably
+       right: the boils do not hold their breath while the player reads. */
+    boil_clock++;
+    int32_t boil = boil_lit();
 
     uint8_t *p = (uint8_t *)asag_arena_smd->p_prims;
     int i, n = asag_arena_smd->n_prims;
@@ -492,6 +616,17 @@ static void draw_asag_arena_smd(RenderContext *ctx) {
         uint8_t g = (uint8_t)(((int32_t)col[1] * ff + AA_CLEAR_G * (256 - ff)) >> 8);
         uint8_t b = (uint8_t)(((int32_t)col[2] * ff + AA_CLEAR_B * (256 - ff)) >> 8);
 
+        /* THE BOILS, lit AFTER the fog for the reason given where boil_lit() is
+           defined: they are a light source, and a light source does not dim
+           with the wall it sits in. Lerp from whatever the fog left toward the
+           two gains, so level 0 is exactly the old colour and there is no seam
+           at the moment the encounter starts the ramp. */
+        if (boil && i < ASAG_ARENA_PRIM_COUNT && asag_arena_boil[i]) {
+            r = (uint8_t)(r + ((ASAG_BOIL_R_GAIN  - r) * boil) / 256);
+            g = (uint8_t)(g + ((ASAG_BOIL_GB_GAIN - g) * boil) / 256);
+            b = (uint8_t)(b + ((ASAG_BOIL_GB_GAIN - b) * boil) / 256);
+        }
+
         /* Per-prim texture index; SMD prim order matches the generated map.
            UVs come straight from the SMD primitive (offset 20+) and wrap via the
            128 texture window set in asag_arena_draw. */
@@ -618,10 +753,16 @@ void asag_arena_draw(RenderContext *ctx) {
        switch BEFORE spending an afternoon on either half. */
     if (exp != DBG_EXP_NO_ENTITIES) asag_draw(ctx);
 
-    /* >>> THE REST OF THE ENCOUNTER'S DRAWS GO HERE, IN THIS ORDER. <<<
-       tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 10:
+    /* THE OPENING SCENE'S SUBTITLES. Screen space, sorted into the
+       menu-reserved OT range, so LAST of all — and a no-op outside the two
+       speaking phases. The scene's other visual, the boils, needs no call of
+       its own: they are polygons of this room's own mesh, brightened in the
+       draw loop above.
+
+       >>> THE REST OF THE ENCOUNTER'S DRAWS GO BETWEEN asag_draw AND THIS, IN
+       THIS ORDER. <<< tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 10:
          asag_projectiles_draw(ctx);     wants the plain view matrix, which
                                          asag_draw above leaves untouched
-         asag_boss_draw(ctx);            the lights: additive world geometry
-         asag_boss_draw_overlay(ctx);    LAST of all — screen space, subtitles */
+         asag_boss_draw(ctx);            the lights: additive world geometry */
+    asag_boss_draw_overlay(ctx);
 }
