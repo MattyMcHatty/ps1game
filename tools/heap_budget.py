@@ -102,9 +102,22 @@ disc = {}
 for f in ET.parse('disc.xml').getroot().iter('file'):
     disc[f.get('name').upper()] = f.get('source')
 
-def rounded(name):
-    """A CD read always allocates whole 2048-byte sectors."""
-    return ((os.path.getsize(disc[name]) + 2047) // 2048) * 2048
+# >>> ONE MODULE DOES NOT ROUND, AND THE DIFFERENCE IS A WHOLE CLIP. <<<
+# A CD read moves whole 2048-byte sectors, so the ordinary read_file() allocates
+# whole sectors too. src/asag.c does not any more: it allocates the FILE's size
+# and reads the last, partial sector through a shared one-sector scratch, which
+# is what bought back the 6,308 bytes its six files were wasting at the top of
+# the heap - the faint clip was being refused by 936 of them. See read_file()
+# there. Anything else added to this set must do the same thing in the source.
+EXACT_SIZE_MODULES = {'asag.c'}
+
+def rounded(name, mod=None):
+    """What the allocation actually costs: whole sectors, unless the module
+    that reads it sizes its buffer to the file (see EXACT_SIZE_MODULES)."""
+    size = os.path.getsize(disc[name])
+    if mod in EXACT_SIZE_MODULES:
+        return (size + 3) & ~3
+    return ((size + 2047) // 2048) * 2048
 
 def basename(path):
     return path.replace('\\\\', '\\').split('\\')[-1].split(';')[0].upper()
@@ -246,17 +259,17 @@ print()
 
 print("KEPT BUFFERS  (read once, pointer stashed, never freed)")
 kept_total = 0
-for n, m, var in sorted(kept, key=lambda r: -rounded(r[0])):
-    kept_total += rounded(n)
-    print("  %-24s %-14s %8d  -> %s" % (m, n, rounded(n), var))
+for n, m, var in sorted(kept, key=lambda r: -rounded(r[0], r[1])):
+    kept_total += rounded(n, m)
+    print("  %-24s %-14s %8d  -> %s" % (m, n, rounded(n, m), var))
 print("  %-24s %-14s %8d" % ("TOTAL", "", kept_total))
 print()
 
 print("ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)")
 scoped_total = 0
-for n, m, var in sorted(scoped, key=lambda r: -rounded(r[0])):
-    scoped_total += rounded(n)
-    print("  %-24s %-14s %8d  -> %s" % (m, n, rounded(n), var))
+for n, m, var in sorted(scoped, key=lambda r: -rounded(r[0], r[1])):
+    scoped_total += rounded(n, m)
+    print("  %-24s %-14s %8d  -> %s" % (m, n, rounded(n, m), var))
 if not scoped:
     print("  none")
 else:
@@ -296,7 +309,7 @@ print("                                  (was %d before the stack was counted;"
 print("                                   THAT figure is what the old cliff was measured in)")
 print()
 
-biggest = max((rounded(n) for n, _, _ in kept + scoped), default=0)
+biggest = max((rounded(n, m) for n, m, _ in kept + scoped), default=0)
 print("  >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.")
 print("      THAT IS WHAT KILLS YOU, AND IT IS PER-ROOM. <<<")
 print("      The GARDEN COURTYARD is the tightest door in the game: it is the")
@@ -326,23 +339,38 @@ print("  can hold several of the loads above at once, and the room whose door")
 print("  is tightest is not the room you are editing. Work the peak out by")
 print("  hand: permanent, plus everything live at that one instant.")
 print("  MEASURED at the tightest door in the game (Asag's arena, where the")
-# >>> THAT BRACKET IS A REAL CONSOLE MEASUREMENT AND THE OLD "~171 KB" WAS NOT.
-# <<< The 171 was inferred once, during the FIRST Asag, and then quoted for
-# months as though it had been re-measured. It had not, and it was too
-# optimistic. Asag Version Two pinned it properly: its seven reads go in a fixed
-# order, and on hardware the run succeeded through a cumulative 112,640 bytes
-# (the vomit) and was REFUSED at 139,264 (the faint), with read_file()'s 8 KB
-# stack margin on top of each. So free at that instant is somewhere in
-# [121 KB, 147 KB) and nowhere near 171.
+# >>> THE DOOR FIGURE IS NOW AN ADDRESS, NOT A BRACKET, AND IT IS HALF WHAT
+# THIS SCRIPT PRINTS. <<< The first Asag inferred "~171 KB" and it was quoted
+# for months without being re-measured. Asag Version Two bracketed it to
+# [121 KB, 147 KB) from which reads succeeded and which one was refused. In
+# September 2026 it was pinned exactly, by probing malloc on the arena
+# transition in a headless run:
 #
-# The failure was silent, which is the part worth remembering: nothing crashed
-# and nothing logged. The clip was simply absent, the boss stood on its bind
-# pose for the five seconds it should have animated, and it read as an art
-# problem rather than a memory one. src/asag_boss.c now steps over a clip that
-# asag_clip_loaded() disowns, precisely so the next one announces itself.
-print("  boss model is read): 121-147 KB actually free, against the %d KB" % ((heap - perm) // 1024))
-print("  printed above. The difference is other transients still held at that")
-print("  moment. Treat anything under 128 KB free as already in trouble.")
+#     a 94,208-byte probe landed at 0x801C3200      <- the allocator's top
+#     $sp inside read_file()      was 0x801DBD50
+#
+# so the CONTIGUOUS run under the stack is about 101 KB, and about 93 KB once
+# read_file()'s 8 KB margin comes off. Everything below that top is either live
+# or in holes too small to take a clip: a 4,096-byte probe found one at
+# 0x801BB1B8, a 94,208-byte one did not. THE BRACKET WAS NOT WRONG, IT WAS
+# MEASURING SOMETHING ELSE - cumulative bytes read, some of which went into
+# those low holes.
+#
+# (Measured booting STRAIGHT INTO the arena, which is the kindest case: a real
+# transition arrives with the previous room's frees still fragmenting the heap.
+# Treat ~93 KB as an upper bound on what a clip load can have.)
+#
+# WHAT IT COST THE SECOND TIME. Asag's six files wasted 6,308 bytes in
+# sector-rounding, all of it at the top, and the faint - the last read - was
+# refused by 936 BYTES. Silently, again: no crash, no log, a boss that stood on
+# its bind pose for one second where a five-second faint belonged. src/asag.c's
+# read_file() now sizes the buffer to the FILE and reads the partial last sector
+# through a shared scratch, which is where EXACT_SIZE_MODULES at the top of this
+# script comes from.
+print("  boss model is read): about 101 KB contiguous under the stack, 93 KB")
+print("  once read_file's margin comes off - against the %d KB printed above." % ((heap - perm) // 1024))
+print("  The difference is other transients and holes too small to reuse.")
+print("  Treat anything under 128 KB free at rest as already in trouble.")
 print()
 if heap - perm < 128 * 1024:
     print("  *** WARNING: under 128 KB free at rest, with the stack already")

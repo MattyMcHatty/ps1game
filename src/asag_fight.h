@@ -51,6 +51,17 @@
    and Asag FAINTS — which is the long exposure — and both restore timers
    restart from zero at that moment.
 
+   >>> THE FAINT IS AN INTERRUPT AND NOT A QUEUED ONE. <<< It takes over on the
+   frame the second boil pops, whatever he was in the middle of, and the loop
+   picks up at the move AFTER the one it cut into. It used to wait for the
+   running attack to finish, which made the reward for the hardest shot in the
+   fight land up to four seconds later and read as unreliable. See
+   af_begin_faint() in the .c.
+
+   THE PUSS BALLS REACH THE FAR END OF THE ARENA, which is not a detail either:
+   at their first speed they died about halfway down it and the landing was a
+   safe place to burst a boil from. See AF_PUSS_SPEED.
+
    EXPOSURE, all four windows:
        LASER    never
        SLAM     from the first frame until 0.5 s before the clip ends

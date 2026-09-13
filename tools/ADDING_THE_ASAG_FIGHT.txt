@@ -453,8 +453,10 @@ STILL TO WIRE, and only because the thing it gates does not exist:
 IT IS NOT VRAM AND IT IS NOT THE SPU. Read tools/HEAP_BUDGET.txt before doing
 anything that allocates.
 
-    FREE AT REST    198,236 bytes (194 KB)
-    MEASURED FREE AT THE ARENA'S OWN DOOR   ~171 KB
+    FREE AT REST    174,116 bytes (170 KB)
+    MEASURED FREE AT THE ARENA'S OWN DOOR   ~101 KB contiguous under the
+                                            stack, ~93 KB once read_file's
+                                            8 KB margin comes off
 
 The room's own textures cost NOTHING — they stream on entry into a scratch that
 is freed — and it registers nothing with texmgr. That was deliberate: the first
@@ -496,22 +498,28 @@ Free early so the outgoing model is gone before the incoming bank is read; load
 late so the bank's buffer is already freed.
 
 ASAG'S OWN TRANSITION PEAK, worked out by hand as this part demands — the six
-reads asags_load_model() makes, every one sector-rounded, all held at once:
+reads asags_load_model() makes, all held at once. >>> THEY ARE NO LONGER
+SECTOR-ROUNDED. <<< read_file() sizes each buffer to the FILE and reads the
+partial last sector through a shared one-sector scratch, which took 6,308 bytes
+off this table; the September 2026 note further down is what those bytes cost
+before it did.
 
-    ASGHSLAM.PVA    24,576
-    ASGHLAS.PVA     22,528
-    ASGHVOM.PVA     20,480
-    ASGHFNT.PVA     20,480
-    ASGHIDLE.PVA     6,144
-    ASGBODY.SMD      6,144
-                   -------
-                   100,352
+                    exact     was (sector-rounded)
+    ASGHSLAM.PVA    24,012    24,576
+    ASGHLAS.PVA     20,652    22,528
+    ASGHVOM.PVA     19,212    20,480
+    ASGHFNT.PVA     19,212    20,480
+    ASGHIDLE.PVA     4,812     6,144
+    ASGBODY.SMD      4,468     6,144
+                   -------   -------
+                    92,368   100,352
 
     (108,544 while there were still seven, the seventh being the 8,192-byte
      ASGHEMRG.PVA. The emerge is gone — the travel it did by hand is the
      position track in src/asag.c now — so the door got 8 KB back. Older
-     quotations of 108,544 elsewhere in the tree mean this same number BEFORE
-     that; the figure that has to fit is 100,352.)
+     quotations of 108,544 or 100,352 elsewhere in the tree are this same
+     number before one of those two changes; the figure that has to fit is
+     92,368, and it has to fit in about 93 KB.)
 
 TWO OTHER TRANSIENTS TOUCH THIS DOOR AND NEITHER ADDS TO THAT PEAK, which is
 the whole reason the sequencing in main.c is worth defending:
@@ -535,12 +543,25 @@ MERGE THOSE STEPS INTO ONE if/else IT BECOMES THE SUM, which is 176 KB against
 121-147 KB free, and the room stops booting. <<< That is not hypothetical; it is
 what happened at the Garden Courtyard's door and it is written up below.
 
->>> AND THE DOOR HAS 121-147 KB, NOT THE ~171 KB THIS FILE USED TO CLAIM. <<<
-That claim was inferred once during the FIRST Asag and then quoted for months as
-though it had been re-measured. It had not. Version Two pinned it on hardware:
-the reads go in a FIXED order (mesh, then clips in AsagClip order), the run
-SUCCEEDED through a cumulative 112,640 bytes and was REFUSED at 139,264, so free
-at that instant is somewhere in [121 KB, 147 KB).
+>>> AND THE DOOR HAS ABOUT 93 KB, NOT THE ~171 KB THIS FILE USED TO CLAIM AND
+NOT THE 121-147 KB THAT REPLACED IT. <<< The 171 was inferred once during the
+FIRST Asag and quoted for months without being re-measured. Version Two
+bracketed it to [121 KB, 147 KB) from which reads succeeded and which was
+refused — right method, wrong quantity: that counted CUMULATIVE BYTES READ, and
+some of them went into small holes low in the heap rather than into the run
+under the stack. September 2026 pinned the run itself, by probing malloc on the
+transition in a headless build:
+
+    a 94,208-byte probe landed at 0x801C3200   <- the allocator's top
+    $sp inside read_file()      was 0x801DBD50
+
+    => ~101 KB contiguous, ~93 KB once the 8 KB margin comes off. A
+       4,096-byte probe DID find a hole at 0x801BB1B8, which is how the
+       mesh read fits below the clips and why the cumulative figure looked
+       bigger than the run does.
+
+    (Probed booting straight into the arena, which is the kindest case: a real
+     transition arrives with the previous room's frees fragmenting the heap.)
 
 >>> AND THE REFUSAL WAS SILENT. <<< read_file()'s stack guard declined the LAST
 clip in the order - the faint - and nothing crashed, nothing logged. The clip
@@ -554,6 +575,15 @@ WORTH KEEPING:
     clip is ABSENT FROM THE CYCLE rather than a frozen boss. Which clip goes
     missing is not random: it is always the last in AsagClip order, because that
     is the order they are read in.
+  - THE BUFFERS ARE THE FILES' SIZE, AS OF THE SECOND TIME THIS HAPPENED.
+    Building the fight added 16 KB of code, _end rose, and the faint was refused
+    AGAIN — by 936 BYTES, with the six reads wasting 6,308 in sector rounding at
+    exactly the wrong end of the heap. The symptom that time was in the FIGHT:
+    both boils burst, Asag returned to his idle pose, stood there for ONE SECOND
+    and moved on to the next attack. One second is af_clip_watchdog()'s answer
+    for a clip reporting zero ticks — so a phase that lasts exactly a second is
+    a missing clip and not a dull animation. read_file() now allocates the
+    file's size and reads the partial last sector through a shared scratch.
   - THE CLIPS ARE PACKED. PVA1 stores four int16 per vertex and the fourth is
     always zero - a quarter of the payload. PVA2 (tools/io_export_pva.py,
     pack=True) stores three. That saved 30,720 bytes across the six clips there
@@ -571,7 +601,8 @@ rather than their sum.
 
 >>> THAT FIGURE ASSUMES AN EMPTY SPU BANK, AND THE BANK BEING EMPTY IS THE ONLY
 REASON THE MODEL READ IS THE WHOLE OF THIS TRANSITION. <<< The moment the fight
-has sounds, the largest clip in SND_BANK_ASAG lands on top of 139,264. REDO THE
+has sounds, the largest clip in SND_BANK_ASAG lands on top of the model read.
+REDO THE
 ARITHMETIC THEN. FREE AT REST does not model it.
 
 

@@ -106,33 +106,33 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   rabisu.c                 RBSIDLE.PVA       75776  -> p
   fatdoor.c                WDDR.TIM          34816  -> tim_buf
   rabisu.c                 RABISU.SMD        28672  -> rabisu_buff
-  asag.c                   ASGHSLAM.PVA      24576  -> asags_free_model()
-  asag.c                   ASGHLAS.PVA       22528  -> asags_free_model()
-  asag.c                   ASGHVOM.PVA       20480  -> asags_free_model()
-  asag.c                   ASGHFNT.PVA       20480  -> asags_free_model()
+  asag.c                   ASGHSLAM.PVA      24012  -> asags_free_model()
+  asag.c                   ASGHLAS.PVA       20652  -> asags_free_model()
+  asag.c                   ASGHVOM.PVA       19212  -> asags_free_model()
+  asag.c                   ASGHFNT.PVA       19212  -> asags_free_model()
   chainlink_door.c         CHNLNK.TIM        10240  -> tim
   fatdoor.c                WDDRCRK.TIM       10240  -> crk_buf
-  asag.c                   ASGBODY.SMD        6144  -> asags_free_model()
-  asag.c                   ASGHIDLE.PVA       6144  -> asags_free_model()
   grinder.c                GRINDER.TIM        6144  -> tbuf
-  TOTAL                                     266240   <- PEAK, not a resting cost
+  asag.c                   ASGHIDLE.PVA       4812  -> asags_free_model()
+  asag.c                   ASGBODY.SMD        4468  -> asags_free_model()
+  TOTAL                                     258256   <- PEAK, not a resting cost
 
   These cost nothing at rest and everything at the moment they are in.
   The transition that loads them is the peak this heap has to survive,
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x800EAEB8
+  _end (heap start)   0x800EB51C
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             986760 bytes (964 KB)
+  heap size             985124 bytes (962 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr resident       765952 bytes (748 KB)  77.6%
+  texmgr resident       765952 bytes (748 KB)  77.8%
   kept buffers           45056 bytes (44 KB)   4.6%
-  PERMANENT TOTAL       811008 bytes (792 KB)  82.2%
-  FREE AT REST          175752 bytes (172 KB)  17.8%   <- STACK ALREADY SUBTRACTED
-                                  (was 323904 before the stack was counted;
+  PERMANENT TOTAL       811008 bytes (792 KB)  82.3%
+  FREE AT REST          174116 bytes (170 KB)  17.7%   <- STACK ALREADY SUBTRACTED
+                                  (was 322268 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -164,9 +164,10 @@ THE HEAP
   is tightest is not the room you are editing. Work the peak out by
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
-  boss model is read): 121-147 KB actually free, against the 171 KB
-  printed above. The difference is other transients still held at that
-  moment. Treat anything under 128 KB free as already in trouble.
+  boss model is read): about 101 KB contiguous under the stack, 93 KB
+  once read_file's margin comes off - against the 170 KB printed above.
+  The difference is other transients and holes too small to reuse.
+  Treat anything under 128 KB free at rest as already in trouble.
 
   OK: comfortable margin.
 

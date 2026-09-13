@@ -260,6 +260,19 @@ static int af_in_cols(int lo, int hi) {
 #define AF_T_SLAM_IMPACT     112   /* the head lands: damage, and the markers  */
 #define AF_SLAM_RADIUS       420   /* "caught under the slamming head"         */
 
+/* >>> THE CUE LEADS THE IMPACT, IT DOES NOT SIT ON IT. <<< slam_asag was fired
+   on AF_T_SLAM_IMPACT itself, which is correct about the frame and late in the
+   ear: the sample opens on a short rush of the head coming down before its hit
+   arrives, so aligning its FIRST frame with the landing puts its loudest part a
+   fifth of a second past the thing it is supposed to be the sound of. Backing
+   it off by that much lands the hit on the hit and puts the rush under the
+   descent, where the animation already is.
+
+   It is a SEPARATE constant and not a smaller AF_T_SLAM_IMPACT because the
+   impact frame is measured off the .pva and owns the damage and the boulders;
+   moving it to fix a sound would move those with it. */
+#define AF_T_SLAM_SFX_LEAD    14   /* 0.23 s before the head lands             */
+
 /* ---- THE BOULDERS --------------------------------------------------------
    >>> TWO, FIXED, ONE EITHER SIDE OF HIM - NOT FOUR AT RANDOM. <<< The first
    version dropped four on cells drawn from a block around the player, which
@@ -326,7 +339,33 @@ static int af_in_cols(int lo, int hi) {
 #define AF_PUSS_PER_BOIL       3   /* as briefed                               */
 #define AF_PUSS_MAX           (AF_PUSS_PER_BOIL * ASAG_BOIL_COUNT)
 #define AF_PUSS_SPREAD       341   /* 30 degrees in 4096ths, as briefed        */
-#define AF_PUSS_SPEED         34   /* units/frame in XZ                        */
+
+/* >>> THE SPEED AND THE ARC ARE ONE NUMBER BETWEEN THEM, AND WHAT THEY HAVE TO
+   BUY IS THE LENGTH OF THE ROOM. <<< These were 34 and a rise of 10, which put
+   a ball down after about 40 frames and therefore about 1360 units out — under
+   half the arena's 2800. From boils at z=2734 that is the back half of the room
+   and nothing else, so a player standing on the landing could watch both boils
+   burst and never be threatened by what came out of them, which is the whole
+   point of the puss balls.
+
+   The flight time is set by the fall, not by the speed: a ball leaves the LEFT
+   boil at y=-400 with AF_PUSS_RISE_V of upward speed and AF_PUSS_GRAV a frame
+   pulling it back, so it is in the air for roughly
+
+       t = rise_v + sqrt(rise_v^2 + 2 * grav * 400)     ~= 46 frames at 14/1
+
+   and the reach is that times the speed. 60 x 46 = 2760, i.e. the arena's
+   length from the wall they are fired out of, which is what was asked for. The
+   RIGHT boil is 200 higher and so throws a little further still, which is free.
+
+   THE RISE WENT UP WITH IT ON PURPOSE. Holding it at 10 and raising only the
+   speed would have bought the range with a flatter, faster line — a dart rather
+   than the lobbed arc the whole "shoot up and then arc towards the floor" note
+   below is about. Raising both keeps the shape and stretches it.
+
+   AF_PUSS_LIFE is untouched: 180 frames is still four times the longest flight,
+   so it stays what it was meant to be — a backstop, not a range limit. */
+#define AF_PUSS_SPEED         60   /* units/frame in XZ: 46 frames x 60 = 2760 */
 #define AF_PUSS_HALF          44   /* "yellow cubes"                           */
 #define AF_PUSS_LIFE         180   /* backstop: 3 s and it is gone             */
 
@@ -344,7 +383,7 @@ static int af_in_cols(int lo, int hi) {
    where it started, and falls to the floor. The SPIRIT of the constraint — a
    flat, readable, basketball-but-lower arc — is what survives, and it is the
    half that affects play. */
-#define AF_PUSS_RISE_V        10   /* initial upward speed, units/frame        */
+#define AF_PUSS_RISE_V        14   /* initial upward speed, units/frame        */
 #define AF_PUSS_GRAV           1   /* added to the downward speed each frame   */
 
 /* ---- What everything does to the player -----------------------------------
@@ -443,16 +482,15 @@ typedef enum {
 static AfPhase phase;
 static int32_t phase_t;
 
-/* >>> WHERE THE LOOP GOES BACK TO AFTER A FAINT. <<< "Once the faint is over he
-   should return to the loop from where he left off, starting over from
-   whichever phase he was in" — so this is the phase that was running when the
-   boils went down, and it is RESTARTED rather than resumed part-way. */
+/* >>> WHERE THE LOOP GOES BACK TO AFTER A FAINT. <<< The faint now CUTS INTO
+   whatever was running (see af_begin_faint), so the phase it interrupted never
+   finishes — and going back to it would replay an attack the player has already
+   dodged half of. This is therefore the phase AFTER the interrupted one: "once
+   the faint resolves he should return to his loop and move onto the next move
+   in the loop". It is solved with af_next() at the moment of the interrupt
+   rather than at the end of the faint, because by then `phase` is AF_FAINT and
+   the loop position would have been lost. */
 static AfPhase resume_phase;
-
-/* Set when the second boil bursts; consumed at the end of the current phase.
-   "If the boils are burst in the middle of an attack it should play out before
-   Asag faints." */
-static int faint_pending;
 
 static int32_t health;
 static int32_t hit_timer;      /* health-bar flash countdown, the Rabisu's     */
@@ -739,6 +777,7 @@ static void af_boil_at(int which, int32_t *x, int32_t *y, int32_t *z) {
 }
 
 static void af_puss_launch(int which);
+static void af_begin_faint(void);
 
 /* Both of them down. "At the moment that both boils are destroyed Asag will
    play its Faint animation", and "if both boils are destroyed the restore timer
@@ -758,6 +797,16 @@ static void af_boil_burst(int which) {
     asag_arena_set_boil_one(which, 0);      /* "the lights will dim and go off" */
     af_puss_launch(which);
 
+    /* >>> THE POP. <<< A boil is an organ, and the game already owns the wet
+       burst an organ makes when it dies — SFX_TNTCL_DIE, which is the
+       tentacle's death and the Rafflesia's after it (src/rafflesia.c). It is
+       the ONE event the player has to hear over the attack that is probably
+       still playing, so it rides the burst itself rather than the hit: three
+       damage lands in silence and the third one pops. It is in Asag's bank as
+       of this change (src/sound.c); without that tag sound_play() would return
+       silently in the only room it can ever be heard in. */
+    sound_play(SFX_TNTCL_DIE);
+
     if (af_both_burst()) {
         /* BOTH TIMERS RESTART HERE, including the one belonging to the boil
            that has been down for twenty-nine seconds. That is what the brief
@@ -767,7 +816,7 @@ static void af_boil_burst(int which) {
            bought. */
         int i;
         for (i = 0; i < ASAG_BOIL_COUNT; i++) boil[i].restore_t = 0;
-        faint_pending = 1;
+        af_begin_faint();
     }
 }
 
@@ -1208,21 +1257,43 @@ static int af_is_idle(AfPhase p) {
     return p == AF_IDLE_A || p == AF_IDLE_B || p == AF_IDLE_C;
 }
 
-/* The end of a phase. This is the one place the faint can interrupt the loop.
+/* >>> THE SECOND BOIL BURSTING CUTS STRAIGHT INTO WHATEVER HE IS DOING. <<<
+   This used to be a `faint_pending` flag consumed at the END of the running
+   phase, on the reading that an attack should play out first — and it is the
+   one thing about the boils that did not read on screen. Bursting the second
+   boil is the hardest thing in this fight to do and the reward for it arrived
+   anywhere between instantly and four seconds later, depending on which frame
+   of which attack the shot landed on; at the far end of that range the player
+   has stopped connecting the two events at all, which is why it looked like it
+   "doesn't do it every time". So: the faint is an INTERRUPT now. Mid-laser,
+   mid-slam, mid-vomit, mid-idle, it takes over on the frame the boil pops.
 
-   >>> AN ATTACK PLAYS OUT; AN IDLE DOES NOT HAVE TO. <<< The brief says "if the
-   boils are burst in the middle of an ATTACK it should play out before Asag
-   faints", and an idle is not an attack — making the player wait up to four
-   seconds of nothing for the faint they just earned would read as the game
-   ignoring them. So an idle is cut short (see the update), and either way the
-   phase that was running is what the loop RESTARTS on afterwards. */
+   af_enter() is what makes that safe rather than a special case: it restarts
+   the clip, zeroes phase_t and clears every per-attack latch, so the abandoned
+   attack leaves nothing behind. What it does NOT clear is what is already in
+   the air — a boulder still falling, a burning cell, the puss balls this very
+   burst just threw — and that is the same rule the death uses. The commitment
+   was made when the thing launched.
+
+   Called from af_boil_burst(), i.e. from the WEAPON's call into
+   asag_boil_damage() rather than from this file's own update. The guard is
+   therefore not decoration: a shot can only reach a boil during the fight, but
+   this is the one entry point into the phase machine that does not come from
+   asag_fight_update(), and a faint started over a corpse would restart a clip
+   the death sequence is in the middle of posing. */
+static void af_begin_faint(void) {
+    if (phase == AF_OFF || dying_flag || dead_flag) return;
+    /* THE LOOP MOVES ON. See resume_phase's note: the interrupted phase never
+       finished, so the loop picks up after it rather than replaying it. */
+    resume_phase = af_next(phase);
+    af_enter(AF_FAINT);
+}
+
+/* The end of a phase. The faint no longer passes through here on its way IN —
+   it cuts in from af_begin_faint() above — so all this does is walk the loop,
+   with the one exception that the phase after a faint is the one the interrupt
+   already chose. */
 static void af_phase_over(void) {
-    if (faint_pending) {
-        faint_pending = 0;
-        resume_phase  = phase;
-        af_enter(AF_FAINT);
-        return;
-    }
     if (phase == AF_FAINT) { af_enter(resume_phase); return; }
     af_enter(af_next(phase));
 }
@@ -1308,7 +1379,6 @@ void asag_fight_reset(void) {
     phase         = AF_OFF;
     phase_t       = 0;
     resume_phase  = AF_LASER;
-    faint_pending = 0;
     health        = ASAG_MAX_HEALTH;
     hit_timer     = 0;
     dying_flag    = 0;
@@ -1352,7 +1422,6 @@ void asag_fight_stop(void) {
     int i;
     phase   = AF_OFF;
     phase_t = 0;
-    faint_pending = 0;
     las_firing    = 0;
     boulders_armed = 0;
     for (i = 0; i < AF_CELLS; i++)     trail[i] = 0;
@@ -1452,15 +1521,17 @@ void asag_fight_update(void) {
     /* ---- SLAM -------------------------------------------------------------
        The head reaches the floor at t 112 and the four markers light with it. */
     case AF_SLAM:
+        /* THE HEAD COMING DOWN. Fired AF_T_SLAM_SFX_LEAD frames BEFORE the
+           landing so the sample's own impact lands on the animation's — see
+           that constant. == and not >=, which is the laser's and the vomit's
+           cue exactly: phase_t is zeroed by af_enter and steps by one, so this
+           fires once and needs no latch of its own. SFX_RUMBLE still follows a
+           beat later, when the boulders land (af_boulders_update). */
+        if (phase_t == AF_T_SLAM_IMPACT - AF_T_SLAM_SFX_LEAD)
+            sound_play(SFX_SLAM_ASAG);
+
         if (!slam_hit_done && phase_t >= AF_T_SLAM_IMPACT) {
             slam_hit_done = 1;
-
-            /* THE HEAD HITTING THE GROUND. This latch already fires on exactly
-               the impact frame — AF_T_SLAM_IMPACT was measured off the .pva as
-               the tick the head reaches the floor — so the cue rides it rather
-               than carrying a second copy of the number. SFX_RUMBLE follows a
-               beat later, when the boulders land (af_boulders_update). */
-            sound_play(SFX_SLAM_ASAG);
 
             /* "Caught under the slamming head" — measured to where the head
                ACTUALLY IS on the impact frame, not to a constant. asag.c owns
@@ -1532,10 +1603,11 @@ void asag_fight_update(void) {
         break;
 
     /* ---- THE IDLES --------------------------------------------------------
-       Four seconds of nothing, cut short by a pending faint — see
-       af_phase_over() for why an attack is not. */
+       Two seconds of nothing. Nothing cuts them short any more: the faint that
+       used to is now an interrupt and has already taken the phase over by the
+       time this runs. See af_begin_faint(). */
     default:
-        if (faint_pending || phase_t >= AF_T_IDLE) af_phase_over();
+        if (phase_t >= AF_T_IDLE) af_phase_over();
         break;
     }
 }

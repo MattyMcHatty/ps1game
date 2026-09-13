@@ -41,10 +41,12 @@
    src/asag_boss.c's phases ABE_DROP through ABE_HANDOVER, and the fight was
    built without touching one line of it.
 
-   (TWO BEATS HAVE GONE SINCE THE FIRST VERSION, both described in the .c: the
+   (THREE BEATS HAVE GONE SINCE THE FIRST VERSION, all described in the .c: the
    drop used to look straight DOWN at the mud, which cost a 1.2 s pan-up beat to
-   get off again and put the boss on screen four seconds after the cut; and
-   ABE_BOILS used to be a static pause.)
+   get off again and put the boss on screen four seconds after the cut; ABE_BOILS
+   used to be a static pause; and then ABE_BOILS itself went, folded into the pan
+   so that he comes out of the wall WHILE the camera is still travelling and
+   speaks on the frame it stops.)
 
    >>> EVERY CAMERA POSITION IN IT IS AN OFFSET FROM THE LANDING, CAPTURED ON
    THE ARM. <<< The scene ends on the same numbers it started from, which is how

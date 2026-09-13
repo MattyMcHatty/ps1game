@@ -177,7 +177,7 @@ Run this, with your clip added to the right list:
     garden=['tntcl_wrth_2','tntcl_die','spdr_wlk','gate','gas','pullin','hiss',
             'rumble','grind','hadad_die','spirit_woosh','mchne_gh','water']
     intro=['ninurta']
-    asag=['dmnspeak','explode','rumble','vomit','slam_asag','laser']
+    asag=['tntcl_die','dmnspeak','explode','rumble','vomit','slam_asag','laser']
     p=4112
     for f in res: p+=a(f+'.vag')
     banks=[('house',house),('boss',boss),('garden',garden),
@@ -198,15 +198,17 @@ The lists must be kept in the SAME ORDER as the enum in sound.h, because
 sound_init() allocates in enum order. As of ASAG'S FIGHT SOUNDS:
 
     bank_base 0x46150   region 237232
-    house 162560   boss 190336   garden 177216   intro 22080   asag 158400
+    house 162560   boss 190336   garden 177216   intro 22080   asag 170240
     spare 46896
 
   (asag was 54,016 after ASAG'S OPENING SCENE, then 87,872 once ASAG'S DEATH
    SEQUENCE added SFX_EXPLODE, and is now 158,400: his three ATTACK cues -
    vomit 13,952, slam_asag 15,168 and laser 28,032 - plus a third copy of
-   rumble, 13,376, for the boulders landing after the slam. `spare` did not move
-   at any of the three steps, for the reason immediately below. BOSS at 190,336
-   is still the largest bank and asag has about 32 KB before it takes over.)
+   rumble, 13,376, for the boulders landing after the slam, and is 170,240 now
+   that the BOILS took a third copy of tntcl_die, 11,840, for their bursting.
+   `spare` did not move at any of those steps, for the reason immediately below.
+   BOSS at 190,336 is still the largest bank and asag has about 20 KB before it
+   takes over.)
 
   >>> AND THE ATTACK CUES HAD NOWHERE ELSE TO GO, WHICH IS THE POINT WORTH
   TAKING FROM THIS ONE. <<< They play in the middle of a fight, a bank swap is a

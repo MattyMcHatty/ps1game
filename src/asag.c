@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <psxgpu.h>
 #include <psxgte.h>
 #include <psxcd.h>
@@ -228,23 +229,77 @@ static int model_loaded = 0;
    nothing, since the whole point is to fail before touching the stack at all. */
 #define ASAG_STACK_MARGIN 8192
 
+/* ---- ...AND THE BUFFER IS THE FILE'S SIZE, NOT THE SECTORS' -----------------
+   >>> THIS IS WHERE THE FAINT WENT, THE SECOND TIME. <<< A CD read moves whole
+   2048-byte sectors, so the obvious buffer is `sectors * 2048` — and the six
+   files this module reads waste 6,308 bytes in that rounding, all of it at the
+   top of the heap where the ceiling is. Measured on a headless run, the faint
+   was the last read and it missed by 936 BYTES:
+
+       ASGHVOM.PVA  buf=801d0190 top=801d5190           ok
+       ASGHFNT.PVA  buf=801d5240 top=801da240  sp=801dbd50  REFUSED
+
+   so it fell back to the bind pose, reported no frames, and the fight's faint
+   became one second of a motionless boss — the watchdog in asag_fight.c firing
+   on a clip that was never there. Exactly the failure PVA2 was introduced to
+   fix (see the note below), re-opened by 16 KB of new code moving _end up under
+   a heap that had no margin left.
+
+   THE TAIL IS WHAT MAKES AN EXACT BUFFER POSSIBLE. Every sector but the last
+   lands entirely inside the file, so it is DMA'd straight into the buffer. The
+   last one is read into a single-sector scratch and the used part of it copied
+   in, which is the whole trick: the buffer never has to be bigger than what the
+   file says. `tail_scratch` is taken once per load and shared by all six reads
+   (asags_load_model owns it), so it is one 2048-byte transient that lands in
+   the fragmented low heap rather than six roundings that land at the ceiling.
+
+   THE TAIL READ IS SEEKED EXPLICITLY, not left to the drive's own advance.
+   Consecutive CdReads do continue where the last one stopped, but a read that
+   depends on that is a read that breaks the day something else touches the
+   drive between them. CdPosToInt/CdIntToPos cost nothing and say what is meant.
+
+   The allocation is rounded up to a WORD because CdRead's destination is a
+   uint32_t* and the copy below writes bytes; malloc's own alignment is bigger
+   than that anyway, so this only ever pads by up to three bytes. */
+static uint8_t *tail_scratch;    /* one sector, owned by asags_load_model() */
+
 static void *read_file(const char *name) {
     CdlFILE file;
     if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
+    int size  = (int)file.size;
+    if (size <= 0) return NULL;
+    int whole = size / 2048;           /* sectors landing entirely inside     */
+    int tail  = size - whole * 2048;   /* 0..2047 bytes of one more           */
+    int alloc = (size + 3) & ~3;
+
+    /* A tail with no scratch to land in would have to overrun the buffer, so
+       the read is refused instead — same silent-but-safe contract as the guard
+       below, and asags_load_model() takes the scratch first for that reason. */
+    if (tail > 0 && !tail_scratch) return NULL;
+
+    void *buf = malloc(alloc);
     if (!buf) return NULL;
 
     uint32_t sp;
     __asm__ volatile("move %0, $sp" : "=r"(sp));
-    if ((uint32_t)buf + (uint32_t)(sectors * 2048) + ASAG_STACK_MARGIN > sp) {
+    if ((uint32_t)buf + (uint32_t)alloc + ASAG_STACK_MARGIN > sp) {
         free(buf);
         return NULL;          /* out of heap: this mesh/clip simply will not exist */
     }
 
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
+    if (whole > 0) {
+        CdControl(CdlSetloc, &file.pos, NULL);
+        CdRead(whole, (uint32_t *)buf, CdlModeSpeed);
+        CdReadSync(0, NULL);
+    }
+    if (tail > 0) {
+        CdlLOC pos;
+        CdIntToPos(CdPosToInt(&file.pos) + whole, &pos);
+        CdControl(CdlSetloc, &pos, NULL);
+        CdRead(1, (uint32_t *)tail_scratch, CdlModeSpeed);
+        CdReadSync(0, NULL);
+        memcpy((uint8_t *)buf + whole * 2048, tail_scratch, tail);
+    }
     return buf;
 }
 
@@ -328,8 +383,15 @@ void asags_load_model(void) {
        exist for is a debug level-select jump that arrives with a track running.
        Seven reads under ONE bracket, not seven brackets. */
     cdaudio_suspend();
+    /* THE TAIL SCRATCH FIRST AND FREED LAST. One sector, shared by all six
+       reads below; see read_file(). It is asked for before anything else so it
+       lands in the low heap rather than on top of the clips, and a load that
+       cannot get even this falls back to sector-rounded refusals rather than
+       overrunning anything — read_file() checks. */
+    tail_scratch = (uint8_t *)malloc(2048);
     load_mesh();
     for (int c = 0; c < ASAG_CLIP_COUNT; c++) load_clip(c);
+    if (tail_scratch) { free(tail_scratch); tail_scratch = NULL; }
     cdaudio_resume();
 
     model_loaded = 1;

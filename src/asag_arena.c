@@ -404,10 +404,23 @@ void asag_arena_init(void) {
    which is the one way they are cheaper than the Rabisu's lawn lights, and it
    is only available because the art already put them in the wall.
 
-   THE RED IS IN THE GAIN, NOT ONLY IN THE TEXTURE. The art is reddish already;
-   pushing all three channels equally would just make it a brighter grey-red. R
-   goes to ASAG_BOIL_R_GAIN and G/B to ASAG_BOIL_GB_GAIN, so the hue moves
-   toward the red as it lights rather than washing out of it.
+   >>> THE GLOW IS A PALE GREEN NOW, AND IT IS THE COLOUR THAT MAKES IT READ AS
+   A GLOW AT ALL. <<< It used to push R to 255 and G/B to 168, which lit the
+   boils toward the red the ART ALREADY IS — so the brightest thing the pulse
+   could do was make a red lump slightly redder, and it read as texture rather
+   than as light. A glow has to be a colour the surface underneath it is not.
+   Green is, it is the one hue in this arena's palette that nothing else uses,
+   and pale green rather than a saturated one because a light source is
+   something close to white with a cast in it: G is taken to the full 255 and R
+   and B come up with it to ASAG_BOIL_RB_GAIN, well past the neutral 128 but
+   short of G, which is what keeps a pale green from becoming white. So the lump
+   goes brighter and washes GREEN instead of sinking back into the red.
+
+   BOTH HALVES OF "BRIGHTER" ARE HERE. The gains are the PEAK; ASAG_BOIL_PULSE_LO
+   is the trough the breath falls back to, and it came up with them. The old 192
+   was three-quarters of a dimmer light; three-quarters of a brighter one is a
+   bigger absolute swing, so the breath would have gone from a pulse to a blink
+   at exactly the moment the thing became easier to see.
 
    AND IT IS APPLIED AFTER THE FOG, not before. The fog lerps toward the clear
    colour by distance; a boost applied first would be fogged back down again,
@@ -432,10 +445,10 @@ void asag_arena_init(void) {
    THE TROUGH IS NOT ZERO. A pulse to black reads as a fault; ASAG_BOIL_PULSE_LO
    keeps them lit at three-quarters, so what breathes is the intensity and not
    the existence. */
-#define ASAG_BOIL_R_GAIN      255   /* fully lit: 128 is neutral, 255 is x2    */
-#define ASAG_BOIL_GB_GAIN     168   /* G/B rise less, so the hue goes redder   */
+#define ASAG_BOIL_G_GAIN      255   /* fully lit: 128 is neutral, 255 is x2    */
+#define ASAG_BOIL_RB_GAIN     200   /* R/B come up too, so the green is PALE   */
 #define ASAG_BOIL_PULSE_TICKS 210   /* 3.5 s a breath                          */
-#define ASAG_BOIL_PULSE_LO    192   /* trough, in 256ths of `level`            */
+#define ASAG_BOIL_PULSE_LO    212   /* trough, in 256ths of `level`            */
 
 /* boil_level and boil_clock are declared at the head of the file; see there. */
 
@@ -667,9 +680,9 @@ static void draw_asag_arena_smd(RenderContext *ctx) {
                above is the early-out for the 514 faces that are neither. */
             int32_t boil = boil_of[asag_arena_boil[i] - 1];
             if (boil) {
-                r = (uint8_t)(r + ((ASAG_BOIL_R_GAIN  - r) * boil) / 256);
-                g = (uint8_t)(g + ((ASAG_BOIL_GB_GAIN - g) * boil) / 256);
-                b = (uint8_t)(b + ((ASAG_BOIL_GB_GAIN - b) * boil) / 256);
+                r = (uint8_t)(r + ((ASAG_BOIL_RB_GAIN - r) * boil) / 256);
+                g = (uint8_t)(g + ((ASAG_BOIL_G_GAIN  - g) * boil) / 256);
+                b = (uint8_t)(b + ((ASAG_BOIL_RB_GAIN - b) * boil) / 256);
             }
         }
 

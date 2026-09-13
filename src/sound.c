@@ -118,7 +118,15 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        and the tentacle's death cry for its own (rafflesia.c). One copy per
        bank — 15.4 KB and 23.1 KB again in the garden's roomy 101 KB spare. */
     [SFX_TNTCL_WRTH] = SND_BANK_HOUSE | SND_BANK_GARDEN,
-    [SFX_TNTCL_DIE]  = SND_BANK_HOUSE | SND_BANK_GARDEN,
+    /* ...and the DEATH CRY is in ASAG'S bank as well, for the same reason the
+       Rafflesia borrows it: a boil bursting is an organ dying, and this is the
+       wet pop the game already uses for one. SND_BANK_ASAG is the only bank
+       that arena ever loads, so without the third tag sound_play() would return
+       silently in the one room the fight happens in — the trap sound.h's bank
+       note opens with. It is 11,840 bytes and takes asag to 170,240, still
+       20 KB under BOSS, which is the bank that sizes `spare`; `spare` does not
+       move. (tools/ADDING_A_SOUND.txt STEP 3, re-run with this added.) */
+    [SFX_TNTCL_DIE]  = SND_BANK_HOUSE | SND_BANK_GARDEN | SND_BANK_ASAG,
     [SFX_STEP1]      = SND_RESIDENT,   /* the player walks in every room        */
     [SFX_STEP2]      = SND_RESIDENT,
     [SFX_SLAM]       = SND_RESIDENT,   /* the boss launching a shockwave        */
