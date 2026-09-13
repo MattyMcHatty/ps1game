@@ -177,7 +177,7 @@ Run this, with your clip added to the right list:
     garden=['tntcl_wrth_2','tntcl_die','spdr_wlk','gate','gas','pullin','hiss',
             'rumble','grind','hadad_die','spirit_woosh','mchne_gh','water']
     intro=['ninurta']
-    asag=['dmnspeak']
+    asag=['dmnspeak','explode']
     p=4112
     for f in res: p+=a(f+'.vag')
     banks=[('house',house),('boss',boss),('garden',garden),
@@ -198,8 +198,11 @@ The lists must be kept in the SAME ORDER as the enum in sound.h, because
 sound_init() allocates in enum order. As of ASAG'S OPENING SCENE:
 
     bank_base 0x46150   region 237232
-    house 162560   boss 190336   garden 177216   intro 22080   asag 54016
+    house 162560   boss 190336   garden 177216   intro 22080   asag 87872
     spare 46896
+
+  (asag was 54,016 until ASAG'S DEATH SEQUENCE added SFX_EXPLODE to that bank.
+   `spare` did not move then either, for the reason immediately below.)
 
 >>> NOTE WHAT DID *NOT* MOVE. <<< Asag's bank went from 0 to 54,016 — the whole
 of SFX_DMNSPEAK, which is now BOSS|ASAG because both bosses open with it — and

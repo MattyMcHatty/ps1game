@@ -58,10 +58,20 @@ static const uint8_t asag_arena_nocull[522] = {
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,
 };
-/* 1 = one of Asag's eight boil faces: the raised z=2734 front
-   plates of the two lumps either side of him, which the encounter
-   lights up. DETECTED off that plane, not listed - see the BOIL_Z
-   note in gen_asag_arena_tex_map.py for why indices would rot. */
+/* WHICH of Asag's two boils a face belongs to, or 0 for anything
+   that is not one: 1 = the LEFT cluster (centred x=-700), 2 = the
+   RIGHT (x=+900). Four faces each, the raised z=2734 front plates
+   of the two lumps either side of him.
+
+   >>> IT IS A SIDE AND NOT A FLAG BECAUSE THE FIGHT BURSTS THEM
+   SEPARATELY. <<< The opening scene lights all eight as one and
+   would be happy with a 1; src/asag_fight.c gives each lump its
+   own 3 HP and its own 30 s restore, and asag_arena.c therefore
+   needs to know which level to apply to which face.
+
+   DETECTED off that plane and off the sign of x, not listed - see
+   the BOIL_Z note in gen_asag_arena_tex_map.py for why indices
+   would rot on the next re-export. */
 static const uint8_t asag_arena_boil[522] = {
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -76,7 +86,7 @@ static const uint8_t asag_arena_boil[522] = {
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,1,1,1,1,2,2,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
     0,0,0,0,0,0,0,0,0,0,

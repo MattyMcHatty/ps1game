@@ -74,6 +74,52 @@ void spawn_wood_burst(int32_t x, int32_t y, int32_t z) {
     particle_count = MAX_PARTICLES;
 }
 
+/* ---- A BOULDER SMASHING ON THE FLOOR (Asag's slam) -------------------------
+   spawn_wood_burst's twin, and deliberately so: the brief for it was "similar
+   to when we smash our Crate asset but coloured to suit the boulders", so it
+   keeps that one's throw, its gravity and its lifetime and changes only what
+   the chips look like.
+
+   TWO THINGS DIFFER FROM THE WOOD, AND ONLY TWO.
+
+   THE COLOUR, which is the point: a dusty grey-brown a shade lighter than the
+   boulder itself (96,62,38 in src/asag_fight.c), because a chip flying off a
+   rock shows the unweathered stone inside it and a chip the same colour as the
+   rock reads as a hole rather than as debris.
+
+   THE SHAPE. The wood's chips are 16-30 px wide by 4-9 tall, which is a PLANK,
+   and a plank is exactly right for a smashed crate. Rock does not break into
+   planks. These are 7-16 px square-ish, which is a CHUNK - the same particle
+   system, the same motion, a different fracture. That is a deviation from
+   "similar but recoloured" and it is the only one; it is here rather than in
+   the caller because the shape belongs to the material.
+
+   >>> THE POOL IS ONE-SHOT AND IS OVERWRITTEN WHOLESALE. <<< Like every other
+   burst here, this fills all MAX_PARTICLES and resets particle_count, so two
+   smashes on the SAME FRAME show as one. Asag's two boulders are deliberately
+   staggered by a few frames for that reason - see AF_T_BLD_STAGGER in
+   src/asag_fight.c. */
+void spawn_rock_burst(int32_t x, int32_t y, int32_t z) {
+    int i;
+    for (i = 0; i < MAX_PARTICLES; i++) {
+        Particle *p = &particles[i];
+        p->x        = x;
+        p->y        = y;
+        p->z        = z;
+        p->vx       = rng_range(40);
+        p->vy       = -(int32_t)(rng_next() % 18) - 8;
+        p->vz       = rng_range(40);
+        p->life     = 35 + (int32_t)(rng_next() % 30);
+        p->max_life = p->life;
+        p->sw       = 7 + (uint8_t)(rng_next() % 10);   /* 7-16 px chunk */
+        p->sh       = 7 + (uint8_t)(rng_next() % 10);
+        p->r0       = 138;
+        p->g0       = 112;
+        p->b0       =  86;
+    }
+    particle_count = MAX_PARTICLES;
+}
+
 void update_particles(void) {
     int i;
     for (i = 0; i < particle_count; i++) {

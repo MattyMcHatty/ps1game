@@ -131,7 +131,28 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        for — 47 KB of permanent SPU RAM, charged twice over (see sound.h). */
     [SFX_FIREBALL]   = SND_BANK_BOSS,
     [SFX_BOOM]       = SND_BANK_BOSS,
-    [SFX_EXPLODE]    = SND_BANK_BOSS,
+    /* >>> BOTH BOSSES BLOW UP, SO EXPLODE IS IN BOTH BANKS. <<< Asag's death
+       is the Rabisu's death — red glow, shaking, light pouring out of the body,
+       and this clip under all of it — and SND_BANK_ASAG is the ONLY bank loaded
+       in that arena, so a BOSS-only tag would have played the whole sequence in
+       silence. That is the failure mode at the head of this table: sound_play()
+       on an evicted clip returns without a sound and without a complaint.
+
+       IT IS FREE, and the STEP 3 arithmetic is re-run and recorded in
+       tools/ADDING_A_SOUND.txt: asag goes 54,016 -> 87,872 and BOSS at 190,336
+       still sets `spare` at 46,896, because `spare` is the region less the
+       LARGEST bank. Asag's bank has about 100 KB of headroom before it becomes
+       that bank and starts costing something.
+
+       AND IT DOES NOT MOVE THE ARENA'S HEAP PEAK EITHER, which is the
+       constraint that actually binds down there. sound_bank_select's read grows
+       from a 55,296-byte malloc to an 88,064-byte one, and it is FREED before
+       main.c loads the boss model - main.c sequences the frees before the bank
+       swap and the loads after it, deliberately - so the door's peak is still
+       the 100,352-byte model read and not the sum. See PART 6 of
+       tools/ADDING_THE_ASAG_FIGHT.txt, which is where that sequencing is
+       defended and where it cost a crash to find. */
+    [SFX_EXPLODE]    = SND_BANK_BOSS | SND_BANK_ASAG,
     [SFX_EMERGE]     = SND_BANK_BOSS,
     /* THE DEMON SPEAKS IN BOTH BOSS ROOMS, so it is in both banks — the same
        two-copies answer SFX_GATE and SFX_RUMBLE below already take. Asag's

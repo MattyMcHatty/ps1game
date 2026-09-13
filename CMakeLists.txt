@@ -96,6 +96,7 @@ add_executable(horror_game
     src/asag_arena.c
     src/asag.c
     src/asag_boss.c
+    src/asag_fight.c
     src/hatch_doors.c
     src/hatch_puzzle.c
     src/rear_gate_mesh_collision.c
@@ -241,6 +242,19 @@ set_source_files_properties(
     # src/asag_boss.c is NOT here either, and it is the one that looks like it
     # should be: it is a handful of integers per frame, but it runs EVERY frame
     # the player is in the arena, which is what this list is about and not size.
+    # src/asag_fight.c is out for the same reason and more so: it runs every
+    # frame of the fight AND its draws are per-primitive loops over a 225-cell
+    # grid, a projectile pool and a particle pool.
+    #
+    # >>> AND IT WAS MEASURED RATHER THAN ASSUMED, BECAUSE IT IS THE BIGGEST
+    # SINGLE FILE ADDED TO THIS GAME IN A WHILE. <<< The fight cost 16,116 bytes
+    # of heap, nearly all of it CODE - af_cube() and af_glow_point() are inline
+    # GTE macros and those expand. Building it -Os gives 1,232 of that back,
+    # which is 7.6% of the file for a file that runs 60 times a second in the one
+    # room whose door is the tightest in the game. Not taken: the margin it buys
+    # is noise next to the 100,352-byte model read, and this list is about COLD
+    # code. If the arena's door ever starts dropping the faint clip, the answer
+    # is tools/ADDING_THE_ASAG_FIGHT.txt PART 6 and not this line.
     src/asag_arena_mesh_collision.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )

@@ -4,13 +4,28 @@
 #include "render.h"
 
 /* =========================================================================
-   ASAG'S DIRECTOR — THE OPENING SCENE IS REAL; THE FIGHT IS NOT.
+   ASAG'S DIRECTOR — THE OPENING SCENE, THE HANDOVER, AND THE DEATH.
    =========================================================================
-   This file used to say it was a placeholder meant to be thrown away. Half of
-   it still is, and the halves are worth stating separately because they want
-   different things from the next person:
+   >>> THE PLACEHOLDER IS GONE. <<< For three passes this header said half the
+   file was a demo meant to be thrown away, and ABE_FIGHT cycled the four attack
+   clips end to end so the animation could be looked at. The fight exists now
+   (src/asag_fight.c) and this file is a whole encounter: an opening, a handover,
+   free play it does not interfere with, and a death sequence.
 
-   WHAT IS FINISHED is the encounter's OPENING, exactly as briefed. The camera
+   THE THREE FILES, because the split is the thing to understand first:
+       src/asag.c        the mesh, the clips, the position track, the collider
+                         and the geometry accessors. Decides nothing.
+       src/asag_fight.c  the combat AI: 20 HP, the exposure windows, the two
+                         boils, the attack loop and every attack's damage.
+       src/asag_boss.c   THIS. The camera, the subtitles, the music cue and the
+                         two scripted bookends. Owns the camera and nothing else.
+
+   The traffic between this file and the fight is three calls: asag_fight_begin()
+   on the last frame of the handover, asag_fight_dying() watched during
+   ABE_FIGHT, and asag_fight_stop() + asag_fight_set_dead() inside the death.
+   It reaches past none of them.
+
+   WHAT THE OPENING IS, exactly as briefed. The camera
    arrives in the AIR above the landing looking straight down, falls to it,
    bounces twice with the hurt sound on the landing, and pans up onto Asag —
    who has been SITTING two seconds into his faint throughout, held there. The
@@ -21,7 +36,7 @@
    lines of subtitle play over them; and then the camera returns to the landing,
    levels off, and the player has it back standing exactly where the shaft
    dropped them. All of that is src/asag_boss.c's phases ABE_DROP through
-   ABE_HANDOVER and should survive the work below untouched.
+   ABE_HANDOVER, and the fight was built without touching one line of it.
 
    >>> EVERY CAMERA POSITION IN IT IS AN OFFSET FROM THE LANDING, CAPTURED ON
    THE ARM. <<< The scene ends on the same numbers it started from, which is how
@@ -31,33 +46,35 @@
    each offset, including why the vantage's downward look is only four degrees
    (the arena's roofline is at y=-1000 and forbids more).
 
-   WHAT IS STILL A PLACEHOLDER is everything after the handover. ABE_FIGHT runs
-   the old demo — the four attack clips and the idle, end to end on a loop —
-   which decides nothing and can hurt nobody. There is no health, no attack, no
-   damage, no death sequence and no seal.
+   WHAT THE DEATH IS: the camera is taken back where the player is STANDING (not
+   where they landed — they killed him from wherever they killed him from), it
+   drifts to the vantage the opening already solved, he plays an idle while a
+   position ramp carries him Home, he freezes, he vibrates, he burns away, and
+   the camera comes back. That is the Rabisu's RBE_D_* sequence with the three
+   differences the timing block in the .c sets out, all of which come from Asag
+   having no position and no facing of his own.
 
-   WHAT THE REST NEEDS, in the order the runbook puts it:
-     tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 6   the movement and the attacks
-                                      STEP 11   `dying` vs `dead`, two flags
-                                      STEP 9    the seal — AND IT NEEDS A DOOR
-                                                FIRST. The arena has no exit at
-                                                all (src/asag_arena.h says so in
-                                                as many words), so the seal
-                                                predicate has nothing to gate
-                                                and this header does not declare
-                                                one. It belongs in
-                                                asag_arena_exit_sealed() when it
-                                                comes, so the trigger and the
-                                                floating prompt cannot disagree.
+   >>> WHAT IS STILL MISSING IS THE WAY OUT OF THE ROOM, AND IT IS NOW THE ONLY
+   THING. <<< The arena has no exit at all — src/asag_arena.h says so in as many
+   words — and it mattered less while the fight could not be won. It is the
+   whole of what is left:
+     tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9   the seal. It needs a DOOR first.
+                                                The predicate belongs in
+                                                asag_arena_exit_sealed(), so the
+                                                trigger and the floating prompt
+                                                cannot disagree; this file would
+                                                supply `state != ABE_IDLE &&
+                                                state != ABE_DONE` and call the
+                                                re-arm on the frame it lifts.
      src/rabisu_boss.c                          the reference encounter, and the
                                                 one this file is shaped after
 
    THE INTERFACE THE BODY OFFERS is the whole of src/asag.h. This module uses
-   asag_play(), asag_play_at(), asag_stop(), asag_clip_done(),
-   asag_clip_loaded(), asag_set_visible(), asag_set_frozen() and
-   asag_face_point() — the last three added for this scene — plus
+   asag_play(), asag_play_at(), asag_clip_done(), asag_clip_loaded(),
+   asag_set_visible(), asag_set_frozen(), asag_face_point() and — added for the
+   death — asag_set_shake(), asag_set_fade() and asag_ramp_home(). Plus
    asag_arena_set_boil_glow(). It reaches past none of them into the body's
-   internals, which is the shape the fight should keep.
+   internals, and the fight keeps the same shape.
 
    NOTE asag_face_point() AND NOT asag_body_centre(). Asag is 1669 units long
    and lies along the view axis, so his centre is his flank and sits some 800
@@ -73,7 +90,10 @@
    land after the room's init. See the .c. */
 void asag_boss_reset(void);
 
-/* One game frame. Runs the scene, or the placeholder fight once it is over.
+/* One game frame of the SCRIPT: the opening, then nothing at all while the
+   fight runs, then the death. It does not drive the fight — src/asag_fight.c
+   has its own update and main.c calls it separately.
+
    Call from BOTH of main.c's branches for this room — the cutscene early-return
    at the top of update_current_area() and the free-play branch — and in both
    call it BEFORE asag_update(). That order is worth exactly one frame:
@@ -83,8 +103,11 @@ void asag_boss_reset(void);
    model loaded. */
 void asag_boss_update(void);
 
-/* 1 while the script owns the camera — i.e. from the arrival until control is
-   handed back. FALSE during the fight, which is free play.
+/* 1 while the script owns the camera — the opening AND the death sequence.
+   FALSE during the fight, which is free play, and FALSE once the death is over,
+   which is the rest of the session. Both exclusions matter: leaving either
+   inside would suppress the player's camera, menu and HUD while they still had
+   control.
 
    main.c needs this in three places, all of them listed in
    tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9: the early-return branch at the top
@@ -93,6 +116,13 @@ void asag_boss_update(void);
    during the opening, so a health bar over it is a frame of UI insisting on a
    fight that is not on yet. */
 int  asag_boss_cutscene(void);
+
+/* The death's lights: additive world-space glows hung ALONG the body while it
+   comes apart, ramping on over the burn and riding the body's own fade out so
+   they never outlive the thing they are pouring out of. Call from
+   asag_arena_draw() with the PLAIN view matrix loaded, after the fight's own
+   draws and BEFORE the subtitles. A no-op outside the two burning phases. */
+void asag_boss_draw(RenderContext *ctx);
 
 /* The subtitles, in screen space. Call LAST from asag_arena_draw(), after the
    world: it sorts into the menu-reserved OT range so the lines sit on top of

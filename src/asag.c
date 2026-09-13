@@ -106,6 +106,47 @@ static int8_t  clip_held;     /* 1 = one-shot sitting on its last frame */
 static int8_t  clip_frozen;   /* 1 = asag_update() does nothing; see the header */
 static int8_t  body_vis;
 
+/* ---- THE TWO FIELDS THE DEATH SEQUENCE WRITES -----------------------------
+   tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 5 lists four; this body needs only
+   these two on top of `frozen`. There is no clip_y because nothing about Asag
+   rises through a floor - he comes out of a wall, and the wall's own polygons
+   occlude him correctly already.
+
+   >>> shake IS APPLIED TO THE DRAW'S VERTICES, NOT TO A POSITION. <<< The
+   runbook's rule is "the draw's translation only, never to the entity's x/z",
+   for the reason that a jittered entity jitters its collision box and its
+   health bar with it. This body has no x/z to jitter at all - the vertices are
+   baked in world space - so the same rule lands as "offset the posed vertices
+   as they are loaded into the GTE, and leave pos_dz alone". asag_collide(),
+   asag_body_centre() and asag_head_box() all read the UNSHAKEN pose, which is
+   what keeps the camera from vibrating along with him.
+
+   fade is 256 solid / 0 gone, and at anything under 256 the body switches to
+   the ADDITIVE blend the runbook's TRICK 1 describes: a flat colour scaled
+   toward black, which genuinely disappears over any background. A textured
+   poly cannot fade, so the burn drops the texture and draws the silhouette in
+   one colour - the same move src/rabisu.c makes for the same reason, and why
+   RBS_BODY_R/G/B still exists over there. */
+static int16_t body_shake;
+static int16_t body_fade = 256;
+
+/* >>> THE DAMAGE FLASH, AND IT IS THE RABISU'S EXACTLY. <<< 1 = tint the whole
+   model red this frame. src/rabisu.c does the same thing with the same
+   reasoning: a one-colour model has no sprite to flash, so the silhouette
+   itself is the only thing that can carry "that hit". It is a MODULATION, not a
+   replacement - R goes to full and G and B are cut to a quarter of whatever the
+   fog left, so the texture is still there underneath and he reads as lit from
+   inside rather than as a red cut-out.
+
+   WHO SETS IT: src/asag_fight.c, every frame, from (hit_timer > 0 || dying). It
+   is a plain field and not a timer here because the fight already owns that
+   timer for the health bar, and two countdowns for one flash is one too many.
+   Held for the WHOLE death rather than the two seconds the killing blow buys -
+   the Rabisu's note on that is worth reading, and the short version is that
+   dropping back to normal colour halfway through a death and re-igniting with
+   the burn looks like a bug. */
+static int8_t  body_hit;
+
 /* The position track's own clock and output. clip_ticks runs in GAME frames
    (60/s), NOT animation frames, because the brief's ramps are in seconds and
    because sliding the body at 60 Hz under a pose that steps at 8 reads as a
@@ -114,6 +155,27 @@ static int8_t  body_vis;
    idle inherit a position. */
 static int32_t clip_ticks;
 static int32_t pos_dz;
+
+/* ---- THE DEATH'S RAMP HOME, which OVERRIDES the clip's own position track --
+   >>> IT EXISTS BECAUSE THE IDLE INHERITS AND THE DEATH CANNOT WAIT. <<<
+   clip_move[]'s idle row is {-1,-1}, i.e. "hold whatever offset is in effect",
+   which is right for an idle between attacks (they all end their back-ramp at
+   Home anyway) and wrong for a death: health can hit 0 in the middle of a slam,
+   with the body 969 units out over the arena, and the brief has him "return to
+   his starting Idle position and then freeze". Playing an idle there would
+   freeze him mid-lunge.
+
+   The alternatives were worse. Waiting for the killing clip to run its own
+   back-ramp costs up to six seconds of a boss with no health standing over the
+   player; re-baking the idle to travel would make it travel exactly once, from
+   exactly one place.
+
+   So this is a second, independent ramp the DIRECTOR asks for, it takes
+   priority over update_pos() while it runs, and any asag_play() cancels it —
+   a director that starts a clip has said where it wants the body. */
+static int32_t home_ramp;     /* frames left, 0 = not ramping */
+static int32_t home_total;
+static int32_t home_from;
 
 static int model_loaded = 0;
 
@@ -338,6 +400,7 @@ void asag_play(AsagClip clip, int loop) {
    a clip that never reports done. */
 void asag_play_at(AsagClip clip, int loop, int32_t start_ticks) {
     if (clip < 0 || clip >= ASAG_CLIP_COUNT) return;
+    home_ramp = 0;      /* a director starting a clip has said where the body goes */
     cur_clip   = (int8_t)clip;
     clip_loop  = loop ? 1 : 0;
     clip_held  = 0;
@@ -401,6 +464,22 @@ void asag_set_frozen(int frozen) { clip_frozen = frozen ? 1 : 0; }
 
 int asag_frozen(void) { return clip_frozen; }
 
+void asag_set_hit_glow(int on) { body_hit = on ? 1 : 0; }
+
+void asag_set_shake(int32_t units) {
+    if (units < 0) units = 0;
+    if (units > 64) units = 64;      /* past this it stops reading as a body */
+    body_shake = (int16_t)units;
+}
+
+void asag_set_fade(int32_t fade) {
+    if (fade < 0)   fade = 0;
+    if (fade > 256) fade = 256;
+    body_fade = (int16_t)fade;
+}
+
+int32_t asag_fade(void) { return body_fade; }
+
 /* >>> AN ACCUMULATOR, NOT A TICK COUNTDOWN, AND THE HEADER SAYS WHY. <<< The
    clips play at 8 fps and 60/8 is 7.5, so there is no whole number of game
    frames per animation frame. Adding ASAG_ANIM_FPS per game frame and stepping
@@ -455,9 +534,42 @@ void asag_update(void) {
     {
         int32_t total = clip_total_ticks(c);
         if (clip_ticks < total) clip_ticks++;
-        update_pos(c);
+        /* THE DEATH'S RAMP WINS while it runs — see home_ramp above. The clip's
+           own clock still advances underneath it so that releasing the ramp
+           (which nothing does today) would not leave the body stranded. */
+        if (home_ramp > 0) {
+            home_ramp--;
+            pos_dz = home_total > 0 ? (home_from * home_ramp) / home_total : 0;
+        } else {
+            update_pos(c);
+        }
     }
 }
+
+/* Slide the body back to Home over `ticks`, whatever the playing clip's own
+   position track would have done. See home_ramp above for why this exists.
+   A `ticks` of 0 or less puts it Home this instant. */
+void asag_ramp_home(int32_t ticks) {
+    home_from  = pos_dz;
+    home_total = ticks;
+    home_ramp  = ticks;
+    if (ticks <= 0) { pos_dz = 0; home_ramp = 0; home_total = 0; }
+}
+
+/* How long a clip runs, in GAME FRAMES. Exposed so a director can say "0.5 s
+   before this animation ends" without restating a number that is really
+   (frames * 60 / ASAG_ANIM_FPS) and would go silently stale the next time the
+   clips are re-baked at a different step. 0 for a clip that is not loaded,
+   which is also the honest answer — an absent clip takes no time at all. */
+int32_t asag_clip_ticks(AsagClip clip) {
+    if (clip < 0 || clip >= ASAG_CLIP_COUNT) return 0;
+    if (clip_count[clip] <= 0) return 0;
+    return clip_total_ticks(clip);
+}
+
+/* How far into the playing clip we are, in game frames. Pairs with the above:
+   the two together are what an exposure window is expressed in. */
+int32_t asag_clip_elapsed(void) { return clip_ticks; }
 
 /* The vertex block the body is posed on this frame. Falls back to the .smd's
    own bind pose whenever the clip is missing or was rejected - which is also
@@ -560,6 +672,47 @@ void asag_draw(RenderContext *ctx) {
     uint16_t tpage = asag_arena_tex_page(ASAG_TEX_SKIN);
     uint16_t clut  = asag_arena_tex_clut(ASAG_TEX_SKIN);
 
+    /* ---- THE DEATH'S TWO FIELDS -------------------------------------------
+       Both are no-ops at rest — fade 256 and shake 0 — so everything below
+       costs one compare a frame for the 99% of the game that is not a death.
+
+       ONE JITTER FOR THE WHOLE BODY, SOLVED HERE AND NOT PER VERTEX. A
+       per-vertex offset would not read as a body vibrating, it would read as
+       the mesh boiling. */
+    int32_t shk_x = 0, shk_y = 0, shk_z = 0;
+    if (body_shake) {
+        int32_t a = body_shake * 2 + 1;
+        shk_x = (rand() % a) - body_shake;
+        shk_y = (rand() % a) - body_shake;
+        shk_z = (rand() % a) - body_shake;
+    }
+
+    /* >>> A TEXTURED POLY CANNOT FADE, SO THE BURN DROPS THE TEXTURE. <<<
+       tools/ADDING_A_BOSS_ENCOUNTER.txt TRICK 1: there is no alpha on a flat
+       poly, darkening gives a black silhouette and fogging only works against
+       the sky. What works is ADDITIVE — a colour scaled toward black, which
+       contributes nothing at all at 0 and is therefore genuinely gone over the
+       geometry as well as over the clear colour. So under 256 the body draws as
+       POLY_F4/F3 in one colour rather than POLY_FT4/FT3 in its skin, exactly
+       the swap src/rabisu.c makes and the reason RBS_BODY_R/G/B still exists
+       over there. This colour is Asag's: the hot orange-white of something
+       coming apart, not his skin. */
+    int fading = (body_fade < 256);
+    uint8_t burn_r = 0, burn_g = 0, burn_b = 0;
+    if (fading) {
+        if (body_fade == 0) return;   /* gone: 79 prims a frame saved as well */
+        /* RED WHILE HE IS DYING, which he always is when this runs: the fight
+           holds body_hit up for the whole death, so the glow he has been
+           burning with since the killing blow carries through the fade instead
+           of switching to a different colour halfway out. The hot orange is
+           what is left if anything ever fades him for another reason. */
+        if (body_hit) { burn_r = 255; burn_g =  40; burn_b =  30; }
+        else          { burn_r = 255; burn_g = 170; burn_b =  60; }
+        burn_r = (uint8_t)((burn_r * body_fade) >> 8);
+        burn_g = (uint8_t)((burn_g * body_fade) >> 8);
+        burn_b = (uint8_t)((burn_b * body_fade) >> 8);
+    }
+
     for (int k = 0; k < n; k++) {
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
         int is_quad = (pt->type >= 2);
@@ -569,6 +722,23 @@ void asag_draw(RenderContext *ctx) {
         SVECTOR *v0 = &vp[vi[0]];
         SVECTOR *v1 = &vp[vi[1]];
         SVECTOR *v2 = &vp[vi[2]];
+
+        /* The shake displaces COPIES. vp may point straight into a PVA1 file
+           (see body_verts) and writing through it would corrupt the clip for
+           every later frame — and even for PVA2, whose pose_buf is rebuilt each
+           frame, offsetting in place would put the jitter into asag_collide()
+           and asag_head_box(), which both read the same block. The pose the
+           fight reasons about must not vibrate; only the picture does. */
+        SVECTOR sk[4];
+        if (body_shake) {
+            sk[0] = *v0; sk[1] = *v1; sk[2] = *v2;
+            for (int j = 0; j < 3; j++) {
+                sk[j].vx = (int16_t)(sk[j].vx + shk_x);
+                sk[j].vy = (int16_t)(sk[j].vy + shk_y);
+                sk[j].vz = (int16_t)(sk[j].vz + shk_z);
+            }
+            v0 = &sk[0]; v1 = &sk[1]; v2 = &sk[2];
+        }
 
         DVECTOR sv[4];
         int32_t sz[4];
@@ -606,6 +776,13 @@ void asag_draw(RenderContext *ctx) {
         int32_t  v2_sz = sz[3];
         if (is_quad) {
             v3 = &vp[vi[3]];
+            if (body_shake) {
+                sk[3] = *v3;
+                sk[3].vx = (int16_t)(sk[3].vx + shk_x);
+                sk[3].vy = (int16_t)(sk[3].vy + shk_y);
+                sk[3].vz = (int16_t)(sk[3].vz + shk_z);
+                v3 = &sk[3];
+            }
             gte_ldv0(v3);
             gte_rtps();
             gte_stsxy(&sv[3]);
@@ -642,6 +819,54 @@ void asag_draw(RenderContext *ctx) {
         uint8_t r = (uint8_t)(((int32_t)col[0] * ff + ASAG_FOG_R * (256 - ff)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * ff + ASAG_FOG_G * (256 - ff)) >> 8);
         uint8_t b = (uint8_t)(((int32_t)col[2] * ff + ASAG_FOG_B * (256 - ff)) >> 8);
+
+        /* THE DAMAGE FLASH, applied AFTER the fog for the same reason the
+           arena's boils are: it is light coming out of him, and light does not
+           dim with the distance to the thing it is coming out of. R to full and
+           G/B cut to a quarter, which is src/rabisu.c's exact modulation - the
+           skin is still sampled underneath, so he reads as lit from inside
+           rather than as a red silhouette. */
+        if (body_hit) { r = 255; g = (uint8_t)(g >> 2); b = (uint8_t)(b >> 2); }
+
+        /* ---- THE BURN'S OWN PRIMITIVE. Untextured, additive, one colour, and
+               it takes the same OT bucket the textured one would have. The
+               DR_TPAGE that selects ABR=1 goes in AFTER the poly because the OT
+               is LIFO, so "after" is what puts it in front — the same pattern
+               rbs_glow_quad and lightswitch_puzzle.c's ls_quad use. ---- */
+        if (fading) {
+            size_t need = (is_quad ? sizeof(POLY_F4) : sizeof(POLY_F3))
+                          + sizeof(DR_TPAGE);
+            if (ctx->next_packet + need > buf_end) { p += stride; continue; }
+            uint32_t *ot = ctx->buffers[ctx->active_buffer].ot;
+            if (is_quad) {
+                POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
+                setPolyF4(poly);
+                setSemiTrans(poly, 1);
+                setRGB0(poly, burn_r, burn_g, burn_b);
+                poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+                poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+                poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+                poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
+                addPrim(&ot[otz], poly);
+                ctx->next_packet += sizeof(POLY_F4);
+            } else {
+                POLY_F3 *poly = (POLY_F3 *)ctx->next_packet;
+                setPolyF3(poly);
+                setSemiTrans(poly, 1);
+                setRGB0(poly, burn_r, burn_g, burn_b);
+                poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+                poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+                poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+                addPrim(&ot[otz], poly);
+                ctx->next_packet += sizeof(POLY_F3);
+            }
+            DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
+            setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
+            addPrim(&ot[otz], tp);
+            ctx->next_packet += sizeof(DR_TPAGE);
+            p += stride;
+            continue;
+        }
 
         uint8_t *uv = p + 20;
         if (is_quad) {
@@ -851,6 +1076,146 @@ int asag_face_point(VECTOR *out) {
     return 1;
 }
 
+/* ---- ...and the HEAD AS A TARGET, which is what a WEAPON wants --------------
+   The same Z window asag_face_point() uses, reported as a cylinder instead of a
+   point: centre, half-width and half-height over exactly those vertices.
+
+   >>> IT IS A FOURTH ACCESSOR AND IT IS NOT A DUPLICATE OF THE THIRD. <<< A
+   camera wants ONE POINT to aim at and gets the centroid; a gun wants an
+   EXTENT to hit and gets the bounding box, and the two differ by a lot on a
+   deformed head — the centroid of the faint's 22 front vertices sits well
+   inside a box those 22 vertices span. Averaging and then assuming a radius
+   would make the head hittable at rest and miss it flat on the floor.
+
+   THE WINDOW IS SHARED ON PURPOSE. "The head portion of Asag as a whole" is the
+   brief's phrase for what counts as a hit, and if the camera's idea of his face
+   and the gun's idea of his head came off two different definitions, the shot
+   the player lines up would not be the shot that lands. One constant, two
+   readers.
+
+   >>> AND IT HAS A FLOOR ON BOTH HALF-SIZES. <<< At rest the front cluster is
+   eight vertices spanning about 100 units across and 60 tall, which at the
+   1600-2000 ranges this arena is fought at is a few pixels — technically
+   correct and unhittable. ASAG_HEAD_MIN_HALF makes the target the size of the
+   thing the player can see rather than the size of the vertex cluster, which is
+   the same correction weapon_aim_in_circle's callers make by quoting HALF_W and
+   HALF_H rather than measuring a sprite.
+
+   It is deliberately NOT the collision box: asag_collide() selects on Y first
+   because a collider wants the part of him at the player's height, and the head
+   is usually nowhere near it. Reads the UNSHAKEN pose, so a boss vibrating
+   through his death is still exactly where the geometry says.
+
+   Returns 0 with nothing written when there is no posed body. */
+#define ASAG_HEAD_MIN_HALF  170
+
+int asag_head_box(int32_t *cx, int32_t *cy, int32_t *cz,
+                  int32_t *half_w, int32_t *half_h) {
+    if (!model_loaded || !mesh_smd) return 0;
+
+    SVECTOR *vp = body_verts();
+    int nv = mesh_smd->n_verts;
+    if (nv <= 0) return 0;
+
+    int32_t front = vp[0].vz;
+    for (int v = 1; v < nv; v++)
+        if (vp[v].vz < front) front = vp[v].vz;
+
+    int32_t lim = front + ASAG_FACE_WINDOW;
+    int32_t mnx = 32767, mxx = -32768;
+    int32_t mny = 32767, mxy = -32768;
+    int32_t mnz = 32767, mxz = -32768;
+    int n = 0;
+    for (int v = 0; v < nv; v++) {
+        if (vp[v].vz > lim) continue;
+        int32_t x = vp[v].vx, y = vp[v].vy, z = vp[v].vz;
+        if (x < mnx) mnx = x;
+        if (x > mxx) mxx = x;
+        if (y < mny) mny = y;
+        if (y > mxy) mxy = y;
+        if (z < mnz) mnz = z;
+        if (z > mxz) mxz = z;
+        n++;
+    }
+    if (n <= 0) return 0;
+
+    /* The width is taken over X AND Z, because the cylinder the weapons test
+       against is round in plan and the head is as deep as it is wide. Taking X
+       alone would make him easy to hit from the front and hard from the side,
+       which in this arena — where the player circles a boss that cannot turn —
+       would read as the hit box drifting. */
+    int32_t hw_x = (mxx - mnx) / 2;
+    int32_t hw_z = (mxz - mnz) / 2;
+    int32_t hw   = hw_x > hw_z ? hw_x : hw_z;
+    int32_t hh   = (mxy - mny) / 2;
+    if (hw < ASAG_HEAD_MIN_HALF) hw = ASAG_HEAD_MIN_HALF;
+    if (hh < ASAG_HEAD_MIN_HALF) hh = ASAG_HEAD_MIN_HALF;
+
+    if (cx)     *cx = (mnx + mxx) / 2;
+    if (cy)     *cy = (mny + mxy) / 2;
+    if (cz)     *cz = (mnz + mxz) / 2;
+    if (half_w) *half_w = hw;
+    if (half_h) *half_h = hh;
+    return 1;
+}
+
+/* ---- POINTS SPREAD ALONG HIS LENGTH, FOR THE DEATH'S LIGHTS ----------------
+   The centroid of the posed vertices in the i-th of `n` equal slices of his
+   CURRENT Z extent. Fills `out` and returns 1; returns 0 for a slice that holds
+   no vertices, which a caller should simply skip.
+
+   >>> IT IS THE ANSWER TO A QUESTION THE RABISU SOLVED WITH LITERALS, AND IT
+   HAD TO BE. <<< That boss hangs its four death lights on RBS_A_HEAD/WING/CHEST
+   - mesh-local anchors read out of the .pva once, by hand, at the frame its
+   death freezes on, and turned into world points by rabisu_anchor_world()
+   through the same yaw and lean the draw uses.
+
+   Neither half of that transfers. Asag's vertices are already in world space,
+   so there is no anchor transform to reproduce; and he has no head/wings/chest
+   to name - he is a 1669-unit animal lying along the view axis, and what the
+   brief wants is light coming out of him ALONG HIS LENGTH. Slices say that
+   directly, they need no hand measurement, and they follow the pose: the same
+   call gives points spread along him whether he is stretched out at Home or
+   collapsed on the floor.
+
+   It reads the UNSHAKEN pose, like every other accessor here, so the lights sit
+   on the body rather than vibrating independently of it. */
+int asag_span_point(int i, int n, VECTOR *out) {
+    if (!out || n <= 0 || i < 0 || i >= n) return 0;
+    if (!model_loaded || !mesh_smd) return 0;
+
+    SVECTOR *vp = body_verts();
+    int nv = mesh_smd->n_verts;
+    if (nv <= 0) return 0;
+
+    int32_t lo = vp[0].vz, hi = lo;
+    for (int v = 1; v < nv; v++) {
+        if (vp[v].vz < lo) lo = vp[v].vz;
+        if (vp[v].vz > hi) hi = vp[v].vz;
+    }
+    /* The slice is half-open [z0, z1) so no vertex is counted twice, except the
+       last, which takes the far edge so the tail-most vertex belongs to
+       something. */
+    int32_t span = hi - lo;
+    int32_t z0 = lo + (span * i)       / n;
+    int32_t z1 = lo + (span * (i + 1)) / n;
+
+    int32_t sx = 0, sy = 0, sz = 0, cnt = 0;
+    for (int v = 0; v < nv; v++) {
+        int32_t z = vp[v].vz;
+        if (z < z0) continue;
+        if (z > z1 || (z == z1 && i != n - 1)) continue;
+        sx += vp[v].vx; sy += vp[v].vy; sz += z;
+        cnt++;
+    }
+    if (cnt <= 0) return 0;
+
+    out->vx = sx / cnt;
+    out->vy = sy / cnt;
+    out->vz = sz / cnt;
+    return 1;
+}
+
 /* Visible and on the bind pose. This runs from asag_arena_init(), i.e. on every
    arrival, so a debug jump into the room finds the same state a real drop does.
    It is not the load: asags_load_model() runs in main.c's STATE_LOADING beside
@@ -866,4 +1231,13 @@ void asag_reset(void) {
     clip_ticks = 0;
     clip_frozen = 0;          /* a director's hold does not survive an arrival */
     pos_dz     = 0;           /* Home */
+    /* ...nor does a half-finished death. A fade left at 0 would make the boss
+       invisible for the whole of the next visit, which presents as a model that
+       failed to load; a shake left on would vibrate an idle. */
+    body_shake = 0;
+    body_fade  = 256;
+    body_hit   = 0;
+    home_ramp  = 0;
+    home_total = 0;
+    home_from  = 0;
 }

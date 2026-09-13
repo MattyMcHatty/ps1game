@@ -40,7 +40,8 @@
  *                       the Garden Courtyard.
  *     SND_BANK_GARDEN - the outdoor rooms: the gate again, plus the Rafflesia's
  *                       four. Fountain Square and the Outside Catacombs.
- *     SND_BANK_ASAG   - Asag's arena. ONE clip: the demon speech, shared with
+ *     SND_BANK_ASAG   - Asag's arena. TWO clips: the demon speech and the
+ *                       explosion, both shared with
  *                       the boss bank because both bosses open with it.
  *
  *   The tag is a MASK, not a single value — an effect can be in more than one
@@ -124,11 +125,14 @@ typedef enum {
                             walks, so each one is cut short by the next and the
                             attack reads as a chain of detonations — only the
                             last plays its tail out. */
-    SFX_EXPLODE    = 24, /* BANKED (boss). The death lights come up and the body starts coming
-                            apart (RBE_D_BURN). 5.374 s, and the burn plus the
-                            fade are cut to exactly that: the lights are lit for
-                            the length of this clip. Retrim it and see
-                            RBE_T_D_BURN.                                       */
+    SFX_EXPLODE    = 24, /* BANKED in BOTH boss banks. The death lights come up
+                            and the body starts coming apart. 5.374 s, and BOTH
+                            bosses cut their burn plus fade to exactly that, so
+                            the lights are lit for the length of this clip and
+                            no part of it is left hanging: RBE_T_D_BURN +
+                            RBE_T_D_FADE for the Rabisu, ABE_T_D_BURN +
+                            ABE_T_D_FADE for Asag. Retrim the clip and BOTH
+                            pairs have to move.                                 */
     SFX_EMERGE     = 25, /* BANKED. Light being hauled up out of the ground.
                             11.1 s, which covers the reveal's 3 s of lights plus
                             its 5 s rise. Also the light beam's charge tell,
@@ -418,13 +422,17 @@ typedef enum {
        cutscene and fight alike, and the fight cannot happen anywhere else. Put
        Asag's clips HERE, not in the residents.
 
-       >>> IT IS NO LONGER EMPTY: SFX_DMNSPEAK IS IN IT. <<< Asag's opening puts
-       one line of the demon speech over each of its two subtitles, the way the
-       Rabisu's reveal does, and the clip is tagged BOSS|ASAG so a copy sits in
-       each bank. That is 54,016 of the region's 237,232 and it does not touch
-       `spare`, which the 190,336-byte boss bank still sets. Room for the
-       fight's own clips remains; re-run STEP 3 of tools/ADDING_A_SOUND.txt
-       before spending it, and re-do the arena door's HEAP peak with it (PART 6
+       >>> IT IS NO LONGER EMPTY: SFX_DMNSPEAK AND SFX_EXPLODE ARE IN IT. <<<
+       Asag's opening puts one line of the demon speech over each of its two
+       subtitles the way the Rabisu's reveal does, and his DEATH is the Rabisu's
+       death with the same explosion clip under it. Both are tagged BOSS|ASAG,
+       so a copy of each sits in both banks.
+
+       That is 87,872 of the region's 237,232 and it does not touch `spare`,
+       which the 190,336-byte boss bank still sets - filling this bank stays
+       free until it becomes the largest one, which is another ~100 KB away.
+       Re-run STEP 3 of tools/ADDING_A_SOUND.txt before spending it, and re-do
+       the arena door's HEAP peak with it (PART 6
        of tools/ADDING_THE_ASAG_FIGHT.txt) — the SPU is not the binding
        constraint down there and the heap is. */
     SND_BANK_ASAG  = 16,

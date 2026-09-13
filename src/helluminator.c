@@ -19,6 +19,8 @@
 #include "rafflesia.h"
 #include "mushroom.h"
 #include "rabisu.h"
+#include "asag.h"
+#include "asag_fight.h"
 #include "living_statue.h"
 #include "vampire.h"
 #include "particles.h"   /* spawn_blood_burst, for the vampire */
@@ -262,6 +264,37 @@ static void hell_burn_tick(void) {
         if (HIT(rb->x, cyc, rb->z, hw, hh))
             rabisu_damage(rb, rabisu_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
     }
+    /* ---- ASAG, and this sweep matches graveolver_fire's exactly -----------
+       Same two targets, same exposure gate, same backoff on the boils' clear
+       test — see the long notes at those call sites. The one thing worth saying
+       HERE is about RANGE, because it changes what this weapon is for in this
+       fight: HELL_RANGE is 1800 against the Grave-olver's 4000, and the boils
+       are on the back wall at z=2734. From the landing at z=300 that is 2400
+       away and the lantern simply does not reach — the player has to walk most
+       of the way up the arena to burn a boil, which is where the slam lands and
+       where the vomit pours. That is a real trade and it is the room's geometry
+       making it, not a rule written anywhere.
+
+       The HEAD is the other way round: the slam brings it to the floor at
+       z=1487 and the faint drops it at z=1929, so both of the long exposures
+       are inside the lantern's reach from the middle of the arena. */
+    if (asag_exposed()) {
+        int32_t hx, hy, hz, hw, hh;
+        if (asag_head_box(&hx, &hy, &hz, &hw, &hh) && HIT(hx, hy, hz, hw, hh))
+            asag_damage(HELL_TICK_DAMAGE);
+    }
+    for (i = 0; i < ASAG_BOIL_COUNT; i++) {
+        int32_t bx, by, bz, bw, bh;
+        if (!asag_boil_target(i, &bx, &by, &bz, &bw, &bh)) continue;
+        if (weapon_aim_in_circle(bx, by, bz, bw, bh, fx, fz,
+                                 HELL_AIM_RADIUS, HELL_RANGE, &depth)) {
+            int32_t clr = depth - ASAG_BOIL_CLEAR_BACKOFF;
+            if (clr < 1) clr = 1;
+            if (weapon_aim_clear(fx, fz, clr))
+                asag_boil_damage(i, HELL_TICK_DAMAGE);
+        }
+    }
+
     /* >>> LIVING STATUES, AND THIS WEAPON ONLY. <<< The one entry in this sweep
        with no counterpart in graveolver_fire, and the exception to the rule two
        comments up that the two lists must match: there is no Grave-olver block

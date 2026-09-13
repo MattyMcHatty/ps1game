@@ -174,7 +174,48 @@
    module's business and runs off its own clock, so the director sets one number
    and never has to tick anything. See the .c. */
 #define ASAG_BOIL_LEVEL_MAX  256
+
+/* >>> THERE ARE TWO OF THEM AND THE FIGHT BURSTS THEM SEPARATELY. <<< The
+   opening scene lights the pair as one and still calls the plain
+   asag_arena_set_boil_glow() below, which is why that scene needed no edit when
+   the fight arrived. src/asag_fight.c gives each lump its own 3 HP and its own
+   30 s restore timer and drives them one at a time.
+
+   The index is the generated asag_arena_boil[] table's value less one:
+   0 = LEFT, 1 = RIGHT. Both orderings are fixed by the art, not by a
+   convention this header invented - see the BOIL_Z note in
+   gen_asag_arena_tex_map.py. */
+#define ASAG_BOIL_COUNT  2
+#define ASAG_BOIL_LEFT   0
+#define ASAG_BOIL_RIGHT  1
+
+/* WHERE EACH ONE IS, for anything that has to put something at a boil rather
+   than merely colour it — the fight's puss balls launch from these points, and
+   its aiming test needs their size.
+
+   >>> THESE ARE MEASURED OFF THE MESH AND ARE THE ONE PLACE A LITERAL IS
+   CORRECT. <<< The generated table says WHICH polygons are boils but not where
+   they are, and re-deriving two centres from eight primitives every time
+   something wants to shoot out of one would be four scans of a 522-entry table
+   for a number that only moves when the art does. If the lumps are ever
+   re-modelled, gen_asag_arena_tex_map.py's own printout gives the new figures
+   and these four lines are the edit. z is the raised front plane, BOIL_Z. */
+#define ASAG_BOIL_Z         2734
+#define ASAG_BOIL_HALF       156   /* each cluster is 312 x 312               */
+#define ASAG_BOIL_LEFT_X   (-700)
+#define ASAG_BOIL_LEFT_Y   (-400)
+#define ASAG_BOIL_RIGHT_X    900
+#define ASAG_BOIL_RIGHT_Y  (-600)
+
+/* One boil. `level` 0..ASAG_BOIL_LEVEL_MAX; 0 is the wall as drawn. */
+void asag_arena_set_boil_one(int which, int32_t level);
+int32_t asag_arena_boil_glow_one(int which);
+
+/* BOTH, which is what the opening scene wants. */
 void asag_arena_set_boil_glow(int32_t level);
+
+/* The brighter of the two — "are the boils lit at all", for a debug read-out.
+   Anything that cares which is which wants the _one form. */
 int32_t asag_arena_boil_glow(void);
 
 #define ASAG_TEX_MUD    0    /* the arena floor and its mud banks   */

@@ -119,7 +119,18 @@ for p in root.find('primitives').findall('poly'):
     zs = [verts[k][2] for k in ks]
     is_boil = (n is not None and smx_tex[int(n)] == 'Boss Wall'
                and all(abs(z - BOIL_Z) <= BOIL_Z_TOL for z in zs))
-    boil.append(1 if is_boil else 0)
+    # >>> AND WHICH OF THE TWO, BECAUSE THE FIGHT BURSTS THEM SEPARATELY. <<<
+    # The opening scene only ever lit all eight together, so a flag was enough.
+    # The fight gives each lump its own 3 HP and its own 30 s restore timer, so
+    # the table has to say WHICH lump a face belongs to: 1 = the left cluster
+    # (centred x=-700), 2 = the right (x=+900). Taken off the sign of the face's
+    # own x, which is the same property the print below has always reported and
+    # is as stable as the plane test itself - the two clusters are 1600 apart
+    # and neither straddles the centre line.
+    side = 0
+    if is_boil:
+        side = 1 if min(verts[k][0] for k in ks) < 0 else 2
+    boil.append(side)
 
 inv = {v: k for k, v in NAME_TO_SLOT.items()}
 counts = {}
@@ -157,22 +168,37 @@ lines.append("};")
 print(f"degenerate (never-cull) quads: {sum(nocull)}")
 
 # ---- The boils. FAIL rather than emit a half-right table; see BOIL_Z. -------
-if sum(boil) != BOIL_EXPECT:
+if sum(1 for b in boil if b) != BOIL_EXPECT:
     idx = [i for i, b in enumerate(boil) if b]
-    sys.exit(f"ERROR: found {sum(boil)} boil faces at z={BOIL_Z}, expected "
+    sys.exit(f"ERROR: found {sum(1 for b in boil if b)} boil faces at z={BOIL_Z}, expected "
              f"{BOIL_EXPECT} (prims {idx}). Either the art changed or the "
              f"lumps moved off that plane - read the BOIL_Z note in this "
              f"script and re-derive it before shipping a glow that lights up "
              f"the wrong polygons.")
 bidx = [i for i, b in enumerate(boil) if b]
-lcen = [i for i in bidx if min(verts[int(root.find('primitives').findall('poly')[i]
-        .get(f'v{k}'))][0] for k in range(4)) < 0]
-print(f"boil faces: {sum(boil)} -> prims {bidx} "
+lcen = [i for i in bidx if boil[i] == 1]
+print(f"boil faces: {len(bidx)} -> prims {bidx} "
       f"({len(lcen)} left of centre, {len(bidx) - len(lcen)} right)")
-lines.append("/* 1 = one of Asag's eight boil faces: the raised z=2734 front")
-lines.append("   plates of the two lumps either side of him, which the encounter")
-lines.append("   lights up. DETECTED off that plane, not listed - see the BOIL_Z")
-lines.append("   note in gen_asag_arena_tex_map.py for why indices would rot. */")
+# Both clusters have to be there, or the fight has one boil and a dead timer.
+if len(lcen) != BOIL_EXPECT // 2:
+    sys.exit(f"ERROR: {len(lcen)} boil faces left of centre and "
+             f"{len(bidx) - len(lcen)} right, expected {BOIL_EXPECT // 2} each. "
+             f"The fight gives each cluster its own health and its own restore "
+             f"timer, so a lopsided split is a broken fight, not a dim wall.")
+lines.append("/* WHICH of Asag's two boils a face belongs to, or 0 for anything")
+lines.append("   that is not one: 1 = the LEFT cluster (centred x=-700), 2 = the")
+lines.append("   RIGHT (x=+900). Four faces each, the raised z=2734 front plates")
+lines.append("   of the two lumps either side of him.")
+lines.append("")
+lines.append("   >>> IT IS A SIDE AND NOT A FLAG BECAUSE THE FIGHT BURSTS THEM")
+lines.append("   SEPARATELY. <<< The opening scene lights all eight as one and")
+lines.append("   would be happy with a 1; src/asag_fight.c gives each lump its")
+lines.append("   own 3 HP and its own 30 s restore, and asag_arena.c therefore")
+lines.append("   needs to know which level to apply to which face.")
+lines.append("")
+lines.append("   DETECTED off that plane and off the sign of x, not listed - see")
+lines.append("   the BOIL_Z note in gen_asag_arena_tex_map.py for why indices")
+lines.append("   would rot on the next re-export. */")
 lines.append(f"static const uint8_t asag_arena_boil[{len(boil)}] = {{")
 row = []
 for i, e in enumerate(boil):

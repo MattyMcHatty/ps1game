@@ -10,10 +10,23 @@
    >>> THIS FILE IS THE MODEL AND THE ANIMATION SYSTEM. IT IS NOT THE FIGHT. <<<
    Nothing in here decides anything: no health, no phases, no attacks, no
    targeting, no damage. The model loads onto its BIND POSE and stays there
-   until something calls asag_play(). What drives it TODAY is src/asag_boss.c,
-   which is a DEMO and not an encounter — it plays the six clips end to end on a
-   loop so the animation can be looked at. When the real fight is written, that
-   file is what gets replaced; this one should not need to change.
+   until something calls asag_play().
+
+   >>> AND THAT PROMISE WAS KEPT WHEN THE FIGHT ARRIVED, WHICH IS THE POINT OF
+   WRITING IT DOWN. <<< This header used to end the paragraph with "when the real
+   fight is written, that file is what gets replaced; this one should not need to
+   change". The fight is written — src/asag_fight.c — and what this file gained
+   was four things, every one of them a QUESTION ABOUT THE POSE and not a
+   decision about the encounter:
+
+       asag_head_box()      where the head is, as a target a weapon can test
+       asag_set_shake/fade  the two fields a death sequence writes
+       asag_clip_ticks()    how long a clip runs, so nobody restates it
+       asag_ramp_home()     slide the body Home under a clip that would not
+
+   Who drives it now, in the order they run:
+       src/asag_boss.c   the opening scene, the handover, the death sequence
+       src/asag_fight.c  the attack loop, the boils, the damage
 
    ---- ONE PART, WHERE THE FIRST ASAG HAD EIGHT -----------------------------
    The first version of this boss was eight separate meshes on eight armatures —
@@ -248,6 +261,35 @@ void asag_stop(void);
 /* What is playing, or ASAG_CLIP_NONE for the bind pose. */
 AsagClip asag_playing(void);
 
+/* ---- How long a clip is, and how far into it we are, both in GAME FRAMES ---
+   A clip's length is (frames * 60 / ASAG_ANIM_FPS), which for the slam is 375
+   and for the faint 300. >>> THESE EXIST SO A DIRECTOR NEVER WRITES THOSE
+   NUMBERS DOWN. <<< The fight's exposure windows are specified as "until half a
+   second before the animation ends", which is asag_clip_ticks(c) - 30 and not a
+   literal 345 — a literal would go quietly stale the next time the clips are
+   re-baked at a different step, and the symptom would be a boss that stops
+   being vulnerable at the wrong moment, which is close to unfindable.
+
+   asag_clip_ticks() is 0 for a clip that never loaded, which is also the honest
+   answer: an absent clip takes no time. A director looping on one should be
+   asking asag_clip_loaded() first anyway. */
+int32_t asag_clip_ticks(AsagClip clip);
+int32_t asag_clip_elapsed(void);
+
+/* ---- Slide the body back to Home, whatever the clip wants -------------------
+   Runs an independent position ramp from wherever the body currently is to Home
+   over `ticks` game frames, OVERRIDING the playing clip's own position track
+   for as long as it lasts. Any asag_play()/asag_play_at() cancels it.
+
+   >>> IT EXISTS FOR THE DEATH AND FOR NOTHING ELSE. <<< The idle's clip_move
+   row is "inherit the current offset", which is right between attacks — every
+   attack ends its own back-ramp at Home — and wrong when health hits 0 in the
+   middle of a slam with the body 969 units out over the arena. The brief has
+   him return to his starting idle position and freeze; without this, playing an
+   idle there freezes him mid-lunge. See the .c for the two alternatives and why
+   both are worse. */
+void asag_ramp_home(int32_t ticks);
+
 /* 1 if this clip's .pva actually made it into memory. A clip can be ABSENT for
    two reasons and both are silent: read_file() refused the allocation because it
    would have reached the stack (see the .c), or load_clip() rejected a .pva
@@ -290,6 +332,47 @@ int  asag_visible(void);
    the next visit. */
 void asag_set_frozen(int frozen);
 int  asag_frozen(void);
+
+/* ---- The other two fields a DEATH SEQUENCE writes -------------------------
+   tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 5 lists four director-written fields;
+   with `frozen` above these are the two Asag needs. There is deliberately no
+   clip_y: that one exists so a boss rising through a FLOOR is not drawn over
+   the turf it is still under, and Asag comes out of a WALL whose own polygons
+   occlude him correctly already.
+
+   shake is world units of jitter, applied to the DRAW'S VERTICES ONLY. The
+   runbook's rule is "never to the entity's position", because a jittered
+   entity jitters its collider and its health bar with it; this body has no
+   position to jitter, so the rule lands as "offset the copies going into the
+   GTE". asag_collide(), asag_body_centre(), asag_face_point() and
+   asag_head_box() all read the UNSHAKEN pose — which is what stops a camera
+   aimed at his face from vibrating with him.
+
+   fade is 256 solid down to 0 gone. >>> AND IT IS A BLEND MODE, NOT A COLOUR.
+   <<< Under 256 the body stops drawing its skin and draws as flat ADDITIVE
+   polys scaled toward black, because a textured poly has no alpha and
+   darkening one gives a black silhouette rather than a fade. At 0 it
+   contributes nothing over ANY background and is skipped entirely, which also
+   saves its 79 primitives. See the .c, and TRICK 1 in the runbook.
+
+   Both are cleared by asag_reset(), i.e. on every arrival, so a half-finished
+   death cannot leak into the next visit as an invisible or vibrating boss. */
+/* ---- The damage flash ------------------------------------------------------
+   1 = tint the whole model red this frame. src/rabisu.c's exact modulation and
+   for its exact reason: a textured one-piece model has no sprite to flash, so
+   the silhouette itself is the only thing that can carry "that hit". R goes to
+   full and G/B are cut to a quarter of whatever the fog left, so the skin is
+   still sampled underneath and he reads as lit from inside.
+
+   It is a FLAG and not a timer, because src/asag_fight.c already owns the
+   timer - it drives this every frame from (hit_timer > 0 || dying), so the red
+   also runs unbroken under the whole death sequence rather than expiring two
+   seconds into it. Cleared by asag_reset(). */
+void    asag_set_hit_glow(int on);
+
+void    asag_set_shake(int32_t units);
+void    asag_set_fade(int32_t fade);
+int32_t asag_fade(void);
 
 /* ---- Solidity -------------------------------------------------------------
    Push the player out of the body, from THIS FRAME'S POSE AND THIS FRAME'S
@@ -359,5 +442,46 @@ int asag_body_centre(VECTOR *out);
 
    Returns 0 with `out` untouched when there is nothing posed. */
 int asag_face_point(VECTOR *out);
+
+/* ---- ...and the head as a TARGET, which is what a weapon wants -------------
+   The same front-of-him Z window asag_face_point() uses, reported as a cylinder
+   the weapon layer can test: centre plus a half-width and a half-height, in the
+   (x, cy, z, half_w, half_h) shape weapon_aim_in_circle() already takes from
+   every other enemy in the game.
+
+   >>> A FOURTH ACCESSOR, AND NOT A DUPLICATE OF THE THIRD. <<< A camera wants
+   one POINT and takes the centroid; a gun wants an EXTENT and takes the box,
+   and on a deformed head those are not the same thing — the centroid of the
+   faint's 22 front vertices sits well inside the volume they span. Sharing the
+   WINDOW between them is deliberate: "the head portion of Asag as a whole" is
+   what the brief makes vulnerable, and the shot the player lines up on his face
+   has to be the shot that lands.
+
+   Both half-sizes have a floor (see the .c): the resting cluster is about 100
+   units across at a range of 2000, which is a few pixels of target and would be
+   correct and unhittable.
+
+   THIS SAYS WHERE THE HEAD IS, NOT WHETHER IT CAN BE HURT. The exposure window
+   belongs to the fight — src/asag_fight.h's asag_exposed() — and every weapon
+   must ask that too. Returns 0 with nothing written when there is no posed
+   body. */
+int asag_head_box(int32_t *cx, int32_t *cy, int32_t *cz,
+                  int32_t *half_w, int32_t *half_h);
+
+/* ---- Points spread ALONG him, for the death's lights -----------------------
+   The centroid of the posed vertices in the i-th of `n` equal slices of his
+   current Z extent. 1 on success; 0 for a slice with no vertices in it, which a
+   caller skips.
+
+   >>> THE RABISU DOES THIS WITH FOUR HAND-MEASURED ANCHORS AND ASAG CANNOT. <<<
+   RBS_A_HEAD/WING/CHEST are mesh-local points read out of a .pva by hand and
+   turned into world points through the same yaw and lean the draw uses. Neither
+   half transfers: Asag's vertices are already in world space, so there is no
+   transform to reproduce, and he has no head-and-wings to name - he is a
+   1669-unit animal lying along the view axis, and light pouring out of him is
+   light pouring out ALONG HIS LENGTH. Slices say that, need no measurement, and
+   follow the pose, so the same call works whether he is stretched out at Home
+   or collapsed on the floor. */
+int asag_span_point(int i, int n, VECTOR *out);
 
 #endif /* ASAG_H */

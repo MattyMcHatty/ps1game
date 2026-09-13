@@ -12,6 +12,8 @@
 #include "vampire.h"
 #include "particles.h"
 #include "crucifaxe.h"
+#include "asag.h"
+#include "asag_fight.h"
 #include "weapon.h"
 #include "crate.h"
 #include "title.h"
@@ -47,6 +49,7 @@ static int raf_hit_this_swing   = 0;
 static int msh_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
 static int had_hit_this_swing   = 0;
+static int asag_hit_this_swing  = 0;
 
 void crucifaxe_init(void) {
     CdlFILE file;
@@ -90,6 +93,7 @@ void update_crucifaxe(void) {
         msh_hit_this_swing     = 0;
         lst_hit_this_swing     = 0;
         had_hit_this_swing     = 0;
+        asag_hit_this_swing    = 0;
         sound_play(SFX_SWING);
     }
 
@@ -310,6 +314,53 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !had_hit_this_swing) {
             if (hadads_try_hit())
                 had_hit_this_swing = 1;
+        }
+
+        /* ASAG'S HEAD, and the axe reaches it for exactly one of his attacks.
+           >>> THE SLAM PUTS HIS HEAD ON THE FLOOR AT (x -15, z 1487), WHICH IS
+           WHY THIS BLOCK EXISTS AT ALL. <<< Measured off the clip: from t 112
+           to t 337 the front of him is at y -66 against a y=0 floor, in the
+           middle of the arena, and the whole of that window is an exposure
+           window. So a player who runs in under the slam can answer it with the
+           axe, which is the one thing in this fight the gun is not better at.
+           The faint drops him to y -170 as well, so that window is reachable
+           too if the player is standing close.
+
+           Every other beat is out of reach by tens of units of height or
+           hundreds of Z, and correctly so — asag_head_box() reports where he
+           genuinely is, and this is a plain distance test against it rather
+           than a rule about which attacks the axe may answer.
+
+           THE SHAPE IS THE LIVING STATUE'S AND HADAD'S: skipped rather than
+           reported as hit when he is not exposed, so the same swing stays live
+           for anything else in the room (there is nothing else in this room, but
+           the rule is the rule). The reach is taken to the head's SURFACE,
+           because a 170-unit half-size is further than the Manhattan dist3d the
+           inlined blocks above measure would otherwise allow.
+
+           >>> AND UNLIKE THE RABISU, THE SWING IS NOT A PARRY. <<< Asag has no
+           attack that can be deflected, so swing_timer is not read anywhere in
+           src/asag_fight.c. The axe is simply a weapon here, at 1 damage a
+           connected swing against 20 HP — the brief's "every weapon deals 1x
+           damage to Asag". */
+        if (swing_timer <= SWING_DURATION && !asag_hit_this_swing &&
+            asag_exposed()) {
+            int32_t hx, hy, hz, hw, hh;
+            if (asag_head_box(&hx, &hy, &hz, &hw, &hh)) {
+                int32_t dx     = hx - cam_x;
+                int32_t dy     = hy - cam_y;
+                int32_t dz     = hz - cam_z;
+                int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+                int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
+                if (dist3d < SWING_RANGE + hw + hh) {
+                    int32_t dot = ((int32_t)dx * isin(cam_rot) +
+                                   (int32_t)dz * icos(cam_rot)) >> 12;
+                    if (dot > 0) {
+                        asag_damage(1);
+                        asag_hit_this_swing = 1;
+                    }
+                }
+            }
         }
 
         /* >>> THERE IS DELIBERATELY NO RABISU BLOCK HERE. <<< The boss is the

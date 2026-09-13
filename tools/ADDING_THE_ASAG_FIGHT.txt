@@ -23,10 +23,30 @@ ARRIVING TRANSITION — the drop used to play a garden gate creaking open and no
 plays four mud quads rushing the camera (DOOR_PANEL_FALL) — and filled the
 arena's SPU bank, which was empty.
 
-WHAT STILL DOES NOT EXIST IS THE FIGHT: no health, no attacks, no damage, no
-death sequence, no seal — and NO WAY OUT OF THE ROOM AT ALL. Past the handover,
-asag_boss.c runs the OLD DEMO's clip cycle as a placeholder, and src/asag_boss.h
-marks exactly where the finished half stops.
+>>> SEPTEMBER 2026, FIFTH PASS: THE HIT ZONES ARE THIRDS. <<< The fourth
+pass's attacks were measured as RADII and it was the wrong model. Each one now
+hits a THIRD of the arena, marked out on the floor: the laser rakes the landing
+end and sets all of it burning, the boulders fall in Asag's end, and the vomit
+pours down the centre lane from wall to wall. The slam dropped from four random
+boulders to TWO fixed ones either side of him, which smash and throw stone chips
+(spawn_rock_burst). The exposure health bar lost its green state and is the
+Rabisu's plain red-on-hit again, the BODY flashes red when hit and stays red
+through the whole death, and the death now has the Rabisu's lights AND its
+sound - SFX_EXPLODE is tagged BOSS|ASAG as of this pass. See PART 9.
+
+>>> SEPTEMBER 2026, FOURTH PASS: THE FIGHT IS BUILT. <<< The placeholder clip
+cycle is gone and src/asag_fight.c is the encounter's combat AI: 20 HP behind
+an EXPOSURE window, two 3 HP BOILS on the back wall that burst, throw puss balls
+and restore after 30 s, a LASER > idle > SLAM > idle > VOMIT > idle loop with a
+FAINT that interrupts it when both boils are down, and four attacks that damage
+and poison the player. src/asag_boss.c gained the DEATH SEQUENCE — the camera
+comes back, he returns Home, freezes, vibrates and burns away exactly as the
+Rabisu does. PART 9 is the whole of that pass.
+
+WHAT STILL DOES NOT EXIST IS THE WAY OUT: there is NO EXIT FROM THE ROOM AT ALL,
+and therefore no seal. That was a hole while the fight could not be won; it is
+now the only thing left and it is the first thing to do. See PART 1 and PART 7
+item 9.
 
 This file is the handover. It says what was built, what it cost, what is
 reserved for the fight, and the order the pieces go in. It is NOT a substitute
@@ -41,8 +61,9 @@ for the runbooks — those are still the authority on HOW:
 
   src/asag_arena.h                   the room, and the argument for its shape
   src/asag.h                         the body, and why it needs no model matrix
-  src/asag_boss.h                    the director: which half is finished, and
-                                     what the other half still needs
+  src/asag_boss.h                    the director: the opening and the death
+  src/asag_fight.h                   THE FIGHT: the loop, the boils, the
+                                     exposure windows and the damage table
   src/rabisu.c / rabisu_boss.c       THE reference boss. Read both end to end.
 
 
@@ -409,12 +430,21 @@ and should not need to touch main.c at all:
     scene's subtitles are its own
   - asag_boss_reset() in reset_game(), beside the Rabisu's
 
+WIRED BY THE FOURTH PASS, and it is the only main.c change the fight needed:
+  - asag_fight_update() in BOTH branches. In the free-play one it goes AFTER
+    asag_update(), which is the OPPOSITE order to asag_boss_update()'s: the
+    director reads the "holding the last frame" flag and so must run before the
+    clock that raises it, while the fight reads the POSE - where his head is
+    this frame - and so must run after it. Put the fight first and every
+    attack's effect fires against last frame's pose, which shows up as a slam
+    whose damage lands before the head does.
+  - asag_fight_draw(ctx) and asag_fight_draw_bar(ctx) at the foot of
+    asag_arena_draw(), between asag_draw() and the subtitle overlay. Both want
+    the plain view matrix, which this boss's draw never disturbs.
+
 STILL TO WIRE, and only because the thing it gates does not exist:
   - the seal, ahead of a restored exit trigger, via asag_arena_exit_sealed()
   - asag_arena_exit_arm() on the frame the seal LIFTS
-  - asag_boss_draw(ctx) and the projectile draw, between asag_draw() and the
-    overlay at the foot of asag_arena_draw() — the comment there names them in
-    order
 
 
 ##########################################################################
@@ -712,17 +742,408 @@ depending on a measured constant. Worth doing; not a win.
 
   7. THE MUSIC. Borrowed, not built. PART 4 says what the two edits are.
 
-  STILL TO DO, in this order:
-  8. THE FIGHT. tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 6 (movement and
-     attacks), STEP 11 (`dying` vs `dead` — two flags, not one) and STEP 7 (the
-     lights), growing inside the phase machine src/asag_boss.c already has. The
-     hooks in PART 5 are wired, so this should not touch main.c. Read that
-     runbook's list of ten things that were wrong first — it is the most useful
-     part of the file.
+  8. THE FIGHT. DONE — PART 9 has it. It touched main.c after all, for two
+     lines: asag_fight_update() in both of the room's branches. Everything else
+     the hooks in PART 5 already covered.
+
+  STILL TO DO, and it is now a list of one:
   9. THE EXIT. Where the room leads, and the geometry of the way out. See
      PART 1. It also blocks the SEAL (STEP 9), which is the one hook in PART 5
-     still unwired, and it is the most urgent item here: there is no exit at all
-     rather than a placeholder one.
+     still unwired. >>> IT WAS THE MOST URGENT ITEM HERE BEFORE THE FIGHT AND IT
+     IS MORE SO NOW. <<< Winning used to be impossible; it is not, so a player
+     who does everything right is left standing in a finished room with a dead
+     boss and no door. The debug level select is still the only way out that is
+     not dying.
+
+
+
+##########################################################################
+ PART 9 - THE FIGHT, AS BUILT
+##########################################################################
+src/asag_fight.h is the specification and src/asag_fight.c is the machine. What
+follows is the part that is NOT in either: the decisions, the measurements, and
+the three things that were wrong first.
+
+---- THE THREE FILES, AND WHY THERE ARE THREE ----------------------------
+tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 1 splits a boss in two: the BODY (model,
+animation, damage, collision, combat AI) and the DIRECTOR (camera, lights,
+music, seal, death). This pass kept that split and put the two halves of the
+BODY in two translation units:
+
+    src/asag.c        the mesh, the clips, the position track, the collider and
+                      the geometry accessors. Decides nothing, as its header
+                      has always said in capitals.
+    src/asag_fight.c  the combat AI. NEW.
+    src/asag_boss.c   the director. Gained the death sequence; the opening
+                      scene was not touched.
+
+>>> THE DEVIATION IS DELIBERATE AND IT IS ONE FILE, NOT A PATTERN. <<< The
+runbook would have put the combat AI in src/asag.c. That file is 900 lines of
+model and animation whose header opens by promising it is not the fight, and
+the promise turned out to be worth keeping: what asag.c actually gained this
+pass was four things, every one of them a question about the POSE -
+asag_head_box(), asag_set_shake/fade(), asag_clip_ticks() and asag_ramp_home().
+Not one of them knows there is a fight.
+
+---- WHAT EVERY NUMBER WAS MEASURED FROM ---------------------------------
+>>> ASAG CANNOT TURN, AND THAT ONE FACT SHAPES ALL THREE ATTACKS. <<< His
+vertices are baked in world space and there is no model matrix (src/asag.h), so
+a clip puts his head in exactly one place in the room every time it plays. An
+attack lands where the ANIMATOR put it, and the only things code can aim are
+the parts that LEAVE him.
+
+Dumping the .pva files frame by frame WITH the position track applied - which
+is the only way to see where the head really is - gives:
+
+    LASER   settles t  75   at x  65  y -850  z 1923   held to t 280
+    SLAM    settles t 112   at x -15  y  -66  z 1487   ON THE FLOOR
+    VOMIT   settles t 112   at x -20  y -625  z 1657   twitches t 150..265
+    FAINT   settles t 150   at x -10  y -170  z 1929   near the floor
+    IDLE    Home            at x -14  y -780  z 2288
+
+  (t is GAME FRAMES: frame * 60 / ASAG_ANIM_FPS. The position offset at t comes
+   from update_pos() and clip_move[] in src/asag.c.)
+
+Everything else follows:
+
+  THE SLAM IS THE ONE ATTACK THE AXE CAN ANSWER, and that is geometry rather
+  than design: the head is at y=-66 against a y=0 floor, in the middle of the
+  arena, for the whole of an exposure window. src/crucifaxe.c got its first
+  Asag block for exactly that window.
+
+  THE LASER HAD TO SWEEP AND THE VOMIT HAD TO BE WIDE, because his head never
+  moves off the line the animator put it on. What they sweep and how wide they
+  are is PART 9A - the fifth pass replaced both.
+
+---- THE BOILS, AND THE TABLE THAT HAD TO CHANGE -------------------------
+asag_arena_boil[] used to be a FLAG - 1 for any of the eight faces - because the
+opening scene lights all eight as one. The fight bursts them separately, so
+gen_asag_arena_tex_map.py now emits a SIDE: 1 for the left cluster (x=-700) and
+2 for the right (x=+900), off the sign of each face's own x. asag_arena.c holds
+one level per boil and asag_arena_set_boil_glow() still sets both, which is why
+the opening scene needed no edit at all.
+
+>>> AND THE EIGHT INDICES ARE NOT CONTIGUOUS BY SIDE, WHICH IS THE BEST
+ARGUMENT FOR THE DETECTION THERE HAS BEEN. <<< They come out
+
+    440 441 442 443 444 445 446 447
+     R   R   L   L   L   L   R   R
+
+so the right-hand boil is 440,441,446,447. Anyone hand-writing "the first four
+are one boil" would have been wrong, and the wrongness would have shown up as
+half of each lump lighting.
+
+---- THE COLLISION WALL THAT EATS EVERY SHOT AT A BOIL --------------------
+>>> THIS IS THE RUNBOOK'S MISTAKE 2 IN A DIFFERENT HAT, AND IT WOULD HAVE BEEN
+VERY HARD TO FIND. <<< The boil faces are at z=2734. The collision proxy's back
+wall (wall 2 in src/asag_arena_mesh_collision.c) is at z=2700, spanning
+x[-1300,1300] and the full height of the room - 34 units IN FRONT of the boils,
+because the proxy is a rectangle and the lumps stand proud of the wall it
+approximates.
+
+So weapon_aim_clear() out to a boil's own depth reports EVERY shot blocked, by
+a wall standing inside the target. The crosshair sits on a lit organ, the gun
+fires, nothing happens, and nothing on screen says why.
+
+The fix is ASAG_BOIL_CLEAR_BACKOFF (80 world units): clear the line to just
+SHORT of the boil, which lands in front of z=2700 from anywhere in the room.
+Both the gun and the lantern use it. The alternative - putting wall 2 in
+shoot_over_mask - was rejected: it is a full-height perimeter wall and exempting
+it would let every shot in the fight leave the room.
+
+THE SAME WALL IS WHY THE PUSS BALLS DO NOT USE collision_segment_blocked().
+src/web.c tests the segment just travelled so a fast shot cannot tunnel a thin
+wall; here the launch point is BEHIND that wall and every ball would die on its
+first frame. The arena is an empty box, so a bounds test is the whole of what
+the segment test would have bought.
+
+---- WHAT IT COST -------------------------------------------------------
+NOTHING ON THE DISC. No new assets: the fight is code, and the boils were
+already polygons of the arena mesh. disc.xml is untouched and
+tools/check_disc_root.py still passes (root: 42 records, 460/2048 of the last
+sector).
+
+NOTHING IN VRAM. Everything the attacks draw is untextured: additive POLY_F4 for
+the lights and the spray, flat POLY_F4 for the cubes.
+
+NOTHING IN THE SPU. >>> NO SOUND PLAYS IN THE FIGHT OR IN THE DEATH. <<< That
+was the brief for this pass - sound comes later - so the SPU arithmetic in
+PART 3 has not been redone and the death's burn length is currently the
+Rabisu's shape without the Rabisu's reason (RBE_T_D_BURN was the length of
+SFX_EXPLODE). >>> WHEN THE CLIPS LAND, RE-DO PART 3's STEP 3 ARITHMETIC AND
+RE-CHECK ABE_T_D_BURN AGAINST THE EXPLODE CLIP'S OWN LENGTH. <<<
+
+MAIN RAM: 16,116 BYTES, AND THAT IS THE ONE FIGURE TO WATCH.
+
+    FREE AT REST   before  192,332
+    FREE AT REST   after   176,216
+
+Nearly all of it is CODE, not state - the fight's own arrays are under a
+kilobyte. af_cube() and af_glow_point() are inline GTE macros and those expand.
+
+>>> WORK OUT WHAT THAT DOES TO THE ARENA'S DOOR BEFORE ADDING MORE. <<< PART 6
+records 121-147 KB measured free at that door against a 100,352-byte model read.
+That measurement was taken when FREE AT REST printed 172 KB - which is what it
+prints again now - so the door is back where it was when it was pinned, not
+past it. It is not slack. The next thing that costs 16 KB should be measured on
+hardware at that door and not reasoned about, because the failure mode is
+SILENT: read_file() declines the last clip in AsagClip order, which is the
+FAINT, and a fight with no faint has no long exposure window and cannot be won.
+Building src/asag_fight.c -Os gives 1,232 bytes back and was not taken; the
+argument is in CMakeLists.txt beside the cold list.
+
+---- THE THREE THINGS THAT WERE WRONG FIRST ------------------------------
+1. THE PUSS BALLS' HEADING WAS SOLVED OVER A FULL TURN. The binary search that
+   turns a direction into an angle is monotonic over a HALF turn and only over
+   one; searching [-2048,2048] returns nonsense for half its inputs. It would
+   have presented as balls occasionally thrown at the wrong wall, which is
+   indistinguishable from "the spread is too wide". The fix takes the sign of dz
+   out first and reflects through 2048 afterwards. Note that dz here is ALWAYS
+   negative - the boils are the back wall - so the untested branch is the one
+   that would run.
+
+2. THE CUBES WERE DROPPED WHEN THEY CAME TOO CLOSE. af_cube() started as a copy
+   of the additive-quad path, which rejects anything with otz below
+   SCENE_OT_MIN because losing a band of a light is free. Losing a PUSS BALL is
+   not: the one moment it has to be visible is the half second before it reaches
+   the player, which is exactly when its otz is smallest. It clamps now.
+   The same copy inherited the room mesh's +40 OT bias, which is there so an
+   additive light lying on the floor does not fight the floor - and which would
+   have sorted a landed boulder BEHIND the polygon it was standing on.
+
+3. "NEVER HIGH ENOUGH TO GO OVER THE PLAYER'S HEAD" IS UNSATISFIABLE AS
+   WRITTEN, and it is worth recording rather than quietly reinterpreting. The
+   brief asks for a puss ball that arcs up and then down and never rises above
+   the player's head. The boils are part of the back wall at y=-400 and y=-600,
+   i.e. 400 and 600 above the floor; the player's eye is at y=-189. A ball
+   leaving a boil is already well over their head, and the only arc obeying the
+   letter of it is a pure descent with no rise - which the same sentence rules
+   out. The rise is therefore RELATIVE to the launch point
+   (AF_PUSS_RISE_V/AF_PUSS_GRAV), which keeps the flat readable arc the
+   constraint was really about. Flagged to the user rather than hidden.
+
+---- THE TWO ASSUMPTIONS, BOTH ONE CONSTANT TO REVERSE --------------------
+a. THE VOMIT STOPS EXPOSING HIM 0.5 s BEFORE ITS CLIP ENDS. The brief gives that
+   rule for the slam and says only "as soon as this attack starts Asag becomes
+   exposed" for the vomit. AF_EXPOSE_LEAD.
+b. (WAS: the slam's four boulder cells drawn from a block around the player.
+   Superseded by PART 9A - there are two boulders now, at fixed cells, and the
+   hit zone is Asag's third of the arena rather than the cubes themselves.)
+
+---- WHAT TO CHECK IN THE EMULATOR ---------------------------------------
+The runbook's STEP 12 list applies; these are the ones specific to this fight:
+  [ ] A BOIL CAN BE SHOT AT ALL. If three rounds into a lit boil do nothing, it
+      is ASAG_BOIL_CLEAR_BACKOFF and the z=2700 wall - see above.
+  [ ] THE HEAD CANNOT BE HURT DURING THE LASER OR AN IDLE, and can during the
+      slam, the vomit and the faint. The health bar turns GREEN while exposed,
+      which is the read-out for exactly this.
+  [ ] BURST BOTH BOILS DURING AN ATTACK. The attack must play out, THEN the
+      faint, THEN that same attack again from the top.
+  [ ] BURST BOTH DURING AN IDLE. The faint should come immediately, not after
+      the idle's remaining four seconds.
+  [ ] THE LASER LEAVES THE WHOLE LANDING THIRD BURNING, not a scribble under
+      where the beam went, and it hurts for three seconds - once a second while
+      stood in it, not once a frame.
+  [ ] THE VOMIT'S LANE REACHES BOTH ENDS OF THE ROOM. Stand at the landing, in
+      the middle of the arena, and right under the back wall, all on the centre
+      line: all three must be hit. Then stand one column off it and be safe.
+  [ ] THE TWO BOULDERS SMASH SEPARATELY. Two impacts, two bursts of chips. If
+      you see one burst, the stagger is not working - every burst in
+      src/particles.c overwrites the whole pool.
+  [ ] THE WHOLE OF ASAG'S THIRD LIGHTS DURING THE SLAM, faintly, with the two
+      boulder cells bright on top. Standing anywhere in that third when they
+      land must hurt, not just under a cube.
+  [ ] THE BODY FLASHES RED WHEN A SHOT LANDS and the bar is RED and only shows
+      for two seconds after a hit. No green anywhere.
+  [ ] KILL HIM FROM A CORNER. The death must put the player back in that corner,
+      not at the landing. This is mistake 4 in the runbook and the reason
+      begin_death() re-captures the camera rather than reusing the opening's.
+  [ ] KILL HIM MID-SLAM, with his head on the floor 969 units out. He must
+      return to Home before freezing - that is asag_ramp_home(), and without it
+      the idle's "inherit the offset" rule freezes him mid-lunge.
+  [ ] THE DEATH HAS SOUND. If it is silent, SFX_EXPLODE has lost its ASAG tag
+      and nothing will say so - see PART 9A.
+  [ ] HE GLOWS RED FOR THE WHOLE DEATH, unbroken from the killing blow through
+      the settle, the freeze, the burn and the fade. A drop back to normal
+      colour partway through means the flash is on hit_timer alone.
+  [ ] OPEN THE INVENTORY MID-FIGHT AND LEAVE IT OPEN. He must keep attacking.
+  [ ] FRAME RATE WITH A ZONE LIT. 75 large additive floor quads plus the
+      particles is the heaviest thing in the fight; see the last section of
+      PART 9A. tools/DIAGNOSING_FRAME_RATE.txt is the file, not guesswork -
+      measure U/D/G first.
+
+
+
+##########################################################################
+ PART 9A - THE FIFTH PASS: HIT ZONES ARE THIRDS, NOT RADII
+##########################################################################
+The fourth pass built the fight with every attack measured as a RADIUS from
+wherever the animator put Asag's head. It worked and it read badly, and the
+reason is worth keeping because it is a general one.
+
+>>> A BLAST RADIUS IS A NUMBER. A THIRD OF THE ROOM IS A PLACE. <<< A radius
+has to be learned by being hit by it twice, it has no edge the player can see,
+and because Asag cannot turn it was always centred on the same spot - so what
+the player actually learned was "stand somewhere else", once, forever. Naming
+the zones instead gives each attack a piece of the arena, lets the FLOOR say
+which piece, and makes the three attacks compose into a loop.
+
+---- THE GRID DIVIDES EXACTLY, WHICH IS WHY THIS WORKS AT ALL --------------
+The arena floor is 15 columns x 15 rows (x -1500..1500 by 200, z 0..2800 by
+186.67). Fifteen divides by three with nothing left over, so a third is five
+rows or five columns and no rounding is involved anywhere:
+
+    ROWS  0.. 4   z    0.. 933   THE LANDING END      the laser burns this
+    ROWS  5.. 9   z  933..1867   the middle           only the vomit crosses it
+    ROWS 10..14   z 1867..2800   ASAG'S END           the boulders fall here
+    COLS  5.. 9   x -500.. 500   the centre lane      the vomit, end to end
+
+>>> AND THE THREE COVER DIFFERENT GROUND, WHICH IS THE WHOLE LOOP. <<< The
+laser drives the player FORWARD off the landing. The boulders drive them BACK
+off Asag's end. The vomit splits the room LEFT and RIGHT. No spot in the arena
+survives all three, so standing still is never the answer and the four-second
+idles are when the player chooses where to be next. >>> CHANGE ONE ZONE AND
+CHECK IT AGAINST THE OTHER TWO BEFORE BELIEVING IT. <<<
+
+---- WHAT CHANGED, ATTACK BY ATTACK ---------------------------------------
+THE LASER. Was an arc at a fixed range from his head, lighting the single cell
+under its ground point. Now the ground point rakes STRAIGHT ACROSS in X at a
+fixed z (AF_LAS_SWEEP_Z, the middle of the landing third), and as it crosses
+each column it sets that column's whole five-row height alight. The sweep is a
+WIPE: by the time it reaches the far wall the entire third is burning, and it
+burns for three seconds.
+
+  The separate beam-contact damage test is GONE, and that is a consequence
+  rather than a simplification: the beam lights the player's whole column the
+  instant it reaches them, so the trail test IS the contact test. Keeping both
+  would have double-charged the one frame the beam arrives.
+
+THE VOMIT. Was an 1100-unit circle under his mouth at z=1657 - which cannot
+reach the front of the arena at all, so the whole attack was dodged by never
+walking forward. It is the centre LANE now, wall to wall, and there is no
+"far enough away" from it: the dodge is sideways. The particles were also
+re-thrown - a large spread in Z and a small one in X, so the spray fans down
+the lane it is about to poison instead of falling in a heap.
+
+  The frozen-mouth machinery went with it. The circle used to be pinned at the
+  first frame of the spray because the twitch moved his head 60 units eight
+  times a second and a hit box that jitters is a hit box nobody can learn. The
+  lane is fixed by the ROOM, so there is nothing to pin.
+
+THE SLAM. Four random boulders became TWO fixed ones, at columns 4 and 10 (x
+-600 and +600) in row 12. Symmetric about the room's centre line, which is also
+symmetric about Asag - his head sits at x=-15 through the whole clip, so "one
+to each side of him" and "one to each side of the room" are the same two cells
+to within fifteen units.
+
+  THEY SMASH. spawn_rock_burst() in src/particles.c is spawn_wood_burst with
+  stone colours and square chunks instead of planks, which is what "similar to
+  when we smash our Crate asset but coloured to suit the boulders" asks for. The
+  shape is the only deviation and it is in the particle function rather than the
+  caller, because the fracture belongs to the material.
+
+  >>> AND THEY ARE STAGGERED BY NINE FRAMES, WHICH IS NOT DECORATION. <<<
+  Every burst in src/particles.c fills the WHOLE pool and resets
+  particle_count, so two smashes on the same frame show as ONE. The stagger is
+  what buys two impacts and two bursts. It is implemented as a NEGATIVE start
+  time so both boulders still fall for the same AF_T_BLD_FALL - shortening the
+  second one's fall instead would have made it visibly faster than the first.
+
+  THE DAMAGE IS THE THIRD, NOT THE CUBES. Two boulders 1200 apart cannot cover
+  a 3000-wide room between them, and the design is that being caught in Asag's
+  end when they land is what hurts. So the WHOLE THIRD lights faintly in the
+  same light blue and the two cells a boulder is falling into light brightly on
+  top of it - one effect at two intensities, saying "all of this is dangerous,
+  and THOSE two are about to be hit by something". Lighting only the two cells
+  would have been the brief read literally and would have been an ambush;
+  lighting the third evenly would have thrown away the boulders' own telegraph.
+
+---- THE FEEDBACK CHANGES ------------------------------------------------
+THE HEALTH BAR IS THE RABISU'S AGAIN. The fourth pass raised it for the whole
+of every exposure window and turned it GREEN, on the argument that "can I hurt
+him now" is the question this fight asks every second. Dropped: a bar that comes
+and goes on its own is a second UI element competing with the thing it hangs
+over. Two seconds of a RED bar when something connects, and nothing otherwise.
+
+THE BODY FLASHES RED INSTEAD, which is where that feedback belonged - it is on
+the thing the player is aiming at rather than on a strip above it.
+asag_set_hit_glow() is src/rabisu.c's exact modulation (R to full, G and B cut
+to a quarter of whatever the fog left, applied AFTER the fog because it is light
+coming out of him). src/asag_fight.c drives it every frame from
+(hit_timer > 0 || dying), so it also runs UNBROKEN under the whole death rather
+than expiring two seconds in.
+
+THE DEATH GAINED ITS LIGHTS AND ITS SOUND.
+  - FIVE glow points along the body, ramping on over the burn and riding the
+    fade out. rbs_glow_point, the Rabisu's own primitive, because the two deaths
+    are meant to read as one phenomenon.
+    >>> WHERE THEY HANG IS THE ONE THING THAT COULD NOT BE COPIED. <<< The
+    Rabisu hangs four on hand-measured mesh-local anchors pushed through its yaw
+    and lean. Asag has no yaw, no lean and no head-and-wings - he is a
+    1669-unit animal lying along the view axis. asag_span_point() slices the
+    POSED body and returns a point in each slice, which needs no measurement and
+    follows the pose, so the same call works whether he is stretched out at Home
+    or flat on the floor.
+  - The fade's colour is the RED he has been burning with, not a separate
+    orange, so nothing switches colour halfway out.
+  - SFX_EXPLODE, on the frame the lights start.
+
+---- THE SOUND, AND THE ONE THING THAT WOULD HAVE BEEN SILENT -------------
+>>> SFX_EXPLODE WAS BOSS-BANK ONLY, AND SND_BANK_ASAG IS THE ONLY BANK LOADED
+IN THIS ARENA. <<< Played as it was, the entire death sequence would have run in
+silence with no error anywhere - the exact failure mode at the head of
+src/sound.c's bank table. It is tagged BOSS|ASAG now, one copy in each.
+
+IT WAS FREE, and STEP 3 of tools/ADDING_A_SOUND.txt was re-run to prove it
+rather than assumed:
+
+                bank_base   region   house    boss   garden   intro    asag   spare
+    before        0x46150   237232  162560  190336   177216   22080   54016   46896
+    after         0x46150   237232  162560  190336   177216   22080   87872   46896
+
+`spare` is the region less the LARGEST bank and BOSS still sets it, so filling
+this bank stays free until it becomes the largest - about 100 KB away.
+
+AND IT DOES NOT MOVE THE ARENA DOOR'S HEAP PEAK. sound_bank_select's read grows
+from 55,296 bytes to 88,064, and it is FREED before main.c loads the boss model:
+main.c puts the frees before the bank swap and the loads after it, deliberately
+(PART 6). So the peak is still the 100,352-byte model read and not the sum.
+>>> IF THOSE STEPS ARE EVER MERGED INTO ONE if/else IT BECOMES THE SUM. <<<
+
+VOICE 21 is SFX_EXPLODE's own and is BOSS-bank, therefore guaranteed idle here,
+so nothing in the burn can cut the clip short.
+
+ABE_T_D_BURN + ABE_T_D_FADE = 232 + 90 = 322 frames = 5.37 s, WHICH IS THE
+CLIP'S LENGTH. That was true by inheritance from the Rabisu before the clip was
+played here and is true on purpose now. Retrim EXPLODE.VAG and both bosses'
+pairs have to move; src/sound.h's entry for it says so.
+
+---- WHAT IT COST --------------------------------------------------------
+NOTHING ON THE DISC and nothing in VRAM, again: no new assets, and everything
+the zones draw is untextured additive POLY_F4.
+
+SPU: 33,856 bytes in the asag bank, free (above).
+
+MAIN RAM: the fifth pass is roughly a wash - FREE AT REST went 176,216 ->
+175,752, i.e. 464 bytes. The laser lost its arc maths and the slam lost its
+random-cell search; the zone draws and spawn_rock_burst put it back.
+
+---- THE ONE THING TO MEASURE RATHER THAN REASON ABOUT --------------------
+>>> FILL RATE. <<< A lit zone is 75 additive floor quads (5 x 15 for the vomit's
+lane, 5 x 15 for the slam's third, up to 75 for the laser's burn), and they are
+large, overlapping and semi-transparent - which is the one cost profile this
+game has been bitten by before. They cannot all be on at once (the laser's burn
+has expired by the time the slam runs, and the attacks are four seconds apart),
+so the worst case is one zone plus its particles.
+
+Per-cell rather than per-row is deliberate: the same pixels either way, five
+times the primitives, but rbs_glow_quad DROPS any quad with a projected vertex
+past the GTE's +/-1023 clamp, so a row-wide quad would vanish entirely from a
+camera standing in it where a cell-sized one loses only itself.
+
+tools/DIAGNOSING_FRAME_RATE.txt is the file if it ever matters. Measure U/D/G
+first; optimising this by reasoning made things 56% worse the last time it was
+tried.
 
 
 ##########################################################################

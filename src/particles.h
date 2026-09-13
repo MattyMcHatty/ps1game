@@ -30,6 +30,11 @@ extern int      particle_count;
 void spawn_burst(int32_t x, int32_t y, int32_t z, uint8_t r, uint8_t g, uint8_t b);
 void spawn_blood_burst(int32_t x, int32_t y, int32_t z);
 void spawn_wood_burst(int32_t x, int32_t y, int32_t z);
+/* A boulder smashing on the floor (Asag's slam). spawn_wood_burst's twin with
+   stone colours and square chunks instead of planks; see the .c for why those
+   are the only two things that differ. Like every burst here it OVERWRITES the
+   whole pool, so two smashes on one frame show as one. */
+void spawn_rock_burst(int32_t x, int32_t y, int32_t z);
 void update_particles(void);
 void draw_particles(RenderContext *ctx);
 void reset_particles(void);

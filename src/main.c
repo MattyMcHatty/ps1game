@@ -74,7 +74,8 @@
 #include "the_hatch.h"
 #include "asag_arena.h"
 #include "asag.h"           /* the boss body; room-scoped, like the Rabisu */
-#include "asag_boss.h"      /* ...and the DEMO director that cycles its clips */
+#include "asag_boss.h"      /* the director: opening scene and death sequence */
+#include "asag_fight.h"     /* ...and the combat AI it hands the player to    */
 #include "hatch_doors.h"
 #include "hatch_puzzle.h"
 #include "keystone_plinths.h"
@@ -417,6 +418,16 @@ static void update_current_area(GameState area) {
     if (area == STATE_ASAG_ARENA && asag_boss_cutscene()) {
         asag_boss_update();
         asag_update();
+        /* >>> AND THE FIGHT TICKS IN HERE TOO, WHICH IS NOT OBVIOUS. <<< The
+           only cutscene that runs with the fight in any state but OFF is the
+           DEATH, and asag_boss_update() has already called asag_fight_stop() by
+           then — so on the face of it this call has nothing to do. It is here
+           for the frame the death is armed ON: begin_death() runs inside
+           asag_boss_update() above, and without this the trail, the boulders
+           and the puss balls would miss their one tick of clean-up and the last
+           frame before the camera cut would keep whatever was in the air. It
+           costs an early return the rest of the time. */
+        asag_fight_update();
         player_status_update();
         update_particles();
         return;
@@ -1469,6 +1480,17 @@ static void update_current_area(GameState area) {
            not start one. It belongs in free play AND in that cutscene branch,
            for the same reason. See src/asag.h. */
         asag_update();
+
+        /* >>> THE FIGHT GOES AFTER BOTH OF THEM, AND THAT IS THE OPPOSITE ORDER
+           TO THE ONE ABOVE. <<< asag_boss_update() reads the "holding the last
+           frame" flag and so has to run BEFORE the clock that raises it; the
+           fight reads the POSE — where his head is this frame, for the slam's
+           impact test, the vomit's mouth and the laser's origin — and so has to
+           run AFTER it. Put this first and every attack's effect fires against
+           the pose the player was looking at one frame ago, which at 8 fps is an
+           eighth of an animation frame out and shows up as a slam whose damage
+           lands before the head does. */
+        asag_fight_update();
 
         /* >>> AND THERE IS NO EXIT TEST, BECAUSE THERE IS NO EXIT. <<< The
            previous arena polled asag_arena_exit_triggered() here and sent the

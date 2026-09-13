@@ -19,6 +19,8 @@
 #include "rafflesia.h"
 #include "mushroom.h"
 #include "rabisu.h"
+#include "asag.h"          /* asag_head_box - where the head is         */
+#include "asag_fight.h"    /* ...and whether hitting it does anything   */
 #include "vampire.h"
 #include "particles.h"
 #include "sound.h"
@@ -210,6 +212,47 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 5; best_idx = i;
         }
     }
+    /* ---- ASAG: THE HEAD WHILE IT IS EXPOSED, AND THE TWO BOILS ------------
+       >>> THE HEAD IS ONLY A TARGET WHILE asag_exposed(). <<< That is the whole
+       design of this fight: hitting the body never does anything, and the head
+       can be hurt only in the windows the attacks open (src/asag_fight.h has
+       the table). Testing the box alone would make the boss killable from the
+       first frame with nothing on screen to explain it.
+
+       And it is tested BEFORE the boils on purpose, so that a head over a boil
+       — which happens, his alcove sits between them — wins the crosshair when
+       it is actually vulnerable. `depth < best_depth` sorts the rest. */
+    if (asag_exposed()) {
+        int32_t hx, hy, hz, hw, hh;
+        if (asag_head_box(&hx, &hy, &hz, &hw, &hh) &&
+            weapon_aim_in_circle(hx, hy, hz, hw, hh, fx, fz,
+                                 GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 9; best_idx = 0;
+        }
+    }
+    for (i = 0; i < ASAG_BOIL_COUNT; i++) {
+        int32_t bx, by, bz, bw, bh;
+        if (!asag_boil_target(i, &bx, &by, &bz, &bw, &bh)) continue;
+        /* >>> CLEARED SHORT OF ITSELF. <<< The boil faces are at z=2734 and the
+           collision proxy's back wall is at z=2700 — 34 units IN FRONT of them,
+           because the proxy is a rectangle and the lumps stand proud of the
+           wall it approximates. weapon_aim_clear() out to the boil's own depth
+           therefore reports every shot blocked, by a wall standing inside the
+           target. This is the runbook's mistake 2 in a different hat and
+           ASAG_BOIL_CLEAR_BACKOFF is the documented fix; asag_fight.h has the
+           argument. */
+        if (weapon_aim_in_circle(bx, by, bz, bw, bh, fx, fz,
+                                 GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth) {
+            int32_t clr = depth - ASAG_BOIL_CLEAR_BACKOFF;
+            if (clr < 1) clr = 1;
+            if (weapon_aim_clear(fx, fz, clr)) {
+                best_depth = depth; best_kind = 10; best_idx = i;
+            }
+        }
+    }
+
     if (vampire_health > 0 &&
         weapon_aim_in_circle(vampire_x, vampire_y + VAMPIRE_Y, vampire_z,
                         VAMPIRE_HALF_W, VAMPIRE_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
@@ -278,6 +321,19 @@ static void graveolver_fire(void) {
            table doubles DMG_FLAME) — so 20 or 10 shots to kill. */
         rabisu_damage(&rabisus[best_idx],
                       rabisu_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 9) {
+        /* ASAG'S HEAD. >>> NO WEAKNESS TABLE AND NO damage_scale() CALL. <<<
+           "Every weapon deals 1x damage to Asag" was the brief, in as many
+           words, so a Flame Round is a Standard Round here and the absence of a
+           table is the design rather than an omission. 20 HP means twenty
+           connected shots, all of them landed inside exposure windows that add
+           up to a few seconds an attack — which is what makes the boils, and
+           the faint they buy, the way through the fight rather than a
+           decoration on it. */
+        asag_damage(GUN_DAMAGE);
+    } else if (best_kind == 10) {
+        /* A BOIL. 3 HP, so three rounds, and no scaling for the same reason. */
+        asag_boil_damage(best_idx, GUN_DAMAGE);
     } else {
         vampire_health   -= vampire_scale_damage(GUN_DAMAGE, dmg_type);
         vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;

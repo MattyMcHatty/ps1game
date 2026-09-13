@@ -13,7 +13,8 @@
 #include "asag_arena_mesh_collision.h"
 #include "asag_arena_tex_map.h"
 #include "asag.h"            /* the boss body: loaded per-room, drawn here */
-#include "asag_boss.h"       /* the DEMO director: cycles the six clips     */
+#include "asag_fight.h"      /* the fight: its world draws and its health bar */
+#include "asag_boss.h"       /* the director: the opening scene and the death */
 #include "cdaudio.h"          /* suspend/resume around the entry-time read */
 #include "dresser.h"
 #include "save_point.h"
@@ -129,7 +130,11 @@ static uint16_t tex_clut[ASAG_ARENA_TEX_COUNT];
    that uses them because asag_arena_init() — which zeroes both on arrival — is
    above that code, and the block comment on the mechanism belongs with the
    mechanism. See boil_lit() further down, and the header. */
-static int32_t boil_level;      /* 0..ASAG_BOIL_LEVEL_MAX, the director's     */
+/* ONE LEVEL PER BOIL, indexed 0 = LEFT (x=-700) and 1 = RIGHT (x=+900), which
+   is asag_arena_boil[]'s 1 and 2 less one. It was a single shared level while
+   the opening scene was the only thing that lit them; the fight bursts them
+   separately, so it is an array now and asag_arena_set_boil_glow() sets both. */
+static int32_t boil_level[ASAG_BOIL_COUNT];
 static int32_t boil_clock;      /* game frames; ticked by the draw            */
 
 /* src/asag.c reads the boss's skin back through these. Zero for a slot that
@@ -434,24 +439,46 @@ void asag_arena_init(void) {
 
 /* boil_level and boil_clock are declared at the head of the file; see there. */
 
-void asag_arena_set_boil_glow(int32_t level) {
+void asag_arena_set_boil_one(int which, int32_t level) {
+    if (which < 0 || which >= ASAG_BOIL_COUNT) return;
     if (level < 0) level = 0;
     if (level > ASAG_BOIL_LEVEL_MAX) level = ASAG_BOIL_LEVEL_MAX;
-    boil_level = level;
+    boil_level[which] = level;
 }
 
-int32_t asag_arena_boil_glow(void) { return boil_level; }
+/* BOTH of them, which is what the opening scene wants: it ramps the pair up
+   together and has no notion of a left and a right. Keeping it as the plain
+   one-argument call is why that scene needed no edit when the fight arrived. */
+void asag_arena_set_boil_glow(int32_t level) {
+    int i;
+    for (i = 0; i < ASAG_BOIL_COUNT; i++) asag_arena_set_boil_one(i, level);
+}
+
+int32_t asag_arena_boil_glow_one(int which) {
+    if (which < 0 || which >= ASAG_BOIL_COUNT) return 0;
+    return boil_level[which];
+}
+
+/* The BRIGHTER of the two. The only caller that wants a single number is a
+   debug read-out, and "are the boils lit at all" is the question it is asking;
+   averaging would report half-lit for one burst boil and one whole one. */
+int32_t asag_arena_boil_glow(void) {
+    int32_t hi = 0, i;
+    for (i = 0; i < ASAG_BOIL_COUNT; i++)
+        if (boil_level[i] > hi) hi = boil_level[i];
+    return hi;
+}
 
 /* `level` with the breath applied, 0..256. isin gives -4096..4096 over a full
    turn, so (isin + 4096) / 8192 is the 0..1 the lerp wants; done in 256ths to
    stay in integers. */
-static int32_t boil_lit(void) {
-    if (boil_level <= 0) return 0;
+static int32_t boil_lit(int which) {
+    if (boil_level[which] <= 0) return 0;
     int32_t phase = ((boil_clock * 4096) / ASAG_BOIL_PULSE_TICKS) & 4095;
     int32_t s     = (isin(phase) + 4096) / 32;      /* 0..256 */
     int32_t env   = ASAG_BOIL_PULSE_LO
                     + ((256 - ASAG_BOIL_PULSE_LO) * s) / 256;
-    return (boil_level * env) / 256;
+    return (boil_level[which] * env) / 256;
 }
 
 static void draw_asag_arena_smd(RenderContext *ctx) {
@@ -467,7 +494,20 @@ static void draw_asag_arena_smd(RenderContext *ctx) {
        It runs on under the inventory menu, which is harmless and arguably
        right: the boils do not hold their breath while the player reads. */
     boil_clock++;
-    int32_t boil = boil_lit();
+    /* Both breaths solved once for the frame, not once per primitive. The
+       clock is shared (see the note above), so the two differ only by their
+       level - a burst boil is simply at 0 and its four faces draw as wall. */
+    int32_t boil_of[ASAG_BOIL_COUNT];
+    {
+        int bi;
+        for (bi = 0; bi < ASAG_BOIL_COUNT; bi++) boil_of[bi] = boil_lit(bi);
+    }
+    int32_t boil_any = 0;
+    {
+        int bi;
+        for (bi = 0; bi < ASAG_BOIL_COUNT; bi++)
+            if (boil_of[bi] > boil_any) boil_any = boil_of[bi];
+    }
 
     uint8_t *p = (uint8_t *)asag_arena_smd->p_prims;
     int i, n = asag_arena_smd->n_prims;
@@ -621,10 +661,16 @@ static void draw_asag_arena_smd(RenderContext *ctx) {
            with the wall it sits in. Lerp from whatever the fog left toward the
            two gains, so level 0 is exactly the old colour and there is no seam
            at the moment the encounter starts the ramp. */
-        if (boil && i < ASAG_ARENA_PRIM_COUNT && asag_arena_boil[i]) {
-            r = (uint8_t)(r + ((ASAG_BOIL_R_GAIN  - r) * boil) / 256);
-            g = (uint8_t)(g + ((ASAG_BOIL_GB_GAIN - g) * boil) / 256);
-            b = (uint8_t)(b + ((ASAG_BOIL_GB_GAIN - b) * boil) / 256);
+        if (boil_any && i < ASAG_ARENA_PRIM_COUNT && asag_arena_boil[i]) {
+            /* asag_arena_boil[] holds 1 for the LEFT cluster and 2 for the
+               RIGHT, so the level is indexed by it less one. The boil_any test
+               above is the early-out for the 514 faces that are neither. */
+            int32_t boil = boil_of[asag_arena_boil[i] - 1];
+            if (boil) {
+                r = (uint8_t)(r + ((ASAG_BOIL_R_GAIN  - r) * boil) / 256);
+                g = (uint8_t)(g + ((ASAG_BOIL_GB_GAIN - g) * boil) / 256);
+                b = (uint8_t)(b + ((ASAG_BOIL_GB_GAIN - b) * boil) / 256);
+            }
         }
 
         /* Per-prim texture index; SMD prim order matches the generated map.
@@ -753,16 +799,33 @@ void asag_arena_draw(RenderContext *ctx) {
        switch BEFORE spending an afternoon on either half. */
     if (exp != DBG_EXP_NO_ENTITIES) asag_draw(ctx);
 
+    /* THE FIGHT'S WORLD-SPACE DRAWS: the laser and its burning floor, the
+       slam's markers and boulders, the vomit's spray, the puss balls. All
+       additive, all in world space, so they want the PLAIN view matrix — which
+       is the one built above and which asag_draw() leaves alone (this boss
+       loads no model matrix; see src/asag.h). They go AFTER the body so his
+       silhouette sorts against them rather than the other way round.
+
+       The health BAR is last of the two: it projects a world point and so wants
+       the same matrix, but it has to sit in front of whatever the attacks lit
+       up. Both are gated on the fight inside. */
+    if (exp != DBG_EXP_NO_ENTITIES) {
+        asag_fight_draw(ctx);
+        /* The DEATH's lights, after the fight's draws (which are all switched
+           off by then) and before the bar (which is too). Same view matrix. */
+        asag_boss_draw(ctx);
+        asag_fight_draw_bar(ctx);
+    }
+
     /* THE OPENING SCENE'S SUBTITLES. Screen space, sorted into the
        menu-reserved OT range, so LAST of all — and a no-op outside the two
        speaking phases. The scene's other visual, the boils, needs no call of
        its own: they are polygons of this room's own mesh, brightened in the
        draw loop above.
 
-       >>> THE REST OF THE ENCOUNTER'S DRAWS GO BETWEEN asag_draw AND THIS, IN
-       THIS ORDER. <<< tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 10:
-         asag_projectiles_draw(ctx);     wants the plain view matrix, which
-                                         asag_draw above leaves untouched
-         asag_boss_draw(ctx);            the lights: additive world geometry */
+       Everything else the encounter draws is already above this line, in the
+       order tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 10 asks for: the fight's
+       world effects, then the death's lights, then the health bar - all under
+       the plain view matrix, which asag_draw() leaves untouched. */
     asag_boss_draw_overlay(ctx);
 }
