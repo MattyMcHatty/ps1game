@@ -8,9 +8,11 @@
 #include "asag_fight.h"
 #include "camera.h"         /* player_x/y/z, cam_* for the draws only          */
 #include "particles.h"    /* spawn_rock_burst - the boulders smashing    */
-#include "player.h"         /* player_hurt, player_poison, MAX_HEALTH          */
+#include "cdaudio.h"        /* cdaudio_stop — the music dies with him          */
+#include "player.h"         /* player_hurt, player_health, game_over, flash_timer */
 #include "rabisu.h"         /* rbs_glow_quad — see THE ONE BORROWING below     */
 #include "render.h"
+#include "sound.h"          /* the attack cues, and SFX_HURT/SFX_DIE           */
 #include "title.h"          /* current_area, STATE_ASAG_ARENA                  */
 
 /* =========================================================================
@@ -143,7 +145,7 @@ static const int16_t AF_ROW_Z[AF_ROWS + 1] = {
    laser drives the player FORWARD, off the landing and up the arena. The
    boulders drive them BACK, off Asag's end. The vomit splits the room
    LEFT/RIGHT down the middle. No single spot in the arena survives all three,
-   so standing still is never the answer and the four-second idles are when the
+   so standing still is never the answer and the two-second idles are when the
    player picks the next place to be. Change any one zone and check it against
    the other two before believing it. */
 #define AF_ROWS_PER_THIRD  (AF_ROWS / 3)
@@ -205,7 +207,17 @@ static int af_in_cols(int lo, int hi) {
    ========================================================================= */
 
 /* ---- The loop ------------------------------------------------------------ */
-#define AF_T_IDLE            240   /* 4 s between attacks, as briefed          */
+/* >>> TWO SECONDS, HALVED FROM THE BRIEFED FOUR. <<< Four seconds was what the
+   original brief asked for and it played too slow: the idles are meant to be
+   when the player picks where to be next (see the three-zones block above), and
+   that decision takes about a second. The other two were dead air.
+
+   IT IS THE ONE NUMBER THAT SETS THE FIGHT'S PACE, so note what halving it also
+   halves: the time to reposition between the laser's fire, the boulders' zone
+   and the vomit's lane, and the window in which the player shoots at the boils
+   without an attack in the air. If the fight ever reads as too frantic, this is
+   the first thing to put back. */
+#define AF_T_IDLE            120   /* 2 s between attacks                      */
 
 /* >>> HOW LONG BEFORE A CLIP ENDS THE HEAD STOPS BEING EXPOSED. <<< The brief
    gives 0.5 s for the slam and 1.0 s for the faint. It says only "as soon as
@@ -304,6 +316,12 @@ static int af_in_cols(int lo, int hi) {
 #define AF_T_BOIL_RESTORE   1800   /* 30 s, as briefed                         */
 #define AF_T_BOIL_RELIGHT     45   /* 0.75 s of coming back up, not a snap     */
 
+/* How long a boil's health bar stays up after a hit. ASAG'S OWN hit_timer, to
+   the frame — the two bars are the same piece of UI hung on two different
+   things, and a boil bar that outlived the boss's would read as a second
+   system. src/rabisu.c's RBS_BAR_TIMER is the original. */
+#define AF_T_BOIL_BAR        120   /* 2 s, Asag's hit_timer exactly            */
+
 /* ---- The puss balls ------------------------------------------------------- */
 #define AF_PUSS_PER_BOIL       3   /* as briefed                               */
 #define AF_PUSS_MAX           (AF_PUSS_PER_BOIL * ASAG_BOIL_COUNT)
@@ -337,6 +355,59 @@ static int af_in_cols(int lo, int hi) {
 #define AF_DMG_BOULDER  ((MAX_HEALTH * 20) / 100)   /* 20 */
 #define AF_DMG_VOMIT    ((MAX_HEALTH * 20) / 100)   /* 20 */
 #define AF_DMG_PUSS     ((MAX_HEALTH * 10) / 100)   /* 10 */
+
+/* =========================================================================
+   HURTING THE PLAYER — ONE ENTRY POINT, AND IT HAD TO BECOME ONE
+   =========================================================================
+   >>> THIS FIGHT USED TO CALL player_hurt() RAW, AND THAT IS WHY THE PLAYER
+   COULD NOT DIE IN IT. <<< player_hurt() subtracts from player_health and does
+   nothing else: it does not raise `game_over`, it does not set flash_timer and
+   it does not make a noise. Every other enemy in the game — spider.c,
+   rabisu.c, tentacle.c, mushroom.c, hadad.c, rafflesia.c, demondog.c — follows
+   it with the SAME four lines at every call site, and this file had none of
+   them. The result was a boss arena in which the health bar emptied, went
+   negative and the player walked around on a negative total forever, with
+   main.c's game-over branch (which already lists STATE_ASAG_ARENA) waiting on a
+   flag nobody ever set.
+
+   So the five call sites go through here instead of each remembering the
+   ritual. FIVE was exactly the problem: the laser's burning floor, the slam's
+   head, the boulders, the vomit's lane and the puss balls, and a fix applied
+   four times is a fix.
+
+   >>> THE HURT CUE IS COOLED DOWN, THE DEATH CUE IS NOT. <<< src/spider.c's
+   arrangement, and this fight needs it more than the spider does: the trail and
+   the lane are CONTINUOUS hazards with their own latches, but a player crossing
+   the burning third as the boulders land can take two hits inside a few frames,
+   and two HURTs on one voice is a click rather than a cry. SFX_DIE is left
+   uncooled because it can only ever fire once.
+
+   SFX_HURT and SFX_DIE are both RESIDENT (src/sound.h), so they are audible
+   down here whatever bank is loaded — which is the whole reason the arena could
+   be given an empty bank of its own. */
+#define AF_T_HURT_SFX   30   /* 0.5 s, src/spider.c's SPD hurt cooldown */
+
+static int32_t hurt_sfx_cooldown;
+
+static void af_hurt(int32_t amount) {
+    /* ALREADY DEAD IS NOT HURT AGAIN. Every other call site in the game opens
+       with `if (!game_over)`; one test here covers all five. */
+    if (game_over) return;
+
+    player_hurt(amount);
+
+    if (hurt_sfx_cooldown == 0) {
+        sound_play(SFX_HURT);
+        hurt_sfx_cooldown = AF_T_HURT_SFX;
+    }
+
+    if (player_health <= 0) {
+        player_health = 0;
+        game_over     = 1;
+        flash_timer   = 90;     /* the white flash, everyone else's 90 */
+        sound_play(SFX_DIE);
+    }
+}
 
 /* >>> THE BURNING FLOOR NEEDS A COOLDOWN AND THE ONE-SHOT ATTACKS NEED A
    LATCH. <<< A cell that burns for three seconds would otherwise deal its 30 on
@@ -399,6 +470,7 @@ typedef struct {
     int8_t  hp;
     int8_t  burst;
     int32_t restore_t;     /* counts up to AF_T_BOIL_RESTORE while burst       */
+    int32_t hit_timer;     /* bar flash countdown, Asag's own and the Rabisu's */
 } AfBoil;
 static AfBoil boil[ASAG_BOIL_COUNT];
 
@@ -419,6 +491,7 @@ typedef struct {
 static AfBoulder boulder[AF_BOULDERS];
 static int       boulders_armed;
 static int       bld_hit_done;   /* the ZONE's hit, once a slam, not per cube */
+static int       bld_sfx_done;   /* ...and ONE rumble for the pair; see below */
 
 /* ---- The vomit's spray --------------------------------------------------- */
 typedef struct {
@@ -681,6 +754,7 @@ static void af_boil_burst(int which) {
     boil[which].burst     = 1;
     boil[which].hp        = 0;
     boil[which].restore_t = 0;
+    boil[which].hit_timer = 0;   /* the bar goes out with the light */
     asag_arena_set_boil_one(which, 0);      /* "the lights will dim and go off" */
     af_puss_launch(which);
 
@@ -703,7 +777,13 @@ void asag_boil_damage(int which, int32_t amount) {
     if (boil[which].burst || amount <= 0) return;
 
     boil[which].hp = (int8_t)(boil[which].hp - amount);
-    if (boil[which].hp <= 0) af_boil_burst(which);
+    if (boil[which].hp <= 0) { af_boil_burst(which); return; }
+    /* THE BAR COMES UP ON THE HIT, which is Asag's own rule and the Rabisu's
+       before it — see asag_fight_draw_boil_bars(). Only on a hit the boil
+       SURVIVES: the burst above returns first, because a bar over a dark organ
+       is the same mistake as a bar over a corpse (STEP 11), and what says "that
+       one is gone" is the light going out and the puss balls coming at you. */
+    boil[which].hit_timer = AF_T_BOIL_BAR;
 }
 
 int asag_boil_target(int which, int32_t *cx, int32_t *cy, int32_t *cz,
@@ -734,6 +814,7 @@ int asag_boil_target(int which, int32_t *cx, int32_t *cy, int32_t *cz,
 static void af_boils_update(void) {
     int i;
     for (i = 0; i < ASAG_BOIL_COUNT; i++) {
+        if (boil[i].hit_timer > 0) boil[i].hit_timer--;
         if (!boil[i].burst) continue;
         boil[i].restore_t++;
         if (boil[i].restore_t >= AF_T_BOIL_RESTORE) {
@@ -852,7 +933,7 @@ static void af_puss_update(void) {
         int32_t dz = p->z - player_z();
         int32_t reach = AF_PUSS_HALF + AF_PLAYER_RADIUS;
         if (dx * dx + dy * dy + dz * dz <= reach * reach) {
-            player_hurt(AF_DMG_PUSS);
+            af_hurt(AF_DMG_PUSS);
             p->live = 0;
         }
     }
@@ -891,7 +972,7 @@ static void af_trail_update(void) {
     }
 
     if (hit && trail_cooldown <= 0) {
-        player_hurt(AF_DMG_LASER);
+        af_hurt(AF_DMG_LASER);
         trail_cooldown = AF_T_TRAIL_COOLDOWN;
     }
 }
@@ -955,6 +1036,7 @@ static void af_boulders_arm(void) {
         boulder[n].hit_done = 0;
     }
     bld_hit_done   = 0;
+    bld_sfx_done   = 0;
     boulders_armed = 1;
 }
 
@@ -1002,6 +1084,24 @@ static void af_boulders_update(void) {
                two boulders are staggered; see AF_T_BLD_STAGGER. */
             spawn_rock_burst(x, AF_FLOOR_Y - 20, z);
 
+            /* >>> ONE RUMBLE FOR THE PAIR, ON THE FIRST ONE DOWN. <<< The two
+               impacts are AF_T_BLD_STAGGER apart, which is nine frames — a
+               second play would land 0.15 s into a 2.12 s clip on the same
+               voice and CUT it, so two rocks would sound quieter than one. The
+               stagger exists to separate the two particle bursts, not the
+               audio; a rumble that starts on the first impact covers both.
+
+               SFX_RUMBLE is the Living Statue's stone grind, borrowed because
+               it is already the sound of rock meeting floor and a fourth clip
+               saying the same thing would cost the bank 13 KB for nothing. It
+               had to be tagged SND_BANK_ASAG to be audible here — see the note
+               on it in src/sound.c, and note it plays on VOICE 9, which nothing
+               else in this arena touches. */
+            if (!bld_sfx_done) {
+                bld_sfx_done = 1;
+                sound_play(SFX_RUMBLE);
+            }
+
             /* >>> THE DAMAGE IS THE THIRD, NOT THE CUBE. <<< Two boulders 1200
                apart cannot cover a 3000-wide room between them, and the design
                is that being caught in Asag's end of the arena when they land is
@@ -1010,7 +1110,7 @@ static void af_boulders_update(void) {
                draw). Once per slam, however many boulders land in it. */
             if (!bld_hit_done && af_in_rows(AF_ROW_SLAM_LO, AF_ROW_SLAM_HI)) {
                 bld_hit_done = 1;
-                player_hurt(AF_DMG_BOULDER);
+                af_hurt(AF_DMG_BOULDER);
             }
         }
     }
@@ -1220,11 +1320,14 @@ void asag_fight_reset(void) {
     las_dir       = 0;
     boulders_armed = 0;
     bld_hit_done  = 0;
+    bld_sfx_done  = 0;
+    hurt_sfx_cooldown = 0;
 
     for (i = 0; i < ASAG_BOIL_COUNT; i++) {
         boil[i].hp        = AF_BOIL_HEALTH;
         boil[i].burst     = 0;
         boil[i].restore_t = 0;
+        boil[i].hit_timer = 0;
     }
     for (i = 0; i < AF_CELLS; i++)     trail[i] = 0;
     for (i = 0; i < AF_PUSS_MAX; i++)  puss[i].live = 0;
@@ -1260,7 +1363,10 @@ void asag_fight_stop(void) {
     /* THE LIGHTS GO OUT WITH HIM. Two organs still breathing on the wall over a
        corpse would be the one thing on screen insisting the fight is still on —
        the same judgement STEP 11 makes about a health bar. */
-    for (i = 0; i < ASAG_BOIL_COUNT; i++) asag_arena_set_boil_one(i, 0);
+    for (i = 0; i < ASAG_BOIL_COUNT; i++) {
+        asag_arena_set_boil_one(i, 0);
+        boil[i].hit_timer = 0;      /* ...and their bars with them */
+    }
 }
 
 int asag_fight_active(void) { return phase != AF_OFF; }
@@ -1272,6 +1378,10 @@ int asag_fight_active(void) { return phase != AF_OFF; }
 void asag_fight_update(void) {
     if (current_area != STATE_ASAG_ARENA) return;
     if (hit_timer > 0) hit_timer--;
+    /* OUTSIDE THE `phase == AF_OFF` GATE BELOW, with the projectiles: a puss
+       ball or a burning cell can still hurt the player after the loop has
+       stopped, so the cue that rate-limits those hits has to keep cooling. */
+    if (hurt_sfx_cooldown > 0) hurt_sfx_cooldown--;
 
     /* >>> WHAT IS IN THE AIR KEEPS FLYING EVEN WHEN THE LOOP IS OFF, AND THAT
        IS DELIBERATE — up to a point. <<< The runbook's rule is that launching a
@@ -1321,6 +1431,15 @@ void asag_fight_update(void) {
             int32_t p = ((phase_t - AF_T_LAS_FIRE) * 256)
                         / (AF_T_LAS_END - AF_T_LAS_FIRE);
             af_laser_step(p);
+            /* >>> THE CUE IS ON THE FRAME THE BEAM LEAVES HIM, not on the frame
+               the charge starts. <<< STEP 8 of tools/ADDING_A_SOUND.txt asks for
+               the sound of the EVENT, and the event the player is reading here
+               is the beam appearing — the charge already has its own tell (the
+               head's glow, af_draw_charge). == and not >=: phase_t is reset to 0
+               by af_enter and steps by exactly one a frame, so this fires once
+               and needs no latch of its own. The clip is 4.44 s against a 3 s
+               sweep, so it runs a little past the beam on purpose. */
+            if (phase_t == AF_T_LAS_FIRE) sound_play(SFX_LASER);
         } else if (phase_t >= AF_T_LAS_CHARGE && phase_t < AF_T_LAS_FIRE) {
             /* The charge: the head glows and nothing else happens. Its only
                state is the phase counter; the draw reads that. */
@@ -1336,6 +1455,13 @@ void asag_fight_update(void) {
         if (!slam_hit_done && phase_t >= AF_T_SLAM_IMPACT) {
             slam_hit_done = 1;
 
+            /* THE HEAD HITTING THE GROUND. This latch already fires on exactly
+               the impact frame — AF_T_SLAM_IMPACT was measured off the .pva as
+               the tick the head reaches the floor — so the cue rides it rather
+               than carrying a second copy of the number. SFX_RUMBLE follows a
+               beat later, when the boulders land (af_boulders_update). */
+            sound_play(SFX_SLAM_ASAG);
+
             /* "Caught under the slamming head" — measured to where the head
                ACTUALLY IS on the impact frame, not to a constant. asag.c owns
                the pose; re-deriving the landing spot here would be a second
@@ -1344,7 +1470,7 @@ void asag_fight_update(void) {
             if (asag_face_point(&f) &&
                 af_dist_xz(f.vx, f.vz, player_x(), player_z())
                     <= AF_SLAM_RADIUS + AF_PLAYER_RADIUS)
-                player_hurt(AF_DMG_SLAM);
+                af_hurt(AF_DMG_SLAM);
 
             af_boulders_arm();
         }
@@ -1354,6 +1480,13 @@ void asag_fight_update(void) {
     /* ---- VOMIT ------------------------------------------------------------
        Head in place at t 112, twitching from t 150 to t 265. */
     case AF_VOMIT:
+        /* HE STARTS SPEWING AT AF_T_VOM_START, which is the tick the head
+           begins to twitch — the same moment the first particle leaves him and
+           the lane starts lighting. == for the reason the laser's cue uses it:
+           phase_t is reset by af_enter and steps by one, so no latch is needed.
+           Outside the spray window so it reads as the cue for the whole block
+           below rather than as part of the per-frame spit. */
+        if (phase_t == AF_T_VOM_START) sound_play(SFX_VOMIT);
         if (phase_t >= AF_T_VOM_START && phase_t <= AF_T_VOM_END) {
             /* The particles leave his LIVE mouth, twitch and all. The damage
                zone is not a point at all any more - it is the lane, columns
@@ -1381,7 +1514,7 @@ void asag_fight_update(void) {
             if (!vom_hit_done &&
                 af_in_cols(AF_COL_VOM_LO, AF_COL_VOM_HI)) {
                 vom_hit_done = 1;
-                player_hurt(AF_DMG_VOMIT);
+                af_hurt(AF_DMG_VOMIT);
                 /* THE SAME STATUS THE SPIDER'S WEB CARRIES, by the same call:
                    half walk speed and no sprint for five seconds. Refreshing
                    rather than stacking is player_poison()'s own rule. */
@@ -1518,8 +1651,24 @@ static void af_draw_boulders(RenderContext *ctx) {
                 (uint8_t)((190 * lev) >> 8),
                 (uint8_t)((255 * lev) >> 8));
 
-        /* The cube itself does not exist until its own fall has begun. */
-        if (b->t < 0) continue;
+        /* The cube exists for its FALL AND NOTHING ELSE: not before it has
+           begun (b->t < 0 is the staggered one still waiting), and >>> NOT FOR
+           ONE FRAME AFTER IT LANDS. <<<
+
+           It used to sit on the floor for AF_T_BLD_LINGER, which put an intact
+           boulder in the middle of its own smash — the rock burst spawns on the
+           impact frame, so the chips flew out of a cube that was still standing
+           there, and the whole thing read as a stutter rather than as an
+           impact. A falling rock either shatters or it does not; this one
+           shatters, so the cube goes the instant it touches down and the
+           particles are what is left of it.
+
+           AF_T_BLD_LINGER IS STILL DOING ITS JOB — it is what keeps the MARKER
+           LIGHT above lit for a moment after the landing, which is what
+           af_boulders_update's "the light turns off after the cubes have landed
+           and disappeared" means. The cube's life and the light's are two
+           different spans and this is the line that separates them. */
+        if (b->t < 0 || b->t >= AF_T_BLD_FALL) continue;
         int32_t x, y, z;
         af_boulder_pos(b, &x, &y, &z);
         af_cube(ctx, x, y, z, AF_BLD_HALF, 96, 62, 38);
@@ -1579,7 +1728,111 @@ void asag_fight_draw(RenderContext *ctx) {
     af_draw_laser(ctx);
 }
 
-/* Asag's health bar. src/rabisu.c's draw_rbs_bar, hung over the HEAD rather
+/* =========================================================================
+   THE HEALTH BARS
+   =========================================================================
+   >>> THERE ARE THREE OF THEM NOW AND THEY SHARE ONE ROUTINE. <<< Asag's hangs
+   over his head; the two boils' hang over the boils. They are the same piece of
+   UI — src/rabisu.c's draw_rbs_bar — pinned to three different world points,
+   and the only things that differ are the point, the fraction and the width.
+
+   Factoring it out was not tidiness. The projection has four separate traps in
+   it (a zero z, the +/-1023 screen clamp, the packet-budget test, and the
+   background having to sort one OT bucket BEHIND the fill) and three hand
+   copies of that is three chances to get one wrong — the boil bars were written
+   as a copy first and the copy dropped the sz test, which shows up as a bar
+   smeared across the screen when the camera passes through the back wall. */
+
+/* One bar, `width` px wide, centred over the world point (wx, wy, wz) and
+   filled num/den. Silently draws nothing for a point that will not project. */
+static void af_bar_at(RenderContext *ctx,
+                      int32_t wx, int32_t wy, int32_t wz,
+                      int32_t num, int32_t den, int16_t width) {
+    if (den <= 0) return;
+    if (num < 0) num = 0;
+
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+
+    SVECTOR top;
+    top.vx  = (int16_t)wx;
+    top.vy  = (int16_t)wy;
+    top.vz  = (int16_t)wz;
+    top.pad = 0;
+
+    DVECTOR sv;
+    int32_t sz;
+    gte_ldv0(&top);
+    gte_rtps();
+    gte_stsxy(&sv);
+    gte_stsz(&sz);
+    if (sz == 0) return;
+    if (sv.vx <= -1023 || sv.vx >= 1023 || sv.vy <= -1023 || sv.vy >= 1023) return;
+
+    int32_t otz = SCENE_OT_MIN;
+    int16_t bar_x = (int16_t)(sv.vx - width / 2);
+    int16_t bar_y = sv.vy;
+
+    if (ctx->next_packet + sizeof(TILE) <= buf_end) {
+        TILE *bg = (TILE *)ctx->next_packet;
+        setTile(bg);
+        setRGB0(bg, 40, 40, 40);
+        setXY0(bg, bar_x, bar_y);
+        setWH(bg, width, 6);
+        /* otz + 1, i.e. one bucket FURTHER BACK than the fill: the OT is sorted
+           back-to-front, so the trough has to go behind the thing standing in
+           it. Both are in front of all scene geometry (SCENE_OT_MIN). */
+        addPrim(&ctx->buffers[ctx->active_buffer].ot[otz + 1], bg);
+        ctx->next_packet += sizeof(TILE);
+    }
+
+    int16_t fill_w = (int16_t)((num * width) / den);
+    if (fill_w > 0 && ctx->next_packet + sizeof(TILE) <= buf_end) {
+        TILE *fill = (TILE *)ctx->next_packet;
+        setTile(fill);
+        setRGB0(fill, 200, 20, 20);   /* the Rabisu's red, and only red */
+        setXY0(fill, bar_x, bar_y);
+        setWH(fill, fill_w, 6);
+        addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], fill);
+        ctx->next_packet += sizeof(TILE);
+    }
+}
+
+/* ---- THE TWO BOIL BARS ----------------------------------------------------
+   Asag's bar, on the two organs that are the way in to him. They obey the same
+   rule his does and for the same reasons: RED, two seconds after a hit that the
+   boil SURVIVED, nothing the rest of the time.
+
+   >>> WHY A BOIL NEEDED ONE AT ALL. <<< Asag has 20 HP and a boil has 3, and
+   the boils are what the player actually spends the fight shooting — bursting
+   both is the only thing that buys the long exposure. Without a bar there was
+   no feedback at all on a hit that did not burst one: a boil at 3 HP and a boil
+   at 1 looked identical, so "one more shot" was a guess. The boss's own bar is
+   the less important of the two and it had one first.
+
+   THEY ARE NARROWER THAN HIS, 40 against 60. Two of them are on screen at once,
+   side by side on the same wall, at a range where his bar is already small; at
+   his width they read as one strip. And the fraction they show is out of 3, so
+   a bar 60 wide would step in 20-pixel jumps and look broken.
+
+   NOT DRAWN FOR A BURST BOIL, which asag_boil_target() already refuses as a
+   target — the hit_timer is cleared by the burst, so this falls out rather than
+   being tested for twice. Not drawn once he is dying either: asag_fight_stop()
+   clears both timers on the killing blow. */
+#define AF_BOIL_BAR_W     40
+#define AF_BOIL_BAR_RISE  60   /* px of world above the cluster's top edge */
+
+static void af_draw_boil_bars(RenderContext *ctx) {
+    int i;
+    for (i = 0; i < ASAG_BOIL_COUNT; i++) {
+        if (boil[i].hit_timer <= 0) continue;
+        int32_t x, y, z;
+        af_boil_at(i, &x, &y, &z);
+        af_bar_at(ctx, x, y - ASAG_BOIL_HALF - AF_BOIL_BAR_RISE, z,
+                  boil[i].hp, AF_BOIL_HEALTH, AF_BOIL_BAR_W);
+    }
+}
+
+/* Asag's own health bar. src/rabisu.c's draw_rbs_bar, hung over the HEAD rather
    than over a model's top: he is 1669 units long and lies along the view axis,
    so a bar above his centre would float over his flank, a long way from the
    part the player is shooting at.
@@ -1588,6 +1841,12 @@ void asag_fight_draw(RenderContext *ctx) {
    death sequence is the one piece of UI still insisting there is a fight on. */
 void asag_fight_draw_bar(RenderContext *ctx) {
     if (current_area != STATE_ASAG_ARENA) return;
+
+    /* THE BOILS FIRST, so his own bar sorts in front of them if the camera ever
+       lines the three up. They have their own timers and their own visibility
+       rule, so this is not gated on his. */
+    af_draw_boil_bars(ctx);
+
     /* >>> UP ONLY AFTER A HIT, AND THE RABISU'S RULE EXACTLY. <<< An earlier
        version also raised it for the whole of every exposure window and turned
        it green, on the argument that "can I hurt him now" is the question this
@@ -1607,45 +1866,6 @@ void asag_fight_draw_bar(RenderContext *ctx) {
     int32_t hx, hy, hz, hw, hh;
     if (!asag_head_box(&hx, &hy, &hz, &hw, &hh)) return;
 
-    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-
-    SVECTOR top;
-    top.vx  = (int16_t)hx;
-    top.vy  = (int16_t)(hy - hh - 90);   /* clear of the head */
-    top.vz  = (int16_t)hz;
-    top.pad = 0;
-
-    DVECTOR sv;
-    int32_t sz;
-    gte_ldv0(&top);
-    gte_rtps();
-    gte_stsxy(&sv);
-    gte_stsz(&sz);
-    if (sz == 0) return;
-    if (sv.vx <= -1023 || sv.vx >= 1023 || sv.vy <= -1023 || sv.vy >= 1023) return;
-
-    int32_t otz = SCENE_OT_MIN;
-    int16_t bar_x = sv.vx - 30;
-    int16_t bar_y = sv.vy;
-
-    if (ctx->next_packet + sizeof(TILE) <= buf_end) {
-        TILE *bg = (TILE *)ctx->next_packet;
-        setTile(bg);
-        setRGB0(bg, 40, 40, 40);
-        setXY0(bg, bar_x, bar_y);
-        setWH(bg, 60, 6);
-        addPrim(&ctx->buffers[ctx->active_buffer].ot[otz + 1], bg);
-        ctx->next_packet += sizeof(TILE);
-    }
-
-    int16_t fill_w = (int16_t)((health * 60) / ASAG_MAX_HEALTH);
-    if (fill_w > 0 && ctx->next_packet + sizeof(TILE) <= buf_end) {
-        TILE *fill = (TILE *)ctx->next_packet;
-        setTile(fill);
-        setRGB0(fill, 200, 20, 20);   /* the Rabisu's red, and only red */
-        setXY0(fill, bar_x, bar_y);
-        setWH(fill, fill_w, 6);
-        addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], fill);
-        ctx->next_packet += sizeof(TILE);
-    }
+    af_bar_at(ctx, hx, hy - hh - 90 /* clear of the head */, hz,
+              health, ASAG_MAX_HEALTH, 60);
 }

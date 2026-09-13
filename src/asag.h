@@ -290,6 +290,24 @@ int32_t asag_clip_elapsed(void);
    both are worse. */
 void asag_ramp_home(int32_t ticks);
 
+/* ---- ...and the same ramp to ANY offset -----------------------------------
+   asag_ramp_home(t) is asag_ramp_dz(0, t). `dz` is an offset along Z in the
+   units ASAG_EMERGE_DZ is given in, so 0 is Home and ASAG_EMERGE_DZ is fully
+   Emerged; anything between is a partial lean out of the wall.
+
+   >>> IT EXISTS FOR THE OPENING SCENE'S HALF-LEAN, and it is the only way to
+   express one. <<< A clip's position track is ABSOLUTE — update_pos() reads
+   0 -> EMERGED -> 0 off the clip's own clock — and the idle's clip_move row
+   inherits rather than travels, so "come out halfway and stay there while the
+   boils light" is not something any clip can say.
+
+   >>> WHATEVER PARKS HIM OUT OF POSITION MUST BRING HIM BACK. <<< Because
+   update_pos() is absolute, an attack started with the body parked at half
+   Emerged SNAPS it to Home on the out-ramp's first frame — a 484-unit jump in
+   one frame. src/asag_boss.c's handover ramps him Home for exactly this reason
+   and the fight begins at 0, as it always did. */
+void asag_ramp_dz(int32_t dz, int32_t ticks);
+
 /* 1 if this clip's .pva actually made it into memory. A clip can be ABSENT for
    two reasons and both are silent: read_file() refused the allocation because it
    would have reached the stack (see the .c), or load_clip() rejected a .pva

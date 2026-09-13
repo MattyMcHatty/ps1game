@@ -209,6 +209,20 @@
                      house banks. Before that the garden bank had 1200 bytes free
                      and this clip needs 12.5 KB. -->
                 <file name="WATER.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\water.vag"/>
+
+                <!-- ASAG'S THREE ATTACK SOUNDS. SND_BANK_ASAG, which is the
+                     only bank loaded in his arena, so every mid-fight effect
+                     has to live in it - the rule at the head of STEP 3 in
+                     tools/ADDING_A_SOUND.txt, and the same reason the Rabisu's
+                     fireball and boom sit on the boss bank. The three together
+                     take that bank 87.9 KB -> 158.4 KB of the region's 237, and
+                     BOSS is still the largest at 190.3, so `spare` does not
+                     move. RUMBLE.VAG above is tagged ASAG as well for the
+                     boulders landing after the slam - a second copy at that
+                     bank's own address, which is what a two-bank tag means. -->
+                <file name="VOMIT.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\vomit.vag"/>
+                <file name="SLAMASAG.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\slam_asag.vag"/>
+                <file name="LASER.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\laser.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

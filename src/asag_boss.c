@@ -29,23 +29,31 @@
    is that runbook's STEP 4 and is what the fight should grow inside.
 
    ---- THE BEAT SHEET, AS BRIEFED -------------------------------------------
-     1. The level loads and the camera is ABOVE the landing, looking straight
-        down at the floor — carrying straight on from the transition, which has
-        just finished with mud filling the screen.
-     2. It FALLS to the landing, accelerating.
+     1. The level loads and the camera is ABOVE the landing, ALREADY LOOKING AT
+        ASAG. (It used to look straight down at the mud, carrying on from the
+        transition; see begin_scene for why that was dropped.)
+     2. It FALLS to the landing, accelerating, holding him in frame.
      3. It BOUNCES, twice and decaying, and the hurt sound plays as the player
         lands. Asag is SITTING two seconds into his faint for all of the above:
-        the brief says "sitting", so the clip is seeded and then HELD.
-     4. It PANS UP off the floor to look at him in that position, and the faint
-        is released.
-     5. As the faint resolves and he returns to Home, the camera moves UP AND TO
-        THE RIGHT, ending looking slightly DOWN at his face.
-     6. He drops into the idle, looping.
-     7. The boils light up over two seconds.
-     8. Still idling, he speaks: the demon-speech clip and the boss music start
-        together, and two lines of subtitle follow, one per utterance.
-     9. The camera returns to the landing, levels off, and control goes back —
-        the player standing exactly where the shaft dropped them.
+        the brief says "sitting", so the clip is seeded and then HELD. The faint
+        is released on the last frame of the bounce.
+     4. As the faint resolves and he returns to Home, the camera moves UP, TO THE
+        RIGHT and IN, ending looking DOWN at his face.
+     5. He drops into the idle, looping.
+     6. The boils light up over two seconds AND HE LEANS HALF OUT OF THE WALL as
+        they do — half of ASAG_EMERGE_DZ, i.e. half an attack's lunge. This beat
+        used to be a static pause.
+     7. Still idling, still leaning out, he speaks: the demon-speech clip and the
+        boss music start together, and two lines of subtitle follow, one per
+        utterance.
+     8. The camera returns to the landing and levels off while he withdraws into
+        the wall, and control goes back — the player standing exactly where the
+        shaft dropped them, and Asag back at Home so the first attack's position
+        track starts from where it expects to.
+
+   (There WAS a beat between 3 and 4: a 1.2 s pan swinging the aim 107 degrees up
+   off the floor. It died with the downward-facing drop, since there was no
+   longer a floor to come up off.)
 
    ---- THE SHOT LIST, AND WHERE EVERY NUMBER IN IT COMES FROM ---------------
    Three camera positions, all expressed as OFFSETS FROM THE SPAWN rather than
@@ -57,11 +65,18 @@
                start and the end of the scene: the drop lands here and the
                handover comes back here, which is what "control returns at the
                original starting position" means.
-     ABOVE     the spawn plus ABE_DROP_RISE in the air, pitch straight down.
-     VANTAGE   up and to the right: +ABE_VANTAGE_DX in X, +ABE_VANTAGE_RISE up.
+     ABOVE     the spawn plus ABE_DROP_RISE in the air, AIMED AT ASAG. (It used
+               to be aimed straight down at the mud; see begin_scene for why
+               that changed and what went with it.)
+     VANTAGE   up, to the right and IN: +ABE_VANTAGE_DX in X, +ABE_VANTAGE_RISE
+               up, +ABE_VANTAGE_DZ toward him. Built by vantage_point(), which
+               also clamps it — the death measures the same offsets from
+               wherever the player was standing, and unclamped they can leave
+               the room or land behind his face.
 
-   THE VANTAGE IS SOLVED FOR THE BRIEF'S "LOOK DOWN SLIGHTLY AT HIS FACE", and
-   the arithmetic is worth keeping because the roofline nearly forbids it:
+   THE VANTAGE IS SOLVED FOR THE BRIEF'S "LOOK DOWN AT HIS FACE", and the
+   arithmetic is worth keeping because the roofline forbids doing it with height
+   alone:
 
      At Home his face sits at (-14, -785, 2290) — measured off the idle .pva,
      see asag_face_point(). From the spawn that is 1990 away in Z.
@@ -70,18 +85,33 @@
          3 deg -> 104 above ->  cam_y -889
          4 deg -> 139 above ->  cam_y -924
          6 deg -> 209 above ->  cam_y -994    <- AT THE ROOFLINE. Too far.
-     The arena's perimeter walls top out at y=-1000, so anything past about
-     five degrees puts the camera in the ceiling. ABE_VANTAGE_RISE is 730,
-     giving cam_y -919 and a measured +43 (3.8 deg) at Home — "slightly" is
-     not a stylistic choice here, it is the room's height.
+     The arena's perimeter walls top out at y=-1000 — 1604 of the arena mesh's
+     1622 vertices are at or below it, and the eighteen that are not are the
+     back alcove — so height alone tops out at about six degrees and the first
+     version took 730 of rise for a measured 3.8.
 
-     THE SIDEWAYS MOVE IS WHAT ACTUALLY IMPROVES THE SHOT. Head-on from the
-     spawn, Asag is 314 units wide at 1990 range inside a 2488-wide frame —
-     about an eighth of the screen. From +650 in X the yaw is -210 (18.5 deg
-     off axis), which turns his 1669-unit LENGTH into about 530 units of
-     lateral spread, and he reads as a long animal across roughly a third of
-     the frame instead of a blob in the middle. x=650 is well inside the
-     arena's x[-1500,1500] and the camera stays on the same floor zone.
+     >>> SO THE SHOT WAS RAISED *AND* MOVED IN, BECAUSE AN ANGLE IS A RATIO AND
+     THE DENOMINATOR WAS FREE. <<< 780 of rise is as high as the room allows
+     (cam_y -969, 31 under the wall-tops) and worth only 6.4 degrees by itself.
+     Taking 600 off the RANGE at the same time — cam_z 900 rather than 300, and
+     nothing caps Z — cuts the horizontal distance from ~1650 to ~1100 and the
+     same height reads as about 11 degrees. He also fills more of the frame at
+     the shorter range, which is the same argument the sideways move makes
+     below. Neither half would have been enough alone.
+
+     THE SIDEWAYS MOVE IS THE THIRD AXIS AND IT WAS ALWAYS THE BEST ONE.
+     Head-on from the spawn, Asag is 314 units wide at 1990 range inside a
+     2488-wide frame — about an eighth of the screen. From +650 in X the yaw is
+     -210 (18.5 deg off axis), which turns his 1669-unit LENGTH into about 530
+     units of lateral spread, and he reads as a long animal across roughly a
+     third of the frame instead of a blob in the middle. x=650 is well inside
+     the arena's x[-1500,1500] and the camera stays on the same floor zone.
+
+     NONE OF THE THREE CHANGES AN ANGLE BY HAND. solve_aim() re-derives the yaw
+     and the pitch from wherever the camera is and wherever his face is, every
+     frame, so "adjust the angle to compensate" for a move like this is not a
+     number anyone has to find. That is the whole return on solving the aim
+     rather than baking it.
 
    ---- WHAT IS DIFFERENT FROM THE RABISU'S REVEAL, AND WHY ------------------
    Read src/rabisu_boss.c first; this is the second encounter in the game and it
@@ -168,22 +198,57 @@
 #define ABE_T_LINE             360   /* 6.0 s a line, the Rabisu's pacing     */
 
 /* ---- The arrival ----------------------------------------------------------
-   >>> THE DROP HEIGHT IS CAPPED BY THE CEILING, NOT CHOSEN FOR DRAMA. <<< The
-   arena's perimeter walls top out at y=-1000 and the landing's eye height is
-   -189, so there are 811 units of air above the player and the camera has to
-   stay inside them: above the wall tops it would see over the perimeter and out
-   of the room. 730 leaves 81 units of headroom and is still nearly four times
-   the player's own height, which is plenty of fall to read as one.
+   >>> TWO THIRDS OF THE WAY UP THE ARENA, AND THE ARENA IS 1534 TALL. <<< The
+   drop was 730 and read as short. The measurement that settles how much room
+   there is to grow into, taken off the arena mesh by z band:
 
-   It is the SAME number as ABE_VANTAGE_RISE by coincidence rather than by
-   design — both are "as high as this room allows" — so they are two constants
-   and not one.
+       z[   0, 700)   953 verts   highest y = -1000     the landing end
+       z[ 700,1400)    96 verts   highest y = -1000
+       z[1400,2100)    96 verts   highest y = -1000
+       z[2100,2900)   196 verts   highest y = -1534     the back wall
+       overall highest y = -1534
+
+   So the room is a pit with perimeter walls at y=-1000 and ONE tall face — the
+   back wall Asag comes out of, which climbs to -1534. THERE IS NO ROOF OVER THE
+   LANDING AT ALL: the player arrives down a shaft that this mesh does not
+   model. "The arena" as a player sees it from the landing is therefore the 1534
+   of that back wall, since it is the thing filling the far half of the frame,
+   and two thirds of it is 1023 above the floor. The eye sits at -189, so:
+
+       ABE_DROP_RISE = 1023 - 189 = 834
+
+   >>> IT IS 23 UNITS ABOVE THE PERIMETER WALL TOPS AND THAT IS DELIBERATE. <<<
+   The previous 730 was chosen to stay under y=-1000 so the camera could not see
+   over the side and front walls, and that constraint is real but it is nearly
+   spent at this height: 23 units of overshoot on a 1534-tall room is about one
+   and a half percent, it lasts only the first few frames of a 0.6 s fall, and
+   the camera is aimed FORWARD AND DOWN at Asag (see begin_scene) rather than
+   level, so the wall tops it might clear are behind the view direction. The far
+   half of the frame is the back wall, which is covered to -1534.
+
+   >>> SO THE REAL CAP IS HERE AND IT IS NOT FAR OFF. <<< Much past about 900 of
+   rise the near wall tops start entering frame at the top corners and the room
+   reads as open-air. If the drop ever needs to be bigger than that, the mesh
+   needs a roof over the landing, not a bigger number here.
+
+   NOTE THIS IS NO LONGER THE SAME NUMBER AS ABE_VANTAGE_RISE. It used to be, by
+   coincidence — both were "as high as this room allows" under the old y=-1000
+   reading. The vantage still obeys that limit because it is a SUSTAINED shot
+   from the middle of the room looking sideways; the drop does not, because it
+   is a fraction of a second and points down the length of the arena. Two
+   constants, two different constraints, and now two different values.
 
    THE FALL RUNS ON t^2, like the drop in the yard it continues (HP_FALL in
    src/hatch_puzzle.c) and like the mud plane in the transition between them
    (DOOR_PANEL_FALL in src/door_anim.c). All three are the same fall and all
-   three accelerate; a linear one reads as a descent on a wire. */
-#define ABE_DROP_RISE          730   /* units above the landing, eye at -189   */
+   three accelerate; a linear one reads as a descent on a wire.
+
+   THE DURATION IS UNCHANGED ON PURPOSE. 834 units in the same 36 frames is a
+   faster fall than 730 was — peak about 46 units a frame against 40 — and that
+   is the right way round: a longer drop should arrive harder. Stretching the
+   time to keep the speed would have thrown away most of what the extra height
+   was for. */
+#define ABE_DROP_RISE          834   /* 2/3 up the arena's 1534; eye at -189   */
 #define ABE_T_DROP              36   /* 0.6 s of fall                          */
 
 /* THE BOUNCE. Two lobes, decaying, ending exactly back on the eye height —
@@ -197,11 +262,14 @@
 #define ABE_BOUNCE_AMP          72   /* peak of the envelope; first dip ~54    */
 #define ABE_T_BOUNCE            30   /* 0.5 s for both lobes                   */
 
-/* 1.2 s to swing the aim from straight down onto his face. That is a 107-degree
-   move (pitch +1024 to a measured -194), and it gets SMOOTHSTEP rather than the
-   usual ease-out for exactly that reason — see the phase. */
-#define ABE_T_PAN_UP            72
+/* >>> ABE_T_PAN_UP IS GONE, AND SO IS THE PHASE IT TIMED. <<< It was 1.2 s of
+   smoothstep swinging the aim from straight down (+1024) onto his face at a
+   measured -194 — a 107-degree move, and the longest single camera move in the
+   scene. It existed only because the drop looked at the FLOOR; the drop looks at
+   ASAG now (see begin_scene), so there is nothing to swing up from and the
+   bounce hands straight to the faint. The scene is 1.2 s shorter for it.
 
+*/
 /* THE MOVE TO THE VANTAGE runs for the WHOLE of ABE_FAINT rather than for a
    phase of its own. The brief puts it "as Asag returns to the idle position",
    and in the clip that return is only the last half second — the faint from two
@@ -212,7 +280,37 @@
 
    ABE_VANTAGE_* are solved in the shot list at the head of this file. */
 #define ABE_VANTAGE_DX         650   /* to the right, in X                     */
-#define ABE_VANTAGE_RISE       730   /* up; cam_y -919, about 3.8 deg of look  */
+
+/* >>> THE VANTAGE WAS RAISED AND MOVED IN, AND THE TWO GO TOGETHER. <<< It sat
+   at cam_y -919 looking down 3.8 degrees, which is barely a look-down at all —
+   near enough level with a boss whose face is at y=-785, when the shot is
+   supposed to be the player looking UP at the room and DOWN at him.
+
+   RAISING ALONE COULD NOT FIX IT, and that is the room's fault rather than a
+   choice. Measured off the arena mesh: 1604 of its 1622 vertices are at or
+   below y=-1000 and the eighteen that are not are the back alcove at
+   z[2800,2900]. So the perimeter — the side walls and the front wall the camera
+   is standing against — stops dead at -1000, and a camera above that line sees
+   over them into nothing at the edges of frame. The legal ceiling is therefore
+   about 811 of rise, and going from 730 to the full 780 buys 50 units and takes
+   the look-down from 3.8 to 6.4 degrees. Not enough to be worth doing alone.
+
+   >>> SO THE SECOND HALF IS RANGE, WHICH THE ROOF DOES NOT LIMIT. <<< An aim
+   angle is a ratio, dy over horizontal distance, and the denominator was doing
+   all the damage: from the landing his face is ~1650 away, so 184 units of
+   height is a shallow triangle. Moving the camera 600 nearer cuts that to
+   ~1100 and the SAME height reads as 11 degrees — two and a half times the
+   look-down for free, and it also frames a 1669-unit animal at a range where he
+   fills the shot instead of sitting in the middle of it.
+
+   IT IS STILL WELL INSIDE THE ROOM: cam_z 900 against an arena running z[0,2900]
+   and his face at z~1800 while he is leaning out, so the camera is 900 short of
+   him and nowhere near the body. The pitch and yaw are NOT constants and never
+   were — solve_aim() re-derives both every frame — so "adjust the angle to
+   compensate" needed no number changed. That is the point of solving the aim
+   rather than baking it, and it is what let this be three constants. */
+#define ABE_VANTAGE_RISE       780   /* up; cam_y -969, 31 under the roofline  */
+#define ABE_VANTAGE_DZ         600   /* ...and in toward him; cam_z 900        */
 
 #define ABE_T_HANDOVER          60   /* 1.0 s back to the landing and level    */
 
@@ -262,10 +360,11 @@
 
    THE BURN'S LENGTH IS THE RABISU'S, and deliberately: the two deaths are meant
    to read as the same phenomenon. The Rabisu's 232 frames were the length of
-   SFX_EXPLODE; >>> NO SOUND PLAYS HERE YET <<< — the brief for this pass says
-   sound comes later — so the number is currently the Rabisu's shape without its
-   reason. When the clip lands, re-check it against the clip's own length the
-   way RBE_T_D_BURN was. */
+   SFX_EXPLODE, and SFX_EXPLODE PLAYS HERE TOO — ABE_D_FREEZE fires it on the
+   frame the death lights come up, so the shape has its reason back. BURN + FADE
+   is 232 + 90 = 322 frames = 5.37 s, which is the clip's own length; retrim
+   explode.vag and both of these move, exactly as RBE_T_D_BURN's pair does.
+   src/sound.h says the same thing from the other end. */
 #define ABE_T_D_SETTLE        90   /* 1.5 s: camera to the vantage, body Home */
 #define ABE_T_D_FREEZE       120   /* 2 s frozen, the Rabisu's                */
 #define ABE_T_D_BURN         232   /* 3.87 s of shaking and light             */
@@ -314,7 +413,9 @@ typedef enum {
     ABE_IDLE = 0,    /* not running; the scene arms itself out of here        */
     ABE_DROP,        /* above the landing, looking down, falling              */
     ABE_BOUNCE,      /* landed: two decaying lobes, and the hurt sound        */
-    ABE_PAN_UP,      /* pitch swings off the floor onto the held faint        */
+    /* ABE_PAN_UP lived here — the pitch swinging off the floor onto the held
+       faint. Removed: the camera looks at Asag from the cut now, so there was
+       no floor to come up off. See begin_scene and ABE_T_PAN_UP's headstone. */
     ABE_FAINT,       /* the faint resolving; camera drifts to the vantage     */
     ABE_BOILS,       /* idle looping; the boils come up over 2 s              */
     ABE_LINE1,       /* speech + music + the first subtitle                   */
@@ -458,6 +559,47 @@ static int32_t chase(int32_t cur, int32_t gap) {
     return cur + gap / ABE_PAN_LAG;
 }
 
+/* =========================================================================
+   THE VANTAGE, AS A POINT RATHER THAN AS THREE ADDITIONS
+   =========================================================================
+   The shot the opening solves and the death reuses: up, to the right, and — as
+   of the raise — IN toward him. Four call sites wanted it and each was doing
+   `save_c* +/- ABE_VANTAGE_*` by hand, which was survivable while the offset was
+   two axes and stopped being so when it became three.
+
+   >>> AND IT HAS TO BE CLAMPED, WHICH IS THE REAL REASON THIS IS A FUNCTION.
+   <<< The offsets are measured from `save_c*`, and those mean two different
+   things in the two places they are used. In the OPENING they are the landing,
+   a fixed point at (0, -189, 300), and every vantage derived from it lands
+   comfortably inside the room. In the DEATH they are WHEREVER THE PLAYER WAS
+   STANDING WHEN THEY KILLED HIM — anywhere in an arena spanning x[-1500,1500]
+   and z[0,2800] — so the same offsets can put the camera outside the room or,
+   worse, PAST ASAG:
+
+     kill him from x=1400 and the raw vantage is x=2050, outside the wall
+     kill him from z=2000 and the raw vantage is z=2600, BEHIND his face at
+       z=2290 — and aim_angle() is documented as requiring a target in FRONT of
+       the camera (den > 0). It does not have the atan2 range to answer that
+       one, so the death would have ended on a camera aimed at nothing.
+
+   The Z clamp is the one that was load-bearing before this change too; the
+   in-move just made hitting it easy rather than unlikely. Both limits are
+   generous: 1200 in X is 300 clear of the wall, and 1200 in Z is about 1100
+   short of his face at Home and 600 short of it while he leans out to speak. */
+#define ABE_VANTAGE_X_MAX     1200   /* the arena walls are at +/-1500        */
+#define ABE_VANTAGE_Z_MAX     1200   /* stay well in front of his face        */
+
+static void vantage_point(int32_t *vx, int32_t *vy, int32_t *vz) {
+    int32_t x = save_cx + ABE_VANTAGE_DX;
+    int32_t z = save_cz + ABE_VANTAGE_DZ;
+    if (x >  ABE_VANTAGE_X_MAX) x =  ABE_VANTAGE_X_MAX;
+    if (x < -ABE_VANTAGE_X_MAX) x = -ABE_VANTAGE_X_MAX;
+    if (z >  ABE_VANTAGE_Z_MAX) z =  ABE_VANTAGE_Z_MAX;
+    *vx = x;
+    *vy = save_cy - ABE_VANTAGE_RISE;
+    *vz = z;
+}
+
 /* Aim at his face, smoothed. See the head of this file for why the smoothing
    exists at all: the pose steps at 8 fps under a 60 Hz camera, so a raw aim
    jumps eight times a second and the worst single step through the faint is 54
@@ -589,6 +731,31 @@ static void begin_boils(void) {
     asag_play(ASAG_CLIP_IDLE, 1);
     asag_set_frozen(0);
     asag_arena_set_boil_glow(0);
+
+    /* ---- AND HE LEANS OUT OF THE WALL WHILE THEY COME UP ------------------
+       >>> THIS PHASE USED TO BE A PAUSE AND NOW IT IS A MOVE. <<< Two seconds
+       of boils brightening on a motionless body was the one dead beat in the
+       scene: the camera is still drifting to the vantage, the lights are coming
+       up, and the thing the shot is ABOUT does nothing until it speaks. So he
+       comes out of the rock as they light, and speaks from there.
+
+       HALF OF ASAG_EMERGE_DZ, which is "about halfway to what he would usually
+       move for an attack" taken literally — every attack's position track runs
+       0 -> ASAG_EMERGE_DZ -> 0 (src/asag.h), so half of it is exactly half the
+       lunge. Written as the expression and not as -484 so it follows the day
+       the emerge distance is re-derived.
+
+       AFTER asag_play(), NOT BEFORE: asag_play_at() cancels any running ramp on
+       the principle that a director starting a clip has said where the body
+       goes. Reversed, this ramp would be thrown away on the same frame it was
+       asked for — and the failure is silent, because the idle simply inherits
+       and he sits at Home looking exactly as he did before.
+
+       IT IS THE RAMP AND NOT A CLIP because the idle's clip_move row inherits
+       rather than travels, and because a clip's position track is absolute: see
+       asag_ramp_dz() in src/asag.h. begin_handover() brings him back. */
+    asag_ramp_dz(ASAG_EMERGE_DZ / 2, ABE_T_BOILS);
+
     enter_phase(ABE_BOILS);
 }
 
@@ -635,22 +802,42 @@ static void begin_scene(void) {
         asag_set_frozen(1);
     }
 
-    /* UP IN THE AIR, LOOKING STRAIGHT DOWN. +1024 is a quarter turn of pitch
-       and, world +Y being down, it is the floor. What is under the camera is
-       the arena's mud - which is exactly what the transition that just ended
-       was showing, so the cut into the room lands on the same picture it left
-       on. */
+    /* UP IN THE AIR, LOOKING AT ASAG.
+
+       >>> IT USED TO LOOK STRAIGHT DOWN (+1024, a quarter turn of pitch, which
+       world +Y being down is the floor) AND THAT IS GONE. <<< The argument for
+       it was continuity: what is under a camera pointed at the floor is the
+       arena's mud, which is exactly what the door transition that just ended was
+       showing, so the cut landed on the same picture it left on. The argument
+       against it won, and it is the stronger one — the player is falling into a
+       boss arena and the first thing they should see is the boss. Looking down
+       spent the whole fall, both bounces and a further 1.2 s of pan on a patch
+       of ground, and put Asag on screen four seconds after the cut.
+
+       So the aim is SOLVED here, off his held faint pose, exactly the way every
+       later phase solves it. The camera then holds him in frame for the fall and
+       the landing, and ABE_PAN_UP — which existed only to swing 107 degrees up
+       off that floor — is gone with it.
+
+       ORDER MATTERS: the position is written first and solve_aim() second,
+       because it reads cam_*. Same rule as every moving shot in this file. */
     cam_x     = save_cx;
     cam_y     = save_cy - ABE_DROP_RISE;
     cam_z     = save_cz;
-    cam_rot   = save_crot;
-    cam_pitch = 1024;
     cam_vy    = 0;
 
-    /* Seed the aim so the first pan_step has somewhere to come from rather than
-       a zero. Nothing reads these until ABE_PAN_UP. */
-    pan_yaw   = cam_rot;
-    pan_pitch = cam_pitch;
+    /* Seeded from him rather than from a constant. The body is frozen two
+       seconds into the faint by now (above), so this is his real pose and not a
+       bind-pose guess. Falls back to level-and-forward if he cannot be located,
+       which is the same "hold, do not swing to the origin" rule solve_aim()
+       itself follows. */
+    pan_yaw   = save_crot;
+    pan_pitch = 0;
+    cam_rot   = save_crot;
+    cam_pitch = 0;
+    solve_aim();
+    cam_rot   = pan_yaw;
+    cam_pitch = pan_pitch;
 
     enter_phase(ABE_DROP);
 
@@ -672,6 +859,19 @@ static void begin_scene(void) {
 
 /* Hand it back: glide to the landing, level off, let go. */
 static void begin_handover(void) {
+    /* >>> AND HE GOES BACK INTO THE WALL AS THE CAMERA GOES BACK TO THE PLAYER.
+       <<< He has been leaning half out since the boils lit (begin_boils), and
+       the fight is about to start on the laser — whose position track writes
+       pos_dz ABSOLUTELY from its own clock, so a body parked 484 units out
+       would SNAP to Home on the out-ramp's first frame. The debt is described
+       at asag_ramp_dz() in src/asag.h; this is where it is paid.
+
+       Over the handover's own second, so the withdrawal and the camera's return
+       are one movement rather than two. It finishes before asag_fight_begin()
+       on the last frame of the phase, and asag_play(LASER) would cancel it
+       anyway if it did not. */
+    asag_ramp_home(ABE_T_HANDOVER);
+
     ho_x     = cam_x;
     ho_y     = cam_y;
     ho_z     = cam_z;
@@ -721,6 +921,23 @@ static void begin_handover(void) {
 static void begin_death(void) {
     asag_fight_stop();
 
+    /* >>> THE MUSIC STOPS ON THE KILLING BLOW, NOT AT THE END OF THE FADE. <<<
+       It used to stop seven seconds later, with asag_set_visible(0) in
+       ABE_D_FADE, on the reasoning that the track belongs to the boss and the
+       boss is gone when the body is. That was wrong about WHICH moment the
+       player reads as the end of the fight: the last hit point is, and battle
+       music still playing over a corpse settling to the floor undercuts the
+       whole death sequence. Cutting it here leaves the settle, the freeze, the
+       burn and the fade in silence but for SFX_EXPLODE, which is what those
+       seven seconds are for.
+
+       ONE FRAME AFTER health reached 0, because asag_damage() sets `dying` in
+       the fight's update and this file's ABE_FIGHT sees it on the next pass.
+       Routing the stop through asag_damage() would buy that frame back at the
+       cost of the split the three files are built on — the fight does not know
+       there is music — and 1/60 s is not worth it. */
+    cdaudio_stop();
+
     /* THE CAMERA IS THE PLAYER'S UNTIL THIS FRAME. Anchor them where they are
        standing — which, unlike the opening, is wherever they happened to be
        when they landed the kill, not a spawn constant. That is what makes
@@ -760,9 +977,11 @@ static void death_settle_step(int32_t t) {
     int32_t p = (t * 256) / ABE_T_D_SETTLE;
     if (p > 256) p = 256;
     int32_t e = smoothstep(p);
-    cam_x = ho_x + ((save_cx + ABE_VANTAGE_DX   - ho_x) * e) / 256;
-    cam_y = ho_y + ((save_cy - ABE_VANTAGE_RISE - ho_y) * e) / 256;
-    cam_z = ho_z + ((save_cz                    - ho_z) * e) / 256;
+    int32_t vx, vy, vz;
+    vantage_point(&vx, &vy, &vz);
+    cam_x = ho_x + ((vx - ho_x) * e) / 256;
+    cam_y = ho_y + ((vy - ho_y) * e) / 256;
+    cam_z = ho_z + ((vz - ho_z) * e) / 256;
     pan_step();
 }
 
@@ -831,13 +1050,26 @@ void asag_boss_update(void) {
        like and it is the same curve the two halves of this fall before it use
        (hatch_puzzle.c's HP_FALL and door_anim.c's mud plane).
 
-       NO pan_step HERE. The camera is looking at the floor on purpose; solving
-       an aim at Asag would drag it off the ground it is falling toward. */
+       >>> THE AIM IS SOLVED RAW HERE, NOT THROUGH pan_step's CHASE. <<< This
+       phase used to hold a fixed downward pitch and now holds ASAG (see
+       begin_scene), and the camera is falling 730 units in 36 frames — which is
+       20 units a frame of eye movement, far faster than anything the rest of
+       the scene does. pan_step closes 1/ABE_PAN_LAG of the gap per frame, so at
+       this speed it would trail the target by a growing margin for the whole
+       fall and arrive still catching up.
+
+       The lag exists to swallow the body's 8 fps pose stepping, and there is
+       nothing here to swallow: Asag is FROZEN for the whole arrival, so the
+       target does not move at all and a raw solve is both exact and perfectly
+       smooth. The same applies to the bounce below. */
     case ABE_DROP: {
         int32_t p   = phase_p(ABE_T_DROP);
         int32_t acc = (p * p) / 256;
         cam_y  = (save_cy - ABE_DROP_RISE) + (ABE_DROP_RISE * acc) / 256;
         cam_vy = 0;
+        solve_aim();
+        cam_rot   = pan_yaw;
+        cam_pitch = pan_pitch;
         if (phase_t >= ABE_T_DROP) {
             cam_y = save_cy;
             /* THE LANDING. The hurt sound, as briefed - and it is a SOUND and
@@ -853,8 +1085,10 @@ void asag_boss_update(void) {
     }
 
     /* Two decaying lobes of |sin|, ending exactly back on the landing height.
-       See ABE_BOUNCE_AMP. Still looking down - the knee-bend is part of the
-       arrival, not part of the reveal. */
+       See ABE_BOUNCE_AMP. Still looking at HIM — the knee-bend now happens
+       under a shot of the boss rather than under a shot of the floor, which is
+       the whole point of the change in begin_scene. Raw solve again, for the
+       reason given on the drop: the eye is moving and the target is frozen. */
     case ABE_BOUNCE: {
         int32_t p = phase_p(ABE_T_BOUNCE);
         /* TWO lobes, which means sweeping ONE full turn and taking |sin| —
@@ -870,43 +1104,14 @@ void asag_boss_update(void) {
         if (sn < 0) sn = -sn;
         cam_y  = save_cy + (((ABE_BOUNCE_AMP * sn) / 4096) * (256 - p)) / 256;
         cam_vy = 0;
+        solve_aim();
+        cam_rot   = pan_yaw;
+        cam_pitch = pan_pitch;
         if (phase_t >= ABE_T_BOUNCE) {
             cam_y = save_cy;
-            enter_phase(ABE_PAN_UP);
-        }
-        break;
-    }
-
-    /* ---- PAN UP ONTO HIM --------------------------------------------------
-       The camera is on the floor at the landing and stays there; only the aim
-       moves, from straight down (+1024) to wherever his held pose puts his face
-       - measured at -194, so this is a swing of about 106 degrees.
-
-       >>> IT IS A ONE-OFF EASE, NOT pan_step's CHASE. <<< The chase closes a
-       fixed FRACTION of the gap per frame, which across 1200 units would spend
-       most of a second creeping through the last few degrees and never quite
-       arrive. An explicit ease over a known duration lands on time. pan_step
-       takes over in ABE_FAINT, where the gaps are small and the target moves.
-
-       >>> AND IT IS SMOOTHSTEP, NOT ease_out, WHICH IS THE OPPOSITE OF WHAT THE
-       HANDOVER WANTS. <<< This is a 107-degree swing and the runbook's rule
-       applies — ease IN and out for a long move. With ease_out it is a WHIP:
-       measured, 70% of the travel is spent in the first twelve frames and the
-       remaining 36 creep through the last thirty degrees. Smoothstep over 72
-       frames reads as somebody deliberately raising their head.
-
-       The target is RE-SOLVED every frame even though the body is frozen: it
-       costs one search, and it keeps the beat correct if a later version lets
-       him move during it. */
-    case ABE_PAN_UP: {
-        solve_aim();
-        int32_t e = smoothstep(phase_p(ABE_T_PAN_UP));
-        cam_pitch = 1024 + ((pan_pitch - 1024) * e) / 256;
-        cam_rot   = (save_crot + (turn_delta(save_crot, pan_yaw) * e) / 256) & 4095;
-        cam_vy    = 0;
-        if (phase_t >= ABE_T_PAN_UP) {
-            cam_pitch = pan_pitch;
-            cam_rot   = pan_yaw;
+            /* STRAIGHT INTO THE FAINT. There is no pan up any more: the camera
+               has been looking at him since the cut, so the beat that swung it
+               107 degrees off the floor has nothing left to do. */
             begin_faint();
         }
         break;
@@ -925,9 +1130,15 @@ void asag_boss_update(void) {
        actually returns to Home; ABE_VANTAGE_DX has that argument. */
     case ABE_FAINT: {
         int32_t e = smoothstep(phase_p(ABE_T_FAINT_MAX));
-        cam_x = save_cx + (ABE_VANTAGE_DX   * e) / 256;
-        cam_y = save_cy - (ABE_VANTAGE_RISE * e) / 256;
-        cam_z = save_cz;
+        int32_t vx, vy, vz;
+        vantage_point(&vx, &vy, &vz);
+        /* ALL THREE AXES NOW. cam_z used to be held at save_cz because the
+           vantage had no Z component; it has one since the raise (the room's
+           roofline meant height alone could not steepen the shot enough, so
+           half of it is range). See ABE_VANTAGE_DZ. */
+        cam_x = save_cx + ((vx - save_cx) * e) / 256;
+        cam_y = save_cy + ((vy - save_cy) * e) / 256;
+        cam_z = save_cz + ((vz - save_cz) * e) / 256;
         pan_step();
         /* >>> asag_clip_done() IS READ ONE FRAME LATE, ON PURPOSE. <<< This
            runs BEFORE asag_update(), which is what raises the flag, so by the
@@ -953,8 +1164,13 @@ void asag_boss_update(void) {
            and the camera's arrival should coincide rather than one waiting for
            the other. The chase is the same fraction-of-the-gap closer the aim
            uses, so it cannot overshoot the vantage. */
-        cam_x += chase(0, (save_cx + ABE_VANTAGE_DX)   - cam_x);
-        cam_y += chase(0, (save_cy - ABE_VANTAGE_RISE) - cam_y);
+        {
+            int32_t vx, vy, vz;
+            vantage_point(&vx, &vy, &vz);
+            cam_x += chase(0, vx - cam_x);
+            cam_y += chase(0, vy - cam_y);
+            cam_z += chase(0, vz - cam_z);   /* the Z leg, as of the raise */
+        }
         pan_step();
         /* Linear, not eased. Two seconds of something swelling at a constant
            rate reads as a thing filling up; an ease-out reads as a dimmer being
@@ -1064,9 +1280,7 @@ void asag_boss_update(void) {
     case ABE_D_SETTLE:
         death_settle_step(phase_t);
         if (phase_t >= ABE_T_D_SETTLE) {
-            cam_x = save_cx + ABE_VANTAGE_DX;
-            cam_y = save_cy - ABE_VANTAGE_RISE;
-            cam_z = save_cz;
+            vantage_point(&cam_x, &cam_y, &cam_z);
             /* "...and then freeze." Both tracks: asag_set_frozen() stops the
                position clock as well as the pose, which is the whole point of
                it — see src/asag.h. The ramp has reached Home by now anyway, but
@@ -1125,10 +1339,10 @@ void asag_boss_update(void) {
                apart. */
             asag_fight_set_dead();
             asag_set_visible(0);
-            /* THE MUSIC STOPS WITH HIM. The arena was silent before the
-               encounter (main.c's loading branch) and is silent after it; the
-               track was the boss's, not the room's. */
-            cdaudio_stop();
+            /* NO cdaudio_stop() HERE ANY MORE. The track was cut on the killing
+               blow, in begin_death() — see the note there. The arena was silent
+               before the encounter (main.c's loading branch) and is silent from
+               that frame on; the track was the boss's, not the room's. */
             ho_x = cam_x; ho_y = cam_y; ho_z = cam_z;
             ho_rot = cam_rot; ho_pitch = cam_pitch;
             enter_phase(ABE_D_CAM_BACK);

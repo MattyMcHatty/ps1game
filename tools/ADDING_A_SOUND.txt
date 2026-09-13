@@ -177,7 +177,7 @@ Run this, with your clip added to the right list:
     garden=['tntcl_wrth_2','tntcl_die','spdr_wlk','gate','gas','pullin','hiss',
             'rumble','grind','hadad_die','spirit_woosh','mchne_gh','water']
     intro=['ninurta']
-    asag=['dmnspeak','explode']
+    asag=['dmnspeak','explode','rumble','vomit','slam_asag','laser']
     p=4112
     for f in res: p+=a(f+'.vag')
     banks=[('house',house),('boss',boss),('garden',garden),
@@ -195,14 +195,33 @@ once against house or boss, once against garden. Omit the second entry and the
 script under-reports the bank you are about to overflow.
 
 The lists must be kept in the SAME ORDER as the enum in sound.h, because
-sound_init() allocates in enum order. As of ASAG'S OPENING SCENE:
+sound_init() allocates in enum order. As of ASAG'S FIGHT SOUNDS:
 
     bank_base 0x46150   region 237232
-    house 162560   boss 190336   garden 177216   intro 22080   asag 87872
+    house 162560   boss 190336   garden 177216   intro 22080   asag 158400
     spare 46896
 
-  (asag was 54,016 until ASAG'S DEATH SEQUENCE added SFX_EXPLODE to that bank.
-   `spare` did not move then either, for the reason immediately below.)
+  (asag was 54,016 after ASAG'S OPENING SCENE, then 87,872 once ASAG'S DEATH
+   SEQUENCE added SFX_EXPLODE, and is now 158,400: his three ATTACK cues -
+   vomit 13,952, slam_asag 15,168 and laser 28,032 - plus a third copy of
+   rumble, 13,376, for the boulders landing after the slam. `spare` did not move
+   at any of the three steps, for the reason immediately below. BOSS at 190,336
+   is still the largest bank and asag has about 32 KB before it takes over.)
+
+  >>> AND THE ATTACK CUES HAD NOWHERE ELSE TO GO, WHICH IS THE POINT WORTH
+  TAKING FROM THIS ONE. <<< They play in the middle of a fight, a bank swap is a
+  CD read and cannot happen inside a room, and SND_BANK_ASAG is the only bank
+  that arena loads. So it was the arena's bank or the residents, and the
+  residents are the expensive answer this document spends three paragraphs
+  warning about (see the 47 KB the Rabisu's three cost before they were moved).
+  The arena bank is the whole reason that choice was cheap here.
+
+  RE-CHECKING THE HEAP WAS NOT NEEDED AND IT IS WORTH SAYING WHY, because the
+  paragraph below implies a bank-sized malloc. load_vag_at() allocates PER CLIP,
+  not per bank: the transient is one clip's sector-rounded size, so the peak is
+  the LARGEST clip in the bank and not its total. That is still SFX_DMNSPEAK at
+  55,296 - laser, the biggest of the three new ones, is 28,672 - so the arena
+  door's peak is unchanged and is still the 108,544-byte boss model read.
 
 >>> NOTE WHAT DID *NOT* MOVE. <<< Asag's bank went from 0 to 54,016 — the whole
 of SFX_DMNSPEAK, which is now BOSS|ASAG because both bosses open with it — and
@@ -355,14 +374,17 @@ The SPU has 24 (0..23). The scheme:
     10       SFX_CURSOR       (the menu blips: off the pool because a menu is
     11       SFX_SELECT        where the player fires sounds back to back at
     12       SFX_BACK          speed, and they must not cut each other)
-    13..15   free
-    16       SFX_ZOMBIE       (looped ambience)
-    17       SFX_TNTCL_WRTH   (looped ambience)
-    18       SFX_SPDR_WLK     (HARDWARE-looped ambience)
-    19       SFX_EMERGE
-    20       SFX_DMNSPEAK
+    13       SFX_GAS          ...and SFX_RUMBLE_2, and SFX_VOMIT   (borrowed)
+    14       SFX_PULL         ...and SFX_RUMBLE_3, and SFX_SLAM_ASAG
+    15       SFX_HISS         ...and SFX_RUMBLE_4, and SFX_LASER
+    16       SFX_ZOMBIE       (looped ambience, but looped in C)
+    17       SFX_TNTCL_WRTH   (HARDWARE-looped)   >>> POISONED, see below
+    18       SFX_SPDR_WLK     (HARDWARE-looped)   >>> POISONED, see below
+    19       SFX_EMERGE       ...and SFX_WATER, which is HARDWARE-looped
+                                                 >>> POISONED, see below
+    20       SFX_DMNSPEAK     ...and SFX_HAD_DIE  (borrowed)
     21       SFX_EXPLODE
-    22       SFX_BOOM
+    22       SFX_BOOM         ...and SFX_WOOSH    (borrowed)
     23       SFX_RBS_SWING
 
 Leave it in the pool unless one of these is true:
@@ -378,6 +400,55 @@ TRAP: a long clip in the pool is the classic bug and it presents as "the
 sound sometimes cuts off". The player's footsteps (SFX_STEP1/STEP2, ids 16
 and 17) land on pool voices 1 and 2, so ANY long effect sharing those is
 chopped every time the player takes a step.
+
+
+>>> TRAP, AND THE NASTIER ONE: NEVER BORROW VOICE 17, 18 OR 19. <<<
+BORROWING a voice — giving a new effect the voice number of an existing one,
+on the argument that the two can never be loaded in the same room — is a
+standard move here and four effects already do it (HAD_DIE, WOOSH, WATER and
+the quake's four rumbles). It is safe for every voice in the list above EXCEPT
+those three, and the exception is invisible in the code.
+
+THE MECHANISM IS THE ADPCM REPEAT ADDRESS. A hardware-looped sample carries the
+loop-start flag (0x04) on its FIRST block, and the SPU latches that block's
+address into the voice's repeat-address register as it decodes it. A one-shot
+carries 0x04 only on its LAST block, so it never moves that register.
+
+sound_play() writes SPU_CH_ADDR, which is the START address. NOTHING in this
+game or in PSn00bSDK ever writes the REPEAT address — the SDK does not even
+define the register (0x1F801C0E; hwregs_c.h stops at ADSR_VOL). So a voice that
+has once played a hardware-looped sample keeps that sample's repeat address for
+the rest of the run, and the next ONE-SHOT put on it runs off the end into
+whatever the currently loaded bank has at that address.
+
+THE THREE POISONED VOICES are 17, 18 and 19, because tntcl_wrth_2.vag,
+spdr_wlk.vag and water.vag are the only three clips in the game with 0x04 on
+block 0. Check any clip with:
+
+    py -c "
+    import struct;d=open('sounds/x.vag','rb').read()
+    n=struct.unpack('>I',d[12:16])[0];b=d[48:48+n]
+    print([i for i in range(len(b)//16) if b[i*16+1]&4][:3])
+    "
+    # [0, ...] -> hardware-looped, its voice is poisoned
+    # [last]   -> an ordinary one-shot, its voice is fine to borrow
+
+NOTE 16 IS FINE. SFX_ZOMBIE is "looped ambience" in the same sentence as the
+other two but it is retriggered from C on an interval (zombie.c), so its flags
+sit on the last block like any one-shot's.
+
+HOW IT PRESENTS: silence, or a clip that plays only part of itself, with no
+error and no pattern. Asag's fight found it — the laser on voice 18 was mute
+and the vomit on 17 played about half, while the slam on 16 was perfect — and
+it cost a session to find because every other explanation (bank overflow, disc
+name, clip level, a pool collision) has the same symptom and all of them are
+cheaper to check. Check the loop flag FIRST when a borrowed voice misbehaves.
+
+THE PROPER FIX, IF THIS EVER COMES UP AGAIN: write repeat = start at key-on in
+sound_play(). Two lines, immunises all 24 voices, and it is correct for the
+hardware-looped clips too, since their loop start IS block 0. It was not done
+when this was found because sound_play() is on the path of every sound in the
+game and moving three voice numbers was the smaller change.
 
 
 ##########################################################################

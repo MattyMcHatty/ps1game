@@ -111,6 +111,21 @@ typedef enum {
     SFX_STEP2      = 17, /* footstep B */
     SFX_SLAM       = 18, /* drawers slam shut (trick-drawers puzzle fail); also
                             the Rabisu launching a shockwave */
+    /* >>> THE THREE HARDWARE-LOOPED CLIPS POISON THEIR VOICES FOR BORROWING.
+       <<< This one, SFX_TNTCL_WRTH above and SFX_WATER below are the only
+       samples in the game with the ADPCM loop-start flag (0x04) on block 0, and
+       the SPU latches that block's address into the voice's REPEAT-ADDRESS
+       register when it decodes it. Nothing ever writes that register back —
+       sound_play() sets the START address and PSn00bSDK does not even define
+       the repeat one — so voices 17, 18 and 19 keep a stale repeat address for
+       the rest of the run, and any ONE-SHOT later given one of those voices
+       runs off its end into whatever the current bank has at that address.
+
+       It presents as silence, or as a clip that plays only part of itself, with
+       no error. Asag's laser and vomit were put on 18 and 17 and did exactly
+       that. Borrow 13..15, 20 or 22 instead; full account and the one-line test
+       for "is this clip hardware-looped" are in STEP 6 of
+       tools/ADDING_A_SOUND.txt. */
     SFX_SPDR_WLK   = 19, /* spider scuttle, HARDWARE-looped while any spider walks */
     SFX_SPIT       = 20, /* spider fires a web (one-shot, once per web)            */
     SFX_MCHNE      = 21, /* grinding machinery — the piano room's sinking bookcase.
@@ -356,7 +371,32 @@ typedef enum {
        the next clip that does not fit has to be trimmed or banked, not
        re-sampled. */
     SFX_WATER      = 45,  /* BANKED (garden). HARDWARE-LOOPED, 1.98 s          */
-    SFX_COUNT      = 46,
+
+    /* ---- ASAG'S THREE ATTACKS. ALL BANKED (asag), and that is forced ------
+       SND_BANK_ASAG is the only bank his arena loads, so an effect that plays
+       DURING his fight has nowhere else to be: resident costs permanent RAM in
+       all twenty-seven rooms and a clip in any other bank is silent here. This
+       is the rule STEP 3 of tools/ADDING_A_SOUND.txt draws out of the Rabisu's
+       fireball and boom, applied to the second boss the first time it had a
+       fight to apply it to.
+
+       THEY WERE FREE. The three take the asag bank 87,872 -> 158,400 of the
+       region's 237,232, and BOSS is still the largest at 190,336, so `spare`
+       stayed at 46,896. Filling a bank that is not the largest costs nothing,
+       which is the whole point of the note above SFX_DMNSPEAK.
+
+       >>> AND THE BOULDERS BORROW SFX_RUMBLE, which is why that one is now
+       HOUSE|GARDEN|ASAG. <<< A third copy at the asag bank's own address; a
+       two-bank tag is a mask and costs its own bytes each time (STEP 5). It was
+       already the right sound for rock hitting a floor and the alternative was
+       a fourth clip saying the same thing. */
+    SFX_VOMIT      = 46,  /* BANKED (asag). Asag starts spewing. 2.21 s        */
+    SFX_SLAM_ASAG  = 47,  /* BANKED (asag). His head hits the floor. 2.40 s    */
+    SFX_LASER      = 48,  /* BANKED (asag). The beam leaves him. 4.44 s, which
+                             covers the 3 s sweep and its tail; the clip is
+                             longer than the beam on purpose, so it does not cut
+                             out while the floor is still burning.             */
+    SFX_COUNT      = 49,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.
@@ -399,8 +439,8 @@ typedef enum {
                              load that is NOT behind a door transition, and it
                              is legal for the same reason those are: the drive
                              is idle. */
-    /* ASAG'S ARENA, and NOTHING ELSE IS ON IT. It is EMPTY as of writing — the
-       fight has no clips yet — and that empty bank is the point of it: the room
+    /* ASAG'S ARENA, and NOTHING ELSE IS ON IT. It started EMPTY — and that
+       empty bank was the point of it: the room
        is reached only by a one-way drop (src/asag_arena.h), so no monster in the
        game can be heard down there and not one shared effect has to be carried.
        The whole 232 KB bank region is Asag's, which is by a wide margin the
@@ -428,10 +468,18 @@ typedef enum {
        death with the same explosion clip under it. Both are tagged BOSS|ASAG,
        so a copy of each sits in both banks.
 
-       That is 87,872 of the region's 237,232 and it does not touch `spare`,
-       which the 190,336-byte boss bank still sets - filling this bank stays
-       free until it becomes the largest one, which is another ~100 KB away.
-       Re-run STEP 3 of tools/ADDING_A_SOUND.txt before spending it, and re-do
+       >>> AND THE FIGHT HAS NOW SPENT SOME OF IT, EXACTLY AS THE PARAGRAPH
+       ABOVE SAID TO. <<< SFX_VOMIT, SFX_SLAM_ASAG and SFX_LASER are Asag's own
+       three attack sounds and SFX_RUMBLE is tagged ASAG for the boulders, so
+       the bank now holds six clips:
+
+           dmnspeak  explode  rumble  vomit  slam_asag  laser
+
+       158,400 of the region's 237,232, and BOSS still sets `spare` at 190,336 —
+       so all four cost nothing. There are ~32 KB left before this bank becomes
+       the largest and starts eating `spare` for real.
+
+       Re-run STEP 3 of tools/ADDING_A_SOUND.txt before spending more, and re-do
        the arena door's HEAP peak with it (PART 6
        of tools/ADDING_THE_ASAG_FIGHT.txt) — the SPU is not the binding
        constraint down there and the heap is. */

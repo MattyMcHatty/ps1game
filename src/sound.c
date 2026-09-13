@@ -78,6 +78,9 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\WOOSH.VAG;1",
     "\\SND\\MCHNEGH.VAG;1",
     "\\SND\\WATER.VAG;1",
+    "\\SND\\VOMIT.VAG;1",
+    "\\SND\\SLAMASAG.VAG;1",
+    "\\SND\\LASER.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -201,8 +204,17 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        re-converting it to 11025 freed 9.8 KB, which pays for this copy and
        leaves 3.3 KB. House 178 KB -> 182 KB, garden unmoved at 127 KB, both
        inside the region's 185. Re-run the STEP 3 arithmetic in
-       tools/ADDING_A_SOUND.txt before spending the rest. */
-    [SFX_RUMBLE]     = SND_BANK_HOUSE | SND_BANK_GARDEN,
+       tools/ADDING_A_SOUND.txt before spending the rest.
+
+       >>> AND ASAG'S BOULDERS MADE IT A THREE-BANK CLIP. <<< The two rocks that
+       fall after his slam land on stone, and this is already the sound of that;
+       SND_BANK_ASAG is the only bank his arena loads, so a third copy is what it
+       takes. 13.4 KB into a bank with ~100 KB spare, and that bank is not the
+       largest, so it cost nothing. Note the four ALIASES below are deliberately
+       NOT tagged ASAG: they exist for the quake, which only runs in two HOUSE
+       rooms, and tagging them would key four more voices off on every arena bank
+       swap for no gain. */
+    [SFX_RUMBLE]     = SND_BANK_HOUSE | SND_BANK_GARDEN | SND_BANK_ASAG,
     /* The Rear Gate grinders' travel, 10.9 KB. GARDEN only, and unlike HISS and
        RUMBLE above it could not have been resident even if the headroom were
        there: a resident clip is charged twice, pushing bank_base up by its own
@@ -237,6 +249,20 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        next bank's samples; valve_puzzle_area_sound() stops it properly on every
        room exit and does not rely on that. */
     [SFX_WATER]      = SND_BANK_GARDEN,
+    /* ---- ASAG'S THREE. SND_BANK_ASAG, and there was never a choice ---------
+       They play in the middle of his fight, a bank swap is a CD read and cannot
+       happen inside a room, and SND_BANK_ASAG is the only bank that arena ever
+       loads. So: here, or resident at the cost of permanent SPU RAM in all
+       twenty-seven rooms. This is the rule the Rabisu's FIREBALL/BOOM/EXPLODE
+       block above had to learn the expensive way.
+
+       FREE, and the STEP 3 arithmetic is recorded in tools/ADDING_A_SOUND.txt:
+       the asag bank goes 87,872 -> 158,400 of a 237,232-byte region, and BOSS at
+       190,336 still sets `spare` at 46,896. ~32 KB left before this bank takes
+       over as the largest and starts costing real headroom. */
+    [SFX_VOMIT]      = SND_BANK_ASAG,
+    [SFX_SLAM_ASAG]  = SND_BANK_ASAG,
+    [SFX_LASER]      = SND_BANK_ASAG,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -354,6 +380,55 @@ static int sfx_channel(SfxID id) {
        to the Hadad's death: they belong to garden-bank monsters that may be
        placed in any of these three rooms. */
     if (id == SFX_WATER)       return 19;   /* SFX_EMERGE's (BOSS-bank only)  */
+    /* ---- ASAG'S THREE ATTACKS, ALL OFF THE POOL ---------------------------
+       Every one of them is over two seconds and every one of them is the sound
+       of an attack the player is meant to be DODGING — which means running,
+       which means footsteps, which means the pool would chop all three. That is
+       the classic bug at the foot of STEP 6 in tools/ADDING_A_SOUND.txt wearing
+       its worst possible hat: the laser is 4.44 s and its raw pool slot is
+       FIRST_VOICE + (48 % 8) = 1, which is SFX_STEP1's and SFX_SWING's, so it
+       would be cut several times a second for the whole sweep.
+
+       >>> THEY BORROW THE FLOWER'S, THE FLOWER'S GRAB AND THE MUSHROOM'S, which
+       is legal for the reason SFX_HAD_DIE and SFX_WOOSH borrow theirs. <<<
+       Voices 13, 14 and 15 belong to SFX_GAS, SFX_PULL and SFX_HISS, all three
+       SND_BANK_GARDEN and none of them loaded in SND_BANK_ASAG. The arena is
+       reached only by a one-way drop (src/asag_arena.h), so no monster of any
+       kind can be placed down there to key one on, and the quake — the other
+       claimant on 13..15, through SFX_RUMBLE_2/3/4 — only ever runs in the
+       Attic Exit and the East Hall, both HOUSE rooms.
+
+       >>> AND THEY MUST NOT BORROW 17, 18 OR 19, WHICH IS THE TRAP THIS FIGHT
+       FOUND. <<< They were on 16, 17 and 18 first — the three looped ambiences —
+       and the laser was SILENT and the vomit played only part of itself, while
+       the slam on 16 was perfect. The cause is the ADPCM REPEAT ADDRESS:
+
+         A hardware-looped sample carries the loop-start flag (0x04) on its
+         FIRST block, and the SPU latches that block's address into the voice's
+         repeat-address register as it decodes it. A one-shot carries 0x04 only
+         on its LAST block, so it never moves that register at all.
+
+         sound_play() below writes SPU_CH_ADDR — the START address — and nothing
+         anywhere writes the repeat address. PSn00bSDK does not even define the
+         register (0x1F801C0E); hwregs_c.h stops at ADSR_VOL. So a voice that
+         has ever played a hardware-looped sample keeps that sample's repeat
+         address FOREVER, and the next one-shot on it runs off into whatever the
+         current bank has laid down at that address.
+
+         tntcl_wrth_2.vag, spdr_wlk.vag and water.vag are the three clips in the
+         game with 0x04 on block 0. Their voices are 17, 18 and 19. Those three
+         are POISONED for borrowing; 16 is not, because SFX_ZOMBIE's groan is
+         retriggered in C (zombie.c) rather than looped in hardware, so its flags
+         sit on the last block like any one-shot's.
+
+       A CHEAPER FIX EXISTS AND WAS NOT TAKEN: writing repeat = start at key-on
+       in sound_play() would immunise every voice at once, and it is correct for
+       hardware loops too, since their loop start IS block 0. It was left alone
+       because sound_play() is on the path of every sound in the game and this
+       needed three lines instead. Worth revisiting if a fourth voice runs out. */
+    if (id == SFX_VOMIT)       return 13;   /* SFX_GAS's  (GARDEN)  one-shot   */
+    if (id == SFX_SLAM_ASAG)   return 14;   /* SFX_PULL's (GARDEN)  one-shot   */
+    if (id == SFX_LASER)       return 15;   /* SFX_HISS's (GARDEN)  one-shot   */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

@@ -17,34 +17,49 @@
                          and the geometry accessors. Decides nothing.
        src/asag_fight.c  the combat AI: 20 HP, the exposure windows, the two
                          boils, the attack loop and every attack's damage.
-       src/asag_boss.c   THIS. The camera, the subtitles, the music cue and the
-                         two scripted bookends. Owns the camera and nothing else.
+       src/asag_boss.c   THIS. The camera, the subtitles, the music cues and
+                         the two scripted bookends. Owns the camera and nothing
+                         else. It starts the track when Asag speaks and STOPS IT
+                         ON THE KILLING BLOW — see begin_death() for why that
+                         moment rather than the end of the fade.
 
    The traffic between this file and the fight is three calls: asag_fight_begin()
    on the last frame of the handover, asag_fight_dying() watched during
    ABE_FIGHT, and asag_fight_stop() + asag_fight_set_dead() inside the death.
    It reaches past none of them.
 
-   WHAT THE OPENING IS, exactly as briefed. The camera
-   arrives in the AIR above the landing looking straight down, falls to it,
-   bounces twice with the hurt sound on the landing, and pans up onto Asag —
-   who has been SITTING two seconds into his faint throughout, held there. The
+   WHAT THE OPENING IS. The camera arrives in the AIR above the landing ALREADY
+   AIMED AT ASAG, falls to it, and bounces twice with the hurt sound on the
+   landing — Asag SITTING two seconds into his faint throughout, held there. The
    faint is then released, and as it resolves and carries him back to Home the
-   camera drifts UP AND TO THE RIGHT, ending looking slightly down at his face.
-   He drops into a looping idle; his two boils light up over two seconds and are
-   left pulsing; the demon speech and the boss music start together and two
-   lines of subtitle play over them; and then the camera returns to the landing,
-   levels off, and the player has it back standing exactly where the shaft
-   dropped them. All of that is src/asag_boss.c's phases ABE_DROP through
-   ABE_HANDOVER, and the fight was built without touching one line of it.
+   camera drifts UP, TO THE RIGHT and IN, ending looking down at his face. He
+   drops into a looping idle; his two boils light up over two seconds and he
+   LEANS HALF OUT OF THE WALL as they do; the demon speech and the boss music
+   start together and two lines of subtitle play over them; and then the camera
+   returns to the landing and levels off while he withdraws, and the player has
+   it back standing exactly where the shaft dropped them. All of that is
+   src/asag_boss.c's phases ABE_DROP through ABE_HANDOVER, and the fight was
+   built without touching one line of it.
+
+   (TWO BEATS HAVE GONE SINCE THE FIRST VERSION, both described in the .c: the
+   drop used to look straight DOWN at the mud, which cost a 1.2 s pan-up beat to
+   get off again and put the boss on screen four seconds after the cut; and
+   ABE_BOILS used to be a static pause.)
 
    >>> EVERY CAMERA POSITION IN IT IS AN OFFSET FROM THE LANDING, CAPTURED ON
    THE ARM. <<< The scene ends on the same numbers it started from, which is how
    "control returns at the original starting position" is guaranteed rather than
    asserted — and it means the whole scene follows AA_SHAFT_X/Z and AA_EYE_Y if
    the landing ever moves. The .c has the shot list and the arithmetic behind
-   each offset, including why the vantage's downward look is only four degrees
-   (the arena's roofline is at y=-1000 and forbids more).
+   each offset, including why the vantage had to be moved IN toward him as well
+   as up: the arena's roofline is at y=-1000, so height alone cannot buy more
+   than about six degrees of downward look, and the rest comes off the range.
+
+   >>> AND THE SCENE NOW LEAVES THE BODY SOMEWHERE, WHICH IT DID NOT BEFORE.
+   <<< The half-lean parks Asag 484 units out of the wall, and a clip's position
+   track is ABSOLUTE (src/asag.h) — so an attack begun from there would SNAP him
+   Home on its first frame. ABE_HANDOVER ramps him back for exactly that reason.
+   Anything else added to this scene that moves him owes the same debt.
 
    WHAT THE DEATH IS: the camera is taken back where the player is STANDING (not
    where they landed — they killed him from wherever they killed him from), it

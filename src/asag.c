@@ -172,10 +172,26 @@ static int32_t pos_dz;
 
    So this is a second, independent ramp the DIRECTOR asks for, it takes
    priority over update_pos() while it runs, and any asag_play() cancels it —
-   a director that starts a clip has said where it wants the body. */
+   a director that starts a clip has said where it wants the body.
+
+   >>> IT IS A RAMP TO AN ARBITRARY OFFSET, NOT ONLY TO HOME, SINCE THE OPENING
+   SCENE GAINED ITS LEAN. <<< The brief for that scene asks Asag to come out of
+   the wall about halfway while the boils light and before he speaks, and
+   update_pos() cannot express that: a clip's position track is an ABSOLUTE
+   0 -> EMERGED -> 0 shape read off the clip's own clock, and the idle's row
+   inherits rather than travels. So the same override serves both, with
+   asag_ramp_home() now one line on top of asag_ramp_dz().
+
+   >>> AND THAT MADE WHERE THE BODY IS WHEN A CLIP STARTS INTO A REAL QUESTION.
+   <<< update_pos() writes pos_dz absolutely, so an attack begun with the body
+   parked halfway out SNAPS it back to Home on the ramp's first frame. The
+   opening therefore ramps him Home again across the handover, and the fight
+   starts from 0 exactly as it always did. Anything else that parks him out of
+   position owes the same debt. */
 static int32_t home_ramp;     /* frames left, 0 = not ramping */
 static int32_t home_total;
 static int32_t home_from;
+static int32_t home_to;       /* where the ramp is going; 0 is Home */
 
 static int model_loaded = 0;
 
@@ -539,22 +555,27 @@ void asag_update(void) {
            (which nothing does today) would not leave the body stranded. */
         if (home_ramp > 0) {
             home_ramp--;
-            pos_dz = home_total > 0 ? (home_from * home_ramp) / home_total : 0;
+            pos_dz = home_total > 0
+                   ? home_to + ((home_from - home_to) * home_ramp) / home_total
+                   : home_to;
         } else {
             update_pos(c);
         }
     }
 }
 
-/* Slide the body back to Home over `ticks`, whatever the playing clip's own
-   position track would have done. See home_ramp above for why this exists.
-   A `ticks` of 0 or less puts it Home this instant. */
-void asag_ramp_home(int32_t ticks) {
+/* Slide the body to `dz` over `ticks`, whatever the playing clip's own position
+   track would have done. See home_ramp above for why this exists. A `ticks` of
+   0 or less puts it there this instant. */
+void asag_ramp_dz(int32_t dz, int32_t ticks) {
     home_from  = pos_dz;
+    home_to    = dz;
     home_total = ticks;
     home_ramp  = ticks;
-    if (ticks <= 0) { pos_dz = 0; home_ramp = 0; home_total = 0; }
+    if (ticks <= 0) { pos_dz = dz; home_ramp = 0; home_total = 0; }
 }
+
+void asag_ramp_home(int32_t ticks) { asag_ramp_dz(0, ticks); }
 
 /* How long a clip runs, in GAME FRAMES. Exposed so a director can say "0.5 s
    before this animation ends" without restating a number that is really
@@ -1240,4 +1261,5 @@ void asag_reset(void) {
     home_ramp  = 0;
     home_total = 0;
     home_from  = 0;
+    home_to    = 0;
 }

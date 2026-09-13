@@ -41,7 +41,10 @@
 
    THE ATTACK LOOP runs forever:
 
-       LASER -> idle 4 s -> SLAM -> idle 4 s -> VOMIT -> idle 4 s -> (repeat)
+       LASER -> idle 2 s -> SLAM -> idle 2 s -> VOMIT -> idle 2 s -> (repeat)
+
+   (The idle was the briefed FOUR seconds and has been halved; AF_T_IDLE in the
+   .c says what else that changes.)
 
    THE TWO BOILS are the way in. Each has 3 HP. Burst one and its lights go out
    and it throws three puss balls; it comes back to full 30 s later. Burst BOTH
@@ -78,7 +81,7 @@
    THE THREE ZONES COVER DIFFERENT GROUND AND THAT IS THE WHOLE LOOP. The laser
    drives the player FORWARD off the landing; the boulders drive them BACK off
    Asag's end; the vomit splits the room LEFT/RIGHT. No single spot survives all
-   three, so standing still is never the answer and the four-second idles are
+   three, so standing still is never the answer and the two-second idles are
    when the player picks where to be next. Change one zone and check it against
    the other two.
 
@@ -212,7 +215,16 @@ void asag_boil_damage(int which, int32_t amount);
    exposure read-out - that was tried, in green, and dropped. What tells the
    player a hit landed is the BODY, which flashes red the same way the Rabisu's
    does (asag_set_hit_glow in src/asag.h), and what tells them he is vulnerable
-   is the attack he is playing. */
+   is the attack he is playing.
+
+   >>> asag_fight_draw_bar() DRAWS THREE BARS, NOT ONE. <<< The two BOILS carry
+   the same bar, on the same rule, and they are the more useful pair: a boil has
+   3 HP against Asag's 20 and is what the player actually spends the fight
+   shooting, so without one a boil at 3 and a boil at 1 looked identical. They
+   are narrower (40 px against 60) because two of them share a wall, and they
+   are not drawn for a BURST boil - a bar over a dark organ is the same mistake
+   as a bar over a corpse. One call site, because the three are one piece of UI
+   and the projection they share has four separate traps in it; see the .c. */
 void asag_fight_draw(RenderContext *ctx);
 void asag_fight_draw_bar(RenderContext *ctx);
 
