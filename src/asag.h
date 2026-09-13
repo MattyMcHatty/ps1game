@@ -388,6 +388,26 @@ int  asag_frozen(void);
    seconds into it. Cleared by asag_reset(). */
 void    asag_set_hit_glow(int on);
 
+/* ---- The EXPOSURE glow, which is a different question from the damage flash
+   1 = light the yellow spot on the crown of his head BLUE this frame. Driven
+   every frame by src/asag_fight.c from asag_exposed(), exactly as the flash is
+   driven from (hit_timer > 0 || dying).
+
+   >>> THE FLASH SAYS "THAT HIT LANDED". THIS SAYS "HE CAN BE HURT NOW". <<<
+   asag_fight.h calls asag_exposed() the whole of the fight's difficulty, and
+   until this existed there was nothing on screen that said when a window was
+   open — the player was expected to learn it off which attack was playing, and
+   the windows close half a second before each clip does, which is not something
+   an animation can tell you. Blue because nothing else in the arena is, and
+   because holy blue is the player's colour here (the Helluminator's burn).
+
+   WHICH POLYGONS is decided in the .c off the mesh's own UVs, not by an index
+   list, so a re-export cannot silently light the wrong part of him. It ramps up
+   and down over a fifth of a second and breathes while it is up; both live in
+   the draw, so a director holding the body with asag_set_frozen() does not
+   freeze the light with it. Cleared by asag_reset(). */
+void    asag_set_head_glow(int on);
+
 void    asag_set_shake(int32_t units);
 void    asag_set_fade(int32_t fade);
 int32_t asag_fade(void);

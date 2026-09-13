@@ -240,13 +240,14 @@ static void graveolver_fire(void) {
            wall it approximates. weapon_aim_clear() out to the boil's own depth
            therefore reports every shot blocked, by a wall standing inside the
            target. This is the runbook's mistake 2 in a different hat and
-           ASAG_BOIL_CLEAR_BACKOFF is the documented fix; asag_fight.h has the
-           argument. */
+           asag_boil_clear_depth() is the documented fix; asag_fight.h has the
+           argument, including why the backoff is a fraction of the shot rather
+           than a fixed 80 off the end of it (this weapon's range hid that; the
+           lantern's did not). */
         if (weapon_aim_in_circle(bx, by, bz, bw, bh, fx, fz,
                                  GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
             depth < best_depth) {
-            int32_t clr = depth - ASAG_BOIL_CLEAR_BACKOFF;
-            if (clr < 1) clr = 1;
+            int32_t clr = asag_boil_clear_depth(bz, depth);
             if (weapon_aim_clear(fx, fz, clr)) {
                 best_depth = depth; best_kind = 10; best_idx = i;
             }

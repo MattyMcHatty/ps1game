@@ -288,8 +288,15 @@ static void hell_burn_tick(void) {
         if (!asag_boil_target(i, &bx, &by, &bz, &bw, &bh)) continue;
         if (weapon_aim_in_circle(bx, by, bz, bw, bh, fx, fz,
                                  HELL_AIM_RADIUS, HELL_RANGE, &depth)) {
-            int32_t clr = depth - ASAG_BOIL_CLEAR_BACKOFF;
-            if (clr < 1) clr = 1;
+            /* >>> AND THIS WEAPON IS THE ONE THE BACKOFF HAD TO BE FIXED FOR.
+               <<< HELL_RANGE puts the player up at the back of the arena to
+               reach a boil at all, and from there the line to it meets the
+               proxy wall at a steep angle — where a FLAT 80 units of backoff is
+               short of the 34-unit gap and every burn off the axis was eaten by
+               a wall standing inside the target. asag_boil_clear_depth() gives
+               up the same fraction of the shot at any heading; see
+               asag_fight.h. */
+            int32_t clr = asag_boil_clear_depth(bz, depth);
             if (weapon_aim_clear(fx, fz, clr))
                 asag_boil_damage(i, HELL_TICK_DAMAGE);
         }

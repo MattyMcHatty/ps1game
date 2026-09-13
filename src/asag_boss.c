@@ -34,18 +34,23 @@
         transition; see begin_scene for why that was dropped.)
      2. It FALLS to the landing, accelerating, holding him in frame.
      3. It BOUNCES, twice and decaying, and the hurt sound plays as the player
-        lands. Asag is SITTING two seconds into his faint for all of the above:
+        lands. Asag is SITTING part way into his faint for all of the above:
         the brief says "sitting", so the clip is seeded and then HELD. The faint
-        is released on the last frame of the bounce.
-     4. As the faint resolves and he returns to Home, the camera moves UP, TO THE
-        RIGHT and IN, ending looking DOWN at his face.
-     5. He drops into the idle, looping.
-     6. The boils light up over two seconds AND HE LEANS HALF OUT OF THE WALL as
-        they do — half of ASAG_EMERGE_DZ, i.e. half an attack's lunge. This beat
-        used to be a static pause.
-     7. Still idling, still leaning out, he speaks: the demon-speech clip and the
-        boss music start together, and two lines of subtitle follow, one per
-        utterance.
+        is released on the last frame of the bounce, and THE BOSS MUSIC STARTS
+        ON THE LANDING — the frame the player arrives in the room,
+        not the frame he speaks.
+     4. THE CAMERA STANDS STILL AT THE LANDING AND WATCHES THE FAINT RESOLVE.
+        Only the aim moves, tracking his face as he plunges, holds and rises
+        back to Home. Nothing else happens in this beat and that is the point of
+        it: the arrival and the reveal are two shots now, not one.
+     5. ONLY THEN does the camera move UP, TO THE RIGHT and IN, ending looking
+        DOWN at his face — and he comes out of the wall inside that
+        same move. He drops into a looping idle, the boils light up over three
+        seconds and he LEANS HALF OUT OF THE ROCK with them: half of
+        ASAG_EMERGE_DZ, i.e. half an attack's lunge.
+     7. Still idling, still leaning out, he speaks: the demon-speech clip fires
+        over two lines of subtitle, one per utterance. The music has been
+        playing since the landing.
      8. The camera returns to the landing and levels off while he withdraws into
         the wall, and control goes back — the player standing exactly where the
         shaft dropped them, and Asag back at Home so the first attack's position
@@ -157,8 +162,8 @@
 
    ---- AND ONE THING THAT IS THE SAME AND MATTERS ---------------------------
    THE MUSIC IS THE BOSS'S, NOT THE ROOM'S. main.c's STATE_LOADING calls
-   cdaudio_stop() for this area, so the arena is silent from the drop until the
-   speech, and this file starts the track. Do not move it to the loading branch:
+   cdaudio_stop() for this area, so the arena is silent from the cut until the
+   LANDING, and this file starts the track there. Do not move it to the loading branch:
    that stop is also what keeps a debug level-select jump from arriving with The
    Hatch's music still playing.
    ========================================================================= */
@@ -174,6 +179,17 @@
    60. asag_play_at() seeks both off one tick count, so 120 is the whole of it.
    See the note on that function in src/asag.h. */
 #define ABE_FAINT_ENTRY_TICKS  120   /* 2.0 s in, as briefed                  */
+
+/* WHAT THAT POSE ACTUALLY IS, measured off Asag_head_faint.pva so that nobody
+   has to guess at it again: the clip rears him UP over its first second and a
+   half, plunges him head-first at the floor by tick 135, leaves him collapsed
+   with his head at y=-309 and tucked back at z=2988 for two and a half seconds,
+   and lifts him to Home over the last half second. At 120 he is most of the way
+   through the plunge — head DOWN and still out in the open at z=2550
+   rather than folded back inside his own alcove, which is the frame worth
+   holding for a shot that has to read as a collapsed boss from across the room.
+   Seeking to the exact half way (150) holds the tucked-back pose instead, and
+   puts most of him behind the wall he is lying in. */
 
 /* The faint is 40 baked frames at 8 fps = 300 ticks, so entering at 120 leaves
    180. This is the BACKSTOP, not the length: the phase normally ends on
@@ -192,27 +208,33 @@
    it. */
 #define ABE_T_FAINT_MAX        240   /* 4.0 s: the faint clip's backstop      */
 
-/* >>> THE PAN IS ONE MOVE AND THE EMERGENCE HAPPENS INSIDE IT. <<< The scene
-   used to be: pan to the vantage over 4 s (ABE_FAINT), THEN two seconds of
-   boils lighting and Asag leaning out of the wall (an ABE_BOILS phase that no
-   longer exists), THEN the speech. Three beats in a row, each waiting for the
-   last, and the middle one had the camera standing still for its whole length
-   while the thing the shot is about finally moved.
+/* >>> THE PAN NO LONGER CARRIES THE FAINT, AND THAT IS THIS PASS'S CHANGE. <<<
+   The scene has been through three shapes. It was pan-then-boils-then-speech,
+   three beats each waiting on the last with a dead one in the middle; then it
+   was ONE six-second move with the faint resolving under its first half and the
+   emergence under its second, which fixed the dead beat and introduced a
+   different one — the camera left the landing the instant the player
+   touched it, so the drop, the bounce, the faint and the reveal ran together
+   into a single continuous slide and not one of them read as an event.
 
-   They are one beat now. The camera drifts for the WHOLE of ABE_T_PAN, and the
-   emergence — the boils coming up and the lean out of the wall together — is
-   started partway through it, the moment the faint clip has put him back at
-   Home, and finishes as the camera arrives. Then the speech starts, on the
-   frame the pan ends, with nothing between the two.
+   IT IS TWO SHOTS NOW. ABE_FAINT holds the camera still at the landing for as
+   long as the faint takes to resolve: the player lands, the music comes up, and
+   they watch him pick himself up out of a fixed frame. ABE_PAN is everything
+   after that — the drift to the vantage AND the emergence inside it,
+   started on the phase's first frame because the body is already back at Home
+   by then, so the two are the same length and end together.
 
-   ABE_T_PAN is therefore not a free number: it is the faint's own length (about
-   180 frames of clip from a 120-tick entry) plus ABE_T_EMERGE. Shorten it below
-   that and the pan finishes with him still coming out of the wall; lengthen it
-   and the camera sits at the vantage waiting, which is the dead beat this was
-   written to remove. The scene's total length is unchanged — 4 s + 2 s before,
-   6 s now — so the speech and everything after it land where they always did. */
-#define ABE_T_PAN              360   /* 6.0 s: the whole slow pan to the vantage */
-#define ABE_T_EMERGE           180   /* 3.0 s of boils + lean, inside the pan    */
+   ABE_T_PAN IS THEREFORE ABE_T_EMERGE AND SHOULD STAY THAT WAY. Longer and the
+   camera sits at the vantage waiting for him to finish climbing out; shorter
+   and it arrives while he is still coming. They are two constants rather than
+   one because they time two different things and only happen to agree — a
+   later pass that wants a slower camera over a quicker lean has both dials.
+
+   THE SCENE'S TOTAL LENGTH IS UNCHANGED. The 360 that used to be one phase is
+   now the faint's own ~180 frames plus this 180, so the speech and everything
+   after it land where they always did. */
+#define ABE_T_PAN              180   /* 3.0 s: the drift to the vantage        */
+#define ABE_T_EMERGE           180   /* 3.0 s of boils + lean, inside the pan  */
 #define ABE_T_LINE             360   /* 6.0 s a line, the Rabisu's pacing     */
 
 /* ---- The arrival ----------------------------------------------------------
@@ -292,13 +314,13 @@
    bounce hands straight to the faint. The scene is 1.2 s shorter for it.
 
 */
-/* THE MOVE TO THE VANTAGE runs for the WHOLE of ABE_FAINT rather than for a
-   phase of its own. The brief puts it "as Asag returns to the idle position",
-   and in the clip that return is only the last half second — the faint from two
-   seconds in plunges him to the floor, holds him there for two seconds, and
-   only then lifts him back to Home. A camera move confined to that half second
-   would be a jerk. Spread across the faint's remaining three seconds, eased in
-   AND out, it is a drift that happens to arrive as he does.
+/* THE MOVE TO THE VANTAGE IS ABE_PAN AND STARTS ONLY ONCE THE FAINT IS OVER.
+   It used to run under the faint, on the brief's "as Asag returns to the idle
+   position" — and in the clip that return is only the last half second, so the
+   move was spread back across the whole faint to keep it from being a jerk.
+   That spread is what made the arrival and the reveal into one shot with no
+   shape, and it is gone: the faint resolves under a still camera (ABE_FAINT)
+   and this move is the beat that follows it.
 
    ABE_VANTAGE_* are solved in the shot list at the head of this file. */
 #define ABE_VANTAGE_DX         650   /* to the right, in X                     */
@@ -438,10 +460,11 @@ typedef enum {
     /* ABE_PAN_UP lived here — the pitch swinging off the floor onto the held
        faint. Removed: the camera looks at Asag from the cut now, so there was
        no floor to come up off. See begin_scene and ABE_T_PAN_UP's headstone. */
-    /* ONE PHASE FOR THE WHOLE PAN. The faint resolving, the boils coming up and
-       the lean out of the wall all happen inside it; ABE_BOILS used to be the
-       second half of it and is gone. See ABE_T_PAN. */
-    ABE_FAINT,       /* the faint resolving, then the emergence; the slow pan  */
+    /* TWO PHASES, AND THE SPLIT IS THE CAMERA: ABE_FAINT does not move it at
+       all, ABE_PAN is the drift to the vantage with the emergence inside it.
+       See ABE_T_PAN for the two shapes this was before. */
+    ABE_FAINT,       /* camera parked at the landing; the faint resolves       */
+    ABE_PAN,         /* the drift to the vantage, and the emergence inside it  */
     ABE_LINE1,       /* speech + music + the first subtitle                   */
     ABE_LINE2,       /* the second                                           */
     ABE_HANDOVER,    /* back to the landing, level off, let go                */
@@ -475,13 +498,12 @@ static int32_t pan_yaw, pan_pitch;
 /* The handover's start point, so its ease has something to leave from. */
 static int32_t ho_x, ho_y, ho_z, ho_rot, ho_pitch;
 
-/* THE FRAME OF THE PAN ON WHICH THE EMERGENCE STARTED, or -1 if it has not.
-   ABE_FAINT runs two overlapping moves of different lengths off one phase_t —
-   the camera's, which is the whole phase, and the boils-and-lean, which starts
-   when the faint clip finishes — and this is the second one's zero. It is a
-   phase-local counter and not a second phase precisely so that the camera does
-   not have to notice. See ABE_T_PAN. */
-static int32_t emerge_t;
+/* >>> emerge_t IS GONE AND ITS ABSENCE IS THE POINT. <<< It was the frame of
+   the six-second pan on which the emergence started, because the pan carried
+   the faint and the emergence had to wait inside it for the body to reach Home.
+   The faint has a phase of its own now (ABE_FAINT), so ABE_PAN begins with him
+   already Home and the emergence begins with the phase — one clock, not
+   two, and phase_t is it. See ABE_T_PAN. */
 
 
 /* =========================================================================
@@ -679,7 +701,6 @@ int asag_boss_cutscene(void) {
 void asag_boss_reset(void) {
     state      = ABE_IDLE;
     phase_t    = 0;
-    emerge_t   = -1;
     pan_yaw    = 0;
     pan_pitch  = 0;
     save_pitch = 0;
@@ -753,12 +774,12 @@ static int32_t phase_p(int32_t len) {
     return p > 256 ? 256 : p;
 }
 
-/* >>> THE EMERGENCE, STARTED FROM INSIDE THE PAN RATHER THAN AFTER IT. <<<
-   Called once, from ABE_FAINT, on the frame the faint clip finishes and he is
-   back at Home — which is the earliest frame at which any of this is possible
-   (see the asag_play ordering note below) and is roughly halfway through the
-   pan. The camera does not stop or change for it; it is still drifting when
-   this is called and still drifting when the ramp it starts has finished. */
+/* >>> THE EMERGENCE, WHICH RUNS UNDER THE PAN AND IS NOT A BEAT OF ITS OWN.
+   <<< Called once, from begin_pan(), i.e. on the first frame after the faint
+   clip has finished and put him back at Home — which is the earliest frame
+   at which any of this is possible (see the asag_play ordering note below). The
+   camera starts drifting on the same frame and is still drifting when the ramp
+   this starts has finished; the two are timed to end together. */
 static void begin_emergence(void) {
     /* LOOPING, unlike every clip the demo plays. The brief asks for the idle to
        hold under the boils and the whole of the speech, which is 14 seconds
@@ -795,12 +816,22 @@ static void begin_emergence(void) {
     asag_ramp_dz(ASAG_EMERGE_DZ / 2, ABE_T_EMERGE);
 }
 
-/* Release the held faint and start the slow pan. The emergence inside it has
-   not happened yet; ABE_FAINT starts it when the clip resolves. */
+/* Release the held faint. THE CAMERA DOES NOT MOVE FOR THIS PHASE: it stays on
+   the landing the bounce left it on and only the aim tracks him, which is the
+   whole of what this beat is. Everything that travels waits for begin_pan(). */
 static void begin_faint(void) {
     asag_set_frozen(0);
-    emerge_t = -1;
     enter_phase(ABE_FAINT);
+}
+
+/* The faint has resolved and he is back at Home. Start the reveal: the drift to
+   the vantage and, underneath it, the emergence.
+
+   ORDER: the emergence FIRST, because it plays a clip and starts a position
+   ramp, and the phase's own first update should already see them running. */
+static void begin_pan(void) {
+    begin_emergence();
+    enter_phase(ABE_PAN);
 }
 
 /* Take the camera, put it in the air over the landing, and hold Asag where he
@@ -1075,6 +1106,13 @@ void asag_boss_update(void) {
         asag_set_shake(0);
         asag_set_fade(256);
         sound_stop(SFX_DMNSPEAK);
+        /* ...AND THE MUSIC, which this bail-out did not have to think about
+           until the track started on the LANDING rather than with the speech.
+           Before that change there were only two phases in which it could be
+           playing and both were most of the way through the scene; now it is
+           running from the first second, so a model pulled out from under the
+           script would leave boss music over an arena with no boss in it. */
+        cdaudio_stop();
         /* >>> AND GO TO DONE, NOT TO FIGHT. <<< This used to drop into the
            placeholder fight, which was harmless when the fight decided nothing.
            It is not now: there is no body to attack with, to expose or to kill,
@@ -1126,6 +1164,21 @@ void asag_boss_update(void) {
                is RESIDENT (sound.h), so it plays in this arena whichever bank
                is loaded. */
             sound_play(SFX_HURT);
+            /* >>> AND THE BOSS MUSIC, ON THE FRAME THEY LAND. <<< It used to
+               start six seconds later, with the first line of speech, on the
+               reasoning that the track and the voice are one event. They are
+               not the event the PLAYER is having: the arena has been silent
+               since the cut (main.c's loading branch stops the drive for this
+               room), so the drop, the impact and the whole of the faint played
+               over nothing at all, and the fight announced itself only once the
+               boss opened his mouth. Starting it here makes the landing the
+               moment the encounter begins, which is what it looks like.
+
+               >>> THE TRACK IS BORROWED. <<< CDAUDIO_ASAG_TRACK currently points
+               at the Garden Courtyard's, because Asag has no master of his own
+               on the disc yet; src/cdaudio.h says what the one-line change is.
+               Nothing here needs to know. */
+            cdaudio_play(CDAUDIO_ASAG_TRACK, 1);
             enter_phase(ABE_BOUNCE);
         }
         break;
@@ -1164,88 +1217,93 @@ void asag_boss_update(void) {
         break;
     }
 
-    /* ---- THE SLOW PAN: THE FAINT RESOLVES, HE COMES OUT OF THE WALL, AND
-       THE CAMERA DRIFTS TO THE VANTAGE UNDER ALL OF IT --------------------
-       Three things that used to be two phases. He plunges to the floor, holds
-       there and rises back to Home; the moment he is home the boils start
-       coming up and he leans half out of the rock; and the camera eases up, to
-       the right and in for the WHOLE of it, arriving as he finishes. The next
-       phase is the speech, so it starts on the frame this ends.
+    /* ---- THE FAINT RESOLVES, AND THE CAMERA WATCHES IT FROM THE LANDING ---
+       He plunges to the floor, holds there and rises back to Home. The camera
+       does not travel one unit for any of it: it stands where the bounce left
+       it, on the spot the player is standing on, and only the AIM moves.
 
-       >>> POSITION FIRST, AIM SECOND. <<< solve_aim() reads cam_*, so the other
-       order would leave the aim trailing the position by a frame for the whole
-       six seconds of drift.
+       >>> THAT STILLNESS IS THE BEAT. <<< The previous version started the
+       drift to the vantage on the bounce's last frame, so the arrival and the
+       reveal were one unbroken six-second slide and neither had a shape. Held
+       here, the player lands, the music comes up, and the thing they came down
+       the shaft to meet picks itself up off the floor in a fixed frame. Then
+       the camera moves, and because it was still, the move is an event.
 
-       SMOOTHSTEP, not ease-out - see the note by the curves. And the drift runs
-       for the WHOLE phase rather than only for the half second in which he
-       actually returns to Home; ABE_VANTAGE_DX has that argument. */
-    case ABE_FAINT: {
-        /* SCALED TO ABE_T_PAN, WHICH IS THE PHASE'S OWN LENGTH, so smoothstep
-           reaches 256 exactly as the phase ends and the camera arrives without
-           a chase to finish it off. It used to be scaled to the faint clip's
-           backstop, which left it at 84% and handed the last sixth to a second
-           phase; there is no second phase now. */
+       THE POSITION IS RE-ASSERTED EVERY FRAME rather than simply left alone.
+       cam_* is global and free-look is suppressed but not disarmed for a
+       cutscene; writing the landing back each frame is two comparisons and it
+       makes "the camera does not move" a property of this code instead of an
+       assumption about everything else's.
+
+       POSITION FIRST, AIM SECOND, the same rule every moving shot in this file
+       keeps: pan_step() reads cam_*.
+
+       >>> AND THE AIM IS CHASED, NOT SOLVED RAW. <<< This is the opposite of
+       the drop and the bounce above, and for the reason given there: the eye is
+       still now and the TARGET is the thing moving, at the pose's 8 fps against
+       the camera's 60. A raw solve would kick the aim eight times a second
+       through the biggest movement in the clip. ABE_PAN_LAG exists for exactly
+       this phase. */
+    case ABE_FAINT:
+        cam_x  = save_cx;
+        cam_y  = save_cy;
+        cam_z  = save_cz;
+        pan_step();
+        /* asag_clip_done() IS READ ONE FRAME LATE, ON PURPOSE. This runs BEFORE
+           asag_update(), which is what raises the flag, so by the time it is
+           seen here the clip's final pose has already been drawn once. Reverse
+           the two calls in main.c and the faint's last frame is skipped —
+           which is most of the body arriving back at Home.
+
+           ABE_T_FAINT_MAX is the backstop for a clip that never loaded: it has
+           no frames, never advances and would never report done, so a phase
+           waiting only on the clip would hang. See there. */
+        if (asag_clip_done() || phase_t >= ABE_T_FAINT_MAX) begin_pan();
+        break;
+
+    /* ---- THE REVEAL: THE DRIFT TO THE VANTAGE, WITH HIM COMING OUT OF THE
+       WALL UNDERNEATH IT ---------------------------------------------------
+       The camera eases up, to the right and in; the boils come up over the same
+       three seconds and he leans half out of the rock with them (begin_pan ->
+       begin_emergence, on the frame this phase was entered). The speech is the
+       next phase, so it starts on the frame this one ends.
+
+       SMOOTHSTEP, not ease-out — see the note by the curves. This move has to
+       leave without announcing itself and arrive without stopping dead, and it
+       is now leaving from a camera that has been perfectly still, which is
+       precisely the case an ease-out would make look like a yank. */
+    case ABE_PAN: {
         int32_t e = smoothstep(phase_p(ABE_T_PAN));
         int32_t vx, vy, vz;
         vantage_point(&vx, &vy, &vz);
-        /* ALL THREE AXES NOW. cam_z used to be held at save_cz because the
-           vantage had no Z component; it has one since the raise (the room's
-           roofline meant height alone could not steepen the shot enough, so
-           half of it is range). See ABE_VANTAGE_DZ. */
+        /* ALL THREE AXES. cam_z used to be held at save_cz because the vantage
+           had no Z component; it has one since the raise (the room's roofline
+           meant height alone could not steepen the shot enough, so half of it
+           is range). See ABE_VANTAGE_DZ. */
         cam_x = save_cx + ((vx - save_cx) * e) / 256;
         cam_y = save_cy + ((vy - save_cy) * e) / 256;
         cam_z = save_cz + ((vz - save_cz) * e) / 256;
         pan_step();
 
-        /* >>> THE EMERGENCE STARTS WHEN THE FAINT ENDS, NOT WHEN THE PAN DOES.
-           <<< This is the one event inside the pan, and it cannot be put on a
-           fixed frame: begin_emergence() starts a LOOPING idle and a position
-           ramp, and both would be thrown away by the faint clip still running
-           (asag_play_at cancels a ramp; see begin_emergence). So it waits for
-           the body to be back at Home and then runs ABE_T_EMERGE frames from
-           wherever in the pan that was. emerge_t is -1 until then.
-
-           asag_clip_done() IS READ ONE FRAME LATE, ON PURPOSE. This runs BEFORE
-           asag_update(), which is what raises the flag, so by the time it is
-           seen here the clip's final pose has already been drawn once. Reverse
-           the two calls in main.c and the faint's last frame is skipped - which
-           is most of the body arriving back at Home. */
-        if (emerge_t < 0 &&
-            (asag_clip_done() || phase_t >= ABE_T_FAINT_MAX)) {
-            emerge_t = phase_t;
-            begin_emergence();
-        }
-
         /* THE BOILS COME UP OVER ABE_T_EMERGE, linear and not eased. Three
            seconds of something swelling at a constant rate reads as a thing
            filling up; an ease-out reads as a dimmer being turned. The PULSE
            afterwards is asag_arena.c's and starts the moment this reaches full
-           - see the note by boil_lit() there. */
-        if (emerge_t >= 0) {
-            int32_t k = phase_t - emerge_t;
+           — see the note by boil_lit() there. */
+        {
+            int32_t k = phase_t;
             if (k > ABE_T_EMERGE) k = ABE_T_EMERGE;
             asag_arena_set_boil_glow((k * ASAG_BOIL_LEVEL_MAX) / ABE_T_EMERGE);
         }
 
-        /* THE PAN IS OVER WHEN BOTH ARE: normally ABE_T_PAN, because it was
-           chosen as the faint plus the emergence (see there). The second half
-           of the test only does anything if the faint ran long or never loaded
-           at all, and it is what stops the speech starting over a boss who is
-           still climbing out of the wall. */
-        if (phase_t >= ABE_T_PAN &&
-            (emerge_t >= 0 && phase_t >= emerge_t + ABE_T_EMERGE)) {
+        /* OVER WHEN BOTH ARE. They are the same length by construction and the
+           second test is there so that they can stop being so without the
+           speech starting over a boss still climbing out of the wall. */
+        if (phase_t >= ABE_T_PAN && phase_t >= ABE_T_EMERGE) {
             asag_arena_set_boil_glow(ASAG_BOIL_LEVEL_MAX);
-            /* THE MUSIC AND THE FIRST UTTERANCE START TOGETHER, on the frame
-               the first subtitle appears - and, as of the pan being one move,
-               on the frame the camera stops. The arena has been silent since
-               the drop (main.c's loading branch stops the drive for this room),
-               so apart from the landing this is the first sound in it.
-
-               >>> THE TRACK IS BORROWED. <<< CDAUDIO_ASAG_TRACK currently points
-               at the Garden Courtyard's, because Asag has no master of his own
-               on the disc yet; src/cdaudio.h says what the one-line change is.
-               Nothing here needs to know. */
-            cdaudio_play(CDAUDIO_ASAG_TRACK, 1);
+            /* THE FIRST UTTERANCE. The music is NOT started here any more — it
+               has been playing since the landing (see ABE_DROP), which is the
+               change this pass made and the reason the arrival has a sound. */
             sound_play(SFX_DMNSPEAK);
             enter_phase(ABE_LINE1);
         }

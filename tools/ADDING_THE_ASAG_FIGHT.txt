@@ -23,6 +23,109 @@ ARRIVING TRANSITION — the drop used to play a garden gate creaking open and no
 plays four mud quads rushing the camera (DOOR_PANEL_FALL) — and filled the
 arena's SPU bank, which was empty.
 
+>>> SEPTEMBER 2026, SIXTH PASS: READABILITY, THE TWO SAFE SQUARES, AND A
+CRASH ON DEATH. <<< Nothing new was
+built; three things that were already there stopped lying about themselves.
+
+  THE BOILS ARE HITTABLE FROM ANY ANGLE NOW. The proxy's back wall is at
+  z=2700 and the boil faces are at z=2734, so every shot at a boil has to be
+  cleared to a point SHORT of the wall standing inside it - and the backoff
+  that did that was a flat 80 world units off the end of the shot. That is
+  only correct square-on: off the axis the line covers the 34-unit gap in
+  34/cos(theta) of its own length, which is past 80 by about 63 degrees. The
+  Grave-olver never showed it (4000 of range means it is fired from down the
+  arena, where the angle is shallow); the HELLUMINATOR did, because 1800 of
+  range forces the player up to the back of the room where almost every
+  position that is not directly in front of a boil is steeper than that. The
+  symptom was "the lantern only burns a boil looking straight at it".
+  asag_boil_clear_depth() (src/asag_fight.c) replaces the flat number with the
+  exact fraction - backoff / (boil_z - cam_z) of the shot, which is the same
+  answer at every heading - and both weapons call it.
+
+  THE EXPOSURE WINDOW HAS A TELL. asag_exposed() is the whole of the fight's
+  difficulty and there was nothing on screen that said when it was open; the
+  player was expected to read it off which attack was playing, and each window
+  closes AF_EXPOSE_LEAD before its clip does. The yellow spot on the crown of
+  his head now glows BLUE while he is exposed - asag_set_head_glow(), driven
+  from asag_fight.c beside the damage flash, drawn in asag.c. It is five
+  primitives at 1.31x spill (it went in at 1.63x and was a wash of blue over
+  the whole crown), and WHICH five is decided at load time from the mesh's own UVs
+  (the one bright yellow disc in textures/asag.png at u[85,100] v[113,123])
+  rather than from an index list, so a re-export cannot silently light some
+  other part of him.
+
+  >>> AND DYING IN HERE CRASHED THE GAME. <<< The report was "the game-over
+  screen will not let me press Start to get back to the main menu, and it does
+  in every other level". It let you press it. What it did next was jump to
+  0xcf73fca0.
+
+  THE GAME-OVER SCREEN AND reset_game() WERE BOTH INNOCENT, and proving that
+  first is what found this: killing the player in the arena and taking the Start
+  branch reaches "at title" with zero exceptions. The fault is on the NEXT line.
+
+  Returning to the title does NOT go through STATE_LOADING, and STATE_LOADING is
+  the only thing that calls asags_free_model(). Dying goes straight from the
+  game-over screen to STATE_TITLE, so it arrived holding all 204 KB of the boss
+  - and the first thing the return-to-title hook does is sound_bank_select(
+  SND_BANK_INTRO), which mallocs a buffer per VAG and CdReads into it. Unlike
+  src/asag.c's read_file(), load_vag_at() in src/sound.c HAS NO STACK GUARD. So
+  the intro bank allocated up against the stack and DMA'd over the return
+  address. PART 6A's crash, in a different room, three passes later.
+
+  The fix is two idempotent calls in that hook (src/main.c), freeing both boss
+  models BEFORE the bank swap - the order src/asag.h already insists on. The NEW
+  GAME hook a few lines above was already doing exactly this, and says in its own
+  comment that it has to because that path skips STATE_LOADING; the return-to-
+  title hook is the other half of the same argument and had been missed. The
+  Rabisu had the identical latent crash on dying in the Garden Courtyard.
+
+  >>> IF A THIRD PATH OUT OF A BOSS ROOM IS EVER ADDED, IT OWES THE SAME TWO
+  CALLS. <<< And load_vag_at() would be worth giving read_file()'s stack guard,
+  which would turn this whole class of failure from a wild jump into a silent
+  missing sound effect.
+
+  >>> AND THE ARENA HAD TWO SQUARES THAT NOTHING COULD REACH. <<< Read the room
+  as the 3x3 its thirds make it, numbered from Asag's end - 1 2 3 across his
+  end, 4 5 6 the middle, 7 8 9 the landing. The slam hit 1-2-3, the laser
+  7-8-9 and the vomit the centre column 2-5-8, so SQUARES 4 AND 6, the middle
+  row's two flanks, were hit by nothing at all: a seat to fight the whole boss
+  from. The three-zones note had said since the fourth pass to "change one zone
+  and check it against the other two", and that instruction was obeyed and
+  still missed this, because what matters is not how the zones overlap but what
+  none of them covers. CHECK THE LEFTOVER.
+
+  Two attacks grew into it, from the directions they were already coming from:
+
+    SLAM   Asag's third PLUS 4 and 6 - an L opening toward the landing - with
+           TWO MORE BOULDERS, at columns 2 and 12 (x -1000 / +1000) in row 7,
+           which is the same line across the room his head lands on. Four
+           boulders now, four stagger slots, last impact at t 184 of a 375-tick
+           clip.
+    VOMIT  the centre lane PLUS the whole middle row - a plus. Half the spray
+           particles now throw ACROSS the crossbar instead of down the lane, so
+           the hazard the particles paint still matches the one that hurts.
+
+  Nothing is safe from all three now (laser leaves 1-6, slam leaves 5/7/8/9,
+  vomit leaves 1/3/7/9), and square 5 is deliberately safe from the slam alone
+  so the middle of the room is somewhere you can be for one attack in three.
+
+  BOTH ZONES ARE SHAPES RATHER THAN BANDS NOW, so each is one predicate on
+  (row, col) called by the damage test AND by the floor lighting - the old
+  af_in_rows()/af_in_cols() pair is gone. That is what keeps the fourth pass's
+  promise that what is lit and what hurts cannot disagree once the shapes stop
+  being rectangles.
+
+    THE OPENING SCENE IS TWO SHOTS INSTEAD OF ONE SLIDE. The third pass's scene
+  started the drift to the vantage on the bounce's last frame, so the drop, the
+  landing, the faint resolving and the reveal ran together into one continuous
+  six-second move and none of them read as an event. Now: the BOSS MUSIC STARTS
+  ON THE LANDING (it used to wait for the speech, six seconds later, so the
+  arrival happened in silence); the camera then STANDS STILL at the landing for
+  the whole of ABE_FAINT while the faint resolves, tracking only with its aim;
+  and ABE_PAN - a new phase - is the drift to the vantage with the emergence
+  inside it. ABE_T_PAN dropped from 360 to 180 because it no longer has to
+  cover the faint as well, so the scene's total length is unchanged.
+
 >>> SEPTEMBER 2026, FIFTH PASS: THE HIT ZONES ARE THIRDS. <<< The fourth
 pass's attacks were measured as RADII and it was the wrong model. Each one now
 hits a THIRD of the arena, marked out on the floor: the laser rakes the landing

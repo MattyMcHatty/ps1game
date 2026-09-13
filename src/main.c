@@ -3496,6 +3496,39 @@ int main(int argc, const char **argv) {
         }
         if (!IS_FRONTEND(prev_state) && game_state == STATE_TITLE) {
             cdaudio_stop();
+            /* >>> THE BOSS MODELS GO BACK FIRST, AND THIS IS A CRASH FIX. <<<
+               Both bosses are ROOM-SCOPED reads — 104 KB for the Rabisu, 204 KB
+               for Asag — and the ONLY thing that frees them is the pass through
+               STATE_LOADING that carries the player to another room. Quitting to
+               the title does not go through it, and neither does DYING: the
+               game-over screen calls reset_game() and sets STATE_TITLE directly,
+               which lands here. So this path used to arrive still holding the
+               boss.
+
+               THAT WOULD BE A LEAK IF THE NEXT LINE DID NOT READ FROM THE DISC.
+               It does. sound_bank_select() below mallocs a buffer per VAG and
+               CdReads into it, and unlike src/asag.c's read_file() it has no
+               stack guard — so with 204 KB of Asag still resident the intro
+               bank's loads allocate up against the stack and DMA over it. The
+               observed failure is exactly the one
+               tools/ADDING_THE_ASAG_FIGHT.txt PART 6A describes: no bad free, no
+               null pointer, just a smashed return address and a jump into
+               nowhere. Measured here as `Encountered reserved opcode from
+               0xcf73fca0` on the frame after Start was pressed on the game-over
+               screen in Asag's arena — which is why dying to that boss looked
+               like a game-over screen whose Start button did nothing.
+
+               THE ORDER IS THE RULE src/asag.h ALREADY STATES: the free goes
+               BEFORE the sound-bank swap, the load after it, because the peak is
+               what matters and not the total. Getting it the other way round
+               cost a crash at the Garden Courtyard's door once already.
+
+               Both are idempotent, so this costs nothing on the paths that have
+               no boss loaded. The New Game hook above frees the same two for the
+               same reason and says so; this is the half of that fix that was
+               missing, and the two are now symmetric. */
+            rabisus_free_model();
+            asags_free_model();
             /* Put the opening sequence's voice back in the shared SPU region,
                the way it was at boot. Doing it HERE — while the player is
                looking at the title with the drive idle — is what keeps the

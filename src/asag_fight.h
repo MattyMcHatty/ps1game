@@ -80,21 +80,29 @@
        LASER   THE LANDING THIRD, rows 0..4 (z 0..933). The beam rakes across
                it and sets it ALL alight; it burns for 3 s and standing on lit
                floor is what hurts.                                   30 damage
-       SLAM    ASAG'S THIRD, rows 10..14 (z 1867..2800), where two boulders
-               fall either side of him.                               20 damage
+       SLAM    ASAG'S THIRD, rows 10..14 (z 1867..2800), PLUS THE MIDDLE ROW'S
+               TWO FLANKS - an L opening toward the landing. Four boulders fall
+               in it: two either side of him and two out in the flanks.
+                                                                      20 damage
                ...plus the head itself, which lands at z=1487 and hurts anyone
                caught under it.                                       20 damage
        VOMIT   THE CENTRE LANE, columns 5..9 (x -500..500), from the back wall
-               to the landing.                            20 damage and POISON
+               to the landing, PLUS THE WHOLE MIDDLE ROW across it - a plus.
+                                                           20 damage and POISON
        PUSS    a thrown ball, and the one thing here that is not a zone: three
                of them out of each bursting boil.                     10 damage
 
    THE THREE ZONES COVER DIFFERENT GROUND AND THAT IS THE WHOLE LOOP. The laser
    drives the player FORWARD off the landing; the boulders drive them BACK off
-   Asag's end; the vomit splits the room LEFT/RIGHT. No single spot survives all
-   three, so standing still is never the answer and the two-second idles are
-   when the player picks where to be next. Change one zone and check it against
-   the other two.
+   Asag's end; the vomit splits the room LEFT/RIGHT.
+
+   >>> THE SLAM AND THE VOMIT GREW INTO THE MIDDLE ROW'S FLANKS BECAUSE NOTHING
+   REACHED THEM. <<< Read the arena as the 3x3 the thirds make it, numbered from
+   Asag's end: the slam had 1-2-3, the laser 7-8-9 and the vomit 2-5-8, which
+   left SQUARES 4 AND 6 hit by nothing at all and gave the player a seat to
+   fight the whole boss from. The .c has the full argument and the leftover
+   table. Change one zone and check it against the other two AND against what
+   none of them covers - the second half is the one that was missed.
 
    All damage figures are PERCENTAGES OF MAX_HEALTH and therefore flat amounts,
    which is how every other attack in this game works.
@@ -200,14 +208,35 @@ void asag_fight_set_dead(void);
    arena's own geometry eating the shots that define the fight — and the fix is
    to clear the line to just short of that wall instead of past it.
 
-   ASAG_BOIL_CLEAR_BACKOFF is that "just short", in world units along the
-   crosshair. 80 clears z=2700 comfortably from anywhere in the room and is far
-   less than the distance to any other wall, so nothing else can hide behind it.
-   Both the gun and the lantern must use it. */
+   ASAG_BOIL_CLEAR_BACKOFF is that "just short". >>> AND IT IS MEASURED IN Z,
+   NOT ALONG THE CROSSHAIR, WHICH IS THE WHOLE OF THE FIX BELOW. <<< It was a
+   flat 80 world units subtracted from the target's depth, and that is only
+   correct for a shot taken square on to the wall. Step off the axis and the
+   line to the boil crosses z=2700 a LONG way short of it: the ray covers the
+   34-unit gap in 34/cos(theta) of its own length, so at 45 degrees off the
+   wall's normal it needs 48, at 63 degrees 75, and at 71 degrees 104 — past the
+   flat 80, and the shot is reported blocked by the wall standing inside the
+   target.
+
+   THE GRAVE-OLVER HID IT AND THE HELLUMINATOR COULD NOT. The gun reaches 4000
+   and is fired from down the arena, where the angle is shallow and 80 is
+   always enough. The lantern reaches 1800, so the player has to walk up to the
+   back of the room to burn a boil — and from there almost every position that
+   is not directly in front of it is past 63 degrees. Standing at (-589, 2034)
+   and aiming at the right-hand boil is 71 degrees and was simply dead. That is
+   the "it only works looking straight on" this replaces.
+
+   asag_boil_clear_depth() is the angle-independent form and it is exact rather
+   than generous: the wall gap and the ray's total Z travel are BOTH covered at
+   the same rate along the line, so the fraction of the shot to give up is
+   (backoff / (boil_z - cam_z)) whatever the heading — no trigonometry and no
+   per-angle fudge. It hands back the depth to pass weapon_aim_clear(), and
+   both the gun and the lantern must use it. */
 #define ASAG_BOIL_CLEAR_BACKOFF  80
 
 int  asag_boil_target(int which, int32_t *cx, int32_t *cy, int32_t *cz,
                       int32_t *half_w, int32_t *half_h);
+int32_t asag_boil_clear_depth(int32_t boil_z, int32_t depth);
 void asag_boil_damage(int which, int32_t amount);
 
 /* ---- Drawing --------------------------------------------------------------

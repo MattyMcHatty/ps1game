@@ -148,6 +148,97 @@ static int16_t body_fade = 256;
    the burn looks like a bug. */
 static int8_t  body_hit;
 
+/* =========================================================================
+   THE EXPOSURE GLOW — the yellow spot on the crown of his head, lit BLUE
+   =========================================================================
+   >>> WHY THERE IS A SECOND GLOW AT ALL. <<< body_hit says "that hit landed".
+   Nothing said "he can be hurt RIGHT NOW", and asag_fight.h is explicit that
+   asag_exposed() is the whole of the fight's difficulty — the player was
+   supposed to read it off which attack he was playing, and the windows inside
+   those attacks are invisible. This is the tell.
+
+   BLUE BECAUSE NOTHING ELSE IN THE ARENA IS. The boils are yellow-green, the
+   damage flash is red, the laser and the vomit are his; holy blue is the
+   PLAYER's colour in this game (the Helluminator's burn tint, helluminator.c),
+   so a blue light coming on means "now".
+
+   ---- WHICH POLYGONS, AND WHY IT IS NOT A LIST OF INDICES -------------------
+   The spot is a raised pad on the crown of the head — five primitives, a cap
+   and the four short walls that hold it proud of the skull — and every one of
+   them is UV-mapped into the one bright yellow disc in textures/asag.png at
+   u[85,100] v[113,123]. There is nothing else in that corner of the sheet.
+
+   So the mask is built from the UVs at load time rather than written down as
+   {34, 75, 76, 77, 78}. A re-export renumbers primitives freely (the vertex
+   ORDER is what tools/export_asag.py pins, not the polygon order), and a stale
+   index list would light five polygons somewhere else on the body — the kind of
+   wrong that looks like a corrupt mesh. The UV box survives anything short of
+   repainting the texture, and if the spot is ever moved on the sheet this is
+   one rectangle to move with it.
+
+   The box is deliberately looser than the disc: the four walls sample the skin
+   AROUND it, so a tight box would light the cap alone and the pad would read as
+   a flat sticker rather than a lamp set into him. */
+#define ASAG_GLOW_U0   80
+#define ASAG_GLOW_U1  108
+#define ASAG_GLOW_V0  105
+#define ASAG_GLOW_V1  127
+
+/* One bit per primitive. 79 today; three words is 96 and the loop that fills it
+   stops at the array's own size, so a bigger mesh loses the glow rather than
+   scribbling past the end. */
+#define ASAG_GLOW_WORDS  3
+static uint32_t glow_mask[ASAG_GLOW_WORDS];
+
+/* Frames the light takes to come up and to die away. The exposure windows open
+   and close mid-animation, and a lamp that snapped on between two frames would
+   read as a draw error — the same argument asag_fight.c's boils make for their
+   own re-light ramp. 12 is a fifth of a second: fast enough to be information
+   the player can act on, slow enough to be a light. */
+#define ASAG_GLOW_RAMP  12
+
+/* THE PULSE, once the light is up: the level breathes between about 65% and
+   100% over ASAG_GLOW_PULSE frames. A steady blue lamp on a body that is
+   otherwise moving reads as a texture; a breathing one reads as a state. */
+#define ASAG_GLOW_PULSE  40
+
+/* The halo, in the shape the Helluminator's lamp glow and the Attic Exit's
+   light cones already use: an additive quad over the primitive's own screen
+   points, grown from their centre by SCALE/256, so the light spills past the
+   pad instead of stopping at its edge. That spill is what makes the tell
+   readable from across the arena, where the pad itself is a few pixels.
+
+   The colour is the Helluminator's burn blue rather than a new one — the same
+   holy blue on the boss that the player's own lantern burns with.
+
+   >>> THE SPILL WAS HALVED AFTER LOOKING AT IT. <<< It went in at 416, i.e.
+   160/256 of growth past the poly's own edge, and read as a wash of blue over
+   the whole crown rather than as a lamp set into it. 336 is exactly half that
+   growth, which still carries across the arena because the halo is additive and
+   the pad is the only bright thing on him. Change the GROWTH (scale - 256), not
+   the scale, if it wants moving again. */
+#define ASAG_GLOW_SCALE  336   /* 1.31x about the poly's screen centre        */
+#define ASAG_GLOW_R       48
+#define ASAG_GLOW_G      120
+#define ASAG_GLOW_B      255
+
+/* ...and what the SKIN under it is modulated to at full glow. Not the halo's
+   colour: modulation is texel * colour / 128 and the disc is a saturated
+   yellow, so R and G have to be crushed hard or the pad comes out green. */
+#define ASAG_GLOW_TINT_R  28
+#define ASAG_GLOW_TINT_G  44
+#define ASAG_GLOW_TINT_B 255
+
+/* Set by src/asag_fight.c every frame from asag_exposed(), exactly the way
+   body_hit is driven — the fight decides, this file only draws. `glow_lvl` is
+   the ramp's own state in 256ths and `glow_ph` the pulse's phase; both are
+   advanced by the DRAW rather than by asag_update(), because asag_update() is
+   skipped while `frozen` and a light that stalled with a held pose would be a
+   second thing to reason about. Both cleared by asag_reset(). */
+static int8_t  body_glow;
+static int16_t glow_lvl;
+static int16_t glow_ph;
+
 /* The position track's own clock and output. clip_ticks runs in GAME frames
    (60/s), NOT animation frames, because the brief's ramps are in seconds and
    because sliding the body at 60 Hz under a pose that steps at 8 reads as a
@@ -372,6 +463,36 @@ static void load_mesh(void) {
        heap is tight it is a CLIP that goes missing and not this - without it
        every packed clip would draw the bind pose. */
     pose_buf = (SVECTOR *)malloc(mesh_smd->n_verts * sizeof(SVECTOR));
+
+    /* ---- WHICH PRIMITIVES ARE THE YELLOW SPOT, taken ONCE off their UVs ----
+       See the ASAG_GLOW_* block for why this is a UV box and not five indices.
+       The test is on the primitive's UV CENTROID rather than on "any corner
+       inside", because the four walls of the pad each reach a long way out of
+       the disc and an any-corner test would sweep in whatever they touch. On
+       this sheet the two answers happen to agree, and the centroid is the one
+       that keeps agreeing after a re-export.
+
+       It costs one pass over 79 primitives at load and nothing per frame. */
+    {
+        uint8_t *p = (uint8_t *)mesh_smd->p_prims;
+        int k;
+        for (k = 0; k < ASAG_GLOW_WORDS; k++) glow_mask[k] = 0;
+        for (k = 0; k < mesh_smd->n_prims; k++) {
+            SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
+            int      corners = (pt->type >= 2) ? 4 : 3;
+            uint8_t *uv      = p + 20;
+            int32_t  su = 0, sv = 0;
+            int      c;
+            if (k >= ASAG_GLOW_WORDS * 32) break;
+            for (c = 0; c < corners; c++) { su += uv[c * 2]; sv += uv[c * 2 + 1]; }
+            su /= corners;
+            sv /= corners;
+            if (su >= ASAG_GLOW_U0 && su <= ASAG_GLOW_U1 &&
+                sv >= ASAG_GLOW_V0 && sv <= ASAG_GLOW_V1)
+                glow_mask[k >> 5] |= 1u << (k & 31);
+            p += pt->len;
+        }
+    }
 }
 
 void asags_load_model(void) {
@@ -543,6 +664,12 @@ void asag_set_frozen(int frozen) { clip_frozen = frozen ? 1 : 0; }
 int asag_frozen(void) { return clip_frozen; }
 
 void asag_set_hit_glow(int on) { body_hit = on ? 1 : 0; }
+
+/* Driven every frame by src/asag_fight.c from asag_exposed(), the same way the
+   damage flash is: the fight owns the windows, this file owns the light. A flag
+   and not a timer for the same reason — the exposure already has a definition
+   and a second countdown could only disagree with it. */
+void asag_set_head_glow(int on) { body_glow = on ? 1 : 0; }
 
 void asag_set_shake(int32_t units) {
     if (units < 0) units = 0;
@@ -725,9 +852,92 @@ static SVECTOR *body_verts(void) {
    it found it. That is why there is no early-out path here that has to remember
    to put a matrix back — the trap tools/ADDING_A_3D_ENEMY.txt STEP 5 is about
    does not exist in this shape. */
+/* ---- The exposure light's halo ---------------------------------------------
+   One additive quad over four already-projected screen points, grown out from
+   their own centre by ASAG_GLOW_SCALE/256. The Helluminator's hell_glow_quad()
+   exactly, and rbs_glow_quad()'s shape before it — copied rather than shared
+   for the reason weapon.c's aim test was eventually shared and this was not: it
+   is twenty lines that depend on nothing, and the three copies differ in the
+   one place that matters (which OT bucket they claim).
+
+   >>> IT GOES ONE BUCKET NEARER THAN THE POLYGON IT COVERS. <<< The OT is LIFO
+   within a bucket, so a primitive added after another in the SAME node draws
+   BEFORE it — which is why the DR_TPAGE below is added last and gets executed
+   first, and it is also why the halo cannot simply share the skin poly's
+   bucket: it would end up underneath the thing it is supposed to be spilling
+   out of. otz-1 draws after the whole of otz and is unambiguous.
+
+   QUADS ONLY. All five primitives of the pad are quads, and a triangle wanting
+   this would need its own POLY_F3 path; a caller that hands one in gets nothing
+   rather than a wrong picture. */
+static void asag_glow_quad(RenderContext *ctx, const DVECTOR *sv, int32_t otz,
+                           int32_t level) {
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    if (ctx->next_packet + sizeof(POLY_F4) + sizeof(DR_TPAGE) > buf_end) return;
+    if (otz < 1) return;
+
+    int32_t cx = ((int32_t)sv[0].vx + sv[1].vx + sv[2].vx + sv[3].vx) / 4;
+    int32_t cy = ((int32_t)sv[0].vy + sv[1].vy + sv[2].vy + sv[3].vy) / 4;
+
+    int16_t gx[4], gy[4];
+    int k;
+    for (k = 0; k < 4; k++) {
+        int32_t x = cx + (((int32_t)sv[k].vx - cx) * ASAG_GLOW_SCALE >> 8);
+        int32_t y = cy + (((int32_t)sv[k].vy - cy) * ASAG_GLOW_SCALE >> 8);
+        /* The GPU's coordinate limit, the same clamp the body's own loop
+           applies: a halo grown past it would wrap rather than clip. */
+        if (x < -1023) x = -1023; if (x > 1023) x = 1023;
+        if (y < -1023) y = -1023; if (y > 1023) y = 1023;
+        gx[k] = (int16_t)x; gy[k] = (int16_t)y;
+    }
+
+    uint32_t *ot = ctx->buffers[ctx->active_buffer].ot;
+
+    POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
+    setPolyF4(poly);
+    setSemiTrans(poly, 1);
+    setRGB0(poly, (uint8_t)((ASAG_GLOW_R * level) >> 8),
+                  (uint8_t)((ASAG_GLOW_G * level) >> 8),
+                  (uint8_t)((ASAG_GLOW_B * level) >> 8));
+    poly->x0 = gx[0]; poly->y0 = gy[0];
+    poly->x1 = gx[1]; poly->y1 = gy[1];
+    poly->x2 = gx[2]; poly->y2 = gy[2];
+    poly->x3 = gx[3]; poly->y3 = gy[3];
+    addPrim(&ot[otz], poly);
+    ctx->next_packet += sizeof(POLY_F4);
+
+    DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
+    setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
+    addPrim(&ot[otz], tp);
+    ctx->next_packet += sizeof(DR_TPAGE);
+}
+
 void asag_draw(RenderContext *ctx) {
     SMD *smd = mesh_smd;
     if (!model_loaded || !smd || !body_vis) return;
+
+    /* ---- THE EXPOSURE LIGHT'S CLOCK, ticked here and not in asag_update() ---
+       asag_update() is skipped entirely while `frozen`, and a lamp that stalled
+       under a held pose would be a second piece of state to reason about in
+       every scene that holds him. The draw runs every frame he is on screen,
+       which is exactly when the light means anything.
+
+       glow_amt is the ramp times the pulse, 0..256, and it is 0 for the whole
+       of the game that is not an exposure window — so everything the glow costs
+       below is behind one compare. */
+    if (body_glow) { if (glow_lvl < 256) { glow_lvl += 256 / ASAG_GLOW_RAMP;
+                                           if (glow_lvl > 256) glow_lvl = 256; } }
+    else           { if (glow_lvl > 0)   { glow_lvl -= 256 / ASAG_GLOW_RAMP;
+                                           if (glow_lvl < 0)   glow_lvl = 0; } }
+    glow_ph = (int16_t)((glow_ph + 1) % ASAG_GLOW_PULSE);
+    int32_t glow_amt = 0;
+    if (glow_lvl > 0) {
+        /* isin over one whole turn per ASAG_GLOW_PULSE frames, mapped from
+           +/-4096 onto 168..256 — a breath, not a flicker. */
+        int32_t s = isin(((int32_t)glow_ph * 4096) / ASAG_GLOW_PULSE);
+        glow_amt  = (glow_lvl * (212 + (s * 44 >> 12))) >> 8;
+        if (glow_amt > 256) glow_amt = 256;
+    }
 
     SVECTOR *vp = body_verts();
     uint8_t *p  = (uint8_t *)smd->p_prims;
@@ -903,6 +1113,31 @@ void asag_draw(RenderContext *ctx) {
         uint8_t g = (uint8_t)(((int32_t)col[1] * ff + ASAG_FOG_G * (256 - ff)) >> 8);
         uint8_t b = (uint8_t)(((int32_t)col[2] * ff + ASAG_FOG_B * (256 - ff)) >> 8);
 
+        /* ---- THE EXPOSURE LIGHT, on the five polygons of the crown pad ----
+           The skin is MODULATED toward blue here and the halo is laid over the
+           finished poly further down; both are needed. The modulation alone
+           would leave a yellow disc that has merely gone a different colour —
+           at the ranges this fight is fought at the pad is a handful of pixels
+           — and the halo alone would leave a bright blue spill coming out of a
+           spot that is still obviously yellow.
+
+           THE TINT IS HEAVY ON PURPOSE. Modulation is texel * colour / 128, and
+           the disc is a saturated yellow (about 230, 230, 60), so anything less
+           than crushing R and G comes out green rather than blue. See the
+           ASAG_GLOW_* block.
+
+           APPLIED BEFORE THE DAMAGE FLASH, so a hit that lands during a window
+           still reads as red. The two say different things and the more urgent
+           one wins the frame. */
+        int glow_poly = 0;
+        if (glow_amt > 0 && k < ASAG_GLOW_WORDS * 32 &&
+            ((glow_mask[k >> 5] >> (k & 31)) & 1u)) {
+            glow_poly = 1;
+            r = (uint8_t)(r + (((int32_t)ASAG_GLOW_TINT_R - r) * glow_amt >> 8));
+            g = (uint8_t)(g + (((int32_t)ASAG_GLOW_TINT_G - g) * glow_amt >> 8));
+            b = (uint8_t)(b + (((int32_t)ASAG_GLOW_TINT_B - b) * glow_amt >> 8));
+        }
+
         /* THE DAMAGE FLASH, applied AFTER the fog for the same reason the
            arena's boils are: it is light coming out of him, and light does not
            dim with the distance to the thing it is coming out of. R to full and
@@ -969,6 +1204,10 @@ void asag_draw(RenderContext *ctx) {
             poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
             addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
             ctx->next_packet += sizeof(POLY_FT4);
+            /* ...and the spill, one bucket nearer so it lands on top. All five
+               of the pad's primitives are quads, which is why there is no
+               matching call in the triangle branch below. */
+            if (glow_poly) asag_glow_quad(ctx, sv, otz - 1, glow_amt);
         } else {
             if (ctx->next_packet + sizeof(POLY_FT3) > buf_end) { p += stride; continue; }
             POLY_FT3 *poly = (POLY_FT3 *)ctx->next_packet;
@@ -1320,6 +1559,12 @@ void asag_reset(void) {
     body_shake = 0;
     body_fade  = 256;
     body_hit   = 0;
+    /* ...and the exposure light, which is a statement about a fight that is
+       over. Left up, it would greet the next visit with a boss who looks
+       vulnerable through his whole opening scene. */
+    body_glow  = 0;
+    glow_lvl   = 0;
+    glow_ph    = 0;
     home_ramp  = 0;
     home_total = 0;
     home_from  = 0;
