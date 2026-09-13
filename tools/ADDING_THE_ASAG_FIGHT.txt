@@ -1279,6 +1279,58 @@ tools/DIAGNOSING_FRAME_RATE.txt is the file if it ever matters. Measure U/D/G
 first; optimising this by reasoning made things 56% worse the last time it was
 tried.
 
+---- IT MATTERED, AND THE 75 ABOVE IS OUT OF DATE (Sep 2026) --------------
+>>> THE SIXTH PASS GREW BOTH HEAVY ZONES TO 125 CELLS AND THIS SECTION WAS NOT
+REVISITED. <<< Closing the arena's two safe squares turned the slam's third into
+a C (75 + 50) and the vomit's lane into a plus (75 + 75 - 25). That is 67% more
+of the one thing this section names as the fight's heaviest, and the fight was
+then reported as lagging during certain attacks — which is exactly the pair of
+attacks that grew.
+
+WHAT THE ROOM ALREADY HAD. Checked against tools/DIAGNOSING_FRAME_RATE.txt's
+three-item list before anything was written, because STEP 3D and STEP 3E both
+found rooms missing all three. src/asag_arena.c has STEP 3C fix 1 (isin/icos and
+the cull distance hoisted) and fix 2 (render_set_clear_colour, no second
+full-screen tile). It deliberately has no cull-key table and says why: at 522
+primitives inside a 5900-unit room nothing is ever rejected by distance, so the
+table would cost BSS to answer a question that is always "yes". The room side of
+that document is done; the FIGHT's own draws had none of it.
+
+WHAT WENT IN: THE SIDE-PLANE CULL ON THE POOLS (src/asag_fight.c,
+af_cell_on_screen). The room's own frustum test, run on a cell's four corners,
+before rbs_glow_quad spends a gte_rtpt + gte_rtps + gte_avsz4 on a quad its
++/-1023 test is about to throw away. A cell is dropped only when ALL FOUR
+corners are outside the SAME plane, so it covers no pixel and nothing that was
+drawn stops being drawn. The trig is hoisted once per frame in asag_fight_draw
+(STEP 3C fix 1 again, one level down). Level 5 turns it off for the A/B.
+
+COUNTED OFFLINE over the walkable arena at 200-unit spacing and 16 headings, of
+125 cells:
+
+    slam    mean 27.8 visible, worst 107      78% culled on average
+    vomit   mean 28.3 visible, worst 105      77% culled on average
+
+>>> THE WORST POSE IS BARELY IMPROVED AND THAT IS THE HONEST HALF. <<< Standing
+back and looking down a lit zone still queues 107 quads. This change is aimed at
+CPU in the mean case; if the meter says the cost is FILL in the worst case, the
+levers left are all look decisions — the zone's brightness, or how much of it is
+lit at once, which is the Rabisu's 16-lights-to-12 all over again. Do not reach
+for a row merge: the paragraph above is still right, and a row-wide quad
+disappears entirely from a camera standing in it.
+
+WHAT DOES NOT TRANSFER FROM THE RABISU, so nobody writes it later. STEP 3C fix 3
+is a BACKFACE CULL ON ADDITIVE GEOMETRY, and rbs_glow_quad_ex's own comment says
+it is worth it for a CLOSED BOX of additive walls and nothing else — "the pool
+quad and the glow-point rings are NOT closed boxes and must never take it; they
+would simply disappear when viewed from the wrong side." Every additive shape in
+this fight is a pool, a ring or a crossed beam pair. There is no shaft here and
+PART 9A's opening explains why there must not be one.
+
+>>> NOBODY HAS READ THE METER IN THIS ROOM YET. <<< Same honest note STEP 3D and
+STEP 3E carry. The counting is what STEP 6 endorses and the change is
+behaviour-neutral by construction, but U/D/G at levels 1, 5 and 8, standing in
+the arena with a zone lit, is still owed.
+
 
 ##########################################################################
  PART 7A — COLLISION: THE ROOM IS A TABLE, THE BOSS IS NOT

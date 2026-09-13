@@ -7,6 +7,7 @@
 #include "asag_arena.h"
 #include "asag_fight.h"
 #include "camera.h"         /* player_x/y/z, cam_* for the draws only          */
+#include "collision.h"      /* DEBUG_EXPERIMENT — the pools' A/B slot          */
 #include "particles.h"    /* spawn_rock_burst - the boulders smashing    */
 #include "cdaudio.h"        /* cdaudio_stop — the music dies with him          */
 #include "player.h"         /* player_hurt, player_health, game_over, flash_timer */
@@ -696,8 +697,71 @@ static int32_t af_dist_xz(int32_t ax, int32_t az, int32_t bx, int32_t bz) {
    trail is ground that has been BURNED and the slam's markers are a target
    painted from above. A flaring shaft on either would say the floor was the
    source, which is exactly backwards for both. */
+/* ---- THE ZONE POOLS' REJECT PATH ------------------------------------------
+   >>> A LIT ZONE IS 125 OF THESE, AND ON AVERAGE 78% OF THEM ARE NOT ON
+   SCREEN. <<< PART 9A of tools/ADDING_THE_ASAG_FIGHT.txt sized this effect at
+   75 quads; the sixth pass grew both heavy zones to 125 when it closed the
+   arena's two safe squares, and that note was never revisited. Without a cheap
+   reject, every one of them pays a full gte_rtpt + gte_rtps + gte_avsz4 inside
+   rbs_glow_quad and is then thrown away by its +/-1023 screen test — the exact
+   complaint STEP 3B of tools/DIAGNOSING_FRAME_RATE.txt makes about a reject
+   path that reads the thing it is about to reject.
+
+   THIS IS src/asag_arena.c's SIDE-PLANE TEST, unchanged, run on a cell's four
+   corners instead of a primitive's vertices. With gte_SetGeomScreen(256) on a
+   320-wide screen the half-field is 160/256, so a point is outside the right
+   plane when 8*side > 5*fwd. >>> A CELL IS ONLY DROPPED WHEN ALL FOUR CORNERS
+   ARE OUTSIDE THE SAME PLANE <<< — that is what makes it behaviour-neutral,
+   since such a cell covers no pixel of the screen and nothing that was drawn
+   stops being drawn.
+
+   Y IS NOT TESTED and does not need to be: these quads lie on the y=0 floor,
+   which is the case the room's own test already argues is safe. Pitch does not
+   matter either — it rotates about the camera's X axis and cannot carry a point
+   across the left or right plane.
+
+   COUNTED, NOT GUESSED, which is the runbook's own rule. Over the walkable
+   arena at 200-unit spacing and 16 headings, of 125 cells a mean of 27.8 (slam)
+   and 28.3 (vomit) survive: 78% and 77% culled.
+
+   >>> THE WORST POSE IS 107 OF 125 AND THIS DOES ALMOST NOTHING FOR IT. <<<
+   Standing back and looking straight down a lit zone is still 107 quads of
+   additive floor. If a meter says the lag lives there rather than in the mean,
+   the remaining lever is FILL and it is a look decision — PART 9A's paragraph
+   on why per-cell beats per-row still stands, and merging rows would make a
+   whole zone vanish from a camera standing in it.
+
+   Level 5 (DBG_EXP_NO_FRUSTUM) switches it off, so it can be A/B'd in place the
+   way STEP 0 of the frame-rate runbook intends. */
+static int32_t af_cam_sn, af_cam_cs;   /* hoisted per frame; STEP 3C fix 1     */
+static int     af_no_cull;
+
+static int af_cell_on_screen(int c, int w) {
+    if (af_no_cull) return 1;
+
+    const int32_t cx[4] = { AF_COL_X[c], AF_COL_X[c + 1], AF_COL_X[c], AF_COL_X[c + 1] };
+    const int32_t cz[4] = { AF_ROW_Z[w], AF_ROW_Z[w], AF_ROW_Z[w + 1], AF_ROW_Z[w + 1] };
+    int32_t f[4], sd[4];
+    int k, behind = 1, right = 1, left = 1;
+
+    for (k = 0; k < 4; k++) {
+        int32_t dx = cx[k] - cam_x, dz = cz[k] - cam_z;
+        f[k]  = (dx * af_cam_sn + dz * af_cam_cs) >> 12;
+        sd[k] = (dx * af_cam_cs - dz * af_cam_sn) >> 12;
+        if (f[k] >= -1200) behind = 0;
+    }
+    if (behind) return 0;
+
+    for (k = 0; k < 4; k++) {
+        if (!( sd[k] * 8 > f[k] * 5)) right = 0;
+        if (!(-sd[k] * 8 > f[k] * 5)) left  = 0;
+    }
+    return !(right || left);
+}
+
 static void af_pool(RenderContext *ctx, int cell, uint8_t r, uint8_t g, uint8_t b) {
     int c = cell % AF_COLS, w = cell / AF_COLS;
+    if (!af_cell_on_screen(c, w)) return;
     SVECTOR v[4];
     int k;
     for (k = 0; k < 4; k++) { v[k].pad = 0; v[k].vy = (int16_t)(AF_FLOOR_Y - 4); }
@@ -1957,6 +2021,15 @@ static void af_draw_puss(RenderContext *ctx) {
 
 void asag_fight_draw(RenderContext *ctx) {
     if (current_area != STATE_ASAG_ARENA) return;
+
+    /* >>> HOISTED OUT OF THE POOL LOOPS. <<< isin/icos are SDK calls, and a lit
+       zone would otherwise ask for them 125 times a frame to compute one pair
+       of constants that cannot change while a frame is being queued. STEP 3C
+       fix 1 of tools/DIAGNOSING_FRAME_RATE.txt — the same two lines
+       src/asag_arena.c's mesh loop already hoists, for the same reason. */
+    af_cam_sn  = isin(cam_rot);
+    af_cam_cs  = icos(cam_rot);
+    af_no_cull = (DEBUG_EXPERIMENT() == DBG_EXP_NO_FRUSTUM);
 
     /* THE TRAIL AND THE PROJECTILES DRAW EVEN WHEN THE LOOP IS OFF, for the
        same reason they still tick: what is in the air stays in the air. The

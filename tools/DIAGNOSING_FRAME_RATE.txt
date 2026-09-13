@@ -870,3 +870,62 @@ and the one change that would have been aimed at the player's own clue was
 measured and thrown out. But U/D/G at levels 1, 4 and 8, standing at (6,-41)
 facing the bed, is still owed — and if the mesh turns out not to have been the
 cost, this section becomes the sixth wrong turn and should say so.
+
+
+##########################################################################
+ STEP 3F — ASAG'S FIGHT, AND THE FIRST TIME THE COST WAS AN ATTACK
+##########################################################################
+Reported (Sep 2026) as "lag during certain attacks" in the Asag arena. Every
+section above this one is about a ROOM — its mesh, its props, its signage. This
+is the first entry where the room was already clean and the variable was what
+the boss was doing.
+
+WHAT THE ROOM ALREADY HAD, checked first because STEP 3D and STEP 3E both found
+rooms carrying none of the three-item list. src/asag_arena.c has fix 1 (isin/icos
+and the cull distance hoisted out of the mesh loop) and fix 2
+(render_set_clear_colour rather than a second full-screen tile), and it
+deliberately skips the cull-key table with a reason that still holds: 522
+primitives inside a 5900-unit room, nothing ever rejected by distance, so the
+table would cost BSS to answer a question that is always "yes". Nothing to do on
+the room side.
+
+WHAT THE FIGHT HAD: none of it. src/asag_fight.c paints an attack's damage zone
+as one additive floor quad per grid cell, straight into rbs_glow_quad. The two
+heavy zones were 75 cells when tools/ADDING_THE_ASAG_FIGHT.txt PART 9A sized
+them; the sixth pass grew both to 125 closing the arena's two safe squares, and
+that note was never revisited. 67% more of the thing the fight's own author had
+already flagged as its heaviest — and the two attacks that grew are the two the
+player named.
+
+THE COUNT, offline over the walkable arena at 200-unit spacing and 16 headings,
+of 125 cells:
+
+    slam    mean 27.8 on screen, worst 107      78% culled
+    vomit   mean 28.3 on screen, worst 105      77% culled
+
+Every one of the ~97 off-screen cells was paying a full gte_rtpt + gte_rtps +
+gte_avsz4 and then being thrown away by rbs_glow_quad's own +/-1023 test. That
+is STEP 3B's complaint exactly — a reject path that transforms the thing it is
+about to reject — one level below the mesh.
+
+THE FIX: THE ROOM'S SIDE-PLANE TEST, RUN ON THE CELLS (af_cell_on_screen). Four
+corners, dropped only when all four are outside the SAME plane, with the trig
+hoisted once per frame in asag_fight_draw (fix 1 again). Behaviour-neutral by
+construction: such a cell covers no pixel. Level 5 switches it off for the A/B.
+
+WHAT DOES NOT TRANSFER, AND IT IS THE ONE THIS FIGHT MOST LOOKS LIKE IT WANTS.
+STEP 3C fix 3 is a backface cull on ADDITIVE geometry and it is legal for a
+CLOSED BOX only — rbs_glow_quad_ex's own comment forbids it for pools and rings,
+which would simply vanish from the wrong side. Every additive shape in Asag's
+fight is a pool, a ring or a pair of crossed beams. There is no shaft to cull.
+
+>>> AND THE WORST POSE IS BARELY IMPROVED. <<< 107 of 125 still queue when the
+player stands back and looks down a lit zone. If the meter says the cost is FILL
+rather than transform, what is left is the Rabisu's other answer — 16 lights to
+12 — and that is a look decision, not a code one. A row merge is NOT available:
+PART 9A explains that a row-wide quad disappears entirely from a camera standing
+in it, where a cell-sized one loses only itself.
+
+>>> NOBODY HAS READ THE METER IN THIS ROOM YET. <<< STEP 3D and STEP 3E's honest
+note, a third time. U/D/G at levels 1, 5 and 8 with a zone lit is owed, and if
+the transform was not the cost this section is the seventh wrong turn.
