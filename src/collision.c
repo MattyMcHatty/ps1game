@@ -25,6 +25,7 @@
 #include "lever.h"             /* placeable wall-lever prop */
 #include "rabisu.h"            /* the Rabisu boss is solid (area-tagged) */
 #include "hatch_doors.h"       /* The Hatch's pit doors, solid at any pose  */
+#include "catacomb_doors.h"    /* Outside Catacombs' two door leaves        */
 #include "asag.h"              /* ...and Asag, solid at any pose OR position */
 
 CollisionRoom current_collision_room;
@@ -980,6 +981,15 @@ void apply_collision_reception(void) {
        something ankle-high would read as an invisible barrier. Their footprint
        is this frame's pose, not a fixed box — see src/hatch_doors.c. */
     hatch_doors_collide(&cam_x, cam_y, &cam_z, 75);
+    /* The two leaves in the catacomb mouth at the north end of Outside
+       Catacombs; area-tagged like the props above, so this is a no-op everywhere
+       else and in every room where they are not even loaded. FULL WALL STANDOFF
+       rather than a prop radius, and for the reason the chainlink gates get one:
+       they seal a gap in a facade whose own stone is collision walls, they run
+       the full height of it, and a tighter radius here would let the player
+       squeeze past a leaf's edge into the doorway. Their footprint is scanned
+       off their vertices, not written down — see src/catacomb_doors.c. */
+    catacomb_doors_collide(&cam_x, cam_y, &cam_z, 195);
 }
 
 void apply_flat_entity_collision(int32_t *x, int32_t *z, int32_t radius) {

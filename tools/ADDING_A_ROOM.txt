@@ -366,6 +366,22 @@ Two independent pipelines. Both are needed for a new room.
     -tp textures lets it resolve the per-poly texture references, so STEP 3d
     must already have produced the new .tim.
 
+    >>> IF tools\subpack\<slug>.json EXISTS, RUN THAT PASS FIRST AND LINK THE
+    .packed.smx INSTEAD. <<< That is the table STEP 3d's sub-pack exception
+    wrote, and it is not optional afterwards — the raw .smx UVs still span a
+    full 128 tile that the shrunk texture no longer fills.
+
+      & <python> tools\subpack_uvs.py "assets\<Name>.smx" tools\subpack\<slug>.json
+      & "C:\Users\virtu\Documents\PSn00bSDK\bin\smxlink.exe" `
+            -tp textures -o assets\<slug>.smd "assets\<Name>.packed.smx"
+
+    *.packed.smx is GITIGNORED and is not regenerated for you, so a stale one
+    from the previous export will be sitting there looking fine. Re-run the pass
+    after every re-export. Skipping it does not crash: the packed faces sample
+    the whole 128 tile and come back part correct art, part whatever else is in
+    that VRAM page, all through the right CLUT. MESH_CONVERSION_NOTES.txt
+    PIPELINE 1 has the worked example.
+
 4b. COLLISION — the project's Python script:
 
       & <python> "assets\smx_to_collision.py" "assets\<Name> mesh.smx" `

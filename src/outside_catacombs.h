@@ -24,8 +24,16 @@
                 lawns at z>1714.
      FACADE     the con_tile mass at z[3786,4637], reaching up to y=-1141 — the
                 catacomb entrance itself, drawn but not yet enterable.
-     TABLET     the lamashtu tablet set into that facade at x[-450,450],
-                z=3786, hanging from y=-905 down to the ground.
+     DOORWAY    the catacomb mouth in that facade at x[-450,450], hanging from
+                y=-905 down to the ground. The lamashtu tablet USED to be a flat
+                plane textured across it at z=3786; that plane has moved back to
+                z=3850 and lost its material — it is the 15 untextured polys the
+                tex map reports, the dark backing behind the opening — and the
+                tablet art is now on the two DOOR LEAVES standing in the mouth
+                at z[3787,3847]. Those are a prop, not part of this mesh: see
+                src/catacomb_doors.h. This room still owns the LMSHTBLT
+                registration and upload (slot 5 below) even though its own mesh
+                no longer references it, because those leaves are what draws it.
      FLOWERS    the poison-flower bed, a ground decal at y=0 spanning
                 x[-750,2504] z[0,1714]; art only, no collision of its own.
 

@@ -333,8 +333,13 @@ static void graveolver_fire(void) {
            decoration on it. */
         asag_damage(GUN_DAMAGE);
     } else if (best_kind == 10) {
-        /* A BOIL. 3 HP, so three rounds, and no scaling for the same reason. */
-        asag_boil_damage(best_idx, GUN_DAMAGE);
+        /* A BOIL. 3 HP, so three rounds of anything this gun chambers — the
+           boils DO have a weakness table now, but its one entry is DMG_HOLY
+           and no round carries that type. It is asked all the same, the way
+           every other enemy above is asked, so a second entry added to that
+           table reaches the gun without anyone having to come back here. */
+        asag_boil_damage(best_idx,
+                         asag_boil_scale_damage(GUN_DAMAGE, dmg_type));
     } else {
         vampire_health   -= vampire_scale_damage(GUN_DAMAGE, dmg_type);
         vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;

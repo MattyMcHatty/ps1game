@@ -39,6 +39,38 @@ Run from project root: C:\Users\virtu\Documents\ps1game
       smxlink -tp textures -o assets\<level>.smd assets\<level>.smx
       (-tp lets smxlink resolve the texture references)
 
+
+  >>> FIRST: DOES THIS LEVEL HAVE A SUB-PACK TABLE? <<<
+  ----------------------------------------------------
+  If tools\subpack\<level>.json EXISTS, there is a PASS BETWEEN the .smx and
+  smxlink and you must run it, feeding smxlink the .packed.smx instead:
+
+      python tools\subpack_uvs.py "assets\<Name>.smx" tools\subpack\<level>.json
+      smxlink -tp textures -o assets\<level>.smd "assets\<Name>.packed.smx"
+
+  Five levels have one today: greenhouse, maze_one, maze_two,
+  outside_catacombs, stables.
+
+  WHAT GOES WRONG IF YOU SKIP IT, because it is not subtle and it is not a
+  crash. Those levels use textures that ship SMALLER than 128 (poison_flower_
+  base is 64x64, pipe_button_off 32x32). The Blender exporter scales every UV
+  to one texel size for the whole export — always 128 — so the raw .smx UVs
+  span a 128 tile that the texture no longer fills. subpack_uvs.py rewrites
+  them onto the real sub-rect. Convert the raw .smx and each such face samples
+  the whole 128 tile: the correct art in the corner it actually occupies, and
+  for the rest whatever else has been left in that page. Observed on Outside
+  Catacombs' flower beds — a quarter flowers, a quarter leftover chnlnk (which
+  sits at the same VRAM origin and is taller), and half never-written VRAM, all
+  of it read through the flower CLUT so the whole patch came out reddish.
+
+  >>> *.packed.smx IS GITIGNORED AND IS NOT REGENERATED FOR YOU. <<< A stale
+  one from the last export will be sitting in the folder looking plausible. Re-
+  run the pass after EVERY re-export, and check its timestamp against the .smx
+  the same way the WRONG FOLDER section below says to check the .smx itself.
+
+  The tex-map generator may read either file — the pass changes no texture
+  list, no poly order and no poly count. See tools\TEXTURING_NOTES.txt PART 5.
+
 The .smd is packed onto the disc by disc.xml (e.g. RECEPT.SMD <- Reception.smd),
 and loaded at runtime from the CD. After converting, you only need to rebuild
 the DISC IMAGE (mkpsxiso) — no C recompile, because no source changed.
@@ -135,6 +167,8 @@ QUICK REFERENCE
 --------------------------------------------------------------------------
   Visual SMD (no textures): smxlink -o assets\<lvl>.smd assets\<lvl>.smx
   Visual SMD (textured):    smxlink -tp textures -o assets\<lvl>.smd assets\<lvl>.smx
+  Sub-pack FIRST if tools\subpack\<lvl>.json exists, and link the .packed.smx:
+                            python tools\subpack_uvs.py "assets\<Name>.smx" tools\subpack\<lvl>.json
   Tex map (Reception):      python gen_reception_tex_map.py   (then cmake --build)
   Collision:                python assets\smx_to_collision.py assets\<lvl>_mesh.smx --room <name>
                             then copy generated *_collision.c/.h into src\

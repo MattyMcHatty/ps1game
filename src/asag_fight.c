@@ -8,6 +8,7 @@
 #include "asag_fight.h"
 #include "camera.h"         /* player_x/y/z, cam_* for the draws only          */
 #include "collision.h"      /* DEBUG_EXPERIMENT — the pools' A/B slot          */
+#include "damage.h"       /* the boils' weakness to holy fire               */
 #include "particles.h"    /* spawn_rock_burst - the boulders smashing    */
 #include "cdaudio.h"        /* cdaudio_stop — the music dies with him          */
 #include "player.h"         /* player_hurt, player_health, game_over, flash_timer */
@@ -187,32 +188,37 @@ static const int16_t AF_ROW_Z[AF_ROWS + 1] = {
    above says to check for and which it missed because it only ever compared the
    zones with each other, never with what was left over.
 
-   THE FIX IS IN TWO ATTACKS AND NOT A FOURTH ZONE. Both now reach into 4 and 6,
-   from the two directions they were already coming from:
+   >>> THE FIX IS IN THE SLAM ALONE, AND IT USED TO BE IN TWO. <<< The vomit was
+   widened to the whole middle row at the same time, making a PLUS of it, and
+   that has since been taken back out: two attacks each covering five of the
+   nine squares left too little floor to stand on and blurred what either one
+   was saying. The slam carries the flanks by itself now:
 
        SLAM    his third PLUS 4 and 6 — a C, open toward the landing, with
                two more boulders falling in the flanks it just grew.
-       VOMIT   the centre lane PLUS the whole middle row — a PLUS, since
-               4 + 5 + 6 with 5 already in the lane is simply the middle row.
+       VOMIT   the centre lane, 2-5-8, and nothing else.
 
    WHAT IS LEFT SAFE, WHICH IS THE THING TO RE-CHECK IF EITHER MOVES AGAIN:
 
        laser   safe in 1 2 3 4 5 6
        slam    safe in 5 7 8 9
-       vomit   safe in 1 3 7 9
+       vomit   safe in 1 3 4 6 7 9
 
-   No square is in all three, so there is still no seat to sit in — and 5,
-   the dead centre, is now safe from the slam alone, which is deliberate: the
-   middle of the room should be a place you can be for one attack out of three,
-   not a place you cannot be at all.
+   No square is in all three, so there is still no seat to sit in: 4 and 6 are
+   now safe from two attacks out of three and are held by the slam alone, and 5,
+   the dead centre, is safe from the slam alone. Both are deliberate — a square
+   should be a place you can be for some of the fight, not a place you cannot be
+   at all — but 4 and 6 are the thin ones, so if the SLAM'S shape is ever what
+   moves, this table is what has to be read first.
 
-   >>> BOTH SHAPES ARE ASKED AS ONE PREDICATE PER ATTACK, AND THAT IS LOAD
+   >>> THE SHAPES ARE ASKED AS ONE PREDICATE PER ATTACK, AND THAT IS LOAD
    BEARING. <<< The zones used to be a row range and a column range, so the
    damage test and the floor lighting could each be written as a pair of nested
-   loops and could not drift apart. An L and a plus are not ranges. Each is a
-   function of (row, col) instead, called BOTH by the damage test (on the cell
-   the player occupies) and by the draw (on every cell), so the promise that
-   what is lit is what hurts survives the shapes getting complicated. */
+   loops and could not drift apart. A C is not a range. Each is a function of
+   (row, col) instead, called BOTH by the damage test (on the cell the player
+   occupies) and by the draw (on every cell), so what is lit and what hurts
+   cannot disagree — with the ONE deliberate exception the slam's draw now
+   documents, where the lit cells are a subset of the zone that hurts. */
 
 /* 1 if the cell is inside the slam's zone: Asag's third, plus the middle row's
    two flanks (squares 4 and 6). */
@@ -222,13 +228,22 @@ static int af_cell_in_slam(int r, int c) {
            (c < AF_COL_VOM_LO || c > AF_COL_VOM_HI);
 }
 
-/* 1 if the cell is inside the vomit's zone: the centre lane end to end, plus
-   the whole middle row across it. The two overlap on square 5 and the draw
-   below relies on this being asked ONCE per cell rather than as two loops —
-   the pools are additive, so a cell lit twice comes out twice as bright. */
+/* 1 if the cell is inside the vomit's zone: the centre lane, end to end, and
+   nothing else — squares 2, 5 and 8.
+
+   >>> THE CROSSBAR IS GONE AND THE PLUS IS A LANE AGAIN. <<< The zone gained
+   the whole middle row when squares 4 and 6 were found to be safe from
+   everything (see the flanks block above). It made one attack cover five of the
+   nine squares, which is too much of the room for something the player is meant
+   to dodge sideways out of, and it blurred the one thing this attack says: pick
+   a side. >>> 4 AND 6 DO NOT GO BACK TO BEING SAFE. <<< The SLAM still reaches
+   both of them and drops a boulder in each, so that half of the flanks fix is
+   what carries it now, and no square survives all three attacks. Re-check it
+   against the safe-square table above, not against this function alone, if the
+   slam's shape is the next thing to move. */
 static int af_cell_in_vomit(int r, int c) {
-    if (c >= AF_COL_VOM_LO && c <= AF_COL_VOM_HI) return 1;
-    return r >= AF_ROW_MID_LO && r <= AF_ROW_MID_HI;
+    (void)r;
+    return c >= AF_COL_VOM_LO && c <= AF_COL_VOM_HI;
 }
 
 
@@ -334,7 +349,15 @@ static int af_in_vomit_zone(void) {
    light regardless of where the beam's own footprint falls - so it is free to
    be chosen for the look. */
 #define AF_LAS_SWEEP_Z       466   /* centre of row 2: (373 + 560) / 2        */
-#define AF_T_LAS_TRAIL       180   /* 3 s a cell stays lit, as briefed        */
+/* >>> 126 AND NOT THE BRIEFED 180. <<< Three seconds of burning floor was what
+   was asked for and it out-stayed the attack: the laser's own clip is over long
+   before the fire is, so the trail was still fading through the idle that
+   follows and into the next attack's telegraph, and two hazards lit at once is
+   one hazard too many to read. 126 is 180 less 30% — 2.1 s — which still
+   outlasts the sweep that lights it but is gone by the time the loop moves on.
+   AF_T_TRAIL_COOLDOWN (60) is unchanged and still well inside this, so a player
+   who stands in the fire can be burned twice by one trail. */
+#define AF_T_LAS_TRAIL       126   /* 2.1 s a cell stays lit                   */
 
 /* ---- The slam ------------------------------------------------------------
    The head is on the floor from t 112 to t 337 out of 375. */
@@ -424,11 +447,61 @@ static int af_in_vomit_zone(void) {
 
    THE PARTICLES FAN ALONG IT rather than raining out of nowhere: they leave his
    mouth with a large spread in Z and a small one in X, so the spray visibly
-   travels down the lane it is about to poison. See af_vom_spit(). */
-#define AF_VOM_PARTICLES      34
+   travels down the lane it is about to poison. See af_vom_spit().
+
+   >>> THIS IS THE NUMBER ON SCREEN, NOT A CEILING THE SPRAY RARELY REACHES.
+   <<< af_vom_spit() is called on EVERY frame of the window and asks for four,
+   while a drop lives about twenty-five before it lands, so the pool is asked
+   for roughly a hundred and saturates within the first frames. It then stays
+   full until the spray stops. That makes this constant the count the player
+   actually sees — change it and the density changes with it, which is not
+   true of the `made < 4` refill cap next to it.
+
+   23 AND NOT THE ORIGINAL 34: a third fewer, because the stream read as a
+   solid green wall rather than as a spray and the lit lane underneath — the
+   half of this attack that says where the damage is — was being covered by
+   it. Each drop is an af_glow_point, so this is eleven additive primitives a
+   frame off the spray as well. */
+#define AF_VOM_PARTICLES      23
 
 /* ---- The boils ------------------------------------------------------------ */
 #define AF_BOIL_HEALTH         3   /* as briefed                               */
+
+/* >>> AND THE ONE EXCEPTION TO "EVERY WEAPON DEALS 1x DAMAGE TO ASAG". <<<
+   That brief is why neither the head nor the boils had a weakness table at all
+   — see the long note at graveolver_fire's best_kind == 9. It still holds for
+   the HEAD, which takes a flat 1 from everything. The BOILS are now 3x weak to
+   holy fire and to nothing else.
+
+   WHAT THAT BUYS: the Helluminator ticks once a SECOND for 1 (HELL_TICK_FRAMES
+   / HELL_TICK_DAMAGE), so a 3 HP boil used to cost three full seconds of
+   holding the trigger. Three seconds is a long time to stand still at the back
+   of this arena — HELL_RANGE is 1800 against the boils at z=2734, so the player
+   has to walk most of the way up it to reach one at all, into the ground the
+   slam lands on — and at that price nobody chose the lantern over the gun,
+   which kills a boil in three shots from anywhere. At 300 the single tick takes
+   all 3 and ONE SECOND OF BURN BURSTS A BOIL, which is what makes the walk
+   worth making.
+
+   THE GUN IS UNCHANGED BY THIS. It fires DMG_KINETIC and DMG_FLAME, neither of
+   which is in the table, so a boil still takes three rounds of either. Both
+   call sites go through asag_boil_scale_damage() all the same, the way every
+   other enemy's do, so a second entry added here reaches the gun without
+   anyone having to remember it exists.
+
+   300 IS THE ZOMBIES' NUMBER and deliberately so: zombie.c argues it as the
+   biggest modifier in the game because a walking corpse is what the lantern was
+   built for. A boil is the other thing it was built for — holy fire against an
+   organ of the boss — and reusing the figure keeps "the lantern kills what it
+   is meant to kill in one tick" one rule rather than two. */
+static const Weakness asag_boil_weakness[] = {
+    { DMG_HOLY, 300 },
+};
+
+int32_t asag_boil_scale_damage(int32_t base, DamageType type) {
+    return damage_scale(base, type, asag_boil_weakness,
+                        WEAKNESS_COUNT(asag_boil_weakness));
+}
 #define AF_T_BOIL_RESTORE   1800   /* 30 s, as briefed                         */
 #define AF_T_BOIL_RELIGHT     45   /* 0.75 s of coming back up, not a snap     */
 
@@ -1350,8 +1423,11 @@ static void af_boulders_update(void) {
                cannot cover the ground between them, and the design is that
                being caught in the SHAPE when they land is what hurts: Asag's
                third plus the middle row's two flanks, which is what the four
-               rocks are spread across and what lights up to say so (see the
-               draw). Once per slam, however many boulders land in it. */
+               rocks are spread across. THE FOUR ROCKS ARE ALSO ALL THAT LIGHTS
+               UP NOW — the faint wash over the rest of the shape was taken
+               out of af_draw_boulders, so this zone is wider than what the
+               floor shows and that note is the one to read before moving
+               either. Once per slam, however many boulders land in it. */
             if (!bld_hit_done && af_in_slam_zone()) {
                 bld_hit_done = 1;
                 af_hurt(AF_DMG_BOULDER);
@@ -1370,26 +1446,20 @@ static void af_boulders_update(void) {
 /* Spawned from the LIVE mouth - the twitch is supposed to be visible in the
    spray - and thrown down the LANE rather than straight down.
 
-   >>> THE SPREAD DRAWS THE ZONE, AND THE ZONE IS A PLUS. <<< A particle
+   >>> THE SPREAD DRAWS THE ZONE, AND THE ZONE IS A LANE. <<< A particle
    system's job here is to make the player believe in a hazard the floor glow
    has already drawn, so the throw has to have the same shape as the thing that
-   hurts. It used to be one throw: a huge Z spread and a small X one, fanning
-   the stream down the 1000-wide, 2800-long lane and deliberately keeping it out
-   of the flanks, which back then were safe.
+   hurts. One throw: a huge Z spread and a small X one, fanning the stream down
+   the 1000-wide, 2800-long lane and deliberately keeping it out of the flanks,
+   which are not this attack's business.
 
-   THEY ARE NOT SAFE ANY MORE. The zone gained the whole middle row (see the
-   flanks block in the grid section), so half the particles now go out along the
-   CROSSBAR instead — the same two numbers swapped over, because the crossbar
-   is the lane's proportions turned ninety degrees: 3000 wide and 933 deep
-   against 1000 wide and 2800 long. His mouth sits at z=1657, which is inside
-   the crossbar, so both throws leave from a point that is on both arms of the
-   plus and the spray reads as one thing spreading rather than as two.
-
-   THE SPLIT IS ON THE PARTICLE SLOT'S PARITY and not on a counter: the pool is
-   swept in order every call and slots free up in the order they were filled, so
-   parity gives a steady half-and-half without any state to keep. Getting the
-   two spreads the wrong way round would paint a hazard that does not match the
-   one that hurts, which is worse than no particles at all. */
+   >>> THERE WAS A SECOND THROW HERE AND IT IS GONE WITH THE CROSSBAR. <<< For
+   as long as the zone was a plus, half the particles went out across the middle
+   row on the particle slot's parity. The zone is the lane and nothing else now
+   (see af_cell_in_vomit), so that half would be spraying green over floor that
+   cannot hurt anyone — the same mismatch this note warns about, reached from
+   the other direction. If the zone ever grows a crossbar again, the spread has
+   to grow one back on the same commit. */
 static void af_vom_spit(int32_t mx, int32_t my, int32_t mz) {
     int i, made = 0;
     for (i = 0; i < AF_VOM_PARTICLES && made < 4; i++) {
@@ -1397,18 +1467,9 @@ static void af_vom_spit(int32_t mx, int32_t my, int32_t mz) {
         vom[i].x = (int16_t)mx;
         vom[i].y = (int16_t)my;
         vom[i].z = (int16_t)mz;
-        if (i & 1) {
-            /* DOWN THE LANE: fans along its length, stays inside its width. */
-            vom[i].vx = (int16_t)((rand() % 25) - 12);
-            vom[i].vz = (int16_t)((rand() % 121) - 60);
-        } else {
-            /* ACROSS THE CROSSBAR: the same two, swapped and scaled to its own
-               proportions. Wider than the lane's fan because the room is wider
-               than the lane is long is not true — 3000 against 2800 — so
-               they come out close, which is right for one spray. */
-            vom[i].vx = (int16_t)((rand() % 129) - 64);
-            vom[i].vz = (int16_t)((rand() % 27) - 13);
-        }
+        /* DOWN THE LANE: fans along its length, stays inside its width. */
+        vom[i].vx = (int16_t)((rand() % 25) - 12);
+        vom[i].vz = (int16_t)((rand() % 121) - 60);
         vom[i].vy = (int16_t)(2 + (rand() % 7));
         vom[i].life = (int16_t)(40 + (rand() % 26));
         made++;
@@ -1913,29 +1974,25 @@ static void af_draw_trail(RenderContext *ctx) {
 
 /* The slam's markers and the boulders falling into them.
 
-   >>> THE WHOLE THIRD LIGHTS, NOT JUST THE TWO CELLS. <<< The damage zone is
-   Asag's end of the arena (see af_boulders_update), and a hazard the player
-   cannot see is not a hazard, it is an ambush. So the third glows faintly in
-   the same light blue and the two cells a boulder is actually falling into glow
-   brightly on top of it - one effect at two intensities, which says "all of
-   this is dangerous, and THOSE two are about to be hit by something".
+   >>> ONLY THE CELLS A BOULDER IS FALLING INTO LIGHT. <<< There used to be a
+   faint wash over the whole damage shape underneath these markers — Asag's
+   third plus the middle row's two flanks — on the argument that a hazard the
+   player cannot see is an ambush. On screen it was too much blue: it covered
+   the floor directly under Asag and both of the room's corners at his end,
+   which is most of what the camera looks at during a slam, and the four bright
+   markers had nothing to stand out against. The wash is gone; the four markers
+   are the whole of the floor effect.
 
-   Lighting only the two cells would have been the brief read literally and
-   would have been unfair; lighting the third evenly would have thrown away the
-   boulders' own telegraph. */
+   >>> THE DAMAGE SHAPE IS UNCHANGED AND IS NOW WIDER THAN WHAT IS LIT. <<<
+   af_in_slam_zone() still costs twenty anywhere in af_cell_in_slam(), so the
+   promise the grid section makes — that what is lit is what hurts — no longer
+   holds for this one attack. That is deliberate rather than an oversight: the
+   four rocks are spread one per square across the shape, so they are the
+   telegraph for it, and the slam stays the attack that clears his end of the
+   room. If the damage is ever meant to shrink to the four cells as well, it is
+   af_cell_in_slam() that moves, not this loop. */
 static void af_draw_boulders(RenderContext *ctx) {
     if (!boulders_armed) return;
-
-    /* The zone, faint. Asag's third AND the middle row's two flanks, asked of
-       af_cell_in_slam() rather than looped as a row range, because the shape is
-       an L now and the damage test asks the same function. */
-    {
-        int r, c;
-        for (r = 0; r < AF_ROWS; r++)
-            for (c = 0; c < AF_COLS; c++)
-                if (af_cell_in_slam(r, c))
-                    af_pool(ctx, r * AF_COLS + c, 30, 52, 70);
-    }
 
     int n;
     for (n = 0; n < AF_BOULDERS; n++) {
@@ -1980,7 +2037,7 @@ static void af_draw_boulders(RenderContext *ctx) {
 /* The vomit: the LANE it is about to poison, then the spray falling into it.
 
    THE FLOOR GOES FIRST AND IT IS THE IMPORTANT HALF. The particles say what is
-   happening; the lit plus says WHERE, exactly, to the polygon - and because the
+   happening; the lit lane says WHERE, exactly, to the polygon - and because the
    damage test calls af_cell_in_vomit() on the cell the player is standing in,
    the same function this loop paints with, what is lit and what hurts cannot
    disagree. A player who has been caught once knows to read the floor. */
@@ -1988,9 +2045,10 @@ static void af_draw_vomit(RenderContext *ctx) {
     if (vom_zone_lit > 0) {
         int32_t lev = vom_zone_lit;
         int r, c;
-        /* ONE TEST PER CELL, not a lane loop plus a crossbar loop: the pools are
-           additive and the two shapes overlap on the whole centre square, which
-           would come out at double brightness. */
+        /* ONE TEST PER CELL. The zone is a plain column range again, so a
+           nested pair of loops over AF_COL_VOM_LO..HI would do — but the pools
+           are additive, and asking the predicate is what keeps this loop and
+           the damage test from ever painting different floor. */
         for (r = 0; r < AF_ROWS; r++)
             for (c = 0; c < AF_COLS; c++)
                 if (af_cell_in_vomit(r, c))

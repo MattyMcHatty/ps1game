@@ -485,6 +485,17 @@
                      (x640 y0). Its .smx exports live in assets/garden/ too. -->
                 <file name="OUTCTCMB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\outside_catacombs.smd"/>
                 <file name="LMSHTBLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu tablet.tim"/>
+                <!-- THE CATACOMB DOORS: the two leaves standing in the mouth of
+                     the facade at the room's north end, read on ENTRY into that
+                     room and freed on the way out of it (src/catacomb_doors.h).
+                     No .pva yet - they are static, and the clip is a later job.
+                     No texture of their own either: they are the ONLY thing that
+                     draws LMSHTBLT.TIM now, because the tablet plane that used
+                     to carry it in the room mesh is the untextured backing at
+                     z=3850. Their .smx exports live in assets/garden/ with the
+                     room's, the .smd in assets/props/ with the other props'. -->
+                <file name="CTCMBDL.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\catacomb_door_left.smd"/>
+                <file name="CTCMBDR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\catacomb_door_right.smd"/>
                 <file name="PSNFLWR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\poison_flower_base.tim"/>
 
                 <!-- Maze One: the hedge maze east of Fountain Square, through

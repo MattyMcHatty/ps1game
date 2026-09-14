@@ -297,8 +297,16 @@ static void hell_burn_tick(void) {
                up the same fraction of the shot at any heading; see
                asag_fight.h. */
             int32_t clr = asag_boil_clear_depth(bz, depth);
+            /* >>> 3, NOT 1: A BOIL IS 3x WEAK TO HOLY FIRE. <<< The only
+               weakness table anywhere on this boss, and the only thing the
+               brief's "every weapon deals 1x damage to Asag" does not cover
+               — see asag_boil_weakness[] in asag_fight.c for the argument.
+               A boil has 3 HP and this tick fires once a second, so ONE
+               SECOND OF BURN BURSTS ONE. The head two blocks up is still
+               deliberately unscaled. */
             if (weapon_aim_clear(fx, fz, clr))
-                asag_boil_damage(i, HELL_TICK_DAMAGE);
+                asag_boil_damage(i, asag_boil_scale_damage(HELL_TICK_DAMAGE,
+                                                           DMG_HOLY));
         }
     }
 

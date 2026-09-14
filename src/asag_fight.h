@@ -6,6 +6,7 @@
                              a caller that loops over the boils needs the count,
                              and every one of them already needs this header. */
 #include "render.h"
+#include "damage.h"   /* DamageType, for asag_boil_scale_damage() */
 
 /* =========================================================================
    ASAG'S FIGHT — the combat AI, the boils, and everything the attacks throw.
@@ -238,6 +239,13 @@ int  asag_boil_target(int which, int32_t *cx, int32_t *cy, int32_t *cz,
                       int32_t *half_w, int32_t *half_h);
 int32_t asag_boil_clear_depth(int32_t boil_z, int32_t depth);
 void asag_boil_damage(int which, int32_t amount);
+
+/* Scale a hit by the BOILS' weaknesses (see damage.h and the table in
+   asag_fight.c). Asag's HEAD has no such call and no table — "every weapon
+   deals 1x damage to Asag" still holds for it; the boils are the exception,
+   and they are 3x weak to holy fire so that one second of Helluminator bursts
+   one. Both the gun and the lantern go through here. */
+int32_t asag_boil_scale_damage(int32_t base, DamageType type);
 
 /* ---- Drawing --------------------------------------------------------------
    asag_fight_draw() is everything the fight puts in the WORLD: the laser beam

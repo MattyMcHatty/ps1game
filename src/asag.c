@@ -202,29 +202,20 @@ static uint32_t glow_mask[ASAG_GLOW_WORDS];
    otherwise moving reads as a texture; a breathing one reads as a state. */
 #define ASAG_GLOW_PULSE  40
 
-/* The halo, in the shape the Helluminator's lamp glow and the Attic Exit's
-   light cones already use: an additive quad over the primitive's own screen
-   points, grown from their centre by SCALE/256, so the light spills past the
-   pad instead of stopping at its edge. That spill is what makes the tell
-   readable from across the arena, where the pad itself is a few pixels.
+/* >>> THERE WAS A HALO HERE AND IT IS GONE ON PURPOSE. <<< The light used to
+   be two things: the skin modulation below, plus an additive quad laid over
+   each pad polygon and grown from its own screen centre (the Helluminator's
+   hell_glow_quad shape), so the blue spilled past the pad's edge. Looked at on
+   screen, the spill read as a bloom sitting in FRONT of his head rather than as
+   a lamp set into it, and it washed the crown out at the range the fight is
+   actually fought at. The pad now simply glows blue: modulation only, no
+   additive primitive, no extra OT bucket. ASAG_GLOW_SCALE and the halo's own
+   R/G/B went with it — the tint constants below are what colours the light
+   now, and they are the ones to move if it wants to be a different blue. */
 
-   The colour is the Helluminator's burn blue rather than a new one — the same
-   holy blue on the boss that the player's own lantern burns with.
-
-   >>> THE SPILL WAS HALVED AFTER LOOKING AT IT. <<< It went in at 416, i.e.
-   160/256 of growth past the poly's own edge, and read as a wash of blue over
-   the whole crown rather than as a lamp set into it. 336 is exactly half that
-   growth, which still carries across the arena because the halo is additive and
-   the pad is the only bright thing on him. Change the GROWTH (scale - 256), not
-   the scale, if it wants moving again. */
-#define ASAG_GLOW_SCALE  336   /* 1.31x about the poly's screen centre        */
-#define ASAG_GLOW_R       48
-#define ASAG_GLOW_G      120
-#define ASAG_GLOW_B      255
-
-/* ...and what the SKIN under it is modulated to at full glow. Not the halo's
-   colour: modulation is texel * colour / 128 and the disc is a saturated
-   yellow, so R and G have to be crushed hard or the pad comes out green. */
+/* What the SKIN of the pad is modulated to at full glow. Modulation is
+   texel * colour / 128 and the disc is a saturated yellow, so R and G have to
+   be crushed hard or the pad comes out green rather than blue. */
 #define ASAG_GLOW_TINT_R  28
 #define ASAG_GLOW_TINT_G  44
 #define ASAG_GLOW_TINT_B 255
@@ -852,66 +843,6 @@ static SVECTOR *body_verts(void) {
    it found it. That is why there is no early-out path here that has to remember
    to put a matrix back — the trap tools/ADDING_A_3D_ENEMY.txt STEP 5 is about
    does not exist in this shape. */
-/* ---- The exposure light's halo ---------------------------------------------
-   One additive quad over four already-projected screen points, grown out from
-   their own centre by ASAG_GLOW_SCALE/256. The Helluminator's hell_glow_quad()
-   exactly, and rbs_glow_quad()'s shape before it — copied rather than shared
-   for the reason weapon.c's aim test was eventually shared and this was not: it
-   is twenty lines that depend on nothing, and the three copies differ in the
-   one place that matters (which OT bucket they claim).
-
-   >>> IT GOES ONE BUCKET NEARER THAN THE POLYGON IT COVERS. <<< The OT is LIFO
-   within a bucket, so a primitive added after another in the SAME node draws
-   BEFORE it — which is why the DR_TPAGE below is added last and gets executed
-   first, and it is also why the halo cannot simply share the skin poly's
-   bucket: it would end up underneath the thing it is supposed to be spilling
-   out of. otz-1 draws after the whole of otz and is unambiguous.
-
-   QUADS ONLY. All five primitives of the pad are quads, and a triangle wanting
-   this would need its own POLY_F3 path; a caller that hands one in gets nothing
-   rather than a wrong picture. */
-static void asag_glow_quad(RenderContext *ctx, const DVECTOR *sv, int32_t otz,
-                           int32_t level) {
-    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-    if (ctx->next_packet + sizeof(POLY_F4) + sizeof(DR_TPAGE) > buf_end) return;
-    if (otz < 1) return;
-
-    int32_t cx = ((int32_t)sv[0].vx + sv[1].vx + sv[2].vx + sv[3].vx) / 4;
-    int32_t cy = ((int32_t)sv[0].vy + sv[1].vy + sv[2].vy + sv[3].vy) / 4;
-
-    int16_t gx[4], gy[4];
-    int k;
-    for (k = 0; k < 4; k++) {
-        int32_t x = cx + (((int32_t)sv[k].vx - cx) * ASAG_GLOW_SCALE >> 8);
-        int32_t y = cy + (((int32_t)sv[k].vy - cy) * ASAG_GLOW_SCALE >> 8);
-        /* The GPU's coordinate limit, the same clamp the body's own loop
-           applies: a halo grown past it would wrap rather than clip. */
-        if (x < -1023) x = -1023; if (x > 1023) x = 1023;
-        if (y < -1023) y = -1023; if (y > 1023) y = 1023;
-        gx[k] = (int16_t)x; gy[k] = (int16_t)y;
-    }
-
-    uint32_t *ot = ctx->buffers[ctx->active_buffer].ot;
-
-    POLY_F4 *poly = (POLY_F4 *)ctx->next_packet;
-    setPolyF4(poly);
-    setSemiTrans(poly, 1);
-    setRGB0(poly, (uint8_t)((ASAG_GLOW_R * level) >> 8),
-                  (uint8_t)((ASAG_GLOW_G * level) >> 8),
-                  (uint8_t)((ASAG_GLOW_B * level) >> 8));
-    poly->x0 = gx[0]; poly->y0 = gy[0];
-    poly->x1 = gx[1]; poly->y1 = gy[1];
-    poly->x2 = gx[2]; poly->y2 = gy[2];
-    poly->x3 = gx[3]; poly->y3 = gy[3];
-    addPrim(&ot[otz], poly);
-    ctx->next_packet += sizeof(POLY_F4);
-
-    DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
-    setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
-    addPrim(&ot[otz], tp);
-    ctx->next_packet += sizeof(DR_TPAGE);
-}
-
 void asag_draw(RenderContext *ctx) {
     SMD *smd = mesh_smd;
     if (!model_loaded || !smd || !body_vis) return;
@@ -1114,12 +1045,10 @@ void asag_draw(RenderContext *ctx) {
         uint8_t b = (uint8_t)(((int32_t)col[2] * ff + ASAG_FOG_B * (256 - ff)) >> 8);
 
         /* ---- THE EXPOSURE LIGHT, on the five polygons of the crown pad ----
-           The skin is MODULATED toward blue here and the halo is laid over the
-           finished poly further down; both are needed. The modulation alone
-           would leave a yellow disc that has merely gone a different colour —
-           at the ranges this fight is fought at the pad is a handful of pixels
-           — and the halo alone would leave a bright blue spill coming out of a
-           spot that is still obviously yellow.
+           The skin is MODULATED toward blue and that is the whole of it: the
+           additive halo that used to be laid over the finished poly is gone
+           (see the ASAG_GLOW_* block for why). The pad glows blue; it does not
+           spill.
 
            THE TINT IS HEAVY ON PURPOSE. Modulation is texel * colour / 128, and
            the disc is a saturated yellow (about 230, 230, 60), so anything less
@@ -1129,10 +1058,8 @@ void asag_draw(RenderContext *ctx) {
            APPLIED BEFORE THE DAMAGE FLASH, so a hit that lands during a window
            still reads as red. The two say different things and the more urgent
            one wins the frame. */
-        int glow_poly = 0;
         if (glow_amt > 0 && k < ASAG_GLOW_WORDS * 32 &&
             ((glow_mask[k >> 5] >> (k & 31)) & 1u)) {
-            glow_poly = 1;
             r = (uint8_t)(r + (((int32_t)ASAG_GLOW_TINT_R - r) * glow_amt >> 8));
             g = (uint8_t)(g + (((int32_t)ASAG_GLOW_TINT_G - g) * glow_amt >> 8));
             b = (uint8_t)(b + (((int32_t)ASAG_GLOW_TINT_B - b) * glow_amt >> 8));
@@ -1204,10 +1131,6 @@ void asag_draw(RenderContext *ctx) {
             poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
             addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
             ctx->next_packet += sizeof(POLY_FT4);
-            /* ...and the spill, one bucket nearer so it lands on top. All five
-               of the pad's primitives are quads, which is why there is no
-               matching call in the triangle branch below. */
-            if (glow_poly) asag_glow_quad(ctx, sv, otz - 1, glow_amt);
         } else {
             if (ctx->next_packet + sizeof(POLY_FT3) > buf_end) { p += stride; continue; }
             POLY_FT3 *poly = (POLY_FT3 *)ctx->next_packet;

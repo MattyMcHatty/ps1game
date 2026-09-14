@@ -77,6 +77,7 @@
 #include "asag_boss.h"      /* the director: opening scene and death sequence */
 #include "asag_fight.h"     /* ...and the combat AI it hands the player to    */
 #include "hatch_doors.h"
+#include "catacomb_doors.h"
 #include "hatch_puzzle.h"
 #include "keystone_plinths.h"
 #include "rear_gate.h"
@@ -252,6 +253,12 @@ static void load_area_geometry(GameState area) {
        reads them again below when the room being entered is that one, and
        hatch_doors_unload() is a no-op when they are not loaded. */
     hatch_doors_unload();
+    /* And the Outside Catacombs' pair, for exactly the same reason: 4 KB of
+       .smd standing in the catacomb mouth, held only while the player is in
+       that room. outside_catacombs_load_geometry() reads them again below when
+       that is the room being entered, and this is a no-op when they are not
+       loaded. See src/catacomb_doors.h. */
+    catacomb_doors_unload();
 
     switch (area) {
         case STATE_DELIVERY_AREA:    delivery_load_geometry();         break;

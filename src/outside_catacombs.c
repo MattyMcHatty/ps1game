@@ -29,6 +29,7 @@
 #include "web.h"
 #include "item_pickup.h"
 #include "sml_med.h"
+#include "catacomb_doors.h"     /* the two leaves in the catacomb mouth */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -155,6 +156,11 @@ void outside_catacombs_load_geometry(void) {
     outside_catacombs_buff = room_arena_load("\\TEX\\OUTCTCMB.SMD;1");
     outside_catacombs_smd  = outside_catacombs_buff
                              ? smdInitData(outside_catacombs_buff) : NULL;
+    /* The two door leaves in the catacomb mouth. NOT part of the arena — they
+       are 4 KB of their own malloc, held only while the player is in this room
+       and given back by main.c's load_area_geometry on the way out, exactly as
+       The Hatch's pair are. See src/catacomb_doors.h. */
+    catacomb_doors_load();
 }
 
 /* Read at STARTUP — the only safe time for CD access — the two textures this
@@ -511,6 +517,12 @@ void outside_catacombs_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_outside_catacombs_smd(ctx);
+
+    /* The catacomb mouth's two door leaves, drawn straight after the mesh they
+       are set into. They are in room coordinates and compose nothing onto the
+       matrix just loaded, so the entity draws below are unaffected — and they
+       need the 128 texture window set above, because their UVs tile past it. */
+    catacomb_doors_draw(ctx);
 
     /* The zombies and spiders are still seeded empty here (world.c, for the same
        sound-bank reason as Fountain Square) but keep their renderers wired up so

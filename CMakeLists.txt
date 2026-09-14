@@ -81,6 +81,7 @@ add_executable(horror_game
     src/fountain_square.c
     src/outside_catacombs_mesh_collision.c
     src/outside_catacombs.c
+    src/catacomb_doors.c
     src/maze_one_mesh_collision.c
     src/maze_one.c
     src/maze_two_mesh_collision.c
