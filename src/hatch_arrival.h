@@ -7,15 +7,20 @@
    The player went DOWN a shaft to fight Asag (src/hatch_puzzle.h) and they come
    back up somewhere else: out of the brick well in The Hatch's north chamber,
    the one the room's header is at pains to say is NOT the pit. The camera is
-   already standing on top of it, in front of the four chain_128 polys that hold
-   the lid up, facing south down the room. It jumps off, lands on the lawn, and
-   the player has their legs back.
+   at the well's lip, in front of the four chain_128 polys that hold the lid up,
+   facing south down the room. It climbs the last few inches out, stands there,
+   jumps off, lands on the lawn, and the player has their legs back.
 
-     0.0 s   held on the well top, looking south and a little down
-     0.4 s   THE ARC. Forward off the well and onto the chamber floor, over a
+     0.0 s   THE CLIMB. Straight up and nothing else — HA_CLIMB_RISE of pure
+             vertical, about four inches, eased out over nine tenths of a
+             second. It is the end of a body hauling itself out of the well,
+             which is the thing the cut into this room has to say.
+     0.9 s   held on the well top, looking south and a little down. Two seconds,
+             the beat the whole ending is paced in.
+     2.9 s   THE ARC. Forward off the well and onto the chamber floor, over a
              parabola — 490 units south and 185 units down, with a small rise in
              the middle of it. Seven tenths of a second.
-     1.1 s   the landing: SFX_HURT, the pitch levels, the garden track starts,
+     3.6 s   the landing: SFX_HURT, the pitch levels, the garden track starts,
              and the camera is released.
 
    >>> THE HURT SOUND IS A SOUND AND NOT DAMAGE, which is the call Asag's own

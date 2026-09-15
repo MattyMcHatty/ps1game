@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "camera.h"
 #include "player.h"
+#include "sound.h"
 #include "catacomb_doors.h"
 #include "catacomb_open.h"
 
@@ -48,19 +49,51 @@
    this range is about twelve pixels a second — slow enough that a viewer cannot
    catch either leaf in the act of starting, which is the point of it.
 
-   The one-second pause in front of it is the brief's, and it is doing real
+   The two-second pause in front of it is the brief's, and it is doing real
    work: the cut into this room lands on a shot the player has never seen, and a
-   beat of stillness is what lets them read it before anything moves.
+   beat of stillness is what lets them read it before anything moves. It was one
+   second and it is two, which is the same beat the arena's own outro holds for
+   (ABE_T_D_OUTRO in src/asag_boss.c) — the whole ending is paced in twos.
 
    The glow comes AFTER the slide rather than under it, again as briefed. Two
    seconds, and it ramps rather than switching on for the reason every light in
-   this game ramps. The hold after it is this file's own: cutting on the frame
-   the ramp tops out would throw away the thing the previous eleven seconds were
-   for. */
-#define CO_T_PAUSE   60    /* 1.0 s held, doors shut                 */
+   this game ramps. The hold after it is two more: cutting on the frame the ramp
+   tops out would throw away the thing the previous twelve seconds were for. */
+#define CO_T_PAUSE  120    /* 2.0 s held, doors shut                 */
 #define CO_T_SLIDE  480    /* 8.0 s: CD_SLIDE_FULL apiece            */
 #define CO_T_GLOW   120    /* 2.0 s: black to white                  */
-#define CO_T_HOLD    90    /* 1.5 s on the lit doorway, then the cut */
+#define CO_T_HOLD   120    /* 2.0 s on the lit doorway, then the cut */
+
+/* ---- THE GRIND ------------------------------------------------------------
+   SFX_MCHNE_GH under the whole of the slide and nothing else: the machinery
+   that moves the leaves, running for exactly as long as they are moving. It is
+   the same clip the Greenhouse's vine curtain winds up to and the Attic Exit's
+   cage gate rattles on — the house's mechanism sound — and it is BANKED
+   (SND_BANK_GARDEN), which this room is on and the arena the player just left
+   is not. Nothing had to be added to the bank for it; see sound.h's block on
+   the clip for what it cost to get there in the first place.
+
+   >>> IT LOOPS IN C, NOT IN THE SPU. <<< mchne_gh.vag is an ordinary one-shot
+   (the loop flag is on its last block, not its first), so the loop is this file
+   retriggering it — the same way src/zombie.c loops its groan, and deliberately
+   NOT the hardware loop SFX_WATER uses. A hardware loop would poison this
+   voice for every one-shot that lands on it afterwards, which is the trap
+   tools/ADDING_A_SOUND.txt STEP 6 spends a page on.
+
+   >>> 96 AND NOT 108, WHICH IS THE CLIP'S OWN LENGTH. <<< The clip runs 1.8 s
+   = 108 frames, and retriggering on that would fit four repeats into the slide
+   with 48 frames of the fifth hanging over the end of it — the doors stop and
+   the machinery is still grinding. 96 divides CO_T_SLIDE exactly five times, so
+   every repeat is cut 12 frames short by the next one keying the voice, INCLUDING
+   THE LAST, which is cut by the sound_stop() on the frame the leaves land.
+   That is the point of choosing a divisor rather than the clip's length: the
+   stop at the end is acoustically identical to the four loop points before it,
+   so there is no seam to hear at the one place a listener is looking for one.
+
+   RETIME EITHER AND BOTH MOVE. CO_T_SLIDE must stay a whole multiple of
+   CO_T_GRIND, and CO_T_GRIND must stay at or under the clip's 108 frames or the
+   loop develops a gap. */
+#define CO_T_GRIND   96    /* retrigger interval; CO_T_SLIDE / 96 == 5 */
 
 typedef enum {
     CO_IDLE = 0,   /* not running                                     */
@@ -78,6 +111,16 @@ static int     finished;      /* 1 for exactly one frame, at the cut  */
 static void enter_phase(CoState s) { state = s; phase_t = 0; }
 
 void catacomb_open_reset(void) {
+    /* >>> ONLY IF IT IS ACTUALLY GRINDING. <<< This runs from
+       outside_catacombs_init(), i.e. on EVERY arrival in this room, and
+       sound_stop() keys off a POOL voice that five other effects share. An
+       unconditional stop here would cut whatever happened to be on voice 5 on
+       the frame a player walked in through the south gate. Mid-slide is the
+       only state that owns the voice, and that is the only state that releases
+       it — the cutscene-reset rule at the end of tools/ADDING_A_SOUND.txt, with
+       the guard the shared voice makes necessary. */
+    if (state == CO_SLIDE) sound_stop(SFX_MCHNE_GH);
+
     state    = CO_IDLE;
     phase_t  = 0;
     finished = 0;
@@ -141,8 +184,17 @@ void catacomb_open_update(void) {
     case CO_SLIDE: {
         int32_t s = (CD_SLIDE_FULL * phase_t) / CO_T_SLIDE;
         catacomb_doors_set_slide(s);
+
+        /* THE GRIND, retriggered. phase_t is 1 on the first frame of the phase,
+           so the test is (phase_t - 1) % CO_T_GRIND: the clip keys on the frame
+           the leaves FIRST move and not one frame after it. See CO_T_GRIND. */
+        if (phase_t <= CO_T_SLIDE && ((phase_t - 1) % CO_T_GRIND) == 0)
+            sound_play(SFX_MCHNE_GH);
+
         if (phase_t >= CO_T_SLIDE) {
             catacomb_doors_set_slide(CD_SLIDE_FULL);
+            /* The machinery stops WITH the stone, on the same frame. */
+            sound_stop(SFX_MCHNE_GH);
             enter_phase(CO_GLOW);
         }
         break;

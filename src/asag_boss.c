@@ -413,6 +413,18 @@
 #define ABE_T_D_FREEZE       120   /* 2 s frozen, the Rabisu's                */
 #define ABE_T_D_BURN         232   /* 3.87 s of shaking and light             */
 #define ABE_T_D_FADE          90   /* 1.5 s burning away                      */
+/* ---- AND THEN A BEAT OF NOTHING -------------------------------------------
+   >>> THE CUT DOES NOT LAND ON THE FRAME HE STOPS EXISTING. <<< The fade ends
+   with the body at zero, the shake cleared and the lights out, and for
+   ABE_T_D_OUTRO after that the camera simply holds the empty vantage: the arena
+   he filled for the whole encounter, with him not in it. Cutting on the fade's
+   last frame put the red LOADING screen up while the eye was still reading the
+   space where he had been, which threw away the only frames that say he is
+   gone.
+
+   Two seconds, which is the fight's own unit of stillness — ABE_T_D_FREEZE is
+   the same number, and this is that beat answered at the other end. */
+#define ABE_T_D_OUTRO        120   /* 2.0 s on the empty arena, then the cut   */
 /* >>> ABE_T_D_CAM_BACK IS GONE, AND SO IS THE PHASE IT TIMED. <<< It was one
    second of the camera easing back to wherever the player was standing when
    they landed the kill, and it was the last beat of the encounter: the fade
@@ -420,12 +432,12 @@
    left standing in a finished room with no exit — the hole this file's header
    spent three passes describing.
 
-   THE ROOM HAS AN EXIT NOW AND IT IS NOT IN THE ROOM. The fade ends and the
-   game CUTS: the red LOADING screen goes up and the player is put down in the
+   THE ROOM HAS AN EXIT NOW AND IT IS NOT IN THE ROOM. The fade ends, the empty
+   arena is held for ABE_T_D_OUTRO, and then the game CUTS: the red LOADING screen goes up and the player is put down in the
    Outside Catacombs, where src/catacomb_open.h opens the doors. So there is
    nothing for a camera-back move to be the run-up to — it would be a second of
    travel to a vantage nobody is ever shown from, ending on a hard cut. See
-   ABE_D_FADE below, which now finishes the encounter itself.
+   ABE_D_OUTRO below, which now finishes the encounter itself.
 
    save_cx/cy/cz are STILL captured in begin_death() and they still matter: they
    are what the bail-out path restores when a debug level-select jump pulls the
@@ -490,7 +502,8 @@ typedef enum {
     ABE_D_SETTLE,    /* camera to the vantage; he plays an idle back to Home  */
     ABE_D_FREEZE,    /* held still, as briefed                                */
     ABE_D_BURN,      /* vibrating                                             */
-    ABE_D_FADE,      /* burning away to nothing, and then the CUT             */
+    ABE_D_FADE,      /* burning away to nothing                               */
+    ABE_D_OUTRO,     /* the empty arena, held, and then the CUT                */
     /* ABE_D_CAM_BACK lived here — the eye easing back to wherever the player
        was standing when they landed the kill. The encounter does not end in
        this room any more, so there is nothing for it to be the run-up to. See
@@ -1497,6 +1510,21 @@ void asag_boss_update(void) {
                comes back only when the player's feet hit the grass in The Hatch
                (src/hatch_arrival.h). */
 
+            /* ---- AND THAT IS THE END OF HIM, BUT NOT OF THE ROOM --------
+               The body is gone on this frame; the scene is not over for another
+               two seconds. See ABE_T_D_OUTRO, and ABE_D_OUTRO below, which is
+               what actually reports `leaving`. */
+            enter_phase(ABE_D_OUTRO);
+        }
+        break;
+    }
+
+    case ABE_D_OUTRO:
+        /* Still driven, so the eye does not jerk if pan_step() had a frame of
+           chase left in it — but there is nothing to follow any more and
+           nothing moves. The shot is the empty arena. */
+        pan_step();
+        if (phase_t >= ABE_T_D_OUTRO) {
             /* ---- AND THAT IS THE END OF THE ROOM ------------------------
                >>> THE ENCOUNTER DOES NOT HAND THE CAMERA BACK. <<< It used to,
                through a one-second ease to wherever the player was standing,
@@ -1524,7 +1552,6 @@ void asag_boss_update(void) {
             state     = ABE_DONE;
         }
         break;
-    }
 
     default:
         break;

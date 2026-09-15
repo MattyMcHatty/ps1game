@@ -37,11 +37,15 @@
 
                 >>> AND ALL THREE OF THOSE PIECES MOVE NOW. <<< Killing Asag
                 brings the player here for a scene (src/catacomb_open.h): the
-                two leaves SLIDE apart, and the fifteen black backing polys go
-                from flat black to WHITE and stay that way. The glow is applied
-                in this room's own prim loop — it is this mesh's art, not the
-                prop's — and the doorway then carries a sign and a Circle of its
-                own. See outside_catacombs_mouth_update() below.
+                two leaves SLIDE apart, and the fifteen black backing polys
+                LIGHT AROUND THEIR EDGES and stay that way — a rim hard against
+                the four sides of the opening, falling to black across the
+                middle, drawn gouraud because a flat quad cannot hold a
+                gradient. The glow is applied in this room's own prim loop — it
+                is this mesh's art, not the prop's, and the rim's shape lives
+                there while src/catacomb_open.h supplies only how far up the
+                ramp is — and the doorway then carries a sign and a Circle of
+                its own. See outside_catacombs_mouth_update() below.
      FLOWERS    the poison-flower bed, a ground decal at y=0 spanning
                 x[-750,2504] z[0,1714]; art only, no collision of its own.
 

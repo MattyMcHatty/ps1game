@@ -56,12 +56,36 @@
    the top of the hedge line at -500.
 
    HA_T_ARC is seven tenths of a second, which is roughly what this engine's
-   other fall of this size takes. HA_T_HOLD in front of it is NOT in the brief
-   and is here for the catacomb scene's reason: the cut into this room lands on
-   a shot the player has never seen, from a vantage they have never had, and
-   four tenths of a second of stillness is what lets them read where they are
-   before it moves. */
-#define HA_T_HOLD      24    /* 0.4 s on the well top   */
+   other fall of this size takes.
+
+   ---- AND IT CLIMBS OUT BEFORE IT JUMPS -------------------------------------
+   >>> THE FIRST THING THE EYE DOES IS GO STRAIGHT UP. <<< HA_CLIMB_RISE of
+   pure vertical over HA_T_CLIMB, no X, no Z, no yaw: the last of a body hauling
+   itself over the well's lip and getting its feet under it. Without it the shot
+   opens on a camera already standing on top of the well, which does not say how
+   it got there — this is where the player comes UP out of the catacombs, and
+   the climb is the whole point of the cut.
+
+   44 units is about four inches at this game's scale (the catacomb doorway is
+   905 tall and reads as a seven-foot arch, so a foot is a shade over 100), and
+   it is deliberately tiny: a bigger rise stops being the end of a climb and
+   becomes a second jump in front of the real one. HA_T_CLIMB is 0.9 s for it,
+   which is 49 units a second — slow, heavy, and eased OUT so it settles rather
+   than stopping dead.
+
+   HA_TOP_Y is where that leaves the eye, and it is the arc's start: everything
+   below interpolates from it and not from HA_START_Y.
+
+   HA_T_HOLD then sits between the climb and the jump. It is the beat the whole
+   ending is paced in — two seconds, the same as the arena's outro and the
+   catacomb doors' pause either side of their slide — and it is doing the same
+   work here that it does there: the cut into this room lands on a shot the
+   player has never seen, from a vantage they have never had, and stillness is
+   what lets them read where they are before anything moves. */
+#define HA_T_CLIMB     54    /* 0.9 s of pure vertical  */
+#define HA_CLIMB_RISE  44    /* ~4 inches, straight up  */
+#define HA_TOP_Y      (HA_START_Y - HA_CLIMB_RISE)
+#define HA_T_HOLD     120    /* 2.0 s on the well top   */
 #define HA_T_ARC       42    /* 0.7 s of flight         */
 #define HA_ARC_RISE   120
 
@@ -73,6 +97,7 @@
 
 typedef enum {
     HA_IDLE = 0,
+    HA_CLIMB,     /* straight up, out of the well      */
     HA_HOLD,      /* on the well top, held             */
     HA_ARC,       /* in the air                        */
     HA_DONE       /* landed; the player has the camera */
@@ -105,18 +130,39 @@ void hatch_arrival_start(void) {
     cam_rot   = HA_ROT;
     cam_pitch = HA_START_PITCH;
 
-    state   = HA_HOLD;
+    state   = HA_CLIMB;
     phase_t = 0;
 }
 
 int hatch_arrival_active(void) {
-    return state == HA_HOLD || state == HA_ARC;
+    return state == HA_CLIMB || state == HA_HOLD || state == HA_ARC;
 }
 
 void hatch_arrival_update(void) {
     if (!hatch_arrival_active()) return;
 
     phase_t++;
+
+    /* THE CLIMB. Eased out — c goes 0..256 as p*(512-p)/256, which is fast at
+       the bottom and settles at the top, the shape of the last heave over a
+       lip. cam_pitch is left alone: the eye comes up still looking down at the
+       ground it is about to jump to. */
+    if (state == HA_CLIMB) {
+        int32_t p = (phase_t * 256) / HA_T_CLIMB;
+        if (p > 256) p = 256;
+        int32_t c = (p * (512 - p)) / 256;
+        if (c > 256) c = 256;
+
+        cam_y  = HA_START_Y - (HA_CLIMB_RISE * c) / 256;
+        cam_vy = 0;
+
+        if (phase_t >= HA_T_CLIMB) {
+            cam_y   = HA_TOP_Y;
+            state   = HA_HOLD;
+            phase_t = 0;
+        }
+        return;
+    }
 
     if (state == HA_HOLD) {
         if (phase_t >= HA_T_HOLD) { state = HA_ARC; phase_t = 0; }
@@ -133,7 +179,9 @@ void hatch_arrival_update(void) {
     cam_z = HA_START_Z + ((HA_END_Z - HA_START_Z) * p) / 256;
 
     int32_t hump = (4 * HA_ARC_RISE * p * (256 - p)) / (256 * 256);
-    cam_y = HA_START_Y + ((HA_END_Y - HA_START_Y) * p) / 256 - hump;
+    /* FROM HA_TOP_Y, not HA_START_Y: the climb has already happened and the
+       jump leaves from where it left the eye. */
+    cam_y = HA_TOP_Y + ((HA_END_Y - HA_TOP_Y) * p) / 256 - hump;
 
     cam_pitch = HA_START_PITCH - (HA_START_PITCH * p) / 256;
     cam_vy    = 0;

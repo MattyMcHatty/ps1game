@@ -17,13 +17,23 @@
 
      0.0 s   a fixed vantage south of the catacomb mouth, up at the height of
              the doors' own tops and looking down onto them. Held, doors shut.
-     1.0 s   THE SLIDE. The two leaves come apart, the left due west and the
+     2.0 s   THE SLIDE. The two leaves come apart, the left due west and the
              right due east, CD_SLIDE_FULL each over CO_T_SLIDE — eight seconds
              for five hundred units, which is sixty-odd units a second and is
-             the "very slowly" the brief asks for.
-     9.0 s   THE GLOW. The fifteen black backing polys behind the doorway
-             (src/outside_catacombs.h) come up from flat black to white.
-    11.0 s   held on the lit doorway, and then the cut.
+             the "very slowly" the brief asks for. SFX_MCHNE_GH, the
+             house's machinery grind, runs under all eight of them: the
+             clip is 1.8 s and this file retriggers it five times on
+             CO_T_GRIND, then keys the voice off on the frame the leaves
+             land, so the noise starts and stops with the stone and with
+             nothing else.
+    10.0 s   THE GLOW. The fifteen black backing polys behind the doorway
+             (src/outside_catacombs.h) light up — not flat white across the
+             panel but a RIM, brightest against the four edges of the opening
+             and falling away to black in the middle, so it reads as something
+             shining out around the doorway rather than as a lamp hung in it.
+             The shape is the room's, in draw_outside_catacombs_smd(); this
+             module supplies only how far up the ramp is.
+    12.0 s   held on the lit doorway, and then the cut.
 
    ...and then the red LOADING screen again, and THE HATCH, where
    src/hatch_arrival.h drops the player off the well and gives them back their

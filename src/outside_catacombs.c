@@ -302,6 +302,32 @@ static void gate_text(RenderContext *ctx) {
    pairing fountain_square.c's own two gates spell out. */
 #define OC_MOUTH_X                0    /* the doorway spans x[-450,450] */
 #define OC_MOUTH_Z             3850    /* the backing plane            */
+/* ---- THE LIT DOORWAY'S SHAPE ----------------------------------------------
+   The fifteen untextured quads behind the mouth are a 3 x 5 grid over
+   x[-450,450] y[-905,0] in the plane z=3850 — columns split at x=-150 and 150,
+   rows at y=-92, -184, -431 and -668. That tessellation is what makes the rim
+   below possible at all: a single quad could only ever be one flat colour, and
+   a grid has vertices along the opening's edges to hang a gradient on.
+
+   >>> THE LIGHT IS A RIM, NOT A PANEL. <<< Brightness is measured per VERTEX as
+   its distance to the nearest of the opening's four edges: zero distance is the
+   full ramp, OC_GLOW_FALLOFF and beyond is black, and the GPU interpolates
+   between them across each quad. So the light sits in a band hugging the
+   doorframe and dies out toward the middle, which is what "emanating around the
+   edges" looks like. Flat white across all fifteen read as a lit signboard
+   standing in the hole.
+
+   OC_GLOW_FALLOFF is 260 against a half-width of 450 and a half-height of 452.
+   It is deliberately shorter than the 300 units from either edge to the first
+   interior column: those vertices reach zero from the X term alone, so the
+   centre column of the grid is lit only by its own nearness to the top and
+   bottom edges, and the middle of the opening stays properly black. */
+#define OC_GLOW_X_MIN        (-450)
+#define OC_GLOW_X_MAX          450
+#define OC_GLOW_Y_MIN        (-905)
+#define OC_GLOW_Y_MAX            0
+#define OC_GLOW_FALLOFF        260
+
 #define OC_MOUTH_TEXT_RADIUS   1200
 #define OC_MOUTH_FADE_NEAR      800
 #define OC_MOUTH_TRIGGER_RADIUS  500
@@ -418,6 +444,36 @@ void outside_catacombs_init(void) {
        visit. main.c ARMS it, from the re-derive block, and only on the one
        route that should have it: in out of Asag's arena. */
     catacomb_open_reset();
+}
+
+/* 0..256 for one vertex of a backing poly: 256 hard against an edge of the
+   opening, 0 at OC_GLOW_FALLOFF in from the nearest one. Linear, because the
+   grid is coarse enough (three columns) that a curve would only be sampled at
+   four places across the width and would read as linear anyway. */
+static int32_t oc_glow_rim(const SVECTOR *v) {
+    int32_t dl = (int32_t)v->vx - OC_GLOW_X_MIN;
+    int32_t dr = OC_GLOW_X_MAX - (int32_t)v->vx;
+    int32_t db = (int32_t)v->vy - OC_GLOW_Y_MIN;
+    int32_t dt = OC_GLOW_Y_MAX - (int32_t)v->vy;
+
+    int32_t d = dl;
+    if (dr < d) d = dr;
+    if (db < d) d = db;
+    if (dt < d) d = dt;
+
+    if (d <= 0) return 256;
+    if (d >= OC_GLOW_FALLOFF) return 0;
+    return 256 - (d * 256) / OC_GLOW_FALLOFF;
+}
+
+/* The fogged base colour lifted toward white by `amount` (0..256). AFTER the
+   fog and never before it — see the note at the call site. */
+static void oc_glow_blend(uint8_t *r, uint8_t *g, uint8_t *b, int32_t amount) {
+    if (amount <= 0) return;
+    if (amount > 256) amount = 256;
+    *r = (uint8_t)(*r + (((255 - *r) * amount) >> 8));
+    *g = (uint8_t)(*g + (((255 - *g) * amount) >> 8));
+    *b = (uint8_t)(*b + (((255 - *b) * amount) >> 8));
 }
 
 static void draw_outside_catacombs_smd(RenderContext *ctx) {
@@ -544,17 +600,48 @@ static void draw_outside_catacombs_smd(RenderContext *ctx) {
            reflecting: it does not get dimmer because the night is thick between
            it and the camera. Blending toward white ahead of the fog would have
            left the doorway a washed purple-grey from the only vantage the scene
-           ever shows it from, which is 1300 units back and 38% fogged. */
+           ever shows it from, which is 1300 units back and 38% fogged.
+
+           >>> AND IT IS A GOURAUD RIM, WHICH IS WHY THIS IS A BRANCH AND NOT
+           JUST A COLOUR. <<< The light is brightest against the four edges of
+           the opening and black in the middle (oc_glow_rim, and the constants
+           it reads), so the four corners of a backing quad do not share a
+           colour and POLY_F4 cannot draw it. These fifteen take the POLY_G4
+           path below instead; every other flat poly in the room is untouched
+           and still costs a POLY_F4. */
+        int backing_lit = 0;
+        int32_t glow = 0;
         if (!textured && v0->vz >= 3840) {
-            int32_t glow = catacomb_open_glow();
-            if (glow > 0) {
-                r = (uint8_t)(r + (((255 - r) * glow) >> 8));
-                g = (uint8_t)(g + (((255 - g) * glow) >> 8));
-                b = (uint8_t)(b + (((255 - b) * glow) >> 8));
-            }
+            glow = catacomb_open_glow();
+            if (glow > 0) backing_lit = is_quad;
+            /* A backing TRI, if a re-export ever produces one, has no gouraud
+               path here and would be left black rather than drawn wrong. There
+               are none today — all fifteen are quads. */
         }
 
-        if (is_quad && textured) {
+        if (backing_lit) {
+            if (ctx->next_packet + sizeof(POLY_G4) > buf_end) { p += stride; continue; }
+            POLY_G4 *poly = (POLY_G4 *)ctx->next_packet;
+            setPolyG4(poly);
+            SVECTOR *gv[4]; gv[0] = v0; gv[1] = v1; gv[2] = v2; gv[3] = v3;
+            int k;
+            for (k = 0; k < 4; k++) {
+                uint8_t vr = r, vg = g, vb = b;
+                oc_glow_blend(&vr, &vg, &vb, (glow * oc_glow_rim(gv[k])) >> 8);
+                switch (k) {
+                case 0: setRGB0(poly, vr, vg, vb); break;
+                case 1: setRGB1(poly, vr, vg, vb); break;
+                case 2: setRGB2(poly, vr, vg, vb); break;
+                default: setRGB3(poly, vr, vg, vb); break;
+                }
+            }
+            poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+            poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+            poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+            poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+            ctx->next_packet += sizeof(POLY_G4);
+        } else if (is_quad && textured) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
             uint8_t *uv = p + 20;
             POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
