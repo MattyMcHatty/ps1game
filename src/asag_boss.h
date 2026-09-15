@@ -66,23 +66,29 @@
    WHAT THE DEATH IS: the camera is taken back where the player is STANDING (not
    where they landed — they killed him from wherever they killed him from), it
    drifts to the vantage the opening already solved, he plays an idle while a
-   position ramp carries him Home, he freezes, he vibrates, he burns away, and
-   the camera comes back. That is the Rabisu's RBE_D_* sequence with the three
-   differences the timing block in the .c sets out, all of which come from Asag
-   having no position and no facing of his own.
+   position ramp carries him Home, he freezes, he vibrates, and he burns away.
+   That is the Rabisu's RBE_D_* sequence with the three differences the timing
+   block in the .c sets out, all of which come from Asag having no position and
+   no facing of his own.
 
-   >>> WHAT IS STILL MISSING IS THE WAY OUT OF THE ROOM, AND IT IS NOW THE ONLY
-   THING. <<< The arena has no exit at all — src/asag_arena.h says so in as many
-   words — and it mattered less while the fight could not be won. It is the
-   whole of what is left:
-     tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9   the seal. It needs a DOOR first.
-                                                The predicate belongs in
-                                                asag_arena_exit_sealed(), so the
-                                                trigger and the floating prompt
-                                                cannot disagree; this file would
-                                                supply `state != ABE_IDLE &&
-                                                state != ABE_DONE` and call the
-                                                re-arm on the frame it lifts.
+   >>> AND THEN IT CUTS, WHICH IS THE WAY OUT OF THE ROOM AND THE THING THIS
+   HEADER USED TO SAY WAS MISSING. <<< For three passes this paragraph described
+   an arena with no exit at all, a boss who could be killed, and a player left
+   standing in a finished room. The fade no longer ends by handing the camera
+   back: it ends by reporting asag_boss_leaving() for one frame, and main.c cuts
+   to the red LOADING screen and puts the player down in the OUTSIDE CATACOMBS.
+
+   THE REST OF THE ENDING IS TWO OTHER FILES, and this one knows about neither:
+     src/catacomb_open.h   the shot of the facade, the two leaves sliding apart
+                           over eight seconds, and the doorway lighting up. It
+                           owns FLAG_ASAG_DEAD.
+     src/hatch_arrival.h   the drop off the well, back in The Hatch, and the
+                           frame the player gets their legs back.
+
+   The SEAL (tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9) is moot rather than
+   outstanding: there is no door in this room to seal, and the way out is a cut
+   at the end of a scene nothing can interrupt.
+
      src/rabisu_boss.c                          the reference encounter, and the
                                                 one this file is shaped after
 
@@ -133,6 +139,23 @@ void asag_boss_update(void);
    during the opening, so a health bar over it is a frame of UI insisting on a
    fight that is not on yet. */
 int  asag_boss_cutscene(void);
+
+/* 1 on the SINGLE frame the death's fade ends — the last frame of the whole
+   encounter. main.c's cutscene branch for this room polls it right after
+   asag_boss_update() and turns it into the transition OUT: the red LOADING
+   screen, and the Outside Catacombs, where src/catacomb_open.h opens the doors
+   in the facade.
+
+   >>> THIS IS THE HOLE THAT USED TO BE HERE, FILLED. <<< Everything above about
+   the arena having no exit was true until this line existed. The encounter no
+   longer ends by handing the camera back — there is nothing in this room to
+   hand it back FOR — so ABE_D_CAM_BACK is gone and the .c has its headstone.
+   The seal (tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9) is moot for the same
+   reason: there is no door in this room to seal, and the way out is not a door.
+
+   This module does not know where the player goes, which is the same division
+   hatch_puzzle_drop_done() has with the drop that brought them here. */
+int  asag_boss_leaving(void);
 
 /* The death's lights: additive world-space glows hung ALONG the body while it
    comes apart, ramping on over the burn and riding the body's own fade out so

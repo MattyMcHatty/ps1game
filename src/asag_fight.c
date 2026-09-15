@@ -1117,6 +1117,15 @@ int32_t asag_boil_clear_depth(int32_t boil_z, int32_t depth) {
     return clr < 1 ? 1 : clr;
 }
 
+/* The reach to test a BOIL with. See the long note in asag_fight.h: the boils
+   are in the corners of a room 3000 wide and the lantern's 1800 is a radius, so
+   the sideways component alone put the far boil out of reach from a third of
+   the arena. Never SHORTENS a weapon's own range — the gun's 4000 comes back
+   unchanged — so both weapons can call it unconditionally. */
+int32_t asag_boil_reach(int32_t weapon_range) {
+    return weapon_range > ASAG_BOIL_REACH ? weapon_range : ASAG_BOIL_REACH;
+}
+
 /* Tick the restore. "The boils will be restored to full health and light up
    again after 30 seconds." The re-light is a short ramp rather than a snap for
    the same reason the opening scene ramps them up over two seconds: a light

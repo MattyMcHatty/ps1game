@@ -20,16 +20,23 @@
 
    ---- HOW IT IS REACHED, AND WHY THAT MATTERS MORE THAN IT LOOKS ------------
    ONE WAY IN: the 1200-unit drop down the pit in The Hatch's yard, after both
-   keyholes are turned (src/hatch_puzzle.c). >>> AND, FOR NOW, NO WAY OUT AT
-   ALL. <<< The previous arena had a placeholder exit at the shaft mouth that
-   gated back up into The Hatch, which the fiction never supported; this mesh
-   has no door in it and where the room actually leads has not been decided, so
-   rather than ship a lie the exit is GONE — no prompt, no trigger, no
-   destination. The only ways out of the room today are the debug level select
-   and dying.
+   keyholes are turned (src/hatch_puzzle.c).
 
-   That is a deliberate hole and not an oversight, but it does mean a save made
-   before the drop is the only route back into the rest of the game.
+   >>> AND ONE WAY OUT, WHICH IS NOT A DOOR AND IS NOT IN THIS ROOM. <<< For
+   several passes this paragraph said there was no way out at all — no prompt,
+   no trigger, no destination — and that the only exits were the debug level
+   select and dying. WINNING IS THE EXIT NOW. The last frame of Asag's death
+   fade, main.c cuts to the red LOADING screen and puts the player down in the
+   OUTSIDE CATACOMBS, where the two leaves in the facade slide apart; from there
+   it cuts again, to THE HATCH, and drops them off the well. See
+   src/asag_boss.h, src/catacomb_open.h and src/hatch_arrival.h, in that order —
+   they are the three beats of one ending.
+
+   THE MESH STILL HAS NO DOOR IN IT AND DOES NOT NEED ONE. The player never
+   walks out of this room, so there is nothing to seal, nothing to prompt, and
+   no exit API — see the note where asag_arena_spawn_shaft() is declared. A save
+   made before the drop is no longer the only route back into the rest of the
+   game; killing him is.
 
    That shape is not decoration — it is what makes every budget in this file
    legal. Nothing else in the game is ever drawn, heard or updated while the
@@ -115,9 +122,6 @@
                                clips end to end and decides nothing. No health,
                                no phases, no attacks, no camera, no seal, no
                                death. tools/ADDING_A_BOSS_ENCOUNTER.txt.
-     - the exit                there is NO WAY OUT of this room. Where it leads
-                               and the geometry of the way out are both
-                               undecided — see HOW IT IS REACHED above.
      - the music               CDAUDIO_ASAG_TRACK is defined; track 9 is not
                                yet on the disc
      - the sounds              SND_BANK_ASAG exists and is EMPTY
@@ -266,18 +270,23 @@ void asag_arena_draw(RenderContext *ctx);
 /* The one arrival: dropped down the shaft from The Hatch, facing +Z. */
 void asag_arena_spawn_shaft(void);
 
-/* >>> THERE IS NO EXIT, AND SO THERE IS NO EXIT API. <<< The previous arena
-   declared asag_arena_exit_arm(), _triggered() and _sealed() against a prompt
-   standing at the shaft mouth, offering to climb a shaft the fiction says
+/* >>> THERE IS NO EXIT API, AND THERE IS NOT GOING TO BE ONE. <<< The previous
+   arena declared asag_arena_exit_arm(), _triggered() and _sealed() against a
+   prompt standing at the shaft mouth, offering to climb a shaft the fiction says
    cannot be climbed, with main.c's destination for it flagged as a placeholder
-   in as many words. All of it is gone rather than left switched off, because a
-   switched-off door is a thing the next reader has to work out the status of.
+   in as many words. All of it went, and for several passes this note said the
+   three would come back together when the way out was decided.
 
-   WHEN THE WAY OUT IS DECIDED, the three come back together and the encounter's
-   seal predicate goes in _sealed() — that one function is the only place it
-   belongs, so main.c's trigger test and the floating sign cannot disagree about
-   whether the door is offering something it will not do. The exact shape,
-   including why the re-arm has to happen on the frame the seal LIFTS, is
-   tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9. */
+   THE WAY OUT IS DECIDED AND IT IS NOT A DOOR. The player leaves this room by
+   WINNING: the last frame of the death fade, main.c cuts straight to
+   STATE_LOADING and the red LOADING screen (see HOW IT IS REACHED above, and
+   src/asag_boss.h). Nobody ever walks out, so there is nothing to arm, nothing
+   to trigger and nothing to prompt.
+
+   THE SEAL (tools/ADDING_A_BOSS_ENCOUNTER.txt STEP 9) is moot for the same
+   reason rather than outstanding. Its whole purpose is to stop a player walking
+   out of a fight through a door that is standing there; a room with no door is
+   sealed by its geometry, and the transition that ends it cannot be reached
+   until the boss is dead. */
 
 #endif /* ASAG_ARENA_H */

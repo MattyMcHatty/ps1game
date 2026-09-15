@@ -82,6 +82,8 @@ add_executable(horror_game
     src/outside_catacombs_mesh_collision.c
     src/outside_catacombs.c
     src/catacomb_doors.c
+    src/catacomb_open.c
+    src/hatch_arrival.c
     src/maze_one_mesh_collision.c
     src/maze_one.c
     src/maze_two_mesh_collision.c
@@ -225,6 +227,14 @@ set_source_files_properties(
     src/greenhouse_flood.c
     src/valve_puzzle.c
     src/hatch_puzzle.c
+    # ASAG'S ENDING, beats 2 and 3: the catacomb doors sliding apart and the
+    # drop off the well. Scene directors, in this list beside delivery_intro.c
+    # and east_hall_quake.c for their reason -- each runs for about ten seconds
+    # ONCE in a whole playthrough and does a dozen integers a frame while it
+    # does. Neither draws anything: the glow they drive is applied inside
+    # outside_catacombs.c's own prim loop, which is NOT in this list.
+    src/catacomb_open.c
+    src/hatch_arrival.c
     src/birdcage.c
     src/delivery_intro.c
     src/east_hall_quake.c
@@ -235,9 +245,9 @@ set_source_files_properties(
     src/trial_end.c
     # ASAG'S ARENA's collision table. Init-only -- it fills a CollisionRoom once
     # on room entry and is never touched again -- so it belongs here for the
-    # reason every other transition-time module does. At 38 walls it is the merge
-    # of two meshes (the room proxy plus the boss's own drawn geometry), which
-    # makes it bigger but no hotter. Neither the room's own *_draw nor src/asag.c
+    # reason every other transition-time module does. At 12 walls (a perimeter with a
+    # recess at each end) it is small as well as cold; src/main.c's block for the
+    # room says the same 12 and is the figure to trust. Neither the room's own *_draw nor src/asag.c
     # is in this list: both are per-frame prim loops.
     #
     # src/asag_boss.c is NOT here either, and it is the one that looks like it

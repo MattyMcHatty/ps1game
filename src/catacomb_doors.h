@@ -19,6 +19,15 @@
    hatch_doors.c when that day comes; the note in catacomb_doors_collide() says
    what has to be revisited about the push direction at the same time.
 
+   >>> THAT WAS TRUE UNTIL THE DOORS OPENED, AND THE WAY THEY OPEN IS WHY IT
+   COST SO LITTLE. <<< They SLIDE apart — the left leaf due west, the right leaf
+   due east, by CD_SLIDE_FULL each — rather than swinging on a hinge. A slide is
+   one integer added to every vertex's X, which the draw can do through the GTE's
+   translation and the collision can do with a `+ off` on two comparisons; a
+   swing would have needed the .pva clips this file was scaffolded for, a back
+   face on each leaf, and the push-direction rewrite the collision note below
+   still describes. See src/catacomb_open.h for the scene that drives it.
+
    ---- WHERE THEY SIT: NOWHERE. THEY ARE ALREADY IN WORLD SPACE --------------
    >>> DO NOT ADD A TRANSLATION. <<< The Hatch's pair is baked about the pit's
    centre and carried into the world by a matrix, so that file has three
@@ -72,6 +81,29 @@
 
 void catacomb_doors_load(void);     /* ROOM ENTRY: read both .smd            */
 void catacomb_doors_unload(void);   /* leaving: free both. Safe if not loaded */
+
+/* ---- THE SLIDE ------------------------------------------------------------
+   How far apart the two leaves have been drawn, in world units, applied
+   OUTWARD: the left leaf moves by -slide in X and the right by +slide. 0 is the
+   shut pose the .smd files are baked in.
+
+   CD_SLIDE_FULL is one leaf's own width, which is exactly what it takes to
+   clear the doorway: the leaves span x[-500,0] and x[0,500] against a mouth at
+   x[-450,450], so at 500 each the opening is completely uncovered and the
+   leaves are standing over the facade mass either side of it. They are drawn
+   against its face rather than inside it — they sit at z[3787,3847] and the
+   facade front is at z=3786 — so what the player sees is two slabs of tablet
+   art that have slid onto the stone, which is the read that was wanted.
+
+   catacomb_doors_init() is the one to call on ROOM ENTRY, after the flag
+   restore: it poses the pair shut or fully open to match FLAG_ASAG_DEAD, so a
+   player coming back to this room finds the doors the way the scene left them.
+   catacomb_doors_set_slide() is for the scene itself, a frame at a time. */
+#define CD_SLIDE_FULL  500
+
+void    catacomb_doors_init(void);                  /* pose from FLAG_ASAG_DEAD */
+void    catacomb_doors_set_slide(int32_t slide);
+int32_t catacomb_doors_slide(void);
 
 void catacomb_doors_draw(RenderContext *ctx);
 

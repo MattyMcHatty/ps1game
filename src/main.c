@@ -78,7 +78,9 @@
 #include "asag_fight.h"     /* ...and the combat AI it hands the player to    */
 #include "hatch_doors.h"
 #include "catacomb_doors.h"
+#include "catacomb_open.h"  /* the doors coming apart: Asag's ending, beat 2  */
 #include "hatch_puzzle.h"
+#include "hatch_arrival.h"  /* the drop off the well: Asag's ending, beat 3   */
 #include "keystone_plinths.h"
 #include "rear_gate.h"
 #include "west_corridor.h"
@@ -315,6 +317,69 @@ static void handle_menu_open(void) {
     menu_start_prev = start_held;
 }
 
+/* ---- A ROOM TRANSITION THAT SHOWS THE RED LOADING SCREEN -------------------
+   Every ordinary way out of a room in this game is a DOOR: the trigger sets
+   pending_area, starts a door or stair animation, and STATE_LOADING runs behind
+   the black screen that animation has already faded to. Asag's ending has two
+   transitions that are not doors — the cut out of the arena at the end of his
+   death, and the cut out of the Outside Catacombs when the facade has finished
+   opening — and neither has a door to animate or a reason to invent one.
+
+   So they go the way a title-screen Load Game and a debug level-select jump go:
+   straight to STATE_LOADING with the red LOADING screen over it. That is why
+   this sets nothing but the destination and the state — the SCREEN is put up by
+   the room branch at the bottom of the loop, which notices that this frame's
+   update took a transition and shows the loading screen INSTEAD of drawing the
+   room. It has to be there and not here: show_loading_screen_now() lays down a
+   full-screen opaque tile at the back of the OT, and this function runs in the
+   middle of an update, before the room has drawn anything at all.
+
+   THE MUSIC IS STOPPED HERE, as every door trigger stops it, and for the harder
+   reason: STATE_LOADING reads the incoming room's mesh off the disc, and a data
+   read issued while CD-DA is streaming hangs the drive
+   (tools/TEXTURE_STREAMING_DEBUG.txt). Both of Asag's cuts happen in silence
+   anyway — the boss's track was cut on the killing blow — so this is the belt
+   to those braces, and it costs nothing when nothing is playing. */
+static void begin_loading_transition(GameState to) {
+    pending_area = to;
+    cdaudio_stop();
+    game_state   = STATE_LOADING;
+}
+
+/* ---- WHICH BEAT OF ASAG'S ENDING THE ROOM BEING ENTERED SHOULD RUN ---------
+   The ending is three scenes in three rooms (tools/ADDING_THE_ASAG_FIGHT.txt
+   PART 10), and the two that are NOT in the arena have to be armed by the
+   transition that carries the player to them. This latch is how they are told.
+
+   >>> IT USED TO BE INFERRED FROM current_area AND THAT WAS WRONG. <<< The
+   first version captured `leaving_area = current_area` at the top of the
+   STATE_LOADING branch and armed on "came from the arena" / "came from the
+   Outside Catacombs". It reads correctly and it is not safe, because
+   current_area DOES NOT SURVIVE EVERY ROUTE INTO A ROOM: the frontend hook at
+   the foot of the main loop sets it to STATE_DELIVERY_AREA on ANY exit from the
+   title into gameplay — the assignment is in the hook's own body, not inside
+   its `game_state == STATE_DELIVERY_AREA` branch — so it lands on a New Game, a
+   title-screen Load Game and a DEBUG LEVEL-SELECT JUMP alike, clobbering the
+   value the loading branch has just set. Measured: booting straight into the
+   arena leaves current_area reading 1 (STATE_DELIVERY_AREA) for the whole
+   visit, so the door scene never armed and the player arrived in the Outside
+   Catacombs to a shut facade and no scene.
+
+   THE LATCH IS SET BY THE THING THAT KNOWS, AT THE MOMENT IT KNOWS. Both
+   scenes are consequences of a transition this file itself takes, one line
+   after asag_boss_leaving() / catacomb_open_finished() report — so there is
+   nothing to infer and nothing downstream can overwrite it. It also makes the
+   debug route work: jump into the arena, win, and the ending runs.
+
+   Cleared when it is consumed, and on any return to the title so a session
+   abandoned mid-ending cannot arm a scene in the next one. */
+typedef enum {
+    ENDING_NONE = 0,
+    ENDING_DOORS,     /* Outside Catacombs: the catacomb doors come apart */
+    ENDING_LANDING,   /* The Hatch: the drop off the well                 */
+} EndingBeat;
+static EndingBeat ending_beat = ENDING_NONE;
+
 /* Advance one area: player movement + the area's own geometry/entities,
    then the shared weapon and particle systems. */
 static void update_current_area(GameState area) {
@@ -420,8 +485,7 @@ static void update_current_area(GameState area) {
        and for the identical one-frame reason spelled out there.
 
        The fight in the middle is FREE PLAY and must not come through here,
-       which is why the gate is asag_boss_cutscene() and not "is the encounter
-       running" — the predicate is false in ABE_FIGHT on purpose. */
+       which is why the gate is asag_boss_cutscene() and not "is the encounter\nrunning" — the predicate is false in ABE_FIGHT on purpose. */
     if (area == STATE_ASAG_ARENA && asag_boss_cutscene()) {
         asag_boss_update();
         asag_update();
@@ -435,6 +499,66 @@ static void update_current_area(GameState area) {
            frame before the camera cut would keep whatever was in the air. It
            costs an early return the rest of the time. */
         asag_fight_update();
+        player_status_update();
+        update_particles();
+        /* >>> AND THIS IS WHERE THE ENCOUNTER ENDS AND THE ROOM IS LEFT. <<<
+           asag_boss_leaving() is 1 for exactly one frame, at the end of the
+           death's fade. The arena has no door and no exit of its own — see
+           src/asag_boss.h, which used to call that the one thing still missing —
+           so the way out is a hard cut to the Outside Catacombs under the red
+           LOADING screen, where the two leaves in the facade come apart
+           (src/catacomb_open.h).
+
+           TAKEN HERE AND NOT IN THE ROOM'S FREE-PLAY BRANCH BELOW, for the
+           reason The Hatch's drop is taken in its puzzle branch: the death is a
+           cutscene for its whole length, so the free-play branch never sees the
+           frame this happens on. */
+        if (asag_boss_leaving()) {
+            begin_loading_transition(STATE_OUTSIDE_CATACOMBS);
+            ending_beat = ENDING_DOORS;
+        }
+        return;
+    }
+    /* ASAG'S ENDING, BEAT 2: THE CATACOMB DOORS. A fixed shot of the facade at
+       the north end of the Outside Catacombs while the two leaves slide apart
+       and the doorway behind them lights up. See src/catacomb_open.h.
+
+       The same shape as the arena's branch above and for the same reasons: no
+       update_camera (which is what holds the scene's pitch — apply_height()
+       would drag cam_y to the floor and nothing would put the tilt back), no
+       collision because the player is anchored, and no gate trigger. The room's
+       entities are seeded empty here (world.c, for the sound-bank reason
+       Fountain Square's header gives), so unlike The Hatch's branch below there
+       is nothing in this room that has to keep running.
+
+       AND THE CUT OUT OF IT, on the one frame catacomb_open_finished() reports:
+       The Hatch, under the red LOADING screen again, where the player is
+       dropped off the well. */
+    if (area == STATE_OUTSIDE_CATACOMBS && catacomb_open_active()) {
+        catacomb_open_update();
+        player_status_update();
+        update_particles();
+        if (catacomb_open_finished()) {
+            begin_loading_transition(STATE_THE_HATCH);
+            ending_beat = ENDING_LANDING;
+        }
+        return;
+    }
+    /* ASAG'S ENDING, BEAT 3: THE DROP OFF THE WELL, in The Hatch's north
+       chamber. A second of camera and then the player has their legs back — see
+       src/hatch_arrival.h. It ends in free play rather than in a transition, so
+       there is nothing to poll here: hatch_arrival_active() simply goes false
+       and the room's own branch picks up on the next frame.
+
+       >>> THE FOUR CORNER STATUES KEEP RUNNING. <<< Same call and same reason as
+       the keyhole branch below: this enemy acts on the CAMERA's facing, so a
+       camera-locked scene is exactly where it must not be skipped. They cannot
+       reach the player — the nearest plinth is some 1500 from the landing
+       against a 600 arming radius — but the rule is about the shape, not about
+       this room's measurements. */
+    if (area == STATE_THE_HATCH && hatch_arrival_active()) {
+        hatch_arrival_update();
+        update_living_statues();
         player_status_update();
         update_particles();
         return;
@@ -714,8 +838,7 @@ static void update_current_area(GameState area) {
                all that changes is that the press posts a line instead of
                starting a transition. Tested HERE rather than inside the
                *_triggered() helpers, the same arrangement the East Hall's
-               rubble has (east_hall_quake.h): the trigger keeps meaning "the
-               player pressed O at this door", and which room is behind a door
+               rubble has (east_hall_quake.h): the trigger keeps meaning "the\nplayer pressed O at this door", and which room is behind a door
                stays the one decision made in this file. */
             if (reception_sealed()) {
                 show_pickup_msg_raw("There is rubble behind the door!");
@@ -795,8 +918,7 @@ static void update_current_area(GameState area) {
                out of the wrecked Library (east_hall_quake.h). The door then
                keeps its sign — the player is meant to try it — and Circle only
                says why nothing happens. Handled HERE rather than inside
-               east_hall_edoor_triggered() so the trigger keeps meaning "the
-               player pressed O at this door" and the room this door leads to
+               east_hall_edoor_triggered() so the trigger keeps meaning "the\nplayer pressed O at this door" and the room this door leads to
                stays the one decision made in this file. */
             if (game_flag(FLAG_EAST_HALL_RUBBLE)) {
                 show_pickup_msg_raw("There is rubble behind the door!");
@@ -1489,8 +1611,7 @@ static void update_current_area(GameState area) {
         asag_update();
 
         /* >>> THE FIGHT GOES AFTER BOTH OF THEM, AND THAT IS THE OPPOSITE ORDER
-           TO THE ONE ABOVE. <<< asag_boss_update() reads the "holding the last
-           frame" flag and so has to run BEFORE the clock that raises it; the
+           TO THE ONE ABOVE. <<< asag_boss_update() reads the "holding the last\nframe" flag and so has to run BEFORE the clock that raises it; the
            fight reads the POSE — where his head is this frame, for the slam's
            impact test, the vomit's mouth and the laser's origin — and so has to
            run AFTER it. Put this first and every attack's effect fires against
@@ -1556,7 +1677,15 @@ static void update_current_area(GameState area) {
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
-        if (!lock && outside_catacombs_gate_triggered()) {
+        /* THE CATACOMB MOUTH, BEFORE THE GATE: both are on Circle, and a press
+           made at the facade is meant for the doorway and not for a gate 5850
+           units behind it. Inert until Asag is dead and the leaves have been
+           slid apart, and what it does then is post "COMING SOON" — the room
+           behind it is not built (src/outside_catacombs.h). Its return value is
+           the veto the gate takes, which is The Hatch's lip-before-gate
+           arrangement exactly. */
+        int oc_mouth = outside_catacombs_mouth_update(lock);
+        if (!lock && !oc_mouth && outside_catacombs_gate_triggered()) {
             /* South back through the same gate, into Fountain Square. */
             pending_area = STATE_FOUNTAIN_SQUARE;
             door_anim_start(DOOR_PANEL_GATE);
@@ -2364,25 +2493,56 @@ int main(int argc, const char **argv) {
                any of it off a door trigger instead would leave the other paths
                entering a room that was never built. */
 
+
             /* Idle the GPU first so the previous frame's async DrawOTagEnv is
                finished, then do the loads while quiescent (no draw is kicked
                until flip_buffers at the loop bottom). */
             DrawSync(0);
 
-            /* Geometry: read the incoming room's mesh into the shared arena,
-               evicting the one the player just left. room_arena_load brackets
-               its own CdRead with cdaudio_suspend/resume — a data read issued
-               while CD-DA streams hangs the drive
-               (tools/TEXTURE_STREAMING_DEBUG.txt). */
-            load_area_geometry(pending_area);
-            loading_screen_pump(&ctx);
+            /* RELEASE THE OUTGOING BOSS'S MODEL FIRST, BEFORE ANYTHING ELSE
+               ALLOCATES — AND "ANYTHING ELSE" INCLUDES THE GEOMETRY STEP THAT
+               USED TO RUN AHEAD OF IT.
 
-            /* RELEASE THE OUTGOING BOSS'S MODEL, AND DO IT HERE — FIRST, BEFORE
-               ANYTHING ELSE ALLOCATES. See the block below sound_bank_select for
-               the load half and for why the two are split apart rather than
-               written as one if/else. */
+               >>> THIS PAIR USED TO SIT BELOW load_area_geometry(), AND IT
+               CRASHED THE GAME THE DAY ASAG'S ARENA GREW AN EXIT. <<< The
+               comment here always said "FIRST, BEFORE ANYTHING ELSE ALLOCATES"
+               and the code did not do it. load_area_geometry() reads the
+               incoming room's MESH into the shared BSS arena, which costs no
+               heap — but it ALSO loads that room's per-room PROPS, and those are
+               mallocs. The Outside Catacombs' are the two catacomb door leaves.
+
+               For every transition that existed before, the outgoing boss was
+               either already absent or the incoming room's props were small
+               enough that a stale model on the heap did not matter. Asag's arena
+               had NO EXIT AT ALL until the ending was built, so "leave a room
+               with 92 KB of boss still resident and then allocate" had never
+               once been executed. The first time it was:
+
+                   LOADSTEP 0 enter
+                   Attempted unaligned JR to 0x0476003a from 0x800945dc
+                   -> VSync
+
+               which is tools/DIAGNOSING_A_BOOT_CRASH.txt section 2 exactly: the
+               top of the heap IS the stack, malloc does not know it, and CdRead
+               DMA'd a door leaf through a saved return address. In the arena the
+               clips reach 0x801da63c against an $sp of 0x801dbd40 — 5,892 bytes
+               for two 2,048-byte reads and their headers, and it does not fit.
+
+               Freeing here costs nothing and makes the comment true: the boss is
+               gone before the geometry, before the sound bank swap and before the
+               texture stream. See the block below sound_bank_select for the load
+               half and for why the two are split apart rather than written as
+               one if/else. */
             if (pending_area != STATE_GARDEN_COURTYARD) rabisus_free_model();
             if (pending_area != STATE_ASAG_ARENA)       asags_free_model();
+            loading_screen_pump(&ctx);
+
+            /* Geometry: read the incoming room's mesh into the shared arena,
+               evicting the one the player just left, and load that room's own
+               props. room_arena_load brackets its own CdRead with
+               cdaudio_suspend/resume — a data read issued while CD-DA streams
+               hangs the drive (tools/TEXTURE_STREAMING_DEBUG.txt). */
+            load_area_geometry(pending_area);
             loading_screen_pump(&ctx);
 
             /* Per-room SOUND streaming, and the one thing here that DOES touch
@@ -2724,8 +2884,7 @@ int main(int argc, const char **argv) {
             collision_set_wall_radius(0);
             if (pending_area == STATE_KITCHEN_DINING) {
                 kitchen_dining_init();
-                /* Coming back from reception: spawn at the kitchen's "to
-                   reception" door (far west wall), facing east into the kitchen,
+                /* Coming back from reception: spawn at the kitchen's "to\nreception" door (far west wall), facing east into the kitchen,
                    instead of the default delivery-side spawn. */
                 if (current_area == STATE_RECEPTION) {
                     cam_x   = -3100;
@@ -3026,16 +3185,28 @@ int main(int argc, const char **argv) {
                    through this branch. */
                 cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_THE_HATCH) {
-                the_hatch_init();   /* one gate, so its spawn is not a default
-                                       but the only arrival: west, back into the
-                                       Keystone Maze. Nothing to override. */
+                the_hatch_init();   /* the west gate back into the Keystone Maze
+                                       is still the only spawn this room has. The
+                                       drop off the well is a SCENE and sets its
+                                       own camera (src/hatch_arrival.h), armed in
+                                       the re-derive block below. */
                 /* THE SAME TRACK as the rest of the garden, restarted on arrival
                    rather than carried across, exactly as the three mazes and the
                    Chain Room do it. This room's mesh is 37 KB and its load does
                    interrupt CD-DA, but what decides this is the route and not
                    the size: played HERE so the gate, a title-screen load and a
-                   debug level-select jump all get it. */
-                cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
+                   debug level-select jump all get it.
+
+                   >>> WITH ONE EXCEPTION, AND IT IS THE LAST BEAT OF ASAG'S
+                   ENDING. <<< Coming in out of the Outside Catacombs, the room
+                   is silent until the player's feet hit the grass: the boss's
+                   track was cut on the killing blow, the door scene played over
+                   nothing, and the garden comes back on the landing frame —
+                   src/hatch_arrival.c plays it there. Starting it here would
+                   have the score arrive a second and a half early, under a shot
+                   of a camera standing on a well. */
+                if (ending_beat != ENDING_LANDING)
+                    cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -3229,6 +3400,35 @@ int main(int argc, const char **argv) {
                has only just restored, and it reads flags that
                savegame_apply_pending has only just installed. */
             valve_puzzle_apply_flags(pending_area);
+            /* ---- ASAG'S ENDING, ARMED HERE AND NOWHERE ELSE ---------------
+               Both halves need the SAME two things this block is for: flags that
+               savegame_apply_pending() has only just installed, and a spawn that
+               the area init has already applied. And both are armed on exactly
+               one route, and which route that is comes from the ENDING LATCH
+               (see begin_loading_transition) rather than from current_area,
+               which the frontend hook at the foot of the main loop does not
+               leave intact.
+
+               THE DOORS: catacomb_doors_init() re-reads FLAG_ASAG_DEAD and poses
+               the two leaves shut or fully slid apart. The room's own init calls
+               it too — see the note there for why BOTH calls are needed and
+               neither is redundant. The SCENE is then armed on top of it, and
+               only when the room being left is Asag's arena, which is a journey
+               nothing else in the game makes. */
+            if (pending_area == STATE_OUTSIDE_CATACOMBS) {
+                catacomb_doors_init();
+                if (ending_beat == ENDING_DOORS) {
+                    catacomb_open_start();
+                    ending_beat = ENDING_NONE;
+                }
+            }
+            /* THE LANDING: the drop off the well, on the one route in out of the
+               Outside Catacombs — which, again, nothing else in the game does.
+               The Hatch's own arrival is the west gate and stays that way. */
+            if (pending_area == STATE_THE_HATCH && ending_beat == ENDING_LANDING) {
+                hatch_arrival_start();
+                ending_beat = ENDING_NONE;
+            }
             if (pending_area == STATE_KEYSTONE_MAZE)
                 keystone_plinths_apply_flags();  /* re-reads the five keystone
                                                     flags, and spawns the reward
@@ -3370,6 +3570,15 @@ int main(int argc, const char **argv) {
                                   is the same reason the Rabisu's reveal is
                                   here. */
                                (area == STATE_ASAG_ARENA && asag_boss_cutscene()) ||
+                               /* ...and the two beats that follow it, in two
+                                  other rooms: the catacomb doors sliding apart
+                                  and the drop off the well. Both are in the
+                                  CUTSCENE list for the same reason the opening
+                                  is — neither posts a log line, so a log box
+                                  left up over either would be parking stale
+                                  text across a shot. */
+                               (area == STATE_OUTSIDE_CATACOMBS && catacomb_open_active()) ||
+                               (area == STATE_THE_HATCH && hatch_arrival_active()) ||
                                (area == STATE_DELIVERY_AREA && delivery_intro_active()) ||
                                (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene()) ||
                                (area == STATE_REAR_GATE && hadad_grinder_cutscene());
@@ -3379,25 +3588,52 @@ int main(int argc, const char **argv) {
                     update_current_area(area);
                     perf_ticks_update = (perf_ticks_now() - t0) & 0xFFFF;
                 }
-                {
-                    int t0 = perf_ticks_now();
-                    draw_current_area(&ctx, area);
-                    perf_ticks_draw = (perf_ticks_now() - t0) & 0xFFFF;
+                if (game_state == STATE_LOADING) {
+                    /* >>> A SCENE TOOK A DOORLESS TRANSITION ON THIS FRAME, AND
+                       THE ROOM MUST NOT BE DRAWN OVER THE TOP OF IT. <<< Asag's
+                       ending leaves two rooms without using a door — the cut out
+                       of the arena when the death's fade ends, and the cut out
+                       of the Outside Catacombs when the facade has finished
+                       opening — and begin_loading_transition() is what both of
+                       them call. See the note on that function.
+
+                       This is the title branch's move, and it has to be: STATE_
+                       LOADING is about to block for several hundred milliseconds
+                       reading the next room off the disc, and nothing reaches the
+                       television until the flip at the bottom of the loop. So the
+                       red screen has to be put up NOW, by the two-draws-two-flips
+                       trick in show_loading_screen_now(), or the player sits
+                       looking at the last frame of a cutscene for the whole wait.
+
+                       AND IT REPLACES THE ROOM'S DRAW RATHER THAN FOLLOWING IT.
+                       draw_loading_screen() lays its full-screen red tile at
+                       ot[OT_LENGTH-1], the BACK of the table, so anything the
+                       room had already queued would draw straight over the top
+                       of it — a loading screen with a scene still showing
+                       through. The HUD and the debug overlay go with it for the
+                       same reason. */
+                    show_loading_screen_now(&ctx);
+                } else {
+                    {
+                        int t0 = perf_ticks_now();
+                        draw_current_area(&ctx, area);
+                        perf_ticks_draw = (perf_ticks_now() - t0) & 0xFFFF;
+                    }
+                    /* The HUD belongs to the player having the camera. While a
+                       puzzle or cutscene owns it, the panel goes with it. */
+                    if (!puzzle && !cutscene) {
+                        draw_player_systems(&ctx);
+                        hud_draw(&ctx);
+                    } else if (puzzle) {
+                        /* The camera is not the player's: no bars, no weapon box.
+                           The log box alone stays, because puzzles post lines the
+                           player has to read. A CUTSCENE gets nothing at all — log
+                           lines no longer expire on their own, so leaving the box up
+                           would park stale text over the Rabisu reveal and death. */
+                        hud_draw_log_only(&ctx);
+                    }
+                    draw_debug_overlay(&ctx);
                 }
-                /* The HUD belongs to the player having the camera. While a
-                   puzzle or cutscene owns it, the panel goes with it. */
-                if (!puzzle && !cutscene) {
-                    draw_player_systems(&ctx);
-                    hud_draw(&ctx);
-                } else if (puzzle) {
-                    /* The camera is not the player's: no bars, no weapon box.
-                       The log box alone stays, because puzzles post lines the
-                       player has to read. A CUTSCENE gets nothing at all — log
-                       lines no longer expire on their own, so leaving the box up
-                       would park stale text over the Rabisu reveal and death. */
-                    hud_draw_log_only(&ctx);
-                }
-                draw_debug_overlay(&ctx);
             }
         }
 
@@ -3503,6 +3739,9 @@ int main(int argc, const char **argv) {
         }
         if (!IS_FRONTEND(prev_state) && game_state == STATE_TITLE) {
             cdaudio_stop();
+            /* A session abandoned part way through Asag's ending must not arm a
+               scene in the next one. See the latch's note. */
+            ending_beat = ENDING_NONE;
             /* >>> THE BOSS MODELS GO BACK FIRST, AND THIS IS A CRASH FIX. <<<
                Both bosses are ROOM-SCOPED reads — 104 KB for the Rabisu, 204 KB
                for Asag — and the ONLY thing that frees them is the pass through

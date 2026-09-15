@@ -345,6 +345,39 @@ typedef enum {
        are bit positions in a saved word and inserting one renumbers every flag
        after it. This is bit 29 of 32. */
     FLAG_HATCH_LOCK_ONE,
+
+    /* ASAG IS DEAD AND THE CATACOMB DOORS HAVE BEEN OPENED. One bit for both,
+       because they are one event: the death sequence ends by carrying the
+       player to the Outside Catacombs, the doors come apart under a fixed
+       camera, the backing polys light up, and the player is dropped back into
+       The Hatch. Nothing can happen between those beats, so a second bit could
+       only ever disagree with the first.
+
+       FOUR THINGS READ IT, and all four are about the world AFTER that scene
+       rather than about the scene itself:
+
+         src/catacomb_doors.c   poses the two leaves fully slid apart on entry,
+                                so a player coming back finds them open
+         src/outside_catacombs.c the fifteen black backing polys glow white, and
+                                the doorway offers "Press O to enter"
+         src/hatch_puzzle.c     the pit's floating sign and its Circle are taken
+                                away — the shaft is a one-way trip and the boss
+                                at the bottom of it is gone
+         src/catacomb_open.c    SETS it, on the last frame of the door scene
+
+       >>> IT IS SET AT THE END OF THE DOOR SCENE, NOT AT THE END OF THE DEATH,
+       AND CERTAINLY NOT ON THE KILLING BLOW. <<< It is the bit that says the
+       whole sequence HAS RUN, and the reason it cannot be set any earlier is
+       the first reader in that list: catacomb_doors_init() poses the leaves
+       from this flag on room entry, and the door scene's own arrival goes
+       through that init. Set in asag_boss.c the frame the fade ends, the player
+       would be carried to the Outside Catacombs and find the doors ALREADY
+       OPEN, with a scene about to slide two leaves that were not there.
+
+       Declared at the END of the enum, as the note at the top instructs — these
+       are bit positions in a saved word and inserting one renumbers every flag
+       after it. This is bit 30 of 32. */
+    FLAG_ASAG_DEAD,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

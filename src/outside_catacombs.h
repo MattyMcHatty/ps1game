@@ -34,6 +34,14 @@
                 src/catacomb_doors.h. This room still owns the LMSHTBLT
                 registration and upload (slot 5 below) even though its own mesh
                 no longer references it, because those leaves are what draws it.
+
+                >>> AND ALL THREE OF THOSE PIECES MOVE NOW. <<< Killing Asag
+                brings the player here for a scene (src/catacomb_open.h): the
+                two leaves SLIDE apart, and the fifteen black backing polys go
+                from flat black to WHITE and stay that way. The glow is applied
+                in this room's own prim loop — it is this mesh's art, not the
+                prop's — and the doorway then carries a sign and a Circle of its
+                own. See outside_catacombs_mouth_update() below.
      FLOWERS    the poison-flower bed, a ground decal at y=0 spanning
                 x[-750,2504] z[0,1714]; art only, no collision of its own.
 
@@ -66,6 +74,20 @@ void outside_catacombs_draw(RenderContext *ctx);
 /* The south-wall gate back to Fountain Square. */
 void outside_catacombs_gate_arm(void);        /* seed the Circle edge state */
 int  outside_catacombs_gate_triggered(void);  /* 1 on a fresh Circle press in range */
+
+/* ---- The catacomb mouth at the north end ----------------------------------
+   Inert until Asag is dead and the two leaves have been slid apart by the scene
+   in src/catacomb_open.h; from then on it carries a "Press O to enter" sign of
+   its own and a Circle in range posts "COMING SOON" to the log, because what is
+   behind it has not been built. See the long note in the .c — replacing the
+   placeholder with a real transition is one line there.
+
+   Called from main.c's block for this room BEFORE the south gate's trigger, and
+   its return value is the veto that gate takes: 1 means it consumed this
+   frame's Circle tap. The two can never both be in reach — they are 5850 apart
+   against a 500 reach — but the room has one unambiguous order anyway, which is
+   the arrangement The Hatch's lip and gate have. */
+int  outside_catacombs_mouth_update(int lock);
 
 /* Spawn just inside the south gate — the only arrival. */
 void outside_catacombs_spawn_south(void);

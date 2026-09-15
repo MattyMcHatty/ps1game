@@ -63,8 +63,17 @@ they are in the arena, or during the transition out of it:
                                  through asag_arena_upload_mud(). The rect is the
                                  same one, which is why nothing new is reserved.
 
-                                 WHEN THE ROOM GROWS AN EXIT, whatever panel that
-                                 uses comes back onto this list.
+                                 >>> THE ROOM HAS ITS EXIT NOW AND IT STILL
+                                 RESERVES NO PANEL. <<< The way out is the end of
+                                 Asag's death: the fade finishes and main.c cuts
+                                 straight to STATE_LOADING with the RED LOADING
+                                 SCREEN over it (begin_loading_transition in
+                                 src/main.c, and src/asag_boss.h). There is no
+                                 door_anim in that path at all, so there is no
+                                 panel to survive across it — which is the one
+                                 thing this entry was ever about. A future exit
+                                 that DOES animate a door puts its panel back on
+                                 this list.
 
   EVERYTHING ELSE IS RECLAIMABLE, and unlike in the garden-west bank almost all
   of it is FREE rather than merely available: every mansion and garden room

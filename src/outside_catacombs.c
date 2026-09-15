@@ -30,6 +30,8 @@
 #include "item_pickup.h"
 #include "sml_med.h"
 #include "catacomb_doors.h"     /* the two leaves in the catacomb mouth */
+#include "catacomb_open.h"      /* catacomb_open_glow: the lit doorway     */
+#include "player.h"             /* game_flag / show_pickup_msg_raw         */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -279,6 +281,89 @@ static void gate_text(RenderContext *ctx) {
                         50, 255, 50, fade, 1, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
 }
 
+/* ---- THE CATACOMB MOUTH, ONCE IT IS OPEN -----------------------------------
+   The doorway the two leaves used to fill. It does nothing until Asag is dead
+   and the scene in src/catacomb_open.h has slid them apart; from then on it is
+   an ordinary door as far as the player is concerned — a green floating sign,
+   a Circle in range, and the same "Press O to enter" every other door in this
+   game offers.
+
+   >>> AND WHAT IS BEHIND IT IS NOT BUILT. <<< Circle posts "COMING SOON" to the
+   log and nothing else happens. That is a placeholder and it is meant to read
+   as one to the developer and as a locked door to the player; replacing it is
+   one line in oc_mouth_update() below, pointing a transition at the new room,
+   exactly as src/hatch_puzzle.h's drop was a placeholder until Asag's arena
+   existed.
+
+   The sign is the FOUNTAIN SQUARE NORTH GATE'S hand, not this room's south
+   gate's: the player stands SOUTH of this wall looking +Z, where the south gate
+   is approached from the north looking -Z. So mirror=0 and the sign sits 11
+   units on the -Z side of the backing plane, inside the mouth, which is the
+   pairing fountain_square.c's own two gates spell out. */
+#define OC_MOUTH_X                0    /* the doorway spans x[-450,450] */
+#define OC_MOUTH_Z             3850    /* the backing plane            */
+#define OC_MOUTH_TEXT_RADIUS   1200
+#define OC_MOUTH_FADE_NEAR      800
+#define OC_MOUTH_TRIGGER_RADIUS  500
+
+static int mouth_circle_prev = 1;
+
+static void oc_mouth_arm(void) {
+    mouth_circle_prev = circle_held();
+}
+
+/* One frame of the mouth. Returns 1 if it took this frame's Circle tap, which
+   is the veto the south gate takes — the two cannot both be in reach (they are
+   5850 apart against a 500 reach) but the room has one unambiguous order
+   anyway, the same arrangement The Hatch's lip and gate have. */
+int outside_catacombs_mouth_update(int lock) {
+    /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held
+       across a menu closing does not read as a fresh press on the frame the
+       lock lifts. hatch_puzzle_update()'s rule, for its reason. */
+    int held = circle_held();
+    int just = held && !mouth_circle_prev;
+    mouth_circle_prev = held;
+
+    if (lock || !just) return 0;
+    if (!game_flag(FLAG_ASAG_DEAD)) return 0;
+
+    int32_t dx = cam_x - OC_MOUTH_X;
+    int32_t dz = cam_z - OC_MOUTH_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= OC_MOUTH_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(OC_MOUTH_X, OC_MOUTH_Z)) return 0;
+
+    /* The placeholder. See the note above this block. */
+    show_pickup_msg_raw("COMING SOON");
+    return 1;
+}
+
+/* The mouth's floating sign. Same shape as the gate's below it, and taken off
+   entirely while the leaves are anything but fully open: offering a door that
+   is still sliding shut over its own doorway reads as a press that did not
+   take, which is the rule hatch_puzzle_text() states for its own pair. */
+static void mouth_text(RenderContext *ctx) {
+    if (!game_flag(FLAG_ASAG_DEAD)) return;
+    if (catacomb_doors_slide() < CD_SLIDE_FULL) return;
+
+    int32_t dx = cam_x - OC_MOUTH_X;
+    int32_t dz = cam_z - OC_MOUTH_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= OC_MOUTH_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > OC_MOUTH_FADE_NEAR) {
+        int range = OC_MOUTH_TEXT_RADIUS - OC_MOUTH_FADE_NEAR;
+        int prog  = xz - OC_MOUTH_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        OC_MOUTH_X - 200, OC_TEXT_Y, OC_MOUTH_Z - 11,
+                        50, 255, 50, fade, 0, TEXT_PLANE_XY, DOOR_PIXEL_SIZE);
+}
+
 /* Arriving from Fountain Square: stand on the ground north of the z=-2000
    hedge, clear of the wall push radius (so the player isn't shoved on their
    first frame), facing +Z — the direction of travel through the gate, looking
@@ -290,6 +375,7 @@ void outside_catacombs_spawn_south(void) {
     cam_z   = OC_GATE_Z + OC_WALL_RADIUS + 25;
     cam_rot = 0;    /* facing +Z, into the room */
     outside_catacombs_gate_arm();
+    oc_mouth_arm();
 }
 
 void outside_catacombs_init(void) {
@@ -316,6 +402,22 @@ void outside_catacombs_init(void) {
        landing. */
     save_points_clear();
     dressers_clear();
+
+    /* THE TWO LEAVES IN THE MOUTH, posed shut or fully slid apart from
+       FLAG_ASAG_DEAD, and the scene that does the sliding, parked.
+
+       >>> BOTH ARE DONE AGAIN IN main.c's RE-DERIVE BLOCK, AND THIS IS NOT
+       BELT AND BRACES. <<< A room init runs BEFORE savegame_apply_pending(),
+       so on a title-screen Load Game straight into this room the flags read
+       here are the previous playthrough's — the trap that block exists for.
+       The call here is what makes an ordinary walk in through the south gate
+       correct at its own init; the call there is what makes a load correct.
+       Doing it in only one of the two places is wrong in the other. */
+    catacomb_doors_init();
+    /* ...and the door scene cannot be inherited half-played from a previous
+       visit. main.c ARMS it, from the re-derive block, and only on the one
+       route that should have it: in out of Asag's arena. */
+    catacomb_open_reset();
 }
 
 static void draw_outside_catacombs_smd(RenderContext *ctx) {
@@ -420,6 +522,37 @@ static void draw_outside_catacombs_smd(RenderContext *ctx) {
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8);
         uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8);
+
+        /* ---- THE DOORWAY LIGHTS UP ----------------------------------------
+           The fifteen untextured quads standing at z=3850 behind the catacomb
+           mouth — the dark backing the two leaves slide off (see this room's
+           header, and src/catacomb_open.h for the scene that does the sliding).
+           They are flat black in the mesh, r0=g0=b0=0, and once Asag is dead
+           they are white.
+
+           >>> THE TEST IS THE COMPLETE SET AND IT WAS CHECKED, NOT ASSUMED.
+           <<< Every untextured primitive in this mesh is one of those fifteen:
+           they are the only polys in 1146 that the tex map reports 0xFF for,
+           they all lie in the single plane z=3850, and they all span the
+           doorway's x[-450,450] y[-905,0]. The z half of the test is therefore
+           redundant TODAY and is here anyway, because "untextured" is a
+           property of the art that a re-export could hand to something else,
+           and "in the backing plane" is a property of this doorway that it
+           could not.
+
+           >>> AFTER THE FOG, NOT BEFORE IT. <<< A lit surface is emitting, not
+           reflecting: it does not get dimmer because the night is thick between
+           it and the camera. Blending toward white ahead of the fog would have
+           left the doorway a washed purple-grey from the only vantage the scene
+           ever shows it from, which is 1300 units back and 38% fogged. */
+        if (!textured && v0->vz >= 3840) {
+            int32_t glow = catacomb_open_glow();
+            if (glow > 0) {
+                r = (uint8_t)(r + (((255 - r) * glow) >> 8));
+                g = (uint8_t)(g + (((255 - g) * glow) >> 8));
+                b = (uint8_t)(b + (((255 - b) * glow) >> 8));
+            }
+        }
 
         if (is_quad && textured) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
@@ -549,6 +682,8 @@ void outside_catacombs_draw(RenderContext *ctx) {
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);
 
-    /* Last: the gate sign. */
+    /* Last: the two signs — the south gate out of the room, and the catacomb
+       mouth at the far end of it once Asag is dead and it has been opened. */
     gate_text(ctx);
+    mouth_text(ctx);
 }

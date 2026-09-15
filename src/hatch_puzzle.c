@@ -421,6 +421,18 @@ int hatch_puzzle_update(int lock) {
         interact_prev = held;
         if (lock) return 0;
         if (!just || !lip_in_reach()) return 0;
+        /* >>> THE PIT IS RETIRED ONCE ASAG IS DEAD. <<< The shaft lands in his
+           arena and the arena is a one-way pocket, so with him gone there is
+           nothing at the bottom of it and no way back out of it either. The
+           press does nothing here and the sign is gone from hatch_puzzle_text()
+           below, which is the pair of them: a Circle that silently did nothing
+           under a sign still offering the drop would read as a broken control.
+
+           The flag is set at the end of the catacombs' door scene, which the
+           player reaches through this very drop — so by the time it is true
+           they have been down there, killed him, and been carried back into
+           this room by src/hatch_arrival.h. See src/player.h. */
+        if (game_flag(FLAG_ASAG_DEAD)) return 0;
 
         if (hatch_doors_open()) {
             /* The hole is open: the press is the drop, not the board, and the
@@ -649,6 +661,11 @@ static int board_update(uint16_t btn) {
 void hatch_puzzle_text(RenderContext *ctx) {
     if (state != HP_IDLE) return;          /* the board owns the screen */
     if (hatch_doors_swinging()) return;
+    /* ...and taken off for good once Asag is dead. The leaves STAY OPEN — the
+       flag that retires the sign is not the one that poses them, and a hole in
+       the lawn with nothing offering to put the player down it is exactly what
+       is wanted. See the matching test in hatch_puzzle_update(). */
+    if (game_flag(FLAG_ASAG_DEAD)) return;
 
     int32_t dx = cam_x - HATCH_LIP_X;
     int32_t dz = cam_z - HATCH_LIP_Z;

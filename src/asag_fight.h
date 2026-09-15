@@ -235,9 +235,56 @@ void asag_fight_set_dead(void);
    both the gun and the lantern must use it. */
 #define ASAG_BOIL_CLEAR_BACKOFF  80
 
+/* ---- ...AND A BOIL IS REACHABLE FURTHER THAN ANYTHING ELSE IN THE GAME -----
+   >>> THE SECOND HALF OF "IT ONLY WORKS LOOKING STRAIGHT ON", AND THE BACKOFF
+   ABOVE WAS ONLY THE FIRST. <<< Fixing the clear test made every ANGLE work
+   from a given spot. It did nothing about the spots themselves, and the lantern
+   is still the weapon that cannot reach: HELL_RANGE is 1800, and it is applied
+   as a RADIUS while the argument for it was about DEPTH — "the boils are 2400
+   from the landing, so the player has to walk most of the way up the arena"
+   (src/helluminator.c). In a room 3000 WIDE, the sideways component eats the
+   budget before the walk does.
+
+   MEASURED, by sweeping the arena floor in a headless build and running the
+   real weapon_aim_in_circle / asag_boil_clear_depth / weapon_aim_clear on every
+   cell. The clear test never once failed — the backoff above is doing its job —
+   and every failure was the range:
+
+       standing at x=1200, the LEFT boil is unreachable at ANY depth  (dx 1900)
+       standing at x=-1200, the RIGHT boil is unreachable at any depth (dx 2100)
+
+   The vomit is what makes that bite rather than being a curiosity: its zone is
+   the CENTRE LANE, so the attack loop's job is to drive the player out to the
+   flanks — to exactly the x where the far boil goes dead. The player stands at
+   the back wall, level with a lit boil, with the crosshair on it, and the flame
+   does nothing and says nothing.
+
+   SO THE BOILS GET THEIR OWN REACH, beside their own backoff and their own
+   weakness table. 2400 is the worst case over the whole BACK THIRD — the
+   corner at (-1305, 1867) is 2369 from the right boil, and 1305 is the furthest
+   out the perimeter's 195-unit standoff lets the player stand.
+
+   >>> IT DOES SOFTEN THE TRADE AND THAT WAS THE CHOICE MADE. <<< A radius
+   cannot separate "2369 from the far corner of the back third" (must work)
+   from "1801 from the front edge of the landing third" (used not to), because
+   the first number is bigger. So 2400 also buys the player a burn from z=933
+   standing square in line with a boil. That is the front edge of the LASER's
+   own five rows, not a safe seat, and src/helluminator.c says in as many words
+   that the reach trade is "the room's geometry making it, not a rule written
+   anywhere" — an emergent limit worth less than a weapon that answers when it
+   is pointed at a target.
+
+   asag_boil_reach() is the one place the rule lives, and BOTH weapons ask it,
+   exactly as both ask asag_boil_clear_depth(). It returns the weapon's own
+   range whenever that is already longer, so the Grave-olver's 4000 is untouched
+   and the gun needs no special case of its own. Nothing outside the boils is
+   affected: this is not a change to HELL_RANGE. */
+#define ASAG_BOIL_REACH  2400
+
 int  asag_boil_target(int which, int32_t *cx, int32_t *cy, int32_t *cz,
                       int32_t *half_w, int32_t *half_h);
 int32_t asag_boil_clear_depth(int32_t boil_z, int32_t depth);
+int32_t asag_boil_reach(int32_t weapon_range);
 void asag_boil_damage(int which, int32_t amount);
 
 /* Scale a hit by the BOILS' weaknesses (see damage.h and the table in

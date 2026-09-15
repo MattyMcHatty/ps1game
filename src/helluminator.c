@@ -286,8 +286,17 @@ static void hell_burn_tick(void) {
     for (i = 0; i < ASAG_BOIL_COUNT; i++) {
         int32_t bx, by, bz, bw, bh;
         if (!asag_boil_target(i, &bx, &by, &bz, &bw, &bh)) continue;
+        /* >>> AND THE REACH IS THE BOILS' OWN, NOT HELL_RANGE. <<< The
+           paragraph above says this weapon's 1800 is a real trade; it is, and
+           it stays one for everything else in this sweep. It is not one for the
+           boils, because 1800 is a RADIUS and they sit in the corners of a room
+           3000 WIDE: from x=-1200 the right boil was out of reach at ANY depth,
+           which is where the vomit's centre lane drives the player. Measured on
+           a floor sweep — see asag_fight.h, which has the numbers and the
+           trade-off this cost. */
         if (weapon_aim_in_circle(bx, by, bz, bw, bh, fx, fz,
-                                 HELL_AIM_RADIUS, HELL_RANGE, &depth)) {
+                                 HELL_AIM_RADIUS, asag_boil_reach(HELL_RANGE),
+                                 &depth)) {
             /* >>> AND THIS WEAPON IS THE ONE THE BACKOFF HAD TO BE FIXED FOR.
                <<< HELL_RANGE puts the player up at the back of the arena to
                reach a boil at all, and from there the line to it meets the

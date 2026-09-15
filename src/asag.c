@@ -307,9 +307,36 @@ static int model_loaded = 0;
    instead of corrupting the return address of whatever called us.
 
    The margin is for the frames BELOW us: CdRead, CdReadSync and the interrupt
-   handler all push after this point. 8 KB is far more than they use and costs
-   nothing, since the whole point is to fail before touching the stack at all. */
-#define ASAG_STACK_MARGIN 8192
+   handler all push after this point.
+
+   >>> IT WAS 8192, AND "FAR MORE THAN THEY USE AND COSTS NOTHING" WAS HALF
+   RIGHT. <<< It was far more than they use. It did not cost nothing: it cost
+   the FAINT, for the third time, in September 2026. The ending scenes
+   (src/catacomb_open.c, src/hatch_arrival.c) moved _end up by 2,528 bytes, the
+   last clip in the read order missed the guard by 2,012, and the fight's long
+   exposure became one second of a motionless boss again — af_clip_watchdog()
+   firing on a clip reporting zero ticks, exactly the symptom
+   tools/ADDING_THE_ASAG_FIGHT.txt PART 6 says to read that way.
+
+   SO THE CONSTANT WAS MEASURED INSTEAD OF ASSUMED. The words below $sp were
+   painted with 0xA5A5A5A5 immediately before the CdRead and scanned afterwards
+   for the lowest one disturbed, on every one of the six reads this module
+   makes:
+
+       below_sp = 96 bytes   (sp 0x801dbd40, lowest touched 0x801dbce0)
+
+   The same 96 on all six. CdRead, CdReadSync and the interrupt handler between
+   them touch twenty-four words below this frame. 2048 is a WHOLE SECTOR and
+   twenty-one times the measured depth, and it hands 6,144 bytes back to the top
+   of the heap — three times what the faint was short by, so the door has real
+   headroom again instead of the 500 bytes it had before.
+
+   >>> RE-MEASURE, DO NOT RE-GUESS, IF THIS EVER LOOKS TIGHT. <<< The method is
+   a dozen lines and it is written up in tools/ADDING_THE_ASAG_FIGHT.txt PART 6B
+   along with the numbers above. Raising this constant back to 8192 "to be safe"
+   would put the faint straight back on the floor; lowering it below a sector is
+   not worth the bytes. */
+#define ASAG_STACK_MARGIN 2048
 
 /* ---- ...AND THE BUFFER IS THE FILE'S SIZE, NOT THE SECTORS' -----------------
    >>> THIS IS WHERE THE FAINT WENT, THE SECOND TIME. <<< A CD read moves whole
@@ -374,6 +401,7 @@ static void *read_file(const char *name) {
         CdRead(whole, (uint32_t *)buf, CdlModeSpeed);
         CdReadSync(0, NULL);
     }
+
     if (tail > 0) {
         CdlLOC pos;
         CdIntToPos(CdPosToInt(&file.pos) + whole, &pos);

@@ -10,6 +10,7 @@
 #include "tim_slots.h"
 #include "cdaudio.h"     /* suspend/resume around the entry-time reads */
 #include "title.h"       /* current_area: the leaves are solid in ONE room */
+#include "player.h"      /* game_flag: FLAG_ASAG_DEAD poses them open on entry */
 #include "catacomb_doors.h"
 
 /* The two leaves in the catacomb mouth at the north end of Outside Catacombs.
@@ -26,6 +27,32 @@ static const char *CD_MESH_FILE[CD_LEAVES] = {
 
 static void *cd_mesh_buff[CD_LEAVES];
 static SMD  *cd_smd[CD_LEAVES];
+
+/* How far the pair has slid apart, in world units. See CD_SLIDE_FULL in the
+   header. Applied OUTWARD, so the sign is per leaf and cd_leaf_off() is the one
+   place that knows which way each one goes — the draw and the collision both go
+   through it rather than each carrying their own -/+ . */
+static int32_t cd_slide;
+
+static int32_t cd_leaf_off(int leaf) {
+    return leaf == CD_LEFT ? -cd_slide : cd_slide;
+}
+
+void catacomb_doors_set_slide(int32_t slide) {
+    if (slide < 0)              slide = 0;
+    if (slide > CD_SLIDE_FULL)  slide = CD_SLIDE_FULL;
+    cd_slide = slide;
+}
+
+int32_t catacomb_doors_slide(void) { return cd_slide; }
+
+/* ROOM ENTRY, after the flag restore. FLAG_ASAG_DEAD is set on the last frame
+   of the scene that slides them (src/catacomb_open.h), so it is also the bit
+   that says "these are open" — there is no half-way state to remember, because
+   the whole scene runs inside one visit with no menu and no save in it. */
+void catacomb_doors_init(void) {
+    cd_slide = game_flag(FLAG_ASAG_DEAD) ? CD_SLIDE_FULL : 0;
+}
 
 static void *cd_read_file(const char *name) {
     CdlFILE file;
@@ -100,7 +127,9 @@ static SVECTOR *cd_verts(int leaf) {
 
 /* This frame's world-space x/z bounds for one leaf. 0 when the leaf is not
    loaded, which is every room but this one. The vertices ARE world coordinates
-   — see the "nowhere" note in catacomb_doors.h — so nothing is added here. */
+   — see the "nowhere" note in catacomb_doors.h — so the ONLY thing added here
+   is this frame's slide, and it goes on the X pair alone: the leaves move due
+   west and due east and nothing about the slide touches Z. */
 static int cd_leaf_box(int leaf, int32_t *min_x, int32_t *max_x,
                        int32_t *min_z, int32_t *max_z)
 {
@@ -118,8 +147,9 @@ static int cd_leaf_box(int leaf, int32_t *min_x, int32_t *max_x,
         if (vp[i].vz < z0) z0 = vp[i].vz;
         if (vp[i].vz > z1) z1 = vp[i].vz;
     }
-    *min_x = x0; *max_x = x1;
-    *min_z = z0; *max_z = z1;
+    int32_t off = cd_leaf_off(leaf);
+    *min_x = x0 + off; *max_x = x1 + off;
+    *min_z = z0;       *max_z = z1;
     return 1;
 }
 
@@ -146,13 +176,18 @@ static int cd_leaf_box(int leaf, int32_t *min_x, int32_t *max_x,
    come from. Seeding the push with it is therefore not a simplification — it is
    the complete set of candidates.
 
-   >>> REVISIT THIS THE DAY THE LEAVES SWING. <<< An open leaf standing out into
-   the room has walkable floor on more than one side of it, and going ROUND one
-   becomes a real move the way it is for The Hatch's pair. Add the leaf's own
-   outward X push at that point (left leaf west, right leaf east — the side it
-   hinges away from), keep north excluded for wall 51's sake, and read the long
-   note above hatch_doors_collide() first: it is the same problem with the same
-   trap in it. */
+   >>> THE LEAVES DO MOVE NOW, AND IT DID NOT COST THIS RULE A THING. <<< That
+   is the second reason they SLIDE rather than swing (catacomb_doors.h has the
+   first). A swung leaf stands out into the room with walkable floor on more
+   than one side of it, which is what the note that used to live here was
+   warning about: going ROUND it becomes a real move, the way it is for The
+   Hatch's pair, and the south-only push stops being the complete set.
+
+   A slid one never leaves the facade. At full slide the left leaf occupies
+   x[-1000,-500] and the right x[500,1000], both of them flat against stone that
+   walls 1 and 2 already fence the player out of — so the box below is sitting
+   inside a volume that is unreachable anyway and every side of it that is not
+   south is still stone. The push is unchanged and it is still complete. */
 void catacomb_doors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     (void)py;   /* single flat floor, full-height leaves — see the note above */
     if (current_area != STATE_OUTSIDE_CATACOMBS) return;
@@ -175,18 +210,39 @@ void catacomb_doors_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius
 /* ---- Drawing ---------------------------------------------------------------
    The room mesh's own prim loop with two changes:
 
-     NO WORLD MATRIX. The leaves are already in room coordinates, so the plain
-     view matrix projects them where they belong and there is nothing to
-     compose. This is the one place this file differs structurally from
-     hatch_doors.c, which has a translation to apply.
+     THE WORLD MATRIX IS THE SLIDE AND NOTHING ELSE. The leaves are already in
+     room coordinates, so with the pair shut there is genuinely nothing to
+     compose and the plain view matrix projects them where they belong — which
+     is what this file used to say in place of this paragraph. Sliding them
+     needs one translation along X, and it is applied through the GTE rather
+     than by rewriting 26 vertices a leaf: the vertex block is the .smd's own
+     and cd_leaf_box() reads it too, so mutating it would make the collision's
+     offset double up on the draw's.
 
      THE TEXTURE SLOT IS THE ROOM'S, not the one smxlink baked in — slot 5,
      `lamashtu tablet`, on the brick_wall page. Their UVs run past 128, so they
      depend on the 128 texture window outside_catacombs_draw sets for the whole
      frame. */
-static void cd_draw_leaf(RenderContext *ctx, int leaf) {
+static void cd_draw_leaf(RenderContext *ctx, int leaf, MATRIX *view) {
     SMD *smd = cd_smd[leaf];
     if (!smd) return;
+
+    /* Identity rotation, this leaf's slide for the translation. Composed even
+       at slide 0, where it is the view matrix again exactly — one branch fewer
+       than testing for it, and the shut pose is not the hot case anyway: this
+       runs twice a frame in one room. */
+    MATRIX world_m;
+    world_m.m[0][0] = ONE; world_m.m[0][1] = 0;   world_m.m[0][2] = 0;
+    world_m.m[1][0] = 0;   world_m.m[1][1] = ONE; world_m.m[1][2] = 0;
+    world_m.m[2][0] = 0;   world_m.m[2][1] = 0;   world_m.m[2][2] = ONE;
+
+    VECTOR pos = { cd_leaf_off(leaf), 0, 0 };
+    TransMatrix(&world_m, &pos);
+
+    MATRIX combined;
+    CompMatrixLV(view, &world_m, &combined);
+    gte_SetRotMatrix(&combined);
+    gte_SetTransMatrix(&combined);
 
     int32_t min_x, max_x, min_z, max_z;
     if (!cd_leaf_box(leaf, &min_x, &max_x, &min_z, &max_z)) return;
@@ -351,11 +407,23 @@ static void cd_draw_leaf(RenderContext *ctx, int leaf) {
     }
 }
 
-/* Called from outside_catacombs_draw with the room's view matrix already loaded
-   into the GTE and the room's 128 texture window already in the OT. It composes
-   nothing onto that matrix and leaves it exactly as it found it, so the entity
-   draws and the gate sign after it need no restore. */
+/* Called from outside_catacombs_draw with the room's 128 texture window already
+   in the OT.
+
+   >>> IT NOW LEAVES THE GTE'S MATRIX CHANGED AND PUTS IT BACK ITSELF. <<< This
+   used to compose nothing and so needed no restore, and the entity draws and
+   the gate sign after it relied on that. Each leaf carries its own slide now,
+   so the plain view matrix is rebuilt here and reinstated on the way out —
+   hatch_doors_draw()'s shape exactly, for the same reason and with the same
+   tail. Building the view rather than borrowing the caller's also means this is
+   correct on its own terms rather than by agreement with the call site. */
 void catacomb_doors_draw(RenderContext *ctx) {
-    cd_draw_leaf(ctx, CD_LEFT);
-    cd_draw_leaf(ctx, CD_RIGHT);
+    MATRIX view;
+    camera_build_view(&view);
+
+    cd_draw_leaf(ctx, CD_LEFT,  &view);
+    cd_draw_leaf(ctx, CD_RIGHT, &view);
+
+    gte_SetRotMatrix(&view);
+    gte_SetTransMatrix(&view);
 }

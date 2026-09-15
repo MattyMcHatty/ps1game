@@ -244,8 +244,15 @@ static void graveolver_fire(void) {
            argument, including why the backoff is a fraction of the shot rather
            than a fixed 80 off the end of it (this weapon's range hid that; the
            lantern's did not). */
+        /* THE REACH GOES THROUGH asag_boil_reach() TOO, and it changes nothing
+           here: this weapon's 4000 is already longer than the boils' 2400 and
+           the call hands it straight back. It is written this way for the
+           reason the line below it is — one rule, asked by both weapons, so a
+           later change to either number cannot leave the two disagreeing about
+           where a boil can be hit from. */
         if (weapon_aim_in_circle(bx, by, bz, bw, bh, fx, fz,
-                                 GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+                                 GUN_AIM_RADIUS, asag_boil_reach(GUN_RANGE),
+                                 &depth) &&
             depth < best_depth) {
             int32_t clr = asag_boil_clear_depth(bz, depth);
             if (weapon_aim_clear(fx, fz, clr)) {

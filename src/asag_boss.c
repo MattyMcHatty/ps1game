@@ -413,7 +413,23 @@
 #define ABE_T_D_FREEZE       120   /* 2 s frozen, the Rabisu's                */
 #define ABE_T_D_BURN         232   /* 3.87 s of shaking and light             */
 #define ABE_T_D_FADE          90   /* 1.5 s burning away                      */
-#define ABE_T_D_CAM_BACK      60   /* 1 s back to the player                  */
+/* >>> ABE_T_D_CAM_BACK IS GONE, AND SO IS THE PHASE IT TIMED. <<< It was one
+   second of the camera easing back to wherever the player was standing when
+   they landed the kill, and it was the last beat of the encounter: the fade
+   ended, the eye came home, camera_release_player() ran, and the player was
+   left standing in a finished room with no exit — the hole this file's header
+   spent three passes describing.
+
+   THE ROOM HAS AN EXIT NOW AND IT IS NOT IN THE ROOM. The fade ends and the
+   game CUTS: the red LOADING screen goes up and the player is put down in the
+   Outside Catacombs, where src/catacomb_open.h opens the doors. So there is
+   nothing for a camera-back move to be the run-up to — it would be a second of
+   travel to a vantage nobody is ever shown from, ending on a hard cut. See
+   ABE_D_FADE below, which now finishes the encounter itself.
+
+   save_cx/cy/cz are STILL captured in begin_death() and they still matter: they
+   are what the bail-out path restores when a debug level-select jump pulls the
+   model out from under a running scene. */
 
 /* World units of jitter at the peak of the burn. The Rabisu's RBS_SHAKE_MAX is
    11 on a body 559 tall; Asag is 1669 long and much further from the camera, so
@@ -474,13 +490,24 @@ typedef enum {
     ABE_D_SETTLE,    /* camera to the vantage; he plays an idle back to Home  */
     ABE_D_FREEZE,    /* held still, as briefed                                */
     ABE_D_BURN,      /* vibrating                                             */
-    ABE_D_FADE,      /* burning away to nothing                               */
-    ABE_D_CAM_BACK,  /* back to wherever the player was standing              */
-    ABE_DONE,        /* over. Free play, and nothing left to drive.           */
+    ABE_D_FADE,      /* burning away to nothing, and then the CUT             */
+    /* ABE_D_CAM_BACK lived here — the eye easing back to wherever the player
+       was standing when they landed the kill. The encounter does not end in
+       this room any more, so there is nothing for it to be the run-up to. See
+       ABE_T_D_CAM_BACK's headstone in the timing block. */
+    ABE_DONE,        /* over. The transition out is main.c's, off `leaving`.   */
 } AbeState;
 
 static AbeState state = ABE_IDLE;
 static int32_t  phase_t;
+
+/* 1 for exactly one frame, on the frame the fade ends. main.c's cutscene branch
+   for this room polls it after asag_boss_update() and turns it into the
+   transition into the Outside Catacombs; this file does not know where the
+   player goes, the same division hatch_puzzle_drop_done() has with the drop
+   that brought them here. Cleared at the top of every update, so a frame this
+   module does not run cannot leave it set. */
+static int      leaving;
 
 /* THE LANDING, captured on the arm. Every position in this scene is an offset
    from it and the handover comes back to it, which is how "control returns at
@@ -679,6 +706,10 @@ static void pan_step(void) {
 /* 1 while the script owns the camera. main.c's early-return branch and its
    menu/HUD suppression both hang off this. ABE_FIGHT is free play and must
    fall through, exactly as the Rabisu's RBE_FIGHT does. */
+/* 1 for exactly one frame, at the end of the death's fade. See the declaration
+   of `leaving` and the tail of ABE_D_FADE. */
+int asag_boss_leaving(void) { return leaving; }
+
 int asag_boss_cutscene(void) {
     /* >>> ABE_DONE IS FREE PLAY AND MUST FALL THROUGH, exactly as ABE_FIGHT
        does. <<< It is the state the player spends the rest of the session in
@@ -700,6 +731,7 @@ int asag_boss_cutscene(void) {
    the player arrives having already seen it once. */
 void asag_boss_reset(void) {
     state      = ABE_IDLE;
+    leaving    = 0;
     phase_t    = 0;
     pan_yaw    = 0;
     pan_pitch  = 0;
@@ -1071,6 +1103,8 @@ static void death_settle_step(int32_t t) {
    BEFORE asag_update(), and that order is worth exactly one frame — see the
    note at the free-play call site and the one in the demo section below. */
 void asag_boss_update(void) {
+    leaving = 0;       /* one frame only — see the declaration */
+
     /* Nothing to drive until the model is in. Arming against a body that has
        not been read yet would burn the faint's two-second entry on a bind pose,
        and ARMING IS WHY THIS IS LAZY: asag_arena_init() runs before the model
@@ -1458,48 +1492,36 @@ void asag_boss_update(void) {
             /* NO cdaudio_stop() HERE ANY MORE. The track was cut on the killing
                blow, in begin_death() — see the note there. The arena was silent
                before the encounter (main.c's loading branch) and is silent from
-               that frame on; the track was the boss's, not the room's. */
-            ho_x = cam_x; ho_y = cam_y; ho_z = cam_z;
-            ho_rot = cam_rot; ho_pitch = cam_pitch;
-            enter_phase(ABE_D_CAM_BACK);
-        }
-        break;
-    }
+               that frame on; the track was the boss's, not the room's. It stays
+               silent through the catacombs' door scene as well, and the garden
+               comes back only when the player's feet hit the grass in The Hatch
+               (src/hatch_arrival.h). */
 
-    /* ---- BACK TO THE PLAYER -----------------------------------------------
-       To where they were STANDING WHEN THEY LANDED THE KILL, which begin_death()
-       captured — not to the landing the opening scene used. Killing him from a
-       corner of the arena and being put back in the middle of it is mistake 4's
-       symptom and the runbook's last emulator check. */
-    case ABE_D_CAM_BACK: {
-        int32_t e = ease_out(phase_p(ABE_T_D_CAM_BACK));
-        cam_x     = ho_x    + ((save_cx - ho_x) * e) / 256;
-        cam_y     = ho_y    + ((save_cy - ho_y) * e) / 256;
-        cam_z     = ho_z    + ((save_cz - ho_z) * e) / 256;
-        cam_rot   = (ho_rot + (turn_delta(ho_rot, save_crot) * e) / 256) & 4095;
-        cam_pitch = ho_pitch - (ho_pitch * e) / 256;
-        cam_vy    = 0;
-        if (phase_t >= ABE_T_D_CAM_BACK) {
-            cam_x     = save_cx;
-            cam_y     = save_cy;
-            cam_z     = save_cz;
-            cam_rot   = save_crot;
-            cam_pitch = 0;      /* nothing else will ever clear it */
-            cam_vy    = 0;
+            /* ---- AND THAT IS THE END OF THE ROOM ------------------------
+               >>> THE ENCOUNTER DOES NOT HAND THE CAMERA BACK. <<< It used to,
+               through a one-second ease to wherever the player was standing,
+               and it left them in a sealed arena with no exit — the open hole
+               this file's header described and the last thing on
+               tools/ADDING_THE_ASAG_FIGHT.txt PART 7's list.
+
+               The way out is a CUT. main.c sees `leaving` on this frame and
+               takes the transition: the red LOADING screen, and the Outside
+               Catacombs, where the doors in the facade come apart
+               (src/catacomb_open.h). This module does not know that — it
+               reports one frame and stops.
+
+               The anchor is released here even though the player is about to be
+               somewhere else entirely, and the pitch and the vertical velocity
+               are cleared with it. An anchor left taken would pin the next
+               room's player to a spot in a room they have left, and cam_pitch
+               is the field nothing else in this game ever clears — the handover
+               at the top of this file ends on the same line for the same
+               reason. */
             camera_release_player();
-            state = ABE_DONE;
-            /* ...and that is the end of it. Free play, in a silent arena, with
-               a boss that is gone.
-
-               >>> AND NO WAY OUT OF THE ROOM, WHICH IS THE OPEN HOLE. <<< The
-               arena still has no exit — src/asag_arena.h says so in as many
-               words, and it was already the most urgent item in
-               tools/ADDING_THE_ASAG_FIGHT.txt PART 7 before the fight existed.
-               It is more urgent now: winning used to be impossible and is not,
-               so a player who does everything right is left standing in a
-               finished room. The seal (STEP 9) hangs off the same decision:
-               asag_boss_seals_door() would be `state != ABE_IDLE && state !=
-               ABE_DONE`, and the re-arm goes on this frame. */
+            cam_pitch = 0;
+            cam_vy    = 0;
+            leaving   = 1;
+            state     = ABE_DONE;
         }
         break;
     }

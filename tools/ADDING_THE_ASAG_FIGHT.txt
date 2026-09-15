@@ -206,19 +206,21 @@ stopped fitting.
 ONE WAY IN: the 1200-unit drop down the pit in The Hatch's yard, after both
 keyholes are turned. main.c takes that transition at hatch_puzzle_drop_done().
 
->>> AND, AS OF THIS PASS, NO WAY OUT. <<< The first arena had a placeholder exit
-standing at the shaft mouth, offering to climb a shaft the fiction says cannot
-be climbed, with main.c's destination for it gating back into The Hatch and
-flagged as a placeholder in as many words. The new mesh has no door in it
-either, and where the room actually leads has still not been decided — so rather
-than ship the lie a second time, the exit is GONE: no prompt, no trigger, no
-destination, and no asag_arena_exit_* API at all.
+ONE WAY OUT, AND IT IS STILL NOT A DOOR. For several passes this block said
+there was no way out at all: the first arena had a placeholder exit standing at
+the shaft mouth, offering to climb a shaft the fiction says cannot be climbed,
+and rather than ship that lie a second time it was removed entirely — no prompt,
+no trigger, no destination, and no asag_arena_exit_* API.
 
-The only ways out of the room today are the DEBUG LEVEL SELECT (the "ASAG ARENA"
-row, which is back in title.c for exactly this reason) and dying. A save made
-BEFORE the drop is the only route back into the rest of the game. That is a
-deliberate hole, it is written down in src/asag_arena.h, and it is the first
-thing to fix when the fight is real.
+>>> NONE OF THAT CAME BACK, AND THE ROOM HAS AN EXIT ANYWAY. <<< The player
+leaves by WINNING. The last frame of Asag's death fade, main.c cuts to the red
+LOADING screen and puts them down in the Outside Catacombs; the doors in the
+facade slide apart; it cuts again, to The Hatch, and drops them off the well.
+PART 10 is the whole of it. Nobody ever walks out of this room, so there is
+still nothing to arm, to trigger, to prompt or to seal.
+
+The DEBUG LEVEL SELECT row ("ASAG ARENA", in title.c) is still there and is
+still useful, but it is no longer the only way out that is not dying.
 
 >>> EVERY BUDGET BELOW FOLLOWS FROM THAT ONE-WAY SHAPE AND FROM NOTHING ELSE.
 <<< Because nothing else in the game is drawn, heard or updated while the player
@@ -561,6 +563,12 @@ anything that allocates.
                                             stack, ~93 KB once read_file's
                                             8 KB margin comes off
 
+    >>> THE 8 KB MARGIN IS 2 KB NOW AND THE SECOND FIGURE IS ~99 KB. <<< It was
+    an unmeasured constant, it was 85x what CdRead actually touches, and in
+    September 2026 it cost the faint for the THIRD time. PART 6B has the
+    measurement (96 bytes), the method, and why raising it back is the one
+    thing not to do. Read it before touching any number in this part.
+
 The room's own textures cost NOTHING — they stream on entry into a scratch that
 is freed — and it registers nothing with texmgr. That was deliberate: the first
 pass's six registrations would have been ~110 KB and would not have booted.
@@ -764,6 +772,161 @@ depending on a measured constant. Worth doing; not a win.
 
 
 ##########################################################################
+ PART 6B - THE FAINT WENT MISSING A THIRD TIME. MEASURE THE MARGIN.
+##########################################################################
+September 2026, immediately after the ending (PART 10) was built. Symptom,
+reported from play and word for word the one PART 6 tells you to recognise:
+
+    "destroying the boils just makes Asag freeze for 1 second then continue
+     on his loop"
+
+ONE SECOND IS af_clip_watchdog() ANSWERING FOR A CLIP THAT REPORTS ZERO TICKS.
+It is never a dull animation and it is never the art. Go straight to the heap.
+
+---- WHAT IT WAS -----------------------------------------------------------
+The ending added src/catacomb_open.c and src/hatch_arrival.c and edited main.c.
+That moved _end up by 2,528 bytes:
+
+    before  _end 0x800EC5DC   FREE AT REST 169,828
+    after   _end 0x800ECFBC   FREE AT REST 167,300
+
+which is nothing at rest and everything at the arena's door, because the six
+clip buffers sit at the very TOP of the heap with the stack directly above
+them. Instrumented headless, booting straight into the arena:
+
+    ASGBODY.SMD   size= 4468  buf=801bd538 top=801be7cc  margin=120180
+    ASGHIDLE.PVA  size= 4812  buf=801c4e90 top=801c615c  margin= 89060
+    ASGHLAS.PVA   size=20652  buf=801c6170 top=801cb21c  margin= 68388
+    ASGHSLAM.PVA  size=24012  buf=801cb230 top=801d0ffc  margin= 44356
+    ASGHVOM.PVA   size=19212  buf=801d1010 top=801d5b1c  margin= 25124
+    ASGHFNT.PVA   size=19212  buf=801d5b30 top=801da63c  margin=  5892  REFUSED
+
+$sp = 0x801dbd40 throughout. The faint missed ASAG_STACK_MARGIN (8192) by
+2,012 bytes. Same clip, same silence, same read order - it is always the LAST
+one - for the third time.
+
+>>> NOTE THE MESH IS AT 801bd538 AND THE FIRST CLIP AT 801c4e90. <<< That
+26 KB looks like a reclaimable hole and is not: the mesh found a small gap low
+down, and 801be7cc..801c4e90 is live. The contiguous run under the stack starts
+at the FIRST CLIP, and it is 94,672 bytes. That is the number that matters.
+
+---- THE FIX: THE CONSTANT WAS MEASURED INSTEAD OF RAISED -------------------
+The three previous answers (drop a clip, pack to PVA2, size the buffers to the
+file) were all about making the payload smaller, and all three are still in
+place. There was nothing left to shave. So the OTHER side of the inequality was
+looked at for the first time, and it turned out to be a guess:
+
+    "8 KB is far more than they use and costs nothing"
+
+It was far more than they use. It did not cost nothing - it cost the faint.
+
+MEASURED BY STACK PAINTING. Fill the words below $sp with 0xA5A5A5A5 right
+before the CdRead, scan up afterwards for the lowest one disturbed:
+
+    below_sp = 96 bytes   (sp 0x801dbd40, lowest touched 0x801dbce0)
+
+The same 96 on every one of the six reads. CdRead, CdReadSync and the interrupt
+handler between them touch twenty-four words below read_file's frame.
+ASAG_STACK_MARGIN is 2048 now - a whole sector, twenty-one times the measured
+depth - and that hands 6,144 bytes back to the top of the heap. Verified: all
+six reads succeed, the faint lands with 5,892 bytes of margin against the 2,048
+it needs, zero refusals, zero exceptions.
+
+THE METHOD, because it is worth repeating rather than re-guessing:
+
+  1. In read_file(), after the guard, printf name/size/buf/top/$sp/margin.
+  2. Force-boot the arena: set current_area/pending_area/game_state just above
+     main()'s loop, so no playthrough is needed.
+  3. pcsx-redux.exe -interpreter -bios <bios> -iso build\HORROR.bin -run
+     -logfile <log>, then read the ASAGDBG lines.
+  4. For the margin itself, paint below $sp and scan afterwards. Guard the
+     paint with a check that the buffer is nowhere near the painted region.
+  5. >>> THEN GREP HORROR2.BIN FOR THE DEBUG STRINGS. <<< Removing the source
+     is not enough; confirm the shipped binary has none.
+
+>>> DO NOT RAISE ASAG_STACK_MARGIN BACK TO 8192 "TO BE SAFE". <<< It puts the
+faint straight back on the floor. If it ever looks tight again, re-measure by
+painting - the number is 96, and if it changes it is because something below
+read_file changed, which is a thing you can find.
+
+---- AND THE HEADROOM IS NOW REAL, WHICH IT WAS NOT BEFORE -----------------
+The build that shipped the fight had about 500 bytes of slack at this door.
+That is why 2,528 bytes of ending broke it. After this pass there are 3,844.
+It is still the tightest door in the game and the next few KB of code anywhere
+in the project will be paid for out of it.
+
+
+##########################################################################
+ PART 6C - THE LANTERN COULD NOT REACH THE BOILS FROM THE FLANKS
+##########################################################################
+Reported in the same session, and it presents identically to a bug that was
+already fixed once - which is exactly why it has to be measured rather than
+assumed to be a regression:
+
+    "the Helluminator is only dealing damage when it is face on, and does
+     nothing when using it from an angle"
+
+THE OLD BUG was the clear test: the boil faces are at z=2734 and the collision
+proxy's back wall is at z=2700, 34 units IN FRONT of them, so a shot cleared to
+the boil's own depth was reported blocked by a wall standing inside the target.
+asag_boil_clear_depth() fixed it by giving up a FRACTION of the shot rather
+than a flat 80 units off the end. See asag_fight.h.
+
+>>> THAT FIX IS INTACT AND IT IS NOT WHAT THIS WAS. <<< Proved rather than
+assumed, by sweeping the arena floor in a headless build and running the REAL
+weapon_aim_in_circle / asag_boil_clear_depth / weapon_aim_clear on every cell,
+brute-forcing the yaw onto the boil and the crosshair over the whole screen:
+
+    54 cells x 2 boils.  CLEAR-FAIL: 0.  Not once, at any angle, anywhere.
+
+Every failure was the RANGE:
+
+    at x=1200  the LEFT boil is unreachable at ANY depth   (dx 1900)
+    at x=-1200 the RIGHT boil is unreachable at any depth  (dx 2100)
+
+---- WHY: A DEPTH ARGUMENT IMPLEMENTED AS A RADIUS -------------------------
+src/helluminator.c argues HELL_RANGE 1800 like this: the boils are on the back
+wall at z=2734, the landing is at z=300, that is 2400 away, so the player has
+to WALK MOST OF THE WAY UP THE ARENA to burn one. Every word of that is about
+DEPTH. The test is a RADIUS, and the arena is 3000 WIDE - so the sideways
+component eats the budget before the walk does, and walking forward does not
+help you at all if you are 1900 units sideways.
+
+THE VOMIT IS WHAT MAKES IT BITE. Its zone is the CENTRE LANE, so the attack
+loop's whole job is to drive the player out to the flanks - to precisely the x
+where the far boil goes dead. Player stands at the back wall, level with a lit
+boil, crosshair on it, flame playing, and nothing happens and nothing says why.
+
+---- THE FIX: THE BOILS GET THEIR OWN REACH --------------------------------
+ASAG_BOIL_REACH 2400, in asag_fight.h beside the boils' own backoff and their
+own weakness table, and asag_boil_reach() is the one place the rule lives. Both
+weapons ask it, exactly as both ask asag_boil_clear_depth(). It never SHORTENS
+a weapon's own range, so the Grave-olver's 4000 comes back unchanged and the
+gun needs no special case. HELL_RANGE ITSELF IS UNTOUCHED - nothing outside the
+boils reaches any further than it did.
+
+2400 is the worst case over the whole BACK THIRD: the corner at (-1305, 1867)
+is 2369 from the right boil, and 1305 is as far out as the perimeter's 195-unit
+standoff lets the player stand.
+
+>>> IT SOFTENS THE TRADE AND THAT WAS THE CHOICE, NOT AN OVERSIGHT. <<< A
+radius cannot separate "2369 from the far corner of the back third" (must work)
+from "1801 from the front edge of the landing third" (used not to), because the
+first number is the bigger one. So 2400 also buys a burn from z=933 standing
+square in line with a boil. That is the front edge of the LASER's own five rows
+and not a safe seat, and helluminator.c says in as many words that the reach
+limit is "the room's geometry making it, not a rule written anywhere" - an
+emergent limit worth less than a weapon that answers when it is pointed at a
+target.
+
+VERIFIED by re-running the same sweep with the fix in: 50 of 54 cells hit,
+CLEAR-FAIL still 0. The four that remain are all the RIGHT boil from 150-420
+units away - point blank, where it sits 411 above the eye and projects off the
+top of the screen. The player cannot see it, so not being able to burn it is
+correct. Do not "fix" that one by widening the aim box; it would mean burning
+something that is not on screen.
+
+##########################################################################
  PART 7 — WHAT IS BUILT, WHAT IT COST, AND WHAT IS LEFT
 ##########################################################################
   1. HEAP. Done, re-run. PART 6 has the peak. Everything Asag reads is
@@ -880,14 +1043,19 @@ depending on a measured constant. Worth doing; not a win.
      lines: asag_fight_update() in both of the room's branches. Everything else
      the hooks in PART 5 already covered.
 
-  STILL TO DO, and it is now a list of one:
-  9. THE EXIT. Where the room leads, and the geometry of the way out. See
-     PART 1. It also blocks the SEAL (STEP 9), which is the one hook in PART 5
-     still unwired. >>> IT WAS THE MOST URGENT ITEM HERE BEFORE THE FIGHT AND IT
-     IS MORE SO NOW. <<< Winning used to be impossible; it is not, so a player
-     who does everything right is left standing in a finished room with a dead
-     boss and no door. The debug level select is still the only way out that is
-     not dying.
+  9. THE EXIT. DONE, and it is not a door — PART 10 has it. The player leaves
+     this room by WINNING: the last frame of the death fade, main.c cuts to the
+     red LOADING screen and puts them down in the Outside Catacombs.
+
+     THE SEAL (STEP 9) went with it, as moot rather than as done. Its purpose is
+     to stop a player walking out of a fight through a door that is standing
+     there, and this room has no door: it is sealed by its geometry, and the
+     transition that ends it cannot be reached until the boss is dead. That is
+     the one hook in PART 5 that stays unwired, on purpose.
+
+  STILL TO DO: nothing in this room. What is left is the room BEHIND the
+  catacomb doors, which the mouth's Circle currently answers with "COMING SOON"
+  (src/outside_catacombs.h says where the one line to change is).
 
 
 
@@ -1471,3 +1639,242 @@ asag_clip_done() and a cycle would stop on it forever. A non-looping play HOLDS
 the last frame, which is what asag_clip_done() reports and what lets one clip
 hand over to the next. The corollary is that the scene's own phases, which run
 UNDER a looping idle, are all on frame counts instead.
+
+
+##########################################################################
+ PART 10 - THE ENDING: HOW THE PLAYER LEAVES THIS ROOM
+##########################################################################
+For several passes the most urgent line in this file was "there is no way out".
+There is one now, and the shape of it is the point: THE PLAYER NEVER WALKS OUT.
+Winning IS the exit. That is why the seal, the exit prompt and the whole
+asag_arena_exit_* API stayed deleted rather than coming back.
+
+---- THE THREE BEATS, AND THE THREE FILES --------------------------------
+Each beat is a scene director in its own translation unit, each one reports
+"finished" for exactly ONE frame, and main.c is what turns each of those frames
+into a transition. No beat knows what the next room is, which is the same
+division hatch_puzzle_drop_done() has with the drop that brought the player
+here.
+
+  BEAT 1   src/asag_boss.c      the death, ending in a CUT.
+           The settle, the freeze, the burn and the fade are unchanged. What
+           changed is the tail: ABE_D_CAM_BACK is GONE (its headstone is in the
+           timing block) and ABE_D_FADE now ends by setting `leaving`.
+           main.c's cutscene branch for the arena polls asag_boss_leaving().
+
+  BEAT 2   src/catacomb_open.c  the catacomb doors, in the OUTSIDE CATACOMBS.
+           A fixed vantage 1300 south of the facade, level with the tops of the
+           two leaves and tilted 18.9 degrees down onto them. One second held,
+           then the leaves SLIDE apart - 500 units each over eight seconds -
+           then the fifteen black backing polys behind them ramp to white over
+           two, then a second and a half held, then the cut.
+
+  BEAT 3   src/hatch_arrival.c  the drop off the well, back in THE HATCH.
+           The camera stands on the well top in front of the chain polys facing
+           south, holds four tenths of a second, arcs 490 forward and 185 down
+           onto the lawn in seven tenths, plays SFX_HURT on the landing, starts
+           the garden track, and releases. Free play from the next frame.
+
+---- THE TRANSITIONS ARE DOORLESS, WHICH IS A THING main.c HAD TO LEARN -----
+Every ordinary room change in this game is a DOOR: the trigger sets
+pending_area, starts a door or stair animation, and STATE_LOADING runs behind
+the black screen that animation has already faded to. Beats 1 and 2 have no
+door to animate and no reason to invent one, so they go the way a title-screen
+Load Game goes: straight to STATE_LOADING with the RED LOADING SCREEN over it.
+
+That took TWO pieces in main.c and both are load-bearing:
+
+  begin_loading_transition(to)   sets pending_area, stops the music, sets
+                                 game_state = STATE_LOADING. Nothing else.
+
+  the room branch's draw         if update_current_area() left game_state ==
+                                 STATE_LOADING, the room is NOT DRAWN and
+                                 show_loading_screen_now() runs instead.
+
+>>> THE SECOND ONE CANNOT BE FOLDED INTO THE FIRST, AND THE REASON IS THE OT.
+<<< draw_loading_screen() lays a full-screen opaque tile at ot[OT_LENGTH-1],
+the BACK of the table, so anything the room has already queued draws straight
+over the top of it. A loading screen put up from inside an update - before the
+room has drawn anything - would be correct for one frame and then buried by the
+room's own draw at the bottom of the same loop. It has to REPLACE the draw.
+
+And it has to happen inside the frame at all, rather than being left to
+STATE_LOADING on the next one, because STATE_LOADING BLOCKS: nothing reaches
+the television until the flip at the bottom of the loop, hundreds of
+milliseconds of CD access later. show_loading_screen_now()'s two draws and two
+flips fill BOTH framebuffers, so whichever one is being displayed already holds
+the red screen when the reads begin. That is the title branch's trick, for the
+title branch's reason.
+
+---- WHAT RIDES IN THE SAVE: ONE BIT ---------------------------------------
+FLAG_ASAG_DEAD, bit 30 of 32. Four things read it and ONE thing sets it, and
+which one is not obvious:
+
+  SET BY   src/catacomb_open.c, on the last frame of BEAT 2.
+  READ BY  src/catacomb_doors.c    poses the leaves shut or fully slid apart
+           src/outside_catacombs.c the backing polys glow; the mouth offers O
+           src/hatch_puzzle.c      the pit's sign and its Circle are retired
+           src/catacomb_open.c     its own glow accessor, for later visits
+
+>>> IT IS NOT SET AT THE END OF THE DEATH, AND THAT IS THE ONE TRAP IN THIS
+WHOLE ENDING. <<< catacomb_doors_init() poses the leaves FROM THIS FLAG on room
+entry, and beat 2's own arrival goes through that init. Set it in asag_boss.c
+when the fade ends and the player is carried to the Outside Catacombs to find
+the doors ALREADY OPEN, with a scene about to spend eight seconds sliding two
+leaves that are not there. src/player.h says the same thing at the declaration.
+
+---- WHERE THE TWO SCENES ARE ARMED, AND WHY IT IS NOT THE ROOM INIT --------
+Both are armed from main.c's RE-DERIVE BLOCK - the one after
+savegame_apply_pending() - and not from the rooms' own _init() functions, for
+the two reasons that block exists:
+
+  THE FLAGS ARE NOT FINAL AT INIT TIME. A room init runs BEFORE
+  savegame_apply_pending(), so on a title-screen Load Game the flags it reads
+  are the previous playthrough's. That is why catacomb_doors_init() is called
+  in BOTH places: the room's own init is what makes an ordinary walk in through
+  the south gate correct, the re-derive call is what makes a load correct, and
+  doing it in only one is wrong in the other.
+
+  THE SPAWN IS NOT FINAL EITHER. savegame_apply_pending() overwrites the room's
+  default spawn, so a scene that sets its own camera has to run after it or be
+  silently undone.
+
+Each is armed by the ENDING LATCH, not by looking at where the player came
+from. The first version captured `leaving_area = current_area` at the top of
+the STATE_LOADING branch and tested it; that reads correctly and is NOT SAFE,
+because current_area does not survive every route into a room. PART 10A has the
+trace and the rule. The latch is set by the code that takes each transition, on
+the line after asag_boss_leaving() / catacomb_open_finished() report.
+
+---- THE MUSIC IS SILENT FOR THE WHOLE ENDING ------------------------------
+...and the garden comes back on the landing frame, not on arrival. The boss
+track is cut on the KILLING BLOW (begin_death, and the note there); beats 1 and
+2 play over nothing; The Hatch's usual arrival cdaudio_play is SUPPRESSED on
+this one route so hatch_arrival.c can start it as the player's feet hit the
+grass. Roughly twenty seconds of silence, ending on the landing.
+
+---- VRAM: THE ARENA STILL OWES NOBODY A RESTORE ---------------------------
+Checked rather than assumed, because "the exit is a transition and the
+destination's uploader runs on the far side of it" is now a claim with a
+specific destination in it. The arena stamps three pages - mud x384 y0, Boss
+Wall x512 y0, asag x640 y0 - which clobber hedge, grdn_gte and chnlnk. Outside
+Catacombs re-uploads all three: the first two through
+garden_courtyard_upload_textures(), the third because its flower bed lands on
+the chnlnk slot. main.c's STATE_LOADING branch also runs
+rafflesias_upload_textures() for that room, which puts back the shared 128-row
+sprite pair the arena is allowed to take. Nothing is left showing another
+room's art. tools/VRAM_MAP_ASAG.txt records the same conclusion.
+
+---- WHAT IS STILL A PLACEHOLDER -------------------------------------------
+The room BEHIND the catacomb doors. Once they are open, the mouth carries the
+same "Press O to enter" sign every door in this game does, and Circle posts
+"COMING SOON" to the log. Replacing it is one line in
+outside_catacombs_mouth_update() - point a transition at the new room - exactly
+as src/hatch_puzzle.h's drop was a placeholder until this arena existed.
+
+
+##########################################################################
+ PART 10A - THE TWO THINGS THAT BROKE THE ENDING'S FIRST TRANSITION
+##########################################################################
+Both were found the same day the ending was built, both reported as one
+symptom, and neither was what the symptom looked like:
+
+    "the red LOADING screen comes up and I can see the axe in the corner
+     spinning for a bit but then it stops completely and the scene never
+     loads"
+
+>>> THE AXE STOPPING IS NOT A HANG. <<< loading_screen_pump() draws one frame
+between each step of the load, so the axe advancing IS the step counter. It
+stopping means the game died inside a step, and which step is a printf away.
+Do not go looking for a stuck CD read until the log says so.
+
+---- BUG 1: THE BOSS MODEL WAS STILL RESIDENT WHILE THE NEXT ROOM ALLOCATED --
+Tagged every loading_screen_pump() call site and force-booted the arena:
+
+    LOADSTEP 0 enter
+    Attempted unaligned JR to 0x0476003a from 0x800945dc, firing exception!
+    First chance exception: LoadAddressError from 0x800945dc
+
+0x800945dc resolves to VSync. It died in the FIRST step, load_area_geometry(),
+and the signature is tools/DIAGNOSING_A_BOOT_CRASH.txt section 2 exactly: the
+top of the heap is the stack, malloc does not know it, and a CdRead DMA'd
+through a saved return address.
+
+THE CAUSE WAS AN ORDERING THAT HAD BEEN WRONG FOR MONTHS AND UNREACHABLE. The
+comment above the boss-model frees says, in capitals, "DO IT HERE - FIRST,
+BEFORE ANYTHING ELSE ALLOCATES". The code did not: load_area_geometry() ran
+first. That call reads the incoming room's MESH into the shared BSS arena,
+which costs no heap - but it ALSO loads that room's per-room PROPS, and those
+are mallocs. The Outside Catacombs' props are the two catacomb door leaves, two
+2,048-byte reads.
+
+In the arena the clips reach 0x801da63c against an $sp of 0x801dbd40. That is
+5,892 bytes for two reads and their headers, and it does not fit.
+
+>>> IT HAD NEVER RUN BECAUSE THE ARENA HAD NO EXIT. <<< "Leave a room with
+92 KB of boss still resident and then allocate" was not a path that existed
+until the ending was built. Every other transition either had no boss loaded or
+an incoming room whose props were small enough not to matter.
+
+THE FIX is two lines moved: the rabisus_free_model()/asags_free_model() pair now
+runs BEFORE load_area_geometry(), which is what its own comment always claimed.
+
+---- BUG 2: current_area DOES NOT SURVIVE EVERY ROUTE INTO A ROOM ------------
+With the crash fixed the room loaded and the DOOR SCENE STILL DID NOT RUN. The
+scenes were armed like this:
+
+    GameState leaving_area = current_area;        /* top of STATE_LOADING */
+    ...
+    if (leaving_area == STATE_ASAG_ARENA) catacomb_open_start();
+
+which reads correctly and is not safe. Traced:
+
+    LOADSTEP ENTERED area=33      <- current_area = pending_area, correct
+    CURAREA frame=0  current_area=1
+    CURAREA frame=30 current_area=1
+
+>>> THE FRONTEND HOOK AT THE FOOT OF THE MAIN LOOP CLOBBERS IT. <<<
+
+    if (IS_FRONTEND(prev_state) && !IS_FRONTEND(game_state)) {
+        if (game_state == STATE_DELIVERY_AREA) {
+            ...
+        }
+        current_area = STATE_DELIVERY_AREA;      <- 12 spaces, NOT 16
+        world_new_game();
+
+That assignment is in the HOOK's body, not inside the delivery-only branch, so
+it fires on ANY exit from the title into gameplay - New Game, a title-screen
+Load Game, and a DEBUG LEVEL-SELECT JUMP - overwriting whatever the loading
+branch has just set. It is deliberate for New Game (world_new_game() on the
+next line depends on it) and it is left alone.
+
+>>> SO THE ENDING NO LONGER INFERS ITS ROUTE. <<< main.c carries an ENDING
+LATCH - an EndingBeat set on the line after asag_boss_leaving() and
+catacomb_open_finished() report, i.e. by the code that takes the transition, at
+the moment it takes it. Consumed in the re-derive block, cleared on any return
+to the title. Nothing downstream can overwrite it, and it makes the debug route
+work too: jump into the arena, win, and the ending runs.
+
+The Hatch's arrival-music suppression moved onto the same latch, so the whole
+ending is one mechanism rather than three tests of a variable that is not
+reliable.
+
+>>> THE GENERAL RULE, WHICH IS WORTH MORE THAN EITHER BUG: DO NOT ASK
+current_area WHERE THE PLAYER CAME FROM. <<< It answers correctly on a door
+transition and incorrectly on three other routes into the same room. If a
+scene needs to know how the player arrived, have the arrival TELL it.
+
+---- VERIFIED END TO END ---------------------------------------------------
+Headless, force-booting the arena and taking the ending's own transitions:
+
+    LOADSTEP ENTERED area=33            Asag's arena
+    ARMCHK beat=1 pending=22            the latch survives the load
+    COSCENE phase 1 slide=0             the 1 s hold, doors shut
+    COSCENE phase 2 slide=0             the slide starts
+    COSCENE phase 3 slide=500           GLOW - the leaves finished at full slide
+    COSCENE phase 4 slide=500           the hold
+    LOADSTEP ENTERED area=32            The Hatch
+    ARMCHK beat=2 pending=32
+    HASCENE landed at 3236,-189,2450    exactly HA_END_X/Y/Z
+
+    exceptions: 0

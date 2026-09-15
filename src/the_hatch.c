@@ -17,6 +17,7 @@
 #include "the_hatch_tex_map.h"
 #include "hatch_doors.h"        /* the two leaves over the pit */
 #include "hatch_puzzle.h"       /* ...their two keyholes, and the drop */
+#include "hatch_arrival.h"      /* the way BACK: the drop off the well */
 #include "btn_glyph.h"
 #include "door.h"
 #include "texmgr.h"
@@ -511,6 +512,12 @@ void the_hatch_init(void) {
        the lip's prompt on the arrival frame. It also drops any half-played
        scene, which is what a debug level-select jump out of the descent needs. */
     hatch_puzzle_arm();
+    /* ...and the drop OFF THE WELL, which is the way back into this room from
+       Asag's ending (src/hatch_arrival.h), parked so it cannot be inherited
+       half-played from a previous visit. main.c arms it from its re-derive
+       block, and only on the one route that should have it: in out of the
+       Outside Catacombs. */
+    hatch_arrival_reset();
 }
 
 /* ---- The red light in the pit, evaluated at a point ------------------------
