@@ -21,6 +21,56 @@
 #define CD_RIGHT  1
 #define CD_LEAVES 2
 
+/* ---- WHY THE LEAVES OUTRANK THE WALL THEY STAND IN -------------------------
+   The general case, the triage order and the art-side rule that prevents this
+   from being needed at all: tools/DIAGNOSING_DEPTH_SORTING.txt. This room is
+   that document's worked example, so the numbers below are repeated there.
+
+   >>> THE PAIR SORTS 256 WORLD UNITS IN FRONT OF WHERE IT ACTUALLY IS. <<<
+   Without this the black backing grid behind the mouth cut through them in
+   streaks whenever the player looked at the doorway off-axis, and that is not
+   a near-tie the OT could resolve with more buckets — the sort genuinely
+   INVERTS.
+
+   The PS1 sorts a poly by the average depth of its corners (gte_avsz4), which
+   is one number for the whole poly, so what actually decides a pair is
+
+       dviewz = dx * sin(theta)  +  dz * cos(theta)
+                 ^ lateral            ^ the separation you built
+
+   and the lateral term has nothing to do with depth. The leaves' front faces
+   are at z=3787; the fifteen untextured backing quads are at z=3850, so
+   dz = 63 — while dx between a leaf poly and a backing cell that overlaps it
+   on screen runs to 275 and past it. The sort therefore flips at
+   atan(dz/dx): 40 degrees for the pair at dx=75, and as little as 20 degrees
+   for the leaf poly at x=-125 against the backing cell at x=-300. Different
+   pairs flip at different angles, which is why it read as streaking rather
+   than the leaf simply disappearing.
+
+   Ties go to the WALL, not to chance: outside_catacombs_draw queues the room
+   mesh before it calls us, and addPrim pushes to the head of the bucket, so
+   within one OT slot the later-added primitive draws FIRST and gets painted
+   over. The zero-crossing was a loss.
+
+   64 buckets is 256 world units, and it is sized off the worst overlapping
+   pair rather than picked round: the error to beat is
+   (275 + 63*tan(t))*sin(t) - 63*cos(t), which is 195 units at 45 degrees and
+   301 at 60. Past that the leaf is nearly edge-on and covers no screen area
+   worth arguing about.
+
+   IT IS SAFE BECAUSE NOTHING STANDS IN THAT SLAB. The 256 units south of the
+   facade are inside the mouth's approach, which the room spawns nothing into —
+   anything that did stand there would now be drawn behind a door it is in
+   front of. The same bias is what sml_med.c buys with SML_MED_OT_BIAS 24
+   against co-located crates; this one is larger because it is fighting a wall
+   the leaves are set flush into rather than a crate they sit on.
+
+   >>> THE CLAMP AT THE USE SITE IS NOT DECORATION. <<< Every other draw in the
+   game only ever ADDS to otz, so +40 alone kept it clear of the menu's
+   reserved OT range for free. Subtracting 64 does not, and a leaf seen from
+   close up lands in single digits without it. */
+#define CD_OT_BIAS 64
+
 static const char *CD_MESH_FILE[CD_LEAVES] = {
     "\\TEX\\CTCMBDL.SMD;1", "\\TEX\\CTCMBDR.SMD;1",
 };
@@ -337,7 +387,8 @@ static void cd_draw_leaf(RenderContext *ctx, int leaf, MATRIX *view) {
             otz = is_quad ? otz_far4(sz[1], sz[2], v2_sz, sz[3])
                           : otz_far3(sz[1], sz[2], sz[3]);
         if (otz <= 0) { p += stride; continue; }
-        otz += 40;
+        otz += 40 - CD_OT_BIAS;
+        if (otz < SCENE_OT_MIN)   otz = SCENE_OT_MIN;
         if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
 
         uint8_t *col = p + 16;

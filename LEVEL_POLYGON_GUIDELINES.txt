@@ -26,10 +26,39 @@ are a reasonable trade-off. Making them significantly larger will make
 the artefact more noticeable; making them much smaller will increase the
 polygon count and can hurt performance without fully eliminating the issue.
 
+PROPS STANDING AGAINST WALLS
+---------------------------
+How far a prop sits IN FRONT of the surface behind it is a polygon
+guideline too, not just a modelling preference.
+
+The PS1 sorts each polygon by the average depth of its corners, so a
+prop and the wall behind it sort correctly only out to
+
+    theta_flip = atan(dz / dx)
+
+where dz is the gap you built and dx is the sideways offset between the
+two polygons' centres. A catacomb door built 63 units in front of a
+900-wide backing plane inverted at 20 degrees off-axis and the black
+wall sliced through it in streaks.
+
+RULE: aim for dz >= dx for any prop/wall pair that can overlap on
+screen, which keeps the sort correct out to 45 degrees. In practice:
+
+- Set backing surfaces 300+ units behind the prop, not 60.
+- Better, do not model a plane behind a prop at all -- cut the hole and
+  let the background clear show through.
+- Where the prop never moves and fully covers the surface, do not DRAW
+  the surface at all.
+
+Subdividing the wall helps only a little; fix dz first. Full diagnosis,
+the repair when the geometry cannot change, and the worked catacomb
+numbers are in tools/DIAGNOSING_DEPTH_SORTING.txt.
+
 GENERAL RULES
 -------------
 - Floors/ceilings: max ~300 PS1 units (3 Blender units) per edge
 - Walls: aim for ~400 PS1 units (4 Blender units) wide or less
+- Props against walls: gap >= sideways offset (see above)
 - Run subdivide_smx.py on assets/level1.smx after any geometry change,
   then reconvert with smxlink before building
 

@@ -1,0 +1,225 @@
+==============================================================================
+ DIAGNOSING DEPTH SORTING   "the wall behind it cuts through in streaks"
+==============================================================================
+
+Written after the September 2026 Outside Catacombs fix, where the black backing
+grid behind the catacomb mouth sliced through the two door leaves in streaks
+whenever the player looked at the doorway off-axis. Head-on it looked perfect.
+
+>>> THE ONE-LINE LESSON: A SORT THAT IS CORRECT HEAD-ON AND WRONG AT AN ANGLE
+    IS NOT A NEAR-TIE. IT IS A SIGN INVERSION, AND NO AMOUNT OF EXTRA OT
+    RESOLUTION WILL FIX IT. <<<
+
+Companion docs:
+  tools/DIAGNOSING_FRAME_RATE.txt  - the other "it looks wrong" runbook
+  tools/ADDING_A_ROOM.txt          - room geometry, view distance, culling
+  LEVEL_POLYGON_GUIDELINES.txt     - the art-side rule from section 6 below
+  src/render.h                     - poly_is_flat_y / otz_far3 / otz_far4
+
+
+------------------------------------------------------------------------------
+ 1. WHAT THE HARDWARE ACTUALLY GIVES YOU
+------------------------------------------------------------------------------
+
+There is no Z-buffer. There is one ordering table, and a polygon's slot in it
+comes from gte_avsz3/avsz4 — the AVERAGE depth of its corners. One number for
+the whole polygon. That is the entire depth facility on this machine.
+
+InitGeom sets ZSF3=341 / ZSF4=256, which makes
+
+    OTZ = avg(SZ) / 4          i.e. 4 world units per OT bucket
+
+and with OT_LENGTH 2048 that is 8192 units of range. The deepest room in this
+game culls at 3500 (GC_CULL_DIST), so roughly a quarter of the table is in use.
+
+>>> THIS IS NOT AN SDK SETTING YOU HAVE MISCONFIGURED. <<< PSn00bSDK offers
+gte_avsz3/4, ClearOTagR and addPrim. It has no sub-polygon depth facility
+anywhere in it, because the hardware has none. Do not go looking through the
+SDK for the switch. There isn't one.
+
+
+------------------------------------------------------------------------------
+ 2. THE FAILURE MODE, IN ONE EQUATION
+------------------------------------------------------------------------------
+
+Centroid sorting is not a depth test. Two polys sort correctly only when the
+difference in their CENTROID depths has the same sign as the difference in
+their REAL depths at the pixels where they overlap.
+
+View-space depth of a point is
+
+    viewz = (X - camx) * sin(theta) + (Z - camz) * cos(theta)
+
+so for two polys being compared:
+
+    dviewz = dx * sin(theta)  +  dz * cos(theta)
+              ^ LATERAL            ^ the separation you actually built
+
+The lateral term is the whole bug. It grows with view angle and has nothing to
+do with depth. Once |dx * sin(theta)| exceeds dz * cos(theta) the sort flips,
+and the flip angle is
+
+    theta_flip = atan(dz / dx)
+
+Read that as: a prop standing dz in front of a wall survives only out to the
+angle where its lateral offset from the wall poly overtakes dz. A small dz and
+a wide wall is a bug waiting for the player to turn their head.
+
+
+------------------------------------------------------------------------------
+ 3. WHY IT READS AS "STREAKING" AND NOT AS "THE PROP DISAPPEARS"
+------------------------------------------------------------------------------
+
+Every (prop poly, wall poly) pair has its own dx, so every pair has its own
+flip angle. As the player rotates, they cross those angles one at a time and
+the wall punches through in strips rather than all at once.
+
+The Outside Catacombs numbers, which are worth keeping as a worked example.
+Leaf front faces at z=3787, centroids x=-375 and x=-125. Backing grid at
+z=3850, cell centroids x=-300, 0, +300. So dz = 63 throughout:
+
+    leaf poly x    backing cell x     dx      flips at
+    -----------    --------------   -----     --------
+       -125             -300         -175      19.8 deg
+       -375             -300          +75      40.1 deg
+       -125                0         +125      26.7 deg
+
+63 units of build separation against 175 units of lateral offset. That is the
+whole story. Note the pair that fails FIRST is not the one with the largest dx
+— pairs only matter if they also overlap on screen, which section 5 covers.
+
+
+------------------------------------------------------------------------------
+ 4. TIES DO NOT GO TO CHANCE. THEY GO TO WHOEVER DREW FIRST.
+------------------------------------------------------------------------------
+
+addPrim pushes to the HEAD of the bucket list, and DrawOTagEnv walks from
+ot[OT_LENGTH-1] down. So within a single OT slot the LATER-added primitive is
+drawn FIRST and gets painted over by the earlier one.
+
+Room draws queue the mesh before they call the prop draws. Therefore:
+
+    >>> AT dotz == 0 THE ROOM WINS AND THE PROP LOSES, EVERY TIME. <<<
+
+The zero-crossing is not a coin flip you might get away with. It is a
+guaranteed loss for the prop, which is why the artifact appears the moment the
+margin reaches zero rather than somewhere past it.
+
+
+------------------------------------------------------------------------------
+ 5. THE FIX: AN OBJECT-LEVEL OT BIAS, SIZED OFF THE WORST OVERLAPPING PAIR
+------------------------------------------------------------------------------
+
+Give the prop explicit priority over the surface it is mounted on instead of
+letting it argue per-poly on centroid merit. This is what shipped PS1 games
+did, and there is precedent in this repo already:
+
+    src/sml_med.c        SML_MED_OT_BIAS 24   (96 units, vs co-located crates)
+    src/catacomb_doors.c CD_OT_BIAS      64   (256 units, vs the facade)
+    src/vampire.c        otz -= 3
+    src/zombie.c         otz += 2
+
+SIZING IT. Only pairs that OVERLAP ON SCREEN can fight, and that bounds dx:
+the prop poly's shadow on the wall plane is offset by only dz*tan(theta), so
+
+    max overlapping dx ~= (prop poly half-width)
+                        + (wall poly half-width)
+                        + dz * tan(theta)
+
+For the catacomb leaves that is 125 + 150 + 63*tan(theta) = 275 + 63*tan(theta),
+and the error to beat is
+
+    (275 + 63*tan(t)) * sin(t) - 63 * cos(t)
+        = 101 units at 30 deg
+        = 195 units at 45 deg
+        = 301 units at 60 deg
+
+256 units (64 buckets) covers past 45 degrees and most of the way to 60. Past
+60 the prop is nearly edge-on and covers almost no pixels, which is why the
+series is allowed to diverge rather than being chased to 90.
+
+>>> CLAMP TO SCENE_OT_MIN AT THE USE SITE. THIS IS NOT DECORATION. <<< Every
+other draw loop in this game only ever ADDS to otz, so the uniform +40 kept
+them clear of OT slots 0-15 — the menu's reserved range — for free. A negative
+bias does not. A prop seen from close up lands in single digits and starts
+fighting the inventory UI, in a room nowhere near the one you were fixing.
+The shape is:
+
+    otz += 40 - PROP_OT_BIAS;
+    if (otz < SCENE_OT_MIN)   otz = SCENE_OT_MIN;
+    if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
+
+WHAT IT COSTS. The bias applies unconditionally, so the prop now draws in front
+of ANYTHING inside that slab, not just the wall it was fighting. Before picking
+a number, ask what else can stand in those N units — an enemy that wanders
+there will sink into the prop. For the catacomb mouth the answer was "nothing
+spawns in the approach", which is what made 256 safe.
+
+
+------------------------------------------------------------------------------
+ 6. THE ART-SIDE RULE, WHICH IS THE ONE THAT PREVENTS IT
+------------------------------------------------------------------------------
+
+The bias is a repair. The cause was building a door 63 units in front of a
+900-unit-wide plane.
+
+    >>> IF YOU WANT THE SORT CORRECT OUT TO 45 DEGREES, YOU NEED dz >= dx FOR
+        ANY PAIR THAT CAN OVERLAP ON SCREEN. <<<
+
+In practice, for a prop against a wall:
+
+  - Set the backing surface much deeper. 300+ units buys you 60 degrees on the
+    same geometry that failed at 20.
+  - Better: do not model a plane behind a prop at all. Cut the hole and let the
+    hardware clear show through.
+  - Best of all, where it applies: do not DRAW the backing surface while the
+    prop completely covers it. The catacomb backing grid is 15 prims that are
+    invisible whenever the leaves are shut. Skipping them removes the fight and
+    saves the prims. (Not done for the catacombs, because the leaves slide open
+    and hit the grey facade with the same dz — but reach for it first when the
+    prop never moves.)
+
+Subdividing large polys helps, but less than you would hope: it shrinks each
+wall cell's dx, and diminishing returns arrive quickly against a small dz while
+the prim count keeps climbing. Fix dz first.
+
+
+------------------------------------------------------------------------------
+ 7. WHAT DOES NOT WORK, SO YOU DO NOT SPEND A DAY ON IT
+------------------------------------------------------------------------------
+
+RAISING OT RESOLUTION. You could switch to OTZ = avg/2 and stay inside
+OT_LENGTH at current cull distances. It will not help. This failure is a SIGN
+INVERSION — at 25 degrees off-axis the wall is genuinely NEARER by centroid, by
+20-odd units. Doubling the resolution just resolves the wrong answer more
+precisely. Keep the idea in your pocket for a genuine near-tie somewhere else.
+
+REACHING FOR poly_is_flat_y / otz_far4. The machinery in src/render.h beats the
+lateral term for HORIZONTAL polys by sorting them on their farthest corner,
+which is what stopped floors bleeding through the walls standing on them. There
+is no equivalent trick for two VERTICAL planes facing the same way. For those
+it is explicit priority (section 5) or geometry (section 6), and nothing else.
+
+BLAMING THE EXPORTER OR THE WINDING. Both were checked. A sort inversion looks
+nothing like a winding bug — a backwards winding vanishes under gte_nclip at
+ALL angles, where this is correct head-on and degrades smoothly as you turn.
+If turning the camera changes it, it is depth, not winding.
+
+
+------------------------------------------------------------------------------
+ 8. FAST TRIAGE
+------------------------------------------------------------------------------
+
+  1. Does it look right head-on and wrong at an angle?   -> this document.
+     Wrong at every angle?                               -> winding or culling.
+
+  2. Dump the two meshes and get dz and dx. tools/check_model_winding.py has a
+     working SMD loader to import (load() returns verts and prims); 20 lines on
+     top of it prints per-poly centroids and bounds.
+
+  3. Compute atan(dz/dx) for the pairs that overlap on screen. If it lands near
+     the angle where you SEE the artifact, the diagnosis is confirmed and you
+     can stop looking.
+
+  4. Apply section 5. Check section 6 for whether the geometry should change
+     too, so the next prop in that room does not repeat it.
