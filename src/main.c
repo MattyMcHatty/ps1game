@@ -317,6 +317,71 @@ static void handle_menu_open(void) {
     menu_start_prev = start_held;
 }
 
+/* ---- SOFT RESET: QUIT A SESSION AND GO BACK TO THE TITLE -------------------
+   There is no reset button on a controller, and the console's is the only other
+   way out of a run. This is that way out: the same deliberate handful that opens
+   the debug menu on the title screen (src/title.c's DEBUG_COMBO) ends the
+   session instead when it is held during one. The two combos are the same six
+   buttons ON PURPOSE — the screens they work on are disjoint, so neither can
+   ever fire on the other's — and they are kept in step by name below.
+
+   IT TAKES THE GAME-OVER SCREEN'S EXIT, VERBATIM: reset_game() then
+   STATE_TITLE, and nothing else. Everything a session has to give back on the
+   way out — the boss models, the sound bank, the delivery area's collision, the
+   music, the armed ending beats — is done by the return-to-title hook at the
+   foot of the main loop, which is keyed on the state CHANGE and so covers this
+   route for free. That is the whole reason to go out through the same two lines
+   rather than invent a quit path: there is exactly one teardown and this cannot
+   drift out of step with it. */
+#define SOFT_RESET_COMBO (PAD_L1 | PAD_L2 | PAD_R1 | PAD_R2 | PAD_SELECT | PAD_START)
+
+/* Fires on the frame the LAST of the six goes down, so the order they are
+   pressed in does not matter and holding them cannot re-fire. Start is one of
+   the six and opens the inventory menu on its own, so a player reaching for
+   this WILL usually open the menu first — which is why STATE_MENU is one of the
+   states the combo is honoured in (see soft_reset_allowed). */
+static int soft_reset_pressed(void) {
+    static uint16_t prev_held = 0;
+    if (!pad_buff_len[0]) { prev_held = 0; return 0; }
+    uint16_t held    = ~((PadResponse *)pad_buff[0])->btn;
+    uint16_t pressed = held & ~prev_held;
+    prev_held = held;
+    return (pressed & SOFT_RESET_COMBO) &&
+           (held & SOFT_RESET_COMBO) == SOFT_RESET_COMBO;
+}
+
+/* Where quitting is allowed. DEFAULT-ALLOW, deliberately: every room is a
+   game_state, and a default-deny switch here would be one more list that a new
+   room has to be added to and silently breaks when it is not. So this names the
+   handful of states where a quit would be WRONG instead:
+
+     TITLE / INTRO   - not in a session. (The title's own copy of these buttons
+                       opens the debug menu, and the intro is skipped with Start
+                       and reads from the disc.)
+     LOADING         - a single blocking frame of CD reads and mallocs that
+                       BUILDS the room. Leaving in the middle of it is the one
+                       thing that could hand the title a half-made area.
+     DOOR / STAIR    - the transitions that run just before it, with a
+                       destination already staged in pending_area.
+     SAVE_MENU       - a memory-card write may be one frame away; the card is
+                       not something to yank a frame out from under.
+
+   Everything else — free roam, the inventory menu, cutscenes, the camera-locked
+   puzzles, a boss fight, even the game-over screen itself — is fair game. */
+static int soft_reset_allowed(GameState s) {
+    switch (s) {
+        case STATE_TITLE:
+        case STATE_INTRO:
+        case STATE_LOADING:
+        case STATE_DOOR_ANIM:
+        case STATE_STAIR_ANIM:
+        case STATE_SAVE_MENU:
+            return 0;
+        default:
+            return 1;
+    }
+}
+
 /* ---- A ROOM TRANSITION THAT SHOWS THE RED LOADING SCREEN -------------------
    Every ordinary way out of a room in this game is a DOOR: the trigger sets
    pending_area, starts a door or stair animation, and STATE_LOADING runs behind
@@ -3637,6 +3702,30 @@ int main(int argc, const char **argv) {
             }
         }
 
+        /* THE SOFT RESET (see soft_reset_allowed, above the main loop). Checked
+           HERE, at the bottom of the dispatch rather than the top of the loop,
+           because this is the spot the game-over screen's own exit occupies: the
+           state the player was looking at has already updated and DRAWN for this
+           frame, and the title takes over on the next one. Putting it at the top
+           instead ran the title's branch on the same frame as the teardown —
+           drawing the title letters over gameplay's black clear colour, and
+           worse, stepping the title's input before the hook below had a chance
+           to swallow the six buttons that are still held.
+
+           The teardown itself is entirely the return-to-title hook's: this sets
+           the two things game over sets and nothing more.
+
+           THE EDGE DETECTOR COMES FIRST IN THE TEST on purpose: it has to see
+           every frame, including the ones the quit is not allowed on, or its
+           idea of "already held" goes stale across them. Holding the title's
+           debug combo all the way through a level-select load would otherwise
+           arrive in the room looking like a fresh press and bounce straight
+           back out. */
+        if (soft_reset_pressed() && soft_reset_allowed(game_state)) {
+            reset_game(&ctx);
+            game_state = STATE_TITLE;
+        }
+
         /* CD-DA music: start once when leaving the title for gameplay, stop
            when returning to the title. In-game area transitions do their CD work
            inside STATE_LOADING, which suspends playback around it. */
@@ -3739,6 +3828,12 @@ int main(int argc, const char **argv) {
         }
         if (!IS_FRONTEND(prev_state) && game_state == STATE_TITLE) {
             cdaudio_stop();
+            /* Every route back to this screen arrives with buttons still down —
+               Start from the game-over and trial-end screens, all six of the
+               soft-reset combo from a quit — and the title's edge detector would
+               otherwise treat the release-and-repress of nothing as a fresh
+               press. Swallow the lot. */
+            title_input_arm();
             /* A session abandoned part way through Asag's ending must not arm a
                scene in the next one. See the latch's note. */
             ending_beat = ENDING_NONE;

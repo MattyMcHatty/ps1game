@@ -701,9 +701,24 @@ WORTH KEEPING:
     were then, which is
     MORE than dropping the whole boss from 8 fps to 6 would have saved, and it
     costs nothing visually - src/asag.c unpacks one frame into a 640-byte
-    scratch before the draw. src/rabisu.c still reads PVA1 in place and is
-    untouched; the Blender add-on still writes PVA1, so hand exports are the way
-    to put this back over the line.
+    scratch before the draw.
+
+    >>> AND IN SEPTEMBER 2026 THE RABISU NEEDED THE SAME THING, FOR THE SAME
+    REASON, IN THE ROOM THIS PART KEEPS CALLING THE TIGHTEST DOOR IN THE GAME.
+    <<< Building this fight and its ending moved _end up, and the Garden
+    Courtyard's 104,448-byte model stopped fitting in the 91,992 bytes measured
+    under the stack there. It did not degrade: CdRead DMA'd the clip through a
+    saved return address and the room went black and never loaded. Everything
+    in this part was checked against ASAG'S door and nobody re-measured the
+    RABISU'S, which needs 12 KB more than Asag's does.
+
+    RBSIDLE.PVA is PVA2 now - converted in place by tools/pack_pva.py rather
+    than re-baked - and src/rabisu.c unpacks a frame like this module does and
+    REFUSES a read that would cross $sp like this module does. That door has
+    about 2 KB of slack left, so it is the first thing to re-measure after
+    anything that moves _end. The Blender add-on still writes PVA1, so hand
+    exports are the way to put this back over the line - run pack_pva.py on
+    them.
 
 The arena's 20 KB texture scratch is NOT added to that: main.c loads the model
 AFTER asag_arena_upload_textures() rather than before it, so the scratch has

@@ -122,6 +122,12 @@ extern GameState pending_area;   /* area STATE_LOADING will switch to once set u
 void title_init(void);
 void update_title(void);
 void draw_title(RenderContext *ctx);
+
+/* Discard whatever is held on the pad when the title next runs, so buttons
+   still down on the screen we came FROM cannot act here. main.c calls it on
+   every route back to the title; see the definition in title.c. */
+void title_input_arm(void);
+
 void draw_loading_screen(RenderContext *ctx);
 
 /* Read the crucifaxe icon the loading screen's animated axe is drawn with.

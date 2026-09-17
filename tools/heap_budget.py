@@ -40,7 +40,7 @@ WHAT COUNTS AS PERMANENT
                      the heap.
 
 >>> A BOSS MODEL IS ROOM-SCOPED, NOT RESIDENT, AND THAT IS LOAD-BEARING. <<<
-The Rabisu's RABISU.SMD + RBSIDLE.PVA are 104,448 bytes and WERE read at startup
+The Rabisu's RABISU.SMD + RBSIDLE.PVA were 104,448 bytes and WERE read at startup
 and never freed, for a boss that exists in exactly one room. That was the single
 largest avoidable item in this budget and it was blocking the second boss from
 having a model at all. They are now loaded from main.c's STATE_LOADING when the
@@ -315,11 +315,32 @@ print("      THAT IS WHAT KILLS YOU, AND IT IS PER-ROOM. <<<")
 print("      The GARDEN COURTYARD is the tightest door in the game: it is the")
 print("      only transition that loads SND_BANK_BOSS, whose EMERGE clip is a")
 print("      71,680-byte malloc — the largest single transient anywhere here —")
-print("      and the Rabisu's 104,448-byte model is loaded at the same door.")
-print("      Held together that is 176,128 bytes at one instant; main.c now")
-print("      SEQUENCES them (free before the bank swap, load after) so the peak")
-print("      is 104,448. Work the peak out by hand for any room you touch.")
+print("      and the Rabisu's model is loaded at the same door. Held together")
+print("      they would be 176,128 bytes at one instant; main.c SEQUENCES them")
+print("      (free before the bank swap, load after) so the peak is the model")
+print("      alone. Work the peak out by hand for any room you touch.")
 print("      See tools/DIAGNOSING_A_BOOT_CRASH.txt section 8.")
+print()
+print("  >>> AND IN SEPTEMBER 2026 THAT DOOR STOPPED FITTING. IT IS MEASURED")
+print("      NOW, AND THE NUMBERS ARE THESE. <<< Asag's fight and its ending")
+print("      moved _end up under a heap with no margin left. Nothing about the")
+print("      courtyard changed; its 104,448-byte model simply stopped fitting")
+print("      in what was under the stack, malloc handed out stack memory as it")
+print("      always does, and CdRead DMA'd the clip through a return address:")
+print("      the room went black and never loaded.")
+print("          run under the stack at that door   91,992 bytes  (MEASURED)")
+print("          asked for, before                 104,448       CRASH")
+print("          asks for now                       89,984       fits")
+print("      The clip is PVA2 (packed, a quarter smaller: tools/pack_pva.py),")
+print("      which bought 18,848 bytes, and 3,968 of those went back on an")
+print("      unpack scratch. THAT LEAVES ABOUT 2 KB OF SLACK AT THIS DOOR, so")
+print("      it is the first thing to re-measure after anything that moves")
+print("      _end. src/rabisu.c's read_file now REFUSES a read that would")
+print("      cross $sp, so the next time this runs out it is a boss holding")
+print("      its bind pose — or not drawn at all — and not a wild jump.")
+print("      Method: force-boot the room in a headless build and print each")
+print("      buffer against $sp. See src/rabisu.c and PART 6 of")
+print("      tools/ADDING_THE_ASAG_FIGHT.txt.")
 print()
 print("  >>> AND THE ~234 KB CLIFF IN THAT DOCUMENT WAS A UNITS BUG. <<<")
 print("      It was measured against a FREE AT REST that did not subtract")

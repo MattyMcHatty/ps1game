@@ -427,10 +427,15 @@ static void *read_file(const char *name) {
    have played, and it looked for all the world like an animation with no motion
    in it. Packed, the same six are 102,400 and all of them fit.
 
-   BOTH ARE ACCEPTED HERE. src/rabisu.c still points directly into its PVA1
-   buffer and is deliberately untouched, and the Blender add-on still writes
-   PVA1 by default - only tools/export_asag.py asks for packing. A PVA1 clip
-   dropped into this table keeps working, it is just bigger.
+   BOTH ARE ACCEPTED HERE, and in src/rabisu.c too - IT IS PACKED NOW AS WELL.
+   It pointed straight into its PVA1 buffer for months, and in September 2026
+   that cost the Garden Courtyard the same way the pad cost this boss a clip:
+   the room stopped loading at all. Its clip was converted in place with
+   tools/pack_pva.py and it unpacks a frame exactly as this does. THE BLENDER
+   ADD-ON STILL WRITES PVA1 BY DEFAULT - only tools/export_asag.py asks for
+   packing - so a hand re-export of ANY clip in the game comes back a quarter
+   bigger and has to be run through that script. A PVA1 clip dropped into this
+   table keeps working, it is just bigger.
 
    >>> AND THE VERTEX-COUNT CHECK IS WHAT KEEPS A STALE CLIP FROM DRAWING
    GARBAGE. <<< Positions are indexed by the .smd's polygon indices, so a clip

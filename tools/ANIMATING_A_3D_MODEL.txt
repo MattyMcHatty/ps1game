@@ -131,6 +131,28 @@ Both exports must come from the SAME .blend, at a frame inside the clip.
     range, --fps to stamp the header, --no-trim-loop to keep a duplicate last
     frame (for a one-shot that genuinely ends where it began).
 
+2d. >>> PACK IT. THE EXPORTER WRITES PVA1 AND PVA1 IS A QUARTER WASTE. <<<
+
+      py tools\pack_pva.py assets\bosses\Rabisu_idle.pva
+
+    PVA1 stores four int16 per vertex and the fourth is ALWAYS ZERO. PVA2 stores
+    three. Same coordinates, same frames, nothing visible changes, and the file
+    loses 25%. The loaders branch on the magic and take either.
+
+    THIS IS NOT AN OPTIMISATION YOU CAN SKIP ON THE RABISU. Its clip and its
+    model are read on entry to the Garden Courtyard, which is the tightest door
+    in the game, and in September 2026 an unpacked clip did not fit: the read
+    ran past $sp, CdRead DMA'd through a return address, and THE ROOM WENT BLACK
+    AND NEVER LOADED. Packed, it fits with about 2 KB to spare. The same pad had
+    already cost Asag a whole animation clip, twice. See PART 6 of
+    tools/ADDING_THE_ASAG_FIGHT.txt and the read_file note in src/rabisu.c.
+
+    So: ANY re-export of ANY clip goes through this script before it is packed
+    onto the disc. The Blender add-on has not changed and still writes PVA1, so
+    this step is the only thing standing between a re-export and that crash.
+    The script verifies the pad really is zero and refuses if it is not, and
+    --check reports the saving without writing.
+
 
 ##########################################################################
  STEP 3 — VERIFY BEFORE WIRING
@@ -146,15 +168,21 @@ Both exports must come from the SAME .blend, at a frame inside the clip.
     vertices, since both are the same pose of the same mesh:
 
       py -c "import struct; d=open('assets/bosses/Rabisu_idle.pva','rb').read(); ^
-        nv,nf=struct.unpack('<HH',d[4:8]); ^
+        nv,nf=struct.unpack('<HH',d[4:8]); st=8 if d[3:4]==b'1' else 6; ^
         m=open('assets/bosses/Rabisu.smd','rb').read(); ^
         mv=struct.unpack('<H',m[6:8])[0]; pv=struct.unpack('<I',m[12:16])[0]; ^
-        a=[struct.unpack('<hhh',d[12+i*8:12+i*8+6]) for i in range(nv)]; ^
+        a=[struct.unpack('<hhh',d[12+i*st:12+i*st+6]) for i in range(nv)]; ^
         b=[struct.unpack('<hhh',m[pv+i*8:pv+i*8+6]) for i in range(mv)]; ^
-        print('verts',nv,mv,'frames',nf,'max delta', ^
+        print(d[:4],'verts',nv,mv,'frames',nf,'max delta', ^
               max(max(abs(x-y) for x,y in zip(p,q)) for p,q in zip(a,b)))"
 
     Wants matching vertex counts and "max delta 0".
+
+    >>> THE STRIDE IS READ OFF THE MAGIC, and it has to be. <<< A PVA1 vertex is
+    four int16 and a PVA2 vertex is three (see 2d), so a checker hard-coded to
+    one of them reads every frame but the first at the wrong offset and reports
+    a large delta on a perfectly good file. This one prints the magic so you can
+    see which you have.
 
 
 ##########################################################################

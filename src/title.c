@@ -766,6 +766,22 @@ static uint16_t nav_repeat(uint16_t held, uint16_t pressed) {
     return 0;
 }
 
+/* Set when the title is handed the screen back mid-session, so the first frame
+   here re-baselines the edge detector instead of acting on it. See
+   title_input_arm below. */
+static int input_rebase = 0;
+
+/* SWALLOW WHATEVER IS STILL HELD when the title comes back. The edge detector
+   below is a function-local static, so returning to this screen resumes with
+   whatever was down the LAST time it ran — and every route back arrives with
+   buttons down: Start on the game-over and trial-end screens, and all six of
+   DEBUG_COMBO on the in-game soft reset, which is the same six that open the
+   debug menu. Without this, quitting to the title with the soft reset dropped
+   the player straight into the debug menu on arrival.
+
+   Called from main.c's return-to-title hook, so every route in is covered. */
+void title_input_arm(void) { input_rebase = 1; }
+
 void update_title(void) {
     if (!pad_buff_len[0]) return;
     PadResponse *pad = (PadResponse *)pad_buff[0];
@@ -773,6 +789,15 @@ void update_title(void) {
     /* Edge-detect newly pressed buttons (pad bits are active-low). */
     static uint16_t prev_held = 0;
     uint16_t held    = ~pad->btn;
+
+    /* One frame of nothing-happens: everything held on arrival becomes "was
+       already down", so only a press made after a release counts. */
+    if (input_rebase) {
+        input_rebase = 0;
+        prev_held    = held;
+        return;
+    }
+
     uint16_t pressed = held & ~prev_held;
     prev_held = held;
 

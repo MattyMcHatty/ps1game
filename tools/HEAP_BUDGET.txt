@@ -37,7 +37,7 @@ WHAT COUNTS AS PERMANENT
                      the heap.
 
 >>> A BOSS MODEL IS ROOM-SCOPED, NOT RESIDENT, AND THAT IS LOAD-BEARING. <<<
-The Rabisu's RABISU.SMD + RBSIDLE.PVA are 104,448 bytes and WERE read at startup
+The Rabisu's RABISU.SMD + RBSIDLE.PVA were 104,448 bytes and WERE read at startup
 and never freed, for a boss that exists in exactly one room. That was the single
 largest avoidable item in this budget and it was blocking the second boss from
 having a model at all. They are now loaded from main.c's STATE_LOADING when the
@@ -103,7 +103,7 @@ KEPT BUFFERS  (read once, pointer stashed, never freed)
   TOTAL                                      45056
 
 ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
-  rabisu.c                 RBSIDLE.PVA       75776  -> p
+  rabisu.c                 RBSIDLE.PVA       57344  -> p
   fatdoor.c                WDDR.TIM          34816  -> tim_buf
   rabisu.c                 RABISU.SMD        28672  -> rabisu_buff
   asag.c                   ASGHSLAM.PVA      24012  -> asags_free_model()
@@ -115,24 +115,24 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   grinder.c                GRINDER.TIM        6144  -> tbuf
   asag.c                   ASGHIDLE.PVA       4812  -> asags_free_model()
   asag.c                   ASGBODY.SMD        4468  -> asags_free_model()
-  TOTAL                                     258256   <- PEAK, not a resting cost
+  TOTAL                                     239824   <- PEAK, not a resting cost
 
   These cost nothing at rest and everything at the moment they are in.
   The transition that loads them is the peak this heap has to survive,
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x800EB51C
+  _end (heap start)   0x800ED714
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             985124 bytes (962 KB)
+  heap size             976428 bytes (954 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr resident       765952 bytes (748 KB)  77.8%
+  texmgr resident       765952 bytes (748 KB)  78.4%
   kept buffers           45056 bytes (44 KB)   4.6%
-  PERMANENT TOTAL       811008 bytes (792 KB)  82.3%
-  FREE AT REST          174116 bytes (170 KB)  17.7%   <- STACK ALREADY SUBTRACTED
-                                  (was 322268 before the stack was counted;
+  PERMANENT TOTAL       811008 bytes (792 KB)  83.1%
+  FREE AT REST          165420 bytes (162 KB)  16.9%   <- STACK ALREADY SUBTRACTED
+                                  (was 313572 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -140,11 +140,32 @@ THE HEAP
       The GARDEN COURTYARD is the tightest door in the game: it is the
       only transition that loads SND_BANK_BOSS, whose EMERGE clip is a
       71,680-byte malloc — the largest single transient anywhere here —
-      and the Rabisu's 104,448-byte model is loaded at the same door.
-      Held together that is 176,128 bytes at one instant; main.c now
-      SEQUENCES them (free before the bank swap, load after) so the peak
-      is 104,448. Work the peak out by hand for any room you touch.
+      and the Rabisu's model is loaded at the same door. Held together
+      they would be 176,128 bytes at one instant; main.c SEQUENCES them
+      (free before the bank swap, load after) so the peak is the model
+      alone. Work the peak out by hand for any room you touch.
       See tools/DIAGNOSING_A_BOOT_CRASH.txt section 8.
+
+  >>> AND IN SEPTEMBER 2026 THAT DOOR STOPPED FITTING. IT IS MEASURED
+      NOW, AND THE NUMBERS ARE THESE. <<< Asag's fight and its ending
+      moved _end up under a heap with no margin left. Nothing about the
+      courtyard changed; its 104,448-byte model simply stopped fitting
+      in what was under the stack, malloc handed out stack memory as it
+      always does, and CdRead DMA'd the clip through a return address:
+      the room went black and never loaded.
+          run under the stack at that door   91,992 bytes  (MEASURED)
+          asked for, before                 104,448       CRASH
+          asks for now                       89,984       fits
+      The clip is PVA2 (packed, a quarter smaller: tools/pack_pva.py),
+      which bought 18,848 bytes, and 3,968 of those went back on an
+      unpack scratch. THAT LEAVES ABOUT 2 KB OF SLACK AT THIS DOOR, so
+      it is the first thing to re-measure after anything that moves
+      _end. src/rabisu.c's read_file now REFUSES a read that would
+      cross $sp, so the next time this runs out it is a boss holding
+      its bind pose — or not drawn at all — and not a wild jump.
+      Method: force-boot the room in a headless build and print each
+      buffer against $sp. See src/rabisu.c and PART 6 of
+      tools/ADDING_THE_ASAG_FIGHT.txt.
 
   >>> AND THE ~234 KB CLIFF IN THAT DOCUMENT WAS A UNITS BUG. <<<
       It was measured against a FREE AT REST that did not subtract
@@ -158,14 +179,14 @@ THE HEAP
 
   The largest single transient allocation still has to fit in what is
   free, and startup makes several: the kitchen's 32768-byte scratch, and
-  every read_file above (largest 75776 bytes). Keep FREE AT REST well clear
+  every read_file above (largest 57344 bytes). Keep FREE AT REST well clear
   of six figures. >>> AND IT IS STILL A RESTING TOTAL. <<< A transition
   can hold several of the loads above at once, and the room whose door
   is tightest is not the room you are editing. Work the peak out by
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 170 KB printed above.
+  once read_file's margin comes off - against the 161 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

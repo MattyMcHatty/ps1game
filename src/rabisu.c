@@ -66,12 +66,80 @@ static int32_t isqrt32(int32_t v) {
     return last;
 }
 
+/* ---- read_file, WITH A STACK GUARD AND AN EXACT BUFFER ---------------------
+   >>> THIS USED TO BE THE NAIVE VERSION, AND IN SEPTEMBER 2026 IT CRASHED THE
+   GAME EVERY TIME THE PLAYER ENTERED THE GARDEN COURTYARD. <<< It asked for
+   `sectors * 2048` and trusted malloc, and this door is the tightest in the
+   game. What came back was memory the STACK was already using:
+
+       RBSIDLE.PVA  buf=0x801cc640 end=0x801dee40  sp=0x801dbd88
+       Attempted unaligned JR to 0xfe72ff8f from 0x80097180
+
+   — the clip's buffer ran 12,104 bytes past $sp, CdRead DMA'd vertex positions
+   through the saved return address, and the console jumped into a coordinate
+   pair. That is tools/DIAGNOSING_A_BOOT_CRASH.txt section 2 exactly, and the
+   room simply never finished loading: the screen stayed black.
+
+   NOTHING ABOUT THIS ROOM HAD CHANGED. Building Asag's fight and its ending
+   moved _end up under a heap that had no margin left, and the 104,448 bytes
+   this module asks for stopped fitting in what was under the stack. The clip is
+   PVA2 now (a quarter smaller — see the note below), which is what made it fit
+   again, but the REASON it was a crash rather than a shrug is this function, so
+   it is now src/asag.c's:
+
+     - THE GUARD. Reading $sp gives the true ceiling at this exact call site,
+       which is deeper in the call chain than any budget script can model. A
+       refused read leaves the model or the clip absent — the boss holds its
+       bind pose, or is not drawn at all — which is visible and harmless
+       instead of corrupting somebody's return address. The margin covers the
+       frames BELOW us: CdRead, CdReadSync and the interrupt handler all push
+       after this point. 2048 is a whole sector and twenty-one times the 96
+       bytes those were MEASURED to touch; see asag.c's note before changing it.
+
+   >>> AND THE BUFFER IS STILL SECTOR-ROUNDED, WHICH IS NOT AN OVERSIGHT. <<<
+   src/asag.c sizes its buffers to the FILE and reads the partial last sector
+   through a shared one-sector scratch, and copying that here was tried first:
+   it saves 2,040 bytes across these two reads, which at the top of the heap is
+   real money. IT MADE THIS DOOR WORSE, MEASURED, AND THE REASON IS THE
+   ALLOCATOR AND NOT THE ARITHMETIC. Taking the little scratch before the two
+   big reads moved the model's buffer 10,112 bytes UP the heap — the run under
+   the stack starts at a fixed place and a small allocation taken first makes
+   the next big one skip it — so the clip ended past $sp and the guard refused
+   it, on a build that had 8 KB of room:
+
+       tail_scratch 0x801bdd58       (a low hole, as intended)
+       RABISU.SMD   0x801c7db0       <- 0x801c5630 without it
+       RBSIDLE.PVA  0x801ce740 .. 0x801dc42c   sp 0x801dbd50   REFUSED
+
+   With nothing taken first the two reads land at 0x801c5630 and 0x801cc640 and
+   both fit. So this module keeps the naive rounding and buys its bytes from the
+   CLIP instead, where 18,848 of them were, and the unpack scratch is taken
+   AFTER both reads for the same reason. If you ever want the 2,040 back, that
+   is a change to make against a MEASUREMENT of this door, not against the
+   table in tools/HEAP_BUDGET.txt.
+
+   >>> A REFUSAL IS SILENT BY DESIGN, AND THAT IS THE THING TO REMEMBER WHEN
+   DEBUGGING THIS BOSS. <<< An absent model draws nothing while the Rabisu is
+   still solid and still attacking; an absent clip holds the bind pose. If that
+   is ever what you are looking at, this guard fired and the door is out of
+   heap — measure it, do not guess. tools/HEAP_BUDGET.txt has the method. */
+#define RBS_STACK_MARGIN 2048
+
 static void *read_file(const char *name) {
     CdlFILE file;
     if (!CdSearchFile(&file, (char *)name)) return NULL;
     int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
+    int alloc   = sectors * 2048;
+    void *buf   = malloc(alloc);
     if (!buf) return NULL;
+
+    uint32_t sp;
+    __asm__ volatile("move %0, $sp" : "=r"(sp));
+    if ((uint32_t)buf + (uint32_t)alloc + RBS_STACK_MARGIN > sp) {
+        free(buf);
+        return NULL;      /* out of heap: this model/clip simply will not exist */
+    }
+
     CdControl(CdlSetloc, &file.pos, NULL);
     CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
     CdReadSync(0, NULL);
@@ -91,14 +159,45 @@ static void *read_file(const char *name) {
    two files must be exported from the same mesh and why the vertex count is
    checked below before a single frame is trusted.
 
-   Cost: 19 frames x 496 verts x 8 bytes = 73.6 KB resident. That is the price
-   of the approach and it scales linearly with every clip added — see
-   tools/ANIMATING_A_3D_MODEL.txt before adding the fourth or fifth. */
+   >>> THE CLIP IS PVA2 NOW, AND THAT IS WHAT MAKES THIS DOOR FIT. <<< PVA1
+   stores FOUR int16 per vertex — x, y, z and a pad that is always zero — which
+   is exactly an SVECTOR, so the draw could point straight into the file and
+   this module did. PVA2 drops the pad and stores three: same coordinates, same
+   frame order, same header, A QUARTER SMALLER.
+
+       PVA1   19 frames x 496 verts x 8   =  75,404 bytes
+       PVA2   19 frames x 496 verts x 6   =  56,556 bytes   (-18,848)
+
+   THE PAD WAS COSTING 18.8 KB OF ZEROES AT THE TOP OF THE HEAP, and in
+   September 2026 that was the difference between this room loading and not: the
+   Garden Courtyard door had 91,992 bytes under the stack and was asking for
+   104,448. See read_file's note above for the crash, and
+   tools/ADDING_THE_ASAG_FIGHT.txt PART 6 for why this door is the tightest in
+   the game. Asag's six clips were packed for the same reason a pass earlier;
+   this one was converted in place with tools/pack_pva.py, because the animation
+   was already exported and there was no reason to re-bake it to save the bytes.
+
+   >>> BOTH FORMATS ARE ACCEPTED, AND THE BLENDER ADD-ON STILL WRITES PVA1. <<<
+   tools/io_export_pva.py has not changed, so a re-export of this clip comes
+   back UNPACKED and 18.8 KB bigger, and the room goes straight back over the
+   edge — except that it will now fail as a boss holding its bind pose rather
+   than as a crash. RUN tools/pack_pva.py ON IT AFTER ANY RE-EXPORT.
+
+   Cost: 56.6 KB while the player is in the courtyard, and it scales linearly
+   with every clip added — see tools/ANIMATING_A_3D_MODEL.txt before adding the
+   fourth or fifth. */
 #define PVA_HEADER_SIZE   12
 
 static void    *rabisu_anim_buff   = NULL;
-static SVECTOR *rabisu_anim_frames = NULL;   /* n_frames blocks of n_verts */
+static int16_t *rabisu_anim_data   = NULL;   /* n_frames blocks of n_verts */
+static int      rabisu_anim_stride = 0;      /* int16 per vertex: 4 or 3 */
 static int      rabisu_anim_count  = 0;      /* 0 = play the bind pose */
+
+/* One frame's worth of unpacked vertices, for PVA2 (see rbs_verts). 3,968 bytes
+   for this model, taken and freed with the model. A PVA1 clip never touches it:
+   its frames are already SVECTOR arrays and the draw reads them where they lie,
+   which is why the packing is a saving and not a straight trade. */
+static SVECTOR *rabisu_pose_buf    = NULL;
 
 static void rabisus_load_anim(void) {
     if (!rabisu_smd) return;
@@ -108,9 +207,14 @@ static void rabisus_load_anim(void) {
     /* Fields read byte-wise rather than through a struct: the file is
        little-endian and packed, and a struct would invite the compiler to pad
        it. */
-    if (p[0] != 'P' || p[1] != 'V' || p[2] != 'A' || p[3] != '1') { free(p); return; }
+    int stride;
+    if (p[0] != 'P' || p[1] != 'V' || p[2] != 'A')                   { free(p); return; }
+    else if (p[3] == '1')                                            stride = 4;
+    else if (p[3] == '2')                                            stride = 3;
+    else                                                             { free(p); return; }
     int n_verts  = p[4] | (p[5] << 8);
     int n_frames = p[6] | (p[7] << 8);
+
 
     /* >>> The check that keeps a stale .pva from drawing garbage. <<< Positions
        are indexed by the .smd's polygon indices, so a file baked from a mesh
@@ -119,7 +223,8 @@ static void rabisus_load_anim(void) {
     if (n_verts != rabisu_smd->n_verts || n_frames <= 0) { free(p); return; }
 
     rabisu_anim_buff   = p;
-    rabisu_anim_frames = (SVECTOR *)(p + PVA_HEADER_SIZE);
+    rabisu_anim_data   = (int16_t *)(p + PVA_HEADER_SIZE);
+    rabisu_anim_stride = stride;
     rabisu_anim_count  = n_frames;
 }
 
@@ -167,7 +272,7 @@ void rabisus_load_assets(void) {
    WHAT MADE IT SAFE, and it is worth writing down because it is the check to
    repeat before doing the same to any other entity:
 
-     - rabisu_smd and rabisu_anim_frames are read by ONE thing, the draw. Every
+     - rabisu_smd and rabisu_anim_data are read by ONE thing, the draw. Every
        path to them runs behind draw_rabisus()'s existing
        `if (!rabisu_smd || rabisu_count == 0) return;`, and rbs_verts() — the
        only other dereference — is called from inside that draw and nowhere
@@ -201,23 +306,72 @@ void rabisus_load_model(void) {
     if (rabisu_smd) return;                  /* already in */
 
     cdaudio_suspend();
-    /* In TEX, not the disc root: the root directory records must all fit
-       the first 2048-byte sector or the boot ROM cannot find SYSTEM.CNF
-       and the console hangs at the logo. See the comment in disc.xml. */
+
+    /* >>> NOTHING IS ALLOCATED BEFORE THESE TWO READS, AND THAT IS A RULE THIS
+       DOOR PAID FOR. <<< They are 86,016 bytes into a run of about 92,000 under
+       the stack, they only fit if they land at the bottom of it, and a small
+       allocation taken first makes them land 10 KB higher — see read_file's
+       note. The unpack scratch below is 3,968 bytes and it goes AFTER them for
+       exactly that reason; it lands in a low hole, where it costs nothing.
+
+       In TEX, not the disc root: the root directory records must all fit the
+       first 2048-byte sector or the boot ROM cannot find SYSTEM.CNF and the
+       console hangs at the logo. See the comment in disc.xml. */
     rabisu_buff = read_file("\\TEX\\RABISU.SMD;1");
     if (rabisu_buff) rabisu_smd = smdInitData(rabisu_buff);
     rabisus_load_anim();                     /* needs rabisu_smd for its check */
+
+    /* THE UNPACK SCRATCH, and only a PACKED clip needs one — a PVA1 frame is
+       already an SVECTOR array and is drawn where it lies. Sized from the MESH,
+       whose vertex count the clip has already been checked against.
+
+       If it cannot be had, the clip is dropped rather than kept: a loaded clip
+       with nowhere to unpack it into would draw the bind pose on every frame
+       while still holding 56 KB, which is the worst of both. Dropping it frees
+       the 56 KB and leaves exactly the same bind pose. */
+    if (rabisu_smd && rabisu_anim_stride == 3 && !rabisu_pose_buf) {
+        int   need = rabisu_smd->n_verts * sizeof(SVECTOR);
+        void *p    = malloc(need);
+
+        /* GUARDED LIKE THE READS, because by this point the two of them have
+           taken the run under the stack and this lands in whatever is left —
+           which on a measured build is the last 2 KB of it. Nothing DMAs into
+           this buffer, but the draw writes 3,968 bytes through it every frame,
+           and that is just as fatal over a return address as a CdRead would be.
+           See read_file for the mechanism and for why the margin is 2048. */
+        uint32_t sp;
+        __asm__ volatile("move %0, $sp" : "=r"(sp));
+        if (p && (uint32_t)p + (uint32_t)need + RBS_STACK_MARGIN > sp) {
+            free(p);
+            p = NULL;
+        }
+        rabisu_pose_buf = (SVECTOR *)p;
+
+        if (!rabisu_pose_buf) {
+            free(rabisu_anim_buff);
+            rabisu_anim_buff   = NULL;
+            rabisu_anim_data   = NULL;
+            rabisu_anim_stride = 0;
+            rabisu_anim_count  = 0;
+        }
+    }
+
     cdaudio_resume();
 }
 
 void rabisus_free_model(void) {
     if (rabisu_buff)      { free(rabisu_buff);      rabisu_buff      = NULL; }
     if (rabisu_anim_buff) { free(rabisu_anim_buff); rabisu_anim_buff = NULL; }
+    /* The unpack scratch goes with them: it is part of the model's cost, not a
+       resident one, and leaving it behind would spend 3,968 bytes in every room
+       in the game for a boss that is in one. */
+    if (rabisu_pose_buf)  { free(rabisu_pose_buf);  rabisu_pose_buf  = NULL; }
     /* Every derived pointer goes with them, in one place, so there is no way to
        free the block and leave something still pointing into it. rabisu_smd is
        the one the draw tests, so it is the one that must not be missed. */
     rabisu_smd         = NULL;
-    rabisu_anim_frames = NULL;
+    rabisu_anim_data   = NULL;
+    rabisu_anim_stride = 0;
     rabisu_anim_count  = 0;
 }
 
@@ -238,11 +392,33 @@ void rabisus_restore_texture(void) {
 
 /* The vertex block this boss is posed on for this frame. Falls back to the
    .smd's own bind pose whenever the animation is missing or was rejected. */
+/* >>> PVA1 COSTS NOTHING HERE AND PVA2 COSTS ONE COPY. <<< An unpacked frame is
+   already an SVECTOR array sitting in the clip buffer, so it is handed straight
+   to the draw. A packed one is three int16 per vertex and has to be widened into
+   the scratch first — 496 vertices, once per Rabisu per frame, and there is only
+   ever one Rabisu. That copy is what the 18.8 KB in the .pva note buys.
+
+   Falls back to the .smd's bind pose whenever there is no clip, which is also
+   what a refused read leaves behind; it always renders. */
 static SVECTOR *rbs_verts(const Rabisu *r) {
-    if (!rabisu_anim_frames) return rabisu_smd->p_verts;
+    if (!rabisu_anim_data) return rabisu_smd->p_verts;
     int f = r->anim_frame;
     if (f < 0 || f >= rabisu_anim_count) f = 0;
-    return rabisu_anim_frames + (f * rabisu_smd->n_verts);
+
+    int      nv  = rabisu_smd->n_verts;
+    int16_t *src = rabisu_anim_data + (int32_t)f * nv * rabisu_anim_stride;
+
+    if (rabisu_anim_stride == 4) return (SVECTOR *)src;
+    if (!rabisu_pose_buf)        return rabisu_smd->p_verts;
+
+    SVECTOR *d = rabisu_pose_buf;
+    for (int v = 0; v < nv; v++) {
+        d[v].vx  = *src++;
+        d[v].vy  = *src++;
+        d[v].vz  = *src++;
+        d[v].pad = 0;
+    }
+    return rabisu_pose_buf;
 }
 
 /* Self-contained LCG, as the Anzu and lightswitch puzzles use — there is no
