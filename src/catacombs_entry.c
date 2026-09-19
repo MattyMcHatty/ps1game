@@ -20,7 +20,8 @@
 #include "texmgr.h"
 #include "dresser.h"
 #include "save_point.h"
-#include "player.h"             /* show_pickup_msg_raw */
+#include "player.h"             /* show_pickup_msg_raw, current_weapon */
+#include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 
 /* Catacombs Entry — see catacombs_entry.h for the layout and the chapter note. */
 
@@ -31,17 +32,109 @@ static void *catacombs_entry_buff = NULL;
    Cull and fog-far are equal, the invariant that makes culling invisible:
    nothing is dropped until the fog has already faded it into the background.
 
-   3200 is set by the LOWER HALL, which is the only long sight line in the room:
-   it runs x[1800,4800], so from the west end the inner door is 3000 units away
-   and has to be visible as a door rather than as a hole. Everything else here
-   is a corridor or a 1500-square chamber and is bounded by its own walls long
-   before this. 1073 prims is a middling mesh for this game (Maze One is 2000+),
-   and the corridors mean most of it is behind geometry rather than culled, so
-   this is not the place to economise — measure per
-   tools/DIAGNOSING_FRAME_RATE.txt before shortening it. */
-#define CE_CULL_DIST      3200
-#define CE_FOG_NEAR        900
-#define CE_FOG_FAR        3200
+   That invariant holds for every value the factors below can produce, because
+   both are derived from the same resolved number (ce_fog_far).
+
+   THE BASE IS HALF WHAT THIS ROOM SHIPPED WITH. It was 3200/900, set by the
+   LOWER HALL — it runs x[1800,4800], so from the west end the inner door is
+   3000 units away and used to be visible as a door rather than as a hole. 1600
+   deliberately does NOT reach it: the far end of the hall is dark now, and the
+   player walks into that door rather than toward it. Everything else here is a
+   corridor or a 1500-square chamber and was bounded by its own walls long
+   before either number. The near value is halved with the far one so the fog
+   CURVE keeps its shape instead of becoming a hard edge at half the distance.
+
+   Shortening it cannot cost frames — the distance cull only ever rejects more
+   at 1600 than it did at 3200 — but 1073 prims is a middling mesh for this game
+   (Maze One is 2000+) and the corridors mean most of it is behind geometry
+   rather than culled, so a factor that LENGTHENS it is the one to measure per
+   tools/DIAGNOSING_FRAME_RATE.txt before adding. */
+#define CE_BASE_FOG_NEAR   450
+#define CE_BASE_FOG_FAR   1600
+
+/* ---- View-distance factors -------------------------------------------------
+   The view distance is no longer a constant. It is the base above times a SCALE
+   in 1/256ths, resolved once a frame by ce_view_resolve() into ce_fog_near /
+   ce_fog_far — which the mesh draw culls and fogs with, and which g_fog_* hands
+   to everything else that fogs in this room. Nothing else may read the base
+   directly.
+
+   Factors ADD their bonus to the scale rather than multiplying it, so no two of
+   them can be made to cancel or compound by the order they happen to be applied
+   in, and a factor that is off costs one test.
+
+   ADDING A FACTOR (a lit brazier the player is standing near, a room state, a
+   pickup): give it a CE_VIEW_* bonus and one term in ce_view_target(). Keep it
+   additive, keep it in 1/256ths, and let the ease below carry it in.
+
+   Both factors so far are the Helluminator's, and they are TWO, not one with a
+   condition:
+
+     EQUIPPED (not lit)   +128   the lantern is the light the player carries, so
+                                 raising it is what pushes the dark back. A
+                                 player who had to hold the trigger to see would
+                                 never put it down.
+     BURNING              +128   the flame itself, on top of the above. Only
+                                 while oil is actually going (helluminator.h:
+                                 Square down AND oil left), so it stops with the
+                                 tank and cannot be held for free.
+
+   They stack, and stacking is the point: holding the lantern is +50% (far 2400,
+   near 675) and burning is +100% (far 3200, near 900) — which is exactly the
+   distance this room shipped with, so a burst buys back the ORIGINAL sight line
+   down the lower hall and nothing more. */
+#define CE_VIEW_UNIT        256
+#define CE_VIEW_HELL_BONUS  128   /* +50% while the lantern is in hand   */
+#define CE_VIEW_BURN_BONUS  128   /* +50% more while it is actually lit  */
+
+/* How fast the scale chases its target, in 1/256ths per frame. NOT instant, and
+   the cull line is why: geometry between the old fog-far and the new one has
+   faded to exactly the clear colour, so a one-frame jump would POP all of it in
+   at once and read as a draw-distance change rather than as light.
+
+   8 a frame walks one +128 bonus across in 16 frames. That is deliberately
+   close to the lantern model's own HELL_GLOW_RAMP (10 frames, helluminator.c):
+   the burn factor is switched by the trigger, so the room has to open out on
+   roughly the same swell as the flame that is opening it, and a one-second
+   burst — the tick the lantern charges oil in — must reach full distance well
+   inside itself rather than easing for half of it. */
+#define CE_VIEW_RATE  8
+
+static int32_t ce_view     = CE_VIEW_UNIT;       /* eased scale, 1/256ths */
+static int32_t ce_fog_near = CE_BASE_FOG_NEAR;   /* resolved, this frame  */
+static int32_t ce_fog_far  = CE_BASE_FOG_FAR;
+
+static int32_t ce_view_target(void) {
+    int32_t s = CE_VIEW_UNIT;
+    if (current_weapon == WEAPON_HELLUMINATOR &&
+        (player_weapons & (1 << WEAPON_HELLUMINATOR))) {
+        s += CE_VIEW_HELL_BONUS;
+        /* Only asked INSIDE the equipped test: helluminator_burning() cannot be
+           true for an unequipped lantern, but nesting it says so rather than
+           relying on the weapon layer to keep clearing it. */
+        if (helluminator_burning()) s += CE_VIEW_BURN_BONUS;
+    }
+    return s;
+}
+
+/* Ease one frame toward the target, then resolve both distances from it. `snap`
+   jumps straight there, for room entry: there is no previous frame to ease from
+   and walking in with the lantern already up must not open the room out over
+   the first half second. */
+static void ce_view_resolve(int snap) {
+    int32_t target = ce_view_target();
+    if (snap) {
+        ce_view = target;
+    } else if (ce_view < target) {
+        ce_view += CE_VIEW_RATE;
+        if (ce_view > target) ce_view = target;
+    } else if (ce_view > target) {
+        ce_view -= CE_VIEW_RATE;
+        if (ce_view < target) ce_view = target;
+    }
+    ce_fog_near = (CE_BASE_FOG_NEAR * ce_view) >> 8;
+    ce_fog_far  = (CE_BASE_FOG_FAR  * ce_view) >> 8;
+}
 
 /* UNDERGROUND, so it does NOT take the garden's purple sky — the player has
    walked in through a stone facade and the night is behind them now. Near-black
@@ -438,6 +531,11 @@ void catacombs_entry_init(void) {
        moment a room wants one. */
     save_points_clear();
     dressers_clear();
+
+    /* Resolve the view distance with no ease: the first frame in the room shows
+       whatever the player walked in holding, rather than easing out from the
+       unlit distance. */
+    ce_view_resolve(1);
 }
 
 /* ---- The mesh --------------------------------------------------------------
@@ -463,7 +561,7 @@ static void draw_catacombs_entry_smd(RenderContext *ctx) {
        tools/DIAGNOSING_FRAME_RATE.txt; this room predates none of that work, it
        simply never received it. */
     int32_t cull = DEBUG_CULL_DIST();
-    if (!cull) cull = CE_CULL_DIST;
+    if (!cull) cull = ce_fog_far;   /* resolved by ce_view_resolve() this frame */
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
@@ -548,8 +646,8 @@ static void draw_catacombs_entry_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog = dist < CE_FOG_NEAR ? CE_FOG_NEAR : (dist > CE_FOG_FAR ? CE_FOG_FAR : dist);
-        int32_t fog_factor = ((CE_FOG_FAR - fog) << 8) / (CE_FOG_FAR - CE_FOG_NEAR);
+        int32_t fog = dist < ce_fog_near ? ce_fog_near : (dist > ce_fog_far ? ce_fog_far : dist);
+        int32_t fog_factor = ((ce_fog_far - fog) << 8) / (ce_fog_far - ce_fog_near);
 
         uint8_t tex_idx = (i < CATACOMBS_ENTRY_PRIM_COUNT) ? catacombs_entry_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < CATACOMBS_ENTRY_TEX_COUNT);
@@ -622,11 +720,16 @@ static void draw_catacombs_entry_smd(RenderContext *ctx) {
 void catacombs_entry_draw(RenderContext *ctx) {
     int exp = DEBUG_EXPERIMENT();
 
+    /* THIS frame's view distance, before anything reads it: the mesh draw culls
+       and fogs with ce_fog_*, and g_fog_* below hands the same pair to
+       everything else. */
+    ce_view_resolve(0);
+
     /* Anything else that fogs in this room follows the debug view distance when
        one is selected, so levels 6/7 change what the room LOOKS like
        consistently rather than only where the mesh stops. */
-    g_fog_near = CE_FOG_NEAR;
-    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : CE_FOG_FAR;
+    g_fog_near = ce_fog_near;
+    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : ce_fog_far;
 
     /* Background in the SAME colour the fog saturates to, so a poly that has
        faded out is indistinguishable from the void behind it and the cull never
