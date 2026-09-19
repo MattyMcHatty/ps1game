@@ -8,6 +8,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "room_arena.h"
+#include "cull_arena.h"
 #include "tim_slots.h"
 #include "camera.h"
 #include "catacombs_entry.h"
@@ -184,10 +185,74 @@ static const char *new_tex_file[CATACOMBS_ENTRY_NEW_TEX] = {
     "\\TEXCTCMB\\LOCULUS.TIM;1",   /* slot 3 */
 };
 
+/* ---- The cull key (STEP 3B, tools/DIAGNOSING_FRAME_RATE.txt) ---------------
+   This room was written in September 2026 and inherited none of the reject-path
+   work the garden rooms have had since August — the same three-item list
+   Reception (STEP 3D) and the Master Bedroom (STEP 3E) both came in with. Its
+   draw loop read the primitive header for its stride, then three vertex
+   INDICES, then chased three scattered reads into the 8.7 KB vertex array, for
+   all 1073 primitives, every frame, BEFORE either cull had run. The R3000 has
+   no data cache behind any of that.
+
+   THE COUNT, offline against assets/catacombs_entry.smd over the seven floor
+   zones at 200-unit spacing and 16 headings (6272 poses; the tool is twenty
+   lines — write one, do not estimate):
+
+       1073  primitives walked, every frame, from anywhere in the room
+        561  mean surviving the distance cull, i.e. ~512 rejected
+        772  WORST, in the connector at (1621,1102) looking +Z down the hall
+        398  mean reaching the GTE after the "behind me" test
+
+   So about half the mesh is pure overhead on an average frame, and every one of
+   those was paying four scattered reads to answer a question about two int16s.
+   A rejected primitive is now ONE sequential 6-byte read out of the shared
+   arena and never addresses the mesh. Identical output: this changes what the
+   reject path READS, not what it decides.
+
+   THE WORST STANCES ARE THE THREE THE PLAYER WALKS THROUGH BACK TO BACK — the
+   lower approach, the connector and the west end of the hall all count 700+,
+   because the 3200 view distance set by the hall's long sight line reaches back
+   up both ramps from there. That is the stretch to stand in with the meter up.
+
+   NO BOX KEY, for Reception's and the Bedroom's reason (src/reception.c):
+   cull_boxes pays for itself where a SIDE-PLANE frustum test would otherwise
+   chase v1..v3 per surviving primitive, and this room has no such test to feed.
+   One WAS counted while the numbers above were being taken — a side-plane test
+   would cut the mean reaching the GTE from 398 to 121 — and it is still not
+   going in, because that is exactly the shape of reasoning that produced wrong
+   turn #2. The Greenhouse measured a side-plane cull four hblanks on the WRONG
+   side of neutral and Maze One measured it exactly neutral. Levels 4/6/7/8 now
+   exist in this room; if a meter says this corridor is different from those two,
+   the 398-to-121 count above is the case for adding one, with a box key under
+   it and an offline hole sweep beside it. */
+static int ce_key_count = 0;
+
+static void ce_build_cull_keys(void) {
+    ce_key_count = 0;
+    if (!catacombs_entry_smd) return;
+    uint8_t *p = (uint8_t *)catacombs_entry_smd->p_prims;
+    int i, n = catacombs_entry_smd->n_prims;
+    if (n > CATACOMBS_ENTRY_PRIM_COUNT) n = CATACOMBS_ENTRY_PRIM_COUNT;
+    for (i = 0; i < n; i++) {
+        SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
+        uint16_t     *vi = (uint16_t *)(p + 4);
+        SVECTOR      *v0 = &catacombs_entry_smd->p_verts[vi[0]];
+        cull_keys[i].x      = v0->vx;
+        cull_keys[i].z      = v0->vz;
+        cull_keys[i].stride = pt->len;
+        cull_keys[i].pad    = 0;
+        p += pt->len;
+    }
+    ce_key_count = n;
+}
+
 void catacombs_entry_load_geometry(void) {
     catacombs_entry_buff = room_arena_load("\\TEXCTCMB\\CTCMBENT.SMD;1");
     catacombs_entry_smd  = catacombs_entry_buff
                            ? smdInitData(catacombs_entry_buff) : NULL;
+    /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
+       that reloads the mesh they describe, and nowhere else. */
+    ce_build_cull_keys();
 }
 
 /* STARTUP, and it does NOT touch the drive. Four deferred registrations and
@@ -385,27 +450,48 @@ static void draw_catacombs_entry_smd(RenderContext *ctx) {
     if (!catacombs_entry_smd) return;
 
     uint8_t *p = (uint8_t *)catacombs_entry_smd->p_prims;
-    int i;
+    int i, n = ce_key_count;
 
-    for (i = 0; i < catacombs_entry_smd->n_prims; i++) {
+    /* HOISTED OUT OF THE LOOP, all four. None of them can change while a frame
+       is being queued, and all four were being recomputed inside the hottest
+       loop in the room: the two trig lookups once EACH for every primitive that
+       passed the distance cull — up to 772 pairs of SDK calls a frame from the
+       connector, which is one of the stances the lag was reported from — the
+       cull distance all 1073 times, and buf_end (a double indirection through
+       ctx->active_buffer, which a draw cannot change) for every primitive that
+       got as far as being queued. STEP 3C fix 1 in
+       tools/DIAGNOSING_FRAME_RATE.txt; this room predates none of that work, it
+       simply never received it. */
+    int32_t cull = DEBUG_CULL_DIST();
+    if (!cull) cull = CE_CULL_DIST;
+    int32_t sn = isin(cam_rot), cs = icos(cam_rot);
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+
+    for (i = 0; i < n; i++) {
+        /* >>> THE REJECT PATH READS cull_keys, NOT THE MESH. <<< Six sequential
+           bytes carry this primitive's first vertex X/Z and its stride, which is
+           everything both cheap tests below need AND everything the walk needs
+           to advance — so a rejected primitive never touches the SMD header, the
+           vertex index array or the vertex array. See ce_build_cull_keys. */
+        uint8_t stride = cull_keys[i].stride;
+        {
+            int32_t dx = (int32_t)cull_keys[i].x - cam_x;
+            int32_t dz = (int32_t)cull_keys[i].z - cam_z;
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > cull)
+                { p += stride; continue; }
+            if (dx * sn + dz * cs < -(700 << 12))
+                { p += stride; continue; }
+        }
+
+        /* SURVIVED BOTH CULLS: only now is the header read and the vertex array
+           addressed. */
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
-        uint8_t stride = pt->len;
         int is_quad = (pt->type >= 2);
 
         uint16_t *vi = (uint16_t *)(p + 4);
         SVECTOR *v0 = &catacombs_entry_smd->p_verts[vi[0]];
         SVECTOR *v1 = &catacombs_entry_smd->p_verts[vi[1]];
         SVECTOR *v2 = &catacombs_entry_smd->p_verts[vi[2]];
-
-        {
-            int32_t dx = (int32_t)v0->vx - cam_x;
-            int32_t dz = (int32_t)v0->vz - cam_z;
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > CE_CULL_DIST)
-                { p += stride; continue; }
-            int32_t fwd = dx * isin(cam_rot) + dz * icos(cam_rot);
-            if (fwd < -(700 << 12))
-                { p += stride; continue; }
-        }
 
         DVECTOR sv[4];
         int32_t sz[4];
@@ -464,8 +550,6 @@ static void draw_catacombs_entry_smd(RenderContext *ctx) {
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
         int32_t fog = dist < CE_FOG_NEAR ? CE_FOG_NEAR : (dist > CE_FOG_FAR ? CE_FOG_FAR : dist);
         int32_t fog_factor = ((CE_FOG_FAR - fog) << 8) / (CE_FOG_FAR - CE_FOG_NEAR);
-
-        uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
         uint8_t tex_idx = (i < CATACOMBS_ENTRY_PRIM_COUNT) ? catacombs_entry_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < CATACOMBS_ENTRY_TEX_COUNT);
@@ -536,18 +620,22 @@ static void draw_catacombs_entry_smd(RenderContext *ctx) {
 }
 
 void catacombs_entry_draw(RenderContext *ctx) {
-    g_fog_near = CE_FOG_NEAR; g_fog_far = CE_FOG_FAR;
+    int exp = DEBUG_EXPERIMENT();
+
+    /* Anything else that fogs in this room follows the debug view distance when
+       one is selected, so levels 6/7 change what the room LOOKS like
+       consistently rather than only where the mesh stops. */
+    g_fog_near = CE_FOG_NEAR;
+    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : CE_FOG_FAR;
 
     /* Background in the SAME colour the fog saturates to, so a poly that has
        faded out is indistinguishable from the void behind it and the cull never
-       shows a seam. */
-    TILE *bg = (TILE *)ctx->next_packet;
-    setTile(bg);
-    setXY0(bg, 0, 0);
-    setWH(bg, SCREEN_XRES, SCREEN_YRES);
-    setRGB0(bg, CE_FOG_R, CE_FOG_G, CE_FOG_B);
-    addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], bg);
-    ctx->next_packet += sizeof(TILE);
+       shows a seam — but as the CLEAR COLOUR, not as a primitive. The draw
+       environments carry isbg=1, so DrawOTagEnv has already filled the whole
+       framebuffer before the first poly is drawn; the full-screen TILE this room
+       used to queue on top was a SECOND 77,000-pixel fill every frame, for the
+       colour alone. Wrong turn #3 in tools/DIAGNOSING_FRAME_RATE.txt. */
+    render_set_clear_colour(ctx, CE_FOG_R, CE_FOG_G, CE_FOG_B);
 
     /* 128x128 texture window so per-poly UVs wrap within each texture's page.
        All four of this room's textures sit at page-top (Voff 0), so one window
@@ -565,16 +653,27 @@ void catacombs_entry_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
 
-    draw_catacombs_entry_smd(ctx);
+    if (exp != DBG_EXP_NO_MESH) draw_catacombs_entry_smd(ctx);
 
     /* No entity draws: nothing from Chapters 1 or 2 can be placed down here
        (src/area_bank.h has freed their art) and Chapter 3 has no monsters yet.
        When it does, this is where they go — and they will need the 128 window
        above handing to them if their sprites sit at Voff >= 128. */
 
-    /* The two signs, last. */
-    ce_sign(ctx, CE_TABLET_X, CE_TABLET_TEXT_Y, CE_TABLET_Z + 11,
-            CE_TABLET_X - 200, TEXT_PLANE_XY, 1);
-    ce_sign(ctx, CE_INNER_X - 11, CE_INNER_TEXT_Y, CE_INNER_Z,
-            CE_INNER_Z - 200, TEXT_PLANE_YZ, 1);
+    /* The two signs, last.
+
+       >>> LEVEL 8 REMOVES THE SIGNS. <<< In most rooms that level takes out the
+       monsters and the props, because that is what stands in them; this room has
+       neither, and the only thing standing in its mesh is the SIGNAGE. STEP 3D
+       is the reason it is worth a switch at all — Reception's frame turned out
+       to be the text rather than the room — though the two here are 3000 units
+       and two ramps apart and CE_TEXT_RADIUS is 1200, so unlike Reception's west
+       wall they can never both be live at once. D read at 1, at 4 and at 8 now
+       splits this room's frame three ways in one sitting. */
+    if (exp != DBG_EXP_NO_ENTITIES) {
+        ce_sign(ctx, CE_TABLET_X, CE_TABLET_TEXT_Y, CE_TABLET_Z + 11,
+                CE_TABLET_X - 200, TEXT_PLANE_XY, 1);
+        ce_sign(ctx, CE_INNER_X - 11, CE_INNER_TEXT_Y, CE_INNER_Z,
+                CE_INNER_Z - 200, TEXT_PLANE_YZ, 1);
+    }
 }

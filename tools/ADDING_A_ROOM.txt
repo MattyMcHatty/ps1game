@@ -18,7 +18,16 @@ Companion docs (read them for the *why*; this file is the *how*):
                                       a short mask is a SILENT wrong texture
   tools/DIAGNOSING_FRAME_RATE.txt   - when a room drops to 30fps: the perf
                                       meter, the isolation switches, and the
-                                      four optimisations that did not work
+                                      four optimisations that did not work.
+                                      >>> ITS CONCLUSIONS ARE NOT OPTIONAL
+                                      EXTRAS FOR A SLOW ROOM. <<< The four that
+                                      every room gets from the start are STEP
+                                      5's performance list, and STEP 8 greps
+                                      for them. Three rooms shipped without
+                                      them and all three were later reported
+                                      as lag.
+  src/cull_arena.h                  - the shared reject-path tables; read it
+                                      before touching <xx>_build_cull_keys()
   rebuild commands.txt              - authoritative build steps
 
 
@@ -100,15 +109,38 @@ reliably start in the project root.
 ##########################################################################
  STEP 1 — READ THE SOURCE ROOM YOU ARE COPYING
 ##########################################################################
-Every textured room is the same ~500-line module. Copy the most recent one:
+Every textured room is the same ~500-line module.
 
-  src/master_bedroom.c   <- newest (2 doors, XY-plane signs) — best template
-  src/hall_2f.c          <- L-shaped, a locked door, a stairwell
-  src/conservatory.c     <- has enemies/props/copper pot
+>>> COPY ONE OF THESE THREE AND NOTHING ELSE. <<<
+
+  src/master_bedroom.c   <- BEST TEMPLATE. 2 doors, XY-plane signs, and it
+                            carries the whole performance list below.
+  src/catacombs_entry.c  <- a multi-level room (two ramps, seven floor zones),
+                            same performance list.
+  src/maze_one.c         <- only if the new room is a BIG OPEN MESH. It is the
+                            one room with the extra machinery (box key +
+                            side-plane cull) and that machinery is NOT wanted
+                            by default — see "Cull keys" in STEP 5.
 
 The SMD draw loop (draw_<slug>_smd) is copied VERBATIM apart from the
 identifiers. Do not redesign it: the culling, the flat-poly OT sorting, the fog
 maths and the packet-overflow guards are all load-bearing.
+
+>>> AND THE HAZARD THAT PUT THAT LIST HERE: A SLOW DRAW LOOP TRAVELS BY
+    COPY-AND-PASTE. <<< Three rooms have now been reported as laggy and all
+three turned out to be carrying the SAME three-item defect list, not because
+they were old but because each was copied from a room that was:
+
+    Reception        STEP 3D of tools/DIAGNOSING_FRAME_RATE.txt
+    Master Bedroom   STEP 3E
+    Catacombs Entry  STEP 3H — and its own comment said it was "copied verbatim
+                     from src/outside_catacombs.c", which had all three
+
+So the question to ask of the file you are about to copy is never "when was it
+written", it is "has it been through DIAGNOSING_FRAME_RATE.txt". The three
+rooms named above have. If you copy anything else, diff its draw loop against
+master_bedroom.c's before you start, and expect to be fixing it later if you
+do not.
 
 
 ##########################################################################
@@ -516,12 +548,18 @@ Two independent pipelines. Both are needed for a new room.
 Copy src/master_bedroom.c and rename. The parts that need real thought:
 
   <slug>_load_geometry()   <-- ROOM ENTRY, not startup
-      Three lines, and every room's are identical bar the path:
+      Four lines, and every room's are identical bar the path:
 
           void <slug>_load_geometry(void) {
               <slug>_buff = room_arena_load("\\TEX\\<NAME>.SMD;1");
               <slug>_smd  = <slug>_buff ? smdInitData(<slug>_buff) : NULL;
+              <xx>_build_cull_keys();     /* see "Cull keys" below */
           }
+
+      THE FOURTH LINE IS NOT OPTIONAL and it goes HERE, never anywhere else:
+      src/cull_arena.h's one rule is that the keys are built on the same call
+      that reloads the mesh they describe. A room that rebuilt them on entry
+      without reloading the mesh would be describing whichever room ran last.
 
       Room meshes are NOT resident. One shared buffer (src/room_arena.c) holds
       the room the player is standing in, and main's STATE_LOADING reads the
@@ -580,6 +618,96 @@ Copy src/master_bedroom.c and rename. The parts that need real thought:
       MUST be bracketed by cdaudio_suspend()/cdaudio_resume() — see sound.c's
       sound_bank_select(), the one place that does it today.
 
+  ---- THE PERFORMANCE LIST. ALL FOUR, IN EVERY ROOM, FROM THE START. --------
+      These are not optimisations to reach for when a room turns out slow. They
+      are what the draw loop IS now, they are all behaviour-neutral by
+      construction, and every one of them costs more to retrofit than to copy.
+      tools/DIAGNOSING_FRAME_RATE.txt has the measurements; this is the recipe.
+
+  1. CULL KEYS (STEP 3B)
+      The reject path must not touch the mesh. Without the key table, EVERY
+      primitive — including the half of them about to be thrown away — pays a
+      read of the SMD header for its stride, three vertex INDEX reads and three
+      scattered chases into the vertex array, all BEFORE either cull runs. The
+      R3000 has no data cache behind any of that.
+
+      Copy mb_build_cull_keys() out of src/master_bedroom.c verbatim. It writes
+      each primitive's first-vertex X/Z and its stride into the SHARED arena
+      (src/cull_arena.h — one room's keys are live at a time, exactly as one
+      room's MESH is), and the draw loop's reject path then reads six sequential
+      bytes and never addresses the mesh:
+
+          uint8_t stride = cull_keys[i].stride;
+          int32_t dx = (int32_t)cull_keys[i].x - cam_x;
+          int32_t dz = (int32_t)cull_keys[i].z - cam_z;
+          if (|dx| + |dz| > cull)            { p += stride; continue; }
+          if (dx*sn + dz*cs < -(700 << 12))  { p += stride; continue; }
+          /* SURVIVED: only NOW read pt, vi and the vertices. */
+
+      The loop then runs to `n = <xx>_key_count`, not to smd->n_prims.
+
+      >>> NO BOX KEY, AND NO SIDE-PLANE FRUSTUM CULL, UNLESS A METER ASKS. <<<
+      cull_boxes only pays for itself where a side-plane test would otherwise
+      chase v1..v3 per surviving primitive, and a new room has no such test to
+      feed. Do not add one. The Greenhouse MEASURED a side-plane cull four
+      hblanks on the WRONG side of neutral and Maze One measured it exactly
+      neutral; it was counted and rejected again in Reception, the Master
+      Bedroom and the Catacombs Entry. "The room is open so it would cull a
+      lot" is wrong turn #2 in DIAGNOSING_FRAME_RATE.txt, and it has now been
+      the tempting wrong answer four times.
+
+  2. HOIST THE FOUR CONSTANTS OUT OF THE LOOP (STEP 3C fix 1)
+      None of these can change while a frame is being queued, and all four were
+      being recomputed per primitive in the rooms that came in slow:
+
+          int32_t cull = DEBUG_CULL_DIST();
+          if (!cull) cull = <SLUG>_CULL_DIST;
+          int32_t sn = isin(cam_rot), cs = icos(cam_rot);
+          uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer
+                             + BUFFER_LENGTH;
+
+      isin/icos are the expensive pair — two SDK calls for every primitive that
+      passed the distance cull, up to ~770 pairs a frame in a corridor room.
+      buf_end is a double indirection through ctx->active_buffer, which a draw
+      cannot change.
+
+  3. NO SECOND FULL-SCREEN FILL (wrong turn #3 / STEP 3C fix 2)
+      The draw environments carry isbg=1, so DrawOTagEnv has ALREADY cleared the
+      whole framebuffer before the first poly is drawn. A room that also queues
+      its own background TILE is paying a second 77,000-pixel fill every frame
+      for the colour alone. Use the clear colour:
+
+          render_set_clear_colour(ctx, <SLUG>_FOG_R, <SLUG>_FOG_G, <SLUG>_FOG_B);
+
+      Same colour the fog saturates to, for the same reason the TILE was that
+      colour: a poly that has faded out must be indistinguishable from the void
+      behind it, so the cull line never shows a seam.
+
+  4. HONOUR THE DEBUG ISOLATION LEVELS (STEP 0 / STEP 1)
+      A room that honours none of them cannot be diagnosed at all — which is
+      how three rooms ended up fixed from offline counts instead of from a
+      meter. Four lines of work:
+
+          int exp = DEBUG_EXPERIMENT();
+          g_fog_far = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : <SLUG>_FOG_FAR;
+          if (exp != DBG_EXP_NO_MESH) draw_<slug>_smd(ctx);
+          if (exp != DBG_EXP_NO_ENTITIES) { ...props, enemies, SIGNS... }
+
+      With DEBUG_CULL_DIST folded into the hoisted `cull` in (2), that gets the
+      room levels 4 (no mesh), 6 and 7 (view distance 2000/1800) and 8.
+
+      >>> POINT LEVEL 8 AT WHATEVER ACTUALLY STANDS IN *THIS* ROOM. <<< In a
+      populated room that is the enemies and props. In an empty one it is the
+      DOOR SIGNS — Reception's frame turned out to be its signage, not its mesh
+      (STEP 3D), and door_draw_string_3d has no facing test, so every sign
+      inside its radius is queued in full with the player's back to it. D read
+      at levels 1, 4 and 8 splits the room's frame three ways in one sitting.
+
+      Adding a NEW DBG_EXP_* to collision.h means adding its label to the meter
+      in main.c in the same edit. Forgetting the label is a HANG, not a missing
+      string (the fifth wrong turn).
+  ---------------------------------------------------------------------------
+
   Doors (one block per door)
       A #define set for X/Z/text Y/text radius/fade/trigger radius, a per-door
       `circle_prev` seeded by an *_arm(), a *_triggered() doing Manhattan
@@ -613,10 +741,12 @@ Copy src/master_bedroom.c and rename. The parts that need real thought:
       clear: reception_init() re-places both on every reception entry.
 
   <slug>_draw()
-      Set g_fog_near/g_fog_far, add the dark background TILE at OT_LENGTH-1,
-      sort the 128x128 DR_TWIN texture window at OT_LENGTH-1, build the view
-      matrix, call draw_<slug>_smd(), then props, then enemies, then the door
-      signs last. Any sprite drawn over the room whose VRAM Voff >= 128 must
+      Read `exp` and set g_fog_near/g_fog_far per item 4 of the performance
+      list, set the background with render_set_clear_colour() — NOT a
+      full-screen TILE, per item 3 — sort the 128x128 DR_TWIN texture window at
+      OT_LENGTH-1, build the view matrix, call draw_<slug>_smd() behind the
+      DBG_EXP_NO_MESH test, then props, then enemies, then the door signs last,
+      the last three behind the DBG_EXP_NO_ENTITIES test. Any sprite drawn over the room whose VRAM Voff >= 128 must
       bracket/reset the window — hand it the RECT via zombies_set_texwindow() /
       demon_dogs_set_texwindow() / tentacles_set_texwindow(). Demon dogs do NOT
       bracket and are only safe in windowless delivery.
@@ -691,6 +821,18 @@ Touch these files, in this order:
   src/<other>.c/.h   pair, sign, spawn helper; call the new arm() from its
                      _init(); call the new *_text() from its _draw(); export
                      the arm/triggered/spawn functions in its header.
+
+  src/cull_arena.c   TWO lines, next to the ten already there: the room's
+                     #include "<slug>_tex_map.h" and a
+                     CULL_ARENA_FITS(<slug>, <SLUG>_PRIM_COUNT);
+                     That static-asserts the mesh against CULL_ARENA_PRIMS
+                     (2056, Maze One's) at COMPILE time. Skip it and a
+                     re-export that grows the mesh past the arena writes past
+                     the end of it at load — landing in whatever the linker put
+                     next, and not visible until something unrelated breaks.
+                     If the new mesh IS the biggest on the disc, raise
+                     CULL_ARENA_PRIMS in cull_arena.h at the same time (the
+                     arena is 14 bytes a primitive across the two tables).
 
   src/title.c        Add the room to level_names[], level_states[] (STATE_LOADING)
                      and level_pending[] (STATE_<X>) so debug level select can
@@ -774,6 +916,22 @@ Code-level checks to do before handing over:
       and so does every other room you had been through.
   [ ] Each door's spawn is outside the wall push radius and every interaction
       in the destination is armed.
+  [ ] THE PERFORMANCE LIST, all four (STEP 5). Grep the new module — this takes
+      a minute and it is the check three rooms did not get:
+        [ ] <xx>_build_cull_keys() exists, is called from _load_geometry() and
+            NOWHERE else, and the draw loop's two culls read cull_keys[i]
+            rather than v0. `grep -n "p_verts" src/<slug>.c` should show the
+            vertex array being addressed only AFTER both culls (plus once
+            inside the key builder).
+        [ ] The room is in src/cull_arena.c's include list AND its
+            CULL_ARENA_FITS list.
+        [ ] isin(, icos(, DEBUG_CULL_DIST() and buf_end appear ONCE each in
+            draw_<slug>_smd, above the for loop.
+        [ ] `grep -n "setTile" src/<slug>.c` finds nothing, and
+            render_set_clear_colour is called in _draw().
+        [ ] DEBUG_EXPERIMENT / DBG_EXP_NO_MESH / DBG_EXP_NO_ENTITIES all appear
+            in _draw(), and level 8 is pointed at whatever actually stands in
+            this room (signs, if it is empty of props and enemies).
 
 In-game (needs an emulator; say so plainly if you have not run it):
   [ ] Round-trip through every door in both directions, no bounce-back.
@@ -794,7 +952,7 @@ In-game (needs an emulator; say so plainly if you have not run it):
 
 
 ##########################################################################
- THE FIVE MISTAKES THAT HAVE ACTUALLY BEEN MADE
+ THE SIX MISTAKES THAT HAVE ACTUALLY BEEN MADE
 ##########################################################################
 1. Converting the visual mesh with something other than smxlink. The SMD looks
    fine and renders as broken/invisible geometry.
@@ -806,3 +964,10 @@ In-game (needs an emulator; say so plainly if you have not run it):
    window makes it sample whatever sits above it in the page.
 5. A global prop array (dining tables, save points, dressers) colliding
    invisibly in the new room because it is neither room-swapped nor area-gated.
+6. COPYING THE DRAW LOOP FROM A ROOM THAT HAD NEVER BEEN THROUGH
+   tools/DIAGNOSING_FRAME_RATE.txt, and inheriting all four of STEP 5's
+   performance items missing. Three rooms so far — Reception, the Master
+   Bedroom and the Catacombs Entry — and every one of them was reported by the
+   player as lag, months after it shipped. It is the only mistake on this list
+   that is invisible until somebody complains, and it is the cheapest of them
+   all to avoid: copy master_bedroom.c and run STEP 8's grep checklist.

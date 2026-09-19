@@ -10,8 +10,19 @@ the way, every one of them an optimisation written before anything was measured.
     ABOUT THIS ROOM WERE WORTHLESS, AND ONE OF THEM MADE IT 56% WORSE. THE TWO
     THAT WORKED WERE BOTH WRITTEN AFTER A MEASUREMENT SAID WHERE TO LOOK. <<<
 
+>>> THE FIXES BELOW ARE NOW PART OF BUILDING A ROOM, NOT PART OF REPAIRING
+    ONE. <<< Three rooms (STEP 3D, 3E and 3H) each shipped missing the same
+four items and each was later reported as lag, so the recipe moved upstream:
+tools/ADDING_A_ROOM.txt STEP 5 carries "THE PERFORMANCE LIST" — cull keys, the
+hoisted constants, the clear colour instead of a second full-screen fill, and
+the debug isolation levels — and its STEP 8 greps a new room for all four. This
+document stays what it always was: the measurements those four rest on, and the
+method for the case they do not cover.
+
 Companion docs:
-  tools/ADDING_A_ROOM.txt        - the room runbook; view distance and culling
+  tools/ADDING_A_ROOM.txt        - the room runbook; STEP 5's performance list
+                                   is where these fixes are applied to NEW
+                                   rooms. View distance and culling too.
   tools/ADDING_AN_ENEMY.txt      - per-frame AI cost lives here
   tools/TEXTURING_NOTES.txt      - VRAM, texture windows
   rebuild commands.txt           - build steps
@@ -1018,3 +1029,89 @@ it to remember:
     it; the courtyard still has no side-plane frustum cull, and that — with the
     box key and the offline hole sweep the Greenhouse and Maze One both had — is
     where to go next if the fight is still short on a console.
+
+
+##########################################################################
+ STEP 3H — THE CATACOMBS ENTRY, AND THE THIRD ROOM TO ARRIVE WITH NONE OF THIS
+##########################################################################
+Reported (Sep 2026) as "a lot of lag in the level". Diagnosed offline against
+assets/catacombs_entry.smd, because the room honoured no isolation level at all
+and there was nothing to read a meter against — STEP 3E's position exactly.
+
+WHAT IT HAD: nothing, and for a reason worth recording. src/catacombs_entry.c
+says in its own comment that its draw loop was "copied verbatim from
+src/outside_catacombs.c", and that room was written in September 2026 from the
+pre-August template. So this is the third room in this document to arrive with
+the same three-item list Reception (STEP 3D) and the Master Bedroom (STEP 3E)
+came in with — no cull-key table, isin/icos INSIDE the draw loop, and a
+full-screen TILE over a framebuffer DrawOTagEnv had already cleared.
+
+>>> THE THREE-ITEM LIST TRAVELS BY COPY-AND-PASTE, AND IT WILL KEEP DOING SO.
+<<< None of these three rooms predates the fixes; all three were written after
+them and inherited an older room's draw loop instead. The Greenhouse inherited
+the FIXED one and needed none of it. So the question to ask of any new room is
+not "when was it written" but "which room was it copied from" — and the answer
+for the whole of Chapter 3 is a room that has never been through this document.
+src/outside_catacombs.c (1146 prims) still has all three and HAS NOT BEEN
+TOUCHED; it is the next one.
+
+THE COUNT, over the seven floor zones at 200-unit spacing and 16 headings
+(6272 poses):
+
+    1073  primitives walked, every frame, from anywhere in the room
+     561  mean surviving the distance cull, i.e. ~512 rejected
+     398  mean reaching the GTE after the "behind me" test
+     772  WORST, in the connector at (1621,1102) looking +Z down the hall
+
+  THE VIEW DISTANCE IS WHAT MAKES THE MIDDLE OF THIS ROOM EXPENSIVE. CE_CULL_DIST
+  is 3200, set by the lower hall's one long sight line, and the room doubles back
+  on itself: the lower approach, the connector and the west end of the hall are
+  within 3200 of geometry on BOTH ramps and the landing above them. All three
+  count 700+, and they are three stances the player walks through back to back.
+  That is the stretch to stand in with the meter up, and it is the room's own
+  shape rather than its size — 1073 is a middling mesh for this game.
+
+THE THREE FIXES (src/catacombs_entry.c), all behaviour-neutral by construction:
+  1. THE CULL-KEY TABLE (STEP 3B), into the shared arena (src/cull_arena.h),
+     built in catacombs_entry_load_geometry per that file's one rule, and added
+     to cull_arena.c's static-assert list. Before, every primitive — including
+     the ~512 about to be rejected — paid a header read for its stride, three
+     vertex index reads and three chases into the vertex array, all of it BEFORE
+     either cull ran.
+  2. isin/icos, THE CULL DISTANCE AND buf_end HOISTED OUT OF THE LOOP (STEP 3C
+     fix 1). Up to 772 pairs of SDK trig calls a frame, and that count peaks in
+     the connector. buf_end is the fourth: a double indirection through
+     ctx->active_buffer, which a draw cannot change, recomputed for every
+     primitive that got as far as being queued.
+  3. THE DOUBLE SCREEN CLEAR REMOVED (wrong turn #3 / STEP 3C fix 2).
+     render_set_clear_colour, 77,000 pixels of second fill a frame gone.
+
+AND THE ROOM CAN NOW BE MEASURED. It honours 4 (no mesh), 6 and 7 (view
+distance) and 8 — repointed at the DOOR SIGNS, as Reception's and the Bedroom's
+are, because this room has no enemies and no props and signage is the only thing
+standing in its mesh. Unlike Reception's west wall the two signs here are 3000
+units and two ramps apart against a 1200 radius, so they can never both be live.
+
+WHAT WAS COUNTED AND DELIBERATELY NOT DONE:
+  - NO SIDE-PLANE FRUSTUM CULL, AND THIS IS THE CLOSEST CALL IN THE DOCUMENT.
+    It was counted while the numbers above were taken: it would cut the mean
+    reaching the GTE from 398 to 121, a 70% reduction, which is a wider gap than
+    the Greenhouse had when its box key went in. It is still out. The Greenhouse
+    MEASURED a side-plane cull four hblanks on the wrong side of neutral and
+    Maze One measured it exactly neutral, and "the gap looks big" is the premise
+    behind every one of the five wrong turns above. Levels 4/6/7/8 exist now; if
+    a meter says this corridor differs from those two, the 398-to-121 count is
+    the case for it — with a box key under it and an offline hole sweep beside
+    it, because a vertex loop here would put the mesh back on the reject path
+    one test later (STEP 3B PART TWO).
+  - NO REDUCTION OF CE_CULL_DIST. Levels 6 and 7 exist to try it with, and the
+    room's own header argues the 3000-unit view to the inner door is why 3200 is
+    there. A LOOK decision, and it wants a person at the screen.
+
+>>> THESE ARE ALL OFFLINE COUNTS. NOBODY HAS READ THE METER IN THIS ROOM. <<<
+STEP 3D and STEP 3E's honest note, a third time. The counting is what STEP 6
+endorses, the three fixes are proven in five other rooms and are
+behaviour-neutral by construction. But U/D/G at levels 1, 4 and 8, standing in
+the connector at (1621,1102) looking down the hall, is still owed — and if the
+mesh turns out not to have been the cost, this section is the eighth wrong turn
+and should say so.
