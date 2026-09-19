@@ -3,6 +3,7 @@
 #include "copper_pot.h"
 #include "valve_handle.h"   /* DBG_HAS_VALVE_HANDLE takes the wheel off its pipe */
 #include "birdcage.h"       /* DBG_HAS_HATCH_KEYS washes Maze One's cage out     */
+#include "catacomb_doors.h" /* DBG_ASAG_DEFEATED poses the leaves on a direct jump */
 
 int debug_opts[DEBUG_OPT_COUNT] = { 0 };   /* all cheats off by default; the
                                               rest zero-initialise with it */
@@ -21,6 +22,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "HADAD FLAG ONE",
     "HADAD FLAG TWO",
     "HADAD FLAG THREE",
+    "ASAG DEFEATED",
 };
 
 static int grants_pending = 0;
@@ -237,6 +239,28 @@ void debug_opts_apply_grants(void) {
                         (1 << ITEM_MAGENTA_KEY_STONE);
     }
     if (debug_opts[DBG_HADAD_FLAG_THREE]) game_flag_set(FLAG_HADAD_THREE);
+
+    /* ASAG DEAD AND HIS DOOR SCENE RUN. One bit and one pose; the option's own
+       note in debug_opts.h has the long version, including why it stops short
+       of the two hatch keys it strictly implies.
+
+       The BIT is all the Outside Catacombs needs to look right on any arrival
+       that runs the room's init after this — the leaves apart, the doorway lit,
+       the mouth offering Circle through to the Catacombs Entry — because every
+       one of those is derived from the flag by whoever draws it.
+
+       The POSE is for the one arrival that does NOT: a debug jump straight into
+       the Outside Catacombs, where catacomb_doors_init() has already read the
+       flag (still clear) a moment before this latch is consumed, and would leave
+       two shut leaves standing across a lit, enterable doorway. The same
+       ordering gap greenhouse_flood.c describes for DBG_HAS_VALVE_HANDLE, but
+       fixable here because the doors expose the setter the scene drives them
+       with. It is a plain global assignment, safe from any room, and the next
+       entry to that room re-derives it from the flag either way. */
+    if (debug_opts[DBG_ASAG_DEFEATED]) {
+        game_flag_set(FLAG_ASAG_DEAD);
+        catacomb_doors_set_slide(CD_SLIDE_FULL);
+    }
 
     /* BOTH HATCH KEYS, and the two long chains that mint them, finished.
        See the option's own note in debug_opts.h for why the chains come with the

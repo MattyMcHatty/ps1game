@@ -134,6 +134,38 @@ typedef enum {
     DBG_HADAD_FLAG_ONE,      /* posted at the corridor foot; door puzzle solved  */
     DBG_HADAD_FLAG_TWO,      /* the exit door is sealed; all four stones held    */
     DBG_HADAD_FLAG_THREE,    /* the third encounter: absent until the ramp       */
+    /* ASAG IS DEAD AND HIS DOOR SCENE HAS RUN, so Chapter 3 can be walked into
+       from the Outside Catacombs instead of only being jumped to by name.
+
+       It is one bit, FLAG_ASAG_DEAD, and everything the option is FOR is
+       somebody else reading it (the list is in src/catacomb_open.h): the two
+       leaves stand apart, the fifteen backing polys behind the doorway stay
+       lit, and the mouth offers Circle — which is the way through to the
+       CATACOMBS ENTRY. The row of that name in the level column jumps straight
+       INTO that room; this option is the other half of it, the APPROACH, and
+       the only way to exercise the doorway's own prompt and the transition it
+       starts without playing the boss.
+
+       A one-shot grant like the items above, and it also POSES THE LEAVES
+       itself. catacomb_doors_init() derives the pose from the flag on room
+       entry, and on a direct jump INTO the Outside Catacombs that init has
+       already run by the time the latch is consumed — so the flag on its own
+       would arrive at a lit doorway with two shut doors across it. Setting the
+       slide here closes that gap; it is the same call the scene makes a frame
+       at a time, and the next entry to the room re-derives it from the flag.
+
+       >>> IT DOES NOT CLAIM THE TWO HATCH KEYS, though strictly it implies
+       them. <<< The only route into Asag's arena is the drop in The Hatch,
+       behind both keys — but that is DBG_HAS_HATCH_KEYS' whole pair of garden
+       chains, which is a great deal to smuggle into a bit about a door, and it
+       is the same line that option draws for itself about the Hadad flags. Tick
+       both for the honest full run; they are additive and do not fight.
+
+       What the bit does elsewhere is wanted rather than tolerated: The Hatch
+       retires its drop (src/hatch_puzzle.c) — no sign over the lip, and Circle
+       there does nothing — because the arena is a one-way pocket with nothing
+       left at the bottom of it. */
+    DBG_ASAG_DEFEATED,       /* Asag dead: the catacomb doors stand open        */
     DEBUG_OPT_COUNT
 } DebugOpt;
 
