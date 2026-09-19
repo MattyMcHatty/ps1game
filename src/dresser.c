@@ -40,6 +40,9 @@ static void *read_file(const char *name) {
    mid-game). The texture is uploaded to VRAM separately (dresser_upload_texture)
    on the room transition. */
 void dresser_load_assets(void) {
+    /* BANK: reception, the east hall and the master bedroom. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_MANSION);
     dresser_buffer = read_file("\\DRESSER.SMD;1");
     if (dresser_buffer)
         dresser_smd = smdInitData(dresser_buffer);
@@ -305,4 +308,30 @@ void dressers_draw(RenderContext *ctx, uint16_t wdflr_tpage, uint16_t wdflr_clut
     /* Restore the camera view matrix for whatever the caller draws next. */
     gte_SetRotMatrix(&view);
     gte_SetTransMatrix(&view);
+}
+
+/* ---- CHAPTER 3 -----------------------------------------------------------
+   Give the model back. Called only from chapter_enter_catacombs()
+   (src/area_bank.h) when the destination's bank does not contain it - the
+   Catacombs and Asag's arena today, where nothing
+   this prop is placed in can ever be entered again. Every draw and collide
+   in this file already bails on a NULL SMD, so the prop simply stops
+   existing rather than needing a flag of its own. Safe if never loaded. */
+void dresser_free_assets(void) {
+    if (dresser_buffer) { free(dresser_buffer); dresser_buffer = NULL; }
+    dresser_smd = NULL;
+}
+
+/* ---- CHAPTER 3: THE WAY BACK ---------------------------------------------
+   Re-read the geometry dresser_free_assets freed. The only caller is
+   area_bank_sync() (src/area_bank.h), which runs when a title-screen
+   load lands the player back in the mansion or the garden after a session
+   that reached the Catacombs. GEOMETRY ONLY: the texture work in
+   dresser_load_assets must not be repeated, because a second
+   texmgr_register would be a second RAM copy and one more against the cap.
+   Idempotent, and a CD read - legal only where its caller runs it, inside
+   main's STATE_LOADING with CD-DA suspended. */
+void dresser_reload_assets(void) {
+    if (!dresser_buffer) { dresser_buffer = read_file("\\DRESSER.SMD;1");
+                           if (dresser_buffer) dresser_smd = smdInitData(dresser_buffer); }
 }

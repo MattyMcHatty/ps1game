@@ -98,6 +98,12 @@ add_executable(horror_game
     src/asag_arena_mesh_collision.c
     src/asag_arena.c
     src/asag.c
+    # THE SIX TEXTURE BANKS -- which room's art is resident where, and the
+    # swap itself (src/area_bank.h). Checked by tools/check_tex_banks.py.
+    src/area_bank.c
+    src/catacombs_entry_mesh_collision.c
+    src/catacombs_entry.c
+    src/catacomb_walk.c
     src/asag_boss.c
     src/asag_fight.c
     src/hatch_doors.c
@@ -267,6 +273,10 @@ set_source_files_properties(
     # code. If the arena's door ever starts dropping the faint clip, the answer
     # is tools/ADDING_THE_ASAG_FIGHT.txt PART 6 and not this line.
     src/asag_arena_mesh_collision.c
+    # Chapter 3's collision table, init-only like every other one here, and
+    # the bank swap, which runs on an area boundary and nowhere else.
+    src/catacombs_entry_mesh_collision.c
+    src/area_bank.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )
 

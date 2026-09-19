@@ -53,6 +53,7 @@ The transient allocations still have to FIT in whatever is left, so treat the
 TEXMGR REGISTRATIONS  (resident for the whole run)
   module                   regs      bytes
   --------------------------------------------
+  catacombs_entry.c        4         73728
   kitchen_dining.c         6         69632
   garden_stairs.c          4         57344
   delivery_area.c          5         51200
@@ -79,12 +80,23 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   east_stairwell.c         1         10240
   piano_room.c             1         10240
   reception.c              1         10240
-  TOTAL                    55       765952
+  TOTAL                    59       839680
 
-DUPLICATE REGISTRATIONS  (the same TIM held in RAM more than once)
+DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)
   none
 
+DUPLICATE REGISTRATIONS  (the same TIM held in RAM more than once)
+  LMSHTBLT.TIM       18432 wasted   catacombs_entry.c, outside_catacombs.c
+  ---> reclaimable with narrow uploaders: 18432 bytes (18 KB)
+       Each of these is one texture at one VRAM address, so ONE copy
+       serves every room that draws it; the others want TIM_SLOT() for
+       the header and a call to the owner's narrow upload function.
+
 KEPT BUFFERS  (read once, pointer stashed, never freed)
+  save_point.c             SAVEPT.SMD         2048  -> sp_buffer
+  TOTAL                                       2048
+
+CHAPTER-SCOPED BUFFERS  (held through Chapters 1-2, freed at the catacomb mouth)
   concrete_props.c         CONBLOCK.SMD       4096  -> block_buf
   concrete_props.c         CONCHAIR.SMD       4096  -> chair_buf
   dining_table.c           DINTABLE.SMD       4096  -> table_buffer
@@ -99,8 +111,12 @@ KEPT BUFFERS  (read once, pointer stashed, never freed)
   lever.c                  LEVER.SMD          2048  -> lever_buf
   piano_props.c            PIANO.SMD          2048  -> piano_buf
   piano_props.c            TABLETS.SMD        2048  -> tablets_buf
-  save_point.c             SAVEPT.SMD         2048  -> sp_buffer
-  TOTAL                                      45056
+  TOTAL                                      43008   <- COUNTED AS PERMANENT
+
+  Prop models, resident from startup for all of Chapters 1 and 2 and
+  freed in one go by area_bank_sync() (src/area_bank.h). They are counted in
+  the permanent total because that is what they are for ~everything the
+  player does; Chapter 3 gets them back on top of the registrations.
 
 ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   rabisu.c                 RBSIDLE.PVA       57344  -> p
@@ -122,17 +138,18 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x800ED714
+  _end (heap start)   0x800F174C
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             976428 bytes (954 KB)
+  heap size             959988 bytes (937 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr resident       765952 bytes (748 KB)  78.4%
-  kept buffers           45056 bytes (44 KB)   4.6%
-  PERMANENT TOTAL       811008 bytes (792 KB)  83.1%
-  FREE AT REST          165420 bytes (162 KB)  16.9%   <- STACK ALREADY SUBTRACTED
-                                  (was 313572 before the stack was counted;
+  texmgr peak bank      466944 bytes (456 KB)  48.6%   <- MANSION
+  kept buffers            2048 bytes (2 KB)   0.2%
+  chapter-scoped         43008 bytes (42 KB)   4.5%
+  PERMANENT TOTAL       512000 bytes (500 KB)  53.3%
+  FREE AT REST          447988 bytes (437 KB)  46.7%   <- STACK ALREADY SUBTRACTED
+                                  (was 596140 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -186,7 +203,7 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 161 KB printed above.
+  once read_file's margin comes off - against the 437 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

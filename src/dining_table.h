@@ -41,4 +41,9 @@ int  dining_tables_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
    pass in rooms that hold no props at all — see the note there. */
 int  dining_tables_any_solid(void);
 
+
+/* Free the prop's geometry on the one-way walk into the Catacombs.
+   src/area_bank.h owns the decision; nothing else may call it. */
+void dining_tables_free_assets(void);
+
 #endif

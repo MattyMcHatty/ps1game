@@ -180,6 +180,9 @@ void delivery_upload_gravel(void) { texmgr_upload(shared_id[0]); }
 void delivery_upload_double_door(void) { texmgr_upload(shared_id[3]); }
 
 void delivery_area_init(void) {
+    /* BANK: brick_wall/gravel/double_door are borrowed by garden_stairs_upload_textures. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_MANSION | TEXBANK_GARDEN | TEXBANK_RABISU | TEXBANK_WEST_GARDEN);
     /* NO CdInit HERE ANY MORE. main() does it, several lines earlier, so that
        the loading screen's axe icon can be read off the disc BEFORE the startup
        asset block rather than after this function — which is itself a second of

@@ -16,11 +16,11 @@
  *     82820 bytes   41 sectors  keystone_maze.smd
  *     68444 bytes   34 sectors  rear_gate.smd
  *     67860 bytes   34 sectors  Reception.smd
- *     65836 bytes   33 sectors  outside_catacombs.smd
  *     65740 bytes   33 sectors  delivery_area.smd
+ *     65656 bytes   33 sectors  outside_catacombs.smd
+ *     60292 bytes   30 sectors  catacombs_entry.smd
  *     58804 bytes   29 sectors  greenhouse.smd
  *     54084 bytes   27 sectors  stables.smd
- *     45676 bytes   23 sectors  fountain_square.smd
  *
  */
 #ifndef ROOM_ARENA_SIZE_H

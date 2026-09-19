@@ -44,6 +44,9 @@ PART 2 — HOW A TRANSITION WORKS
 
 2. The STATE_LOADING handler in main.c (run next frame) does, in order:
        DrawSync(0);                        // idle the GPU before any upload
+       <free the outgoing boss's model>    // before anything else allocates
+       area_bank_sync(pending_area);       // CD: swap the TEXTURE BANK if the
+                                           //     destination is in another area
        load_area_geometry(pending_area);   // CD: read the target room's MESH
        sound_bank_select(...);             // CD: swap the SPU bank if needed
        <upload the target area's textures> // RAM -> VRAM, pure LoadImage
@@ -70,8 +73,12 @@ PART 2 — HOW A TRANSITION WORKS
    THE ONE AREA THAT DOES NOT PASS THROUGH HERE is the delivery area when
    entered straight off the title screen. That path (bottom of the main loop,
    `prev_state == STATE_TITLE`) has to repeat this work itself, and does:
-   delivery_load_geometry(), delivery_restore_textures(), sound_bank_select().
-   Anything new added to STATE_LOADING probably needs adding there too.
+   delivery_load_geometry(), area_bank_sync(STATE_DELIVERY_AREA),
+   delivery_restore_textures(), spiders_upload_textures(), sound_bank_select(),
+   and the two boss-model frees. Anything new added to STATE_LOADING probably
+   needs adding there too — area_bank_sync is the most recent thing that did,
+   and without it that path would draw the mansion's first frame out of empty
+   VRAM pages.
 
 GOTCHA — bounce-back: if the player arrives within the destination door's
 trigger radius with Circle still held, the door could fire immediately and send
@@ -151,12 +158,22 @@ PART 5 — ASSET LOADING RULE (critical)
 The rule is split by asset type. It used to be "everything at startup"; geometry
 no longer is.
 
-TEXTURES — STARTUP.
-  A texture's INITIAL upload to VRAM must happen before the main render loop
-  (see kitchen_load_assets, called from main() init). Registering it with texmgr
-  also keeps a RAM copy, which is what makes the entry-time re-upload a pure
-  LoadImage with no CD access. tpage/clut never need loading at all: they are
-  compile-time constants in the generated src/tim_slots.h — use TIM_SLOT().
+TEXTURES — HEADERS AT STARTUP, PIXELS PER AREA.
+  >>> THIS RULE CHANGED IN SEPTEMBER 2026 AND USED TO READ "STARTUP". <<< It
+  said: a texture's initial upload must happen before the main render loop, and
+  registering it with texmgr keeps a RAM copy for the life of the run. The
+  second half is no longer true and was what made the heap look full — 820 KB
+  of a 937 KB heap held permanently, including every room the player was not in.
+
+  Now: texmgr_register() reads the TIM HEADER only, so tpage/clut are correct
+  from startup and no pixels are held. The PIXELS belong to an AREA BANK and are
+  read when that area is entered and freed when it is left — see src/texmgr.h
+  for the mechanism and src/area_bank.h for which room is in which bank. A room
+  must declare its bank with texmgr_set_bank() and the declaration is checked by
+  tools/check_tex_banks.py, because getting it wrong is silent.
+
+  tpage/clut never need loading at all: they are compile-time constants in the
+  generated src/tim_slots.h — use TIM_SLOT().
 
 GEOMETRY — ROOM ENTRY.
   Room meshes are NOT resident. One shared 64 KB arena (src/room_arena.c) holds

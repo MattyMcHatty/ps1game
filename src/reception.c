@@ -210,6 +210,9 @@ void reception_load_geometry(void) {
    what remains is the texmgr registration of reception's unique textures, kept
    RAM-resident so the entry-time upload is a pure LoadImage with no CD read. */
 void reception_load_assets(void) {
+    /* BANK: the house only. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_MANSION);
     /* Register the 3 reception-only textures with the texture manager (RAM-
        resident, uploaded to VRAM on each reception entry) and capture their
        tpage/clut into the renderer's slot table. */

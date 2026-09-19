@@ -231,18 +231,22 @@ static void rabisus_load_anim(void) {
 /* Startup: the SKIN only. >>> THE MODEL AND THE CLIP ARE NO LONGER LOADED HERE.
    <<< See rabisus_load_model below for where they went and why. */
 void rabisus_load_assets(void) {
-    /* Uploaded here AND, since the Greenhouse's vines took this slot, again on
-       entry to the room the boss actually fights in — see
-       rabisus_restore_texture below.
+    /* BANK: the skin is RESTORED by garden_courtyard_upload_textures, which every garden room runs. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_GARDEN | TEXBANK_RABISU | TEXBANK_WEST_GARDEN);
+    /* Uploaded on entry to every room that can see this VRAM slot, by
+       rabisus_restore_texture() below - which garden_courtyard_upload_textures()
+       runs at the head of the courtyard's, the Stables' and the Greenhouse's
+       chains, because the Greenhouse's vines share the page.
 
-       This one IS still startup-resident, and deliberately: at 18 KB it is a
-       sixth of what the model and the clip cost, and its entry-time hook is
-       reached from the Stables and the Greenhouse as well as the courtyard
-       (garden_courtyard_upload_textures runs at the head of both chains), so
-       streaming it would put a CD read on two transitions that do not need one.
-       If the 18 KB is ever wanted back, that is the thing to solve first. */
+       >>> IT USED TO UPLOAD HERE TOO, AT STARTUP, AND THAT LINE IS GONE. <<<
+       Under banking there is nothing to upload at this point: a registration
+       takes the TIM header and no pixels, and the pixels arrive with the bank
+       (src/texmgr.h), so the call would have been a silent no-op. The entry-time
+       hook was always the one doing the real work - the startup upload only ever
+       covered the frames before the first transition, and there are none in the
+       one room this is drawn in. */
     rabisu_tex = texmgr_register("\\TEX\\RABISU.TIM;1");
-    if (rabisu_tex >= 0) texmgr_upload(rabisu_tex);
 }
 
 /* ---- THE MODEL AND THE CLIP: LOADED ON ENTRY TO THE COURTYARD, FREED ON THE

@@ -190,6 +190,9 @@ void maze_two_load_geometry(void) {
    owns. Geometry moved to maze_two_load_geometry above, and the other five slots
    are compile-time constants that cost nothing here. */
 void maze_two_load_assets(void) {
+    /* BANK: the garden chain. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_GARDEN);
     /* Every one of these is uploaded by another module; header only — no
        LoadImage, no second RAM copy. */
     TIM_SLOT(0, HEDGE);

@@ -9,9 +9,13 @@ Companion docs (read them for the *why*; this file is the *how*):
   tools/TEXTURING_NOTES.txt         - VRAM rules, LoadImage timing, tex windows
   tools/AREAS_AND_WORLD_NOTES.txt   - the area/state model and world.c
   tools/VRAM_MAP.txt                - generated; who owns which VRAM slot
-  tools/HEAP_BUDGET.txt             - generated; what is permanently in MAIN RAM
-                                      and how much is left. READ IT BEFORE ADDING
-                                      A texmgr_register ANYWHERE — see STEP 3f
+  tools/HEAP_BUDGET.txt             - generated; main RAM, charged at the PEAK
+                                      texture bank rather than the total — see
+                                      STEP 3f, which no longer says what it used to
+  tools/check_tex_banks.py          - WHICH AREA'S BANK each module's textures are
+                                      in, derived from the uploader call graph.
+                                      Run it after touching any *_upload_* fn;
+                                      a short mask is a SILENT wrong texture
   tools/DIAGNOSING_FRAME_RATE.txt   - when a room drops to 30fps: the perf
                                       meter, the isolation switches, and the
                                       four optimisations that did not work
@@ -150,6 +154,53 @@ COORDINATE CONVENTIONS (memorise these):
   Standing eye height = floor_y - 189 in the y=0 interior rooms
     (reception/conservatory/hall_2f/master_bedroom). The kitchen uses -149.
     GROUND_FLOOR_Y is 149; apply_height() settles cam_y anyway.
+
+
+##########################################################################
+ STEP 2.5 — WHICH AREA IS IT IN? (read this before STEP 3)
+##########################################################################
+As of September 2026 the game does not hold all its textures at once. It is
+split into SIX areas, one texture bank each, and it holds the bank for the area
+the player is standing in (src/texmgr.h for the mechanism, src/area_bank.h for
+which room is where):
+
+    MANSION   GARDEN   RABISU (the courtyard)   WEST GARDEN   ASAG   CATACOMBS
+
+A new room needs a line in THREE places, and all three must agree:
+
+  1. area_bank_of() in src/area_bank.c   — which bank its art lives in
+  2. AREAS in tools/check_tex_banks.py   — its entry uploader, under that area
+  3. texmgr_set_bank() at the top of its *_load_assets(), if it OWNS textures
+
+Then run the checker. It is not optional and it is not a formality:
+
+      py tools/check_tex_banks.py
+
+>>> THE BANK IS NOT THE GEOGRAPHY. <<< Rooms borrow each other's textures
+through narrow uploaders, and those chains cross the map. The DELIVERY AREA's
+registrations are in the GARDEN's bank, because garden_stairs_upload_textures()
+calls delivery_upload_brick_wall(). The GARDEN STAIRS' are in the MANSION's,
+because delivery_restore_textures() calls garden_stairs_upload_grss_gs(). The
+CONSERVATORY's are in both. So write the mask the tool tells you, not the one
+that feels right, and re-run it after touching ANY *_upload_* function.
+
+A ROOM IN A NEW AREA (a new chapter, a new sealed pocket) additionally gets:
+  - a TEXBANK_* bit in src/texmgr.h and a case in area_bank_of();
+  - its own disc subdirectory if \TEX\ is full — that directory's ISO9660
+    record already spans five sectors and growing it by two files once killed
+    the boot inside sound_init (see the TEXASAG and TEXCTCMB notes in disc.xml,
+    and mind the ROOT SORT ORDER: anything sorting before SYSTEM.CNF pushes it
+    out of the first sector and the console will not boot);
+  - its own SND_BANK_* if no existing one fits (tools/ADDING_A_SOUND.txt);
+  - and it may take ANY VRAM page an area it never coexists with owns, which is
+    the licence Asag's arena and the Catacombs both use. Register the sharing in
+    KNOWN_STREAM_PAIRS so tools/vram_map.py can see the decision.
+
+>>> AND A NEW ROOM MOVES _end WHATEVER ELSE IT DOES. <<< Its code, its collision
+table, its per-poly texture map and its ~2.9 KB slot in world.c's RoomState
+array are all static, so they come off the heap for every area at once — 10 to
+20 KB a room, and banking does not help with it. That is the one budget a room
+always spends; tools/HEAP_BUDGET.txt is where to watch it.
 
 
 ##########################################################################
@@ -314,42 +365,63 @@ COORDINATE CONVENTIONS (memorise these):
     two things to confirm.
 
 
-3f. >>> AND NOW CHECK MAIN RAM, WHICH IS TIGHTER THAN VRAM. <<<
+3f. >>> AND NOW CHECK MAIN RAM — WHICH IS NO LONGER THE TIGHT ONE. <<<
 
-      py tools\heap_budget.py > tools\HEAP_BUDGET.txt
+      py tools/check_tex_banks.py
+      py tools/heap_budget.py > tools/HEAP_BUDGET.txt
 
-    Every texmgr_register() keeps the WHOLE TIM resident for the life of the run
-    — 10 KB for a 4bpp 128x128, 18 KB for an 8bpp one. There are 62 of them and
-    they hold 836 KB. The heap is 1196 KB. The props' model buffers take 154 KB
-    more. What is actually free at rest is about 200 KB, and the startup reads
-    have to fit in it — the Rabisu's idle clip alone is 74 KB.
+    >>> EVERYTHING THIS STEP USED TO SAY IS OBSOLETE, AND IT IS WORTH KNOWING
+    WHY BEFORE YOU TRUST THE NEW NUMBERS. <<< It used to read: a registration
+    keeps the WHOLE TIM resident for the life of the run, there are 62 of them
+    holding 836 KB of a 1196 KB heap, about 200 KB is free, and the two ways to
+    add a texture are to borrow somebody else's or to stream it yourself. Every
+    word of that was true and the conclusion drawn from it — that the game was
+    close to the limit of the machine — was not. It was close to the limit of a
+    POLICY: "read every texture at startup and never free it", which is a fine
+    trade with five rooms and a bad one with twenty-eight.
 
-    >>> OVERRUNNING IT DOES NOT FAIL SOFTLY, AND THE CRASH POINTS SOMEWHERE
-    ELSE. <<< PSn00bSDK's InitHeap is handed everything from _end up to
-    0x801FFFF8 — which IS the stack; the BIOS stack pointer starts at 0x801FFF00
-    and grows down into the same region with nothing between them. So a malloc
-    made when the heap is nearly full SUCCEEDS, hands back memory the stack is
-    using, and the next CdRead DMAs over the return address. The console jumps
-    into nothing and PCSX-Redux says "Unrecoverable error while running
-    recompiler" at whatever PC it last had.
+    Textures are BANKED now (src/texmgr.h, src/area_bank.h). The game holds one
+    area's set at a time, so the number that binds is the PEAK BANK, not the
+    total:
 
-    The GREENHOUSE did this in August 2026. Five registrations took free-at-rest
-    from 216 KB to 143 KB, the game stopped booting, and the reported PC was in
-    rabisus_load_assets — the next large read after the new room's — which has
-    nothing to do with the Greenhouse and sent the first look in the wrong
-    direction entirely. If a room addition stops the game booting, run
-    heap_budget.py FIRST; do not start reading the crash address.
+        MANSION      456 KB      GARDEN       424 KB
+        RABISU       206 KB      WEST GARDEN  256 KB
+        ASAG           0 KB      CATACOMBS     72 KB
+        ------------------------------------------------
+        peak         456 KB   against a 937 KB heap
+        free at rest 437 KB   (was 145 KB)
 
-    THE TWO WAYS TO ADD A TEXTURE AND SPEND NOTHING:
-      1. A narrow *_upload_x() on the module that already owns it, plus
-         TIM_SLOT() for the header (hall_2f_upload_strs is the pattern). This is
-         also how you fix a DUPLICATE — heap_budget.py lists them, and there is
-         currently 80 KB held in second and third copies of five TIMs.
-      2. Stream it on entry into a scratch buffer that is freed again, bracketed
-         by cdaudio_suspend/resume. greenhouse_upload_textures is the only one
-         today: that room owns FIVE textures and registers none of them. It costs
-         a little loading time and no permanent bytes, and it is the right answer
-         for a room at the end of a branch that nothing else reaches.
+    SO: A NEW TEXTURE COSTS ITS OWN SIZE IN ONE BANK, not in the whole game.
+    18 KB into a 456 KB bank with 437 KB spare is not a decision that needs
+    making. The old tricks — a narrow *_upload_x() on the owning module, or
+    streaming into a scratch buffer — are still GOOD for avoiding duplicate RAM
+    copies and still what to reach for when two rooms want the same art, but
+    they are no longer load-bearing and a room should not be contorted for them.
+
+    WHAT STILL BINDS, in order:
+      1. VRAM. 1 MB, genuinely full, and no free page-aligned Voff-0 slots.
+         Everything in 3b above stands unchanged. This is the real constraint.
+      2. SPU RAM. 512 KB, ~16 KB spare in the largest bank. See
+         tools/ADDING_A_SOUND.txt STEP 3 and run its arithmetic.
+      3. _end. A room costs code + its collision table + its per-poly texture
+         map + ~2.9 KB in world.c's RoomState array, all of it static, all of it
+         off the heap for every area at once. 10-20 KB a room. There is room for
+         many more, but it is the one cost banking does NOT fix.
+
+    >>> AND THE ONE THING YOU MUST ACTUALLY DO IS DECLARE THE BANK. <<< Put a
+    texmgr_set_bank() at the top of the room's *_load_assets() naming every area
+    that draws its textures — and then RUN THE CHECKER, because the answer is
+    not the geography. Rooms borrow each other's art through narrow uploaders
+    and those chains cross the map: the Delivery Area's registrations are in the
+    GARDEN's bank because garden_stairs_upload_textures() calls
+    delivery_upload_brick_wall(); the Garden Stairs' are in the MANSION's
+    because delivery_restore_textures() calls garden_stairs_upload_grss_gs().
+    check_tex_banks.py walks that graph and fails if a mask is short.
+
+    GETTING IT WRONG IS SILENT: texmgr_upload() on an entry whose bank is out
+    does nothing, and the room draws with whatever the last room left in that
+    VRAM page. It looks like a texturing bug and tools/VRAM_MAP.txt will tell
+    you everything is fine.
 
 
 ##########################################################################
@@ -684,6 +756,9 @@ Collision change: full recompile required.
  STEP 8 — VERIFY
 ##########################################################################
 Code-level checks to do before handing over:
+  [ ] py tools/check_tex_banks.py exits 0. This is the one that catches the new
+      class of bug: a texture whose bank does not include a room that draws it
+      renders as whatever the last room left in that VRAM page, silently.
   [ ] tools/VRAM_MAP.txt says "No unexpected pixel collisions" and the new
       texture is at Voff 0.
   [ ] Every VRAM slot the room stomps is restored by whoever needs the
@@ -705,8 +780,15 @@ In-game (needs an emulator; say so plainly if you have not run it):
   [ ] Signs read forwards, not mirrored.
   [ ] No invisible walls in open floor (a leaked global prop) and no falling
       through the floor (a floor-zone rect that misses part of the room).
-  [ ] Textures match Blender; nothing is showing another room's art (a texture
-      window / Voff problem).
+  [ ] Textures match Blender; nothing is showing another room's art. There are
+      now TWO ways to get that symptom — a texture window / Voff problem, and a
+      bank mask that does not cover this room. check_tex_banks.py rules out the
+      second before you start reading VRAM_MAP.txt.
+  [ ] Walk ACROSS an area boundary in both directions and back: house <-> garden
+      stairs, garden <-> courtyard, rear gate <-> stables, the hatch -> arena,
+      outside catacombs -> catacombs. Those are the transitions that swap a
+      texture bank, i.e. the only ones that read 200-450 KB off the disc, and
+      the only ones where a short mask shows up.
   [ ] Music continues uninterrupted across the transition.
   [ ] Save, reset, load: you come back in the right room with progress intact.
 

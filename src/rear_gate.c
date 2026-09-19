@@ -241,6 +241,9 @@ void rear_gate_load_geometry(void) {
    room owns. Geometry moved to rear_gate_load_geometry above, and the other
    seven slots are compile-time constants that cost nothing here. */
 void rear_gate_load_assets(void) {
+    /* BANK: the garden chain. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_GARDEN);
     /* Every one of these is uploaded by another module; header only — no
        LoadImage, no second RAM copy. TREESDL is the extreme case: its pixels go
        up once at startup in delivery_area_init and are never touched again, so

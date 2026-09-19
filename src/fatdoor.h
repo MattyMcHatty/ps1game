@@ -58,4 +58,13 @@ int  fatdoors_try_smash(void);
    range, 1 = damaged, 2 = that hit smashed it. */
 int  fatdoors_damage_at(int32_t x, int32_t z, int32_t reach, int amount);
 
+
+/* Free the prop's geometry on the one-way walk into the Catacombs.
+   src/area_bank.h owns the decision; nothing else may call it. */
+void fatdoors_free_assets(void);
+
+/* Re-read that geometry when a save load brings the player back. Geometry
+   only - see the note in the .c. */
+void fatdoors_reload_assets(void);
+
 #endif

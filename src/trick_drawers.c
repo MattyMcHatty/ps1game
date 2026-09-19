@@ -120,6 +120,9 @@ static void *read_file(const char *name) {
 /* Startup: load the model SMD and register the closed-drawer texture (RAM-
    resident for a pure-LoadImage upload on room entry). */
 void trick_drawers_load_assets(void) {
+    /* BANK: the 2F hall. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_MANSION);
     drawer_buf = read_file("\\TEX\\TRKDRWR.SMD;1");
     if (drawer_buf) drawer_smd = smdInitData(drawer_buf);
 
@@ -575,4 +578,30 @@ void trick_drawers_draw(RenderContext *ctx) {
                                        50, 255, 50, fade, DOOR_PIXEL_SIZE);
         }
     }
+}
+
+/* ---- CHAPTER 3 -----------------------------------------------------------
+   Give the model back. Called only from chapter_enter_catacombs()
+   (src/area_bank.h) when the destination's bank does not contain it - the
+   Catacombs and Asag's arena today, where nothing
+   this prop is placed in can ever be entered again. Every draw and collide
+   in this file already bails on a NULL SMD, so the prop simply stops
+   existing rather than needing a flag of its own. Safe if never loaded. */
+void trick_drawers_free_assets(void) {
+    if (drawer_buf) { free(drawer_buf); drawer_buf = NULL; }
+    drawer_smd = NULL;
+}
+
+/* ---- CHAPTER 3: THE WAY BACK ---------------------------------------------
+   Re-read the geometry trick_drawers_free_assets freed. The only caller is
+   area_bank_sync() (src/area_bank.h), which runs when a title-screen
+   load lands the player back in the mansion or the garden after a session
+   that reached the Catacombs. GEOMETRY ONLY: the texture work in
+   trick_drawers_load_assets must not be repeated, because a second
+   texmgr_register would be a second RAM copy and one more against the cap.
+   Idempotent, and a CD read - legal only where its caller runs it, inside
+   main's STATE_LOADING with CD-DA suspended. */
+void trick_drawers_reload_assets(void) {
+    if (!drawer_buf) { drawer_buf = read_file("\\TEX\\TRKDRWR.SMD;1");
+                       if (drawer_buf) drawer_smd = smdInitData(drawer_buf); }
 }

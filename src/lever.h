@@ -57,4 +57,13 @@ int  levers_any_solid(void);
 /* Draw every instance in the current area. Restores the caller's view matrix. */
 void levers_draw(RenderContext *ctx);
 
+
+/* Free the prop's geometry on the one-way walk into the Catacombs.
+   src/area_bank.h owns the decision; nothing else may call it. */
+void levers_free_assets(void);
+
+/* Re-read that geometry when a save load brings the player back. Geometry
+   only - see the note in the .c. */
+void levers_reload_assets(void);
+
 #endif

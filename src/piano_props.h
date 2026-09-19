@@ -52,4 +52,13 @@ int  piano_props_bookcase_sinking(void);
    only covers the frames between solving and leaving the room. */
 void piano_props_tablets_hide(void);
 
+
+/* Free the prop's geometry on the one-way walk into the Catacombs.
+   src/area_bank.h owns the decision; nothing else may call it. */
+void piano_props_free_assets(void);
+
+/* Re-read that geometry when a save load brings the player back. Geometry
+   only - see the note in the .c. */
+void piano_props_reload_assets(void);
+
 #endif

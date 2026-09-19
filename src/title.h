@@ -89,6 +89,22 @@ typedef enum {
                                 src/asag_arena.h and
                                 tools/ADDING_THE_ASAG_FIGHT.txt. Appended, not
                                 inserted: saves store raw enum values. */
+    STATE_CATACOMBS_ENTRY,   /* CHAPTER 3 BEGINS HERE. The first room of the
+                                Catacombs, through the open doors in the Outside
+                                Catacombs' facade — and the first room in the
+                                game the player cannot walk back out of. That is
+                                what lets the whole chapter take a VRAM bank, an
+                                SPU bank AND the mansion's and the garden's
+                                texture RAM: see src/area_bank.h, which is the new
+                                thing here and is worth reading before adding a
+                                second Catacombs room. Appended, not inserted:
+                                saves store raw enum values. */
+    STATE_CATACOMB_WALK,     /* the transition INTO that room, and a transition
+                                state rather than a place — the company
+                                STATE_DOOR_ANIM and STATE_STAIR_ANIM keep. The
+                                camera walks between the two open door leaves
+                                and fades; src/catacomb_walk.h. Appended for the
+                                same reason, though nothing ever saves in it. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

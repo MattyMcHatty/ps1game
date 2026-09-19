@@ -225,6 +225,9 @@ void stables_load_geometry(void) {
    room owns. Geometry moved to stables_load_geometry above, and the other four
    slots are compile-time constants that cost nothing here. */
 void stables_load_assets(void) {
+    /* BANK: the stable yard and the glasshouse behind it. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_WEST_GARDEN);
     /* Borrowed: header only — no LoadImage, no second RAM copy. All four are put
        in VRAM by garden_courtyard_upload_textures() on the way in. */
     TIM_SLOT(0, HEDGE);

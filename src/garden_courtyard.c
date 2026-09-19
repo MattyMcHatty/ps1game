@@ -151,6 +151,9 @@ void garden_courtyard_load_geometry(void) {
    room owns. Geometry moved to garden_courtyard_load_geometry above, and the
    other six slots are compile-time constants that cost nothing here. */
 void garden_courtyard_load_assets(void) {
+    /* BANK: every garden room runs this room uploader. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_GARDEN | TEXBANK_RABISU | TEXBANK_WEST_GARDEN);
     /* Every one of these is uploaded by another module; header only — no
        LoadImage, no second RAM copy. */
     TIM_SLOT(0, BRIKWLL);

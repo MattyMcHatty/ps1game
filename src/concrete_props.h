@@ -26,4 +26,13 @@ int  concrete_props_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
    pass in rooms that hold no props at all — see the note there. */
 int  concrete_props_any_solid(void);
 
+
+/* Free the prop's geometry on the one-way walk into the Catacombs.
+   src/area_bank.h owns the decision; nothing else may call it. */
+void concrete_props_free_assets(void);
+
+/* Re-read that geometry when a save load brings the player back. Geometry
+   only - see the note in the .c. */
+void concrete_props_reload_assets(void);
+
 #endif

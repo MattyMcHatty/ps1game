@@ -13,6 +13,7 @@
 #include "texmgr.h"
 #include "web.h"            /* WEB_DAMAGE — the mist carries the spider's poison */
 #include "door_anim.h"      /* door_anim_active — see the guard in update_rafflesias */
+#include "catacomb_walk.h" /* ...and the same question about the Chapter 3 walk */
 #include "tentacle.h"      /* the writhe voice's real owner — see raf_voice_is_ours */
 #include "spider.h"        /* ditto the scuttle voice */
 #include "rafflesia.h"
@@ -401,6 +402,9 @@ static void load_owned_sprite(const char *filename, Sprite *s) {
 }
 
 void rafflesias_load_assets(void) {
+    /* BANK: the flowers are placed in the garden and the west garden. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_GARDEN | TEXBANK_WEST_GARDEN);
     load_owned_sprite("\\TEX\\MIST.TIM;1", &spr_mist);
     if (spr_mist.tpage) mist_loaded = 1;
 
@@ -665,7 +669,7 @@ void update_rafflesias(void) {
        latches clear, and key the writhe straight back on for the whole of the
        transition and into the next room. That is the bug the same guard at the
        top of update_hadads was written for. */
-    if (door_anim_active()) {
+    if (door_anim_active() || catacomb_walk_active()) {
         rafflesias_silence();
         return;
     }

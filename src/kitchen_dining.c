@@ -233,6 +233,9 @@ void kitchen_load_geometry(void) {
 }
 
 void kitchen_load_assets(void) {
+    /* BANK: the house only. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_MANSION);
     kitchen_stream_textures();   /* initial upload at startup */
 
     /* Register the reception-shared textures with the texture manager (RAM-

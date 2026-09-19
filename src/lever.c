@@ -319,3 +319,29 @@ void levers_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&view);
     gte_SetTransMatrix(&view);
 }
+
+/* ---- CHAPTER 3 -----------------------------------------------------------
+   Give the model back. Called only from chapter_enter_catacombs()
+   (src/area_bank.h) when the destination's bank does not contain it - the
+   Catacombs and Asag's arena today, where nothing
+   this prop is placed in can ever be entered again. Every draw and collide
+   in this file already bails on a NULL SMD, so the prop simply stops
+   existing rather than needing a flag of its own. Safe if never loaded. */
+void levers_free_assets(void) {
+    if (lever_buf) { free(lever_buf); lever_buf = NULL; }
+    lever_smd = NULL;
+}
+
+/* ---- CHAPTER 3: THE WAY BACK ---------------------------------------------
+   Re-read the geometry levers_free_assets freed. The only caller is
+   area_bank_sync() (src/area_bank.h), which runs when a title-screen
+   load lands the player back in the mansion or the garden after a session
+   that reached the Catacombs. GEOMETRY ONLY: the texture work in
+   levers_load_assets must not be repeated, because a second
+   texmgr_register would be a second RAM copy and one more against the cap.
+   Idempotent, and a CD read - legal only where its caller runs it, inside
+   main's STATE_LOADING with CD-DA suspended. */
+void levers_reload_assets(void) {
+    if (!lever_buf) { lever_buf = read_file("\\TEX\\LEVER.SMD;1");
+                      if (lever_buf) lever_smd = smdInitData(lever_buf); }
+}

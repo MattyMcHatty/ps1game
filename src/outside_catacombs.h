@@ -82,9 +82,9 @@ int  outside_catacombs_gate_triggered(void);  /* 1 on a fresh Circle press in ra
 /* ---- The catacomb mouth at the north end ----------------------------------
    Inert until Asag is dead and the two leaves have been slid apart by the scene
    in src/catacomb_open.h; from then on it carries a "Press O to enter" sign of
-   its own and a Circle in range posts "COMING SOON" to the log, because what is
-   behind it has not been built. See the long note in the .c — replacing the
-   placeholder with a real transition is one line there.
+   its own, and a Circle in range takes the player into CHAPTER 3 — through
+   src/catacomb_walk.h's transition into the Catacombs Entry, and permanently.
+   See the long note in the .c.
 
    Called from main.c's block for this room BEFORE the south gate's trigger, and
    its return value is the veto that gate takes: 1 means it consumed this

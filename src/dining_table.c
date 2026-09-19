@@ -281,3 +281,15 @@ void dining_tables_draw(RenderContext *ctx, uint16_t tpage, uint16_t clut) {
     gte_SetRotMatrix(&view);
     gte_SetTransMatrix(&view);
 }
+
+/* ---- CHAPTER 3 -----------------------------------------------------------
+   Give the model back. Called only from chapter_enter_catacombs()
+   (src/area_bank.h) when the destination's bank does not contain it - the
+   Catacombs and Asag's arena today, where nothing
+   this prop is placed in can ever be entered again. Every draw and collide
+   in this file already bails on a NULL SMD, so the prop simply stops
+   existing rather than needing a flag of its own. Safe if never loaded. */
+void dining_tables_free_assets(void) {
+    if (table_buffer) { free(table_buffer); table_buffer = NULL; }
+    table_smd = NULL;
+}

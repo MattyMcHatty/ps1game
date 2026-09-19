@@ -138,6 +138,13 @@ static const char *const level_names[] = {
        room testable without one. A row here needs the matching entry in
        level_states and level_pending below - all three, in the same position. */
     "ASAG ARENA",
+    /* CHAPTER 3. Jumping straight here is the ONLY way to reach the Catacombs
+       without killing Asag, and it goes through STATE_LOADING like every other
+       row, which is what makes area_bank_sync() run (src/area_bank.h): the jump
+       purges the mansion and the garden and loads the Catacombs' art exactly as
+       walking through the mouth would. Jumping back OUT to any Chapter 1 or 2
+       row restores them, by the same call. */
+    "CATACOMBS ENTRY",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -171,6 +178,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,
     STATE_LOADING,
     STATE_LOADING,        /* ASAG ARENA */
+    STATE_LOADING,        /* CATACOMBS ENTRY */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -202,6 +210,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_CHAIN_ROOM,
     STATE_THE_HATCH,
     STATE_ASAG_ARENA,
+    STATE_CATACOMBS_ENTRY,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------
@@ -222,6 +231,7 @@ typedef struct {
 static const DebugChapter debug_chapters[] = {
     {  0, "CHAPTER 1" },
     { 14, "CHAPTER 2" },   /* FOUNTAIN SQR onwards, WEST CORRIDOR included */
+    { 27, "CHAPTER 3" },   /* CATACOMBS ENTRY onwards */
 };
 #define DEBUG_CHAPTER_COUNT \
     ((int)(sizeof(debug_chapters) / sizeof(debug_chapters[0])))

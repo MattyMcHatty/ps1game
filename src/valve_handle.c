@@ -491,3 +491,29 @@ void valve_handles_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&view);
     gte_SetTransMatrix(&view);
 }
+
+/* ---- CHAPTER 3 -----------------------------------------------------------
+   Give the model back. Called only from chapter_enter_catacombs()
+   (src/area_bank.h) when the destination's bank does not contain it - the
+   Catacombs and Asag's arena today, where nothing
+   this prop is placed in can ever be entered again. Every draw and collide
+   in this file already bails on a NULL SMD, so the prop simply stops
+   existing rather than needing a flag of its own. Safe if never loaded. */
+void valve_handles_free_assets(void) {
+    if (valve_buffer) { free(valve_buffer); valve_buffer = NULL; }
+    valve_smd = NULL;
+}
+
+/* ---- CHAPTER 3: THE WAY BACK ---------------------------------------------
+   Re-read the geometry valve_handles_free_assets freed. The only caller is
+   area_bank_sync() (src/area_bank.h), which runs when a title-screen
+   load lands the player back in the mansion or the garden after a session
+   that reached the Catacombs. GEOMETRY ONLY: the texture work in
+   valve_handles_load_assets must not be repeated, because a second
+   texmgr_register would be a second RAM copy and one more against the cap.
+   Idempotent, and a CD read - legal only where its caller runs it, inside
+   main's STATE_LOADING with CD-DA suspended. */
+void valve_handles_reload_assets(void) {
+    if (!valve_buffer) { load_file("\\TEX\\VALVEH.SMD;1", &valve_buffer);
+                         if (valve_buffer) valve_smd = smdInitData(valve_buffer); }
+}

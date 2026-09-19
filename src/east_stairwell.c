@@ -119,6 +119,9 @@ void east_stairwell_load_geometry(void) {
    still are: they keep a RAM copy so the entry-time upload is a pure LoadImage
    (tools/TEXTURING_NOTES.txt). */
 void east_stairwell_load_assets(void) {
+    /* BANK: chnlnk is borrowed by the Attic Exit AND by garden_stairs_upload_textures. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_MANSION | TEXBANK_GARDEN | TEXBANK_RABISU | TEXBANK_WEST_GARDEN);
     /* Streamed slots we own: RAM-resident via the texture manager, uploaded on
        entry. */
     for (int i = 0; i < EAST_STAIRWELL_NEW_TEX; i++) {

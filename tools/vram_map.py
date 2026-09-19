@@ -508,6 +508,44 @@ KNOWN_STREAM_PAIRS = [
     ("frnt_dr.tim", "chain_128.tim"),
     ("greenhouse door.tim", "chain_128.tim"),
     ("red_crpt.tim", "chain_128.tim"),
+    # ============ THE CATACOMBS (Chapter 3) ===============================
+    # The same argument as Asag's arena above, one chapter wide. The Catacombs
+    # are entered through the mouth in the Outside Catacombs and there is NO WAY
+    # BACK: nothing in the mansion or the garden is ever drawn again in that
+    # run, so the whole room-art half of VRAM is the chapter's to re-lay-out and
+    # it owes nobody a restore. (The way back is a title-screen load, which
+    # rebuilds every room it lands in from that room's own uploader.) See
+    # tools/VRAM_MAP_CATACOMBS.txt.
+    #
+    # The ONE texture it does not displace is `lamashtu tablet`, which it shares
+    # with the Outside Catacombs on purpose: the tablet is the face of the door
+    # the player walks through, it is what the transition draws, and it is what
+    # is carved on the entry chamber's south wall on the far side.
+    #   cobblestones.tim  -> the clsd_drwr page (x384 y0)
+    ("chnlnk_dl.tim", "cobblestones.tim"),
+    ("clsd_drwr.tim", "cobblestones.tim"),
+    ("cncrte.tim", "cobblestones.tim"),
+    ("flowerbed.tim", "cobblestones.tim"),
+    ("hedge.tim", "cobblestones.tim"),
+    ("kchn_tile.tim", "cobblestones.tim"),
+    ("piano_keys.tim", "cobblestones.tim"),
+    ("piano_keys_full.tim", "cobblestones.tim"),
+    ("xt_dr_outr.tim", "cobblestones.tim"),
+    ("mud.tim", "cobblestones.tim"),          # pixels AND clut (672,499)
+    #   loculus.tim       -> the kchn_wl page (x512 y0)
+    ("cuneiform _symbols.tim", "loculus.tim"),
+    ("dresser.tim", "loculus.tim"),
+    ("grdn_gte.tim", "loculus.tim"),
+    ("kchn_wl.tim", "loculus.tim"),
+    ("Boss Wall.tim", "loculus.tim"),         # pixels AND clut (672,500)
+    #   catacomb inner door.tim -> the opn_drwr page (x832 y0)
+    ("con_tile.tim", "catacomb inner door.tim"),
+    ("double_door.tim", "catacomb inner door.tim"),
+    ("drain.tim", "catacomb inner door.tim"),
+    ("opn_drwr.tim", "catacomb inner door.tim"),
+    ("plinth.tim", "catacomb inner door.tim"),
+    ("stables wood.tim", "catacomb inner door.tim"),   # pixels AND clut (672,498)
+    ("xt_dr_cg.tim", "catacomb inner door.tim"),
 ]
 
 def read_tim(path):

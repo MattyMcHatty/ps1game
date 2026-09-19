@@ -78,7 +78,10 @@
 #include "asag_fight.h"     /* ...and the combat AI it hands the player to    */
 #include "hatch_doors.h"
 #include "catacomb_doors.h"
-#include "catacomb_open.h"  /* the doors coming apart: Asag's ending, beat 2  */
+#include "catacomb_open.h"
+#include "area_bank.h"          /* the six texture banks; see that header */
+#include "catacombs_entry.h"
+#include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
 #include "hatch_puzzle.h"
 #include "hatch_arrival.h"  /* the drop off the well: Asag's ending, beat 3   */
 #include "keystone_plinths.h"
@@ -290,6 +293,7 @@ static void load_area_geometry(GameState area) {
         case STATE_STABLES:          stables_load_geometry();          break;
         case STATE_GREENHOUSE:       greenhouse_load_geometry();       break;
         case STATE_ASAG_ARENA:       asag_arena_load_geometry();       break;
+        case STATE_CATACOMBS_ENTRY:  catacombs_entry_load_geometry();  break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -375,6 +379,7 @@ static int soft_reset_allowed(GameState s) {
         case STATE_LOADING:
         case STATE_DOOR_ANIM:
         case STATE_STAIR_ANIM:
+        case STATE_CATACOMB_WALK:
         case STATE_SAVE_MENU:
             return 0;
         default:
@@ -1629,6 +1634,27 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+    } else if (area == STATE_CATACOMBS_ENTRY) {
+        /* CATACOMBS ENTRY — Chapter 3's first room, and the first room in the
+           game with no way out. Two ramps and five flat levels, so the shared
+           wall routine (generic over current_collision_room) plus seven floor
+           zones — and multi_level stays 0 even so, which the note at the head
+           of src/catacombs_entry_mesh_collision.c argues out: the player's wall
+           collision Y-gates whatever that flag says, and this room's five
+           walkable footprints do not overlap in plan, so nothing here earns it.
+
+           NO DOOR TRIGGER. The tablet and the inner door both answer Circle and
+           neither goes anywhere: the tablet says so in as many words, and what
+           is behind the inner door is not built. So there is no pending_area to
+           set here and no transition to start — the whole branch is collision,
+           height and one interaction call.
+
+           No entity updates either. Nothing from Chapters 1 or 2 can be placed
+           down here (src/area_bank.h has freed their art) and Chapter 3 has no
+           monsters yet; when it does, they go here. */
+        apply_collision_reception();
+        apply_height();
+        catacombs_entry_interact_update(lock);
     } else if (area == STATE_ASAG_ARENA) {
         /* ASAG'S ARENA — free play, which here means the fight AFTER the opening
            scene has handed the camera back. The scene itself runs in the
@@ -1750,7 +1776,26 @@ static void update_current_area(GameState area) {
            the veto the gate takes, which is The Hatch's lip-before-gate
            arrangement exactly. */
         int oc_mouth = outside_catacombs_mouth_update(lock);
-        if (!lock && !oc_mouth && outside_catacombs_gate_triggered()) {
+        if (oc_mouth) {
+            /* >>> INTO CHAPTER 3, AND THERE IS NO WAY BACK. <<< The Catacombs
+               Entry has no exit and never will — that is the design, and it is
+               what lets area_bank_sync() hand the mansion's and the garden's
+               ~800 KB of texture RAM back at this one door (src/area_bank.h).
+
+               NOT door_anim_start(): the doors are already open, slid apart by
+               the scene that ended Asag's fight, so there is nothing to swing.
+               The camera walks BETWEEN them instead — src/catacomb_walk.h.
+
+               >>> AND NO cdaudio_stop() HERE, UNLIKE THE GATE BELOW. <<< The
+               garden's track is meant to play under the whole walk and to be
+               the last thing the player hears of it; the cut happens when
+               STATE_LOADING runs catacombs_entry_init(), which stops it. Stop
+               it here and the transition plays in silence but for the
+               footsteps, which reads as the game having crashed. */
+            pending_area = STATE_CATACOMBS_ENTRY;
+            catacomb_walk_start();
+            game_state   = STATE_CATACOMB_WALK;
+        } else if (!lock && outside_catacombs_gate_triggered()) {
             /* South back through the same gate, into Fountain Square. */
             pending_area = STATE_FOUNTAIN_SQUARE;
             door_anim_start(DOOR_PANEL_GATE);
@@ -1960,6 +2005,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         the_hatch_draw(ctx);
     else if (area == STATE_ASAG_ARENA)
         asag_arena_draw(ctx);
+    else if (area == STATE_CATACOMBS_ENTRY)
+        catacombs_entry_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -2291,6 +2338,14 @@ int main(int argc, const char **argv) {
                                   Greenhouse's are. The heap has no 18 KB to
                                   spare - see the note in src/the_hatch.c */
     loading_screen_pump(&ctx);
+    catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
+                                     four compile-time headers, and NO CD ACCESS
+                                     AT ALL. The names are recorded; the bytes
+                                     are read at the one-way door, by
+                                     area_bank_sync(), in the same breath as the
+                                     mansion's and the garden's ~800 KB being
+                                     handed back. See src/area_bank.h. */
+
     asag_arena_load_assets();  /* ASAG'S ARENA: does NOTHING, on purpose. It owns
                                   no texture yet, and when it does they will be
                                   streamed on entry with their tpage/clut
@@ -2602,6 +2657,31 @@ int main(int argc, const char **argv) {
             if (pending_area != STATE_ASAG_ARENA)       asags_free_model();
             loading_screen_pump(&ctx);
 
+            /* THE CHAPTER BOUNDARY, and it goes HERE for the reason the boss
+               frees do: it is the biggest free and the biggest read in this
+               whole function, and everything below it allocates.
+
+               Walking into the Catacombs hands back the mansion's and the
+               garden's ~800 KB of texture RAM and prop models and reads
+               Chapter 3's own art in its place; coming back the other way — a
+               title-screen Load Game or a debug level-select jump into a
+               Chapter 1 or 2 room after a session that reached Chapter 3 —
+               does the mirror. Both are no-ops on every other transition in
+               the game, which is the overwhelming majority of them, and the
+               function decides that for itself. See src/area_bank.h.
+
+               >>> BEFORE load_area_geometry, NOT AFTER. <<< That call reads the
+               incoming room's mesh into the BSS arena (no heap) but ALSO
+               mallocs that room's per-room props, and this is a transition
+               where 800 KB is about to change hands. Freeing first makes the
+               peak the larger of the two sets rather than their sum — the same
+               argument, and the same crash, as the boss frees above.
+
+               >>> AND BEFORE sound_bank_select, whose EMERGE read is the
+               largest single malloc in the program. <<< Same reason again. */
+            area_bank_sync(pending_area);
+            loading_screen_pump(&ctx);
+
             /* Geometry: read the incoming room's mesh into the shared arena,
                evicting the one the player just left, and load that room's own
                props. room_arena_load brackets its own CdRead with
@@ -2657,6 +2737,19 @@ int main(int argc, const char **argv) {
                    menu blips — is RESIDENT and unaffected by which bank is in.
                    The whole 232 KB region is the fight's. See src/sound.h. */
                 (pending_area == STATE_ASAG_ARENA) ? SND_BANK_ASAG :
+                /* THE CATACOMBS -> their OWN bank, and that bank is EMPTY, for
+                   a stronger version of the arena's reason. The mouth is a
+                   ONE-WAY door: no monster in Chapters 1 or 2 can be heard down
+                   there because none of them can be PLACED down there, and
+                   everything the player makes a noise with is SND_RESIDENT. So
+                   the whole 232 KB region is Chapter 3's. See src/sound.h.
+
+                   >>> AND THIS LINE IS ONLY HALF OF WHAT HAPPENS AT THIS DOOR.
+                   <<< area_bank_sync(), a few lines above, hands back the
+                   mansion's and the garden's texture RAM at the same
+                   transition. The two are deliberately separate calls because
+                   they need different places in this function's ordering. */
+                area_is_catacombs(pending_area) ? SND_BANK_CATACOMBS :
                 SND_BANK_HOUSE);
 
             /* LOAD THE INCOMING BOSS'S MODEL — AND IT GOES *AFTER* THE BANK
@@ -2846,6 +2939,21 @@ int main(int argc, const char **argv) {
                                                        palettes included, so the
                                                        order inside that function
                                                        is load-bearing. */
+            } else if (pending_area == STATE_CATACOMBS_ENTRY) {
+                /* CATACOMBS ENTRY. Like Asag's arena it BORROWS NOTHING and
+                   RESTORES NOTHING, and for a stronger version of the same
+                   reason — that room is a one-way pocket, this is a one-way
+                   CHAPTER. But unlike the arena it does not stream: its four
+                   textures are texmgr entries that area_bank_sync() has already
+                   read into RAM a few lines above, so this is a pure LoadImage
+                   with the drive idle.
+
+                   IF area_bank_sync HAS NOT RUN, THIS UPLOADS NOTHING — quietly.
+                   texmgr_upload() on an unloaded entry is a no-op by design, so
+                   the failure mode is the previous room's art in these pages
+                   rather than a crash. That is why the ordering above is
+                   written down rather than left to chance. */
+                catacombs_entry_upload_textures();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 /* ASAG'S ARENA. It BORROWS NOTHING — no neighbour's uploader at
                    the head of the chain, unlike every other garden room — and it
@@ -3272,6 +3380,21 @@ int main(int argc, const char **argv) {
                    of a camera standing on a well. */
                 if (ending_beat != ENDING_LANDING)
                     cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
+            } else if (pending_area == STATE_CATACOMBS_ENTRY) {
+                /* One arrival — the walk in through the doors — so its spawn is
+                   not a default but the only one. Nothing to override, and
+                   nothing ever will be: the room has no second entrance. */
+                catacombs_entry_init();
+                /* Silence, and stopping is not the same as doing nothing. The
+                   walk transition does not stop the music itself (the Outside
+                   Catacombs' track is still running under it, which is the
+                   point of walking away from the garden), and a title-screen
+                   Load Game or a debug jump into this room does not pass
+                   through that transition at all. Every route in passes through
+                   THIS line — the rule the arena's own branch below states.
+                   Chapter 3 has no track of its own yet; when it does, it goes
+                   here. */
+                cdaudio_stop();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -3519,6 +3642,18 @@ int main(int argc, const char **argv) {
             stair_anim_draw(&ctx);
             if (stair_anim_finished())
                 game_state = STATE_LOADING;
+        } else if (game_state == STATE_CATACOMB_WALK) {
+            /* The walk into the Catacombs — the Chapter 2 -> 3 transition, and
+               the third that is not a door. The camera paces between the two
+               open door leaves and fades; src/catacomb_walk.h. It draws the
+               tablet out of the VRAM the room being LEFT put there, so it has
+               to finish before STATE_LOADING runs area_bank_sync() over that same
+               texture's RAM copy — which it does, because that is the state it
+               hands off to. */
+            catacomb_walk_update();
+            catacomb_walk_draw(&ctx);
+            if (catacomb_walk_finished())
+                game_state = STATE_LOADING;
         } else if (game_state == STATE_DELIVERY_AREA ||
                    game_state == STATE_KITCHEN_DINING ||
                    game_state == STATE_RECEPTION ||
@@ -3545,7 +3680,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_REAR_GATE ||
                    game_state == STATE_WEST_CORRIDOR ||
                    game_state == STATE_STABLES ||
-                   game_state == STATE_GREENHOUSE) {
+                   game_state == STATE_GREENHOUSE ||
+                   game_state == STATE_CATACOMBS_ENTRY) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {
@@ -3740,11 +3876,34 @@ int main(int argc, const char **argv) {
                    is uncontended. */
                 delivery_load_geometry();
                 loading_screen_pump(&ctx);
+                /* >>> THE TEXTURE BANK, AND ON THIS PATH IT IS NOT AN
+                   OPTIMISATION — IT IS WHERE THE MANSION'S ART FIRST ARRIVES.
+                   <<< Startup no longer reads any texture's pixels; a
+                   registration takes its TIM HEADER and nothing else, and the
+                   pixels come when a bank is selected (src/texmgr.h). Every
+                   other route into a room does that inside STATE_LOADING. This
+                   one does not pass through it, so without this line the
+                   delivery area would draw its first frame out of whatever was
+                   in those VRAM pages — silently, because texmgr_upload() on an
+                   unloaded entry does nothing.
+
+                   It is also the mirror of the three frees below: a session that
+                   reached the garden and came back to the title starts the new
+                   game with the garden's bank in, and this is what puts the
+                   mansion's back. Idempotent, so a cold boot pays for it once
+                   and a repeat New Game pays nothing. */
+                area_bank_sync(STATE_DELIVERY_AREA);
+                loading_screen_pump(&ctx);
                 /* Then the slots the conservatory may have streamed over in a
                    previous session segment. GPU idled first (pure LoadImage from
                    RAM, same rule as the loading branch). */
                 DrawSync(0);
                 delivery_restore_textures();
+                /* ...and the spider pair, which STATE_LOADING streams on every
+                   other route in. spiders_load_textures() used to do this at
+                   startup off its own RAM copy; under banking there is no copy
+                   until the line above ran, so the upload has to be here. */
+                spiders_upload_textures();
                 /* Same reason, for the sound banks: a session that reached the
                    Garden Courtyard and then went back to the title would
                    otherwise start the new game with the boss bank still in and

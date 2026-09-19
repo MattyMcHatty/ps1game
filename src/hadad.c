@@ -14,6 +14,7 @@
 #include "sound.h"
 #include "cdaudio.h"     /* the stalker track */
 #include "door_anim.h"   /* door_anim_active — see the guard in update_hadads */
+#include "catacomb_walk.h" /* ...and the same question about the Chapter 3 walk */
 
 Hadad hadads[MAX_HADADS];
 int   hadad_count = 0;
@@ -1187,7 +1188,7 @@ void update_hadads(void) {
        The comment in world_silence_monsters() claims "the area update stops
        running the instant the transition begins"; it stops running from the NEXT
        frame, and this is the frame it does not cover. */
-    if (door_anim_active()) return;
+    if (door_anim_active() || catacomb_walk_active()) return;
 
     /* >>> BEFORE ANYTHING ELSE, INCLUDING HIS OWN AI. <<< This reads the
        position the frame settled on — the room branch in update_current_area

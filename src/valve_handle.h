@@ -200,4 +200,13 @@ int  valve_handle_turning(int mount);
 void valve_handle_begin_fit(int mount);
 int  valve_handle_fitting(int mount);
 
+
+/* Free the prop's geometry on the one-way walk into the Catacombs.
+   src/area_bank.h owns the decision; nothing else may call it. */
+void valve_handles_free_assets(void);
+
+/* Re-read that geometry when a save load brings the player back. Geometry
+   only - see the note in the .c. */
+void valve_handles_reload_assets(void);
+
 #endif

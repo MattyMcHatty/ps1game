@@ -103,6 +103,7 @@ static const char *area_name(int area) {
            card write does not display "MANSION" for a room a thousand units
            under the garden. */
         case STATE_ASAG_ARENA:        return "ASAG'S ARENA";
+        case STATE_CATACOMBS_ENTRY:   return "CATACOMBS ENTRY";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

@@ -117,6 +117,9 @@ static void *read_file(const char *name) {
 /* Startup: load geometry and register both textures with the texture manager
    (RAM-resident for a pure-LoadImage upload on each piano-room entry). */
 void piano_props_load_assets(void) {
+    /* BANK: the piano room and the library. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_MANSION);
     piano_buf = read_file("\\TEX\\PIANO.SMD;1");
     if (piano_buf) piano_smd = smdInitData(piano_buf);
     bookcase_buf = read_file("\\TEX\\BOOKCSE.SMD;1");
@@ -588,4 +591,38 @@ void piano_props_draw(RenderContext *ctx) {
     /* Restore the camera view matrix for whatever the caller draws next. */
     gte_SetRotMatrix(&view);
     gte_SetTransMatrix(&view);
+}
+
+/* ---- CHAPTER 3 -----------------------------------------------------------
+   Give the model back. Called only from chapter_enter_catacombs()
+   (src/area_bank.h) when the destination's bank does not contain it - the
+   Catacombs and Asag's arena today, where nothing
+   this prop is placed in can ever be entered again. Every draw and collide
+   in this file already bails on a NULL SMD, so the prop simply stops
+   existing rather than needing a flag of its own. Safe if never loaded. */
+void piano_props_free_assets(void) {
+    if (piano_buf) { free(piano_buf); piano_buf = NULL; }
+    piano_smd = NULL;
+    if (bookcase_buf) { free(bookcase_buf); bookcase_buf = NULL; }
+    bookcase_smd = NULL;
+    if (tablets_buf) { free(tablets_buf); tablets_buf = NULL; }
+    tablets_smd = NULL;
+}
+
+/* ---- CHAPTER 3: THE WAY BACK ---------------------------------------------
+   Re-read the geometry piano_props_free_assets freed. The only caller is
+   area_bank_sync() (src/area_bank.h), which runs when a title-screen
+   load lands the player back in the mansion or the garden after a session
+   that reached the Catacombs. GEOMETRY ONLY: the texture work in
+   piano_props_load_assets must not be repeated, because a second
+   texmgr_register would be a second RAM copy and one more against the cap.
+   Idempotent, and a CD read - legal only where its caller runs it, inside
+   main's STATE_LOADING with CD-DA suspended. */
+void piano_props_reload_assets(void) {
+    if (!piano_buf) { piano_buf = read_file("\\TEX\\PIANO.SMD;1");
+                      if (piano_buf) piano_smd = smdInitData(piano_buf); }
+    if (!bookcase_buf) { bookcase_buf = read_file("\\TEX\\BOOKCSE.SMD;1");
+                         if (bookcase_buf) bookcase_smd = smdInitData(bookcase_buf); }
+    if (!tablets_buf) { tablets_buf = read_file("\\TEX\\TABLETS.SMD;1");
+                        if (tablets_buf) tablets_smd = smdInitData(tablets_buf); }
 }

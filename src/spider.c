@@ -67,15 +67,24 @@ static void load_tim(const char *filename, uint16_t *tpage_out, uint16_t *clut_o
 static int rest_tex_id = -1, walk_tex_id = -1;
 
 /* Load the sprite textures. Call ONCE at startup — a CdRead is only safe before
-   the per-frame render loop begins (see tools/TEXTURING_NOTES.txt). The bodies
-   are also uploaded here, so the spiders are correct from the first frame
-   without waiting on a transition. */
+   the per-frame render loop begins (see tools/TEXTURING_NOTES.txt).
+
+   >>> IT NO LONGER UPLOADS THE BODIES, AND IT USED TO. <<< That line said "so
+   the spiders are correct from the first frame without waiting on a
+   transition", and under banking there is nothing to upload at this point: a
+   registration takes the TIM HEADER only, and the pixels arrive when a bank
+   containing them is selected (src/texmgr.h). The upload would have been a
+   silent no-op. Both routes into the first room now do it after their bank
+   select instead — STATE_LOADING for every ordinary transition, and the
+   title-exit hook in main.c for the one path that skips it. */
 void spiders_load_textures(void) {
+    /* BANK: main.c streams the spider pair into every room but the flower rooms and the arena. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_MANSION | TEXBANK_GARDEN | TEXBANK_RABISU);
     rest_tex_id = texmgr_register("\\SPDRRST.TIM;1");
     walk_tex_id = texmgr_register("\\SPDRWK.TIM;1");
     rest_tpage  = texmgr_tpage(rest_tex_id); rest_clut = texmgr_clut(rest_tex_id);
     walk_tpage  = texmgr_tpage(walk_tex_id); walk_clut = texmgr_clut(walk_tex_id);
-    spiders_upload_textures();
     load_tim("\\SHADOW.TIM;1",  &shadow_tpage, &shadow_clut);
 }
 

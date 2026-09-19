@@ -897,6 +897,55 @@
             <file name="ASGHFNT.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag_head_faint.pva"/>
         </dir>
 
+        <dir name="TEXCTCMB">
+        <!-- ================= CHAPTER 3: THE CATACOMBS =======================
+             A DIRECTORY OF ITS OWN, for the reason TEXASAG has one: \TEX\'s
+             ISO9660 record already spans FIVE 2048-byte sectors and growing it
+             by two files once killed the boot inside sound_init (the note in
+             src/chain_room.c). Its own directory costs ONE record in the root
+             and starts again at sector 1, with room for the whole chapter.
+
+             AND IT IS CALLED TEXCTCMB FOR THE SORTING REASON TOO: mkpsxiso
+             writes root records in identifier order, SYSTEM.CNF is the last
+             record in the root's first sector with 36 bytes to spare, and
+             anything sorting before it pushes SYSTEM.CNF past byte 2048 where
+             the boot ROM cannot find it. TEXCTCMB sorts after SYSTEM.CNF and
+             after TEXASAG, so its record lands in the root's SECOND sector.
+             Run py tools/check_disc_root.py after ANY change here.
+
+             THE TEXTURES. Three, and they are the whole chapter's art so far.
+             Every one is registered DEFERRED (src/texmgr.h): the name is
+             recorded at startup and NOTHING is read, so Chapters 1 and 2 pay
+             nothing for them. They are read at the one door that reaches this
+             chapter, by area_bank_sync(), immediately after that same call has
+             handed back the mansion's and the garden's ~800 KB. See
+             src/area_bank.h - the two halves are one transaction.
+
+             THEIR VRAM SLOTS are three pages the mansion and the garden own,
+             taken on exactly the argument Asag's arena takes its seven on: the
+             catacomb mouth is ONE-WAY, so nothing outside this chapter is ever
+             drawn again, and the chapter owes nobody a restore. The way back is
+             a title-screen load, which rebuilds whatever room it lands in from
+             that room's own uploader.
+               cobblestones        -> the clsd_drwr page (x384 y0), mud's CLUT
+               loculus             -> the kchn_wl page   (x512 y0), Boss Wall's
+               catacomb inner door -> the opn_drwr page  (x832 y0), stables wood's
+             tools/VRAM_MAP.txt lists all three under "time-shared".
+
+             LMSHTBLT.TIM IS NOT HERE, and that is deliberate: it stays in \TEX\
+             where the Outside Catacombs already ships it, and this chapter
+             registers a SECOND (deferred) entry pointing at the same file. The
+             duplicate is the point - the tablet is the face of the door the
+             player walks through and it has to be resident on BOTH sides of a
+             purge that frees one of them. Only ever one copy at a time.
+
+             The .smx exports live in assets/catacombs/. -->
+            <file name="CTCMBENT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\catacombs_entry.smd"/>
+            <file name="COBBLE.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\cobblestones.tim"/>
+            <file name="LOCULUS.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\loculus.tim"/>
+            <file name="CTCMBDR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacomb inner door.tim"/>
+        </dir>
+
         </directory_tree>
     </track>
 

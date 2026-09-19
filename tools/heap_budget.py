@@ -122,15 +122,41 @@ def rounded(name, mod=None):
 def basename(path):
     return path.replace('\\\\', '\\').split('\\')[-1].split(';')[0].upper()
 
-LIT = re.compile(r'"(\\\\(?:TEX\\\\)?[A-Za-z0-9_ ]+\.(?:TIM|SMD|PVA))(?:;1)?"')
+# The leading directory is optional and is matched LOOSELY, because there are
+# three of them now (\TEX\, \TEXASAG\, \TEXCTCMB\) and a scan that knows only
+# the first silently reports nothing the day a chapter gets its own - the same
+# quiet under-report the TABLE_DRIVEN_SCOPED note below already had to fix once.
+LIT = re.compile(r'"(\\\\(?:[A-Za-z0-9_]+\\\\)?[A-Za-z0-9_ ]+\.(?:TIM|SMD|PVA))(?:;1)?"')
 
 # ---------------------------------------------------------------------------
 # 1. texmgr registrations - permanent, and the number that grows per room
 # ---------------------------------------------------------------------------
-regs = []      # (disc name, module)
+regs     = []  # (disc name, module) - read at startup, resident
+deferred = []  # (disc name, module) - registered but NOT read until a chapter door
+
+# >>> DEFERRED REGISTRATIONS COST NOTHING AT REST AND MUST NOT BE COUNTED AS
+# THOUGH THEY DID. <<< texmgr_register_deferred() records a name and a group and
+# reads no bytes (src/texmgr.h). Chapter 3's art is registered that way, so
+# during Chapters 1 and 2 it is worth one array slot apiece and nothing else.
+# They are LISTED separately rather than left out, because invisible is how a
+# budget tool starts lying: the moment the player walks through the catacomb
+# mouth these ARE resident and the 750 KB above them is not.
+#
+# NOTE the deferred scan runs BEFORE the plain-register one and the two are
+# mutually exclusive by construction: 'texmgr_register(' does not match
+# 'texmgr_register_deferred(' because of the open paren.
 for c in sorted(glob.glob('src/*.c')):
     src = open(c, encoding='utf-8', errors='replace').read()
     mod = os.path.basename(c)
+    for m in re.finditer(r'texmgr_register_deferred\(\s*"([^"]+)"', src):
+        deferred.append((basename(m.group(1)), mod))
+    if re.search(r'texmgr_register_deferred\(\s*(?:new_tex|shared_tex|raf_tex)', src):
+        for m in re.finditer(
+                r'(?:new_tex|shared_tex|raf_tex)[a-z_]*\[[^\]]*\]\s*=\s*\{(.*?)\};',
+                src, re.S):
+            for lit in LIT.findall(m.group(1)):
+                deferred.append((basename(lit), mod))
+        continue
     for m in re.finditer(r'texmgr_register\(\s*"([^"]+)"', src):
         regs.append((basename(m.group(1)), mod))
     if re.search(r'texmgr_register\(\s*(?:new_tex|shared_tex|raf_tex)', src):
@@ -139,13 +165,15 @@ for c in sorted(glob.glob('src/*.c')):
                 src, re.S):
             for lit in LIT.findall(m.group(1)):
                 regs.append((basename(lit), mod))
-regs = [(n, m) for n, m in regs if n in disc]
+regs     = [(n, m) for n, m in regs     if n in disc]
+deferred = [(n, m) for n, m in deferred if n in disc]
 
 # ---------------------------------------------------------------------------
 # 2. buffers whose pointer is kept - permanent
 # ---------------------------------------------------------------------------
-kept   = []    # never released: permanent
-scoped = []    # released again: transient, and only the PEAK has to fit
+kept    = []   # never released: permanent
+scoped  = []   # released again on a room change: transient, only the PEAK counts
+chapter = []   # held through Chapters 1-2, freed at the catacomb mouth
 
 # >>> THE TEST IS "DOES THIS MODULE EVER free() THIS POINTER". <<< It used to be
 # "...within the next 800 characters", which only recognised a load and a free
@@ -171,6 +199,24 @@ scoped = []    # released again: transient, and only the PEAK has to fit
 def _frees(src, var):
     return re.search(r'\bfree\s*\(\s*' + re.escape(var) + r'\s*\)', src) is not None
 
+# >>> AND A CHAPTER-SCOPED MODULE STILL HAS ORDINARY SCRATCH IN IT. <<<
+# fatdoor.c holds its door model for the whole of Chapters 1 and 2 AND reads a
+# 34 KB TIM that it frees three lines later inside the same function; so do
+# chainlink_door.c and grinder.c. Tagging the whole MODULE chapter-scoped
+# counted 61 KB of that scratch as permanent, which is over-reporting in the one
+# direction this file must never over-report - it is the number a transition's
+# headroom gets sized against.
+#
+# So the test is per-BUFFER, not per-module: a load is chapter-scoped only if
+# the module's own *_free_assets() is what releases it. Everything else in the
+# file falls through to the usual kept / room-scoped split.
+def _free_assets_body(src):
+    """The text of this module's *_free_assets(), or '' if it has none."""
+    m = re.search(r'^void\s+\w*_free_assets\(void\)\s*\{(.*?)^\}',
+                  src, re.S | re.M)
+    return m.group(1) if m else ''
+
+
 # >>> AND A MODULE THAT LOADS FROM A TABLE IS INVISIBLE TO BOTH PATTERNS. <<<
 # Both regexes below want the FILENAME to appear as a literal argument at the
 # call site. src/asag.c does not work that way: it reads twenty-two files
@@ -194,6 +240,25 @@ TABLE_DRIVEN_SCOPED = {
     'asag.c': 'asags_free_model',   # 8 part meshes + 14 .pva clips
 }
 
+# >>> AND A THIRD LIFETIME EXISTS NOW: CHAPTER-SCOPED. <<< The prop models
+# below are read at STARTUP and held for the whole of Chapters 1 and 2, and
+# then freed in one go at the catacomb mouth by area_bank_sync() (src/area_bank.h).
+# The _frees() heuristic sees the free and would file them under ROOM-SCOPED,
+# which is the wrong answer in the budget that binds: for ~everything the
+# player does they are as permanent as a texmgr registration, and the door
+# they are freed at is the one door where the heap has room to spare.
+#
+# So they are counted in the PERMANENT total and printed under a heading of
+# their own, with what Chapter 3 gets back stated next to it. A module listed
+# here must free the buffer ONLY from its *_free_assets(), never on a room
+# transition - otherwise this over-reports, which is the safe direction but
+# still a lie.
+CHAPTER_SCOPED_MODULES = {
+    'concrete_props.c', 'dining_table.c', 'piano_props.c', 'trick_drawers.c',
+    'valve_handle.c', 'vines.c', 'chainlink_door.c', 'dresser.c',
+    'fatdoor.c', 'grinder.c', 'lever.c',
+}
+
 for c in sorted(glob.glob('src/*.c')):
     src = open(c, encoding='utf-8', errors='replace').read()
     mod = os.path.basename(c)
@@ -206,14 +271,23 @@ for c in sorted(glob.glob('src/*.c')):
             if n in disc:
                 scoped.append((n, mod, freer + '()'))
         continue
+    chap = mod in CHAPTER_SCOPED_MODULES
+    chap_body = _free_assets_body(src) if chap else ''
+    seen = set()
     for m in re.finditer(r'(\w+)\s*=\s*(?:\([\w\s*]*\)\s*)?read_file\(\s*"([^"]+)"', src):
         n, var = basename(m.group(2)), m.group(1)
-        if n in disc:
-            (scoped if _frees(src, var) else kept).append((n, mod, var))
+        if n in disc and (n, var) not in seen:
+            seen.add((n, var))
+            bucket = (chapter if _frees(chap_body, var)
+                      else (scoped if _frees(src, var) else kept))
+            bucket.append((n, mod, var))
     for m in re.finditer(r'load_file\(\s*"([^"]+)"\s*,\s*&(\w+)\s*\)', src):
         n, var = basename(m.group(1)), m.group(2)
-        if n in disc:
-            (scoped if _frees(src, var) else kept).append((n, mod, var))
+        if n in disc and (n, var) not in seen:
+            seen.add((n, var))
+            bucket = (chapter if _frees(chap_body, var)
+                      else (scoped if _frees(src, var) else kept))
+            bucket.append((n, mod, var))
 
 # ---------------------------------------------------------------------------
 print("=" * 78)
@@ -234,6 +308,24 @@ for m in sorted(by_mod, key=lambda k: -sum(rounded(n) for n in by_mod[k])):
     reg_total += b
     print("  %-24s %-5d %9d" % (m, len(by_mod[m]), b))
 print("  %-24s %-5d %9d" % ("TOTAL", len(regs), reg_total))
+print()
+
+print("DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)")
+def_total = 0
+for n, m in sorted(deferred, key=lambda r: (r[1], r[0])):
+    def_total += rounded(n, m)
+    print("  %-24s %-14s %8d" % (m, n, rounded(n, m)))
+if not deferred:
+    print("  none")
+else:
+    print("  %-24s %-14s %8d   <- ZERO at rest; this much once loaded"
+          % ("TOTAL", "", def_total))
+    print()
+    print("  These are Chapter 3's (src/area_bank.h). They cost one array slot each")
+    print("  and no bytes while the player is anywhere in the mansion or the garden.")
+    print("  area_bank_sync() reads them at the catacomb mouth, in the same breath as")
+    print("  it frees the registrations and the chapter-scoped buffers above - so")
+    print("  the two totals are ALTERNATIVES and are never both resident.")
 print()
 
 # duplicates: the same TIM held more than once
@@ -265,6 +357,22 @@ for n, m, var in sorted(kept, key=lambda r: -rounded(r[0], r[1])):
 print("  %-24s %-14s %8d" % ("TOTAL", "", kept_total))
 print()
 
+print("CHAPTER-SCOPED BUFFERS  (held through Chapters 1-2, freed at the catacomb mouth)")
+chapter_total = 0
+for n, m, var in sorted(chapter, key=lambda r: -rounded(r[0], r[1])):
+    chapter_total += rounded(n, m)
+    print("  %-24s %-14s %8d  -> %s" % (m, n, rounded(n, m), var))
+if not chapter:
+    print("  none")
+else:
+    print("  %-24s %-14s %8d   <- COUNTED AS PERMANENT" % ("TOTAL", "", chapter_total))
+    print()
+    print("  Prop models, resident from startup for all of Chapters 1 and 2 and")
+    print("  freed in one go by area_bank_sync() (src/area_bank.h). They are counted in")
+    print("  the permanent total because that is what they are for ~everything the")
+    print("  player does; Chapter 3 gets them back on top of the registrations.")
+print()
+
 print("ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)")
 scoped_total = 0
 for n, m, var in sorted(scoped, key=lambda r: -rounded(r[0], r[1])):
@@ -280,6 +388,23 @@ else:
     print("  so FREE AT REST must stay comfortably above the largest of them.")
 print()
 
+# THE PEAK BANK, from tools/check_tex_banks.py, which is the single source of
+# truth for which module's textures are resident where. Registrations stopped
+# being permanent in September 2026: they are read when their AREA is entered
+# and freed when it is left (src/texmgr.h), so what this budget charges is the
+# LARGEST bank, not the sum of all of them. Imported rather than re-derived so
+# the two cannot drift - if the checker is unhappy, this report is wrong too.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import check_tex_banks as CTB
+_fm, _fc, _fu, _decl = CTB.scan()
+_msz = CTB.module_bytes()
+bank_sizes = {}
+for _area, _fns in CTB.AREAS.items():
+    _mods = CTB.closure(_fns, _fm, _fc, _fu)
+    bank_sizes[_area] = sum(_msz.get(m, 0) for m in _mods)
+peak_bank_area = max(bank_sizes, key=lambda a: bank_sizes[a])
+peak_bank = bank_sizes[peak_bank_area]
+
 out = subprocess.run([NM, ELF], capture_output=True, text=True).stdout
 end = [int(l.split()[0], 16) & 0xFFFFFFFF for l in out.splitlines()
        if len(l.split()) == 3 and l.split()[2] == '_end']
@@ -287,7 +412,7 @@ if not end:
     sys.exit("could not find _end in " + ELF + " - build first")
 end = end[0]
 heap = STACK_FLOOR - end   # NOT HEAP_TOP: the top 145 KB is main()'s stack frame
-perm = reg_total + kept_total
+perm = peak_bank + kept_total + chapter_total
 
 print("THE HEAP")
 print("  _end (heap start)   0x%08X" % end)
@@ -299,8 +424,10 @@ print("  stack floor         0x%08X   <- MEASURED $sp; main()'s RenderContext"
 print("  stack reserve       %8d bytes (%.0f KB)  <- NOT usable heap"
       % (HEAP_TOP - STACK_FLOOR, (HEAP_TOP - STACK_FLOOR) / 1024.0))
 print()
-print("  texmgr resident     %8d bytes (%.0f KB)  %4.1f%%" % (reg_total, reg_total / 1024.0, 100.0 * reg_total / heap))
+print("  texmgr peak bank    %8d bytes (%.0f KB)  %4.1f%%   <- %s" % (peak_bank, peak_bank / 1024.0, 100.0 * peak_bank / heap, peak_bank_area))
 print("  kept buffers        %8d bytes (%.0f KB)  %4.1f%%" % (kept_total, kept_total / 1024.0, 100.0 * kept_total / heap))
+print("  chapter-scoped      %8d bytes (%.0f KB)  %4.1f%%"
+      % (chapter_total, chapter_total / 1024.0, 100.0 * chapter_total / heap))
 print("  PERMANENT TOTAL     %8d bytes (%.0f KB)  %4.1f%%" % (perm, perm / 1024.0, 100.0 * perm / heap))
 print("  FREE AT REST        %8d bytes (%.0f KB)  %4.1f%%   <- STACK ALREADY SUBTRACTED"
       % (heap - perm, (heap - perm) / 1024.0, 100.0 * (heap - perm) / heap))

@@ -131,7 +131,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_LIBRARY_DESTROYED, STATE_STABLES,
     STATE_KEYSTONE_MAZE,  STATE_GREENHOUSE,
     STATE_CHAIN_ROOM,     STATE_THE_HATCH,
-    STATE_ASAG_ARENA,
+    STATE_ASAG_ARENA,     STATE_CATACOMBS_ENTRY,
 };
 
 static int room_index(GameState area) {
@@ -169,6 +169,12 @@ static int room_index(GameState area) {
            the DELIVERY AREA's, which is how a room silently inherits another
            room's smashed crates and dead enemies. */
         case STATE_ASAG_ARENA:        return 26;
+        /* Catacombs Entry, the first room of Chapter 3, and seeded EMPTY for
+           the same reason the arena is: nothing from Chapters 1 or 2 can be
+           placed down there (src/area_bank.h has freed its art by then) and
+           Chapter 3 has no monsters or pickups yet. It still needs a slot,
+           or it falls through the default and shares the DELIVERY AREA's. */
+        case STATE_CATACOMBS_ENTRY:   return 27;
         default:                   return 0;
     }
 }

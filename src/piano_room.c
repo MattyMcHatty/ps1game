@@ -71,6 +71,9 @@ void piano_room_load_geometry(void) {
    still are: they keep a RAM copy so the entry-time upload is a pure LoadImage
    (tools/TEXTURING_NOTES.txt). */
 void piano_room_load_assets(void) {
+    /* BANK: the house only. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_MANSION);
     /* Streamed, room-unique wallpaper (slot 0). */
     prpl_tex_id  = texmgr_register("\\TEX\\PRPLWLP.TIM;1");
     tex_tpage[0] = texmgr_tpage(prpl_tex_id);

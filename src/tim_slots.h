@@ -59,6 +59,18 @@
 #define TIM_TPAGE_ANZU6    0x008b
 #define TIM_CLUT_ANZU6     0x7a10
 
+/* mud.tim         8bpp  VRAM ( 384,  0)  \TEXASAG\ASGMUD.TIM */
+#define TIM_TPAGE_ASGMUD   0x0086
+#define TIM_CLUT_ASGMUD    0x7cea
+
+/* asag.tim        8bpp  VRAM ( 640,  0)  \TEXASAG\ASGSKIN.TIM */
+#define TIM_TPAGE_ASGSKIN  0x008a
+#define TIM_CLUT_ASGSKIN   0x7d6a
+
+/* Boss Wall.tim   8bpp  VRAM ( 512,  0)  \TEXASAG\ASGWALL.TIM */
+#define TIM_TPAGE_ASGWALL  0x0088
+#define TIM_CLUT_ASGWALL   0x7d2a
+
 /* bed.tim         8bpp  VRAM ( 768,  0)  \TEX\BED.TIM */
 #define TIM_TPAGE_BED      0x008c
 #define TIM_CLUT_BED       0x7811
@@ -95,6 +107,10 @@
 #define TIM_TPAGE_CNCRTE   0x0006
 #define TIM_CLUT_CNCRTE    0x7fc7
 
+/* cobblestones.tim  8bpp  VRAM ( 384,  0)  \TEXCTCMB\COBBLE.TIM */
+#define TIM_TPAGE_COBBLE   0x0086
+#define TIM_CLUT_COBBLE    0x7cea
+
 /* con_tile.tim    4bpp  VRAM ( 832,  0)  \TEX\CONTILE.TIM */
 #define TIM_TPAGE_CONTILE  0x000d
 #define TIM_CLUT_CONTILE   0x7fc6
@@ -106,6 +122,10 @@
 /* crucifaxe.tim   8bpp  VRAM ( 320,384)  \CRFXICON.TIM */
 #define TIM_TPAGE_CRFXICON 0x0095
 #define TIM_CLUT_CRFXICON  0x7d00
+
+/* catacomb inner door.tim  8bpp  VRAM ( 832,  0)  \TEXCTCMB\CTCMBDR.TIM */
+#define TIM_TPAGE_CTCMBDR  0x008d
+#define TIM_CLUT_CTCMBDR   0x7caa
 
 /* cuneiform _symbols.tim  8bpp  VRAM ( 512,  0)  \TEX\CUNEISYM.TIM */
 #define TIM_TPAGE_CUNEISYM 0x0088
@@ -146,6 +166,10 @@
 /* dresser.tim     8bpp  VRAM ( 512,  0)  \TEX\DRESSER.TIM */
 #define TIM_TPAGE_DRESSER  0x0088
 #define TIM_CLUT_DRESSER   0x7ec0
+
+/* er_logo_128.tim  4bpp  VRAM ( 672,128)  \TEX\ERLOGO.TIM */
+#define TIM_TPAGE_ERLOGO   0x000a
+#define TIM_CLUT_ERLOGO    0x7f20
 
 /* rusty_fence.tim  4bpp  VRAM ( 704,  0)  \FENCE.TIM */
 #define TIM_TPAGE_FENCE    0x000b
@@ -274,6 +298,10 @@
 /* lamashtu tablet.tim  8bpp  VRAM ( 768,  0)  \TEX\LMSHTBLT.TIM */
 #define TIM_TPAGE_LMSHTBLT 0x008c
 #define TIM_CLUT_LMSHTBLT  0x7bea
+
+/* loculus.tim     8bpp  VRAM ( 512,  0)  \TEXCTCMB\LOCULUS.TIM */
+#define TIM_TPAGE_LOCULUS  0x0088
+#define TIM_CLUT_LOCULUS   0x7d2a
 
 /* ls_atk.tim      8bpp  VRAM ( 896,384)  \TEX\LSATK.TIM */
 #define TIM_TPAGE_LSATK    0x009e

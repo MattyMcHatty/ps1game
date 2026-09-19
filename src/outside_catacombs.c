@@ -169,6 +169,9 @@ void outside_catacombs_load_geometry(void) {
    room owns. Geometry moved to outside_catacombs_load_geometry above, and the
    other five slots are compile-time constants that cost nothing here. */
 void outside_catacombs_load_assets(void) {
+    /* BANK: the garden chain. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_GARDEN);
     /* Every one of these is uploaded by another module; header only — no
        LoadImage, no second RAM copy. */
     TIM_SLOT(0, HEDGE);
@@ -288,12 +291,14 @@ static void gate_text(RenderContext *ctx) {
    a Circle in range, and the same "Press O to enter" every other door in this
    game offers.
 
-   >>> AND WHAT IS BEHIND IT IS NOT BUILT. <<< Circle posts "COMING SOON" to the
-   log and nothing else happens. That is a placeholder and it is meant to read
-   as one to the developer and as a locked door to the player; replacing it is
-   one line in oc_mouth_update() below, pointing a transition at the new room,
-   exactly as src/hatch_puzzle.h's drop was a placeholder until Asag's arena
-   existed.
+   >>> AND WHAT IS BEHIND IT IS CHAPTER 3. <<< Circle takes the player into the
+   CATACOMBS ENTRY (src/catacombs_entry.h) through the walk transition in
+   src/catacomb_walk.h — the camera pacing between the two open leaves — and
+   there is NO WAY BACK. That is not a limitation of what has been built; it is
+   the design, and it is what lets the whole chapter take the mansion's and the
+   garden's texture RAM, VRAM and sound bank (src/area_bank.h). main.c's block for
+   this room is what starts the transition; this function only reports the
+   press, the same division the south gate's trigger keeps.
 
    The sign is the FOUNTAIN SQUARE NORTH GATE'S hand, not this room's south
    gate's: the player stands SOUTH of this wall looking +Z, where the south gate
@@ -359,8 +364,14 @@ int outside_catacombs_mouth_update(int lock) {
     if (xz >= OC_MOUTH_TRIGGER_RADIUS) return 0;
     if (!interact_facing(OC_MOUTH_X, OC_MOUTH_Z)) return 0;
 
-    /* The placeholder. See the note above this block. */
-    show_pickup_msg_raw("COMING SOON");
+    /* >>> AND NOW IT GOES SOMEWHERE. <<< This was a "COMING SOON" line until
+       Chapter 3 existed. It returns 1 either way — the value is the veto the
+       south gate takes, and it has to be taken whether the press opened a
+       chapter or only printed a message — but the caller in main.c is what
+       reads the return and then starts the transition. Nothing is done to the
+       game state HERE, because this function is also called from the room's
+       own draw path's sibling and must stay a pure query-plus-veto, exactly as
+       the gate trigger beside it is. */
     return 1;
 }
 

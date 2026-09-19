@@ -484,6 +484,29 @@ typedef enum {
        of tools/ADDING_THE_ASAG_FIGHT.txt) — the SPU is not the binding
        constraint down there and the heap is. */
     SND_BANK_ASAG  = 16,
+    /* THE CATACOMBS - CHAPTER 3, AND IT IS EMPTY, exactly as SND_BANK_ASAG was
+       on the day the arena landed and for a stronger version of the same
+       reason. The catacomb mouth is a ONE-WAY door: nothing in the mansion or
+       the garden can be walked back to, so no monster in the game today can be
+       heard down there and none of their clips has to be carried in. Everything
+       the PLAYER makes a noise with - the axe, the gun, the lantern, the
+       footsteps, the hurt and the death, the menu blips - is SND_RESIDENT and
+       is unaffected by which bank is in.
+
+       So the whole shared region, about 232 KB, belongs to Chapter 3, and every
+       clip it gains should be tagged SND_BANK_CATACOMBS and nothing else. The
+       ceiling to watch is the point at which this becomes the LARGEST bank:
+       `spare` is the region less the largest, BOSS sets it today at 190 KB, and
+       a catacombs bank has that much before it starts costing the other four
+       anything. Re-run STEP 3 of tools/ADDING_A_SOUND.txt before spending it.
+
+       >>> AND UNLIKE EVERY BANK ABOVE, THIS ONE IS NOT ONLY AN SPU DECISION.
+       <<< The transition that loads it also hands back the mansion's and the
+       garden's texture RAM (src/area_bank.h). The two halves are deliberately
+       separate - main.c's sound_bank_select line does this one, and
+       chapter_enter_catacombs() does the other - because they are needed at
+       different points in STATE_LOADING's ordering. */
+    SND_BANK_CATACOMBS = 32,
 } SoundBank;
 
 void sound_init(void);

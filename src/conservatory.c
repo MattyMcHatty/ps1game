@@ -95,6 +95,9 @@ void conservatory_load_geometry(void) {
    still are: they keep a RAM copy so the entry-time upload is a pure LoadImage
    (tools/TEXTURING_NOTES.txt). */
 void conservatory_load_assets(void) {
+    /* BANK: con_tile is borrowed by the Outside Catacombs and the Attic Stairwell. Derived, not guessed - py tools/check_tex_banks.py
+       walks the uploader call graph and fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_MANSION | TEXBANK_GARDEN);
     /* Streamed slots: RAM-resident via the texture manager, uploaded on entry. */
     for (int i = 0; i < CONSERVATORY_NEW_TEX; i++) {
         int slot = new_tex[i].slot;

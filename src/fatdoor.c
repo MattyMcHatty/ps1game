@@ -468,3 +468,29 @@ int fatdoors_damage_at(int32_t x, int32_t z, int32_t reach, int amount) {
     else if (result == 1) sound_play(SFX_AXEHIT);
     return result;
 }
+
+/* ---- CHAPTER 3 -----------------------------------------------------------
+   Give the model back. Called only from chapter_enter_catacombs()
+   (src/area_bank.h) when the destination's bank does not contain it - the
+   Catacombs and Asag's arena today, where nothing
+   this prop is placed in can ever be entered again. Every draw and collide
+   in this file already bails on a NULL SMD, so the prop simply stops
+   existing rather than needing a flag of its own. Safe if never loaded. */
+void fatdoors_free_assets(void) {
+    if (fatdoor_buffer) { free(fatdoor_buffer); fatdoor_buffer = NULL; }
+    fatdoor_smd = NULL;
+}
+
+/* ---- CHAPTER 3: THE WAY BACK ---------------------------------------------
+   Re-read the geometry fatdoors_free_assets freed. The only caller is
+   area_bank_sync() (src/area_bank.h), which runs when a title-screen
+   load lands the player back in the mansion or the garden after a session
+   that reached the Catacombs. GEOMETRY ONLY: the texture work in
+   fatdoors_load_assets must not be repeated, because a second
+   texmgr_register would be a second RAM copy and one more against the cap.
+   Idempotent, and a CD read - legal only where its caller runs it, inside
+   main's STATE_LOADING with CD-DA suspended. */
+void fatdoors_reload_assets(void) {
+    if (!fatdoor_buffer) { load_file("\\FATDOOR.SMD;1", &fatdoor_buffer);
+                           if (fatdoor_buffer) fatdoor_smd = smdInitData(fatdoor_buffer); }
+}

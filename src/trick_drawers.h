@@ -18,4 +18,13 @@ void trick_drawers_draw(RenderContext *ctx);
 void trick_drawers_update(void);           /* prompt/trigger when idle; input when active */
 int  trick_drawers_puzzle_active(void);    /* 1 while the puzzle owns the camera + input */
 
+
+/* Free the prop's geometry on the one-way walk into the Catacombs.
+   src/area_bank.h owns the decision; nothing else may call it. */
+void trick_drawers_free_assets(void);
+
+/* Re-read that geometry when a save load brings the player back. Geometry
+   only - see the note in the .c. */
+void trick_drawers_reload_assets(void);
+
 #endif
