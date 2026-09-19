@@ -271,6 +271,7 @@ void fountain_square_spawn_south(void) {
     fountain_square_ngate_arm();
     fountain_square_egate_arm();
     fountain_square_wgate_arm();
+    save_point_arm();   /* and the save point, for the same reason */
 }
 
 /* ---- The north-wall gate on to the Outside Catacombs -----------------------
@@ -345,6 +346,7 @@ void fountain_square_spawn_north(void) {
     fountain_square_ngate_arm();
     fountain_square_egate_arm();
     fountain_square_wgate_arm();
+    save_point_arm();   /* and the save point, for the same reason */
 }
 
 /* ---- The east-wall gate on to Maze One --------------------------------------
@@ -417,6 +419,7 @@ void fountain_square_spawn_east(void) {
     fountain_square_ngate_arm();
     fountain_square_egate_arm();
     fountain_square_wgate_arm();
+    save_point_arm();   /* and the save point, for the same reason */
 }
 
 /* ---- The west-wall gate on to the Rear Gate ---------------------------------
@@ -500,6 +503,7 @@ void fountain_square_spawn_west(void) {
     fountain_square_ngate_arm();
     fountain_square_egate_arm();
     fountain_square_wgate_arm();
+    save_point_arm();   /* and the save point, for the same reason */
 }
 
 void fountain_square_init(void) {
@@ -528,9 +532,18 @@ void fountain_square_init(void) {
        area-gated in its collide routine, so reception's instances would block
        the player invisibly if they fell inside this room's bounds — and this
        room's bounds are wide enough to contain both. Clearing is safe:
-       reception_init() re-places them on every reception entry. No save point of
-       this room's own; the nearest is on the Garden Stairs' top landing. */
+       reception_init() re-places them on every reception entry.
+
+       THEN THIS ROOM'S OWN SAVE POINT goes in the north-east parterre pocket:
+       the inner corner of the L-shaped hedge, which opens south onto the
+       fountain plaza, so the player walks into it rather than past it. The
+       nearest hedge faces are x=728 (221 away) and z=728 (239), both well clear
+       of the model's footprint plus the 195 wall standoff. y is the paving
+       (y=0) less 300, and rot/scale are reception's, so it reads as the
+       identical prop — the -300 is what puts the model's base on the floor. */
     save_points_clear();
+    save_point_add(507, -300, 489, 512, 2048);
+
     dressers_clear();
 }
 
@@ -758,6 +771,10 @@ void fountain_square_draw(RenderContext *ctx) {
     webs_draw(ctx);
     item_pickups_draw(ctx);
     sml_meds_draw(ctx);
+
+    /* The parterre save point (untextured flat-shaded model + its own "Save"
+       label, both drawn inside this call). */
+    save_points_draw(ctx);
 
     /* Last: the gate signs, one per side. */
     gate_text(ctx);

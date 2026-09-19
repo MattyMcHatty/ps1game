@@ -1215,6 +1215,7 @@ static void update_current_area(GameState area) {
         /* Flat parterre: one paved plane, so the shared wall collision routine
            (generic over current_collision_room) and a single floor zone are the
            whole of it. */
+        save_points_update();   /* spin this room's parterre save point */
         apply_collision_reception();
         apply_height();
         update_zombies();      /* none placed — see world_seed_room's note on */
@@ -1222,7 +1223,13 @@ static void update_current_area(GameState area) {
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
-        if (!lock && fountain_square_gate_triggered()) {
+        if (!lock && save_point_triggered()) {
+            /* Stand in the parterre pocket and press Circle to save.
+               current_area is already STATE_FOUNTAIN_SQUARE, so the menu
+               returns here. */
+            save_menu_open();
+            game_state = STATE_SAVE_MENU;
+        } else if (!lock && fountain_square_gate_triggered()) {
             /* South back through the same gate, into the Garden Courtyard. */
             pending_area = STATE_GARDEN_COURTYARD;
             door_anim_start(DOOR_PANEL_GATE);
