@@ -1793,13 +1793,17 @@ static void update_current_area(GameState area) {
                the scene that ended Asag's fight, so there is nothing to swing.
                The camera walks BETWEEN them instead — src/catacomb_walk.h.
 
-               >>> AND NO cdaudio_stop() HERE, UNLIKE THE GATE BELOW. <<< The
-               garden's track is meant to play under the whole walk and to be
-               the last thing the player hears of it; the cut happens when
-               STATE_LOADING runs catacombs_entry_init(), which stops it. Stop
-               it here and the transition plays in silence but for the
-               footsteps, which reads as the game having crashed. */
+               >>> AND cdaudio_stop() HERE, LIKE THE GATE BELOW. <<< The
+               garden's track ends with the garden, on the press that commits to
+               the walk — not a bar later under the loading screen. The walk
+               plays over its own footsteps, and the music cuts where the player
+               chose to leave rather than wherever the drive happened to be.
+               catacombs_entry_init()'s own stop in STATE_LOADING stays: it is
+               the line every OTHER route into that room passes through (a
+               title-screen Load Game, a debug jump), and those never come this
+               way. */
             pending_area = STATE_CATACOMBS_ENTRY;
+            cdaudio_stop();
             catacomb_walk_start();
             game_state   = STATE_CATACOMB_WALK;
         } else if (!lock && outside_catacombs_gate_triggered()) {
@@ -3393,14 +3397,14 @@ int main(int argc, const char **argv) {
                    nothing ever will be: the room has no second entrance. */
                 catacombs_entry_init();
                 /* Silence, and stopping is not the same as doing nothing. The
-                   walk transition does not stop the music itself (the Outside
-                   Catacombs' track is still running under it, which is the
-                   point of walking away from the garden), and a title-screen
-                   Load Game or a debug jump into this room does not pass
-                   through that transition at all. Every route in passes through
-                   THIS line — the rule the arena's own branch below states.
-                   Chapter 3 has no track of its own yet; when it does, it goes
-                   here. */
+                   walk transition already stopped the garden's track on the
+                   press that started it, so by this route the line is a no-op —
+                   but a title-screen Load Game or a debug jump into this room
+                   does not pass through that transition at all and would arrive
+                   with the previous room's music still running. Every route in
+                   passes through THIS line — the rule the arena's own branch
+                   below states. Chapter 3 has no track of its own yet; when it
+                   does, it goes here. */
                 cdaudio_stop();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
