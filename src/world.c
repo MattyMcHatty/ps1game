@@ -169,11 +169,11 @@ static int room_index(GameState area) {
            the DELIVERY AREA's, which is how a room silently inherits another
            room's smashed crates and dead enemies. */
         case STATE_ASAG_ARENA:        return 26;
-        /* Catacombs Entry, the first room of Chapter 3, and seeded EMPTY for
-           the same reason the arena is: nothing from Chapters 1 or 2 can be
-           placed down there (src/area_bank.h has freed its art by then) and
-           Chapter 3 has no monsters or pickups yet. It still needs a slot,
-           or it falls through the default and shares the DELIVERY AREA's. */
+        /* Catacombs Entry, the first room of Chapter 3. No enemies — nothing
+           from Chapters 1 or 2 can be placed down there (src/area_bank.h has
+           freed its art by then) and Chapter 3 has none of its own yet — but
+           ONE medipac, seeded below, so this slot is what makes collecting it
+           stick across a re-entry as well as across a save. */
         case STATE_CATACOMBS_ENTRY:   return 27;
         default:                   return 0;
     }
@@ -1303,6 +1303,29 @@ void world_seed_room(GameState area) {
         living_statue_add(2100,  1200, -280, 1, STATE_THE_HATCH);
         living_statue_add(4500, -1200, -280, 1, STATE_THE_HATCH);
         living_statue_add(4500,  1200, -280, 1, STATE_THE_HATCH);
+    }
+
+    /* Catacombs Entry: ONE small medipac, and it is the whole of Chapter 3's
+       supply so far. It lies in the SOUTH-EAST CORNER of the burial-niche hall,
+       the far end of the room — past both ramps, past the last of the niches and
+       diagonally across the hall from the save point in the north-east corner,
+       so the two are a pair of opposite detours off the walk to the inner door
+       rather than one pile at the end of it. 209 clear of the south wall
+       (z=501) and 194 of the east one (x=4800): the player's 195 standoff stops
+       them 15 short of it in Manhattan terms, comfortably inside the 200 pickup
+       radius.
+
+       Nothing contests it. There are no enemies down here at all yet, and when
+       there are, this corner is the place to check first.
+
+       y: the hall floor is flat at 1240 (collision FLOOR 4), so 1091 is the
+       floor less the 149 body reference every sml_med_spawn call passes — spawn
+       adds SML_MED_FLOAT_Y=50 from there to float it above the flags, leaving
+       the standing eye on this floor (1051) reading the documented 90 below it.
+       AUTHORED, not probed: world_seed_room runs for rooms whose geometry is
+       not resident. */
+    if (area == STATE_CATACOMBS_ENTRY) {
+        sml_med_spawn(4606, 1091, 710);
     }
 }
 

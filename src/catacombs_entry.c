@@ -20,6 +20,7 @@
 #include "texmgr.h"
 #include "dresser.h"
 #include "save_point.h"
+#include "sml_med.h"            /* the hall's small medipac, seeded in world.c */
 #include "player.h"             /* show_pickup_msg_raw, current_weapon */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 
@@ -503,6 +504,9 @@ void catacombs_entry_spawn_south(void) {
     cam_z   = CE_TABLET_Z + CE_WALL_RADIUS + 25;
     cam_rot = 0;
     catacombs_entry_arm();
+    /* And the save point down the hall, for the same reason: a Circle carried
+       in through the transition must not fire on the arrival frame. */
+    save_point_arm();
 }
 
 void catacombs_entry_init(void) {
@@ -526,10 +530,27 @@ void catacombs_entry_init(void) {
        inside this room's bounds — and this room spans x[-750,4800] z[0,4792].
        Clearing is safe: each is re-placed by its own room's init.
 
-       No save point of this room's OWN yet. The prop and its art deliberately
-       survive the chapter purge (src/area_bank.h) so Chapter 3 can have them the
-       moment a room wants one. */
+       THEN THIS ROOM'S OWN SAVE POINT — the first in Chapter 3, and the prop and
+       its art deliberately survive the chapter purge (src/area_bank.h) so it
+       costs nothing new. It stands in the NORTH-EAST CORNER of the burial-niche
+       hall, the far end of the room and the last flat floor before the inner
+       door: a player who has walked both ramps down has no way back, so the save
+       belongs at the bottom rather than at the tablet.
+
+       It clears the two walls it sits between by 194 (the east wall, x=4800) and
+       195 (the north wall, z=2301). That is tighter than the garden rooms' saves
+       and it is still comfortable, because the player is never pushed into the
+       corner: the model's own footprint is 70 (half-extent 100 at scale 2048,
+       rotated 45 degrees) plus the 55 standoff save_points_collide is called
+       with, so they stop 125 short of it and SAVE_TRIGGER_RADIUS is 500.
+
+       y is the hall floor (1240) less 300, rot/scale are reception's, so it
+       reads as the identical prop — the -300 is what puts the model's base where
+       reception's sits relative to its own floor. The player's eye on this floor
+       is 1051, 111 above it, well inside SAVE_POINT_Y_REACH. */
     save_points_clear();
+    save_point_add(4606, 940, 2106, 512, 2048);
+
     dressers_clear();
 
     /* Resolve the view distance with no ease: the first frame in the room shows
@@ -758,20 +779,30 @@ void catacombs_entry_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_catacombs_entry_smd(ctx);
 
-    /* No entity draws: nothing from Chapters 1 or 2 can be placed down here
-       (src/area_bank.h has freed their art) and Chapter 3 has no monsters yet.
-       When it does, this is where they go — and they will need the 128 window
-       above handing to them if their sprites sit at Voff >= 128. */
+    /* The two things standing in the hall. No monsters yet — nothing from
+       Chapters 1 or 2 can be placed down here (src/area_bank.h has freed their
+       art) — and when Chapter 3 has some, this is where they go, needing the 128
+       window above handed to them if their sprites sit at Voff >= 128.
+
+       Neither of these does: the save point is untextured flat-shaded geometry
+       (its "Save" label is drawn inside the same call), and sml_med.tim sits at
+       Voff 0 on its own page (tools/VRAM_MAP.txt), which is why the medipac
+       needs no window handling in any room that draws it. */
+    save_points_draw(ctx);
+    sml_meds_draw(ctx);
 
     /* The two signs, last.
 
        >>> LEVEL 8 REMOVES THE SIGNS. <<< In most rooms that level takes out the
        monsters and the props, because that is what stands in them; this room has
-       neither, and the only thing standing in its mesh is the SIGNAGE. STEP 3D
+       no monsters and two small props, so the SIGNAGE is still most of what
+       stands in its mesh and the switch is still mostly about text. STEP 3D
        is the reason it is worth a switch at all — Reception's frame turned out
        to be the text rather than the room — though the two here are 3000 units
        and two ramps apart and CE_TEXT_RADIUS is 1200, so unlike Reception's west
-       wall they can never both be live at once. D read at 1, at 4 and at 8 now
+       wall they can never both be live at once. (The save point's own label is
+       not under this switch, for the same reason no other room's is: it is drawn
+       by the prop, above.) D read at 1, at 4 and at 8 now
        splits this room's frame three ways in one sitting. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         ce_sign(ctx, CE_TABLET_X, CE_TABLET_TEXT_Y, CE_TABLET_Z + 11,

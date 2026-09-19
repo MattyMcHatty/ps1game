@@ -182,8 +182,19 @@ void save_points_draw(RenderContext *ctx) {
         SavePoint *s = &save_points[i];
         if (!s->active) continue;
 
+        /* Cull at the ROOM's fog-far, not at a constant of this module's own.
+           g_fog_far is whatever the area draw set a few lines before calling us
+           (render.h), so the prop disappears exactly where the walls around it
+           do — and where that distance MOVES, the prop moves with it. The
+           Catacombs Entry is the room that made this matter: its view distance
+           is a live number, 1600 dark up to 3200 with the Helluminator burning,
+           so a fixed 2300 both showed the prop hanging in an unlit void and,
+           worse, kept it culled while a burst of lantern light was reaching
+           2000 units past it. Equality with the fog end is the same invariant
+           the rooms keep: nothing is dropped that has not already faded into
+           the background. */
         int32_t dcx = s->x - cam_x, dcz = s->z - cam_z;
-        if ((dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz) > 2300) continue;
+        if ((dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz) > g_fog_far) continue;
 
         MATRIX m, combined;
         SVECTOR rr = {0, s->rot_y, 0, 0};
@@ -255,11 +266,22 @@ void save_points_draw(RenderContext *ctx) {
             otz += 40;
             if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
 
-            /* Distance fog toward the dark interior, matching the rooms. */
-            int32_t fog_start = 350, fog_end = 2200;
+            /* Distance fog on the ROOM's curve, for the reason the cull above
+               is: 350/2200 was reception's interior written out twice, and a
+               room whose fog is not that — or whose fog MOVES, as the Catacombs
+               Entry's does with the lantern — had a prop standing in it at a
+               fixed brightness. render_fog_scale() is the shared ramp (256 at
+               g_fog_near, 0 at g_fog_far), the same one the sprites use.
+
+               The colour it saturates TO is still reception's clear colour,
+               because there is no global for that one: each room hard-codes its
+               own (reception 20,15,10; the Catacombs Entry 7,6,9, near enough
+               that the difference is a unit or two of a 255 scale at the only
+               distance it shows). A room with a genuinely different fog colour —
+               a bright outdoor one — would need that passed in rather than this
+               tuned; it is the fog DISTANCE that was the bug. */
             int32_t dist = (dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz);
-            int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
-            int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
+            int32_t fog_factor = render_fog_scale(dist);
 
             uint8_t *col = p + 16;
             uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);

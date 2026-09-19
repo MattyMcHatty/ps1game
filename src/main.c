@@ -1653,15 +1653,37 @@ static void update_current_area(GameState area) {
            NO DOOR TRIGGER. The tablet and the inner door both answer Circle and
            neither goes anywhere: the tablet says so in as many words, and what
            is behind the inner door is not built. So there is no pending_area to
-           set here and no transition to start — the whole branch is collision,
-           height and one interaction call.
+           set here and no transition to start.
 
-           No entity updates either. Nothing from Chapters 1 or 2 can be placed
+           No enemy updates either. Nothing from Chapters 1 or 2 can be placed
            down here (src/area_bank.h has freed their art) and Chapter 3 has no
-           monsters yet; when it does, they go here. */
+           monsters yet; when it does, they go here. What the room does have is
+           the burial hall's save point and its one small medipac. */
+        save_points_update();   /* spin the hall's save point */
         apply_collision_reception();
         apply_height();
-        catacombs_entry_interact_update(lock);
+        sml_meds_update();
+
+        /* THREE CIRCLE INTERACTIONS SHARE ONE BUTTON, so the room needs an
+           order and a veto, the same arrangement The Hatch's pit and gate use.
+           The save point is asked first and its answer is the veto: the inner
+           door's trigger circle (radius 500 about x=4800 z=1402) and the save
+           point's (500 about x=4606 z=2106) do overlap in a strip of the hall's
+           north-east corner, and facing would usually separate them, but
+           "usually" is not an order.
+
+           The veto is passed as catacombs_entry_interact_update()'s `lock`
+           rather than by skipping the call, because that function keeps its
+           edge state current while locked — skipping it would leave both
+           `prev` flags stale and swallow the next genuine press. */
+        int ce_saving = (!lock && save_point_triggered());
+        if (ce_saving) {
+            /* Stand at the save point and press Circle. current_area is already
+               STATE_CATACOMBS_ENTRY, so the menu returns here. */
+            save_menu_open();
+            game_state = STATE_SAVE_MENU;
+        }
+        catacombs_entry_interact_update(ce_saving ? 1 : lock);
     } else if (area == STATE_ASAG_ARENA) {
         /* ASAG'S ARENA — free play, which here means the fight AFTER the opening
            scene has handed the camera back. The scene itself runs in the
