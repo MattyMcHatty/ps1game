@@ -199,6 +199,22 @@ static int      rabisu_anim_count  = 0;      /* 0 = play the bind pose */
    which is why the packing is a saving and not a straight trade. */
 static SVECTOR *rabisu_pose_buf    = NULL;
 
+/* >>> WHICH CLIP FRAME rabisu_pose_buf CURRENTLY HOLDS, SO THE UNPACK IS NOT
+   REPEATED FOR A POSE THAT HAS NOT CHANGED. <<< The clip advances one frame
+   every RBS_ANIM_TICKS (3) game frames, so an unpack done inside the draw ran
+   THREE TIMES for every pose it produced — 496 vertices widened from three
+   int16 to four, out of a buffer with no data cache behind it, two times in
+   three for a result identical to the one already sitting there. Measured in
+   the Garden Courtyard with the section timer: 8 hblanks of a 262-hblank
+   frame, against a fight that had about 25 spare. See
+   tools/DIAGNOSING_FRAME_RATE.txt STEP 3G.
+
+   -1 means "nothing valid", which is what a fresh allocation and a freed model
+   both leave behind. Correct for more than one Rabisu as well as for one: two
+   instances on different clip frames would simply miss in turn, which is the
+   behaviour this replaced and never worse than it. */
+static int      rabisu_pose_frame  = -1;
+
 static void rabisus_load_anim(void) {
     if (!rabisu_smd) return;
     uint8_t *p = (uint8_t *)read_file("\\TEX\\RBSIDLE.PVA;1");
@@ -349,7 +365,10 @@ void rabisus_load_model(void) {
             free(p);
             p = NULL;
         }
-        rabisu_pose_buf = (SVECTOR *)p;
+        rabisu_pose_buf   = (SVECTOR *)p;
+        /* A fresh buffer holds nothing, so the cache in rbs_verts must not
+           think it holds frame 0. This is the one place a buffer appears. */
+        rabisu_pose_frame = -1;
 
         if (!rabisu_pose_buf) {
             free(rabisu_anim_buff);
@@ -370,6 +389,10 @@ void rabisus_free_model(void) {
        resident one, and leaving it behind would spend 3,968 bytes in every room
        in the game for a boss that is in one. */
     if (rabisu_pose_buf)  { free(rabisu_pose_buf);  rabisu_pose_buf  = NULL; }
+    /* ...and the cache goes with the buffer it describes: the next model to be
+       loaded gets a different allocation, and a stale frame index there would
+       hand the draw a pose nobody had written. */
+    rabisu_pose_frame  = -1;
     /* Every derived pointer goes with them, in one place, so there is no way to
        free the block and leave something still pointing into it. rabisu_smd is
        the one the draw tests, so it is the one that must not be missed. */
@@ -396,11 +419,21 @@ void rabisus_restore_texture(void) {
 
 /* The vertex block this boss is posed on for this frame. Falls back to the
    .smd's own bind pose whenever the animation is missing or was rejected. */
-/* >>> PVA1 COSTS NOTHING HERE AND PVA2 COSTS ONE COPY. <<< An unpacked frame is
-   already an SVECTOR array sitting in the clip buffer, so it is handed straight
-   to the draw. A packed one is three int16 per vertex and has to be widened into
-   the scratch first — 496 vertices, once per Rabisu per frame, and there is only
-   ever one Rabisu. That copy is what the 18.8 KB in the .pva note buys.
+/* >>> PVA1 COSTS NOTHING HERE AND PVA2 COSTS ONE COPY PER POSE. <<< An unpacked
+   frame is already an SVECTOR array sitting in the clip buffer, so it is handed
+   straight to the draw. A packed one is three int16 per vertex and has to be
+   widened into the scratch first — 496 vertices. That copy is what the 18.8 KB
+   in the .pva note buys.
+
+   >>> AND IT IS PER POSE, NOT PER FRAME, WHICH IT USED TO BE. <<< The comment
+   that stood here said "once per Rabisu per frame" and that was the bug: the
+   clip advances one frame every RBS_ANIM_TICKS (3) game frames, so two unpacks
+   in three rebuilt a pose byte for byte identical to the one already in the
+   buffer. It cost 8 hblanks of a 262-hblank frame, measured with the section
+   timer in the Garden Courtyard, in the one room where the boss's 476
+   primitives are already 45% of the draw. Keyed on the CLIP FRAME INDEX rather
+   than on a dirty flag, because that index is the whole of what the output
+   depends on — same f, same 3,968 bytes, whatever else the boss has done.
 
    Falls back to the .smd's bind pose whenever there is no clip, which is also
    what a refused read leaves behind; it always renders. */
@@ -414,6 +447,7 @@ static SVECTOR *rbs_verts(const Rabisu *r) {
 
     if (rabisu_anim_stride == 4) return (SVECTOR *)src;
     if (!rabisu_pose_buf)        return rabisu_smd->p_verts;
+    if (rabisu_pose_frame == f)  return rabisu_pose_buf;
 
     SVECTOR *d = rabisu_pose_buf;
     for (int v = 0; v < nv; v++) {
@@ -422,6 +456,7 @@ static SVECTOR *rbs_verts(const Rabisu *r) {
         d[v].vz  = *src++;
         d[v].pad = 0;
     }
+    rabisu_pose_frame = f;
     return rabisu_pose_buf;
 }
 
@@ -1867,6 +1902,17 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
        to its normal colour halfway through and re-igniting with the lights. */
     int hit = (r->hit_timer > 0) || r->dying;
 
+    /* The fog blend's sky half: loop-invariant, so it is computed once here
+       rather than three multiplies into every polygon's shade. */
+    int32_t sky_r = SKY_FOG_R * (256 - fog_factor);
+    int32_t sky_g = SKY_FOG_G * (256 - fog_factor);
+    int32_t sky_b = SKY_FOG_B * (256 - fog_factor);
+
+    /* The shade cache, one frame deep — see the note where it is used. -1 is
+       not a colour (a key is three bytes), so the first polygon always misses. */
+    int32_t shade_key = -1;
+    uint8_t shade_r = 0, shade_g = 0, shade_b = 0;
+
     int i;
     for (i = 0; i < rabisu_smd->n_prims; i++) {
         SMD_PRI_TYPE *pt      = (SMD_PRI_TYPE *)p;
@@ -1943,16 +1989,31 @@ static void draw_rbs_model(RenderContext *ctx, const Rabisu *r, int32_t dist) {
            blend the room's own textured mesh uses, so the boss fogs into the
            garden rather than alongside it. Flat: the old body colour, which
            the .smd no longer carries. */
+        /* >>> AND IT IS SHADED ONCE PER COLOUR, NOT ONCE PER POLYGON. <<< Every
+           term below except the source colour is loop-invariant, and the source
+           colour is 128,128,128 on every textured poly of this model — so the
+           whole block was six multiplies and nine shifts, 476 times a frame, to
+           arrive at the same three bytes each time. Keyed on the SOURCE COLOUR,
+           so it is behaviour-identical for any mesh: a poly whose baked colour
+           differs from the last one's simply misses and pays what it always
+           paid. The cache is a local, so it cannot outlive the frame's
+           fog_factor, hit or fade. */
         uint8_t *col = p + 16;
         int32_t cr, cg, cb;
         if (textured) { cr = col[0]; cg = col[1]; cb = col[2]; }
         else          { cr = RBS_BODY_R; cg = RBS_BODY_G; cb = RBS_BODY_B; }
-        if (hit) { cr = 255; cg = cg >> 2; cb = cb >> 2; }
-        int32_t sr = (cr * fog_factor + SKY_FOG_R * (256 - fog_factor)) >> 8;
-        int32_t sg = (cg * fog_factor + SKY_FOG_G * (256 - fog_factor)) >> 8;
-        int32_t sb = (cb * fog_factor + SKY_FOG_B * (256 - fog_factor)) >> 8;
-        if (burning) { sr = (sr * fade) >> 8; sg = (sg * fade) >> 8; sb = (sb * fade) >> 8; }
-        uint8_t rr = (uint8_t)sr, gg = (uint8_t)sg, bb = (uint8_t)sb;
+        int32_t ckey = (cr << 16) | (cg << 8) | cb;
+        if (ckey != shade_key) {
+            int32_t br = cr, bg = cg, bb_ = cb;
+            if (hit) { br = 255; bg = bg >> 2; bb_ = bb_ >> 2; }
+            int32_t sr = (br  * fog_factor + sky_r) >> 8;
+            int32_t sg = (bg  * fog_factor + sky_g) >> 8;
+            int32_t sb = (bb_ * fog_factor + sky_b) >> 8;
+            if (burning) { sr = (sr * fade) >> 8; sg = (sg * fade) >> 8; sb = (sb * fade) >> 8; }
+            shade_r = (uint8_t)sr; shade_g = (uint8_t)sg; shade_b = (uint8_t)sb;
+            shade_key = ckey;
+        }
+        uint8_t rr = shade_r, gg = shade_g, bb = shade_b;
 
         int32_t   need;
         if (textured) need = is_quad ? (int32_t)sizeof(POLY_FT4) : (int32_t)sizeof(POLY_FT3);

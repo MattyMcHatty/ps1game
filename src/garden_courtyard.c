@@ -8,6 +8,7 @@
 #include <smd/smd.h>
 #include "render.h"
 #include "room_arena.h"
+#include "cull_arena.h"
 #include "tim_slots.h"
 #include "camera.h"
 #include "garden_courtyard.h"
@@ -137,6 +138,63 @@ static const char *new_tex_file[GARDEN_COURTYARD_NEW_TEX] = {
     "\\TEX\\GRDNGTE.TIM;1",   /* slot 7 */
 };
 
+/* ---- THE CULL KEY ----------------------------------------------------------
+   >>> THE REJECT PATH WAS TOUCHING THE MESH, AND HALF THIS ROOM'S WALK IS THE
+   REJECT PATH. <<< tools/DIAGNOSING_FRAME_RATE.txt STEP 3B calls this "the
+   first thing to try in any room with a big mesh"; eight rooms have had it and
+   this one had not, because it is one of the older ones. Counted here with the
+   section timer and a primitive counter, standing in the fight:
+
+       466 primitives walked every frame
+       230 thrown away by the distance cull
+         0 thrown away by the behind-the-camera test   <- as in Maze One
+       236 submitted
+
+   Each of those 230 still cost a read of the primitive header for its stride,
+   a read of its first vertex INDEX, and a chase into the mesh's vertex array
+   for the coordinates — three scattered reads with no data cache behind any of
+   them, to answer a question about two int16.
+
+   So the key is lifted into the shared cull arena (src/cull_arena.h), built
+   once at load: the first vertex's X and Z, plus the stride, so the walk
+   advances without reading the header at all. A rejected primitive now costs
+   ONE sequential 6-byte read and never touches the mesh.
+
+   >>> IT IS THE SAME TEST, NOT A CHEAPER APPROXIMATION OF IT. <<< The distance
+   cull and the behind test both read v0 and nothing else, and v0's x/z is
+   exactly what the key stores. Identical output, primitive for primitive,
+   whatever the mesh and wherever the camera — this changes what the reject
+   path READS, not what it decides, so there is no hole to sweep for.
+
+   NO BOX KEY HERE, and that is a decision rather than an omission: cull_boxes
+   exists for the SIDE-PLANE frustum test, and this room does not have one. The
+   counter above says the only thing rejecting anything here is distance. If
+   this room ever gets the side-plane cull the Greenhouse and the two mazes
+   carry, the box comes with it — and it needs that work's offline hole sweep,
+   which the key does not. */
+#define GcCullKey CullKey
+#define gc_keys   cull_keys
+static int gc_key_count = 0;
+
+static void gc_build_cull_keys(void) {
+    gc_key_count = 0;
+    if (!garden_courtyard_smd) return;
+    uint8_t *p = (uint8_t *)garden_courtyard_smd->p_prims;
+    int i, n = garden_courtyard_smd->n_prims;
+    if (n > GARDEN_COURTYARD_PRIM_COUNT) n = GARDEN_COURTYARD_PRIM_COUNT;
+    for (i = 0; i < n; i++) {
+        SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
+        uint16_t     *vi = (uint16_t *)(p + 4);
+        SVECTOR      *v0 = &garden_courtyard_smd->p_verts[vi[0]];
+        gc_keys[i].x      = v0->vx;
+        gc_keys[i].z      = v0->vz;
+        gc_keys[i].stride = pt->len;
+        gc_keys[i].pad    = 0;
+        p += pt->len;
+    }
+    gc_key_count = n;
+}
+
 /* Load this room's geometry into the shared arena. Called on ENTRY, from main's
    STATE_LOADING branch — NOT at startup. The arena holds exactly one room, so
    this overwrites whatever the player just walked out of; that is safe because
@@ -145,6 +203,10 @@ static const char *new_tex_file[GARDEN_COURTYARD_NEW_TEX] = {
 void garden_courtyard_load_geometry(void) {
     garden_courtyard_buff = room_arena_load("\\TEX\\GRDNCRTY.SMD;1");
     garden_courtyard_smd  = garden_courtyard_buff ? smdInitData(garden_courtyard_buff) : NULL;
+    /* Immediately after the mesh and nowhere else — the arena's one rule
+       (src/cull_arena.h): keys rebuilt without the mesh would describe the
+       room that ran last. */
+    gc_build_cull_keys();
 }
 
 /* Read at STARTUP — the only safe time for CD access — the two textures this
@@ -403,19 +465,19 @@ static void draw_garden_courtyard_smd(RenderContext *ctx) {
     const int32_t cam_sin = isin(cam_rot);
     const int32_t cam_cos = icos(cam_rot);
 
-    for (i = 0; i < garden_courtyard_smd->n_prims; i++) {
-        SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
-        uint8_t stride = pt->len;
-        int is_quad = (pt->type >= 2);
+    int n_prims = garden_courtyard_smd->n_prims;
+    if (gc_key_count < n_prims) n_prims = gc_key_count;  /* no keys: draw nothing */
 
-        uint16_t *vi = (uint16_t *)(p + 4);
-        SVECTOR *v0 = &garden_courtyard_smd->p_verts[vi[0]];
-        SVECTOR *v1 = &garden_courtyard_smd->p_verts[vi[1]];
-        SVECTOR *v2 = &garden_courtyard_smd->p_verts[vi[2]];
-
+    for (i = 0; i < n_prims; i++) {
+        /* ---- The reject path. ONE sequential read, no mesh access ----------
+           gc_keys carries this primitive's first vertex and its stride, so a
+           primitive outside the view distance is skipped without touching the
+           header or the vertex array at all. Same two tests, same v0, same
+           answers — see the note on gc_build_cull_keys. */
+        uint8_t stride = gc_keys[i].stride;
         {
-            int32_t dx = (int32_t)v0->vx - cam_x;
-            int32_t dz = (int32_t)v0->vz - cam_z;
+            int32_t dx = (int32_t)gc_keys[i].x - cam_x;
+            int32_t dz = (int32_t)gc_keys[i].z - cam_z;
             /* Distance cull (Manhattan) at the fog-out distance so culled polys
                are already invisible — see the view-distance note above. */
             if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > GC_CULL_DIST)
@@ -424,6 +486,16 @@ static void draw_garden_courtyard_smd(RenderContext *ctx) {
             if (fwd < -(700 << 12))
                 { p += stride; continue; }
         }
+
+        /* SURVIVED THE CULLS: only now is the header read and the vertex array
+           addressed. Everything above answered out of gc_keys. */
+        SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
+        int is_quad = (pt->type >= 2);
+
+        uint16_t *vi = (uint16_t *)(p + 4);
+        SVECTOR *v0 = &garden_courtyard_smd->p_verts[vi[0]];
+        SVECTOR *v1 = &garden_courtyard_smd->p_verts[vi[1]];
+        SVECTOR *v2 = &garden_courtyard_smd->p_verts[vi[2]];
 
         DVECTOR sv[4];
         int32_t sz[4];

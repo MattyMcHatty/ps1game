@@ -929,3 +929,92 @@ in it, where a cell-sized one loses only itself.
 >>> NOBODY HAS READ THE METER IN THIS ROOM YET. <<< STEP 3D and STEP 3E's honest
 note, a third time. U/D/G at levels 1, 5 and 8 with a zone lit is owed, and if
 the transform was not the cost this section is the seventh wrong turn.
+
+
+##########################################################################
+ STEP 3G — THE RABISU FIGHT AGAIN (Sep 2026), AND THE COST OF A HEAP FIX
+##########################################################################
+Reported as "the cutscenes at the start and finish are fine, but the fight
+itself now has a semi-consistent lag throughout" — the exact inverse of STEP
+3C, where the fight was clean and the REVEAL was the problem.
+
+THE CAUSE WAS A CHANGE MADE FOR A COMPLETELY DIFFERENT REASON. The Garden
+Courtyard door ran out of heap in September 2026 (see src/rabisu.c's read_file
+note), and the fix was to pack the boss's idle clip to PVA2 — three int16 a
+vertex instead of four, -18,848 bytes, which is what made the room load again.
+The price was a widening copy in the draw: 496 vertices, every frame.
+
+>>> A HEAP FIX CAN BE A FRAME-RATE REGRESSION, AND NOTHING IN EITHER BUDGET
+    TOOL WILL SAY SO. <<< heap_budget.py saw the room start loading again and
+    was satisfied. The eight hblanks a frame it cost went to a scene that had
+    about twenty-five spare.
+
+THE MEASUREMENT, and it is the reason this was found rather than guessed at.
+The meter's U/D/G is too coarse to attribute a boss: D was simply "big". So
+draw_garden_courtyard_smd and draw_rabisus were each bracketed with their own
+perf_ticks_now() pair — ten lines, thrown away afterwards — and the frame came
+apart into its real parts:
+
+    room mesh        89 hblanks      466 primitives, 230 of them rejected
+    boss model      117 hblanks      476 primitives, and the fight's real cost
+    the unpack        8 hblanks      inside the boss model's 117
+    everything else  ~20 hblanks
+                    ---
+                    ~234 of 262, before the player moves or the boss attacks
+
+>>> SPLIT D BEFORE OPTIMISING IT. <<< STEP 1's isolation switches answer "is it
+the mesh or the entities" one rebuild at a time and they cannot see inside
+either. A pair of timers around each draw call answers it every frame, in one
+build, and it is what turned "the boss is expensive" into three numbers with
+different fixes.
+
+WHAT WENT IN, all three behaviour-neutral, measured one at a time:
+
+ 1. THE POSE UNPACK IS CACHED ON THE CLIP FRAME INDEX (src/rabisu.c, rbs_verts).
+    The clip advances one frame every RBS_ANIM_TICKS (3) game frames, so two
+    unpacks in three were rebuilding a pose byte for byte identical to the one
+    already in the buffer. 7.4 -> 2.7 hblanks. THIS IS THE REGRESSION ITSELF,
+    and the residual 2.7 is what the 18.8 KB genuinely costs.
+
+ 2. THE SHADE IS COMPUTED PER COLOUR, NOT PER POLYGON (src/rabisu.c,
+    draw_rbs_model). The fog blend was six multiplies and nine shifts on every
+    one of 476 polygons, and this model's baked modulation colour is 128,128,128
+    on all of them, so 475 of those arrived at the same three bytes. Keyed on
+    the source colour, so it is identical for any mesh. Boss draw 112 -> 108.
+
+ 3. THE COURTYARD GOT THE CULL KEY (src/garden_courtyard.c, STEP 3B's fix). It
+    was one of the last rooms without one. WORTH 1.8 HBLANKS AND NO MORE, and
+    that number is the useful part of this entry: STEP 3B calls the key table
+    "the first thing to try in any room with a big mesh" and this room's mesh is
+    NOT big — 466 primitives against Maze One's 2056, and only half of them
+    rejected against Maze One's 92%. The saving scales with primitives REJECTED,
+    so a small room gets a small number. Kept (it is free, it costs no BSS, and
+    it is what the other eight rooms do) but it is not what fixed this.
+
+    COUNT BEFORE PORTING. The counter that produced "466 walked, 230 rejected,
+    0 behind" is four lines and it would have predicted this result in advance.
+
+THE RESULT, same scene, same synthetic input, before and after:
+
+    boss on screen, standing    D 213 -> 204      VB 1 either way
+    the reveal at its worst     D 261 -> 249      VB 1.93 -> 1.05
+    the fight                   D 130 -> 123
+
+THE INSTRUMENT USED FOR ALL OF IT is worth copying: the game was force-booted
+straight into the Garden Courtyard (game_state/pending_area/current_area at
+their declarations in main.c, plus prev_state, or the frontend hook at the foot
+of the loop undoes all three on the first frame), a deterministic synthetic pad
+was written into pad_buff every frame so both builds saw an IDENTICAL fight, and
+PCSX-Redux was run headless with the numbers going to printf. Two things about
+it to remember:
+
+  - ACCUMULATE, DO NOT SAMPLE. Printing every 30th frame aliased perfectly
+    against a 3-frame animation clock and reported the cached unpack as costing
+    exactly what the uncached one had. Sum over the interval and print the mean.
+
+  - THIS RIG CANNOT SEE FILL. G read 0 in every single reading, including ones
+    the console runs at 30fps, because the emulator does not model GPU time.
+    Everything above is CPU. STEP 2A's warning stands and this rig cannot test
+    it; the courtyard still has no side-plane frustum cull, and that — with the
+    box key and the offline hole sweep the Greenhouse and Maze One both had — is
+    where to go next if the fight is still short on a console.

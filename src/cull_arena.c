@@ -10,6 +10,7 @@ CullBox cull_boxes[CULL_ARENA_PRIMS];
    land in whatever the linker put next and would not be visible until something
    unrelated broke. Add a room to the arena, add it to this list. */
 #include "chain_room_tex_map.h"
+#include "garden_courtyard_tex_map.h"
 #include "greenhouse_tex_map.h"
 #include "keystone_maze_tex_map.h"
 #include "master_bedroom_tex_map.h"
@@ -25,6 +26,7 @@ CullBox cull_boxes[CULL_ARENA_PRIMS];
     struct cull_arena_fits_##name { int fits : ((count) <= CULL_ARENA_PRIMS) ? 1 : -1; }
 
 CULL_ARENA_FITS(chain_room,    CHAIN_ROOM_PRIM_COUNT);
+CULL_ARENA_FITS(garden_courtyard, GARDEN_COURTYARD_PRIM_COUNT);
 CULL_ARENA_FITS(greenhouse,    GREENHOUSE_PRIM_COUNT);
 CULL_ARENA_FITS(keystone_maze, KEYSTONE_MAZE_PRIM_COUNT);
 CULL_ARENA_FITS(master_bedroom, MASTER_BEDROOM_PRIM_COUNT);
