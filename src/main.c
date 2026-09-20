@@ -1996,6 +1996,16 @@ static void update_current_area(GameState area) {
 
 /* Draw an area's world + entities only (player overlays come separately). */
 static void draw_current_area(RenderContext *ctx, GameState area) {
+    /* NO ROOM INHERITS ANOTHER ROOM'S LIGHTS. The render.h point lights are a
+       per-frame publication — the Catacombs Entry's braziers re-register
+       themselves every frame from inside its own draw — so the default for a
+       room that publishes none has to be "none", not "whatever the last room
+       that bothered left behind". Clearing here, once, ahead of the dispatch,
+       is what makes that true for every room including the ones written before
+       lights existed; a room WITH lights clears again and re-adds, which costs
+       four stores. */
+    render_lights_clear();
+
     if (area == STATE_KITCHEN_DINING)
         kitchen_dining_draw(ctx);
     else if (area == STATE_RECEPTION)

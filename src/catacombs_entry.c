@@ -570,9 +570,23 @@ void catacombs_entry_init(void) {
 
        THE ARITHMETIC, all of it off the header's bounds. The chamber is
        x[-750,750] z[0,1400] with the tablet art spanning x[-536,536] at z=0, so
-       the clear wall beside it is the 214-wide strip x[536,750] and x=643 is
-       its CENTRE. The model is 120 across, so each stands 49 clear of the
-       tablet's edge and 47 clear of the side wall.
+       the clear wall beside a sconce is the 214-wide strip x[536,750].
+
+       x=595 PUTS THE INNER EDGE ON THE TABLET'S EDGE, and that is the whole
+       reason for the number: the model's real half-width is 59 (measured off
+       assets/props/sconce.smd, which is also where sconces_collide gets it —
+       the .h's "120 in plan" is the authored size rounded, not a figure to do
+       this sum with), so 536 + 59 = 595 and the stand BEGINS exactly where the
+       carving stops. Nothing of the tablet is behind a sconce and nothing of
+       the wall is between them, which is what makes the pair read as brackets
+       on the carving rather than as two lights that happen to be in the
+       corners. They were at 643 — the centre of that clear strip, 48 off the
+       tablet and 48 off the wall — and standing in the middle of the gap is
+       what made them corner fittings.
+
+       The move is 48 units inward each, and it doubles the wall clearance from
+       48 to 96, so they are further off the side walls as well as closer to
+       each other.
 
        z=200 puts them 200 out from the wall, which is 5 past the 195 standoff
        the player is held at (CE_WALL_RADIUS) — far enough out to be objects in
@@ -580,7 +594,10 @@ void catacombs_entry_init(void) {
        pair still read as a frame around the carving. The player can never reach
        their x (the side walls hold them inside x[-555,555]) but sconces_collide
        is a real push all the same: it expands the box by the prop radius, so
-       walking into the corner stops 255 short of a sconce's centre.
+       walking into the corner stops 254 short of a sconce's centre — x=341 now
+       rather than x=388, i.e. the gap to walk between the pair is 682 wide
+       instead of 776. Still a corridor, and neither sconce is anywhere the
+       player was able to stand before.
 
        y is the chamber floor (0) less GROUND_FLOOR_Y, which is what puts the
        model's BASE on that floor — the sconce is authored base-at-origin,
@@ -591,8 +608,8 @@ void catacombs_entry_init(void) {
        Area-tagged, so the instances cannot collide or draw anywhere else even
        if a later room forgets to clear them. */
     sconces_clear();
-    sconce_place(STATE_CATACOMBS_ENTRY, -643, -GROUND_FLOOR_Y, 200, 0);
-    sconce_place(STATE_CATACOMBS_ENTRY,  643, -GROUND_FLOOR_Y, 200, 0);
+    sconce_place(STATE_CATACOMBS_ENTRY, -595, -GROUND_FLOOR_Y, 200, 0);
+    sconce_place(STATE_CATACOMBS_ENTRY,  595, -GROUND_FLOOR_Y, 200, 0);
 
     /* Resolve the view distance with no ease: the first frame in the room shows
        whatever the player walked in holding, rather than easing out from the
@@ -637,7 +654,15 @@ static void draw_catacombs_entry_smd(RenderContext *ctx) {
         {
             int32_t dx = (int32_t)cull_keys[i].x - cam_x;
             int32_t dz = (int32_t)cull_keys[i].z - cam_z;
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > cull)
+            int32_t cd = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+            /* SHORT-CIRCUITED ON PURPOSE. A primitive inside the camera's own
+               reach never asks the lights at all, so the braziers cost this
+               loop — the hottest in the room — nothing on the path that
+               matters. Only one the camera would DROP pays for the light test,
+               and that test box-rejects before it loops (render.h). */
+            if (cd > cull &&
+                render_light_dist((int32_t)cull_keys[i].x,
+                                  (int32_t)cull_keys[i].z, cd) > cull)
                 { p += stride; continue; }
             if (dx * sn + dz * cs < -(700 << 12))
                 { p += stride; continue; }
@@ -708,6 +733,10 @@ static void draw_catacombs_entry_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        /* The braziers' discount, and it MUST match the one the cull above
+           applied or a lit poly survives the cull and is then shaded as though
+           it had not been — i.e. drawn in the clear colour, a hole. */
+        dist = render_light_dist(face_cx, face_cz, dist);
         int32_t fog = dist < ce_fog_near ? ce_fog_near : (dist > ce_fog_far ? ce_fog_far : dist);
         int32_t fog_factor = ((ce_fog_far - fog) << 8) / (ce_fog_far - ce_fog_near);
 
@@ -792,6 +821,17 @@ void catacombs_entry_draw(RenderContext *ctx) {
        consistently rather than only where the mesh stops. */
     g_fog_near = ce_fog_near;
     g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : ce_fog_far;
+
+    /* AND NOW THE BRAZIERS, because they are read as a discount on the two
+       numbers just set and everything below is about to read them. The pair
+       at the ends of the tablet register themselves as render.h point lights,
+       which
+       widens the view distance LOCALLY around each of them — so the tablet end
+       of the chamber stays open at the base 1600 while the lower hall does
+       not, and walking up to a sconce opens its corner the way raising the
+       lantern opens the whole room. The list was cleared for us in
+       draw_current_area(), so this only ever ADDS. */
+    sconces_publish_lights();
 
     /* Background in the SAME colour the fog saturates to, so a poly that has
        faded out is indistinguishable from the void behind it and the cull never

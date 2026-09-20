@@ -103,6 +103,79 @@ static inline int32_t otz_far4(int32_t a, int32_t b, int32_t c, int32_t d) {
 extern int32_t g_fog_near, g_fog_far;
 int render_fog_scale(int32_t dist);
 
+/* ---- Point lights, as a discount on the fog ---------------------------------
+   A LIGHT DOES NOT ADD BRIGHTNESS HERE. It subtracts DISTANCE. Everything in
+   this game that fades - the room mesh, the props, the sprites - fades on one
+   number: how far the surface is from the camera. A light is registered at a
+   world XZ, and any surface inside its radius is fogged and culled as if it
+   were NEARER THE CAMERA than it really is. That is why it needs no second
+   colour ramp, no per-vertex normals and no extra pass: it reuses the fog the
+   player already carries around with them, and a wall a brazier has "lit" is
+   lit in exactly the shade that wall has when the player stands next to it.
+
+   The mapping is linear in the light's own Manhattan radius: a surface ON the
+   light reads as g_fog_near (full colour), one at `radius` reads as g_fog_far
+   (fully fogged, i.e. no contribution at all), and the two ends meet the
+   camera's own fade smoothly because both are points on the SAME ramp.
+
+   `strength` is a 0..256 fade for the light as a whole, and it exists because
+   a light switching on at full reach would pop a disc of geometry into view in
+   a single frame - the same reason src/catacombs_entry.c eases its view
+   distance rather than stepping it. It lerps the discounted distance back
+   toward the true one, so 0 is indistinguishable from no light at all.
+
+   ORDER, and it is the whole of the contract. draw_current_area() in
+   src/main.c calls render_lights_clear() once before it dispatches to ANY
+   room, so the list starts every frame empty and no room can inherit another
+   room's lights. A room that has lights then calls render_light_add() from
+   inside its own draw, AFTER it has set g_fog_near/g_fog_far for the frame
+   (render_light_add resolves its ramp against them) and BEFORE it queues the
+   geometry those lights are supposed to reach. A room that has none does
+   nothing at all, and pays one rejected box test per call site. */
+#define RENDER_MAX_LIGHTS 4
+
+typedef struct {
+    int32_t x, z;       /* world XZ                                          */
+    int32_t radius;     /* Manhattan reach; past it the light contributes 0  */
+    int32_t k;          /* 12.12 apparent-distance units per world unit      */
+    int32_t strength;   /* 0..256 fade-in of the whole light                 */
+} RenderLight;
+
+extern RenderLight g_lights[RENDER_MAX_LIGHTS];
+extern int32_t g_light_count;
+/* Union of every registered light's reach, so the common case - a surface no
+   light touches - costs four compares and no loop. Inverted while the list is
+   empty, which makes the test below reject unconditionally. */
+extern int32_t g_light_min_x, g_light_max_x, g_light_min_z, g_light_max_z;
+
+void render_lights_clear(void);
+void render_light_add(int32_t x, int32_t z, int32_t radius, int32_t strength);
+
+/* The apparent distance of a surface at world (x,z) whose true distance from
+   the camera is cam_dist: cam_dist itself, or less where a light reaches it.
+   Feed it to the CULL TEST and to the FOG MATHS BOTH - passing it to only one
+   of them is how you get geometry that is lit but still culled, or drawn but
+   still black. Inline, and box-rejecting first, because the room mesh calls it
+   once per primitive. */
+static inline int32_t render_light_dist(int32_t x, int32_t z, int32_t cam_dist) {
+    if (x < g_light_min_x || x > g_light_max_x ||
+        z < g_light_min_z || z > g_light_max_z) return cam_dist;
+    int32_t best = cam_dist;
+    int i;
+    for (i = 0; i < g_light_count; i++) {
+        const RenderLight *L = &g_lights[i];
+        int32_t dx = x - L->x, dz = z - L->z;
+        int32_t d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        if (d >= L->radius) continue;
+        d = g_fog_near + ((d * L->k) >> 12);
+        if (d >= best) continue;
+        /* Fade the DISCOUNT in, never the geometry: at strength 0 this leaves
+           best exactly as it was, so a light coming up disturbs nothing. */
+        best -= ((best - d) * L->strength) >> 8;
+    }
+    return best;
+}
+
 void setup_context(RenderContext *ctx, int w, int h, int r, int g, int b);
 
 /* Repaint the HARDWARE background clear in this colour, for both buffers.

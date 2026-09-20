@@ -20,6 +20,7 @@ typedef struct {
     int32_t   x, y, z, rot_y;              /* base centre; world y = y+GROUND_FLOOR_Y */
     int32_t   min_x, max_x, min_z, max_z;  /* world AABB, baked at place time  */
     int32_t   flame_phase;                 /* per-instance offset into the flip */
+    int32_t   light;                       /* 0..256 eased glow, see below     */
     int       active;
 } Sconce;
 
@@ -77,6 +78,73 @@ static int sconce_tex = -1;
 static int32_t sc_tick = 0;
 
 void sconces_update(void) { sc_tick++; }
+
+/* ---- THE GLOW --------------------------------------------------------------
+   A sconce pushes the dark back around itself, and it does it through the
+   room's OWN fog rather than through any shading of its own: it registers a
+   render.h point light at its base, and every surface within SCONCE_LIGHT_
+   RADIUS is then fogged and culled as if the camera were that much closer to
+   it. Read render.h's "Point lights" note for why that is the whole trick -
+   the short version is that "lit" here means "the shade this wall has when the
+   player is standing next to it", which is a shade the room already defines.
+
+   WHEN IT SWITCHES ON is the player's own view distance, which is what makes
+   this feel like the room reacting rather than like a second lighting system:
+   the target is full exactly while the sconce is inside g_fog_far, i.e. from the
+   moment the player is close enough for any part of it to be drawn at all. The
+   ramp then carries the glow in over SCONCE_LIGHT_RATE, and because the sconce
+   sits at distance 0 from its own light it is the first thing the glow reaches
+   - so walking into range lifts the whole prop out of the fog together, rather
+   than fading it up edge-first the way an unlit prop at that distance fades.
+
+   RADIUS 750, Manhattan like every distance in this fog. In the Catacombs
+   Entry the pair at x=+-595, z=200 stand at the two ends of the lamashtu
+   tablet, in a chamber the player is held inside x[-555,555] of, so 750
+   reaches the chamber's centre line from either one with 155 to spare and the
+   two together hold the tablet end of the room open at the base 1600 view
+   distance, with the far end still dark. It is one number and it is meant to
+   be moved.
+
+   THE LIGHT IS FLAT IN Y, as all this game's fog is. That is free here because
+   the Catacombs Entry's sconces stand on the chamber floor and the chamber is
+   the only level within 750 of them; a sconce placed over one of the room's
+   stacked walkable levels (719, 1240) would glow through the floor between. */
+#define SCONCE_LIGHT_RADIUS  750
+#define SCONCE_LIGHT_RATE     16   /* 0 -> 256 in 16 frames, ~a quarter second */
+
+/* Advance every instance's glow one frame and hand the lights to the renderer.
+
+   >>> CALL IT FROM THE ROOM'S DRAW, AFTER g_fog_near/g_fog_far ARE SET FOR THE
+   FRAME AND BEFORE THE ROOM MESH IS QUEUED. <<< Both halves matter:
+   render_light_add resolves its ramp against the fog band, and the room mesh
+   is the main thing meant to be lit, so a call after it lights the room one
+   frame late. It does NOT need to clear the list — draw_current_area() in
+   src/main.c clears it ahead of every area's draw, which is what keeps these
+   lights out of every other room. */
+void sconces_publish_lights(void) {
+    int i;
+    for (i = 0; i < sconce_count; i++) {
+        Sconce *s = &sconces[i];
+        if (!s->active || s->area != current_area) continue;
+
+        /* The gate is the RAW camera distance, never the lit one: asking the
+           light whether the thing casting it is visible is a feedback loop
+           that latches on and never lets go. */
+        int32_t dcx = s->x - cam_x, dcz = s->z - cam_z;
+        int32_t dist = (dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz);
+        int32_t target = (dist <= g_fog_far) ? 256 : 0;
+
+        if (s->light < target) {
+            s->light += SCONCE_LIGHT_RATE;
+            if (s->light > target) s->light = target;
+        } else if (s->light > target) {
+            s->light -= SCONCE_LIGHT_RATE;
+            if (s->light < target) s->light = target;
+        }
+
+        render_light_add(s->x, s->z, SCONCE_LIGHT_RADIUS, s->light);
+    }
+}
 
 /* The player's head, relative to cam_y — the same figure apply_collision_*
    uses for its own body span, so the vertical test below agrees with the walls'.
@@ -146,6 +214,7 @@ void sconce_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y
     /* Half a cell apart for consecutive instances, so a pair flanking something
        burns out of step. */
     s->flame_phase = (sconce_count - 1) * (SCONCE_FLAME_RATE / 2 + 1);
+    s->light = 0;   /* dark until the player is near enough to see it at all */
 
     /* World AABB = the axis-aligned bound of the rotated mesh footprint, corner
        by corner, exactly as the lever bakes its own. Computed once here rather
@@ -239,6 +308,17 @@ void sconces_draw(RenderContext *ctx) {
            number takes. This is the fix save_point.c needed for the same room. */
         int32_t dcx = s->x - cam_x, dcz = s->z - cam_z;
         int32_t dist = (dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz);
+        /* ...AND THEN THROUGH ITS OWN LIGHT. A sconce is at distance 0 from
+           the light it registered, so once sconces_publish_lights() has run
+           its glow in, this collapses to g_fog_near and the prop is drawn in
+           full colour at any range the room will draw it at all. That is the
+           "walk close enough to see any of it and you see all of it" rule, and
+           it falls out of the light rather than being a second rule: the glow
+           ramps from the frame the RAW distance came inside g_fog_far, so the
+           prop lifts out of the fog over the same quarter second the ground
+           around it does. Walking away runs the ramp back down and the sconce
+           fades WITH its own glow instead of popping at the cull line. */
+        dist = render_light_dist(s->x, s->z, dist);
         if (dist > g_fog_far) continue;
 
         MATRIX m, combined;
@@ -425,6 +505,11 @@ void sconces_draw(RenderContext *ctx) {
 
         int32_t dcx = s->x - cam_x, dcz = s->z - cam_z;
         int32_t dist = (dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz);
+        /* Lit distance, the SAME expression the body used above — the fire and
+           the stand it sits in must reach the cull line together or a sconce
+           at the edge of the glow is a floating flame. (The flame is still not
+           fogged; only whether it is drawn at all comes from here.) */
+        dist = render_light_dist(s->x, s->z, dist);
         if (dist > g_fog_far) continue;
 
         /* The foot of the flame is the TOP OF THE MESH, taken from the same

@@ -23,6 +23,13 @@
    (src/save_point.c), which is what "the mesh is the collision mesh" means for
    a prop: the engine collides boxes, so the mesh's job is to SIZE the box.
 
+   THEY GIVE OFF LIGHT, and the light is not a shading pass: each one registers
+   a render.h point light at its base, and every surface inside its radius is
+   fogged and culled as though the camera stood that much nearer. So a lit
+   sconce widens the same view distance the player's lantern widens, locally
+   and around itself, and the room needs no second lighting model to receive
+   it — see "THE GLOW" in the .c and "Point lights" in render.h.
+
    THE FLAME is not in the mesh. It is a single camera-facing quad standing on
    the model's black coal bed, flipping between the two frames in the BOTTOM
    half of the same texture — see the note above SCONCE_FLAME_HALF_W in the .c
@@ -53,6 +60,12 @@ void sconce_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y
 /* One frame of the flame flip. Call it from the room's update beside the other
    props'; nothing else in the module has per-frame state. */
 void sconces_update(void);
+
+/* Hand this area's sconces to the renderer as point lights, one frame's worth,
+   and advance their glow ramps. Call it from the room's draw AFTER
+   g_fog_near/g_fog_far are set for the frame and BEFORE the room mesh is
+   queued — see the note in the .c. */
+void sconces_publish_lights(void);
 
 void sconces_draw(RenderContext *ctx);
 void sconces_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);

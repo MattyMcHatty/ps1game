@@ -76,6 +76,54 @@ int render_fog_scale(int32_t dist) {
     return ((g_fog_far - dist) << 8) / (g_fog_far - g_fog_near);
 }
 
+/* ---- Point lights ----------------------------------------------------------
+   See render.h for what a light IS here (a discount on the distance the fog is
+   computed from, not a second shading term) and for the ordering rule. This
+   file holds only the list and the one divide per light per frame that keeps
+   render_light_dist() to multiplies. */
+RenderLight g_lights[RENDER_MAX_LIGHTS];
+int32_t     g_light_count = 0;
+int32_t     g_light_min_x = 1, g_light_max_x = 0;   /* inverted = empty */
+int32_t     g_light_min_z = 1, g_light_max_z = 0;
+
+void render_lights_clear(void) {
+    g_light_count = 0;
+    g_light_min_x = 1; g_light_max_x = 0;
+    g_light_min_z = 1; g_light_max_z = 0;
+}
+
+void render_light_add(int32_t x, int32_t z, int32_t radius, int32_t strength) {
+    if (g_light_count >= RENDER_MAX_LIGHTS) return;
+    if (radius <= 0 || strength <= 0) return;         /* a dark light is no light */
+    if (strength > 256) strength = 256;
+    /* A fog band this room has not resolved yet, or one with no width at all,
+       would make the ramp below a divide by zero. Nothing to discount toward,
+       so there is nothing to register. */
+    if (g_fog_far <= g_fog_near) return;
+
+    RenderLight *L = &g_lights[g_light_count++];
+    L->x = x; L->z = z;
+    L->radius = radius;
+    L->strength = strength;
+    /* THE ONE DIVIDE. Apparent distance is g_fog_near + d*k, and k is fixed so
+       that d == radius lands exactly on g_fog_far: the light's edge and the
+       camera's own far fade are then the same shade, which is what stops the
+       lit area having a visible rim. */
+    L->k = ((g_fog_far - g_fog_near) << 12) / radius;
+
+    /* Grow the union box. It is the reach, not the centre, because the box is
+       what render_light_dist() rejects on. */
+    if (g_light_count == 1) {
+        g_light_min_x = x - radius; g_light_max_x = x + radius;
+        g_light_min_z = z - radius; g_light_max_z = z + radius;
+    } else {
+        if (x - radius < g_light_min_x) g_light_min_x = x - radius;
+        if (x + radius > g_light_max_x) g_light_max_x = x + radius;
+        if (z - radius < g_light_min_z) g_light_min_z = z - radius;
+        if (z + radius > g_light_max_z) g_light_max_z = z + radius;
+    }
+}
+
 void flip_buffers(RenderContext *ctx) {
     static uint32_t prev_vb = 0;
 
