@@ -913,7 +913,9 @@
              after TEXASAG, so its record lands in the root's SECOND sector.
              Run py tools/check_disc_root.py after ANY change here.
 
-             THE TEXTURES. Three, and they are the whole chapter's art so far.
+             THE TEXTURES. Four now — three room textures and the sconce prop's
+             (added below, with its own note) — and they are the whole chapter's
+             art so far.
              Every one is registered DEFERRED (src/texmgr.h): the name is
              recorded at startup and NOTHING is read, so Chapters 1 and 2 pay
              nothing for them. They are read at the one door that reaches this
@@ -944,6 +946,23 @@
             <file name="COBBLE.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\cobblestones.tim"/>
             <file name="LOCULUS.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\loculus.tim"/>
             <file name="CTCMBDR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacomb inner door.tim"/>
+
+            <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
+                 torch stand, two of them flanking the lamashtu tablet in the
+                 entry chamber. Its geometry and its texture ship HERE rather
+                 than beside the other props in the root, because it is Chapter
+                 3 art and nothing outside this chapter draws it.
+
+                 Its VRAM page is the wd_flr page (x448 y0, Voff 0), taken on
+                 the same argument the three textures above take theirs: the
+                 mouth is one-way, so the kitchen's wood floor (and the two
+                 small anzu frames parked beside it) are never drawn again.
+                 tools/vram_map.py records the three overlaps as time-shared.
+
+                 SCONCE.SMD is the ONLY collision data this prop has — see the
+                 note at the head of src/sconce.h. -->
+            <file name="SCONCE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\sconce.smd"/>
+            <file name="SCONCE.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\sconce.tim"/>
         </dir>
 
         </directory_tree>

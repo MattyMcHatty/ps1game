@@ -14,6 +14,7 @@
 #include "fatdoor.h"
 #include "vines.h"
 #include "save_point.h"
+#include "sconce.h"
 #include "rafflesia.h"
 #include "living_statue.h"
 #include "hadad.h"
@@ -938,6 +939,12 @@ void apply_collision_reception(void) {
     vines_collide(&cam_x, cam_y, &cam_z, 125);
     /* Save point: solid, using its own mesh footprint (radius = player standoff). */
     save_points_collide(&cam_x, cam_y, &cam_z, 55);
+    /* Sconces, on the same terms: the box is the prop's own mesh bounds and its
+       height, measured off the SMD at load (src/sconce.h). Area-tagged inside
+       the module, so this is a no-op outside the Catacombs Entry. Prop radius
+       rather than the wall standoff — it is a 120-wide torch stand, not a
+       stretch of wall. */
+    sconces_collide(&cam_x, cam_y, &cam_z, 75);
     /* Piano-room props (this routine is shared with the piano room); the module
        gates itself to that area, so this is a no-op in reception. */
     piano_props_collide(&cam_x, cam_y, &cam_z, 75);

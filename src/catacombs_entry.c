@@ -20,6 +20,7 @@
 #include "texmgr.h"
 #include "dresser.h"
 #include "save_point.h"
+#include "sconce.h"           /* the two braziers flanking the tablet */
 #include "sml_med.h"            /* the hall's small medipac, seeded in world.c */
 #include "player.h"             /* show_pickup_msg_raw, current_weapon */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
@@ -376,6 +377,13 @@ void catacombs_entry_load_assets(void) {
 void catacombs_entry_upload_textures(void) {
     for (int i = 0; i < CATACOMBS_ENTRY_NEW_TEX; i++)
         texmgr_upload(new_tex_id[i]);
+    /* ...and the sconce prop's own page. It is a fifth texture of this
+       chapter's, owned by src/sconce.c rather than by the room, which is the
+       arrangement every other textured prop in the game has (the dresser, the
+       grinder). Called from HERE and not from main() so the bank checker's call
+       graph reaches it: py tools/check_tex_banks.py walks this function and
+       fails the build if sconce.c's declared mask does not cover CATACOMBS. */
+    sconce_upload_texture();
 }
 
 /* ---- THE TABLET, AND WHAT IT SAYS ------------------------------------------
@@ -552,6 +560,39 @@ void catacombs_entry_init(void) {
     save_point_add(4606, 940, 2106, 512, 2048);
 
     dressers_clear();
+
+    /* ---- THE TWO SCONCES ---------------------------------------------------
+       Brass torch stands, one either side of the lamashtu tablet, standing in
+       the entry chamber the player arrives in. The tablet is the only thing in
+       this room that answers a button and it is carved across a wall the player
+       has to be told to look at; a light standing at each end of it is what
+       frames it as the room's one object rather than as more wall.
+
+       THE ARITHMETIC, all of it off the header's bounds. The chamber is
+       x[-750,750] z[0,1400] with the tablet art spanning x[-536,536] at z=0, so
+       the clear wall beside it is the 214-wide strip x[536,750] and x=643 is
+       its CENTRE. The model is 120 across, so each stands 49 clear of the
+       tablet's edge and 47 clear of the side wall.
+
+       z=200 puts them 200 out from the wall, which is 5 past the 195 standoff
+       the player is held at (CE_WALL_RADIUS) — far enough out to be objects in
+       the corner rather than fittings on the wall, and near enough that the
+       pair still read as a frame around the carving. The player can never reach
+       their x (the side walls hold them inside x[-555,555]) but sconces_collide
+       is a real push all the same: it expands the box by the prop radius, so
+       walking into the corner stops 255 short of a sconce's centre.
+
+       y is the chamber floor (0) less GROUND_FLOOR_Y, which is what puts the
+       model's BASE on that floor — the sconce is authored base-at-origin,
+       unlike the save point above, whose -300 is a centre-origin model's offset.
+       rot_y 0 both, because the model is square in plan and the flare at its
+       top is symmetric: turning one would only cost a matrix to say nothing.
+
+       Area-tagged, so the instances cannot collide or draw anywhere else even
+       if a later room forgets to clear them. */
+    sconces_clear();
+    sconce_place(STATE_CATACOMBS_ENTRY, -643, -GROUND_FLOOR_Y, 200, 0);
+    sconce_place(STATE_CATACOMBS_ENTRY,  643, -GROUND_FLOOR_Y, 200, 0);
 
     /* Resolve the view distance with no ease: the first frame in the room shows
        whatever the player walked in holding, rather than easing out from the
@@ -790,6 +831,14 @@ void catacombs_entry_draw(RenderContext *ctx) {
        needs no window handling in any room that draws it. */
     save_points_draw(ctx);
     sml_meds_draw(ctx);
+
+    /* And the chamber's two sconces. Their texture sits at Voff 0 like the
+       room's own four, so the 128 window set above serves it and there is
+       nothing to bracket. Under the same LEVEL 8 switch as everything else
+       that stands in this room would be wrong — they are lit fixtures, i.e.
+       part of how the chamber reads — so they draw unconditionally, as the
+       save point and the medipac do. */
+    sconces_draw(ctx);
 
     /* The two signs, last.
 

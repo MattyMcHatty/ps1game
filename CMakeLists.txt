@@ -103,6 +103,7 @@ add_executable(horror_game
     src/area_bank.c
     src/catacombs_entry_mesh_collision.c
     src/catacombs_entry.c
+    src/sconce.c
     src/catacomb_walk.c
     src/asag_boss.c
     src/asag_fight.c

@@ -546,6 +546,14 @@ KNOWN_STREAM_PAIRS = [
     ("plinth.tim", "catacomb inner door.tim"),
     ("stables wood.tim", "catacomb inner door.tim"),   # pixels AND clut (672,498)
     ("xt_dr_cg.tim", "catacomb inner door.tim"),
+    #   sconce.tim        -> the wd_flr page (x448 y0), the Chapter 3 prop's own
+    # art. wd_flr is the kitchen/reception wood floor and the two anzu frames
+    # are the garden's puzzle tiles parked in the same page; all three belong to
+    # Chapters 1-2 and none is drawn again once the mouth closes. Its CLUT is
+    # NOT shared - (672,502) was genuinely free.
+    ("wd_flr.tim", "sconce.tim"),
+    ("anzu1.tim", "sconce.tim"),
+    ("anzu4.tim", "sconce.tim"),
 ]
 
 def read_tim(path):

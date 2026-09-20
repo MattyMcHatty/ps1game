@@ -26,6 +26,7 @@
 #include "crate.h"
 #include "dining_table.h"
 #include "save_point.h"
+#include "sconce.h"
 #include "dresser.h"
 #include "grinder.h"
 #include "grinder_puzzle.h"
@@ -1660,6 +1661,7 @@ static void update_current_area(GameState area) {
            monsters yet; when it does, they go here. What the room does have is
            the burial hall's save point and its one small medipac. */
         save_points_update();   /* spin the hall's save point */
+        sconces_update();       /* flicker the entry chamber's two flames */
         apply_collision_reception();
         apply_height();
         sml_meds_update();
@@ -2378,6 +2380,16 @@ int main(int argc, const char **argv) {
                                      area_bank_sync(), in the same breath as the
                                      mansion's and the garden's ~800 KB being
                                      handed back. See src/area_bank.h. */
+    loading_screen_pump(&ctx);
+    sconce_load_assets();      /* CHAPTER 3's sconce prop. Its TEXTURE is one
+                                  more deferred registration on the same terms
+                                  as the four above; its GEOMETRY is a real CD
+                                  read here, ~4 KB held for the whole run, and
+                                  it is deliberately absent from area_bank.c's
+                                  free list because it is one of the few props
+                                  the chapter purge has to leave standing. The
+                                  mesh is also the prop's collision data - see
+                                  src/sconce.h. */
 
     asag_arena_load_assets();  /* ASAG'S ARENA: does NOTHING, on purpose. It owns
                                   no texture yet, and when it does they will be
