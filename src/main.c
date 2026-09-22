@@ -27,6 +27,7 @@
 #include "dining_table.h"
 #include "save_point.h"
 #include "sconce.h"
+#include "oil_dispenser.h"
 #include "dresser.h"
 #include "grinder.h"
 #include "grinder_puzzle.h"
@@ -233,6 +234,12 @@ void reset_game(RenderContext *ctx) {
                                into the mansion — see src/sound.h.        */
     greenhouse_flood_reset();/* ...and back OUT of the inventory, or a new
                                playthrough starts holding one              */
+    oil_dispensers_reset(); /* ...and the Catacombs oil tank back to full. NOT
+                               where player_oil is cleared (that is
+                               item_pickups_reset, via crates_reset above, with
+                               the rest of the inventory) — the tank is a fixture
+                               of a room, not something the player carries, so it
+                               resets with the world.                       */
     hatch_puzzle_reset();   /* ...and The Hatch's board, its shot and any
                                half-played descent dropped. The two keyholes
                                themselves are GameFlags and are cleared with
@@ -2400,6 +2407,14 @@ int main(int argc, const char **argv) {
                                   the chapter purge has to leave standing. The
                                   mesh is also the prop's collision data - see
                                   src/sconce.h. */
+    loading_screen_pump(&ctx);
+    oil_dispenser_load_assets();/* CHAPTER 3's oil dispenser, on exactly the
+                                  sconce's terms above: a deferred texture
+                                  registration, ~2 KB of geometry read here and
+                                  held for the run, and out of area_bank.c's
+                                  free list so the chapter purge leaves it
+                                  standing. Its mesh is its collision data too -
+                                  see src/oil_dispenser.h. */
 
     asag_arena_load_assets();  /* ASAG'S ARENA: does NOTHING, on purpose. It owns
                                   no texture yet, and when it does they will be

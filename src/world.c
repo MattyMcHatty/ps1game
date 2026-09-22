@@ -1306,17 +1306,16 @@ void world_seed_room(GameState area) {
     }
 
     /* Catacombs Entry: ONE small medipac, and it is the whole of Chapter 3's
-       supply so far. It lies in the SOUTH-EAST CORNER of the burial-niche hall,
-       the far end of the room — past both ramps, past the last of the niches and
-       diagonally across the hall from the save point in the north-east corner,
-       so the two are a pair of opposite detours off the walk to the inner door
-       rather than one pile at the end of it. 209 clear of the south wall
-       (z=501) and 194 of the east one (x=4800): the player's 195 standoff stops
-       them 15 short of it in Manhattan terms, comfortably inside the 200 pickup
-       radius.
+       supply so far. It lies OUT ON THE OPEN FLOOR of the burial-niche hall,
+       mid-way along it and all but on the line the inner door sits on (that
+       door's centre is z=1402), so it is collected in passing on the walk east
+       rather than being a detour — unlike the save point, which stays a corner
+       errand up at (4606, 2106). Clear of everything: the hall spans
+       x[1800,4800] z[502,2302], and the nearest prop is the oil dispenser, away
+       in the south-east corner.
 
        Nothing contests it. There are no enemies down here at all yet, and when
-       there are, this corner is the place to check first.
+       there are, the middle of the hall is where the player will want it.
 
        y: the hall floor is flat at 1240 (collision FLOOR 4), so 1091 is the
        floor less the 149 body reference every sml_med_spawn call passes — spawn
@@ -1325,7 +1324,7 @@ void world_seed_room(GameState area) {
        AUTHORED, not probed: world_seed_room runs for rooms whose geometry is
        not resident. */
     if (area == STATE_CATACOMBS_ENTRY) {
-        sml_med_spawn(4606, 1091, 710);
+        sml_med_spawn(3328, 1091, 1399);
     }
 }
 

@@ -563,6 +563,17 @@ KNOWN_STREAM_PAIRS = [
     ("wd_flr.tim", "sconce.tim"),
     ("anzu1.tim", "sconce.tim"),
     ("anzu4.tim", "sconce.tim"),
+    #   oil_container.tim -> the stn_gls page (x896 y256), the Chapter 3 oil
+    # dispenser's art. An exact 128x128 8bpp fit on a page with ONE occupant, and
+    # the first use of a page the "way back" commit made borrowable: stn_gls is
+    # one of the five the kitchen owns outright, and kitchen_stream_owned_
+    # textures() re-reads it off the CD on kitchen entry. So this pair is sound
+    # on the ordinary terms, not on the "nothing goes back there" argument the
+    # sconce's note above records as WRONG — a title load into a Chapter 1 save
+    # walks back into the kitchen and the stained glass goes up again.
+    #
+    # Its CLUT is NOT shared: (512,504) was genuinely free.
+    ("stn_gls.tim", "oil_container.tim"),
 ]
 
 def read_tim(path):

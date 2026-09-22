@@ -81,6 +81,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\VOMIT.VAG;1",
     "\\SND\\SLAMASAG.VAG;1",
     "\\SND\\LASER.VAG;1",
+    "\\SND\\GLUG.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -271,6 +272,12 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_VOMIT]      = SND_BANK_ASAG,
     [SFX_SLAM_ASAG]  = SND_BANK_ASAG,
     [SFX_LASER]      = SND_BANK_ASAG,
+    /* CHAPTER 3. The only member of its bank, and tagged with that bit
+       and nothing else, which is what the note above SND_BANK_CATACOMBS
+       asks of every clip the chapter gains: it plays in one room reached
+       through a one-way door, so there is nowhere else it could be
+       wanted and a second bit would cost its own copy for nothing. */
+    [SFX_GLUG]       = SND_BANK_CATACOMBS,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -437,6 +444,27 @@ static int sfx_channel(SfxID id) {
     if (id == SFX_VOMIT)       return 13;   /* SFX_GAS's  (GARDEN)  one-shot   */
     if (id == SFX_SLAM_ASAG)   return 14;   /* SFX_PULL's (GARDEN)  one-shot   */
     if (id == SFX_LASER)       return 15;   /* SFX_HISS's (GARDEN)  one-shot   */
+    /* ---- THE OIL DISPENSER, AND THE ONE SHORT CLIP THAT IS STILL OFF THE POOL
+       Its raw pool slot would be FIRST_VOICE + (49 % 8) = 2, which is
+       SFX_STEP2's — and STEP 6's classic bug is footsteps chopping a pool clip.
+       At 0.65 s the glug is well under the "over 2 s" bar that rule is written
+       around, so this is a judgement rather than the rule firing: the press that
+       plays it is made STANDING STILL at the dispenser, and the very next thing
+       the player does is walk away, which lands a footstep inside 20-odd frames
+       and cuts the pour in half. Every time, in the one place it plays.
+
+       SO IT BORROWS 13, A FOURTH CLAIMANT on the voice Asag's vomit already
+       shares with the Rafflesia's spore puff, and it is legal on the same
+       eviction argument: all three of the others are BANKED — SFX_GAS is
+       GARDEN, SFX_RUMBLE_2 is HOUSE|GARDEN, SFX_VOMIT is ASAG — and none of
+       those banks can be in while SND_BANK_CATACOMBS is, because the catacomb
+       mouth is a one-way door. None of them is resident, so none of them can
+       sound down here at all.
+
+       AND 13 IS NOT ONE OF THE POISONED THREE. Checked rather than assumed:
+       gas.vag carries its loop flag on block 299 of 300, i.e. it is an ordinary
+       one-shot and has never moved that voice's repeat address. */
+    if (id == SFX_GLUG)        return 13;   /* SFX_GAS's  (GARDEN)  one-shot   */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

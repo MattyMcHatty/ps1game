@@ -21,6 +21,7 @@
 #include "dresser.h"
 #include "save_point.h"
 #include "sconce.h"           /* the two braziers flanking the tablet */
+#include "oil_dispenser.h"    /* the tank in the burial hall's far corner */
 #include "sml_med.h"            /* the hall's small medipac, seeded in world.c */
 #include "player.h"             /* show_pickup_msg_raw, current_weapon */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
@@ -384,6 +385,11 @@ void catacombs_entry_upload_textures(void) {
        graph reaches it: py tools/check_tex_banks.py walks this function and
        fails the build if sconce.c's declared mask does not cover CATACOMBS. */
     sconce_upload_texture();
+    /* ...and the oil dispenser's, a sixth, on identical terms. Called from HERE
+       for the same reason: the bank checker walks this function, so a module
+       reached only from main() would be invisible to it and its declared mask
+       never verified. */
+    oil_dispenser_upload_texture();
 }
 
 /* ---- THE TABLET, AND WHAT IT SAYS ------------------------------------------
@@ -421,10 +427,54 @@ void catacombs_entry_upload_textures(void) {
 #define CE_INNER_Z            1402     /* (1302 + 1502) / 2 */
 #define CE_INNER_TEXT_Y       1054     /* eye level on the y=1240 hall floor */
 
-/* Circle edge-detect for the two of them. Seeded "held" by the arm below so a
+/* ---- THE OIL DISPENSER, AND WHY ITS SIGN IS THE ODD ONE --------------------
+   The tank set into the hall's south-east corner (the placement and the corner
+   arithmetic are in catacombs_entry_init(), below). It EXAMINES and does
+   nothing else: the prop is static, it holds no state and world.c does not know
+   it exists, so this pair of coordinates and the line are the whole of it.
+
+   >>> ITS SIGN USES THE YAW CALL, LIKE THE GARDEN'S BIRDCAGE. <<< The other two
+   signs in this room face down an axis because the things they belong to are
+   flat faces square to the world grid — the tablet across z=0, the inner door
+   across x=4800. This one belongs to a prop in a CORNER, approached along the
+   diagonal, and an axis-facing sign there is edge-on to every approach. OD_TEXT_
+   YAW is 1536 of 4096 (135 degrees) measured the way cam_rot is, i.e. the
+   direction a player who has walked up and turned to face the corner is looking:
+   south-east, (+X,-Z). That is the birdcage's 315 reflected into the opposite
+   corner (src/birdcage.c spells the convention out).
+
+   IT IS HALF SIZE, AND THAT IS WHAT LETS IT SIT ON THE PROP. The other two
+   signs are DOOR_PIXEL_SIZE (4) because they belong to walls 1000-odd units
+   wide; this one belongs to a 40-wide tank, and at the default size the line
+   was 432 units long — ten times the object it labels, and long enough that
+   centring it on the tank ran a third of it through the east wall and out under
+   the south one. OD_TEXT_PIXEL 2 is the kitchen stove's precedent (src/
+   kitchen_dining.c) for exactly this: a sign for a thing rather than for a
+   doorway. At 2 the line is 17 chars x 12 = 204 units, so it reaches 102 either
+   side along the diagonal, i.e. 72 on each axis.
+
+   SO IT SITS 110 OUT ALONG THE DIAGONAL AND UNDER THE TANK, which is as close
+   as it goes: from (4720,581) it spans x[4648,4792] and z[509,653], clear of
+   the east wall at 4800 and the south wall at 501 with 8 units to spare on each.
+   Pull it in further and it starts to clip the brick.
+
+   UNDER, NOT AT EYE LEVEL, which the other two signs are. The tank's underside
+   is at world y 1070 and the floor is 1240, so OD_TEXT_Y 1090 hangs the glyph
+   TOP (door.c takes the top, not the middle) in that gap — reading as a label
+   fixed to the thing rather than as a prompt floating in the room. */
+#define OD_X                  4798     /* the floor corner the tank is set into */
+#define OD_Z                   503
+#define OD_TEXT_X             4720     /* 110 out along the (-X,+Z) diagonal   */
+#define OD_TEXT_Z              581
+#define OD_TEXT_Y             1090     /* glyph TOP, in the air under the tank  */
+#define OD_TEXT_YAW           1536     /* 135 deg: face back north-west         */
+#define OD_TEXT_PIXEL            2     /* half DOOR_PIXEL_SIZE — see above      */
+
+/* Circle edge-detect for the three of them. Seeded "held" by the arm below so a
    press carried in through the transition cannot fire on the arrival frame. */
 static int tablet_circle_prev = 1;
 static int inner_circle_prev  = 1;
+static int oil_circle_prev    = 1;
 
 static int circle_held(void) {
     return interact_tapped();
@@ -433,14 +483,14 @@ static int circle_held(void) {
 static void catacombs_entry_arm(void) {
     tablet_circle_prev = circle_held();
     inner_circle_prev  = circle_held();
+    oil_circle_prev    = circle_held();
 }
 
 /* The shared body of both interactions: edge-detect, range, facing, message.
    THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across
    a menu closing does not read as a fresh press on the frame the lock lifts —
    hatch_puzzle_update()'s rule, for its reason. */
-static int ce_examine(int lock, int *prev, int32_t wx, int32_t wz,
-                      const char *msg) {
+static int ce_press_at(int lock, int *prev, int32_t wx, int32_t wz) {
     int held = circle_held();
     int just = held && !*prev;
     *prev = held;
@@ -451,7 +501,15 @@ static int ce_examine(int lock, int *prev, int32_t wx, int32_t wz,
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (xz >= CE_TRIGGER_RADIUS) return 0;
     if (!interact_facing(wx, wz)) return 0;
+    return 1;
+}
 
+/* The two signs that only ever say one thing. Split from the test above so the
+   dispenser can share the edge/range/facing half without inheriting a fixed
+   message — its line depends on what the press actually did. */
+static int ce_examine(int lock, int *prev, int32_t wx, int32_t wz,
+                      const char *msg) {
+    if (!ce_press_at(lock, prev, wx, wz)) return 0;
     show_pickup_msg_raw(msg);
     return 1;
 }
@@ -468,7 +526,45 @@ int catacombs_entry_interact_update(int lock) {
     int took2 = ce_examine(took ? 1 : lock, &inner_circle_prev,
                            CE_INNER_X, CE_INNER_Z,
                            "COMING SOON");
-    return took || took2;
+    /* The dispenser last, with the chain of vetoes carried into it: its trigger
+       circle (500 about x=4798 z=503) sits at the south-east end of the hall and
+       the inner door's (500 about x=4800 z=1402) at the north-east end of the
+       SAME east wall. They do not overlap — 899 apart along z — but the order
+       costs nothing and the veto is what the pattern is for. Like the two above
+       it is run every frame whatever they returned, so its edge state cannot go
+       stale while one of them is firing.
+
+       IT IS THE ONE THAT DOES SOMETHING, so it is the one that does not go
+       through ce_examine: the arithmetic runs in src/oil_dispenser.c and hands
+       back which of four things happened, and the wording is the room's.
+
+       >>> THE PRESS IS TESTED FIRST AND THE POUR HAPPENS SECOND. <<< There is
+       no case in which oil_dispenser_refill() is called for a press that was
+       out of range, facing the wrong way, locked, or not an edge — it spends a
+       resource, so it must never be asked speculatively. */
+    int took3 = 0;
+    if (ce_press_at((took || took2) ? 1 : lock, &oil_circle_prev, OD_X, OD_Z)) {
+        switch (oil_dispenser_refill()) {
+        case OD_REFILL_NO_LANTERN:
+            /* No lantern: the line says what is IN it, not what it does. The
+               player is being shown the thing they will come back for. */
+            show_pickup_msg_raw("It appears to be filled with oil...");
+            break;
+        case OD_REFILL_EMPTY:
+            show_pickup_msg_raw("The dispenser is empty");
+            break;
+        case OD_REFILL_FULL:
+            /* NOT IN THE SPEC, and a judgement: a press that is refused has to
+               say so or it reads as a dropped input. It spends nothing. */
+            show_pickup_msg_raw("The Helluminator is already full");
+            break;
+        case OD_REFILL_DONE:
+            show_pickup_msg_raw("Refilled the Helluminator");
+            break;
+        }
+        took3 = 1;
+    }
+    return took || took2 || took3;
 }
 
 /* Their floating signs. Same shape as every other sign in the game: opaque
@@ -500,6 +596,34 @@ static void ce_sign(RenderContext *ctx, int32_t wx, int32_t wy, int32_t wz,
                             wx, wy, reading_axis_origin,
                             50, 255, 50, fade, mirror, TEXT_PLANE_YZ,
                             DOOR_PIXEL_SIZE);
+}
+
+/* The same sign on a free yaw, for the corner prop the two axis planes cannot
+   face (see the OD_ block above). Two positions rather than one: the RANGE and
+   the fade are measured from the thing the sign is about (sx/sz, the prop), so
+   the prompt appears and fades with the object, while the glyphs are laid out
+   about tx/tz, where they fit. Getting that the other way round would fade the
+   line on the distance to a point the player has no reason to care about. */
+static void ce_sign_yaw(RenderContext *ctx, int32_t sx, int32_t sz,
+                        int32_t tx, int32_t ty, int32_t tz, int32_t yaw,
+                        const char *msg, int pixel) {
+    int32_t dx = cam_x - sx;
+    int32_t dz = cam_z - sz;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= CE_TEXT_RADIUS) return;
+
+    int fade = 256;
+    if (xz > CE_FADE_NEAR) {
+        int range = CE_TEXT_RADIUS - CE_FADE_NEAR;
+        int prog  = xz - CE_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    /* No +200 nudge here: the yaw variant centres on the coordinate it is given
+       (src/door.c), unlike door_draw_string_3d, which is why the callers of
+       THAT one pass their origin less 200 and this one does not. */
+    door_draw_string_3d_yaw(ctx, msg, tx, ty, tz, 50, 255, 50, fade, yaw, pixel);
 }
 
 void catacombs_entry_spawn_south(void) {
@@ -610,6 +734,42 @@ void catacombs_entry_init(void) {
     sconces_clear();
     sconce_place(STATE_CATACOMBS_ENTRY, -595, -GROUND_FLOOR_Y, 200, 0);
     sconce_place(STATE_CATACOMBS_ENTRY,  595, -GROUND_FLOOR_Y, 200, 0);
+
+    /* ---- THE OIL DISPENSER ------------------------------------------------
+       ONE, set into the SOUTH-EAST CORNER of the burial-niche hall — the far
+       end of the room, past both ramps and past the small medipac world.c
+       leaves out on the open floor mid-hall. It is the first thing down here
+       that answers a button and is not a door.
+
+       THE CORNER IS THE ORIGIN, not the centre, and this model is built for it:
+       as authored it spans x[-40,0] z[0,40], so its origin sits at the +X/-Z
+       corner of its own footprint, and its spout hangs off the (-X,+Z) corner
+       pointing back out into the room. The hall's east wall is x=4800 and its
+       south wall z=501, so rot_y 0 at (4798, 503) sets the tank flush into that
+       corner with 2 units of clearance on each wall — enough that neither face
+       z-fights the wall it is against — and the tap facing north-west, the way
+       every approach comes. Turn it and the spout goes into the brick.
+
+       EYE LEVEL, and the model states it rather than the placement doing so:
+       the tank spans y[-280,-170] about its origin (-Y is up), so with the
+       origin ON THE FLOOR it hangs 170 to 280 above it. The hall floor is flat
+       at 1240 (collision FLOOR 4) and a player standing on it has their eye at
+       1051, so the tank's body straddles that line — the tap just below the eye,
+       the tank's shoulder just above. y is therefore the floor less
+       GROUND_FLOOR_Y, exactly as the sconces' is, and 1091 is the same figure
+       world.c passes sml_med_spawn for this floor.
+
+       NOTHING GUARDS IT and nothing needs to: the player's 195 standoff holds
+       them outside x<=4605 z>=696, so oil_dispensers_collide() can never
+       actually fire here. It is placed anyway, because the box is the model's
+       and a re-export that grows the tank should start blocking without anyone
+       remembering to come back and say so. The examine radius DOES reach — 346
+       Manhattan from the closest the player can stand — see OD_* below.
+
+       Area-tagged, so the instance cannot collide or draw anywhere else even if
+       a later room forgets to clear it. */
+    oil_dispensers_clear();
+    oil_dispenser_place(STATE_CATACOMBS_ENTRY, OD_X, 1240 - GROUND_FLOOR_Y, OD_Z, 0);
 
     /* Resolve the view distance with no ease: the first frame in the room shows
        whatever the player walked in holding, rather than easing out from the
@@ -880,7 +1040,16 @@ void catacombs_entry_draw(RenderContext *ctx) {
        save point and the medipac do. */
     sconces_draw(ctx);
 
-    /* The two signs, last.
+    /* And the oil dispenser in the far corner. Its texture sits at Voff 0 too
+       (x896 y256), so the 128 window above serves it — and unlike the sconce's
+       it NEEDS that window rather than merely tolerating it: the tank's UVs run
+       past one tile and only land back on the art because the window wraps them.
+       See the note above oil_dispensers_draw(). Not under the LEVEL 8 switch,
+       for the same reason the sconces are not: it is a fixture of the hall, not
+       something standing in it. */
+    oil_dispensers_draw(ctx);
+
+    /* The three signs, last.
 
        >>> LEVEL 8 REMOVES THE SIGNS. <<< In most rooms that level takes out the
        monsters and the props, because that is what stands in them; this room has
@@ -898,5 +1067,13 @@ void catacombs_entry_draw(RenderContext *ctx) {
                 CE_TABLET_X - 200, TEXT_PLANE_XY, 1);
         ce_sign(ctx, CE_INNER_X - 11, CE_INNER_TEXT_Y, CE_INNER_Z,
                 CE_INNER_Z - 200, TEXT_PLANE_YZ, 1);
+        ce_sign_yaw(ctx, OD_X, OD_Z,
+                    OD_TEXT_X, OD_TEXT_Y, OD_TEXT_Z, OD_TEXT_YAW,
+                    "Press " BTN_CIRCLE " to refill", OD_TEXT_PIXEL);
+        /* The tank's level, on the prompt's own fade curve — the two numbers are
+           handed in rather than copied into the module so they can never drift
+           apart (src/oil_dispenser.h). Under the same LEVEL 8 switch as the
+           signs because that is what it is: a readout, not a fixture. */
+        oil_dispensers_draw_bar(ctx, CE_TEXT_RADIUS, CE_FADE_NEAR);
     }
 }

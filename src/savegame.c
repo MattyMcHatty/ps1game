@@ -8,6 +8,7 @@
 #include "menu.h"
 #include "title.h"
 #include "world.h"
+#include "oil_dispenser.h"   /* the Catacombs tank rides in SaveData.disp_oil */
 
 /* ---- PlayStation memory-card directory format ------------------------------
    Block 0 is the directory. Frame 0 is the card header ("MC" magic). Frames
@@ -37,6 +38,15 @@
 
 _Static_assert(sizeof(WorldDelta) <= SAVE_DELTA_MAX_BYTES,
                "world delta outgrew a single memory-card block");
+
+/* AND THE SAME GUARD ON SaveData, which had none until it grew a field for the
+   oil dispenser. Both savegame_write and savegame_read memcpy the whole struct
+   in and out of a 128-byte `frame` on the STACK: one field past the frame is a
+   silent overflow of a local buffer at exactly the moment the player is writing
+   to their card, which is the worst place in the game to find one. It is 96
+   bytes today. */
+_Static_assert(sizeof(SaveData) <= MC_FRAME_SIZE,
+               "SaveData outgrew one memory-card frame");
 
 /* ---- Save-block icon (cosmetic; shown in the console card manager) ---------
    16x16 4bpp bitmap + a 16-entry BGR555 palette, both generated from
@@ -70,6 +80,7 @@ void savegame_capture(SaveData *sd) {
     sd->items   = player_items;
     sd->hatch_keys = player_hatch_keys;
     sd->oil        = player_oil;
+    sd->disp_oil   = oil_dispenser_oil();
     sd->flags   = game_flags;
     menu_inventory_save(sd->item_order);
     sd->counter = 0;
@@ -246,6 +257,10 @@ void savegame_apply_pending(void) {
     player_oil        = (sd->oil < 0) ? 0
                       : (sd->oil > HELL_OIL_MAX) ? HELL_OIL_MAX
                       : (int)sd->oil;
+    /* The tank, clamped by the setter itself rather than here — it is the only
+       way into that scalar, so putting the clamp behind it covers this call and
+       every later one. */
+    oil_dispenser_set_oil((int)sd->disp_oil);
     game_flags        = sd->flags;
     player_save_count = (int)sd->counter;
     /* AFTER the inventory fields above: the arrangement is reconciled against

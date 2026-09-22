@@ -396,7 +396,20 @@ typedef enum {
                              covers the 3 s sweep and its tail; the clip is
                              longer than the beam on purpose, so it does not cut
                              out while the floor is still burning.             */
-    SFX_COUNT      = 49,
+    /* ---- THE CATACOMBS ----------------------------------------------------
+       CHAPTER 3's first sound, and as of now the whole of SND_BANK_CATACOMBS.
+       Oil leaving the dispenser in the Catacombs Entry's burial hall and going
+       into the Helluminator — see src/oil_dispenser.c, which is the only thing
+       that fires it and fires it only on a pour that actually moved oil.
+
+       IT WAS FREE, and the note above SND_BANK_CATACOMBS predicted exactly this:
+       4160 SPU bytes into a bank that was empty, in a region whose ceiling BOSS
+       sets at 190,336, so `spare` did not move off 46,896. That bank has about
+       186 KB before it starts costing the other five anything.
+
+       OFF THE POOL, ON VOICE 13 — see the note in sound.c. */
+    SFX_GLUG       = 49,  /* BANKED (catacombs). Oil pouring. 0.65 s           */
+    SFX_COUNT      = 50,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

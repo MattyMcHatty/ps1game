@@ -15,6 +15,7 @@
 #include "vines.h"
 #include "save_point.h"
 #include "sconce.h"
+#include "oil_dispenser.h"
 #include "rafflesia.h"
 #include "living_statue.h"
 #include "hadad.h"
@@ -945,6 +946,12 @@ void apply_collision_reception(void) {
        rather than the wall standoff — it is a 120-wide torch stand, not a
        stretch of wall. */
     sconces_collide(&cam_x, cam_y, &cam_z, 75);
+    /* The Catacombs oil dispenser, on the same terms again: the box is the
+       prop's own mesh bounds and its own height, measured off the SMD at load
+       (src/oil_dispenser.h), and the module gates itself to its area so this is
+       a no-op everywhere else. Prop radius, not the wall standoff — it is a
+       40-wide tank set into a corner, not a stretch of wall. */
+    oil_dispensers_collide(&cam_x, cam_y, &cam_z, 75);
     /* Piano-room props (this routine is shared with the piano room); the module
        gates itself to that area, so this is a no-op in reception. */
     piano_props_collide(&cam_x, cam_y, &cam_z, 75);

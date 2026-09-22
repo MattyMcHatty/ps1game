@@ -104,6 +104,7 @@ add_executable(horror_game
     src/catacombs_entry_mesh_collision.c
     src/catacombs_entry.c
     src/sconce.c
+    src/oil_dispenser.c
     src/catacomb_walk.c
     src/asag_boss.c
     src/asag_fight.c

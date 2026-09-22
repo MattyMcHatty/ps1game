@@ -17,7 +17,24 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   23            /* v23: living_statues_dead is a uint16_t.
+#define SAVE_VERSION   24            /* v24: disp_oil — what is left in the
+                                        Catacombs oil dispenser. It refills the
+                                        Helluminator out of a hundred-unit tank
+                                        that does not come back, so a save that
+                                        forgot it would make the resource free:
+                                        save in the room, load, and the tank is
+                                        full again. A SECOND scalar rather than
+                                        a WorldDelta field, on v20's reasoning
+                                        for `oil` itself — it is one number for
+                                        the one refill point in the game, not a
+                                        per-instance entity state, and
+                                        src/oil_dispenser.h says what has to
+                                        change the day a second dispenser ships.
+                                        The WorldDelta is unchanged in SHAPE, so
+                                        the delta_size check cannot catch a v23
+                                        save: the bump is the only thing that
+                                        does;
+                                    v23: living_statues_dead is a uint16_t.
                                         THE HATCH stands a Living Statue on each
                                         of its four corner plinths, taking the
                                         whole-game total to ten against the eight
@@ -171,6 +188,11 @@ typedef struct {
     int32_t  items;                 /* held non-key item bitmask (player_items) */
     int32_t  hatch_keys;            /* hatch keys carried, 0..HATCH_KEYS_MAX */
     int32_t  oil;                   /* Helluminator oil, 0..HELL_OIL_MAX      */
+    int32_t  disp_oil;              /* what is left in the Catacombs oil
+                                       dispenser, 0..OD_OIL_MAX. Beside `oil`
+                                       because the two are the same substance in
+                                       two places, and a reader checking one
+                                       should trip over the other. */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     uint8_t  item_order[MENU_ITEM_CELLS];  /* inventory grid: cell -> item ID + 1,
                                        0 = empty. Purely the ARRANGEMENT; what is
