@@ -548,9 +548,18 @@ KNOWN_STREAM_PAIRS = [
     ("xt_dr_cg.tim", "catacomb inner door.tim"),
     #   sconce.tim        -> the wd_flr page (x448 y0), the Chapter 3 prop's own
     # art. wd_flr is the kitchen/reception wood floor and the two anzu frames
-    # are the garden's puzzle tiles parked in the same page; all three belong to
-    # Chapters 1-2 and none is drawn again once the mouth closes. Its CLUT is
+    # are the piano room's puzzle tiles parked in the same page. Its CLUT is
     # NOT shared - (672,502) was genuinely free.
+    #
+    # THE ORIGINAL JUSTIFICATION HERE WAS "none is drawn again once the mouth
+    # closes", AND THAT WAS WRONG. The mouth is one-way in the FICTION only: the
+    # player can quit to the title and load a Chapter 1 save without restarting
+    # the executable (src/area_bank.h says so at length), and then the kitchen
+    # floor and two frames of the Anzu puzzle are lit sconces until the console
+    # is reset. Both halves have a restore path now and the pair is sound on the
+    # ordinary terms - kitchen_stream_owned_textures() puts wd_flr back on
+    # kitchen entry, anzu_tex_stream() puts the tiles back on piano-room entry.
+    # A "nothing goes back there" argument needs a title load to survive it.
     ("wd_flr.tim", "sconce.tim"),
     ("anzu1.tim", "sconce.tim"),
     ("anzu4.tim", "sconce.tim"),

@@ -2891,6 +2891,15 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_PIANO_ROOM) {
                 piano_room_upload_textures();   /* prpl_wlppr -> stove slot,
                                                    props -> stn_stl/kchn_tile */
+                /* The six Anzu tiles, off the CD into a scratch buffer that is
+                   freed again — this room is the only place they are drawn (the
+                   puzzle and the Tablets prop's face, both gated to it). It is
+                   what makes their three half-page columns (x480, x608, x736 at
+                   y0..128) borrowable, and it is what puts them back after the
+                   Catacombs' sconce has stomped anzu1/anzu4 — see the note above
+                   anzu_tex_stream(). Unlike the calls above this one touches the
+                   drive, so it brackets its own cdaudio_suspend/resume. */
+                anzu_tex_stream();
             } else if (pending_area == STATE_CONSERVATORY) {
                 conservatory_upload_textures(); /* 6 streamed slots (see module) */
             } else if (pending_area == STATE_2F_HALL) {
@@ -3058,6 +3067,14 @@ int main(int argc, const char **argv) {
                    arrive from ANY current_area, and a redundant re-upload from
                    RAM is harmless (pure LoadImage, GPU idled above). */
                 kitchen_restore_textures();
+                /* And the five pages this room owns outright, off the CD into a
+                   scratch buffer that is freed again — the Greenhouse's shape,
+                   for the Greenhouse's reason: 59 KB of permanent heap in the
+                   peak bank is what this avoids. It is what MAKES those five
+                   pages borrowable (x448 y0, x576 y0, x448 y256, x576 y256,
+                   x896 y256); nothing borrows them yet. Disjoint from the set
+                   restored above, so the order of the two is free. */
+                kitchen_stream_owned_textures();
             }
             /* Once the copper pot is owned, keep its texture resident in the
                (spent) key slot on every room load so the menu icon is correct

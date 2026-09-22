@@ -7,6 +7,7 @@
 #include <inline_c.h>
 #include <smd/smd.h>
 #include "render.h"
+#include "cdaudio.h"         /* cdaudio_suspend/resume around the entry read */
 #include "room_arena.h"
 #include "camera.h"
 #include "texmgr.h"
@@ -162,6 +163,38 @@ static void kitchen_dining_floor_zones_init(void) {
    textures over some of these VRAM slots (stn_stl/kchn_tile/red_crpt) — so they
    must be restored when the player returns. Safe mid-game only when the caller
    has idled the GPU first (see main STATE_LOADING). */
+/* THE FIVE THIS ROOM OWNS OUTRIGHT — the ones no other module uploads and no
+   texmgr registration holds. Until now they went up once at startup and were
+   never touched again, which made their five VRAM pages UNBORROWABLE: any room
+   that streamed its own art over x448 y0, x576 y0, x448 y256, x576 y256 or
+   x896 y256 would have left the kitchen showing that art for the rest of the
+   run, with no way back short of a reset.
+
+   They are re-read on entry now, by kitchen_stream_owned_textures() below, so
+   those five pages are time-shareable on the same terms as every other page in
+   the game: borrow it, and put it back by entering the room that owns it.
+   NOTHING BORROWS THEM YET — this is the restore path the borrowing needs, not
+   the borrowing. When something does take one, add the pair to
+   KNOWN_STREAM_PAIRS in tools/vram_map.py or the map will call it a collision.
+
+   >>> RAM IS THE REASON THIS IS A CD READ AND NOT A texmgr REGISTRATION. <<<
+   Registering the five would cost 59 KB of permanent heap inside the MANSION
+   bank, which is already the peak bank at 456 KB. That is the exact lever that
+   stopped the console booting when the Greenhouse arrived — malloc succeeds,
+   hands back memory the stack is already using, and the next CdRead DMAs over
+   the return address (see the long note in src/greenhouse.c and
+   tools/HEAP_BUDGET.txt). The Greenhouse's answer was to stream on entry into
+   a scratch buffer it frees again; this is the same answer, and this function
+   was already written in that shape. */
+#define KITCHEN_OWNED_TEX 5
+static const struct { const char *file; int slot; } owned_tex[KITCHEN_OWNED_TEX] = {
+    { "\\WDFLR.TIM;1",    3 },   /* x448 y0   4bpp */
+    { "\\REDWLPPR.TIM;1", 4 },   /* x576 y0   4bpp */
+    { "\\INRDBLDR.TIM;1", 5 },   /* x576 y256 4bpp */
+    { "\\STNGLS.TIM;1",   7 },   /* x896 y256 8bpp — the big one, 18432 bytes */
+    { "\\DINCL.TIM;1",    9 },   /* x448 y256 4bpp */
+};
+
 void kitchen_stream_textures(void) {
     const int TBUF_CAP = 32 * 1024;
     uint8_t *tbuf = malloc(TBUF_CAP);
@@ -169,16 +202,39 @@ void kitchen_stream_textures(void) {
         load_tim_buf("\\TEX\\STNSTL.TIM;1",   0, tbuf, TBUF_CAP);
         load_tim_buf("\\TEX\\KCHNWL.TIM;1",   1, tbuf, TBUF_CAP);
         load_tim_buf("\\TEX\\KCHNTILE.TIM;1", 2, tbuf, TBUF_CAP);
-        load_tim_buf("\\WDFLR.TIM;1",    3, tbuf, TBUF_CAP);
-        load_tim_buf("\\REDWLPPR.TIM;1", 4, tbuf, TBUF_CAP);
-        load_tim_buf("\\INRDBLDR.TIM;1", 5, tbuf, TBUF_CAP);
         load_tim_buf("\\TEX\\REDCRPT.TIM;1",  6, tbuf, TBUF_CAP);
-        load_tim_buf("\\STNGLS.TIM;1",   7, tbuf, TBUF_CAP);
         load_tim_buf("\\TEX\\STOVE.TIM;1",    8, tbuf, TBUF_CAP);
-        load_tim_buf("\\DINCL.TIM;1",    9, tbuf, TBUF_CAP);
         load_tim_buf("\\DBLDOOR.TIM;1", 10, tbuf, TBUF_CAP);
+        for (int i = 0; i < KITCHEN_OWNED_TEX; i++)
+            load_tim_buf(owned_tex[i].file, owned_tex[i].slot, tbuf, TBUF_CAP);
         free(tbuf);
     }
+}
+
+/* Re-read the five above on the way into the kitchen. Called from main's
+   STATE_LOADING branch, where the GPU has already been idled — load_tim_buf
+   DrawSyncs after every LoadImage anyway.
+
+   THE BRACKET IS MANDATORY, NOT DEFENSIVE. A data read issued while CD-DA is
+   streaming hangs the drive. cdaudio_suspend/resume are no-ops when nothing is
+   playing, and most routes into this room have already stopped the music at the
+   door trigger — but a title-screen load or a debug level-select jump can arrive
+   with a track running, and that is the case this is for. Same rule, same
+   bracket, as greenhouse_upload_textures().
+
+   SCRATCH: one 20 KB buffer, freed again, so this costs nothing at rest. The
+   largest of the five is STNGLS at 18432 bytes (nine sectors); load_tim_buf
+   silently skips anything that will not fit, so if one of these ever grows past
+   20 KB the symptom is a blank wall in this room and the cap below is the fix. */
+void kitchen_stream_owned_textures(void) {
+    const int TBUF_CAP = 20 * 1024;
+    uint8_t *tbuf = malloc(TBUF_CAP);
+    if (!tbuf) return;          /* draw with whatever is up rather than crash */
+    cdaudio_suspend();
+    for (int i = 0; i < KITCHEN_OWNED_TEX; i++)
+        load_tim_buf(owned_tex[i].file, owned_tex[i].slot, tbuf, TBUF_CAP);
+    cdaudio_resume();
+    free(tbuf);
 }
 
 /* The three kitchen textures whose VRAM slots reception overwrites with its own
