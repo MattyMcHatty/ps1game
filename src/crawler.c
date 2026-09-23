@@ -228,11 +228,44 @@ int32_t crawler_scale_damage(int32_t base, DamageType type) {
 }
 
 /* Send it into its retreat. Shared by "it just bit the player" and "the player
-   just hit it", which are the brief's two triggers and the only two. */
+   just hit it", which are the brief's two triggers and the only two.
+
+   >>> THE DIRECTION IS LATCHED HERE AND NEVER ASKED AGAIN. <<< "It retreats in
+   a straight line" is a statement about the PATH, not about the bearing: a
+   retreat that recomputed -(player - self) every frame is a chase run
+   backwards, and it curves as the player moves, which is what the old one did.
+   One vector, fixed the frame the blow lands, Manhattan-normalised to 4096 so
+   the steering arithmetic downstream sees the same magnitude it would have got
+   from a goal delta. */
 static void crawler_begin_retreat(Crawler *s) {
+    int32_t ax = s->x - player_x();
+    int32_t az = s->z - player_z();
+    int32_t m  = (ax < 0 ? -ax : ax) + (az < 0 ? -az : az);
+    if (m <= 0) { ax = 4096; az = 0; m = 4096; }   /* dead on top of us */
+    s->ret_x = (int16_t)((ax * 4096) / m);
+    s->ret_z = (int16_t)((az * 4096) / m);
     s->state         = CRW_RETREAT;
     s->retreat_timer = CRW_RETREAT_TIMEOUT;
     s->steer_timer   = 0;
+    s->stall_timer   = 0;
+    /* Hit halfway round a face: it stops following that wall and starts going
+       over it, on the spot. Leaving the mode alone would have it slide on along
+       the face toward a goal that is now the retreat's, which is neither the
+       corner-turn it was doing nor the straight line it is supposed to be
+       doing. */
+    if (s->surface == CRW_SURF_WALL) s->wall_mode = CRW_WALL_CLIMB;
+}
+
+/* The far end of the retreat, however it was reached: the distance, the
+   timeout or the stall watch. One place, because the scream and the pause have
+   to fire on all three and two of them are tested in different parts of the
+   frame. */
+static void crawler_end_retreat(Crawler *s) {
+    s->state       = CRW_PAUSE;
+    s->pause_timer = CRW_PAUSE_FRAMES;
+    s->steer_timer = 0;
+    s->stall_timer = 0;
+    crawler_scream();          /* "and when it pauses after a retreat" */
 }
 
 void crawler_damage(Crawler *s, int dmg) {
@@ -354,6 +387,111 @@ static int32_t crw_isqrt(int32_t v) {
     return (int32_t)(root >> 1);
 }
 
+/* ---- The body's vertical span, and Y-AWARE wall collision -----------------
+   >>> apply_flat_entity_collision IS THE WRONG PUSH FOR A CRAWLER. <<< It is
+   collide_wall_frontonly, which reads no Y at all: every wall in the room is a
+   full-height barrier to it. That is right for a zombie, which never leaves the
+   one floor a flat room has, and wrong the moment a crawler stands a storey up
+   — in the Up Down Maze the ten block tops sit DIRECTLY OVER the lower maze's
+   corridor walls (see the multi_level note in up_down_maze_mesh_collision.c), so
+   a crawler on a walkway would be shoved about by faces a thousand units under
+   its feet and could not cross its own floor. Same story on the ceiling, where
+   only the outer walls reach.
+
+   So the crawler carries its own copy of collide_wall_frontonly_y's gate: the
+   same interval-overlap test on the same convention (y_min is the wall's TOP,
+   y_max its bottom) and the same y_min == y_max escape meaning "no Y data,
+   treat as full height", which every flat room in the game relies on.
+
+   THE FEET ARE LIFTED A LITTLE. A wall's top IS the surface of the floor it
+   carries, so a body standing on that floor overlaps the wall beneath it by a
+   hair and the gate would fire on every face of the very block it is standing
+   on. CRW_FOOT_LIFT is smaller than anything the geometry distinguishes and
+   larger than the one-unit slop between GROUND_FLOOR_Y and the sprite's own
+   foot line (Y_OFFSET + HALF_H is 150, GROUND_FLOOR_Y is 149). */
+#define CRW_FOOT_LIFT 8
+
+static void crw_body_span(const Crawler *s, int32_t *top, int32_t *bot) {
+    int32_t cy = s->y + CRW_Y_OFFSET;
+    *top = cy - CRW_HALF_H;
+    *bot = cy + CRW_HALF_H - CRW_FOOT_LIFT;
+}
+
+static int crw_wall_in_span(const Wall *w, int32_t top, int32_t bot) {
+    if (w->y_min == w->y_max) return 1;          /* no Y data: full height */
+    return !(top > w->y_max || w->y_min > bot);
+}
+
+/* collide_wall_frontonly with that gate in front of it, and the two passes
+   apply_flat_entity_collision makes so an inside corner resolves in one frame. */
+static void crw_walls_collide(const Crawler *s, int32_t *x, int32_t *z,
+                              int32_t radius) {
+    CollisionRoom *room = &current_collision_room;
+    int32_t top, bot;
+    int i, pass;
+    crw_body_span(s, &top, &bot);
+    for (pass = 0; pass < 2; pass++) {
+        for (i = 0; i < room->wall_count; i++) {
+            Wall *w = &room->walls[i];
+            int32_t dx, dz, dot, tx, tz, along, len2, push;
+            if (!crw_wall_in_span(w, top, bot)) continue;
+            dx  = *x - w->x1;
+            dz  = *z - w->z1;
+            dot = ((dx >> 4) * (w->nx >> 4) + (dz >> 4) * (w->nz >> 4)) >> 4;
+            if (dot >= radius || dot < 0) continue;   /* behind it: never push */
+            tx    = (w->x2 - w->x1) >> 4;
+            tz    = (w->z2 - w->z1) >> 4;
+            along = (dx >> 4) * tx + (dz >> 4) * tz;
+            len2  = tx * tx + tz * tz;
+            if (along < 0 || along > len2) continue;
+            push = radius - dot;
+            *x += (push * w->nx) >> 12;
+            *z += (push * w->nz) >> 12;
+        }
+    }
+}
+
+/* Is there a floor at (x,z) whose surface sits within `tol` of `want_y`?
+   apply_ddog_height's zone walk asked as a QUESTION instead of applied as a
+   move, because the step over the top of a wall has to know there is something
+   up there before it commits — afterwards there is no way back. A crawler that
+   stepped over a lip with nothing behind it lands outside every zone, and
+   apply_ddog_height's `target` then defaults to 0: GROUND_FLOOR_Y *below* the
+   floor surface, i.e. buried in it, and behind every face that could ever have
+   pushed it out again (collide_wall_frontonly returns early on a negative dot).
+   That is the "it was inside the floor" failure, and it is unrecoverable. */
+static int crw_floor_at(int32_t x, int32_t z, int32_t want_y, int32_t tol,
+                        int32_t *out_y) {
+    int i;
+    for (i = 0; i < floor_zone_count; i++) {
+        FloorZone *fz = &floor_zones[i];
+        int32_t fy, d;
+        if (x < fz->min_x || x > fz->max_x) continue;
+        if (z < fz->min_z || z > fz->max_z) continue;
+        if (fz->type == FLOOR_RAMP) {
+            int32_t len = fz->ramp_axis_end - fz->ramp_axis_start;
+            int32_t pos = fz->ramp_along_x ? x : z;
+            if (len == 0) {
+                fy = fz->ramp_y_start;
+            } else {
+                int32_t t = ((pos - fz->ramp_axis_start) << 12) / len;
+                if (t <    0) t =    0;
+                if (t > 4096) t = 4096;
+                fy = fz->ramp_y_start +
+                     (((fz->ramp_y_end - fz->ramp_y_start) * t) >> 12);
+            }
+        } else {
+            fy = fz->y;
+        }
+        d = fy - want_y;
+        if (d < 0) d = -d;
+        if (d > tol) continue;
+        *out_y = fy;
+        return 1;
+    }
+    return 0;
+}
+
 /* Recompute the body's XZ from (wall, wall_t) and hold it SURF_OFFSET off the
    face. Called after any change to either. */
 static void crw_place_on_wall(Crawler *s) {
@@ -366,30 +504,57 @@ static void crw_place_on_wall(Crawler *s) {
                  + ((s->wall_nz * CRW_SURF_OFFSET) >> 12);
 }
 
-/* Try to climb whatever the crawler has just run into. `gx,gz` is the direction
+/* Find the face the crawler is running into, if any. `gx,gz` is the direction
    it WANTS to travel; a wall it is not heading into is not an obstacle and must
    not be mounted, or a crawler running alongside a corridor would climb it for
-   no reason. Returns 1 if it mounted. */
-static int crw_try_mount(Crawler *s, int32_t gx, int32_t gz) {
+   no reason. Returns the wall index or -1, and fills the distance out from the
+   face, the distance along it and its length.
+
+   `reach` is how far out to look, and it is NOT CRW_MOUNT_DIST — see the long
+   note on CRW_MOUNT_REACH in crawler.h for why conflating the two is what kept
+   these things on the ground.
+
+   THE FRONT-ONLY TEST IS THE GAME'S, NOT AN APPROXIMATION OF IT: the same
+   signed dot against the inward normal and the same along-segment reject that
+   collide_wall_frontonly_y makes, in that order, now with that function's Y
+   gate in front of them as well. A crawler behind a wall face is not touching
+   it and must not mount it, and neither is one a whole storey above it. See
+   mistake 12 in tools/ADDING_AN_ENEMY.txt for what happens when a
+   re-implementation of this test drifts from the original. */
+static int crw_find_wall(const Crawler *s, int32_t gx, int32_t gz, int32_t reach,
+                         int32_t *out_dot, int32_t *out_t, int32_t *out_len) {
     CollisionRoom *room = &current_collision_room;
-    int  best = -1;
-    int32_t best_dot = CRW_MOUNT_DIST;
+    int32_t gmag = (gx < 0 ? -gx : gx) + (gz < 0 ? -gz : gz);
+    int32_t top, bot;
+    int     best = -1;
+    int32_t best_dot = reach;
     int32_t best_t = 0, best_len = 0;
     int i;
 
+    if (gmag <= 0) return -1;
+    crw_body_span(s, &top, &bot);
+
     for (i = 0; i < room->wall_count; i++) {
         Wall *w = &room->walls[i];
-        int32_t ex = s->x - w->x1, ez = s->z - w->z1;
+        int32_t ex, ez, dot, into, tx, tz, len, along;
+        /* 0. On this storey at all: a face a floor below is not in the way. */
+        if (!crw_wall_in_span(w, top, bot)) continue;
+        ex = s->x - w->x1; ez = s->z - w->z1;
         /* 1. In front of the face, and close enough to reach it. */
-        int32_t dot = ((ex * w->nx) + (ez * w->nz)) >> 12;
+        dot = ((ex * w->nx) + (ez * w->nz)) >> 12;
         if (dot < 0 || dot >= best_dot) continue;
-        /* 2. Heading INTO it: the goal must oppose the inward normal. */
-        if (((gx * w->nx) + (gz * w->nz)) >> 12 >= 0) continue;
+        /* 2. Heading SQUARELY into it: the goal's component along the inward
+              normal has to be a real fraction of the goal, not merely negative.
+              "Into it at all" is true of almost every diagonal down a corridor,
+              and a crawler that mounted on those would spend the fight going up
+              and down the walls it was running past. */
+        into = -(((gx * w->nx) + (gz * w->nz)) >> 12);
+        if (into <= 0 || into * CRW_MOUNT_HEADON < gmag) continue;
         /* 3. The foot of the perpendicular has to land on the segment. */
-        int32_t tx = w->x2 - w->x1, tz = w->z2 - w->z1;
-        int32_t len = crw_isqrt(tx * tx + tz * tz);
+        tx = w->x2 - w->x1; tz = w->z2 - w->z1;
+        len = crw_isqrt(tx * tx + tz * tz);
         if (len <= 0) continue;
-        int32_t along = ((ex * tx) + (ez * tz)) / len;
+        along = ((ex * tx) + (ez * tz)) / len;
         if (along < 0 || along > len) continue;
         /* 4. And the face has to be tall enough to be worth climbing — a
               knee-high retaining step is not a wall to a crawler. y_min is the
@@ -399,49 +564,197 @@ static int crw_try_mount(Crawler *s, int32_t gx, int32_t gz) {
         best_dot = dot; best = i; best_t = along; best_len = len;
     }
 
-    if (best < 0) return 0;
+    *out_dot = best_dot;
+    *out_t   = best_t;
+    *out_len = best_len;
+    return best;
+}
 
-    {
-        Wall *w = &room->walls[best];
-        int32_t climb, lo, hi;
-        s->surface = CRW_SURF_WALL;
-        s->wall    = best;
-        s->wall_t  = best_t;
-        s->wall_len = best_len;
-        s->wall_nx = w->nx;
-        s->wall_nz = w->nz;
-        s->vy      = 0;
-        /* Settle CRW_CLIMB_RISE above the face's own base, clamped so the whole
-           sprite stays on the face. -Y is up, so `lo` (the highest it may go) is
-           the more negative bound. */
-        climb = w->y_max - CRW_CLIMB_RISE;
-        lo    = w->y_min - CRW_Y_OFFSET + CRW_HALF_H;
-        hi    = w->y_max - CRW_Y_OFFSET - CRW_HALF_H;
-        if (hi < lo) hi = lo;
-        if (climb < lo) climb = lo;
-        if (climb > hi) climb = hi;
-        s->climb_y = climb;
-        crw_place_on_wall(s);
+/* Take hold of that face. `mode` is what the crawler intends to do with it —
+   CRW_WALL_FOLLOW to get round it, CRW_WALL_CLIMB to get over it. */
+static void crw_mount(Crawler *s, int wall, int32_t t, int32_t len, int mode) {
+    Wall *w = &current_collision_room.walls[wall];
+    int32_t climb, lo, hi;
+    s->surface   = CRW_SURF_WALL;
+    s->wall      = wall;
+    s->wall_t    = t;
+    s->wall_len  = len;
+    s->wall_nx   = w->nx;
+    s->wall_nz   = w->nz;
+    s->wall_mode = (int16_t)mode;
+    s->vy        = 0;
+    /* Settle CRW_CLIMB_RISE above the face's own base, clamped so the whole
+       sprite stays on the face. -Y is up, so `lo` (the highest it may go) is
+       the more negative bound. Only CRW_WALL_FOLLOW eases toward this; a climb
+       is going past it and off the top. */
+    climb = w->y_max - CRW_CLIMB_RISE;
+    lo    = w->y_min - CRW_Y_OFFSET + CRW_HALF_H;
+    hi    = w->y_max - CRW_Y_OFFSET - CRW_HALF_H;
+    if (hi < lo) hi = lo;
+    if (climb < lo) climb = lo;
+    if (climb > hi) climb = hi;
+    s->climb_y = climb;
+    crw_place_on_wall(s);
+}
+
+/* Where does the top of this face lead? Fills the landing for a step over the
+   lip: an upper floor if a zone really carries the wall's top, the ceiling if
+   the face runs all the way up to one, and 0 for a lip with nothing behind it,
+   which nothing may step over. See crw_floor_at for what happens if it does.
+
+   A CEILING landing is taken at the point where the whole sprite still fits on
+   the face, because that height and the ceiling-hanging anchor are the same
+   number when the face reaches the roof: both are y_min - CRW_Y_OFFSET +
+   CRW_HALF_H. A FLOOR landing is a real step over the brow and is taken a
+   body's clearance beyond the face, on the other side. */
+static int crw_cross_target(const Crawler *s, const Wall *w,
+                            int32_t *lx, int32_t *lz, int32_t *ly, int *surf) {
+    int32_t step  = CRW_BODY_RADIUS + CRW_SURF_OFFSET + 16;
+    int32_t clear = CRW_BODY_RADIUS + 8 - CRW_SURF_OFFSET;
+    int32_t ax    = s->x - ((s->wall_nx * step) >> 12);
+    int32_t az    = s->z - ((s->wall_nz * step) >> 12);
+    int32_t fy;
+    if (crw_floor_at(ax, az, w->y_min, CRW_CROSS_TOL, &fy)) {
+        *lx   = ax;
+        *lz   = az;
+        *ly   = fy - GROUND_FLOOR_Y;   /* a floor SURFACE into a standing anchor */
+        *surf = CRW_SURF_FLOOR;
+        return 1;
     }
-    return 1;
+    {
+        int32_t cy = collision_ceiling_y(s->x, s->z);
+        if (w->y_min - cy <= CRW_CEIL_TOL) {
+            /* Step back off the face as it lets go, or it hangs inside the very
+               wall it just climbed and every push that could free it is one it
+               is already behind. */
+            *lx   = s->x + ((s->wall_nx * clear) >> 12);
+            *lz   = s->z + ((s->wall_nz * clear) >> 12);
+            *ly   = cy - CRW_Y_OFFSET + CRW_HALF_H;
+            *surf = CRW_SURF_CEILING;
+            return 1;
+        }
+    }
+    return 0;
 }
 
 static void crw_dismount(Crawler *s) {
+    /* >>> STEP CLEAR OF THE FACE BEFORE LETTING GO. <<< CRW_SURF_OFFSET is only
+       the 24 that kept the sprite off the wall polys, and a body left that
+       close is inside the wall's own push radius. At the END of a segment —
+       which is where the follow-round-a-corner dismount always happens — that
+       puts it within a hair of the neighbouring face, on whichever side of it
+       the rounding falls. Land behind that face and nothing ever pushes it out
+       again: collide_wall_frontonly returns early on a negative dot, so the
+       crawler is inside the block for good, standing at lower-floor height in
+       the middle of solid geometry. */
+    if (s->wall >= 0 && s->wall < current_collision_room.wall_count) {
+        int32_t clear = CRW_BODY_RADIUS + 8 - CRW_SURF_OFFSET;
+        s->x += (s->wall_nx * clear) >> 12;
+        s->z += (s->wall_nz * clear) >> 12;
+    }
     s->surface     = CRW_SURF_FLOOR;
     s->wall        = -1;
+    s->wall_mode   = CRW_WALL_FOLLOW;
     s->vy          = 0;      /* gravity takes it from here */
     s->steer_timer = 0;
 }
 
 /* ---- Update --------------------------------------------------------------- */
 
-/* Move a mounted crawler one frame along its wall, and decide whether it should
-   still be on it. */
+/* Move a mounted crawler one frame on its wall, and decide whether it should
+   still be on it. What "move" means depends on why it got on:
+
+     CRW_WALL_FOLLOW    the rush's corner-turn. Slide along the face toward the
+                        player and drop off the far end, which is the original
+                        behaviour and the reason this enemy exists.
+     CRW_WALL_CLIMB     the retreat's vertical leg. Straight UP, wall_t frozen,
+                        because the retreat is one straight line in three
+                        dimensions and the wall is only where that line turns
+                        vertical. It does not steer, and it does not care where
+                        the player is.
+     CRW_WALL_OVER      the same climb, past the point where the sprite still
+                        fits on the face, with a landing already probed.
+     CRW_WALL_DESCEND   back down, then step off. */
 static void crw_move_on_wall(Crawler *s, int32_t gx, int32_t gz,
                              int32_t px, int32_t py, int32_t pz, int pursuing) {
     Wall *w = &current_collision_room.walls[s->wall];
     int32_t tx = w->x2 - w->x1, tz = w->z2 - w->z1;
     int32_t before_t = s->wall_t, before_y = s->y;
+
+    /* ---- Going OVER it ------------------------------------------------- */
+    if (s->wall_mode == CRW_WALL_CLIMB || s->wall_mode == CRW_WALL_OVER) {
+        /* `lo` is as high as the whole sprite fits on the face; `brow` is the
+           anchor of something STANDING on the wall's top, which is a further
+           CRW_HALF_H - CRW_Y_OFFSET - GROUND_FLOOR_Y up and is where the body
+           has to reach before it can put its weight on the other side. */
+        int32_t lo   = w->y_min - CRW_Y_OFFSET + CRW_HALF_H;
+        int32_t brow = w->y_min - GROUND_FLOOR_Y;
+        int32_t lx, lz, ly;
+        int     surf;
+
+        s->y -= CRW_SCALE_SPEED;
+
+        if (s->wall_mode == CRW_WALL_CLIMB && s->y <= lo) {
+            s->y = lo;
+            if (crw_cross_target(s, w, &lx, &lz, &ly, &surf)) {
+                if (surf == CRW_SURF_CEILING) {
+                    /* Already level with the roof: this IS the hand-over. */
+                    s->x = lx; s->z = lz; s->y = ly;
+                    s->surface   = CRW_SURF_CEILING;
+                    s->wall      = -1;
+                    s->wall_mode = CRW_WALL_FOLLOW;
+                    s->vy        = 0;
+                    s->moved     = 1;
+                    return;
+                }
+                s->wall_mode = CRW_WALL_OVER;   /* there is a floor up there */
+            }
+            /* Nothing on top of this one: hold under the lip. It is as far into
+               the dark as this face goes, and the stall watch ends the retreat
+               rather than leaving it grinding at the ceiling for eight
+               seconds. */
+        } else if (s->wall_mode == CRW_WALL_OVER && s->y <= brow) {
+            s->y = brow;
+            if (crw_cross_target(s, w, &lx, &lz, &ly, &surf)) {
+                s->x = lx; s->z = lz; s->y = ly;
+                s->surface   = (CrawlerSurf)surf;
+                s->wall      = -1;
+                s->wall_mode = CRW_WALL_FOLLOW;
+                s->vy        = 0;
+                s->moved     = 1;
+                return;
+            }
+            s->wall_mode = CRW_WALL_CLIMB;   /* the landing went away: hold */
+            s->y         = lo;
+        }
+
+        crw_place_on_wall(s);
+        if (s->y != before_y) s->moved = 1;
+        return;
+    }
+
+    /* ---- Coming back DOWN it ------------------------------------------- */
+    if (s->wall_mode == CRW_WALL_DESCEND) {
+        int32_t base = w->y_max - CRW_Y_OFFSET - CRW_HALF_H;
+        s->y += CRW_DESCEND_SPEED;
+        if (s->y >= base) {
+            s->y = base;
+            crw_place_on_wall(s);
+            crw_dismount(s);
+            /* It came down because it could see the player FROM UP THERE, and
+               the line from down here may well be blocked again — which would
+               send it back up the same face on the very next frame. Commit a
+               sidestep first; the mount is gated on this timer. */
+            s->steer_timer = CRW_STEER_COMMIT;
+            s->moved = 1;
+            return;
+        }
+        crw_place_on_wall(s);
+        if (s->y != before_y) s->moved = 1;
+        return;
+    }
+
+    /* ---- FOLLOW: round the corner, the rush's version -------------------- */
 
     /* Slide toward whichever end of the face makes progress toward the goal.
        The sign of the goal's projection on the tangent IS the answer, and it is
@@ -476,10 +789,16 @@ static void crw_move_on_wall(Crawler *s, int32_t gx, int32_t gz,
        sightline runs toward the player and says nothing whatever about what is
        behind a retreating crawler, so trusting it during a retreat would drop
        one off the wall exactly when it is reversing blind. Mistake 7 in
-       tools/ADDING_AN_ENEMY.txt, one surface along. */
+       tools/ADDING_AN_ENEMY.txt, one surface along.
+
+       >>> AND IT CLIMBS DOWN, IT DOES NOT LET GO. <<< This used to dismount on
+       the spot, which drops a body from CRW_CLIMB_RISE in mid-air — read from
+       the floor as the crawler going a little way up the wall and then falling
+       through it, because that is exactly what it looks like. The same event,
+       played as a descent, reads as the creature coming back down for you. */
     if (pursuing &&
         !collision_segment_blocked(s->x, s->y, s->z, px, py, pz))
-        crw_dismount(s);
+        s->wall_mode = CRW_WALL_DESCEND;
 
     if (s->wall_t != before_t || s->y != before_y) s->moved = 1;
 }
@@ -496,11 +815,24 @@ void update_crawlers(void) {
 
     for (i = 0; i < crawler_count; i++) {
         Crawler *s = &crawlers[i];
+        int32_t  pre_x, pre_y, pre_z;
         if (!s->active || s->state == CRW_DEAD || s->area != current_area) continue;
 
         if (s->hit_timer    > 0) s->hit_timer--;
         if (s->damage_timer > 0) s->damage_timer--;
         s->moved = 0;
+        pre_x = s->x; pre_y = s->y; pre_z = s->z;
+
+        /* >>> EVERY `continue` IN HERE BREAKS OUT OF THIS do{}while(0), NOT OUT
+           OF THE FOR. <<< The frame has a tail now — the stall watch below,
+           which is the only thing that tells a crawler wedged in a corner from
+           one still making its way into the dark — and it has to run however
+           this crawler's frame ended. A do-while(0) is the cheapest way to give
+           a dozen early exits one common tail without turning the whole body
+           into a function or seeding a dozen gotos. `continue` inside the
+           separation loop further down still belongs to that loop, which is
+           what it always meant. */
+        do {
 
         int32_t px = player_x(), py = player_y(), pz = player_z();
         int32_t dx = px - s->x;
@@ -557,19 +889,38 @@ void update_crawlers(void) {
             continue;                  /* no rushing or biting mid-air */
         }
 
-        /* ---- Paused at the far end of the retreat -------------------------- */
+        /* ---- Paused at the far end of the retreat --------------------------
+           The pause is also where a retreat that ended somewhere other than the
+           floor is cashed in. One that finished on the CEILING drops on the
+           player from up there — the same entrance a ceiling spawn makes, and
+           it wants no special case of its own; one that finished part way up a
+           face climbs back down it. */
         if (s->state == CRW_PAUSE) {
             if (--s->pause_timer <= 0) {
                 s->state       = CRW_RUSH;
                 s->steer_timer = 0;
+                if (s->surface == CRW_SURF_CEILING) {
+                    s->state = CRW_DROPPING;
+                    s->vy    = CRW_DROP_VEL;
+                } else if (s->surface == CRW_SURF_WALL) {
+                    s->wall_mode = CRW_WALL_DESCEND;
+                }
             }
             continue;                  /* stands still, and is drawn on frame 0 */
         }
 
-        /* Gravity and the floor, for anything not clinging to something. */
+        /* ---- Where the body is held up ------------------------------------
+           Gravity and the floor for anything walking on one — and that now
+           includes the block tops, which a retreat can put a crawler on. One
+           under the roof hangs from whatever the roof is doing over its current
+           XZ instead; nothing in this room's ceiling steps, but reading it
+           every frame is what lets a crawler travel along one that does. A wall
+           crawler is held by (wall, wall_t) and is touched by neither. */
         if (s->surface == CRW_SURF_FLOOR)
             apply_ddog_height(&s->x, &s->y, &s->z, &s->vy,
                               &s->on_upper_floor, &s->on_ramp);
+        else if (s->surface == CRW_SURF_CEILING)
+            s->y = collision_ceiling_y(s->x, s->z) - CRW_Y_OFFSET + CRW_HALF_H;
 
         /* ---- Contact ------------------------------------------------------
            Horizontal and vertical reach tested SEPARATELY, because the player's
@@ -603,21 +954,23 @@ void update_crawlers(void) {
            A fixed distance and not the room's live fog_far — raising the
            lantern must reveal a retreated crawler, not push it further out.
            The timeout is the maze insurance: a crawler that has backed into a
-           dead end turns and comes at you anyway rather than grinding there. */
+           dead end turns and comes at you anyway rather than grinding there.
+           The third way out is the stall watch at the bottom of the frame. */
         if (s->state == CRW_RETREAT) {
             if (rad2 >= (int32_t)CRW_RETREAT_DIST * CRW_RETREAT_DIST ||
                 --s->retreat_timer <= 0) {
-                s->state       = CRW_PAUSE;
-                s->pause_timer = CRW_PAUSE_FRAMES;
-                s->steer_timer = 0;
-                crawler_scream();      /* "and when it pauses after a retreat" */
+                crawler_end_retreat(s);
                 continue;
             }
         }
 
         int pursuing = (s->state == CRW_RUSH);
-        int32_t goal_dx = pursuing ?  dx : -dx;
-        int32_t goal_dz = pursuing ?  dz : -dz;
+        /* >>> THE RETREAT AIMS AT A LATCHED VECTOR, NOT AT THE PLAYER. <<< See
+           crawler_begin_retreat. Everything below reads goal_dx/goal_dz without
+           caring which of the two it got, which is what keeps one steering path
+           for both states. */
+        int32_t goal_dx = pursuing ? dx : s->ret_x;
+        int32_t goal_dz = pursuing ? dz : s->ret_z;
 
         /* ---- On a wall ---------------------------------------------------- */
         if (s->surface == CRW_SURF_WALL) {
@@ -633,21 +986,28 @@ void update_crawlers(void) {
             }
         }
 
-        /* ---- Separation: soft push away from nearby crawlers ---------------- */
+        /* ---- Separation: soft push away from nearby crawlers ----------------
+           PURSUIT ONLY. Separation bends the path it is applied to, which is
+           exactly what a straight-line retreat may not have; two crawlers
+           retreating along crossing lines simply pass each other, and the hard
+           push at the bottom of this function is what stops them ending the
+           frame in the same place. */
         int32_t sep_x = 0, sep_z = 0;
-        int j;
-        for (j = 0; j < crawler_count; j++) {
-            if (j == i) continue;
-            Crawler *o = &crawlers[j];
-            if (!o->active || o->state == CRW_DEAD ||
-                o->area != current_area) continue;
-            int32_t odx   = s->x - o->x;
-            int32_t odz   = s->z - o->z;
-            int32_t odist = (odx < 0 ? -odx : odx) + (odz < 0 ? -odz : odz);
-            if (odist < CRW_SEP_RADIUS && odist > 0) {
-                int32_t push = CRW_SEP_RADIUS - odist;
-                sep_x += (odx * push) / odist;
-                sep_z += (odz * push) / odist;
+        if (pursuing) {
+            int j;
+            for (j = 0; j < crawler_count; j++) {
+                if (j == i) continue;
+                Crawler *o = &crawlers[j];
+                if (!o->active || o->state == CRW_DEAD ||
+                    o->area != current_area) continue;
+                int32_t odx   = s->x - o->x;
+                int32_t odz   = s->z - o->z;
+                int32_t odist = (odx < 0 ? -odx : odx) + (odz < 0 ? -odz : odz);
+                if (odist < CRW_SEP_RADIUS && odist > 0) {
+                    int32_t push = CRW_SEP_RADIUS - odist;
+                    sep_x += (odx * push) / odist;
+                    sep_z += (odz * push) / odist;
+                }
             }
         }
 
@@ -661,8 +1021,14 @@ void update_crawlers(void) {
         int32_t feeler_x = s->x + (desired_x * CRW_FEELER_LEN) / desired_dist;
         int32_t feeler_z = s->z + (desired_z * CRW_FEELER_LEN) / desired_dist;
         int32_t fx = feeler_x, fz = feeler_z;
-        crates_collide(&fx, s->y, &fz, 80);
-        apply_flat_entity_collision(&fx, &fz, CRW_BODY_RADIUS);
+        /* LEVEL GEOMETRY FIRST, AND ASKED SEPARATELY. Only a wall can be
+           climbed, so the mount below has to know whether the thing in the way
+           was one; a crawler that charged a crate because something beyond it
+           happened to be a wall would push at the crate until the fight timed
+           out. */
+        crw_walls_collide(s, &fx, &fz, CRW_BODY_RADIUS);
+        int wall_blocked = (fx != feeler_x || fz != feeler_z);
+        if (s->surface == CRW_SURF_FLOOR) crates_collide(&fx, s->y, &fz, 80);
         int blocked = (fx != feeler_x || fz != feeler_z);
 
         /* A clear line to the player means charge straight, and it is gated on
@@ -675,16 +1041,47 @@ void update_crawlers(void) {
 
         /* >>> BLOCKED BY LEVEL GEOMETRY? CLIMB IT. <<< This is the enemy's
            whole movement idea: where the zombie slides along the base of the
-           wall it has run into, the crawler goes UP it and follows the face
-           round. Only tried when the feeler has actually reported an obstacle,
-           and crw_try_mount then insists the crawler is in FRONT of a wall it
-           is heading INTO — a prop or another crawler blocking the feeler finds
-           no face and falls through to the ordinary wall-follow below. */
-        if (blocked && crw_try_mount(s, desired_x, desired_z)) {
-            s->anim_tick++;
-            any_walking = 1;
-            s->moved    = 1;
-            continue;
+           wall it has run into, the crawler goes UP it — round the face while
+           it is hunting, straight over the top while it is running away.
+
+           THE SEARCH REACHES AS FAR AS THE FEELER DOES; THE MOUNT DOES NOT. A
+           face found beyond CRW_MOUNT_DIST is not something to steer round, it
+           is something to walk INTO until it is close enough to take hold of,
+           so the sidestep is suppressed and the goal is replaced by the face's
+           own normal. Without that the crawler turns away at ~280 every time
+           and closes on the wall exactly never — which is the whole history of
+           this enemy not climbing anything. See CRW_MOUNT_REACH. */
+        /* ON THE FLOOR ONLY, and not while a sidestep is committed. A body
+           already under the roof has nowhere further up to go, and a face it
+           mounted there would hand it straight back to the ceiling on the same
+           frame — a mount/cross loop that travels nowhere and never looks
+           still enough for the stall watch to notice. The steer_timer gate is
+           what a descent sets on its way off a wall (see crw_move_on_wall), so
+           a crawler that has just climbed down because it could see the player
+           walks along the base for a moment instead of immediately climbing
+           the same wall again. */
+        if (wall_blocked && s->surface == CRW_SURF_FLOOR && s->steer_timer <= 0) {
+            int32_t mdot = 0, mt = 0, mlen = 0;
+            int     mw   = crw_find_wall(s, desired_x, desired_z,
+                                         CRW_MOUNT_REACH, &mdot, &mt, &mlen);
+            if (mw >= 0 && mdot <= CRW_MOUNT_DIST) {
+                crw_mount(s, mw, mt, mlen,
+                          pursuing ? CRW_WALL_FOLLOW : CRW_WALL_CLIMB);
+                s->anim_tick++;
+                any_walking = 1;
+                s->moved    = 1;
+                continue;
+            }
+            if (mw >= 0) {
+                Wall *mwp = &current_collision_room.walls[mw];
+                desired_x    = -mwp->nx;
+                desired_z    = -mwp->nz;
+                desired_dist = (desired_x < 0 ? -desired_x : desired_x) +
+                               (desired_z < 0 ? -desired_z : desired_z);
+                if (desired_dist == 0) desired_dist = 1;
+                blocked        = 0;
+                s->steer_timer = 0;
+            }
         }
 
         int32_t pl_x = -goal_dz, pl_z =  goal_dx;   /* left  */
@@ -692,7 +1089,14 @@ void update_crawlers(void) {
         int32_t goal_px = s->x + goal_dx;
         int32_t goal_pz = s->z + goal_dz;
 
-        if (blocked && s->steer_timer <= 0) {
+        /* >>> THE SIDESTEP IS A PURSUIT BEHAVIOUR NOW. <<< A retreat that
+           steers round obstacles is not a straight line, and a maze is nothing
+           but obstacles: the old one turned off at right angles to its own
+           heading at the first wall and then oscillated between the two
+           choices, which is most of why one could sit in a corner making no
+           progress at all. A retreating crawler either climbs what is in its
+           way or grinds along it and stalls out; it does not pick a side. */
+        if (blocked && pursuing && s->steer_timer <= 0) {
             int32_t pl_dist = (pl_x < 0 ? -pl_x : pl_x) + (pl_z < 0 ? -pl_z : pl_z);
             int32_t pr_dist = (pr_x < 0 ? -pr_x : pr_x) + (pr_z < 0 ? -pr_z : pr_z);
             if (pl_dist == 0) pl_dist = 1;
@@ -705,12 +1109,12 @@ void update_crawlers(void) {
 
             int32_t tlx = lx, tlz = lz;
             crates_collide(&tlx, s->y, &tlz, 80);
-            apply_flat_entity_collision(&tlx, &tlz, CRW_BODY_RADIUS);
+            crw_walls_collide(s, &tlx, &tlz, CRW_BODY_RADIUS);
             int left_blocked = (tlx != lx || tlz != lz);
 
             int32_t trx = rx, trz = rz;
             crates_collide(&trx, s->y, &trz, 80);
-            apply_flat_entity_collision(&trx, &trz, CRW_BODY_RADIUS);
+            crw_walls_collide(s, &trx, &trz, CRW_BODY_RADIUS);
             int right_blocked = (trx != rx || trz != rz);
 
             if (left_blocked && !right_blocked) {
@@ -727,7 +1131,7 @@ void update_crawlers(void) {
             s->steer_timer = CRW_STEER_COMMIT;
         }
 
-        if (s->steer_timer > 0) {
+        if (s->steer_timer > 0 && pursuing) {
             if (s->steer_dir < 0) { desired_x = pl_x; desired_z = pl_z; }
             else                  { desired_x = pr_x; desired_z = pr_z; }
             desired_dist = (desired_x < 0 ? -desired_x : desired_x) +
@@ -753,9 +1157,34 @@ void update_crawlers(void) {
 
         s->x += blend_x;
         s->z += blend_z;
-        apply_flat_entity_collision(&s->x, &s->z, CRW_BODY_RADIUS);
-        crates_collide(&s->x, s->y, &s->z, 80);
-        fatdoors_collide(&s->x, s->y, &s->z, CRW_DOOR_CLEARANCE);
+        crw_walls_collide(s, &s->x, &s->z, CRW_BODY_RADIUS);
+        /* Props stand on the floor, so only a body on the floor meets them. A
+           crawler on a walkway a storey up or under the roof is nowhere near
+           the crates and the doors, and pushing it off them would be pushing it
+           off something that is not there. */
+        if (s->surface == CRW_SURF_FLOOR) {
+            crates_collide(&s->x, s->y, &s->z, 80);
+            fatdoors_collide(&s->x, s->y, &s->z, CRW_DOOR_CLEARANCE);
+        }
+
+        } while (0);
+
+        /* ---- The stall watch ----------------------------------------------
+           The frame's tail, and the answer to a crawler that retreats into a
+           corner and simply stops: the distance test cannot fire because it
+           cannot get away, the timeout will not fire for eight seconds, and
+           from where the player is standing that is indistinguishable from the
+           enemy having given up. Measure what it actually TRAVELLED — all three
+           axes, so a climb counts as progress — and end the retreat once it has
+           been going nowhere for CRW_STALL_FRAMES. */
+        {
+            int32_t mvx = s->x - pre_x, mvy = s->y - pre_y, mvz = s->z - pre_z;
+            int32_t mv  = (mvx < 0 ? -mvx : mvx) + (mvy < 0 ? -mvy : mvy) +
+                          (mvz < 0 ? -mvz : mvz);
+            if (s->state != CRW_RETREAT)      s->stall_timer = 0;
+            else if (mv >= CRW_STALL_MIN)     s->stall_timer = 0;
+            else if (++s->stall_timer >= CRW_STALL_FRAMES) crawler_end_retreat(s);
+        }
     }
 
     /* The shared scuttle loop, forced off on game-over — the area update stops
@@ -1182,10 +1611,13 @@ void draw_crawlers(RenderContext *ctx) {
         } else if (s->surface == CRW_SURF_CEILING) {
             /* UNDER THE ROOF: the quad lies FLAT in the XZ plane, so the player
                looking up sees the crawler's underside spread on the ceiling.
-               Oriented by the camera's right axis, which keeps it readable from
-               wherever it is looked at without needing a facing of its own —
-               a ceiling crawler in this game never moves (it drops the moment
-               it wakes), so there is no travel direction to orient to. */
+               Oriented by the camera's right axis, which keeps it readable
+               from wherever it is looked at without needing a facing of its
+               own. A ceiling crawler DOES travel now — the retreat can climb a
+               wall that reaches the roof and carry on across it — but it is
+               seen from directly underneath, where a body lying flat has no
+               legible front, and the camera axis reads better from every
+               bearing than a travel direction foreshortened to nothing. */
             int32_t rx = icos(cam_rot), rz = -isin(cam_rot);
             int32_t fwx = isin(cam_rot), fwz = icos(cam_rot);
             int32_t hx = (rx  * CRW_HALF_W) >> 12, hz = (rz  * CRW_HALF_W) >> 12;

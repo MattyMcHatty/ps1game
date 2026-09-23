@@ -19,11 +19,18 @@
  *   1. IT LIVES ON A SURFACE, not just on the floor. `surface` is FLOOR, WALL
  *      or CEILING, and the sprite is built in that surface's plane so its legs
  *      are always against whatever it is standing on (see draw_crawlers). A
- *      crawler that runs into level geometry MOUNTS it and slides along the
- *      wall face instead of scraping along its base — which is what "if the
- *      player is round a corner it climbs the wall and follows it round" means
- *      in practice: the XZ path is the zombie's wall-follow, drawn where the
- *      creature really is.
+ *      crawler that runs into level geometry MOUNTS it, and what it does next
+ *      depends on which way it is going (see CrawlerWallMode):
+ *
+ *        HUNTING, it goes ROUND — slides along the face and drops off the far
+ *        end, which is "if the player is round a corner it climbs the wall and
+ *        follows it round": the XZ path is the zombie's wall-follow, drawn
+ *        where the creature really is.
+ *
+ *        RUNNING AWAY, it goes OVER — straight up the face and onto whatever
+ *        the top belongs to, a walkway or the ceiling, and on along the same
+ *        line it started on. A wall is not an obstacle to a retreat, it is the
+ *        part of the retreat that happens to be vertical.
  *
  *   2. IT IS A HIT-AND-RUN FIGHTER, not a chaser and not a kiter. The loop is
  *      RUSH -> (hit the player, or get hit) -> RETREAT past the room's unlit fog
@@ -31,6 +38,12 @@
  *      dead. That is a different shape from the spider's three concentric bands:
  *      the crawler's distance to the player does not choose its behaviour, its
  *      STATE does, and the state only changes when a blow lands.
+ *
+ *      THE RETREAT IS A STRAIGHT LINE IN THREE DIMENSIONS. One direction,
+ *      latched the frame the blow lands and never re-aimed; no separation, no
+ *      left/right sidestep, no sightline. Climbing is the only turn it is
+ *      allowed to make, and when even that runs out the stall watch ends the
+ *      retreat rather than leaving it grinding in a corner (CRW_STALL_FRAMES).
  *
  *   3. ITS WAKE RADIUS LOOKS DOWN BUT NOT UP. See CRW_WAKE_RADIUS.
  *
@@ -123,6 +136,24 @@
    retreat needs (1700 units at 14/frame is 121 frames). */
 #define CRW_RETREAT_TIMEOUT  480
 
+/* ---- The stall watch ------------------------------------------------------
+   >>> THE TIMEOUT ALONE IS NOT ENOUGH, AND EIGHT SECONDS OF NOTHING IS WHAT IT
+   LOOKS LIKE. <<< A crawler wedged somewhere it cannot climb out of has
+   finished retreating the moment it stops moving; making the player wait out
+   the full CRW_RETREAT_TIMEOUT for that reads as the enemy having hung, and
+   the only thing that appears to restart it is the player BACKING OFF — which
+   grows rad2 until the distance test fires instead, and is exactly the tell
+   that the timeout was carrying the case on its own.
+
+   So the retreat also ends when the body has genuinely stopped: less than
+   CRW_STALL_MIN of travel in a frame — a third of one frame's worth, so a
+   crawler grinding along a face at a shallow angle still counts as moving — on
+   CRW_STALL_FRAMES consecutive frames. Three quarters of a second is long
+   enough that nothing a moving crawler does trips it, and short enough that a
+   wedged one comes back at the player while the exchange is still live. */
+#define CRW_STALL_FRAMES     45
+#define CRW_STALL_MIN         5
+
 /* The beat at the far end of the retreat, before it comes back. The scream
    fires on the frame this starts, and at 45 frames the clip (1.90 s) runs on
    well into the rush — which is the intent: you hear it coming. */
@@ -187,9 +218,52 @@
    reaching the top of a 1000-tall maze block, and it is clamped into the wall's
    real Y span at mount time, so a short wall simply holds it lower. */
 #define CRW_MOUNT_DIST      120
+
+/* >>> AND MOUNT_DIST ALONE IS WHY THE CRAWLERS NEVER CLIMBED ANYTHING. <<< The
+   obstacle feeler reaches CRW_FEELER_LEN ahead of a body already held
+   CRW_BODY_RADIUS off every face, so the frame `blocked` first goes true the
+   crawler is ~280 from the wall — more than twice MOUNT_DIST. The mount
+   therefore failed, the ordinary left/right wall-follow took over and committed
+   CRW_STEER_COMMIT frames of travel PERPENDICULAR TO THE GOAL, which for a
+   head-on approach is exactly parallel to the wall: the body never closed, the
+   next re-evaluation found it at 280 again, and the loop repeated for as long
+   as the wall was there. A crawler could only ever mount on a glancing approach
+   whose sidestep happened to carry it inward, which is the difference between
+   "climbs walls" and "has been seen to climb a wall".
+
+   REACH is how far out the wall SEARCH looks, and it is the feeler's own reach
+   so that anything the feeler can trip on can also be identified. A face found
+   between MOUNT_DIST and REACH is not mounted yet — the crawler is steered
+   STRAIGHT AT IT instead of round it, and arrives in about fourteen frames. */
+#define CRW_MOUNT_REACH     (CRW_FEELER_LEN + CRW_BODY_RADIUS)   /* 280 */
+
+/* How square-on the approach has to be before a face counts as an obstacle to
+   climb rather than one to brush past: the goal's component into the face, at
+   least a quarter of the goal's length. Without it a crawler running the length
+   of a corridor would mount the side it happens to be nearest, because "heading
+   into it at all" is true of almost every diagonal. */
+#define CRW_MOUNT_HEADON      4    /* 1/4 — dot * HEADON >= |goal| */
+
 #define CRW_SURF_OFFSET      24
 #define CRW_CLIMB_RISE      380
 #define CRW_CLIMB_SPEED       8    /* units of Y a frame while settling        */
+/* Going UP a face on purpose — the retreat's vertical leg — runs at the speed
+   the rest of the retreat does, because the whole point is that it is ONE
+   straight line that happens to turn a corner onto a vertical surface. The 8
+   above is a settle, not a climb: it is what the rush's mount eases through
+   while it is already sliding sideways. */
+#define CRW_SCALE_SPEED      14
+#define CRW_DESCEND_SPEED    24    /* coming back DOWN a face is a controlled fall */
+
+/* Crossing the top of a face onto whatever is up there. The landing has to be
+   REAL: a floor zone at the wall's own top height, or a ceiling the face
+   reaches. A crawler that stepped over a lip with nothing behind it would land
+   outside every floor zone, and apply_ddog_height's `target` defaults to 0 —
+   which is GROUND_FLOOR_Y BELOW the floor surface, i.e. buried in it, and out
+   of reach of collide_wall_frontonly forever after (it is behind every face it
+   could be pushed off). Probe before committing, never after. */
+#define CRW_CROSS_TOL       200    /* floor zone Y vs the wall top             */
+#define CRW_CEIL_TOL        160    /* how near the roof a face has to stop     */
 
 /* The drop off a ceiling, seeded at terminal velocity so it falls fast from the
    first frame — the spider's SPD_DROP_VEL and for its reason. */
@@ -218,6 +292,19 @@ typedef enum {
     CRW_SURF_WALL,
     CRW_SURF_CEILING,
 } CrawlerSurf;
+
+/* What a crawler is DOING on the face it has mounted. The rush and the retreat
+   want opposite things from a wall and always did: the rush wants to get ROUND
+   it (slide along the face and drop off the far end), the retreat wants to get
+   OVER it (straight up and onto the walkway or the roof, because the retreat is
+   a straight line in three dimensions and a wall is just where that line turns
+   vertical). */
+typedef enum {
+    CRW_WALL_FOLLOW = 0,  /* slide along the face — the rush's corner-turn    */
+    CRW_WALL_CLIMB,       /* straight up, as far as the sprite may go         */
+    CRW_WALL_OVER,        /* the last stretch, with a landing already probed  */
+    CRW_WALL_DESCEND,     /* back down the face, then step off it             */
+} CrawlerWallMode;
 
 typedef enum {
     CRW_IDLE,       /* on its spawn surface, frame 0, silent but for the whisper */
@@ -249,6 +336,13 @@ typedef struct {
     int32_t      wall_t, wall_len;
     int32_t      wall_nx, wall_nz;
     int32_t      climb_y;        /* the Y it is settling to on that face       */
+    int16_t      wall_mode;      /* CrawlerWallMode, while CRW_SURF_WALL       */
+    /* The retreat's LATCHED direction, Manhattan-normalised to 4096, fixed the
+       frame the retreat starts and never re-aimed. "It retreats in a STRAIGHT
+       LINE": re-deriving it from the player every frame is what made the old
+       retreat a mirror-image chase that curved as the player moved. */
+    int16_t      ret_x, ret_z;
+    int16_t      stall_timer;    /* frames of no travel while retreating       */
     int32_t      active;
     int          on_upper_floor;
     int          on_ramp;
