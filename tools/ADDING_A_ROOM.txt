@@ -586,6 +586,33 @@ Copy src/master_bedroom.c and rename. The parts that need real thought:
       collision .c's bounds comment. For a genuinely multi-level room, model it
       on delivery_area's floor_zones (NOT kitchen_dining's single plane).
 
+      >>> A ROOM WHOSE LEVELS SHARE A FOOTPRINT IS A THIRD CASE, and the Up Down
+      Maze is the first of them. <<< Delivery's five zones and the Catacombs
+      Entry's seven all meet on single lines in plan, so their ORDER is at worst
+      a nicety. The Up Down Maze has ten FLOOR_UPPER block tops stacked directly
+      over one FLOOR_FLAT catch-all covering the whole room, and there the order
+      is the whole mechanism: apply_height() walks the list and takes the first
+      zone that is NOT above the player, so the upper zones must come first and
+      the catch-all last. Reverse them and the upper storey is unstandable —
+      silently, because the player simply stands on the floor with the walkway
+      drawn around their knees.
+
+      THREE MORE THINGS FALL OUT OF THAT SHAPE, all of them in
+      src/up_down_maze.c and its collision .c if you are building another:
+
+        - multi_level is 1. Not for the player's push, which is Y-gated whatever
+          the flag says, but for the HITSCAN gate: a wall under a walkway would
+          otherwise stop a shot fired along it.
+        - the walkway edges have no railing and are not meant to. The block sides
+          are Y-gated to the storey below, so the player walks off them.
+        - >>> EVERY DOOR TRIGGER ON THE UPPER STOREY NEEDS A Y TEST, and no other
+          door in the game does. <<< A trigger is Manhattan distance in XZ alone,
+          which is correct everywhere the walkable surface is a function of XZ.
+          Here it is not: the corridor underneath a door is well inside its
+          radius in plan, so without the test the player opens an upstairs door
+          by standing under it. Put the same test on the SIGN or the prompt hangs
+          in the air over the lower maze. See UDM_WEST_Y_REACH.
+
   Texture slots
       #define <SLUG>_TEX_COUNT N, and a NAME_TO_SLOT-matching load order:
         - textures already resident from startup -> TIM_SLOT(slot, NAME)
@@ -809,6 +836,18 @@ Touch these files, in this order:
                         (`pending_area == STATE_<X>` -> <slug>_upload_textures())
                         AND an init branch (<slug>_init() + music + the
                         arrival-spawn override keyed on current_area)
+                        >>> A CHAPTER 3 ROOM WRITES NO MUSIC LINE. <<< The
+                        Catacombs' track is decided once for the whole chapter,
+                        in the block below the foot of that if/else chain, keyed
+                        on area_is_catacombs(). A new Catacombs room inherits
+                        CDAUDIO_CATACOMBS_TRACK by being added to that function
+                        in src/area_bank.c — which STEP 2.5 already makes it do,
+                        or its textures are in the wrong bank — and putting a
+                        cdaudio_play in its own branch as well would just be a
+                        second place to look. The Catacombs ENTRY is the one
+                        silent room and it is the exception stated there. A new
+                        room that wants silence or its own track says so in
+                        THAT block, not in the chain.
                      5. draw_current_area(): `else if (area == STATE_<X>)`
                         and add STATE_<X> to the gameplay-state `if` at the
                         bottom of the main loop

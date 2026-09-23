@@ -83,6 +83,7 @@
 #include "catacomb_open.h"
 #include "area_bank.h"          /* the six texture banks; see that header */
 #include "catacombs_entry.h"
+#include "up_down_maze.h"
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
 #include "hatch_puzzle.h"
 #include "hatch_arrival.h"  /* the drop off the well: Asag's ending, beat 3   */
@@ -302,6 +303,7 @@ static void load_area_geometry(GameState area) {
         case STATE_GREENHOUSE:       greenhouse_load_geometry();       break;
         case STATE_ASAG_ARENA:       asag_arena_load_geometry();       break;
         case STATE_CATACOMBS_ENTRY:  catacombs_entry_load_geometry();  break;
+        case STATE_UP_DOWN_MAZE:     up_down_maze_load_geometry();     break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -1658,10 +1660,12 @@ static void update_current_area(GameState area) {
            collision Y-gates whatever that flag says, and this room's five
            walkable footprints do not overlap in plan, so nothing here earns it.
 
-           NO DOOR TRIGGER. The tablet and the inner door both answer Circle and
-           neither goes anywhere: the tablet says so in as many words, and what
-           is behind the inner door is not built. So there is no pending_area to
-           set here and no transition to start.
+           ONE DOOR TRIGGER NOW, and it is the INNER one at the east end of the
+           burial hall. The tablet still answers Circle and still goes nowhere —
+           it says so in as many words, and the way back out of this chapter is
+           a save and a title load — but the inner door leads to the UP DOWN
+           MAZE, and as of that room being built it is a real transition rather
+           than the "COMING SOON" placeholder it carried.
 
            No enemy updates either. Nothing from Chapters 1 or 2 can be placed
            down here (src/area_bank.h has freed their art) and Chapter 3 has no
@@ -1693,6 +1697,59 @@ static void update_current_area(GameState area) {
             game_state = STATE_SAVE_MENU;
         }
         catacombs_entry_interact_update(ce_saving ? 1 : lock);
+        /* AND THE INNER DOOR, IMMEDIATELY AFTER, because the flag it reads is
+           set by the call above and cleared by this one. The door lives in that
+           room's Circle chain so it shares the room's veto order and its edge
+           state (see catacombs_entry_inner_door_triggered); only the three
+           things a door DOES — a pending_area, the transition, the music —
+           belong out here, and they are the same three every other door in this
+           function sets.
+
+           DOOR_PANEL_CATACOMB, not DOOR_PANEL_WOOD: the panel is drawn with the
+           catacomb inner door's own texture, it opens over three seconds rather
+           than two, and it plays SFX_CTCMBDR. See src/door_anim.h. */
+        if (!lock && catacombs_entry_inner_door_triggered()) {
+            pending_area = STATE_UP_DOWN_MAZE;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_UP_DOWN_MAZE) {
+        /* THE UP DOWN MAZE — Chapter 3's second room, and the first room in the
+           game that is two mazes stacked over one footprint. The shared wall
+           routine and eleven floor zones are the whole of it: ten FLOOR_UPPER
+           block tops at y=-1000 and the lower floor at y=0 underneath all of
+           them, in that order, because apply_height() walks the list and takes
+           the first zone that is not above the player (src/up_down_maze.c spells
+           the ordering out).
+
+           >>> multi_level IS 1 HERE, unlike every other Catacombs room, and it
+           is the hitscan Y-gate that earns it: the lower maze's walls stand
+           directly under the upper maze's walkways, so without it a shot fired
+           along a walkway is stopped by a wall a whole storey below. See the
+           note at the head of src/up_down_maze_mesh_collision.c.
+
+           No enemy updates and no props: nothing from Chapters 1 or 2 can be
+           placed down here (src/area_bank.h has freed their art) and Chapter 3
+           has no monsters of its own yet. When it does, they go here.
+
+           ONE INTERACTION, the west door back to the Catacombs Entry, so no veto
+           chain and no order to get right — the room has nothing else that
+           answers a button. */
+        apply_collision_reception();
+        apply_height();
+
+        /* Called UNCONDITIONALLY, `lock` passed in rather than tested out here:
+           the function keeps its Circle edge state current while locked and
+           returns 0, so a press held across a menu closing cannot read as a
+           fresh one on the frame the lock lifts. Testing !lock here instead
+           would leave that state stale. */
+        if (up_down_maze_west_door_triggered(lock)) {
+            pending_area = STATE_CATACOMBS_ENTRY;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ASAG_ARENA) {
         /* ASAG'S ARENA — free play, which here means the fight AFTER the opening
            scene has handed the camera back. The scene itself runs in the
@@ -2059,6 +2116,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         asag_arena_draw(ctx);
     else if (area == STATE_CATACOMBS_ENTRY)
         catacombs_entry_draw(ctx);
+    else if (area == STATE_UP_DOWN_MAZE)
+        up_down_maze_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -2389,6 +2448,18 @@ int main(int argc, const char **argv) {
                                   STREAMED on entry, as the Chain Room's and the
                                   Greenhouse's are. The heap has no 18 KB to
                                   spare - see the note in src/the_hatch.c */
+    loading_screen_pump(&ctx);
+    up_down_maze_load_assets();   /* CHAPTER 3's second room, and the cheapest
+                                     startup call in this list: TWO compile-time
+                                     headers, no registration and no CD access.
+                                     It draws the Catacombs Entry's cobblestone
+                                     and its inner door through that room's two
+                                     narrow uploaders and owns no texture at all,
+                                     so it must come AFTER the call below rather
+                                     than before it - not for the headers, which
+                                     are constants, but because that is the order
+                                     that reads correctly: the owner registers,
+                                     the borrower borrows. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -3033,6 +3104,19 @@ int main(int argc, const char **argv) {
                    rather than a crash. That is why the ordering above is
                    written down rather than left to chance. */
                 catacombs_entry_upload_textures();
+            } else if (pending_area == STATE_UP_DOWN_MAZE) {
+                /* THE UP DOWN MAZE. Two pages, and it owns neither: this is the
+                   Catacombs Entry's cobblestone and its inner door, put back up
+                   through that room's two NARROW uploaders. The full uploader
+                   would also stamp the lamashtu tablet, the loculus, the sconce
+                   and the oil dispenser, none of which this room draws.
+
+                   Same guarantee and same failure mode as the branch above: the
+                   entries are already in RAM because area_bank_sync() read them
+                   a few lines up, so this is a pure LoadImage with the drive
+                   idle - and if that call has not run, this uploads nothing,
+                   quietly, leaving the previous room's art in these pages. */
+                up_down_maze_upload_textures();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 /* ASAG'S ARENA. It BORROWS NOTHING — no neighbour's uploader at
                    the head of the chain, unlike every other garden room — and it
@@ -3468,20 +3552,36 @@ int main(int argc, const char **argv) {
                 if (ending_beat != ENDING_LANDING)
                     cdaudio_play(CDAUDIO_FOUNTAIN_TRACK, 1);
             } else if (pending_area == STATE_CATACOMBS_ENTRY) {
-                /* One arrival — the walk in through the doors — so its spawn is
-                   not a default but the only one. Nothing to override, and
-                   nothing ever will be: the room has no second entrance. */
+                /* TWO arrivals now. catacombs_entry_init() places the default —
+                   the walk in through the doors, at the tablet — and the Up Down
+                   Maze's door overrides it, keyed on where the player came FROM.
+
+                   >>> KEYED ON current_area, WHICH IS STILL THE ROOM BEING LEFT
+                   AT THIS POINT. <<< That is the same test every other arrival
+                   override in this function makes, and it is only safe because
+                   this branch runs before current_area is advanced. It is NOT a
+                   route: a title-screen Load Game or a debug jump arrives with
+                   current_area set to something else entirely, which is exactly
+                   why the default has to be the walk-in spawn and not this one
+                   (src/world.h has the longer version of this warning). */
                 catacombs_entry_init();
-                /* Silence, and stopping is not the same as doing nothing. The
-                   walk transition already stopped the garden's track on the
-                   press that started it, so by this route the line is a no-op —
-                   but a title-screen Load Game or a debug jump into this room
-                   does not pass through that transition at all and would arrive
-                   with the previous room's music still running. Every route in
-                   passes through THIS line — the rule the arena's own branch
-                   below states. Chapter 3 has no track of its own yet; when it
-                   does, it goes here. */
-                cdaudio_stop();
+                if (current_area == STATE_UP_DOWN_MAZE)
+                    catacombs_entry_spawn_inner();
+                /* NO MUSIC LINE HERE, and that is not an omission: Chapter 3's
+                   music is decided ONCE for the whole chapter, below the foot of
+                   this if/else chain. This room is the chapter's one silent
+                   room and it says so there, beside the rule it is the exception
+                   to. */
+            } else if (pending_area == STATE_UP_DOWN_MAZE) {
+                /* ONE ARRIVAL, the west door, so up_down_maze_init()'s default
+                   spawn is also the only one and there is nothing to override.
+                   The five other doors drawn in this room's outer walls are
+                   sealed until the rooms behind them exist; each will want its
+                   own spawn helper and an override keyed on current_area here
+                   (src/up_down_maze.h lists them with their coordinates). */
+                up_down_maze_init();
+                /* NO MUSIC LINE HERE EITHER, and a new Chapter 3 room does not
+                   get one: see the chapter rule below the foot of this chain. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -3599,6 +3699,50 @@ int main(int argc, const char **argv) {
                                                            kitchen, restarted on
                                                            arrival — see there */
             }
+
+            /* ---- CHAPTER 3'S MUSIC, FOR THE WHOLE CHAPTER, IN ONE PLACE -----
+               Every Catacombs room plays CDAUDIO_CATACOMBS_TRACK. The Catacombs
+               ENTRY is the one exception and is silent.
+
+               >>> THIS IS A RULE RATHER THAN A ROW OF PER-ROOM LINES BECAUSE
+               THAT IS WHAT WAS ASKED FOR: the track plays in every Catacombs
+               room from here on. <<< A per-room cdaudio_play in the chain above
+               would make that a thing to remember, and a Chapter 3 room added
+               without it would be silently wrong in a way nothing checks. Keyed
+               on area_is_catacombs() so a new room inherits the track by being
+               added THERE (src/area_bank.c) — which it must be regardless, or
+               its textures land in the wrong bank and draw as whatever the last
+               room left in those pages. The two facts cannot drift apart.
+
+               A future Chapter 3 room that wants SILENCE, or a track of its own,
+               is an exception and belongs in this block beside the entry — not
+               back in the chain above, where the next person to read it would
+               have to check both places to know what a room plays.
+
+               IT RUNS AFTER THE CHAIN, not inside it, so it is reached by every
+               route into every one of these rooms: the door, a title-screen Load
+               Game and a debug level-select jump all pass through here. That is
+               the same guarantee each room's own music line used to state for
+               itself, now stated once.
+
+               AND STOPPING IS NOT THE SAME AS DOING NOTHING for the entry. The
+               walk in already stopped the garden's track on the press that
+               started it, so by that route the stop is a no-op — but a title
+               load or a debug jump straight into the entry does not pass through
+               that transition and would otherwise arrive with the previous
+               room's music still running under a room meant to be silent.
+
+               The rooms above have already had their say on the drive by this
+               point (none of them touches CD-DA), so ordering against them is
+               not a concern; this is simply the first place every Chapter 3
+               route has converged. */
+            if (area_is_catacombs(pending_area)) {
+                if (pending_area == STATE_CATACOMBS_ENTRY)
+                    cdaudio_stop();
+                else
+                    cdaudio_play(CDAUDIO_CATACOMBS_TRACK, 1);
+            }
+
             /* The room is built; it draws itself from the bottom of this frame
                on, so the loading screen is finished with. */
             loading_screen_up = 0;
@@ -3768,7 +3912,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_WEST_CORRIDOR ||
                    game_state == STATE_STABLES ||
                    game_state == STATE_GREENHOUSE ||
-                   game_state == STATE_CATACOMBS_ENTRY) {
+                   game_state == STATE_CATACOMBS_ENTRY ||
+                   game_state == STATE_UP_DOWN_MAZE) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

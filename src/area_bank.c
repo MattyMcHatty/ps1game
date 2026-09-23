@@ -88,6 +88,11 @@ TexBank area_bank_of(GameState area) {
 
     /* ---- CHAPTER 3 ----------------------------------------------------- */
     case STATE_CATACOMBS_ENTRY:
+    /* The Up Down Maze draws COBBLE and CTCMBDR and nothing else, both of them
+       the Catacombs Entry's own registrations, so its bank is that room's by
+       construction rather than by geography. py tools/check_tex_banks.py walks
+       up_down_maze_upload_textures() to the two narrow uploaders and proves it.  */
+    case STATE_UP_DOWN_MAZE:
         return TEXBANK_CATACOMBS;
 
     default:
@@ -96,7 +101,8 @@ TexBank area_bank_of(GameState area) {
 }
 
 int area_is_catacombs(GameState area) {
-    return area == STATE_CATACOMBS_ENTRY;
+    return area == STATE_CATACOMBS_ENTRY ||
+           area == STATE_UP_DOWN_MAZE;
 }
 
 /* ---- The prop models -------------------------------------------------------

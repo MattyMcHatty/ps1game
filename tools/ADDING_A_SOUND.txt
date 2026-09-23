@@ -294,6 +294,15 @@ it; tntcl_die and spdr_wlk have since been spent on SFX_WATER, and dogbark and
 spit turned out to be at the standard already. See the list above: the trick is
 finished.)
 
+(A DOOR SOUND'S BANK IS THE BANK OF THE ROOM BEING LEFT, not of the room being
+entered, and it is worth knowing before you reason about either. A transition
+runs door_anim_start -> STATE_DOOR_ANIM -> STATE_LOADING, and sound_bank_select
+is in the LAST of those, so the sound fires while the source room's bank is still
+in. SFX_CTCMBDR (the catacomb door, Sept 2026) is tagged SND_BANK_CATACOMBS alone
+because both ends of every transition it plays on are inside Chapter 3. SFX_GATE
+needed TWO tags for exactly the opposite reason: it plays on the way out of rooms
+on both sides of a bank boundary.)
+
 (GATE is the worked example of a NON-obvious bank choice, and worth reading
 before you place anything else. It is a door sound — the sort of thing that
 "obviously" belongs with SFX_DOOR in the residents — but at 17.9 KB it does not

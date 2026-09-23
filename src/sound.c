@@ -82,6 +82,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\SLAMASAG.VAG;1",
     "\\SND\\LASER.VAG;1",
     "\\SND\\GLUG.VAG;1",
+    "\\SND\\CTCMBDR.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -278,6 +279,7 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        through a one-way door, so there is nowhere else it could be
        wanted and a second bit would cost its own copy for nothing. */
     [SFX_GLUG]       = SND_BANK_CATACOMBS,
+    [SFX_CTCMBDR]    = SND_BANK_CATACOMBS,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -465,6 +467,29 @@ static int sfx_channel(SfxID id) {
        gas.vag carries its loop flag on block 299 of 300, i.e. it is an ordinary
        one-shot and has never moved that voice's repeat address. */
     if (id == SFX_GLUG)        return 13;   /* SFX_GAS's  (GARDEN)  one-shot   */
+    /* ---- THE CATACOMB DOOR, AND IT IS OFF THE POOL ON THE RULE, NOT ON A
+       JUDGEMENT. At 5.43 s it is the second longest clip in the game after
+       DMNSPEAK, which is exactly what STEP 6 of tools/ADDING_A_SOUND.txt means
+       by "LONG, and something in the pool can fire over it". Its raw pool slot
+       would be FIRST_VOICE + (50 % 8) = 3, shared with SFX_PICKUP, SFX_ZOMBIEDIE
+       and SFX_SLAM - and SFX_PICKUP is resident, so the first thing the player
+       picked up on the far side of the door would chop the door shutting behind
+       them. Every time, since this clip runs a second and a half past the
+       transition on purpose.
+
+       SO IT BORROWS 14, SFX_PULL's, a fourth claimant on the voice Asag's head
+       slam and the quake's third rumble already share, and it is legal on the
+       eviction argument the glug spells out one line above: all three of the
+       others are BANKED - SFX_PULL is GARDEN, SFX_RUMBLE_3 is HOUSE|GARDEN,
+       SFX_SLAM_ASAG is ASAG - and none of those banks can be in while
+       SND_BANK_CATACOMBS is, because the catacomb mouth is a one-way door. None
+       of them is resident, so none of them can sound down here at all.
+
+       AND 14 IS NOT ONE OF THE POISONED THREE. Checked rather than assumed, with
+       the script in STEP 6: ctcmbdr.vag carries its loop flag on block 2138 of
+       2139, i.e. it is an ordinary one-shot and will not move that voice's
+       repeat address either. */
+    if (id == SFX_CTCMBDR)     return 14;   /* SFX_PULL's (GARDEN)  one-shot   */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

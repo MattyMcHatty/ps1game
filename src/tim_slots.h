@@ -339,6 +339,10 @@
 #define TIM_TPAGE_MSHYRUN  0x0097
 #define TIM_CLUT_MSHYRUN   0x7c90
 
+/* oil_container.tim  8bpp  VRAM ( 896,256)  \TEXCTCMB\OILCNTNR.TIM */
+#define TIM_TPAGE_OILCNTNR 0x009e
+#define TIM_CLUT_OILCNTNR  0x7e2a
+
 /* opn_drwr.tim    8bpp  VRAM ( 832,  0)  \TEX\OPNDRWR.TIM */
 #define TIM_TPAGE_OPNDRWR  0x008d
 #define TIM_CLUT_OPNDRWR   0x7ad0
@@ -414,6 +418,10 @@
 /* red_wlppr.tim   4bpp  VRAM ( 576,  0)  \REDWLPPR.TIM */
 #define TIM_TPAGE_REDWLPPR 0x0009
 #define TIM_CLUT_REDWLPPR  0x7b00
+
+/* sconce.tim      8bpp  VRAM ( 448,  0)  \TEXCTCMB\SCONCE.TIM */
+#define TIM_TPAGE_SCONCE   0x0087
+#define TIM_CLUT_SCONCE    0x7daa
 
 /* shadow.tim      8bpp  VRAM ( 640,160)  \SHADOW.TIM */
 #define TIM_TPAGE_SHADOW   0x008a

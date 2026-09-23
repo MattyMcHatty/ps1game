@@ -104,6 +104,7 @@ static const char *area_name(int area) {
            under the garden. */
         case STATE_ASAG_ARENA:        return "ASAG'S ARENA";
         case STATE_CATACOMBS_ENTRY:   return "CATACOMBS ENTRY";
+        case STATE_UP_DOWN_MAZE:      return "UP DOWN MAZE";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

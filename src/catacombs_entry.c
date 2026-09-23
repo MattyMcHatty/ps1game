@@ -392,6 +392,32 @@ void catacombs_entry_upload_textures(void) {
     oil_dispenser_upload_texture();
 }
 
+/* ---- THE TWO NARROW UPLOADERS ---------------------------------------------
+   For src/up_down_maze.c, which draws cobblestone and the inner door and nothing
+   else of this room's six textures. They exist rather than that room calling
+   catacombs_entry_upload_textures() wholesale for the reason
+   tools/ADDING_A_ROOM.txt STEP 3b gives (the conservatory_upload_con_tile
+   pattern): a full uploader also stamps every other slot the owning room has —
+   here the lamashtu tablet, the loculus, the sconce and the oil dispenser — and
+   a borrower has no business putting four pages it never draws back up.
+
+   They exist rather than the maze REGISTERING its own copies for a stronger
+   reason. These are one texture at one VRAM address each; a second registration
+   would be a second RAM copy of the same file and a second entry against
+   TEXMGR_MAX, and which pixels were actually up would depend on whichever
+   room's uploader ran last. One entry, one copy, one address.
+
+   texmgr_upload() on an entry whose bank is out is a no-op, so calling these
+   from a room in another chapter would leave that page as it was rather than
+   crash — see the note above. Nothing does; both callers are Chapter 3. */
+void catacombs_entry_upload_cobble(void) {
+    texmgr_upload(new_tex_id[0]);
+}
+
+void catacombs_entry_upload_inner_door(void) {
+    texmgr_upload(new_tex_id[2]);
+}
+
 /* ---- THE TABLET, AND WHAT IT SAYS ------------------------------------------
    The lamashtu tablet across the entry chamber's south wall: the inside face of
    the doors the player walked between, and the only thing in this room that
@@ -418,11 +444,15 @@ void catacombs_entry_upload_textures(void) {
    the YZ plane at fixed X, approached from -X, so TEXT_PLANE_YZ with mirror=1
    and the sign 11 units back along -X.
 
-   >>> WHAT IS BEHIND IT IS NOT BUILT. <<< Circle posts "COMING SOON" to the log
-   and nothing else happens. That is a placeholder and it is meant to read as
-   one to the developer and as a locked door to the player — the same
-   placeholder the catacomb MOUTH carried until this chapter existed, and
-   replacing it will be the same one line. */
+   >>> IT IS A DOOR NOW. <<< It carried "COMING SOON" from the day this room
+   landed until the UP DOWN MAZE was built behind it, and replacing the
+   placeholder was the one line the note here promised: ce_examine became
+   ce_press_at, the message became a flag main.c reads, and the sign says ENTER.
+
+   It is the room's ONLY way on, and the room still has no way BACK — the
+   catacomb mouth remains one-way. So this is the door the chapter is about, and
+   the transition through it is its own (DOOR_PANEL_CATACOMB in src/door_anim.h),
+   not the mansion's wooden one. */
 #define CE_INNER_X            4800
 #define CE_INNER_Z            1402     /* (1302 + 1502) / 2 */
 #define CE_INNER_TEXT_Y       1054     /* eye level on the y=1240 hall floor */
@@ -514,6 +544,17 @@ static int ce_examine(int lock, int *prev, int32_t wx, int32_t wz,
     return 1;
 }
 
+/* Set by the frame the inner door's Circle lands, read and cleared by main.c on
+   the same frame. A flag rather than a return value because this function
+   already returns "the button was consumed", which three things share. */
+static int ce_inner_fired = 0;
+
+int catacombs_entry_inner_door_triggered(void) {
+    int f = ce_inner_fired;
+    ce_inner_fired = 0;
+    return f;
+}
+
 int catacombs_entry_interact_update(int lock) {
     /* The tablet first, because it is the one the player meets first. Both are
        run every frame whatever the other returns: the edge state has to stay
@@ -523,9 +564,18 @@ int catacombs_entry_interact_update(int lock) {
     int took = ce_examine(lock, &tablet_circle_prev,
                           CE_TABLET_X, CE_TABLET_Z,
                           "There is no way back now...");
-    int took2 = ce_examine(took ? 1 : lock, &inner_circle_prev,
-                           CE_INNER_X, CE_INNER_Z,
-                           "COMING SOON");
+    /* THE INNER DOOR, AND IT IS THE ONE PRESS HERE THAT IS NOT A MESSAGE. It
+       cannot start the transition itself: this function runs inside
+       update_current_area() and a door has to set pending_area, start the door
+       animation and stop the music, all of which belong to main.c. So it sets a
+       one-shot flag and main.c asks for it immediately afterwards — see
+       catacombs_entry_inner_door_triggered(). It still runs through the same
+       veto chain and the same edge state as the two examines, which is the whole
+       reason it is here rather than in main.c: skipping this call on a frame the
+       tablet fired would leave `inner_circle_prev` stale. */
+    int took2 = ce_press_at(took ? 1 : lock, &inner_circle_prev,
+                            CE_INNER_X, CE_INNER_Z);
+    if (took2) ce_inner_fired = 1;
     /* The dispenser last, with the chain of vetoes carried into it: its trigger
        circle (500 about x=4798 z=503) sits at the south-east end of the hall and
        the inner door's (500 about x=4800 z=1402) at the north-east end of the
@@ -569,8 +619,9 @@ int catacombs_entry_interact_update(int lock) {
 
 /* Their floating signs. Same shape as every other sign in the game: opaque
    within CE_FADE_NEAR, gone by CE_TEXT_RADIUS. */
-static void ce_sign(RenderContext *ctx, int32_t wx, int32_t wy, int32_t wz,
-                    int32_t reading_axis_origin, int plane, int mirror) {
+static void ce_sign_msg(RenderContext *ctx, int32_t wx, int32_t wy, int32_t wz,
+                        int32_t reading_axis_origin, int plane, int mirror,
+                        const char *msg) {
     int32_t dx = cam_x - wx;
     int32_t dz = cam_z - wz;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
@@ -587,15 +638,22 @@ static void ce_sign(RenderContext *ctx, int32_t wx, int32_t wy, int32_t wz,
     /* door_draw_string_3d adds 200 to the reading axis before centring, hence
        the -200 the callers have already applied to reading_axis_origin. */
     if (plane == TEXT_PLANE_XY)
-        door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to examine",
+        door_draw_string_3d(ctx, msg,
                             reading_axis_origin, wy, wz,
                             50, 255, 50, fade, mirror, TEXT_PLANE_XY,
                             DOOR_PIXEL_SIZE);
     else
-        door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to examine",
+        door_draw_string_3d(ctx, msg,
                             wx, wy, reading_axis_origin,
                             50, 255, 50, fade, mirror, TEXT_PLANE_YZ,
                             DOOR_PIXEL_SIZE);
+}
+
+/* The two signs that still say EXAMINE. */
+static void ce_sign(RenderContext *ctx, int32_t wx, int32_t wy, int32_t wz,
+                    int32_t reading_axis_origin, int plane, int mirror) {
+    ce_sign_msg(ctx, wx, wy, wz, reading_axis_origin, plane, mirror,
+                "Press " BTN_CIRCLE " to examine");
 }
 
 /* The same sign on a free yaw, for the corner prop the two axis planes cannot
@@ -638,6 +696,25 @@ void catacombs_entry_spawn_south(void) {
     catacombs_entry_arm();
     /* And the save point down the hall, for the same reason: a Circle carried
        in through the transition must not fire on the arrival frame. */
+    save_point_arm();
+}
+
+/* Arrival BACK through the inner door, from the Up Down Maze. The hall's floor
+   is flat at y=1240 the whole way to the east wall, so this is the tablet
+   spawn's arithmetic with the hall's numbers: clear of the 195 push radius by 25
+   and facing -X, the direction of travel back down the hall.
+
+   IT IS WELL CLEAR OF THE SAVE POINT at (4606,2106) — 704 away in z, against a
+   SAVE_TRIGGER_RADIUS of 500 — so a Circle held through the transition cannot
+   open the save menu on the arrival frame either. The arm below is what actually
+   guarantees that; the distance is why it is not even close. */
+void catacombs_entry_spawn_inner(void) {
+    cam_x   = CE_INNER_X - CE_WALL_RADIUS - 25;
+    cam_y   = 1240 - GROUND_FLOOR_Y - 40;   /* the hall floor, eye height */
+    cam_vy  = 0;
+    cam_z   = CE_INNER_Z;
+    cam_rot = 3072;                          /* facing -X, back down the hall */
+    catacombs_entry_arm();
     save_point_arm();
 }
 
@@ -1065,8 +1142,10 @@ void catacombs_entry_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         ce_sign(ctx, CE_TABLET_X, CE_TABLET_TEXT_Y, CE_TABLET_Z + 11,
                 CE_TABLET_X - 200, TEXT_PLANE_XY, 1);
-        ce_sign(ctx, CE_INNER_X - 11, CE_INNER_TEXT_Y, CE_INNER_Z,
-                CE_INNER_Z - 200, TEXT_PLANE_YZ, 1);
+        /* "ENTER", not "examine": this one goes somewhere now. */
+        ce_sign_msg(ctx, CE_INNER_X - 11, CE_INNER_TEXT_Y, CE_INNER_Z,
+                    CE_INNER_Z - 200, TEXT_PLANE_YZ, 1,
+                    "Press " BTN_CIRCLE " to enter");
         ce_sign_yaw(ctx, OD_X, OD_Z,
                     OD_TEXT_X, OD_TEXT_Y, OD_TEXT_Z, OD_TEXT_YAW,
                     "Press " BTN_CIRCLE " to refill", OD_TEXT_PIXEL);

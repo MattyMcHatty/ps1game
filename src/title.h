@@ -99,6 +99,15 @@ typedef enum {
                                 thing here and is worth reading before adding a
                                 second Catacombs room. Appended, not inserted:
                                 saves store raw enum values. */
+    STATE_UP_DOWN_MAZE,      /* The UP DOWN MAZE, through the inner door at the
+                                east end of the Catacombs Entry's burial hall.
+                                Chapter 3's second room and the first room in the
+                                game that is a maze in TWO STOREYS over one
+                                footprint — the gaps between the blocks are one
+                                maze, the tops of the same blocks are another,
+                                and the only way down is off an edge. See
+                                src/up_down_maze.h. Appended, not inserted: saves
+                                store raw enum values. */
     STATE_CATACOMB_WALK,     /* the transition INTO that room, and a transition
                                 state rather than a place — the company
                                 STATE_DOOR_ANIM and STATE_STAIR_ANIM keep. The

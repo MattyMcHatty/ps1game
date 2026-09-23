@@ -132,6 +132,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_KEYSTONE_MAZE,  STATE_GREENHOUSE,
     STATE_CHAIN_ROOM,     STATE_THE_HATCH,
     STATE_ASAG_ARENA,     STATE_CATACOMBS_ENTRY,
+    STATE_UP_DOWN_MAZE,
 };
 
 static int room_index(GameState area) {
@@ -175,6 +176,14 @@ static int room_index(GameState area) {
            ONE medipac, seeded below, so this slot is what makes collecting it
            stick across a re-entry as well as across a save. */
         case STATE_CATACOMBS_ENTRY:   return 27;
+        /* The Up Down Maze. Seeded EMPTY — world_seed_room has no branch for it
+           — and like Asag's arena that is not a stub: Chapter 3 has no monsters
+           yet and nothing from Chapters 1 or 2 can be placed down here, because
+           area_bank_sync() has freed their art (src/area_bank.h). It still needs
+           a slot of its own, because without one it would fall through the
+           default below and share the DELIVERY AREA's, which is how a room
+           silently inherits another room's smashed crates and dead enemies. */
+        case STATE_UP_DOWN_MAZE:      return 28;
         default:                   return 0;
     }
 }

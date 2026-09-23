@@ -91,6 +91,48 @@
                                  asag_arena_upload_mud() for it. See there, and
                                  see door_anim_draw's fall branch for the
                                  projection.                                      */
+#define DOOR_PANEL_CATACOMB   7 /* catacomb inner door — the doors INSIDE Chapter
+                                 3, starting with the Catacombs Entry's burial
+                                 hall <-> the Up Down Maze. A SINGLE leaf hinged
+                                 on its right edge, like DOOR_PANEL_WOOD, and
+                                 differing from it in four things.
+
+                                 IT RUNS ON ITS OWN CLOCK, the third in this
+                                 file after the gate's and the fall's, and the
+                                 brief set every number in it: the door is held
+                                 SHUT for 1 SECOND, the leaf then opens over 3
+                                 SECONDS, the SOUND kicks in at 1 second, and
+                                 where the leaf stops — 4 seconds in — the screen
+                                 begins its fade to black. 5 seconds end to end,
+                                 the longest transition in the game. There is no
+                                 hold open at the end; the shared clock has one
+                                 and the brief takes it out.
+
+                                 AND ITS DOLLY IS HALF SPEED. Every other variant
+                                 pushes the image 1.0x -> 1.4x over its final two
+                                 seconds; this one goes 1.0x -> 1.2x over the
+                                 same window, so the camera closes on the door at
+                                 half the rate. See CAT_ZOOM_MAX, which also says
+                                 why the travel was halved rather than the window
+                                 stretched — both halve the speed and they are
+                                 not the same picture.
+
+                                 ITS SOUND IS SFX_CTCMBDR, not SFX_DOOR: a stone
+                                 door in a catacomb, banked in SND_BANK_CATACOMBS
+                                 (src/sound.h). Both ends of every transition
+                                 this panel plays are inside Chapter 3, which is
+                                 the only bank that can be loaded when it fires.
+
+                                 AND ITS TEXTURE IS ROOM ART, like the greenhouse
+                                 door's and NOT like the four reserved panels
+                                 above: catacomb inner door.tim is the Catacombs
+                                 Entry's own slot 2, 8bpp at VRAM x832 y0 — the
+                                 opn_drwr page, which half the mansion and the
+                                 garden stream over. So it is NOT read off the CD
+                                 by door_anim_load_assets; it does not need to be,
+                                 because both rooms this transition joins upload
+                                 it on entry and a tpage/clut is a compile-time
+                                 constant. See there.                             */
 
 void door_anim_load_assets(void);   /* load the panel TIMs into VRAM (startup) */
 void door_anim_start(int variant);  /* begin the animation; plays the sound */

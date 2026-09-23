@@ -409,7 +409,40 @@ typedef enum {
 
        OFF THE POOL, ON VOICE 13 — see the note in sound.c. */
     SFX_GLUG       = 49,  /* BANKED (catacombs). Oil pouring. 0.65 s           */
-    SFX_COUNT      = 50,
+    /* ---- THE CATACOMB DOOR ------------------------------------------------
+       CHAPTER 3's second sound, and the door sound for every transition INSIDE
+       the chapter - starting with the Catacombs Entry's burial hall <-> the Up
+       Down Maze. It is fired by src/door_anim.c's DOOR_PANEL_CATACOMB variant
+       and by nothing else, the same one-caller contract SFX_GATE has with
+       DOOR_PANEL_GATE.
+
+       BANKED (catacombs), AND THAT IS THE EASY HALF OF THE ARGUMENT: a door
+       sound plays during the transition, i.e. BEFORE main.c's STATE_LOADING has
+       swapped any bank, so what matters is the bank the room the player is
+       LEAVING had loaded. Both ends of every transition this plays on are inside
+       Chapter 3, so that bank is SND_BANK_CATACOMBS either way. Compare
+       SFX_GATE, which had to be in TWO banks precisely because it plays on the
+       way out of rooms on both sides of a bank boundary.
+
+       IT WAS FREE, like the glug before it. 34,240 SPU bytes into a bank that
+       held 4,160, in a region whose ceiling BOSS sets at 190,336; the catacombs
+       bank is now 38,400 and `spare` did not move off 46,896. That bank still
+       has about 150 KB before it costs any other bank anything.
+
+       5.43 s, WHICH IS LONGER THAN THE TRANSITION IT PLAYS UNDER (4.0 s, see
+       CAT_TOTAL_FRAMES in src/door_anim.c) - deliberately, and the same way
+       round as SFX_DOOR's 5.07 s under the shared clock's 5.0 s. The tail runs
+       on under the loading screen rather than being cut off at the fade, which
+       is what stops the black screen being silent.
+
+       >>> ITS LENGTH IS NOT LOAD-BEARING THE WAY SFX_GATE'S IS. <<< That clip's
+       length sets GATE_SWING_FRAMES, so retrimming it desynchronises the leaf
+       from the creak. This one's swing is set by the BRIEF (3 s) and not by the
+       clip, so trimming it only shortens what is heard.
+
+       OFF THE POOL, ON VOICE 14 - see the note in sound.c. */
+    SFX_CTCMBDR    = 50,  /* BANKED (catacombs). The catacomb door. 5.43 s     */
+    SFX_COUNT      = 51,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

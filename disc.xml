@@ -228,6 +228,16 @@
                      4160 SPU bytes against a bank that was empty and a region
                      BOSS still sets the ceiling of — it cost `spare` nothing. -->
                 <file name="GLUG.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\glug.vag"/>
+                <!-- CHAPTER 3's second sound, and the door sound for every
+                     transition INSIDE the chapter (src/door_anim.c's
+                     DOOR_PANEL_CATACOMB). 5.43 s at the house 11025, so 34,240
+                     SPU bytes; the catacombs bank goes 4,160 -> 38,400 against a
+                     region whose ceiling BOSS still sets at 190,336, so `spare`
+                     does not move off 46,896. A door sound plays BEFORE the
+                     transition swaps any bank, and both ends of every transition
+                     it plays on are in Chapter 3, so one bank tag is enough —
+                     unlike GATE.VAG, which needed two. -->
+                <file name="CTCMBDR.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\ctcmbdr.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -952,6 +962,24 @@
             <file name="LOCULUS.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\loculus.tim"/>
             <file name="CTCMBDR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacomb inner door.tim"/>
 
+            <!-- THE UP DOWN MAZE, the chapter's second room, behind the inner
+                 door at the east end of the entry's burial hall. A maze in two
+                 storeys over one footprint: the gaps between ten stone blocks
+                 are the lower maze, the tops of those same blocks are the upper
+                 one, and the only way down is off an edge (src/up_down_maze.h).
+
+                 NO NEW TEXTURE AND NO NEW REGISTRATION. It draws COBBLE.TIM and
+                 CTCMBDR.TIM above and nothing else, through the Catacombs
+                 Entry's two narrow uploaders — so the whole cost of this room on
+                 the disc is the one mesh below.
+
+                 112,076 bytes, the second largest room mesh in the game after
+                 MAZEONE.SMD's 118,764, which is what the room arena is already
+                 sized to (src/room_arena_size.h). Re-run py tools/gen_room_arena.py
+                 after any re-export: growing past that and the room draws empty,
+                 deliberately and loudly. -->
+            <file name="UPDNMAZE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\up_down_maze.smd"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather
@@ -1028,6 +1056,26 @@
          44100 Hz 16-bit stereo like the rest — converted with
          ffmpeg y i "stalker music.mp3" ac 2 ar 44100 sample_fmt s16 -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\stalker music.wav"/>
+
+    <!-- Track 9: THE CATACOMBS. 120.0 s, and the chapter's own music: it plays
+         in every Chapter 3 room EXCEPT the Catacombs Entry, which is silent by
+         design (main.c's STATE_LOADING states that rule once, for the whole
+         chapter, rather than per room).
+
+         >>> APPENDED, NOT INSERTED, and that is the only rule this list has.
+         <<< A track's NUMBER is its position here and nothing else, so putting
+         one anywhere but the end renumbers every track after it and every room
+         in the game plays the wrong music. See src/cdaudio.h.
+
+         THIS TOOK THE SLOT cdaudio.h HAD PENCILLED IN FOR ASAG, which costs
+         nothing: that reservation was only ever "the next number after 8", and
+         it has moved to 10. Asag still borrows the courtyard's track 6.
+
+         44100 Hz 16-bit stereo like the rest — converted with
+         ffmpeg -y -i "leberch-creepy-511957.mp3" -ar 44100 -ac 2 -c:a pcm_s16le
+         (music/mp3_to_wav.py is NOT the tool: it is the sound-effect path and
+         always mixes to mono, which mkpsxiso would then silently upsample). -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\leberch-creepy-511957.wav"/>
 
 
 </iso_project>

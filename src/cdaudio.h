@@ -20,6 +20,20 @@
    note in cdaudio.c — the offset is a property of the TRACK, so it lives beside
    the track number here rather than at the call site in hadad.c. */
 #define CDAUDIO_STALKER_TRACK   8   /* Hadad's stalker music (20.0 s) */
+/* CHAPTER 3. leberch-creepy-511957, 120.0 s, and it is the CHAPTER's track
+   rather than any one room's: every Catacombs room plays it, with the Catacombs
+   ENTRY the one stated exception — that room is silent by design.
+
+   >>> THE RULE IS WRITTEN ONCE, IN main.c's STATE_LOADING, KEYED ON
+   area_is_catacombs(). <<< Not per room, because "every Catacombs room from here
+   on" is what was asked for and a per-room line is a thing to forget. A new
+   Chapter 3 room inherits the track by being added to area_is_catacombs() in
+   src/area_bank.c — which it must be anyway, or its textures are in the wrong
+   bank — and needs no music line of its own. A room that should be SILENT, or
+   should have its own track, is the exception and states itself there beside the
+   entry. See tools/ADDING_A_ROOM.txt STEP 6. */
+#define CDAUDIO_CATACOMBS_TRACK 9   /* the Catacombs (120.0 s), all rooms but
+                                       the Entry — see above               */
 /* ASAG'S ARENA. >>> IT BORROWS THE COURTYARD'S TRACK, AND IT IS SUPPOSED TO
    GIVE IT BACK. <<< Asag's opening starts music on its first subtitle, the way
    the Rabisu's reveal does, and there is no sixty-megabyte stereo master for
@@ -29,13 +43,15 @@
 
    THAT IS A PLACEHOLDER AND THE TWO FIGHTS CURRENTLY SOUND THE SAME. Giving
    Asag his own track is ONE line appended to the foot of disc.xml and CHANGING
-   THE 6 BELOW BACK TO 9. Nothing else: no call site mentions a number, they all
-   go through this name, which is why the name exists.
+   THE 6 BELOW TO 10. Nothing else: no call site mentions a number, they all go
+   through this name, which is why the name exists.
 
-   >>> SLOT 9 STAYS RESERVED FOR THAT. <<< The track NUMBER is a line's position
-   in disc.xml and nothing else, so the new track must be APPENDED after track 8
-   — inserted anywhere else it renumbers every track after it and every room in
-   the game plays the wrong music.
+   >>> THE RESERVED SLOT IS NOW 10, NOT 9. <<< The Catacombs took 9 in September
+   2026, which cost this nothing: the reservation was never about the number 9,
+   it was about the track being APPENDED. The track NUMBER is a line's position
+   in disc.xml and nothing else, so Asag's must go after the Catacombs' at the
+   foot of that file — inserted anywhere else it renumbers every track after it
+   and every room in the game plays the wrong music.
 
    It must be 44100 Hz 16-bit STEREO (Redbook). mkpsxiso accepts anything and
    silently converts, and what comes out of a mono source is upsampled mono;
@@ -50,8 +66,8 @@
    level-select jump into this room does not pass through the drop's own stop and
    would arrive with The Hatch's music still playing. */
 #define CDAUDIO_ASAG_TRACK      6   /* BORROWED from the courtyard — see above.
-                                       Slot 9 is still reserved; put a track
-                                       there and change this 6 to a 9.        */
+                                       Append his track to disc.xml and change
+                                       this 6 to a 10.                        */
 
 void cdaudio_init(void);
 /* loop = 1 repeats the track for as long as the room lasts; loop = 0 plays it

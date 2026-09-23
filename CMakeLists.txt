@@ -103,6 +103,8 @@ add_executable(horror_game
     src/area_bank.c
     src/catacombs_entry_mesh_collision.c
     src/catacombs_entry.c
+    src/up_down_maze_mesh_collision.c
+    src/up_down_maze.c
     src/sconce.c
     src/oil_dispenser.c
     src/catacomb_walk.c
@@ -278,6 +280,7 @@ set_source_files_properties(
     # Chapter 3's collision table, init-only like every other one here, and
     # the bank swap, which runs on an area boundary and nowhere else.
     src/catacombs_entry_mesh_collision.c
+    src/up_down_maze_mesh_collision.c
     src/area_bank.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )

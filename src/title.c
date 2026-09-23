@@ -145,6 +145,11 @@ static const char *const level_names[] = {
        walking through the mouth would. Jumping back OUT to any Chapter 1 or 2
        row restores them, by the same call. */
     "CATACOMBS ENTRY",
+    /* The UP DOWN MAZE, the chapter's second room. Reached in play only through
+       the Catacombs Entry's inner door, so this row is the way to test it
+       without walking the whole chapter - and like every other row it goes
+       through STATE_LOADING, which is what makes area_bank_sync() run. */
+    "UP DOWN MAZE",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -179,6 +184,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,
     STATE_LOADING,        /* ASAG ARENA */
     STATE_LOADING,        /* CATACOMBS ENTRY */
+    STATE_LOADING,        /* UP DOWN MAZE */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -211,6 +217,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_THE_HATCH,
     STATE_ASAG_ARENA,
     STATE_CATACOMBS_ENTRY,
+    STATE_UP_DOWN_MAZE,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

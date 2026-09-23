@@ -51,9 +51,28 @@ void catacombs_entry_upload_textures(void); /* room entry: pure LoadImage from R
 void catacombs_entry_init(void);            /* collision + floor zones + spawn */
 void catacombs_entry_draw(RenderContext *ctx);
 
-/* Arrival from the Outside Catacombs, and the only arrival there is: standing
-   just inside the tablet wall, facing north up the room. */
+/* Arrival from the Outside Catacombs: standing just inside the tablet wall,
+   facing north up the room. The only way IN to the chapter, and the room's
+   default spawn. */
 void catacombs_entry_spawn_south(void);
+
+/* Arrival back through the INNER DOOR at the east end of the burial hall, from
+   the Up Down Maze: standing in front of it, facing -X back down the hall. */
+void catacombs_entry_spawn_inner(void);
+
+/* Did this frame's Circle open the inner door? Reads AND CLEARS a one-shot flag
+   set inside catacombs_entry_interact_update(), which must therefore be called
+   first — main.c does both in that order. The door itself lives in that chain so
+   it shares the room's veto order and edge state; only the consequences (a
+   pending_area, a door animation, a music stop) belong to main.c. */
+int  catacombs_entry_inner_door_triggered(void);
+
+/* THE TWO NARROW UPLOADERS, for src/up_down_maze.c, which draws cobblestone and
+   the inner door and none of this room's other four textures. See the note at
+   their definitions for why a borrower gets these rather than the full uploader
+   above, and why it borrows rather than registering its own copies. */
+void catacombs_entry_upload_cobble(void);
+void catacombs_entry_upload_inner_door(void);
 
 /* One frame of the two things in here that answer Circle. `lock` is main's
    usual suppression (a menu is up, a cutscene owns the camera). Returns 1 if

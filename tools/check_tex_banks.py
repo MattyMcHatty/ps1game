@@ -90,7 +90,11 @@ AREAS = {
     "WEST_GARDEN": ["stables_upload_textures", "greenhouse_upload_textures",
                     "rafflesias_upload_textures"],
     "ASAG": ["asag_arena_upload_textures"],
-    "CATACOMBS": ["catacombs_entry_upload_textures"],
+    # Chapter 3. The Up Down Maze registers nothing of its own: its uploader
+    # calls the Catacombs Entry's two NARROW ones, so listing it here is what
+    # makes the walk below reach them from this area as well.
+    "CATACOMBS": ["catacombs_entry_upload_textures",
+                  "up_down_maze_upload_textures"],
 }
 
 BIT = {"MANSION": 1 << 0, "GARDEN": 1 << 1, "RABISU": 1 << 2,

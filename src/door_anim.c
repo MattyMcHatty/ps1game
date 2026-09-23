@@ -4,7 +4,10 @@
 #include <psxgte.h>
 #include <psxcd.h>
 #include "door_anim.h"
-#include "tim_slots.h"   /* TIM_TPAGE_GRNHSDR / TIM_CLUT_GRNHSDR */
+#include "tim_slots.h"   /* TIM_TPAGE_GRNHSDR / TIM_CLUT_GRNHSDR, and the
+                            catacomb inner door pair - both of those are
+                            ROOM ART, so both are headers here rather
+                            than CD reads */
 #include "sound.h"
 #include "world.h"   /* world_silence_monsters */
 /* DOOR_PANEL_FALL borrows Asag's arena for two things and only two: the mud
@@ -39,6 +42,71 @@
 #define GATE_SWING_END       (GATE_SWING_START + GATE_SWING_FRAMES)
 #define GATE_FADE_START      (GATE_SWING_END + HOLD_OPEN_FRAMES)
 #define GATE_TOTAL_FRAMES    (GATE_FADE_START + FADE_FRAMES)
+
+/* DOOR_PANEL_CATACOMB runs on the THIRD clock, and every number in it is from
+ * the brief rather than derived: the door is held SHUT for 1 SECOND, the leaf
+ * then opens over 3 SECONDS, the SOUND starts at 1 SECOND, and when the leaf
+ * stops the screen begins its fade to black. So, at 60fps:
+ *
+ *     frame   0   screen starts fading up from black, door SHUT and still
+ *     frame  30   screen fully up, door still shut
+ *     frame  60   SFX_CTCMBDR, and the leaf starts to move
+ *     frame 240   leaf wide open; fade to black begins
+ *     frame 300   black; STATE_LOADING takes over
+ *
+ * >>> THE SOUND AND THE SWING NOW START ON THE SAME FRAME, AND THAT IS WHERE
+ * THE PAUSE PUT THEM RATHER THAN A DECISION TO SYNC THEM. <<< The sound was
+ * always at 1 second — an absolute offset from the start of the transition, per
+ * the original brief — and the pause added afterwards is also 1 second, so the
+ * two landed together. Nothing depends on that coincidence: CAT_SFX_FRAME and
+ * CAT_HOLD_CLOSED_FRAMES are separate numbers and moving either one apart from
+ * the other is a one-line change.
+ *
+ * WHAT IS NOT IN THE BRIEF AND HAD TO BE CHOSEN IS THE FADE-IN. It was a
+ * judgement before the pause existed and the pause has made it an easy one: the
+ * door has to be VISIBLY shut and still for the pause to read as a pause, so the
+ * fade-in must finish inside it. 30 frames spends the first half of the second
+ * coming up out of black and leaves the second half on a lit, motionless door,
+ * which is the beat the brief asks for. At the shared 60 the whole pause would
+ * be spent fading up and the door would appear to start moving the instant it
+ * became visible — i.e. no pause at all, just a slower fade.
+ *
+ * (Before the pause, this fade-in was solving a different problem and the note
+ * here said so: the swing started at frame 0, so a 60-frame fade-in would have
+ * had the door already 41% open by the time it was visible — swing_angle() is
+ * an ease-OUT, so most of the travel is in the first third. 30 put it at 22%.
+ * That argument is now moot; the swing does not start until frame 60.)
+ *
+ * THERE IS STILL NO HOLD AT THE END, which is the one way this differs from the
+ * shared clock's shape now: no HOLD_OPEN after the swing. The brief puts the
+ * fade where the leaf stops. */
+#define CAT_FADE_IN_FRAMES     30  /* 0.5 s up from black, door SHUT and still */
+#define CAT_SFX_FRAME          60  /* 1.0 s: the sound, per the brief          */
+#define CAT_HOLD_CLOSED_FRAMES 60  /* 1.0 s shut and motionless before it moves */
+#define CAT_SWING_START       CAT_HOLD_CLOSED_FRAMES                /*  60 */
+#define CAT_SWING_FRAMES      180  /* 3.0 s to swing the leaf fully open       */
+#define CAT_FADE_START       (CAT_SWING_START + CAT_SWING_FRAMES)   /* 240 */
+#define CAT_TOTAL_FRAMES     (CAT_FADE_START + FADE_FRAMES)         /* 300 */
+
+/* AND ITS DOLLY IS HALF THE SPEED OF EVERY OTHER VARIANT'S. The shared ZOOM_MAX
+ * pushes the image 1.0x -> 1.4x over the final ZOOM_FRAMES; this one goes
+ * 1.0x -> 1.2x over the same window, so the camera closes on the door at half
+ * the rate. 307 is 256 + (358 - 256) / 2, i.e. exactly half the travel in
+ * exactly the same time, which is what halving a speed means when the window it
+ * happens in is fixed.
+ *
+ * >>> IT IS THE TRAVEL THAT WAS HALVED, NOT THE WINDOW STRETCHED, and the two
+ * are not the same picture even though both halve the rate. <<< Doubling
+ * ZOOM_FRAMES to 240 would also give half the speed and would still reach 1.4x,
+ * but the dolly would then begin on frame 60 — the same frame the door starts to
+ * move — and the camera would be drifting forward through the whole of the
+ * swing rather than pushing in over the last stretch of it. Every other variant
+ * in this file holds still and then moves; keeping that shape and shortening the
+ * move is the smaller change and the one that leaves ZOOM_FRAMES' "the dolly
+ * always lands on the fade-out" invariant alone. If the wanted feel turns out to
+ * be the longer, further push instead, that is a per-variant zoom_frames()
+ * beside zoom_max() below and nothing else. */
+#define CAT_ZOOM_MAX         307   /* ~1.2x, half of ZOOM_MAX's travel         */
 
 /* Slow camera dolly toward the door over the last ZOOM_FRAMES: the door image
  * scales from 1.0x up to ZOOM_MAX/256 about screen centre. */
@@ -165,6 +233,39 @@
 #define GH_V_TOP         0
 #define GH_V_BOT        63
 
+/* DOOR_PANEL_CATACOMB, the doors inside Chapter 3. The WOOD variant's geometry —
+ * one leaf, hinged on its RIGHT edge, the whole door swinging — with its own
+ * clock (above), its own sound and its own width.
+ *
+ * IT IS NARROW, WHERE THE GATE AND THE GREENHOUSE DOOR ARE BROAD, and the number
+ * is solved the way the exit door's was rather than picked: the door the player
+ * walks up to in the mesh spans 200 wide by 400 tall (x[-300], z[-100,100],
+ * y[-1400,-1000] at the Up Down Maze's west wall, and the same proportions at
+ * the Catacombs Entry's east end). The panel's height is DOOR_HALF_H*2 = 200, so
+ * matching those proportions gives 200 * 200/400 = 100 across. A single leaf's
+ * closed width IS its panel width, so CAT_PANEL_W is 100 — a tall, narrow slot
+ * of a door, which is what a catacomb has and what the player has just been
+ * standing in front of. At the shared PANEL_W of 80 it read very slightly
+ * squarer than the real thing; at the gate's 96 it read like a house door.
+ *
+ * The final dolly takes the free edge to 100 * CAT_ZOOM_MAX/256 = 120 from the
+ * hinge, comfortably inside the 320-wide screen — and further inside it than
+ * any other variant, because this one's dolly is half the others' (see that
+ * define). At the shared ZOOM_MAX it would be 140, which also fitted.
+ *
+ * ITS TEXTURE IS A FULL 128x128 TILE at Voff 0, so U and V both run 0..127 like
+ * the wooden door's and unlike the greenhouse door's 0..63. That is checked
+ * rather than assumed — tools/VRAM_MAP.txt lists catacomb inner door.tim as
+ * 8bpp, 128x128, at (832,0) — because a hand-written UV in this file that does
+ * not match its TIM's real size is the trap the greenhouse door's note records,
+ * and here the next 128 texels of that page are whatever the last room left
+ * there. */
+#define CAT_PANEL_W    100
+#define CAT_U_FREE       0
+#define CAT_U_HINGE    127
+#define CAT_V_TOP        0
+#define CAT_V_BOT      127
+
 /* ==========================================================================
    DOOR_PANEL_FALL — the drop into Asag's arena. NOT A DOOR.
    ==========================================================================
@@ -241,7 +342,7 @@
 #define FALL_TOTAL_FRAMES    FALL_RUSH_FRAMES
 #define FALL_FADE_START      (FALL_TOTAL_FRAMES - FALL_FADE_OUT_FRAMES)  /* 105 */
 
-#define DOOR_PANEL_COUNT  7
+#define DOOR_PANEL_COUNT  8
 
 static int32_t  anim_timer  = 0;
 static int      anim_active = 0;
@@ -333,6 +434,23 @@ void door_anim_load_assets(void) {
        be discovered by reading the file back off the disc. */
     panel_tpage[DOOR_PANEL_GREENHOUSE] = TIM_TPAGE_GRNHSDR;
     panel_clut [DOOR_PANEL_GREENHOUSE] = TIM_CLUT_GRNHSDR;
+    /* The catacomb inner door: HEADER ONLY too, on the greenhouse door's
+       argument exactly. Its texture is the Catacombs Entry's own room art at
+       x832 y0 - a page con_tile, double_door, drain, opn_drwr, plinth, stables
+       wood and xt_dr_cg all stream over - so a copy put up here at startup would
+       be gone the first time the player walked into the conservatory, long
+       before Chapter 3 ever came up.
+
+       It does not need one. This panel is only ever drawn on a transition
+       BETWEEN two Chapter 3 rooms, and every one of those rooms uploads catacomb
+       inner door.tim on entry (catacombs_entry_upload_textures owns it;
+       up_down_maze_upload_textures calls catacombs_entry_upload_inner_door for
+       partly this reason). So whichever side the player triggers from, the
+       pixels are already in VRAM - and a tpage/clut is a pair of compile-time
+       constants, not something that has to be discovered by reading the file
+       back off the disc. */
+    panel_tpage[DOOR_PANEL_CATACOMB] = TIM_TPAGE_CTCMBDR;
+    panel_clut [DOOR_PANEL_CATACOMB] = TIM_CLUT_CTCMBDR;
     /* The outer door is the default/fallback; require at least it to draw. */
     if (ok) tex_loaded = 1;
 }
@@ -378,13 +496,25 @@ void door_anim_start(int variant) {
    never read — the fall branch of door_anim_draw returns before swing_angle()
    is reached. Only its fade and its total matter here, and they matter because
    door_anim_finished() is what hands off to STATE_LOADING. */
+/* FOUR CLOCKS NOW, and the catacomb door brought a fifth accessor with it:
+   fade_in_frames(). Every variant before it faded up over the shared 60 and
+   started its swing at or after that frame, so the fade-in was only ever read by
+   the intensity ramp and never had to differ from it; this one swings THROUGH
+   its own fade-in, so the two numbers come apart. See CAT_FADE_IN_FRAMES. */
 static int is_gate(void)             { return anim_variant == DOOR_PANEL_GATE; }
 static int is_fall(void)             { return anim_variant == DOOR_PANEL_FALL; }
-static int32_t swing_start(void)     { return is_gate() ? GATE_SWING_START  : SWING_START;  }
-static int32_t swing_frames(void)    { return is_gate() ? GATE_SWING_FRAMES : SWING_FRAMES; }
-static int32_t fade_start(void)      { return is_fall() ? FALL_FADE_START :
+static int is_cat(void)              { return anim_variant == DOOR_PANEL_CATACOMB; }
+static int32_t swing_start(void)     { return is_cat()  ? CAT_SWING_START   :
+                                              is_gate() ? GATE_SWING_START  : SWING_START;  }
+static int32_t swing_frames(void)    { return is_cat()  ? CAT_SWING_FRAMES  :
+                                              is_gate() ? GATE_SWING_FRAMES : SWING_FRAMES; }
+static int32_t fade_in_frames(void)  { return is_cat()  ? CAT_FADE_IN_FRAMES
+                                                        : FADE_IN_FRAMES;                   }
+static int32_t fade_start(void)      { return is_fall() ? FALL_FADE_START   :
+                                              is_cat()  ? CAT_FADE_START    :
                                               is_gate() ? GATE_FADE_START   : FADE_START;   }
 static int32_t total_frames(void)    { return is_fall() ? FALL_TOTAL_FRAMES :
+                                              is_cat()  ? CAT_TOTAL_FRAMES  :
                                               is_gate() ? GATE_TOTAL_FRAMES : TOTAL_FRAMES; }
 
 void door_anim_update(void) {
@@ -394,6 +524,17 @@ void door_anim_update(void) {
        and the FALL has none: the drop in the yard that leads into it is silent
        too, and the brief asks for the rush of the plane and nothing over it. */
     if (is_fall()) return;
+    /* THE CATACOMB DOOR'S SOUND FRAME IS NOT ITS FADE-IN FRAME. Every other
+       variant plays on the frame the door becomes fully visible, because for
+       those two that is the same frame; this one comes up out of black at 30,
+       holds shut, and only starts to move at 60. The brief states the sound as
+       an absolute 1 second from the start of the transition, so CAT_SFX_FRAME
+       says that and nothing else. It currently coincides with the end of the
+       pause; see the note by that define for why nothing relies on it. */
+    if (is_cat()) {
+        if (anim_timer == CAT_SFX_FRAME) sound_play(SFX_CTCMBDR);
+        return;
+    }
     if (anim_timer == FADE_IN_FRAMES)
         sound_play(is_gate() ? SFX_GATE : SFX_DOOR);
 }
@@ -422,15 +563,21 @@ static int32_t swing_angle(void) {
     return eased * 1024 / 256;                 /* 0..1024 */
 }
 
+/* How far the dolly travels, per variant. ZOOM_FRAMES is shared — every variant
+ * moves over the same final two seconds — so this constant alone is the dolly's
+ * SPEED. See CAT_ZOOM_MAX for why the catacomb door halves this rather than
+ * stretching the window. */
+static int32_t zoom_max(void) { return is_cat() ? CAT_ZOOM_MAX : ZOOM_MAX; }
+
 /* Camera dolly: door scale about screen centre, 256 = 1.0x. Ramps from 1.0x up
- * to ZOOM_MAX over the final ZOOM_FRAMES — measured back from whichever total
+ * to zoom_max() over the final ZOOM_FRAMES — measured back from whichever total
  * this variant runs to, so the dolly always lands on the fade-out. */
 static int32_t zoom_factor(void) {
     int32_t zoom_start = total_frames() - ZOOM_FRAMES;
     if (anim_timer <= zoom_start) return 256;
     int32_t zt = anim_timer - zoom_start;
     if (zt > ZOOM_FRAMES) zt = ZOOM_FRAMES;
-    return 256 + (ZOOM_MAX - 256) * zt / ZOOM_FRAMES;
+    return 256 + (zoom_max() - 256) * zt / ZOOM_FRAMES;
 }
 
 /* ----------------------------------------------------------------- rendering */
@@ -574,8 +721,9 @@ void door_anim_draw(RenderContext *ctx) {
      * 128 -> 0 over the fade-out. With the black background, a fully-dark door
      * means a fully-black screen. */
     int32_t intensity;
-    if (anim_timer < FADE_IN_FRAMES) {
-        intensity = 128 * anim_timer / FADE_IN_FRAMES;   /* 0 -> 128 */
+    int32_t fade_in = fade_in_frames();
+    if (anim_timer < fade_in) {
+        intensity = 128 * anim_timer / fade_in;          /* 0 -> 128 */
     } else if (anim_timer > fade_start()) {
         int32_t fade = (anim_timer - fade_start()) * 256 / FADE_FRAMES;
         if (fade > 256) fade = 256;
@@ -593,11 +741,15 @@ void door_anim_draw(RenderContext *ctx) {
      * closed door stays centred, and the free edge rotates away into the screen
      * - its X collapsing toward the hinge as it foreshortens vertically.
      *
-     * TWO VARIANTS SHARE THIS BODY and differ in how wide the leaf is, which
+     * THREE VARIANTS SHARE THIS BODY and differ in how wide the leaf is, which
      * texture it carries, and WHICH EDGE THE HINGE IS ON:
-     *   wooden house door - PANEL_W,    hinged on its RIGHT edge
-     *   greenhouse door   - GH_PANEL_W, hinged on its LEFT edge (20% broader
+     *   wooden house door - PANEL_W,     hinged on its RIGHT edge
+     *   greenhouse door   - GH_PANEL_W,  hinged on its LEFT edge (20% broader
      *                       too - see the note by that define)
+     *   catacomb door     - CAT_PANEL_W, hinged on its RIGHT edge, and NARROWER
+     *                       than either (see the note by that define). It runs
+     *                       on its own clock as well, but that is swing_start
+     *                       and friends' business, not this branch's.
      * `hinge_sign` is +1 for a right-hand hinge and -1 for a left-hand one, and
      * is the only thing the two paths differ by geometrically: the hinge moves
      * to the other side of centre and the free edge travels the other way. The
@@ -607,14 +759,19 @@ void door_anim_draw(RenderContext *ctx) {
      *
      * UVs are selected per variant rather than assumed, so a third single door
      * with a differently-shaped source stays a two-line change here. */
-    if (anim_variant == DOOR_PANEL_WOOD || anim_variant == DOOR_PANEL_GREENHOUSE) {
+    if (anim_variant == DOOR_PANEL_WOOD || anim_variant == DOOR_PANEL_GREENHOUSE ||
+        anim_variant == DOOR_PANEL_CATACOMB) {
         int     gh      = (anim_variant == DOOR_PANEL_GREENHOUSE);
-        int32_t w       = gh ? GH_PANEL_W : PANEL_W;
-        int     u_free  = gh ? GH_U_FREE  : WOOD_U_FREE;
-        int     u_hinge = gh ? GH_U_HINGE : WOOD_U_HINGE;
-        int     v_top   = gh ? GH_V_TOP   : WOOD_V_TOP;
-        int     v_bot   = gh ? GH_V_BOT   : WOOD_V_BOT;
-        int32_t hinge_sign = gh ? -1 : 1;   /* -1 = hinged on the LEFT edge */
+        int     cat     = (anim_variant == DOOR_PANEL_CATACOMB);
+        int32_t w       = gh ? GH_PANEL_W : cat ? CAT_PANEL_W : PANEL_W;
+        int     u_free  = gh ? GH_U_FREE  : cat ? CAT_U_FREE  : WOOD_U_FREE;
+        int     u_hinge = gh ? GH_U_HINGE : cat ? CAT_U_HINGE : WOOD_U_HINGE;
+        int     v_top   = gh ? GH_V_TOP   : cat ? CAT_V_TOP   : WOOD_V_TOP;
+        int     v_bot   = gh ? GH_V_BOT   : cat ? CAT_V_BOT   : WOOD_V_BOT;
+        /* -1 = hinged on the LEFT edge. The catacomb door takes the wooden
+           door's RIGHT hinge: nothing in the brief asks otherwise, and a right
+           hinge is this file's default for a single leaf. */
+        int32_t hinge_sign = gh ? -1 : 1;
 
         int32_t swing  = swing_angle();
         int32_t cos_t  = icos(swing);
