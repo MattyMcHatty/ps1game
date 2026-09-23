@@ -83,6 +83,8 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\LASER.VAG;1",
     "\\SND\\GLUG.VAG;1",
     "\\SND\\CTCMBDR.VAG;1",
+    "\\SND\\CRWLSCRM.VAG;1",
+    "\\SND\\CRWLWHSP.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -132,7 +134,12 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_STEP1]      = SND_RESIDENT,   /* the player walks in every room        */
     [SFX_STEP2]      = SND_RESIDENT,
     [SFX_SLAM]       = SND_RESIDENT,   /* the boss launching a shockwave        */
-    [SFX_SPDR_WLK]   = SND_BANK_HOUSE | SND_BANK_GARDEN,  /* the flower's bite */
+    /* THREE banks. The spider's scuttle in the house, the Rafflesia's bite in
+       the garden, and the CRAWLER's scuttle in the Catacombs (src/crawler.c).
+       A third 11.4 KB copy into a bank that had ~150 KB spare, and it is why
+       the crawler needed TWO new clips and not three: reusing this one is
+       deliberate, not an oversight. */
+    [SFX_SPDR_WLK]   = SND_BANK_HOUSE | SND_BANK_GARDEN | SND_BANK_CATACOMBS,
     [SFX_SPIT]       = SND_BANK_HOUSE,
     [SFX_MCHNE]      = SND_BANK_HOUSE,
     /* >>> THESE THREE WERE SND_RESIDENT AND DID NOT NEED TO BE. <<< They fire
@@ -280,6 +287,8 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        wanted and a second bit would cost its own copy for nothing. */
     [SFX_GLUG]       = SND_BANK_CATACOMBS,
     [SFX_CTCMBDR]    = SND_BANK_CATACOMBS,
+    [SFX_CRWL_SCRM]  = SND_BANK_CATACOMBS,
+    [SFX_CRWL_WHSP]  = SND_BANK_CATACOMBS,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -490,6 +499,34 @@ static int sfx_channel(SfxID id) {
        2139, i.e. it is an ordinary one-shot and will not move that voice's
        repeat address either. */
     if (id == SFX_CTCMBDR)     return 14;   /* SFX_PULL's (GARDEN)  one-shot   */
+    /* ---- THE CRAWLER'S TWO CLIPS, AND THE CHAPTER HAS RUN OUT OF 13 AND 14.
+       Both of the voices this chapter has been borrowing are now spoken for by
+       SND_BANK_CATACOMBS effects of its own - the glug on 13, the door on 14 -
+       so the eviction argument those two lean on no longer covers a third
+       catacombs clip. A crawler waking while the player pours oil, or screaming
+       over the door closing behind them, are both ordinary moments.
+
+       SO THEY TAKE 15 AND 9, on the same argument one voice further out:
+         15  SFX_HISS (GARDEN) and SFX_LASER (ASAG)
+          9  SFX_NINURTA (INTRO) and SFX_GRIND (GARDEN|HOUSE)
+       Not one of those four is resident, and none of GARDEN, ASAG, INTRO or
+       HOUSE can be loaded while SND_BANK_CATACOMBS is, so none of them can
+       sound down here at all.
+
+       AND THE POOL WAS NOT AN OPTION FOR EITHER. The scream's raw slot would be
+       FIRST_VOICE + (51 % 8) = 4 and the whisper's FIRST_VOICE + (52 % 8) = 5,
+       and 5 is SFX_GR_SHOT's - resident, and fired as fast as the player can
+       pull the trigger. The whisper is an idle crawler's ONLY tell, which is the
+       Living Statue's grind argument above almost word for word.
+
+       NEITHER 15 NOR 9 IS POISONED. Checked with STEP 6's script rather than
+       assumed: hiss.vag carries its loop flag on block 787 of 788, grind.vag on
+       695 of 696 and ninurta.vag on 1377 of 1378 - all ordinary one-shots, so
+       none of them has ever moved either voice's repeat address. The two new
+       clips are one-shots on the same test (748/749 and 717/718), so they do
+       not poison these voices for anyone borrowing them later either. */
+    if (id == SFX_CRWL_SCRM)   return 15;   /* SFX_HISS's    (GARDEN) one-shot */
+    if (id == SFX_CRWL_WHSP)   return  9;   /* SFX_NINURTA's (INTRO)  one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

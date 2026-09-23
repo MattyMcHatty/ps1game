@@ -15,6 +15,7 @@
 #include "demondog.h"
 #include "zombie.h"
 #include "spider.h"
+#include "crawler.h"
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
@@ -229,6 +230,20 @@ static void hell_burn_tick(void) {
         if (!s->active || s->state == SPD_DEAD || s->area != current_area) continue;
         if (HIT(s->x, s->y + SPD_Y_OFFSET, s->z, SPD_HALF_W, SPD_HALF_H))
             spider_damage(s, spider_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
+    }
+    /* THE CRAWLER, AND THIS IS THE WEAPON IT IS AFRAID OF. 2x to DMG_HOLY, so
+       the lantern's tick against it is 2 rather than 1 and it dies in three
+       seconds of held flame instead of six — half what the walking dead take
+       off their 3x, and the second enemy in the game the lantern is a real
+       weapon against rather than a torch. Note what that costs the player in
+       this chapter: the same lantern is the only thing pushing the Catacombs'
+       fog back, so burning oil to kill a crawler is burning the oil that lets
+       you see the next one coming. */
+    for (i = 0; i < crawler_count; i++) {
+        Crawler *s = &crawlers[i];
+        if (!s->active || s->state == CRW_DEAD || s->area != current_area) continue;
+        if (HIT(s->x, s->y + CRW_Y_OFFSET, s->z, CRW_HALF_W, CRW_HALF_H))
+            crawler_damage(s, crawler_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
     }
     for (i = 0; i < tentacle_count; i++) {
         Tentacle *t = &tentacles[i];

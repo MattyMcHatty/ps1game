@@ -221,6 +221,64 @@ Voff >= 128. That is where the free space is.
     so its PIXELS occupy x[640,672) all the way down to y=512 and a CLUT placed
     there lands inside them. vram_map.py catches it; put the line at x[256,512).
 
+3b-quater. A MULTI-FRAME SHEET, AND THE 256-ROW WALL YOU WILL HIT FIRST.
+    An enemy whose art arrives as ONE sheet of frames (the Crawler, Sept 2026:
+    a 256x256 PNG quartered into four) looks like it avoids the whole slot
+    problem — one texture, one registration, one CLUT, no per-frame hunting. It
+    does, right up to the point where the sheet is taller than 128 rows.
+
+    >>> AN 8BPP TEXTURE 256 ROWS TALL CAN ONLY START AT VRAM y 0 OR 256. <<<
+    V is eight bits and it is the row WITHIN a 256-tall tpage, so the rule is
+        (y % 256) + height <= 256
+    and nothing else in VRAM changes it. y=0 is solid art across x[320,960),
+    and y=256 plus 256 rows runs through the CLUT band at y=480. There is
+    therefore NO legal home in this game for a 256-tall sprite sheet and there
+    is not going to be one. The same arithmetic caps a 96-row sheet at y<=160
+    and a 192-row one at y<=64, which is why the free y[384,480) band under the
+    HUD suits 96x96 frames (3b-ter) and nothing larger.
+
+    So a four-frame enemy has exactly three options, and they are the same
+    three 3b-bis and 3b-ter describe, one level up:
+      - 2x2 the frames into 128 rows, i.e. quarter the linear resolution of a
+        256x256 sheet.
+      - SPLIT THE SHEET ACROSS TWO 128-ROW SLOTS at full resolution, which
+        needs a second 128-word donor. This is what the Crawler ships as: two
+        256x128 halves, one over the spider/flower pair at x[320,448) y128 and
+        one over the ZOMBIE pair at x[704,832) y128.
+      - squash the frames to a non-square aspect and stretch them back on the
+        quad. Costs the same texels and looks worse; do not, unless the body
+        genuinely is that shape.
+
+    >>> "THERE IS NO SECOND DONOR" IS USUALLY "THERE IS NO SECOND donor THAT
+    ALREADY HAS AN UPLOADER". <<< The crawler was built the first way, on the
+    finding that every candidate slot was either drawn INSIDE its own chapter
+    (graveolver and stnd_rnds at x352/x416 y256 are inventory icons) or had no
+    way to be put back. That second class is not a fact about VRAM, it is a
+    fact about the CODE: zombie_sleep and zombie_alert were a startup-only
+    LoadImage, so overwriting them was permanent for the run and a title-screen
+    load back into the mansion would have drawn garbage zombies. Giving them
+    texmgr registrations and a zombies_upload_textures() is about twenty lines
+    (src/zombie.c) and it converts the second largest contiguous hole in VRAM
+    from untouchable into an ordinary time-share. Check WHY a slot is not
+    available before accepting that it is not.
+
+    THE PRICE OF CONVERTING ONE: two texmgr entries against TEXMGR_MAX, and the
+    module's textures become resident in whatever bank you tag them with — the
+    zombies' 20 KB moved the MANSION peak 456 -> 476 KB and free-at-rest
+    389 -> 367 KB. Run py tools/heap_budget.py after, not before.
+
+    TWO SHEETS MEAN TWO CLUTS, AND THAT IS AN ANIMATION BUG WAITING. png_to_tim
+    quantises each file it is handed independently, so the frames in half A and
+    the frames in half B land on different 256-colour palettes and the cycle
+    shifts colour every time it crosses between them. Quantise the WHOLE sheet
+    once, with the transparent-pixel sentinel already substituted, then cut the
+    halves out of the result: each conversion then sees at most 256 distinct
+    colours and reproduces them exactly. Commit the halves beside the original.
+
+    Take the trade honestly and WRITE THE REASON DOWN where the texture ships
+    (disc.xml) and where the slot is claimed (tools/vram_map.py). "Why is this
+    enemy lower-res than its art" is otherwise unanswerable six months later.
+
 3e. Regenerate the map and CHECK IT:
 
       py tools\vram_map.py | Out-File -Encoding utf8 tools\VRAM_MAP.txt
@@ -778,3 +836,44 @@ In-game (needs an emulator; say so plainly if you have not run it):
 
    Pick the grid from the sprite's ASPECT, not from a round number: splitting a
    1:2 body 2 x 2 leaves the height limit exactly where it was and buys nothing.
+
+14. AN ENEMY THAT IS DRAWN, TAKES DAMAGE, DIES CORRECTLY — AND NEVER MOVES.
+   The Crawler shipped like this and it had TWO independent causes, either of
+   which produces that exact symptom on its own. Both are worth knowing because
+   the symptom points at neither.
+
+   >>> FIRST: STEP 7's "ADD update_<slug>s() AT EVERY update_zombies() CALL
+   SITE" DOES NOT COVER A ROOM THAT HAS NO ENEMY UPDATES YET. <<< Both
+   Catacombs rooms had none — Chapter 3 had no monsters when they were built,
+   and both branches said so in as many words — so a sweep keyed on the
+   existing pattern added the call in thirty-one places and missed the only two
+   that mattered. Damage came off the weapons directly and the draw came off
+   the room, so everything EXCEPT the updater worked, which is what makes this
+   read as an AI bug rather than a wiring one. Check the ROOM, not the pattern:
+   go to the destination room's branch in update_current_area and look.
+
+   >>> SECOND: THE PLAYER'S EYE IS 40 UNITS ABOVE EVERY FLOOR IT SHARES WITH AN
+   ENEMY. <<< apply_height() ends with `target -= 40`, a floor standoff applied
+   to the PLAYER ONLY; apply_ddog_height, which every enemy uses, has no
+   equivalent. So cam_y is permanently 40 above an enemy's anchor on the same
+   floor. Any test of the form "is the player at or below me" — a wake radius
+   that deliberately does not look upward, a ledge check, a same-storey test —
+   is therefore FALSE ON EVERY FRAME OF THE GAME if it is written as
+   `player_y >= enemy_y`. It needs a tolerance, and the honest one is the
+   enemy's own body height above its anchor (CRW_WAKE_ABOVE), not a magic 50.
+   The separation such a test actually has to reject is a whole storey — 1000
+   units in the Up Down Maze — so there is a factor of twenty-five of daylight
+   between the two cases and no reason to cut it fine.
+
+   This is the same family as the contact-reach bug in STEP 4 ("the player's
+   eye sits above the enemy's body") and it has now cost two enemies. When a
+   test compares an enemy's Y against the player's, write down which of the two
+   height functions each side came from before choosing the comparison.
+
+15. FOUR FRAMES OF ANIMATION AND NOTHING EVER SHOWS THE LAST THREE. Two of the
+   crawler's frames are chosen by `anim_tick / RATE & (FRAMES-1)`, which is
+   correct only while FRAMES is a power of two, and anim_tick is deliberately
+   ticked ONLY on frames the enemy actually travelled — so a body pinned
+   against geometry stops animating as well as falling silent, which is what
+   you want. Tie the two to the same flag (`moved`) rather than to a timer, or
+   a stuck enemy scuttles on the spot forever.

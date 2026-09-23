@@ -238,6 +238,22 @@
                      it plays on are in Chapter 3, so one bank tag is enough —
                      unlike GATE.VAG, which needed two. -->
                 <file name="CTCMBDR.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\ctcmbdr.vag"/>
+                <!-- CHAPTER 3's MONSTER: the Crawler's two clips (src/crawler.c).
+                     The scream fires on waking, at the top of each fresh rush
+                     after a retreat, and on death; the whisper is re-triggered
+                     on an interval while the player stands inside an idle
+                     crawler's listening radius. 1.90 s and 1.82 s at the house
+                     11025, so 12,032 + 11,520 SPU bytes.
+
+                     ITS THIRD SOUND IS NOT HERE. The crawler walks on
+                     SPDRWLK.VAG above: that entry's sfx_bank mask simply gained
+                     SND_BANK_CATACOMBS, which is an 11,712-byte third copy of a
+                     sample already on the disc rather than a fourth file. The
+                     catacombs bank therefore goes 38,400 -> 73,664, against a
+                     region whose ceiling BOSS still sets at 190,336, so `spare`
+                     does not move off 46,896 for any of this. -->
+                <file name="CRWLSCRM.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\crwlscrm.vag"/>
+                <file name="CRWLWHSP.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\crwlwhsp.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -1016,6 +1032,47 @@
                  note at the head of src/oil_dispenser.h. -->
             <file name="OILDISP.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\oil_dispenser.smd"/>
             <file name="OILCNTNR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\oil_container.tim"/>
+
+            <!-- THE CRAWLER, the chapter's first MONSTER (src/crawler.c). Four
+                 animation frames, read in the order top-left, top-right,
+                 bottom-left, bottom-right. An idle crawler holds on the first; a
+                 moving one cycles all four.
+
+                 TWO FILES FOR ONE SHEET, AND THE SPLIT IS A VRAM LIMIT RATHER THAN
+                 A CHOICE. The art is one 256x256 image and its frames are 128x128,
+                 but an 8bpp texture 256 rows tall cannot be placed anywhere in this
+                 game's VRAM: V is eight bits, so a texture has to satisfy
+                 y%256 + height &lt;= 256, i.e. start at y 0 or y 256 - and y=0 is
+                 solid art right across x[320,960) while y=256 runs into the CLUT
+                 band at 480. So it ships as two 256x128 halves, each holding two
+                 full-resolution frames side by side.
+
+                 THEY SHARE ONE PALETTE. png_to_tim quantises each file it is given
+                 independently, so converting the halves separately would put the
+                 four frames on two different 256-colour palettes and the animation
+                 would shift colour every time it crossed from frame 1 to frame 2.
+                 The halves in textures/catacombs/ are pre-quantised against a
+                 single master palette taken over the whole sheet (with the
+                 transparent-pixel sentinel already baked in), so each conversion
+                 sees at most 256 distinct colours and reproduces them exactly.
+                 crawler.png is the untouched original; both halves are committed
+                 beside it so the conversion stays reproducible.
+
+                 THEIR VRAM PAGES are two pairs that were already time-shared, or
+                 were made so for this:
+                   crawler_a (frames 0,1) -> the SPIDER/RAFFLESIA pair, x[320,448)
+                                             y128. Already a two-way share.
+                   crawler_b (frames 2,3) -> the ZOMBIE pair, x[704,832) y128.
+                 The zombie pair was NOT borrowable before this: its two sprites
+                 were a startup-only LoadImage with no uploader, so overwriting them
+                 was permanent for the run and a title-screen load back into the
+                 mansion would have drawn garbage zombies. zombies_upload_textures()
+                 (src/zombie.c) is what makes that restore real, and main.c streams
+                 exactly one of the three enemies' art into these slots on every
+                 room entry. Nothing here leans on the chapter being one-way.
+                 tools/vram_map.py records all six overlaps. -->
+            <file name="CRAWLRA.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\crawler_a.tim"/>
+            <file name="CRAWLRB.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\crawler_b.tim"/>
         </dir>
 
         </directory_tree>

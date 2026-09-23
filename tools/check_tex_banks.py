@@ -77,6 +77,16 @@ AREAS = {
         # main.c streams the spider pair into every room but the flower rooms
         # and the arena.
         "spiders_upload_textures",
+        # ...and the ZOMBIE pair, on its own line because it is its own pair of
+        # slots (x704/x768 y128, which the crawler's second sheet takes). It is
+        # listed under MANSION and nowhere else, and that is exact rather than
+        # approximate: main.c gates the call on
+        # area_bank_of(pending_area) & TEXBANK_MANSION, so it genuinely does not
+        # run in the garden, the arena or the Catacombs. Widening that gate
+        # means widening this list AND the mask in zombies_load_textures, which
+        # would make ~34 KB of zombie sprites resident in banks that never draw
+        # one.
+        "zombies_upload_textures",
     ],
     "GARDEN": [
         "garden_stairs_upload_textures", "fountain_square_upload_textures",
@@ -93,8 +103,13 @@ AREAS = {
     # Chapter 3. The Up Down Maze registers nothing of its own: its uploader
     # calls the Catacombs Entry's two NARROW ones, so listing it here is what
     # makes the walk below reach them from this area as well.
+    # main.c streams the CRAWLER's sheet into both Catacombs rooms, in the same
+    # line and on the same terms that it streams the spider pair everywhere else
+    # and the flowers into the garden rooms — one enemy's art per room entry into
+    # the shared x320 y128 slot.
     "CATACOMBS": ["catacombs_entry_upload_textures",
-                  "up_down_maze_upload_textures"],
+                  "up_down_maze_upload_textures",
+                  "crawlers_upload_textures"],
 }
 
 BIT = {"MANSION": 1 << 0, "GARDEN": 1 << 1, "RABISU": 1 << 2,

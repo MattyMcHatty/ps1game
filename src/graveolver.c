@@ -15,6 +15,7 @@
 #include "demondog.h"
 #include "zombie.h"
 #include "spider.h"
+#include "crawler.h"
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
@@ -170,6 +171,18 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 4; best_idx = i;
         }
     }
+    /* The Catacombs' crawler. Aimed at wherever it happens to be — the circle
+       test is given the body's real centre, so one clinging to a wall is shot
+       off it exactly as a grounded one is shot. */
+    for (i = 0; i < crawler_count; i++) {
+        Crawler *s = &crawlers[i];
+        if (!s->active || s->state == CRW_DEAD || s->area != current_area) continue;
+        if (weapon_aim_in_circle(s->x, s->y + CRW_Y_OFFSET, s->z,
+                            CRW_HALF_W, CRW_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 11; best_idx = i;
+        }
+    }
     for (i = 0; i < tentacle_count; i++) {
         Tentacle *t = &tentacles[i];
         if (!t->active || t->health <= 0 || t->area != current_area) continue;
@@ -309,6 +322,16 @@ static void graveolver_fire(void) {
     } else if (best_kind == 4) {
         spider_damage(&spiders[best_idx],
                       spider_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 11) {
+        /* A CRAWLER. Its weakness table's one entry is DMG_HOLY and no round
+           this gun chambers carries that type, so every shot does the flat 1 —
+           the table is asked all the same, the way every other enemy's is, so
+           that a second entry reaches the gun without anyone coming back here.
+           Six rounds to kill, and each one also sends an advancing crawler into
+           its retreat (see crawler_damage), which is what makes the gun the
+           tool for keeping one off you rather than the tool for killing it. */
+        crawler_damage(&crawlers[best_idx],
+                       crawler_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 6) {
         /* 1 from a Standard Round, 2 from a Flame Round (its weakness table
            doubles DMG_FLAME) — so four shots to kill, or two. */

@@ -38,6 +38,7 @@
 #include "demondog.h"
 #include "zombie.h"
 #include "spider.h"
+#include "crawler.h"
 #include "web.h"
 #include "menu.h"
 #include "hud.h"
@@ -204,6 +205,7 @@ void reset_game(RenderContext *ctx) {
     demon_dogs_reset();
     zombies_reset();
     spiders_reset();
+    crawlers_reset();
     rafflesias_reset();
     mushrooms_reset();
     living_statues_reset();
@@ -468,6 +470,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_2F_HALL && trick_drawers_puzzle_active()) {
         update_zombies();       /* enemies keep chasing/attacking during the puzzle */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         update_rafflesias();    /* ...and the garden flowers keep gripping */
         update_mushrooms();     /* ...and the Mushroom Head keeps hunting  */
@@ -483,6 +486,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_KITCHEN_DINING && stove_puzzle_active()) {
         update_zombies();
         update_spiders();
+        update_crawlers();
         update_rabisus();
         update_rafflesias();
         update_mushrooms();
@@ -513,6 +517,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_KEYSTONE_MAZE && keystone_plinths_active()) {
         update_zombies();
         update_spiders();
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -534,6 +539,7 @@ static void update_current_area(GameState area) {
     if (valve_puzzle_active()) {
         update_zombies();
         update_spiders();
+        update_crawlers();
         update_rabisus();
         update_rafflesias();
         update_mushrooms();
@@ -668,6 +674,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_THE_HATCH && hatch_puzzle_active()) {
         update_zombies();
         update_spiders();
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -762,6 +769,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_ATTIC_EXIT && exit_door_puzzle_active()) {
         update_zombies();
         update_spiders();
+        update_crawlers();
         update_rabisus();
         update_tentacles();    /* the four guarding the north levers */
         update_rafflesias();
@@ -783,6 +791,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_EAST_HALL && east_hall_quake_active()) {
         update_zombies();
         update_spiders();
+        update_crawlers();
         update_rabisus();
         player_status_update();
         east_hall_quake_update();
@@ -875,6 +884,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();
         update_spiders();
+        update_crawlers();
         update_rabisus();
         sml_meds_update();
         kitchen_stove_update();
@@ -981,6 +991,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         if (!lock && east_hall_wdoor_triggered()) {
@@ -1025,6 +1036,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* one in the northern strip */
         update_spiders();      /* three on the reading room's ceiling */
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         if (!lock && library_wdoor_triggered()) {
@@ -1073,6 +1085,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();     /* the east landing's medipac */
@@ -1105,6 +1118,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         if (!lock && attic_stairwell_stairs_triggered()) {
@@ -1128,6 +1142,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         update_tentacles();    /* two in front of each of the north-wall levers */
         item_pickups_update();
@@ -1166,6 +1181,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();     /* the bottom landing's medipac */
@@ -1197,6 +1213,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         rabisu_boss_update();  /* arms the reveal, then watches for the kill */
         item_pickups_update();
@@ -1230,6 +1247,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed — see world_seed_room's note on */
         update_spiders();      /* why this room has to stay empty            */
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1281,6 +1299,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed — the room is seeded empty, but */
         update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1371,6 +1390,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();
         update_spiders();
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1403,6 +1423,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();
         update_spiders();
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1450,6 +1471,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1498,6 +1520,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed — the room is seeded empty, but */
         update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1554,6 +1577,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed — the room is seeded empty, but */
         update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1582,6 +1606,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed — the room is seeded empty, but */
         update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1627,6 +1652,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed - the room is seeded empty, but */
         update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1667,10 +1693,27 @@ static void update_current_area(GameState area) {
            MAZE, and as of that room being built it is a real transition rather
            than the "COMING SOON" placeholder it carried.
 
-           No enemy updates either. Nothing from Chapters 1 or 2 can be placed
-           down here (src/area_bank.h has freed their art) and Chapter 3 has no
-           monsters yet; when it does, they go here. What the room does have is
-           the burial hall's save point and its one small medipac. */
+           ONE enemy update, and the enemy it drives is the CRAWLER. Nothing
+           from Chapters 1 or 2 can be placed down here (src/area_bank.h has
+           freed their art), so update_zombies/update_spiders are deliberately
+           absent — but Chapter 3 has a monster of its own now and its updater
+           belongs in every room of the chapter, not only the one holding a
+           placement. It costs a room with no crawlers in it nothing: the loop
+           skips every instance whose area is not current_area.
+
+           >>> AND THIS IS THE LINE THE ENEMY DID NOT WORK WITHOUT. <<< The
+           crawlers went in with their draw, their damage entry point and their
+           weapon hooks all wired, and stood completely still: damage and death
+           came off the weapons directly and the draw came off the room, so the
+           only broken thing was the one call neither of those needs. STEP 7 of
+           tools/ADDING_AN_ENEMY.txt says to add the updater at EVERY
+           update_zombies() call site — which silently does not cover a room
+           that has no enemy updates yet, and both Catacombs rooms were exactly
+           that. Check the ROOM, not the pattern.
+
+           What the room also has is the burial hall's save point and its one
+           small medipac. */
+        update_crawlers();
         save_points_update();   /* spin the hall's save point */
         sconces_update();       /* flicker the entry chamber's two flames */
         apply_collision_reception();
@@ -1729,15 +1772,20 @@ static void update_current_area(GameState area) {
            along a walkway is stopped by a wall a whole storey below. See the
            note at the head of src/up_down_maze_mesh_collision.c.
 
-           No enemy updates and no props: nothing from Chapters 1 or 2 can be
-           placed down here (src/area_bank.h has freed their art) and Chapter 3
-           has no monsters of its own yet. When it does, they go here.
+           NO PROPS, BUT FIVE ENEMIES: world.c seeds five crawlers along the
+           lower maze's corridors (src/crawler.h). Nothing from Chapters 1 or 2
+           can be placed down here — area_bank.h has freed their art — so
+           update_zombies/update_spiders stay absent and update_crawlers is the
+           whole of this room's enemy work. See the longer note in the Catacombs
+           Entry branch above: that missing call is what made the crawlers stand
+           still while still taking damage and screaming when killed.
 
            ONE INTERACTION, the west door back to the Catacombs Entry, so no veto
            chain and no order to get right — the room has nothing else that
            answers a button. */
         apply_collision_reception();
         apply_height();
+        update_crawlers();
 
         /* Called UNCONDITIONALLY, `lock` passed in rather than tested out here:
            the function keeps its Circle edge state current while locked and
@@ -1772,6 +1820,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed, and none ever will be: a sealed */
         update_spiders();      /* one-way arena holds the boss and nothing else. */
+        update_crawlers();
         update_rabisus();      /* The updaters cost nothing on empty arrays, and */
         item_pickups_update(); /* leaving them in means a debug placement works. */
         sml_meds_update();
@@ -1833,6 +1882,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed - the room is seeded empty, but */
         update_spiders();      /* the updaters cost nothing on empty arrays   */
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1860,6 +1910,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed — see world_seed_room's note on */
         update_spiders();      /* why this room has to stay empty            */
+        update_crawlers();
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -1909,6 +1960,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* the small-room zombie */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         update_demon_dogs();   /* the three dogs at the far end of the hall */
         update_tentacles();    /* the two tentacles near the copper pot */
@@ -1933,6 +1985,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();         /* the two hall zombies (enemies act even in menu) */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         if (!lock) trick_drawers_update();   /* proximity "interact" prompt + puzzle trigger */
         if (!lock && hall_2f_stairs_triggered()) {
@@ -1970,6 +2023,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_zombies();      /* none placed yet, but keeps the room uniform */
         update_spiders();
+        update_crawlers();
         update_rabisus();
         item_pickups_update();  /* the box of rounds in front of the bed */
         if (!lock && master_bedroom_wdoor_triggered()) {
@@ -2009,6 +2063,7 @@ static void update_current_area(GameState area) {
         update_demon_dogs();
         update_zombies();
         update_spiders();
+        update_crawlers();
         update_rabisus();
         crates_update();
         keys_update();
@@ -2595,6 +2650,13 @@ int main(int argc, const char **argv) {
                                   time-shares their VRAM slots — see below. */
     loading_screen_pump(&ctx);
     spiders_init();
+    loading_screen_pump(&ctx);
+    crawlers_load_textures(); /* Chapter 3's monster: REGISTERED here (one
+                                 128x128 sheet, four frames), uploaded on
+                                 entry to a Catacombs room — it takes the
+                                 spiders' x320 y128 slot, see below */
+    loading_screen_pump(&ctx);
+    crawlers_init();
     loading_screen_pump(&ctx);
     rafflesias_load_assets();  /* garden flower sprites: REGISTERED here, uploaded
                                   on entry to the Outside Catacombs (they sit in
@@ -3190,8 +3252,30 @@ int main(int argc, const char **argv) {
                garden). So exactly one pair is streamed in on every room entry,
                unconditionally, from their resident RAM copies: pure LoadImage,
                GPU already idled above. Keyed on pending_area so a title-screen
-               load or a debug level-select jump gets it right too. */
-            if (pending_area == STATE_OUTSIDE_CATACOMBS ||
+               load or a debug level-select jump gets it right too.
+
+               >>> AND SINCE CHAPTER 3 IT IS FOUR SLOTS AND THREE ENEMIES. <<<
+               The Crawler's art is two 256x128 sheets, one over the pair above
+               and one over the ZOMBIES' pair at x704/x768 y128, because its
+               frames are 128x128 and a 256-row sheet cannot be placed anywhere
+               in this VRAM at all (V is eight bits: y%256 + height <= 256, so a
+               256-tall texture must start at y 0 or 256, and both are spoken
+               for). The argument is the same one enemy further out: no two of
+               spider, flower and crawler can ever be in a room together.
+
+               THE ZOMBIE PAIR IS NEW TO THIS BLOCK and it is the half that
+               needed real work: those two sprites were a startup-only
+               LoadImage, so nothing could borrow their slots — there was no way
+               to put them back. zombies_upload_textures() (src/zombie.c) is
+               that way back, and it runs on entry to every room the crawler is
+               not in, exactly as the spider/flower line does.
+
+               The crawler branch is FIRST because it is the narrowest: two named
+               rooms, against the flowers' five and the spiders' everything-else. */
+            if (pending_area == STATE_CATACOMBS_ENTRY ||
+                pending_area == STATE_UP_DOWN_MAZE)
+                crawlers_upload_textures();
+            else if (pending_area == STATE_OUTSIDE_CATACOMBS ||
                 pending_area == STATE_MAZE_ONE ||
                 pending_area == STATE_MAZE_TWO ||
                 pending_area == STATE_STABLES ||
@@ -3209,6 +3293,24 @@ int main(int argc, const char **argv) {
                transition and this same line runs on the far side of it. */
             else if (pending_area != STATE_ASAG_ARENA)
                 spiders_upload_textures();
+
+            /* THE ZOMBIE PAIR, x704/x768 y128 — the other half of what the
+               crawler took, and restored on its own line because it is its own
+               PAIR OF SLOTS. Folding it into the else-chain above would mean a
+               garden room got the flowers OR the zombies and never both.
+
+               >>> KEYED ON THE DESTINATION'S BANK, NOT ON A ROOM LIST. <<< The
+               two sprites are TEXBANK_MANSION, so this upload is a no-op
+               anywhere else by construction (texmgr_upload on an entry whose
+               bank is not loaded does nothing, silently — src/texmgr.h). Asking
+               area_bank_of() says that out loud instead of relying on it: the
+               line means "put the zombies back where zombies can exist", and
+               the Catacombs and Asag's arena — the two places that overwrite
+               this band — fall out of it without being named. Both get the pair
+               back through this same line on the far side of the transition
+               out, which is the whole contract the spiders have too. */
+            if (area_bank_of(pending_area) & TEXBANK_MANSION)
+                zombies_upload_textures();
             {
                 TILE *bg = (TILE *)ctx.next_packet;
                 setTile(bg);
@@ -4136,6 +4238,11 @@ int main(int argc, const char **argv) {
                    startup off its own RAM copy; under banking there is no copy
                    until the line above ran, so the upload has to be here. */
                 spiders_upload_textures();
+                /* ...and the zombie pair, for the identical reason and since the
+                   same commit: those two sprites are texmgr entries now rather
+                   than a startup LoadImage (src/zombie.c), so like the spiders'
+                   they hold no pixels until a bank containing them is in. */
+                zombies_upload_textures();
                 /* Same reason, for the sound banks: a session that reached the
                    Garden Courtyard and then went back to the title would
                    otherwise start the new game with the boss bank still in and

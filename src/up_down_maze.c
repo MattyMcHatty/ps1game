@@ -25,6 +25,7 @@
 #include "oil_dispenser.h"
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "crawler.h"            /* Chapter 3's monster: five on the lower maze  */
 
 /* Up Down Maze — see up_down_maze.h for the layout and the two-storey note. */
 
@@ -650,16 +651,27 @@ void up_down_maze_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_up_down_maze_smd(ctx);
 
-    /* >>> LEVEL 8 REMOVES THE SIGN, AND THE SIGN IS ALL THERE IS. <<< Nothing
-       stands in this room: no props, no pickups, no monsters (Chapter 3 has none
-       yet, and nothing from Chapters 1 or 2 can be placed down here — see
-       src/area_bank.h). So the only thing between the mesh and the frame is the
-       west door's prompt, which is exactly the case STEP 3D of
-       tools/DIAGNOSING_FRAME_RATE.txt was written about: Reception's frame turned
-       out to be its signage rather than its mesh, and door_draw_string_3d has no
-       facing test. D read at levels 1, 4 and 8 splits this room's frame three
-       ways in one sitting. */
+    /* >>> LEVEL 8 NOW REMOVES FIVE CRAWLERS AND THE SIGN. <<< This used to say
+       the sign was all there is, and that the room held no monsters because
+       Chapter 3 had none. It has one now (src/crawler.h), and world.c seeds five
+       of them along the lower maze — so the D reading at levels 1, 4 and 8 is
+       finally splitting this room's frame between something and something else
+       rather than between the mesh and one string. That is exactly the case
+       STEP 3D of tools/DIAGNOSING_FRAME_RATE.txt was written about: Reception's
+       frame turned out to be its signage and not its mesh. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         udm_west_door_text(ctx);
+        /* THE CRAWLERS, and the texture window above is precisely the trap they
+           have to be bracketed against: their sheet sits at VRAM y=128, i.e.
+           Voff 128, so drawn under a 128-tall window its V would wrap mod-128
+           and it would sample the wrong half of the page. This hands the
+           renderer the window to put BACK after each sprite — the sprite itself
+           goes down unmasked. Same contract the zombie and the spider have with
+           the mansion rooms. */
+        {
+            RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+            crawlers_set_texwindow(&tw);
+        }
+        draw_crawlers(ctx);
     }
 }

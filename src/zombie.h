@@ -102,9 +102,17 @@ typedef struct {
 extern Zombie zombies[MAX_ZOMBIES];
 extern int    zombie_count;
 
-/* Load the zombie sprite TIMs into VRAM. Call ONCE at startup (LoadImage is
-   only safe before the main render loop begins). */
+/* Register the zombie sprite TIMs (and load the shared shadow). Call ONCE at
+   startup: the shadow is a CD read, which is only safe before the main render
+   loop begins, and the two bodies are texmgr registrations whose pixels arrive
+   with the mansion bank. */
 void zombies_load_textures(void);
+/* Re-stream the two body sprites into their VRAM slots on a room transition.
+   Those slots (x704/x768, y128) are time-shared with the Crawler's second
+   sprite sheet, so main.c uploads one enemy's art or the other's on every room
+   entry — see the note on sleep_tex_id in zombie.c for why these two stopped
+   being a plain startup LoadImage. */
+void zombies_upload_textures(void);
 
 /* Place a zombie at a world position into the live array. Returns its index,
    or -1 if full. The world system (world.c) seeds each room's zombies and

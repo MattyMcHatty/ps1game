@@ -442,7 +442,32 @@ typedef enum {
 
        OFF THE POOL, ON VOICE 14 - see the note in sound.c. */
     SFX_CTCMBDR    = 50,  /* BANKED (catacombs). The catacomb door. 5.43 s     */
-    SFX_COUNT      = 51,
+    /* ---- THE CRAWLER ------------------------------------------------------
+       CHAPTER 3's first MONSTER, and the first thing to put a third and fourth
+       clip in SND_BANK_CATACOMBS. Both are fired by src/crawler.c and nothing
+       else. It has a third sound and it is NOT here: the crawler walks on
+       SFX_SPDR_WLK, which already exists, and that entry simply gained
+       SND_BANK_CATACOMBS in sfx_bank[] — a third copy of an 11.4 KB sample
+       against a bank with ~150 KB spare, which is far cheaper than a fourth
+       clip and is why the spider's scuttle is deliberately reused rather than
+       re-recorded. Say so at the call site too; see crawler.c.
+
+       STILL FREE, on the arithmetic the glug and the door both recorded:
+       the catacombs bank goes 38,400 -> 73,664, and the region's ceiling is set
+       by BOSS at 190,336, so `spare` does not move off 46,896. That bank has
+       about 116 KB left before it costs any other bank anything.
+
+       OFF THE POOL, ON VOICES 15 AND 9 - see the note in sound.c. Voices 13 and
+       14, the usual "free block" this chapter has been drawing on, are NOT
+       available: SFX_GLUG and SFX_CTCMBDR are already on them and both are
+       SND_BANK_CATACOMBS, so a crawler could key one on over a pour or a door. */
+    SFX_CRWL_SCRM  = 51,  /* BANKED (catacombs). The crawler's scream: on
+                             waking, at the top of each fresh rush after a
+                             retreat, and on death. 1.90 s                     */
+    SFX_CRWL_WHSP  = 52,  /* BANKED (catacombs). The idle whisper, re-triggered
+                             on an interval while the player stands inside an
+                             idle crawler's listening radius. 1.82 s           */
+    SFX_COUNT      = 53,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

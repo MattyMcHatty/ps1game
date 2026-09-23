@@ -3,45 +3,47 @@
 ==========================================================================
 
 PER-AREA RESIDENT SET
-  MANSION       466944 bytes (456 KB)  16 modules
+  MANSION       487424 bytes (476 KB)  17 modules
   GARDEN        434176 bytes (424 KB)  14 modules
   RABISU        210944 bytes (206 KB)   6 modules
   WEST_GARDEN   262144 bytes (256 KB)   7 modules
   ASAG               0 bytes (  0 KB)   0 modules
-  CATACOMBS     110592 bytes (108 KB)   3 modules
+  CATACOMBS     180224 bytes (176 KB)   4 modules
 
-  peak bank         466944 bytes (456 KB)  <- this is what sets free-at-rest
-  all at once       876544 bytes (856 KB)  <- what the pre-bank design held
+  peak bank         487424 bytes (476 KB)  <- this is what sets free-at-rest
+  all at once       966656 bytes (944 KB)  <- what the pre-bank design held
 
 DECLARED vs REQUIRED
   catacombs_entry        73728  CATACOMBS
   kitchen_dining         69632  MANSION
+  crawler                69632  CATACOMBS
   garden_stairs          57344  MANSION|GARDEN|RABISU|WEST_GARDEN
   delivery_area          51200  MANSION|GARDEN|RABISU|WEST_GARDEN
   stables                51200  WEST_GARDEN
+  attic_exit             36864  MANSION
   spider                 36864  MANSION|GARDEN|RABISU
   trick_drawers          36864  MANSION
-  attic_exit             36864  MANSION
   fountain_square        36864  GARDEN
   garden_courtyard       36864  GARDEN|RABISU|WEST_GARDEN
   rafflesia              36864  GARDEN|WEST_GARDEN
-  piano_props            30720  MANSION
   conservatory           30720  MANSION|GARDEN
-  rear_gate              28672  GARDEN
+  piano_props            30720  MANSION
   maze_one               28672  GARDEN
+  rear_gate              28672  GARDEN
   outside_catacombs      24576  GARDEN
+  zombie                 20480  MANSION
   hall_2f                20480  MANSION
-  master_bedroom         18432  MANSION
-  attic_stairwell        18432  MANSION
   dresser                18432  MANSION
-  keystone_maze          18432  GARDEN
-  rabisu                 18432  GARDEN|RABISU|WEST_GARDEN
+  attic_stairwell        18432  MANSION
+  master_bedroom         18432  MANSION
   maze_two               18432  GARDEN
+  rabisu                 18432  GARDEN|RABISU|WEST_GARDEN
+  keystone_maze          18432  GARDEN
   sconce                 18432  CATACOMBS
   oil_dispenser          18432  CATACOMBS
-  reception              10240  MANSION
-  piano_room             10240  MANSION
-  east_stairwell         10240  MANSION|GARDEN|RABISU|WEST_GARDEN
   concrete_props         10240  MANSION
+  piano_room             10240  MANSION
+  reception              10240  MANSION
+  east_stairwell         10240  MANSION|GARDEN|RABISU|WEST_GARDEN
 
 OK: every module's declared bank mask covers every area that reaches it.

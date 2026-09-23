@@ -17,7 +17,16 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   24            /* v24: disp_oil — what is left in the
+#define SAVE_VERSION   25            /* v25: WorldDelta.crawlers_dead — the
+                                        Catacombs' crawlers are a new global
+                                        area-tagged ENTITY CATEGORY, so the
+                                        delta grew a byte and delta_size moved
+                                        with it. That alone already rejects
+                                        older saves (savegame.c checks it), but
+                                        the version is bumped beside it the way
+                                        v5's tentacle array was, so the reason
+                                        is written down where a reader looks.
+                                        v24: disp_oil — what is left in the
                                         Catacombs oil dispenser. It refills the
                                         Helluminator out of a hundred-unit tank
                                         that does not come back, so a save that

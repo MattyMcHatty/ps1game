@@ -187,6 +187,40 @@ KNOWN_STREAM_PAIRS = [
     # NOT shared (there was room for two more lines), so only the pixels collide.
     ("spdr_rst.tim",       "rafflesia1.tim"),
     ("spdr_wk.tim",        "rafflesia2.tim"),
+    # ...and the CRAWLER (Chapter 3) makes BOTH of those slots a three-way
+    # share, and takes the ZOMBIES' pair beside them as well. Same argument one
+    # enemy further out: crawlers are Catacombs-only, so no spider, no flower
+    # and no zombie can ever be in a room with one, and main.c streams exactly
+    # one of the three sets on every room entry.
+    #
+    # >>> IT NEEDS FOUR SLOTS BECAUSE 256 ROWS DOES NOT EXIST IN THIS VRAM. <<<
+    # The art is one 256x256 sheet quartered into four 128x128 frames. An 8bpp
+    # texture 256 rows tall has to start at a VRAM y of 0 or 256 - V is eight
+    # bits, so y%256 + height <= 256 - and y=0 is solid art right across
+    # x[320,960) while y=256 runs into the CLUT band at 480. So the sheet ships
+    # as TWO 256x128 halves: crawler_a (frames 0 and 1) over the spider/flower
+    # pair at x[320,448), crawler_b (frames 2 and 3) over the zombie pair at
+    # x[704,832). One CLUT line each, and the halves are quantised against ONE
+    # master palette (see disc.xml) so the cycle does not shift colour crossing
+    # from frame 1 to frame 2.
+    #
+    # THE ZOMBIE PAIR ONLY BECAME BORROWABLE FOR THIS. It was a startup-only
+    # LoadImage with no uploader, i.e. overwriting it was permanent for the
+    # run; zombies_upload_textures() (src/zombie.c) is what makes the restore
+    # real. Do NOT take a slot here without checking its occupant has an
+    # uploader - wd_dr at x[768,896) y256 still does not, and graveolver and
+    # stnd_rnds at x[352,384)/x[416,448) y256 are inventory icons that Chapter
+    # 3 draws in its own rooms.
+    ("spdr_rst.tim",       "crawler_a.tim"),
+    ("rafflesia1.tim",     "crawler_a.tim"),
+    ("spdr_wk.tim",        "crawler_a.tim"),
+    ("rafflesia2.tim",     "crawler_a.tim"),
+    ("zombie_sleep.tim",   "crawler_b.tim"),
+    ("zombie_alert.tim",   "crawler_b.tim"),
+    # er_logo_128 is 4bpp at x[672,736) and already overlaps zombie_sleep; the
+    # crawler's second half lands on it on the same terms - the splash plays
+    # once at boot, before any room exists.
+    ("er_logo_128.tim",    "crawler_b.tim"),
     # Maze One, east of Fountain Square through that room's east gate. It draws
     # hedge, grdn_gte and grss_gs from the Garden Courtyard's slots, drain from
     # Fountain Square's narrow upload and poison_flower_base from the Outside

@@ -20,6 +20,7 @@
 #include "demondog.h"
 #include "zombie.h"
 #include "spider.h"
+#include "crawler.h"
 #include "sound.h"
 #include "fatdoor.h"
 #include "vines.h"
@@ -46,6 +47,7 @@ static int fatdoor_hit_this_swing = 0;
 static int vine_hit_this_swing    = 0;
 static int tent_hit_this_swing  = 0;
 static int raf_hit_this_swing   = 0;
+static int crw_hit_this_swing   = 0;
 static int msh_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
 static int had_hit_this_swing   = 0;
@@ -90,6 +92,7 @@ void update_crucifaxe(void) {
         vine_hit_this_swing    = 0;
         tent_hit_this_swing    = 0;
         raf_hit_this_swing     = 0;
+        crw_hit_this_swing     = 0;
         msh_hit_this_swing     = 0;
         lst_hit_this_swing     = 0;
         had_hit_this_swing     = 0;
@@ -228,6 +231,18 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !raf_hit_this_swing) {
             if (rafflesias_try_hit())
                 raf_hit_this_swing = 1;
+        }
+
+        /* Crawler hit. The tentacle's and the Rafflesia's shape rather than the
+           spider's: the whole test lives in the enemy's module, because a
+           crawler can be halfway up a wall and every inline block here assumes a
+           body standing on the floor. No knockback either — crawler_damage
+           already turns an advancing one round into a full retreat, so a shove
+           on top would only fight the steering for the first few frames of a
+           move it is making anyway. */
+        if (swing_timer <= SWING_DURATION && !crw_hit_this_swing) {
+            if (crawlers_try_hit())
+                crw_hit_this_swing = 1;
         }
 
         /* Mushroom Head hit. Same shape as the spider's, with one difference:

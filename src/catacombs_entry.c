@@ -22,6 +22,7 @@
 #include "save_point.h"
 #include "sconce.h"           /* the two braziers flanking the tablet */
 #include "oil_dispenser.h"    /* the tank in the burial hall's far corner */
+#include "crawler.h"      /* Chapter 3's monster - none placed HERE, see below */
 #include "sml_med.h"            /* the hall's small medipac, seeded in world.c */
 #include "player.h"             /* show_pickup_msg_raw, current_weapon */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
@@ -1140,6 +1141,26 @@ void catacombs_entry_draw(RenderContext *ctx) {
        by the prop, above.) D read at 1, at 4 and at 8 now
        splits this room's frame three ways in one sitting. */
     if (exp != DBG_EXP_NO_ENTITIES) {
+        /* THE CRAWLERS, and there are none in this room. The draw is here anyway,
+           which is STEP 7 of tools/ADDING_AN_ENEMY.txt: a global area-tagged enemy
+           costs an empty room nothing (the loop skips every instance whose area is
+           not current_area) and wiring it once means a later placement in the burial
+           hall is a line in world.c and nothing else. This room already streams the
+           sheet in — main.c uploads it on entry to BOTH Catacombs rooms — so the
+           cheap half is already paid for.
+
+           Their sheet is the one thing in this room that does NOT sit at Voff 0
+           (VRAM y=128), so unlike the save point, the medipac, the sconces and the
+           dispenser above it cannot just live under the 128 window set at the top of
+           this function: it is handed that window to RESTORE after each sprite and
+           draws itself unmasked. That is the "needing the 128 window handed to them"
+           case the comment above predicted. */
+        {
+            RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+            crawlers_set_texwindow(&tw);
+        }
+        draw_crawlers(ctx);
+
         ce_sign(ctx, CE_TABLET_X, CE_TABLET_TEXT_Y, CE_TABLET_Z + 11,
                 CE_TABLET_X - 200, TEXT_PLANE_XY, 1);
         /* "ENTER", not "examine": this one goes somewhere now. */

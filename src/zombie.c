@@ -14,6 +14,7 @@
 #include "zombie.h"
 #include "fatdoor.h"
 #include "vines.h"   /* solid on the same terms; area-gated, so free elsewhere */
+#include "texmgr.h"
 #include "sound.h"
 
 Zombie zombies[MAX_ZOMBIES];
@@ -55,12 +56,51 @@ static void load_tim(const char *filename, uint16_t *tpage_out, uint16_t *clut_o
     free(buf);
 }
 
-/* Load the sprite textures. Call ONCE at startup — LoadImage is only safe
-   before the per-frame render loop begins (see tools/TEXTURING_NOTES.txt). */
+/* texmgr ids for the two BODY sprites.
+
+   >>> THEY USED TO BE A PLAIN STARTUP LoadImage, AND THAT IS WHAT MADE THEIR
+   VRAM UNTOUCHABLE. <<< x[704,832) y[128,256) is 128 words by 128 rows — the
+   second largest contiguous hole in VRAM after the spider/rafflesia pair beside
+   it — and nothing could ever borrow it, because a borrower had no way to put
+   the zombies back. Overwriting it was PERMANENT for the run: a title-screen
+   load into the East Hall would draw garbage zombies, silently, and the cause
+   would be three chapters away from the symptom.
+
+   Registering them costs two texmgr entries and buys that whole region as an
+   ordinary time-share, on the same terms as every other streamed texture in the
+   game. The CRAWLER is what wanted it (src/crawler.h): its four frames are
+   128x128 each and a 256-row sheet cannot exist anywhere in this VRAM — an 8bpp
+   texture 256 rows tall must start at y 0 or 256, because V is eight bits — so
+   full resolution needs TWO 128-row slots, and this is the second one.
+
+   The shadow is NOT registered and stays a plain load: every enemy in the game
+   shares it, it sits in nobody's way, and it belongs to no bank. */
+static int sleep_tex_id = -1, alert_tex_id = -1;
+
+/* Load the sprite textures. Call ONCE at startup. The shadow is a real CD read
+   and so is startup-only (tools/TEXTURING_NOTES.txt); the two bodies are
+   REGISTRATIONS, which take the TIM header and no pixels — those arrive when a
+   bank containing them is selected (src/texmgr.h). */
 void zombies_load_textures(void) {
-    load_tim("\\ZSLEEP.TIM;1", &sleep_tpage,  &sleep_clut);
-    load_tim("\\ZALERT.TIM;1", &alert_tpage,  &alert_clut);
+    /* BANK: the mansion. Every zombie placement in world.c is a house interior
+       and nothing outside Chapter 1 draws one. Derived, not guessed —
+       py tools/check_tex_banks.py walks the uploader call graph and fails the
+       build if this mask is short. */
+    texmgr_set_bank(TEXBANK_MANSION);
+    sleep_tex_id = texmgr_register("\\ZSLEEP.TIM;1");
+    alert_tex_id = texmgr_register("\\ZALERT.TIM;1");
+    sleep_tpage  = texmgr_tpage(sleep_tex_id); sleep_clut = texmgr_clut(sleep_tex_id);
+    alert_tpage  = texmgr_tpage(alert_tex_id); alert_clut = texmgr_clut(alert_tex_id);
     load_tim("\\SHADOW.TIM;1", &shadow_tpage, &shadow_clut);
+}
+
+/* Re-stream the two body sprites into their VRAM slots. Pure LoadImage from the
+   resident RAM copies, so it is safe on a room transition and only there.
+   main.c calls it on entry to every room that is not a Catacombs one — the
+   Catacombs are where the crawler takes these same two slots. */
+void zombies_upload_textures(void) {
+    texmgr_upload(sleep_tex_id);
+    texmgr_upload(alert_tex_id);
 }
 
 int zombie_add(int32_t x, int32_t y, int32_t z) {

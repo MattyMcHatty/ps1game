@@ -14,7 +14,16 @@
    alone costs almost nothing at runtime.
 
    Raised 48 -> 56 when the Rafflesia arrived, 56 -> 64 for Maze Two's plinth,
-   64 -> 72 for the Greenhouse. The live count is 59.
+   64 -> 72 for the Greenhouse. The live count is 63.
+
+   59 -> 63 for the CRAWLER, and note that only two of those four are the new
+   enemy. Its sprite sheet is two entries because its frames are 128x128 and an
+   8bpp texture 256 rows tall cannot be placed in this VRAM at all (V is eight
+   bits: y%256 + height <= 256). The other two are the ZOMBIE's sleep and alert
+   sprites, which were a plain startup LoadImage until the crawler needed to
+   borrow their slots — registering them is what gives them a way back, and it
+   is the cost of making x[704,832) y128 a time-share instead of dead space.
+   Nine slots spare.
 
    >>> THE REAL CEILING USED TO BE MAIN RAM AND IS NOT ANY MORE. <<< Until
    September 2026 every registration held its whole TIM for the life of the run

@@ -3,6 +3,7 @@
 #include "demondog.h"
 #include "zombie.h"
 #include "spider.h"
+#include "crawler.h"
 #include "crate.h"
 #include "key.h"
 #include "sml_med.h"
@@ -51,6 +52,8 @@ typedef struct {
     int       tentacle_count;
     Spider    spiders[MAX_SPIDERS];       /* likewise: one global area-tagged array */
     int       spider_count;
+    Crawler   crawlers[MAX_CRAWLERS];     /* ditto: Chapter 3's hit-and-run  */
+    int       crawler_count;
     Rabisu    rabisus[MAX_RABISUS];       /* the boss: same global area-tagged model */
     int       rabisu_count;
     Mushroom  mushrooms[MAX_MUSHROOMS];   /* ditto: the garden's pacing ambusher */
@@ -81,6 +84,7 @@ _Static_assert(MAX_KEYS          <= WD_MAX_KEYS,     "keys_gone too narrow");
 _Static_assert(MAX_FATDOORS      <= WD_MAX_FATDOORS, "fatdoor_health too short");
 _Static_assert(MAX_TENTACLES     <= WD_MAX_TENTACLES,"tentacle_health too short");
 _Static_assert(MAX_SPIDERS       <= WD_MAX_SPIDERS,  "spiders_dead too narrow");
+_Static_assert(MAX_CRAWLERS      <= WD_MAX_CRAWLERS, "crawlers_dead too narrow");
 _Static_assert(MAX_RABISUS       <= WD_MAX_RABISUS,  "rabisus_dead too narrow");
 _Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow");
 _Static_assert(MAX_LIVING_STATUES <= WD_MAX_LIVING_STATUES,
@@ -102,6 +106,7 @@ static WorldState world;
 extern DemonDog  demon_dogs[MAX_DEMON_DOGS];   extern int demon_dog_count;
 extern Zombie    zombies[MAX_ZOMBIES];         extern int zombie_count;
 extern Spider    spiders[MAX_SPIDERS];         extern int spider_count;
+extern Crawler   crawlers[MAX_CRAWLERS];       extern int crawler_count;
 extern Rabisu    rabisus[MAX_RABISUS];         extern int rabisu_count;
 extern Mushroom  mushrooms[MAX_MUSHROOMS];     extern int mushroom_count;
 extern LivingStatue living_statues[MAX_LIVING_STATUES];
@@ -219,6 +224,8 @@ static void snapshot_fatdoors(void) {
     world.tentacle_count = tentacle_count;
     memcpy(world.spiders, spiders, sizeof spiders);
     world.spider_count = spider_count;
+    memcpy(world.crawlers, crawlers, sizeof crawlers);
+    world.crawler_count = crawler_count;
     memcpy(world.rabisus, rabisus, sizeof rabisus);
     world.rabisu_count = rabisu_count;
     memcpy(world.mushrooms, mushrooms, sizeof mushrooms);
@@ -253,6 +260,8 @@ void world_new_game(void) {
    alone; only the monsters are silenced. */
 void world_silence_monsters(void) {
     spiders_silence();          /* SFX_SPDR_WLK   — looped, latched */
+    crawlers_silence();         /* the SAME looped voice, plus the crawler's
+                                   own scream/whisper cooldowns */
     tentacles_silence();        /* SFX_TNTCL_WRTH — looped, latched */
     rafflesias_silence();       /* borrows BOTH of the above loops — see rafflesia.c */
     sound_stop(SFX_ZOMBIE);     /* groan, retriggered on an interval while alert */
@@ -261,6 +270,8 @@ void world_silence_monsters(void) {
     sound_stop(SFX_DOGDIE);
     sound_stop(SFX_SPIT);
     sound_stop(SFX_TNTCL_DIE);  /* also the spider's death cry (see spider.c) */
+    sound_stop(SFX_CRWL_SCRM);  /* the crawler's wake/retreat/death cry */
+    sound_stop(SFX_CRWL_WHSP);  /* ...and the whisper an idle one gives off */
     sound_stop(SFX_HISS);       /* the Mushroom Head's scream — which is also
                                    its death cry (mushroom.c) */
     sound_stop(SFX_RUMBLE);     /* the Living Statue's teleport, which is also
@@ -288,6 +299,10 @@ void world_leave(GameState area) {
        its spawn point, asleep, at full health. Deaths stick. */
     zombies_rest();
     spiders_rest();
+    /* NOT simply "back asleep": a crawler that has been woken comes back
+       at its spawn still ACTIVE, and rushes the moment the player walks in
+       again. crawlers_rest() owns that — see the note on it in crawler.c. */
+    crawlers_rest();
     rabisus_rest();
     mushrooms_rest();
     living_statues_rest();
@@ -1335,6 +1350,34 @@ void world_seed_room(GameState area) {
     if (area == STATE_CATACOMBS_ENTRY) {
         sml_med_spawn(3328, 1091, 1399);
     }
+
+    /* THE UP DOWN MAZE: five crawlers, all on the LOWER maze's floor — the
+       corridors between the ten stone blocks, walked at y=0 (up_down_maze.h).
+       The upper maze, the block tops at y=-1000, is deliberately left empty:
+       the hazard up there is the drop, and a 14-a-frame rusher on a walkway
+       with no railing would make it the only hazard anyone ever met.
+
+       FLOOR HEIGHT IS AUTHORED (0, the lower plane) rather than probed, so
+       world_seed_room still works for a room whose geometry is not resident —
+       which is what lets a save be rebuilt room by room. crawler_add_floor
+       applies GROUND_FLOOR_Y itself.
+
+       AND THE LOWER FLOOR IS THE ZONE LIST'S CATCH-ALL, which is why three of
+       these five sit under a block top and still spawn downstairs: every block
+       top is listed BEFORE the floor plane, and apply_ddog_height skips any
+       zone whose surface is above the body (up_down_maze.c's note on the
+       ordering). A crawler anchored at 0 - 149 is below every one of them.
+
+       The five are spread over the whole footprint — one in each of the south,
+       west, far north-east, east and central regions — so the maze is not
+       cleared by learning one route. */
+    if (area == STATE_UP_DOWN_MAZE) {
+        crawler_add_floor(  -9, -1266, 0, STATE_UP_DOWN_MAZE); /* south-west leg   */
+        crawler_add_floor( 554,    -9, 0, STATE_UP_DOWN_MAZE); /* under the west spur */
+        crawler_add_floor(2449,  2994, 0, STATE_UP_DOWN_MAZE); /* far north-east   */
+        crawler_add_floor(2948,   617, 0, STATE_UP_DOWN_MAZE); /* east corridor    */
+        crawler_add_floor(2424,  1788, 0, STATE_UP_DOWN_MAZE); /* centre           */
+    }
 }
 
 void world_enter(GameState area) {
@@ -1468,6 +1511,18 @@ void world_save_delta(WorldDelta *d) {
                     (1u << canonical_index(areas, world.spider_count, i));
     }
     {
+        /* Keyed by canonical_index() and not by raw array slot, for the reason
+           the spiders above are: a global area-tagged array is APPENDED TO as
+           rooms are first entered, so slot i means different things in two
+           playthroughs that took different routes. */
+        GameState areas[MAX_CRAWLERS];
+        for (i = 0; i < world.crawler_count; i++) areas[i] = world.crawlers[i].area;
+        for (i = 0; i < world.crawler_count; i++)
+            if (world.crawlers[i].state == CRW_DEAD)
+                d->crawlers_dead |= (uint8_t)
+                    (1u << canonical_index(areas, world.crawler_count, i));
+    }
+    {
         GameState areas[MAX_RABISUS];
         for (i = 0; i < world.rabisu_count; i++) areas[i] = world.rabisus[i].area;
         for (i = 0; i < world.rabisu_count; i++)
@@ -1519,6 +1574,7 @@ void world_load_delta(const WorldDelta *d) {
        crates_reset, which cascades into the inventory modules) — the load has
        already restored the inventory by the time this runs. */
     spiders_reset();
+    crawlers_reset();
     rabisus_reset();
     mushrooms_reset();
     living_statues_reset();
@@ -1588,6 +1644,8 @@ void world_load_delta(const WorldDelta *d) {
        array slot i now mean the same thing. */
     for (i = 0; i < spider_count; i++)
         if (d->spiders_dead & (1u << i)) spiders[i].state = SPD_DEAD;
+    for (i = 0; i < crawler_count; i++)
+        if (d->crawlers_dead & (1u << i)) crawlers[i].state = CRW_DEAD;
     for (i = 0; i < rabisu_count; i++)
         if (d->rabisus_dead & (1u << i)) { rabisus[i].dead = 1; rabisus[i].dying = 1; }
     for (i = 0; i < mushroom_count; i++)

@@ -257,10 +257,22 @@ print("""
   Voff-128 bands, y=128 and y=384, are not mesh-art slots - a 128 texture window
   wraps their V mod 128 and samples the wrong region - but they are real VRAM and
   the arena may use them for SPRITES, which bracket the window themselves.
-  Everything in both bands is reclaimable here, and x320/x384 y128 in particular
-  is the SHARED SPIDER/RAFFLESIA PAIR: 128 rows by 128 columns, the largest
-  contiguous hole in this bank, and free because main.c skips that upload for
-  this room specifically. A boss sprite sheet is what it is shaped for.
+  Everything in both bands is reclaimable here, and the y=128 band in particular
+  is now TWO such pairs, 128 rows by 256 columns between them:
+
+    x320/x384 y128  the SHARED SPIDER/RAFFLESIA pair, free because main.c skips
+                    that upload for this room specifically.
+    x704/x768 y128  the ZOMBIE pair. This used to be resident and untouchable -
+                    the two sprites were a startup-only LoadImage with no way to
+                    put them back - and it is reclaimable now for a reason that
+                    has nothing to do with this arena: the Crawler needed a
+                    second 128-row slot for its full-resolution frames, so
+                    zombies_upload_textures() exists (src/zombie.c) and main.c
+                    gates it on area_bank_of(pending_area) & TEXBANK_MANSION,
+                    which this room is not.
+
+  A boss sprite sheet is what both are shaped for, and there is twice as much of
+  it as this file used to claim.
 """)
 pages = []
 for py in (0, 256):
