@@ -86,6 +86,11 @@ void world_silence_monsters(void);
 #define WD_MAX_SPIDERS    8   /* bits: one global area-tagged array */
 #define WD_MAX_CRAWLERS   8   /* bits: likewise. The Catacombs hold five */
 #define WD_MAX_RABISUS    8
+/* bits: likewise one global area-tagged array. 8 is generous — the Lumberer is
+   placed in the Tomb and the Tomb alone, and MAX_LUMBERERS is 6 — but this is a
+   whole byte either way, so the number is a ceiling on placements rather than
+   storage. */
+#define WD_MAX_LUMBERERS  8
 /* Asag. Eight like the Rabisu's, and eight is generous: the arena is sealed and
    holds one. It is a whole byte either way — the point of the number is the
    ceiling it puts on placements, not the storage. */
@@ -143,6 +148,8 @@ typedef struct {
     uint8_t   crawlers_dead;                      /* likewise; see
                                                      WD_MAX_CRAWLERS       */
     uint8_t   rabisus_dead;                       /* likewise                 */
+    uint8_t   lumberers_dead;                     /* likewise; see
+                                                     WD_MAX_LUMBERERS      */
     uint16_t  mushrooms_dead;                     /* likewise; 16 bits — see
                                                      WD_MAX_MUSHROOMS          */
     uint16_t  living_statues_dead;                /* likewise; 16 bits — see

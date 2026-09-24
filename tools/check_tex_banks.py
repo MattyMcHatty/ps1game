@@ -115,7 +115,14 @@ AREAS = {
                   # hence the third narrow uploader on catacombs_entry.c that
                   # the walk below reaches through this entry.
                   "tomb_upload_textures",
-                  "crawlers_upload_textures"],
+                  "crawlers_upload_textures",
+                  # ...and the LUMBERER, which main.c streams into the TOMB in
+                  # the crawler's place rather than beside it: the two share
+                  # every VRAM rectangle, so exactly one of them is in the pages
+                  # at a time and no Catacombs room may hold both. Listed here
+                  # for the same reason the crawler is - the module registers its
+                  # own art, so this entry is what puts it in this area's bank.
+                  "lumberers_upload_textures"],
 }
 
 BIT = {"MANSION": 1 << 0, "GARDEN": 1 << 1, "RABISU": 1 << 2,

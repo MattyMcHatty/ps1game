@@ -1144,6 +1144,65 @@
                  tools/vram_map.py records all six overlaps. -->
             <file name="CRAWLRA.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\crawler_a.tim"/>
             <file name="CRAWLRB.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\crawler_b.tim"/>
+
+            <!-- THE LUMBERER, the chapter's second MONSTER (src/lumberer.c).
+                 SIX animation frames in a 3x2 grid, read left to right and top
+                 row first: 0/1 are the body approaching the camera, 2/3 are it
+                 walking away, and 4/5 are the attack - the arm raised, then the
+                 arm down as the shockwave goes out.
+
+                 TWO FILES FOR ONE SHEET, and it is the crawler's problem above
+                 word for word: the art is one 256x256 image and an 8bpp texture
+                 256 rows tall cannot be placed anywhere in this game's VRAM
+                 (y%256 + height &lt;= 256, and both legal starts are spoken for).
+                 It ships as two 256x128 halves and the cut falls on the row
+                 boundary, which is also the frame boundary - LUMBERA is images
+                 1-3 and LUMBERB is images 4-6. The frames are 85, 85 and 86
+                 texels wide because 256 does not divide by three; src/lumberer.c
+                 computes the column bounds rather than tabulating them for
+                 exactly that reason.
+
+                 THEY SHARE ONE PALETTE, and here it matters MORE than it does
+                 for the crawler: the walk cycle's step from image 3 to image 4
+                 crosses from one half to the other, so two independently
+                 quantised palettes would shift the creature's colour on every
+                 other step of every walk. The halves in textures/catacombs/ are
+                 pre-quantised against a single master palette taken over the
+                 whole sheet (with the transparent-pixel sentinel already baked
+                 in), so each conversion sees at most 256 distinct colours and
+                 reproduces them exactly. lumberer.png is the untouched original;
+                 both halves are committed beside it so the conversion stays
+                 reproducible.
+
+                 THEIR VRAM IS ON LOAN FROM THE FRONT END, which is what makes
+                 this enemy different from every other time-share in this file:
+                   lumberer_a (images 1-3) -> x[448,576) y128, over MANSION.TIM
+                                              (the New Game opening still) plus
+                                              the DBLDRHLF and GRDNGTL door
+                                              leaves, and MANSION's CLUT line
+                   lumberer_b (images 4-6) -> x[832,960) y128, over the XTDRLHLF
+                                              and XTDRRHLF leaves, and XTDRLHLF's
+                                              CLUT line
+                 None of those five is drawn anywhere in Chapter 3.
+
+                 >>> ALL FIVE WERE STARTUP-ONLY LoadImages, AND THAT IS WHY THE
+                 PAGES LOOKED TAKEN. <<< Read once in main()'s init block, buffer
+                 freed, never written again - so overwriting one was permanent
+                 for the run and the slot was untouchable. Not a VRAM fact, a
+                 CODE fact, and the second time it has been the answer (the
+                 Crawler found the zombie pair in the same state). Both owners
+                 were given a way back: door_anim_restore_panels() re-reads the
+                 leaves on entry to the first room outside Chapter 3, and
+                 intro_start() re-reads the still on the frame New Game is
+                 confirmed instead of main() doing it at boot.
+
+                 WHAT IT BOUGHT: this sheet first shipped over the CRAWLER's two
+                 pages, which worked and meant the two Chapter 3 enemies could
+                 never stand in the same room. They are independent now.
+                 tools/VRAM_MAP_CATACOMBS.txt is the sweep that found the blocks;
+                 tools/vram_map.py records the overlaps. -->
+            <file name="LUMBERA.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lumberer_a.tim"/>
+            <file name="LUMBERB.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lumberer_b.tim"/>
         </dir>
 
         </directory_tree>

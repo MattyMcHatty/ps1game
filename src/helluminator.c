@@ -19,6 +19,7 @@
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
+#include "lumberer.h"
 #include "rabisu.h"
 #include "asag.h"
 #include "asag_fight.h"
@@ -268,6 +269,20 @@ static void hell_burn_tick(void) {
         mushroom_body(m, &cyc, &hh, &hw);
         if (HIT(m->x, cyc, m->z, hw, hh))
             mushroom_damage(m, mushroom_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
+    }
+    /* THE LUMBERER, and unlike the crawler above it has NO weakness at all — so
+       the lantern ticks it for a flat 1 and takes ten seconds of held flame to
+       put it down. Against a creature that is rooted for two seconds out of
+       every attack that is not as hopeless as it sounds, but the oil arithmetic
+       in the crawler's note applies twice over: ten seconds of burning is ten
+       seconds of the fog coming back in. The gun is the answer here. */
+    for (i = 0; i < lumberer_count; i++) {
+        Lumberer *l = &lumberers[i];
+        if (!l->active || l->state == LMB_DEAD || l->area != current_area) continue;
+        int32_t cyc, hh, hw;
+        lumberer_body(l, &cyc, &hh, &hw);
+        if (HIT(l->x, cyc, l->z, hw, hh))
+            lumberer_damage(l, lumberer_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
     }
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *rb = &rabisus[i];

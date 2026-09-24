@@ -27,6 +27,7 @@
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
+#include "lumberer.h"
 #include "living_statue.h"
 #include "hadad.h"
 
@@ -49,6 +50,7 @@ static int tent_hit_this_swing  = 0;
 static int raf_hit_this_swing   = 0;
 static int crw_hit_this_swing   = 0;
 static int msh_hit_this_swing   = 0;
+static int lmb_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
 static int had_hit_this_swing   = 0;
 static int asag_hit_this_swing  = 0;
@@ -94,6 +96,7 @@ void update_crucifaxe(void) {
         raf_hit_this_swing     = 0;
         crw_hit_this_swing     = 0;
         msh_hit_this_swing     = 0;
+        lmb_hit_this_swing     = 0;
         lst_hit_this_swing     = 0;
         had_hit_this_swing     = 0;
         asag_hit_this_swing    = 0;
@@ -273,6 +276,45 @@ void update_crucifaxe(void) {
                         }
                         mushroom_damage(m, 1);
                         msh_hit_this_swing = 1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        /* Lumberer hit. The mushroom's block with the airborne test dropped —
+           this one never leaves the ground — and a smaller shove:
+           LMB_KNOCKBACK is 35 against the mushroom's 45, so ~280 units, which
+           is a little over half of the 450 the arm reaches. The axe therefore
+           buys a step back out of the swing and not an escape from the fight,
+           which is the right trade against something this slow.
+
+           >>> THE SHOVE LANDS DURING THE WIND-UP TOO, AND IT DOES NOT STOP IT.
+           <<< update_lumberers lets the two attack phases tick through a
+           knockback on purpose (see the note there), so a well-timed swing
+           pushes the body back mid-swing — dragging the wave's centre with it,
+           because the wave is centred on the body — without letting the player
+           hold the enemy in its wind-up forever. lumberer_damage handles waking
+           a patrolling one. */
+        if (swing_timer <= SWING_DURATION && !lmb_hit_this_swing) {
+            int li;
+            for (li = 0; li < lumberer_count; li++) {
+                Lumberer *l = &lumberers[li];
+                if (!l->active || l->state == LMB_DEAD ||
+                    l->area != current_area) continue;
+                int32_t dx     = l->x - cam_x;
+                int32_t dy     = (l->y + LMB_Y_OFFSET) - cam_y;
+                int32_t dz     = l->z - cam_z;
+                int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+                int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
+                if (dist3d < SWING_RANGE) {
+                    int32_t dot = ((int32_t)dx * isin(cam_rot) +
+                                   (int32_t)dz * icos(cam_rot)) >> 12;
+                    if (dot > 0) {
+                        l->kb_vx = dist2d > 0 ? (dx * LMB_KNOCKBACK) / dist2d : 0;
+                        l->kb_vz = dist2d > 0 ? (dz * LMB_KNOCKBACK) / dist2d : 0;
+                        lumberer_damage(l, 1);
+                        lmb_hit_this_swing = 1;
                         break;
                     }
                 }

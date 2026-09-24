@@ -17,7 +17,16 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   26            /* v26: incin_slot/incin_count — what the
+#define SAVE_VERSION   27            /* v27: WorldDelta.lumberers_dead — the Tomb's
+                                        Lumberers are a new global area-tagged
+                                        ENTITY CATEGORY, so the delta grew a
+                                        byte and delta_size moved with it,
+                                        exactly as v25's crawlers_dead did. That
+                                        alone already rejects older saves
+                                        (savegame.c checks it); the version is
+                                        bumped beside it so the reason is
+                                        written down where a reader looks.
+                                        v26: incin_slot/incin_count — what the
                                         Incinerator is holding. It is the only
                                         machine in the game that takes an item
                                         OUT of the inventory and can give it

@@ -4,6 +4,7 @@
 #include "zombie.h"
 #include "spider.h"
 #include "crawler.h"
+#include "lumberer.h"
 #include "crate.h"
 #include "key.h"
 #include "sml_med.h"
@@ -54,6 +55,8 @@ typedef struct {
     int       spider_count;
     Crawler   crawlers[MAX_CRAWLERS];     /* ditto: Chapter 3's hit-and-run  */
     int       crawler_count;
+    Lumberer  lumberers[MAX_LUMBERERS];   /* ditto: Chapter 3's patrolling bruiser */
+    int       lumberer_count;
     Rabisu    rabisus[MAX_RABISUS];       /* the boss: same global area-tagged model */
     int       rabisu_count;
     Mushroom  mushrooms[MAX_MUSHROOMS];   /* ditto: the garden's pacing ambusher */
@@ -85,6 +88,7 @@ _Static_assert(MAX_FATDOORS      <= WD_MAX_FATDOORS, "fatdoor_health too short")
 _Static_assert(MAX_TENTACLES     <= WD_MAX_TENTACLES,"tentacle_health too short");
 _Static_assert(MAX_SPIDERS       <= WD_MAX_SPIDERS,  "spiders_dead too narrow");
 _Static_assert(MAX_CRAWLERS      <= WD_MAX_CRAWLERS, "crawlers_dead too narrow");
+_Static_assert(MAX_LUMBERERS     <= WD_MAX_LUMBERERS,"lumberers_dead too narrow");
 _Static_assert(MAX_RABISUS       <= WD_MAX_RABISUS,  "rabisus_dead too narrow");
 _Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow");
 _Static_assert(MAX_LIVING_STATUES <= WD_MAX_LIVING_STATUES,
@@ -107,6 +111,7 @@ extern DemonDog  demon_dogs[MAX_DEMON_DOGS];   extern int demon_dog_count;
 extern Zombie    zombies[MAX_ZOMBIES];         extern int zombie_count;
 extern Spider    spiders[MAX_SPIDERS];         extern int spider_count;
 extern Crawler   crawlers[MAX_CRAWLERS];       extern int crawler_count;
+extern Lumberer  lumberers[MAX_LUMBERERS];     extern int lumberer_count;
 extern Rabisu    rabisus[MAX_RABISUS];         extern int rabisu_count;
 extern Mushroom  mushrooms[MAX_MUSHROOMS];     extern int mushroom_count;
 extern LivingStatue living_statues[MAX_LIVING_STATUES];
@@ -245,6 +250,8 @@ static void snapshot_fatdoors(void) {
     world.spider_count = spider_count;
     memcpy(world.crawlers, crawlers, sizeof crawlers);
     world.crawler_count = crawler_count;
+    memcpy(world.lumberers, lumberers, sizeof lumberers);
+    world.lumberer_count = lumberer_count;
     memcpy(world.rabisus, rabisus, sizeof rabisus);
     world.rabisu_count = rabisu_count;
     memcpy(world.mushrooms, mushrooms, sizeof mushrooms);
@@ -322,6 +329,7 @@ void world_leave(GameState area) {
        at its spawn still ACTIVE, and rushes the moment the player walks in
        again. crawlers_rest() owns that — see the note on it in crawler.c. */
     crawlers_rest();
+    lumberers_rest();
     rabisus_rest();
     mushrooms_rest();
     living_statues_rest();
@@ -1397,6 +1405,41 @@ void world_seed_room(GameState area) {
         crawler_add_floor(2948,   617, 0, STATE_UP_DOWN_MAZE); /* east corridor    */
         crawler_add_floor(2424,  1788, 0, STATE_UP_DOWN_MAZE); /* centre           */
     }
+
+    /* THE TOMB: one Lumberer, walking the full length of the aisle between the
+       middle and eastern columns of loculus blocks and back again.
+
+       IT MAY GO ANYWHERE IN CHAPTER 3, and so may a crawler beside it. That was
+       briefly not true: the lumberer's sheet first shipped over the crawler's
+       VRAM pages, which made the two mutually exclusive. It has its own blocks
+       now, borrowed from the front end — see src/lumberer.h and
+       tools/VRAM_MAP_CATACOMBS.txt. The only budget left is MAX_LUMBERERS.
+
+       THE PATROL, both points AUTHORED (world_seed_room runs for rooms whose
+       geometry is not resident, which is what lets a save be rebuilt room by
+       room — so nothing here may probe the mesh):
+
+         A  (-1482, 3959)   the north end, 241 off the north wall
+         B  (-1482,  349)   the south end, 349 off the south wall
+
+       Both sit in the aisle at x = -1482, which is clear of every loculus block
+       (they occupy x[-3600,-3000], x[-2400,-1800] and x[-1200,-600] — see
+       src/tomb.h): 282 units from the nearest block face and 318 from the other,
+       against the 100 LMB_BODY_RADIUS the wall pass holds it off by. So the
+       whole 3610-unit leg is walkable and the steering never has to wall-follow
+       on an undisturbed patrol.
+
+       y: the chamber is one flat plane at TOMB_FLOOR_Y = 0, so the standing
+       anchor is that less GROUND_FLOOR_Y (collision.h, 149) = -149 — written out
+       rather than named because this file does not include collision.h, and it
+       is the same -149 every zombie_add above passes. Standing there the body's
+       top edge is at -519 against a vault drawn at -800 (lumberer.h does that
+       arithmetic). */
+    if (area == STATE_TOMB) {
+        lumberer_add(-1482, 3959,          /* A: the north end of the aisle */
+                     -1482,  349,          /* B: the south end              */
+                     -149, STATE_TOMB);
+    }
 }
 
 void world_enter(GameState area) {
@@ -1542,6 +1585,15 @@ void world_save_delta(WorldDelta *d) {
                     (1u << canonical_index(areas, world.crawler_count, i));
     }
     {
+        /* Same canonical keying as the crawlers above, and for the same reason. */
+        GameState areas[MAX_LUMBERERS];
+        for (i = 0; i < world.lumberer_count; i++) areas[i] = world.lumberers[i].area;
+        for (i = 0; i < world.lumberer_count; i++)
+            if (world.lumberers[i].state == LMB_DEAD)
+                d->lumberers_dead |= (uint8_t)
+                    (1u << canonical_index(areas, world.lumberer_count, i));
+    }
+    {
         GameState areas[MAX_RABISUS];
         for (i = 0; i < world.rabisu_count; i++) areas[i] = world.rabisus[i].area;
         for (i = 0; i < world.rabisu_count; i++)
@@ -1594,6 +1646,7 @@ void world_load_delta(const WorldDelta *d) {
        already restored the inventory by the time this runs. */
     spiders_reset();
     crawlers_reset();
+    lumberers_reset();
     rabisus_reset();
     mushrooms_reset();
     living_statues_reset();
@@ -1665,6 +1718,8 @@ void world_load_delta(const WorldDelta *d) {
         if (d->spiders_dead & (1u << i)) spiders[i].state = SPD_DEAD;
     for (i = 0; i < crawler_count; i++)
         if (d->crawlers_dead & (1u << i)) crawlers[i].state = CRW_DEAD;
+    for (i = 0; i < lumberer_count; i++)
+        if (d->lumberers_dead & (1u << i)) lumberers[i].state = LMB_DEAD;
     for (i = 0; i < rabisu_count; i++)
         if (d->rabisus_dead & (1u << i)) { rabisus[i].dead = 1; rabisus[i].dying = 1; }
     for (i = 0; i < mushroom_count; i++)

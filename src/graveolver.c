@@ -19,6 +19,7 @@
 #include "tentacle.h"
 #include "rafflesia.h"
 #include "mushroom.h"
+#include "lumberer.h"
 #include "rabisu.h"
 #include "asag.h"          /* asag_head_box - where the head is         */
 #include "asag_fight.h"    /* ...and whether hitting it does anything   */
@@ -213,6 +214,19 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 7; best_idx = i;
         }
     }
+    /* The Catacombs' lumberer. Like the crawler's loop above, aimed at wherever
+       it happens to be — the circle is built from lumberer_body(), so a body
+       rooted mid-swing is exactly as hittable as a walking one. */
+    for (i = 0; i < lumberer_count; i++) {
+        Lumberer *l = &lumberers[i];
+        if (!l->active || l->state == LMB_DEAD || l->area != current_area) continue;
+        int32_t cyc, hh, hw;
+        lumberer_body(l, &cyc, &hh, &hw);
+        if (weapon_aim_in_circle(l->x, cyc, l->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 12; best_idx = i;
+        }
+    }
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *rb = &rabisus[i];
         /* `dying` as well as `dead`: the boss stays on screen through its whole
@@ -342,6 +356,13 @@ static void graveolver_fire(void) {
            chambered (see mushroom.h). */
         mushroom_damage(&mushrooms[best_idx],
                         mushroom_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 12) {
+        /* No weaknesses: 1 from any round, so ten shots to kill whatever is
+           chambered (see lumberer.h). Unlike the crawler, a round does NOT move
+           it — this one has no retreat and nothing about being shot changes
+           what it is doing, beyond waking a patrolling one. */
+        lumberer_damage(&lumberers[best_idx],
+                        lumberer_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 8) {
         /* Not an enemy and not scaled by a weakness table: a curtain asks the
            DAMAGE TYPE directly. DMG_FLAME clears a destructible one outright,

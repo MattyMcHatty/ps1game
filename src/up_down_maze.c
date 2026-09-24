@@ -26,6 +26,7 @@
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 #include "crawler.h"            /* Chapter 3's monster: five on the lower maze  */
+#include "lumberer.h"           /* ...and its second, drawn here but not placed */
 
 /* Up Down Maze — see up_down_maze.h for the layout and the two-storey note. */
 
@@ -780,7 +781,12 @@ void up_down_maze_draw(RenderContext *ctx) {
         {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
+            lumberers_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
+        /* ...and the LUMBERER beside it, on the same terms. The two used to
+           share VRAM and could not be in a room together; they have a block each
+           now (src/lumberer.h), so this room can hold either or both. */
+        draw_lumberers(ctx);
     }
 }

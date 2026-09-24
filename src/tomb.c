@@ -12,6 +12,8 @@
 #include "tim_slots.h"
 #include "camera.h"
 #include "tomb.h"
+#include "lumberer.h"
+#include "crawler.h"
 #include "collision.h"
 #include "tomb_mesh_collision.h"
 #include "tomb_tex_map.h"
@@ -630,16 +632,38 @@ void tomb_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_tomb_smd(ctx);
 
-    /* >>> LEVEL 8 IS ONE SIGN, AND POINTING IT THERE IS THE WHOLE POINT. <<<
-       The room holds no props and no enemies, so the only thing queued outside
-       the mesh is the east door's floating string — which is exactly the case
-       STEP 3D of tools/DIAGNOSING_FRAME_RATE.txt was written about: Reception's
-       frame turned out to be its SIGNAGE and not its mesh, because
+    /* >>> LEVEL 8 NOW REMOVES A LUMBERER AND THE SIGN. <<< This used to say the
+       room held no props and no enemies and that the east door's floating string
+       was all there is. It has one now (src/lumberer.h), walking the aisle
+       between the middle and eastern block columns — so the D reading at levels
+       1, 4 and 8 is finally splitting this room's frame between something and
+       something else rather than between the mesh and one string, which is the
+       case STEP 3D of tools/DIAGNOSING_FRAME_RATE.txt was written about
+       (Reception's frame turned out to be its SIGNAGE and not its mesh, because
        door_draw_string_3d has no facing test and queues every glyph in full with
-       the player's back to it. Reading D at levels 1, 4 and 8 splits this room's
-       frame between the mesh and that string. When something is finally placed
-       in here, it goes inside this same test. */
+       the player's back to it). */
     if (exp != DBG_EXP_NO_ENTITIES) {
         tomb_east_door_text(ctx);
+        /* BOTH CHAPTER 3 ENEMIES, and both are drawn in all four of its rooms
+           whether or not world.c places one here. That is deliberate and it is
+           what "either enemy may go in any Catacombs room" actually costs: the
+           area tag makes an absent enemy free (the loop skips every instance
+           whose area is not current_area), and a placement then starts drawing
+           without this file having to be touched again.
+
+           They were mutually exclusive until each got a VRAM block of its own —
+           see src/lumberer.h and tools/VRAM_MAP_CATACOMBS.txt.
+
+           Both sheets sit at Voff 128 (VRAM y=128), so unlike this room's mesh
+           art they cannot live under the 128 texture window set at the top of
+           this function: each is handed that window to RESTORE after its sprite
+           and draws itself unmasked. */
+        {
+            RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+            crawlers_set_texwindow(&tw);
+            lumberers_set_texwindow(&tw);
+        }
+        draw_crawlers(ctx);
+        draw_lumberers(ctx);
     }
 }

@@ -279,6 +279,38 @@ Voff >= 128. That is where the free space is.
     (disc.xml) and where the slot is claimed (tools/vram_map.py). "Why is this
     enemy lower-res than its art" is otherwise unanswerable six months later.
 
+3b-quinquies. BEFORE ANY OF THAT: ASK WHICH MAP YOU ARE READING.
+    >>> tools/VRAM_MAP.txt IS THE MAP OF A GAME WHOSE ROOMS ALL REACH EACH
+    OTHER, AND IT WILL TELL YOU THERE IS NOTHING FREE. <<< For an enemy that
+    lives in a POCKET that is the wrong question. There are three per-pocket
+    maps now and each one was written because the global map was misleading
+    about the room somebody was working in:
+
+        tools/VRAM_MAP_GARDEN_WEST.txt   the Stables and the Greenhouse
+        tools/VRAM_MAP_ASAG.txt          the sealed arena - ELEVEN free pages
+        tools/VRAM_MAP_CATACOMBS.txt     Chapter 3 - four rooms, SEVEN textures
+
+    Write the pocket's map before you start shrinking art or hunting donors. It
+    is about a hundred lines, it reuses read_tim() and the arena's RESERVED set,
+    and both times it has been done it changed the answer.
+
+    AND WHEN IT SAYS A PAGE IS TAKEN, CHECK *WHY* - 3b-quater's rule again, and
+    it has now been the answer THREE TIMES:
+        the zombie pair      untouchable -> zombies_upload_textures()   (Crawler)
+        four door leaves     untouchable -> door_anim_restore_panels()  (Lumberer)
+        the opening still    untouchable -> intro_start() reads it now  (Lumberer)
+    Every one of those was a startup-only LoadImage with no way back, i.e. a
+    fact about the CODE, and every one cost about twenty lines to convert into
+    an ordinary time-share. The Lumberer's two were found only after it had
+    already shipped sharing the Crawler's pages - which worked, and bought it at
+    the price of "these two enemies can never be in the same room".
+
+    >>> A PLACEMENT RULE IS A REAL COST AND IT IS EASY TO UNDERCHARGE FOR. <<<
+    It does not show up in any budget, nothing checks it, and the person it bills
+    is whoever designs a room two months later. If the only way to fit an enemy
+    is to forbid it from meeting another one, treat that as a reason to go
+    looking for twenty more lines, not as a solution.
+
 3e. Regenerate the map and CHECK IT:
 
       py tools\vram_map.py | Out-File -Encoding utf8 tools\VRAM_MAP.txt

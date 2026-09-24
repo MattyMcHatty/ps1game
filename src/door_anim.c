@@ -393,6 +393,37 @@ static int load_panel_to(const char *path, uint16_t *tpage_out, uint16_t *clut_o
     return 1;
 }
 
+/* ---- THE THREE PANEL HALVES CHAPTER 3 BORROWS -----------------------------
+   >>> A PANEL USED TO BE A STARTUP READ AND NOTHING COULD EVER TAKE ITS PAGE.
+   <<< door_anim_load_assets() ran once in main()'s init block, LoadImage'd every
+   leaf and freed the buffer, so overwriting one of those rects was permanent for
+   the run: there was no way to put it back, and a door opened afterwards drew
+   whatever had landed there. That is the same trap the zombie pair was in before
+   the Crawler, and it is why tools/VRAM_MAP.txt reports the Voff-128 band as
+   full when a third of it is art the Catacombs never draws.
+
+   door_anim_restore_panels() is the way back. Three leaves sit in the two pages
+   the Lumberer's sheet takes (src/lumberer.h):
+
+     dbl_dr_hlf    x[512,544) y128   DOOR_PANEL_OUTER's single leaf
+     grdngtl       x[544,576) y128   DOOR_PANEL_GATE's left leaf
+     xt_dr_lft_hlf x[832,864) y128   DOOR_PANEL_EXIT's left leaf
+     xt_dr_rt_hlf  x[896,928) y128   DOOR_PANEL_EXIT's right leaf
+
+   IT RE-READS FROM THE DISC RATHER THAN FROM A texmgr COPY, and that is the
+   whole reason it is affordable. A texmgr registration would make these ~35 KB
+   resident in the MANSION, GARDEN and RABISU banks — a permanent tax on the
+   tightest bank in the game (476 KB) to solve a Catacombs problem. A CD read
+   costs nothing at rest and lands inside STATE_LOADING, which is already reading
+   a 60-118 KB mesh with the drive spun up.
+
+   AND IT IS GATED, so the ordinary case pays nothing at all: `panels_taken` is
+   set by whoever overwrites the pages and cleared here, so the reads happen on
+   the ONE transition that leaves Chapter 3 and on no other door in the game. */
+static int panels_taken = 0;
+
+void door_anim_panels_taken(void) { panels_taken = 1; }
+
 /* Load into a variant's own slot — what every variant's single/left leaf wants. */
 static int load_panel(const char *path, int variant) {
     return load_panel_to(path, &panel_tpage[variant], &panel_clut[variant]);
@@ -453,6 +484,31 @@ void door_anim_load_assets(void) {
     panel_clut [DOOR_PANEL_CATACOMB] = TIM_CLUT_CTCMBDR;
     /* The outer door is the default/fallback; require at least it to draw. */
     if (ok) tex_loaded = 1;
+}
+
+/* Put back the three leaves listed above, and only if something has taken them.
+   Called from main.c's STATE_LOADING block for any destination outside
+   TEXBANK_CATACOMBS, with the GPU already idled for that block's other uploads.
+
+   >>> THE PANEL HAS TO BE IN VRAM BEFORE ITS DOOR STARTS OPENING, NOT AFTER.
+   <<< door_anim draws its panel BETWEEN the outgoing room's last update and
+   STATE_LOADING, so the restore cannot live on the far side of the transition
+   that uses it — it has to have run on entry to the room the player is standing
+   in. Restoring on entry to every non-Catacombs room is what guarantees that,
+   and it is why this is keyed on the DESTINATION's bank rather than on the one
+   being left.
+
+   The three rooms that actually open these panels are the Attic Exit
+   (DOOR_PANEL_EXIT), the Garden Stairs (EXIT and GATE) and the Garden Courtyard
+   (EXIT) — none of them in Chapter 3, so there is no room that both borrows
+   these pages and needs them. */
+void door_anim_restore_panels(void) {
+    if (!panels_taken) return;
+    panels_taken = 0;
+    load_panel  ("\\DBLDRHLF.TIM;1",      DOOR_PANEL_OUTER);
+    load_panel  ("\\TEX\\XTDRLHLF.TIM;1", DOOR_PANEL_EXIT);
+    load_panel_r("\\TEX\\XTDRRHLF.TIM;1", DOOR_PANEL_EXIT);
+    load_panel  ("\\TEX\\GRDNGTL.TIM;1",  DOOR_PANEL_GATE);
 }
 
 /* ------------------------------------------------------------- state machine */

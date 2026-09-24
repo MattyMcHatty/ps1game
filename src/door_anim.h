@@ -135,6 +135,18 @@
                                  constant. See there.                             */
 
 void door_anim_load_assets(void);   /* load the panel TIMs into VRAM (startup) */
+
+/* ---- Lending three panel halves to Chapter 3 -------------------------------
+   dbl_dr_hlf, grdngtl and the two xt_dr halves sit in the two VRAM pages the
+   Lumberer's sheet takes (src/lumberer.h). A borrower calls
+   door_anim_panels_taken() when it overwrites them; main.c calls
+   door_anim_restore_panels() on entry to any room outside TEXBANK_CATACOMBS,
+   which re-reads them off the disc and clears the flag. Both are no-ops until
+   something actually borrows, so no ordinary door pays for this. The long
+   version, including why this re-reads rather than holding a texmgr copy, is in
+   src/door_anim.c beside the flag. */
+void door_anim_panels_taken(void);
+void door_anim_restore_panels(void);
 void door_anim_start(int variant);  /* begin the animation; plays the sound */
 void door_anim_update(void);        /* advance one frame */
 void door_anim_draw(RenderContext *ctx);

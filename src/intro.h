@@ -6,7 +6,20 @@
 /* Opening sequence: runs between "NEW GAME" on the title screen and the first
    frame of the Delivery Area. See src/intro.c for the timeline. */
 
-void intro_load_assets(void);        /* STARTUP ONLY — LoadImage of MANSION.TIM */
+/* LoadImage of MANSION.TIM into x[448,512) y128.
+
+   >>> NOT STARTUP-ONLY ANY MORE, AND THAT IS THE POINT OF IT. <<< It used to be
+   read once in main()'s init block and never again, which made its VRAM page
+   permanently untouchable: nothing could borrow it, because nothing could put
+   it back. intro_start() calls this instead, so the still is read on the one
+   transition that shows it and the page is an ordinary borrowable slot for the
+   rest of the run — the same move zombies_upload_textures() made for the zombie
+   pair. src/lumberer.c is what borrows it; tools/VRAM_MAP_CATACOMBS.txt says so.
+
+   Safe to call from the frontend: intro_start() already does a
+   sound_bank_select(), which is the same class of drive work, and the Load Game
+   path blocks for seconds from the same update_title(). */
+void intro_load_assets(void);
 void intro_start(void);              /* called the moment New Game is confirmed */
 void intro_update(void);
 void intro_draw(RenderContext *ctx);

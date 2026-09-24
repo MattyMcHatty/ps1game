@@ -237,8 +237,15 @@ extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
 
 /* ------------------------------------------------------------ asset loading */
-/* STARTUP ONLY. LoadImage is unsafe once the per-frame draw loop is running —
-   see tools/TEXTURING_NOTES.txt PROBLEM A. Modelled on door_anim's loader. */
+/* ON DEMAND, from intro_start(), and no longer from main()'s startup block —
+   see the note in intro.h for why that change matters to VRAM. Modelled on
+   door_anim's loader.
+
+   The usual LoadImage warning (tools/TEXTURING_NOTES.txt PROBLEM A) is about
+   issuing one while a frame's OT is in flight. This runs from update_title(),
+   before the frontend's own draw for the frame, with the previous frame already
+   flushed by the loop's VSync — the same window the Load Game path does seconds
+   of reading in. */
 void intro_load_assets(void) {
     CdlFILE file;
     if (!CdSearchFile(&file, "\\TEX\\MANSION.TIM;1")) return;
@@ -268,6 +275,12 @@ void intro_load_assets(void) {
 
 /* ------------------------------------------------------------ state machine */
 void intro_start(void) {
+    /* The still, read HERE rather than at startup. Its page (x[448,512) y128)
+       is lent to the Lumberer's sheet while the player is in the Catacombs, and
+       a New Game started after quitting to the title from down there would
+       otherwise open on a slice of that creature. One 17 KB read, on the rarest
+       transition in the game. */
+    intro_load_assets();
     t         = 0;
     active    = 1;
     prev_held = 0xFFFF;   /* whatever is held on the first frame is not an edge */

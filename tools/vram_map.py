@@ -221,6 +221,39 @@ KNOWN_STREAM_PAIRS = [
     # crawler's second half lands on it on the same terms - the splash plays
     # once at boot, before any room exists.
     ("er_logo_128.tim",    "crawler_b.tim"),
+    # ...and the LUMBERER (Chapter 3's second monster, src/lumberer.c), whose
+    # two 256x128 halves take x[448,576) and x[832,960) y128. It is the only
+    # enemy in this list that borrows from the FRONT END rather than from
+    # another enemy, and the distinction is the whole reason it is here:
+    #
+    #   lumberer_a -> mansion.tim (the New Game opening still) + dbl_dr_hlf and
+    #                 grdngtl (two door-panel leaves), plus mansion's CLUT line
+    #   lumberer_b -> xt_dr_lft_hlf + xt_dr_rt_hlf (the exit door's two leaves),
+    #                 plus xt_dr_lft_hlf's CLUT line
+    #
+    # >>> ALL FIVE WERE STARTUP-ONLY LoadImages, i.e. NOT BORROWABLE AT ALL, AND
+    # THAT WAS A FACT ABOUT THE CODE RATHER THAN ABOUT VRAM. <<< It is the same
+    # finding the Crawler made about the zombie pair one chapter earlier, and it
+    # is worth making again before accepting that a slot is unavailable: the two
+    # owners were each given a way back (door_anim_restore_panels(), and
+    # intro_start() reading the still on demand instead of main() at boot), which
+    # turned two untouchable 128-row blocks into ordinary time-shares.
+    #
+    # WHAT THAT BOUGHT: the lumberer briefly shared the CRAWLER's pages, which
+    # worked but meant the two enemies could never be in the same room — a
+    # restriction on the game's design in exchange for VRAM that turned out not
+    # to be scarce. tools/vram_map_catacombs.py is the sweep that showed it was
+    # not: Chapter 3 draws seven textures across four rooms, and both blocks
+    # above were holding art it cannot reach. They are independent now.
+    #
+    # The separating rooms here are the ordinary kind: the opening still is the
+    # front end, and the four leaves belong to the Attic Exit, the Garden Stairs
+    # and the Garden Courtyard. None is in Chapter 3.
+    ("mansion.tim",        "lumberer_a.tim"),
+    ("dbl_dr_hlf.tim",     "lumberer_a.tim"),
+    ("grdngtl.tim",        "lumberer_a.tim"),
+    ("xt_dr_lft_hlf.tim",  "lumberer_b.tim"),
+    ("xt_dr_rt_hlf.tim",   "lumberer_b.tim"),
     # Maze One, east of Fountain Square through that room's east gate. It draws
     # hedge, grdn_gte and grss_gs from the Garden Courtyard's slots, drain from
     # Fountain Square's narrow upload and poison_flower_base from the Outside

@@ -12,6 +12,8 @@
 #include "tim_slots.h"
 #include "camera.h"
 #include "incinerator_room.h"
+#include "crawler.h"      /* Chapter 3's two enemies: drawn here so a  */
+#include "lumberer.h"     /* placement needs no edit to this file       */
 #include "collision.h"
 #include "incinerator_room_mesh_collision.h"
 #include "incinerator_room_tex_map.h"
@@ -931,6 +933,28 @@ void incinerator_room_draw(RenderContext *ctx) {
         inc_west_door_text(ctx);
         inc_button_text(ctx);
         inc_conveyor_text(ctx);
+
+        /* BOTH CHAPTER 3 ENEMIES, and both are drawn in all four of its rooms
+           whether or not world.c places one here. That is deliberate and it is
+           what "either enemy may go in any Catacombs room" actually costs: the
+           area tag makes an absent enemy free (the loop skips every instance
+           whose area is not current_area), and a placement then starts drawing
+           without this file having to be touched again.
+
+           They were mutually exclusive until each got a VRAM block of its own —
+           see src/lumberer.h and tools/VRAM_MAP_CATACOMBS.txt.
+
+           Both sheets sit at Voff 128 (VRAM y=128), so unlike this room's mesh
+           art they cannot live under the 128 texture window set at the top of
+           this function: each is handed that window to RESTORE after its sprite
+           and draws itself unmasked. */
+        {
+            RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+            crawlers_set_texwindow(&tw);
+            lumberers_set_texwindow(&tw);
+        }
+        draw_crawlers(ctx);
+        draw_lumberers(ctx);
     }
 
     /* The conveyor board LAST and OUTSIDE the entity test: it is a 2D overlay in
