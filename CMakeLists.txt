@@ -105,6 +105,8 @@ add_executable(horror_game
     src/catacombs_entry.c
     src/up_down_maze_mesh_collision.c
     src/up_down_maze.c
+    src/incinerator_room_mesh_collision.c
+    src/incinerator_room.c
     src/sconce.c
     src/oil_dispenser.c
     src/catacomb_walk.c
@@ -282,6 +284,7 @@ set_source_files_properties(
     # the bank swap, which runs on an area boundary and nowhere else.
     src/catacombs_entry_mesh_collision.c
     src/up_down_maze_mesh_collision.c
+    src/incinerator_room_mesh_collision.c
     src/area_bank.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )

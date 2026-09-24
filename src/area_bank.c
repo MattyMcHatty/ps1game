@@ -93,6 +93,12 @@ TexBank area_bank_of(GameState area) {
        construction rather than by geography. py tools/check_tex_banks.py walks
        up_down_maze_upload_textures() to the two narrow uploaders and proves it.  */
     case STATE_UP_DOWN_MAZE:
+    /* The Incinerator Room is the Up Down Maze's case again, and for the same
+       reason rather than because it is next door: it draws COBBLE and CTCMBDR
+       and nothing else, both of them the Catacombs Entry's own registrations.
+       py tools/check_tex_banks.py walks incinerator_room_upload_textures() to
+       the same two narrow uploaders and proves it. */
+    case STATE_INCINERATOR_ROOM:
         return TEXBANK_CATACOMBS;
 
     default:
@@ -102,7 +108,8 @@ TexBank area_bank_of(GameState area) {
 
 int area_is_catacombs(GameState area) {
     return area == STATE_CATACOMBS_ENTRY ||
-           area == STATE_UP_DOWN_MAZE;
+           area == STATE_UP_DOWN_MAZE ||
+           area == STATE_INCINERATOR_ROOM;
 }
 
 /* ---- The prop models -------------------------------------------------------

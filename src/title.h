@@ -108,6 +108,13 @@ typedef enum {
                                 and the only way down is off an edge. See
                                 src/up_down_maze.h. Appended, not inserted: saves
                                 store raw enum values. */
+    STATE_INCINERATOR_ROOM,  /* The INCINERATOR ROOM, through the south door on
+                                the LOWER floor of the Up Down Maze. Chapter 3's
+                                third room and, after the maze, a deliberately
+                                plain one: an L-shaped hall, flat, single storey,
+                                under a vault half the maze's height. See
+                                src/incinerator_room.h. Appended, not inserted:
+                                saves store raw enum values. */
     STATE_CATACOMB_WALK,     /* the transition INTO that room, and a transition
                                 state rather than a place — the company
                                 STATE_DOOR_ANIM and STATE_STAIR_ANIM keep. The

@@ -140,6 +140,12 @@ static void udm_view_resolve(int snap) {
 #define UDM_UPPER_Y         (-1000)
 #define UDM_EYE_Y           (UDM_UPPER_Y - GROUND_FLOOR_Y - 40)
 
+/* And the same figure for the LOWER maze, at y=0 — the storey the south door
+   stands on. Used by that door's spawn and its storey test, on the same terms:
+   apply_height settles cam_y every frame afterwards. */
+#define UDM_LOWER_Y              0
+#define UDM_LOWER_EYE_Y     (UDM_LOWER_Y - GROUND_FLOOR_Y - 40)
+
 /* ---- Floor zones -----------------------------------------------------------
    ELEVEN: the ten block tops, then the lower floor as a catch-all under all of
    them.
@@ -303,87 +309,134 @@ void up_down_maze_upload_textures(void) {
     catacombs_entry_upload_inner_door();
 }
 
-/* ---- THE WEST DOOR ---------------------------------------------------------
-   x=-300, z[-100,100], y[-1400,-1000] — in the outer west wall, on the UPPER
-   floor, and the only one of this room's six drawn doors that goes anywhere.
-   Back to the Catacombs Entry's burial hall.
+/* ---- THE DOORS: TWO OF THE SIX ARE WIRED, ONE PER STOREY -------------------
+   WEST, UPPER   x=-300  z[-100,100]  y[-1400,-1000]  -> Catacombs Entry
+   SOUTH, LOWER  z=-2100 x[500,700]   y[-400,0]       -> Incinerator Room
 
-   A door in the YZ plane at fixed X, approached from +X (wall 23 runs x=-300
-   with nx = +4096, so the walkable side is +X), so TEXT_PLANE_YZ with mirror=0
-   and the sign 11 units proud of the wall along +X.
+   The other four drawn into the outer walls are still sealed — up_down_maze.h
+   lists them with their coordinates.
 
-   >>> IT NEEDS A STOREY TEST, WHICH NO OTHER DOOR IN THE GAME DOES. <<< Every
-   trigger in this engine measures Manhattan distance in XZ alone, which is
-   correct everywhere the walkable surface is a function of XZ. Here it is not:
-   the corridor at y=0 runs directly beneath this doorway at y=-1000, well inside
-   500 in plan, so without the Y test below the player could open this door — and
-   arrive in the Catacombs Entry — by standing in the maze underneath it. Both
-   the trigger and the SIGN take the test, so the prompt does not hang in the air
-   over a player walking the lower maze either. */
+   THE WEST DOOR is in the YZ plane at fixed X, approached from +X (wall 23 runs
+   x=-300 with nx = +4096, so the walkable side is +X), so TEXT_PLANE_YZ with
+   mirror=0 and the sign 11 units proud of the wall along +X.
+
+   THE SOUTH DOOR is in the XY plane at fixed Z, approached from +Z (wall 25 runs
+   z=-2100 with nz = +4096, so the walkable side is +Z), so TEXT_PLANE_XY with
+   mirror=1 and the sign 11 units proud of the wall along +Z.
+
+   >>> BOTH NEED A STOREY TEST, WHICH NO OTHER DOOR IN THE GAME DOES, AND THE
+   DOWNSTAIRS ONE NEEDS IT AS MUCH AS THE UPSTAIRS ONE. <<< Every trigger in this
+   engine measures Manhattan distance in XZ alone, which is correct everywhere
+   the walkable surface is a function of XZ. Here it is not. Beneath the west
+   door at y=-1000 a corridor runs at y=0, well inside 500 in plan, so without
+   the test a player could open it — and arrive in the Catacombs Entry — from
+   underneath it. Beside and above the south door at y=0, the south block's
+   walkway ends at (899,-2100) at y=-1000, 499 Manhattan away, so without the
+   test a player up there could open it and arrive in the Incinerator Room off a
+   storey they never came down from. Both the triggers and the SIGNS take the
+   test, so neither prompt hangs in the air over the wrong floor.
+
+   ONE HELPER SERVES BOTH, taking the door's XZ and the eye height of its own
+   storey (tools/ADDING_A_ROOM.txt STEP 5: factor the shared body once there are
+   two doors). The per-door #defines below are the whole of what differs. */
 #define UDM_WEST_X           (-300)
 #define UDM_WEST_Z              0      /* the art spans z[-100,100] */
 #define UDM_WEST_TEXT_Y      (-1186)   /* eye level on the y=-1000 walkway */
+
+#define UDM_SOUTH_X            600     /* the art spans x[500,700] */
+#define UDM_SOUTH_Z         (-2100)
+#define UDM_SOUTH_TEXT_Y      (-186)   /* eye level on the y=0 corridor floor */
+
 #define UDM_TEXT_RADIUS      1200
 #define UDM_FADE_NEAR         800
 #define UDM_TRIGGER_RADIUS    500
 
-/* HOW FAR OFF THE DOOR'S OWN STOREY STILL COUNTS AS "AT" IT. The two floors are
+/* HOW FAR OFF A DOOR'S OWN STOREY STILL COUNTS AS "AT" IT. The two floors are
    1000 apart and the player's eye sits 189 above whichever one they are on, so
    any bound between roughly 250 and 750 separates them cleanly; 500 is the
-   middle of that range, and the same number the trigger uses in plan. */
-#define UDM_WEST_Y_REACH      500
+   middle of that range, and the same number the triggers use in plan.
 
-/* Circle edge-detect. Seeded "held" by the arm below so a press carried in
-   through the transition cannot fire on the arrival frame. */
-static int west_circle_prev = 1;
+   >>> IT IS SHARED BY BOTH DOORS, AND THE SOUTH ONE NEEDS IT JUST AS MUCH EVEN
+   THOUGH IT IS THE DOWNSTAIRS DOOR. <<< The reach is not about being upstairs,
+   it is about a walkway and a corridor sharing a footprint — and the south-lower
+   door at (600,-2100) has the south block's walkway ending at x=899 z=-2100
+   directly above and beside it, 499 Manhattan away in plan. Without the test a
+   player standing up there opens the downstairs door and arrives in the
+   Incinerator Room off a walkway they never came down from. */
+#define UDM_STOREY_REACH      500
+
+/* Circle edge-detect, one flag per door. Seeded "held" by the arm below so a
+   press carried in through the transition cannot fire on the arrival frame. */
+static int west_circle_prev  = 1;
+static int south_circle_prev = 1;
 
 static int circle_held(void) {
     return interact_tapped();
 }
 
 void up_down_maze_arm(void) {
-    west_circle_prev = circle_held();
+    int held = circle_held();
+    west_circle_prev  = held;
+    south_circle_prev = held;
 }
 
-/* Is the player at the door — in plan AND on its storey? */
-static int udm_west_door_in_reach(void) {
-    int32_t dx = cam_x - UDM_WEST_X;
-    int32_t dz = cam_z - UDM_WEST_Z;
+/* Is the player at a door — in plan AND on its storey? `eye_y` is what cam_y
+   reads when the player is standing on the door's OWN floor; cam_y is the eye,
+   so the two are directly comparable. */
+static int udm_door_in_reach(int32_t door_x, int32_t door_z, int32_t eye_y) {
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - door_z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int32_t dy;
     if (xz >= UDM_TRIGGER_RADIUS) return 0;
-    /* cam_y is the EYE; standing on the door's own storey puts it at UDM_EYE_Y. */
-    dy = cam_y - UDM_EYE_Y;
+    dy = cam_y - eye_y;
     if (dy < 0) dy = -dy;
-    return dy < UDM_WEST_Y_REACH;
+    return dy < UDM_STOREY_REACH;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
    menu closing does not read as a fresh press on the frame the lock lifts —
-   hatch_puzzle_update()'s rule, for its reason. */
-int up_down_maze_west_door_triggered(int lock) {
+   hatch_puzzle_update()'s rule, for its reason. Each door keeps its OWN `prev`,
+   and main.c calls both every frame, so neither can go stale behind the other. */
+static int udm_door_triggered(int lock, int *circle_prev,
+                              int32_t door_x, int32_t door_z, int32_t eye_y) {
     int held = circle_held();
-    int just = held && !west_circle_prev;
-    west_circle_prev = held;
+    int just = held && !*circle_prev;
+    *circle_prev = held;
     if (lock || !just) return 0;
-    if (!udm_west_door_in_reach()) return 0;
-    if (!interact_facing(UDM_WEST_X, UDM_WEST_Z)) return 0;
+    if (!udm_door_in_reach(door_x, door_z, eye_y)) return 0;
+    if (!interact_facing(door_x, door_z)) return 0;
     return 1;
 }
 
-/* The door's floating sign. Same shape as every other sign in the game: opaque
-   within UDM_FADE_NEAR, gone by UDM_TEXT_RADIUS — plus the storey test above. */
-static void udm_west_door_text(RenderContext *ctx) {
-    int32_t dx = cam_x - UDM_WEST_X;
-    int32_t dz = cam_z - UDM_WEST_Z;
+int up_down_maze_west_door_triggered(int lock) {
+    return udm_door_triggered(lock, &west_circle_prev,
+                              UDM_WEST_X, UDM_WEST_Z, UDM_EYE_Y);
+}
+
+int up_down_maze_south_door_triggered(int lock) {
+    return udm_door_triggered(lock, &south_circle_prev,
+                              UDM_SOUTH_X, UDM_SOUTH_Z, UDM_LOWER_EYE_Y);
+}
+
+/* A door's floating sign. Same shape as every other sign in the game: opaque
+   within UDM_FADE_NEAR, gone by UDM_TEXT_RADIUS — plus the storey test above.
+   The caller passes the string's already-placed position and the plane/mirror
+   pair, which are the two things the two doors genuinely differ in. */
+static void udm_door_text(RenderContext *ctx,
+                          int32_t door_x, int32_t door_z, int32_t eye_y,
+                          int32_t text_x, int32_t text_y, int32_t text_z,
+                          int mirror, int plane) {
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - door_z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int fade = 256;
     int32_t dy;
 
     if (xz >= UDM_TEXT_RADIUS) return;
-    dy = cam_y - UDM_EYE_Y;
+    dy = cam_y - eye_y;
     if (dy < 0) dy = -dy;
-    if (dy >= UDM_WEST_Y_REACH) return;
+    if (dy >= UDM_STOREY_REACH) return;
 
     if (xz > UDM_FADE_NEAR) {
         int range = UDM_TEXT_RADIUS - UDM_FADE_NEAR;
@@ -392,12 +445,25 @@ static void udm_west_door_text(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
 
-    /* door_draw_string_3d adds 200 to the reading axis before centring, hence
-       the -200. mirror=0: a YZ-plane door approached from +X. */
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
-                        UDM_WEST_X + 11, UDM_WEST_TEXT_Y, UDM_WEST_Z - 200,
-                        50, 255, 50, fade, 0, TEXT_PLANE_YZ,
+                        text_x, text_y, text_z,
+                        50, 255, 50, fade, mirror, plane,
                         DOOR_PIXEL_SIZE);
+}
+
+/* door_draw_string_3d adds 200 to the READING axis before centring, hence the
+   -200 on z for a YZ-plane door and on x for an XY-plane one. The other axis
+   carries the 11-unit standoff off the wall, toward the side the player is on. */
+static void udm_west_door_text(RenderContext *ctx) {
+    udm_door_text(ctx, UDM_WEST_X, UDM_WEST_Z, UDM_EYE_Y,
+                  UDM_WEST_X + 11, UDM_WEST_TEXT_Y, UDM_WEST_Z - 200,
+                  0, TEXT_PLANE_YZ);   /* mirror=0: YZ door approached from +X */
+}
+
+static void udm_south_door_text(RenderContext *ctx) {
+    udm_door_text(ctx, UDM_SOUTH_X, UDM_SOUTH_Z, UDM_LOWER_EYE_Y,
+                  UDM_SOUTH_X - 200, UDM_SOUTH_TEXT_Y, UDM_SOUTH_Z + 11,
+                  1, TEXT_PLANE_XY);   /* mirror=1: XY door approached from +Z */
 }
 
 void up_down_maze_spawn_west(void) {
@@ -409,6 +475,29 @@ void up_down_maze_spawn_west(void) {
     cam_vy  = 0;
     cam_z   = UDM_WEST_Z;
     cam_rot = 1024;
+    up_down_maze_arm();
+}
+
+/* Arrival up out of the Incinerator Room, on the LOWER floor, facing +Z — the
+   direction of travel through the door, looking north into the maze's corridors.
+
+   THE SPOT IS CLEAR OF THREE WALLS, not one, which is why it is stated rather
+   than left as the usual one-liner: the south wall 25 is 220 back (the standoff
+   plus 25), the block face at wall 27 (x=899) is 299 to the east, and the room's
+   cut-off south-west corner — wall 20, the diagonal x+z=-1800 — is 368 away on
+   the perpendicular. All three clear the 195 push radius, so the player is not
+   shoved on their first frame from any direction.
+
+   AND IT IS ON THE LOWER STOREY, 1000 below the west door's landing. The block
+   top above at x[899,2099] z[-2100,-1499] is a FLOOR_UPPER zone that does not
+   contain x=600, so apply_height() falls through to the catch-all and settles
+   the player on the corridor floor, which is where the door is. */
+void up_down_maze_spawn_south(void) {
+    cam_x   = UDM_SOUTH_X;
+    cam_y   = UDM_LOWER_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = UDM_SOUTH_Z + UDM_WALL_RADIUS + 25;
+    cam_rot = 0;
     up_down_maze_arm();
 }
 
@@ -680,6 +769,7 @@ void up_down_maze_draw(RenderContext *ctx) {
        frame turned out to be its signage and not its mesh. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         udm_west_door_text(ctx);
+        udm_south_door_text(ctx);
         /* THE CRAWLERS, and the texture window above is precisely the trap they
            have to be bracketed against: their sheet sits at VRAM y=128, i.e.
            Voff 128, so drawn under a 128-tall window its V would wrap mod-128

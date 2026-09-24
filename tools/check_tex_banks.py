@@ -109,6 +109,7 @@ AREAS = {
     # the shared x320 y128 slot.
     "CATACOMBS": ["catacombs_entry_upload_textures",
                   "up_down_maze_upload_textures",
+                  "incinerator_room_upload_textures",
                   "crawlers_upload_textures"],
 }
 

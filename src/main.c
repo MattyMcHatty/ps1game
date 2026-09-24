@@ -85,6 +85,7 @@
 #include "area_bank.h"          /* the six texture banks; see that header */
 #include "catacombs_entry.h"
 #include "up_down_maze.h"
+#include "incinerator_room.h"
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
 #include "hatch_puzzle.h"
 #include "hatch_arrival.h"  /* the drop off the well: Asag's ending, beat 3   */
@@ -306,6 +307,7 @@ static void load_area_geometry(GameState area) {
         case STATE_ASAG_ARENA:       asag_arena_load_geometry();       break;
         case STATE_CATACOMBS_ENTRY:  catacombs_entry_load_geometry();  break;
         case STATE_UP_DOWN_MAZE:     up_down_maze_load_geometry();     break;
+        case STATE_INCINERATOR_ROOM: incinerator_room_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -1798,6 +1800,59 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* AND THE SOUTH DOOR, on the LOWER floor, down into the Incinerator
+           Room. Called on its own line and unconditionally for the reason the
+           west door's note gives: each door keeps its own Circle edge state and
+           skipping one would stale it.
+
+           THEY CANNOT BOTH FIRE ON ONE FRAME. The two are 1000 apart in Y and
+           each takes the storey test (UDM_STOREY_REACH), so no camera position
+           is in reach of both - which is what lets these be two flat ifs rather
+           than the veto chain the Catacombs Entry's three interactions need. If
+           a third door is ever wired on the same storey as one of these, read
+           that chain before adding it. */
+        if (up_down_maze_south_door_triggered(lock)) {
+            pending_area = STATE_INCINERATOR_ROOM;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_INCINERATOR_ROOM) {
+        /* THE INCINERATOR ROOM - Chapter 3's third room, and after the maze
+           upstairs a deliberately ordinary one: the shared wall routine and two
+           flat floor zones are the whole of it, both at y=0, disjoint in plan,
+           so their order decides nothing (src/incinerator_room.c says why that
+           is worth stating here of all places).
+
+           multi_level IS 0, unlike the room it is reached from. Nothing in this
+           proxy stands under anything else, so there is no hitscan Y-gate to
+           lift - see the note at the head of
+           src/incinerator_room_mesh_collision.c.
+
+           NO PROPS AND NO ENEMIES YET. update_crawlers() is called anyway, and
+           it is not a no-op waiting to happen: it is the line the crawlers did
+           not work without next door, it costs a room with none of them nothing
+           (the loop skips every instance whose area is not current_area), and it
+           means a placement in world_seed_room() starts moving without anyone
+           having to remember this call. See the longer note in the Catacombs
+           Entry branch above.
+
+           ONE INTERACTION, the north door back up into the maze, so no veto
+           chain and no order to get right. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+
+        /* Called UNCONDITIONALLY, `lock` passed in rather than tested out here:
+           the function keeps its Circle edge state current while locked and
+           returns 0, so a press held across a menu closing cannot read as a
+           fresh one on the frame the lock lifts. */
+        if (incinerator_room_north_door_triggered(lock)) {
+            pending_area = STATE_UP_DOWN_MAZE;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ASAG_ARENA) {
         /* ASAG'S ARENA — free play, which here means the fight AFTER the opening
            scene has handed the camera back. The scene itself runs in the
@@ -2173,6 +2228,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         catacombs_entry_draw(ctx);
     else if (area == STATE_UP_DOWN_MAZE)
         up_down_maze_draw(ctx);
+    else if (area == STATE_INCINERATOR_ROOM)
+        incinerator_room_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -2515,6 +2572,13 @@ int main(int argc, const char **argv) {
                                      are constants, but because that is the order
                                      that reads correctly: the owner registers,
                                      the borrower borrows. */
+    loading_screen_pump(&ctx);
+    incinerator_room_load_assets();/* CHAPTER 3's third room, and the same two
+                                     compile-time headers for the same two
+                                     borrowed textures as the call above: no
+                                     registration and no CD access. AFTER the
+                                     owner's call below for that call's reason -
+                                     the owner registers, the borrower borrows. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -3179,6 +3243,19 @@ int main(int argc, const char **argv) {
                    idle - and if that call has not run, this uploads nothing,
                    quietly, leaving the previous room's art in these pages. */
                 up_down_maze_upload_textures();
+            } else if (pending_area == STATE_INCINERATOR_ROOM) {
+                /* THE INCINERATOR ROOM. The same two pages and the same two
+                   narrow uploaders as the branch above, for the same reason: it
+                   owns neither texture, and the Catacombs Entry's FULL uploader
+                   would also stamp the lamashtu tablet, the loculus, the sconce
+                   and the oil dispenser, none of which this room draws.
+
+                   Same guarantee and same failure mode too: the entries are
+                   already in RAM because area_bank_sync() read them a few lines
+                   up, so this is a pure LoadImage with the drive idle - and if
+                   that call has not run, this uploads nothing, quietly, leaving
+                   the previous room's art in these pages. */
+                incinerator_room_upload_textures();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 /* ASAG'S ARENA. It BORROWS NOTHING — no neighbour's uploader at
                    the head of the chain, unlike every other garden room — and it
@@ -3273,7 +3350,8 @@ int main(int argc, const char **argv) {
                The crawler branch is FIRST because it is the narrowest: two named
                rooms, against the flowers' five and the spiders' everything-else. */
             if (pending_area == STATE_CATACOMBS_ENTRY ||
-                pending_area == STATE_UP_DOWN_MAZE)
+                pending_area == STATE_UP_DOWN_MAZE ||
+                pending_area == STATE_INCINERATOR_ROOM)
                 crawlers_upload_textures();
             else if (pending_area == STATE_OUTSIDE_CATACOMBS ||
                 pending_area == STATE_MAZE_ONE ||
@@ -3682,8 +3760,30 @@ int main(int argc, const char **argv) {
                    own spawn helper and an override keyed on current_area here
                    (src/up_down_maze.h lists them with their coordinates). */
                 up_down_maze_init();
+                /* Coming back UP out of the Incinerator Room, arrive at the
+                   SOUTH door on the LOWER floor instead of the west door's
+                   landing upstairs - the one override this room has so far, and
+                   the first arrival in the game that lands the player on a
+                   different STOREY from the default.
+
+                   >>> KEYED ON current_area, WHICH IS STILL THE ROOM BEING LEFT
+                   AT THIS POINT, and which is NOT a route: a title-screen Load
+                   Game or a debug jump arrives with it set to something else
+                   entirely, which is exactly why the default has to be the west
+                   door's landing and not this. <<< */
+                if (current_area == STATE_INCINERATOR_ROOM)
+                    up_down_maze_spawn_south();
                 /* NO MUSIC LINE HERE EITHER, and a new Chapter 3 room does not
                    get one: see the chapter rule below the foot of this chain. */
+            } else if (pending_area == STATE_INCINERATOR_ROOM) {
+                /* ONE ARRIVAL, the north door, so incinerator_room_init()'s
+                   default spawn is also the only one and there is nothing to
+                   override. The west door drawn in this room's outer wall is
+                   sealed until the room behind it exists; it will want its own
+                   spawn helper and an override keyed on current_area here
+                   (src/incinerator_room.h has its coordinates). */
+                incinerator_room_init();
+                /* NO MUSIC LINE, same chapter rule as the two rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -4015,7 +4115,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_STABLES ||
                    game_state == STATE_GREENHOUSE ||
                    game_state == STATE_CATACOMBS_ENTRY ||
-                   game_state == STATE_UP_DOWN_MAZE) {
+                   game_state == STATE_UP_DOWN_MAZE ||
+                   game_state == STATE_INCINERATOR_ROOM) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

@@ -22,20 +22,27 @@
    it wants a FLOOR_RAMP zone in up_down_maze_floor_zones_init(), and that is the
    whole change.
 
-   THE DOORS. Six are drawn into the outer walls, and exactly ONE of them is
-   wired up:
+   THE DOORS. Six are drawn into the outer walls, and TWO of them are wired up
+   — one per storey, which is not a coincidence but the shape of the room:
 
      WEST, UPPER   x=-300  z[-100,100]  y[-1400,-1000]   -> Catacombs Entry
+     SOUTH, LOWER  z=-2100 x[500,700]   y[-400,0]        -> Incinerator Room
      east, upper   x=3900  z[-100,100]                   not built
      north, upper  z=3900  x[1100,1300]                  not built
      south, upper  z=-2100 x[1700,1900]                  not built
-     south, lower  z=-2100 x[500,700]   y[-400,0]        not built
      east, lower   x=3900  z[3500,3700] y[-400,0]        not built
 
-   The five unbuilt ones are drawn and nothing else: no sign, no trigger, no
+   The four unbuilt ones are drawn and nothing else: no sign, no trigger, no
    collision gap. They read as sealed doors, which is what they are until the
-   rooms behind them exist, and wiring one up is the block of #defines below
+   rooms behind them exist, and wiring one up is a block of #defines in the .c
    plus the STEP 6 edits in tools/ADDING_A_ROOM.txt.
+
+   >>> AND WITH TWO DOORS ON TWO STOREYS, THE STOREY TEST IS NOT THE UPSTAIRS
+   DOOR'S QUIRK ANY MORE. <<< Both triggers and both signs take it, because what
+   makes it necessary is a walkway and a corridor sharing a footprint and not
+   which of the two the door is on — the south-lower door has the south block's
+   walkway ending 499 Manhattan away in plan and a whole storey up. See
+   UDM_STOREY_REACH in the .c.
 
    TWO TEXTURES, AND THE ROOM OWNS NEITHER. Cobblestone and the catacomb inner
    door are both already registered by src/catacombs_entry.c in
@@ -51,14 +58,25 @@ void up_down_maze_upload_textures(void); /* room entry: pure LoadImage from RAM 
 void up_down_maze_init(void);            /* collision + floor zones + spawn */
 void up_down_maze_draw(RenderContext *ctx);
 
-/* Arrival through the west door on the UPPER floor, and the only arrival there
-   is: standing on the landing just inside it, facing east into the maze. */
+/* The two arrivals. WEST is on the UPPER floor — standing on the landing just
+   inside the door, facing east into the maze — and is still the default
+   up_down_maze_init() places. SOUTH is on the LOWER floor, just inside the south
+   door, facing north up the corridors, for the way back out of the Incinerator
+   Room. */
 void up_down_maze_spawn_west(void);
+void up_down_maze_spawn_south(void);
 
-/* One frame of the west door's Circle test. `lock` is main's usual suppression
-   (a menu is up, a cutscene owns the camera). Returns 1 on a fresh press made in
-   range and facing the door — the frame main.c starts the transition on. */
+/* One frame of each door's Circle test. `lock` is main's usual suppression (a
+   menu is up, a cutscene owns the camera). Returns 1 on a fresh press made in
+   range, on the door's own storey and facing it — the frame main.c starts the
+   transition on.
+
+   CALL BOTH EVERY FRAME AND PASS `lock` IN rather than testing it outside: each
+   keeps its own Circle edge state current while locked and returns 0, so a press
+   held across a menu closing cannot read as a fresh one on the frame the lock
+   lifts, and skipping one would leave its `prev` stale. */
 int  up_down_maze_west_door_triggered(int lock);
+int  up_down_maze_south_door_triggered(int lock);
 
 /* Arm every interaction in the room. Called by the spawn above; exported so a
    caller that places the player some other way (a debug jump) can still ensure a

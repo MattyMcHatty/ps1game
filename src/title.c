@@ -144,12 +144,22 @@ static const char *const level_names[] = {
        purges the mansion and the garden and loads the Catacombs' art exactly as
        walking through the mouth would. Jumping back OUT to any Chapter 1 or 2
        row restores them, by the same call. */
-    "CATACOMBS ENTRY",
+    "CCOMBS ENTRY",
     /* The UP DOWN MAZE, the chapter's second room. Reached in play only through
        the Catacombs Entry's inner door, so this row is the way to test it
        without walking the whole chapter - and like every other row it goes
        through STATE_LOADING, which is what makes area_bank_sync() run. */
     "UP DOWN MAZE",
+    /* The INCINERATOR ROOM, the chapter's third room. Reached in play only
+       through the Up Down Maze's south-lower door, two rooms deep, so this row
+       is the way to test it without walking the whole chapter - and like every
+       other row it goes through STATE_LOADING, which is what makes
+       area_bank_sync() run.
+
+       "INCINERATOR", not "INCINERATOR ROOM": this column is 16 characters wide
+       INCLUDING the "* " cursor, so a name has 14 to play with. That is the
+       same 14 that turned "CATACOMBS ENTRY" into "CCOMBS ENTRY" two rows up. */
+    "INCINERATOR",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -185,6 +195,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* ASAG ARENA */
     STATE_LOADING,        /* CATACOMBS ENTRY */
     STATE_LOADING,        /* UP DOWN MAZE */
+    STATE_LOADING,        /* INCINERATOR ROOM */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -218,6 +229,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_ASAG_ARENA,
     STATE_CATACOMBS_ENTRY,
     STATE_UP_DOWN_MAZE,
+    STATE_INCINERATOR_ROOM,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

@@ -996,6 +996,25 @@
                  deliberately and loudly. -->
             <file name="UPDNMAZE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\up_down_maze.smd"/>
 
+            <!-- THE INCINERATOR ROOM, the chapter's third room, through the
+                 SOUTH door on the LOWER floor of the maze above. One L-shaped
+                 hall, flat, single storey, under a vault at y=-800 - half the
+                 maze's headroom (src/incinerator_room.h).
+
+                 NO NEW TEXTURE AND NO NEW REGISTRATION, on exactly the maze's
+                 terms: it draws COBBLE.TIM and CTCMBDR.TIM above and nothing
+                 else, through the Catacombs Entry's same two narrow uploaders.
+                 The whole cost of this room on the disc is the one mesh below.
+                 (An incinerator.png was exported alongside the meshes; the room
+                 does not reference it - the SMX's texture list is two names
+                 long - so nothing here ships it.)
+
+                 40,396 bytes, comfortably inside the arena MAZEONE.SMD already
+                 sizes (src/room_arena_size.h). Re-run py tools/gen_room_arena.py
+                 after any re-export anyway: growing past it and the room draws
+                 empty, deliberately and loudly. -->
+            <file name="INCINRTR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\incinerator_room.smd"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

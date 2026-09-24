@@ -119,6 +119,14 @@
 #define TIM_TPAGE_CPPRPOT  0x008a
 #define TIM_CLUT_CPPRPOT   0x7e40
 
+/* crawler_a.tim   8bpp  VRAM ( 320,128)  \TEXCTCMB\CRAWLRA.TIM */
+#define TIM_TPAGE_CRAWLRA  0x0085
+#define TIM_CLUT_CRAWLRA   0x7eaa
+
+/* crawler_b.tim   8bpp  VRAM ( 704,128)  \TEXCTCMB\CRAWLRB.TIM */
+#define TIM_TPAGE_CRAWLRB  0x008b
+#define TIM_CLUT_CRAWLRB   0x7f2a
+
 /* crucifaxe.tim   8bpp  VRAM ( 320,384)  \CRFXICON.TIM */
 #define TIM_TPAGE_CRFXICON 0x0095
 #define TIM_CLUT_CRFXICON  0x7d00
