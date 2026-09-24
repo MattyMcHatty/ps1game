@@ -18,7 +18,9 @@
  *
  *   1. IT LIVES ON A SURFACE, not just on the floor. `surface` is FLOOR, WALL
  *      or CEILING, and the sprite is built in that surface's plane so its legs
- *      are always against whatever it is standing on (see draw_crawlers). A
+ *      are always against whatever it is standing on (see draw_crawlers), and
+ *      turned UPSIDE DOWN on anything but the floor, because off the floor it
+ *      is hanging from the surface rather than standing on it. A
  *      crawler that runs into level geometry MOUNTS it, and what it does next
  *      depends on which way it is going (see CrawlerWallMode):
  *

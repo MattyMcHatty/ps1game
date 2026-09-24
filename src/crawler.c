@@ -1537,9 +1537,14 @@ static void draw_crw_shadow(RenderContext *ctx, Crawler *s) {
    walks round them and the cull would throw the whole sprite away — mistake 4
    in tools/ADDING_AN_ENEMY.txt, which the spider hit with its roll. The wall
    itself occludes a face seen from behind, which is what the cull would have
-   been for. */
+   been for.
+
+   `flip` mirrors the body left-to-right, `upside` turns it over. Both are done
+   in the TEXTURE coordinates rather than by moving the corners, because the
+   corners are what the surface plane and the sort are built from and neither
+   should care which way up the creature standing on that plane is. */
 static void draw_crw_quad(RenderContext *ctx, Crawler *s, SVECTOR v[4],
-                          int frame, int flip) {
+                          int frame, int flip, int upside) {
     DVECTOR sv[4];
     int32_t sz[4];
     int32_t otz;
@@ -1658,10 +1663,18 @@ static void draw_crw_quad(RenderContext *ctx, Crawler *s, SVECTOR v[4],
             uint8_t uL  = flip ? uhi[sc] : ulo[sc];
             uint8_t uR  = flip ? ulo[sc] : uhi[sc];
 
-            poly->u0 = uL; poly->v0 = vlo[gj];
-            poly->u1 = uR; poly->v1 = vlo[gj];
-            poly->u2 = uL; poly->v2 = vhi[gj];
-            poly->u3 = uR; poly->v3 = vhi[gj];
+            /* And the same again down the other axis for `upside`: the piece
+               takes its ROW from the far end of the frame as well as running
+               that row's V backwards, or the body is turned over one tile at a
+               time and comes out scrambled rather than inverted. */
+            int     sr  = upside ? (CRW_SUBDIV - 1 - gj) : gj;
+            uint8_t vT  = upside ? vhi[sr] : vlo[sr];
+            uint8_t vB  = upside ? vlo[sr] : vhi[sr];
+
+            poly->u0 = uL; poly->v0 = vT;
+            poly->u1 = uR; poly->v1 = vT;
+            poly->u2 = uL; poly->v2 = vB;
+            poly->u3 = uR; poly->v3 = vB;
 
             poly->tpage = tpage;
             poly->clut  = clut;
@@ -1714,6 +1727,16 @@ void draw_crawlers(RenderContext *ctx) {
         int32_t cx = s->x, cy = s->y + CRW_Y_OFFSET, cz = s->z;
         int     frame = crw_frame(s);
         int     flip  = 0;
+        /* >>> OFF THE FLOOR IT HANGS THE OTHER WAY UP. <<< A crawler on a wall
+           or a ceiling is holding on from underneath, so the body is turned
+           over: on the floor it is the right way up, on anything else it is
+           inverted. This is the one orientation cue the quad's own plane
+           cannot give — the plane says WHAT it is lying on, not which way
+           round it is lying on it — and without it a wall crawler reads as a
+           picture of a floor crawler pasted on the bricks. Only the V axis is
+           turned, so the flip that points the head along travel still means
+           the same thing. */
+        int     upside = (s->surface != CRW_SURF_FLOOR);
         SVECTOR v[4];
 
         /* >>> THE QUAD IS BUILT IN THE SURFACE'S OWN PLANE. <<< That is what
@@ -1775,6 +1798,10 @@ void draw_crawlers(RenderContext *ctx) {
             v[2].vx = (int16_t)(cx + hx); v[2].vy = (int16_t)(cy + CRW_HALF_H); v[2].vz = (int16_t)(cz + hz);
             v[3].vx = (int16_t)(cx - hx); v[3].vy = (int16_t)(cy + CRW_HALF_H); v[3].vz = (int16_t)(cz - hz);
             v[0].pad = v[1].pad = v[2].pad = v[3].pad = 0;
+            /* A crawler that got here with surface != FLOOR has a stale wall
+               index and is being drawn as an ordinary upright billboard, so
+               take the inversion back off with it. */
+            upside = 0;
             /* Flip so it always faces toward the player. */
             {
                 int32_t dot = ((dx >> 4) * (icos(cam_rot) >> 4))
@@ -1787,6 +1814,6 @@ void draw_crawlers(RenderContext *ctx) {
             draw_crw_shadow(ctx, s);
         }
 
-        draw_crw_quad(ctx, s, v, frame, flip);
+        draw_crw_quad(ctx, s, v, frame, flip, upside);
     }
 }
