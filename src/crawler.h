@@ -74,8 +74,15 @@
    one modelled real-world object with a known size is the fat door, 375 units
    tall for a ~2 m doorway, so ~190 units to the metre: 6 m -> 1100. For scale
    sense in this room specifically, the lower maze's corridors are 600 wide, so
-   a crawler notices the player about two cells away, just inside the 1600 the
+   a crawler notices the player about two cells away, just inside the 1300 the
    unlit fog lets them see (UDM_BASE_FOG_FAR).
+
+   THIS ONE DID NOT MOVE WHEN THE FOG DID, and that is the distinction worth
+   keeping: 1100 comes from the brief's 6 m, not from the room's lighting. The
+   fog line coming down from 1600 to 1300 narrowed the gap between "can be seen"
+   and "can hear you" from 500 units to 200, which is a tighter room rather than
+   a wrong one. If the base is ever cut below 1100 this becomes a crawler that
+   wakes before it can be seen at all, and THEN it has to move.
 
    >>> THE WAKE TEST LOOKS DOWN BUT NOT UP, AND IT IS A CYLINDER, NOT A SPHERE.
    <<< The brief's example is a crawler on the CEILING waking as the player
@@ -108,11 +115,17 @@
    between the two cases. */
 #define CRW_WAKE_ABOVE     (CRW_HALF_H - CRW_Y_OFFSET)   /* 290 */
 
-/* The listening radius, 50% further out, and this one DOES look up: it is the
-   only cue an idle crawler gives, and hearing one from the walkway above is the
-   point. Note it is fractionally past the unlit fog line at 1600, so the
-   whisper reaches the player from somewhere they cannot yet see. */
-#define CRW_WHISPER_RADIUS 1650
+/* The listening radius, and this one DOES look up: it is the only cue an idle
+   crawler gives, and hearing one from the walkway above is the point.
+
+   >>> WHAT MATTERS IS THAT IT IS PAST THE UNLIT FOG LINE, NOT THAT IT IS ANY
+   PARTICULAR NUMBER. <<< The whisper has to reach the player from somewhere
+   they cannot yet SEE, so it is pinned a little beyond UDM_BASE_FOG_FAR and
+   moves whenever that does. It was 1650 against a fog line of 1600; the maze
+   came down to 1300, so this came down to 1350. Left at 1650 it would have sat
+   350 units outside the dark, and the crawler you could hear would have been
+   one you were already looking at. */
+#define CRW_WHISPER_RADIUS 1350
 #define CRW_WHISPER_INTERVAL 240   /* frames between re-triggers, ~4 s. The clip
                                       is 1.82 s, so there is a real gap of
                                       silence between one whisper and the next */
@@ -120,8 +133,16 @@
 /* ---- The retreat ----------------------------------------------------------
    "Far enough back that it goes into the darkness", i.e. the room's unlit fog
    distance, measured with the HELLUMINATOR PUT AWAY: UDM_BASE_FOG_FAR in the
-   Up Down Maze (src/up_down_maze.c) and CE_BASE_FOG_FAR in the entry, both
-   1600.
+   Up Down Maze (src/up_down_maze.c), which is 1300.
+
+   >>> IT TRACKS THE UP DOWN MAZE AND NOT THE CATACOMBS ENTRY, NOW THAT THE TWO
+   HAVE PARTED. <<< Both rooms used to sit at 1600 and this constant could
+   honestly claim to be either. The maze's base came down to 1300 and the
+   entry's CE_BASE_FOG_FAR did not, so the two no longer agree — and every
+   crawler in the game is placed in the maze (see world.c), so the maze is the
+   one that decides. Put a crawler in the entry chamber and it will retreat 300
+   units short of that room's darkness: still out of the fight, but visible at
+   the far end of it.
 
    A CONSTANT AND NOT THE ROOM'S LIVE fog_far, deliberately: the lantern scales
    that value by up to 2x, and a crawler that retreated to the lit distance
@@ -138,7 +159,7 @@
    the same as a run down a corridor — and a crawler that has to go up and over
    something to spend it is doing the retreat, not failing it. It always ends,
    and it always ends after the same amount of running. */
-#define CRW_RETREAT_DIST   1600
+#define CRW_RETREAT_DIST   1300
 
 /* ---- The stall watch ------------------------------------------------------
    >>> A DISTANCE TRAVELLED STILL NEEDS THIS, AND IT IS NOW THE ONLY OTHER WAY

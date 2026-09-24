@@ -38,24 +38,43 @@ static void *up_down_maze_buff = NULL;
    it into the background), the base is scaled by what the player is carrying,
    and the scale eases rather than jumping.
 
-   1600 IS ALSO THE RIGHT BASE FOR THIS ROOM ON ITS OWN TERMS, which is worth
-   saying because "copied from next door" is not a reason. The blocks are on a
-   600 grid and the room is 4200 long; at 1600 the player sees three or four
-   cells of corridor and no further, which is the whole point of a maze. Up on
-   the walkways the drop-offs are the hazard and 1600 still shows the next
-   junction. Lengthening it would hand the player a plan of the maze from the
-   doorway.
+   1300 IS THE RIGHT BASE FOR THIS ROOM ON ITS OWN TERMS, which is worth saying
+   because "copied from next door" is not a reason — and this room no longer IS
+   next door's number. The blocks are on a 600 grid and the room is 4200 long;
+   at 1300 the player sees two cells of corridor and no further, which is the
+   whole point of a maze. Up on the walkways the drop-offs are the hazard and
+   1300 still shows the next junction. Lengthening it would hand the player a
+   plan of the maze from the doorway.
 
-   THE HELLUMINATOR IS THE WAY ROUND IT, exactly as in the entry chamber: raising
-   the lantern is +50% and burning it is +50% more, so a burst buys a 3200 sight
-   line down one corridor and costs oil. That is the chapter's bargain, and this
-   is the first room built around it. */
-#define UDM_BASE_FOG_NEAR   450
-#define UDM_BASE_FOG_FAR   1600
+   THE HELLUMINATOR IS THE WAY ROUND IT, exactly as in the entry chamber:
+   raising the lantern and then burning it each add ~46% of the base, so a burst
+   buys a 2500 sight line down one corridor and costs oil. That is the chapter's
+   bargain, and this is the first room built around it.
 
+   >>> AND THIS IS ALSO THE ROOM'S FRAME BUDGET, WHICH IS NOT OBVIOUS FROM
+   ANYWHERE ELSE. <<< `cull` and fog-far being equal means these three numbers
+   decide how much MESH is walked, transformed and queued, so the Helluminator
+   is a draw-cost control as much as a lighting one. Measured before this drop,
+   at the west spawn: 265 primitives with the lantern away, 499 with it raised
+   and 769 with it lit — and the lit case was the one that pushed the room to
+   VB2. See STEP 3J of tools/DIAGNOSING_FRAME_RATE.txt. Anything that lengthens
+   these has to be measured BURNING, not at rest.
+
+   THE NEAR DISTANCE MOVED WITH THE FAR ONE, on purpose: 366/1300 is the same
+   ratio 450/1600 was, so the fog ramp keeps exactly the shape it was authored
+   with and the only thing that changed is how far it reaches. Holding 450 would
+   have compressed the ramp as well as shortening it, which is a second change
+   nobody asked for. */
+#define UDM_BASE_FOG_NEAR   366
+#define UDM_BASE_FOG_FAR   1300
+
+/* The two bonuses are equal, and 118/256 is ~46% rather than a round half
+   because the three distances wanted are 1300 / 1900 / 2500 — even steps of 600
+   on a base of 1300, which no clean percentage lands on. What the integer
+   arithmetic actually resolves to is 1300, 1899 and 2498. */
 #define UDM_VIEW_UNIT        256
-#define UDM_VIEW_HELL_BONUS  128   /* +50% while the lantern is in hand   */
-#define UDM_VIEW_BURN_BONUS  128   /* +50% more while it is actually lit  */
+#define UDM_VIEW_HELL_BONUS  118   /* ~+46% while the lantern is in hand   */
+#define UDM_VIEW_BURN_BONUS  118   /* ~+46% more while it is actually lit  */
 #define UDM_VIEW_RATE          8   /* 1/256ths a frame; one bonus in 16 frames */
 
 static int32_t udm_view     = UDM_VIEW_UNIT;       /* eased scale, 1/256ths */
