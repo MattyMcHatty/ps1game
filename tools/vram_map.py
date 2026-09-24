@@ -608,6 +608,25 @@ KNOWN_STREAM_PAIRS = [
     #
     # Its CLUT is NOT shared: (512,504) was genuinely free.
     ("stn_gls.tim", "oil_container.tim"),
+    #   incinerator.tim -> the Rabisu tex / vines page (x704 y256), the Chapter 3
+    # Incinerator prop's art. An exact 128x128 8bpp fit on a page with TWO
+    # occupants, and like the oil dispenser's it is sound on the ORDINARY terms
+    # rather than on the "nothing goes back there" argument the sconce's note
+    # above records as wrong. Both occupants re-upload themselves out of their
+    # own deferred bank on the route that would need them:
+    #   Rabisu tex -> rabisu_upload_texture(), on arena entry (src/rabisu.c)
+    #   vines      -> the greenhouse's uploader, on room entry (src/greenhouse.c)
+    # So a title load into a Chapter 1 or 2 save that walks back into either
+    # room puts the right pixels up again. CHECK THAT BEFORE TAKING A THIRD
+    # SLICE OF THIS PAGE — it is now the most-shared 8bpp page in the game.
+    #
+    # Its CLUT is NOT shared: (304,511) was genuinely free, and it is the ONLY
+    # 256-word line left that clears both the other CLUTs and every texture's
+    # PIXELS. The first attempt took (512,481), which no CLUT occupied but
+    # ddog_alert.tim's pixel data did — the CLUT OVERLAP CHECK below is what
+    # caught it, and it is why that check exists.
+    ("Rabisu tex.tim", "incinerator.tim"),
+    ("incinerator.tim", "vines.tim"),
 ]
 
 def read_tim(path):

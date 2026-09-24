@@ -16,6 +16,7 @@
 #include "save_point.h"
 #include "sconce.h"
 #include "oil_dispenser.h"
+#include "incinerator.h"
 #include "rafflesia.h"
 #include "living_statue.h"
 #include "hadad.h"
@@ -952,6 +953,16 @@ void apply_collision_reception(void) {
        a no-op everywhere else. Prop radius, not the wall standoff — it is a
        40-wide tank set into a corner, not a stretch of wall. */
     oil_dispensers_collide(&cam_x, cam_y, &cam_z, 75);
+    /* The Incinerator, on the same terms once more: its box is its own mesh
+       bounds and its own height, measured off the SMD at load, and the module
+       gates itself to the Incinerator Room. THE WALL STANDOFF, not the 75 the
+       three props above take — this is a 2000-long, 600-deep machine spanning a
+       third of its hall, so what the player walks along is a WALL and it should
+       hold them off at the same distance the brick does (INC_WALL_RADIUS is
+       195; 195 is passed rather than read because this routine is shared and
+       has no room to ask). Give it 75 and the player's shoulder sinks into the
+       plating for the 120 units between. */
+    incinerator_collide(&cam_x, cam_y, &cam_z, 195);
     /* Piano-room props (this routine is shared with the piano room); the module
        gates itself to that area, so this is a no-op in reception. */
     piano_props_collide(&cam_x, cam_y, &cam_z, 75);

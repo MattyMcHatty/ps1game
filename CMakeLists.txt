@@ -109,6 +109,8 @@ add_executable(horror_game
     src/incinerator_room.c
     src/sconce.c
     src/oil_dispenser.c
+    src/incinerator.c
+    src/incinerator_panel.c
     src/catacomb_walk.c
     src/asag_boss.c
     src/asag_fight.c

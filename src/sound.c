@@ -141,7 +141,15 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        deliberate, not an oversight. */
     [SFX_SPDR_WLK]   = SND_BANK_HOUSE | SND_BANK_GARDEN | SND_BANK_CATACOMBS,
     [SFX_SPIT]       = SND_BANK_HOUSE,
-    [SFX_MCHNE]      = SND_BANK_HOUSE,
+    /* HOUSE for the piano room's sinking bookcase and the chain room's winch;
+       CATACOMBS for the Incinerator's button, which grinds twice on every press
+       (src/incinerator.c). Nothing was re-cut for the second bank the way
+       SFX_MCHNE_GH was for the garden's — that clip exists because the garden
+       bank was the one with no room in it. THIS bank has room: it is 91 KB
+       against a 231 KB largest, so the 17.3 KB second copy does not move
+       `spare` at all (tools/ADDING_A_SOUND.txt STEP 3 — `spare` is the region
+       less the LARGEST bank, and CATACOMBS is nowhere near it). */
+    [SFX_MCHNE]      = SND_BANK_HOUSE | SND_BANK_CATACOMBS,
     /* >>> THESE THREE WERE SND_RESIDENT AND DID NOT NEED TO BE. <<< They fire
        mid-fight and a bank swap is a CD read, so residency looked like the only
        way to guarantee they were loaded. It was not: they are played by
@@ -203,7 +211,17 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        nor the house bank — 17.9 KB against 6.6 KB spare in each — so two copies
        is what it takes. Full reasoning in sound.h. */
     [SFX_GATE]       = SND_BANK_BOSS | SND_BANK_GARDEN,
-    [SFX_GAS]        = SND_BANK_GARDEN,  /* the Rafflesia's spore puff          */
+    /* GARDEN for the Rafflesia's spore puff; CATACOMBS because the Incinerator
+       vents with it at the end of its cycle (src/incinerator.c). Borrowed
+       rather than re-cut - it is 0.80 s of pressurised hiss and costs 4800
+       bytes in a bank with 135 KB of headroom under the largest.
+
+       >>> AND IT NOW SHARES VOICE 13 WITH SFX_GLUG INSIDE ONE BANK. <<< Read
+       the glug's note in sfx_channel() below before moving either: the reason
+       it was allowed onto 13 was that every other claimant was banked OUT down
+       here, and this bit is what makes that no longer strictly true. It is
+       still safe, and the note below says on what grounds. */
+    [SFX_GAS]        = SND_BANK_GARDEN | SND_BANK_CATACOMBS,
     [SFX_PULL]       = SND_BANK_GARDEN,  /* ...and its grab (fireball reversed) */
     /* The Mushroom Head's scream. GARDEN only — it is 12.3 KB and the house
        bank, which is the largest and so sets `spare`, has 6.6 KB free. The
@@ -474,8 +492,25 @@ static int sfx_channel(SfxID id) {
 
        AND 13 IS NOT ONE OF THE POISONED THREE. Checked rather than assumed:
        gas.vag carries its loop flag on block 299 of 300, i.e. it is an ordinary
-       one-shot and has never moved that voice's repeat address. */
-    if (id == SFX_GLUG)        return 13;   /* SFX_GAS's  (GARDEN)  one-shot   */
+       one-shot and has never moved that voice's repeat address.
+
+       >>> THE EVICTION ARGUMENT NO LONGER COVERS SFX_GAS, AND THAT IS DELIBERATE.
+       <<< The Incinerator vents with the spore puff, so SFX_GAS carries
+       SND_BANK_CATACOMBS as well as SND_BANK_GARDEN and the two clips are now
+       loaded together, on one voice, for the first time. What keeps it sound is
+       not the bank any more but the MAP: the glug is the oil dispenser's pour in
+       the Catacombs Entry and the puff is the Incinerator's vent two rooms on,
+       each fired by a button press the player makes standing at that prop. There
+       is no position in the game from which both can be started, and neither
+       outlives the transition between them (0.65 s and 0.80 s against a door
+       animation several times longer).
+
+       SO THE RULE FOR A THIRD CATACOMBS CLAIMANT ON 13 IS A ROOM TEST, NOT A
+       BANK TEST: it may share only if no room can fire it and one of these two.
+       Anything that can sound in the Catacombs Entry or the Incinerator Room
+       needs a different voice, and every voice 0..23 is already spoken for -
+       so it would mean taking one off the pool, the way these two were. */
+    if (id == SFX_GLUG)        return 13;   /* shares with SFX_GAS: see above  */
     /* ---- THE CATACOMB DOOR, AND IT IS OFF THE POOL ON THE RULE, NOT ON A
        JUDGEMENT. At 5.43 s it is the second longest clip in the game after
        DMNSPEAK, which is exactly what STEP 6 of tools/ADDING_A_SOUND.txt means

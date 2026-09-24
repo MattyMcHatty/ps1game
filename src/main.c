@@ -102,6 +102,8 @@
 #include "lever.h"
 #include "trick_drawers.h"
 #include "stove_puzzle.h"
+#include "incinerator.h"
+#include "incinerator_panel.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "tentacle.h"
@@ -186,6 +188,7 @@ void reset_game(RenderContext *ctx) {
     player_poison_timer = 0;   /* status effects never survive a reset */
     kitchen_stove_reset();
     stove_puzzle_arm();      /* drop any in-progress cook, clear the board */
+    incinerator_panel_arm(); /* ...and drop the conveyor board and its shot   */
     piano_puzzle_arm();      /* ...and any in-progress piano key placement  */
     exit_door_puzzle_arm();  /* ...and any keystones left in the exit door  */
     cam_pitch = 0;           /* a puzzle camera never survives a reset */
@@ -244,6 +247,13 @@ void reset_game(RenderContext *ctx) {
                                the rest of the inventory) — the tank is a fixture
                                of a room, not something the player carries, so it
                                resets with the world.                       */
+    incinerator_reset();    /* ...and the Incinerator's conveyor emptied. With
+                               the world rather than with the inventory, for the
+                               tank's reason above: what is on the conveyor is
+                               in a machine, not in the player's pockets. The
+                               item is NOT handed back first — a new
+                               playthrough is not a continuation of the one
+                               that left it there.                          */
     hatch_puzzle_reset();   /* ...and The Hatch's board, its shot and any
                                half-played descent dropped. The two keyholes
                                themselves are GameFlags and are cleared with
@@ -498,6 +508,20 @@ static void update_current_area(GameState area) {
         player_status_update();
         kitchen_stove_update();
         stove_puzzle_update();
+        update_particles();
+        return;
+    }
+    /* Same deal for the Incinerator's conveyor board. The crawlers keep moving
+       — this chapter's monster, and the room can hold them — and the MACHINE
+       keeps grinding, because the player can start it at the button and reach
+       the conveyor well inside its eight and a half seconds. Locked hard (1) so
+       the Circle working this board can never also read as a press on the
+       button 1850 units away. */
+    if (area == STATE_INCINERATOR_ROOM && incinerator_panel_active()) {
+        update_crawlers();
+        player_status_update();
+        incinerator_room_machine_update(1);
+        incinerator_panel_update();
         update_particles();
         return;
     }
@@ -1847,11 +1871,24 @@ static void update_current_area(GameState area) {
            the function keeps its Circle edge state current while locked and
            returns 0, so a press held across a menu closing cannot read as a
            fresh one on the frame the lock lifts. */
-        if (incinerator_room_north_door_triggered(lock)) {
-            pending_area = STATE_UP_DOWN_MAZE;
-            door_anim_start(DOOR_PANEL_CATACOMB);
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
+        {
+            int took = incinerator_room_north_door_triggered(lock);
+            if (took) {
+                pending_area = STATE_UP_DOWN_MAZE;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
+            /* THE MACHINE, with the door's result carried in as a veto — the
+               Catacombs Entry's chain, and run every frame whatever the door
+               returned so its edge state cannot go stale while the door is
+               firing. It also ticks the three-grind cycle, which is why it is
+               unconditional and not inside an `if (!lock)`. */
+            incinerator_room_machine_update(took ? 1 : lock);
+            /* ...and the conveyor board's own proximity trigger. Separate
+               because it OWNS THE CAMERA once it opens: from the next frame the
+               branch at the top of this function takes over (see the stove). */
+            if (!lock) incinerator_panel_update();
         }
     } else if (area == STATE_ASAG_ARENA) {
         /* ASAG'S ARENA — free play, which here means the fight AFTER the opening
@@ -2605,6 +2642,17 @@ int main(int argc, const char **argv) {
                                   free list so the chapter purge leaves it
                                   standing. Its mesh is its collision data too -
                                   see src/oil_dispenser.h. */
+    loading_screen_pump(&ctx);
+    incinerator_load_assets(); /* CHAPTER 3's Incinerator, on the same terms
+                                  again: a deferred texture registration, ~6 KB
+                                  of geometry read here and held for the run,
+                                  and out of area_bank.c's free list so the
+                                  chapter purge leaves it standing. Its mesh is
+                                  its collision data AND its position - the
+                                  model is authored in room coordinates, which
+                                  is the one thing about it that is not the oil
+                                  dispenser's arrangement. See
+                                  src/incinerator.h. */
 
     asag_arena_load_assets();  /* ASAG'S ARENA: does NOTHING, on purpose. It owns
                                   no texture yet, and when it does they will be
@@ -4150,6 +4198,7 @@ int main(int argc, const char **argv) {
                    overlays. */
                 int puzzle = (area == STATE_2F_HALL && trick_drawers_puzzle_active()) ||
                              (area == STATE_KITCHEN_DINING && stove_puzzle_active()) ||
+                             (area == STATE_INCINERATOR_ROOM && incinerator_panel_active()) ||
                              (area == STATE_PIANO_ROOM && piano_puzzle_active()) ||
                              (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) ||

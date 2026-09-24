@@ -23,6 +23,8 @@
 #include "dresser.h"
 #include "sconce.h"
 #include "oil_dispenser.h"
+#include "incinerator.h"       /* the machine this room is named after */
+#include "incinerator_panel.h"  /* ...and the board over its conveyor    */
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 
@@ -261,6 +263,11 @@ void incinerator_room_load_assets(void) {
 void incinerator_room_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
+    /* ...and the Incinerator's own page, which unlike the two above this room
+       DOES own: one narrow uploader, the oil dispenser's arrangement exactly
+       (src/incinerator.h). It is the only texture registration anything in this
+       room makes, and the only reason check_tex_banks.py reaches this module. */
+    incinerator_upload_texture();
 }
 
 /* ---- THE NORTH DOOR --------------------------------------------------------
@@ -285,16 +292,93 @@ void incinerator_room_upload_textures(void) {
 #define INC_FADE_NEAR          800
 #define INC_TRIGGER_RADIUS     500
 
+/* ---- THE INCINERATOR'S BUTTON ----------------------------------------------
+   The panel on the machine's NORTH face, and the only one of its two
+   interactions that lives in this file. Its coordinates are MEASURED off
+   assets/props/Incinerator.smx rather than chosen: exactly one face in that
+   model wears the button patch of the texture (u[3,42] v[95,123], the red
+   button and the strip beside it in the bottom-left of incinerator.png), and it
+   spans x[-500,-400], y[-300,-200] at z=-2550. So the point below is that
+   face's centre, and re-exporting the machine with the panel somewhere else is
+   the one change that would need these three numbers looked at again.
+
+   z=-2550 is the machine's north face and the hall runs north from there to
+   z=0, so the player reads it looking -Z. A sign in the XY plane approached
+   from +Z is mirror=1 — the pairing src/catacombs_entry.c's tablet spells out —
+   and it floats 11 units proud on the player's side.
+
+   FULL DOOR_PIXEL_SIZE, unlike the oil dispenser's half-size sign. That one was
+   halved because a 432-unit line over a 40-wide tank was ten times the object
+   it labelled; this machine is 2000 long, so the line is a fifth of it and sits
+   on the face like a stencil. The two signs on this prop are 1550 apart and
+   cannot collide at either size.
+
+   >>> THE HEIGHTS MOVED WITH THE RE-EXPORT AND THE X/Z DID NOT. <<< The machine
+   was shortened from 400 tall to 300, which scaled every Y on the model by
+   three quarters and left the plan alone: the button panel was y[-300,-200] and
+   is now y[-200,-100], so the sign came down 100 with it. Nothing else about
+   this block changed, which is the check worth making after any re-export - if
+   an X or a Z moves too, the model has been repositioned and not just resized,
+   and the collision box (measured at load) will have followed while these
+   constants will not have.
+
+   >>> THE CONVEYOR IS NOT HERE. <<< It is a camera-locked board and lives in
+   src/incinerator_panel.c, which owns its own trigger, its own radius and its
+   own edge state. What is here is the walk-up press, which is an ordinary
+   interaction like the door's. */
+#define INC_BUTTON_X         (-450)    /* the panel spans x[-500,-400] */
+#define INC_BUTTON_Z        (-2550)
+#define INC_BUTTON_TEXT_Y    (-210)    /* glyph TOP, just above the panel */
+/* >>> HOW FAR THE SIGN STANDS OFF THE FACE, AND 11 WAS NOT ENOUGH. <<< Every
+   door sign in the game floats 11 units proud of its wall, which works because
+   a door is a flat slab of one colour and the glyphs sit on it like paint. This
+   face is not: it is the machine's busiest panel - the button, the strip beside
+   it and the plating's tiling all inside the same 100 units - and at 11 the
+   green ran into that detail and stopped being legible. 60 lifts it clear into
+   the air in front of the machine, where it reads against the dark of the hall
+   instead of against the artwork.
+
+   IT COSTS NOTHING IN REACH. The sign is not the trigger; the press is tested
+   against INC_BUTTON_X/Z, the face itself, so moving the text does not move the
+   button. And 60 is still well inside the 195 the collision box holds the
+   player off by, so the line can never end up behind them. */
+#define INC_BUTTON_TEXT_OUT     60     /* north of the face, along +Z */
+
+/* The conveyor's sign, and ONLY its sign — the press belongs to the panel
+   module. The tray's outer face is at x=-2000 over z[-2950,-2750], approached
+   from -X, so TEXT_PLANE_YZ with mirror=1 and the line 11 units back along -X:
+   src/catacombs_entry.c's inner door is the same pairing. The reading axis for
+   a YZ sign is Z, hence the -200 on that coordinate and not on X. */
+#define INC_CONV_X          (-2000)
+#define INC_CONV_Z          (-2850)    /* (-2950 + -2750) / 2 */
+#define INC_CONV_TEXT_Y      (-200)    /* glyph TOP, above the tray surface;
+                                          down 100 with the shortened machine,
+                                          the tray having gone y[-250,-150] ->
+                                          y[-150,-50]. */
+
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int north_circle_prev = 1;
+static int button_circle_prev = 1;
+
+/* What the running machine will say when it stops. Latched on the press and
+   read ~8 seconds later, because incinerator.h puts the log line at the END of
+   the three grinds — so the branch has to be remembered across them. INT rather
+   than IncPress only so "nothing pending" has a value that is not one of the
+   three. */
+static int button_pending = -1;
 
 static int circle_held(void) {
     return interact_tapped();
 }
 
 void incinerator_room_arm(void) {
-    north_circle_prev = circle_held();
+    north_circle_prev  = circle_held();
+    button_circle_prev = circle_held();
+    /* The conveyor board keeps its own edge state and its own trigger, so it is
+       armed rather than reached into — the stove's arrangement with the
+       kitchen. It does NOT clear the hopper; see incinerator_panel_arm(). */
+    incinerator_panel_arm();
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -311,6 +395,61 @@ int incinerator_room_north_door_triggered(int lock) {
     xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (xz >= INC_TRIGGER_RADIUS) return 0;
     if (!interact_facing(INC_NORTH_X, INC_NORTH_Z)) return 0;
+    return 1;
+}
+
+/* ---- THE MACHINE, ONE FRAME ------------------------------------------------
+   Called unconditionally from main.c with the usual `lock`, and it does two
+   jobs that have to happen in this order.
+
+   FIRST THE CYCLE, because it is running whether or not the player is pressing
+   anything, and its line is owed from a press made up to eight seconds ago. The
+   wording is the room's and the arithmetic is the prop's — the split
+   src/catacombs_entry.c keeps with the oil dispenser.
+
+   THEN THE PRESS. It runs through the same range/facing/edge test the door
+   does, and its edge state is kept current EVEN WHILE LOCKED so a Circle held
+   across a menu closing does not read as a fresh press on the frame the lock
+   lifts (hatch_puzzle_update()'s rule, for its reason).
+
+   >>> AND THE DOOR VETOES IT. <<< main.c passes `took` in as part of `lock`,
+   so a frame that opened the north door cannot also work the machine. They are
+   3900 apart and the two trigger circles are 500, so this can never actually
+   fire — the veto is the pattern the Catacombs Entry's three interactions
+   established, and it costs a branch. */
+int incinerator_room_machine_update(int lock) {
+    int held, just;
+    int32_t dx, dz, xz;
+
+    incinerator_cycle_update();
+    if (incinerator_cycle_finished()) {
+        /* The brief's two lines, and the ONLY place either is printed. */
+        if (button_pending == INC_PRESS_BURNED) show_pickup_msg_raw("The item was destroyed!");
+        else                                   show_pickup_msg_raw("It has no effect");
+        button_pending = -1;
+    }
+
+    held = circle_held();
+    just = held && !button_circle_prev;
+    button_circle_prev = held;
+    if (lock || !just) return 0;
+
+    dx = cam_x - INC_BUTTON_X;
+    dz = cam_z - INC_BUTTON_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= INC_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(INC_BUTTON_X, INC_BUTTON_Z)) return 0;
+
+    /* >>> THE PRESS IS TESTED FIRST AND THE MACHINE IS STARTED SECOND. <<< It
+       DESTROYS AN ITEM, so it must never be asked speculatively — the oil
+       dispenser's rule, and the stakes here are higher than a hundred units of
+       oil. A press landing while it is already grinding comes back IGNORED and
+       changes nothing, so leaning on the button cannot burn two things. */
+    switch (incinerator_button_press()) {
+    case INC_PRESS_IGNORED:  return 0;   /* already running; not consumed */
+    case INC_PRESS_EMPTY:    button_pending = INC_PRESS_EMPTY;  break;
+    case INC_PRESS_BURNED:   button_pending = INC_PRESS_BURNED; break;
+    }
     return 1;
 }
 
@@ -336,6 +475,60 @@ static void inc_north_door_text(RenderContext *ctx) {
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
                         INC_NORTH_X - 200, INC_NORTH_TEXT_Y, INC_NORTH_Z - 11,
                         50, 255, 50, fade, 0, TEXT_PLANE_XY,
+                        DOOR_PIXEL_SIZE);
+}
+
+/* The two signs on the machine. Same fade curve as the door's — one helper for
+   the range/fade half so the three can never drift onto different curves, which
+   is the split src/catacombs_entry.c makes for the same three. */
+static int inc_sign_fade(int32_t wx, int32_t wz) {
+    int32_t dx = cam_x - wx;
+    int32_t dz = cam_z - wz;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade;
+
+    if (xz >= INC_TEXT_RADIUS) return 0;
+    fade = 256;
+    if (xz > INC_FADE_NEAR) {
+        int range = INC_TEXT_RADIUS - INC_FADE_NEAR;
+        int prog  = xz - INC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+    return fade;
+}
+
+/* "OPERATE", not "INTERACT": the button does one fixed thing and says so, while
+   the conveyor opens a board whose meaning depends on what is on it. The brief
+   asks for exactly that pair of words and they carry the distinction. */
+static void inc_button_text(RenderContext *ctx) {
+    int fade = inc_sign_fade(INC_BUTTON_X, INC_BUTTON_Z);
+    if (!fade) return;
+    /* door_draw_string_3d adds 200 to the reading axis before centring, hence
+       the -200. mirror=1: an XY-plane face approached from +Z. */
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to operate",
+                        INC_BUTTON_X - 200, INC_BUTTON_TEXT_Y,
+                        INC_BUTTON_Z + INC_BUTTON_TEXT_OUT,
+                        50, 255, 50, fade, 1, TEXT_PLANE_XY,
+                        DOOR_PIXEL_SIZE);
+}
+
+static void inc_conveyor_text(RenderContext *ctx) {
+    int fade;
+    /* >>> GONE WHILE THE MACHINE IS RUNNING. <<< The offer and the ability have
+       to disappear together: src/incinerator_panel.c refuses the press for the
+       same 336 frames, and a prompt that stayed up over a button that did
+       nothing would read as a dropped input rather than as a machine that is
+       busy. The BUTTON's sign is deliberately NOT hidden - it is what the
+       player is being told is working. */
+    if (incinerator_cycle_active()) return;
+    fade = inc_sign_fade(INC_CONV_X, INC_CONV_Z);
+    if (!fade) return;
+    /* A YZ sign reads along Z, so the -200 goes on the Z argument and not on
+       the X one. mirror=1: approached from -X. */
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to interact",
+                        INC_CONV_X - 11, INC_CONV_TEXT_Y, INC_CONV_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ,
                         DOOR_PIXEL_SIZE);
 }
 
@@ -385,6 +578,26 @@ void incinerator_room_init(void) {
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
+
+    /* ---- THE INCINERATOR ---------------------------------------------------
+       >>> PLACED AT THE ORIGIN, AND THAT IS THE WHOLE PLACEMENT. <<<
+       assets/props/Incinerator.smx is authored in this room's own coordinates —
+       its vertices ARE x[-2000,-1] y[-400,0] z[-3150,-2550] in the hall — so
+       the position comes out of the file and there is no pair of #defines here
+       to keep in step with Blender. src/incinerator.h sets out what that buys
+       and what it costs (rot_y is meaningless for this prop, hence the 0).
+
+       y is the floor reference the prop adds GROUND_FLOOR_Y back onto, so it is
+       INC_FLOOR_Y less that constant — the oil dispenser's call next door reads
+       `1240 - GROUND_FLOOR_Y` for the same reason. The model's own y=0 is this
+       room's floor, so the machine lands sitting on it.
+
+       CLEARED FIRST, like the four above: it is a singleton and a re-entry must
+       not leave two claims on it. Clearing also STOPS a cycle left running by a
+       button press the player walked out on (src/incinerator.c). */
+    incinerator_clear();
+    incinerator_place(STATE_INCINERATOR_ROOM, 0, INC_FLOOR_Y - GROUND_FLOOR_Y, 0, 0);
+    button_pending = -1;
 
     /* Resolve the view distance with no ease: the first frame in the room shows
        whatever the player walked in holding. */
@@ -621,6 +834,21 @@ void incinerator_room_draw(RenderContext *ctx) {
        frame between the mesh and that string. When something is finally placed
        in here, it goes inside this same test. */
     if (exp != DBG_EXP_NO_ENTITIES) {
+        /* The machine FIRST, before the three strings: it is geometry and sorts
+           at real scene depth, and queueing it inside this same test is what the
+           note above asked for when something was finally placed in here.
+
+           It draws under the 128 texture window set at the top of this function,
+           which it NEEDS — its UVs run past a tile (src/incinerator.c). */
+        incinerator_draw(ctx);
         inc_north_door_text(ctx);
+        inc_button_text(ctx);
+        inc_conveyor_text(ctx);
     }
+
+    /* The conveyor board LAST and OUTSIDE the entity test: it is a 2D overlay in
+       the menu-reserved OT range, not something in the room, and a debug switch
+       that hid the room's contents must not also swallow the screen the player
+       is looking at. It is a no-op unless the board is up. */
+    incinerator_panel_draw(ctx);
 }

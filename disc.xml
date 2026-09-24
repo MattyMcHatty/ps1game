@@ -1052,6 +1052,35 @@
             <file name="OILDISP.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\oil_dispenser.smd"/>
             <file name="OILCNTNR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\oil_container.tim"/>
 
+            <!-- THE INCINERATOR, the chapter's third prop and the machine the
+                 Incinerator Room is named after: a 2000-long body with a button
+                 panel on its north face and a conveyor tray off its west end.
+                 Chapter 3 art, so it ships here rather than beside the props in
+                 the root, on the sconce's argument above.
+
+                 >>> INCINPRP, NOT INCINRTR. <<< The ROOM's mesh above already
+                 holds \TEXCTCMB\INCINRTR.SMD. 8.3 names are the only names the
+                 CD filesystem has, so the prop cannot be called after the room
+                 it stands in - and the clash is silent, not a build error.
+
+                 ITS VRAM PAGE IS THE Rabisu tex / vines PAGE (x704 y256, 8bpp,
+                 Voff 0) - a 128x128 fit, time-shared on the same argument the
+                 sconce and the oil dispenser make: the catacomb mouth is
+                 one-way, so the boss's hide and the greenhouse's vine curtain
+                 are never drawn again in a session that reached here. BOTH have
+                 a live restore path if a title load puts the player back in
+                 Chapter 1 or 2 - src/rabisu.c uploads its own on arena entry
+                 and src/greenhouse.c uploads the vines' on room entry, each out
+                 of its own deferred bank. Do NOT take one of these pages
+                 without checking that path still exists.
+
+                 INCINPRP.SMD IS THE ONLY COLLISION DATA THIS PROP HAS, AND IT
+                 IS ALSO THE ONLY RECORD OF WHERE IT STANDS - the model is
+                 authored in room coordinates. See the head of
+                 src/incinerator.h. -->
+            <file name="INCINPRP.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\incinerator.smd"/>
+            <file name="INCINPRP.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\incinerator.tim"/>
+
             <!-- THE CRAWLER, the chapter's first MONSTER (src/crawler.c). Four
                  animation frames, read in the order top-left, top-right,
                  bottom-left, bottom-right. An idle crawler holds on the first; a

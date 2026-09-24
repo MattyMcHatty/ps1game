@@ -59,6 +59,13 @@ void incinerator_room_spawn_north(void);
    range and facing the door — the frame main.c starts the transition on. */
 int  incinerator_room_north_door_triggered(int lock);
 
+/* One frame of the Incinerator's BUTTON, plus the tick of the three-grind cycle
+   a press starts and the log line it owes when it stops. `lock` is main's usual
+   suppression, with the north door's result folded into it. Returns 1 on the
+   frame a press was consumed. The machine's other interaction — the conveyor —
+   is a camera-locked board and belongs to src/incinerator_panel.h. */
+int  incinerator_room_machine_update(int lock);
+
 /* Arm every interaction in the room. Called by the spawn above; exported so a
    caller that places the player some other way (a debug jump) can still ensure a
    Circle held through the transition does not fire on the arrival frame. */

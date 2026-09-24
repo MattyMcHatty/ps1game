@@ -9,6 +9,7 @@
 #include "title.h"
 #include "world.h"
 #include "oil_dispenser.h"   /* the Catacombs tank rides in SaveData.disp_oil */
+#include "incinerator.h"     /* ...and its conveyor in incin_slot/incin_count   */
 
 /* ---- PlayStation memory-card directory format ------------------------------
    Block 0 is the directory. Frame 0 is the card header ("MC" magic). Frames
@@ -81,6 +82,10 @@ void savegame_capture(SaveData *sd) {
     sd->hatch_keys = player_hatch_keys;
     sd->oil        = player_oil;
     sd->disp_oil   = oil_dispenser_oil();
+    /* The Incinerator's conveyor. Written unconditionally, -1 and 0 when it is
+       empty, so a reader never has to ask whether the fields are live. */
+    sd->incin_slot  = incinerator_slot();
+    sd->incin_count = incinerator_count();
     sd->flags   = game_flags;
     menu_inventory_save(sd->item_order);
     sd->counter = 0;
@@ -261,6 +266,14 @@ void savegame_apply_pending(void) {
        way into that scalar, so putting the clamp behind it covers this call and
        every later one. */
     oil_dispenser_set_oil((int)sd->disp_oil);
+    /* ...and the conveyor, clamped by its setter for the same reason: a slot
+       off the end of MENU_ITEM_SLOTS would index menu_item_name() out of
+       bounds, and the setter is the only way into those two.
+
+       BEFORE menu_inventory_load below, which reconciles the grid against what
+       the player holds — an item in the machine is NOT held, and restoring the
+       hopper after the grid would leave a cell pointing at it. */
+    incinerator_set_stored((int)sd->incin_slot, (int)sd->incin_count);
     game_flags        = sd->flags;
     player_save_count = (int)sd->counter;
     /* AFTER the inventory fields above: the arrangement is reconciled against

@@ -35,6 +35,23 @@ void spawn_wood_burst(int32_t x, int32_t y, int32_t z);
    are the only two things that differ. Like every burst here it OVERWRITES the
    whole pool, so two smashes on one frame show as one. */
 void spawn_rock_burst(int32_t x, int32_t y, int32_t z);
+/* ---- A DIRECTIONAL PUFF OF SOOT (the Incinerator venting) ------------------
+   The other four bursts here are EXPLOSIONS: they throw in every direction off
+   a point, because something broke there. This one is a VENT - it leaves a hole
+   travelling one way - so it is the only one that takes a direction. (dx,dz) is
+   that direction in plan, expected as one of -1/0/+1 on each axis, and the
+   speed and spread are the .c's own.
+
+   It is also the only one that does not fill the pool: a machine clearing its
+   throat is a smaller event than a crate coming apart, so it writes SOOT_COUNT
+   slots and sets particle_count to match. The slots past it stop being drawn,
+   which is the same wholesale-overwrite contract the four above already have.
+
+   BLACK-GREY, and it is read against the furnace it comes out of rather than
+   against the room: draw_pool fades every particle to black over its life, and
+   this one starts only a little above that, so what the player sees is soot
+   crossing the glow and then gone. */
+void spawn_soot_spurt(int32_t x, int32_t y, int32_t z, int32_t dx, int32_t dz);
 void update_particles(void);
 void draw_particles(RenderContext *ctx);
 void reset_particles(void);

@@ -120,6 +120,70 @@ void spawn_rock_burst(int32_t x, int32_t y, int32_t z) {
     particle_count = MAX_PARTICLES;
 }
 
+/* ---- THE INCINERATOR'S VENT ------------------------------------------------
+   See particles.h for why this one takes a direction and why it does not fill
+   the pool.
+
+   THE NUMBERS ARE SOLVED AGAINST THE THROW, not picked. update_particles damps
+   vx/vz by 28/32 every frame and does NOT damp vy, so a particle launched at
+   speed s along the plan travels about s / (1 - 0.875) = 8s units before it
+   stops moving sideways: at SOOT_SPEED 26 that is a little over 200 units,
+   which clears the machine's east conveyor tray (200 deep) and dies over the
+   floor rather than inside the model.
+
+   >>> THE LIFT AND THE LIFE ARE SOLVED TOGETHER AGAINST THE FLOOR. <<< Gravity
+   is +3 a frame and update_particles does NOT damp vy, so the drop after n
+   frames is 1.5n(n-1) - (lift)n and the n-squared term runs away fast: a puff
+   launched 6 up is already 264 units down by frame 16 and 966 by frame 28. The
+   vent is 225 above this room's floor, so anything past ~225 of net fall sinks
+   through the boards in front of the player.
+
+   The lift therefore has to scale with the life rather than being small. At
+   24..33 up and 16..24 frames every corner of that box lands between 168 units
+   ABOVE the vent and 27 below the floor - and the 27 is on the last frame of
+   the longest life, by which point draw_pool has faded the particle to black.
+   The arc peaks around 145 above the vent, i.e. y=-370, which clears the
+   machine's own roof at -300 and passes well under the -800 vault.
+
+   >>> SO THE FOUR NUMBERS BELOW MOVE AS A SET. <<< Raise the life without
+   raising the lift and the soot rains through the floor; raise the lift without
+   the life and it flies over the machine and vanishes mid-air. Re-solve the
+   drop if either changes, and re-check it against the vent height in
+   src/incinerator.c, not against this comment. */
+#define SOOT_COUNT   14
+#define SOOT_SPEED   26   /* along the vent normal, units/frame */
+#define SOOT_VARY    14   /* ...plus 0..13, so the puff spreads as it goes */
+#define SOOT_SPREAD   7   /* sideways wander off the normal */
+#define SOOT_LIFT    24   /* ...plus 0..9, up out of the mouth */
+#define SOOT_LIFE    16   /* ...plus 0..8 frames */
+
+void spawn_soot_spurt(int32_t x, int32_t y, int32_t z, int32_t dx, int32_t dz) {
+    int i;
+    for (i = 0; i < SOOT_COUNT; i++) {
+        Particle *p  = &particles[i];
+        int32_t   sp = SOOT_SPEED + (int32_t)(rng_next() % SOOT_VARY);
+        uint8_t   v  = 96 + (uint8_t)(rng_next() % 48);   /* 96..143 grey */
+        p->x        = x;
+        p->y        = y;
+        p->z        = z;
+        p->vx       = dx * sp + rng_range(SOOT_SPREAD);
+        p->vz       = dz * sp + rng_range(SOOT_SPREAD);
+        p->vy       = -(SOOT_LIFT + (int32_t)(rng_next() % 10));
+        p->life     = SOOT_LIFE + (int32_t)(rng_next() % 9);
+        p->max_life = p->life;
+        p->sw       = 3 + (uint8_t)(rng_next() % 5);
+        p->sh       = p->sw;
+        /* Warm grey: blue pulled down a little so it reads as smoke off a fire
+           rather than as dust. draw_pool's floor (it lifts R when all three
+           fall under 8) then tints the last frames faintly red, which is the
+           right way round for this of all emitters. */
+        p->r0       = v;
+        p->g0       = v;
+        p->b0       = (uint8_t)(v - 8);
+    }
+    particle_count = SOOT_COUNT;
+}
+
 void update_particles(void) {
     int i;
     for (i = 0; i < particle_count; i++) {

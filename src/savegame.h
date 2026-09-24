@@ -17,7 +17,16 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   25            /* v25: WorldDelta.crawlers_dead — the
+#define SAVE_VERSION   26            /* v26: incin_slot/incin_count — what the
+                                        Incinerator is holding. It is the only
+                                        machine in the game that takes an item
+                                        OUT of the inventory and can give it
+                                        back, so a save that forgot it would
+                                        destroy the item on a load without ever
+                                        burning it. Two fields because ammo goes
+                                        in as a QUANTITY (up to INC_AMMO_MAX)
+                                        and the slot alone cannot say how much.
+                                        v25: WorldDelta.crawlers_dead — the
                                         Catacombs' crawlers are a new global
                                         area-tagged ENTITY CATEGORY, so the
                                         delta grew a byte and delta_size moved
@@ -202,6 +211,12 @@ typedef struct {
                                        because the two are the same substance in
                                        two places, and a reader checking one
                                        should trip over the other. */
+    int32_t  incin_slot;            /* MENU_SLOT_* sitting on the Incinerator's
+                                       conveyor, or -1 when it is empty.       */
+    int32_t  incin_count;           /* how many of it: rounds for the two ammo
+                                       slots (1..INC_AMMO_MAX), else 1. Beside
+                                       `incin_slot` and meaningless without it —
+                                       see src/incinerator.h's hopper note.    */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     uint8_t  item_order[MENU_ITEM_CELLS];  /* inventory grid: cell -> item ID + 1,
                                        0 = empty. Purely the ARRANGEMENT; what is
