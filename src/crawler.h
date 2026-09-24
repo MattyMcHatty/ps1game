@@ -33,8 +33,8 @@
  *        part of the retreat that happens to be vertical.
  *
  *   2. IT IS A HIT-AND-RUN FIGHTER, not a chaser and not a kiter. The loop is
- *      RUSH -> (hit the player, or get hit) -> RETREAT past the room's unlit fog
- *      line -> PAUSE, scream -> RUSH again, and it runs until one of them is
+ *      RUSH -> (hit the player, or get hit) -> RETREAT the room's unlit fog
+ *      distance -> PAUSE, scream -> RUSH again, and it runs until one of them is
  *      dead. That is a different shape from the spider's three concentric bands:
  *      the crawler's distance to the player does not choose its behaviour, its
  *      STATE does, and the state only changes when a blow lands.
@@ -118,32 +118,36 @@
                                       silence between one whisper and the next */
 
 /* ---- The retreat ----------------------------------------------------------
-   "Far enough back that it goes into the darkness", i.e. past the room's fog,
-   measured with the HELLUMINATOR PUT AWAY. That is UDM_BASE_FOG_FAR = 1600 in
-   the Up Down Maze (src/up_down_maze.c), and 1700 clears it by a body length.
+   "Far enough back that it goes into the darkness", i.e. the room's unlit fog
+   distance, measured with the HELLUMINATOR PUT AWAY: UDM_BASE_FOG_FAR in the
+   Up Down Maze (src/up_down_maze.c) and CE_BASE_FOG_FAR in the entry, both
+   1600.
 
    A CONSTANT AND NOT THE ROOM'S LIVE fog_far, deliberately: the lantern scales
    that value by up to 2x, and a crawler that retreated to the lit distance
    would go further the brighter it got — exactly the adaptive behaviour the
    brief rules out. Raising the lantern is supposed to REVEAL a retreated
-   crawler, not push it back out of sight. */
-#define CRW_RETREAT_DIST   1700
+   crawler, not push it back out of sight.
 
-/* A retreat that cannot reach that distance gives up and turns anyway. The
-   lower maze is 4200 x 6000 so the room is big enough, but it is a MAZE: a
-   crawler backing into a dead end would otherwise grind there forever and the
-   fight would simply stop. Eight seconds is far longer than an unobstructed
-   retreat needs (1700 units at 14/frame is 121 frames). */
-#define CRW_RETREAT_TIMEOUT  480
+   >>> IT IS A DISTANCE TRAVELLED, NOT A DISTANCE FROM THE PLAYER. <<< The old
+   retreat ended when the GAP reached this figure, which a maze cannot always
+   grant: a crawler that backed into a dead end, or that the player walked in
+   on, could never open the gap however far it ran, so it ground where it stood
+   until an eight-second timeout let it go. The timeout is gone. A retreat now
+   spends this much PATH — all three axes, so the vertical leg up a wall counts
+   the same as a run down a corridor — and a crawler that has to go up and over
+   something to spend it is doing the retreat, not failing it. It always ends,
+   and it always ends after the same amount of running. */
+#define CRW_RETREAT_DIST   1600
 
 /* ---- The stall watch ------------------------------------------------------
-   >>> THE TIMEOUT ALONE IS NOT ENOUGH, AND EIGHT SECONDS OF NOTHING IS WHAT IT
-   LOOKS LIKE. <<< A crawler wedged somewhere it cannot climb out of has
-   finished retreating the moment it stops moving; making the player wait out
-   the full CRW_RETREAT_TIMEOUT for that reads as the enemy having hung, and
-   the only thing that appears to restart it is the player BACKING OFF — which
-   grows rad2 until the distance test fires instead, and is exactly the tell
-   that the timeout was carrying the case on its own.
+   >>> A DISTANCE TRAVELLED STILL NEEDS THIS, AND IT IS NOW THE ONLY OTHER WAY
+   OUT. <<< A budget spent out of travel is only spent by a body that travels:
+   one wedged somewhere it can neither run from nor climb out of would hold its
+   remaining distance forever, and with the timeout gone there would be nothing
+   behind it at all. Such a crawler has finished retreating the moment it stops
+   moving, and three quarters of a second of nothing is the most the player
+   should ever watch.
 
    So the retreat also ends when the body has genuinely stopped: less than
    CRW_STALL_MIN of travel in a frame — a third of one frame's worth, so a
@@ -154,10 +158,12 @@
 #define CRW_STALL_FRAMES     45
 #define CRW_STALL_MIN         5
 
-/* The beat at the far end of the retreat, before it comes back. The scream
-   fires on the frame this starts, and at 45 frames the clip (1.90 s) runs on
-   well into the rush — which is the intent: you hear it coming. */
-#define CRW_PAUSE_FRAMES     45
+/* The beat at the far end of the retreat, before it comes back: one second,
+   long enough that a player following a retreat with the Helluminator up
+   actually SEES it stop rather than catching a turn. The scream fires on the
+   frame this starts, and the clip (1.90 s) runs on well into the rush — which
+   is the intent: you hear it coming. */
+#define CRW_PAUSE_FRAMES     60
 
 /* ---- Contact damage -------------------------------------------------------
    20% of the player's maximum, i.e. five hits from full. Written as the literal
@@ -219,31 +225,113 @@
    real Y span at mount time, so a short wall simply holds it lower. */
 #define CRW_MOUNT_DIST      120
 
-/* >>> AND MOUNT_DIST ALONE IS WHY THE CRAWLERS NEVER CLIMBED ANYTHING. <<< The
+/* >>> THE FIVE RULES. <<< Everything in this block exists to serve these, and
+   anything that stops being able to state which one it implements is wrong:
+
+     1. Backs into a WALL          -> retreats UP it, and over.
+     2. Backs into a CORNER        -> up the FIRST face it touches.
+     3. Backs into a corner on an EDGE -> the same: first face it touches.
+     4. Advances into a WALL       -> up and OVER, then down on the player.
+     5. Advances into a corner on an EDGE -> follows the face nearer the player
+                                      to get round it.
+
+   Read together they say: a wall is something to GO OVER, and following one
+   round is the exception, not the rule — it is what an EDGE gets, because at an
+   edge there is a way round and going over would be the long way. And "the
+   first face it touches" is an instruction not to deliberate: at a corner two
+   faces are equally good and any tie-break that re-runs every frame will flip
+   between them and travel nowhere.
+
+   >>> AND MOUNT_DIST ALONE IS WHY THE CRAWLERS NEVER CLIMBED ANYTHING. <<< The
    obstacle feeler reaches CRW_FEELER_LEN ahead of a body already held
    CRW_BODY_RADIUS off every face, so the frame `blocked` first goes true the
    crawler is ~280 from the wall — more than twice MOUNT_DIST. The mount
-   therefore failed, the ordinary left/right wall-follow took over and committed
-   CRW_STEER_COMMIT frames of travel PERPENDICULAR TO THE GOAL, which for a
-   head-on approach is exactly parallel to the wall: the body never closed, the
-   next re-evaluation found it at 280 again, and the loop repeated for as long
-   as the wall was there. A crawler could only ever mount on a glancing approach
-   whose sidestep happened to carry it inward, which is the difference between
-   "climbs walls" and "has been seen to climb a wall".
+   therefore failed, and the ordinary wall-follow committed CRW_STEER_COMMIT
+   frames PERPENDICULAR TO THE GOAL, which for a head-on approach is parallel to
+   the wall: the body never closed, and the loop repeated for as long as the
+   wall was there.
 
-   REACH is how far out the wall SEARCH looks, and it is the feeler's own reach
-   so that anything the feeler can trip on can also be identified. A face found
-   between MOUNT_DIST and REACH is not mounted yet — the crawler is steered
-   STRAIGHT AT IT instead of round it, and arrives in about fourteen frames. */
+   Walking it in instead is no better and is what "moves to the corner really
+   slowly before going up" looked like: a crawler converging on one face is
+   being pushed along by every other face it is touching, so it closes the last
+   190 units at whatever fraction of its speed points that way, which in a
+   corner is almost none of it.
+
+   SO IT TAKES HOLD THE MOMENT IT CAN SEE THE FACE, at up to CRW_MOUNT_REACH,
+   and the body's real distance off the face becomes wall_off — eased down to
+   CRW_SURF_OFFSET at CRW_OFFSET_EASE a frame while the climb is already under
+   way. The decision is instant, and the approach is still drawn. */
 #define CRW_MOUNT_REACH     (CRW_FEELER_LEN + CRW_BODY_RADIUS)   /* 280 */
+#define CRW_OFFSET_EASE      32    /* units a frame the body settles onto the face */
 
-/* How square-on the approach has to be before a face counts as an obstacle to
-   climb rather than one to brush past: the goal's component into the face, at
-   least a quarter of the goal's length. Without it a crawler running the length
-   of a corridor would mount the side it happens to be nearest, because "heading
-   into it at all" is true of almost every diagonal. */
-#define CRW_MOUNT_HEADON      4    /* 1/4 — dot * HEADON >= |goal| */
+/* How square-on the approach has to be before a face counts as a wall to climb
+   rather than one to brush past: the goal's component into the face, at least a
+   third of the goal's true length (about 70 degrees). Without it a crawler
+   running the length of a corridor would mount the side it happens to be
+   nearest, because "heading into it at all" is true of almost every diagonal.
 
+   >>> THE LENGTH IT IS COMPARED AGAINST HAS TO BE A REAL ONE. <<< Measured
+   against the MANHATTAN magnitude the fraction holds only for a goal running
+   along an axis; at 45 degrees Manhattan is 1.41x the true length, so the same
+   constant silently demanded half again as much. A crawler heading into a
+   CORNER is diagonal by definition and is the exact case that throws away — it
+   arrives, fails on BOTH of the two faces it is wedged between, and sits on the
+   ground. Rules 2 and 3, lost to a missing square root. */
+#define CRW_MOUNT_HEADON      3    /* 1/3 — into * HEADON >= |goal| */
+
+/* Rule 5's "on an edge": the contact point is within this of either end of the
+   face. An edge has a way round it and going over would be the long way; a face
+   the crawler meets in the middle has no way round worth taking. */
+#define CRW_WALL_EDGE       200
+
+/* ---- Corners, and committing to a face ------------------------------------
+   >>> A CORNER IS TWO EQUALLY GOOD ANSWERS, AND RE-ASKING EVERY FRAME IS HOW AN
+   ENEMY GETS STUCK IN ONE. <<< Rules 2, 3 and 5 all say "the first one", and
+   that is a rule about NOT DELIBERATING. Pressed into a corner a crawler is the
+   same distance off both faces and heading into both, so any score computed
+   fresh each frame flips between them on rounding alone and each flip throws
+   away what the last one earned. So:
+
+     - THE NEAREST FACE WINS, and ties go to the lower index. That is "the first
+       one it comes into contact with", and it is stable: the same body in the
+       same corner gets the same answer every frame, which is the property that
+       actually matters — more than which of the two it picks.
+
+     - IT STAYS ON WHAT IT PICKED for CRW_WALL_HOLD frames before the sightline
+       may take it off again: "moves along that wall for a second before it
+       thinks about another one". Running off the END of a face is not covered —
+       that is geometry, not a decision.
+
+     - IT DOES NOT GO STRAIGHT BACK ON THE FACE IT JUST LEFT, for
+       CRW_WALL_COOL frames, so a crawler that has slid to the end of one face
+       at a corner takes THE OTHER ONE and carries on round instead of
+       re-grabbing the first and sliding back into the same dead end. */
+#define CRW_WALL_HOLD        45
+#define CRW_WALL_COOL        60
+
+/* ---- Coming back down ------------------------------------------------------
+   >>> A RUSH DOES NOT STAY UPSTAIRS, AND THIS IS WHAT "WENT UP INTO THE DARK
+   AND NEVER CAME BACK" WAS. <<< A crawler that finished a retreat on a walkway
+   or under the roof is a body that has to get to a player a whole storey below
+   it. Walking at them does it while the two are apart — it reaches the lip and
+   falls — but once it is ABOVE them the XZ goal is satisfied where it stands
+   and nothing ever moves it again: it cannot bite (dy is 1000, far outside
+   CRW_CATCH_DIST), it is out of the fog, and it simply stands there. The room
+   goes quiet and the fight is over without either of them deciding it.
+
+   So being overhead becomes its own instruction. Within CRW_ABOVE_DIST in plan
+   view and more than CRW_UPPER_DROP_DY above the player, a rushing crawler on a
+   raised floor heads for the NEAREST EDGE of that floor and walks off it, and
+   one on the ceiling simply lets go. Rule 4's "dropping down towards the
+   player", arrived at from the other direction. */
+#define CRW_UPPER_DROP_DY   500    /* the player is a storey down, not a step  */
+#define CRW_ABOVE_DIST      700    /* near enough overhead to stop closing     */
+
+/* A rush has no odometer to run down and nothing else behind it, so it needs
+   a stall watch of its own or any wedge in it is permanent. Longer than the
+   retreat's, because a rush that is briefly held up against a prop is ordinary
+   and should not be interfered with. */
+#define CRW_RUSH_STALL      90
 #define CRW_SURF_OFFSET      24
 #define CRW_CLIMB_RISE      380
 #define CRW_CLIMB_SPEED       8    /* units of Y a frame while settling        */
@@ -337,6 +425,10 @@ typedef struct {
     int32_t      wall_nx, wall_nz;
     int32_t      climb_y;        /* the Y it is settling to on that face       */
     int16_t      wall_mode;      /* CrawlerWallMode, while CRW_SURF_WALL       */
+    int16_t      wall_off;       /* the body's real distance off the face      */
+    int16_t      wall_hold;      /* frames left of the commit to this face     */
+    int16_t      last_wall;      /* the face it most recently let go of        */
+    int16_t      wall_cool;      /* frames that face stays off the candidates  */
     /* The retreat's LATCHED direction, Manhattan-normalised to 4096, fixed the
        frame the retreat starts and never re-aimed. "It retreats in a STRAIGHT
        LINE": re-deriving it from the player every frame is what made the old
@@ -349,7 +441,7 @@ typedef struct {
     int          anim_tick;
     int          moved;          /* travelled this frame: drives anim + scuttle */
     int          pause_timer;
-    int          retreat_timer;
+    int          retreat_left;   /* units of path the retreat still owes      */
     int32_t      facing;         /* last move dir, packed: hi16 = X, lo16 = Z  */
     int          steer_timer;
     int          steer_dir;
