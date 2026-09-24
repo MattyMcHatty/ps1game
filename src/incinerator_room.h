@@ -19,15 +19,20 @@
    is the height the player actually sees. Anything hung from this ceiling has
    611 units between it and a standing eye, not 1611.
 
-   THE DOORS. Two are drawn, and ONE of them is wired up:
+   THE DOORS. Two are drawn and BOTH are now wired up:
 
-     NORTH  z=0      x[200,400]    y[-400,0]   -> Up Down Maze, lower floor
-     west   x=-4200  z[-1800,-1600] y[-400,0]  not built
+     NORTH  z=0      x[200,400]     y[-400,0]  -> Up Down Maze, lower floor
+     WEST   x=-4200  z[-1800,-1600] y[-400,0]  -> the Tomb, east door
 
-   The west door is drawn and nothing else: no sign, no trigger. It reads as a
-   sealed door, which is what it is until the room behind it exists, and wiring
-   it up is the block of #defines in the .c plus the STEP 6 edits in
-   tools/ADDING_A_ROOM.txt.
+   The west door was drawn and nothing else until the Tomb landed - no sign, no
+   trigger, reading as a sealed door, which is what it was until the room behind
+   it existed. Wiring it up was the block of #defines in the .c plus the STEP 6
+   edits in tools/ADDING_A_ROOM.txt, and it is the worked example for anyone
+   doing the same to one of the chapter's other sealed doors.
+
+   NEITHER DOOR TAKES A STOREY TEST, and the west one's far side does not need
+   one either - the Tomb is flat. The note below is about the NORTH door's far
+   side, which is the one exception in the game.
 
    >>> THE NORTH DOOR'S NEIGHBOUR NEEDS A STOREY TEST AND THIS SIDE DOES NOT.
    <<< The far end of this doorway is the Up Down Maze's south-lower door, which
@@ -50,14 +55,26 @@ void incinerator_room_upload_textures(void); /* room entry: pure LoadImage from 
 void incinerator_room_init(void);            /* collision + floor zones + spawn */
 void incinerator_room_draw(RenderContext *ctx);
 
-/* Arrival through the north door, and the only arrival there is: standing just
-   inside it, facing south down the hall. */
+/* Arrival through the north door: standing just inside it, facing south down
+   the hall. This is also incinerator_room_init()'s DEFAULT spawn, so a
+   title-screen load or a debug jump lands here. */
 void incinerator_room_spawn_north(void);
+
+/* Arrival through the west door, back out of the Tomb: standing just inside it
+   on the +X side, facing east up the hall. main.c overrides the default with
+   this one, keyed on current_area. */
+void incinerator_room_spawn_west(void);
 
 /* One frame of the north door's Circle test. `lock` is main's usual suppression
    (a menu is up, a cutscene owns the camera). Returns 1 on a fresh press made in
    range and facing the door — the frame main.c starts the transition on. */
 int  incinerator_room_north_door_triggered(int lock);
+
+/* The same, for the WEST door into the Tomb. The two doors are 4500 apart in x
+   against a 500 reach and can never both be in range, so they need no veto
+   between them - but main.c still folds their results into the machine's
+   `lock`, which is the room's one real ordering rule. */
+int  incinerator_room_west_door_triggered(int lock);
 
 /* One frame of the Incinerator's BUTTON, plus the tick of the three-grind cycle
    a press starts and the log line it owes when it stops. `lock` is main's usual

@@ -67,12 +67,15 @@ void catacombs_entry_spawn_inner(void);
    pending_area, a door animation, a music stop) belong to main.c. */
 int  catacombs_entry_inner_door_triggered(void);
 
-/* THE TWO NARROW UPLOADERS, for src/up_down_maze.c, which draws cobblestone and
-   the inner door and none of this room's other four textures. See the note at
-   their definitions for why a borrower gets these rather than the full uploader
-   above, and why it borrows rather than registering its own copies. */
+/* THE THREE NARROW UPLOADERS. The first two are for src/up_down_maze.c and
+   src/incinerator_room.c, which draw cobblestone and the inner door and none of
+   this room's other four textures; the third is for src/tomb.c, which draws
+   those two and the loculus as well. See the note at their definitions for why a
+   borrower gets these rather than the full uploader above, and why it borrows
+   rather than registering its own copies. */
 void catacombs_entry_upload_cobble(void);
 void catacombs_entry_upload_inner_door(void);
+void catacombs_entry_upload_loculus(void);
 
 /* One frame of the two things in here that answer Circle. `lock` is main's
    usual suppression (a menu is up, a cutscene owns the camera). Returns 1 if

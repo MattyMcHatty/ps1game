@@ -160,6 +160,7 @@ static const char *const level_names[] = {
        INCLUDING the "* " cursor, so a name has 14 to play with. That is the
        same 14 that turned "CATACOMBS ENTRY" into "CCOMBS ENTRY" two rows up. */
     "INCINERATOR",
+    "TOMB",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -196,6 +197,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* CATACOMBS ENTRY */
     STATE_LOADING,        /* UP DOWN MAZE */
     STATE_LOADING,        /* INCINERATOR ROOM */
+    STATE_LOADING,        /* TOMB */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -230,6 +232,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_CATACOMBS_ENTRY,
     STATE_UP_DOWN_MAZE,
     STATE_INCINERATOR_ROOM,
+    STATE_TOMB,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

@@ -1015,6 +1015,29 @@
                  empty, deliberately and loudly. -->
             <file name="INCINRTR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\incinerator_room.smd"/>
 
+            <!-- THE TOMB, the chapter's FOURTH room, behind the WEST door of the
+                 Incinerator Room - the door that room's header had been listing
+                 as drawn-but-sealed since it landed. One square chamber 4200 on
+                 a side, flat and single storey under the same y=-800 vault, with
+                 nine free-standing blocks of burial loculi on a 3x3 grid and
+                 600-wide aisles between them (src/tomb.h).
+
+                 NO NEW TEXTURE AND NO NEW REGISTRATION, on the same terms as the
+                 two rooms above but across THREE files rather than two: it draws
+                 COBBLE.TIM, LOCULUS.TIM and CTCMBDR.TIM, all three already
+                 shipped at the head of this directory for the Catacombs Entry,
+                 and it reaches them through that room's narrow uploaders. The
+                 LOCULUS one is new - this is the first room besides the burial
+                 hall itself to draw the niches - but it is a new FUNCTION, not a
+                 new file and not a new registration. The whole cost of this room
+                 on the disc is the one mesh below.
+
+                 53,852 bytes, comfortably inside the arena MAZEONE.SMD already
+                 sizes (src/room_arena_size.h). Re-run py tools/gen_room_arena.py
+                 after any re-export anyway: growing past it and the room draws
+                 empty, deliberately and loudly. -->
+            <file name="TOMB.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\assets\tomb.smd"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

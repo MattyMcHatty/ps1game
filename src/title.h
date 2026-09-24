@@ -115,6 +115,14 @@ typedef enum {
                                 under a vault half the maze's height. See
                                 src/incinerator_room.h. Appended, not inserted:
                                 saves store raw enum values. */
+    STATE_TOMB,              /* The TOMB, through the WEST door of the
+                                Incinerator Room. Chapter 3's fourth room: one
+                                square chamber 4200 on a side, flat and single
+                                storey under the Incinerator Room's low vault,
+                                holding nine free-standing blocks of burial
+                                loculi on a 3x3 grid with 600-wide aisles between
+                                them. See src/tomb.h. Appended, not inserted:
+                                saves store raw enum values. */
     STATE_CATACOMB_WALK,     /* the transition INTO that room, and a transition
                                 state rather than a place — the company
                                 STATE_DOOR_ANIM and STATE_STAIR_ANIM keep. The

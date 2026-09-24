@@ -22,6 +22,7 @@ CullBox cull_boxes[CULL_ARENA_PRIMS];
 #include "reception_tex_map.h"
 #include "rear_gate_tex_map.h"
 #include "stables_tex_map.h"
+#include "tomb_tex_map.h"
 
 /* A negative-width bitfield is the portable form of a static assert and needs
    nothing from the C standard the -nostdlib toolchain does not already give. */
@@ -41,3 +42,4 @@ CULL_ARENA_FITS(maze_two,      MAZE_TWO_PRIM_COUNT);
 CULL_ARENA_FITS(reception,     RECEPTION_PRIM_COUNT);
 CULL_ARENA_FITS(rear_gate,     REAR_GATE_PRIM_COUNT);
 CULL_ARENA_FITS(stables,       STABLES_PRIM_COUNT);
+CULL_ARENA_FITS(tomb,          TOMB_PRIM_COUNT);

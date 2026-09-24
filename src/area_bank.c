@@ -99,6 +99,14 @@ TexBank area_bank_of(GameState area) {
        py tools/check_tex_banks.py walks incinerator_room_upload_textures() to
        the same two narrow uploaders and proves it. */
     case STATE_INCINERATOR_ROOM:
+    /* The Tomb is the third room in a row to be here by CONSTRUCTION rather
+       than by geography: it draws COBBLE, LOCULUS and CTCMBDR and nothing else,
+       all three of them the Catacombs Entry's own registrations. py
+       tools/check_tex_banks.py walks tomb_upload_textures() to that room's
+       three narrow uploaders and proves it. It is the first room besides the
+       burial hall to draw the loculus, which is why the third of those
+       uploaders exists at all. */
+    case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
     default:
@@ -109,7 +117,8 @@ TexBank area_bank_of(GameState area) {
 int area_is_catacombs(GameState area) {
     return area == STATE_CATACOMBS_ENTRY ||
            area == STATE_UP_DOWN_MAZE ||
-           area == STATE_INCINERATOR_ROOM;
+           area == STATE_INCINERATOR_ROOM ||
+           area == STATE_TOMB;
 }
 
 /* ---- The prop models -------------------------------------------------------

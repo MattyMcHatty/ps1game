@@ -283,6 +283,10 @@
 #define TIM_TPAGE_HUD      0x0016
 #define TIM_CLUT_HUD       0x7fcb
 
+/* incinerator.tim  8bpp  VRAM ( 704,256)  \TEXCTCMB\INCINPRP.TIM */
+#define TIM_TPAGE_INCINPRP 0x009b
+#define TIM_CLUT_INCINPRP  0x7fd3
+
 /* inr_dbl_dr.tim  4bpp  VRAM ( 576,256)  \INRDBLDR.TIM */
 #define TIM_TPAGE_INRDBLDR 0x0019
 #define TIM_CLUT_INRDBLDR  0x7c00

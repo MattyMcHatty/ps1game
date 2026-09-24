@@ -138,6 +138,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_CHAIN_ROOM,     STATE_THE_HATCH,
     STATE_ASAG_ARENA,     STATE_CATACOMBS_ENTRY,
     STATE_UP_DOWN_MAZE,   STATE_INCINERATOR_ROOM,
+    STATE_TOMB,
 };
 
 static int room_index(GameState area) {
@@ -198,6 +199,15 @@ static int room_index(GameState area) {
            AREA's, which is how a room silently inherits another room's smashed
            crates and dead enemies. */
         case STATE_INCINERATOR_ROOM:  return 29;
+        /* The Tomb. Seeded EMPTY, for the same two reasons as the three rooms
+           above: Chapter 3's one monster is placed in the maze and nowhere else
+           so far, and nothing from Chapters 1 or 2 can be placed down here
+           because area_bank_sync() has freed their art (src/area_bank.h). It
+           still needs a slot of its own, because without one it would fall
+           through the default below and share the DELIVERY AREA's, which is how
+           a room silently inherits another room's smashed crates and dead
+           enemies. */
+        case STATE_TOMB:              return 30;
         default:                   return 0;
     }
 }

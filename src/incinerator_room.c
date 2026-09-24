@@ -292,6 +292,35 @@ void incinerator_room_upload_textures(void) {
 #define INC_FADE_NEAR          800
 #define INC_TRIGGER_RADIUS     500
 
+/* ---- THE WEST DOOR, WHICH IS NO LONGER SEALED ------------------------------
+   x=-4200, z[-1800,-1600], y[-400,0] - in the outer west wall, and until the
+   Tomb was added it was drawn and nothing else. It is now the room's second
+   wired door, with Chapter 3's fourth room behind it.
+
+   A door in the YZ plane at fixed X, approached from +X (wall 5 runs x=-4199
+   with nx = +4096, so the walkable side is +X), so TEXT_PLANE_YZ with
+   >>> mirror=0 <<< and the sign 11 units proud of the wall along +X. That is
+   the OPPOSITE of the pairing on the other side of this same doorway - the
+   Tomb's east door is approached from -X and takes mirror=1 - and the two being
+   opposite is what makes both read forwards. Getting it wrong does not fail
+   loudly; the text simply comes out backwards.
+
+   The reading axis for a YZ sign is Z, so door_draw_string_3d's -200 goes on
+   the Z argument and not on the X one - the conveyor sign's arrangement below.
+
+   NO STOREY TEST, for the same reason the north door has none and unlike the
+   maze upstairs: this room is flat, so the walkable surface is a function of XZ
+   and a plain Manhattan trigger is correct. The room on the far side is flat
+   too, so neither end of this doorway needs one.
+
+   THE RADII ARE THE NORTH DOOR'S - INC_TEXT_RADIUS / INC_FADE_NEAR /
+   INC_TRIGGER_RADIUS, shared rather than duplicated so the room's two doors can
+   never drift onto different reaches. They are 4500 apart in x against a 500
+   reach and can never both be in range. */
+#define INC_WEST_X          (-4199)    /* the outer west wall */
+#define INC_WEST_Z          (-1700)    /* the art spans z[-1800,-1600] */
+#define INC_WEST_TEXT_Y       (-186)   /* eye level on the y=0 floor */
+
 /* ---- THE INCINERATOR'S BUTTON ----------------------------------------------
    The panel on the machine's NORTH face, and the only one of its two
    interactions that lives in this file. Its coordinates are MEASURED off
@@ -359,6 +388,7 @@ void incinerator_room_upload_textures(void) {
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int north_circle_prev = 1;
+static int west_circle_prev  = 1;
 static int button_circle_prev = 1;
 
 /* What the running machine will say when it stops. Latched on the press and
@@ -374,6 +404,7 @@ static int circle_held(void) {
 
 void incinerator_room_arm(void) {
     north_circle_prev  = circle_held();
+    west_circle_prev   = circle_held();
     button_circle_prev = circle_held();
     /* The conveyor board keeps its own edge state and its own trigger, so it is
        armed rather than reached into — the stove's arrangement with the
@@ -395,6 +426,23 @@ int incinerator_room_north_door_triggered(int lock) {
     xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (xz >= INC_TRIGGER_RADIUS) return 0;
     if (!interact_facing(INC_NORTH_X, INC_NORTH_Z)) return 0;
+    return 1;
+}
+
+/* The west door, into the Tomb. Identical in every respect to the north door's
+   test bar the coordinates and its own edge state - including keeping that
+   state current while locked, which is the rule stated above it. */
+int incinerator_room_west_door_triggered(int lock) {
+    int held = circle_held();
+    int just = held && !west_circle_prev;
+    int32_t dx, dz, xz;
+    west_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - INC_WEST_X;
+    dz = cam_z - INC_WEST_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= INC_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(INC_WEST_X, INC_WEST_Z)) return 0;
     return 1;
 }
 
@@ -478,6 +526,32 @@ static void inc_north_door_text(RenderContext *ctx) {
                         DOOR_PIXEL_SIZE);
 }
 
+/* The west door's sign. Same fade curve and the same three radii; the mirror
+   flag and the axis the -200 goes on are both the other way round from the
+   north door's - see the #define block for why. */
+static void inc_west_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - INC_WEST_X;
+    int32_t dz = cam_z - INC_WEST_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= INC_TEXT_RADIUS) return;
+
+    if (xz > INC_FADE_NEAR) {
+        int range = INC_TEXT_RADIUS - INC_FADE_NEAR;
+        int prog  = xz - INC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    /* A YZ sign reads along Z, so the -200 goes on the Z argument. mirror=0: a
+       YZ-plane door approached from +X. */
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        INC_WEST_X + 11, INC_WEST_TEXT_Y, INC_WEST_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ,
+                        DOOR_PIXEL_SIZE);
+}
+
 /* The two signs on the machine. Same fade curve as the door's — one helper for
    the range/fade half so the three can never drift onto different curves, which
    is the split src/catacombs_entry.c makes for the same three. */
@@ -541,6 +615,18 @@ void incinerator_room_spawn_north(void) {
     cam_vy  = 0;
     cam_z   = INC_NORTH_Z - (INC_WALL_RADIUS + 25);
     cam_rot = 2048;
+    incinerator_room_arm();
+}
+
+void incinerator_room_spawn_west(void) {
+    /* Coming back out of the Tomb: clear of the wall push radius on the +X side
+       (the walkable side of the west wall), facing +X - the direction of travel
+       through the door, looking east up the hall toward the machine. */
+    cam_x   = INC_WEST_X + (INC_WALL_RADIUS + 25);
+    cam_y   = INC_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = INC_WEST_Z;
+    cam_rot = 1024;
     incinerator_room_arm();
 }
 
@@ -842,6 +928,7 @@ void incinerator_room_draw(RenderContext *ctx) {
            which it NEEDS — its UVs run past a tile (src/incinerator.c). */
         incinerator_draw(ctx);
         inc_north_door_text(ctx);
+        inc_west_door_text(ctx);
         inc_button_text(ctx);
         inc_conveyor_text(ctx);
     }

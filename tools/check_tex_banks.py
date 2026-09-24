@@ -110,6 +110,11 @@ AREAS = {
     "CATACOMBS": ["catacombs_entry_upload_textures",
                   "up_down_maze_upload_textures",
                   "incinerator_room_upload_textures",
+                  # The Tomb registers nothing of its own either, and it is the
+                  # first room besides the burial hall to draw the LOCULUS -
+                  # hence the third narrow uploader on catacombs_entry.c that
+                  # the walk below reaches through this entry.
+                  "tomb_upload_textures",
                   "crawlers_upload_textures"],
 }
 

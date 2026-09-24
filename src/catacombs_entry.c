@@ -393,9 +393,11 @@ void catacombs_entry_upload_textures(void) {
     oil_dispenser_upload_texture();
 }
 
-/* ---- THE TWO NARROW UPLOADERS ---------------------------------------------
-   For src/up_down_maze.c, which draws cobblestone and the inner door and nothing
-   else of this room's six textures. They exist rather than that room calling
+/* ---- THE THREE NARROW UPLOADERS -------------------------------------------
+   For src/up_down_maze.c and src/incinerator_room.c, which draw cobblestone and
+   the inner door and nothing else of this room's six textures, and for
+   src/tomb.c, which draws those two AND the loculus. They exist rather than
+   those rooms calling
    catacombs_entry_upload_textures() wholesale for the reason
    tools/ADDING_A_ROOM.txt STEP 3b gives (the conservatory_upload_con_tile
    pattern): a full uploader also stamps every other slot the owning room has —
@@ -417,6 +419,16 @@ void catacombs_entry_upload_cobble(void) {
 
 void catacombs_entry_upload_inner_door(void) {
     texmgr_upload(new_tex_id[2]);
+}
+
+/* THE THIRD, and the newest: for src/tomb.c, the first room besides this one to
+   draw the burial niches. Same terms as the two above — one texture, one VRAM
+   address, one RAM copy — and it was added rather than letting that room reach
+   for catacombs_entry_upload_textures(), which would also have stamped the
+   lamashtu tablet, the sconce and the oil dispenser on top of pages it does not
+   draw. */
+void catacombs_entry_upload_loculus(void) {
+    texmgr_upload(new_tex_id[3]);
 }
 
 /* ---- THE TABLET, AND WHAT IT SAYS ------------------------------------------

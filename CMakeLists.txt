@@ -107,6 +107,8 @@ add_executable(horror_game
     src/up_down_maze.c
     src/incinerator_room_mesh_collision.c
     src/incinerator_room.c
+    src/tomb_mesh_collision.c
+    src/tomb.c
     src/sconce.c
     src/oil_dispenser.c
     src/incinerator.c
@@ -287,6 +289,7 @@ set_source_files_properties(
     src/catacombs_entry_mesh_collision.c
     src/up_down_maze_mesh_collision.c
     src/incinerator_room_mesh_collision.c
+    src/tomb_mesh_collision.c
     src/area_bank.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )
