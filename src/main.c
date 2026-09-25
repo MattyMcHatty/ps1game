@@ -545,6 +545,26 @@ static void update_current_area(GameState area) {
         anzu_puzzle_update();
         return;
     }
+    /* ...and the Room of Arms' gap examine: the camera goes 1500 straight up
+       over the sealed pocket and looks down on the field of arms until Cross
+       brings it back. Collision and apply_height are skipped for the usual
+       reason — the player is ANCHORED at the gap and the camera is outside the
+       room, 700 above the tops of its walls, so running either would resolve
+       the shot against the geometry and drag it back to the floor.
+
+       THE TWO ENEMY TICKS STAY. world.c seeds this room with neither today, and
+       both loops skip every instance whose area is not current_area, so an
+       empty room pays nothing — but a crawler or a lumberer placed here later
+       must keep moving while the player stands there with the camera in the
+       roof, exactly as they do behind the stove and plinth boards. */
+    if (area == STATE_ROOM_OF_ARMS && room_of_arms_examine_active()) {
+        room_of_arms_examine_update(0);
+        update_crawlers();
+        update_lumberers();
+        player_status_update();
+        update_particles();
+        return;
+    }
     /* The Keystone Maze's plinth puzzle: the item picker and the payoff cut BOTH
        own the camera and input. Enemies keep running for the same reason the
        stove's board does — the player is stood at the plinth the whole time —
@@ -2016,7 +2036,15 @@ static void update_current_area(GameState area) {
            the function keeps its Circle edge state current while locked and
            returns 0, so a press held across a menu closing cannot read as a
            fresh one on the frame the lock lifts. */
-        if (room_of_arms_east_door_triggered(lock)) {
+        /* >>> TWO INTERACTIONS NOW, AND THEREFORE A VETO CHAIN. <<< The gap
+           examine goes FIRST and the door only gets the frame if the examine
+           did not take the press. They are 1567 apart with 500 radii and so
+           cannot both be in range, but the order is the one every other room
+           uses and it makes adding a third interaction here a one-line change
+           rather than a re-reading of this block. Both are called
+           unconditionally with `lock` for the reason above. */
+        int roa_examined = room_of_arms_examine_update(lock);
+        if (!roa_examined && room_of_arms_east_door_triggered(lock)) {
             pending_area = STATE_TOMB;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
@@ -4489,6 +4517,12 @@ int main(int argc, const char **argv) {
                              (area == STATE_INCINERATOR_ROOM && incinerator_panel_active()) ||
                              (area == STATE_PIANO_ROOM && piano_puzzle_active()) ||
                              (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
+                             /* The Room of Arms' overhead shot of the arms
+                                field. In THIS list and not the cutscene one
+                                for the valve's reason — the whole payload of
+                                the shot is its log line, and only `puzzle`
+                                keeps the log box up. */
+                             (area == STATE_ROOM_OF_ARMS && room_of_arms_examine_active()) ||
                              (area == STATE_ATTIC_EXIT && lightswitch_puzzle_active()) ||
                              (area == STATE_ATTIC_EXIT && exit_door_puzzle_active()) ||
                              /* The Greenhouse's pipe-button payoff: the shot of

@@ -27,6 +27,13 @@
 #include "oil_dispenser.h"
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "sound.h"              /* SFX_SELECT / SFX_BACK — the examine's two beats */
+
+/* The examine at the foot of this file reads Cross straight off the pad: it is
+   the one button in this room that is not an interact tap, and camera.h's
+   interact_tapped() covers Circle only. */
+extern volatile uint8_t pad_buff[2][34];
+extern volatile size_t  pad_buff_len[2];
 
 /* The Room of Arms — see room_of_arms.h for the layout and the door list. */
 
@@ -90,6 +97,41 @@ static int32_t roa_view     = ROA_VIEW_UNIT;       /* eased scale, 1/256ths */
 static int32_t roa_fog_near = ROA_BASE_FOG_NEAR;   /* resolved, this frame  */
 static int32_t roa_fog_far  = ROA_BASE_FOG_FAR;
 
+/* The overhead examine (bottom of this file) borrows this room's fog for the
+   length of its shot; declared here because roa_view_resolve() resolves it.
+   The mix is 0 in normal play, 256 while the shot is held, and RIDES THE SAME
+   EASE AS THE CAMERA on the way up and the way down — see the note in
+   roa_view_resolve. */
+static int roa_examine_fog_mix(void);
+
+/* The shot's own two distances, and then HALF AS MUCH AGAIN on top of both.
+   2200/4000 was the pair that made the FIELD read: the near plane out past the
+   far corner of the arms so no part of the pattern is fogged, the far plane out
+   past the far wall of the octagon so the chamber is drawn whole. It did nothing
+   for the chamber, though — the octagon's far corner is 3818 (Manhattan, in XZ)
+   from the camera, which at 2200/4000 lands nine tenths of the way down the fog
+   ramp, so the walls the field sits inside came back near-black and the shot
+   read as a lit rectangle floating in nothing.
+
+   x1.5 is what opens THAT out: the same 3818 now sits at 3300/6000, i.e. four
+   fifths of the way UP the ramp, and the octagon reads as a room with a floor of
+   arms in it. The arms themselves do not change — they were already inside the
+   near plane at 2200 and are still inside it at 3300 — so this is a change to
+   what surrounds the pattern and not to the pattern.
+
+   >>> AND IT COSTS NOTHING, which is only true because of where the numbers
+   fall. <<< ROA_EX_FOG_FAR is also the CULL distance, so raising it normally
+   means more mesh walked and queued — but 4000 was already past the 3818 that is
+   the furthest anything in this room can be, so both values draw the same 578
+   primitives and 6000 buys reach that does not exist. Anything that makes this
+   room bigger makes that stop being true. */
+#define ROA_EX_FOG_NEAR    2200
+#define ROA_EX_FOG_FAR     4000
+#define ROA_EX_FOG_BOOST    384   /* x1.5, in 1/256ths */
+
+#define ROA_EX_FOG_NEAR_LIT  ((ROA_EX_FOG_NEAR * ROA_EX_FOG_BOOST) >> 8)
+#define ROA_EX_FOG_FAR_LIT   ((ROA_EX_FOG_FAR  * ROA_EX_FOG_BOOST) >> 8)
+
 static int32_t roa_view_target(void) {
     int32_t s = ROA_VIEW_UNIT;
     if (current_weapon == WEAPON_HELLUMINATOR &&
@@ -120,6 +162,37 @@ static void roa_view_resolve(int snap) {
     }
     roa_fog_near = (ROA_BASE_FOG_NEAR * roa_view) >> 8;
     roa_fog_far  = (ROA_BASE_FOG_FAR  * roa_view) >> 8;
+
+    /* >>> THE EXAMINE OVERRIDES BOTH, AND IT HAS TO. <<< The overhead shot at
+       the foot of this file sits 1500 above the pocket and 1314 (Manhattan, in
+       XZ) from the far corner of the arms, which at the ROOM'S distances is
+       most of the way into the fog and past nothing at all at rest — the whole
+       field would arrive as the same near-black the player already sees through
+       the gap. The point of the shot is that the pattern reads, so while it
+       owns the camera the near plane goes out past the field's far corner
+       (nothing in frame is fogged) and the far plane, which is ALSO the cull
+       distance, goes out past the far wall of the octagon so the chamber draws
+       whole around it — both of them then taken half as much again, which is
+       what stops that chamber coming back as black (the note on the constants
+       has the arithmetic). That is all 578 primitives for the duration; it is a
+       static shot with no enemies in it, and it is the cheapest frame this room
+       ever draws in every other respect.
+
+       >>> AND IT IS MIXED IN, NOT SWITCHED ON. <<< Both of these are several
+       times the room's own numbers, so flipping between them on the frame the
+       rise starts and the frame the descent lands would be two hard pops — the
+       chamber flashing bright under a camera that has not moved yet, and going
+       black under one that has already stopped. The mix rides the camera's own
+       ease-out instead, so the room opens up as the shot climbs and closes again
+       as it comes down, and neither end has a frame in it that the move does not
+       explain. */
+    {
+        int32_t mix = roa_examine_fog_mix();
+        if (mix) {
+            roa_fog_near += ((ROA_EX_FOG_NEAR_LIT - roa_fog_near) * mix) >> 8;
+            roa_fog_far  += ((ROA_EX_FOG_FAR_LIT  - roa_fog_far)  * mix) >> 8;
+        }
+    }
 }
 
 /* Underground, so the same near-black-with-a-cold-lift the rest of the chapter
@@ -229,6 +302,10 @@ static void roa_floor_zones_init(void) {
    palette it displaces belong to the same texture, so the two go back together
    in one stream. The whole argument is in tools/vram_map.py beside the pairs. */
 #define ROOM_OF_ARMS_TEX_COUNT 3
+
+/* Slot 1 by name, because the draw loop has to ask "is this an arm?" for the
+   sort bias the overhead examine needs (see the OT note in the draw loop). */
+#define ROA_TEX_ARMS           1
 
 static uint16_t tex_tpage[ROOM_OF_ARMS_TEX_COUNT];
 static uint16_t tex_clut[ROOM_OF_ARMS_TEX_COUNT];
@@ -365,6 +442,10 @@ static int circle_held(void) {
 
 void room_of_arms_arm(void) {
     east_circle_prev = circle_held();
+    /* ...and the gap examine, which arms its own two buttons and also undoes a
+       shot left half-played by a debug jump out of this room (pitch flattened,
+       player anchor released). */
+    room_of_arms_examine_arm();
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -502,6 +583,22 @@ static void draw_room_of_arms_smd(RenderContext *ctx) {
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
+    /* >>> THE OVERHEAD EXAMINE BREAKS THE TIE THE FLAT-Y SORT LEAVES, AND ONLY
+       WHILE IT IS UP. <<< Horizontal polys sort by their FARTHEST corner (the
+       rule applied below, and the rule that keeps the arms off the slab for the
+       player standing at the gap). Looked at from the floor that separates them
+       cleanly. Looked at from 1500 DIRECTLY ABOVE it does not: depth becomes the
+       drop to the floor, every arms poly rises to y=0 at its far corner, and
+       that corner is then at EXACTLY the depth of the cobble slab underneath —
+       the same otz bucket, decided by insertion order, which for 16 floor polys
+       under 52 arms is a shot with arms missing out of the middle of it. Three
+       buckets of bias is a hair of the ~370 the field sits at and is enough to
+       put every arm in front of the floor it lies on.
+
+       ZERO IN NORMAL PLAY, so nothing about the room the player walks around in
+       changes; hoisted out of the loop like the four above it. */
+    int32_t arms_bias = roa_examine_fog_mix() ? 3 : 0;
+
     for (i = 0; i < n; i++) {
         /* >>> THE REJECT PATH READS cull_keys, NOT THE MESH. <<< Six sequential
            bytes carry this primitive's first vertex X/Z and its stride, which is
@@ -589,6 +686,11 @@ static void draw_room_of_arms_smd(RenderContext *ctx) {
         if (otz <= 0) { p += stride; continue; }
         otz += 40;
         if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
+        if (arms_bias && i < ROOM_OF_ARMS_PRIM_COUNT &&
+            room_of_arms_tex_map[i] == ROA_TEX_ARMS) {
+            otz -= arms_bias;
+            if (otz < 1) otz = 1;
+        }
 
         uint8_t *col = p + 16;
         int32_t face_cx = ((int32_t)v0->vx + v2->vx) / 2;
@@ -726,6 +828,9 @@ void room_of_arms_draw(RenderContext *ctx) {
        room later is a line in world.c and not an edit to this file. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         roa_east_door_text(ctx);
+        /* ...and the second sign this room now has: the one in the gap in the
+           screen wall. It draws itself away while the overhead shot is up. */
+        room_of_arms_examine_text(ctx);
         /* BOTH CHAPTER 3 ENEMIES, and both are drawn in all five of its rooms
            whether or not world.c places one here. That is deliberate and it is
            what "either enemy may go in any Catacombs room" actually costs: the
@@ -748,4 +853,329 @@ void room_of_arms_draw(RenderContext *ctx) {
         draw_crawlers(ctx);
         draw_lumberers(ctx);
     }
+
+    /* SCREEN SPACE, so it goes last and OUTSIDE the entity gate: it is the only
+       way out of the examine and a debug level that hides entities must not be
+       able to strand the player in the shot. */
+    room_of_arms_examine_prompt(ctx);
+}
+
+/* ============================================================================
+   THE GAP EXAMINE — the overhead shot of the arms field
+   ============================================================================
+
+   THE ROOM'S ONE PIECE OF CONTENT IS BEHIND A WALL THE PLAYER CANNOT GET PAST,
+   AND AT REST THEY SEE A THIRD OF IT. Screen wall segment 12 — (-144,424) to
+   (-403,-155) — is the 634-wide opening that is walled in the proxy and not
+   drawn in the mesh (see the header). The player stands at it, looks north-west
+   into the pocket, and the fog eats the field about a third of the way in; the
+   Helluminator buys the rest of it, and only at a flat, oblique, floor-level
+   angle where 52 near-horizontal polys overlap into mush.
+
+   So: a prompt in the gap, and a shot that answers the question the gap asks.
+   Circle takes the camera 1500 straight up over the middle of the field and
+   pitches it fully down, the arms read as the PATTERN they are laid out in, the
+   log says so, and Cross puts the camera back on the player's shoulders.
+
+   >>> THERE IS NO CEILING IN THIS ROOM, WHICH IS WHY THE SHOT IS POSSIBLE. <<<
+   The header calls y=-800 the vault and collision_set_ceiling_y agrees, but that
+   is where the WALLS STOP — there is not one flat poly at that height in "Room
+   of Arms.smx" (196 flat polys, every one of them at y=0: the floor slabs and
+   the arms). A camera 700 above the wall tops therefore looks straight down into
+   an open box with nothing between it and the field. Re-export this room with an
+   actual vault over it and this shot goes dark; the fix would then be to put the
+   camera UNDER the new ceiling, which at this focal length cannot frame the
+   field (see the arithmetic below) — i.e. it would have to become an angled shot
+   and stop being the thing that was asked for. Worth knowing before adding a
+   roof.
+
+   ---- THE FRAMING, AND WHERE EVERY NUMBER CAME FROM ------------------------
+   The 52 arms polys occupy x[-1293,148] z[107,1293] y[-70,0]. gte_SetGeomScreen
+   is 256 on a 320x240 screen, so at distance D the half-field is 160D/256 =
+   0.625D across and 120D/256 = 0.469D down. Pitched fully down (cam_pitch =
+   1024 = 90deg) at yaw 0, screen X is world X and screen Y is world Z, and D is
+   the drop from the camera to the floor.
+
+     ACROSS (X)  the field is 1442 wide; centred at x=-572 the worst half is 721,
+                 so D >= 721/0.625 = 1154.
+     DOWN   (Z)  this is the binding one, because the screen is the short way up.
+                 The camera does NOT sit on the field's z midpoint (700) — see
+                 the yaw cull below — it sits at 660, so the worst half is
+                 1293-660 = 633 and D >= 633/0.469 = 1350.
+
+   D = 1500 takes the larger and adds 11%, which is the margin that keeps the
+   outermost arms off the edge of the frame rather than bleeding through it.
+
+   >>> AND THE CAMERA IS PULLED 40 SHORT OF THE FIELD'S CENTRE ON PURPOSE. <<<
+   draw_room_of_arms_smd's second cheap cull is a BEHIND test built for a camera
+   that looks along the floor: it drops any primitive more than 700 behind the
+   camera's YAW, and pitch does not enter into it. Pointing the camera at the
+   floor does not stop that test from running, so the shot has to be aimed so
+   that no part of the field is more than 700 behind the yaw. At yaw 0 (looking
+   +Z) the arms reach back to z=107; from the field's own centre at z=700 that is
+   593 behind and the whole field survives with 107 to spare, which is not a
+   margin, it is a coincidence. Dropping the camera to z=660 makes it 553 and
+   buys back real room, at the cost of 60 units of framing that the 11% above
+   already paid for. YAW 0 IS ALSO NOT FREE: at yaw 1024 the long axis of the
+   field would run up the short axis of the screen and its west end would be 721
+   behind — past the test — so the field would lose a strip to something that
+   looks nothing like a cull. If this shot is ever re-aimed, re-check that test
+   before re-checking the frame.
+
+   ---- WHAT THE SIGN IS DOING AT THAT ANGLE ---------------------------------
+   Wall 12 runs diagonally and its inward normal is (3738,-1673)/4096, so
+   TEXT_PLANE_XY/_YZ could only put the sign edge-on or flat to the approach.
+   door_draw_string_3d_yaw takes an arbitrary facing: the face of a yaw sign
+   points along (-sin(yaw), -cos(yaw)), so the yaw that faces the sign back out
+   of the gap along that normal is atan2(-0.9126, 0.4085) = 294.1deg = 3346 of
+   4096. As a check, that puts the reading direction (cos(yaw), -sin(yaw)) at
+   (0.409, 0.913), which is the wall's own direction from (-403,-155) to
+   (-144,424) — the line lies IN the gap rather than across it. The string is 19
+   characters at DOOR_PIXEL_SIZE, i.e. 456 wide, inside the opening's 634. */
+
+#define ROA_GAP_X            (-274)   /* midpoint of wall 12                  */
+#define ROA_GAP_Z              135
+#define ROA_GAP_NX            3738    /* its inward normal, 4096 = 1.0        */
+#define ROA_GAP_NZ           (-1673)
+#define ROA_GAP_TEXT_Y       (-186)   /* = the east door's: eye level at y=0  */
+#define ROA_GAP_TEXT_YAW      3346
+#define ROA_GAP_TEXT_RADIUS   1100
+#define ROA_GAP_FADE_NEAR      700
+#define ROA_GAP_TRIGGER_RAD    500
+
+/* The sign sits 11 proud of the wall along that normal — the standoff every
+   other door sign in the game uses. */
+#define ROA_GAP_SIGN_X   (ROA_GAP_X + ((ROA_GAP_NX * 11) >> 12))
+#define ROA_GAP_SIGN_Z   (ROA_GAP_Z + ((ROA_GAP_NZ * 11) >> 12))
+
+#define ROA_EX_CAM_X         (-572)
+#define ROA_EX_CAM_Y        (-1500)
+#define ROA_EX_CAM_Z           660
+#define ROA_EX_CAM_ROT           0
+#define ROA_EX_CAM_PITCH      1024    /* 90deg: straight down */
+
+#define ROA_EX_IN_FRAMES        36
+#define ROA_EX_OUT_FRAMES       30
+
+#define ROA_EX_LINE  "Someone's arranged these arms in a pattern"
+
+typedef enum {
+    RAX_IDLE = 0,   /* not in it: proximity sign + Circle trigger */
+    RAX_IN,         /* camera rising to the overhead shot         */
+    RAX_HOLD,       /* held on the field, waiting for Cross       */
+    RAX_OUT         /* coming back down to where the player is    */
+} RoaExamineState;
+
+static RoaExamineState rax_state = RAX_IDLE;
+
+/* Pre-examine camera, restored on the way out. */
+static int32_t rax_save_x, rax_save_y, rax_save_z, rax_save_rot, rax_save_vy;
+/* Where the current glide started, where it ends, and how far the yaw turns. */
+static int32_t rax_src_x, rax_src_y, rax_src_z, rax_src_rot, rax_src_pitch;
+static int32_t rax_rot_delta, rax_dst_rot, rax_dst_pitch;
+static int32_t rax_t = 0;
+
+static int rax_circle_prev = 1;   /* the examine's own Circle edge state */
+static int rax_cross_prev  = 1;   /* Cross, read straight off the pad    */
+
+/* 0..256, latched by rax_glide each frame of a move and pinned at either end.
+   Doubles as "is the shot up at all" for the draw loop's sort bias. */
+static int32_t rax_fog_mix = 0;
+
+static int roa_examine_fog_mix(void) { return rax_fog_mix; }
+
+int room_of_arms_examine_active(void) { return rax_state != RAX_IDLE; }
+
+/* Shortest signed turn from `from` to `to`, in 4096ths — piano_puzzle.c's. */
+static int32_t rax_turn_delta(int32_t from, int32_t to) {
+    int32_t d = ((to - from) % 4096 + 4096) % 4096;
+    if (d > 2048) d -= 4096;
+    return d;
+}
+
+/* Latch the camera's current pose as a glide's source, and its angles as the
+   glide's target. The POSITION target is passed to rax_glide below instead,
+   because the way out aims at a saved spot the caller already holds. */
+static void rax_begin_glide(int32_t dst_rot, int32_t dst_pitch) {
+    rax_src_x     = cam_x;
+    rax_src_y     = cam_y;
+    rax_src_z     = cam_z;
+    rax_src_rot   = cam_rot;
+    rax_src_pitch = cam_pitch;
+    rax_rot_delta = rax_turn_delta(cam_rot, dst_rot);
+    rax_dst_rot   = dst_rot;
+    rax_dst_pitch = dst_pitch;
+    rax_t         = 0;
+}
+
+/* One frame of a glide toward (tx,ty,tz) over `frames`; returns 1 on the frame
+   it arrives, having snapped the camera exactly onto the target. */
+static int rax_glide(int32_t tx, int32_t ty, int32_t tz, int frames) {
+    int32_t t, inv, e;
+    rax_t++;
+    t = rax_t * 256 / frames; if (t > 256) t = 256;
+    inv = 256 - t;
+    e   = 256 - (inv * inv / 256);            /* ease-out 0..256 */
+    rax_fog_mix = (rax_state == RAX_OUT) ? 256 - e : e;
+    cam_x     = rax_src_x     + ((tx - rax_src_x) * e) / 256;
+    cam_y     = rax_src_y     + ((ty - rax_src_y) * e) / 256;
+    cam_z     = rax_src_z     + ((tz - rax_src_z) * e) / 256;
+    cam_rot   = rax_src_rot   + (rax_rot_delta * e) / 256;
+    cam_pitch = rax_src_pitch + ((rax_dst_pitch - rax_src_pitch) * e) / 256;
+    cam_vy    = 0;
+    if (rax_t < frames) return 0;
+    cam_x   = tx; cam_y = ty; cam_z = tz;
+    cam_rot = rax_dst_rot; cam_pitch = rax_dst_pitch; cam_vy = 0;
+    rax_fog_mix = (rax_state == RAX_OUT) ? 0 : 256;
+    return 1;
+}
+
+static void rax_start(void) {
+    /* A held Circle may have swung the view off the player's true facing, and
+       the restore at the far end must not put that offset back — cancelled
+       BEFORE the pose is saved, not after (camera.h). */
+    camera_look_cancel();
+
+    rax_save_x = cam_x; rax_save_y = cam_y; rax_save_z = cam_z;
+    rax_save_rot = cam_rot; rax_save_vy = cam_vy;
+
+    /* The body stays at the gap while the camera goes up, so anything that
+       hunts the player keeps hunting the spot they are actually standing on. */
+    camera_anchor_player(rax_save_x, rax_save_y, rax_save_z);
+
+    rax_fog_mix = 0;
+    rax_begin_glide(ROA_EX_CAM_ROT, ROA_EX_CAM_PITCH);
+    rax_state = RAX_IN;
+    sound_play(SFX_SELECT);
+}
+
+static void rax_finish(void) {
+    rax_state   = RAX_IDLE;
+    rax_fog_mix = 0;
+    cam_x   = rax_save_x; cam_y = rax_save_y; cam_z = rax_save_z;
+    cam_rot = rax_save_rot; cam_vy = rax_save_vy;
+    cam_pitch = 0;
+    camera_release_player();
+    /* BOTH of this room's Circle interactions are seeded "held" on the way out,
+       so a Circle still down as the camera lands can neither re-open the shot
+       nor walk the player through the east door on the frame control returns. */
+    rax_circle_prev  = 1;
+    east_circle_prev = 1;
+}
+
+/* ---- Per-frame -------------------------------------------------------------
+   Called UNCONDITIONALLY from main.c's Room of Arms branch, `lock` passed in
+   rather than tested out there: like the east door, this keeps its Circle edge
+   state current while locked and does nothing, so a press held across a menu
+   closing cannot read as a fresh one on the frame the lock lifts.
+
+   Returns 1 on any frame the examine owns the camera OR has just consumed the
+   Circle press — main.c's door test runs after this one and must not act on a
+   press this one took. The two cannot in fact collide (the gap and the east
+   door are 1567 apart with 500 radii), but the veto is what every other room's
+   interaction chain does and it costs a branch. */
+int room_of_arms_examine_update(int lock) {
+    uint16_t btn = 0;
+    int cross, cross_just;
+
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        btn = ~pad->btn;
+    }
+    cross      = (btn & PAD_CROSS) ? 1 : 0;
+    cross_just = cross && !rax_cross_prev;
+    rax_cross_prev = cross;
+
+    if (rax_state == RAX_IDLE) {
+        int held = interact_tapped();
+        int just = held && !rax_circle_prev;
+        int32_t dx, dz, xz;
+        rax_circle_prev = held;
+        if (lock || !just) return 0;
+        dx = cam_x - ROA_GAP_X;
+        dz = cam_z - ROA_GAP_Z;
+        xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        if (xz >= ROA_GAP_TRIGGER_RAD) return 0;
+        if (!interact_facing(ROA_GAP_X, ROA_GAP_Z)) return 0;
+        rax_start();
+        return 1;
+    }
+
+    /* From here the examine owns the camera and main.c has already routed the
+       frame to it, so `lock` cannot be set — but the Circle edge state above
+       has been kept current either way. */
+    if (rax_state == RAX_IN) {
+        if (rax_glide(ROA_EX_CAM_X, ROA_EX_CAM_Y, ROA_EX_CAM_Z,
+                      ROA_EX_IN_FRAMES)) {
+            rax_state = RAX_HOLD;
+            /* Cross is armed ON ARRIVAL and not on entry: it is also the sprint
+               button, so one held down through the rise must not read as the
+               press that ends the shot before it has been seen. */
+            rax_cross_prev = cross;
+            show_pickup_msg_raw(ROA_EX_LINE);
+        }
+        return 1;
+    }
+
+    if (rax_state == RAX_HOLD) {
+        if (cross_just) {
+            rax_begin_glide(rax_save_rot, 0);
+            rax_state = RAX_OUT;
+            sound_play(SFX_BACK);
+        }
+        return 1;
+    }
+
+    /* RAX_OUT */
+    if (rax_glide(rax_save_x, rax_save_y, rax_save_z, ROA_EX_OUT_FRAMES))
+        rax_finish();
+    return 1;
+}
+
+void room_of_arms_examine_arm(void) {
+    rax_state       = RAX_IDLE;
+    rax_fog_mix     = 0;
+    rax_circle_prev = interact_tapped();
+    rax_cross_prev  = 1;
+    cam_pitch       = 0;
+    camera_release_player();
+}
+
+/* ---- Draws ----------------------------------------------------------------
+   The sign, in the gap, at the wall's own angle — and nothing at all while the
+   shot is up, because the camera is then 1500 above that sign looking down on
+   its edge. Caller must have the room's view matrix loaded in the GTE, which
+   room_of_arms_draw does. */
+void room_of_arms_examine_text(RenderContext *ctx) {
+    int32_t dx, dz, xz;
+    int fade = 256;
+
+    if (rax_state != RAX_IDLE) return;
+
+    dx = cam_x - ROA_GAP_X;
+    dz = cam_z - ROA_GAP_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= ROA_GAP_TEXT_RADIUS) return;
+
+    if (xz > ROA_GAP_FADE_NEAR) {
+        int range = ROA_GAP_TEXT_RADIUS - ROA_GAP_FADE_NEAR;
+        int prog  = xz - ROA_GAP_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to examine",
+                            ROA_GAP_SIGN_X, ROA_GAP_TEXT_Y, ROA_GAP_SIGN_Z,
+                            50, 255, 50, fade, ROA_GAP_TEXT_YAW,
+                            DOOR_PIXEL_SIZE);
+}
+
+/* The way out, in screen space, for the length of the shot. Only once the rise
+   has LANDED: a prompt riding up the screen with the camera reads as part of
+   the move, and taking the press mid-glide would cut the shot before the log
+   line it exists to deliver has been posted. OT index 1 is the front of the
+   menu-reserved range, so it sits over everything the room queued. */
+void room_of_arms_examine_prompt(RenderContext *ctx) {
+    if (rax_state != RAX_HOLD && rax_state != RAX_OUT) return;
+    btn_prompt_draw(ctx, 8, 216, BTN_CROSS " - Return", 1);
 }

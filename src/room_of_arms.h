@@ -94,4 +94,42 @@ int  room_of_arms_east_door_triggered(int lock);
    Circle held through the transition does not fire on the arrival frame. */
 void room_of_arms_arm(void);
 
+/* ---- THE GAP EXAMINE -------------------------------------------------------
+   The room's one interaction beyond its door, and the reason the room exists:
+   the 634-wide opening in the screen wall looks into the sealed pocket, and at
+   floor level the field of arms behind it is a flat, fogged smear. A sign in the
+   gap offers Circle; Circle takes the camera 1500 straight up over the middle of
+   the field, pitches it fully down, and holds there with the pattern the arms
+   are laid out in readable in one frame. The log line lands when the rise does.
+   Cross brings the camera back to exactly where the player left it.
+
+   >>> IT IS A CAMERA-OWNING SCENE, so main.c treats it as one: the Room of Arms
+   branch routes the frame to room_of_arms_examine_update() while it is active,
+   and it is in the `puzzle` list that suppresses the Start menu, the HUD and
+   the weapon overlays while KEEPING the log box up. <<< The shot exists to
+   deliver a line; take it out of that list and the line goes with it.
+
+   For the framing arithmetic, the two culls it has to stay inside, and the
+   reason a camera above the wall tops sees anything at all, see the block
+   comment at the foot of src/room_of_arms.c. */
+
+/* One frame. `lock` is main's usual suppression, passed in and not tested out
+   there, so the Circle edge state stays current while a menu is up. Returns 1
+   while the examine owns the camera or has just consumed the Circle press — the
+   east door's test runs after it and must not act on the same press. */
+int  room_of_arms_examine_update(int lock);
+
+/* 1 while the shot owns the camera and input (the rise, the hold and the way
+   back down). */
+int  room_of_arms_examine_active(void);
+
+/* Room entry: drop any shot in progress, release the player anchor, flatten the
+   pitch and swallow a Circle carried in. Called by room_of_arms_arm(). */
+void room_of_arms_examine_arm(void);
+
+/* The two draws, both called by room_of_arms_draw(): the world-space sign in the
+   gap (view matrix must be loaded) and the screen-space "Cross - Return". */
+void room_of_arms_examine_text(RenderContext *ctx);
+void room_of_arms_examine_prompt(RenderContext *ctx);
+
 #endif
