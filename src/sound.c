@@ -85,6 +85,8 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\CTCMBDR.VAG;1",
     "\\SND\\CRWLSCRM.VAG;1",
     "\\SND\\CRWLWHSP.VAG;1",
+    "\\SND\\LMBRMOAN.VAG;1",
+    "\\SND\\LMBRYELL.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -307,6 +309,12 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_CTCMBDR]    = SND_BANK_CATACOMBS,
     [SFX_CRWL_SCRM]  = SND_BANK_CATACOMBS,
     [SFX_CRWL_WHSP]  = SND_BANK_CATACOMBS,
+    /* The Lumberer's two, CATACOMBS and nothing else: src/lumberer.c is their
+       only caller and it only ever runs in the Tomb. 30.2 KB takes that bank to
+       126,400 against a 190,336 ceiling, so they cost no other bank anything —
+       see sound.h and tools/ADDING_A_SOUND.txt STEP 3. */
+    [SFX_LMBR_MOAN]  = SND_BANK_CATACOMBS,
+    [SFX_LMBR_YELL]  = SND_BANK_CATACOMBS,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -562,6 +570,44 @@ static int sfx_channel(SfxID id) {
        not poison these voices for anyone borrowing them later either. */
     if (id == SFX_CRWL_SCRM)   return 15;   /* SFX_HISS's    (GARDEN) one-shot */
     if (id == SFX_CRWL_WHSP)   return  9;   /* SFX_NINURTA's (INTRO)  one-shot */
+    /* ---- THE LUMBERER'S TWO, AND THE CHAPTER HAS NOW RUN OUT OF 13, 14, 15
+       AND 9 AS WELL. The glug has 13, the door 14, the crawler's scream 15 and
+       its whisper 9 — all four SND_BANK_CATACOMBS, so the eviction argument
+       those borrowings rest on no longer covers a fifth catacombs clip. A
+       lumberer moaning over a door closing, or yelling while a crawler screams,
+       are both ordinary moments in this chapter.
+
+       SO THEY GO FURTHER OUT, TO 16 AND 21, on exactly the same argument one
+       more voice along:
+         16  SFX_ZOMBIE  (HOUSE)
+         21  SFX_EXPLODE (BOSS | ASAG)
+       Neither is resident, and none of HOUSE, BOSS or ASAG can be loaded while
+       SND_BANK_CATACOMBS is — the catacomb mouth is a one-way door — so neither
+       can sound down here at all.
+
+       AND THE POOL WAS NOT AN OPTION FOR EITHER. The moan is 2.96 s and is
+       re-triggered for as long as the body walks, which is most of the fight;
+       its raw slot would be FIRST_VOICE + (53 % 8) = 6, shared with SFX_AXEHIT
+       — so every axe swing the player lands would chop the moan of the thing
+       they are swinging at. The yell is 1.82 s on slot (54 % 8) = 7, shared
+       with SFX_UNLOCK and SFX_DIE, and it is the sound of an attack the player
+       is meant to be DODGING: STEP 6's classic bug, and the player's own
+       footsteps are on voices 1 and 2 either way.
+
+       NEITHER 16 NOR 21 IS POISONED, checked with STEP 6's script rather than
+       assumed: zombie_2.vag carries its loop flag on block 1181 of 1182 and
+       explode.vag on 2115 of 2116 — ordinary one-shots, so neither has ever
+       moved those voices' repeat addresses. The two new clips are one-shots on
+       the same test (1164/1165 and 716/717), so they do not poison 16 or 21 for
+       anyone borrowing them later either.
+
+       >>> AND THE MOAN MUST STAY A C-SIDE RETRIGGER. <<< It is voice 16's whole
+       reason for being borrowable: SFX_ZOMBIE is "looped ambience" that is in
+       fact re-keyed from zombie.c on an interval, which is why 16 escaped the
+       poisoning that took 17, 18 and 19. Giving this clip a hardware loop
+       instead would put 0x04 on its block 0 and poison 16 for good. */
+    if (id == SFX_LMBR_MOAN)   return 16;   /* SFX_ZOMBIE's  (HOUSE) one-shot  */
+    if (id == SFX_LMBR_YELL)   return 21;   /* SFX_EXPLODE's (BOSS)  one-shot  */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

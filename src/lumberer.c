@@ -147,14 +147,16 @@ static int32_t lmb_isqrt(int32_t v) {
     return last;
 }
 
-/* Point the body along (dx,dz). Only the SIGN of the stored vector matters —
-   draw_lumberers uses it to pick the front pair or the back pair — so it is
-   normalised to a small magnitude that cannot overflow the packed int16s. */
+/* Point the body along (dx,dz). `facing` is a DIRECTION of Manhattan magnitude
+   LMB_FACE_SCALE, not a step: draw_lumberers reads only its sign, and lmb_steer
+   turns it and scales the gait out of it. Both writers use the same scale —
+   they did not always, and the mismatch moved the body about forty-eight units
+   in the first frame after a swing. */
 static void lmb_face(Lumberer *s, int32_t dx, int32_t dz) {
     int32_t d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (d <= 0) return;
-    int32_t fx = (dx * 64) / d;
-    int32_t fz = (dz * 64) / d;
+    int32_t fx = (dx * LMB_FACE_SCALE) / d;
+    int32_t fz = (dz * LMB_FACE_SCALE) / d;
     s->facing = ((int32_t)(int16_t)fx << 16) | (uint16_t)(int16_t)fz;
 }
 
@@ -173,6 +175,7 @@ int lumberer_add(int32_t ax, int32_t az, int32_t bx, int32_t bz,
     s->state  = LMB_PATROL;
     s->active = 1;
     s->area   = area;
+    s->nav_clear = -1;   /* 0 is a real node index; the "none" value is -1 */
     lmb_face(s, bx - ax, bz - az);
     return i;
 }
@@ -209,6 +212,7 @@ void lumberers_rest(void) {
         s->state  = LMB_PATROL;
         s->active = 1;
         s->area   = a;
+        s->nav_clear = -1;
         lmb_face(s, bx - ax, bz - az);
     }
 }
@@ -255,6 +259,286 @@ void lumberer_damage(Lumberer *s, int dmg) {
         sound_play(SFX_CRWL_SCRM);
     } else {
         sound_play(SFX_AXEHIT);
+    }
+}
+
+/* ---- Routing: the Tomb's aisle graph ----------------------------------------
+   >>> STEERING FOLLOWS A WALL. ROUTING GOES ROUND A BLOCK. THEY ARE NOT THE
+   SAME PROBLEM AND lmb_steer BELOW ONLY SOLVES THE FIRST. <<< An alerted
+   lumberer used to hand lmb_steer the raw player delta, which in this room is a
+   straight line into the side of a loculus: the feeler tripped, the body slid
+   along that face for LMB_STEER_COMMIT frames, the commit expired, the heading
+   re-aimed at the player and drove it into the same face again. Stuck on the
+   corner, exactly as reported.
+
+   This is src/zombie.c's navigation graph, ported whole. Zones tile the floor,
+   nodes bridge them, a BFS over the zone graph says which node leads toward the
+   player's zone, and the body walks to THAT rather than at the player. The
+   sightline overrides it all: seen means charge.
+
+   THE ZONES ARE THE AISLE GRID'S SIXTEEN CELLS. The chamber is 4200 square with
+   nine 600-square blocks on a 600 pitch (src/tomb.h), so the walkable floor is
+   four north-south aisles crossing four east-west ones:
+
+       aisle centres  x = -3900, -2700, -1500, -300
+                      z =   300,  1500,  2700, 3900
+
+   A cell is one crossing plus half of each of its four arms, i.e. the zone
+   boundaries fall on the BLOCK CENTRES (x -3300/-2100/-900, z 900/2100/3300).
+   Cut there and the sixteen rectangles TILE THE CHAMBER WITH NO GAP, which is
+   the one property the zombie's zone tables have to have: a body standing in an
+   unzoned spot gets zone -1, routes nowhere and charges the wall instead
+   (hall_nav_zones' "stuck near the corner" bug). Each block's four quadrants end
+   up inside four different cells, which is harmless — zones may cover floor a
+   body cannot stand on, they may not leave floor uncovered.
+
+   THE NODES ARE THE TWENTY-FOUR AISLE SEGMENTS between adjacent cells: twelve
+   east-west, twelve north-south. Each node's centre sits ON the shared boundary
+   and at the crossing aisle's centreline, and its two clearance points are the
+   crossing centres either side — so centre and both clearances are collinear
+   and aiming at the far one walks the body straight down an open aisle. Zones
+   are indexed row*4+col and lmb_nav_zone_at returns the FIRST match, so a body
+   exactly on a boundary reads as the lower index, which is always the node's
+   `za`. That is the invariant the two-stage crossing in lmb_alert_goal depends
+   on (see the comment there, and hall_nav_nodes' Corridor Turn note).
+
+   The whole table is ROM: sixteen zones and twenty-four nodes is about a
+   kilobyte of .rodata and nothing per-instance but two ints. -------------- */
+typedef struct { int32_t min_x, max_x, min_z, max_z; } LmbNavZone;
+typedef struct {
+    int32_t x, z;        /* on the zone boundary, in the crossing aisle's centre */
+    int     za, zb;      /* the two cells it joins                               */
+    int32_t ax, az;      /* clearance: the crossing centre on za's side          */
+    int32_t bx, bz;      /* clearance: the crossing centre on zb's side          */
+} LmbNavNode;
+
+static const LmbNavZone lmb_tomb_nav_zones[] = {
+    /*  min_x  max_x  min_z  max_z          cell      crossing centre */
+    { -4200, -3300,     0,   900 },  /*  0: col 0 row 0  (-3900,  300) */
+    { -3300, -2100,     0,   900 },  /*  1: col 1 row 0  (-2700,  300) */
+    { -2100,  -900,     0,   900 },  /*  2: col 2 row 0  (-1500,  300) */
+    {  -900,     0,     0,   900 },  /*  3: col 3 row 0  ( -300,  300) */
+    { -4200, -3300,   900,  2100 },  /*  4: col 0 row 1  (-3900, 1500) */
+    { -3300, -2100,   900,  2100 },  /*  5: col 1 row 1  (-2700, 1500) */
+    { -2100,  -900,   900,  2100 },  /*  6: col 2 row 1  (-1500, 1500) */
+    {  -900,     0,   900,  2100 },  /*  7: col 3 row 1  ( -300, 1500) */
+    { -4200, -3300,  2100,  3300 },  /*  8: col 0 row 2  (-3900, 2700) */
+    { -3300, -2100,  2100,  3300 },  /*  9: col 1 row 2  (-2700, 2700) */
+    { -2100,  -900,  2100,  3300 },  /* 10: col 2 row 2  (-1500, 2700) */
+    {  -900,     0,  2100,  3300 },  /* 11: col 3 row 2  ( -300, 2700) */
+    { -4200, -3300,  3300,  4200 },  /* 12: col 0 row 3  (-3900, 3900) */
+    { -3300, -2100,  3300,  4200 },  /* 13: col 1 row 3  (-2700, 3900) */
+    { -2100,  -900,  3300,  4200 },  /* 14: col 2 row 3  (-1500, 3900) */
+    {  -900,     0,  3300,  4200 },  /* 15: col 3 row 3  ( -300, 3900) */
+};
+
+static const LmbNavNode lmb_tomb_nav_nodes[] = {
+    /*   x      z    za  zb   za-clearance    zb-clearance  */
+    /* --- the twelve EAST-WEST segments, row by row --- */
+    { -3300,   300,  0,  1,  -3900,   300,  -2700,   300 },
+    { -2100,   300,  1,  2,  -2700,   300,  -1500,   300 },
+    {  -900,   300,  2,  3,  -1500,   300,   -300,   300 },
+    { -3300,  1500,  4,  5,  -3900,  1500,  -2700,  1500 },
+    { -2100,  1500,  5,  6,  -2700,  1500,  -1500,  1500 },
+    {  -900,  1500,  6,  7,  -1500,  1500,   -300,  1500 },
+    { -3300,  2700,  8,  9,  -3900,  2700,  -2700,  2700 },
+    { -2100,  2700,  9, 10,  -2700,  2700,  -1500,  2700 },
+    {  -900,  2700, 10, 11,  -1500,  2700,   -300,  2700 },
+    { -3300,  3900, 12, 13,  -3900,  3900,  -2700,  3900 },
+    { -2100,  3900, 13, 14,  -2700,  3900,  -1500,  3900 },
+    {  -900,  3900, 14, 15,  -1500,  3900,   -300,  3900 },
+    /* --- the twelve NORTH-SOUTH segments, column by column --- */
+    { -3900,   900,  0,  4,  -3900,   300,  -3900,  1500 },
+    { -2700,   900,  1,  5,  -2700,   300,  -2700,  1500 },
+    { -1500,   900,  2,  6,  -1500,   300,  -1500,  1500 },
+    {  -300,   900,  3,  7,   -300,   300,   -300,  1500 },
+    { -3900,  2100,  4,  8,  -3900,  1500,  -3900,  2700 },
+    { -2700,  2100,  5,  9,  -2700,  1500,  -2700,  2700 },
+    { -1500,  2100,  6, 10,  -1500,  1500,  -1500,  2700 },
+    {  -300,  2100,  7, 11,   -300,  1500,   -300,  2700 },
+    { -3900,  3300,  8, 12,  -3900,  2700,  -3900,  3900 },
+    { -2700,  3300,  9, 13,  -2700,  2700,  -2700,  3900 },
+    { -1500,  3300, 10, 14,  -1500,  2700,  -1500,  3900 },
+    {  -300,  3300, 11, 15,   -300,  2700,   -300,  3900 },
+};
+
+/* Active tables, chosen per-area. A room with NO table gets counts of zero,
+   which makes lmb_nav_zone_at return -1 everywhere and the routing fall through
+   to "walk at the player" — the behaviour every room had before this existed.
+   So giving a second room a lumberer costs nothing until it wants a graph. */
+static const LmbNavZone *lmb_nav_zones      = 0;
+static int               lmb_nav_zone_count = 0;
+static const LmbNavNode *lmb_nav_nodes      = 0;
+static int               lmb_nav_node_count = 0;
+
+static void lmb_select_nav(void) {
+    if (current_area == STATE_TOMB) {
+        lmb_nav_zones      = lmb_tomb_nav_zones;
+        lmb_nav_zone_count = (int)(sizeof(lmb_tomb_nav_zones) /
+                                   sizeof(lmb_tomb_nav_zones[0]));
+        lmb_nav_nodes      = lmb_tomb_nav_nodes;
+        lmb_nav_node_count = (int)(sizeof(lmb_tomb_nav_nodes) /
+                                   sizeof(lmb_tomb_nav_nodes[0]));
+    } else {
+        lmb_nav_zones = 0; lmb_nav_zone_count = 0;
+        lmb_nav_nodes = 0; lmb_nav_node_count = 0;
+    }
+}
+
+static int lmb_nav_zone_at(int32_t x, int32_t z) {
+    int i;
+    for (i = 0; i < lmb_nav_zone_count; i++) {
+        const LmbNavZone *zn = &lmb_nav_zones[i];
+        if (x >= zn->min_x && x <= zn->max_x &&
+            z >= zn->min_z && z <= zn->max_z)
+            return i;
+    }
+    return -1;
+}
+
+/* First node to walk to when travelling from zone `from` to zone `to`. BFS over
+   the (small) zone graph; -1 means "go straight". The zombie's nav_next_node
+   over sixteen zones instead of four — the grid is uniform and fully connected,
+   so every pair is reachable and the answer is one of the shortest cell
+   routes. */
+static int lmb_nav_next_node(int from, int to) {
+    if (from < 0 || to < 0 || from == to) return -1;
+
+    int prev_zone[LMB_NAV_MAX_ZONES];
+    int prev_node[LMB_NAV_MAX_ZONES];
+    int visited  [LMB_NAV_MAX_ZONES];
+    int queue    [LMB_NAV_MAX_ZONES];
+    int qh = 0, qt = 0, i, z;
+
+    for (i = 0; i < lmb_nav_zone_count; i++) visited[i] = 0;
+    visited[from] = 1; prev_zone[from] = -1; prev_node[from] = -1;
+    queue[qt++] = from;
+
+    while (qh < qt) {
+        z = queue[qh++];
+        if (z == to) break;
+        for (i = 0; i < lmb_nav_node_count; i++) {
+            int other = -1;
+            if      (lmb_nav_nodes[i].za == z) other = lmb_nav_nodes[i].zb;
+            else if (lmb_nav_nodes[i].zb == z) other = lmb_nav_nodes[i].za;
+            if (other >= 0 && !visited[other]) {
+                visited[other]   = 1;
+                prev_zone[other] = z;
+                prev_node[other] = i;
+                queue[qt++]      = other;
+            }
+        }
+    }
+
+    if (!visited[to]) return -1;            /* unreachable: go straight */
+
+    /* Walk the predecessor chain back to `from`; the node on that first hop is
+       the one to head for now. */
+    z = to;
+    while (prev_zone[z] != from) {
+        if (prev_zone[z] < 0) return -1;
+        z = prev_zone[z];
+    }
+    return prev_node[z];
+}
+
+/* Is the player out of sight for a BODY this wide? The zombie's
+   los_body_blocked, here for the reason it exists there: a zero-width centre
+   line threads the CORNER of a gap the body cannot walk, and letting that
+   cancel the routing is what wedged zombies in the kitchen doorway. Test the
+   corridor the body actually sweeps — the two lines offset +/-LMB_LOS_WIDTH
+   perpendicular to the sightline — and count either shoulder blocked as unseen.
+
+   The offset is Manhattan-normalised to stay divide-only, which under-estimates
+   the true length by up to sqrt(2), so 150 realises 106..150: at or above the
+   body radius, i.e. cautious rather than confident. Only paid when the routing
+   is live; a same-cell chase keeps the single centre test. */
+static int lmb_los_body_blocked(const Lumberer *s,
+                                int32_t px, int32_t py, int32_t pz) {
+    int32_t dx = px - s->x;
+    int32_t dz = pz - s->z;
+    int32_t m  = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (m == 0) return 0;                       /* on top of us: seen */
+    int32_t ox = (-dz * LMB_LOS_WIDTH) / m;
+    int32_t oz = ( dx * LMB_LOS_WIDTH) / m;
+    return collision_segment_blocked(s->x + ox, s->y, s->z + oz,
+                                     px    + ox, py,  pz    + oz) ||
+           collision_segment_blocked(s->x - ox, s->y, s->z - oz,
+                                     px    - ox, py,  pz    - oz);
+}
+
+/* Where an ALERTED lumberer should actually be walking this frame: straight at
+   the player when it can see them, and along the aisles when it cannot. */
+static void lmb_alert_goal(Lumberer *s, int32_t px, int32_t py, int32_t pz,
+                           int32_t *goal_x, int32_t *goal_z) {
+    int zfrom = lmb_nav_zone_at(s->x, s->z);
+    int zto   = lmb_nav_zone_at(px, pz);
+    int node  = lmb_nav_next_node(zfrom, zto);
+
+    /* SEEING THE PLAYER CANCELS EVERYTHING. Without this a coarse cell boundary
+       in open floor sends the body off to a waypoint while the player stands in
+       plain view three steps away. Which sightline depends on whether the
+       routing is live: same cell is the hot path and the centre line is enough;
+       routing across an aisle mouth asks the body-width test instead. */
+    int seen = (node < 0)
+                 ? !collision_segment_blocked(s->x, s->y, s->z, px, py, pz)
+                 : !lmb_los_body_blocked(s, px, py, pz);
+    if (seen)                  s->los_timer = LMB_LOS_COMMIT;
+    else if (s->los_timer > 0) s->los_timer--;
+
+    *goal_x = px; *goal_z = pz;
+    if (s->los_timer > 0) {
+        node = -1;
+        s->nav_clear = -1;       /* seen recently: forget the staging */
+    }
+
+    if (node >= 0) {
+        /* Cross in TWO stages: walk to the NEAR clearance to square up with the
+           aisle, then aim at the FAR one. The three points are collinear by
+           construction, so the second stage is a straight run down the aisle.
+
+           >>> NEVER AIM AT THE NODE CENTRE. <<< It sits ON the boundary, so a
+           body that reached it would still read as `zfrom`, still be routed to
+           the node it is standing on, and have its goal be the spot it already
+           occupies — zero drive, parked in the aisle. The far clearance is
+           always across the boundary, so the heading stays live until the cell
+           flips and retires the node.
+
+           `md <= nd` IS A LATCH, NOT AN OPTIMISATION. Once committed and moving
+           toward the far point, the distance back to the near point grows past
+           LMB_NODE_CLEAR_DIST again, which on its own would flip the goal back
+           and ping-pong the body around the near point. Asking instead whether
+           we are already deeper into the crossing than the staging point is
+           holds for the whole run, and past the centre the cell has flipped. */
+        const LmbNavNode *N = &lmb_nav_nodes[node];
+        int     from_a = (zfrom == N->za);
+        int32_t nx = from_a ? N->ax : N->bx;   /* near-side staging  */
+        int32_t nz = from_a ? N->az : N->bz;
+        int32_t fx = from_a ? N->bx : N->ax;   /* far-side clearance */
+        int32_t fz = from_a ? N->bz : N->az;
+        int32_t to_near = (nx - s->x < 0 ? s->x - nx : nx - s->x) +
+                          (nz - s->z < 0 ? s->z - nz : nz - s->z);
+        int32_t md = (N->x - s->x < 0 ? s->x - N->x : N->x - s->x) +
+                     (N->z - s->z < 0 ? s->z - N->z : N->z - s->z);
+        int32_t nd = (N->x - nx < 0 ? nx - N->x : N->x - nx) +
+                     (N->z - nz < 0 ? nz - N->z : N->z - nz);
+        if (to_near <= LMB_NODE_CLEAR_DIST || md <= nd) {
+            *goal_x = fx; *goal_z = fz;   /* in the aisle: drive straight down it */
+        } else {
+            *goal_x = nx; *goal_z = nz;   /* square up with the aisle mouth first */
+        }
+        s->nav_clear = node;
+    } else if (s->nav_clear >= 0) {
+        /* Just crossed. Step clear of the mouth before turning at the player,
+           or an off-axis player drags the body straight back into the block
+           corner it has only half rounded. */
+        const LmbNavNode *N = &lmb_nav_nodes[s->nav_clear];
+        int32_t ex = (zfrom == N->za) ? N->ax : N->bx;
+        int32_t ez = (zfrom == N->za) ? N->az : N->bz;
+        int32_t cd = (ex - s->x < 0 ? s->x - ex : ex - s->x) +
+                     (ez - s->z < 0 ? s->z - ez : ez - s->z);
+        if (cd > LMB_NODE_CLEAR_DIST) { *goal_x = ex; *goal_z = ez; }
+        else s->nav_clear = -1;       /* stepped clear of the mouth: chase now */
     }
 }
 
@@ -368,14 +652,81 @@ static int lmb_steer(Lumberer *s, int32_t goal_dx, int32_t goal_dz,
         s->steer_timer--;
     }
 
-    /* Blend the new heading into the old one so turns are not instant. */
-    int32_t move_x  = (desired_x * speed) / desired_dist;
-    int32_t move_z  = (desired_z * speed) / desired_dist;
-    int32_t prev_mx = (int16_t)(s->facing >> 16);
-    int32_t prev_mz = (int16_t)(s->facing & 0xFFFF);
-    int32_t blend_x = (prev_mx * (8 - LMB_TURN_RATE) + move_x * LMB_TURN_RATE) >> 3;
-    int32_t blend_z = (prev_mz * (8 - LMB_TURN_RATE) + move_z * LMB_TURN_RATE) >> 3;
-    s->facing = ((int32_t)(int16_t)blend_x << 16) | (uint16_t)(int16_t)blend_z;
+    /* ---- Turn the heading toward the goal, then take a step along it.
+       TWO THINGS ARE SEPARATED HERE THAT THE REST OF THIS GAME'S STEERING
+       CONFLATES: the DIRECTION the body faces, carried frame to frame at
+       LMB_FACE_SCALE, and the STEP, which is that direction scaled down to
+       `speed`. Every bug below came of storing only the step and turning that.
+
+       >>> THE ORIGINAL BLEND, `(prev * 6 + move * 2) >> 3` WRITTEN STRAIGHT
+       INTO THE STEP, IS WRONG IN FOUR WAYS AT A FIVE-UNIT GAIT. <<< All four
+       were found by walking this function over the Tomb's block grid offline;
+       tools/ADDING_AN_ENEMY.txt mistake 16 is the long version.
+
+         1. A FIXED POINT AT ZERO. A diagonal step has components like (3,2) and
+            (3*6 + 3*2) >> 3 is 0 once the previous step is 0, so a body whose
+            heading passed through zero while its goal was diagonal never moved
+            again — and `moved` stayed false, so it stopped animating too.
+         2. THE SHIFT FLOORS, SO NEGATIVES NEVER DECAY. (-3 * 6) >> 3 is -3, for
+            ever: three units of westward pull, sixty per cent of the gait,
+            surviving every later turn and dragging the body back into the wall
+            it had just cleared.
+         3. TRUNCATION SNAPS A TURNING HEADING BACK ONTO ITS AXIS. Scale a
+            turning direction into components that only run to 5 and the smaller
+            one rounds to 0 — which is the axis the body was trying to leave.
+            Carrying the heading at LMB_FACE_SCALE is what fixes this one, and
+            it is why the step is derived from the heading rather than being it.
+         4. lmb_face WROTE THE SAME FIELD AT A DIFFERENT SCALE (64, since it only
+            means the sign), so the first walking frame after an attack blended
+            64 against 5 and moved the body about forty-eight units.
+
+       AND A LERP CANNOT REVERSE, WHICH IS ITS OWN BUG AND THE ONE THE PATROL
+       TRIPS ON. Turning by blending is a lerp toward the target direction, and
+       for two EXACTLY opposite directions the lerp is 6*u + 2*(-u) = 4*u — the
+       same direction, unchanged, for ever. The Tomb's patrol runs due north and
+       due south between two points on one line, so every flip at either end is
+       an exact reversal: the body reached the far point, flipped its waypoint,
+       and kept walking the way it was already going, out of the aisle and into
+       the wall. (The old shifted version got round this only by accident, on
+       the floor() asymmetry of bug 2 — the reversal leaked through the rounding
+       rather than being handled.) So detect it and break the tie: swing a
+       quarter turn, always to the same side, which puts the heading off the line
+       and lets the ordinary turn finish the U-turn in about twenty frames. */
+    int32_t want_x = (desired_x * LMB_FACE_SCALE) / desired_dist;
+    int32_t want_z = (desired_z * LMB_FACE_SCALE) / desired_dist;
+    int32_t prev_x = (int16_t)(s->facing >> 16);
+    int32_t prev_z = (int16_t)(s->facing & 0xFFFF);
+    if (prev_x == 0 && prev_z == 0) { prev_x = want_x; prev_z = want_z; }
+
+    /* Exactly opposite (parallel, and pointing against each other): a lerp has
+       no side to turn on, so give it one. Always the same side, or a body on
+       the line would jitter between the two. */
+    if (prev_x * want_z - prev_z * want_x == 0 &&
+        prev_x * want_x + prev_z * want_z <  0) {
+        int32_t t = want_x;
+        want_x = -want_z;
+        want_z =  t;
+    }
+
+    int32_t face_x = prev_x * (8 - LMB_TURN_RATE) + want_x * LMB_TURN_RATE;
+    int32_t face_z = prev_z * (8 - LMB_TURN_RATE) + want_z * LMB_TURN_RATE;
+    int32_t face_d = (face_x < 0 ? -face_x : face_x) +
+                     (face_z < 0 ? -face_z : face_z);
+    if (face_d <= 0) {                 /* cannot happen with the tie-break, but
+                                          a zero heading would freeze the body */
+        face_x = want_x; face_z = want_z;
+        face_d = (want_x < 0 ? -want_x : want_x) +
+                 (want_z < 0 ? -want_z : want_z);
+        if (face_d <= 0) face_d = 1;
+    }
+    face_x = (face_x * LMB_FACE_SCALE) / face_d;
+    face_z = (face_z * LMB_FACE_SCALE) / face_d;
+    s->facing = ((int32_t)(int16_t)face_x << 16) | (uint16_t)(int16_t)face_z;
+
+    /* The step: the heading at one gait. Manhattan-normalised like everything
+       else here, so a diagonal is a little slower than an axis. */
+    int32_t blend_x = (face_x * speed) / LMB_FACE_SCALE;
+    int32_t blend_z = (face_z * speed) / LMB_FACE_SCALE;
 
     int32_t was_x = s->x, was_z = s->z;
     s->x += blend_x;
@@ -424,6 +775,11 @@ static void lmb_shock_tick(Lumberer *s) {
 }
 
 void update_lumberers(void) {
+    /* Pick this area's routing tables before anything reads them, the way
+       update_zombies calls select_nav(). Areas without a table get none, and
+       every lumberer in them walks straight at the player as before. */
+    lmb_select_nav();
+
     int i;
 
     for (i = 0; i < lumberer_count; i++) {
@@ -503,9 +859,12 @@ void update_lumberers(void) {
             break;
         }
 
-        case LMB_ALERT:
+        case LMB_ALERT: {
             /* In reach: plant and raise the arm. Once alerted it never goes back
-               to patrolling — there is no losing-the-player state, by design. */
+               to patrolling — there is no losing-the-player state, by design.
+               This is the TRUE distance to the player and stays that way however
+               the body got here: the routing below decides where to walk, never
+               whether the arm comes up. */
             if (d2 <= (int32_t)LMB_ATTACK_RADIUS * LMB_ATTACK_RADIUS) {
                 s->state    = LMB_WINDUP;
                 s->atk_tick = 0;
@@ -513,8 +872,21 @@ void update_lumberers(void) {
                 lmb_face(s, dx, dz);
                 break;
             }
-            s->moved = lmb_steer(s, dx, dz, LMB_WALK_SPEED, px, py, pz);
+            /* >>> WALK AT THE GOAL, NOT AT THE PLAYER. <<< Out of sight that is
+               the next aisle waypoint, which is what takes this thing round a
+               loculus block instead of grinding on its corner (lmb_alert_goal).
+               In sight the goal IS the player and this is the old straight
+               charge, unchanged.
+
+               The sightline lmb_steer traces is to the GOAL, as in LMB_PATROL:
+               it is the thing being walked to that has to be unobstructed before
+               the local wall-follow can be safely switched off. */
+            int32_t gx, gz;
+            lmb_alert_goal(s, px, py, pz, &gx, &gz);
+            s->moved = lmb_steer(s, gx - s->x, gz - s->z, LMB_WALK_SPEED,
+                                 gx, s->y, gz);
             break;
+        }
 
         case LMB_WINDUP:
             /* Rooted, arm up, facing the player. The arm coming down is the
@@ -526,8 +898,11 @@ void update_lumberers(void) {
                 s->atk_tick = 0;
                 s->wave_t   = 1;
                 s->wave_hit = 0;
-                /* SFX_CRWL_SCRM borrowed again — see lumberer.h. */
-                sound_play(SFX_CRWL_SCRM);
+                /* The yell goes out WITH the wave, on the first frame of the
+                   strike: the raised arm is the warning and this is the event,
+                   so putting the cue anywhere else in the two seconds would
+                   make one of the two frames a lie (ADDING_A_SOUND STEP 8). */
+                sound_play(SFX_LMBR_YELL);
             }
             break;
 
@@ -551,8 +926,23 @@ void update_lumberers(void) {
 
         /* Tied to the body's real travel, not to a timer: a lumberer held
            against geometry stops stepping rather than marching on the spot
-           (tools/ADDING_AN_ENEMY.txt mistake 15). */
-        if (s->moved) s->anim_tick++;
+           (tools/ADDING_AN_ENEMY.txt mistake 15). The MOAN runs off the same
+           flag and for the same reason — it is the sound of walking, so a body
+           that is rooted in its wind-up, pinned against a loculus or knocked
+           back is not making it, and picks the cycle up where it left off.
+
+           moan_tick starts at 0 from the zeroed struct, so the first frame a
+           lumberer travels is the first moan. Every lumberer in the room shares
+           voice 16, so two of them would cut each other; there is one in the
+           Tomb, and a second would want its own voice before it wanted
+           anything else. */
+        if (s->moved) {
+            s->anim_tick++;
+            if (--s->moan_tick <= 0) {
+                sound_play(SFX_LMBR_MOAN);
+                s->moan_tick = LMB_MOAN_INTERVAL;
+            }
+        }
     }
 
     /* --- Lumberer vs lumberer hard collision, after every one has moved. --- */

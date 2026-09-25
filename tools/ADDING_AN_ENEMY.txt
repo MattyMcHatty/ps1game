@@ -909,3 +909,75 @@ In-game (needs an emulator; say so plainly if you have not run it):
    against geometry stops animating as well as falling silent, which is what
    you want. Tie the two to the same flag (`moved`) rather than to a timer, or
    a stuck enemy scuttles on the spot forever.
+
+16. COPYING THE HEADING BLEND, WHICH HAS THREE BUGS IN IT AND IS IN EVERY
+   ENEMY IN THE GAME. Every steering function in src/ writes its turn as
+
+       blend = (prev * (8 - TURN_RATE) + move * TURN_RATE) >> 3
+
+   straight into the step, and that line is wrong in three separate ways at the
+   size these numbers actually are. A gait is five units; there are no bits
+   spare.
+
+     a. IT HAS A FIXED POINT AT ZERO. A diagonal step has components like (3,2)
+        and (3*6 + 3*2) >> 3 is 0 when prev is 0 — so a body whose heading ever
+        passes through zero while its goal is diagonal NEVER MOVES AGAIN. It is
+        not slow, it is stopped, and because `moved` stays false (mistake 15) it
+        stops animating too, which reads as "stuck on the corner".
+     b. THE SHIFT FLOORS, SO A NEGATIVE COMPONENT NEVER DECAYS. (-3 * 6) >> 3 is
+        -3, for ever. A body that walked west keeps a three-unit westward pull
+        after turning north — sixty per cent of the gait — so every turn away
+        from -x or -z is dragged permanently back into the wall it just cleared.
+        Positive components decay to zero in four frames. The asymmetry is
+        entirely the arithmetic shift.
+     c. A face() HELPER WRITES THE SAME FIELD AT A DIFFERENT SCALE. lmb_face and
+        its siblings normalise to magnitude 64 because only the SIGN is read by
+        the renderer — then the next walking frame blends 64 against 5 and moves
+        the body about forty-eight units in one frame.
+     d. TRUNCATION SNAPS A TURNING HEADING BACK ONTO ITS AXIS. Round a turning
+        direction into components that only run to 5 and the smaller one becomes
+        0 — which is the axis the body was trying to leave, so it never leaves.
+     e. A LERP CANNOT REVERSE. Blending toward an EXACTLY opposite direction
+        gives 6*u + 2*(-u) = 4*u: the same direction, for ever. Any enemy whose
+        waypoints are two points on one line reverses exactly, every lap. The
+        Lumberer's patrol is due north and due south, and the first version of
+        this fix walked it out of the aisle and into the end wall — it reached
+        the far point, flipped its waypoint, and carried on. >>> THE SHIFTED
+        ORIGINAL SURVIVED THIS ONLY BY ACCIDENT, ON THE floor() ASYMMETRY IN
+        (b). <<< Fixing (b) without handling (e) removes the accident and breaks
+        the patrol, which is exactly how it went.
+
+   >>> FIX: KEEP THE HEADING AS A DIRECTION AT A REAL SCALE, TURN THAT, AND
+   DERIVE THE STEP FROM IT. <<< Not the step turning itself. A direction of
+   Manhattan magnitude 256 (LMB_FACE_SCALE) has eight bits to turn in, which
+   answers (a), (c) and (d) outright; divide rather than shift for (b); and
+   detect the exact reversal for (e) — if the cross product is zero and the dot
+   is negative, swing the target a quarter turn, always the same side, and the
+   ordinary blend finishes the U-turn in about twenty frames. The step is then
+   heading * speed / scale, so it is always exactly one gait.
+
+   src/lumberer.c's lmb_steer is the corrected version; the other seven enemies
+   still carry the original and have not been touched, so do not copy one of
+   them without bringing this fix along. Note their patrols mostly survive (e)
+   on the same accident, so "it works today" is not evidence the copy is sound.
+
+   How it was found: the routing work below could not explain why an alerted
+   lumberer still froze mid-aisle. Walking lmb_steer over the Tomb's block grid
+   OFFLINE — a hundred lines of Python, the same nine AABBs, the same integer
+   arithmetic — froze in the same places, and the trace showed the step going to
+   (0,0) with nothing in the way. >>> THE STEERING IS PURE INTEGER ARITHMETIC ON
+   TWO POSITIONS AND IT WILL RUN ANYWHERE. RUN IT SOMEWHERE YOU CAN PRINT. <<<
+
+17. CONFUSING STEERING WITH ROUTING. A feeler plus a wall-follow commit is a
+   LOCAL rule: it gets a body along a face it is already touching. It cannot go
+   round a block, because the moment the commit expires the heading re-aims at
+   the player and drives straight back into the same face. Any enemy in a room
+   with a free-standing obstacle needs the other layer too — zones that tile the
+   floor, nodes that bridge them, a BFS toward the player's zone, and a
+   body-width sightline that cancels the whole thing when the player is actually
+   visible. src/zombie.c is the original and src/lumberer.c is the port; the
+   zombie's zones are ROOMS and its nodes are DOORWAYS, while the lumberer's are
+   the sixteen cells and twenty-four aisle segments of the Tomb's grid. Same
+   code, same staging, a different shape of graph. Measured over 200 random
+   chase pairs in the Tomb: straight-line reached the player in 160, the routed
+   version in 200, for about 3% more walking.

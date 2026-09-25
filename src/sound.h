@@ -467,7 +467,36 @@ typedef enum {
     SFX_CRWL_WHSP  = 52,  /* BANKED (catacombs). The idle whisper, re-triggered
                              on an interval while the player stands inside an
                              idle crawler's listening radius. 1.82 s           */
-    SFX_COUNT      = 53,
+    /* ---- THE LUMBERER ----------------------------------------------------
+       Chapter 3's second MONSTER (src/lumberer.c), and the first enemy in it to
+       get a voice of its own rather than borrowing the crawler's. Both clips
+       are SND_BANK_CATACOMBS and nothing outside src/lumberer.c plays either.
+
+       FREE, on the arithmetic of STEP 3: the catacombs bank goes 96,192 ->
+       126,400 and the region's ceiling is still BOSS at 190,336, so `spare`
+       stays at 46,896. That bank has about 111 KB left before it costs any
+       other bank anything.
+
+       ON VOICES 16 AND 21, BOTH BORROWED, both on the eviction argument the
+       glug and the door spell out in sound.c: SFX_ZOMBIE is SND_BANK_HOUSE and
+       SFX_EXPLODE is SND_BANK_BOSS|SND_BANK_ASAG, none of those three banks can
+       be loaded while SND_BANK_CATACOMBS is, and neither clip is resident. The
+       chapter's own voices - 13 the glug, 14 the door, 15 and 9 the crawler's
+       two - were all spoken for, which is why this pair had to go further out.
+       NEITHER 16 NOR 21 IS POISONED: checked with STEP 6's script rather than
+       assumed, zombie_2.vag carries its loop flag on block 1181 of 1182 and
+       explode.vag on 2115 of 2116, so both are ordinary one-shots that have
+       never moved a repeat address. (17, 18 and 19 remain untouchable, and note
+       18 is in this very bank - it is the crawler's scuttle.) */
+    SFX_LMBR_MOAN  = 53,  /* BANKED (catacombs). The walking moan, re-triggered
+                             from C on an interval while the body TRAVELS, the
+                             way zombie.c re-triggers SFX_ZOMBIE - it is not a
+                             hardware loop and must not become one, or it would
+                             poison voice 16 for everyone. 2.96 s              */
+    SFX_LMBR_YELL  = 54,  /* BANKED (catacombs). The shockwave going out, on the
+                             first frame of the strike. Replaces the borrowed
+                             SFX_CRWL_SCRM at that call site. 1.82 s           */
+    SFX_COUNT      = 55,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

@@ -96,11 +96,20 @@
  * lumberer_add drops SILENTLY once it is full. Raise it (and WD_MAX_LUMBERERS
  * in src/world.h with it) before placing a seventh.
  *
- * SOUND. No new clips: SPU RAM is nearly full (tools/ADDING_A_SOUND.txt) and
- * this enemy did not earn any. SFX_CRWL_SCRM — the crawler's cry, and already
- * in SND_BANK_CATACOMBS — stands in for both the strike and the death. That is
- * deliberate, not an oversight; give it its own clips by adding two SfxIDs and
- * changing the two sound_play calls in src/lumberer.c.
+ * SOUND. TWO CLIPS OF ITS OWN, both SND_BANK_CATACOMBS and both on borrowed
+ * voices (16 and 21 — the reasoning is in sound.c's sfx_channel, and it is the
+ * chapter's fifth and sixth borrowing):
+ *
+ *   SFX_LMBR_MOAN  the walk. Re-triggered from C on LMB_MOAN_INTERVAL for as
+ *                  long as the body is TRAVELLING, so a rooted or pinned
+ *                  lumberer falls silent — the same `moved` flag the animation
+ *                  clock runs on, and the same reasoning.
+ *   SFX_LMBR_YELL  the shockwave, on the first frame of the strike.
+ *
+ * >>> THE DEATH IS STILL SFX_CRWL_SCRM, THE CRAWLER'S CRY, AND THAT IS THE ONE
+ * BORROWING LEFT. <<< It was both of these before the two clips above existed.
+ * Give it a third of its own by adding one SfxID and changing the one remaining
+ * sound_play(SFX_CRWL_SCRM) in src/lumberer.c; the bank has the room.
  * ----------------------------------------------------------------------- */
 
 #define MAX_LUMBERERS         6    /* WHOLE-GAME budget — see above            */
@@ -114,16 +123,23 @@
 #define LMB_WALK_SPEED        5
 
 /* Alert radius, TRUE RADIAL (not the Manhattan sum the coarse zombie wake
-   uses). "About 30% greater than the Crawler's wake radius": CRW_WAKE_RADIUS is
-   1100, so 1430.
+   uses). It started at 1430 — "about 30% greater than the Crawler's wake
+   radius", CRW_WAKE_RADIUS being 1100 — and has since been CUT BY A FIFTH, to
+   1144, so the player can cross an aisle mouth one block away without waking it.
+   That leaves it a hair above the Crawler's, which is the shape it should have
+   had: this one is slower than the Crawler and hits far harder, so the range at
+   which it notices you is not where its threat is meant to come from.
 
    Unlike the Mushroom Head's, this is the WHOLE test — no facing dot and no
    sightline. The Mushroom's two extra conditions exist so it can be crept up on
    from behind during a patrol; the Lumberer is specified to wake on proximity
-   alone, so a player who walks into 1430 has woken it whichever way either of
-   them is pointing. Note 1430 is inside the Tomb's fog (tomb.c), so it never
-   wakes to a player it could not have seen. */
-#define LMB_ALERT_RADIUS   1430
+   alone, so a player who walks into 1144 has woken it whichever way either of
+   them is pointing — and, since the cut, through a loculus block as readily as
+   down an open aisle. It closes the distance by walking the aisles either way
+   (LMB_NAV below), so a wake through a wall costs the player the detour rather
+   than a monster that grinds on the far side of it. Note 1144 is well inside the
+   Tomb's fog (tomb.c), so it never wakes to a player it could not have seen. */
+#define LMB_ALERT_RADIUS   1144
 
 /* ---- The reach. TRUE RADIAL again, and it is the enemy's whole character:
    "it does not have to be as close as other monsters, because it has one long
@@ -204,17 +220,100 @@
 
 #define LMB_BAR_TIMER_MAX   120
 
-/* Steering and knockback, mirroring the Mushroom Head's. No nav graph: a
-   lumberer fights in the room it patrols. The body radius and the feeler are
-   sized up from the mushroom's to match the wider silhouette. */
+/* ---- The walking moan, in frames at 60 fps. The brief is "play it, wait two
+   seconds, play it again", so the INTERVAL is the clip plus the gap and not the
+   gap alone: lmbrmoan.vag runs 2.96 s, which is 178 frames, and 120 more is the
+   two seconds of silence after it. Firing every 120 would instead re-key the
+   voice 58 frames before the moan had finished and the player would never hear
+   the end of it.
+
+   >>> SO THIS CONSTANT IS CUT TO THE CLIP'S LENGTH AND RE-CUTTING THE CLIP
+   BREAKS IT SILENTLY. <<< Same trap as SFX_EXPLODE's length in rabisu_boss.c
+   (tools/ADDING_A_SOUND.txt STEP 1B). If lmbrmoan.vag is ever re-recorded or
+   trimmed, work its length out in frames again and reset LMB_MOAN_CLIP.
+
+   The clock only advances on frames the body actually TRAVELLED, so a lumberer
+   rooted in its wind-up or pinned against a loculus goes quiet and picks the
+   cycle up where it left off — the rule LMB_ANIM_RATE already follows. */
+#define LMB_MOAN_CLIP       178    /* lmbrmoan.vag, 2.96 s at 60 fps           */
+#define LMB_MOAN_GAP        120    /* the two seconds of silence after it      */
+#define LMB_MOAN_INTERVAL   (LMB_MOAN_CLIP + LMB_MOAN_GAP)
+
+/* Steering and knockback, mirroring the Mushroom Head's. The body radius and
+   the feeler are sized up from the mushroom's to match the wider silhouette.
+   This is the LOCAL layer only — one feeler, one wall-follow — and it is what
+   the LMB_NAV block below exists to sit on top of. */
 #define LMB_SEP_RADIUS      260
 #define LMB_SEP_WEIGHT        2
 #define LMB_BODY_RADIUS     100
 #define LMB_DOOR_CLEARANCE  100
 #define LMB_FEELER_LEN      200
 #define LMB_TURN_RATE         2    /* slower than the mushroom's 3: it lumbers */
+/* The HEADING is kept as a direction vector of this Manhattan magnitude, and
+   the step is scaled down out of it (lmb_steer, lmb_face). It is not a tuning
+   number and there is nothing to taste in it — it is RESOLUTION, and the whole
+   reason the heading is not simply the last step:
+
+   A GAIT IS FIVE UNITS, AND A FIVE-UNIT VECTOR CANNOT REPRESENT A TURN. Round a
+   turning direction into integer components that small and the smaller
+   component truncates to zero, which snaps the heading back onto the axis it
+   was leaving — so it never leaves. At 256 the same blend has eight bits to
+   turn in and the rounding is worth a fraction of a degree. This is the reason
+   the whole of this game's steering family is written against the step and gets
+   away with it only while the goal is axis-aligned. */
+#define LMB_FACE_SCALE      256
 #define LMB_STEER_COMMIT     30
 #define LMB_KNOCKBACK        35    /* decays 7/8 a frame -> ~280 units total   */
+
+/* ---- LMB_NAV: ROUTING, which is a different problem from STEERING.
+   >>> THE FEELER ABOVE FOLLOWS A WALL; IT DOES NOT GO ROUND A BLOCK. <<< An
+   alerted lumberer used to aim the raw player delta at lmb_steer and nothing
+   else, and in the Tomb that is a straight line into the side of a loculus.
+   The wall-follow then slid it along that face for LMB_STEER_COMMIT frames,
+   expired, re-aimed at the player, and drove it back into the same face: a
+   monster grinding on the corner it should have walked around.
+
+   The fix is the ZOMBIE's, taken whole (src/zombie.c, "Navigation graph"):
+   carve the room into ZONES, bridge them with NODES, breadth-first the zone
+   graph toward the player's zone, and walk to the next node instead of at the
+   player — with a sightline that CANCELS all of it, so an enemy that can see
+   you still charges you in a straight line. The parts kept verbatim, and why:
+
+     - THE TWO-STAGE CROSSING. Walk to the near-side clearance point first to
+       line up square with the gap, then aim at the FAR-side one. Never at the
+       node centre: the centre sits ON the zone boundary, so a body standing
+       there is still in the zone it came from, still routed to the node it is
+       standing on, and its goal is the spot it already occupies. That is the
+       zombie's "parks in the gap" bug and it would be this one's too.
+     - THE `md <= nd` LATCH that keeps the near stage from re-arming once the
+       body is deeper into the crossing than the staging point was.
+     - nav_clear, the one-shot "step clear of the opening before you turn",
+       without which an off-axis player drags the body back into the corner it
+       has just come round.
+
+   WHAT IS DIFFERENT HERE is the shape of the graph, and only that. A zombie's
+   zones are ROOMS and its nodes are DOORWAYS, authored one or two at a time.
+   The Tomb is one chamber with nine free-standing blocks in it, so its zones
+   are the sixteen cells of the aisle grid and its nodes are the twenty-four
+   aisle segments joining them (lmb_tomb_nav_* in the .c). Same tables, same
+   BFS, same staging — an open-plan room described in the doorway vocabulary.
+
+   LMB_LOS_WIDTH is the half-width of the body sightline. A zero-width line
+   threads a gap a body cannot walk, which is what wedged zombies in the kitchen
+   doorway; 150 is 1.5x LMB_BODY_RADIUS, the same margin ZMB_LOS_WIDTH 90 gives
+   the zombie's 60, and Manhattan-normalised so it realises 106..150 — erring
+   toward over-cautious sight, never over-confident.
+
+   LMB_LOS_COMMIT is hysteresis: keep charging for half a second after the last
+   clear sightline, so a line that flickers across a block corner does not flip
+   the body between "charge" and "route" on alternate frames.
+
+   LMB_NODE_CLEAR_DIST is "close enough to a clearance point to count as having
+   reached it", sized off the 5-unit gait rather than the zombie's 8. */
+#define LMB_NAV_MAX_ZONES    16    /* stack-array sizing in lmb_nav_next_node  */
+#define LMB_LOS_WIDTH       150
+#define LMB_LOS_COMMIT       30
+#define LMB_NODE_CLEAR_DIST 120
 
 #define LMB_WAYPOINT_REACH  140    /* Manhattan; flip the patrol leg here      */
 
@@ -244,6 +343,7 @@ typedef struct {
     int           health;
     int           hit_timer;
     int           anim_tick;
+    int           moan_tick;     /* frames left before the next walking moan  */
     int           atk_tick;      /* frames into the current attack phase      */
 
     /* The wave. `wave_t` counts from 1 while one is expanding and is 0
@@ -255,6 +355,13 @@ typedef struct {
     int32_t       facing;        /* last travel dir, packed: hi16 X, lo16 Z   */
     int           steer_timer;
     int           steer_dir;
+    /* Routing (LMB_NAV). `los_timer` counts down from LMB_LOS_COMMIT while the
+       player is out of body-sight and pins the body to a straight charge while
+       it is positive; `nav_clear` is the node whose far side still has to be
+       stepped clear of, or -1. Neither is saved: lumberers_rest() zeroes the
+       whole struct on the way out of the room. */
+    int           los_timer;
+    int           nav_clear;
     int           moved;         /* travelled this frame — drives anim_tick   */
 
     LumbererState state;

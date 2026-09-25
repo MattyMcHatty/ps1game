@@ -254,6 +254,20 @@
                      does not move off 46,896 for any of this. -->
                 <file name="CRWLSCRM.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\crwlscrm.vag"/>
                 <file name="CRWLWHSP.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\crwlwhsp.vag"/>
+
+                <!-- THE LUMBERER's two, and the chapter's last pair of voices.
+                     Both SND_BANK_CATACOMBS, fired by src/lumberer.c alone:
+                       LMBRMOAN  2.96 s  the walking moan, re-triggered from C
+                                         on an interval for as long as the body
+                                         is actually travelling
+                       LMBRYELL  1.82 s  the shockwave, replacing the crawler's
+                                         scream this enemy shipped borrowing
+                     18,688 and 11,520 bytes take the catacombs bank 96,192 ->
+                     126,400, against a region of 237,232 whose ceiling is set by
+                     BOSS at 190,336 - so `spare` does not move off 46,896 and
+                     these two are free (tools/ADDING_A_SOUND.txt STEP 3). -->
+                <file name="LMBRMOAN.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lmbrmoan.vag"/>
+                <file name="LMBRYELL.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lmbryell.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -1170,9 +1184,12 @@
                  pre-quantised against a single master palette taken over the
                  whole sheet (with the transparent-pixel sentinel already baked
                  in), so each conversion sees at most 256 distinct colours and
-                 reproduces them exactly. lumberer.png is the untouched original;
-                 both halves are committed beside it so the conversion stays
-                 reproducible.
+                 reproduces them exactly. lumberer.png is the untouched original
+                 and tools/split_lumberer_sheet.py is what makes the halves from
+                 it (--tim also runs both conversions, at the slots below), so
+                 REPLACING THE ART IS ONE COMMAND. Both halves are committed
+                 beside the sheet as well, so the conversion stays reproducible
+                 even without running it.
 
                  THEIR VRAM IS ON LOAN FROM THE FRONT END, which is what makes
                  this enemy different from every other time-share in this file:
