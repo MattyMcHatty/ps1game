@@ -27,16 +27,23 @@
    NOT the same kind of room — see the view-distance note in the .c, which is
    the one place that difference has to be argued rather than assumed.
 
-   THE DOORS. Three are drawn, and ONE of them is wired up:
+   THE DOORS. Three are drawn, and TWO of them are wired up:
 
      EAST   x=0      z[1400,1600] y[-400,0]  -> Incinerator Room, west door
-     west   x=-4200  z[2600,2800] y[-400,0]  not built
+     WEST   x=-4200  z[2600,2800] y[-400,0]  -> Room of Arms, east door
      north  z=4200   x[-2200,-2000] y[-400,0] not built
 
-   The other two are drawn and nothing else: no sign, no trigger. They read as
-   sealed doors, which is what they are until the rooms behind them exist, and
-   wiring one up is the block of #defines in the .c plus the STEP 6 edits in
+   The north one is drawn and nothing else: no sign, no trigger. It reads as a
+   sealed door, which is what it is until the room behind it exists, and wiring
+   it up is the block of #defines in the .c plus the STEP 6 edits in
    tools/ADDING_A_ROOM.txt.
+
+   >>> THE TWO LIVE DOORS TAKE OPPOSITE MIRRORS AND THAT IS NOT A DETAIL. <<<
+   Both are YZ-plane doors, but the east one is approached from -X (wall 39,
+   nx=-4096) and the west one from +X (wall 38, nx=+4096), so their signs take
+   mirror=1/-11 and mirror=0/+11 respectively. The .c passes the pair at each
+   call site rather than deriving it, so the difference is visible where the two
+   are drawn. A door whose sign reads backwards has this wrong.
 
    NO STOREY TEST ON ANY OF THEM, which is the normal case and not an omission.
    This room is flat, so the walkable surface is a function of XZ — the
@@ -60,16 +67,24 @@ void tomb_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) 
 void tomb_init(void);            /* collision + floor zones + spawn */
 void tomb_draw(RenderContext *ctx);
 
-/* Arrival through the east door, and the only arrival there is: standing just
-   inside it, facing west into the chamber. */
+/* Arrival through the east door: standing just inside it, facing west into the
+   chamber. */
 void tomb_spawn_east(void);
 
-/* One frame of the east door's Circle test. `lock` is main's usual suppression
-   (a menu is up, a cutscene owns the camera). Returns 1 on a fresh press made in
-   range and facing the door — the frame main.c starts the transition on. */
-int  tomb_east_door_triggered(int lock);
+/* Arrival through the west door, back from the Room of Arms: standing just
+   inside it, facing east down the aisle between the west wall and the western
+   column of loculus blocks. */
+void tomb_spawn_west(void);
 
-/* Arm every interaction in the room. Called by the spawn above; exported so a
+/* One frame of a door's Circle test. `lock` is main's usual suppression (a menu
+   is up, a cutscene owns the camera). Returns 1 on a fresh press made in range
+   and facing that door — the frame main.c starts the transition on. Both share
+   one body in the .c; only the coordinates and the edge-state differ. */
+int  tomb_east_door_triggered(int lock);
+int  tomb_west_door_triggered(int lock);
+
+/* Arm every interaction in the room — BOTH doors' edge states, not just the one
+   the player arrived through. Called by the spawn above; exported so a
    caller that places the player some other way (a debug jump) can still ensure a
    Circle held through the transition does not fire on the arrival frame. */
 void tomb_arm(void);

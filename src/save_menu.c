@@ -107,6 +107,7 @@ static const char *area_name(int area) {
         case STATE_UP_DOWN_MAZE:      return "UP DOWN MAZE";
         case STATE_INCINERATOR_ROOM:  return "INCINERATOR ROOM";
         case STATE_TOMB:              return "TOMB";
+        case STATE_ROOM_OF_ARMS:      return "ROOM OF ARMS";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

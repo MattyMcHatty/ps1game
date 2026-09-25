@@ -115,6 +115,7 @@ AREAS = {
                   # hence the third narrow uploader on catacombs_entry.c that
                   # the walk below reaches through this entry.
                   "tomb_upload_textures",
+                  "room_of_arms_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

@@ -106,6 +106,7 @@ TexBank area_bank_of(GameState area) {
        three narrow uploaders and proves it. It is the first room besides the
        burial hall to draw the loculus, which is why the third of those
        uploaders exists at all. */
+    case STATE_ROOM_OF_ARMS:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -118,7 +119,8 @@ int area_is_catacombs(GameState area) {
     return area == STATE_CATACOMBS_ENTRY ||
            area == STATE_UP_DOWN_MAZE ||
            area == STATE_INCINERATOR_ROOM ||
-           area == STATE_TOMB;
+           area == STATE_TOMB ||
+           area == STATE_ROOM_OF_ARMS;
 }
 
 /* ---- The prop models -------------------------------------------------------

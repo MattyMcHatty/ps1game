@@ -143,7 +143,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_CHAIN_ROOM,     STATE_THE_HATCH,
     STATE_ASAG_ARENA,     STATE_CATACOMBS_ENTRY,
     STATE_UP_DOWN_MAZE,   STATE_INCINERATOR_ROOM,
-    STATE_TOMB,
+    STATE_TOMB,           STATE_ROOM_OF_ARMS,
 };
 
 static int room_index(GameState area) {
@@ -213,6 +213,18 @@ static int room_index(GameState area) {
            a room silently inherits another room's smashed crates and dead
            enemies. */
         case STATE_TOMB:              return 30;
+        /* The Room of Arms. Seeded EMPTY, for the same two reasons as the four
+           rooms above: Chapter 3's two monsters are placed in the maze and the
+           Tomb and nowhere else so far, and nothing from Chapters 1 or 2 can be
+           placed down here because area_bank_sync() has freed their art
+           (src/area_bank.h). It still needs a slot of its own, because without
+           one it would fall through the default below and share the DELIVERY
+           AREA's, which is how a room silently inherits another room's smashed
+           crates and dead enemies.
+           >>> AND IT IS SLOT 31 OF 32. <<< See the note on WORLD_NUM_ROOMS in
+           world.h: WorldDelta.visited is a uint32_t and this room takes its last
+           bit. The _Static_assert below fires on the next room added. */
+        case STATE_ROOM_OF_ARMS:      return 31;
         default:                   return 0;
     }
 }

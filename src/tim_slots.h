@@ -59,6 +59,10 @@
 #define TIM_TPAGE_ANZU6    0x008b
 #define TIM_CLUT_ANZU6     0x7a10
 
+/* arms.tim        8bpp  VRAM ( 640,  0)  \TEXCTCMB\ARMS.TIM */
+#define TIM_TPAGE_ARMS     0x008a
+#define TIM_CLUT_ARMS      0x7d6a
+
 /* mud.tim         8bpp  VRAM ( 384,  0)  \TEXASAG\ASGMUD.TIM */
 #define TIM_TPAGE_ASGMUD   0x0086
 #define TIM_CLUT_ASGMUD    0x7cea
@@ -322,6 +326,14 @@
 /* ls_idle.tim     8bpp  VRAM ( 960,384)  \TEX\LSIDLE.TIM */
 #define TIM_TPAGE_LSIDLE   0x009f
 #define TIM_CLUT_LSIDLE    0x7e10
+
+/* lumberer_a.tim  8bpp  VRAM ( 448,128)  \TEXCTCMB\LUMBERA.TIM */
+#define TIM_TPAGE_LUMBERA  0x0087
+#define TIM_CLUT_LUMBERA   0x7bd0
+
+/* lumberer_b.tim  8bpp  VRAM ( 832,128)  \TEXCTCMB\LUMBERB.TIM */
+#define TIM_TPAGE_LUMBERB  0x008d
+#define TIM_CLUT_LUMBERB   0x79aa
 
 /* mansion.tim     8bpp  VRAM ( 448,128)  \TEX\MANSION.TIM */
 #define TIM_TPAGE_MANSION  0x0087

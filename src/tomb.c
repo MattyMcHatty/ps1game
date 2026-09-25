@@ -301,40 +301,83 @@ void tomb_upload_textures(void) {
 #define TOMB_FADE_NEAR         800
 #define TOMB_TRIGGER_RADIUS    500
 
-/* Circle edge-detect. Seeded "held" by the arm below so a press carried in
-   through the transition cannot fire on the arrival frame. */
+/* ---- THE WEST DOOR ---------------------------------------------------------
+   x=-4200, z[2600,2800], y[-400,0] — in the outer west wall, and the second of
+   this room's three drawn doors to be wired up. Through it is the ROOM OF ARMS
+   (src/room_of_arms.h), the chapter's fifth room.
+
+   >>> ITS MIRROR IS THE OPPOSITE OF THE EAST DOOR'S, AND THAT IS THE WHOLE
+   REASON THIS BLOCK IS NOT A COPY OF THAT ONE. <<< Wall 38 runs x=-4199 with
+   nx = +4096, so the walkable side is +X: the player stands EAST of this door
+   and approaches it from +X, where the east door is approached from -X. A
+   YZ-plane door approached from +X takes mirror=0 and its sign goes 11 units
+   proud of the wall along +X. Copy the east door's mirror=1 and -11 here and the
+   text comes out backwards AND buried in the wall, which are two symptoms of one
+   mistake. The Room of Arms' east door, the far side of this wall, takes the
+   mirror=1 form for the same reason in reverse.
+
+   THE READING AXIS IS STILL Z, so the -200 door_draw_string_3d wants still goes
+   on the Z argument. That part does not change with the side. */
+#define TOMB_WEST_X         (-4199)
+#define TOMB_WEST_Z           2700     /* the art spans z[2600,2800] */
+#define TOMB_WEST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
+
+/* Circle edge-detect, one seed per door. Seeded "held" by the arm below so a
+   press carried in through the transition cannot fire on the arrival frame. */
 static int east_circle_prev = 1;
+static int west_circle_prev = 1;
 
 static int circle_held(void) {
     return interact_tapped();
 }
 
 void tomb_arm(void) {
-    east_circle_prev = circle_held();
+    int held = circle_held();
+    east_circle_prev = held;
+    west_circle_prev = held;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
    menu closing does not read as a fresh press on the frame the lock lifts —
-   hatch_puzzle_update()'s rule, for its reason. */
-int tomb_east_door_triggered(int lock) {
+   hatch_puzzle_update()'s rule, for its reason. Both doors go through this one
+   body, which is STEP 5's instruction for a room with two or more of them
+   (tools/ADDING_A_ROOM.txt): the per-door state is the (x, z, &prev) triple and
+   nothing else, so the two cannot drift apart. */
+static int door_triggered(int lock, int32_t door_x, int32_t door_z, int *prev) {
     int held = circle_held();
-    int just = held && !east_circle_prev;
+    int just = held && !*prev;
     int32_t dx, dz, xz;
-    east_circle_prev = held;
+    *prev = held;
     if (lock || !just) return 0;
-    dx = cam_x - TOMB_EAST_X;
-    dz = cam_z - TOMB_EAST_Z;
+    dx = cam_x - door_x;
+    dz = cam_z - door_z;
     xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (xz >= TOMB_TRIGGER_RADIUS) return 0;
-    if (!interact_facing(TOMB_EAST_X, TOMB_EAST_Z)) return 0;
+    if (!interact_facing(door_x, door_z)) return 0;
     return 1;
 }
 
-/* The door's floating sign. Same shape as every other sign in the game: opaque
-   within TOMB_FADE_NEAR, gone by TOMB_TEXT_RADIUS. */
-static void tomb_east_door_text(RenderContext *ctx) {
-    int32_t dx = cam_x - TOMB_EAST_X;
-    int32_t dz = cam_z - TOMB_EAST_Z;
+int tomb_east_door_triggered(int lock) {
+    return door_triggered(lock, TOMB_EAST_X, TOMB_EAST_Z, &east_circle_prev);
+}
+
+int tomb_west_door_triggered(int lock) {
+    return door_triggered(lock, TOMB_WEST_X, TOMB_WEST_Z, &west_circle_prev);
+}
+
+/* A door's floating sign. Same shape as every other sign in the game: opaque
+   within TOMB_FADE_NEAR, gone by TOMB_TEXT_RADIUS.
+
+   `standoff` is the sign's offset off the wall toward the player and `mirror` is
+   which way the glyphs read, and THE TWO ALWAYS AGREE: -11 with mirror=1 for a
+   door approached from -X, +11 with mirror=0 for one approached from +X. They
+   are passed as a pair rather than derived here because there is no third case
+   in this room and spelling them out at each call site is what makes the two
+   doors' difference visible in tomb_draw(). */
+static void tomb_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
+                           int32_t text_y, int32_t standoff, int mirror) {
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - door_z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int fade = 256;
 
@@ -348,12 +391,26 @@ static void tomb_east_door_text(RenderContext *ctx) {
     }
 
     /* door_draw_string_3d adds 200 to the reading axis before centring, and a YZ
-       sign reads along Z — hence the -200 on that argument. mirror=1: a
-       YZ-plane door approached from -X. */
+       sign reads along Z — hence the -200 on that argument. */
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
-                        TOMB_EAST_X - 11, TOMB_EAST_TEXT_Y, TOMB_EAST_Z - 200,
-                        50, 255, 50, fade, 1, TEXT_PLANE_YZ,
+                        door_x + standoff, text_y, door_z - 200,
+                        50, 255, 50, fade, mirror, TEXT_PLANE_YZ,
                         DOOR_PIXEL_SIZE);
+}
+
+void tomb_spawn_west(void) {
+    /* Arriving from the Room of Arms. Clear of the wall push radius on the +X
+       side — the walkable side of wall 38 — and facing +X, the direction of
+       travel through the door, looking east down the aisle between the west wall
+       and the western column of loculus blocks (x[-3600,-3000]). z=2700 is
+       inside that column's 1800..2400 / 3000..3600 gap, so the walk in is down
+       open floor and not into a block face. */
+    cam_x   = TOMB_WEST_X + (TOMB_WALL_RADIUS + 25);
+    cam_y   = TOMB_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = TOMB_WEST_Z;
+    cam_rot = 1024;
+    tomb_arm();
 }
 
 void tomb_spawn_east(void) {
@@ -632,19 +689,24 @@ void tomb_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_tomb_smd(ctx);
 
-    /* >>> LEVEL 8 NOW REMOVES A LUMBERER AND THE SIGN. <<< This used to say the
-       room held no props and no enemies and that the east door's floating string
-       was all there is. It has one now (src/lumberer.h), walking the aisle
-       between the middle and eastern block columns — so the D reading at levels
-       1, 4 and 8 is finally splitting this room's frame between something and
-       something else rather than between the mesh and one string, which is the
-       case STEP 3D of tools/DIAGNOSING_FRAME_RATE.txt was written about
-       (Reception's frame turned out to be its SIGNAGE and not its mesh, because
-       door_draw_string_3d has no facing test and queues every glyph in full with
-       the player's back to it). */
+    /* >>> LEVEL 8 NOW REMOVES A LUMBERER AND *TWO* SIGNS. <<< This used to say
+       the room held no props and no enemies and that the east door's floating
+       string was all there is. It has a lumberer now (src/lumberer.h), walking
+       the aisle between the middle and eastern block columns, and a second sign
+       over the west door since the Room of Arms was built behind it — so the D
+       reading at levels 1, 4 and 8 is splitting this room's frame between
+       something and something else rather than between the mesh and one string,
+       which is the case STEP 3D of tools/DIAGNOSING_FRAME_RATE.txt was written
+       about (Reception's frame turned out to be its SIGNAGE and not its mesh,
+       because door_draw_string_3d has no facing test and queues every glyph in
+       full with the player's back to it — and with two signs in a 4200 room
+       there is always at least one of them behind the camera). */
     if (exp != DBG_EXP_NO_ENTITIES) {
-        tomb_east_door_text(ctx);
-        /* BOTH CHAPTER 3 ENEMIES, and both are drawn in all four of its rooms
+        tomb_door_text(ctx, TOMB_EAST_X, TOMB_EAST_Z, TOMB_EAST_TEXT_Y,
+                       -11, 1);   /* east: approached from -X */
+        tomb_door_text(ctx, TOMB_WEST_X, TOMB_WEST_Z, TOMB_WEST_TEXT_Y,
+                       +11, 0);   /* west: approached from +X */
+        /* BOTH CHAPTER 3 ENEMIES, and both are drawn in all five of its rooms
            whether or not world.c places one here. That is deliberate and it is
            what "either enemy may go in any Catacombs room" actually costs: the
            area tag makes an absent enemy free (the loop skips every instance

@@ -129,6 +129,15 @@ typedef enum {
                                 camera walks between the two open door leaves
                                 and fades; src/catacomb_walk.h. Appended for the
                                 same reason, though nothing ever saves in it. */
+    STATE_ROOM_OF_ARMS,      /* The ROOM OF ARMS, through the WEST door of the
+                                Tomb. Chapter 3's fifth room: one octagonal
+                                chamber 2586 across, flat and single storey
+                                under the same low vault, with a cobblestone
+                                screen across its north-west third and a field
+                                of grasping arms in the sealed pocket behind it
+                                — seen through a gap in that screen and never
+                                walked into. See src/room_of_arms.h. Appended,
+                                not inserted: saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

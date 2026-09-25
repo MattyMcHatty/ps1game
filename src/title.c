@@ -161,6 +161,13 @@ static const char *const level_names[] = {
        same 14 that turned "CATACOMBS ENTRY" into "CCOMBS ENTRY" two rows up. */
     "INCINERATOR",
     "TOMB",
+    /* The ROOM OF ARMS, the chapter's fifth room. Reached in play only
+       through the Tomb's west door, FOUR rooms deep, so this row is the only
+       practical way to look at it - and like every other row it goes through
+       STATE_LOADING, which is what makes area_bank_sync() run.
+
+       12 characters, inside the 14 the column allows. */
+    "ROOM OF ARMS",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -198,6 +205,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* UP DOWN MAZE */
     STATE_LOADING,        /* INCINERATOR ROOM */
     STATE_LOADING,        /* TOMB */
+    STATE_LOADING,        /* ROOM OF ARMS */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -233,6 +241,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_UP_DOWN_MAZE,
     STATE_INCINERATOR_ROOM,
     STATE_TOMB,
+    STATE_ROOM_OF_ARMS,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

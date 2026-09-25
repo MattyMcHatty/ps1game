@@ -101,9 +101,15 @@ TEXDIR = os.path.join(ROOT, "textures")
 RESERVED = dict(ASAG.RESERVED)
 
 # ---------------------------------------------------------------------------
-# THE CHAPTER'S OWN ART. Seven room textures across four rooms, plus the two
-# enemies' sheets. Keep in step with the TIM_SLOT headers in the four *_tex_map
+# THE CHAPTER'S OWN ART. Eight room textures across five rooms, plus the two
+# enemies' sheets. Keep in step with the TIM_SLOT headers in the five *_tex_map
 # rooms and with crawlers_load_textures() / lumberers_load_textures().
+#
+# arms.tim took the LAST page this map called "FREE - costs nothing". What is
+# left on the mesh-art rows is x320, x576 and x704 at y=0 and x768/x832 at
+# y=256, all of them marked "needs a way back first" - so the next room texture
+# in this chapter owes somebody a restore, and the one to write it against is
+# whichever module still puts the displaced texture up on its own entry.
 # ---------------------------------------------------------------------------
 BANK = {
     "cobblestones.tim":         "every room's floor and walls   x384 y0",
@@ -112,6 +118,7 @@ BANK = {
     "lamashtu tablet.tim":      "the entry hall's tablet        x768 y0",
     "catacomb inner door.tim":  "the chapter's door panel too   x832 y0",
     "incinerator.tim":          "the Incinerator machine        x704 y256",
+    "arms.tim":                 "the Room of Arms' arms field   x640 y0",
     "oil_container.tim":        "the oil dispenser              x896 y256",
     "crawler_a.tim":            "Crawler frames 0,1             x320 y128",
     "crawler_b.tim":            "Crawler frames 2,3             x704 y128",

@@ -660,6 +660,45 @@ KNOWN_STREAM_PAIRS = [
     # caught it, and it is why that check exists.
     ("Rabisu tex.tim", "incinerator.tim"),
     ("incinerator.tim", "vines.tim"),
+    # ---- THE ROOM OF ARMS, Chapter 3's fifth room, through the Tomb's west door
+    #   arms.tim -> the trck_clue / hatch page (x640 y0), the field of grasping
+    # arms in the sealed pocket behind that room's north-west screen wall. It is
+    # the chapter's FIRST room texture that is not the Catacombs Entry's, and the
+    # page it takes is the one tools/VRAM_MAP_CATACOMBS.txt marks "x640  FREE -
+    # costs nothing": the only 8bpp mesh-art page in that bank with no occupant
+    # that needs a way back written for it. Nine share it already and every one
+    # re-uploads itself out of its own module on the entry that draws it —
+    #   asag                -> asag_arena_upload_textures()   (arena entry)
+    #   chnlnk              -> the stairwells' uploaders
+    #   gravel_texture      -> delivery_restore_textures()
+    #   greenhouse          -> the Stables' uploader
+    #   hatch               -> the_hatch_upload_textures()
+    #   plinth_rg           -> rear_gate_upload_textures()
+    #   poison_flower_base  -> the mazes' and the catacombs' uploaders
+    #   trck_clue           -> the attic stairwell's uploader
+    #   trees               -> delivery_restore_textures()
+    # — so a title load into a Chapter 1 or 2 save that walks back into any of
+    # those rooms puts the right pixels up again, which is the ORDINARY terms
+    # this bank's other three slices are sound on and NOT the "nothing goes back
+    # there" argument the sconce's note above records as wrong.
+    #
+    # ITS CLUT IS BORROWED, on the Greenhouse's and the Hatch's argument: there
+    # is one 256-word run left in the whole map (y=511, x[672,1024), after the
+    # Incinerator took x[304,560) off the run this file used to call the last
+    # one) and a floor of arms is not what to spend it on. arms takes ASAG'S row
+    # at (672,501) — a texture whose PIXELS it is already displacing on x640 y0,
+    # so the pair is restored together, palette and all, by the one stream in
+    # asag_arena_load_assets(). Chapter 3 and Asag's arena are also the two
+    # places in the game that can never be resident at once.
+    ("asag.tim",               "arms.tim"),
+    ("chnlnk.tim",             "arms.tim"),
+    ("gravel_texture.tim",     "arms.tim"),
+    ("greenhouse.tim",         "arms.tim"),
+    ("hatch.tim",              "arms.tim"),
+    ("plinth_rg.tim",          "arms.tim"),
+    ("poison_flower_base.tim", "arms.tim"),
+    ("trck_clue.tim",          "arms.tim"),
+    ("trees.tim",              "arms.tim"),
 ]
 
 def read_tim(path):

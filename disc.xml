@@ -1052,6 +1052,45 @@
                  empty, deliberately and loudly. -->
             <file name="TOMB.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\assets\tomb.smd"/>
 
+            <!-- THE ROOM OF ARMS, the chapter's FIFTH room, behind the WEST
+                 door of the Tomb - the second of the three doors that room's
+                 header has been listing as drawn-but-sealed. An octagon 2586
+                 across under the same y=-800 vault, with its north-west third
+                 screened off by a cobblestone wall: a sealed pocket the player
+                 can see into through a 634-wide gap in that screen and never
+                 walk into. What is in the pocket is a floor of grasping arms,
+                 and it is the only thing in the room (src/room_of_arms.h).
+
+                 ONE NEW TEXTURE, AND IT IS THE CHAPTER'S FIRST ROOM TEXTURE
+                 THAT IS NOT THE CATACOMBS ENTRY'S. The other two this room
+                 draws - COBBLE.TIM and CTCMBDR.TIM - come through that room's
+                 narrow uploaders as every Chapter 3 room's have; ARMS.TIM is
+                 new art that only this room draws, so this room owns it and
+                 registers it, DEFERRED like the rest of the chapter.
+
+                 ITS VRAM PAGE IS x640 y0, the one page
+                 tools/VRAM_MAP_CATACOMBS.txt marks "FREE - costs nothing":
+                 already shared nine ways and every occupant re-uploaded by its
+                 own room's entry, so it adds no restore obligation. Its CLUT
+                 is BORROWED, at asag.tim's (672,501) - a texture whose pixels
+                 it is already displacing on that page, so the two travel
+                 together. The whole argument is in tools/vram_map.py beside
+                 the pairs.
+
+                 >>> THAT REGISTRATION IS THE 69th OF 72. <<< TEXMGR_MAX in
+                 src/texmgr.c is the cap and a register past it fails SILENTLY.
+                 Count before adding another (py tools/heap_budget.py prints
+                 the total), and prefer a narrow uploader on an owning module
+                 to a second RAM copy of art the game already holds.
+
+                 ARMSROOM.SMD, not ARMS.SMD: the 8.3 names are the only names
+                 the disc has and a room's mesh reads better with the room in
+                 it. Comfortably inside the arena MAZEONE.SMD sizes
+                 (src/room_arena_size.h) - re-run py tools/gen_room_arena.py
+                 after any re-export anyway. -->
+            <file name="ARMSROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\room_of_arms.smd"/>
+            <file name="ARMS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\arms.tim"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather
@@ -1186,7 +1225,9 @@
                  in), so each conversion sees at most 256 distinct colours and
                  reproduces them exactly. lumberer.png is the untouched original
                  and tools/split_lumberer_sheet.py is what makes the halves from
-                 it (--tim also runs both conversions, at the slots below), so
+                 it (its tim switch also runs both conversions, at the slots
+                 below; the flag is spelled with the usual two leading hyphens,
+                 which an XML comment cannot contain), so
                  REPLACING THE ART IS ONE COMMAND. Both halves are committed
                  beside the sheet as well, so the conversion stays reproducible
                  even without running it.

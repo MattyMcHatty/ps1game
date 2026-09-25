@@ -88,6 +88,7 @@
 #include "up_down_maze.h"
 #include "incinerator_room.h"
 #include "tomb.h"
+#include "room_of_arms.h"
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
 #include "hatch_puzzle.h"
 #include "hatch_arrival.h"  /* the drop off the well: Asag's ending, beat 3   */
@@ -322,6 +323,7 @@ static void load_area_geometry(GameState area) {
         case STATE_UP_DOWN_MAZE:     up_down_maze_load_geometry();     break;
         case STATE_INCINERATOR_ROOM: incinerator_room_load_geometry(); break;
         case STATE_TOMB:             tomb_load_geometry(); break;
+        case STATE_ROOM_OF_ARMS:     room_of_arms_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -1971,6 +1973,55 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* The WEST door, into the Room of Arms. Called unconditionally for the
+           same reason as the east one, and the two CANNOT both fire on one
+           frame: they are 4199 apart in x and the trigger radius is 500. */
+        if (tomb_west_door_triggered(lock)) {
+            pending_area = STATE_ROOM_OF_ARMS;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_ROOM_OF_ARMS) {
+        /* THE ROOM OF ARMS - Chapter 3's fifth room, and now the plainest branch
+           in this function: the shared wall routine, ONE flat floor zone and one
+           door.
+
+           multi_level IS 0. The proxy's three floor faces are three slabs of one
+           plane at y=0 and nothing in it stands under anything else, so there is
+           no hitscan Y-gate to lift. See the note at the head of
+           src/room_of_arms_mesh_collision.c.
+
+           NO PROPS AND NO ENEMIES - world_seed_room() places nothing here. Both
+           Chapter 3 enemy updates are called anyway, on the Tomb's argument
+           above: a room with none of them pays nothing (the loops skip every
+           instance whose area is not current_area) and a later placement starts
+           moving without anyone having to remember this call.
+
+           >>> THE SCREEN WALL IS COLLISION, NOT SCENERY, AND ONE OF ITS FOUR
+           SEGMENTS IS NOT DRAWN. <<< The player can see through that gap into
+           the pocket and must not be able to walk into it; proxy wall 12 is what
+           stops them, and it is the only wall in the game with no mesh behind
+           it. If it ever reads as an invisible wall in play, it is doing its job
+           and the fix is art, not collision (src/room_of_arms.h).
+
+           ONE INTERACTION, the east door back into the Tomb, so no veto chain
+           and no order to get right. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        /* Called UNCONDITIONALLY, `lock` passed in rather than tested out here:
+           the function keeps its Circle edge state current while locked and
+           returns 0, so a press held across a menu closing cannot read as a
+           fresh one on the frame the lock lifts. */
+        if (room_of_arms_east_door_triggered(lock)) {
+            pending_area = STATE_TOMB;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ASAG_ARENA) {
         /* ASAG'S ARENA — free play, which here means the fight AFTER the opening
            scene has handed the camera back. The scene itself runs in the
@@ -2357,6 +2408,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         incinerator_room_draw(ctx);
     else if (area == STATE_TOMB)
         tomb_draw(ctx);
+    else if (area == STATE_ROOM_OF_ARMS)
+        room_of_arms_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -2715,6 +2768,21 @@ int main(int argc, const char **argv) {
                                      and no CD access, and AFTER the owner's call
                                      below for that call's reason - the owner
                                      registers, the borrower borrows. */
+    loading_screen_pump(&ctx);
+    room_of_arms_load_assets();   /* CHAPTER 3's fifth room, and the first one
+                                     that is NOT purely a borrower: two of its
+                                     three headers are borrowed like the four
+                                     calls above, and the third is its OWN
+                                     deferred registration for ARMS.TIM, art
+                                     nothing else in the game draws. Deferred, so
+                                     still no CD access here - only the header is
+                                     read at startup and the pixels wait for the
+                                     chapter door (src/texmgr.h).
+                                     ORDER STILL MATTERS FOR THE TWO IT BORROWS,
+                                     so this stays above the owner's call below
+                                     for that call's reason. Its own
+                                     registration has no ordering constraint at
+                                     all, because nothing else registers it. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -3413,6 +3481,26 @@ int main(int argc, const char **argv) {
                    that call has not run, this uploads nothing, quietly, leaving
                    the previous room's art in these pages. */
                 incinerator_room_upload_textures();
+            } else if (pending_area == STATE_ROOM_OF_ARMS) {
+                /* THE ROOM OF ARMS. Two of the Catacombs Entry's narrow
+                   uploaders - cobble and the inner door, NOT the loculus, which
+                   this room does not draw - and then its OWN page, x640 y0.
+                   That third one is the first upload in this chapter that is
+                   not somebody else's art being put back.
+
+                   NO ORDERING RULE between the three: nothing else in the
+                   chapter touches x640 y0, and the two borrowed pages are the
+                   ones every Chapter 3 room stamps on entry anyway.
+
+                   Same guarantee and same failure mode as the branches above:
+                   the entries are already in RAM because area_bank_sync() read
+                   them a few lines up, so this is a pure LoadImage with the
+                   drive idle - and if that call has not run, this uploads
+                   nothing, quietly, leaving the previous room's art in these
+                   pages. For the arms that would be whatever last held x640 y0,
+                   which outside this chapter is a hatch lid or a pile of
+                   gravel. */
+                room_of_arms_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4006,14 +4094,30 @@ int main(int argc, const char **argv) {
                     incinerator_room_spawn_west();
                 /* NO MUSIC LINE, same chapter rule as the two rooms above. */
             } else if (pending_area == STATE_TOMB) {
-                /* ONE ARRIVAL, the east door, so tomb_init()'s default spawn is
-                   also the only one and there is nothing to override. The west
-                   and north doors drawn in this room's outer walls are sealed
-                   until the rooms behind them exist; each will want its own
-                   spawn helper and an override keyed on current_area here
-                   (src/tomb.h lists them with their coordinates). */
+                /* TWO ARRIVALS NOW. tomb_init()'s default is the EAST door, so
+                   only the west one needs an override. The north door drawn in
+                   this room's outer wall is still sealed until the room behind
+                   it exists; it will want its own spawn helper and a third
+                   branch here (src/tomb.h lists it with its coordinates).
+
+                   >>> KEYED ON current_area, WHICH IS STILL THE ROOM BEING LEFT
+                   AT THIS POINT, and which is NOT a route: a title-screen Load
+                   Game or a debug jump arrives with it set to something else
+                   entirely, which is exactly why the EAST door has to stay the
+                   default and not this. <<< */
                 tomb_init();
+                if (current_area == STATE_ROOM_OF_ARMS)
+                    tomb_spawn_west();
                 /* NO MUSIC LINE, same chapter rule as the three rooms above. */
+            } else if (pending_area == STATE_ROOM_OF_ARMS) {
+                /* ONE ARRIVAL, the east door, so room_of_arms_init()'s default
+                   spawn is also the only one and there is nothing to override.
+                   This room has exactly one door; the screen wall across its
+                   north-west third is a wall and not a sealed doorway, so there
+                   is no second arrival waiting to be built here
+                   (src/room_of_arms.h). */
+                room_of_arms_init();
+                /* NO MUSIC LINE, same chapter rule as the four rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -4347,7 +4451,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_CATACOMBS_ENTRY ||
                    game_state == STATE_UP_DOWN_MAZE ||
                    game_state == STATE_INCINERATOR_ROOM ||
-                   game_state == STATE_TOMB) {
+                   game_state == STATE_TOMB ||
+                   game_state == STATE_ROOM_OF_ARMS) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

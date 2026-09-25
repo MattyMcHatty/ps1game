@@ -22,7 +22,7 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 31  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 32  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
@@ -31,7 +31,7 @@
                                library_destroyed, stables, keystone_maze,
                                greenhouse, chain_room, the_hatch, asag_arena,
                                catacombs_entry, up_down_maze, incinerator_room,
-                               tomb.
+                               tomb, room_of_arms.
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
                                are alternative rooms behind the same doors, and
@@ -42,7 +42,14 @@
                                ceiling; Maze One is the room that hit it, so it
                                is now a uint32_t and the ceiling is 32. The
                                _Static_assert in world.c holds the two in step —
-                               widen it again, don't just bump this. */
+                               widen it again, don't just bump this.
+                               >>> AND 32 IS WHERE IT NOW STANDS. <<< The Room of
+                               Arms is the thirty-second room and it fills the
+                               uint32_t EXACTLY. The assert will fire on the next
+                               one; widening `visited` to uint64_t is the fix,
+                               and it changes the on-card delta's size, so the
+                               version check in savegame.c has to move with it.
+                               Do not reach for a narrower trick. */
 
 void world_new_game(void);          /* reset all rooms; capture the starting room */
 void world_leave(GameState area);   /* live entities  -> the area's saved slot */
