@@ -958,9 +958,11 @@
              after TEXASAG, so its record lands in the root's SECOND sector.
              Run py tools/check_disc_root.py after ANY change here.
 
-             THE TEXTURES. Five now — three room textures and one each for the
-             sconce and the oil dispenser (both added below, with their own
-             notes) — and they are the whole chapter's art so far.
+             THE TEXTURES. Eight now — four room textures (the three the burial
+             hall owns plus the Room of Arms' field of arms) and one each for the
+             sconce, the oil dispenser, the incinerator and the crib (all added
+             below, with their own notes) — and they are the whole chapter's art
+             so far.
              Every one is registered DEFERRED (src/texmgr.h): the name is
              recorded at startup and NOTHING is read, so Chapters 1 and 2 pay
              nothing for them. They are read at the one door that reaches this
@@ -1156,6 +1158,44 @@
                  src/incinerator.h. -->
             <file name="INCINPRP.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\incinerator.smd"/>
             <file name="INCINPRP.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\incinerator.tim"/>
+
+            <!-- THE CRIB, the chapter's fifth prop and its first piece of
+                 FURNITURE: an iron cot standing in the alcove in the south-west
+                 corner of the Room of Arms. Chapter 3 art, so it ships here
+                 rather than beside the props in the root, on the sconce's
+                 argument above. Static for now; the movement it is going to have
+                 is what src/crib.h's shape is built for.
+
+                 ITS VRAM PAGE IS THE anzu2 / anzu5 / red_wlppr PAGE (x576 y0,
+                 8bpp, Voff 0) - an exact 128x128 fit, and the FIRST use of a page
+                 tools/VRAM_MAP_CATACOMBS.txt has been listing as "AVAILABLE,
+                 needs a way back first" ever since the way back was written.
+                 Both halves are put back by a call that already exists:
+                 anzu_tex_stream() re-reads all six Anzu tiles on piano-room entry
+                 (src/anzu_tex.c names x576 and x704 y0 as the two whole pages it
+                 unlocks and says NOTHING BORROWS THEM YET - this is the
+                 something), and kitchen_stream_owned_textures() re-reads
+                 red_wlppr on kitchen entry. So a title load into a Chapter 1 save
+                 that walks back into either room puts the right pixels up again.
+                 BOTH CALLS ARE LOAD-BEARING FOR THIS PROP NOW.
+
+                 >>> AND IT IS x576 RATHER THAN x704 FOR A REASON WORTH READING.
+                 <<< The catacombs map calls both pages equally available, because
+                 it prints only the occupants it knows need a way back. x704's LEFT
+                 half is six 4bpp garden textures it does not print at all, and an
+                 8bpp 128 texture takes all 64 columns. This prop went there first
+                 and py tools/vram_map.py caught it. RUN THAT before trusting
+                 either map about a page.
+
+                 Its CLUT is borrowed from anzu2.tim at (256,484), on the arms
+                 field's argument: a palette belonging to a texture whose PIXELS
+                 this one already displaces, so the two go back together in the
+                 one stream.
+
+                 CRIB.SMD IS THE ONLY COLLISION DATA THIS PROP HAS - see the note
+                 at the head of src/crib.h. -->
+            <file name="CRIB.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\crib.smd"/>
+            <file name="CRIB.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\crib.tim"/>
 
             <!-- THE CRAWLER, the chapter's first MONSTER (src/crawler.c). Four
                  animation frames, read in the order top-left, top-right,

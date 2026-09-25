@@ -51,6 +51,13 @@
    ONE MORE SOLID: a plinth 178 wide standing off the south wall at
    x[357,535] z[-1293,-251] (proxy walls 0, 8 and 9). The player walks around it.
 
+   AND ONE PROP, WHICH IS THE ONLY THING IN THIS ROOM THE PLAYER CAN STAND BESIDE:
+   a CRIB in the alcove the octagon's south-west chamfer (wall 4) makes with the
+   screen wall's southern segment (wall 11) — the one pocket of floor that is not
+   visible from the door. It is static for now, it is solid off its own mesh, and
+   the derivation of its two coordinates and its one rotation is in
+   room_of_arms_init(). See src/crib.h.
+
    THE DOOR. ONE, and it is wired up:
 
      EAST   x=1293  z[-107,107] y[-400,0]  -> Tomb, west door
@@ -61,7 +68,9 @@
    Down Maze's two doors are the only ones in the game that are not in that
    position.
 
-   >>> THREE TEXTURES, AND THIS IS THE FIRST CHAPTER 3 ROOM THAT OWNS ONE. <<<
+   >>> THREE ROOM TEXTURES, AND THIS IS THE FIRST CHAPTER 3 ROOM THAT OWNS ONE.
+   <<< (Four are drawn in here; the fourth is the crib's, owned and registered by
+   src/crib.c and uploaded through that module's own narrow uploader.)
    Cobblestone and the catacomb inner door are registered by
    src/catacombs_entry.c in TEXBANK_CATACOMBS and reached through that module's
    two narrow uploaders, the way the Up Down Maze, the Incinerator Room and the

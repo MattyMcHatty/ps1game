@@ -74,6 +74,7 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   hall_2f.c                2         20480
   zombie.c                 2         20480
   attic_stairwell.c        1         18432
+  crib.c                   1         18432
   dresser.c                1         18432
   incinerator.c            1         18432
   keystone_maze.c          1         18432
@@ -87,7 +88,7 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   east_stairwell.c         1         10240
   piano_room.c             1         10240
   reception.c              1         10240
-  TOTAL                    69      1073152
+  TOTAL                    70      1091584
 
 DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)
   none
@@ -101,10 +102,11 @@ DUPLICATE REGISTRATIONS  (the same TIM held in RAM more than once)
 
 KEPT BUFFERS  (read once, pointer stashed, never freed)
   incinerator.c            INCINPRP.SMD       8192  -> inc_buf
+  crib.c                   CRIB.SMD           4096  -> crib_buf
   sconce.c                 SCONCE.SMD         4096  -> sconce_buf
   oil_dispenser.c          OILDISP.SMD        2048  -> oil_buf
   save_point.c             SAVEPT.SMD         2048  -> sp_buffer
-  TOTAL                                      16384
+  TOTAL                                      20480
 
 CHAPTER-SCOPED BUFFERS  (held through Chapters 1-2, freed at the catacomb mouth)
   concrete_props.c         CONBLOCK.SMD       4096  -> block_buf
@@ -148,25 +150,25 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x8010CBE8
+  _end (heap start)   0x8010E688
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             848216 bytes (828 KB)
+  heap size             841400 bytes (822 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak bank      487424 bytes (476 KB)  57.5%   <- MANSION
-  kept buffers           16384 bytes (16 KB)   1.9%
+  texmgr peak bank      487424 bytes (476 KB)  57.9%   <- MANSION
+  kept buffers           20480 bytes (20 KB)   2.4%
   chapter-scoped         43008 bytes (42 KB)   5.1%
-  PERMANENT TOTAL       546816 bytes (534 KB)  64.5%
-  FREE AT REST          301400 bytes (294 KB)  35.5%   <- STACK ALREADY SUBTRACTED
-                                  (was 449552 before the stack was counted;
+  PERMANENT TOTAL       550912 bytes (538 KB)  65.5%
+  FREE AT REST          290488 bytes (284 KB)  34.5%   <- STACK ALREADY SUBTRACTED
+                                  (was 438640 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
       THAT IS WHAT KILLS YOU, AND IT IS PER-ROOM. <<<
       The GARDEN COURTYARD is the tightest door in the game: it is the
       only transition that loads SND_BANK_BOSS, whose EMERGE clip is a
-      71,680-byte malloc — the largest single transient anywhere here —
+      71,680-byte malloc â€” the largest single transient anywhere here â€”
       and the Rabisu's model is loaded at the same door. Held together
       they would be 176,128 bytes at one instant; main.c SEQUENCES them
       (free before the bank swap, load after) so the peak is the model
@@ -189,7 +191,7 @@ THE HEAP
       it is the first thing to re-measure after anything that moves
       _end. src/rabisu.c's read_file now REFUSES a read that would
       cross $sp, so the next time this runs out it is a boss holding
-      its bind pose — or not drawn at all — and not a wild jump.
+      its bind pose â€” or not drawn at all â€” and not a wild jump.
       Method: force-boot the room in a headless build and print each
       buffer against $sp. See src/rabisu.c and PART 6 of
       tools/ADDING_THE_ASAG_FIGHT.txt.
@@ -213,7 +215,7 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 294 KB printed above.
+  once read_file's margin comes off - against the 283 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

@@ -699,6 +699,39 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim", "arms.tim"),
     ("trck_clue.tim",          "arms.tim"),
     ("trees.tim",              "arms.tim"),
+    #   crib.tim -> the anzu2 / anzu5 / red_wlppr page (x576 y0), the Room of
+    # Arms' cot. An exact 128x128 8bpp fit, and the FIRST use of a page
+    # src/anzu_tex.c's anzu_tex_stream() note has been holding open: "it unlocks
+    # three half-page columns - x480, x608 and x736 ... which makes x576 y0 and
+    # x704 y0 whole 64-column pages that a 128x128 8bpp texture could take.
+    # NOTHING BORROWS THEM YET - this is the restore path the borrowing needs.
+    # When something takes one, add the pair to KNOWN_STREAM_PAIRS in
+    # tools/vram_map.py." This is that something and these are those pairs.
+    #
+    # >>> IT IS x576 AND NOT x704, AND THE DIFFERENCE IS WHAT THIS CHECK IS FOR.
+    # <<< The two pages are equally "available" in tools/VRAM_MAP_CATACOMBS.txt,
+    # because that view lists only the occupants it knows need a way back. x704's
+    # LEFT half is six 4bpp garden textures (chain, gravel_gs,
+    # poison_flower_base_gh, rusty_fence, stable glyphs, upstairs) that the view
+    # does not print at all; an 8bpp 128 texture takes all 64 columns, so it lands
+    # on every one of them. x576's left half is red_wlppr and nothing else. The
+    # first attempt went to x704 and this check caught the six.
+    #
+    # So it is sound on the ORDINARY terms and not on the "nothing goes back
+    # there" argument the sconce's note above records as WRONG. Both halves have a
+    # live restore path:
+    #   anzu2, anzu5 -> anzu_tex_stream(),                on piano-room entry
+    #   red_wlppr    -> kitchen_stream_owned_textures(),  on kitchen entry
+    # A title load into a Chapter 1 save that walks back into either room puts the
+    # right pixels up again. BOTH CALLS ARE NOW LOAD-BEARING for this prop.
+    #
+    # Its CLUT is BORROWED, on the arms field's argument: from anzu2.tim at
+    # (256,484), a palette belonging to a texture whose PIXELS it is already
+    # displacing on x576 y0, so the two go back together in the one stream. The
+    # 256-word runs left in this map are not what a cot should spend.
+    ("anzu2.tim",     "crib.tim"),
+    ("anzu5.tim",     "crib.tim"),
+    ("red_wlppr.tim", "crib.tim"),
 ]
 
 def read_tim(path):

@@ -295,6 +295,7 @@ THIS BANK'S OWN ART
   cobblestones.tim           every room's floor and walls   x384 y0
   crawler_a.tim              Crawler frames 0,1             x320 y128
   crawler_b.tim              Crawler frames 2,3             x704 y128
+  crib.tim                   the Room of Arms' crib         x576 y0
   incinerator.tim            the Incinerator machine        x704 y256
   lamashtu tablet.tim        the entry hall's tablet        x768 y0
   loculus.tim                the burial niches              x512 y0
@@ -314,25 +315,25 @@ its own window. Blocks are 128 words x 128 rows: one enemy sheet half.)
   x[832,960)  IN USE by this bank: lumberer_b.tim
 
 MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
-  x320  AVAILABLE, needs a way back first: tntcl_actv.tim, tntcl_idle.tim
-  x384  IN USE by this bank: cobblestones.tim
+  x320  AVAILABLE, needs a way back first: tntcl_actv.tim, tntcl_idle.tim   [also on this page, all re-uploaded on room entry: bookshelf.tim, grss_gs.tim, stn_stl.tim, strs.tim]
+  x384  IN USE by this bank: cobblestones.tim   [also on this page, all re-uploaded on room entry: chnlnk_dl.tim, clsd_drwr.tim, cncrte.tim, flowerbed.tim, hedge.tim, kchn_tile.tim, mud.tim, piano_keys.tim, piano_keys_full.tim, xt_dr_outr.tim]
   x448  IN USE by this bank: sconce.tim
-  x512  IN USE by this bank: loculus.tim
-  x576  AVAILABLE, needs a way back first: anzu2.tim, anzu5.tim, red_wlppr.tim
-  x640  IN USE by this bank: arms.tim
-  x704  AVAILABLE, needs a way back first: anzu3.tim, anzu6.tim
-  x768  IN USE by this bank: lamashtu tablet.tim
-  x832  IN USE by this bank: catacomb inner door.tim
+  x512  IN USE by this bank: loculus.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim]
+  x576  IN USE by this bank: crib.tim
+  x640  IN USE by this bank: arms.tim   [also on this page, all re-uploaded on room entry: asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, hatch.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
+  x704  AVAILABLE, needs a way back first: anzu3.tim, anzu6.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
+  x768  IN USE by this bank: lamashtu tablet.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
+  x832  IN USE by this bank: catacomb inner door.tim   [also on this page, all re-uploaded on room entry: con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, stables wood.tim, xt_dr_cg.tim]
   x896  BLOCKED - reserved: ghit.tim
 
 MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
-  x320  BLOCKED - reserved: graveolver.tim
-  x384  BLOCKED - reserved: stnd_rnds.tim
+  x320  BLOCKED - reserved: graveolver.tim   [also on this page, all re-uploaded on room entry: chain_128.tim, dbl_dr_rg.tim, frnt_dr.tim, greenhouse door.tim, red_crpt.tim]
+  x384  BLOCKED - reserved: stnd_rnds.tim   [also on this page, all re-uploaded on room entry: pipe_gh.tim, prpl_wlppr.tim, stove.tim]
   x448  BLOCKED - reserved: flm_rnds.tim, hatch_key.tim
-  x512  BLOCKED - reserved: grn_ky_stn.tim, helluminator.tim, wx_cb.tim
+  x512  BLOCKED - reserved: grn_ky_stn.tim, helluminator.tim, wx_cb.tim   [also on this page, all re-uploaded on room entry: pipe_button_off.tim, pipe_button_on.tim]
   x576  BLOCKED - reserved: bl_ky_stn.tim, pno_key.tim, vlv_hndl.tim
   x640  BLOCKED - reserved: mgn_ky_stn.tim, sml_med.tim
-  x704  IN USE by this bank: incinerator.tim
+  x704  IN USE by this bank: incinerator.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, vines.tim]
   x768  AVAILABLE, needs a way back first: wd_dr.tim
   x832  AVAILABLE, needs a way back first: wd_dr.tim
   x896  IN USE by this bank: oil_container.tim

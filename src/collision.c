@@ -17,6 +17,7 @@
 #include "sconce.h"
 #include "oil_dispenser.h"
 #include "incinerator.h"
+#include "crib.h"
 #include "rafflesia.h"
 #include "living_statue.h"
 #include "hadad.h"
@@ -963,6 +964,14 @@ void apply_collision_reception(void) {
        has no room to ask). Give it 75 and the player's shoulder sinks into the
        plating for the 120 units between. */
     incinerator_collide(&cam_x, cam_y, &cam_z, 195);
+    /* The Room of Arms' crib, back on the sconce's and the oil dispenser's
+       terms: its box is its own mesh bounds and its own height, measured off the
+       SMD at load (src/crib.h), and the module gates itself to its area so this
+       is a no-op everywhere else. PROP RADIUS and not the Incinerator's wall
+       standoff — a 350x200 cot in a corner alcove is a thing to walk around, not
+       a stretch of wall, and 195 would hold the player far enough off it that
+       the alcove stopped being enterable. */
+    cribs_collide(&cam_x, cam_y, &cam_z, 75);
     /* Piano-room props (this routine is shared with the piano room); the module
        gates itself to that area, so this is a no-op in reception. */
     piano_props_collide(&cam_x, cam_y, &cam_z, 75);

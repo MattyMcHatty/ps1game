@@ -107,6 +107,7 @@
 #include "stove_puzzle.h"
 #include "incinerator.h"
 #include "incinerator_panel.h"
+#include "crib.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "tentacle.h"
@@ -2848,6 +2849,13 @@ int main(int argc, const char **argv) {
                                   is the one thing about it that is not the oil
                                   dispenser's arrangement. See
                                   src/incinerator.h. */
+    loading_screen_pump(&ctx);
+    crib_load_assets();        /* CHAPTER 3's crib, on the oil dispenser's terms
+                                  exactly: a deferred texture registration, ~3.6
+                                  KB of geometry read here and held for the run,
+                                  and out of area_bank.c's free list so the
+                                  chapter purge leaves it standing. Its mesh is
+                                  its collision data too - see src/crib.h. */
 
     asag_arena_load_assets();  /* ASAG'S ARENA: does NOTHING, on purpose. It owns
                                   no texture yet, and when it does they will be

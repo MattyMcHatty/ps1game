@@ -53,6 +53,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   grdn_gte.tim         8       512     0   128   128     0   672,490
   kchn_wl.tim          8       512     0   128   128     0   0,503
   loculus.tim          8       512     0   128   128     0   672,500
+  crib.tim             8       576     0   128   128     0   256,484
   red_wlppr.tim        4       576     0   128   128     0   0,492
   anzu2.tim            8       608     0    64    64     0   256,484
   arms.tim             8       640     0   128   128     0   672,501
@@ -185,6 +186,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=483  x[672,928)  xt_dr_cmplt.tim
   y=483  x[672,928)  xt_dr_lckd.tim
   y=484  x[256,512)  anzu2.tim
+  y=484  x[256,512)  crib.tim
   y=484  x[0,256)  ddog_alert.tim
   y=484  x[672,928)  xt_dr_outr.tim
   y=485  x[256,512)  anzu3.tim
@@ -312,7 +314,9 @@ OVERLAP CHECK
   Rabisu tex.tim                           incinerator.tim      time-shared (streaming)
   Rabisu tex.tim                           vines.tim            time-shared (streaming)
   anzu1.tim                                sconce.tim           time-shared (streaming)
+  anzu2.tim                                crib.tim             time-shared (streaming)
   anzu4.tim                                sconce.tim           time-shared (streaming)
+  anzu5.tim                                crib.tim             time-shared (streaming)
   arms.tim                                 asag.tim             time-shared (streaming)
   arms.tim                                 chnlnk.tim           time-shared (streaming)
   arms.tim                                 gravel_texture.tim   time-shared (streaming)
@@ -419,6 +423,7 @@ OVERLAP CHECK
   crawler_a.tim                            spdr_wk.tim          time-shared (streaming)
   crawler_b.tim                            zombie_alert.tim     time-shared (streaming)
   crawler_b.tim                            zombie_sleep.tim     time-shared (streaming)
+  crib.tim                                 red_wlppr.tim        time-shared (streaming)
   cuneiform _symbols.tim                   dresser.tim          time-shared (streaming)
   cuneiform _symbols.tim                   grdn_gte.tim         time-shared (streaming)
   cuneiform _symbols.tim                   kchn_wl.tim          time-shared (streaming)

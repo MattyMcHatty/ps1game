@@ -105,11 +105,21 @@ RESERVED = dict(ASAG.RESERVED)
 # enemies' sheets. Keep in step with the TIM_SLOT headers in the five *_tex_map
 # rooms and with crawlers_load_textures() / lumberers_load_textures().
 #
-# arms.tim took the LAST page this map called "FREE - costs nothing". What is
-# left on the mesh-art rows is x320, x576 and x704 at y=0 and x768/x832 at
-# y=256, all of them marked "needs a way back first" - so the next room texture
-# in this chapter owes somebody a restore, and the one to write it against is
-# whichever module still puts the displaced texture up on its own entry.
+# arms.tim took the LAST page this map called "FREE - costs nothing", and the
+# crib then took x576 y0 - the first of the "needs a way back first" pages to be
+# spent, and it owed nothing for it, because both the calls that put its
+# occupants back already existed (anzu_tex_stream, kitchen_stream_owned_textures).
+# What is left on the mesh-art rows is x320 and x704 at y=0 and x768/x832 at
+# y=256, and the one to write a restore against is whichever module still puts
+# the displaced texture up on its own entry.
+#
+# >>> AND READ THE OTHER OCCUPANTS LINE BELOW BEFORE PICKING ONE. <<< This map
+# used to print only the occupants it knew needed a way back, which made x704 y0
+# look identical to x576 y0 when in fact its left half is six 4bpp garden
+# textures. The crib went there first on the strength of that. An 8bpp 128
+# texture takes all 64 columns of a page, so it lands on both halves; the
+# "others" list is now printed for exactly that reason, and py tools/vram_map.py
+# is still the authority that catches it.
 # ---------------------------------------------------------------------------
 BANK = {
     "cobblestones.tim":         "every room's floor and walls   x384 y0",
@@ -120,6 +130,7 @@ BANK = {
     "incinerator.tim":          "the Incinerator machine        x704 y256",
     "arms.tim":                 "the Room of Arms' arms field   x640 y0",
     "oil_container.tim":        "the oil dispenser              x896 y256",
+    "crib.tim":                 "the Room of Arms' crib         x576 y0",
     "crawler_a.tim":            "Crawler frames 0,1             x320 y128",
     "crawler_b.tim":            "Crawler frames 2,3             x704 y128",
     "lumberer_a.tim":           "Lumberer images 1-3            x448 y128",
@@ -199,6 +210,13 @@ for py, label in ((0, "y[0,128)"), (256, "y[256,384)")):
         bank = sorted(n for n in occ if n in BANK)
         rest = sorted(n for n in occ if n not in RESERVED and n not in BANK
                       and n in ASAG.NEEDS_RESTORE)
+        # EVERY remaining occupant, and it is printed rather than dropped: an
+        # 8bpp 128 texture takes all 64 columns of a page, so a page whose OTHER
+        # half is a pile of 4bpp art is not the same proposition as an empty one,
+        # however restorable that art is. Leaving this list out is what sent the
+        # crib to x704 y0 first.
+        other = sorted(n for n in occ if n not in RESERVED and n not in BANK
+                       and n not in ASAG.NEEDS_RESTORE)
         if bank:
             v = "IN USE by this bank: " + ", ".join(bank)
         elif res:
@@ -207,6 +225,8 @@ for py, label in ((0, "y[0,128)"), (256, "y[256,384)")):
             v = "AVAILABLE, needs a way back first: " + ", ".join(rest[:3])
         else:
             v = "FREE - costs nothing"
+        if other:
+            v += "   [also on this page, all re-uploaded on room entry: %s]" % ", ".join(other)
         print("  x%-4d %s" % (px, v))
     print()
 

@@ -25,6 +25,7 @@
 #include "dresser.h"
 #include "sconce.h"
 #include "oil_dispenser.h"
+#include "crib.h"              /* the alcove cot in the south-west corner */
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 #include "sound.h"              /* SFX_SELECT / SFX_BACK — the examine's two beats */
@@ -219,6 +220,14 @@ static void roa_view_resolve(int snap) {
 #define ROA_FLOOR_Y            0
 #define ROA_EYE_Y           (ROA_FLOOR_Y - GROUND_FLOOR_Y - 40)
 
+/* The crib in the south-west alcove. AUTHORED, not derived — see the clearance
+   table in room_of_arms_init() beside the place() call for what it is measured
+   against. It was (-822,-822), the chamfer's midpoint pushed out along that
+   wall's normal, and it is not that any more. */
+#define ROA_CRIB_X          (-973)
+#define ROA_CRIB_Z          (-356)
+#define ROA_CRIB_ROT           512   /* 45 degrees; see the note below */
+
 /* ---- Floor zones -----------------------------------------------------------
    ONE, FLAT, AT y=0, SPANNING THE WHOLE FOOTPRINT — the Tomb's case, and it is
    worth saying why the proxy's THREE floor faces do not make this a multi-level
@@ -286,7 +295,10 @@ static void roa_floor_zones_init(void) {
 
    >>> AND IT IS THE 69th REGISTRATION OF 72. <<< TEXMGR_MAX in src/texmgr.c is
    the cap, texmgr_register past it returns -1 SILENTLY, and a silently-failed
-   registration breaks that texture in every room that draws it. Three left. The
+   registration breaks that texture in every room that draws it. TWO left, not
+   three: the crib this room stands in its south-west alcove took the 70th
+   (src/crib.h), which is a fourth texture drawn in here and a fourth page
+   uploaded on entry, owned by the prop's module rather than by this one. The
    way to spend none is the one slots 0 and 2 take above and the one Fountain
    Square and the Garden Courtyard take: if another module already uploads the
    page you need, call ITS narrow uploader and use TIM_SLOT() for the header,
@@ -405,6 +417,15 @@ void room_of_arms_upload_textures(void) {
     /* ...and this room's own page. Nothing in the chapter shares x640 y0, so
        there is no ordering rule between this line and the two above either. */
     texmgr_upload(arms_tex);
+    /* ...and the crib's, which this room does not own but is the only room that
+       draws. A prop module's narrow uploader, exactly as the two calls above are
+       the Catacombs Entry's: it is one LoadImage out of a RAM copy
+       area_bank_sync() has already read, and it puts the cot's art on x704 y0 —
+       a page nothing else in the chapter touches, so there is no ordering rule
+       here either. Its bank mask is what py tools/check_tex_banks.py reads THIS
+       call to derive; drop the call and the checker stops believing src/crib.c
+       needs CATACOMBS. */
+    crib_upload_texture();
 }
 
 /* ---- THE EAST DOOR ---------------------------------------------------------
@@ -548,6 +569,66 @@ void room_of_arms_init(void) {
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
+
+    /* ---- THE CRIB ----------------------------------------------------------
+       The room's one prop, and the chapter's first piece of furniture: an iron
+       cot in the ALCOVE IN THE SOUTH-WEST CORNER. Cleared and re-placed on every
+       entry, like the four arrays above and for the same reason — nothing in it
+       is state the player can change yet, so a fresh placement is always
+       correct. (When the movement lands, whatever it remembers across a room
+       change has to be held OUTSIDE the instance, the way the oil dispenser's
+       reservoir is; src/crib.h says so.)
+
+       WHERE THE ALCOVE IS, because the word appears nowhere in the mesh and it is
+       a shape made by four walls rather than a recess cut into one. Read off
+       src/room_of_arms_mesh_collision.c: the octagon's SOUTH-WEST chamfer is
+       wall 4, (-1293,-535) -> (-535,-1293), and the SCREEN WALL's southern
+       segment (wall 11, (-483,-263) -> (-1293,401)) runs down across the corner
+       above it. Between them, with the west wall (5) on one side and the south
+       wall (3) on the other, is a pocket of floor about 800 deep that the player
+       can only enter from the east — the one part of this room that is not
+       visible from the door. That is the alcove, and the cot is what is in it.
+
+       THE NUMBERS ARE AUTHORED AND THE CLEARANCES ARE MEASURED, which is the
+       only honest way round for a prop in a corner walled by three different
+       angles. (-973,-356) puts the cot in the western half of the pocket, about
+       a third of the way up it from the chamfer — NOT flush against anything,
+       which is a change from where it first stood.
+
+       >>> IT WAS (-822,-822), AND THAT NUMBER WAS DERIVED: the chamfer's
+       midpoint (-914,-914) pushed 130 along its inward normal, so the cot's back
+       rail stood 30 clear of that wall and rot_y 512 was the one rotation that
+       laid its long axis along it. THE POSITION MOVED AND THE ROTATION DID NOT,
+       so 512 is now just a 45-degree turn and no longer flush to anything. <<<
+       It is kept because the position was the only thing asked to change, and
+       because it fits: every rotation fits at this point. If the cot should read
+       as squared up to the WEST WALL instead, that is rot_y 1024, which puts its
+       long axis along Z and leaves 220 between its side and that wall.
+
+       WHAT IT IS CLEAR OF, at rot_y 512. The baked AABB is x[-1167,-779]
+       z[-550,-162] — 194 half-extents, (175+100) at 45 degrees — and these are
+       distances from the NEAREST CORNER of that footprint to each bounding wall,
+       along the wall's own inward normal:
+
+         wall 5  (west, x=-1293)           126
+         wall 4  (the SW chamfer)          253
+         wall 11 (the screen wall)         266
+         wall 3  (south, z=-1293)          743
+
+       Every one is positive, so no part of the cot crosses a wall the collision
+       pushes the player out of. The tightest, 126 against the west wall, is
+       INSIDE the 195 standoff (ROA_WALL_RADIUS) — the player can never get into
+       that gap at all, so it cannot snag them; it is a gap the camera sees and
+       the body never enters.
+
+       y: this room is FLAT at y=0 (all three proxy floors, and the floor zones
+       above), so the floor reference is -GROUND_FLOOR_Y and world y comes out at
+       0. The model spans y[-195,0], so it stands ON that floor rather than
+       hanging off a wall — which is why, unlike the oil dispenser's, this
+       placement needs no mounting height at all. */
+    cribs_clear();
+    crib_place(STATE_ROOM_OF_ARMS, ROA_CRIB_X, -GROUND_FLOOR_Y,
+               ROA_CRIB_Z, ROA_CRIB_ROT);
 
     /* Resolve the view distance with no ease: the first frame in the room shows
        whatever the player walked in holding. */
@@ -812,9 +893,10 @@ void room_of_arms_draw(RenderContext *ctx) {
 
     /* >>> LEVEL 8 REMOVES THE DOOR SIGN AND NOTHING ELSE, which is the case STEP
        3D of tools/DIAGNOSING_FRAME_RATE.txt was actually written about. <<< This
-       room holds no props and world.c seeds it with no enemies, so the one
-       string over the east door is the whole of its entity cost — and that is
-       not the negligible half of the reading it sounds like. Reception's frame
+       room holds ONE prop — the 60-primitive crib in the south-west alcove,
+       culled to nothing from most of the floor — and world.c seeds it with no
+       enemies, so the two strings and that cot are the whole of its entity cost
+       — and that is not the negligible half of the reading it sounds like. Reception's frame
        turned out to be its SIGNAGE and not its mesh, because door_draw_string_3d
        has no facing test and queues every glyph in full with the player's back
        to it. Against a 578-primitive mesh one 26-glyph string is a smaller
@@ -852,6 +934,16 @@ void room_of_arms_draw(RenderContext *ctx) {
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        /* The crib in the south-west alcove. INSIDE the entity gate with the
+           signs and the enemies, not with the room mesh: it is a prop, so a
+           debug level that hides entities should hide it too, and the frame-rate
+           reading STEP 3D wants is "mesh alone" against "mesh plus everything
+           else". It is drawn AFTER the two enemy calls because those two hand
+           their sprite code a window to RESTORE, and this prop's art is at Voff 0
+           and needs that window in force. Its own draw sorts at true scene depth
+           with no +40 bias and restores the plain view matrix on the way out —
+           see the notes in src/crib.c. */
+        cribs_draw(ctx);
     }
 
     /* SCREEN SPACE, so it goes last and OUTSIDE the entity gate: it is the only
