@@ -51,6 +51,17 @@
                                version check in savegame.c has to move with it.
                                Do not reach for a narrower trick. */
 
+/* This area's slot number, 0..WORLD_NUM_ROOMS-1. The public face of world.c's
+   room_index(), for anything outside that file that has to key persistent state
+   by ROOM rather than by (room, ordinal) — today, the crib encounters'
+   solved set (src/crib.h).
+
+   >>> AN AREA WITH NO SLOT OF ITS OWN COMES BACK AS 0, THE DELIVERY AREA'S. <<<
+   That is room_index()'s default and it is deliberate there; it makes this a
+   sharp edge for a caller storing something permanent, so only ever pass a
+   GameState that is a real room. Menu and cutscene states are not. */
+int  world_room_index(GameState area);
+
 void world_new_game(void);          /* reset all rooms; capture the starting room */
 void world_leave(GameState area);   /* live entities  -> the area's saved slot */
 void world_enter(GameState area);   /* the area's saved slot -> live entities   */
@@ -174,6 +185,24 @@ typedef struct {
     uint8_t   tentacle_health[WD_MAX_TENTACLES];  /* 0 = killed               */
     uint8_t   vine_health[WD_MAX_VINES];          /* 0 = cleared              */
     uint8_t   valve_present;                      /* bit i: mount i is filled */
+    /* THE CRIB ENCOUNTERS. bit r: the crib in room r has been beaten — its ten
+       Creeps released and killed. Keyed by room_index(), NOT by canonical_index()
+       like every entity field above it, and src/crib.h argues why at length: a
+       crib is placed by its ROOM's init and cribs_clear() empties the array on
+       every room entry, so an instance has no stable whole-game ordinal to be
+       keyed by, and the room is both the only stable identity available and the
+       one the design cares about.
+
+       >>> IT IS A uint32_t FOR THE SAME REASON `visited` IS, AND IT IS CAPPED BY
+       THE SAME NUMBER. <<< One bit per room, WORLD_NUM_ROOMS is 32, and the
+       _Static_assert in world.c holds the two in step. Widening `visited` for a
+       thirty-third room means widening this beside it.
+
+       >>> AND IT IS HERE RATHER THAN IN game_flags BECAUSE game_flags IS FULL.
+       <<< That word is 32 bits in SaveData and 31 of them are spent
+       (FLAG_ASAG_DEAD is bit 30). A mechanic that is going into several rooms
+       needs a SET of bits and there was one left. See src/crib.h. */
+    uint32_t  cribs_solved;
 } WorldDelta;
 
 /* Encode the current world into `d`. Call after world_leave() has flushed the

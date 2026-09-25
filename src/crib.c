@@ -10,21 +10,53 @@
 #include "collision.h"      /* GROUND_FLOOR_Y */
 #include "texmgr.h"
 #include "title.h"          /* current_area gate */
+#include "world.h"          /* world_room_index() — the solved set's key       */
+#include "creep.h"          /* what the encounter pours out                    */
+#include "crucifaxe.h"      /* SWING_RANGE, for cribs_try_hit                   */
 #include "crib.h"
 
-/* Crib — see crib.h for what it is, for why its collision comes out of its own
-   mesh, and for which parts of the shape below are here for the movement that is
-   coming rather than for the static prop that shipped. */
+/* Crib — see crib.h for what it is, for the whole encounter timeline, for why
+   its collision comes out of its own mesh, and for why the solved set is a
+   WorldDelta bitmask keyed by room rather than a GameFlag. */
 
 typedef struct {
     GameState area;                        /* only draws/collides in this room  */
     int32_t   x, y, z, rot_y;              /* centre in plan; world y = y+GROUND_FLOOR_Y */
     int32_t   min_x, max_x, min_z, max_z;  /* world AABB, baked at place time   */
     int       active;
+
+    /* ---- the encounter (crib.h) ---- */
+    int       encounter;   /* 1 = this is its room's live cot; 0 = scenery      */
+    CribState state;
+    int32_t   tick;        /* frames in the current state                       */
+    int       spawned;     /* Creeps released so far, 0..CRIB_CREEP_TOTAL       */
+    int32_t   tilt;        /* current rock angle, PS1 units; 0 = level          */
 } Crib;
 
 static Crib cribs[MAX_CRIBS];
 static int  crib_count = 0;
+
+/* ---- The solved set -------------------------------------------------------
+   One bit per room, keyed by world_room_index(). It lives here rather than in
+   world.c's WorldState because it is the crib's own fact and because keeping it
+   module-scope means world.c touches it through two accessors and not through a
+   struct field it would then have to keep in step.
+
+   >>> IT IS NOT PART OF ANY INSTANCE. <<< cribs_clear() empties the array on
+   every room entry and crib_place() rebuilds it, so an instance is the wrong
+   place for anything that has to outlive a door. It is also why crib_place()
+   does not cache the answer: it reads the mask to pick a starting state, and
+   cribs_update() re-reads it every frame, so the order of room init,
+   world_enter() and savegame_apply_pending() cannot produce a cot that thinks
+   it is unsolved because the save had not landed yet. */
+static uint32_t crib_solved_rooms = 0;
+
+uint32_t crib_solved_mask(void)            { return crib_solved_rooms; }
+void     crib_solved_mask_set(uint32_t m)  { crib_solved_rooms = m; }
+
+int crib_room_solved(GameState area) {
+    return (crib_solved_rooms >> world_room_index(area)) & 1u;
+}
 
 static SMD  *crib_smd = NULL;
 static void *crib_buf = NULL;
@@ -38,7 +70,18 @@ static int32_t cr_min_x = 0, cr_max_x = 0;   /* -175 .. 175  as authored */
 static int32_t cr_min_z = 0, cr_max_z = 0;   /* -100 .. 100             */
 static int32_t cr_min_y = 0, cr_max_y = 0;   /* -195 ..   0, -Y is up   */
 
-/* The prop's own texture. Deferred like the rest of the chapter's art: the
+/* >>> THERE IS NO cr_deck_y ANY MORE, AND THAT IS A SIMPLIFICATION WORTH
+   KNOWING ABOUT. <<< The creeps used to come out of the EIGHT corners of the
+   cot's big box portion, which needed the box's underside as well as its rim —
+   and the only way to get it was "the second distinct y in the vertex array
+   counting from the top", a derivation that min/max cannot be wrong about but
+   that one is: an export putting detail geometry between the rim and the deck
+   would have moved it silently. The three spawn points are all at the rim now
+   (see crib_release), so the measurement and its sharp edge are both gone. Do
+   not reintroduce it for a spawn point that could be expressed as a fraction of
+   the box instead.
+
+   The prop's own texture. Deferred like the rest of the chapter's art: the
    header is read at startup, the pixels only when TEXBANK_CATACOMBS is selected
    at the catacomb mouth. */
 static int crib_tex = -1;
@@ -108,11 +151,34 @@ void cribs_clear(void) { crib_count = 0; }
 
 void crib_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y) {
     if (crib_count >= MAX_CRIBS) return;
+
+    /* THE FIRST CRIB PLACED IN AN AREA IS THAT ROOM'S ENCOUNTER; any later one
+       in the same area is scenery and never wakes. crib.h argues this: the
+       solved set is one bit per ROOM, and one bit cannot describe two
+       independent encounters. The sweep is over the instances placed so far,
+       which is the whole array — cribs_clear() runs on every room entry, so
+       "already placed in this area" and "already placed" are the same question
+       in practice, and writing it as the area test keeps it correct if that
+       ever stops being true. */
+    int i, first_here = 1;
+    for (i = 0; i < crib_count; i++)
+        if (cribs[i].active && cribs[i].area == area) { first_here = 0; break; }
+
     Crib *c = &cribs[crib_count++];
     c->area  = area;
     c->x = x;  c->y = y;  c->z = z;
     c->rot_y = rot_y;
     c->active = 1;
+
+    c->encounter = first_here;
+    /* Start posed from the saved set. A scenery cot is parked in SOLVED so that
+       every "is this thing inert" test is one state comparison rather than a
+       state comparison and an `encounter` test — cribs_try_hit() is the one
+       place that has to tell the two apart, and it checks `encounter` there. */
+    c->state   = (!first_here || crib_room_solved(area)) ? CRIB_SOLVED : CRIB_IDLE;
+    c->tick    = 0;
+    c->spawned = 0;
+    c->tilt    = 0;
 
     /* World AABB = the axis-aligned bound of the rotated mesh footprint, corner
        by corner, exactly as the lever, the sconce and the oil dispenser bake
@@ -143,6 +209,285 @@ void crib_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y) 
             if (wz > c->max_z) c->max_z = wz;
         }
     }
+}
+
+/* ==========================================================================
+   THE ENCOUNTER
+   Read the timeline at the top of crib.h before changing any number here.
+   ========================================================================== */
+
+/* Where the rock is in its cycle, as a tilt about the model's X axis in PS1
+   angle units. `amp` is the current peak, which the states below damp; the
+   phase is the state tick, so a rock always STARTS level and a damped one
+   always ENDS level (CRIB_ECHO_FRAMES is exactly one CRIB_ROCK_PERIOD, and the
+   closing outro is a fraction of one). */
+static int32_t crib_rock(int32_t tick, int32_t amp) {
+    int32_t phase = ((tick % CRIB_ROCK_PERIOD) * 4096) / CRIB_ROCK_PERIOD;
+    return (amp * isin(phase & 4095)) >> 12;
+}
+
+/* Beam brightness, 0..256, from the instance's state and tick. 256 is "full",
+   which the draw then scales CRIB_BEAM_PEAK by — keeping the ramp in a fixed
+   256 scale rather than in colour units means the peak can be retuned without
+   touching the timing.
+
+   >>> THE RAMP IS CUBIC, AND FIXING THAT DID NOT INVOLVE CHANGING THE DURATION.
+   <<< It was LINEAR, and it looked like it hit full brightness in about a second
+   against the three CRIB_BEAM_RAMP has always specified. The duration was never
+   wrong; the CURVE was, because ADDITIVE BLENDING IS NOT LINEAR IN PERCEIVED
+   BRIGHTNESS and this shaft draws two walls that sum. At a third of the way
+   through, a linear ramp is at level 85, which the two layers turn into 170 of
+   255 — two thirds of the way to white already, with two seconds still to run.
+
+   Cubing the fraction moves the growth into the back half where it belongs:
+
+      t (of the 3s)   linear level   summed   cubic level   summed
+      1/3             85             67%      9             7%
+      2/3             171            100%     76            60%
+      1               256            sat      256           sat
+
+   So raising CRIB_BEAM_RAMP would have been the wrong fix — it would have made
+   the beam take six seconds to LOOK like three. If the build still reads as too
+   fast, raise the exponent here before touching the timing.
+
+   The closing fade takes the same curve, mirrored, for the same reason: a linear
+   fade out of an additive volume holds near-white for most of its length and then
+   appears to snap off at the end. */
+static int32_t crib_beam_level(const Crib *c) {
+    int32_t num, den;
+
+    if (c->state == CRIB_ACTIVE) {
+        if (c->tick >= CRIB_BEAM_RAMP) return 256;
+        num = c->tick;            den = CRIB_BEAM_RAMP;
+    } else if (c->state == CRIB_CLOSING) {
+        num = CRIB_CLOSING_FRAMES - c->tick;  den = CRIB_CLOSING_FRAMES;
+    } else {
+        return 0;
+    }
+
+    /* 256 * (num/den)^3, staged so nothing overflows an int32 and nothing is
+       truncated to zero early: num is at most 180 and den at most 180, so
+       num*num*256 peaks around 8.3 million and the two divides that follow keep
+       the intermediate in range. Multiplying by 256 FIRST is what stops
+       (num/den) collapsing to 0 in integer arithmetic. */
+    return (((num * num * 256) / (den * den)) * num) / den;
+}
+
+/* Release one Creep from one of THREE spawn points, chosen at random. In MODEL
+   space, so all three follow the instance's own yaw and a cot standing at any
+   rotation spills from the right places:
+
+     0  the CENTRE of the cot, in plan
+     1  a little outside it on one long side
+     2  a little outside it on the other
+
+   >>> "LEFT" AND "RIGHT" ARE THE LONG SIDES, i.e. +/- Z. <<< The footprint is
+   350 along X and 200 along Z, so X is the head-and-foot axis and Z is the pair
+   of long sides a cot reads as having a left and a right. If the brief meant the
+   ENDS instead, this is a one-line change: swap the lz table below for an lx one
+   and take CRIB_SPAWN_OUT off cr_min_x / cr_max_x. Nothing else in the file
+   depends on which axis it is.
+
+   ALL THREE ARE AT THE RIM (cr_min_y), the cot's top face — the same face the
+   beam comes out of, and the height the eight corners this replaced already used
+   for half their draws. It is ONE height now rather than two, which is what lets
+   creep_spawn()'s anchor argument stay safely above the floor (src/creep.h).
+
+   THE ROCK IS DELIBERATELY NOT IN THIS TRANSFORM. Folding the tilt in would move
+   each spawn by at most the amplitude times the box half-height — under 60 units
+   — and would tie a gameplay position to an animation phase for no gain. The
+   DRAW applies the tilt, because that is what has to look right. */
+#define CRIB_SPAWN_OUT 60   /* how far outside the long side points 1 and 2 sit */
+
+static void crib_release(Crib *c) {
+    int32_t cx = (cr_min_x + cr_max_x) / 2;
+    int32_t cz = (cr_min_z + cr_max_z) / 2;
+    int     k  = (int)((uint32_t)rand() % 3u);
+
+    /* Centre in plan for all three; only the Z offset differs. Measured off the
+       mesh rather than written as literals, so a re-export that changes the
+       cot's depth moves the two outside points with it. */
+    int32_t lx = cx;
+    int32_t lz = (k == 0) ? cz
+               : (k == 1) ? cr_min_z - CRIB_SPAWN_OUT
+                          : cr_max_z + CRIB_SPAWN_OUT;
+    int32_t ly = cr_min_y;
+
+    int32_t cs = icos(c->rot_y), sn = isin(c->rot_y);
+    int32_t wx = c->x + ((lx * cs + lz * sn) >> 12);
+    int32_t wz = c->z + ((lz * cs - lx * sn) >> 12);
+    /* THE CORNER'S WORLD Y — where the creep's body emerges. Model y is an
+       offset from the floor the prop stands on, and entity y is the same space
+       as mesh y (tools/ADDING_AN_ENEMY.txt STEP 2), so this is an addition and
+       NOT a GROUND_FLOOR_Y conversion.
+
+       >>> NOTHING IS SUBTRACTED FROM IT. <<< It used to take off
+       (CRP_Y_OFFSET + CRP_HALF_H) to stand a creep's FEET on the corner. A creep
+       FLOATS now and has no feet: creep_spawn() interpolates the body from here
+       up or down to the hover height (src/creep.h). */
+    int32_t wy = c->y + GROUND_FLOOR_Y + ly;
+
+    /* ...and the ANCHOR, which is a different height and is this prop's own `y`.
+       The field is a floor reference defined by world y = y + GROUND_FLOOR_Y, so
+       the standing anchor for that floor — (surface) - GROUND_FLOOR_Y — is the
+       same number back again. Passing the CORNER here instead is the bug
+       src/creep.h's creep_spawn() note is about: the deck corners sit below the
+       anchor and apply_ddog_height will not lift a body that starts below a
+       floor, so half the spawn points ended up under the world.
+
+       A full pool is counted as a spawn anyway. creep_spawn() returns -1 and
+       places nothing when MAX_CREEPS is reached, and if that did not count the
+       crib would sit at nine forever waiting for a tenth it can never make. The
+       encounter's end condition is "ten released and none alive", so a dropped
+       release resolves it rather than hanging it. */
+    creep_spawn(wx, wz, c->y, wy, c->area);
+    c->spawned++;
+}
+
+void cribs_update(void) {
+    int i;
+    for (i = 0; i < crib_count; i++) {
+        Crib *c = &cribs[i];
+        /* current_area, NEVER game_state — the two differ the moment the
+           inventory menu opens, and gating on game_state would let the player
+           pause a running encounter with Start (tools/ADDING_AN_ENEMY.txt
+           STEP 6). The creeps keep moving under the menu, so the crib that is
+           counting them has to as well. */
+        if (!c->active || c->area != current_area) continue;
+
+        switch (c->state) {
+        case CRIB_IDLE:
+        case CRIB_SOLVED:
+            c->tilt = 0;
+            break;
+
+        case CRIB_ECHO:
+            /* One rock, damped linearly to nothing over exactly one period. */
+            c->tilt = crib_rock(c->tick,
+                                (CRIB_ROCK_AMP * (CRIB_ECHO_FRAMES - c->tick))
+                                / CRIB_ECHO_FRAMES);
+            if (++c->tick >= CRIB_ECHO_FRAMES) {
+                c->state = CRIB_SOLVED;
+                c->tick  = 0;
+                c->tilt  = 0;
+            }
+            break;
+
+        case CRIB_ACTIVE:
+            c->tilt = crib_rock(c->tick, CRIB_ROCK_AMP);
+
+            /* The cadence is FIXED: the timer runs whatever the player is doing
+               and whatever is still alive, so all ten are out in thirty seconds
+               and falling behind is punished. Written as an exact frame match
+               rather than a countdown so the schedule cannot drift, and guarded
+               on `spawned` so the last interval does not release an eleventh. */
+            if (c->spawned < CRIB_CREEP_TOTAL) {
+                int32_t due = (int32_t)CRIB_BEAM_RAMP + CRIB_BEAM_HOLD
+                            + (int32_t)CRIB_SPAWN_INTERVAL * c->spawned;
+                if (c->tick == due) crib_release(c);
+            } else if (creeps_alive_in(c->area) == 0) {
+                /* Ten released and the room is clear: the encounter is over.
+                   >>> THE BIT GOES ON HERE, AT THE START OF THE OUTRO. <<< See
+                   crib.h — a player who leaves during the one second of the
+                   light going out has still beaten it. */
+                crib_solved_rooms |= (uint32_t)1u << world_room_index(c->area);
+                c->state = CRIB_CLOSING;
+                c->tick  = 0;
+            }
+            c->tick++;
+            break;
+
+        case CRIB_CLOSING:
+            c->tilt = crib_rock(c->tick,
+                                (CRIB_ROCK_AMP * (CRIB_CLOSING_FRAMES - c->tick))
+                                / CRIB_CLOSING_FRAMES);
+            if (++c->tick >= CRIB_CLOSING_FRAMES) {
+                c->state = CRIB_SOLVED;
+                c->tick  = 0;
+                c->tilt  = 0;
+            }
+            break;
+        }
+    }
+}
+
+void cribs_rest(void) {
+    int i;
+    for (i = 0; i < crib_count; i++) {
+        Crib *c = &cribs[i];
+        if (!c->active) continue;
+        /* Re-read the set rather than trusting the state: a crib that reached
+           CRIB_CLOSING has already banked its bit, so it settles into SOLVED
+           here, while one abandoned mid-pour goes back to IDLE with the whole
+           thing to do again. Scenery has `encounter` clear and is parked in
+           SOLVED already, and this lands it back there. */
+        c->state   = (c->encounter && !crib_room_solved(c->area))
+                   ? CRIB_IDLE : CRIB_SOLVED;
+        c->tick    = 0;
+        c->spawned = 0;
+        c->tilt    = 0;
+    }
+}
+
+int cribs_try_hit(void) {
+    int i;
+    for (i = 0; i < crib_count; i++) {
+        Crib *c = &cribs[i];
+        if (!c->active || c->area != current_area) continue;
+
+        /* SCENERY IS SKIPPED RATHER THAN REPORTED AS HIT, so the same swing
+           stays live for anything else in the room — the rule every module-side
+           hit test in this game keeps (the Living Statue's note in
+           src/crucifaxe.c is the long version). Same for a cot that is already
+           moving: an encounter in progress absorbs nothing. */
+        if (!c->encounter) continue;
+        if (c->state != CRIB_IDLE && c->state != CRIB_SOLVED) continue;
+
+        /* Reach to the box's SURFACE, by clamping the camera into the baked
+           AABB and measuring to the point that comes back. Measuring to the
+           CENTRE cannot work here and crib.h has the arithmetic: the player is
+           held 75 clear of a box with a 194 plan half-extent, so a corner
+           approach is a Manhattan 538 from the centre against SWING_RANGE's
+           350, and the cot would be unhittable from exactly the place the
+           alcove makes it easiest to stand. */
+        int32_t nx = cam_x < c->min_x ? c->min_x : (cam_x > c->max_x ? c->max_x : cam_x);
+        int32_t nz = cam_z < c->min_z ? c->min_z : (cam_z > c->max_z ? c->max_z : cam_z);
+
+        /* The vertical span comes off the mesh exactly as cribs_collide's does:
+           -Y is up, so the underside is cr_max_y and the top rail cr_min_y,
+           both offsets from the floor the prop was placed on. Clamping cam_y
+           into that span and measuring the remainder means a player on a
+           walkway above a cot cannot swing down through the floor at it. */
+        int32_t floor_y = c->y + GROUND_FLOOR_Y;
+        int32_t top     = floor_y + cr_min_y;   /* the top rail */
+        int32_t bot     = floor_y + cr_max_y;   /* the feet     */
+        int32_t ny      = cam_y < top ? top : (cam_y > bot ? bot : cam_y);
+
+        int32_t dx = nx - cam_x, dy = ny - cam_y, dz = nz - cam_z;
+        int32_t dist3d = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy)
+                       + (dz < 0 ? -dz : dz);
+        if (dist3d >= CRIB_HIT_REACH) continue;
+
+        /* Facing, measured to the box CENTRE and not to the clamped point: a
+           player standing right against the side has a clamped delta of almost
+           zero and its dot says nothing about which way they are looking. */
+        int32_t fx  = ((c->min_x + c->max_x) >> 1) - cam_x;
+        int32_t fz  = ((c->min_z + c->max_z) >> 1) - cam_z;
+        int32_t dot = ((int32_t)fx * isin(cam_rot) +
+                       (int32_t)fz * icos(cam_rot)) >> 12;
+        if (dot <= 0) continue;
+
+        if (c->state == CRIB_IDLE) {
+            c->state   = CRIB_ACTIVE;
+            c->tick    = 0;
+            c->spawned = 0;
+        } else {
+            c->state = CRIB_ECHO;       /* solved: one rock and nothing else */
+            c->tick  = 0;
+        }
+        return 1;
+    }
+    return 0;
 }
 
 /* Player push-out against the baked box, Minkowski-expanded by the caller's
@@ -180,6 +525,167 @@ void cribs_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
         if (pf < m) { m = pf; ddx = 0; ddz = -pf; }
         if (pb < m) {         ddx = 0; ddz =  pb; }
         *px += ddx; *pz += ddz;
+    }
+}
+
+/* ---- The beam ------------------------------------------------------------
+   A rectangular shaft standing on the cot's TOP FACE — poly 8 and poly 9 of
+   Crib.smx, which together are exactly the measured box's lid, so the shaft's
+   footprint is cr_min/cr_max and is DERIVED rather than authored.
+
+   Called from inside cribs_draw()'s per-instance loop with that instance's
+   model matrix still loaded, so every vertex below is in MODEL SPACE and the
+   whole thing rocks with the cot for free.
+
+   Read the long note in crib.h before touching the subdivision, the peak
+   brightness, or the decision to draw both walls: each of those three is an
+   answer to something (the GPU's 1023-pixel primitive drop, additive
+   saturation, and what an additive volume looks like from inside) rather than a
+   preference. */
+static void crib_draw_beam(RenderContext *ctx, const Crib *c) {
+    int32_t level = crib_beam_level(c);
+    if (level <= 0) return;
+
+    uint8_t  *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    uint32_t *ot      = ctx->buffers[ctx->active_buffer].ot;
+
+    /* The lid's four corners in plan, walked as a PERIMETER. The four faces are
+       (0,1), (1,2), (2,3), (3,0) — a ring, not index order. Index order would
+       cut across the middle of the lid and the "shaft" would be two crossed
+       sheets. src/incinerator.c's glow frame documents the same trap. */
+    const int32_t px[4] = { cr_min_x, cr_max_x, cr_max_x, cr_min_x };
+    const int32_t pz[4] = { cr_min_z, cr_min_z, cr_max_z, cr_max_z };
+
+    int32_t base_y = cr_min_y;                      /* the lid; -Y is up  */
+    /* The cot's plan centre, which the flare pushes the corners AWAY from. Taken
+       off the measured box rather than assumed to be the model origin: this mesh
+       happens to be centred there, and an export that was not would otherwise
+       have the shaft splay sideways as it rose instead of symmetrically. */
+    int32_t fcx = (cr_min_x + cr_max_x) / 2;
+    int32_t fcz = (cr_min_z + cr_max_z) / 2;
+    int     face, col, row;
+
+    for (face = 0; face < 4; face++) {
+        int a = face, b = (face + 1) & 3;
+        for (col = 0; col < CRIB_BEAM_COLS; col++) {
+            /* Interpolate along this face's edge, so the columns share their
+               boundary exactly and the shaft has no seam down it. */
+            int32_t t0 = col, t1 = col + 1;
+            int32_t x0 = px[a] + (px[b] - px[a]) * t0 / CRIB_BEAM_COLS;
+            int32_t z0 = pz[a] + (pz[b] - pz[a]) * t0 / CRIB_BEAM_COLS;
+            int32_t x1 = px[a] + (px[b] - px[a]) * t1 / CRIB_BEAM_COLS;
+            int32_t z1 = pz[a] + (pz[b] - pz[a]) * t1 / CRIB_BEAM_COLS;
+
+            for (row = 0; row < CRIB_BEAM_ROWS; row++) {
+                /* -Y is up, so a row further along the shaft is MORE negative. */
+                int32_t y_lo = base_y - (int32_t)CRIB_BEAM_HEIGHT * row       / CRIB_BEAM_ROWS;
+                int32_t y_hi = base_y - (int32_t)CRIB_BEAM_HEIGHT * (row + 1) / CRIB_BEAM_ROWS;
+
+                /* The fall-off, linear from the lid to the far end, times the
+                   ramp. Computed per ROW rather than per quad so the rows agree
+                   at the boundary they share and the gradient is continuous. */
+                int32_t f_lo = (CRIB_BEAM_ROWS - row)       * 256 / CRIB_BEAM_ROWS;
+                int32_t f_hi = (CRIB_BEAM_ROWS - row - 1)   * 256 / CRIB_BEAM_ROWS;
+                int32_t c_lo = (((int32_t)CRIB_BEAM_PEAK * f_lo) >> 8) * level >> 8;
+                int32_t c_hi = (((int32_t)CRIB_BEAM_PEAK * f_hi) >> 8) * level >> 8;
+
+                /* THE FLARE. Each row's two edges get their own plan scale,
+                   interpolated from 256 (1x, at the rim) to CRIB_BEAM_TOP_SCALE
+                   at the far end, and applied to each corner's offset from the
+                   cot's plan centre. Computed per ROW — like the colours above —
+                   so the row below and the row above agree exactly on the edge
+                   they share and the cone has no step in its silhouette. */
+                int32_t s_lo = 256 + ((int32_t)(CRIB_BEAM_TOP_SCALE - 256) * row)       / CRIB_BEAM_ROWS;
+                int32_t s_hi = 256 + ((int32_t)(CRIB_BEAM_TOP_SCALE - 256) * (row + 1)) / CRIB_BEAM_ROWS;
+
+                int32_t x0lo = fcx + ((x0 - fcx) * s_lo >> 8);
+                int32_t z0lo = fcz + ((z0 - fcz) * s_lo >> 8);
+                int32_t x1lo = fcx + ((x1 - fcx) * s_lo >> 8);
+                int32_t z1lo = fcz + ((z1 - fcz) * s_lo >> 8);
+                int32_t x0hi = fcx + ((x0 - fcx) * s_hi >> 8);
+                int32_t z0hi = fcz + ((z0 - fcz) * s_hi >> 8);
+                int32_t x1hi = fcx + ((x1 - fcx) * s_hi >> 8);
+                int32_t z1hi = fcz + ((z1 - fcz) * s_hi >> 8);
+
+                SVECTOR v[4];
+                v[0].vx = (int16_t)x0lo; v[0].vy = (int16_t)y_lo; v[0].vz = (int16_t)z0lo; v[0].pad = 0;
+                v[1].vx = (int16_t)x1lo; v[1].vy = (int16_t)y_lo; v[1].vz = (int16_t)z1lo; v[1].pad = 0;
+                v[2].vx = (int16_t)x0hi; v[2].vy = (int16_t)y_hi; v[2].vz = (int16_t)z0hi; v[2].pad = 0;
+                v[3].vx = (int16_t)x1hi; v[3].vy = (int16_t)y_hi; v[3].vz = (int16_t)z1hi; v[3].pad = 0;
+
+                DVECTOR sv[4];
+                int32_t sz[4], otz;
+
+                gte_ldv3(&v[0], &v[1], &v[2]);
+                gte_rtpt();
+                gte_stsxy3c(sv);
+                gte_ldv0(&v[3]);
+                gte_rtps();
+                gte_stsxy(&sv[3]);
+                gte_stsz4c(sz);
+                if (!sz[1] || !sz[2] || !sz[3]) continue;
+
+                /* The room loops' coordinate clamp. A vertex past the GPU's
+                   +/-1023 would WRAP rather than clip, and the far end of a
+                   700-unit shaft is exactly the kind of vertex that gets there.
+                   This is a different guard from the 1023-pixel EXTENT limit
+                   the subdivision answers; both are needed. */
+                int k, off = 0;
+                for (k = 0; k < 4; k++) {
+                    if (sv[k].vx <= -1023 || sv[k].vx >= 1023 ||
+                        sv[k].vy <= -1023 || sv[k].vy >= 1023) { off = 1; break; }
+                }
+                if (off) continue;
+
+                gte_avsz4();
+                gte_stotz(&otz);
+                if (otz <= 0) continue;
+                /* Sorted at true scene depth with the room's clamps — no +40
+                   bias, for the reason the cot's own polys carry none (see the
+                   long note in the primitive loop below). */
+                if (otz < SCENE_OT_MIN)   otz = SCENE_OT_MIN;
+                if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
+
+                if (ctx->next_packet + sizeof(POLY_G4) > buf_end) return;
+
+                POLY_G4 *poly = (POLY_G4 *)ctx->next_packet;
+                setPolyG4(poly);
+                setSemiTrans(poly, 1);
+                /* Bottom pair lit, top pair dimmer — and black at the very top,
+                   which additive blending turns into nothing at all, so the
+                   shaft needs no mask to end on. */
+                setRGB0(poly, (uint8_t)c_lo, (uint8_t)c_lo, (uint8_t)c_lo);
+                setRGB1(poly, (uint8_t)c_lo, (uint8_t)c_lo, (uint8_t)c_lo);
+                setRGB2(poly, (uint8_t)c_hi, (uint8_t)c_hi, (uint8_t)c_hi);
+                setRGB3(poly, (uint8_t)c_hi, (uint8_t)c_hi, (uint8_t)c_hi);
+                poly->x0 = sv[0].vx; poly->y0 = sv[0].vy;
+                poly->x1 = sv[1].vx; poly->y1 = sv[1].vy;
+                poly->x2 = sv[2].vx; poly->y2 = sv[2].vy;
+                poly->x3 = sv[3].vx; poly->y3 = sv[3].vy;
+                addPrim(&ot[otz], poly);
+                ctx->next_packet += sizeof(POLY_G4);
+
+                /* ADDITIVE MEANS A DR_TPAGE PER QUAD HERE, not one for the
+                   group. The incinerator's glow can queue one page select for
+                   its whole frame because every band lands in ONE OT bucket; a
+                   700-unit shaft spans many, and a page select only governs the
+                   primitives processed after it within its own bucket. So each
+                   quad carries its own, added AFTER it — the OT is LIFO within
+                   a bucket, so last in is processed first, and the page select
+                   has to be processed before the quad it applies to.
+
+                   >>> AND NOTHING RESTORES THE BLEND MODE AFTERWARDS. <<< That
+                   is the house pattern (src/lightswitch_puzzle.c's light cones,
+                   src/helluminator.c's flame, src/incinerator.c's glow): every
+                   textured primitive in this game sets its own tpage anyway, so
+                   there is nothing downstream to corrupt. */
+                if (ctx->next_packet + sizeof(DR_TPAGE) > buf_end) return;
+                DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
+                setDrawTPage(tp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
+                addPrim(&ot[otz], tp);
+                ctx->next_packet += sizeof(DR_TPAGE);
+            }
+        }
     }
 }
 
@@ -226,9 +732,29 @@ void cribs_draw(RenderContext *ctx) {
         dist = render_light_dist(c->x, c->z, dist);
         if (dist > g_fog_far) continue;
 
-        MATRIX m, combined;
-        SVECTOR rr = {0, (int16_t)c->rot_y, 0, 0};
-        RotMatrix(&rr, &m);
+        /* TWO ROTATIONS, COMPOSED EXPLICITLY, and the order is the whole point.
+           The TILT is the rock, about the model's own X — its LONG axis, the
+           350-unit one, so the cot tips side to side the way a cradle on curved
+           runners does. The YAW then stands that already-rocking cot in the
+           room.
+
+           >>> ONE RotMatrix CALL WITH {tilt, rot_y, 0} WOULD BE WRONG HERE. <<<
+           PSn00bSDK builds Rx * Ry * Rz (its header prints the product), so the
+           yaw is applied FIRST and the tilt is then about the WORLD x axis. At
+           this prop's rot_y of 512 — 45 degrees — that is 45 degrees off the
+           cot's long axis, and it would rock on the diagonal. MulMatrix0(a,b,c)
+           gives c = a * b, so yaw * tilt applies the tilt first, in model space.
+           src/rabisu.c's foot-slash lean is the same composition for the same
+           reason; src/valve_handle.c's note is the general statement.
+
+           Rebuilt from the instance's fields every frame, which is what makes
+           the rock a write to c->tilt and nothing more (crib.h). */
+        MATRIX yaw_m, tilt_m, m, combined;
+        SVECTOR yaw_r  = {0, (int16_t)c->rot_y, 0, 0};
+        SVECTOR tilt_r = {(int16_t)c->tilt, 0, 0, 0};
+        RotMatrix(&yaw_r,  &yaw_m);
+        RotMatrix(&tilt_r, &tilt_m);
+        MulMatrix0(&yaw_m, &tilt_m, &m);
         VECTOR pos = {c->x, c->y + GROUND_FLOOR_Y, c->z};
         TransMatrix(&m, &pos);
         CompMatrixLV(&view, &m, &combined);
@@ -380,6 +906,11 @@ void cribs_draw(RenderContext *ctx) {
 
             p += stride;
         }
+
+        /* The beam, LAST for this instance and inside its matrix — which is
+           what makes it rock with the cot rather than stand still while the cot
+           tips out from under it. */
+        crib_draw_beam(ctx, c);
     }
 
     /* Back to the plain view matrix — whatever the caller draws next is in world

@@ -30,6 +30,8 @@
 #include "lumberer.h"
 #include "living_statue.h"
 #include "hadad.h"
+#include "creep.h"
+#include "crib.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -53,6 +55,11 @@ static int msh_hit_this_swing   = 0;
 static int lmb_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
 static int had_hit_this_swing   = 0;
+static int crp_hit_this_swing   = 0;
+/* The crib gets its own per-swing latch and does NOT share the creeps'. One
+   swing should be able to kill a creep AND wake the cot it is standing beside;
+   they are independent things that happen to be in the same alcove. */
+static int crib_hit_this_swing  = 0;
 static int asag_hit_this_swing  = 0;
 
 void crucifaxe_init(void) {
@@ -99,6 +106,8 @@ void update_crucifaxe(void) {
         lmb_hit_this_swing     = 0;
         lst_hit_this_swing     = 0;
         had_hit_this_swing     = 0;
+        crp_hit_this_swing     = 0;
+        crib_hit_this_swing    = 0;
         asag_hit_this_swing    = 0;
         sound_play(SFX_SWING);
     }
@@ -426,6 +435,39 @@ void update_crucifaxe(void) {
            rabisu.c reads swing_timer directly for both of its deflect windows,
            so a swing still counts for everything without ever landing a hit.
            Adding a hit block back here would quietly undo the whole fight. */
+
+        /* Creep hit. The tentacle's, the Rafflesia's and the Living Statue's
+           shape — the whole test lives in the enemy's module — rather than the
+           zombie's inlined block, and for the Living Statue's reason one size
+           down: a creep's body is 90 units across and sits 105 below its own
+           anchor, so the reach has to be measured to ITS geometry rather than
+           to the one-size Manhattan budget the blocks above use. No knockback
+           either: it has one hit point, so there is never anything left to
+           shove (see creeps_try_hit). */
+        if (swing_timer <= SWING_DURATION && !crp_hit_this_swing) {
+            if (creeps_try_hit())
+                crp_hit_this_swing = 1;
+        }
+
+        /* THE CRIB, and this one is not a weapon hit at all — it is the TRIGGER
+           for the whole Room of Arms encounter (src/crib.h). A connected swing
+           wakes an idle cot into its rock/beam/spawn sequence, gives a solved
+           one a single rock, and does nothing to one that is already moving.
+           Nothing is damaged and the prop has no health.
+
+           It is in the module for the Living Statue's reason, and more acutely:
+           the player is held 75 clear of an AABB with a 194 plan half-extent, so
+           a swing from the corner is a Manhattan 538 from the cot's centre
+           against SWING_RANGE's 350. The reach has to be taken to the box's
+           SURFACE, which only cribs_try_hit() knows how to do.
+
+           Like the statue's, a crib that cannot respond is SKIPPED rather than
+           reported as hit, so the same swing stays live for anything else in
+           the room — which here is the ten creeps the cot is pouring out. */
+        if (swing_timer <= SWING_DURATION && !crib_hit_this_swing) {
+            if (cribs_try_hit())
+                crib_hit_this_swing = 1;
+        }
 
         /* Crate smash — checked independently of vampire hit */
         if (swing_timer <= SWING_DURATION && !crate_hit_this_swing) {

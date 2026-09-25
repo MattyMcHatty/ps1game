@@ -161,6 +161,7 @@ add_executable(horror_game
     src/spider.c
     src/crawler.c
     src/lumberer.c
+    src/creep.c
     src/rabisu.c
     src/web.c
     src/sound.c

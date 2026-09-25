@@ -108,6 +108,7 @@
 #include "incinerator.h"
 #include "incinerator_panel.h"
 #include "crib.h"
+#include "creep.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "tentacle.h"
@@ -215,6 +216,11 @@ void reset_game(RenderContext *ctx) {
     spiders_reset();
     crawlers_reset();
     lumberers_reset();
+    creeps_reset();        /* ...and every Creep a crib had poured out. There is
+                              no creeps_rest() and nothing comes back: they are
+                              transient, exactly like the webs below
+                              (src/creep.h). world_leave() makes the same call
+                              on every room change. */
     rafflesias_reset();
     mushrooms_reset();
     living_statues_reset();
@@ -2337,6 +2343,21 @@ static void update_current_area(GameState area) {
        and walked out of should still be finished on the way back, and the
        list is four entries long either way. */
     valve_handles_update();
+    /* The crib encounters — the rock, the beam ramp and the spawn cadence.
+       Area-tagged like the valve mounts above, so this one call covers every
+       room branch and costs one loop over an empty array everywhere else, which
+       is what makes adding the mechanic to a room a change to that ROOM and not
+       to this function.
+
+       >>> IT IS ABOVE THE NO_AI SWITCH ON PURPOSE, AND update_creeps() IS
+       BELOW IT. <<< A crib is a prop with a timeline, not AI, and its beam is
+       the one genuinely expensive thing this feature draws (36 additive quads —
+       src/crib.h). Leaving the timeline running with the monsters switched off
+       is what lets the beam be measured on its own, which is the whole purpose
+       of that switch. The encounter cannot COMPLETE in that state, because
+       nothing can kill the creeps it is waiting on; that is expected of a
+       measurement mode and not a bug to fix. */
+    cribs_update();
     /* >>> DEBUG LEVEL 9 STOPS HERE. <<< Everything from this point to
        player_status_update is the area-tagged enemy AI, and it is the only part
        of U that an isolation switch can remove without changing what the room
@@ -2368,6 +2389,10 @@ static void update_current_area(GameState area) {
        reason the statue is: he keeps walking his corridor through a puzzle, and
        under flag one he is what stands between the player and the way back. */
     update_hadads();
+    /* The Creeps a crib has poured out. Area-tagged like everything else in
+       this block, so the one call serves every room; and BELOW the NO_AI switch
+       because, unlike the crib that made them, they are monsters. */
+    update_creeps();
     webs_update();            /* spider webs in flight (area-tagged, so free
                                  in rooms that have none) */
     player_status_update();   /* ticks the web's poison timer down */
@@ -2982,6 +3007,18 @@ int main(int argc, const char **argv) {
                                   both its CLUT lines, see below */
     loading_screen_pump(&ctx);
     lumberers_init();
+    loading_screen_pump(&ctx);
+    creeps_load_textures();   /* Chapter 3's third monster, and the only one in
+                                 the game that is SPAWNED rather than placed —
+                                 the Room of Arms' crib pours ten of them out
+                                 (src/creep.h). REGISTERED here (one 64x64
+                                 frame), uploaded on entry to a room that holds
+                                 a crib. Its VRAM page x[960,1024) y[0,64) is
+                                 OWNED outright and time-shares with nothing, so
+                                 there is no line in the STATE_LOADING block
+                                 pairing it against a donor. */
+    loading_screen_pump(&ctx);
+    creeps_init();
     loading_screen_pump(&ctx);
     rafflesias_load_assets();  /* garden flower sprites: REGISTERED here, uploaded
                                   on entry to the Outside Catacombs (they sit in

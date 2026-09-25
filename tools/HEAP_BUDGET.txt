@@ -88,7 +88,8 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   east_stairwell.c         1         10240
   piano_room.c             1         10240
   reception.c              1         10240
-  TOTAL                    70      1091584
+  creep.c                  1          6144
+  TOTAL                    71      1097728
 
 DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)
   none
@@ -150,25 +151,25 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x8010E688
+  _end (heap start)   0x80111548
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             841400 bytes (822 KB)
+  heap size             829432 bytes (810 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak bank      487424 bytes (476 KB)  57.9%   <- MANSION
-  kept buffers           20480 bytes (20 KB)   2.4%
-  chapter-scoped         43008 bytes (42 KB)   5.1%
-  PERMANENT TOTAL       550912 bytes (538 KB)  65.5%
-  FREE AT REST          290488 bytes (284 KB)  34.5%   <- STACK ALREADY SUBTRACTED
-                                  (was 438640 before the stack was counted;
+  texmgr peak bank      487424 bytes (476 KB)  58.8%   <- MANSION
+  kept buffers           20480 bytes (20 KB)   2.5%
+  chapter-scoped         43008 bytes (42 KB)   5.2%
+  PERMANENT TOTAL       550912 bytes (538 KB)  66.4%
+  FREE AT REST          278520 bytes (272 KB)  33.6%   <- STACK ALREADY SUBTRACTED
+                                  (was 426672 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
       THAT IS WHAT KILLS YOU, AND IT IS PER-ROOM. <<<
       The GARDEN COURTYARD is the tightest door in the game: it is the
       only transition that loads SND_BANK_BOSS, whose EMERGE clip is a
-      71,680-byte malloc â€” the largest single transient anywhere here â€”
+      71,680-byte malloc — the largest single transient anywhere here —
       and the Rabisu's model is loaded at the same door. Held together
       they would be 176,128 bytes at one instant; main.c SEQUENCES them
       (free before the bank swap, load after) so the peak is the model
@@ -191,7 +192,7 @@ THE HEAP
       it is the first thing to re-measure after anything that moves
       _end. src/rabisu.c's read_file now REFUSES a read that would
       cross $sp, so the next time this runs out it is a boss holding
-      its bind pose â€” or not drawn at all â€” and not a wild jump.
+      its bind pose — or not drawn at all — and not a wild jump.
       Method: force-boot the room in a headless build and print each
       buffer against $sp. See src/rabisu.c and PART 6 of
       tools/ADDING_THE_ASAG_FIGHT.txt.
@@ -215,7 +216,7 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 283 KB printed above.
+  once read_file's margin comes off - against the 271 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

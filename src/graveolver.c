@@ -20,6 +20,7 @@
 #include "rafflesia.h"
 #include "mushroom.h"
 #include "lumberer.h"
+#include "creep.h"
 #include "rabisu.h"
 #include "asag.h"          /* asag_head_box - where the head is         */
 #include "asag_fight.h"    /* ...and whether hitting it does anything   */
@@ -227,6 +228,23 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 12; best_idx = i;
         }
     }
+    /* The Creeps the Room of Arms' crib pours out. The circle is built from the
+       same half-extents the sprite is drawn at, centred on creep_body_y() —
+       which is where the thing actually IS. A creep FLOATS at eye level while
+       cr->y is its floor anchor twenty-odd units below the player's eye, so
+       aiming at the anchor would put the crosshair under the body. That function
+       is the one place the hover is resolved (src/creep.h); do not open-code the
+       offset here. */
+    for (i = 0; i < creep_count; i++) {
+        Creep *cr = &creeps[i];
+        if (!cr->active || cr->state == CRP_DEAD || cr->area != current_area) continue;
+        if (weapon_aim_in_circle(cr->x, creep_body_y(cr), cr->z,
+                                 CRP_HALF_W, CRP_HALF_H,
+                                 fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 13; best_idx = i;
+        }
+    }
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *rb = &rabisus[i];
         /* `dying` as well as `dead`: the boss stays on screen through its whole
@@ -363,6 +381,14 @@ static void graveolver_fire(void) {
            what it is doing, beyond waking a patrolling one. */
         lumberer_damage(&lumberers[best_idx],
                         lumberer_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 13) {
+        /* A CREEP. One hit point and no weakness table worth the name, so any
+           round of any type kills it outright. creep_scale_damage is asked
+           anyway, the way every other enemy here is asked, so that giving the
+           thing a weakness later reaches the gun without anyone coming back to
+           this line — it would take more than one shot before it mattered. */
+        creep_damage(&creeps[best_idx],
+                     creep_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 8) {
         /* Not an enemy and not scaled by a weakness table: a curtain asks the
            DAMAGE TYPE directly. DMG_FLAME clears a destructible one outright,

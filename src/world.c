@@ -24,6 +24,8 @@
 #include "hadad.h"
 #include "rabisu.h"
 #include "savegame.h"
+#include "crib.h"       /* the crib encounters' solved set rides in the delta */
+#include "creep.h"      /* ...and its Creeps are dropped on every room change */
 #include "sound.h"
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below.
@@ -102,6 +104,11 @@ _Static_assert(MAX_VALVE_MOUNTS  <= 8,              "valve_present too narrow");
    compile error instead of rooms silently coming back unvisited from a save. */
 _Static_assert(WORLD_NUM_ROOMS <= 8 * sizeof(((WorldDelta *)0)->visited),
                "WorldDelta.visited too narrow for WORLD_NUM_ROOMS");
+/* The crib encounters are keyed by room_index() too — one bit per room, same
+   ceiling, same failure mode if it is ever exceeded silently. See the note on
+   cribs_solved in world.h. */
+_Static_assert(WORLD_NUM_ROOMS <= 8 * sizeof(((WorldDelta *)0)->cribs_solved),
+               "WorldDelta.cribs_solved too narrow for WORLD_NUM_ROOMS");
 
 static WorldState world;
 
@@ -229,6 +236,19 @@ static int room_index(GameState area) {
     }
 }
 
+/* The public face of room_index(), for the one thing outside this file that
+   needs to key something by ROOM rather than by (room, ordinal): the crib's
+   solved set (src/crib.h). A wrapper rather than dropping `static`, so every
+   internal caller below stays on the short name and this note has somewhere to
+   live.
+
+   >>> IT INHERITS room_index()'s DEFAULT, WHICH IS 0. <<< An area with no case
+   of its own comes back as the DELIVERY AREA's slot, so anything keying
+   PERSISTENT state by this must only ever be handed an area that is listed
+   above. Every room that can hold a crib is; a menu or cutscene GameState is
+   not. */
+int world_room_index(GameState area) { return room_index(area); }
+
 /* live arrays -> room slot */
 static void snapshot(RoomState *r) {
     memcpy(r->dogs,   demon_dogs, sizeof demon_dogs); r->dog_count   = demon_dog_count;
@@ -286,6 +306,10 @@ void world_new_game(void) {
     snapshot(&world.rooms[d]);
     world.rooms[d].visited = 1;
     snapshot_fatdoors();
+    /* The crib encounters are module state rather than a WorldState field
+       (src/crib.h says why), so the memset above does NOT reach them and a new
+       game would otherwise inherit the last playthrough's solved rooms. */
+    crib_solved_mask_set(0);
 }
 
 /* Cut every monster sound dead. Called the instant a room transition begins
@@ -355,6 +379,21 @@ void world_leave(GameState area) {
        rafflesia.h), which is also why they have no WorldState section and no
        WorldDelta field — there is nothing about them worth saving. */
     rafflesias_rest();
+    /* The Creeps go further still: they are DROPPED. There is no creeps_rest()
+       and there is no spawn to go back to — a creep did not exist when the
+       player walked in, so leaving the room (or saving, which comes through
+       here) simply ends it. That is the same call this makes in reset_game, and
+       it is the whole of the creeps' persistence. src/creep.h argues it, and
+       the consequence — a crib encounter is not resumable — is written up in
+       src/crib.h. */
+    creeps_reset();
+    /* ...and the cot that made them goes back to being a cot. It has to happen
+       in the same breath as the line above, and the case that forces it is
+       SAVING rather than leaving: savegame_capture() comes through here while
+       the player is still standing in the room, so dropping the creeps on their
+       own would satisfy the encounter's "ten released and none alive" end
+       condition for free. src/crib.h's note on cribs_rest() has the argument. */
+    cribs_rest();
     snapshot(&world.rooms[room_index(area)]);
     snapshot_fatdoors();
 }
@@ -1576,6 +1615,13 @@ void world_save_delta(WorldDelta *d) {
         if (world.valve_mounts[i].present)
             d->valve_present |= (uint8_t)(1u << i);
 
+    /* THE CRIB ENCOUNTERS. One word, straight out of the module — no per-
+       instance walk and no canonical remap, because the set is keyed by ROOM
+       and the crib module holds it that way already (src/crib.h). That also
+       means it is correct for rooms the player has never entered and for the
+       room they are standing in, without this function knowing which is which. */
+    d->cribs_solved = crib_solved_mask();
+
     {
         GameState areas[MAX_SPIDERS];
         for (i = 0; i < world.spider_count; i++) areas[i] = world.spiders[i].area;
@@ -1723,6 +1769,12 @@ void world_load_delta(const WorldDelta *d) {
        the blob would mean reloading into an animation nothing is waiting on. */
     for (i = 0; i < valve_mount_count; i++)
         valve_handle_set_present(i, (d->valve_present >> i) & 1);
+
+    /* ...and the crib encounters, likewise as one word. REPLACES the set rather
+       than OR-ing into it: world_load_delta is documented as rebuilding the
+       whole world over a fresh world_new_game(), and a merge would let a crib
+       beaten in the session before the load survive into the loaded one. */
+    crib_solved_mask_set(d->cribs_solved);
 
     /* The room walk placed these in canonical order, so the delta's bit i and
        array slot i now mean the same thing. */

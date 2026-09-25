@@ -1301,6 +1301,55 @@
                  tools/vram_map.py records the overlaps. -->
             <file name="LUMBERA.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lumberer_a.tim"/>
             <file name="LUMBERB.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lumberer_b.tim"/>
+
+            <!-- THE CREEP, the chapter's third MONSTER (src/creep.c) and the
+                 first one in the game that is SPAWNED rather than placed: the
+                 Crib in the Room of Arms' south-west alcove pours ten of them
+                 out of itself once the crucifaxe has woken it (src/crib.h).
+
+                 ONE 64x64 FRAME and no animation. That is the whole art: a
+                 creep never stands still long enough to read detail and ten of
+                 them can be on screen at once.
+
+                 ITS VRAM PAGE IS x[640,672) y[320,384) - 32 words by 64 rows,
+                 an 8bpp 64x64 fit, owned outright. Not a time-share, no restore
+                 obligation on anybody and no placement rule about which enemies
+                 may meet.
+
+                 >>> IT WAS AT x960 y0 FIRST AND THAT WAS THE PS1 DEBUG FONT.
+                 <<< main() calls FntLoad(960, 0), the SDK uploads its glyph
+                 texture and CLUT there, and every FntOpen stream in the game
+                 draws out of it - the debug overlay, the inventory menu's three
+                 columns and the GAME OVER screen. Nothing re-uploads it, so
+                 overwriting it was permanent for the run, and the symptom was
+                 the game-over text turning into noise: a bug in a completely
+                 unrelated place, with the actual cause 64 columns away at the
+                 right-hand edge of VRAM.
+
+                 tools/vram_map.py DID NOT CATCH IT, and that was the real
+                 fault. The font's rect had been printed in that script's FIXED
+                 REGIONS header since it was written and tested nowhere, so a
+                 texture dropped straight through it still reported "No
+                 unexpected pixel collisions". It is checked now - see
+                 FIXED_REGIONS and the FIXED-REGION CHECK in tools/vram_map.py,
+                 which reproduces the failure when the old coordinates are put
+                 back. >>> A MAP WHOSE RESERVED REGIONS ARE A COMMENT WILL TELL
+                 YOU THE CONSOLE'S OWN SCRATCH SPACE IS FREE. <<<
+
+                 Voff 64, NOT 128 or above, and that is what keeps the sprite
+                 exempt from the texture-window bracket every other sprite in
+                 this game needs (tools/ADDING_AN_ENEMY.txt STEP 4). V runs
+                 64..127, which a 128-row window wraps onto itself unchanged;
+                 U runs 0..63 because x640 is an exact tpage boundary
+                 (640/64 = 10). The exemption is a property of THIS slot, not of
+                 the sprite - move the texture and the bracket comes back, and
+                 src/creep.c's draw_crp_sprite says what to copy when it does.
+
+                 Its CLUT is the only 256-word run left anywhere in the CLUT
+                 band: y=511, x[672,928). There was no free line at x[256,512)
+                 at all by the time this was added, which is where
+                 tools/ADDING_AN_ENEMY.txt STEP 3c still tells you to look. -->
+            <file name="CREEP.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\creep.tim"/>
         </dir>
 
         </directory_tree>

@@ -17,7 +17,33 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   27            /* v27: WorldDelta.lumberers_dead — the Tomb's
+#define SAVE_VERSION   28            /* v28: WorldDelta.cribs_solved — WHICH ROOMS'
+                                        CRIB ENCOUNTERS HAVE BEEN BEATEN. A new
+                                        word in the delta, so delta_size already
+                                        rejects a v27 save (savegame.c checks
+                                        it); the bump is beside it so the reason
+                                        is written down where a reader looks.
+
+                                        >>> IT IS THE FIRST PERSISTENT THING IN
+                                        THIS GAME THAT COULD NOT BE A GameFlag,
+                                        AND THAT IS WORTH READING BEFORE THE
+                                        NEXT PUZZLE. <<< SaveData.flags is 32
+                                        bits and 31 are spent — FLAG_ASAG_DEAD
+                                        is bit 30 and player.h's _Static_assert
+                                        is one flag from firing. The crib
+                                        mechanic is going into several rooms, so
+                                        it needs a SET of bits rather than one,
+                                        and the WorldDelta is where sets of bits
+                                        live. Keyed by room_index() and NOT by
+                                        canonical_index() like every entity
+                                        field, because a crib is placed by its
+                                        room's init and has no stable whole-game
+                                        ordinal; src/crib.h has the argument.
+                                        Its Creeps cost the format NOTHING —
+                                        they are transient, like the spider's
+                                        webs, and carry no save state at all
+                                        (src/creep.h);
+                                    v27: WorldDelta.lumberers_dead — the Tomb's
                                         Lumberers are a new global area-tagged
                                         ENTITY CATEGORY, so the delta grew a
                                         byte and delta_size moved with it,

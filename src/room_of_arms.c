@@ -26,6 +26,7 @@
 #include "sconce.h"
 #include "oil_dispenser.h"
 #include "crib.h"              /* the alcove cot in the south-west corner */
+#include "creep.h"             /* ...and what it pours out when the axe wakes it */
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 #include "sound.h"              /* SFX_SELECT / SFX_BACK — the examine's two beats */
@@ -426,6 +427,12 @@ void room_of_arms_upload_textures(void) {
        call to derive; drop the call and the checker stops believing src/crib.c
        needs CATACOMBS. */
     crib_upload_texture();
+    /* ...and the Creep's, on exactly the same terms and for the same reason:
+       this room is the only one that draws them, the module is not this room's,
+       and py tools/check_tex_banks.py reads THIS call to derive that src/creep.c
+       needs CATACOMBS. Its page x[960,1024) y[0,64) is owned outright and shared
+       with nothing, so there is no ordering rule here either. */
+    creeps_upload_texture();
 }
 
 /* ---- THE EAST DOOR ---------------------------------------------------------
@@ -931,6 +938,13 @@ void room_of_arms_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            /* The CREEP is handed the same rect and does not currently use it.
+               Its sprite is at Voff 0 and Uoff 0 (x960 y0 — see src/creep.c and
+               disc.xml) so this room's 128 window serves it rather than masking
+               it, exactly as it serves the crib's art. The call is here so the
+               day that page moves, the fix is confined to creep.c and this file
+               does not have to be found again. */
+            creeps_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
@@ -944,6 +958,13 @@ void room_of_arms_draw(RenderContext *ctx) {
            with no +40 bias and restores the plain view matrix on the way out —
            see the notes in src/crib.c. */
         cribs_draw(ctx);
+        /* ...and whatever it has poured out. AFTER the cot, so a creep standing
+           in front of it is drawn over it at equal depth — addPrim prepends
+           within a bucket, so the later-added primitive wins a tie, and a body
+           in front of the cot is the tie that actually happens. Their sprite is
+           at Voff 0 and Uoff 0 (see src/creep.c), so like the crib they are
+           happy under the 128 window the two enemy calls above restore. */
+        draw_creeps(ctx);
     }
 
     /* SCREEN SPACE, so it goes last and OUTSIDE the entity gate: it is the only

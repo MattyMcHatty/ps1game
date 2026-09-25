@@ -734,6 +734,29 @@ KNOWN_STREAM_PAIRS = [
     ("red_wlppr.tim", "crib.tim"),
 ]
 
+# VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not
+# just printed — see the FIXED-REGION CHECK in main() for what it cost to learn
+# that the difference matters. Each entry is (name, (x, y, w, h)) in 16-bit words.
+#
+# THE FONT IS THE ONE THAT IS EASY TO GET WRONG, and it is the one that bit.
+# main() calls FntLoad(960, 0); the SDK uploads its glyph texture AND its CLUT
+# from there, and every FntOpen stream in the game draws out of it — the debug
+# overlay, the inventory menu's three columns, and the GAME OVER screen. Nothing
+# in the game re-uploads it, so overwriting it is permanent for the run and the
+# symptom is text turning into noise in a completely unrelated place.
+#
+# The height is the conservative figure the prose here has always quoted. The
+# SDK does not document the exact rect and it is not worth the 64 columns to
+# find out: x[960,1024) is the right-hand edge of VRAM, nothing else wants it,
+# and reserving all 256 rows costs a band no texture in this game has ever been
+# placed in.
+FIXED_REGIONS = [
+    ("Framebuffer 0",        (0,   0,   320, 240)),
+    ("Framebuffer 1",        (0,   240, 320, 240)),
+    ("Font (FntLoad(960,0))", (960, 0,   64,  256)),
+]
+
+
 def read_tim(path):
     with open(path, "rb") as f: d = f.read()
     if d[0] != 0x10: return None
@@ -791,9 +814,36 @@ def main():
     print(__doc__.strip().split("\n\n", 1)[1])   # print the explanatory prose
     print()
     print("FIXED REGIONS")
-    print("  Framebuffers : x[0,320)   y[0,480)   (two 320x240 buffers stacked)")
-    print("  Font (FntLoad): x[960,1024) y[0,256)  approx")
-    print("  CLUT band    : x[0,256)   y[480,512)  (256-word CLUTs, 1 line each)")
+    for fname, fr in FIXED_REGIONS:
+        print("  %-22s x[%d,%d) y[%d,%d)" % (fname, fr[0], fr[0] + fr[2],
+                                             fr[1], fr[1] + fr[3]))
+    print("  CLUT band              x[0,256)   y[480,512)  (256-word CLUTs, 1 line each)")
+    print()
+
+    # >>> AND NOW THEY ARE CHECKED, NOT MERELY PRINTED. <<< Up to September 2026
+    # the three lines above were PROSE: the region a TIM must not be placed in was
+    # documented here and tested nowhere, so a texture dropped on the FONT passed
+    # this script with "No unexpected pixel collisions" and the bug surfaced as a
+    # garbled game-over screen. (creep.tim, placed at x960 y0, straight through
+    # FntLoad(960,0).) A map whose fixed regions are a comment is a map that will
+    # tell you the console's own scratch space is free.
+    print("FIXED-REGION CHECK  (a TIM's pixels or CLUT landing on VRAM the")
+    print("                     hardware and the SDK already own)")
+    fixed_bad = []
+    for name, r in sorted(tims.items()):
+        prect = (r["x"], r["y"], r["cols"], r["h"])
+        for fname, fr in FIXED_REGIONS:
+            if rects_overlap(prect, fr):
+                print("  !! %s's PIXELS x[%d,%d) y[%d,%d) land in %s"
+                      % (name, r["x"], r["x"] + r["cols"], r["y"], r["y"] + r["h"], fname))
+                fixed_bad.append(name)
+            if r["clut"] and rects_overlap(r["clut"], fr):
+                print("  !! %s's CLUT x[%d,%d) y=%d lands in %s"
+                      % (name, r["clut"][0], r["clut"][0] + r["clut"][2],
+                         r["clut"][1], fname))
+                fixed_bad.append(name)
+    if not fixed_bad:
+        print("  No TIM lands in a fixed region.")
     print()
 
     # Texture pixel slots, sorted by (y, x).
