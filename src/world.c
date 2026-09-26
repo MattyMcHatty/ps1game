@@ -100,8 +100,10 @@ _Static_assert(MAX_VINES         <= WD_MAX_VINES,   "vine_health too short");
 _Static_assert(MAX_VALVE_MOUNTS  <= 8,              "valve_present too narrow");
 /* The `visited` bitmap is what caps the room count — one bit per room. It was a
    uint16_t and the sixteenth room filled it exactly; Maze One is the seventeenth
-   and widened it to 32 bits. This assert is what makes the NEXT overflow a
-   compile error instead of rooms silently coming back unvisited from a save. */
+   and widened it to 32 bits, which the Room of Arms then filled exactly in turn;
+   THE PIT is the thirty-third and widened it to 64. This assert is what makes
+   each overflow a compile error instead of rooms silently coming back unvisited
+   from a save, and it has now done that job twice. */
 _Static_assert(WORLD_NUM_ROOMS <= 8 * sizeof(((WorldDelta *)0)->visited),
                "WorldDelta.visited too narrow for WORLD_NUM_ROOMS");
 /* The crib encounters are keyed by room_index() too — one bit per room, same
@@ -151,6 +153,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_ASAG_ARENA,     STATE_CATACOMBS_ENTRY,
     STATE_UP_DOWN_MAZE,   STATE_INCINERATOR_ROOM,
     STATE_TOMB,           STATE_ROOM_OF_ARMS,
+    STATE_THE_PIT,
 };
 
 static int room_index(GameState area) {
@@ -232,6 +235,15 @@ static int room_index(GameState area) {
            world.h: WorldDelta.visited is a uint32_t and this room takes its last
            bit. The _Static_assert below fires on the next room added. */
         case STATE_ROOM_OF_ARMS:      return 31;
+        /* THE PIT, Chapter 3's sixth room, through the NORTH door of the Tomb.
+           Same terms as the two above: nothing from Chapters 1 or 2 can be placed
+           down here, and it still needs a slot of its own or it falls through the
+           default below and shares the DELIVERY AREA's.
+           >>> AND IT IS SLOT 32, THE ONE PAST THE END OF THE OLD uint32_t. <<<
+           The Room of Arms' note said the assert above would fire on the next
+           room added, and it did; `visited` and `cribs_solved` are uint64_t now,
+           so the ceiling is 64 and this is slot 32 of it. */
+        case STATE_THE_PIT:           return 32;
         default:                   return 0;
     }
 }
@@ -1565,7 +1577,7 @@ void world_save_delta(WorldDelta *d) {
         const RoomState *rs = &world.rooms[r];
         RoomDelta       *rd = &d->rooms[r];
         if (!rs->visited) continue;
-        d->visited |= (uint32_t)(1u << r);
+        d->visited |= world_room_bit(r);
 
         for (i = 0; i < MAX_ZOMBIES; i++)
             if (rs->zombs[i].state == ZMB_DEAD)
@@ -1720,7 +1732,7 @@ void world_load_delta(const WorldDelta *d) {
 
     for (r = 0; r < WORLD_NUM_ROOMS; r++) {
         const RoomDelta *rd = &d->rooms[r];
-        if (!(d->visited & (1u << r))) continue;
+        if (!(d->visited & world_room_bit(r))) continue;
 
         /* Rebuild the room as its first visit left it, then subtract what the
            player did to it. Rooms are walked in room_index order so the global

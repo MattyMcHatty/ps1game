@@ -31,25 +31,36 @@
 
      EAST   x=0      z[1400,1600] y[-400,0]  -> Incinerator Room, west door
      WEST   x=-4200  z[2600,2800] y[-400,0]  -> Room of Arms, east door
-     north  z=4200   x[-2200,-2000] y[-400,0] not built
+     NORTH  z=4200   x[-2200,-2000] y[-400,0] -> The Pit, south door (upper)
 
-   The north one is drawn and nothing else: no sign, no trigger. It reads as a
-   sealed door, which is what it is until the room behind it exists, and wiring
-   it up is the block of #defines in the .c plus the STEP 6 edits in
-   tools/ADDING_A_ROOM.txt.
+   >>> ALL THREE ARE WIRED NOW. <<< The north one was drawn and nothing else until
+   The Pit was built behind it, and that room is what finishes this one.
 
-   >>> THE TWO LIVE DOORS TAKE OPPOSITE MIRRORS AND THAT IS NOT A DETAIL. <<<
-   Both are YZ-plane doors, but the east one is approached from -X (wall 39,
-   nx=-4096) and the west one from +X (wall 38, nx=+4096), so their signs take
-   mirror=1/-11 and mirror=0/+11 respectively. The .c passes the pair at each
-   call site rather than deriving it, so the difference is visible where the two
-   are drawn. A door whose sign reads backwards has this wrong.
+   >>> THE THREE TAKE THREE DIFFERENT SIGN PAIRINGS AND THAT IS NOT A DETAIL. <<<
+   The east and west ones are YZ-plane doors at fixed X: east is approached from
+   -X (wall 39, nx=-4096) and west from +X (wall 38, nx=+4096), so their signs
+   take mirror=1/-11 and mirror=0/+11 respectively. THE NORTH ONE IS AN XY-PLANE
+   DOOR at fixed Z, which is a different axis and therefore a different rule:
+   wall 19 runs z=4200 with nz=-4096, so it is approached from -Z, which for an XY
+   door is mirror=0 with the sign -11 proud of the wall along -Z. The READING AXIS
+   moves too — a YZ sign reads along Z and an XY sign along X — so the -200
+   door_draw_string_3d wants goes on a different argument. The .c spells the pair
+   out at every call site rather than deriving it, so the difference is visible
+   where the three are drawn. A door whose sign reads backwards, or sits buried in
+   its own wall, has one of these transposed.
 
    NO STOREY TEST ON ANY OF THEM, which is the normal case and not an omission.
    This room is flat, so the walkable surface is a function of XZ — the
    assumption every trigger in the engine makes — and a plain Manhattan test is
    correct. The Up Down Maze's two doors are the only ones in the game that are
    not in that position.
+
+   >>> AND THE PIT ON THE FAR SIDE OF THE NORTH DOOR HAS TWO WALKABLE HEIGHTS AND
+   STILL DOES NOT NEED ONE EITHER. <<< Its two levels have disjoint XZ footprints,
+   so its own trigger is a plain Manhattan test too; src/the_pit.h argues it and
+   flags what would break it. None of that reaches back into this room. What DOES
+   differ across this doorway is the Y the player stands on — the Pit's gallery is
+   at y=-1000 against this room's y=0 — and each room's own spawn states it.
 
    THREE TEXTURES, AND THE ROOM OWNS NONE OF THEM. Cobblestone, the loculus and
    the catacomb inner door are all already registered by src/catacombs_entry.c
@@ -76,15 +87,21 @@ void tomb_spawn_east(void);
    column of loculus blocks. */
 void tomb_spawn_west(void);
 
+/* Arrival through the north door, back from The Pit: standing just inside it,
+   facing south into the chamber, in the aisle between the north wall and the
+   northern row of loculus blocks. */
+void tomb_spawn_north(void);
+
 /* One frame of a door's Circle test. `lock` is main's usual suppression (a menu
    is up, a cutscene owns the camera). Returns 1 on a fresh press made in range
    and facing that door — the frame main.c starts the transition on. Both share
    one body in the .c; only the coordinates and the edge-state differ. */
 int  tomb_east_door_triggered(int lock);
 int  tomb_west_door_triggered(int lock);
+int  tomb_north_door_triggered(int lock);
 
-/* Arm every interaction in the room — BOTH doors' edge states, not just the one
-   the player arrived through. Called by the spawn above; exported so a
+/* Arm every interaction in the room — ALL THREE doors' edge states, not just the
+   one the player arrived through. Called by the spawn above; exported so a
    caller that places the player some other way (a debug jump) can still ensure a
    Circle held through the transition does not fire on the arrival frame. */
 void tomb_arm(void);

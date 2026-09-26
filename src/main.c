@@ -89,6 +89,7 @@
 #include "incinerator_room.h"
 #include "tomb.h"
 #include "room_of_arms.h"
+#include "the_pit.h"
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
 #include "hatch_puzzle.h"
 #include "hatch_arrival.h"  /* the drop off the well: Asag's ending, beat 3   */
@@ -331,6 +332,7 @@ static void load_area_geometry(GameState area) {
         case STATE_INCINERATOR_ROOM: incinerator_room_load_geometry(); break;
         case STATE_TOMB:             tomb_load_geometry(); break;
         case STATE_ROOM_OF_ARMS:     room_of_arms_load_geometry(); break;
+        case STATE_THE_PIT:          the_pit_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2009,6 +2011,20 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* The NORTH door, into THE PIT - the last of this room's three drawn
+           doors to be wired. Called unconditionally for the same reason as the
+           other two, and no two of the three can fire on one frame: east is at
+           (0,1500), west at (-4199,2700) and north at (-2100,4199), and the
+           closest pair of those is 3599 apart in Manhattan XZ against a 500
+           radius. So this is three independent tests and not a veto chain, which
+           is why they are three plain `if`s rather than the Incinerator Room's
+           `took` cascade. */
+        if (tomb_north_door_triggered(lock)) {
+            pending_area = STATE_THE_PIT;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ROOM_OF_ARMS) {
         /* THE ROOM OF ARMS - Chapter 3's fifth room, and now the plainest branch
            in this function: the shared wall routine, ONE flat floor zone and one
@@ -2052,6 +2068,64 @@ static void update_current_area(GameState area) {
            unconditionally with `lock` for the reason above. */
         int roa_examined = room_of_arms_examine_update(lock);
         if (!roa_examined && room_of_arms_east_door_triggered(lock)) {
+            pending_area = STATE_TOMB;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_THE_PIT) {
+        /* THE PIT - Chapter 3's sixth room, and the first branch in this chapter
+           that is NOT the plainest one in the function: it is the shared wall
+           routine and one door, like the Tomb's and the Room of Arms', over FOUR
+           floor zones in TWO levels.
+
+           >>> multi_level IS 1, AND IT IS THE FIRST CATACOMBS ROOM SINCE THE UP
+           DOWN MAZE TO EARN IT. <<< Not for the shape that room has - nothing in
+           this proxy stands under a walkway, because the gallery at y=-1000 and
+           the pit floor at y=0 have disjoint XZ footprints - but for the HITSCAN
+           Y-gate, which is the only thing the flag switches for the player. The
+           player stands on the rim at y=-1000 and looks down into a pit whose own
+           walls run y[-999,0]; with the flag at 0 a shot aimed into the pit is
+           stopped by the rim (wall 0) and by the pit's south face (wall 17), both
+           of which it crosses in plan, so nothing down there could ever be hit
+           from up here. The per-wall Y in this table is REAL two-storey data and
+           not the debug values a flat room carries, which is precisely the
+           distinction collision.c's walls_crossed() draws. The long version is at
+           the head of src/the_pit_mesh_collision.c.
+
+           apply_collision_reception() and apply_height() need nothing special for
+           any of that: the first is generic over current_collision_room and Y-gates
+           every wall whatever the flag says, and the second walks the four zones
+           and takes the first one that is not above the player. The zones' ORDER is
+           a nicety here rather than the mechanism it is in the Up Down Maze, and
+           src/the_pit.c says why.
+
+           >>> THE TWO LEVELS DO NOT CONNECT, AND THAT IS KNOWN. <<< There is no
+           ramp, stair or drop between the gallery and the pit floor, so the player
+           walks a U and looks down. Nothing in this branch depends on that staying
+           true: the door trigger's lack of a Y test DOES, and src/the_pit.h flags
+           it as the thing to re-read the day the way down is built.
+
+           NO PROPS AND NO ENEMIES - world_seed_room() places nothing here. Both
+           Chapter 3 enemy updates are called anyway, on the Tomb's and the Room of
+           Arms' argument: a room with none of them pays nothing (the loops skip
+           every instance whose area is not current_area) and a later placement
+           starts moving without anyone having to remember this call. An enemy put
+           in THIS room has to pick a storey, though, and one put in the pit cannot
+           reach the player until the two sections are joined.
+
+           ONE INTERACTION, the south door back into the Tomb, so no veto chain and
+           no order to get right. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        /* Called UNCONDITIONALLY, `lock` passed in rather than tested out here:
+           the function keeps its Circle edge state current while locked and
+           returns 0, so a press held across a menu closing cannot read as a fresh
+           one on the frame the lock lifts. */
+        if (the_pit_south_door_triggered(lock)) {
             pending_area = STATE_TOMB;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
@@ -2464,6 +2538,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         tomb_draw(ctx);
     else if (area == STATE_ROOM_OF_ARMS)
         room_of_arms_draw(ctx);
+    else if (area == STATE_THE_PIT)
+        the_pit_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -2837,6 +2913,21 @@ int main(int argc, const char **argv) {
                                      for that call's reason. Its own
                                      registration has no ordering constraint at
                                      all, because nothing else registers it. */
+    loading_screen_pump(&ctx);
+    the_pit_load_assets();        /* CHAPTER 3's sixth room, and the second that
+                                     is not purely a borrower: two borrowed
+                                     headers like the calls above, plus its OWN
+                                     deferred registration for RUSTY.TIM - the
+                                     ironwork lining the shaft, art nothing else
+                                     in the game draws. Deferred, so still no CD
+                                     access here (src/texmgr.h).
+                                     >>> AND IT WAS THE 72nd REGISTRATION OF 72.
+                                     <<< TEXMGR_MAX is 80 now; see the comment in
+                                     src/texmgr.c. Count with
+                                     py tools/heap_budget.py before adding another.
+                                     ORDER STILL MATTERS FOR THE TWO IT BORROWS, so
+                                     this stays above the owner's call below for
+                                     that call's reason. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -3574,6 +3665,25 @@ int main(int argc, const char **argv) {
                    which outside this chapter is a hatch lid or a pile of
                    gravel. */
                 room_of_arms_upload_textures();
+            } else if (pending_area == STATE_THE_PIT) {
+                /* THE PIT. The two pages the Room of Arms' branch stamps, plus
+                   this room's OWN - RUSTY.TIM on x704 y0, the last whole mesh-art
+                   page in the Catacombs bank. Same two narrow uploaders and the
+                   same reason for using them rather than the Catacombs Entry's
+                   full one, which would also stamp the lamashtu tablet, the
+                   loculus, the sconce and the oil dispenser, none of which this
+                   room draws.
+
+                   Same guarantee and same failure mode as the branches around it:
+                   the entries are already in RAM because area_bank_sync() read
+                   them a few lines up, so this is a pure LoadImage with the drive
+                   idle - and if that call has not run, this uploads nothing,
+                   quietly, leaving the previous room's art in these pages. For the
+                   ironwork that would be whatever last held x704 y0, which outside
+                   this chapter is a stretch of rusty FENCE, a stairwell wall or a
+                   pile of gravel - close enough to be mistaken for a UV bug, which
+                   is what py tools/check_tex_banks.py is for. */
+                the_pit_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4181,6 +4291,13 @@ int main(int argc, const char **argv) {
                 tomb_init();
                 if (current_area == STATE_ROOM_OF_ARMS)
                     tomb_spawn_west();
+                /* ...and the third arrival, back down from THE PIT through the
+                   north door. Keyed on current_area on exactly the terms the west
+                   override above states: it is the room being LEFT at this point
+                   and it is NOT a route, so the EAST door stays the default and
+                   neither of the other two may be. */
+                if (current_area == STATE_THE_PIT)
+                    tomb_spawn_north();
                 /* NO MUSIC LINE, same chapter rule as the three rooms above. */
             } else if (pending_area == STATE_ROOM_OF_ARMS) {
                 /* ONE ARRIVAL, the east door, so room_of_arms_init()'s default
@@ -4191,6 +4308,21 @@ int main(int argc, const char **argv) {
                    (src/room_of_arms.h). */
                 room_of_arms_init();
                 /* NO MUSIC LINE, same chapter rule as the four rooms above. */
+            } else if (pending_area == STATE_THE_PIT) {
+                /* ONE ARRIVAL, the south door, so the_pit_init()'s default spawn
+                   is also the only one and there is nothing to override. This room
+                   has a second DRAWN door - north, on the pit floor - but it is in
+                   the half the player cannot reach, so there is no second arrival
+                   waiting to be built here yet (src/the_pit.h).
+
+                   >>> AND THE DEFAULT SPAWN IS THE ONE THING THAT MAKES A DEBUG
+                   JUMP INTO THIS ROOM WORK. <<< the_pit_spawn_south() puts the
+                   camera at the GALLERY's eye height (y=-1000 less GROUND_FLOOR_Y
+                   and the standoff). A jump that arrived at the ground-floor eye
+                   would land on the pit floor, which is the one surface in the room
+                   with no way off it. */
+                the_pit_init();
+                /* NO MUSIC LINE, same chapter rule as the five rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -4525,7 +4657,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_UP_DOWN_MAZE ||
                    game_state == STATE_INCINERATOR_ROOM ||
                    game_state == STATE_TOMB ||
-                   game_state == STATE_ROOM_OF_ARMS) {
+                   game_state == STATE_ROOM_OF_ARMS ||
+                   game_state == STATE_THE_PIT) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

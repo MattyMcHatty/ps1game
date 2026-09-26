@@ -131,9 +131,17 @@
 #define TIM_TPAGE_CRAWLRB  0x008b
 #define TIM_CLUT_CRAWLRB   0x7f2a
 
+/* creep.tim       8bpp  VRAM ( 640,320)  \TEXCTCMB\CREEP.TIM */
+#define TIM_TPAGE_CREEP    0x009a
+#define TIM_CLUT_CREEP     0x7fea
+
 /* crucifaxe.tim   8bpp  VRAM ( 320,384)  \CRFXICON.TIM */
 #define TIM_TPAGE_CRFXICON 0x0095
 #define TIM_CLUT_CRFXICON  0x7d00
+
+/* crib.tim        8bpp  VRAM ( 576,  0)  \TEXCTCMB\CRIB.TIM */
+#define TIM_TPAGE_CRIB     0x0089
+#define TIM_CLUT_CRIB      0x7910
 
 /* catacomb inner door.tim  8bpp  VRAM ( 832,  0)  \TEXCTCMB\CTCMBDR.TIM */
 #define TIM_TPAGE_CTCMBDR  0x008d
@@ -442,6 +450,10 @@
 /* red_wlppr.tim   4bpp  VRAM ( 576,  0)  \REDWLPPR.TIM */
 #define TIM_TPAGE_REDWLPPR 0x0009
 #define TIM_CLUT_REDWLPPR  0x7b00
+
+/* rusty.tim       8bpp  VRAM ( 704,  0)  \TEXCTCMB\RUSTY.TIM */
+#define TIM_TPAGE_RUSTY    0x008b
+#define TIM_CLUT_RUSTY     0x7950
 
 /* sconce.tim      8bpp  VRAM ( 448,  0)  \TEXCTCMB\SCONCE.TIM */
 #define TIM_TPAGE_SCONCE   0x0087

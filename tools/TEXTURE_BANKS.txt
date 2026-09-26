@@ -8,46 +8,48 @@ PER-AREA RESIDENT SET
   RABISU        210944 bytes (206 KB)   6 modules
   WEST_GARDEN   262144 bytes (256 KB)   7 modules
   ASAG               0 bytes (  0 KB)   0 modules
-  CATACOMBS     305152 bytes (298 KB)   8 modules
+  CATACOMBS     329728 bytes (322 KB)  10 modules
 
   peak bank         487424 bytes (476 KB)  <- this is what sets free-at-rest
-  all at once      1091584 bytes (1066 KB)  <- what the pre-bank design held
+  all at once      1116160 bytes (1090 KB)  <- what the pre-bank design held
 
 DECLARED vs REQUIRED
   catacombs_entry        73728  CATACOMBS
   kitchen_dining         69632  MANSION
-  crawler                69632  CATACOMBS
   lumberer               69632  CATACOMBS
+  crawler                69632  CATACOMBS
   garden_stairs          57344  MANSION|GARDEN|RABISU|WEST_GARDEN
   delivery_area          51200  MANSION|GARDEN|RABISU|WEST_GARDEN
   stables                51200  WEST_GARDEN
-  attic_exit             36864  MANSION
-  trick_drawers          36864  MANSION
   spider                 36864  MANSION|GARDEN|RABISU
+  trick_drawers          36864  MANSION
+  attic_exit             36864  MANSION
   rafflesia              36864  GARDEN|WEST_GARDEN
   garden_courtyard       36864  GARDEN|RABISU|WEST_GARDEN
   fountain_square        36864  GARDEN
   conservatory           30720  MANSION|GARDEN
   piano_props            30720  MANSION
-  rear_gate              28672  GARDEN
   maze_one               28672  GARDEN
+  rear_gate              28672  GARDEN
   outside_catacombs      24576  GARDEN
   zombie                 20480  MANSION
   hall_2f                20480  MANSION
   master_bedroom         18432  MANSION
   attic_stairwell        18432  MANSION
   dresser                18432  MANSION
-  keystone_maze          18432  GARDEN
   maze_two               18432  GARDEN
+  keystone_maze          18432  GARDEN
   rabisu                 18432  GARDEN|RABISU|WEST_GARDEN
-  crib                   18432  CATACOMBS
-  incinerator            18432  CATACOMBS
+  the_pit                18432  CATACOMBS
   sconce                 18432  CATACOMBS
   room_of_arms           18432  CATACOMBS
+  crib                   18432  CATACOMBS
+  incinerator            18432  CATACOMBS
   oil_dispenser          18432  CATACOMBS
-  east_stairwell         10240  MANSION|GARDEN|RABISU|WEST_GARDEN
-  concrete_props         10240  MANSION
   piano_room             10240  MANSION
   reception              10240  MANSION
+  east_stairwell         10240  MANSION|GARDEN|RABISU|WEST_GARDEN
+  concrete_props         10240  MANSION
+  creep                   6144  CATACOMBS
 
 OK: every module's declared bank mask covers every area that reaches it.

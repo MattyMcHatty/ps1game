@@ -15,11 +15,11 @@ first answer to that (the Stables and the Greenhouse, behind the Rear Gate) and
 tools/VRAM_MAP_ASAG.txt pushed it as far as it goes (one sealed arena, eleven
 free pages). THE CATACOMBS IS THE THIRD SUCH POCKET AND NOBODY HAD MEASURED IT.
 
-It is a good one. Chapter 3 is FOUR rooms behind a one-way mouth and between
-them they draw SEVEN textures:
+It is a good one. Chapter 3 is SIX rooms behind a one-way mouth and between them
+they draw TEN textures:
 
     cobblestones, catacomb inner door, loculus, lamashtu tablet, sconce,
-    oil_container, incinerator
+    oil_container, incinerator, arms, crib, rusty
 
 ...plus the enemy sheets, the shadow, the HUD and the player's kit. Everything
 else in VRAM while the player is down there is art from a chapter they cannot
@@ -109,9 +109,6 @@ RESERVED = dict(ASAG.RESERVED)
 # crib then took x576 y0 - the first of the "needs a way back first" pages to be
 # spent, and it owed nothing for it, because both the calls that put its
 # occupants back already existed (anzu_tex_stream, kitchen_stream_owned_textures).
-# What is left on the mesh-art rows is x320 and x704 at y=0 and x768/x832 at
-# y=256, and the one to write a restore against is whichever module still puts
-# the displaced texture up on its own entry.
 #
 # >>> AND READ THE OTHER OCCUPANTS LINE BELOW BEFORE PICKING ONE. <<< This map
 # used to print only the occupants it knew needed a way back, which made x704 y0
@@ -120,6 +117,22 @@ RESERVED = dict(ASAG.RESERVED)
 # texture takes all 64 columns of a page, so it lands on both halves; the
 # "others" list is now printed for exactly that reason, and py tools/vram_map.py
 # is still the authority that catches it.
+#
+# >>> THE PIT THEN TOOK x704 y0 ANYWAY, ON PURPOSE, AND IT IS THE LAST WHOLE
+# MESH-ART PAGE THIS CHAPTER HAS TAKEN. <<< The paragraph above is a warning
+# about that page and not a prohibition: what it actually asks for is that all
+# EIGHT of its occupants be walked back to a live restore before the pairs are
+# written, which is what rusty.tim did (anzu_tex_stream for anzu3/anzu6, plus the
+# entry uploaders of delivery, the 2F hall, the garden stairs, the chain room, the
+# stables and the greenhouse - SEVEN calls now load-bearing for one wall
+# texture). The full list is in tools/vram_map.py beside the pairs and in
+# src/the_pit.c.
+#
+# WHAT IS LEFT on the mesh-art rows is x320 at y=0 and x768/x832 at y=256, all
+# three "needs a way back first", and there is no page like x576 or x704 left -
+# i.e. no whole page whose displaced occupants all already have a restore. The
+# next Chapter 3 texture should expect to BORROW ART through a narrow uploader
+# rather than take a slot.
 # ---------------------------------------------------------------------------
 BANK = {
     "cobblestones.tim":         "every room's floor and walls   x384 y0",
@@ -131,6 +144,7 @@ BANK = {
     "arms.tim":                 "the Room of Arms' arms field   x640 y0",
     "oil_container.tim":        "the oil dispenser              x896 y256",
     "crib.tim":                 "the Room of Arms' crib         x576 y0",
+    "rusty.tim":                "The Pit's shaft ironwork       x704 y0",
     "crawler_a.tim":            "Crawler frames 0,1             x320 y128",
     "crawler_b.tim":            "Crawler frames 2,3             x704 y128",
     "lumberer_a.tim":           "Lumberer images 1-3            x448 y128",

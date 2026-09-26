@@ -138,6 +138,16 @@ typedef enum {
                                 — seen through a gap in that screen and never
                                 walked into. See src/room_of_arms.h. Appended,
                                 not inserted: saves store raw enum values. */
+    STATE_THE_PIT,           /* THE PIT, through the NORTH door of the Tomb — the
+                                last of that room's three drawn doors. Chapter 3's
+                                sixth room and the first two-height room in the
+                                chapter that is not a maze: a shaft 4800 by 3900
+                                with a gallery running round three sides at
+                                y=-1000 and the pit floor 1000 below it at y=0.
+                                The two do not connect yet; the player walks the
+                                gallery and looks down. See src/the_pit.h.
+                                Appended, not inserted: saves store raw enum
+                                values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

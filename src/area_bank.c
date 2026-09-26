@@ -107,6 +107,15 @@ TexBank area_bank_of(GameState area) {
        burial hall to draw the loculus, which is why the third of those
        uploaders exists at all. */
     case STATE_ROOM_OF_ARMS:
+    /* >>> THE PIT IS THE FIRST CHAPTER 3 ROOM SINCE THE ROOM OF ARMS TO BE HERE
+       BECAUSE IT OWNS SOMETHING, not merely because it borrows. <<< It draws
+       COBBLE and CTCMBDR through the Catacombs Entry's two narrow uploaders like
+       the three rooms above, AND it registers RUSTY.TIM itself — so this case is
+       load-bearing twice over: without it the_pit_upload_textures()' borrowed
+       pages would be out of bank, and the room's OWN registration would be
+       tagged with whatever texmgr_set_bank last selected. py
+       tools/check_tex_banks.py walks the graph and fails if the two disagree. */
+    case STATE_THE_PIT:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -120,7 +129,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_UP_DOWN_MAZE ||
            area == STATE_INCINERATOR_ROOM ||
            area == STATE_TOMB ||
-           area == STATE_ROOM_OF_ARMS;
+           area == STATE_ROOM_OF_ARMS ||
+           area == STATE_THE_PIT;
 }
 
 /* ---- The prop models -------------------------------------------------------

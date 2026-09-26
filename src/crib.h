@@ -409,7 +409,9 @@ void cribs_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
  * live every frame rather than caching the answer in the instance, so the order
  * of room init, world_enter() and savegame_apply_pending() cannot matter.
  * See the long note at the top of this file for why this is not a GameFlag. */
-uint32_t crib_solved_mask(void);
-void     crib_solved_mask_set(uint32_t mask);   /* load; replaces the whole set */
+/* uint64_t since The Pit took room slot 32 and widened WorldDelta.visited and
+ * cribs_solved beside it (src/world.h). One bit per room, ceiling 64. */
+uint64_t crib_solved_mask(void);
+void     crib_solved_mask_set(uint64_t mask);   /* load; replaces the whole set */
 int      crib_room_solved(GameState area);
 #endif

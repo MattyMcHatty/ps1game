@@ -322,10 +322,38 @@ void tomb_upload_textures(void) {
 #define TOMB_WEST_Z           2700     /* the art spans z[2600,2800] */
 #define TOMB_WEST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
 
+/* ---- THE NORTH DOOR --------------------------------------------------------
+   z=4200, x[-2200,-2000], y[-400,0] — in the outer north wall, and the LAST of
+   this room's three drawn doors to be wired up. Through it is THE PIT
+   (src/the_pit.h), the chapter's sixth room, and it arrives on that room's UPPER
+   level: the gallery running round three sides of its shaft at y=-1000.
+
+   >>> IT IS AN XY-PLANE DOOR AND THE OTHER TWO ARE YZ, WHICH IS WHY THIS BLOCK IS
+   NOT A COPY OF EITHER. <<< Wall 19 runs z=4200 with nz=-4096, so the walkable
+   side is -Z: the player stands SOUTH of this door and approaches it from -Z. For
+   an XY-plane door that is mirror=0, with the sign 11 units proud of the wall
+   along -Z. Both other doors in this room fix X and vary Z; this one fixes Z and
+   varies X, and the two rules do not transpose into each other.
+
+   >>> AND THE READING AXIS MOVES WITH THE PLANE: an XY sign reads along X, so the
+   -200 door_draw_string_3d wants goes on the X argument here, where the east and
+   west doors put it on Z. <<< Neither mistake fails loudly — the wrong mirror
+   reads backwards, the wrong axis sits 200 units inside the wall — so the pair is
+   spelled out at the call site in tomb_draw() beside the other two.
+
+   THE FAR SIDE'S DOOR TAKES THE OPPOSITE PAIR, for the usual reason in reverse:
+   The Pit's south door is approached from +Z, so mirror=1 and +11. Its sign Y is a
+   GALLERY Y (-1186) and not this room's -186 — the two rooms are 1000 apart in
+   height and each states its own. */
+#define TOMB_NORTH_X        (-2100)    /* the art spans x[-2200,-2000] */
+#define TOMB_NORTH_Z          4199
+#define TOMB_NORTH_TEXT_Y     (-186)   /* eye level on the y=0 floor */
+
 /* Circle edge-detect, one seed per door. Seeded "held" by the arm below so a
    press carried in through the transition cannot fire on the arrival frame. */
-static int east_circle_prev = 1;
-static int west_circle_prev = 1;
+static int east_circle_prev  = 1;
+static int west_circle_prev  = 1;
+static int north_circle_prev = 1;
 
 static int circle_held(void) {
     return interact_tapped();
@@ -333,8 +361,9 @@ static int circle_held(void) {
 
 void tomb_arm(void) {
     int held = circle_held();
-    east_circle_prev = held;
-    west_circle_prev = held;
+    east_circle_prev  = held;
+    west_circle_prev  = held;
+    north_circle_prev = held;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -363,6 +392,10 @@ int tomb_east_door_triggered(int lock) {
 
 int tomb_west_door_triggered(int lock) {
     return door_triggered(lock, TOMB_WEST_X, TOMB_WEST_Z, &west_circle_prev);
+}
+
+int tomb_north_door_triggered(int lock) {
+    return door_triggered(lock, TOMB_NORTH_X, TOMB_NORTH_Z, &north_circle_prev);
 }
 
 /* A door's floating sign. Same shape as every other sign in the game: opaque
@@ -396,6 +429,55 @@ static void tomb_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
                         door_x + standoff, text_y, door_z - 200,
                         50, 255, 50, fade, mirror, TEXT_PLANE_YZ,
                         DOOR_PIXEL_SIZE);
+}
+
+/* The NORTH door's sign, which cannot go through the helper above: that one is
+   hard-wired to TEXT_PLANE_YZ and puts the -200 on Z, and an XY-plane door needs
+   TEXT_PLANE_XY with the -200 on X. Same fade curve and the same two radii, so
+   only the plane and the two offsets differ — which is exactly the difference the
+   door block above is about. It is spelled out here rather than folded into the
+   other helper behind a flag, so that reading either one tells the whole truth
+   about its own doors. */
+static void tomb_north_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - TOMB_NORTH_X;
+    int32_t dz = cam_z - TOMB_NORTH_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= TOMB_TEXT_RADIUS) return;
+
+    if (xz > TOMB_FADE_NEAR) {
+        int range = TOMB_TEXT_RADIUS - TOMB_FADE_NEAR;
+        int prog  = xz - TOMB_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    /* -200 on X, because an XY sign reads along X. -11 on Z and mirror=0, because
+       the player approaches from -Z. */
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        TOMB_NORTH_X - 200, TOMB_NORTH_TEXT_Y, TOMB_NORTH_Z - 11,
+                        50, 255, 50, fade, 0, TEXT_PLANE_XY,
+                        DOOR_PIXEL_SIZE);
+}
+
+void tomb_spawn_north(void) {
+    /* Arriving from The Pit. Clear of the wall push radius on the -Z side — the
+       walkable side of wall 19 — and facing -Z, the direction of travel through
+       the door, looking south down the chamber.
+
+       z=3980 IS MID-AISLE, AND THAT IS CHECKED RATHER THAN ASSUMED. The northern
+       row of loculus blocks runs z[3000,3600], so the aisle between it and the
+       north wall at z=4200 is 600 wide; 3980 sits in the middle of it, 220 off the
+       wall and 380 clear of the blocks. x=-2100 is inside the MIDDLE column's
+       footprint (x[-2400,-1800]) in plan but well north of it in z, so the walk in
+       is down open floor and not into a block face. */
+    cam_x   = TOMB_NORTH_X;
+    cam_y   = TOMB_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = TOMB_NORTH_Z - (TOMB_WALL_RADIUS + 25);
+    cam_rot = 2048;
+    tomb_arm();
 }
 
 void tomb_spawn_west(void) {
@@ -689,23 +771,27 @@ void tomb_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_tomb_smd(ctx);
 
-    /* >>> LEVEL 8 NOW REMOVES A LUMBERER AND *TWO* SIGNS. <<< This used to say
+    /* >>> LEVEL 8 NOW REMOVES A LUMBERER AND *THREE* SIGNS. <<< This used to say
        the room held no props and no enemies and that the east door's floating
-       string was all there is. It has a lumberer now (src/lumberer.h), walking
-       the aisle between the middle and eastern block columns, and a second sign
-       over the west door since the Room of Arms was built behind it — so the D
-       reading at levels 1, 4 and 8 is splitting this room's frame between
-       something and something else rather than between the mesh and one string,
-       which is the case STEP 3D of tools/DIAGNOSING_FRAME_RATE.txt was written
-       about (Reception's frame turned out to be its SIGNAGE and not its mesh,
-       because door_draw_string_3d has no facing test and queues every glyph in
-       full with the player's back to it — and with two signs in a 4200 room
-       there is always at least one of them behind the camera). */
+       string was all there is. It has a lumberer now (src/lumberer.h), walking the
+       aisle between the middle and eastern block columns, a second sign over the
+       west door since the Room of Arms was built behind it, and a THIRD over the
+       north door since The Pit was — so the D reading at levels 1, 4 and 8 is
+       splitting this room's frame between something and something else rather than
+       between the mesh and one string, which is the case STEP 3D of
+       tools/DIAGNOSING_FRAME_RATE.txt was written about (Reception's frame turned
+       out to be its SIGNAGE and not its mesh, because door_draw_string_3d has no
+       facing test and queues every glyph in full with the player's back to it —
+       and with THREE signs in a 4200 room at least two of them are behind the
+       camera at any moment, which makes this the closest room in Chapter 3 to the
+       case that measurement came from). */
     if (exp != DBG_EXP_NO_ENTITIES) {
         tomb_door_text(ctx, TOMB_EAST_X, TOMB_EAST_Z, TOMB_EAST_TEXT_Y,
                        -11, 1);   /* east: approached from -X */
         tomb_door_text(ctx, TOMB_WEST_X, TOMB_WEST_Z, TOMB_WEST_TEXT_Y,
                        +11, 0);   /* west: approached from +X */
+        tomb_north_door_text(ctx); /* north: XY plane, approached from -Z — its
+                                      own helper, see the note above it */
         /* BOTH CHAPTER 3 ENEMIES, and both are drawn in all five of its rooms
            whether or not world.c places one here. That is deliberate and it is
            what "either enemy may go in any Catacombs room" actually costs: the

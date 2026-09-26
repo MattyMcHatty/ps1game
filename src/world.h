@@ -22,7 +22,7 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 32  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 33  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
@@ -31,7 +31,7 @@
                                library_destroyed, stables, keystone_maze,
                                greenhouse, chain_room, the_hatch, asag_arena,
                                catacombs_entry, up_down_maze, incinerator_room,
-                               tomb, room_of_arms.
+                               tomb, room_of_arms, the_pit.
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
                                are alternative rooms behind the same doors, and
@@ -43,13 +43,19 @@
                                is now a uint32_t and the ceiling is 32. The
                                _Static_assert in world.c holds the two in step —
                                widen it again, don't just bump this.
-                               >>> AND 32 IS WHERE IT NOW STANDS. <<< The Room of
-                               Arms is the thirty-second room and it fills the
-                               uint32_t EXACTLY. The assert will fire on the next
-                               one; widening `visited` to uint64_t is the fix,
-                               and it changes the on-card delta's size, so the
-                               version check in savegame.c has to move with it.
-                               Do not reach for a narrower trick. */
+                               >>> IT IS 64 NOW, AND THE PREDICTION ABOVE CAME
+                               TRUE ON THE VERY NEXT ROOM. <<< The Room of Arms
+                               was the thirty-second and filled the uint32_t
+                               exactly; THE PIT is the thirty-third, the assert
+                               fired, and `visited` is a uint64_t — as is
+                               `cribs_solved`, which is capped by the same number
+                               and had to be widened beside it. The ceiling is 64.
+                               No SAVE_VERSION bump was needed for it: sizeof
+                               WorldDelta moved (one more RoomDelta plus eight
+                               bytes of bitmap), so the delta_size check in
+                               savegame.c rejects every older save cleanly, which
+                               is what a room addition does anyway. Do not reach
+                               for a narrower trick when 64 fills up either. */
 
 /* This area's slot number, 0..WORLD_NUM_ROOMS-1. The public face of world.c's
    room_index(), for anything outside that file that has to key persistent state
@@ -61,6 +67,27 @@
    sharp edge for a caller storing something permanent, so only ever pass a
    GameState that is a real room. Menu and cutscene states are not. */
 int  world_room_index(GameState area);
+
+/* ---- One room's bit in a 64-bit room bitmap --------------------------------
+ * WorldDelta.visited and WorldDelta.cribs_solved are uint64_t (The Pit is room 32
+ * and the uint32_t they used to be held exactly 32), and every read and write of
+ * them has to go through this rather than shifting directly.
+ *
+ * >>> A 64-BIT SHIFT BY A *VARIABLE* DOES NOT LINK IN THIS TOOLCHAIN. <<< It
+ * compiles to a call to libgcc's __ashldi3 / __lshrdi3, and -nostdlib means there
+ * is no libgcc to call: `1ull << r` for a variable r is two undefined references
+ * at LINK time, which is exactly how widening these fields failed the first time.
+ * (collision.c's walls_crossed() records the same constraint for 64-bit DIVIDE.)
+ *
+ * A shift by a CONSTANT is fine — it is a register move, not a helper call — so
+ * this builds the word out of one 32-bit variable shift and one constant 32, and
+ * the whole thing is a couple of instructions inline. `r` must be a valid room
+ * index; anything from world_room_index() is.
+ */
+static inline uint64_t world_room_bit(int r) {
+    return (r < 32) ? (uint64_t)(1u << r)
+                    : ((uint64_t)(1u << (r - 32)) << 32);
+}
 
 void world_new_game(void);          /* reset all rooms; capture the starting room */
 void world_leave(GameState area);   /* live entities  -> the area's saved slot */
@@ -158,10 +185,12 @@ typedef struct {
 } RoomDelta;                  /* 10 bytes */
 
 typedef struct {
-    /* bit r: room r entered. uint32_t, not uint16_t: this is the field that
-       caps WORLD_NUM_ROOMS, and the sixteenth room filled the old one exactly.
-       Widening it costs two bytes of a delta that has thousands spare. */
-    uint32_t  visited;
+    /* bit r: room r entered. uint64_t now: this is the field that caps
+       WORLD_NUM_ROOMS, and it has filled up TWICE — the sixteenth room filled the
+       uint16_t exactly and the thirty-second filled the uint32_t exactly.
+       Widening it costs four more bytes of a delta with thousands spare, so the
+       only reason it was ever narrower is that nobody needed it wider. */
+    uint64_t  visited;
     uint8_t   spiders_dead;                       /* keyed by (area, ordinal) */
     uint8_t   crawlers_dead;                      /* likewise; see
                                                      WD_MAX_CRAWLERS       */
@@ -193,16 +222,17 @@ typedef struct {
        keyed by, and the room is both the only stable identity available and the
        one the design cares about.
 
-       >>> IT IS A uint32_t FOR THE SAME REASON `visited` IS, AND IT IS CAPPED BY
-       THE SAME NUMBER. <<< One bit per room, WORLD_NUM_ROOMS is 32, and the
-       _Static_assert in world.c holds the two in step. Widening `visited` for a
-       thirty-third room means widening this beside it.
+       >>> IT IS A uint64_t FOR THE SAME REASON `visited` IS, AND IT IS CAPPED BY
+       THE SAME NUMBER. <<< One bit per room, WORLD_NUM_ROOMS is 33, and the
+       _Static_assert in world.c holds the two in step. That note used to say
+       "widening `visited` for a thirty-third room means widening this beside it",
+       and The Pit is that room, so both are 64 bits now.
 
        >>> AND IT IS HERE RATHER THAN IN game_flags BECAUSE game_flags IS FULL.
        <<< That word is 32 bits in SaveData and 31 of them are spent
        (FLAG_ASAG_DEAD is bit 30). A mechanic that is going into several rooms
        needs a SET of bits and there was one left. See src/crib.h. */
-    uint32_t  cribs_solved;
+    uint64_t  cribs_solved;
 } WorldDelta;
 
 /* Encode the current world into `d`. Call after world_leave() has flushed the

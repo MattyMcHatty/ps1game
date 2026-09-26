@@ -965,11 +965,11 @@
              after TEXASAG, so its record lands in the root's SECOND sector.
              Run py tools/check_disc_root.py after ANY change here.
 
-             THE TEXTURES. Eight now — four room textures (the three the burial
-             hall owns plus the Room of Arms' field of arms) and one each for the
-             sconce, the oil dispenser, the incinerator and the crib (all added
-             below, with their own notes) — and they are the whole chapter's art
-             so far.
+             THE TEXTURES. Nine now — five room textures (the three the burial
+             hall owns, the Room of Arms' field of arms and The Pit's rusty
+             ironwork) and one each for the sconce, the oil dispenser, the
+             incinerator and the crib (all added below, with their own notes) —
+             and they are the whole chapter's art so far.
              Every one is registered DEFERRED (src/texmgr.h): the name is
              recorded at startup and NOTHING is read, so Chapters 1 and 2 pay
              nothing for them. They are read at the one door that reaches this
@@ -1099,6 +1099,71 @@
                  after any re-export anyway. -->
             <file name="ARMSROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\room_of_arms.smd"/>
             <file name="ARMS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\arms.tim"/>
+
+            <!-- THE PIT, the chapter's SIXTH room, behind the NORTH door of the
+                 Tomb - the last of the three doors that room's header has been
+                 listing as drawn-but-sealed. A shaft 4800 by 3900 open from top
+                 to bottom, with a GALLERY round three of its sides at y=-1000
+                 and the PIT FLOOR 1000 units below it at y=0, under a vault at
+                 y=-1800: 800 of headroom over the gallery, 1800 over the pit,
+                 which is the deepest drawn space in the game.
+
+                 >>> THE TWO LEVELS DO NOT CONNECT YET, AND THAT IS KNOWN. <<<
+                 There is no ramp, stair or drop between them: the player comes
+                 in on the gallery, walks a U that dead-ends at both ends, and
+                 looks down into the shaft. The way down is a later job. See
+                 src/the_pit.h.
+
+                 ONE NEW TEXTURE, and it is the chapter's second room texture
+                 that is not the Catacombs Entry's. COBBLE.TIM and CTCMBDR.TIM
+                 come through that room's narrow uploaders as every Chapter 3
+                 room's do; RUSTY.TIM is the corroded ironwork lining the shaft,
+                 new art only this room draws, so this room owns it and
+                 registers it DEFERRED like the rest of the chapter.
+
+                 >>> ITS VRAM PAGE IS x704 y0 - THE LAST WHOLE MESH-ART PAGE IN
+                 THIS BANK, AND THE EXPENSIVE ONE. <<< The crib's note further
+                 down explains why that prop went to x576 instead: x704's LEFT
+                 half is SIX 4bpp garden textures that
+                 tools/VRAM_MAP_CATACOMBS.txt does not print at all, and an 8bpp
+                 128 texture takes all 64 columns of a page, so it lands on every
+                 one of them. That is not a reason never to take it; it is a
+                 reason to walk all eight occupants back to a live restore first,
+                 which was done:
+                   anzu3, anzu6          -&gt; anzu_tex_stream(),        piano room
+                   rusty_fence           -&gt; delivery_restore_textures()
+                   upstairs              -&gt; hall_2f_upload_upstairs()
+                   gravel_gs             -&gt; garden_stairs' uploader
+                   chain                 -&gt; chain_room's uploader
+                   stable glyphs         -&gt; stables' uploader
+                   poison_flower_base_gh -&gt; greenhouse's uploader
+                 All seven are rooms the player walks INTO, so a title load into
+                 a Chapter 1 or 2 save puts the right pixels up on arrival. SEVEN
+                 CALLS ARE LOAD-BEARING FOR THIS ONE TEXTURE NOW. Do NOT take a
+                 page like this without doing that walk, and run
+                 py tools/vram_map.py, which is the authority.
+
+                 Its CLUT is borrowed from anzu3.tim at (256,485), on the arms
+                 field's and the crib's argument: a palette belonging to a
+                 texture whose PIXELS it already displaces on this same page, so
+                 the two go back together in the one anzu stream.
+
+                 >>> AND THAT REGISTRATION WAS THE 72nd OF 72 - THE ARRAY WAS
+                 EXACTLY FULL. <<< TEXMGR_MAX in src/texmgr.c is 80 now; a
+                 register past the cap returns -1 SILENTLY and breaks that
+                 texture in every room that draws it. Count with
+                 py tools/heap_budget.py before adding the 73rd.
+
+                 RUSTY.TIM is built from textures/catacombs/rusty_128.png, which
+                 is the 64x64 source STRETCHED rather than TILED - measured, not
+                 assumed, against cobblestones in the same mesh. The arithmetic is
+                 in src/the_pit.c beside the texture list.
+
+                 THEPIT.SMD, 33,028 bytes, comfortably inside the arena
+                 MAZEONE.SMD already sizes (src/room_arena_size.h) - re-run
+                 py tools/gen_room_arena.py after any re-export anyway. -->
+            <file name="THEPIT.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\the_pit.smd"/>
+            <file name="RUSTY.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\rusty.tim"/>
 
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the

@@ -70,7 +70,7 @@ they are in the arena, or during the transition out of it:
                                  SCREEN over it (begin_loading_transition in
                                  src/main.c, and src/asag_boss.h). There is no
                                  door_anim in that path at all, so there is no
-                                 panel to survive across it â€” which is the one
+                                 panel to survive across it — which is the one
                                  thing this entry was ever about. A future exit
                                  that DOES animate a door puts its panel back on
                                  this list.
@@ -215,11 +215,11 @@ first answer to that (the Stables and the Greenhouse, behind the Rear Gate) and
 tools/VRAM_MAP_ASAG.txt pushed it as far as it goes (one sealed arena, eleven
 free pages). THE CATACOMBS IS THE THIRD SUCH POCKET AND NOBODY HAD MEASURED IT.
 
-It is a good one. Chapter 3 is FOUR rooms behind a one-way mouth and between
-them they draw SEVEN textures:
+It is a good one. Chapter 3 is SIX rooms behind a one-way mouth and between them
+they draw TEN textures:
 
     cobblestones, catacomb inner door, loculus, lamashtu tablet, sconce,
-    oil_container, incinerator
+    oil_container, incinerator, arms, crib, rusty
 
 ...plus the enemy sheets, the shadow, the HUD and the player's kit. Everything
 else in VRAM while the player is down there is art from a chapter they cannot
@@ -302,6 +302,7 @@ THIS BANK'S OWN ART
   lumberer_a.tim             Lumberer images 1-3            x448 y128
   lumberer_b.tim             Lumberer images 4-6            x832 y128
   oil_container.tim          the oil dispenser              x896 y256
+  rusty.tim                  The Pit's shaft ironwork       x704 y0
   sconce.tim                 the wall sconces               x448 y0
 
 THE SPRITE BAND  y[128,256)   (Voff 128: sprites only - a room's 128-tall
@@ -321,7 +322,7 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x512  IN USE by this bank: loculus.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim]
   x576  IN USE by this bank: crib.tim
   x640  IN USE by this bank: arms.tim   [also on this page, all re-uploaded on room entry: asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, hatch.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
-  x704  AVAILABLE, needs a way back first: anzu3.tim, anzu6.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
+  x704  IN USE by this bank: rusty.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
   x768  IN USE by this bank: lamashtu tablet.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
   x832  IN USE by this bank: catacomb inner door.tim   [also on this page, all re-uploaded on room entry: con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, stables wood.tim, xt_dr_cg.tim]
   x896  BLOCKED - reserved: ghit.tim
@@ -332,7 +333,7 @@ MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
   x448  BLOCKED - reserved: flm_rnds.tim, hatch_key.tim
   x512  BLOCKED - reserved: grn_ky_stn.tim, helluminator.tim, wx_cb.tim   [also on this page, all re-uploaded on room entry: pipe_button_off.tim, pipe_button_on.tim]
   x576  BLOCKED - reserved: bl_ky_stn.tim, pno_key.tim, vlv_hndl.tim
-  x640  BLOCKED - reserved: mgn_ky_stn.tim, sml_med.tim
+  x640  BLOCKED - reserved: mgn_ky_stn.tim, sml_med.tim   [also on this page, all re-uploaded on room entry: creep.tim]
   x704  IN USE by this bank: incinerator.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, vines.tim]
   x768  AVAILABLE, needs a way back first: wd_dr.tim
   x832  AVAILABLE, needs a way back first: wd_dr.tim

@@ -84,12 +84,13 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   rabisu.c                 1         18432
   room_of_arms.c           1         18432
   sconce.c                 1         18432
+  the_pit.c                1         18432
   concrete_props.c         1         10240
   east_stairwell.c         1         10240
   piano_room.c             1         10240
   reception.c              1         10240
   creep.c                  1          6144
-  TOTAL                    71      1097728
+  TOTAL                    72      1116160
 
 DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)
   none
@@ -151,18 +152,18 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x80111548
+  _end (heap start)   0x80113718
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             829432 bytes (810 KB)
+  heap size             820776 bytes (802 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak bank      487424 bytes (476 KB)  58.8%   <- MANSION
+  texmgr peak bank      487424 bytes (476 KB)  59.4%   <- MANSION
   kept buffers           20480 bytes (20 KB)   2.5%
   chapter-scoped         43008 bytes (42 KB)   5.2%
-  PERMANENT TOTAL       550912 bytes (538 KB)  66.4%
-  FREE AT REST          278520 bytes (272 KB)  33.6%   <- STACK ALREADY SUBTRACTED
-                                  (was 426672 before the stack was counted;
+  PERMANENT TOTAL       550912 bytes (538 KB)  67.1%
+  FREE AT REST          269864 bytes (264 KB)  32.9%   <- STACK ALREADY SUBTRACTED
+                                  (was 418016 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -216,7 +217,7 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 271 KB printed above.
+  once read_file's margin comes off - against the 263 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

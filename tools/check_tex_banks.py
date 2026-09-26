@@ -116,6 +116,14 @@ AREAS = {
                   # the walk below reaches through this entry.
                   "tomb_upload_textures",
                   "room_of_arms_upload_textures",
+                  # THE PIT, the chapter's sixth room, and the SECOND to own a
+                  # texture rather than only borrow: rusty.tim, the ironwork
+                  # lining the shaft, on x704 y0. The walk reaches
+                  # catacombs_entry.c's cobble and inner-door uploaders through
+                  # this entry as the four rooms above do, and it is also what
+                  # proves the_pit.c's own texmgr_set_bank(TEXBANK_CATACOMBS) is
+                  # the right mask rather than a guess.
+                  "the_pit_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

@@ -14,7 +14,11 @@
    alone costs almost nothing at runtime.
 
    Raised 48 -> 56 when the Rafflesia arrived, 56 -> 64 for Maze Two's plinth,
-   64 -> 72 for the Greenhouse. The live count is 63.
+   64 -> 72 for the Greenhouse, and 72 -> 80 for THE PIT's rusty ironwork, whose
+   registration was the 72nd of 72 — i.e. the array was exactly full and the next
+   one would have been the silent failure described above. The live count is 72;
+   py tools/heap_budget.py prints it, and it is the number to check rather than
+   this sentence.
 
    59 -> 63 for the CRAWLER, and note that only two of those four are the new
    enemy. Its sprite sheet is two entries because its frames are 128x128 and an
@@ -34,7 +38,7 @@
    texmgr.h, and tools/check_tex_banks.py, which is what stops a mis-tagged
    texture becoming a silent rendering bug. */
 
-#define TEXMGR_MAX 72
+#define TEXMGR_MAX 80
 
 typedef struct {
     uint8_t  *buf;    /* pixels: held only while a bank containing this is in  */

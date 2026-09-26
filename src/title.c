@@ -168,6 +168,19 @@ static const char *const level_names[] = {
 
        12 characters, inside the 14 the column allows. */
     "ROOM OF ARMS",
+    /* THE PIT, the chapter's sixth room. Reached in play only through the Tomb's
+       north door, FIVE rooms deep, so this row is the only practical way to look
+       at it - and like every other row it goes through STATE_LOADING, which is
+       what makes area_bank_sync() run.
+
+       >>> AND IT IS THE ROW THAT MATTERS MOST FOR THIS ROOM, because the jump
+       lands on the GALLERY and not in the pit. <<< the_pit_init() calls
+       the_pit_spawn_south(), whose cam_y is the y=-1000 walkway's eye height; a
+       jump that arrived at the ground-floor eye would be standing 1000 units down
+       the shaft on the one floor that has no way out of it.
+
+       7 characters, well inside the 14 the column allows. */
+    "THE PIT",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -206,6 +219,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* INCINERATOR ROOM */
     STATE_LOADING,        /* TOMB */
     STATE_LOADING,        /* ROOM OF ARMS */
+    STATE_LOADING,        /* THE PIT */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -242,6 +256,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_INCINERATOR_ROOM,
     STATE_TOMB,
     STATE_ROOM_OF_ARMS,
+    STATE_THE_PIT,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

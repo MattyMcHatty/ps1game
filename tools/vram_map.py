@@ -732,6 +732,41 @@ KNOWN_STREAM_PAIRS = [
     ("anzu2.tim",     "crib.tim"),
     ("anzu5.tim",     "crib.tim"),
     ("red_wlppr.tim", "crib.tim"),
+    #   rusty.tim -> x704 y0, THE PIT's corroded ironwork. This is the OTHER page
+    # the anzu_tex_stream() note held open, and the crib's entry above is a
+    # written-down warning about taking it: "x704's LEFT half is six 4bpp garden
+    # textures that the [Catacombs] view does not print at all; an 8bpp 128
+    # texture takes all 64 columns, so it lands on every one of them. The first
+    # attempt went to x704 and this check caught the six."
+    #
+    # >>> IT IS TAKEN DELIBERATELY THIS TIME, AND ALL EIGHT OCCUPANTS WERE WALKED
+    # BACK TO A LIVE RESTORE BEFORE THE PAIRS WERE WRITTEN. <<< That is the only
+    # thing that separates this from the mistake that note records — the page is
+    # not safer than it was, the eight restores are simply all present:
+    #   anzu3, anzu6              -> anzu_tex_stream(),                piano room
+    #   rusty_fence               -> delivery_restore_textures(),      delivery
+    #   upstairs                  -> hall_2f_upload_upstairs(),        2F hall
+    #   gravel_gs                 -> garden_stairs' uploader,          stairs
+    #   chain                     -> chain_room's uploader,            chain room
+    #   stable glyphs             -> stables' uploader,                stables
+    #   poison_flower_base_gh     -> greenhouse's uploader,            greenhouse
+    # Every one of them is a room the player walks INTO, so a title load straight
+    # into a Chapter 1/2 save puts the right pixels up on arrival. Seven calls are
+    # now load-bearing for this one wall texture, which is six more than the
+    # crib's page cost — the price of the last whole page in the chapter's bank.
+    #
+    # Its CLUT is BORROWED on the arms field's and the crib's argument: from
+    # anzu3.tim at (256,485), a palette belonging to a texture whose PIXELS it is
+    # already displacing on this very page, so the two go back together in the one
+    # anzu stream. The 256-word runs left in this map are not what a wall spends.
+    ("anzu3.tim",                 "rusty.tim"),
+    ("anzu6.tim",                 "rusty.tim"),
+    ("chain.tim",                 "rusty.tim"),
+    ("gravel_gs.tim",             "rusty.tim"),
+    ("poison_flower_base_gh.tim", "rusty.tim"),
+    ("rusty_fence.tim",           "rusty.tim"),
+    ("stable glyphs.tim",         "rusty.tim"),
+    ("upstairs.tim",              "rusty.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not
