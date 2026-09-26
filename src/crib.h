@@ -35,14 +35,15 @@
    the second:
 
      CRIB_IDLE      at rest, unsolved. A connected crucifaxe swing -> ACTIVE.
-     CRIB_ACTIVE    tick 0            the rock starts, at full amplitude
+     CRIB_ACTIVE    tick 0            the rock starts, at full amplitude, and
+                                      SFX_CREEP is keyed on (CRIB_LOOP_FRAMES)
                     tick 0..180       the beam grows from nothing to full (3 s)
                     tick 180..240     the beam holds, nothing spawns (1 s)
                     tick 240          the first Creep
-                    every 180 after   the next, to ten in all (last at 1860)
+                    every 90 after    the next, to ten in all (last at 1050)
                     then it waits, still rocking and lit, for the tenth body
-     CRIB_CLOSING   all ten dead: the beam fades and the rock damps out over
-                    60 frames. >>> THE SOLVED BIT IS SET ON ENTRY TO THIS
+     CRIB_CLOSING   all ten dead: SFX_CREEP stops, the beam fades and the rock
+                    damps out over 60 frames. >>> THE SOLVED BIT IS SET ON ENTRY TO THIS
                     STATE, NOT AT THE END OF IT. <<< A player who walks out
                     during the one-second outro has beaten it; making them
                     watch the light go out to keep the result would be the
@@ -259,10 +260,33 @@
 /* ---- Encounter timing, all in frames at 60 to the second ---------------- */
 #define CRIB_BEAM_RAMP        180   /* nothing -> full intensity: 3 seconds   */
 #define CRIB_BEAM_HOLD         60   /* lit, and one more second before a body */
-#define CRIB_SPAWN_INTERVAL  180   /* a Creep every 3 seconds                */
+#define CRIB_SPAWN_INTERVAL   90   /* a Creep every 1.5 seconds              */
 #define CRIB_CREEP_TOTAL       10   /* ten of them, and then no more          */
 #define CRIB_CLOSING_FRAMES   60   /* the outro: beam out, rock damps, 1 s    */
 #define CRIB_ECHO_FRAMES      90   /* a solved crib's single rock             */
+
+/* ---- THE ENCOUNTER'S LOOP -------------------------------------------------
+ * SFX_CREEP is keyed on the first frame of CRIB_ACTIVE and re-keyed every
+ * CRIB_LOOP_FRAMES for as long as the cot is pouring, so the room has a voice
+ * under it from the swing that wakes the crib to the death of the tenth Creep.
+ * It is silenced on entry to CRIB_CLOSING — with the SOLVED bit, at the START of
+ * the outro — and again by cribs_rest(), which is what covers leaving the room,
+ * dying and saving.
+ *
+ * >>> 350 IS THE CLIP'S OWN LENGTH AND NOT A ROUND NUMBER. <<< creep.vag is
+ * 2302 ADPCM blocks of 28 samples at 11025 Hz, i.e. 350.8 frames at 60, so
+ * re-keying on 350 lands just INSIDE the tail and the loop has no seam. Round it
+ * up and there is an audible gap every six seconds; re-cut the clip and this
+ * number has to be re-derived from the new one (tools/ADDING_A_SOUND.txt STEP 1
+ * prints the block count).
+ *
+ * >>> IT IS A C-SIDE RETRIGGER AND IT MUST STAY ONE. <<< The clip has no ADPCM
+ * loop flag on its first block, which is the only reason SFX_CREEP could be put
+ * on voice 20 at all — a hardware-looped sample latches its own address into
+ * that voice's repeat register for the rest of the run and breaks every one-shot
+ * later given the voice. sound.c's note on the voice is the long version, and
+ * zombie.c's groan is the pattern this copies. */
+#define CRIB_LOOP_FRAMES     350
 
 /* The rock. CRIB_ROCK_PERIOD is one complete left-right-left cycle, so
    CRIB_ECHO_FRAMES is exactly one of them. CRIB_ROCK_AMP is in PS1 angle units

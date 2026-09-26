@@ -13,6 +13,7 @@
 #include "world.h"          /* world_room_index() — the solved set's key       */
 #include "creep.h"          /* what the encounter pours out                    */
 #include "crucifaxe.h"      /* SWING_RANGE, for cribs_try_hit                   */
+#include "sound.h"          /* SFX_CREEP — the encounter's loop                 */
 #include "crib.h"
 
 /* Crib — see crib.h for what it is, for the whole encounter timeline, for why
@@ -376,9 +377,28 @@ void cribs_update(void) {
         case CRIB_ACTIVE:
             c->tilt = crib_rock(c->tick, CRIB_ROCK_AMP);
 
+            /* THE LOOP, RE-KEYED IN C AND NOT IN HARDWARE. tick is 0 on the
+               first ACTIVE frame, so this keys the clip on with the rock and
+               again every CRIB_LOOP_FRAMES — which is the sample's own length,
+               so there is no seam. It keeps going through the whole pour AND
+               through the wait for the last body, because tick keeps counting
+               in both. crib.h says why a hardware loop is not an option and
+               sound.c's note on voice 20 says it at length.
+
+               ONE SITE, ON PURPOSE: cribs_try_hit() deliberately does NOT play
+               it when it wakes the cot. Doing both would double-key the voice on
+               whichever frame ordering puts the swing before this update, and a
+               single frame of delay is inaudible. */
+            if (c->tick % CRIB_LOOP_FRAMES == 0) sound_play(SFX_CREEP);
+
             /* The cadence is FIXED: the timer runs whatever the player is doing
-               and whatever is still alive, so all ten are out in thirty seconds
-               and falling behind is punished. Written as an exact frame match
+               and whatever is still alive, so all ten are out in SEVENTEEN AND A
+               HALF seconds — 180 of beam ramp, 60 of hold, then nine intervals
+               of CRIB_SPAWN_INTERVAL — and falling behind is punished hard. The
+               interval was 180 frames and is now 90, which halves the room the
+               player has to clear bodies in and is the whole difficulty knob on
+               this encounter; the ten-body total and the beam's opening 4
+               seconds are untouched. Written as an exact frame match
                rather than a countdown so the schedule cannot drift, and guarded
                on `spawned` so the last interval does not release an eleventh. */
             if (c->spawned < CRIB_CREEP_TOTAL) {
@@ -391,6 +411,11 @@ void cribs_update(void) {
                    crib.h — a player who leaves during the one second of the
                    light going out has still beaten it. */
                 crib_solved_rooms |= (uint32_t)1u << world_room_index(c->area);
+                /* And the voice goes with the beam. sound_stop() keys 20 off
+                   rather than letting the clip play out, so the room falls quiet
+                   on the frame the tenth body drops instead of carrying up to
+                   six seconds of it into the outro and past it. */
+                sound_stop(SFX_CREEP);
                 c->state = CRIB_CLOSING;
                 c->tick  = 0;
             }
@@ -416,6 +441,15 @@ void cribs_rest(void) {
     for (i = 0; i < crib_count; i++) {
         Crib *c = &cribs[i];
         if (!c->active) continue;
+        /* >>> SILENCE THE LOOP HERE TOO, AND IT IS NOT BELT-AND-BRACES. <<< This
+           is the abandonment path — a room change, a death, a save — and it is
+           the ONLY one that covers a player who walks out mid-pour. Without it
+           the voice is left keyed on with nothing updating it, and it would play
+           out its remaining seconds over the door animation and into the next
+           room, where nothing would ever re-key or stop it. Unconditional
+           because a crib not in CRIB_ACTIVE has no voice keyed on and keying off
+           an idle one costs a register write. */
+        sound_stop(SFX_CREEP);
         /* Re-read the set rather than trusting the state: a crib that reached
            CRIB_CLOSING has already banked its bit, so it settles into SOLVED
            here, while one abandoned mid-pour goes back to IDLE with the whole

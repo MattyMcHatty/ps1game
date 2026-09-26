@@ -36,11 +36,26 @@ int   creep_count = 0;
    py tools/heap_budget.py before adding the seventy-second. */
 static int creep_tex = -1;
 
-/* The shadow is the shared SHADOW.TIM every other enemy uses and stays a plain
-   startup LoadImage: it is in VRAM from boot, nothing time-shares its slot, and
-   the buffer is freed straight after, so the only cost is one CD read at boot.
-   Every enemy in src/ does this independently; it is the convention. */
-static uint16_t shadow_tpage = 0, shadow_clut = 0;
+/* >>> A CREEP CASTS NO SHADOW, AND IT IS THE ONLY ENEMY IN THE GAME THAT DOES
+   NOT. <<< Every other body in src/ loads the shared SHADOW.TIM and lays a floor
+   decal under itself; this one FLOATS at eye level (see creep.h) and never
+   touches the ground, so a hard-edged ellipse on the flagstones read as a body
+   standing where no body was.
+
+   THE WHOLE APPARATUS WENT, NOT JUST THE CALL SITE: the decal function, the two
+   CRP_SHADOW_* plan extents, the shadow_tpage/shadow_clut pair, the SHADOW.TIM
+   read at boot AND this module's private load_tim() helper, which existed only
+   to serve that one read. A dead LoadImage is still a CD read every boot and a
+   pair of statics nothing writes; leaving them behind would have been the more
+   expensive tidy. Note the helper is per-module by convention in this codebase,
+   so removing creep.c's copy takes nothing away from any other enemy - they all
+   still load the shared shadow through their own.
+
+   IT IS NOT A LEVER TO PUT BACK LIGHTLY. The decal was also the only thing that
+   grounded a creep in plan, so if one ever becomes hard to locate on the floor
+   the honest fix is the HOVER HEIGHT or the sprite - not a shadow under a thing
+   that is not standing on anything. git holds the removed function and helper if
+   a grounded relative of this enemy ever wants them. */
 
 /* The area's texture window, stored and not read — see creeps_set_texwindow()
    in creep.h for why it exists anyway. */
@@ -52,28 +67,6 @@ void creeps_set_texwindow(const RECT *tw) {
     else    { crp_tw_active = 0; }
 }
 
-static void load_tim(const char *filename, uint16_t *tpage_out, uint16_t *clut_out) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)filename)) return;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    TIM_IMAGE tim;
-    GetTimInfo((uint32_t *)buf, &tim);
-    LoadImage(tim.prect, tim.paddr);
-    DrawSync(0);
-    if (tim.mode & 0x8) {
-        LoadImage(tim.crect, tim.caddr);
-        DrawSync(0);
-    }
-    *tpage_out = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
-    *clut_out  = getClut(tim.crect->x, tim.crect->y);
-    free(buf);
-}
-
 void creeps_load_textures(void) {
     /* BANK: Chapter 3 and nothing else. Derived, not guessed — py
        tools/check_tex_banks.py walks the uploader call graph (this module is
@@ -81,8 +74,6 @@ void creeps_load_textures(void) {
        mask is short. Widen it the day a crib stands outside the Catacombs. */
     texmgr_set_bank(TEXBANK_CATACOMBS);
     creep_tex = texmgr_register("\\TEXCTCMB\\CREEP.TIM;1");
-
-    load_tim("\\SHADOW.TIM;1", &shadow_tpage, &shadow_clut);
 }
 
 void creeps_upload_texture(void) {
@@ -232,9 +223,12 @@ void update_creeps(void) {
 
         /* THE ANCHOR IS KEPT ON THE FLOOR EVERY FRAME, in both states. The body
            hovers, but c->y is still the floor probe's answer — that is what keeps
-           the ramps, the multi-storey zones and the drop shadow working with no
-           second height model (creep.h). vy stays at zero because nothing here
-           falls; the call is doing the floor CLAMP, not gravity. */
+           the ramps and the multi-storey zones working with no second height
+           model (creep.h). The drop shadow used to be the other thing that rode
+           on it and this enemy no longer has one, so the HOVER HEIGHT is now the
+           only consumer; the probe is still load-bearing for that alone. vy stays
+           at zero because nothing here falls; the call is doing the floor CLAMP,
+           not gravity. */
         apply_ddog_height(&c->x, &c->y, &c->z, &c->vy,
                           &c->on_upper_floor, &c->on_ramp);
 
@@ -368,76 +362,6 @@ void update_creeps(void) {
     }
 }
 
-static void draw_crp_shadow(RenderContext *ctx, Creep *c) {
-    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-    if (ctx->next_packet + sizeof(DR_TPAGE) + sizeof(POLY_FT4) > buf_end) return;
-
-    int32_t rx  = icos(cam_rot);
-    int32_t rz  = -isin(cam_rot);
-    int16_t dwx = (int16_t)((CRP_SHADOW_W * rx) >> 12);
-    int16_t dwz = (int16_t)((CRP_SHADOW_W * rz) >> 12);
-
-    int32_t fx  = isin(cam_rot);
-    int32_t fz  = icos(cam_rot);
-    int16_t ddx = (int16_t)((CRP_SHADOW_D * fx) >> 12);
-    int16_t ddz = (int16_t)((CRP_SHADOW_D * fz) >> 12);
-
-    /* Two units above the FLOOR, and the floor is the anchor plus
-       GROUND_FLOOR_Y by definition (apply_ddog_height sets the anchor to
-       zone->y - GROUND_FLOOR_Y, so adding it back recovers the surface).
-
-       >>> IT USED TO BE y + CRP_Y_OFFSET + CRP_HALF_H AND THAT ONLY WORKED BY
-       COINCIDENCE. <<< While the creep stood on the floor that sum was 150,
-       which is GROUND_FLOOR_Y (149) plus one — so the old line was reading the
-       floor through the sprite's extents. Now that the body floats, the same
-       expression comes to 46 and would hang the shadow a hundred units up in the
-       air under a creep's chin. The floor's height is a property of the FLOOR;
-       ask the constant that means it. */
-    int32_t shadow_y = c->y + GROUND_FLOOR_Y - 2;
-
-    SVECTOR sv[4];
-    sv[0].vx = (int16_t)(c->x - dwx - ddx); sv[0].vy = (int16_t)shadow_y; sv[0].vz = (int16_t)(c->z - dwz - ddz); sv[0].pad = 0;
-    sv[1].vx = (int16_t)(c->x + dwx - ddx); sv[1].vy = (int16_t)shadow_y; sv[1].vz = (int16_t)(c->z + dwz - ddz); sv[1].pad = 0;
-    sv[2].vx = (int16_t)(c->x - dwx + ddx); sv[2].vy = (int16_t)shadow_y; sv[2].vz = (int16_t)(c->z - dwz + ddz); sv[2].pad = 0;
-    sv[3].vx = (int16_t)(c->x + dwx + ddx); sv[3].vy = (int16_t)shadow_y; sv[3].vz = (int16_t)(c->z + dwz + ddz); sv[3].pad = 0;
-
-    DVECTOR ssv[4];
-    int32_t otz;
-
-    gte_ldv0(&sv[0]); gte_rtps(); gte_stsxy(&ssv[0]);
-    gte_ldv0(&sv[1]); gte_rtps(); gte_stsxy(&ssv[1]);
-    gte_ldv0(&sv[2]); gte_rtps(); gte_stsxy(&ssv[2]);
-    gte_ldv0(&sv[3]); gte_rtps(); gte_stsxy(&ssv[3]);
-
-    gte_avsz4();
-    gte_stotz(&otz);
-    if (otz <= 0) return;
-    otz += 2;                            /* just in front of the floor poly */
-    if (otz >= OT_LENGTH - 2) otz = OT_LENGTH - 3;
-
-    DR_TPAGE *tp = (DR_TPAGE *)ctx->next_packet;
-    setDrawTPage(tp, 0, 1, shadow_tpage);
-    addPrim(&ctx->buffers[ctx->active_buffer].ot[otz + 1], tp);
-    ctx->next_packet += sizeof(DR_TPAGE);
-
-    POLY_FT4 *poly = (POLY_FT4 *)ctx->next_packet;
-    setPolyFT4(poly);
-    setRGB0(poly, 128, 128, 128);
-    poly->x0 = ssv[0].vx; poly->y0 = ssv[0].vy;
-    poly->x1 = ssv[1].vx; poly->y1 = ssv[1].vy;
-    poly->x2 = ssv[2].vx; poly->y2 = ssv[2].vy;
-    poly->x3 = ssv[3].vx; poly->y3 = ssv[3].vy;
-    /* Shadow texture at VRAM (640,160): tpage base y=0, so V offset = 160. */
-    poly->u0 =  0; poly->v0 = 160;
-    poly->u1 = 63; poly->v1 = 160;
-    poly->u2 =  0; poly->v2 = 191;
-    poly->u3 = 63; poly->v3 = 191;
-    poly->clut  = shadow_clut;
-    poly->tpage = shadow_tpage;
-    addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
-    ctx->next_packet += sizeof(POLY_FT4);
-}
-
 /* The body quad: a camera-facing billboard, the zombie's construction with the
    roll dropped (nothing rolls a creep) and the health bar dropped (one HP —
    creep.h says why).
@@ -541,10 +465,6 @@ void draw_creeps(RenderContext *ctx) {
         int32_t dx = c->x - cam_x;
         int32_t dz = c->z - cam_z;
         if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > 4000) continue;
-
-        /* Only a grounded creep casts a floor shadow — one drawn under a body
-           still falling out of the cot would sit at its feet in mid-air. */
-        if (c->state == CRP_HUNTING) draw_crp_shadow(ctx, c);
 
         /* Mirror the sprite when the creep is to the player's right, so the art
            always faces toward them. Camera right = (icos, -isin); the shift

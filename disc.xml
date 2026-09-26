@@ -268,6 +268,13 @@
                      these two are free (tools/ADDING_A_SOUND.txt STEP 3). -->
                 <file name="LMBRMOAN.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lmbrmoan.vag"/>
                 <file name="LMBRYELL.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lmbryell.vag"/>
+                <!-- The crib encounter's loop, SND_BANK_CATACOMBS. 5.85 s and
+                     36,864 SPU bytes, re-keyed from src/crib.c for as long as the
+                     cot is pouring; it takes that bank to 163,264 against BOSS's
+                     190,336 ceiling, so `spare` stays on 46,896 and this one is
+                     free too (tools/ADDING_A_SOUND.txt STEP 3). 27 KB left in the
+                     chapter before it becomes the largest bank. -->
+                <file name="CREEP.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\creep.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

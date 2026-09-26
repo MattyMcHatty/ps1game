@@ -496,7 +496,48 @@ typedef enum {
     SFX_LMBR_YELL  = 54,  /* BANKED (catacombs). The shockwave going out, on the
                              first frame of the strike. Replaces the borrowed
                              SFX_CRWL_SCRM at that call site. 1.82 s           */
-    SFX_COUNT      = 55,
+    /* ---- THE CRIB'S LOOP, AND IT IS THE CHAPTER'S SIXTH BORROWED VOICE.
+       The glug has 13, the door 14, the crawler's scream 15 and its whisper 9,
+       the Lumberer's moan 16 and its yell 21 - all six SND_BANK_CATACOMBS, so
+       none of them can be borrowed again. A cot pouring Creeps while a crawler
+       screams, or while the player pours oil in the room behind, are both
+       ordinary moments in this chapter.
+
+       SO IT TAKES 20, one voice further out on exactly the argument the moan
+       and the yell use:
+         20  SFX_DMNSPEAK (BOSS | ASAG) and SFX_HAD_DIE (GARDEN)
+       Neither is resident, and none of BOSS, ASAG or GARDEN can be loaded while
+       SND_BANK_CATACOMBS is - the catacomb mouth is a one-way door - so neither
+       can sound down here at all.
+
+       AND THE POOL WAS NEVER AN OPTION, on the rule rather than a judgement:
+       this clip is re-keyed for the WHOLE of a thirty-second-plus encounter, and
+       its raw slot would be FIRST_VOICE + (55 % 8) = 8 - which is outside the
+       1..8 pool's own arithmetic only by luck, and every other id in the pool is
+       a weapon or a footstep the player is firing continuously while fighting
+       ten Creeps. A looped cue must be alone (STEP 6).
+
+       20 IS NOT POISONED, checked with STEP 6's script rather than assumed:
+       dmnspeak.vag carries its loop flag on block 3375 of 3376 and hadad_die.vag
+       on 1358 of 1359, so both are ordinary one-shots and neither has ever moved
+       that voice's repeat address.
+
+       >>> AND THIS CLIP MUST STAY A C-SIDE RETRIGGER, for the reason the
+       Lumberer's moan must. <<< crib.c re-keys it every CRIB_LOOP_FRAMES while
+       the cot is in CRIB_ACTIVE, the way zombie.c re-keys SFX_ZOMBIE. Giving it
+       a hardware loop instead would put 0x04 on its block 0 and poison voice 20
+       for good - which is what happened to 17, 18 and 19 and cost a session to
+       find. Verified a one-shot on the same test: block 2301 of 2302.
+
+       THE BANK WAS FREE. 36,864 bytes takes SND_BANK_CATACOMBS to 163,264
+       against the 190,336 BOSS sets `spare` by, so it cost no other bank a byte
+       and `spare` stayed on 46,896. About 27 KB left in the chapter before this
+       becomes the largest bank; re-run STEP 3 before spending it. */
+    SFX_CREEP      = 55,  /* BANKED (catacombs). The crib's encounter loop: keyed
+                             on when a swing wakes the cot and re-keyed every
+                             CRIB_LOOP_FRAMES until all ten Creeps are dead.
+                             5.85 s, which is where CRIB_LOOP_FRAMES comes from */
+    SFX_COUNT      = 56,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

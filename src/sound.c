@@ -87,6 +87,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\CRWLWHSP.VAG;1",
     "\\SND\\LMBRMOAN.VAG;1",
     "\\SND\\LMBRYELL.VAG;1",
+    "\\SND\\CREEP.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -315,6 +316,12 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        see sound.h and tools/ADDING_A_SOUND.txt STEP 3. */
     [SFX_LMBR_MOAN]  = SND_BANK_CATACOMBS,
     [SFX_LMBR_YELL]  = SND_BANK_CATACOMBS,
+    /* The crib's encounter loop, CATACOMBS and nothing else: src/crib.c is its
+       only caller and a crib encounter only ever runs in a Chapter 3 room.
+       36,864 B takes that bank to 163,264 against the 190,336 BOSS sets `spare`
+       by, so it cost no other bank anything and `spare` stayed on 46,896 - see
+       sound.h and tools/ADDING_A_SOUND.txt STEP 3. ~27 KB left in the chapter. */
+    [SFX_CREEP]      = SND_BANK_CATACOMBS,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -608,6 +615,35 @@ static int sfx_channel(SfxID id) {
        instead would put 0x04 on its block 0 and poison 16 for good. */
     if (id == SFX_LMBR_MOAN)   return 16;   /* SFX_ZOMBIE's  (HOUSE) one-shot  */
     if (id == SFX_LMBR_YELL)   return 21;   /* SFX_EXPLODE's (BOSS)  one-shot  */
+    /* ---- THE CRIB'S LOOP, THE CHAPTER'S SIXTH BORROWED VOICE. 13, 14, 15, 9,
+       16 and 21 are all spoken for by SND_BANK_CATACOMBS clips of their own now
+       (the glug, the door, the crawler's scream and whisper, the Lumberer's moan
+       and yell), so the eviction argument each of those rests on covers none of
+       them a second time: a cot pouring Creeps while a crawler screams is an
+       ordinary moment down here.
+
+       SO IT TAKES 20, one voice further out on the identical argument:
+         20  SFX_DMNSPEAK (BOSS | ASAG) and SFX_HAD_DIE (GARDEN)
+       Neither is resident, and none of BOSS, ASAG or GARDEN can be loaded while
+       SND_BANK_CATACOMBS is - the catacomb mouth is a one-way door - so neither
+       can sound in this chapter at all.
+
+       THE POOL WAS NOT AN OPTION, on the rule and not on a judgement: the clip
+       is re-keyed for the whole of a thirty-second-plus encounter, and STEP 6
+       says a looped cue must have a voice to itself. Every id in the pool is a
+       weapon or a footstep the player fires continuously while fighting ten
+       Creeps, so the loop would be chopped several times a second.
+
+       20 IS NOT POISONED, checked with STEP 6's script rather than assumed:
+       dmnspeak.vag carries its loop flag on block 3375 of 3376 and hadad_die.vag
+       on 1358 of 1359 - ordinary one-shots, so neither has ever moved that
+       voice's repeat address.
+
+       >>> AND THE LOOP MUST STAY A C-SIDE RETRIGGER, exactly as the Lumberer's
+       moan must. <<< crib.c re-keys it every CRIB_LOOP_FRAMES, the way zombie.c
+       re-keys SFX_ZOMBIE. A hardware loop would put 0x04 on creep.vag's block 0
+       and poison voice 20 for good. It is a one-shot today: block 2301 of 2302. */
+    if (id == SFX_CREEP)       return 20;   /* SFX_DMNSPEAK's (BOSS)  one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

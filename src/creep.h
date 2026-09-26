@@ -74,9 +74,10 @@
  * free-standing obstacle needs a routing layer too" does not apply to something
  * that treats obstacles as scenery.
  *
- * ONE THING IS STILL PROBED: THE FLOOR. apply_ddog_height keeps c->y on the
- * ground under the body, because that is what the drop shadow and the hover
- * height are measured from — it is a height query, not a collision. A creep that
+ * ONE THING IS STILL PROBED: THE FLOOR, AND THE HOVER HEIGHT IS NOW ITS ONLY
+ * CONSUMER. apply_ddog_height keeps c->y on the ground under the body, because
+ * that is what the hover height is measured from - the drop shadow was the other
+ * reader of it and this enemy no longer has one — it is a height query, not a collision. A creep that
  * drifts outside every floor zone would match none, take the function's
  * `target = 0` default and sink; the Room of Arms cannot show that (its one
  * zone's rect is deliberately larger than its walkable floor), but a room whose
@@ -148,13 +149,14 @@
    it, and CRP_Y_OFFSET is NEGATIVE. Do not "restore" the invariant here; the
    thing that has to hold instead is the eye-level arithmetic below.
 
-   The shadow grows with the body, but only in plan: it is a floor decal and
-   scaling it is about the silhouette it casts, not about how high the thing is. */
+   >>> AND THERE ARE NO SHADOW EXTENTS TO SCALE ALONGSIDE THESE ANY MORE. <<<
+   There were - CRP_SHADOW_W/D, a floor decal sized in plan - and they went with
+   the shadow itself: this enemy floats and nothing about it touches the ground,
+   so src/creep.c draws no decal where every other enemy in the game draws one.
+   The note on that removal, and why putting it back is not the fix for a creep
+   that is hard to place on the floor, is at the top of the .c. */
 #define CRP_HALF_W            68
 #define CRP_HALF_H            68
-
-#define CRP_SHADOW_W          75
-#define CRP_SHADOW_D          39
 
 /* ---- FLOATING AT EYE LEVEL -----------------------------------------------
  * A creep drifts at just below the player's eye line instead of crawling along
@@ -282,7 +284,10 @@ void creeps_reset(void);        /* drop the whole pool — new game, room change
  * that stops something on a lower storey being yanked onto an upper one — so
  * seeding the anchor from a point BELOW the standing anchor made every zone fall
  * through, left `target` at 0, and dropped the creep a further 149 units under
- * the floor with its shadow below the world. All three spawn points sit at the
+ * the floor. (It was FOUND by its shadow sitting below the world, back when it
+ * had one. The sink is just as real without that tell and there is no longer a
+ * decal to give it away, which is worth knowing before trusting this spawn path
+ * again.) All three spawn points sit at the
  * cot's rim today and so are safely above it; passing the emergence height here
  * would still be wrong, and would bite again the moment a lower one is added.
  *
