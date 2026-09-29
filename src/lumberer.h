@@ -141,6 +141,22 @@
    Tomb's fog (tomb.c), so it never wakes to a player it could not have seen. */
 #define LMB_ALERT_RADIUS   1144
 
+/* ---- THE STOREY. Every radius in this file is measured in PLAN (x,z) only, so
+   in a two-storey room (the North Chamber, whose gallery stands directly over
+   its ground floor) a player walking underneath a lumberer is "in range" of a
+   body that cannot reach them. Each of the three decisions — waking, raising
+   the arm, and the wave landing — therefore ALSO requires the player to be
+   within this much of the body's own height. player_y() and the body's y are
+   the same kind of number (a floor surface less GROUND_FLOOR_Y), so level
+   ground reads 0. Half of the chapter's 1000-unit storey: a whole floor apart
+   is always out, and a ramp counts as whichever storey it is nearer — the Up
+   Down Maze's UDM_STOREY_REACH and the crawler's CRW_UPPER_DROP_DY, again.
+
+   An ALERTED lumberer still walks at a player on another storey (and may walk
+   off the gallery's open edge to get to them); it just never swings until it
+   is on their level. */
+#define LMB_STOREY_REACH    500
+
 /* ---- The reach. TRUE RADIAL again, and it is the enemy's whole character:
    "it does not have to be as close as other monsters, because it has one long
    arm". For scale, the Crawler catches at 180 and the Mushroom Head at 200,

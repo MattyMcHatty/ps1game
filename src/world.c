@@ -1548,10 +1548,61 @@ void world_seed_room(GameState area) {
            pit_crawler_entry[] in the_pit.c pairs its k-th row with the k-th
            crawler seeded here. The Pit is room 32, the last, so these append
            after the Up Down Maze's five and no existing save's bits move. They
-           are the 6th and 7th crawlers in the game, which is why MAX_CRAWLERS
-           is 7 (crawlers_dead is 8 bits wide). */
+           are the 6th and 7th crawlers in the game. */
         crawler_add_floor(-560, 3000, 0, STATE_THE_PIT);   /* west */
         crawler_add_floor(1160, 3000, 0, STATE_THE_PIT);   /* east */
+    }
+
+    /* THE NORTH CHAMBER: two Crawlers on the GROUND floor and one Lumberer on
+       the GALLERY (src/north_chamber.h has both storeys).
+
+       THE CRAWLERS, one HANGING FROM THE CEILING of each of the two ground-floor
+       alcoves, to drop on the player when woken (crawler.h, CRW_DROPPING):
+
+         west  (-1571, 3319)   alcove x[-1800,-1200] z[3000,3600]: 229 off its
+                               west wall, 281 off the north wall
+         east  ( 2806, 2730)   alcove x[2400,3000] z[2400,3000]: 194 off its
+                               east wall, 270 off its north wall
+
+       all against the 90 CRW_BODY_RADIUS.
+
+       >>> -800 IS THE ALCOVE'S OWN CEILING, NOT THE ROOM'S. <<< Both alcoves
+       are roofed at y=-800 in the VISUAL mesh (North Chamber.smx), a low
+       ceiling under the -1800 vault the room reports to collision_set_ceiling_y
+       — and the collision proxy has no ceiling faces there at all, so nothing
+       probed could give the right number. It is authored, and an idle crawler
+       never re-reads it: it holds this anchor until woken, then falls on
+       apply_ddog_height to the ground plane (y=0), the only floor under either
+       alcove — no gallery zone stands over them.
+
+       THE LUMBERER patrols the WEST ARM of the gallery and on into the south
+       gallery, a straight north-south leg at x=-919:
+
+         A  (-919, 3335)   the north end of the west arm, 265 off the north wall
+         B  (-919,  275)   in the south gallery, 275 off the south wall
+
+       x=-919 is 281 off the arm's outer wall (x=-1200) and 319 off its open
+       inner edge (x=-600), and the south gallery spans x[-1200,2400], so the
+       whole 3060-unit leg is gallery floor. There is NO RAILING on that inner
+       edge: an alerted lumberer walks at the player (this room has no nav
+       table in lumberer.c) and will step off it and drop to the ground floor
+       like anything else, apply_ddog_height taking it down.
+
+       y: the gallery is y=-1000, so the standing anchor is -1000 - 149 =
+       -1149 (the Tomb's -149, one storey up). Its top edge is then at -1519
+       against the vault at -1800. The gallery zones come first in the room's
+       list, so apply_ddog_height keeps it up there.
+
+       >>> THE ORDER IS THE SAVE FORMAT, as in The Pit. <<< The North Chamber
+       is room 33, the last, so these append after The Pit's and no existing
+       save's bits move. They are the 8th and 9th crawlers in the game, which
+       is why MAX_CRAWLERS is 9 and crawlers_dead became 16 bits wide. */
+    if (area == STATE_NORTH_CHAMBER) {
+        crawler_add_ceiling(-1571, 3319, -800, STATE_NORTH_CHAMBER); /* west alcove */
+        crawler_add_ceiling( 2806, 2730, -800, STATE_NORTH_CHAMBER); /* east alcove */
+        lumberer_add(-919, 3335,           /* A: north end of the west arm */
+                     -919,  275,           /* B: the south gallery         */
+                     -1149, STATE_NORTH_CHAMBER);
     }
 }
 
@@ -1701,7 +1752,7 @@ void world_save_delta(WorldDelta *d) {
         for (i = 0; i < world.crawler_count; i++) areas[i] = world.crawlers[i].area;
         for (i = 0; i < world.crawler_count; i++)
             if (world.crawlers[i].state == CRW_DEAD)
-                d->crawlers_dead |= (uint8_t)
+                d->crawlers_dead |= (uint16_t)
                     (1u << canonical_index(areas, world.crawler_count, i));
     }
     {

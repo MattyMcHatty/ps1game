@@ -60,8 +60,9 @@
  * nothing once the pool is full.
  * ----------------------------------------------------------------------- */
 
-#define MAX_CRAWLERS          7    /* 5 in the Up Down Maze + 2 in The Pit's
-                                      ambush; WD_MAX_CRAWLERS (8) is the ceiling */
+#define MAX_CRAWLERS          9    /* 5 in the Up Down Maze + 2 in The Pit's
+                                      ambush + 2 in the North Chamber's alcoves;
+                                      WD_MAX_CRAWLERS (16) is the ceiling */
 
 #define CRW_MAX_HEALTH        6    /* six crucifaxe swings or six rounds      */
 
@@ -501,7 +502,8 @@ void crawlers_upload_textures(void);
 int  crawler_add_floor(int32_t x, int32_t z, int32_t floor_y, GameState area);
 /* Same, stuck to a ceiling at `ceiling_y`. It hangs by its legs until woken and
    then drops to the floor, which is the one thing the brief says a surface
-   changes about the attack. Nothing places one yet. */
+   changes about the attack. The North Chamber's two alcove crawlers are the
+   first placed this way (world.c). */
 int  crawler_add_ceiling(int32_t x, int32_t z, int32_t ceiling_y, GameState area);
 
 /* AN AMBUSH, the Lumberer's shape (lumberer.h) for the other enemy.

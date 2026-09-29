@@ -17,7 +17,19 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   28            /* v28: WorldDelta.cribs_solved — WHICH ROOMS'
+#define SAVE_VERSION   29            /* v29: crawlers_dead is a uint16_t. The
+                                        North Chamber's two Crawlers take the
+                                        whole-game total to nine against the
+                                        eight bits the field had, so
+                                        WD_MAX_CRAWLERS went 8 -> 16 and
+                                        MAX_CRAWLERS 7 -> 9 — v23's widening of
+                                        living_statues_dead, again. The delta
+                                        grew, so delta_size already rejects a
+                                        v28 save; the bump makes the reason
+                                        legible. The North Chamber is room 33,
+                                        the last, so its placements append and
+                                        no older bit moves;
+                                    v28: WorldDelta.cribs_solved — WHICH ROOMS'
                                         CRIB ENCOUNTERS HAVE BEEN BEATEN. A new
                                         word in the delta, so delta_size already
                                         rejects a v27 save (savegame.c checks

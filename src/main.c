@@ -2174,9 +2174,8 @@ static void update_current_area(GameState area) {
            player on the right storey (src/north_chamber.c). multi_level is 1 for
            the hitscan Y-gate; see src/north_chamber_mesh_collision.c.
 
-           No props and no enemies yet. Both enemy updates are called anyway, on
-           the rest of the chapter's argument: a later placement starts moving
-           without anyone having to remember this call.
+           No props, and three enemies world.c seeds here: a Crawler in each
+           ground-floor alcove and a Lumberer patrolling the west gallery arm.
 
            The door is the one trigger in the chapter besides the Up Down Maze's
            that tests the STOREY: the south gallery is directly over it. */

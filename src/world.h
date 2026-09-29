@@ -130,7 +130,10 @@ void world_silence_monsters(void);
 #define WD_MAX_FATDOORS  10
 #define WD_MAX_TENTACLES 10
 #define WD_MAX_SPIDERS    8   /* bits: one global area-tagged array */
-#define WD_MAX_CRAWLERS   8   /* bits: likewise. The Catacombs hold five */
+#define WD_MAX_CRAWLERS  16   /* bits: likewise. 16 rather than 8 since the North
+                                 Chamber's two took the whole-game total to nine
+                                 — which is why crawlers_dead below is a
+                                 uint16_t, the widening mushrooms_dead took. */
 #define WD_MAX_RABISUS    8
 /* bits: likewise one global area-tagged array. 8 is generous — the Lumberer is
    placed in the Tomb and the Tomb alone, and MAX_LUMBERERS is 6 — but this is a
@@ -193,8 +196,8 @@ typedef struct {
        only reason it was ever narrower is that nobody needed it wider. */
     uint64_t  visited;
     uint8_t   spiders_dead;                       /* keyed by (area, ordinal) */
-    uint8_t   crawlers_dead;                      /* likewise; see
-                                                     WD_MAX_CRAWLERS       */
+    uint16_t  crawlers_dead;                      /* likewise; 16 bits — see
+                                                     WD_MAX_CRAWLERS           */
     uint8_t   rabisus_dead;                       /* likewise                 */
     uint8_t   lumberers_dead;                     /* likewise; see
                                                      WD_MAX_LUMBERERS      */

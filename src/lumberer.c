@@ -805,6 +805,12 @@ static int lmb_steer(Lumberer *s, int32_t goal_dx, int32_t goal_dz,
     return (s->x != was_x || s->z != was_z);
 }
 
+/* Is a body at `py` on this lumberer's storey? See LMB_STOREY_REACH. */
+static int lmb_same_storey(const Lumberer *s, int32_t py) {
+    int32_t dy = py - s->y;
+    return (dy < 0 ? -dy : dy) < LMB_STOREY_REACH;
+}
+
 /* ---- The shockwave ----------------------------------------------------------
    Ticked every frame a wave is up, regardless of what the body has gone on to
    do, so a wave already in the air still lands even if the attack has since
@@ -824,6 +830,10 @@ static void lmb_shock_tick(Lumberer *s) {
     int32_t dx = player_x() - s->x;
     int32_t dz = player_z() - s->z;
     if (lmb_isqrt(dx * dx + dz * dz) > reach) return;
+    /* A wave runs along the floor the body is standing on: a player a storey
+       above or below it is not in it, whatever the plan distance says. Not
+       wave_hit either — they may yet step onto this level while it is up. */
+    if (!lmb_same_storey(s, player_y())) return;
 
     s->wave_hit = 1;
     if (game_over) return;
@@ -867,6 +877,11 @@ void update_lumberers(void) {
         /* --- Gravity and the floor first, as every other enemy --- */
         apply_ddog_height(&s->x, &s->y, &s->z, &s->vy,
                           &s->on_upper_floor, &s->on_ramp);
+
+        /* The plan-view radii below only count on the player's own storey
+           (LMB_STOREY_REACH). After the height pass, so a body that has just
+           landed off a ledge is judged where it now stands. */
+        int same_storey = lmb_same_storey(s, py);
 
         /* --- Knocked back by the axe: slide and decay. --- */
         int knocked = (s->kb_vx != 0 || s->kb_vz != 0);
@@ -921,7 +936,8 @@ void update_lumberers(void) {
             /* --- Noticing the player. Proximity alone: no facing test and no
                sightline, unlike the Mushroom Head's three-part wake. This one
                is specified to wake on range, so it wakes on range. --- */
-            if (d2 <= (int32_t)LMB_ALERT_RADIUS * LMB_ALERT_RADIUS) {
+            if (same_storey &&
+                d2 <= (int32_t)LMB_ALERT_RADIUS * LMB_ALERT_RADIUS) {
                 s->state = LMB_ALERT;
                 lmb_face(s, dx, dz);
                 break;
@@ -952,7 +968,8 @@ void update_lumberers(void) {
                This is the TRUE distance to the player and stays that way however
                the body got here: the routing below decides where to walk, never
                whether the arm comes up. */
-            if (d2 <= (int32_t)LMB_ATTACK_RADIUS * LMB_ATTACK_RADIUS) {
+            if (same_storey &&
+                d2 <= (int32_t)LMB_ATTACK_RADIUS * LMB_ATTACK_RADIUS) {
                 s->state    = LMB_WINDUP;
                 s->atk_tick = 0;
                 s->kb_vx = s->kb_vz = 0;
@@ -1000,7 +1017,8 @@ void update_lumberers(void) {
             lmb_face(s, dx, dz);
             if (++s->atk_tick >= LMB_STRIKE_FRAMES) {
                 s->atk_tick = 0;
-                if (d2 <= (int32_t)LMB_ATTACK_RADIUS * LMB_ATTACK_RADIUS)
+                if (same_storey &&
+                    d2 <= (int32_t)LMB_ATTACK_RADIUS * LMB_ATTACK_RADIUS)
                     s->state = LMB_WINDUP;
                 else
                     s->state = LMB_ALERT;
