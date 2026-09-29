@@ -156,6 +156,13 @@ typedef enum {
                                 up the north wall joining the two. See
                                 src/north_chamber.h. Appended, not inserted: saves
                                 store raw enum values. */
+    STATE_ROOM_OF_HEADS,     /* THE ROOM OF HEADS, through the WEST door of the
+                                North Chamber, on its gallery. Chapter 3's eighth
+                                room: the Room of Arms' octagon, flat under a
+                                y=-800 vault, with four piles of heads standing
+                                in it and one door. See src/room_of_heads.h.
+                                Appended, not inserted: saves store raw enum
+                                values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

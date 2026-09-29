@@ -82,10 +82,14 @@ typedef struct {
        by geometry on a different level. 0 for flat rooms (kitchen), whose per-
        wall Y values are debug-visualisation only and must not gate shots. */
     int     multi_level;
-    /* Bitmask of low walls (indices 0-31) the gun shoots OVER: they still block
+    /* Bitmask of low walls (indices 0-63) the gun shoots OVER: they still block
        the player, but a hitscan ignores them so you can fire across a low
-       counter and hit enemies on the far side. */
-    uint32_t shoot_over_mask;
+       counter and hit enemies on the far side.
+       uint64_t since the Room of Heads, whose 37 low pile walls are indices
+       0-36. Read it through collision_wall_shoot_over(), never with a variable
+       shift of the whole word: a 64-bit shift by a variable needs libgcc and
+       there is none (the note beside world_room_bit() in src/world.h). */
+    uint64_t shoot_over_mask;
     /* Height of this room's DRAWN ceiling in mesh Y, or 0 for "derive it from
        the wall tops". A room's collision data comes from a simplified proxy
        mesh (*_mesh.smx), whose walls do not always reach as high as the ceiling
@@ -97,6 +101,14 @@ typedef struct {
        touch this field, so leaving it unset would inherit the previous room's. */
     int32_t  ceiling_y;
 } CollisionRoom;
+
+/* Is wall i in the room's shoot-over set? Split into 32-bit halves so no 64-bit
+   variable shift is emitted (see shoot_over_mask above). */
+static inline int collision_wall_shoot_over(const CollisionRoom *r, int i) {
+    if (i < 32) return ((uint32_t)r->shoot_over_mask >> i) & 1u;
+    if (i < 64) return ((uint32_t)(r->shoot_over_mask >> 32) >> (i - 32)) & 1u;
+    return 0;
+}
 
 extern CollisionRoom current_collision_room;
 

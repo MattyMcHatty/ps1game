@@ -49,12 +49,15 @@
    (six untextured polys at y=-1800). It is DRAWN AND NOTHING ELSE: no prompt, no
    trigger. Whatever is at the top is a later room.
 
-   THE DOORS. Two are drawn, and ONE of them is wired up:
+   THE DOORS. Two, both wired up:
 
      SOUTH  z=0       x[1000,1200]  y[-400,0]       -> The Pit, north door.
                       On the GROUND floor, under the south gallery.
-     west   x=-1200   z[1800,2000]  y[-1400,-1000]  not built.
-                      On the GALLERY, in the west arm's outer wall.
+     WEST   x=-1200   z[1800,2000]  y[-1400,-1000]  -> Room of Heads, east door.
+                      On the GALLERY, in the west arm's outer wall. A YZ-plane
+                      door approached from +X (wall 3, nx=+4096): mirror=0.
+                      It tests the storey the other way round — gallery only,
+                      because the ground runs under it.
 
    The south door is an XY-plane door at fixed Z approached from +Z (wall 0 runs
    z=0 with nz=+4096), so TEXT_PLANE_XY with mirror=1 and its sign 11 proud of
@@ -86,6 +89,14 @@ void north_chamber_draw(RenderContext *ctx);
 /* Arrival through the south door, from The Pit: on the ground floor just inside
    it, facing north into the room. */
 void north_chamber_spawn_south(void);
+
+/* Arrival through the west door, from the Room of Heads: on the gallery's west
+   arm just inside it, facing east over the drop. */
+void north_chamber_spawn_west(void);
+
+/* One frame of the west door's Circle test: as the south door's below, but on
+   the GALLERY. */
+int  north_chamber_west_door_triggered(int lock);
 
 /* One frame of the south door's Circle test. `lock` is main's usual suppression.
    Returns 1 on a fresh press made in range, on the ground floor, facing the door

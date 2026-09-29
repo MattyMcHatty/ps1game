@@ -226,7 +226,7 @@ static int walls_crossed(int32_t ax, int32_t ay, int32_t az,
         /* Low walls the gun shoots over (e.g. the kitchen counter): the player
            still collides with them, but a shot passes so enemies on the far
            side are hittable. */
-        if (shoot_over && i < 32 && ((r->shoot_over_mask >> i) & 1u)) continue;
+        if (shoot_over && collision_wall_shoot_over(r, i)) continue;
 
         /* Boxes disjoint: no crossing is possible. See the note above — this is
            a cost filter, not a rule, and it cannot change an answer. */
@@ -1068,12 +1068,15 @@ void collision_set_wall_radius(int32_t r) {
 
 void collision_shoot_over_short_walls(int32_t max_height) {
     CollisionRoom *r = &current_collision_room;
-    int i, n = r->wall_count > 32 ? 32 : r->wall_count;   /* the mask is 32 bits */
+    int i, n = r->wall_count > 64 ? 64 : r->wall_count;   /* the mask is 64 bits */
     r->shoot_over_mask = 0;
     for (i = 0; i < n; i++) {
         int32_t h = r->walls[i].y_max - r->walls[i].y_min;
         if (h < 0) h = -h;
-        if (h <= max_height) r->shoot_over_mask |= 1u << i;
+        /* Split halves, no 64-bit variable shift — see collision.h. */
+        if (h <= max_height)
+            r->shoot_over_mask |= (i < 32) ? (uint64_t)(1u << i)
+                                           : ((uint64_t)(1u << (i - 32)) << 32);
     }
 }
 

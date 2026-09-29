@@ -128,6 +128,9 @@ AREAS = {
                   # ladder.tim (on the incinerator's page) and borrows cobble,
                   # the inner door and the bars through their narrow uploaders.
                   "north_chamber_upload_textures",
+                  # THE ROOM OF HEADS, the chapter's eighth room: owns heads.tim
+                  # (on the arms' page) and borrows cobble and the inner door.
+                  "room_of_heads_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

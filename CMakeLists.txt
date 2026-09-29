@@ -115,6 +115,8 @@ add_executable(horror_game
     src/the_pit.c
     src/north_chamber_mesh_collision.c
     src/north_chamber.c
+    src/room_of_heads_mesh_collision.c
+    src/room_of_heads.c
     src/sconce.c
     src/oil_dispenser.c
     src/incinerator.c
@@ -303,6 +305,7 @@ set_source_files_properties(
     src/room_of_arms_mesh_collision.c
     src/the_pit_mesh_collision.c
     src/north_chamber_mesh_collision.c
+    src/room_of_heads_mesh_collision.c
     src/area_bank.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )

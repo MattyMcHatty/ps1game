@@ -287,6 +287,10 @@
 #define TIM_TPAGE_HATCHKEY 0x0097
 #define TIM_CLUT_HATCHKEY  0x7e6a
 
+/* heads.tim       8bpp  VRAM ( 640,  0)  \TEXCTCMB\HEADS.TIM */
+#define TIM_TPAGE_HEADS    0x008a
+#define TIM_CLUT_HEADS     0x7d6a
+
 /* hedge.tim       8bpp  VRAM ( 384,  0)  \TEX\HEDGE.TIM */
 #define TIM_TPAGE_HEDGE    0x0086
 #define TIM_CLUT_HEDGE     0x7a6a

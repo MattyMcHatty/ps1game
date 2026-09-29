@@ -118,6 +118,8 @@ TexBank area_bank_of(GameState area) {
     case STATE_THE_PIT:
     /* THE NORTH CHAMBER owns LADDER.TIM and borrows the rest, The Pit's terms. */
     case STATE_NORTH_CHAMBER:
+    /* THE ROOM OF HEADS owns HEADS.TIM (on the arms' page) and borrows the rest. */
+    case STATE_ROOM_OF_HEADS:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -133,7 +135,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_TOMB ||
            area == STATE_ROOM_OF_ARMS ||
            area == STATE_THE_PIT ||
-           area == STATE_NORTH_CHAMBER;
+           area == STATE_NORTH_CHAMBER ||
+           area == STATE_ROOM_OF_HEADS;
 }
 
 /* ---- The prop models -------------------------------------------------------

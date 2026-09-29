@@ -185,6 +185,10 @@ static const char *const level_names[] = {
        The jump lands on the ground floor at the south door, which is also the
        only arrival. 13 characters, inside the 14 the column allows. */
     "NORTH CHAMBER",
+    /* THE ROOM OF HEADS, the chapter's eighth room, behind the North Chamber's
+       west door. The jump lands at its one door. 13 characters, inside the 14
+       the column allows. */
+    "ROOM OF HEADS",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -225,6 +229,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* ROOM OF ARMS */
     STATE_LOADING,        /* THE PIT */
     STATE_LOADING,        /* NORTH CHAMBER */
+    STATE_LOADING,        /* ROOM OF HEADS */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -263,6 +268,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_ROOM_OF_ARMS,
     STATE_THE_PIT,
     STATE_NORTH_CHAMBER,
+    STATE_ROOM_OF_HEADS,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

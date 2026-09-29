@@ -330,21 +330,37 @@ void north_chamber_upload_textures(void) {
 #define NC_FADE_NEAR           800
 #define NC_TRIGGER_RADIUS      500
 
-/* The WEST door (x=-1200, z[1800,2000], y[-1400,-1000]) is drawn and nothing
-   else — no #define block, no sign, no trigger. It is on the gallery's west arm;
-   wiring it up is a block like this one plus the STEP 6 edits in
-   tools/ADDING_A_ROOM.txt, and ITS storey test is the mirror of this one's (the
-   ground floor runs under it). */
+/* ---- THE WEST DOOR ---------------------------------------------------------
+   x=-1200, z[1800,2000], y[-1400,-1000] — in the outer wall of the GALLERY's
+   west arm. Into THE ROOM OF HEADS, through its one (east) door.
 
-/* Circle edge-detect. Seeded "held" by the arm below so a press carried in
-   through the transition cannot fire on the arrival frame. */
+   A door in the YZ plane at fixed X, approached from +X (wall 3 runs x=-1200 at
+   gallery height with nx=+4096), so TEXT_PLANE_YZ with mirror=0 and the sign 11
+   proud of the wall along +X; the -200 goes on the Z argument, the reading axis
+   for a YZ sign. The Room of Heads' east door takes the opposite pair.
+
+   >>> ITS STOREY TEST IS THE MIRROR OF THE SOUTH DOOR'S. <<< The ground floor
+   runs straight under the west arm, so a player standing on the ground at
+   x~-1000 is inside this door's radius in plan. Gallery only, for the trigger
+   and the sign alike.
+
+   ITS Y IS THE GALLERY'S: -1186, the usual eye-level -186 over y=-1000. */
+#define NC_WEST_X           (-1200)
+#define NC_WEST_Z             1900     /* the art spans z[1800,2000] */
+#define NC_WEST_TEXT_Y      (NC_GALLERY_Y - 186)
+
+/* Circle edge-detect, one per door. Seeded "held" by the arm below so a press
+   carried in through the transition cannot fire on the arrival frame. */
 static int south_circle_prev = 1;
+static int west_circle_prev  = 1;
 
 void north_chamber_arm(void) {
     south_circle_prev = interact_tapped();
+    west_circle_prev  = south_circle_prev;
 }
 
-/* On the ground floor, as the south door needs it: see the header. */
+/* On the ground floor, as the south door needs it: see the header. The west
+   door wants the opposite answer. */
 static int nc_on_ground(void) {
     return cam_y > NC_STOREY_SPLIT_Y;
 }
@@ -363,6 +379,23 @@ int north_chamber_south_door_triggered(int lock) {
     xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (xz >= NC_TRIGGER_RADIUS) return 0;
     if (!interact_facing(NC_SOUTH_X, NC_SOUTH_Z)) return 0;
+    return 1;
+}
+
+/* The west door's Circle test: the south door's, on the gallery instead of the
+   ground. */
+int north_chamber_west_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !west_circle_prev;
+    int32_t dx, dz, xz;
+    west_circle_prev = held;
+    if (lock || !just) return 0;
+    if (nc_on_ground()) return 0;           /* the ground runs under it */
+    dx = cam_x - NC_WEST_X;
+    dz = cam_z - NC_WEST_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= NC_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(NC_WEST_X, NC_WEST_Z)) return 0;
     return 1;
 }
 
@@ -391,6 +424,29 @@ static void nc_south_sign(RenderContext *ctx) {
                         DOOR_PIXEL_SIZE);
 }
 
+/* The west door's sign: gallery only, mirror=0 (approached from +X). */
+static void nc_west_sign(RenderContext *ctx) {
+    int32_t dx = cam_x - NC_WEST_X;
+    int32_t dz = cam_z - NC_WEST_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (nc_on_ground()) return;
+    if (xz >= NC_TEXT_RADIUS) return;
+
+    if (xz > NC_FADE_NEAR) {
+        int range = NC_TEXT_RADIUS - NC_FADE_NEAR;
+        int prog  = xz - NC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        NC_WEST_X + 11, NC_WEST_TEXT_Y, NC_WEST_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ,
+                        DOOR_PIXEL_SIZE);
+}
+
 void north_chamber_spawn_south(void) {
     /* Arriving from The Pit. 220 off wall 0 on its walkable +Z side, facing +Z
        — the direction of travel, and straight at the cage in the middle of the
@@ -403,6 +459,20 @@ void north_chamber_spawn_south(void) {
     cam_vy  = 0;
     cam_z   = NC_SOUTH_Z + (NC_WALL_RADIUS + 25);
     cam_rot = 0;                       /* facing +Z, north into the room */
+    north_chamber_arm();
+}
+
+void north_chamber_spawn_west(void) {
+    /* Back from the Room of Heads. On the GALLERY's west arm, 220 off wall 3 on
+       its walkable +X side, facing +X — the direction of travel, out over the
+       drop into the room. The arm is x[-1200,-600], so x=-980 leaves 380 before
+       the unrailed edge. The gallery's eye; apply_height finds the gallery zone
+       first (it is below this eye) and keeps the player up here. */
+    cam_x   = NC_WEST_X + (NC_WALL_RADIUS + 25);
+    cam_y   = NC_GALLERY_Y - GROUND_FLOOR_Y - 40;
+    cam_vy  = 0;
+    cam_z   = NC_WEST_Z;
+    cam_rot = 1024;                    /* facing +X, east into the room */
     north_chamber_arm();
 }
 
@@ -633,6 +703,7 @@ void north_chamber_draw(RenderContext *ctx) {
        so what it takes away is the one door sign — STEP 3D's case. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         nc_south_sign(ctx);   /* south: XY plane, approached from +Z */
+        nc_west_sign(ctx);    /* west: YZ plane, approached from +X, gallery */
         /* BOTH CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            A placement in this room has to pick a storey (y against 0 for the

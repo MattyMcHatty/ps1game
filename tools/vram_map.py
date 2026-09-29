@@ -797,6 +797,22 @@ KNOWN_STREAM_PAIRS = [
     ("incinerator.tim",           "ladder.tim"),
     ("Rabisu tex.tim",            "ladder.tim"),
     ("ladder.tim",                "vines.tim"),
+    #   heads.tim -> x640 y0, THE ROOM OF HEADS' piles, ON THE ARMS' PAGE AND
+    # PALETTE (672,501). The second time-share inside Chapter 3, on the ladder's
+    # terms: heads are drawn only in the Room of Heads, arms only in the Room of
+    # Arms, and each room's uploader puts its own pixels and CLUT line back on
+    # every entry. The page's nine older occupants were already displaced by the
+    # arms and keep the restores listed beside the arms pairs above.
+    ("arms.tim",                  "heads.tim"),
+    ("asag.tim",                  "heads.tim"),
+    ("chnlnk.tim",                "heads.tim"),
+    ("gravel_texture.tim",        "heads.tim"),
+    ("greenhouse.tim",            "heads.tim"),
+    ("hatch.tim",                 "heads.tim"),
+    ("plinth_rg.tim",             "heads.tim"),
+    ("poison_flower_base.tim",    "heads.tim"),
+    ("trck_clue.tim",             "heads.tim"),
+    ("trees.tim",                 "heads.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

@@ -32,6 +32,10 @@ typedef struct {
     int32_t   tick;        /* frames in the current state                       */
     int       spawned;     /* Creeps released so far, 0..CRIB_CREEP_TOTAL       */
     int32_t   tilt;        /* current rock angle, PS1 units; 0 = level          */
+
+    /* ---- the two OUTER spawn points (crib_set_outer_spawns) ---- */
+    int       outer_set;   /* 0 = the cot's own long sides; 1 = the points below */
+    int32_t   out_x[2], out_y[2], out_z[2];   /* WORLD x/z, and world (mesh) y   */
 } Crib;
 
 static Crib cribs[MAX_CRIBS];
@@ -152,6 +156,20 @@ void crib_upload_texture(void) {
 
 void cribs_clear(void) { crib_count = 0; }
 
+void crib_set_outer_spawns(GameState area,
+                           int32_t x1, int32_t y1, int32_t z1,
+                           int32_t x2, int32_t y2, int32_t z2) {
+    int i;
+    for (i = 0; i < crib_count; i++) {
+        Crib *c = &cribs[i];
+        if (!c->active || c->area != area || !c->encounter) continue;
+        c->out_x[0] = x1;  c->out_y[0] = y1;  c->out_z[0] = z1;
+        c->out_x[1] = x2;  c->out_y[1] = y2;  c->out_z[1] = z2;
+        c->outer_set = 1;
+        return;
+    }
+}
+
 void crib_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y) {
     if (crib_count >= MAX_CRIBS) return;
 
@@ -182,6 +200,7 @@ void crib_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y) 
     c->tick    = 0;
     c->spawned = 0;
     c->tilt    = 0;
+    c->outer_set = 0;   /* the Room of Arms' default; a room overrides after */
 
     /* World AABB = the axis-aligned bound of the rotated mesh footprint, corner
        by corner, exactly as the lever, the sconce and the oil dispenser bake
@@ -276,13 +295,19 @@ static int32_t crib_beam_level(const Crib *c) {
     return (((num * num * 256) / (den * den)) * num) / den;
 }
 
-/* Release one Creep from one of THREE spawn points, chosen at random. In MODEL
-   space, so all three follow the instance's own yaw and a cot standing at any
-   rotation spills from the right places:
+/* Release one Creep from one of THREE spawn points, chosen at random. By
+   default in MODEL space, so all three follow the instance's own yaw and a cot
+   standing at any rotation spills from the right places:
 
      0  the CENTRE of the cot, in plan
      1  a little outside it on one long side
      2  a little outside it on the other
+
+   >>> POINTS 1 AND 2 CAN BE REPLACED PER ROOM, POINT 0 CANNOT. <<<
+   crib_set_outer_spawns() hands an instance two WORLD points instead, which is
+   how the Room of Heads' cot pours from the tops of the head piles either side
+   of it. Point 0 stays the cot's own centre in every room. The Room of Arms sets
+   nothing and keeps the long sides below.
 
    >>> "LEFT" AND "RIGHT" ARE THE LONG SIDES, i.e. +/- Z. <<< The footprint is
    350 along X and 200 along Z, so X is the head-and-foot axis and Z is the pair
@@ -319,6 +344,20 @@ static void crib_release(Crib *c) {
     int32_t cs = icos(c->rot_y), sn = isin(c->rot_y);
     int32_t wx = c->x + ((lx * cs + lz * sn) >> 12);
     int32_t wz = c->z + ((lz * cs - lx * sn) >> 12);
+
+    /* A room-authored outer point replaces 1 or 2 outright: already world, so
+       no yaw and no floor conversion. The ANCHOR below is still the cot's own
+       floor, which is what keeps a body that emerges on top of a pile from being
+       dropped under the world (the creep_spawn() note in src/creep.h): the
+       emergence is ABOVE the anchor, so the creep floats down to its hover
+       height over the room's floor. Creeps do not collide with walls, so one
+       starting inside a pile's collision footprint simply flies out of it. */
+    if (k != 0 && c->outer_set) {
+        creep_spawn(c->out_x[k - 1], c->out_z[k - 1], c->y, c->out_y[k - 1],
+                    c->area);
+        c->spawned++;
+        return;
+    }
     /* THE CORNER'S WORLD Y — where the creep's body emerges. Model y is an
        offset from the floor the prop stands on, and entity y is the same space
        as mesh y (tools/ADDING_AN_ENEMY.txt STEP 2), so this is an addition and

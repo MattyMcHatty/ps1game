@@ -91,6 +91,7 @@
 #include "room_of_arms.h"
 #include "the_pit.h"
 #include "north_chamber.h"
+#include "room_of_heads.h"
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
 #include "hatch_puzzle.h"
 #include "hatch_arrival.h"  /* the drop off the well: Asag's ending, beat 3   */
@@ -336,6 +337,7 @@ static void load_area_geometry(GameState area) {
         case STATE_ROOM_OF_ARMS:     room_of_arms_load_geometry(); break;
         case STATE_THE_PIT:          the_pit_load_geometry(); break;
         case STATE_NORTH_CHAMBER:    north_chamber_load_geometry(); break;
+        case STATE_ROOM_OF_HEADS:    room_of_heads_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2190,6 +2192,40 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* ...and the WEST door, on the gallery, into the Room of Heads. Called
+           unconditionally for its edge state; it tests the storey itself (the
+           ground floor runs under it), so the two doors can never both be in
+           reach on one frame. */
+        if (north_chamber_west_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_ROOM_OF_HEADS;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_ROOM_OF_HEADS) {
+        /* THE ROOM OF HEADS - Chapter 3's eighth room: the shared wall routine,
+           ONE flat floor zone and one door, the Room of Arms' shape without its
+           examine. multi_level is 0 (three floor slabs of one plane). The four
+           piles of heads are LOW proxy walls (y[-185,0]) the gun shoots over.
+
+           ONE PROP: the chapter's second CRIB, in the western gap. Its state
+           machine and the Creeps it pours run from the area-tagged
+           cribs_update() / update_creeps() in the shared block, and its box
+           collides through apply_collision_reception, so nothing crib-specific
+           is needed here. No enemies seeded; both Chapter 3 enemy updates are
+           called anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (room_of_heads_east_door_triggered(lock)) {
+            pending_area = STATE_NORTH_CHAMBER;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ASAG_ARENA) {
         /* ASAG'S ARENA — free play, which here means the fight AFTER the opening
            scene has handed the camera back. The scene itself runs in the
@@ -2601,6 +2637,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         the_pit_draw(ctx);
     else if (area == STATE_NORTH_CHAMBER)
         north_chamber_draw(ctx);
+    else if (area == STATE_ROOM_OF_HEADS)
+        room_of_heads_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -2997,6 +3035,13 @@ int main(int argc, const char **argv) {
                                      CD access here. Above the owner's call
                                      below, for the same reason as the line
                                      above. */
+    loading_screen_pump(&ctx);
+    room_of_heads_load_assets();  /* CHAPTER 3's eighth room: two borrowed
+                                     headers (cobble, inner door) and its OWN
+                                     deferred registration for HEADS.TIM, on the
+                                     arms' page and palette. Deferred, so no CD
+                                     access here. Above the owner's call below,
+                                     for the same reason as the lines above. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -3767,6 +3812,13 @@ int main(int argc, const char **argv) {
                    branch puts back on the way in there. Same guarantee and
                    same silent failure mode as the branches around it. */
                 north_chamber_upload_textures();
+            } else if (pending_area == STATE_ROOM_OF_HEADS) {
+                /* THE ROOM OF HEADS. Cobble and the inner door through the
+                   Catacombs Entry's narrow uploaders, plus its OWN - HEADS.TIM on
+                   x640 y0, the ROOM OF ARMS' page and palette, which that room's
+                   branch puts back on the way in there. Same guarantee and same
+                   silent failure mode as the branches around it. */
+                room_of_heads_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4417,6 +4469,17 @@ int main(int argc, const char **argv) {
                    spawn is also the only one. The west door on the gallery is
                    drawn and sealed (src/north_chamber.h). */
                 north_chamber_init();
+                /* ...and the second arrival, back from the ROOM OF HEADS through
+                   the west door onto the gallery. Keyed on current_area, the
+                   room being LEFT and not a route, so a debug jump or a title
+                   load still lands at the south door. */
+                if (current_area == STATE_ROOM_OF_HEADS)
+                    north_chamber_spawn_west();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_ROOM_OF_HEADS) {
+                /* ONE ARRIVAL, the east door, so room_of_heads_init()'s default
+                   spawn is also the only one. */
+                room_of_heads_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -4762,7 +4825,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_TOMB ||
                    game_state == STATE_ROOM_OF_ARMS ||
                    game_state == STATE_THE_PIT ||
-                   game_state == STATE_NORTH_CHAMBER) {
+                   game_state == STATE_NORTH_CHAMBER ||
+                   game_state == STATE_ROOM_OF_HEADS) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

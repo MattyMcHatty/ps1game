@@ -142,6 +142,7 @@ BANK = {
     "catacomb inner door.tim":  "the chapter's door panel too   x832 y0",
     "incinerator.tim":          "the Incinerator machine        x704 y256",
     "arms.tim":                 "the Room of Arms' arms field   x640 y0",
+    "heads.tim":                "Room of Heads' piles (=arms pg) x640 y0",
     "oil_container.tim":        "the oil dispenser              x896 y256",
     "crib.tim":                 "the Room of Arms' crib         x576 y0",
     "rusty.tim":                "The Pit's shaft ironwork       x704 y0",

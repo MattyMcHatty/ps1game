@@ -1198,6 +1198,32 @@
             <file name="NRTHCHMB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\north_chamber.smd"/>
             <file name="LADDER.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\ladder.tim"/>
 
+            <!-- THE ROOM OF HEADS, the chapter's EIGHTH room, behind the North
+                 Chamber's WEST door - the one on the gallery. The Room of Arms'
+                 octagon again (2586 across, y=-800 vault, one door in the east
+                 face), with four L-shaped piles of heads standing in it, one
+                 per quadrant. See src/room_of_heads.h.
+
+                 ONE NEW TEXTURE. COBBLE.TIM and CTCMBDR.TIM come through the
+                 Catacombs Entry's narrow uploaders as every Chapter 3 room's do.
+                 HEADS.TIM is art only this room draws, registered DEFERRED.
+
+                 >>> IT TAKES THE ARMS' PAGE AND THE ARMS' PALETTE: x640 y0 and
+                 (672,501). <<< The Room of Heads and the Room of Arms are never
+                 drawn together, and each room's uploader puts its own art back
+                 on entry, so the two simply overwrite each other. Every other
+                 occupant of that page was already displaced by ARMS.TIM and has
+                 its own restore. See tools/vram_map.py.
+
+                 HEADS.TIM is built from textures/catacombs/heads_128.png, the
+                 64x64 source STRETCHED (Lanczos): the mesh puts ~340 world units
+                 on one UV tile against the cobble's ~400, so one copy per tile
+                 is what was drawn.
+
+                 HEADROOM.SMD, 16,308 bytes, well inside the arena. -->
+            <file name="HEADROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\room_of_heads.smd"/>
+            <file name="HEADS.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\heads.tim"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

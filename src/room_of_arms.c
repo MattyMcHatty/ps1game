@@ -415,7 +415,9 @@ void room_of_arms_load_assets(void) {
 void room_of_arms_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
-    /* ...and this room's own page. Nothing in the chapter shares x640 y0, so
+    /* ...and this room's own page. The Room of Heads time-shares x640 y0 (and
+       this CLUT line) with heads.tim, and THIS line is what puts the arms back
+       after a visit there. Nothing else in this room touches that page, so
        there is no ordering rule between this line and the two above either. */
     texmgr_upload(arms_tex);
     /* ...and the crib's, which this room does not own but is the only room that

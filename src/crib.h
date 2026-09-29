@@ -6,8 +6,13 @@
 #include "title.h"
 
 /* Crib: an iron cot, Chapter 3's fifth prop and the first thing in the
-   Catacombs that is furniture rather than machinery. One stands in the alcove in
-   the SOUTH-WEST corner of the Room of Arms (src/room_of_arms.c places it).
+   Catacombs that is furniture rather than machinery. TWO stand in the game, each
+   its own encounter with its own solved flag:
+
+     ROOM OF ARMS    the alcove in the south-west corner (src/room_of_arms.c)
+     ROOM OF HEADS   the gap between the two western head piles
+                     (src/room_of_heads.c), pouring from the pile tops
+
 
    ONE texture of its own ("crib", \TEXCTCMB\CRIB.TIM) and one mesh
    ("Crib.smx" -> assets/props/crib.smd, 60 primitives, 3644 bytes — remodelled
@@ -83,6 +88,18 @@
    them share a solved flag and quietly solve each other. A room that genuinely
    needs two live cribs wants a bit PAIR here and crib_place()'s gate lifted;
    that is a ten-line change and this paragraph is the note to read first.
+
+   >>> THESE ARE THE PER-CRIB FLAGS, AND THEY ARE SEPARATE. <<< Each room with
+   a crib has its own bit, so every crib event is tracked on its own, for the
+   whole game and in every save (WorldDelta.cribs_solved, written and read by
+   world.c's save codec). Ask about ONE crib with crib_room_solved(STATE_<ROOM>):
+
+       crib_room_solved(STATE_ROOM_OF_ARMS)    the first crib event
+       crib_room_solved(STATE_ROOM_OF_HEADS)   the second crib event
+
+   Solving one sets its room's bit and nothing else; neither implies the other.
+   A later crib in a new room gets a new bit by being in a new room. To count
+   them, count the set bits of crib_solved_mask().
 
    ADDING THE MECHANIC TO A ROOM is therefore: call crib_place() from its init
    with STATE_<ROOM>, call crib_upload_texture() and creeps_upload_texture()
@@ -370,6 +387,17 @@ void cribs_clear(void);           /* drop every placed instance                 
    SOLVED according to the saved bitmask; any later one in the same area is
    scenery and never wakes. See the note at the top of this file. */
 void crib_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y);
+
+/* Replace spawn points 1 and 2 of the area's ENCOUNTER crib (see crib_release in
+   the .c) with two room-authored points. x/z are WORLD, and y is the WORLD
+   (mesh) y the body emerges at — the top of whatever it climbs out of. Point 0,
+   the cot's own centre, is not replaceable. Call AFTER crib_place(); it lasts
+   until the next cribs_clear(), i.e. the room re-places it on every entry. A
+   room that never calls it keeps the default: just outside the cot's two long
+   sides. */
+void crib_set_outer_spawns(GameState area,
+                           int32_t x1, int32_t y1, int32_t z1,
+                           int32_t x2, int32_t y2, int32_t z2);
 
 /* Run the state machine for every crib in the current area: the rock, the beam
    ramp, the spawn cadence and the test for the encounter being over. Call it

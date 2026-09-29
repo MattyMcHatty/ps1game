@@ -154,6 +154,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_UP_DOWN_MAZE,   STATE_INCINERATOR_ROOM,
     STATE_TOMB,           STATE_ROOM_OF_ARMS,
     STATE_THE_PIT,        STATE_NORTH_CHAMBER,
+    STATE_ROOM_OF_HEADS,
 };
 
 static int room_index(GameState area) {
@@ -247,6 +248,9 @@ static int room_index(GameState area) {
         /* THE NORTH CHAMBER, Chapter 3's seventh room, through The Pit's north
            door. Slot 33 of the 64 `visited` now holds. */
         case STATE_NORTH_CHAMBER:     return 33;
+        /* THE ROOM OF HEADS, Chapter 3's eighth room, through the North
+           Chamber's west door. Slot 34 of 64. */
+        case STATE_ROOM_OF_HEADS:     return 34;
         default:                   return 0;
     }
 }
