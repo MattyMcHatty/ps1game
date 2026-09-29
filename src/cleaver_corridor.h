@@ -29,9 +29,16 @@
      WEST   the ladder, x=0 z=0   -> the North Chamber, onto the gallery at the
                                      foot of its ladder. A YZ-plane prompt at the
                                      shaft's edge approached from +X: mirror=0.
-     SOUTH  z=-300 x[3800,4000]   a catacomb inner door at the far end. DRAWN AND
-                                  NOTHING ELSE: no prompt, no trigger. Whatever
-                                  is behind it is a later room.
+     SOUTH  z=-300 x[3800,4000]   -> the Up Down Maze, through the north door on
+                                     its UPPER storey. An XY-plane door in the
+                                     south wall at the east end, approached from
+                                     +Z: mirror=1.
+
+   THE CLEAVERS. Three guillotine blades hang across the corridor between the
+   ladder and the south door — cleaver, gap, cleaver, gap, cleaver, gap, door,
+   every gap equal — and slam down on a player walking under them, then keep
+   cycling until the player leaves the room. See src/cleaver.h for the prop and
+   cc_place_cleavers() for the spacing.
 
    THREE TEXTURES, ALL BORROWED: cobblestone and the inner door through
    src/catacombs_entry.c's narrow uploaders, the ladder through
@@ -46,8 +53,15 @@ void cleaver_corridor_init(void);            /* collision + floor zone + spawn  
 void cleaver_corridor_draw(RenderContext *ctx);
 
 /* Arrival up the ladder, from the North Chamber: on the corridor floor just off
-   the shaft's edge, facing east down the corridor. The only arrival. */
+   the shaft's edge, facing east down the corridor. The default. */
 void cleaver_corridor_spawn_ladder(void);
+
+/* Arrival through the south door, from the Up Down Maze: just inside it,
+   facing north across the corridor. */
+void cleaver_corridor_spawn_south(void);
+
+/* One frame of the south door's Circle test: the ladder's, at the door. */
+int  cleaver_corridor_south_door_triggered(int lock);
 
 /* One frame of the ladder's Circle test. `lock` is main's usual suppression.
    Returns 1 on a fresh press made in range of the shaft's edge, facing it — the

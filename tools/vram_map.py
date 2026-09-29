@@ -868,6 +868,7 @@ def rects_overlap(a, b):
 # original on every run. Each entry names the file it duplicates.
 EXPORTER_ALIASES = {
     "pipe_128.tim":  "pipe_gh.tim",   # Chain Room's 'pipe_128' material
+    "rusty_128.tim": "rusty.tim",     # the Cleaver prop's 'rusty_128' material
     # chain_128.tim STOPPED BEING AN ALIAS when Asag's arena shipped. Its mesh
     # uses the same Blender material name, but the arena cannot take chain.tim's
     # page (x704 y0 is a RESTORE page in that bank), so chain_128.tim was

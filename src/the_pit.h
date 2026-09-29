@@ -112,6 +112,7 @@
 void the_pit_load_assets(void);     /* startup: one deferred reg + three headers */
 void the_pit_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena  */
 void the_pit_upload_textures(void); /* room entry: pure LoadImage from RAM       */
+void the_pit_upload_rusty(void);    /* RUSTY.TIM alone, for the cleaver prop     */
 void the_pit_init(void);            /* collision + floor zones + spawn          */
 void the_pit_draw(RenderContext *ctx);
 

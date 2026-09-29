@@ -22,6 +22,8 @@
 #include "texmgr.h"
 #include "catacombs_entry.h"    /* the two narrow uploaders this room borrows */
 #include "north_chamber.h"      /* ...and the ladder's, the third            */
+#include "the_pit.h"            /* ...and the rusty ironwork, for the blades */
+#include "cleaver.h"            /* the three slamming blades                 */
 #include "save_point.h"
 #include "dresser.h"
 #include "sconce.h"
@@ -193,6 +195,9 @@ void cleaver_corridor_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
     north_chamber_upload_ladder();
+    /* ...and The Pit's rusty ironwork, which the CLEAVERS are modelled in
+       (src/cleaver.h) — x704 y0, a page nothing else in this room draws. */
+    the_pit_upload_rusty();
 }
 
 /* ---- THE LADDER ------------------------------------------------------------
@@ -215,12 +220,111 @@ void cleaver_corridor_upload_textures(void) {
 #define CC_FADE_NEAR          800
 #define CC_TRIGGER_RADIUS     500
 
-/* Circle edge-detect. Seeded "held" by the arm below so a press carried in
-   through the transition cannot fire on the arrival frame. */
+/* ---- THE SOUTH DOOR --------------------------------------------------------
+   z=-300, x[3800,4000], y[-400,0] — in the corridor's south wall at its east
+   end. Into THE UP DOWN MAZE, through the north door on its UPPER storey.
+
+   A door in the XY plane at fixed Z, approached from +Z (wall 1 runs z=-300
+   with nz=+4096), so TEXT_PLANE_XY with mirror=1, the sign 11 proud of the wall
+   along +Z, and the -200 on the X argument (the reading axis for an XY sign).
+   The maze's north door, the far side, takes the opposite pair. */
+#define CC_SOUTH_X           3900     /* the art spans x[3800,4000] */
+#define CC_SOUTH_Z          (-300)
+#define CC_SOUTH_TEXT_Y      (-186)   /* eye level on the y=0 floor */
+
+/* ---- THE CLEAVERS (src/cleaver.h) ------------------------------------------
+   THREE, AND THE LAYOUT IS THE BRIEF'S: cleaver, gap, cleaver, gap, cleaver,
+   gap, door — every gap the same. The FIRST blade stands where Cleaver.smx put
+   it (cleaver_authored_x/z/lift — x 1200, z 0, its edge 650 over the floor),
+   and the other two share the distance from it to the south door's centre in
+   equal thirds: 900 apart today, so at x 1200, 2100 and 3000 with the door at
+   3900. Nothing here is a hard-coded blade position; re-export the blade
+   somewhere else and the row moves with it. The door's centre is the measure
+   rather than its west jamb (3800), because a gap is read by eye between the
+   blade and the door as a whole.
+
+   Each hangs from the vault at y=-800 — the ceiling line that hides the part
+   of the blade still up in its slot.
+
+   THEY HANG CC_CLEAVER_RAISE HIGHER THAN MODELLED: the edge at 750 over the
+   floor rather than the export's 650, so only 50 of blade shows below the vault
+   at rest. A placement tweak, kept here rather than in the prop, so the
+   authored figure still reads back unchanged from cleaver_authored_lift(). */
+#define CC_CLEAVER_COUNT       3
+#define CC_CLEAVER_RAISE     100
+#define CC_CEILING_Y        (-800)
+
+static void cc_place_cleavers(void) {
+    int32_t x0  = cleaver_authored_x();
+    int32_t gap = (CC_SOUTH_X - x0) / CC_CLEAVER_COUNT;
+    int k;
+    cleavers_clear();
+    for (k = 0; k < CC_CLEAVER_COUNT; k++)
+        cleaver_place(STATE_CLEAVER_CORRIDOR, x0 + k * gap, -GROUND_FLOOR_Y,
+                      cleaver_authored_z(),
+                      cleaver_authored_lift() + CC_CLEAVER_RAISE,
+                      CC_CEILING_Y);
+}
+
+/* Circle edge-detect, one per way out. Seeded "held" by the arm below so a press
+   carried in through the transition cannot fire on the arrival frame. */
 static int ladder_circle_prev = 1;
+static int south_circle_prev  = 1;
 
 void cleaver_corridor_arm(void) {
     ladder_circle_prev = interact_tapped();
+    south_circle_prev  = ladder_circle_prev;
+}
+
+/* The south door's Circle test. The ladder's shape; the two are 3900 apart, so
+   they can never both be in reach. */
+int cleaver_corridor_south_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !south_circle_prev;
+    int32_t dx, dz, xz;
+    south_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - CC_SOUTH_X;
+    dz = cam_z - CC_SOUTH_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= CC_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(CC_SOUTH_X, CC_SOUTH_Z)) return 0;
+    return 1;
+}
+
+static void cc_south_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - CC_SOUTH_X;
+    int32_t dz = cam_z - CC_SOUTH_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= CC_TEXT_RADIUS) return;
+
+    if (xz > CC_FADE_NEAR) {
+        int range = CC_TEXT_RADIUS - CC_FADE_NEAR;
+        int prog  = xz - CC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        CC_SOUTH_X - 200, CC_SOUTH_TEXT_Y, CC_SOUTH_Z + 11,
+                        50, 255, 50, fade, 1, TEXT_PLANE_XY,
+                        DOOR_PIXEL_SIZE);
+}
+
+void cleaver_corridor_spawn_south(void) {
+    /* Back from the Up Down Maze. 220 off wall 1 on its walkable +Z side,
+       facing +Z — the direction of travel through the door, across the
+       corridor. The corridor is 600 deep, so that leaves the player 380 short of
+       the north wall: inside it, clear of both. The nearest blade is 900 west,
+       far outside its trigger. */
+    cam_x   = CC_SOUTH_X;
+    cam_y   = CC_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = CC_SOUTH_Z + (CC_WALL_RADIUS + 25);
+    cam_rot = 0;                       /* facing +Z, north across the corridor */
+    cleaver_corridor_arm();
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -298,6 +402,10 @@ void cleaver_corridor_init(void) {
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
+
+    /* THE CLEAVERS, cleared and re-placed ARMED on every entry: leaving the
+       room is what resets them (src/cleaver.h). */
+    cc_place_cleavers();
 
     cc_view_resolve(1);
 }
@@ -492,10 +600,10 @@ void cleaver_corridor_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_cleaver_corridor_smd(ctx);
 
-    /* >>> LEVEL 8 REMOVES THE PROMPT AND THE ENEMIES. <<< The room is empty
-       today, so what it takes away is the one ladder prompt — STEP 3D's case. */
+    /* >>> LEVEL 8 REMOVES THE PROMPTS, THE CLEAVERS AND THE ENEMIES. <<< */
     if (exp != DBG_EXP_NO_ENTITIES) {
-        cc_ladder_text(ctx);   /* the ladder: YZ plane, approached from +X */
+        cc_ladder_text(ctx);      /* the ladder: YZ plane, approached from +X */
+        cc_south_door_text(ctx);  /* south door: XY plane, approached from +Z */
         /* BOTH CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Both sheets sit at Voff 128, so each is handed the window to restore
@@ -507,5 +615,8 @@ void cleaver_corridor_draw(RenderContext *ctx) {
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        /* The blades AFTER the two enemy calls, whose windows are restored for
+           this Voff-0 art: their UVs reach 128 (the bars' rule). */
+        cleavers_draw(ctx);
     }
 }

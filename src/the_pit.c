@@ -435,12 +435,19 @@ void the_pit_load_assets(void) {
    game is reachable. If a texmgr entry is somehow not loaded, texmgr_upload is a
    no-op and the slot keeps whatever the previous room left in it â€” visibly wrong,
    and quietly, which is why area_bank_sync runs before this and not after. */
+/* The ironwork alone, for the CLEAVER prop (src/cleaver.c), whose blades are
+   modelled in this texture. The narrow-uploader pattern: the full uploader
+   would also stamp the bars, which the Cleaver Corridor does not draw. */
+void the_pit_upload_rusty(void) {
+    texmgr_upload(rusty_tex);
+}
+
 void the_pit_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
     /* ...and this room's own page. Nothing else in the chapter draws x704 y0, so
        there is no ordering rule between this line and the two above either. */
-    texmgr_upload(rusty_tex);
+    the_pit_upload_rusty();
     /* ...and the bars', which this room does not own but is the only room that
        draws. A prop module's narrow uploader, the crib's arrangement with the
        Room of Arms: one LoadImage onto the left half of x512 y256, which

@@ -1359,6 +1359,20 @@
             <file name="BARS.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\bars.smd"/>
             <file name="BARS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\bars.tim"/>
 
+            <!-- THE CLEAVER, the chapter's third moving prop: a guillotine blade
+                 that slams down in the Cleaver Corridor (src/cleaver.h). Its
+                 GEOMETRY ONLY - it has no texture of its own: the blade is
+                 modelled in The Pit's RUSTY.TIM, uploaded by the room. The
+                 Blender material is `rusty_128`, so textures/rusty_128.tim is a
+                 byte-identical exporter alias of rusty.tim that exists for
+                 smxlink and is deliberately NOT listed here.
+
+                 CLEAVER.SMD WAS EXPORTED IN THE CLEAVER CORRIDOR'S WORLD
+                 COORDINATES, like BARS.SMD in The Pit's, and is re-centred in RAM
+                 at load; the offset it removes is the first blade's placement,
+                 and the mesh is the prop's only collision data. -->
+            <file name="CLEAVER.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\cleaver.smd"/>
+
             <!-- THE CRAWLER, the chapter's first MONSTER (src/crawler.c). Four
                  animation frames, read in the order top-left, top-right,
                  bottom-left, bottom-right. An idle crawler holds on the first; a

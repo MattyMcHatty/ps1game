@@ -348,6 +348,16 @@ void up_down_maze_upload_textures(void) {
 #define UDM_SOUTH_Z         (-2100)
 #define UDM_SOUTH_TEXT_Y      (-186)   /* eye level on the y=0 corridor floor */
 
+/* THE NORTH DOOR, on the UPPER storey, at the end of the north stub (x[899,1499]
+   z[3300,3899], y=-1000). Out to the Cleaver Corridor, through its south door.
+   In the XY plane at fixed Z, approached from -Z (wall 22 runs z=3899 with
+   nz = -4096, so the walkable side is -Z), so TEXT_PLANE_XY with mirror=0 and
+   the sign 11 units proud of the wall along -Z. The lower corridor runs under
+   the stub, so it takes the storey test like the other two. */
+#define UDM_NORTH_X           1200     /* the art spans x[1100,1300] */
+#define UDM_NORTH_Z           3900
+#define UDM_NORTH_TEXT_Y     (-1186)   /* eye level on the y=-1000 walkway */
+
 #define UDM_TEXT_RADIUS      1200
 #define UDM_FADE_NEAR         800
 #define UDM_TRIGGER_RADIUS    500
@@ -370,6 +380,7 @@ void up_down_maze_upload_textures(void) {
    press carried in through the transition cannot fire on the arrival frame. */
 static int west_circle_prev  = 1;
 static int south_circle_prev = 1;
+static int north_circle_prev = 1;
 
 static int circle_held(void) {
     return interact_tapped();
@@ -379,6 +390,7 @@ void up_down_maze_arm(void) {
     int held = circle_held();
     west_circle_prev  = held;
     south_circle_prev = held;
+    north_circle_prev = held;
 }
 
 /* Is the player at a door — in plan AND on its storey? `eye_y` is what cam_y
@@ -418,6 +430,11 @@ int up_down_maze_west_door_triggered(int lock) {
 int up_down_maze_south_door_triggered(int lock) {
     return udm_door_triggered(lock, &south_circle_prev,
                               UDM_SOUTH_X, UDM_SOUTH_Z, UDM_LOWER_EYE_Y);
+}
+
+int up_down_maze_north_door_triggered(int lock) {
+    return udm_door_triggered(lock, &north_circle_prev,
+                              UDM_NORTH_X, UDM_NORTH_Z, UDM_EYE_Y);
 }
 
 /* A door's floating sign. Same shape as every other sign in the game: opaque
@@ -467,6 +484,12 @@ static void udm_south_door_text(RenderContext *ctx) {
                   1, TEXT_PLANE_XY);   /* mirror=1: XY door approached from +Z */
 }
 
+static void udm_north_door_text(RenderContext *ctx) {
+    udm_door_text(ctx, UDM_NORTH_X, UDM_NORTH_Z, UDM_EYE_Y,
+                  UDM_NORTH_X - 200, UDM_NORTH_TEXT_Y, UDM_NORTH_Z - 11,
+                  0, TEXT_PLANE_XY);   /* mirror=0: XY door approached from -Z */
+}
+
 void up_down_maze_spawn_west(void) {
     /* Clear of the wall push radius so the player is not shoved on their first
        frame, and facing +X — the direction of travel through the door, looking
@@ -499,6 +522,20 @@ void up_down_maze_spawn_south(void) {
     cam_vy  = 0;
     cam_z   = UDM_SOUTH_Z + UDM_WALL_RADIUS + 25;
     cam_rot = 0;
+    up_down_maze_arm();
+}
+
+/* Arrival back from the Cleaver Corridor, on the UPPER floor at the end of the
+   north stub, 220 off wall 22 and facing -Z — the direction of travel, south
+   down the stub into the maze. x=1200 is the stub's centre line, 301 from each
+   unrailed edge. The stub's FLOOR_UPPER zone is found first, so apply_height()
+   keeps the player up here. */
+void up_down_maze_spawn_north(void) {
+    cam_x   = UDM_NORTH_X;
+    cam_y   = UDM_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = UDM_NORTH_Z - (UDM_WALL_RADIUS + 25);
+    cam_rot = 2048;
     up_down_maze_arm();
 }
 
@@ -771,6 +808,7 @@ void up_down_maze_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         udm_west_door_text(ctx);
         udm_south_door_text(ctx);
+        udm_north_door_text(ctx);
         /* THE CRAWLERS, and the texture window above is precisely the trap they
            have to be bracketed against: their sheet sits at VRAM y=128, i.e.
            Voff 128, so drawn under a 128-tall window its V would wrap mod-128

@@ -22,17 +22,17 @@
    it wants a FLOOR_RAMP zone in up_down_maze_floor_zones_init(), and that is the
    whole change.
 
-   THE DOORS. Six are drawn into the outer walls, and TWO of them are wired up
-   — one per storey, which is not a coincidence but the shape of the room:
+   THE DOORS. Six are drawn into the outer walls, and THREE of them are wired
+   up:
 
      WEST, UPPER   x=-300  z[-100,100]  y[-1400,-1000]   -> Catacombs Entry
      SOUTH, LOWER  z=-2100 x[500,700]   y[-400,0]        -> Incinerator Room
+     NORTH, UPPER  z=3900  x[1100,1300] y[-1400,-1000]   -> Cleaver Corridor
      east, upper   x=3900  z[-100,100]                   not built
-     north, upper  z=3900  x[1100,1300]                  not built
      south, upper  z=-2100 x[1700,1900]                  not built
      east, lower   x=3900  z[3500,3700] y[-400,0]        not built
 
-   The four unbuilt ones are drawn and nothing else: no sign, no trigger, no
+   The three unbuilt ones are drawn and nothing else: no sign, no trigger, no
    collision gap. They read as sealed doors, which is what they are until the
    rooms behind them exist, and wiring one up is a block of #defines in the .c
    plus the STEP 6 edits in tools/ADDING_A_ROOM.txt.
@@ -65,6 +65,9 @@ void up_down_maze_draw(RenderContext *ctx);
    Room. */
 void up_down_maze_spawn_west(void);
 void up_down_maze_spawn_south(void);
+/* NORTH is on the UPPER floor at the end of the north stub, facing south into
+   the maze, for the way back from the Cleaver Corridor. */
+void up_down_maze_spawn_north(void);
 
 /* One frame of each door's Circle test. `lock` is main's usual suppression (a
    menu is up, a cutscene owns the camera). Returns 1 on a fresh press made in
@@ -77,6 +80,7 @@ void up_down_maze_spawn_south(void);
    lifts, and skipping one would leave its `prev` stale. */
 int  up_down_maze_west_door_triggered(int lock);
 int  up_down_maze_south_door_triggered(int lock);
+int  up_down_maze_north_door_triggered(int lock);
 
 /* Arm every interaction in the room. Called by the spawn above; exported so a
    caller that places the player some other way (a debug jump) can still ensure a

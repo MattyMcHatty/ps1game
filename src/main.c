@@ -94,6 +94,7 @@
 #include "room_of_heads.h"
 #include "cleaver_corridor.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
+#include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
 #include "hatch_puzzle.h"
 #include "hatch_arrival.h"  /* the drop off the well: Asag's ending, beat 3   */
@@ -1926,6 +1927,17 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* AND THE NORTH DOOR, on the UPPER storey at the end of the north stub,
+           out to the Cleaver Corridor. The third door, and the note above holds:
+           it shares the west door's storey but is 5400 from it in plan, and the
+           south door's storey test keeps that one out of reach, so still no veto
+           chain is needed. */
+        if (up_down_maze_north_door_triggered(lock)) {
+            pending_area = STATE_CLEAVER_CORRIDOR;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_INCINERATOR_ROOM) {
         /* THE INCINERATOR ROOM - Chapter 3's third room, and after the maze
            upstairs a deliberately ordinary one: the shared wall routine and two
@@ -2224,18 +2236,36 @@ static void update_current_area(GameState area) {
            routine and ONE flat floor zone over a plain box proxy. multi_level is
            0. The shaft at the west end is outside the proxy; its ladder is the
            only way out that works, and it is climbed by the ladder transition
-           rather than walked. The inner door at the east end is drawn and
-           sealed (src/cleaver_corridor.h). No props and nothing seeded; both
-           Chapter 3 enemy updates are called anyway, on the Tomb's argument. */
+           rather than walked. The south door at the east end goes to the Up
+           Down Maze's upper storey. Nothing seeded; both Chapter 3 enemy
+           updates are called anyway, on the Tomb's argument.
+
+           THE CLEAVERS (src/cleaver.h): three blades across the corridor that
+           slam on a player walking under them and then keep cycling. Their push
+           runs inside apply_collision_reception (cleavers_collide); their
+           update runs AFTER it, so the hit test sees the player where this
+           frame's collision left them. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
+        cleavers_update();
 
         if (cleaver_corridor_ladder_triggered(lock)) {
             pending_area = STATE_NORTH_CHAMBER;
             ladder_anim_start(LADDER_DOWN);
             game_state   = STATE_LADDER_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the SOUTH door, into the Up Down Maze's upper storey. Called
+           unconditionally for its edge state; 3900 from the ladder, so the two
+           cannot both be in reach, and vetoed like the North Chamber's second
+           door anyway. */
+        if (cleaver_corridor_south_door_triggered(lock) &&
+            game_state != STATE_LADDER_ANIM) {
+            pending_area = STATE_UP_DOWN_MAZE;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
     } else if (area == STATE_ROOM_OF_HEADS) {
@@ -3135,6 +3165,13 @@ int main(int argc, const char **argv) {
                                   measured for collision AND re-centred in RAM
                                   here, because it was exported in The Pit's
                                   world coordinates - see src/bars.h. */
+    loading_screen_pump(&ctx);
+    cleavers_load_assets();    /* CHAPTER 3's cleaver blades (the Cleaver
+                                  Corridor), on the bars' terms: one sector of
+                                  geometry held for the run, measured for
+                                  collision and re-centred in RAM, its authored
+                                  position kept as the placement. No texture of
+                                  its own - see src/cleaver.h. */
 
     asag_arena_load_assets();  /* ASAG'S ARENA: does NOTHING, on purpose. It owns
                                   no texture yet, and when it does they will be
@@ -4440,6 +4477,10 @@ int main(int argc, const char **argv) {
                    door's landing and not this. <<< */
                 if (current_area == STATE_INCINERATOR_ROOM)
                     up_down_maze_spawn_south();
+                /* ...and back from the CLEAVER CORRIDOR, at the north door on
+                   the UPPER storey. Same terms. */
+                if (current_area == STATE_CLEAVER_CORRIDOR)
+                    up_down_maze_spawn_north();
                 /* NO MUSIC LINE HERE EITHER, and a new Chapter 3 room does not
                    get one: see the chapter rule below the foot of this chain. */
             } else if (pending_area == STATE_INCINERATOR_ROOM) {
@@ -4536,11 +4577,14 @@ int main(int argc, const char **argv) {
                 room_of_heads_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_CLEAVER_CORRIDOR) {
-                /* ONE ARRIVAL, up the ladder, so cleaver_corridor_init()'s
-                   default spawn is also the only one - and it is what a debug
-                   jump lands on too. The inner door at the east end is drawn and
-                   sealed (src/cleaver_corridor.h). */
+                /* The default is the top of the ladder, and it is what a debug
+                   jump lands on too. */
                 cleaver_corridor_init();
+                /* ...and the second arrival, from the UP DOWN MAZE through the
+                   south door. Keyed on current_area, the room being LEFT and not
+                   a route. */
+                if (current_area == STATE_UP_DOWN_MAZE)
+                    cleaver_corridor_spawn_south();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is

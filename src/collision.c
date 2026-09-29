@@ -19,6 +19,7 @@
 #include "incinerator.h"
 #include "crib.h"
 #include "bars.h"              /* The Pit's dropping portcullis           */
+#include "cleaver.h"           /* the Cleaver Corridor's slamming blades  */
 #include "rafflesia.h"
 #include "living_statue.h"
 #include "hadad.h"
@@ -979,6 +980,12 @@ void apply_collision_reception(void) {
        holds the player off the full 860 (src/bars.h). Prop radius, as the
        crib's: it is a 50-deep grille, not a wall run. */
     bars_collide(&cam_x, cam_y, &cam_z, 75);
+    /* The Cleaver Corridor's blades, on the bars' terms exactly: box and height
+       out of their own mesh, gated to their area, the vertical gate on the
+       CURRENT lift (src/cleaver.h). Hung, they block nothing; down, each one
+       closes the corridor. Their OWN standoff rather than the 75: a 30-thick
+       blade held off at 75 let the player's eye all but stand inside it. */
+    cleavers_collide(&cam_x, cam_y, &cam_z, CL_COLLIDE_RADIUS);
     /* Piano-room props (this routine is shared with the piano room); the module
        gates itself to that area, so this is a no-op in reception. */
     piano_props_collide(&cam_x, cam_y, &cam_z, 75);
