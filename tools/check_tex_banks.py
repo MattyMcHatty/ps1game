@@ -131,6 +131,11 @@ AREAS = {
                   # THE ROOM OF HEADS, the chapter's eighth room: owns heads.tim
                   # (on the arms' page) and borrows cobble and the inner door.
                   "room_of_heads_upload_textures",
+                  # THE CLEAVER CORRIDOR, the chapter's ninth room, at the top of
+                  # the North Chamber's ladder: owns nothing, borrows cobble and
+                  # the inner door, and the ladder through
+                  # north_chamber_upload_ladder().
+                  "cleaver_corridor_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

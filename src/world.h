@@ -22,7 +22,7 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 35  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 36  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
@@ -32,7 +32,7 @@
                                greenhouse, chain_room, the_hatch, asag_arena,
                                catacombs_entry, up_down_maze, incinerator_room,
                                tomb, room_of_arms, the_pit,
-                               north_chamber, room_of_heads.
+                               north_chamber, room_of_heads, cleaver_corridor.
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
                                are alternative rooms behind the same doors, and
@@ -227,7 +227,7 @@ typedef struct {
        one the design cares about.
 
        >>> IT IS A uint64_t FOR THE SAME REASON `visited` IS, AND IT IS CAPPED BY
-       THE SAME NUMBER. <<< One bit per room, WORLD_NUM_ROOMS is 35, and the
+       THE SAME NUMBER. <<< One bit per room, WORLD_NUM_ROOMS is 36, and the
        _Static_assert in world.c holds the two in step. That note used to say
        "widening `visited` for a thirty-third room means widening this beside it",
        and The Pit is that room, so both are 64 bits now.

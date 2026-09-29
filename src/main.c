@@ -92,6 +92,8 @@
 #include "the_pit.h"
 #include "north_chamber.h"
 #include "room_of_heads.h"
+#include "cleaver_corridor.h"
+#include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
 #include "hatch_puzzle.h"
 #include "hatch_arrival.h"  /* the drop off the well: Asag's ending, beat 3   */
@@ -338,6 +340,7 @@ static void load_area_geometry(GameState area) {
         case STATE_THE_PIT:          the_pit_load_geometry(); break;
         case STATE_NORTH_CHAMBER:    north_chamber_load_geometry(); break;
         case STATE_ROOM_OF_HEADS:    room_of_heads_load_geometry(); break;
+        case STATE_CLEAVER_CORRIDOR: cleaver_corridor_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -424,6 +427,7 @@ static int soft_reset_allowed(GameState s) {
         case STATE_DOOR_ANIM:
         case STATE_STAIR_ANIM:
         case STATE_CATACOMB_WALK:
+        case STATE_LADDER_ANIM:
         case STATE_SAVE_MENU:
             return 0;
         default:
@@ -2203,6 +2207,37 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* ...and the LADDER, at the back of the east alcove on the gallery, up
+           to the Cleaver Corridor. Not a door: the ladder climb
+           (src/ladder_anim.h) replaces the door swing. Called unconditionally
+           for its edge state like the two above, and vetoed if either of them
+           took this frame. */
+        if (north_chamber_ladder_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_CLEAVER_CORRIDOR;
+            ladder_anim_start(LADDER_UP);
+            game_state   = STATE_LADDER_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_CLEAVER_CORRIDOR) {
+        /* THE CLEAVER CORRIDOR - Chapter 3's ninth room: the shared wall
+           routine and ONE flat floor zone over a plain box proxy. multi_level is
+           0. The shaft at the west end is outside the proxy; its ladder is the
+           only way out that works, and it is climbed by the ladder transition
+           rather than walked. The inner door at the east end is drawn and
+           sealed (src/cleaver_corridor.h). No props and nothing seeded; both
+           Chapter 3 enemy updates are called anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (cleaver_corridor_ladder_triggered(lock)) {
+            pending_area = STATE_NORTH_CHAMBER;
+            ladder_anim_start(LADDER_DOWN);
+            game_state   = STATE_LADDER_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ROOM_OF_HEADS) {
         /* THE ROOM OF HEADS - Chapter 3's eighth room: the shared wall routine,
            ONE flat floor zone and one door, the Room of Arms' shape without its
@@ -2639,6 +2674,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         north_chamber_draw(ctx);
     else if (area == STATE_ROOM_OF_HEADS)
         room_of_heads_draw(ctx);
+    else if (area == STATE_CLEAVER_CORRIDOR)
+        cleaver_corridor_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3042,6 +3079,11 @@ int main(int argc, const char **argv) {
                                      arms' page and palette. Deferred, so no CD
                                      access here. Above the owner's call below,
                                      for the same reason as the lines above. */
+    loading_screen_pump(&ctx);
+    cleaver_corridor_load_assets(); /* CHAPTER 3's ninth room: three borrowed
+                                     headers (cobble, inner door, ladder) and
+                                     NO registration - it owns nothing. No CD
+                                     access. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -3819,6 +3861,14 @@ int main(int argc, const char **argv) {
                    branch puts back on the way in there. Same guarantee and same
                    silent failure mode as the branches around it. */
                 room_of_heads_upload_textures();
+            } else if (pending_area == STATE_CLEAVER_CORRIDOR) {
+                /* THE CLEAVER CORRIDOR. Cobble and the inner door through the
+                   Catacombs Entry's narrow uploaders, and the LADDER through the
+                   North Chamber's - x704 y256, the incinerator's page, which the
+                   Incinerator Room's branch puts back on the way in there. It
+                   owns nothing. Same guarantee and same silent failure mode as
+                   the branches around it. */
+                cleaver_corridor_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4475,11 +4525,22 @@ int main(int argc, const char **argv) {
                    load still lands at the south door. */
                 if (current_area == STATE_ROOM_OF_HEADS)
                     north_chamber_spawn_west();
+                /* ...and the third, back DOWN the ladder from the Cleaver
+                   Corridor, into the east alcove on the gallery. Same terms. */
+                if (current_area == STATE_CLEAVER_CORRIDOR)
+                    north_chamber_spawn_ladder();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ROOM_OF_HEADS) {
                 /* ONE ARRIVAL, the east door, so room_of_heads_init()'s default
                    spawn is also the only one. */
                 room_of_heads_init();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_CLEAVER_CORRIDOR) {
+                /* ONE ARRIVAL, up the ladder, so cleaver_corridor_init()'s
+                   default spawn is also the only one - and it is what a debug
+                   jump lands on too. The inner door at the east end is drawn and
+                   sealed (src/cleaver_corridor.h). */
+                cleaver_corridor_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -4792,6 +4853,15 @@ int main(int argc, const char **argv) {
             catacomb_walk_draw(&ctx);
             if (catacomb_walk_finished())
                 game_state = STATE_LOADING;
+        } else if (game_state == STATE_LADDER_ANIM) {
+            /* The ladder climb (North Chamber <-> Cleaver Corridor): a column of
+               ladder tiles lurches past a fixed camera in four eased pulls, then
+               fades to black and hands off to STATE_LOADING. The stair climb
+               without the forward motion; src/ladder_anim.h. */
+            ladder_anim_update();
+            ladder_anim_draw(&ctx);
+            if (ladder_anim_finished())
+                game_state = STATE_LOADING;
         } else if (game_state == STATE_DELIVERY_AREA ||
                    game_state == STATE_KITCHEN_DINING ||
                    game_state == STATE_RECEPTION ||
@@ -4826,7 +4896,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_ROOM_OF_ARMS ||
                    game_state == STATE_THE_PIT ||
                    game_state == STATE_NORTH_CHAMBER ||
-                   game_state == STATE_ROOM_OF_HEADS) {
+                   game_state == STATE_ROOM_OF_HEADS ||
+                   game_state == STATE_CLEAVER_CORRIDOR) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

@@ -309,6 +309,11 @@ void north_chamber_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
     bars_upload_texture();
+    north_chamber_upload_ladder();
+}
+
+/* The ladder alone, for the Cleaver Corridor at its top (see the header). */
+void north_chamber_upload_ladder(void) {
     texmgr_upload(ladder_tex);
 }
 
@@ -349,14 +354,33 @@ void north_chamber_upload_textures(void) {
 #define NC_WEST_Z             1900     /* the art spans z[1800,2000] */
 #define NC_WEST_TEXT_Y      (NC_GALLERY_Y - 186)
 
+/* ---- THE LADDER ------------------------------------------------------------
+   x=2800, z[1600,1800], y[-1800,-1000] — on the back wall of the ladder alcove
+   off the GALLERY's east arm, climbing into the black shaft in the vault. Up to
+   THE CLEAVER CORRIDOR, through the top of its shaft.
+
+   The wall is wall 19, x=2800 with the walkable side -X, so the prompt is a
+   YZ-plane sign approached from -X: mirror=1, 11 proud of the wall along -X, and
+   the -200 on the Z argument — the Room of Heads' east door's pair. The alcove
+   is z[1400,2000], so the 195 standoff leaves the player z[1595,1805] and
+   x<=2605: always inside the 500 trigger radius once in the alcove.
+
+   Gallery only, the west door's test: see the header for why it is insurance
+   here. ITS Y IS THE GALLERY'S, -1186. */
+#define NC_LADDER_X           2800
+#define NC_LADDER_Z           1700     /* the ladder spans z[1600,1800] */
+#define NC_LADDER_TEXT_Y    (NC_GALLERY_Y - 186)
+
 /* Circle edge-detect, one per door. Seeded "held" by the arm below so a press
    carried in through the transition cannot fire on the arrival frame. */
-static int south_circle_prev = 1;
-static int west_circle_prev  = 1;
+static int south_circle_prev  = 1;
+static int west_circle_prev   = 1;
+static int ladder_circle_prev = 1;
 
 void north_chamber_arm(void) {
-    south_circle_prev = interact_tapped();
-    west_circle_prev  = south_circle_prev;
+    south_circle_prev  = interact_tapped();
+    west_circle_prev   = south_circle_prev;
+    ladder_circle_prev = south_circle_prev;
 }
 
 /* On the ground floor, as the south door needs it: see the header. The west
@@ -396,6 +420,22 @@ int north_chamber_west_door_triggered(int lock) {
     xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (xz >= NC_TRIGGER_RADIUS) return 0;
     if (!interact_facing(NC_WEST_X, NC_WEST_Z)) return 0;
+    return 1;
+}
+
+/* The ladder's Circle test: the west door's, at the foot of the ladder. */
+int north_chamber_ladder_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !ladder_circle_prev;
+    int32_t dx, dz, xz;
+    ladder_circle_prev = held;
+    if (lock || !just) return 0;
+    if (nc_on_ground()) return 0;           /* the ladder is on the gallery */
+    dx = cam_x - NC_LADDER_X;
+    dz = cam_z - NC_LADDER_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= NC_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(NC_LADDER_X, NC_LADDER_Z)) return 0;
     return 1;
 }
 
@@ -447,6 +487,29 @@ static void nc_west_sign(RenderContext *ctx) {
                         DOOR_PIXEL_SIZE);
 }
 
+/* The ladder's prompt: gallery only, mirror=1 (approached from -X). */
+static void nc_ladder_sign(RenderContext *ctx) {
+    int32_t dx = cam_x - NC_LADDER_X;
+    int32_t dz = cam_z - NC_LADDER_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (nc_on_ground()) return;
+    if (xz >= NC_TEXT_RADIUS) return;
+
+    if (xz > NC_FADE_NEAR) {
+        int range = NC_TEXT_RADIUS - NC_FADE_NEAR;
+        int prog  = xz - NC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to ascend",
+                        NC_LADDER_X - 11, NC_LADDER_TEXT_Y, NC_LADDER_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ,
+                        DOOR_PIXEL_SIZE);
+}
+
 void north_chamber_spawn_south(void) {
     /* Arriving from The Pit. 220 off wall 0 on its walkable +Z side, facing +Z
        — the direction of travel, and straight at the cage in the middle of the
@@ -473,6 +536,20 @@ void north_chamber_spawn_west(void) {
     cam_vy  = 0;
     cam_z   = NC_WEST_Z;
     cam_rot = 1024;                    /* facing +X, east into the room */
+    north_chamber_arm();
+}
+
+void north_chamber_spawn_ladder(void) {
+    /* Back down the ladder from the Cleaver Corridor. In the ladder alcove, 220
+       off wall 19 on its walkable -X side, on the ladder's centre line, facing
+       -X — out of the alcove and across the east arm, the way the player walks
+       away from the foot of a ladder. x=2580 is inside the alcove's gallery
+       zone x[2400,2800]; the gallery's eye, as the west door's spawn. */
+    cam_x   = NC_LADDER_X - (NC_WALL_RADIUS + 25);
+    cam_y   = NC_GALLERY_Y - GROUND_FLOOR_Y - 40;
+    cam_vy  = 0;
+    cam_z   = NC_LADDER_Z;
+    cam_rot = 3072;                    /* facing -X, west out of the alcove */
     north_chamber_arm();
 }
 
@@ -704,6 +781,7 @@ void north_chamber_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         nc_south_sign(ctx);   /* south: XY plane, approached from +Z */
         nc_west_sign(ctx);    /* west: YZ plane, approached from +X, gallery */
+        nc_ladder_sign(ctx);  /* ladder: YZ plane, approached from -X, gallery */
         /* BOTH CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            A placement in this room has to pick a storey (y against 0 for the

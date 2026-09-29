@@ -14,6 +14,7 @@
 #include "web.h"            /* WEB_DAMAGE — the mist carries the spider's poison */
 #include "door_anim.h"      /* door_anim_active — see the guard in update_rafflesias */
 #include "catacomb_walk.h" /* ...and the same question about the Chapter 3 walk */
+#include "ladder_anim.h"   /* ...and the ladder climb */
 #include "tentacle.h"      /* the writhe voice's real owner — see raf_voice_is_ours */
 #include "spider.h"        /* ditto the scuttle voice */
 #include "rafflesia.h"
@@ -669,7 +670,7 @@ void update_rafflesias(void) {
        latches clear, and key the writhe straight back on for the whole of the
        transition and into the next room. That is the bug the same guard at the
        top of update_hadads was written for. */
-    if (door_anim_active() || catacomb_walk_active()) {
+    if (door_anim_active() || catacomb_walk_active() || ladder_anim_active()) {
         rafflesias_silence();
         return;
     }

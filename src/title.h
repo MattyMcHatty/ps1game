@@ -163,6 +163,18 @@ typedef enum {
                                 in it and one door. See src/room_of_heads.h.
                                 Appended, not inserted: saves store raw enum
                                 values. */
+    STATE_CLEAVER_CORRIDOR,  /* THE CLEAVER CORRIDOR, at the top of the LADDER in
+                                the North Chamber's east alcove. Chapter 3's ninth
+                                room: one straight corridor, flat under a y=-800
+                                vault, with the ladder's shaft at its west end.
+                                See src/cleaver_corridor.h. Appended, not
+                                inserted: saves store raw enum values. */
+    STATE_LADDER_ANIM,       /* the climb between those two rooms, and a
+                                transition state rather than a place — the company
+                                STATE_STAIR_ANIM and STATE_CATACOMB_WALK keep. A
+                                column of ladder tiles lurches past a fixed camera;
+                                src/ladder_anim.h. Appended for the same reason,
+                                though nothing ever saves in it. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

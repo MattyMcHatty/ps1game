@@ -189,6 +189,11 @@ static const char *const level_names[] = {
        west door. The jump lands at its one door. 13 characters, inside the 14
        the column allows. */
     "ROOM OF HEADS",
+    /* THE CLEAVER CORRIDOR, the chapter's ninth room, at the top of the North
+       Chamber's ladder. The jump lands at the top of the ladder, its only
+       arrival. "CLEAVER CORR": the full name is 16 characters, past the 14 the
+       column allows. */
+    "CLEAVER CORR",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -230,6 +235,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* THE PIT */
     STATE_LOADING,        /* NORTH CHAMBER */
     STATE_LOADING,        /* ROOM OF HEADS */
+    STATE_LOADING,        /* CLEAVER CORRIDOR */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -269,6 +275,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_THE_PIT,
     STATE_NORTH_CHAMBER,
     STATE_ROOM_OF_HEADS,
+    STATE_CLEAVER_CORRIDOR,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

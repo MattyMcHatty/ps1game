@@ -120,6 +120,10 @@ TexBank area_bank_of(GameState area) {
     case STATE_NORTH_CHAMBER:
     /* THE ROOM OF HEADS owns HEADS.TIM (on the arms' page) and borrows the rest. */
     case STATE_ROOM_OF_HEADS:
+    /* THE CLEAVER CORRIDOR owns nothing: cobble and the inner door through the
+       Catacombs Entry's narrow uploaders, the ladder through the North
+       Chamber's. Here by construction, as the Tomb is. */
+    case STATE_CLEAVER_CORRIDOR:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -136,7 +140,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_ROOM_OF_ARMS ||
            area == STATE_THE_PIT ||
            area == STATE_NORTH_CHAMBER ||
-           area == STATE_ROOM_OF_HEADS;
+           area == STATE_ROOM_OF_HEADS ||
+           area == STATE_CLEAVER_CORRIDOR;
 }
 
 /* ---- The prop models -------------------------------------------------------

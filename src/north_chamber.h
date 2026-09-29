@@ -46,8 +46,13 @@
    the gallery. Anything hung from it has to say which of the two it is over.
 
    THE LADDER leads up through a black shaft in the vault over the ladder alcove
-   (six untextured polys at y=-1800). It is DRAWN AND NOTHING ELSE: no prompt, no
-   trigger. Whatever is at the top is a later room.
+   (six untextured polys at y=-1800), to THE CLEAVER CORRIDOR. It is climbed, not
+   walked: a Circle at its foot on the gallery starts the ladder transition
+   (src/ladder_anim.h), and the player arrives at the top of the corridor's
+   shaft. Coming back down lands them in the alcove, facing out of it. Gallery
+   only, like the west door — though here the test is insurance rather than
+   load-bearing: the nearest ground-floor standing spot, under the east arm at
+   x~2205, is ~595 from the ladder in plan, outside the 500 radius.
 
    THE DOORS. Two, both wired up:
 
@@ -74,9 +79,11 @@
 
    FOUR TEXTURES, AND THE ROOM OWNS ONE. Cobblestone and the catacomb inner door
    come through src/catacombs_entry.c's narrow uploaders and the cage's bars
-   through src/bars.c's, as The Pit takes them. `ladder` is new art that only this
-   room draws, registered deferred like the rest of the chapter, on the
-   INCINERATOR's VRAM page and palette — see north_chamber_load_assets().
+   through src/bars.c's, as The Pit takes them. `ladder` is new art this room
+   owns, registered deferred like the rest of the chapter, on the INCINERATOR's
+   VRAM page and palette — see north_chamber_load_assets(). The Cleaver Corridor,
+   at the other end of the ladder, borrows it through
+   north_chamber_upload_ladder().
 
    Its exports live in assets/catacombs/, beside the other six Chapter 3 rooms'. */
 
@@ -94,9 +101,23 @@ void north_chamber_spawn_south(void);
    arm just inside it, facing east over the drop. */
 void north_chamber_spawn_west(void);
 
+/* Arrival DOWN the ladder, from the Cleaver Corridor: in the ladder alcove on
+   the gallery, at its foot, facing west out of the alcove. */
+void north_chamber_spawn_ladder(void);
+
 /* One frame of the west door's Circle test: as the south door's below, but on
    the GALLERY. */
 int  north_chamber_west_door_triggered(int lock);
+
+/* One frame of the ladder's Circle test: the west door's, at the foot of the
+   ladder in the east alcove. Returns 1 on the frame main.c starts the climb. */
+int  north_chamber_ladder_triggered(int lock);
+
+/* The ladder's texture alone, for the Cleaver Corridor — the other end of the
+   same ladder. The narrow-uploader pattern (conservatory_upload_con_tile):
+   north_chamber_upload_textures() would also stamp the bars, which that room
+   does not draw. */
+void north_chamber_upload_ladder(void);
 
 /* One frame of the south door's Circle test. `lock` is main's usual suppression.
    Returns 1 on a fresh press made in range, on the ground floor, facing the door
