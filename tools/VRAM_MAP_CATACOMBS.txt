@@ -291,6 +291,7 @@ THIS BANK'S OWN ART
   texture                    what it is
   --------------------------------------------------------------------------
   arms.tim                   the Room of Arms' arms field   x640 y0
+  bars.tim                   The Pit's dropping bars        x512 y256 4bpp
   catacomb inner door.tim    the chapter's door panel too   x832 y0
   cobblestones.tim           every room's floor and walls   x384 y0
   crawler_a.tim              Crawler frames 0,1             x320 y128
@@ -331,7 +332,7 @@ MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
   x320  BLOCKED - reserved: graveolver.tim   [also on this page, all re-uploaded on room entry: chain_128.tim, dbl_dr_rg.tim, frnt_dr.tim, greenhouse door.tim, red_crpt.tim]
   x384  BLOCKED - reserved: stnd_rnds.tim   [also on this page, all re-uploaded on room entry: pipe_gh.tim, prpl_wlppr.tim, stove.tim]
   x448  BLOCKED - reserved: flm_rnds.tim, hatch_key.tim
-  x512  BLOCKED - reserved: grn_ky_stn.tim, helluminator.tim, wx_cb.tim   [also on this page, all re-uploaded on room entry: pipe_button_off.tim, pipe_button_on.tim]
+  x512  IN USE by this bank: bars.tim   [also on this page, all re-uploaded on room entry: pipe_button_off.tim, pipe_button_on.tim]
   x576  BLOCKED - reserved: bl_ky_stn.tim, pno_key.tim, vlv_hndl.tim
   x640  BLOCKED - reserved: mgn_ky_stn.tim, sml_med.tim   [also on this page, all re-uploaded on room entry: creep.tim]
   x704  IN USE by this bank: incinerator.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, vines.tim]

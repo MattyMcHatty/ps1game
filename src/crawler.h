@@ -60,7 +60,8 @@
  * nothing once the pool is full.
  * ----------------------------------------------------------------------- */
 
-#define MAX_CRAWLERS          6    /* 5 placed in the Up Down Maze + 1 spare */
+#define MAX_CRAWLERS          7    /* 5 in the Up Down Maze + 2 in The Pit's
+                                      ambush; WD_MAX_CRAWLERS (8) is the ceiling */
 
 #define CRW_MAX_HEALTH        6    /* six crucifaxe swings or six rounds      */
 
@@ -424,6 +425,9 @@ typedef enum {
     CRW_RETREAT,    /* bolting back out past CRW_RETREAT_DIST                    */
     CRW_PAUSE,      /* fully retreated: screams, then rushes again               */
     CRW_DEAD,
+    CRW_ENTER,      /* an ambush arrival on its scripted way in (crawlers_ambush):
+                       two straight legs, no collision, no floor probe, then a
+                       scream and CRW_RUSH. APPENDED so no state's value moves. */
 } CrawlerState;
 
 typedef struct {
@@ -472,6 +476,10 @@ typedef struct {
        its spawn but leaves this set, which is what makes "leave the room while
        it is active and it is STILL active when you come back" true. */
     int          roused;
+    /* CRW_ENTER's path: the FOOT it is making for on leg 0, then its own spawn
+       point on leg 1. Entity anchors, like x/y/z. */
+    int32_t      ent_fx, ent_fy, ent_fz;
+    int          ent_leg;
     GameState    area;
 } Crawler;
 
@@ -495,6 +503,32 @@ int  crawler_add_floor(int32_t x, int32_t z, int32_t floor_y, GameState area);
    then drops to the floor, which is the one thing the brief says a surface
    changes about the attack. Nothing places one yet. */
 int  crawler_add_ceiling(int32_t x, int32_t z, int32_t ceiling_y, GameState area);
+
+/* AN AMBUSH, the Lumberer's shape (lumberer.h) for the other enemy.
+
+   stow: every LIVING crawler in `area` goes inactive, which every loop in the
+   game skips. Call after world_enter(), which seeds/restores them active.
+
+   ambush: every living, stowed crawler in `area` comes back active at the
+   entry TOP given for it, scuttles in a straight line to the entry FOOT, then
+   on to its own spawn point, screams and RUSHES. The path is scripted and
+   passes through no collision at all — it exists for arrivals down geometry
+   the collision proxy does not have, like The Pit's banks. entries[k] belongs
+   to the k-th crawler SEEDED in `area` (dead ones included, so the pairing
+   never shifts); the y fields are floor SURFACES, converted to anchors here.
+   Returns how many appeared.
+
+   alive_in: living crawlers in `area`, stowed or not. */
+typedef struct {
+    int32_t top_x, top_y, top_z;     /* where it appears                    */
+    int32_t foot_x, foot_y, foot_z;  /* where the slope meets the floor     */
+} CrawlerEntry;
+
+#define CRW_ENTER_SPEED      20    /* units a frame, Manhattan, down the path */
+
+void crawlers_stow_area(GameState area);
+int  crawlers_ambush(GameState area, const CrawlerEntry *entries, int n);
+int  crawlers_alive_in(GameState area);
 
 void crawlers_init(void);
 void crawlers_reset(void);

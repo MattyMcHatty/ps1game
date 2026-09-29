@@ -1503,6 +1503,53 @@ void world_seed_room(GameState area) {
                      -1482,  349,          /* B: the south end              */
                      -149, STATE_TOMB);
     }
+
+    /* THE PIT: two Lumberers, and they are an AMBUSH — seeded here like any
+       other placement so their deaths stick and the save keys them, but STOWED
+       on every entry (the_pit_after_world_enter) and brought in only when the
+       bars have dropped at the bottom of the descent (src/the_pit.c, THE
+       AMBUSH). They are never seen patrolling.
+
+       POINT A IS WHERE EACH APPEARS, one either side of the bars across the
+       north alcove (x[-130,730] at z~3270), on the pit's side of them:
+
+         west  (-350, 3000)   342 off the west wall  (x=-692), 300 off the
+                              north face (z=3300), 220 west of the bars' end
+         east  ( 950, 3000)   342 off the east wall  (x=1292), 300 off the
+                              north face, 220 east of the bars' other end
+
+       all against the 100 LMB_BODY_RADIUS. Point B is 1000 south of A on the
+       open pit floor; it matters only if a living one is ever rested
+       (lumberers_rest) and re-stowed, which puts it back on A anyway.
+
+       y: the pit floor is y=0, so the standing anchor is -149 as in the Tomb.
+
+       >>> THE ORDER OF THESE TWO CALLS IS PART OF THE SAVE FORMAT. <<<
+       canonical_index() ranks rooms, then seed order within a room. The Pit
+       is room index 32, the LAST, so these two append after the Tomb's one and
+       no existing save's bits move; swap them and a loaded save's deaths
+       change hands between west and east. */
+    if (area == STATE_THE_PIT) {
+        lumberer_add(-350, 3000, -350, 2000, -149, STATE_THE_PIT);  /* west */
+        lumberer_add( 950, 3000,  950, 2000, -149, STATE_THE_PIT);  /* east */
+
+        /* ...and the SECOND WAVE: two Crawlers, stowed like the Lumberers and
+           brought in when both of those are dead. They enter down the pit's
+           banks on a scripted path (src/the_pit.c, THE WAVES) and these are
+           where that path ENDS — on the pit floor at the foot of each bank,
+           132 in from the side walls (x=-692 / 1292) against the 90
+           CRW_BODY_RADIUS push. Floor surface y=0.
+
+           THE ORDER IS BOTH THE SAVE FORMAT AND THE ENTRY PAIRING. West first:
+           canonical_index() ranks seed order within the room, and
+           pit_crawler_entry[] in the_pit.c pairs its k-th row with the k-th
+           crawler seeded here. The Pit is room 32, the last, so these append
+           after the Up Down Maze's five and no existing save's bits move. They
+           are the 6th and 7th crawlers in the game, which is why MAX_CRAWLERS
+           is 7 (crawlers_dead is 8 bits wide). */
+        crawler_add_floor(-560, 3000, 0, STATE_THE_PIT);   /* west */
+        crawler_add_floor(1160, 3000, 0, STATE_THE_PIT);   /* east */
+    }
 }
 
 void world_enter(GameState area) {

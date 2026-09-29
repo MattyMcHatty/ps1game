@@ -135,6 +135,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   stnd_rnds.tim        8       416   256    64    64     0   0,509
   din_cl.tim           4       448   256   128   128     0   0,495
   flm_rnds.tim         8       480   256    64    64     0   256,481
+  bars.tim             4       512   256   128   128     0   0,497
   pipe_button_off.tim  4       512   256    32    32     0   528,502
   wd_dr_crk.tim        4       512   256   128   128     0   0,497
   pipe_button_on.tim   4       520   256    32    32     0   544,502
@@ -237,6 +238,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=496  x[0,16)  inr_dbl_dr.tim
   y=496  x[672,928)  poison_flower_base.tim
   y=496  x[256,512)  rafflesia1.tim
+  y=497  x[0,16)  bars.tim
   y=497  x[672,928)  greenhouse.tim
   y=497  x[256,512)  rafflesia2.tim
   y=497  x[0,16)  wd_dr_crk.tim
@@ -345,6 +347,9 @@ OVERLAP CHECK
   asag.tim                                 poison_flower_base.tim time-shared (streaming)
   asag.tim                                 trck_clue.tim        time-shared (streaming)
   asag.tim                                 trees.tim            time-shared (streaming)
+  bars.tim                                 pipe_button_off.tim  time-shared (streaming)
+  bars.tim                                 pipe_button_on.tim   time-shared (streaming)
+  bars.tim                                 wd_dr_crk.tim        time-shared (streaming)
   bed.tim                                  brick_wall.tim       time-shared (streaming)
   bed.tim                                  fountain.tim         time-shared (streaming)
   bed.tim                                  grss.tim             time-shared (streaming)

@@ -18,6 +18,7 @@
 #include "oil_dispenser.h"
 #include "incinerator.h"
 #include "crib.h"
+#include "bars.h"              /* The Pit's dropping portcullis           */
 #include "rafflesia.h"
 #include "living_statue.h"
 #include "hadad.h"
@@ -972,6 +973,12 @@ void apply_collision_reception(void) {
        a stretch of wall, and 195 would hold the player far enough off it that
        the alcove stopped being enterable. */
     cribs_collide(&cam_x, cam_y, &cam_z, 75);
+    /* The Pit's bars, on the crib's terms: box and height out of its own mesh,
+       gated to its area. The vertical gate reads the CURRENT lift, so while
+       they hang over the alcove's mouth this is a no-op and once dropped it
+       holds the player off the full 860 (src/bars.h). Prop radius, as the
+       crib's: it is a 50-deep grille, not a wall run. */
+    bars_collide(&cam_x, cam_y, &cam_z, 75);
     /* Piano-room props (this routine is shared with the piano room); the module
        gates itself to that area, so this is a no-op in reception. */
     piano_props_collide(&cam_x, cam_y, &cam_z, 75);

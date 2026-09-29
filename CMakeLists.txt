@@ -118,6 +118,7 @@ add_executable(horror_game
     src/incinerator.c
     src/incinerator_panel.c
     src/crib.c
+    src/bars.c
     src/catacomb_walk.c
     src/asag_boss.c
     src/asag_fight.c

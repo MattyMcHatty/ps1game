@@ -1269,6 +1269,25 @@
             <file name="CRIB.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\crib.smd"/>
             <file name="CRIB.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\crib.tim"/>
 
+            <!-- THE BARS, The Pit's portcullis: hung over the north alcove's
+                 mouth and dropped across it at the end of the descent
+                 (src/bars.h, and THE AMBUSH in src/the_pit.c). Chapter 3 art,
+                 so it ships here on the sconce's argument.
+
+                 4bpp 128x128 at x512 y256, the LEFT HALF of the wd_dr_crk page,
+                 stretched from a 64x64 source (tools/TEXTURING_NOTES.txt PART 7:
+                 287 world units per UV tile). Its CLUT is wd_dr_crk's own line
+                 at (0,497). Both come back on kitchen entry through
+                 kitchen_restore_textures(), and the Greenhouse's pipe buttons in
+                 the page's corner through that room's own stream, so the page
+                 owes nobody a restore. See tools/vram_map.py.
+
+                 BARS.SMD WAS EXPORTED IN THE PIT'S WORLD COORDINATES and is
+                 re-centred in RAM at load; it is also the prop's only collision
+                 data. -->
+            <file name="BARS.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\bars.smd"/>
+            <file name="BARS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\bars.tim"/>
+
             <!-- THE CRAWLER, the chapter's first MONSTER (src/crawler.c). Four
                  animation frames, read in the order top-left, top-right,
                  bottom-left, bottom-right. An idle crawler holds on the first; a

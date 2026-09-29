@@ -109,6 +109,7 @@
 #include "incinerator.h"
 #include "incinerator_panel.h"
 #include "crib.h"
+#include "bars.h"
 #include "creep.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
@@ -568,6 +569,20 @@ static void update_current_area(GameState area) {
        roof, exactly as they do behind the stove and plinth boards. */
     if (area == STATE_ROOM_OF_ARMS && room_of_arms_examine_active()) {
         room_of_arms_examine_update(0);
+        update_crawlers();
+        update_lumberers();
+        player_status_update();
+        update_particles();
+        return;
+    }
+    /* ...and The Pit's descent: the camera tilts down the slope, hops onto it
+       and slides to the pit floor (src/the_pit.c, THE DESCENT). The Room of Arms'
+       shape exactly. No update_camera, collision or apply_height, because the
+       shot runs down a slope the proxy does not have and apply_height would
+       drag the eye to whichever floor zone it is over. The player is anchored at
+       the landing, and both enemy ticks stay for the reason given above. */
+    if (area == STATE_THE_PIT && the_pit_descent_active()) {
+        the_pit_descent_update(0);
         update_crawlers();
         update_lumberers();
         player_status_update();
@@ -2100,32 +2115,39 @@ static void update_current_area(GameState area) {
            a nicety here rather than the mechanism it is in the Up Down Maze, and
            src/the_pit.c says why.
 
-           >>> THE TWO LEVELS DO NOT CONNECT, AND THAT IS KNOWN. <<< There is no
-           ramp, stair or drop between the gallery and the pit floor, so the player
-           walks a U and looks down. Nothing in this branch depends on that staying
-           true: the door trigger's lack of a Y test DOES, and src/the_pit.h flags
-           it as the thing to re-read the day the way down is built.
+           >>> THE WAY DOWN IS A SCENE, NOT A WALK. <<< The proxy still does not
+           connect the gallery and the pit floor. A Circle at the rim runs THE
+           DESCENT (src/the_pit.c), which slides the player down the drawn slope
+           and hands control back on the pit floor; while it runs, the frame goes
+           to the cutscene early-return at the top of this function and never
+           reaches this branch. The door trigger's lack of a Y test still holds,
+           and src/the_pit.h says why.
 
-           NO PROPS AND NO ENEMIES - world_seed_room() places nothing here. Both
-           Chapter 3 enemy updates are called anyway, on the Tomb's and the Room of
-           Arms' argument: a room with none of them pays nothing (the loops skip
-           every instance whose area is not current_area) and a later placement
-           starts moving without anyone having to remember this call. An enemy put
-           in THIS room has to pick a storey, though, and one put in the pit cannot
-           reach the player until the two sections are joined.
+           ONE PROP AND AN AMBUSH. The bars over the north alcove (src/bars.h)
+           collide through apply_collision_reception's shared prop list and are
+           dropped by the descent, which also brings in the two Lumberers
+           world_seed_room() places here; they are stowed (inactive) until then,
+           so both enemy updates below skip them while the player is on the
+           gallery. Both are called unconditionally anyway, on the Tomb's and the
+           Room of Arms' argument: a later placement starts moving without anyone
+           having to remember this call.
 
-           ONE INTERACTION, the south door back into the Tomb, so no veto chain and
-           no order to get right. */
+           TWO INTERACTIONS, the descent and the south door back into the Tomb,
+           with the descent first and vetoing the door. They cannot in fact
+           collide (one wants the player facing north, the other south, and the
+           facing cones are 60 degrees either side), but the veto is what every
+           other room's interaction chain does and it costs a branch. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
 
-        /* Called UNCONDITIONALLY, `lock` passed in rather than tested out here:
-           the function keeps its Circle edge state current while locked and
+        /* Both called UNCONDITIONALLY, `lock` passed in rather than tested out
+           here: each keeps its Circle edge state current while locked and
            returns 0, so a press held across a menu closing cannot read as a fresh
            one on the frame the lock lifts. */
-        if (the_pit_south_door_triggered(lock)) {
+        int pit_descending = the_pit_descent_update(lock);
+        if (!pit_descending && the_pit_south_door_triggered(lock)) {
             pending_area = STATE_TOMB;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
@@ -2972,6 +2994,13 @@ int main(int argc, const char **argv) {
                                   and out of area_bank.c's free list so the
                                   chapter purge leaves it standing. Its mesh is
                                   its collision data too - see src/crib.h. */
+    loading_screen_pump(&ctx);
+    bars_load_assets();        /* CHAPTER 3's bars (The Pit's portcullis), on the
+                                  crib's terms: a deferred texture registration
+                                  and one sector of geometry held for the run,
+                                  measured for collision AND re-centred in RAM
+                                  here, because it was exported in The Pit's
+                                  world coordinates - see src/bars.h. */
 
     asag_arena_load_assets();  /* ASAG'S ARENA: does NOTHING, on purpose. It owns
                                   no texture yet, and when it does they will be
@@ -4598,6 +4627,14 @@ int main(int argc, const char **argv) {
                                                     item_pickups, which
                                                     world_enter above has only
                                                     just restored. */
+            if (pending_area == STATE_THE_PIT)
+                the_pit_after_world_enter();     /* stows the ambush's two
+                                                    Lumberers, which world_enter
+                                                    above has just seeded or
+                                                    restored ACTIVE. The area
+                                                    init is too early for the
+                                                    same reason as the line
+                                                    above. */
         } else if (game_state == STATE_DOOR_ANIM) {
             /* RE-style door transition: a black screen with the door swinging
                open, then a fade to black. Draws nothing of the live room — when
@@ -4764,6 +4801,10 @@ int main(int argc, const char **argv) {
                                   text across a shot. */
                                (area == STATE_OUTSIDE_CATACOMBS && catacomb_open_active()) ||
                                (area == STATE_THE_HATCH && hatch_arrival_active()) ||
+                               /* The Pit's descent: a camera move with no log
+                                  line, so the cutscene list, like the drop off
+                                  the well. */
+                               (area == STATE_THE_PIT && the_pit_descent_active()) ||
                                (area == STATE_DELIVERY_AREA && delivery_intro_active()) ||
                                (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene()) ||
                                (area == STATE_REAR_GATE && hadad_grinder_cutscene());

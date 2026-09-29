@@ -326,6 +326,9 @@ typedef enum {
     LMB_WINDUP,   /* rooted, arm raised (frame 4)                             */
     LMB_STRIKE,   /* rooted, arm down (frame 5); the wave is out              */
     LMB_DEAD,
+    LMB_DROP,     /* an ambush arrival falling in from above (lumberers_ambush);
+                     no walking, no attack, lands into LMB_ALERT. APPENDED, so
+                     no existing state's value moves.                         */
 } LumbererState;
 
 typedef struct {
@@ -396,6 +399,40 @@ void lumberers_reset(void);
 /* Put every still-living lumberer back on patrol point A, unalerted, at full
    health (deaths stick). Called when leaving a room and when saving. */
 void lumberers_rest(void);
+
+/* AN AMBUSH: lumberers that are seeded in a room but not THERE until a scene
+   says so. world.c seeds them as usual — so a death sticks and the save keys
+   them like any other — and the room then hides them and later brings them in.
+   The Pit is the first user (src/the_pit.c, THE AMBUSH).
+
+   stow: every LIVING lumberer in `area` goes inactive, which every loop in the
+   game already skips (update, draw, collision, all three weapons). Call it
+   AFTER world_enter() on every entry to the room, since world_enter is what
+   seeds or restores the array — main.c's post-world_enter block is the place.
+
+   ambush: every living, stowed lumberer in `area` comes back ACTIVE over its
+   patrol point A, facing the player. With `drop` 0 it is standing there and
+   already ALERT. With `drop` > 0 it appears that far ABOVE its standing anchor
+   in LMB_DROP and falls at MAX_FALL_VEL + LMB_DROP_BOOST a frame — the
+   ordinary apply_ddog_height gravity, already at its cap, plus the boost, so
+   twice as fast as anything else falls; on the frame it lands it lets out
+   SFX_LMBR_YELL and goes ALERT. It neither walks nor attacks in the air. Its
+   patrol is never walked (an alert lumberer does not go back to patrolling),
+   so point A is simply "where it lands" and B only matters after
+   lumberers_rest(). Returns how many appeared.
+
+   dropping: how many lumberers in `area` are still in the air — what a scene
+   waits on before handing control back.
+
+   alive_in: living lumberers in `area`, stowed or not — what an encounter
+   waits on to know the wave is beaten. */
+#define LMB_DROP_BOOST       20    /* = MAX_FALL_VEL: an ambush drop at 2x    */
+
+void lumberers_stow_area(GameState area);
+int  lumberers_ambush(GameState area, int32_t drop);
+int  lumberers_dropping(GameState area);
+int  lumberers_alive_in(GameState area);
+
 void update_lumberers(void);
 void draw_lumberers(RenderContext *ctx);
 

@@ -145,6 +145,7 @@ BANK = {
     "oil_container.tim":        "the oil dispenser              x896 y256",
     "crib.tim":                 "the Room of Arms' crib         x576 y0",
     "rusty.tim":                "The Pit's shaft ironwork       x704 y0",
+    "bars.tim":                 "The Pit's dropping bars        x512 y256 4bpp",
     "crawler_a.tim":            "Crawler frames 0,1             x320 y128",
     "crawler_b.tim":            "Crawler frames 2,3             x704 y128",
     "lumberer_a.tim":           "Lumberer images 1-3            x448 y128",

@@ -767,6 +767,24 @@ KNOWN_STREAM_PAIRS = [
     ("rusty_fence.tim",           "rusty.tim"),
     ("stable glyphs.tim",         "rusty.tim"),
     ("upstairs.tim",              "rusty.tim"),
+    #   bars.tim -> x512 y256, LEFT HALF: The Pit's dropping portcullis. After
+    # rusty there was no whole Voff-0 page left in the Catacombs bank, and this
+    # one did not need one — a grille is fifteen colours and a hole, so it is
+    # 4bpp and 32 columns wide, and the left half of the wd_dr_crk page is
+    # already a time-share with a live way back for everything in it:
+    #   wd_dr_crk                 -> kitchen_restore_textures(),       kitchen
+    #   pipe_button_off / _on     -> greenhouse's uploader,            greenhouse
+    # wd_dr_crk is drawn only by the kitchen's fat doors (area-gated), so the
+    # kitchen's own entry is the only restore it needs. Its CLUT line (0,497) is
+    # BORROWED on the crib's argument and goes back in the same upload.
+    #
+    # NOT x448/x576 y256 (din_cl, inr_dbl_dr), though both look the same shape
+    # here: those are drawn by the library, the East Hall and the 2F hall too,
+    # and only the KITCHEN streams them back, so a title load straight into the
+    # library would draw someone else's pixels on its door.
+    ("wd_dr_crk.tim",             "bars.tim"),
+    ("pipe_button_off.tim",       "bars.tim"),
+    ("pipe_button_on.tim",        "bars.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

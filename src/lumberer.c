@@ -16,6 +16,7 @@
 #include "door_anim.h"  /* the three panel halves this sheet borrows */
 #include "texmgr.h"
 #include "sound.h"
+#include "bars.h"     /* The Pit's bars stop enemies too */
 
 Lumberer lumberers[MAX_LUMBERERS];
 int      lumberer_count = 0;
@@ -215,6 +216,68 @@ void lumberers_rest(void) {
         s->nav_clear = -1;
         lmb_face(s, bx - ax, bz - az);
     }
+}
+
+void lumberers_stow_area(GameState area) {
+    int i;
+    for (i = 0; i < lumberer_count; i++) {
+        Lumberer *s = &lumberers[i];
+        if (s->area != area || s->state == LMB_DEAD) continue;
+        s->active = 0;
+    }
+}
+
+int lumberers_ambush(GameState area, int32_t drop) {
+    int i, n = 0;
+    for (i = 0; i < lumberer_count; i++) {
+        Lumberer *s = &lumberers[i];
+        if (s->area != area || s->active || s->state == LMB_DEAD) continue;
+        /* lumberers_rest()'s rebuild, then ALERT or DROP. Nothing carried over
+           from a previous visit — a stowed body is a fresh one. */
+        int32_t ax = s->pa_x, az = s->pa_z;
+        int32_t bx = s->pb_x, bz = s->pb_z;
+        int32_t y  = s->spawn_y;
+        *s = (Lumberer){0};
+        s->x = ax; s->y = y; s->z = az;
+        s->pa_x = ax; s->pa_z = az;
+        s->pb_x = bx; s->pb_z = bz;
+        s->spawn_y = y;
+        s->to_b   = 1;
+        s->health = LMB_MAX_HEALTH;
+        s->state  = LMB_ALERT;
+        s->active = 1;
+        s->area   = area;
+        s->nav_clear = -1;
+        if (drop > 0) {
+            /* Up in the air and ALREADY at terminal speed, so it reads as
+               dropping in from somewhere above rather than floating up there
+               and starting to fall. apply_ddog_height does the rest: it takes
+               the floor zone under the body even from this high (the zone's
+               surface is below it, which is all its test asks). */
+            s->y     = y - drop;
+            s->vy    = MAX_FALL_VEL;
+            s->state = LMB_DROP;
+        }
+        lmb_face(s, player_x() - ax, player_z() - az);
+        n++;
+    }
+    return n;
+}
+
+int lumberers_alive_in(GameState area) {
+    int i, n = 0;
+    for (i = 0; i < lumberer_count; i++)
+        if (lumberers[i].area == area && lumberers[i].state != LMB_DEAD) n++;
+    return n;
+}
+
+int lumberers_dropping(GameState area) {
+    int i, n = 0;
+    for (i = 0; i < lumberer_count; i++) {
+        const Lumberer *s = &lumberers[i];
+        if (s->area == area && s->active && s->state == LMB_DROP) n++;
+    }
+    return n;
 }
 
 /* No weaknesses, by design: the Lumberer takes 1 from a crucifaxe swing and 1
@@ -587,7 +650,7 @@ static int lmb_steer(Lumberer *s, int32_t goal_dx, int32_t goal_dz,
     int32_t feeler_x = s->x + (desired_x * LMB_FEELER_LEN) / desired_dist;
     int32_t feeler_z = s->z + (desired_z * LMB_FEELER_LEN) / desired_dist;
     int32_t fx = feeler_x, fz = feeler_z;
-    crates_collide(&fx, s->y, &fz, 80);
+    crates_collide(&fx, s->y, &fz, 80); bars_collide(&fx, s->y, &fz, 80);
     dining_tables_collide(&fx, s->y, &fz, 75);
     apply_flat_entity_collision(&fx, &fz, LMB_BODY_RADIUS);
     int blocked = (fx != feeler_x || fz != feeler_z);
@@ -618,13 +681,13 @@ static int lmb_steer(Lumberer *s, int32_t goal_dx, int32_t goal_dz,
         int32_t rz = s->z + (pr_z * LMB_FEELER_LEN) / pr_dist;
 
         int32_t tlx = lx, tlz = lz;
-        crates_collide(&tlx, s->y, &tlz, 80);
+        crates_collide(&tlx, s->y, &tlz, 80); bars_collide(&tlx, s->y, &tlz, 80);
         dining_tables_collide(&tlx, s->y, &tlz, 75);
         apply_flat_entity_collision(&tlx, &tlz, LMB_BODY_RADIUS);
         int left_blocked = (tlx != lx || tlz != lz);
 
         int32_t trx = rx, trz = rz;
-        crates_collide(&trx, s->y, &trz, 80);
+        crates_collide(&trx, s->y, &trz, 80); bars_collide(&trx, s->y, &trz, 80);
         dining_tables_collide(&trx, s->y, &trz, 75);
         apply_flat_entity_collision(&trx, &trz, LMB_BODY_RADIUS);
         int right_blocked = (trx != rx || trz != rz);
@@ -732,7 +795,7 @@ static int lmb_steer(Lumberer *s, int32_t goal_dx, int32_t goal_dz,
     s->x += blend_x;
     s->z += blend_z;
     apply_flat_entity_collision(&s->x, &s->z, LMB_BODY_RADIUS);
-    crates_collide(&s->x, s->y, &s->z, 80);
+    crates_collide(&s->x, s->y, &s->z, 80); bars_collide(&s->x, s->y, &s->z, 80);
     dining_tables_collide(&s->x, s->y, &s->z, 75);
     fatdoors_collide(&s->x, s->y, &s->z, LMB_DOOR_CLEARANCE);
 
@@ -811,7 +874,7 @@ void update_lumberers(void) {
             s->x += s->kb_vx;
             s->z += s->kb_vz;
             apply_flat_entity_collision(&s->x, &s->z, LMB_BODY_RADIUS);
-            crates_collide(&s->x, s->y, &s->z, 80);
+            crates_collide(&s->x, s->y, &s->z, 80); bars_collide(&s->x, s->y, &s->z, 80);
             dining_tables_collide(&s->x, s->y, &s->z, 75);
             fatdoors_collide(&s->x, s->y, &s->z, LMB_DOOR_CLEARANCE);
             if (s->kb_vx > 0) s->kb_vx =  (  s->kb_vx * 7) >> 3;
@@ -829,6 +892,30 @@ void update_lumberers(void) {
         s->moved = 0;
 
         switch (s->state) {
+
+        /* An ambush arrival in the air (lumberers_ambush). apply_ddog_height
+           above has already moved it; all this state does is wait for the floor.
+           That call zeroes vy on the frame it clamps the body to the surface and
+           nowhere else — in the air vy is never below GRAVITY — so vy == 0 IS
+           "has landed". Then the roar, and the chase; the attack check waits
+           for the next frame's ALERT. */
+        case LMB_DROP:
+            /* TWICE apply_ddog_height's terminal speed. That call caps vy at
+               MAX_FALL_VEL for every body in the game, so the ambush's extra
+               speed is added HERE, in this state only, and clamped to the
+               standing anchor — which is apply_ddog_height's own floor target
+               for the authored placement, so landing on it is the same thing
+               that call would have done. */
+            if (s->vy != 0) {
+                s->y += LMB_DROP_BOOST;
+                if (s->y >= s->spawn_y) { s->y = s->spawn_y; s->vy = 0; }
+            }
+            if (s->vy == 0) {
+                sound_play(SFX_LMBR_YELL);
+                s->state = LMB_ALERT;
+                lmb_face(s, dx, dz);
+            }
+            break;
 
         case LMB_PATROL: {
             /* --- Noticing the player. Proximity alone: no facing test and no
@@ -1076,7 +1163,11 @@ static void draw_lmb_shadow(RenderContext *ctx, Lumberer *s) {
     int16_t ddx = (int16_t)((LMB_SHADOW_D * fx) >> 12);
     int16_t ddz = (int16_t)((LMB_SHADOW_D * fz) >> 12);
 
-    int32_t shadow_y = s->y + LMB_Y_OFFSET + LMB_HALF_H - 2;
+    /* On the FLOOR while an ambush drop is falling, not under the body: the
+       shadow reaches the ground first and marks where it will land. spawn_y is
+       the authored standing anchor, so this is exactly where s->y ends up. */
+    int32_t anchor_y = (s->state == LMB_DROP) ? s->spawn_y : s->y;
+    int32_t shadow_y = anchor_y + LMB_Y_OFFSET + LMB_HALF_H - 2;
 
     SVECTOR sv[4];
     sv[0].vx = (int16_t)(s->x - dwx - ddx); sv[0].vy = (int16_t)shadow_y; sv[0].vz = (int16_t)(s->z - dwz - ddz); sv[0].pad = 0;

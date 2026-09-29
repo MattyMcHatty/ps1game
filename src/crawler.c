@@ -11,6 +11,7 @@
 #include "crate.h"
 #include "particles.h"
 #include "crawler.h"
+#include "bars.h"     /* The Pit's bars stop enemies too */
 #include "crucifaxe.h"   /* SWING_RANGE — crawlers_try_hit owns its own reach */
 #include "fatdoor.h"
 #include "texmgr.h"
@@ -183,6 +184,57 @@ void crawlers_rest(void) {
         else    s->state = CRW_IDLE;
         if (s->state == CRW_DROPPING) s->vy = CRW_DROP_VEL;
     }
+}
+
+void crawlers_stow_area(GameState area) {
+    int i;
+    for (i = 0; i < crawler_count; i++) {
+        Crawler *s = &crawlers[i];
+        if (s->area != area || s->state == CRW_DEAD) continue;
+        s->active = 0;
+    }
+}
+
+int crawlers_ambush(GameState area, const CrawlerEntry *entries, int n) {
+    int i, k = 0, appeared = 0;
+    for (i = 0; i < crawler_count; i++) {
+        Crawler *s = &crawlers[i];
+        if (s->area != area) continue;
+        /* k counts SEEDED crawlers in the area, dead or alive, so entries[k]
+           always pairs with the same body whoever has died. */
+        int slot = k++;
+        if (s->active || s->state == CRW_DEAD || slot >= n) continue;
+
+        /* crawlers_rest()'s rebuild, then onto the entry path. */
+        int32_t sx = s->spawn_x, sy = s->spawn_y, sz = s->spawn_z;
+        *s = (Crawler){0};
+        s->spawn_x = sx; s->spawn_y = sy; s->spawn_z = sz;
+        s->spawn_surface = CRW_SURF_FLOOR;
+        s->surface       = CRW_SURF_FLOOR;
+        s->wall   = -1;
+        s->health = CRW_MAX_HEALTH;
+        s->active = 1;
+        s->area   = area;
+        s->roused = 1;
+        s->state  = CRW_ENTER;
+        s->ent_leg = 0;
+        /* Surfaces in, anchors out: the conversion crawler_add_floor makes. */
+        s->x = entries[slot].top_x;
+        s->y = entries[slot].top_y - GROUND_FLOOR_Y;
+        s->z = entries[slot].top_z;
+        s->ent_fx = entries[slot].foot_x;
+        s->ent_fy = entries[slot].foot_y - GROUND_FLOOR_Y;
+        s->ent_fz = entries[slot].foot_z;
+        appeared++;
+    }
+    return appeared;
+}
+
+int crawlers_alive_in(GameState area) {
+    int i, n = 0;
+    for (i = 0; i < crawler_count; i++)
+        if (crawlers[i].area == area && crawlers[i].state != CRW_DEAD) n++;
+    return n;
 }
 
 /* ---- Sound ---------------------------------------------------------------
@@ -926,6 +978,48 @@ void update_crawlers(void) {
         int32_t dz = pz - s->z;
         int32_t rad2 = dx * dx + dz * dz;
 
+        /* ---- An ambush arrival (crawlers_ambush) ----------------------------
+           Scripted, and FIRST, before gravity or any collision: its path runs
+           down geometry the proxy does not have (The Pit's banks), where
+           apply_ddog_height would find no floor zone and bury it at y=0 and
+           every wall push would fight it. Two straight legs at CRW_ENTER_SPEED
+           (top -> foot, foot -> spawn); at the end it screams and rushes, the
+           same thing a woken crawler does. It animates and scuttles the whole
+           way, so it reads as running down the slope. */
+        if (s->state == CRW_ENTER) {
+            int32_t gx = s->ent_leg ? s->spawn_x : s->ent_fx;
+            int32_t gy = s->ent_leg ? s->spawn_y : s->ent_fy;
+            int32_t gz = s->ent_leg ? s->spawn_z : s->ent_fz;
+            int32_t ex = gx - s->x, ey = gy - s->y, ez = gz - s->z;
+            int32_t d  = (ex < 0 ? -ex : ex) + (ey < 0 ? -ey : ey)
+                       + (ez < 0 ? -ez : ez);
+            int32_t dxz = (ex < 0 ? -ex : ex) + (ez < 0 ? -ez : ez);
+            if (dxz > 0) {
+                int32_t fx = (ex * CRW_SPEED) / dxz, fz = (ez * CRW_SPEED) / dxz;
+                s->facing = ((int32_t)(int16_t)fx << 16) | (uint16_t)(int16_t)fz;
+            }
+            if (d <= CRW_ENTER_SPEED) {
+                s->x = gx; s->y = gy; s->z = gz;
+                if (s->ent_leg == 0) {
+                    s->ent_leg = 1;
+                } else {
+                    s->state   = CRW_RUSH;
+                    s->surface = CRW_SURF_FLOOR;
+                    s->vy      = 0;
+                    s->roused  = 1;
+                    crawler_scream();
+                }
+            } else {
+                s->x += (ex * CRW_ENTER_SPEED) / d;
+                s->y += (ey * CRW_ENTER_SPEED) / d;
+                s->z += (ez * CRW_ENTER_SPEED) / d;
+            }
+            s->moved = 1;
+            s->anim_tick++;
+            any_walking = 1;
+            continue;
+        }
+
         /* ---- Asleep --------------------------------------------------------
            The wake test is a CYLINDER that extends downward: inside the radius
            in plan view, and the player at or below this crawler's own level.
@@ -1122,6 +1216,7 @@ void update_crawlers(void) {
         crw_walls_collide(s, &fx, &fz, CRW_BODY_RADIUS);
         int wall_blocked = (fx != feeler_x || fz != feeler_z);
         if (s->surface == CRW_SURF_FLOOR) crates_collide(&fx, s->y, &fz, 80);
+        bars_collide(&fx, s->y, &fz, 80);
         int blocked = (fx != feeler_x || fz != feeler_z);
 
         /* A clear line to the player means charge straight, and it is gated on
@@ -1206,12 +1301,12 @@ void update_crawlers(void) {
             int32_t rz = s->z + (pr_z * CRW_FEELER_LEN) / pr_dist;
 
             int32_t tlx = lx, tlz = lz;
-            crates_collide(&tlx, s->y, &tlz, 80);
+            crates_collide(&tlx, s->y, &tlz, 80); bars_collide(&tlx, s->y, &tlz, 80);
             crw_walls_collide(s, &tlx, &tlz, CRW_BODY_RADIUS);
             int left_blocked = (tlx != lx || tlz != lz);
 
             int32_t trx = rx, trz = rz;
-            crates_collide(&trx, s->y, &trz, 80);
+            crates_collide(&trx, s->y, &trz, 80); bars_collide(&trx, s->y, &trz, 80);
             crw_walls_collide(s, &trx, &trz, CRW_BODY_RADIUS);
             int right_blocked = (trx != rx || trz != rz);
 
@@ -1261,7 +1356,7 @@ void update_crawlers(void) {
            the crates and the doors, and pushing it off them would be pushing it
            off something that is not there. */
         if (s->surface == CRW_SURF_FLOOR) {
-            crates_collide(&s->x, s->y, &s->z, 80);
+            crates_collide(&s->x, s->y, &s->z, 80); bars_collide(&s->x, s->y, &s->z, 80);
             fatdoors_collide(&s->x, s->y, &s->z, CRW_DOOR_CLEARANCE);
         }
 
