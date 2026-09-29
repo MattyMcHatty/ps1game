@@ -90,6 +90,7 @@
 #include "tomb.h"
 #include "room_of_arms.h"
 #include "the_pit.h"
+#include "north_chamber.h"
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
 #include "hatch_puzzle.h"
 #include "hatch_arrival.h"  /* the drop off the well: Asag's ending, beat 3   */
@@ -334,6 +335,7 @@ static void load_area_geometry(GameState area) {
         case STATE_TOMB:             tomb_load_geometry(); break;
         case STATE_ROOM_OF_ARMS:     room_of_arms_load_geometry(); break;
         case STATE_THE_PIT:          the_pit_load_geometry(); break;
+        case STATE_NORTH_CHAMBER:    north_chamber_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2153,6 +2155,42 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* ...and the NORTH door, on the pit floor behind the bars, into the
+           North Chamber. Called unconditionally for its edge state, like the
+           two above; the bars are what keep the player out of its radius until
+           the ambush is won (src/the_pit.c). */
+        if (the_pit_north_door_triggered(lock) && !pit_descending &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_NORTH_CHAMBER;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_NORTH_CHAMBER) {
+        /* THE NORTH CHAMBER - Chapter 3's seventh room: the shared wall routine
+           and one door over EIGHT floor zones in two storeys that share a
+           footprint, the Up Down Maze's shape. apply_height() walks the zones
+           gallery-first, ramp, ground last, and that ORDER is what puts the
+           player on the right storey (src/north_chamber.c). multi_level is 1 for
+           the hitscan Y-gate; see src/north_chamber_mesh_collision.c.
+
+           No props and no enemies yet. Both enemy updates are called anyway, on
+           the rest of the chapter's argument: a later placement starts moving
+           without anyone having to remember this call.
+
+           The door is the one trigger in the chapter besides the Up Down Maze's
+           that tests the STOREY: the south gallery is directly over it. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (north_chamber_south_door_triggered(lock)) {
+            pending_area = STATE_THE_PIT;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ASAG_ARENA) {
         /* ASAG'S ARENA — free play, which here means the fight AFTER the opening
            scene has handed the camera back. The scene itself runs in the
@@ -2562,6 +2600,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         room_of_arms_draw(ctx);
     else if (area == STATE_THE_PIT)
         the_pit_draw(ctx);
+    else if (area == STATE_NORTH_CHAMBER)
+        north_chamber_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -2950,6 +2990,14 @@ int main(int argc, const char **argv) {
                                      ORDER STILL MATTERS FOR THE TWO IT BORROWS, so
                                      this stays above the owner's call below for
                                      that call's reason. */
+    loading_screen_pump(&ctx);
+    north_chamber_load_assets();  /* CHAPTER 3's seventh room: three borrowed
+                                     headers (cobble, inner door, bars) and its
+                                     OWN deferred registration for LADDER.TIM,
+                                     on the incinerator's page. Deferred, so no
+                                     CD access here. Above the owner's call
+                                     below, for the same reason as the line
+                                     above. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -3713,6 +3761,13 @@ int main(int argc, const char **argv) {
                    pile of gravel - close enough to be mistaken for a UV bug, which
                    is what py tools/check_tex_banks.py is for. */
                 the_pit_upload_textures();
+            } else if (pending_area == STATE_NORTH_CHAMBER) {
+                /* THE NORTH CHAMBER. The Pit's borrowed pages (cobble, inner
+                   door, bars) plus its OWN - LADDER.TIM on x704 y256, the
+                   INCINERATOR's page and palette, which the Incinerator Room's
+                   branch puts back on the way in there. Same guarantee and
+                   same silent failure mode as the branches around it. */
+                north_chamber_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4351,7 +4406,19 @@ int main(int argc, const char **argv) {
                    would land on the pit floor, which is the one surface in the room
                    with no way off it. */
                 the_pit_init();
+                /* ...and the second arrival, back from the NORTH CHAMBER
+                   through the north door onto the pit floor. Keyed on
+                   current_area on the Tomb's terms: it is the room being LEFT
+                   and NOT a route, so the gallery stays the default. */
+                if (current_area == STATE_NORTH_CHAMBER)
+                    the_pit_spawn_north();
                 /* NO MUSIC LINE, same chapter rule as the five rooms above. */
+            } else if (pending_area == STATE_NORTH_CHAMBER) {
+                /* ONE ARRIVAL, the south door, so north_chamber_init()'s default
+                   spawn is also the only one. The west door on the gallery is
+                   drawn and sealed (src/north_chamber.h). */
+                north_chamber_init();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -4695,7 +4762,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_INCINERATOR_ROOM ||
                    game_state == STATE_TOMB ||
                    game_state == STATE_ROOM_OF_ARMS ||
-                   game_state == STATE_THE_PIT) {
+                   game_state == STATE_THE_PIT ||
+                   game_state == STATE_NORTH_CHAMBER) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

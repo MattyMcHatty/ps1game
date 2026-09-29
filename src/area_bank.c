@@ -116,6 +116,8 @@ TexBank area_bank_of(GameState area) {
        tagged with whatever texmgr_set_bank last selected. py
        tools/check_tex_banks.py walks the graph and fails if the two disagree. */
     case STATE_THE_PIT:
+    /* THE NORTH CHAMBER owns LADDER.TIM and borrows the rest, The Pit's terms. */
+    case STATE_NORTH_CHAMBER:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -130,7 +132,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_INCINERATOR_ROOM ||
            area == STATE_TOMB ||
            area == STATE_ROOM_OF_ARMS ||
-           area == STATE_THE_PIT;
+           area == STATE_THE_PIT ||
+           area == STATE_NORTH_CHAMBER;
 }
 
 /* ---- The prop models -------------------------------------------------------

@@ -75,6 +75,10 @@
 #define TIM_TPAGE_ASGWALL  0x0088
 #define TIM_CLUT_ASGWALL   0x7d2a
 
+/* bars.tim        4bpp  VRAM ( 512,256)  \TEXCTCMB\BARS.TIM */
+#define TIM_TPAGE_BARS     0x0018
+#define TIM_CLUT_BARS      0x7c40
+
 /* bed.tim         8bpp  VRAM ( 768,  0)  \TEX\BED.TIM */
 #define TIM_TPAGE_BED      0x008c
 #define TIM_CLUT_BED       0x7811
@@ -318,6 +322,10 @@
 /* key.tim         8bpp  VRAM ( 640,128)  \KEY.TIM */
 #define TIM_TPAGE_KEY      0x008a
 #define TIM_CLUT_KEY       0x7840
+
+/* ladder.tim      8bpp  VRAM ( 704,256)  \TEXCTCMB\LADDER.TIM */
+#define TIM_TPAGE_LADDER   0x009b
+#define TIM_CLUT_LADDER    0x7fd3
 
 /* lamashtu tablet.tim  8bpp  VRAM ( 768,  0)  \TEX\LMSHTBLT.TIM */
 #define TIM_TPAGE_LMSHTBLT 0x008c

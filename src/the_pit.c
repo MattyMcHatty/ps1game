@@ -478,16 +478,31 @@ void the_pit_upload_textures(void) {
 #define PIT_FADE_NEAR          800
 #define PIT_TRIGGER_RADIUS     500
 
-/* The NORTH door (z=3900, x[158,442], y[-500,0]) is drawn and nothing else â€” no
-   #define block, no sign, no trigger. It is on the pit floor, at the bottom of
-   the descent; wiring it up is a block like this one plus the STEP 6 edits in
-   tools/ADDING_A_ROOM.txt. */
+/* ---- THE NORTH DOOR --------------------------------------------------------
+   z=3900, x[158,442], y[-500,0] -- at the back of the north alcove, on the PIT
+   FLOOR, behind the bars. Into the NORTH CHAMBER (src/north_chamber.h), through
+   that room's south door.
+
+   An XY-plane door at fixed Z approached from -Z (the alcove is on its -Z
+   side), so TEXT_PLANE_XY with mirror=0 and the sign 11 proud of the wall along
+   -Z: the opposite pair from the south door, and the -200 still on X. Its Y is
+   the PIT FLOOR's eye-level -186, not the gallery's -1186.
+
+   NO STOREY TEST, on the south door's argument: the nearest gallery to it is
+   the east arm at x=2099, 1799 away in plan against a 500 trigger radius.
+
+   THE BARS ARE WHAT GATE IT, NOT THIS CODE. Dropped, they stand across the
+   alcove's mouth at z~3270 and bars_collide() holds the player 600-odd short
+   of the door, outside the trigger radius. The door is reachable exactly when
+   the ambush has lifted them. */
+#define PIT_NORTH_X            300     /* the art spans x[158,442] */
+#define PIT_NORTH_Z           3900
+#define PIT_NORTH_TEXT_Y     (-186)    /* eye level on the y=0 pit floor */
 
 /* Circle edge-detect, one per interaction. Seeded "held" by the arm below so a
-   press carried in through the transition cannot fire on the arrival frame. The
-   door's is still routed through the shared body below, because the north door
-   will want one of its own. */
+   press carried in through the transition cannot fire on the arrival frame. */
 static int south_circle_prev   = 1;
+static int north_circle_prev   = 1;
 static int descend_circle_prev = 1;
 
 static int circle_held(void) {
@@ -496,6 +511,7 @@ static int circle_held(void) {
 
 void the_pit_arm(void) {
     south_circle_prev   = circle_held();
+    north_circle_prev   = south_circle_prev;
     descend_circle_prev = south_circle_prev;
 }
 
@@ -524,6 +540,10 @@ static int door_triggered(int lock, int32_t door_x, int32_t door_z, int *prev) {
 
 int the_pit_south_door_triggered(int lock) {
     return door_triggered(lock, PIT_SOUTH_X, PIT_SOUTH_Z, &south_circle_prev);
+}
+
+int the_pit_north_door_triggered(int lock) {
+    return door_triggered(lock, PIT_NORTH_X, PIT_NORTH_Z, &north_circle_prev);
 }
 
 /* A floating sign â€” a door's, or the descend prompt's. Same shape as every other
@@ -689,11 +709,16 @@ static void pit_sign_text(RenderContext *ctx, const char *str,
    the_pit_after_world_enter() re-stows whichever Lumberers and Crawlers are
    still alive. Dead ones stay dead (world.c), so a player who killed both
    Lumberers before dying goes straight to the Crawlers once the bars land.
-   >>> THE DAY THE NORTH DOOR IS BUILT, THIS HAS TO LEARN TO REMEMBER. <<< The
-   bars end the fight RAISED, so a player walking back in from the north finds
-   the room right â€” but a later descent would drop them again on an empty pit
-   with no wave left to lift them. That wants a GameFlag set when the rise
-   finishes, read by the descent to skip the ambush. */
+   >>> AND NOW THAT THE NORTH DOOR IS BUILT, IT REMEMBERS. <<< A later descent
+   would otherwise drop the bars again on an empty pit with no wave left to lift
+   them. The memory is NOT a GameFlag -- that word has one bit left -- but the
+   four enemies themselves: world.c keeps the dead dead, so "no Lumberer and no
+   Crawler alive in this room" after world_enter IS "the ambush has been won",
+   and the_pit_after_world_enter() starts the encounter at PIT_ENC_DONE on
+   exactly that test. The descent then skips HOLD/DROP/AMBUSH and the bars are
+   never dropped. A player who slips under the bars mid-rise and leaves north
+   comes back to the same answer, since all four were dead before the rise
+   began. */
 #define PIT_BARS_X             300     /* (-130 + 730) / 2 */
 #define PIT_BARS_Z            3270     /* (3245 + 3295) / 2 */
 #define PIT_BARS_LIFT          450
@@ -801,6 +826,7 @@ static void pd_finish(void) {
     /* Both of the room's Circle tests seeded "held", so nothing fires on the
        frame control comes back (src/room_of_arms.c's rax_finish). */
     south_circle_prev   = 1;
+    north_circle_prev   = 1;
     descend_circle_prev = 1;
 }
 
@@ -862,7 +888,9 @@ static void pd_tick(void) {
             cam_z = PD_SLOPE_BOT_Z;
             cam_y = PIT_FLOOR_EYE_Y;
             sound_play(SFX_STEP1);            /* feet on the floor */
-            pit_view_scene = 1;               /* light the far end: THE AMBUSH */
+            /* Light the far end for THE AMBUSH -- unless it is already over,
+               in which case there is nothing up there to show. */
+            if (pit_enc != PIT_ENC_DONE) pit_view_scene = 1;
             pd_enter(PD_RUNOUT);
         }
         break;
@@ -883,7 +911,11 @@ static void pd_tick(void) {
                still frame and the hand-back later is not a jump. */
             cam_x = pd_x; cam_y = PIT_FLOOR_EYE_Y; cam_z = PD_END_Z;
             cam_rot = 0; cam_pitch = 0;
-            pd_enter(PD_HOLD);
+            /* THE AMBUSH HAPPENS ONCE. With all four of its enemies already
+               dead (see the_pit_after_world_enter) the bars are up and stay up,
+               and the landing hands straight back. */
+            if (pit_enc == PIT_ENC_DONE) pd_finish();
+            else                         pd_enter(PD_HOLD);
         }
         break;
     }
@@ -1142,6 +1174,25 @@ void the_pit_init(void) {
 void the_pit_after_world_enter(void) {
     lumberers_stow_area(STATE_THE_PIT);
     crawlers_stow_area(STATE_THE_PIT);
+    /* Both counts include stowed bodies and exclude only the dead, so this is
+       zero exactly when every enemy the ambush owns has been killed -- on this
+       visit or on any earlier one, and across a save. See THE AMBUSH. */
+    if (lumberers_alive_in(STATE_THE_PIT) == 0 &&
+        crawlers_alive_in(STATE_THE_PIT) == 0)
+        pit_enc = PIT_ENC_DONE;
+}
+
+void the_pit_spawn_north(void) {
+    /* Arriving back from the North Chamber: in the north alcove on the pit
+       floor, 220 off the door's wall on its -Z side, facing -Z -- down the pit
+       toward the slope the player came down. The pit floor's eye, not the
+       gallery's: the_pit_init()'s default spawn is the gallery one. */
+    cam_x   = PIT_NORTH_X;
+    cam_y   = PIT_FLOOR_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = PIT_NORTH_Z - (PIT_WALL_RADIUS + 25);
+    cam_rot = 2048;                    /* facing -Z, south down the pit */
+    the_pit_arm();
 }
 
 static void draw_the_pit_smd(RenderContext *ctx) {
@@ -1378,6 +1429,9 @@ void the_pit_draw(RenderContext *ctx) {
         pit_sign_text(ctx, "Press " BTN_CIRCLE " to enter",
                       PIT_SOUTH_X, PIT_SOUTH_Z, PIT_SOUTH_TEXT_Y,
                       +11, 1);   /* south: XY plane, approached from +Z */
+        pit_sign_text(ctx, "Press " BTN_CIRCLE " to enter",
+                      PIT_NORTH_X, PIT_NORTH_Z, PIT_NORTH_TEXT_Y,
+                      -11, 0);   /* north: XY plane, approached from -Z */
         /* The descend prompt: gallery only (see THE DESCENT), and gone while
            the scene runs, since the hop carries the eye straight through it. */
         if (!the_pit_descent_active() && cam_y < PIT_STOREY_SPLIT_Y)

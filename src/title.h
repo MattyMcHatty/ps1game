@@ -148,6 +148,14 @@ typedef enum {
                                 gallery and looks down. See src/the_pit.h.
                                 Appended, not inserted: saves store raw enum
                                 values. */
+    STATE_NORTH_CHAMBER,     /* THE NORTH CHAMBER, through the NORTH door of The
+                                Pit, behind the bars the ambush lifts. Chapter 3's
+                                seventh room: a ground floor at y=0 with a gallery
+                                at y=-1000 standing over it round three sides, a
+                                platform on a bars cage in the middle, and a ramp
+                                up the north wall joining the two. See
+                                src/north_chamber.h. Appended, not inserted: saves
+                                store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

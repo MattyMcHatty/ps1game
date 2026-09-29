@@ -1165,6 +1165,39 @@
             <file name="THEPIT.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\the_pit.smd"/>
             <file name="RUSTY.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\rusty.tim"/>
 
+            <!-- THE NORTH CHAMBER, the chapter's SEVENTH room, behind The Pit's
+                 NORTH door - the one in the alcove the bars seal until the
+                 ambush is dead. Two storeys over one footprint: a ground floor
+                 at y=0 with the arrival door, and a GALLERY at y=-1000 round
+                 three sides with a platform on a bars cage in the middle, joined
+                 by a ramp along the north wall. See src/north_chamber.h.
+
+                 ONE NEW TEXTURE. COBBLE.TIM and CTCMBDR.TIM come through the
+                 Catacombs Entry's narrow uploaders and BARS.TIM through the bars
+                 prop's, the way The Pit takes them. LADDER.TIM is the ladder up
+                 the east alcove, art only this room draws, registered DEFERRED
+                 like the rest of the chapter.
+
+                 >>> ITS VRAM PAGE IS THE INCINERATOR'S, x704 y256, AND ITS CLUT
+                 IS THE INCINERATOR'S TOO, (304,511). <<< There is no free page
+                 left in this bank (the rusty note above), so this is a
+                 time-share INSIDE the chapter: the ladder and the machine are
+                 never drawn in the same room, and
+                 incinerator_room_upload_textures() puts the machine's pixels and
+                 palette back on every entry to the Incinerator Room. The page's
+                 other occupants (Rabisu tex, vines) were already displaced by the
+                 incinerator and have their own restores. See tools/vram_map.py.
+
+                 LADDER.TIM is built from textures/catacombs/ladder_128.png, the
+                 64x64 source STRETCHED (Lanczos, as rusty_128 was): the mesh UVs
+                 run u 0..128 across the ladder's full width, so one copy per tile
+                 is what was drawn, and tiling would put two ladders side by side.
+
+                 NRTHCHMB.SMD, 72,492 bytes, inside the arena MAZEONE.SMD already
+                 sizes (src/room_arena_size.h). -->
+            <file name="NRTHCHMB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\north_chamber.smd"/>
+            <file name="LADDER.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\ladder.tim"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

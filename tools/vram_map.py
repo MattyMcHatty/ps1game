@@ -785,6 +785,18 @@ KNOWN_STREAM_PAIRS = [
     ("wd_dr_crk.tim",             "bars.tim"),
     ("pipe_button_off.tim",       "bars.tim"),
     ("pipe_button_on.tim",        "bars.tim"),
+    #   ladder.tim -> x704 y256, THE NORTH CHAMBER's ladder, ON THE INCINERATOR'S
+    # PAGE AND PALETTE. After bars there was no page left that was free in the
+    # Catacombs bank, so this is the first time-share INSIDE Chapter 3: the ladder
+    # is drawn only in the North Chamber, the incinerator only in the Incinerator
+    # Room, and incinerator_room_upload_textures() puts the machine's pixels AND
+    # its CLUT line (304,511) back on every entry there. The ladder's own palette
+    # is written to that same line, on the crib's argument, so it spends none of
+    # the CLUT space the note above calls the last. Rabisu tex and vines, the
+    # page's two older occupants, keep the restores listed above.
+    ("incinerator.tim",           "ladder.tim"),
+    ("Rabisu tex.tim",            "ladder.tim"),
+    ("ladder.tim",                "vines.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

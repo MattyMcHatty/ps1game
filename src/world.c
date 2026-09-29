@@ -153,7 +153,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_ASAG_ARENA,     STATE_CATACOMBS_ENTRY,
     STATE_UP_DOWN_MAZE,   STATE_INCINERATOR_ROOM,
     STATE_TOMB,           STATE_ROOM_OF_ARMS,
-    STATE_THE_PIT,
+    STATE_THE_PIT,        STATE_NORTH_CHAMBER,
 };
 
 static int room_index(GameState area) {
@@ -244,6 +244,9 @@ static int room_index(GameState area) {
            room added, and it did; `visited` and `cribs_solved` are uint64_t now,
            so the ceiling is 64 and this is slot 32 of it. */
         case STATE_THE_PIT:           return 32;
+        /* THE NORTH CHAMBER, Chapter 3's seventh room, through The Pit's north
+           door. Slot 33 of the 64 `visited` now holds. */
+        case STATE_NORTH_CHAMBER:     return 33;
         default:                   return 0;
     }
 }

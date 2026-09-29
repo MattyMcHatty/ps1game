@@ -37,8 +37,8 @@
    the bottom, and hands control back on the pit floor. The player never stands
    on the slope, so it has no floor zone and no wall. See THE DESCENT in the .c.
 
-   >>> IT IS ONE-WAY. <<< Nothing takes the player back up. Once down they are
-   in the pit until something down there is built to let them out.
+   >>> IT IS ONE-WAY. <<< Nothing takes the player back up. The way on is the
+   north door, into the North Chamber, once the ambush has lifted the bars.
 
    >>> AND IT ENDS IN AN AMBUSH. <<< At the bottom the camera holds a second
    looking north, the BARS (src/bars.h) hanging over the north alcove drop
@@ -58,21 +58,26 @@
    STANDING ON. <<< Author against whichever of the two the thing is over, not
    against the single value this room reports.
 
-   THE DOORS. Two are drawn, and ONE of them is wired up:
+   THE DOORS. Two are drawn, and BOTH are wired up:
 
      SOUTH  z=0     x[200,400]    y[-1400,-1000]  -> Tomb, north door.
                     On the GALLERY, in the south ledge.
-     north  z=3900  x[158,442]    y[-500,0]       not built.
+     NORTH  z=3900  x[158,442]    y[-500,0]       -> North Chamber, south door.
                     On the PIT FLOOR, in the north alcove, at the bottom of the
-                    descent. It reads as a sealed door, which is what it is —
-                    and the bars dropped across the alcove's mouth seal the way
-                    to it until both waves of the ambush are dead.
+                    descent. The bars dropped across the alcove's mouth seal the
+                    way to it until both waves of the ambush are dead.
 
-   Both are XY-plane doors (fixed Z) and both are approached from +Z, so the live
-   one takes TEXT_PLANE_XY with mirror=1 and its sign 11 units proud of the wall
-   along +Z. Wall 19 runs z=0 with nz=+4096, which is where that comes from. The
-   Tomb's north door, the far side of this wall, takes the opposite pair for the
-   same reason in reverse (its wall 19 has nz=-4096).
+   Both are XY-plane doors (fixed Z). The south one is approached from +Z, so
+   TEXT_PLANE_XY with mirror=1 and its sign 11 units proud of the wall along +Z
+   (wall 19 runs z=0 with nz=+4096). The north one is approached from -Z, from
+   inside the alcove, so it takes mirror=0 and -11. The Tomb's north door, the
+   far side of wall 19, takes the south door's opposite pair (its wall 19 has
+   nz=-4096), and the North Chamber's south door takes this north door's.
+
+   >>> THE AMBUSH REMEMBERS NOW. <<< Walking back in from the north, or
+   descending again after winning it, finds the bars up and nothing waiting:
+   the_pit_after_world_enter() reads "all four enemies dead" as "done". See THE
+   AMBUSH in the .c.
 
    NO STOREY TEST ON THE SOUTH DOOR, and this is a room where that has to be
    argued rather than assumed. The Up Down Maze's two doors are the only triggers
@@ -118,6 +123,13 @@ void the_pit_spawn_south(void);
    (a menu is up, a cutscene owns the camera). Returns 1 on a fresh press made in
    range and facing the door — the frame main.c starts the transition on. */
 int  the_pit_south_door_triggered(int lock);
+
+/* Arrival through the north door, from the North Chamber: in the north alcove
+   on the PIT FLOOR, facing south down the pit. */
+void the_pit_spawn_north(void);
+
+/* The north door's Circle test, on the south door's terms. */
+int  the_pit_north_door_triggered(int lock);
 
 /* Arm every interaction in the room. Called by the spawn above; exported so a
    caller that places the player some other way (a debug jump) can still ensure a

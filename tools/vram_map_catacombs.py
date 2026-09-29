@@ -15,11 +15,11 @@ first answer to that (the Stables and the Greenhouse, behind the Rear Gate) and
 tools/VRAM_MAP_ASAG.txt pushed it as far as it goes (one sealed arena, eleven
 free pages). THE CATACOMBS IS THE THIRD SUCH POCKET AND NOBODY HAD MEASURED IT.
 
-It is a good one. Chapter 3 is SIX rooms behind a one-way mouth and between them
-they draw TEN textures:
+It is a good one. Chapter 3 is SEVEN rooms behind a one-way mouth and between them
+they draw TWELVE textures:
 
     cobblestones, catacomb inner door, loculus, lamashtu tablet, sconce,
-    oil_container, incinerator, arms, crib, rusty
+    oil_container, incinerator, arms, crib, rusty, bars, ladder
 
 ...plus the enemy sheets, the shadow, the HUD and the player's kit. Everything
 else in VRAM while the player is down there is art from a chapter they cannot
@@ -145,6 +145,7 @@ BANK = {
     "oil_container.tim":        "the oil dispenser              x896 y256",
     "crib.tim":                 "the Room of Arms' crib         x576 y0",
     "rusty.tim":                "The Pit's shaft ironwork       x704 y0",
+    "ladder.tim":               "North Chamber's ladder         x704 y256",
     "bars.tim":                 "The Pit's dropping bars        x512 y256 4bpp",
     "crawler_a.tim":            "Crawler frames 0,1             x320 y128",
     "crawler_b.tim":            "Crawler frames 2,3             x704 y128",

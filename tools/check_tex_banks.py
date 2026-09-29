@@ -124,6 +124,10 @@ AREAS = {
                   # proves the_pit.c's own texmgr_set_bank(TEXBANK_CATACOMBS) is
                   # the right mask rather than a guess.
                   "the_pit_upload_textures",
+                  # THE NORTH CHAMBER, the chapter's seventh room: owns
+                  # ladder.tim (on the incinerator's page) and borrows cobble,
+                  # the inner door and the bars through their narrow uploaders.
+                  "north_chamber_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share
