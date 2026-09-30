@@ -245,10 +245,17 @@ void room_of_legs_load_assets(void) {
    in this room draws x640 y0, and the Room of Arms' and the Room of Heads'
    uploaders each put their own art back on the way in there, so there is no
    ordering rule between the calls. */
+/* LEGS.TIM alone, for the Meat Plant, which draws the legs but none of this
+   room's other art: the full uploader below would stamp the crib and the Creep
+   as well. */
+void room_of_legs_upload_legs(void) {
+    texmgr_upload(legs_tex);
+}
+
 void room_of_legs_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
-    texmgr_upload(legs_tex);
+    room_of_legs_upload_legs();
     /* ...and the crib's and the Creep's, the two prop/enemy modules' narrow
        uploaders, exactly as the Room of Arms calls them. Their pages (x576 y0
        and x[960,1024) y0) are neither of this room's, so no ordering rule. */

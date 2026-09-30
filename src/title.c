@@ -207,6 +207,10 @@ static const char *const level_names[] = {
        Room's north-east door. The jump lands at its one door. 12 characters,
        inside the 14 the column allows. */
     "ROOM OF LEGS",
+    /* THE MEAT PLANT, the chapter's thirteenth room, behind the Sliding Bars
+       Room's south-east door. The jump lands at its one wired door, the west
+       one. 10 characters. */
+    "MEAT PLANT",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -252,6 +256,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* CRUCIFIX CORRIDOR */
     STATE_LOADING,        /* SLIDING BARS ROOM */
     STATE_LOADING,        /* ROOM OF LEGS */
+    STATE_LOADING,        /* MEAT PLANT */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -295,6 +300,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_CRUCIFIX_CORRIDOR,
     STATE_SLIDING_BARS_ROOM,
     STATE_ROOM_OF_LEGS,
+    STATE_MEAT_PLANT,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

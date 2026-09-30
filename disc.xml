@@ -1298,6 +1298,19 @@
             <file name="LEGROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\room_of_legs.smd"/>
             <file name="LEGS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\legs.tim"/>
 
+            <!-- THE MEAT PLANT, the chapter's THIRTEENTH room, through the SOUTH
+                 of the two doors in the Sliding Bars Room's east wall. A hall
+                 x[-2700,2700] z[600,6000] with four alcoves, flat under a y=-800
+                 vault, a C-shaped mass of legs standing in the middle. See
+                 src/meat_plant.h.
+
+                 NO NEW TEXTURES. RUSTY.TIM, LEGS.TIM and CTCMBDR.TIM come through
+                 The Pit's, the Room of Legs' and the Catacombs Entry's narrow
+                 uploaders.
+
+                 MEATPLNT.SMD, 79,628 bytes. -->
+            <file name="MEATPLNT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\meat_plant.smd"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

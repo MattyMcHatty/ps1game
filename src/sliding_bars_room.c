@@ -207,20 +207,28 @@ void sliding_bars_room_upload_textures(void) {
    In the YZ plane at fixed X, approached from -X (the east wall is the room's
    edge at x=4200, so the walkable side is -X): TEXT_PLANE_YZ with mirror=1, the
    sign 11 proud of the wall along -X, and the -200 door_draw_string_3d wants on
-   the Z argument. The other east door, at z[200,400], is still drawn and
-   sealed. */
+   the Z argument. */
 #define SB_NE_X              4200
 #define SB_NE_Z              3900     /* the art spans z[3800,4000] */
+
+/* ---- THE SOUTH-EAST DOOR --------------------------------------------------
+   x=4200, z[200,400], in the east wall at its south end (square 49 of the grid
+   below). Out to THE MEAT PLANT, at its west door. The north-east door's twin:
+   YZ plane, approached from -X, mirror=1. */
+#define SB_SE_X              4200
+#define SB_SE_Z               300     /* the art spans z[200,400] */
 
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int south_circle_prev = 1;
 static int ne_circle_prev    = 1;
+static int se_circle_prev    = 1;
 static int gate_circle_prev  = 1;   /* the four panels share one: one Circle */
 
 void sliding_bars_room_arm(void) {
     south_circle_prev = interact_tapped();
     ne_circle_prev    = south_circle_prev;
+    se_circle_prev    = south_circle_prev;
     gate_circle_prev  = south_circle_prev;
 }
 
@@ -488,6 +496,55 @@ void sliding_bars_room_spawn_ne(void) {
     sliding_bars_room_arm();
 }
 
+/* The south-east door: the north-east door's test and sign, at the other end
+   of the east wall. */
+int sliding_bars_room_se_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !se_circle_prev;
+    int32_t dx, dz, xz;
+    se_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - SB_SE_X;
+    dz = cam_z - SB_SE_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= SB_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(SB_SE_X, SB_SE_Z)) return 0;
+    return 1;
+}
+
+static void sb_se_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - SB_SE_X;
+    int32_t dz = cam_z - SB_SE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= SB_TEXT_RADIUS) return;
+
+    if (xz > SB_FADE_NEAR) {
+        int range = SB_TEXT_RADIUS - SB_FADE_NEAR;
+        int prog  = xz - SB_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        SB_SE_X - 11, SB_SOUTH_TEXT_Y, SB_SE_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ,
+                        DOOR_PIXEL_SIZE);
+}
+
+void sliding_bars_room_spawn_se(void) {
+    /* Back from the Meat Plant. 220 off the east wall on its walkable -X side,
+       on the door's centre line (300 clear of the south wall), facing -X — the
+       direction of travel, west into square 49. */
+    cam_x   = SB_SE_X - (SB_WALL_RADIUS + 25);
+    cam_y   = SB_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = SB_SE_Z;
+    cam_rot = 3072;                    /* facing -X, west into the room */
+    sliding_bars_room_arm();
+}
+
 void sliding_bars_room_spawn_south(void) {
     /* In from the Crucifix Corridor. 220 off wall 21 on its walkable +Z side,
        on the door's centre line (300 clear of the west wall 30), facing +Z —
@@ -722,6 +779,7 @@ void sliding_bars_room_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         sb_south_door_text(ctx);  /* the SW door: XY plane, approached from +Z */
         sb_ne_door_text(ctx);     /* the NE door: YZ plane, approached from -X */
+        sb_se_door_text(ctx);     /* the SE door: YZ plane, approached from -X */
         sb_gate_text(ctx);        /* the four panels                          */
         /* BOTH CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.

@@ -149,6 +149,10 @@ AREAS = {
                   # Bars Room's north-east door: owns legs.tim (on the arms'
                   # page, the heads' terms) and borrows cobble and the inner door.
                   "room_of_legs_upload_textures",
+                  # THE MEAT PLANT, the chapter's thirteenth room, off the Sliding
+                  # Bars Room's south-east door: owns nothing, and borrows rusty
+                  # (The Pit's), the legs (the Room of Legs') and the inner door.
+                  "meat_plant_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

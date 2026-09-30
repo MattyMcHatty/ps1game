@@ -96,6 +96,7 @@
 #include "crucifix_corridor.h"
 #include "sliding_bars_room.h"
 #include "room_of_legs.h"
+#include "meat_plant.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -350,6 +351,7 @@ static void load_area_geometry(GameState area) {
         case STATE_CRUCIFIX_CORRIDOR: crucifix_corridor_load_geometry(); break;
         case STATE_SLIDING_BARS_ROOM: sliding_bars_room_load_geometry(); break;
         case STATE_ROOM_OF_LEGS:     room_of_legs_load_geometry(); break;
+        case STATE_MEAT_PLANT:       meat_plant_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2327,9 +2329,9 @@ static void update_current_area(GameState area) {
         /* THE SLIDING BARS ROOM - Chapter 3's eleventh room: the shared wall
            routine and ONE flat floor zone over a grid of stone blocks, the
            barred gaps between them thin walls in the proxy. multi_level is 0.
-           Two doors wired, the south-west one back to the Crucifix Corridor and
-           the north-east one on to the Room of Legs; the south-east one is
-           drawn and sealed. Both Chapter 3 enemy updates run for what world.c
+           Three doors wired: the south-west one back to the Crucifix Corridor,
+           the north-east one on to the Room of Legs and the south-east one on
+           to the Meat Plant. Both Chapter 3 enemy updates run for what world.c
            seeds here.
 
            THE FOUR GATES: Bars props slid by the four wall panels. Their
@@ -2353,6 +2355,35 @@ static void update_current_area(GameState area) {
         if (sliding_bars_room_ne_door_triggered(lock) &&
             game_state != STATE_DOOR_ANIM) {
             pending_area = STATE_ROOM_OF_LEGS;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the SOUTH-EAST door, into the Meat Plant. Same reasoning: it
+           is 3600 down the east wall from the north-east door and 3900 across
+           the room from the south-west one. */
+        if (sliding_bars_room_se_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_MEAT_PLANT;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_MEAT_PLANT) {
+        /* THE MEAT PLANT - Chapter 3's thirteenth room: the shared wall routine
+           and ONE flat floor zone over a hall with four alcoves, a C-shaped mass
+           of legs standing in the middle of it. multi_level is 0 and nothing is
+           shoot-over: the drawn mass is taller than its 600 proxy walls. One
+           door wired, the west one back to the Sliding Bars Room; the doors at
+           the backs of the west and south alcoves are drawn and sealed. No enemies seeded; both Chapter 3 enemy updates
+           are called anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (meat_plant_west_door_triggered(lock)) {
+            pending_area = STATE_SLIDING_BARS_ROOM;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -2825,6 +2856,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         sliding_bars_room_draw(ctx);
     else if (area == STATE_ROOM_OF_LEGS)
         room_of_legs_draw(ctx);
+    else if (area == STATE_MEAT_PLANT)
+        meat_plant_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3251,6 +3284,11 @@ int main(int argc, const char **argv) {
                                      Deferred, so no CD access here. Above the
                                      owner's call below, for the same reason as
                                      the Room of Heads' line. */
+    loading_screen_pump(&ctx);
+    meat_plant_load_assets();     /* CHAPTER 3's thirteenth room: three
+                                     borrowed headers (rusty, legs, inner door)
+                                     and NO registration - it owns nothing. No
+                                     CD access. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4064,6 +4102,13 @@ int main(int argc, const char **argv) {
                    there. Same guarantee and same silent failure mode as the
                    branches around it. */
                 room_of_legs_upload_textures();
+            } else if (pending_area == STATE_MEAT_PLANT) {
+                /* THE MEAT PLANT. Owns nothing: rusty through The Pit's narrow
+                   uploader (x704 y0), the legs through the Room of Legs' (x640
+                   y0, the arms' page and palette) and the inner door through the
+                   Catacombs Entry's. Same guarantee and same silent failure mode
+                   as the branches around it. */
+                meat_plant_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4757,19 +4802,27 @@ int main(int argc, const char **argv) {
                     crucifix_corridor_spawn_north();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_SLIDING_BARS_ROOM) {
-                /* TWO ARRIVALS. sliding_bars_room_init()'s default is the
+                /* THREE ARRIVALS. sliding_bars_room_init()'s default is the
                    south-west door, from the Crucifix Corridor; back from the
-                   Room of Legs it is the north-east door. Keyed on current_area,
-                   the room being LEFT and not a route, so a debug jump or a
-                   title load still lands at the south-west door. */
+                   Room of Legs it is the north-east door, and back from the Meat
+                   Plant the south-east one. Keyed on current_area, the room
+                   being LEFT and not a route, so a debug jump or a title load
+                   still lands at the south-west door. */
                 sliding_bars_room_init();
                 if (current_area == STATE_ROOM_OF_LEGS)
                     sliding_bars_room_spawn_ne();
+                else if (current_area == STATE_MEAT_PLANT)
+                    sliding_bars_room_spawn_se();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ROOM_OF_LEGS) {
                 /* ONE ARRIVAL, the east door, so room_of_legs_init()'s default
                    spawn is also the only one. */
                 room_of_legs_init();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_MEAT_PLANT) {
+                /* ONE ARRIVAL, the west door, so meat_plant_init()'s default
+                   spawn is also the only one. */
+                meat_plant_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5138,7 +5191,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_CLEAVER_CORRIDOR ||
                    game_state == STATE_CRUCIFIX_CORRIDOR ||
                    game_state == STATE_SLIDING_BARS_ROOM ||
-                   game_state == STATE_ROOM_OF_LEGS) {
+                   game_state == STATE_ROOM_OF_LEGS ||
+                   game_state == STATE_MEAT_PLANT) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

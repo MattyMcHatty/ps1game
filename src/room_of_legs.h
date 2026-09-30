@@ -51,6 +51,7 @@
 void room_of_legs_load_assets(void);     /* startup: one deferred reg + headers */
 void room_of_legs_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void room_of_legs_upload_textures(void); /* room entry: pure LoadImage from RAM  */
+void room_of_legs_upload_legs(void);     /* LEGS.TIM alone, for the Meat Plant   */
 void room_of_legs_init(void);            /* collision + floor zone + spawn        */
 void room_of_legs_draw(RenderContext *ctx);
 

@@ -196,6 +196,13 @@ typedef enum {
                                 C-shaped pile of legs, a crib and one door. See
                                 src/room_of_legs.h. Appended, not inserted:
                                 saves store raw enum values. */
+    STATE_MEAT_PLANT,        /* THE MEAT PLANT, through the SOUTH of the two
+                                doors in the Sliding Bars Room's east wall.
+                                Chapter 3's thirteenth room: a hall with four
+                                alcoves, flat under a y=-800 vault, a C-shaped
+                                mass of legs standing in the middle. See
+                                src/meat_plant.h. Appended, not inserted: saves
+                                store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

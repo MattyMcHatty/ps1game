@@ -156,7 +156,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_THE_PIT,        STATE_NORTH_CHAMBER,
     STATE_ROOM_OF_HEADS,   STATE_CLEAVER_CORRIDOR,
     STATE_CRUCIFIX_CORRIDOR, STATE_SLIDING_BARS_ROOM,
-    STATE_ROOM_OF_LEGS,
+    STATE_ROOM_OF_LEGS,    STATE_MEAT_PLANT,
 };
 
 static int room_index(GameState area) {
@@ -265,6 +265,9 @@ static int room_index(GameState area) {
         /* THE ROOM OF LEGS, Chapter 3's twelfth room, through the Sliding Bars
            Room's north-east door. Slot 38 of 64. */
         case STATE_ROOM_OF_LEGS:      return 38;
+        /* THE MEAT PLANT, Chapter 3's thirteenth room, through the Sliding Bars
+           Room's south-east door. Slot 39 of 64. */
+        case STATE_MEAT_PLANT:        return 39;
         default:                   return 0;
     }
 }

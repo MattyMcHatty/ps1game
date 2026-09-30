@@ -20,18 +20,17 @@
    along its line by one of the four incinerator panels in the mesh; see THE
    GATES in sliding_bars_room.c for the grid, the table and the save.
 
-   THE DOORS. Three are drawn and TWO are wired up:
+   THE DOORS. Three are drawn and all three are wired up:
 
      SOUTH-WEST   z=0     x[200,400]   -> the Crucifix Corridor, at the north
                                           door of its cross arm. XY plane,
                                           approached from +Z: mirror=1.
-     east, south  x=4200  z[200,400]   not built
+     SOUTH-EAST   x=4200  z[200,400]   -> the Meat Plant, at its west door.
+                                          YZ plane, approached from -X:
+                                          mirror=1.
      NORTH-EAST   x=4200  z[3800,4000] -> the Room of Legs, at its one door.
                                           YZ plane, approached from -X:
                                           mirror=1.
-
-   The unbuilt one is drawn and nothing else: no sign, no trigger. It reads as
-   a sealed door until the room behind it exists.
 
    FIVE TEXTURES, ALL BORROWED: cobblestone, the inner door and the loculus
    through src/catacombs_entry.c's narrow uploaders, the incinerator panel
@@ -54,6 +53,10 @@ void sliding_bars_room_spawn_south(void);
    the door, facing west into the room. */
 void sliding_bars_room_spawn_ne(void);
 
+/* Arrival through the south-east door, back from the Meat Plant: just inside
+   the door, facing west into the room. */
+void sliding_bars_room_spawn_se(void);
+
 /* One frame of the south-west door's Circle test. `lock` is main's usual
    suppression. Returns 1 on a fresh press made in range, facing the door. Call
    it every frame and pass `lock` in, so the edge state stays current. */
@@ -61,6 +64,9 @@ int  sliding_bars_room_south_door_triggered(int lock);
 
 /* The same test for the north-east door, into the Room of Legs. */
 int  sliding_bars_room_ne_door_triggered(int lock);
+
+/* The same test for the south-east door, into the Meat Plant. */
+int  sliding_bars_room_se_door_triggered(int lock);
 
 /* Arm every interaction in the room. Called by the spawn above. */
 void sliding_bars_room_arm(void);
