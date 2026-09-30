@@ -140,6 +140,11 @@ AREAS = {
                   # Down Maze's lower storey: owns nothing, borrows cobble, the
                   # inner door and the sconce's page.
                   "crucifix_corridor_upload_textures",
+                  # THE SLIDING BARS ROOM, the chapter's eleventh room, off the
+                  # Crucifix Corridor's cross arm: owns nothing, borrows cobble,
+                  # the inner door, the loculus, the incinerator panel and the
+                  # bars.
+                  "sliding_bars_room_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

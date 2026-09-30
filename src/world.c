@@ -155,7 +155,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_TOMB,           STATE_ROOM_OF_ARMS,
     STATE_THE_PIT,        STATE_NORTH_CHAMBER,
     STATE_ROOM_OF_HEADS,   STATE_CLEAVER_CORRIDOR,
-    STATE_CRUCIFIX_CORRIDOR,
+    STATE_CRUCIFIX_CORRIDOR, STATE_SLIDING_BARS_ROOM,
 };
 
 static int room_index(GameState area) {
@@ -258,6 +258,9 @@ static int room_index(GameState area) {
         /* THE CRUCIFIX CORRIDOR, Chapter 3's tenth room, through the Up Down
            Maze's lower north-east door. Slot 36 of 64. */
         case STATE_CRUCIFIX_CORRIDOR: return 36;
+        /* THE SLIDING BARS ROOM, Chapter 3's eleventh room, through the north
+           door of the Crucifix Corridor's cross arm. Slot 37 of 64. */
+        case STATE_SLIDING_BARS_ROOM: return 37;
         default:                   return 0;
     }
 }

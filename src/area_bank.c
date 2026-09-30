@@ -128,6 +128,10 @@ TexBank area_bank_of(GameState area) {
        through the Catacombs Entry's narrow uploaders, the sconce through its
        own module's. */
     case STATE_CRUCIFIX_CORRIDOR:
+    /* THE SLIDING BARS ROOM owns nothing: cobble, the inner door and the
+       loculus through the Catacombs Entry's narrow uploaders, the incinerator
+       panel and the bars through their own modules'. */
+    case STATE_SLIDING_BARS_ROOM:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -146,7 +150,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_NORTH_CHAMBER ||
            area == STATE_ROOM_OF_HEADS ||
            area == STATE_CLEAVER_CORRIDOR ||
-           area == STATE_CRUCIFIX_CORRIDOR;
+           area == STATE_CRUCIFIX_CORRIDOR ||
+           area == STATE_SLIDING_BARS_ROOM;
 }
 
 /* ---- The prop models -------------------------------------------------------

@@ -182,6 +182,13 @@ typedef enum {
                                 alcove at its head. See src/crucifix_corridor.h.
                                 Appended, not inserted: saves store raw enum
                                 values. */
+    STATE_SLIDING_BARS_ROOM, /* THE SLIDING BARS ROOM, through the north door of
+                                the Crucifix Corridor's cross arm. Chapter 3's
+                                eleventh room: a square grid of stone blocks
+                                under a y=-800 vault, some of its corridors
+                                closed by bars. See src/sliding_bars_room.h.
+                                Appended, not inserted: saves store raw enum
+                                values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

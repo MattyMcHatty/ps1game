@@ -1259,6 +1259,20 @@
                  CRCFXCRD.SMD, 16,700 bytes, well inside the arena. -->
             <file name="CRCFXCRD.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\crucifix_corridor.smd"/>
 
+            <!-- THE SLIDING BARS ROOM, the chapter's ELEVENTH room, through the
+                 north door of the Crucifix Corridor's cross arm. A 4200 square
+                 grid of stone blocks under a y=-800 vault, some of the gaps
+                 between them barred. See src/sliding_bars_room.h.
+
+                 NO NEW TEXTURE. COBBLE.TIM, CTCMBDR.TIM and LOCULUS.TIM come
+                 through the Catacombs Entry's narrow uploaders, INCINPRP.TIM
+                 and BARS.TIM through their own modules'. (textures\incinerator.tim
+                 is a byte-identical copy of textures\catacombs\incinerator.tim
+                 for smxlink's material lookup only; it is not shipped.)
+
+                 SLDBARS.SMD, 66,740 bytes, inside the arena. -->
+            <file name="SLDBARS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\sliding_bars_room.smd"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

@@ -199,6 +199,10 @@ static const char *const level_names[] = {
        "CRUCIFIX CORR": the full name is 17 characters, past the 14 the column
        allows. */
     "CRUCIFIX CORR",
+    /* THE SLIDING BARS ROOM, the chapter's eleventh room, off the north end of
+       the Crucifix Corridor's cross arm. The jump lands at its south-west door,
+       its only arrival. "SLIDING BARS": the full name is 17 characters. */
+    "SLIDING BARS",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -242,6 +246,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* ROOM OF HEADS */
     STATE_LOADING,        /* CLEAVER CORRIDOR */
     STATE_LOADING,        /* CRUCIFIX CORRIDOR */
+    STATE_LOADING,        /* SLIDING BARS ROOM */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -283,6 +288,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_ROOM_OF_HEADS,
     STATE_CLEAVER_CORRIDOR,
     STATE_CRUCIFIX_CORRIDOR,
+    STATE_SLIDING_BARS_ROOM,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

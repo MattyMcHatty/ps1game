@@ -202,39 +202,67 @@ void crucifix_corridor_upload_textures(void) {
 #define XC_WEST_X               0
 #define XC_WEST_Z               0     /* the art spans z[-100,100] */
 #define XC_WEST_TEXT_Y       (-186)   /* eye level on the y=0 floor */
+
+/* ---- THE NORTH DOOR --------------------------------------------------------
+   z=1500, x[2600,2800], the end of the cross arm's north half. Out to THE
+   SLIDING BARS ROOM, at its south-west door.
+
+   In the XY plane at fixed Z, approached from -Z (wall 1 runs z=1500 with
+   nz = -4096, so the walkable side is -Z): TEXT_PLANE_XY with mirror=0, the
+   sign 11 proud of the wall along -Z, and the -200 door_draw_string_3d wants on
+   the X argument. */
+#define XC_NORTH_X           2700     /* the art spans x[2600,2800] */
+#define XC_NORTH_Z           1500
+#define XC_NORTH_TEXT_Y      (-186)   /* eye level on the y=0 floor */
+
 #define XC_TEXT_RADIUS       1200
 #define XC_FADE_NEAR          800
 #define XC_TRIGGER_RADIUS     500
 
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
-static int west_circle_prev = 1;
+static int west_circle_prev  = 1;
+static int north_circle_prev = 1;
 
 void crucifix_corridor_arm(void) {
-    west_circle_prev = interact_tapped();
+    int held = interact_tapped();
+    west_circle_prev  = held;
+    north_circle_prev = held;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
    menu closing does not read as a fresh press on the frame the lock lifts. */
-int crucifix_corridor_west_door_triggered(int lock) {
+static int xc_door_triggered(int lock, int *circle_prev,
+                             int32_t door_x, int32_t door_z) {
     int held = interact_tapped();
-    int just = held && !west_circle_prev;
+    int just = held && !*circle_prev;
     int32_t dx, dz, xz;
-    west_circle_prev = held;
+    *circle_prev = held;
     if (lock || !just) return 0;
-    dx = cam_x - XC_WEST_X;
-    dz = cam_z - XC_WEST_Z;
+    dx = cam_x - door_x;
+    dz = cam_z - door_z;
     xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (xz >= XC_TRIGGER_RADIUS) return 0;
-    if (!interact_facing(XC_WEST_X, XC_WEST_Z)) return 0;
+    if (!interact_facing(door_x, door_z)) return 0;
     return 1;
 }
 
-/* The door's floating sign. Same shape as every door sign in the game: opaque
-   within XC_FADE_NEAR, gone by XC_TEXT_RADIUS. */
-static void xc_west_door_text(RenderContext *ctx) {
-    int32_t dx = cam_x - XC_WEST_X;
-    int32_t dz = cam_z - XC_WEST_Z;
+int crucifix_corridor_west_door_triggered(int lock) {
+    return xc_door_triggered(lock, &west_circle_prev, XC_WEST_X, XC_WEST_Z);
+}
+
+int crucifix_corridor_north_door_triggered(int lock) {
+    return xc_door_triggered(lock, &north_circle_prev, XC_NORTH_X, XC_NORTH_Z);
+}
+
+/* A door's floating sign. Same shape as every door sign in the game: opaque
+   within XC_FADE_NEAR, gone by XC_TEXT_RADIUS. The caller passes the string's
+   already-placed position and the plane/mirror for its wall. */
+static void xc_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
+                         int32_t tx, int32_t ty, int32_t tz,
+                         int mirror, int plane) {
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - door_z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int fade = 256;
 
@@ -248,9 +276,20 @@ static void xc_west_door_text(RenderContext *ctx) {
     }
 
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
-                        XC_WEST_X + 11, XC_WEST_TEXT_Y, XC_WEST_Z - 200,
-                        50, 255, 50, fade, 0, TEXT_PLANE_YZ,
+                        tx, ty, tz, 50, 255, 50, fade, mirror, plane,
                         DOOR_PIXEL_SIZE);
+}
+
+static void xc_west_door_text(RenderContext *ctx) {
+    xc_door_text(ctx, XC_WEST_X, XC_WEST_Z,
+                 XC_WEST_X + 11, XC_WEST_TEXT_Y, XC_WEST_Z - 200,
+                 0, TEXT_PLANE_YZ);   /* mirror=0: YZ door approached from +X */
+}
+
+static void xc_north_door_text(RenderContext *ctx) {
+    xc_door_text(ctx, XC_NORTH_X, XC_NORTH_Z,
+                 XC_NORTH_X - 200, XC_NORTH_TEXT_Y, XC_NORTH_Z - 11,
+                 0, TEXT_PLANE_XY);   /* mirror=0: XY door approached from -Z */
 }
 
 void crucifix_corridor_spawn_west(void) {
@@ -262,6 +301,18 @@ void crucifix_corridor_spawn_west(void) {
     cam_vy  = 0;
     cam_z   = XC_WEST_Z;
     cam_rot = 1024;                    /* facing +X, east down the corridor */
+    crucifix_corridor_arm();
+}
+
+void crucifix_corridor_spawn_north(void) {
+    /* Back from the Sliding Bars Room. 220 off wall 1 on its walkable -Z side,
+       on the arm's centre line (300 clear of its side walls), facing -Z — the
+       direction of travel, south down the arm toward the corridor. */
+    cam_x   = XC_NORTH_X;
+    cam_y   = XC_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = XC_NORTH_Z - (XC_WALL_RADIUS + 25);
+    cam_rot = 2048;                    /* facing -Z, south down the arm */
     crucifix_corridor_arm();
 }
 
@@ -509,6 +560,7 @@ void crucifix_corridor_draw(RenderContext *ctx) {
        case. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         xc_west_door_text(ctx);   /* the west door: YZ plane, approached from +X */
+        xc_north_door_text(ctx);  /* the north door: XY plane, approached from -Z */
         /* BOTH CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Both sheets sit at Voff 128, so each is handed the window to restore
