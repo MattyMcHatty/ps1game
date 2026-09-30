@@ -1273,6 +1273,31 @@
                  SLDBARS.SMD, 66,740 bytes, inside the arena. -->
             <file name="SLDBARS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\sliding_bars_room.smd"/>
 
+            <!-- THE ROOM OF LEGS, the chapter's TWELFTH room, through the NORTH
+                 of the two doors in the Sliding Bars Room's east wall. The Room
+                 of Arms' octagon again (2586 across, y=-800 vault, one door in
+                 the east face), with a C-shaped pile of legs wrapping its west
+                 half and the chapter's third crib in front of it. See
+                 src/room_of_legs.h.
+
+                 ONE NEW TEXTURE. COBBLE.TIM and CTCMBDR.TIM come through the
+                 Catacombs Entry's narrow uploaders as every Chapter 3 room's do.
+                 LEGS.TIM is art only this room draws, registered DEFERRED.
+
+                 >>> IT TAKES THE ARMS' PAGE AND THE ARMS' PALETTE: x640 y0 and
+                 (672,501), as HEADS.TIM already does. <<< The Rooms of Arms,
+                 Heads and Legs are never drawn together, and each room's
+                 uploader puts its own art back on entry, so the three simply
+                 overwrite each other. See tools/vram_map.py.
+
+                 LEGS.TIM is built from textures/catacombs/legs_128.png, the
+                 64x64 source STRETCHED (Lanczos), the heads' treatment: the mesh
+                 puts ~330 world units on one UV tile.
+
+                 LEGROOM.SMD, 15,828 bytes, well inside the arena. -->
+            <file name="LEGROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\room_of_legs.smd"/>
+            <file name="LEGS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\legs.tim"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

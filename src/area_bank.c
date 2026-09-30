@@ -132,6 +132,9 @@ TexBank area_bank_of(GameState area) {
        loculus through the Catacombs Entry's narrow uploaders, the incinerator
        panel and the bars through their own modules'. */
     case STATE_SLIDING_BARS_ROOM:
+    /* THE ROOM OF LEGS owns LEGS.TIM (on the arms' page, the heads' terms) and
+       borrows the rest. */
+    case STATE_ROOM_OF_LEGS:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -151,7 +154,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_ROOM_OF_HEADS ||
            area == STATE_CLEAVER_CORRIDOR ||
            area == STATE_CRUCIFIX_CORRIDOR ||
-           area == STATE_SLIDING_BARS_ROOM;
+           area == STATE_SLIDING_BARS_ROOM ||
+           area == STATE_ROOM_OF_LEGS;
 }
 
 /* ---- The prop models -------------------------------------------------------

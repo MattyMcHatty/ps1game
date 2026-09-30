@@ -95,6 +95,7 @@
 #include "cleaver_corridor.h"
 #include "crucifix_corridor.h"
 #include "sliding_bars_room.h"
+#include "room_of_legs.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -348,6 +349,7 @@ static void load_area_geometry(GameState area) {
         case STATE_CLEAVER_CORRIDOR: cleaver_corridor_load_geometry(); break;
         case STATE_CRUCIFIX_CORRIDOR: crucifix_corridor_load_geometry(); break;
         case STATE_SLIDING_BARS_ROOM: sliding_bars_room_load_geometry(); break;
+        case STATE_ROOM_OF_LEGS:     room_of_legs_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2325,9 +2327,10 @@ static void update_current_area(GameState area) {
         /* THE SLIDING BARS ROOM - Chapter 3's eleventh room: the shared wall
            routine and ONE flat floor zone over a grid of stone blocks, the
            barred gaps between them thin walls in the proxy. multi_level is 0.
-           One door wired, the south-west one back to the Crucifix Corridor; the
-           other two are drawn and sealed. Nothing seeded; both Chapter 3 enemy
-           updates are called anyway, on the Tomb's argument.
+           Two doors wired, the south-west one back to the Crucifix Corridor and
+           the north-east one on to the Room of Legs; the south-east one is
+           drawn and sealed. Both Chapter 3 enemy updates run for what world.c
+           seeds here.
 
            THE FOUR GATES: Bars props slid by the four wall panels. Their
            push-out is bars_collide, inside apply_collision_reception
@@ -2340,6 +2343,40 @@ static void update_current_area(GameState area) {
 
         if (sliding_bars_room_south_door_triggered(lock)) {
             pending_area = STATE_CRUCIFIX_CORRIDOR;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the NORTH-EAST door, into the Room of Legs. Called
+           unconditionally for its edge state; the two doors are at opposite
+           corners, so they can never both be in reach on one frame. */
+        if (sliding_bars_room_ne_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_ROOM_OF_LEGS;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_ROOM_OF_LEGS) {
+        /* THE ROOM OF LEGS - Chapter 3's twelfth room: the shared wall routine,
+           ONE flat floor zone and one door, the Room of Heads' shape. multi_level
+           is 0 (two floor slabs of one plane). The C-shaped pile of legs is
+           proxy walls 599 tall under a drawn pile 200 tall, so the gun shoots
+           over them.
+
+           ONE PROP: the chapter's third CRIB, in front of the pile's spine. Its
+           state machine and the Creeps it pours run from the area-tagged
+           cribs_update() / update_creeps() in the shared block, and its box
+           collides through apply_collision_reception, so nothing crib-specific
+           is needed here. No enemies seeded; both Chapter 3 enemy updates are
+           called anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (room_of_legs_east_door_triggered(lock)) {
+            pending_area = STATE_SLIDING_BARS_ROOM;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -2786,6 +2823,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         crucifix_corridor_draw(ctx);
     else if (area == STATE_SLIDING_BARS_ROOM)
         sliding_bars_room_draw(ctx);
+    else if (area == STATE_ROOM_OF_LEGS)
+        room_of_legs_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3204,6 +3243,14 @@ int main(int argc, const char **argv) {
                                      headers (cobble, inner door, loculus,
                                      incinerator, bars) and NO registration - it
                                      owns nothing. No CD access. */
+    loading_screen_pump(&ctx);
+    room_of_legs_load_assets();   /* CHAPTER 3's twelfth room: two borrowed
+                                     headers (cobble, inner door) and its OWN
+                                     deferred registration for LEGS.TIM, on the
+                                     arms' page and palette, the heads' terms.
+                                     Deferred, so no CD access here. Above the
+                                     owner's call below, for the same reason as
+                                     the Room of Heads' line. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4009,6 +4056,14 @@ int main(int argc, const char **argv) {
                    owns nothing. Same guarantee and same silent failure mode as
                    the branches around it. */
                 sliding_bars_room_upload_textures();
+            } else if (pending_area == STATE_ROOM_OF_LEGS) {
+                /* THE ROOM OF LEGS. Cobble and the inner door through the
+                   Catacombs Entry's narrow uploaders, plus its OWN - LEGS.TIM on
+                   x640 y0, the ROOM OF ARMS' page and palette (the heads' too),
+                   which each of those rooms' branches puts back on the way in
+                   there. Same guarantee and same silent failure mode as the
+                   branches around it. */
+                room_of_legs_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4702,9 +4757,19 @@ int main(int argc, const char **argv) {
                     crucifix_corridor_spawn_north();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_SLIDING_BARS_ROOM) {
-                /* ONE ARRIVAL, the south-west door, so sliding_bars_room_init()'s
-                   default spawn is also the only one. */
+                /* TWO ARRIVALS. sliding_bars_room_init()'s default is the
+                   south-west door, from the Crucifix Corridor; back from the
+                   Room of Legs it is the north-east door. Keyed on current_area,
+                   the room being LEFT and not a route, so a debug jump or a
+                   title load still lands at the south-west door. */
                 sliding_bars_room_init();
+                if (current_area == STATE_ROOM_OF_LEGS)
+                    sliding_bars_room_spawn_ne();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_ROOM_OF_LEGS) {
+                /* ONE ARRIVAL, the east door, so room_of_legs_init()'s default
+                   spawn is also the only one. */
+                room_of_legs_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5072,7 +5137,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_ROOM_OF_HEADS ||
                    game_state == STATE_CLEAVER_CORRIDOR ||
                    game_state == STATE_CRUCIFIX_CORRIDOR ||
-                   game_state == STATE_SLIDING_BARS_ROOM) {
+                   game_state == STATE_SLIDING_BARS_ROOM ||
+                   game_state == STATE_ROOM_OF_LEGS) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

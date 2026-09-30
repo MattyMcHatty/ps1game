@@ -70,7 +70,7 @@ they are in the arena, or during the transition out of it:
                                  SCREEN over it (begin_loading_transition in
                                  src/main.c, and src/asag_boss.h). There is no
                                  door_anim in that path at all, so there is no
-                                 panel to survive across it — which is the one
+                                 panel to survive across it â€” which is the one
                                  thing this entry was ever about. A future exit
                                  that DOES animate a door puts its panel back on
                                  this list.
@@ -301,6 +301,7 @@ THIS BANK'S OWN ART
   incinerator.tim            the Incinerator machine        x704 y256
   ladder.tim                 North Chamber's ladder         x704 y256
   lamashtu tablet.tim        the entry hall's tablet        x768 y0
+  legs.tim                   Room of Legs' pile (=arms pg)  x640 y0
   loculus.tim                the burial niches              x512 y0
   lumberer_a.tim             Lumberer images 1-3            x448 y128
   lumberer_b.tim             Lumberer images 4-6            x832 y128
@@ -324,7 +325,7 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x448  IN USE by this bank: sconce.tim
   x512  IN USE by this bank: loculus.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim]
   x576  IN USE by this bank: crib.tim
-  x640  IN USE by this bank: arms.tim, heads.tim   [also on this page, all re-uploaded on room entry: asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, hatch.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
+  x640  IN USE by this bank: arms.tim, heads.tim, legs.tim   [also on this page, all re-uploaded on room entry: asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, hatch.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
   x704  IN USE by this bank: rusty.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
   x768  IN USE by this bank: lamashtu tablet.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
   x832  IN USE by this bank: catacomb inner door.tim   [also on this page, all re-uploaded on room entry: con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, stables wood.tim, xt_dr_cg.tim]

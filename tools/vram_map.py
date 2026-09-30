@@ -813,6 +813,21 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim",    "heads.tim"),
     ("trck_clue.tim",             "heads.tim"),
     ("trees.tim",                 "heads.tim"),
+    #   legs.tim -> x640 y0, THE ROOM OF LEGS' pile, ON THE SAME PAGE AND
+    # PALETTE (672,501) - the heads' terms exactly, and a third owner taking
+    # turns. Legs are drawn only in the Room of Legs, and the Rooms of Arms,
+    # Heads and Legs each put their own pixels and CLUT line back on entry.
+    ("arms.tim",                  "legs.tim"),
+    ("heads.tim",                 "legs.tim"),
+    ("asag.tim",                  "legs.tim"),
+    ("chnlnk.tim",                "legs.tim"),
+    ("gravel_texture.tim",        "legs.tim"),
+    ("greenhouse.tim",            "legs.tim"),
+    ("hatch.tim",                 "legs.tim"),
+    ("plinth_rg.tim",             "legs.tim"),
+    ("poison_flower_base.tim",    "legs.tim"),
+    ("trck_clue.tim",             "legs.tim"),
+    ("trees.tim",                 "legs.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

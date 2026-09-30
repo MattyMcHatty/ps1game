@@ -335,6 +335,10 @@
 #define TIM_TPAGE_LADDER   0x009b
 #define TIM_CLUT_LADDER    0x7fd3
 
+/* legs.tim        8bpp  VRAM ( 640,  0)  \TEXCTCMB\LEGS.TIM */
+#define TIM_TPAGE_LEGS     0x008a
+#define TIM_CLUT_LEGS      0x7d6a
+
 /* lamashtu tablet.tim  8bpp  VRAM ( 768,  0)  \TEX\LMSHTBLT.TIM */
 #define TIM_TPAGE_LMSHTBLT 0x008c
 #define TIM_CLUT_LMSHTBLT  0x7bea

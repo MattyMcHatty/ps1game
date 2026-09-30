@@ -68,6 +68,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   greenhouse.tim       8       640     0   128   128     0   672,497
   hatch.tim            8       640     0   128   128     0   256,506
   heads.tim            8       640     0   128   128     0   672,501
+  legs.tim             8       640     0   128   128     0   672,501
   plinth_rg.tim        8       640     0   128   128     0   256,506
   poison_flower_base.tim 8       640     0    64    64     0   672,496
   trck_clue.tim        8       640     0   128   128     0   768,481
@@ -262,6 +263,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=501  x[672,928)  asag.tim
   y=501  x[0,16)  brick_wall.tim
   y=501  x[672,928)  heads.tim
+  y=501  x[672,928)  legs.tim
   y=501  x[256,512)  mushy_open.tim
   y=502  x[560,576)  chain.tim
   y=502  x[0,256)  inr_dbl_dr_half.tim
@@ -343,6 +345,7 @@ OVERLAP CHECK
   arms.tim                                 greenhouse.tim       time-shared (streaming)
   arms.tim                                 hatch.tim            time-shared (streaming)
   arms.tim                                 heads.tim            time-shared (streaming)
+  arms.tim                                 legs.tim             time-shared (streaming)
   arms.tim                                 plinth_rg.tim        time-shared (streaming)
   arms.tim                                 poison_flower_base.tim time-shared (streaming)
   arms.tim                                 trck_clue.tim        time-shared (streaming)
@@ -352,6 +355,7 @@ OVERLAP CHECK
   asag.tim                                 greenhouse.tim       time-shared (streaming)
   asag.tim                                 hatch.tim            time-shared (streaming)
   asag.tim                                 heads.tim            time-shared (streaming)
+  asag.tim                                 legs.tim             time-shared (streaming)
   asag.tim                                 plinth_rg.tim        time-shared (streaming)
   asag.tim                                 poison_flower_base.tim time-shared (streaming)
   asag.tim                                 trck_clue.tim        time-shared (streaming)
@@ -400,6 +404,7 @@ OVERLAP CHECK
   chnlnk.tim                               greenhouse.tim       time-shared (streaming)
   chnlnk.tim                               hatch.tim            time-shared (streaming)
   chnlnk.tim                               heads.tim            time-shared (streaming)
+  chnlnk.tim                               legs.tim             time-shared (streaming)
   chnlnk.tim                               plinth_rg.tim        time-shared (streaming)
   chnlnk.tim                               poison_flower_base.tim time-shared (streaming)
   chnlnk.tim                               trck_clue.tim        time-shared (streaming)
@@ -494,6 +499,7 @@ OVERLAP CHECK
   gravel_texture.tim                       greenhouse.tim       time-shared (streaming)
   gravel_texture.tim                       hatch.tim            time-shared (streaming)
   gravel_texture.tim                       heads.tim            time-shared (streaming)
+  gravel_texture.tim                       legs.tim             time-shared (streaming)
   gravel_texture.tim                       plinth_rg.tim        time-shared (streaming)
   gravel_texture.tim                       poison_flower_base.tim time-shared (streaming)
   gravel_texture.tim                       trck_clue.tim        time-shared (streaming)
@@ -504,6 +510,7 @@ OVERLAP CHECK
   greenhouse door.tim                      red_crpt.tim         time-shared (streaming)
   greenhouse.tim                           hatch.tim            time-shared (streaming)
   greenhouse.tim                           heads.tim            time-shared (streaming)
+  greenhouse.tim                           legs.tim             time-shared (streaming)
   greenhouse.tim                           plinth_rg.tim        time-shared (streaming)
   greenhouse.tim                           poison_flower_base.tim time-shared (streaming)
   greenhouse.tim                           trck_clue.tim        time-shared (streaming)
@@ -516,10 +523,12 @@ OVERLAP CHECK
   grss_gs.tim                              stn_stl.tim          time-shared (streaming)
   grss_gs.tim                              strs.tim             time-shared (streaming)
   hatch.tim                                heads.tim            time-shared (streaming)
+  hatch.tim                                legs.tim             time-shared (streaming)
   hatch.tim                                plinth_rg.tim        time-shared (streaming)
   hatch.tim                                poison_flower_base.tim time-shared (streaming)
   hatch.tim                                trck_clue.tim        time-shared (streaming)
   hatch.tim                                trees.tim            time-shared (streaming)
+  heads.tim                                legs.tim             time-shared (streaming)
   heads.tim                                plinth_rg.tim        time-shared (streaming)
   heads.tim                                poison_flower_base.tim time-shared (streaming)
   heads.tim                                trck_clue.tim        time-shared (streaming)
@@ -539,6 +548,10 @@ OVERLAP CHECK
   lamashtu tablet.tim                      plinth_diamond.tim   time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_cmplt.tim      time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_lckd.tim       time-shared (streaming)
+  legs.tim                                 plinth_rg.tim        time-shared (streaming)
+  legs.tim                                 poison_flower_base.tim time-shared (streaming)
+  legs.tim                                 trck_clue.tim        time-shared (streaming)
+  legs.tim                                 trees.tim            time-shared (streaming)
   lumberer_a.tim                           mansion.tim          time-shared (streaming)
   lumberer_b.tim                           xt_dr_lft_hlf.tim    time-shared (streaming)
   lumberer_b.tim                           xt_dr_rt_hlf.tim     time-shared (streaming)

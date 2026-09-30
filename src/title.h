@@ -189,6 +189,13 @@ typedef enum {
                                 closed by bars. See src/sliding_bars_room.h.
                                 Appended, not inserted: saves store raw enum
                                 values. */
+    STATE_ROOM_OF_LEGS,      /* THE ROOM OF LEGS, through the NORTH of the two
+                                doors in the Sliding Bars Room's east wall.
+                                Chapter 3's twelfth room: the Room of Arms'
+                                octagon, flat under a y=-800 vault, with a
+                                C-shaped pile of legs, a crib and one door. See
+                                src/room_of_legs.h. Appended, not inserted:
+                                saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

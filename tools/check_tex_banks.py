@@ -145,6 +145,10 @@ AREAS = {
                   # the inner door, the loculus, the incinerator panel and the
                   # bars.
                   "sliding_bars_room_upload_textures",
+                  # THE ROOM OF LEGS, the chapter's twelfth room, off the Sliding
+                  # Bars Room's north-east door: owns legs.tim (on the arms'
+                  # page, the heads' terms) and borrows cobble and the inner door.
+                  "room_of_legs_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

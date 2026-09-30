@@ -6,12 +6,14 @@
 #include "title.h"
 
 /* Crib: an iron cot, Chapter 3's fifth prop and the first thing in the
-   Catacombs that is furniture rather than machinery. TWO stand in the game, each
-   its own encounter with its own solved flag:
+   Catacombs that is furniture rather than machinery. THREE stand in the game,
+   each its own encounter with its own solved flag:
 
      ROOM OF ARMS    the alcove in the south-west corner (src/room_of_arms.c)
      ROOM OF HEADS   the gap between the two western head piles
                      (src/room_of_heads.c), pouring from the pile tops
+     ROOM OF LEGS    in front of the spine of the C-shaped leg pile
+                     (src/room_of_legs.c), pouring from the pile's two ends
 
 
    ONE texture of its own ("crib", \TEXCTCMB\CRIB.TIM) and one mesh
@@ -96,6 +98,7 @@
 
        crib_room_solved(STATE_ROOM_OF_ARMS)    the first crib event
        crib_room_solved(STATE_ROOM_OF_HEADS)   the second crib event
+       crib_room_solved(STATE_ROOM_OF_LEGS)    the third crib event
 
    Solving one sets its room's bit and nothing else; neither implies the other.
    A later crib in a new room gets a new bit by being in a new room. To count

@@ -156,6 +156,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_THE_PIT,        STATE_NORTH_CHAMBER,
     STATE_ROOM_OF_HEADS,   STATE_CLEAVER_CORRIDOR,
     STATE_CRUCIFIX_CORRIDOR, STATE_SLIDING_BARS_ROOM,
+    STATE_ROOM_OF_LEGS,
 };
 
 static int room_index(GameState area) {
@@ -261,6 +262,9 @@ static int room_index(GameState area) {
         /* THE SLIDING BARS ROOM, Chapter 3's eleventh room, through the north
            door of the Crucifix Corridor's cross arm. Slot 37 of 64. */
         case STATE_SLIDING_BARS_ROOM: return 37;
+        /* THE ROOM OF LEGS, Chapter 3's twelfth room, through the Sliding Bars
+           Room's north-east door. Slot 38 of 64. */
+        case STATE_ROOM_OF_LEGS:      return 38;
         default:                   return 0;
     }
 }
