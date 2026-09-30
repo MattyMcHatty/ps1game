@@ -35,6 +35,11 @@ typedef enum {
     ITEM_BLOOD_PEARL,       /* found resting on the unlit sconce at the east end of
                                the Cleaver Corridor. No use yet — a flag item held
                                for a puzzle still to be designed */
+    ITEM_MEAT_SACK,         /* lying in the middle of the Meat Plant floor. No use
+                               yet — a flag item like the Blood Pearl */
+    ITEM_GAOL_KEY,          /* what is left of the Meat Sack after the Incinerator
+                               has had it: the machine drops it on its east tray
+                               (src/incinerator.h, THE EAST TRAY). No lock yet */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */

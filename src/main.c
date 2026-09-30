@@ -2381,6 +2381,9 @@ static void update_current_area(GameState area) {
         apply_height();
         update_crawlers();
         update_lumberers();
+        /* The Meat Sack in the courtyard. Pickups are per-room here: a room
+           that does not call this can never have one collected. */
+        item_pickups_update();
 
         if (meat_plant_west_door_triggered(lock)) {
             pending_area = STATE_SLIDING_BARS_ROOM;
@@ -5100,7 +5103,7 @@ int main(int argc, const char **argv) {
                                                     world_enter above has only
                                                     just restored. */
             if (pending_area == STATE_INCINERATOR_ROOM)
-                incinerator_room_apply_flags();  /* a spat-out Blood Pearl back
+                incinerator_room_apply_flags();  /* the pearl / Gaol Key back
                                                     on the east tray: writes to
                                                     item_pickups, and reads a
                                                     flag a load installs */

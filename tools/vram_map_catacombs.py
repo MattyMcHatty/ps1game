@@ -102,6 +102,8 @@ RESERVED = dict(ASAG.RESERVED)
 # ...plus what only Chapter 3 can put in the inventory. The arena never sees
 # these: Asag is dead before the catacomb mouth opens.
 RESERVED["bld_prl.tim"] = "the Blood Pearl item (the Cleaver Corridor's sconce)"
+RESERVED["mt_sck.tim"]  = "the Meat Sack item (the Meat Plant's courtyard)"
+RESERVED["gl_ky.tim"]   = "the Gaol Key item (the Incinerator's east tray)"
 
 # ---------------------------------------------------------------------------
 # THE CHAPTER'S OWN ART. Eight room textures across five rooms, plus the two

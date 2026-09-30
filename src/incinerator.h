@@ -105,11 +105,34 @@ int  incinerator_count(void);        /* rounds held; 1 for a plain item   */
 void incinerator_set_stored(int slot, int count);  /* savegame restore    */
 void incinerator_reset(void);        /* new game: empty, tray included    */
 
-/* 1 while a spat-out Blood Pearl is sitting on the EAST tray waiting to be
-   picked up (see THE BUTTON below). Saved as SaveData.incin_tray_pearl; the
-   room turns it into a pickup on entry and clears it when that is collected. */
-int  incinerator_tray_pearl(void);
-void incinerator_set_tray_pearl(int on);
+/* ---- THE EAST TRAY ----------------------------------------------------------
+   What the machine has left at the far end of the belt for the player to pick
+   up: a BITMASK, bit INC_TRAY_* set while that thing is waiting there. Saved as
+   SaveData.incin_tray; the room turns each bit into a pickup on entry and on
+   the cycle's last frame, and clears it when that pickup is collected.
+
+     BLOOD PEARL  will not burn: the cycle spits it out (INC_PRESS_SPAT). Its
+                  bit is set on the LAST frame — until then it is still in the
+                  hopper, so a cancelled cycle leaves it on the belt.
+     GAOL KEY     is what the Meat Sack burns down to (INC_PRESS_BURNED; the
+                  sack is gone). Its bit is set on the PRESS, with the sack
+                  consumed in the same call, so a cycle cancelled by walking
+                  out or a save made mid-cycle still has the key on the tray.
+                  The room only SHOWS it once the cycle ends. The key ITSELF
+                  will not burn either: put back in the hopper it is spat out
+                  like the pearl, bit set on the last frame.
+
+   APPEND ONLY: the bits are saved. Bit 0 is the pearl because the field was a
+   plain 0/1 pearl flag before the key existed, so those saves read the same. */
+typedef enum {
+    INC_TRAY_BLOOD_PEARL,
+    INC_TRAY_GAOL_KEY,
+    INC_TRAY_COUNT
+} IncTray;
+
+int  incinerator_tray(void);             /* bitmask of INC_TRAY_*          */
+void incinerator_set_tray(int mask);     /* savegame restore; clamped      */
+void incinerator_tray_remove(IncTray t); /* the room: its pickup was taken */
 
 /* Move the player's `slot` into the machine. Returns the count actually taken,
    or 0 if it refused (the hopper is full, or the player does not hold it).
@@ -149,10 +172,17 @@ int  incinerator_retrieve(void);
 typedef enum {
     INC_PRESS_IGNORED,   /* a cycle is already running: the press does nothing */
     INC_PRESS_EMPTY,     /* nothing in the hopper -> "It has no effect"        */
-    INC_PRESS_BURNED,    /* something was in it, and is not now                */
-    INC_PRESS_SPAT       /* the Blood Pearl: it will not burn, and the cycle
-                            ends by spitting it onto the east tray             */
+    INC_PRESS_BURNED,    /* something was in it, and is not now. For the Meat
+                            Sack the Gaol Key is already on the tray (above)   */
+    INC_PRESS_SPAT       /* the Blood Pearl or the Gaol Key: it will not burn,
+                            and the cycle ends by spitting it onto the east
+                            tray (incinerator_spat() says which)               */
 } IncPress;
+
+/* The INC_TRAY_* the last finished cycle spat out, or -1 if it spat nothing.
+   Valid from the frame incinerator_cycle_finished() latches, so the room can
+   pick its line. */
+int      incinerator_spat(void);
 
 IncPress incinerator_button_press(void);   /* starts the cycle; consumes       */
 void     incinerator_cycle_update(void);   /* per frame: fires the three plays */

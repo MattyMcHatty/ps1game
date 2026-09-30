@@ -401,10 +401,11 @@ static int button_circle_prev = 1;
    three. */
 static int button_pending = -1;
 
-/* ---- THE PEARL ON THE EAST TRAY ---------------------------------------------
-   The Blood Pearl will not burn (src/incinerator.h): the cycle ends by spitting
-   it onto the tray at the belt's far end, and it waits there as an ordinary
-   pickup. Measured off assets/props/Incinerator.smx like the west tray above:
+/* ---- THE EAST TRAY ----------------------------------------------------------
+   What the machine leaves at the belt's far end (src/incinerator.h, THE EAST
+   TRAY): the Blood Pearl, which will not burn, and the Gaol Key, which is what
+   the Meat Sack burns down to. Each waits there as an ordinary pickup.
+   Measured off assets/props/Incinerator.smx like the west tray above:
    the east tray is x[-200,-1] over z[-2950,-2750] with its surface at y=-100.
 
    y: drawn at world_half 22 (the size it has on the Cleaver Corridor's sconce)
@@ -422,36 +423,51 @@ static int button_pending = -1;
    it. Nothing else in the room is collected by proximity, so the wide reach
    cannot steal anything. */
 #define INC_TRAY_E_X        (-100)
-#define INC_TRAY_E_Z       (-2850)
 #define INC_TRAY_E_Y       (-200 + 50)
 #define INC_TRAY_E_REACH      600
 #define INC_TRAY_E_OTZ       (-60)   /* item_pickup otz_bias: toward the camera */
 
-/* 1 if the live pickup array holds an uncollected Blood Pearl. The room's only
-   pickup, so a pearl in here is the tray's. */
-static int tray_pearl_live(void) {
+/* Per tray bit: the pickup it shows as, and where along the tray. Both can be
+   waiting at once (a pearl left lying when the sack goes in), so they sit side
+   by side: 55 apart against 44-wide sprites, both inside z[-2950,-2750]. The
+   pearl keeps the tray's centre it always had. `spat` is the log line when a
+   cycle spits that thing back out unburnt. Indexed by IncTray. */
+static const struct { PickupKind kind; int32_t z; const char *spat; }
+tray_item[INC_TRAY_COUNT] = {
+    { PICKUP_BLOOD_PEARL, -2850, "That's one tough pearl!" }, /* INC_TRAY_BLOOD_PEARL */
+    { PICKUP_GAOL_KEY,    -2905, "The key won't burn!"     }, /* INC_TRAY_GAOL_KEY    */
+};
+
+/* 1 if the live pickup array holds an uncollected one of tray item t. The tray
+   is the room's only source of pickups, so one of these in here is the tray's. */
+static int tray_live(int t) {
     int i;
     for (i = 0; i < item_pickup_count; i++)
-        if (item_pickups[i].active && item_pickups[i].kind == PICKUP_BLOOD_PEARL)
+        if (item_pickups[i].active && item_pickups[i].kind == tray_item[t].kind)
             return 1;
     return 0;
 }
 
-static void tray_pearl_spawn(void) {
-    int bp;
-    if (tray_pearl_live()) return;   /* world_enter already restored it */
-    bp = item_pickup_spawn_range(INC_TRAY_E_X, INC_TRAY_E_Y, INC_TRAY_E_Z,
-                                 PICKUP_BLOOD_PEARL, 1, INC_TRAY_E_REACH);
-    item_pickup_set_display(bp, 22, INC_TRAY_E_OTZ);
+/* Spawn a pickup for every tray bit that has none yet. */
+static void tray_spawn(void) {
+    int t, mask = incinerator_tray();
+    for (t = 0; t < INC_TRAY_COUNT; t++) {
+        int ip;
+        if (!(mask & (1 << t)) || tray_live(t)) continue;   /* world_enter
+                                                   already restored it */
+        ip = item_pickup_spawn_range(INC_TRAY_E_X, INC_TRAY_E_Y, tray_item[t].z,
+                                     tray_item[t].kind, 1, INC_TRAY_E_REACH);
+        item_pickup_set_display(ip, 22, INC_TRAY_E_OTZ);
+    }
 }
 
 void incinerator_room_apply_flags(void) {
     /* AFTER world_enter and savegame_apply_pending (main.c): the first is what
-       restores a pearl spat out on an earlier visit, and the second is what
-       installs the flag on a load. A load rebuilds this room from its seed,
-       which holds no pickup, so the flag is the only thing that brings the
-       pearl back. */
-    if (incinerator_tray_pearl()) tray_pearl_spawn();
+       restores a tray pickup from an earlier visit, and the second is what
+       installs the bits on a load. A load rebuilds this room from its seed,
+       which holds no pickup, so the bits are the only thing that bring them
+       back. It also shows a key whose cycle was cancelled by leaving mid-run. */
+    tray_spawn();
 }
 
 static int circle_held(void) {
@@ -529,18 +545,26 @@ int incinerator_room_machine_update(int lock) {
     if (incinerator_cycle_finished()) {
         /* The brief's two lines, and the ONLY place either is printed. */
         if (button_pending == INC_PRESS_BURNED)    show_pickup_msg_raw("The item was destroyed!");
-        else if (button_pending == INC_PRESS_SPAT) {
-            show_pickup_msg_raw("That's one tough pearl!");
-            tray_pearl_spawn();   /* incinerator_cycle_update just set the flag */
-        }
+        else if (button_pending == INC_PRESS_SPAT && incinerator_spat() >= 0)
+                                                   show_pickup_msg_raw(tray_item[incinerator_spat()].spat);
         else                                       show_pickup_msg_raw("It has no effect");
+        /* Whatever the cycle left on the tray appears as it ends: a spat-out
+           item's bit was set by incinerator_cycle_update just now, a burnt
+           sack's Gaol Key on the press (incinerator.h says why). */
+        tray_spawn();
         button_pending = -1;
     }
 
-    /* The tray pearl was picked up: item_pickups_update (main.c) collected it
-       and granted the item, so the machine lets go of it. */
-    if (incinerator_tray_pearl() && !tray_pearl_live())
-        incinerator_set_tray_pearl(0);
+    /* A tray pickup was taken: item_pickups_update (main.c) collected it and
+       granted the item, so the machine lets go of it. >>> NOT WHILE A CYCLE
+       RUNS. <<< A Gaol Key is on the tray from the press but has no pickup
+       until the cycle ends, and this would read that as "already collected". */
+    if (!incinerator_cycle_active()) {
+        int t;
+        for (t = 0; t < INC_TRAY_COUNT; t++)
+            if ((incinerator_tray() & (1 << t)) && !tray_live(t))
+                incinerator_tray_remove((IncTray)t);
+    }
 
     held = circle_held();
     just = held && !button_circle_prev;

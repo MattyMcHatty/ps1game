@@ -105,6 +105,8 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   anzu6.tim            8       736    64    64    64    64   256,488
   ghit.tim             8       896    64    16    16    64   0,510
   bld_prl.tim          4       912    64    32    32    64   512,481
+  mt_sck.tim           4       920    64    32    32    64   528,481
+  gl_ky.tim            4       912    96    32    32    96   544,481
   crawler_a.tim        8       320   128   256   128   128   672,506  <-- Voff>=128
   rafflesia1.tim       8       320   128   128   128   128   256,496  <-- Voff>=128
   spdr_rst.tim         8       320   128   128   128   128   256,492  <-- Voff>=128
@@ -189,7 +191,9 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=480  x[16,32)  trees_dl.tim
   y=481  x[512,528)  bld_prl.tim
   y=481  x[256,512)  flm_rnds.tim
+  y=481  x[544,560)  gl_ky.tim
   y=481  x[0,256)  key.tim
+  y=481  x[528,544)  mt_sck.tim
   y=481  x[768,1024)  trck_clue.tim
   y=482  x[768,1024)  bl_ky_stn.tim
   y=482  x[256,512)  pno_key.tim

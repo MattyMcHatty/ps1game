@@ -223,6 +223,10 @@
 #define TIM_TPAGE_GHIT     0x008e
 #define TIM_CLUT_GHIT      0x7f80
 
+/* gl_ky.tim       4bpp  VRAM ( 912, 96)  \TEX\GLKY.TIM */
+#define TIM_TPAGE_GLKY     0x000e
+#define TIM_CLUT_GLKY      0x7862
+
 /* gravel_texture.tim  4bpp  VRAM ( 640,  0)  \GRAVEL.TIM */
 #define TIM_TPAGE_GRAVEL   0x000a
 #define TIM_CLUT_GRAVEL    0x7800
@@ -390,6 +394,10 @@
 /* mushy_run.tim   8bpp  VRAM ( 464,384)  \TEX\MSHYRUN.TIM */
 #define TIM_TPAGE_MSHYRUN  0x0097
 #define TIM_CLUT_MSHYRUN   0x7c90
+
+/* mt_sck.tim      4bpp  VRAM ( 920, 64)  \TEX\MTSCK.TIM */
+#define TIM_TPAGE_MTSCK    0x000e
+#define TIM_CLUT_MTSCK     0x7861
 
 /* oil_container.tim  8bpp  VRAM ( 896,256)  \TEXCTCMB\OILCNTNR.TIM */
 #define TIM_TPAGE_OILCNTNR 0x009e

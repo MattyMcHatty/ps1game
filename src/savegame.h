@@ -281,11 +281,14 @@ typedef struct {
                                        slots (1..INC_AMMO_MAX), else 1. Beside
                                        `incin_slot` and meaningless without it —
                                        see src/incinerator.h's hopper note.    */
-    int32_t  incin_tray_pearl;      /* 1 if a spat-out Blood Pearl is waiting
-                                       on the Incinerator's EAST tray. The
-                                       pickup it shows as is spawned at run
-                                       time, which the world delta cannot
-                                       record, so this is what brings it back. */
+    int32_t  incin_tray;            /* what is waiting on the Incinerator's
+                                       EAST tray: bit INC_TRAY_* (the Blood
+                                       Pearl, the Gaol Key). The pickups they
+                                       show as are spawned at run time, which
+                                       the world delta cannot record, so this
+                                       is what brings them back. Was the 0/1
+                                       incin_tray_pearl; the pearl is bit 0, so
+                                       v31 saves read the same without a bump. */
     int32_t  sb_gates;              /* the Sliding Bars Room's four gates: bit
                                        i = gate i+1 is at its MOVED spot. See
                                        THE GATES in src/sliding_bars_room.c.  */

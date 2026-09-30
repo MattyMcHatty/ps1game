@@ -87,7 +87,7 @@ void savegame_capture(SaveData *sd) {
        empty, so a reader never has to ask whether the fields are live. */
     sd->incin_slot  = incinerator_slot();
     sd->incin_count = incinerator_count();
-    sd->incin_tray_pearl = incinerator_tray_pearl();
+    sd->incin_tray  = incinerator_tray();
     sd->sb_gates = sliding_bars_room_gates();
     sd->flags   = game_flags;
     menu_inventory_save(sd->item_order);
@@ -277,9 +277,10 @@ void savegame_apply_pending(void) {
        the player holds — an item in the machine is NOT held, and restoring the
        hopper after the grid would leave a cell pointing at it. */
     incinerator_set_stored((int)sd->incin_slot, (int)sd->incin_count);
-    /* The pearl on the east tray. Only the flag: the room spawns its pickup
-       after world_enter (incinerator_room_apply_flags in main.c). */
-    incinerator_set_tray_pearl((int)sd->incin_tray_pearl);
+    /* The east tray (the pearl, the Gaol Key). Only the bits, masked by the
+       setter: the room spawns their pickups after world_enter
+       (incinerator_room_apply_flags in main.c). */
+    incinerator_set_tray((int)sd->incin_tray);
     /* The gates. Only the byte: the room re-places them after world_enter
        (sliding_bars_room_apply_flags in main.c). */
     sliding_bars_room_set_gates((int)sd->sb_gates);

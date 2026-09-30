@@ -144,6 +144,16 @@ static uint8_t  vlvh_u0, vlvh_v0, vlvh_u1, vlvh_v1;
 static uint16_t bprl_tpage   = 0;
 static uint16_t bprl_clut    = 0;
 static uint8_t  bprl_u0, bprl_v0, bprl_u1, bprl_v1;
+/* The Meat Sack. 32x32 4bpp at VRAM (920,64), right beside the Blood Pearl:
+   Voff 64 (V 64..95) and U 96..127 of the same page, so it too is window-safe. */
+static uint16_t msck_tpage   = 0;
+static uint16_t msck_clut    = 0;
+static uint8_t  msck_u0, msck_v0, msck_u1, msck_v1;
+/* The Gaol Key. 32x32 4bpp at VRAM (912,96), under the Blood Pearl: Voff 96
+   (V 96..127) and U 64..95 of the same page — still inside the 128 window. */
+static uint16_t glky_tpage   = 0;
+static uint16_t glky_clut    = 0;
+static uint8_t  glky_u0, glky_v0, glky_u1, glky_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -165,6 +175,8 @@ static const char *item_descriptions[] = {
     "Hatch Key\n\nA key for the\nhatch at the back\nof the garden",
     "Valve Handle\n\nA wheel unbolted\nfrom a pipe in\nthe greenhouse\n",
     "Blood Pearl\n\nIt's a disturbing\nshade of red",
+    "Meat Sack\n\nMeat bound with\ntwine. It's\nsquishy",
+    "Gaol Key\n\nIt's made of\nhuman bones...",
 };
 
 static const char *weapon_descriptions[] = {
@@ -388,6 +400,8 @@ int menu_item_held(int slot) {
         case MENU_SLOT_HATCH_KEY:      return player_hatch_keys > 0;
         case MENU_SLOT_VALVE_HANDLE:   return (player_items & (1 << ITEM_VALVE_HANDLE)) != 0;
         case MENU_SLOT_BLOOD_PEARL:    return (player_items & (1 << ITEM_BLOOD_PEARL)) != 0;
+        case MENU_SLOT_MEAT_SACK:      return (player_items & (1 << ITEM_MEAT_SACK)) != 0;
+        case MENU_SLOT_GAOL_KEY:       return (player_items & (1 << ITEM_GAOL_KEY)) != 0;
         default: return 0;
     }
 }
@@ -407,6 +421,8 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_HATCH_KEY:      return "Hatch Key";
         case MENU_SLOT_VALVE_HANDLE:   return "Valve Handle";
         case MENU_SLOT_BLOOD_PEARL:    return "Blood Pearl";
+        case MENU_SLOT_MEAT_SACK:      return "Meat Sack";
+        case MENU_SLOT_GAOL_KEY:       return "Gaol Key";
         default: return "";
     }
 }
@@ -549,6 +565,14 @@ void menu_draw_item_icon_any(RenderContext *ctx, int slot, int x, int y,
             draw_icon(ctx, x, y, size, bprl_tpage, bprl_clut,
                       bprl_u0, bprl_v0, bprl_u1, bprl_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_MEAT_SACK:
+            draw_icon(ctx, x, y, size, msck_tpage, msck_clut,
+                      msck_u0, msck_v0, msck_u1, msck_v1, 128, ot_idx);
+            break;
+        case MENU_SLOT_GAOL_KEY:
+            draw_icon(ctx, x, y, size, glky_tpage, glky_clut,
+                      glky_u0, glky_v0, glky_u1, glky_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -610,6 +634,10 @@ void menu_init(void) {
                   &vlvh_u0, &vlvh_v0, &vlvh_u1, &vlvh_v1);
     load_icon_tim("\\TEX\\BLDPRL.TIM;1", &bprl_tpage, &bprl_clut,
                   &bprl_u0, &bprl_v0, &bprl_u1, &bprl_v1);
+    load_icon_tim("\\TEX\\MTSCK.TIM;1", &msck_tpage, &msck_clut,
+                  &msck_u0, &msck_v0, &msck_u1, &msck_v1);
+    load_icon_tim("\\TEX\\GLKY.TIM;1", &glky_tpage, &glky_clut,
+                  &glky_u0, &glky_v0, &glky_u1, &glky_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);

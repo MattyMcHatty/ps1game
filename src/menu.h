@@ -29,7 +29,9 @@ void menu_draw(RenderContext *ctx);
 #define MENU_SLOT_HATCH_KEY        10
 #define MENU_SLOT_VALVE_HANDLE     11
 #define MENU_SLOT_BLOOD_PEARL      12
-#define MENU_ITEM_SLOTS           13   /* number of item IDs that exist */
+#define MENU_SLOT_MEAT_SACK        13
+#define MENU_SLOT_GAOL_KEY         14
+#define MENU_ITEM_SLOTS           15   /* number of item IDs that exist */
 
 /* ---- Inventory order ------------------------------------------------------
    The ITEMS column is 3x4 = 12 CELLS, and which item ID lives in which cell is

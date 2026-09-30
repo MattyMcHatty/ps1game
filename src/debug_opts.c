@@ -23,6 +23,8 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "HADAD FLAG TWO",
     "HADAD FLAG THREE",
     "ASAG DEFEATED",
+    "HAS MEAT SACK",
+    "HAS GAOL KEY",
 };
 
 static int grants_pending = 0;
@@ -346,4 +348,13 @@ void debug_opts_apply_grants(void) {
            that room, and nothing short of a new flag could know otherwise. */
         game_flag_set(FLAG_DRAIN_KEY_PLACED);
     }
+
+    /* The two Chapter 3 flag items, straight into the inventory. Plain bits, as
+       DBG_HAS_PIANO_KEY is: both TIMs own their VRAM outright from startup, so
+       the menu icons are already right on a direct jump. Nothing in the world
+       is changed — the Meat Plant's sack is still on its floor, and burning it
+       leaves a second Gaol Key on the Incinerator's tray. Both are harmless:
+       collecting either again only sets a bit that is already set. */
+    if (debug_opts[DBG_HAS_MEAT_SACK]) player_items |= (1 << ITEM_MEAT_SACK);
+    if (debug_opts[DBG_HAS_GAOL_KEY])  player_items |= (1 << ITEM_GAOL_KEY);
 }

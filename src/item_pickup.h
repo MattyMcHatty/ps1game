@@ -32,6 +32,11 @@ typedef enum {
                                 reached yet.                                    */
     PICKUP_BLOOD_PEARL,      /* blood pearl     -> ITEM_BLOOD_PEARL bit. On the
                                 Cleaver Corridor's cold sconce; no use yet     */
+    PICKUP_MEAT_SACK,        /* meat sack       -> ITEM_MEAT_SACK bit. In the
+                                middle of the Meat Plant; no use yet           */
+    PICKUP_GAOL_KEY,         /* gaol key        -> ITEM_GAOL_KEY bit. Never
+                                placed by world.c: the Incinerator leaves it on
+                                its east tray when it burns the Meat Sack      */
     PICKUP_KIND_COUNT
 } PickupKind;
 

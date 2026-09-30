@@ -1685,6 +1685,15 @@ void world_seed_room(GameState area) {
                      3858, 2715,           /* B: square 21 */
                      -149, STATE_SLIDING_BARS_ROOM);
     }
+
+    /* THE MEAT SACK, on the floor at the dead centre of the Meat Plant: the
+       middle of its x[-3299,3299] z[0,6600] bounds, which is the courtyard
+       inside the C of legs (src/meat_plant.h), reached through the mouth on its
+       east side. 701 clear of the south arm, 1299 of the spine and the north
+       arm. No use yet; a flag item like the Blood Pearl. y=0 floor, so -50. */
+    if (area == STATE_MEAT_PLANT) {
+        item_pickup_spawn_amount(0, -50, 3300, PICKUP_MEAT_SACK, 1);
+    }
 }
 
 void world_enter(GameState area) {

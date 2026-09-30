@@ -30,6 +30,7 @@
 #include "crib.h"
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "item_pickup.h"        /* the Meat Sack in the courtyard */
 
 /* The Meat Plant — see meat_plant.h for the layout and the doors. */
 
@@ -512,5 +513,8 @@ void meat_plant_draw(RenderContext *ctx) {
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        /* The Meat Sack. After the enemy draws, which restore the 128 window
+           it samples under (Voff 64, src/menu.c). */
+        item_pickups_draw(ctx);
     }
 }

@@ -493,6 +493,21 @@
                      sphere. RESERVED in the Catacombs map (the only chapter it
                      can be carried in). -->
                 <file name="BLDPRL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\bld_prl.tim"/>
+                <!-- The Meat Sack: pickup sprite AND menu icon, both loaded at
+                     startup. 32x32 4bpp at x920 y64, right beside the Blood
+                     Pearl (Voff 64, U 96..127 of the x896 page - window-safe),
+                     CLUT (528,481) beside the pearl's. Source art:
+                     textures/catacombs/meat sack.png (32x32, cut to 15 colours
+                     + transparent by png_to_tim). RESERVED in the Catacombs map. -->
+                <file name="MTSCK.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\mt_sck.tim"/>
+                <!-- The Gaol Key: pickup sprite AND menu icon, both loaded at
+                     startup. 32x32 4bpp at x912 y96, under the Blood Pearl
+                     (Voff 96, V 96..127 and U 64..95 of the x896 page -
+                     window-safe), CLUT (544,481). Source art:
+                     textures/catacombs/gaol key.png. The Incinerator leaves it
+                     on its east tray when it burns the Meat Sack. RESERVED in
+                     the Catacombs map. -->
+                <file name="GLKY.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gl_ky.tim"/>
                 <!-- Garden Stairs: the caged switchback stairway behind the
                      Attic Exit's unlocked door. XTDRCG/XTDROUTR are its two new
                      mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the

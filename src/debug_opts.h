@@ -11,7 +11,8 @@
  *     resource read the flag every frame, so they can be flipped between runs
  *     and take effect on the next jump with no extra plumbing.
  *   - One-shot grants (GRAVE-OLVER / HELLUMINATOR / WAX AND POT / PIANO KEY /
- *     KEY STONES / EXIT DOOR SOLVED / the three HADAD flags): they hand the
+ *     KEY STONES / EXIT DOOR SOLVED / the three HADAD flags / MEAT SACK /
+ *     GAOL KEY): they hand the
  *     player things, so they must fire exactly once, AFTER the destination room
  *     has finished initialising (a room init can reset the inventory, and
  *     item_pickups_reset clears the piano key's bit). The debug menu arms
@@ -166,6 +167,8 @@ typedef enum {
        there does nothing — because the arena is a one-way pocket with nothing
        left at the bottom of it. */
     DBG_ASAG_DEFEATED,       /* Asag dead: the catacomb doors stand open        */
+    DBG_HAS_MEAT_SACK,       /* the Meat Plant's sack, in the inventory          */
+    DBG_HAS_GAOL_KEY,        /* the key the Incinerator makes of the sack        */
     DEBUG_OPT_COUNT
 } DebugOpt;
 

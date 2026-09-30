@@ -183,22 +183,29 @@ static int hopper_count =  0;   /* rounds, or 1 for a plain item */
 int incinerator_slot(void)  { return hopper_slot; }
 int incinerator_count(void) { return hopper_count; }
 
-/* THE PEARL ON THE EAST TRAY. The Blood Pearl will not burn: a cycle run with
-   it in the hopper ends by spitting it out onto the tray at the far (east) end
-   of the belt, and this is 1 from then until the player picks it up. The ROOM
-   shows it as an ordinary pickup (src/incinerator_room.c), but the state lives
-   here beside the hopper because it is the same kind of thing — the player's
-   property, held by the machine — and it is saved the same way
-   (SaveData.incin_tray_pearl). A runtime pickup on its own would not survive a
-   save: the world delta only records what world_seed_room() placed. */
-static int tray_pearl = 0;
+/* THE EAST TRAY (incinerator.h). What the machine has left at the far end of
+   the belt: the spat-out Blood Pearl, the Gaol Key out of a burnt Meat Sack.
+   The ROOM shows each as an ordinary pickup (src/incinerator_room.c), but the
+   state lives here beside the hopper because it is the same kind of thing —
+   the player's property, held by the machine — and it is saved the same way
+   (SaveData.incin_tray). A runtime pickup on its own would not survive a save:
+   the world delta only records what world_seed_room() placed. */
+#define INC_TRAY_MASK  ((1 << INC_TRAY_COUNT) - 1)
+static int tray = 0;
 
-int  incinerator_tray_pearl(void)       { return tray_pearl; }
-void incinerator_set_tray_pearl(int on) { tray_pearl = on ? 1 : 0; }
+int  incinerator_tray(void)               { return tray; }
+void incinerator_set_tray(int mask)       { tray = mask & INC_TRAY_MASK; }
+void incinerator_tray_remove(IncTray t)   { tray &= ~(1 << t); }
+
+/* WHAT BURNS INTO WHAT. A hopper item listed here is still destroyed on the
+   press, and the machine leaves the other thing on the tray in its place. */
+static const struct { int slot; IncTray yields; } burn_yield[] = {
+    { MENU_SLOT_MEAT_SACK, INC_TRAY_GAOL_KEY },
+};
 
 static void hopper_clear(void) { hopper_slot = -1; hopper_count = 0; }
 
-void incinerator_reset(void) { hopper_clear(); tray_pearl = 0; }
+void incinerator_reset(void) { hopper_clear(); tray = 0; }
 
 void incinerator_set_stored(int slot, int count) {
     /* Clamped on the way in exactly as savegame.c clamps the oil, and for the
@@ -250,6 +257,8 @@ static int slot_take(int slot) {
     case MENU_SLOT_MAGENTA_KEY_STONE: if (!(player_items & (1 << ITEM_MAGENTA_KEY_STONE))) return 0; player_items &= ~(1 << ITEM_MAGENTA_KEY_STONE); return 1;
     case MENU_SLOT_VALVE_HANDLE:      if (!(player_items & (1 << ITEM_VALVE_HANDLE)))      return 0; player_items &= ~(1 << ITEM_VALVE_HANDLE);      return 1;
     case MENU_SLOT_BLOOD_PEARL:       if (!(player_items & (1 << ITEM_BLOOD_PEARL)))       return 0; player_items &= ~(1 << ITEM_BLOOD_PEARL);       return 1;
+    case MENU_SLOT_MEAT_SACK:         if (!(player_items & (1 << ITEM_MEAT_SACK)))         return 0; player_items &= ~(1 << ITEM_MEAT_SACK);         return 1;
+    case MENU_SLOT_GAOL_KEY:          if (!(player_items & (1 << ITEM_GAOL_KEY)))          return 0; player_items &= ~(1 << ITEM_GAOL_KEY);          return 1;
     default: return 0;
     }
 }
@@ -269,6 +278,8 @@ static void slot_give(int slot, int count) {
     case MENU_SLOT_MAGENTA_KEY_STONE: player_items |= (1 << ITEM_MAGENTA_KEY_STONE);break;
     case MENU_SLOT_VALVE_HANDLE:      player_items |= (1 << ITEM_VALVE_HANDLE);     break;
     case MENU_SLOT_BLOOD_PEARL:       player_items |= (1 << ITEM_BLOOD_PEARL);      break;
+    case MENU_SLOT_MEAT_SACK:         player_items |= (1 << ITEM_MEAT_SACK);        break;
+    case MENU_SLOT_GAOL_KEY:          player_items |= (1 << ITEM_GAOL_KEY);         break;
     default: break;
     }
 }
@@ -320,7 +331,17 @@ int incinerator_retrieve(void) {
 
 static int32_t cycle_t   = 0;   /* frames left; 0 = idle */
 static int     cycle_end = 0;   /* latched for one frame when it finishes */
-static int     spitting  = 0;   /* this cycle is ejecting the Blood Pearl */
+static int     spitting  = -1;  /* IncTray this cycle is ejecting, or -1 */
+static int     last_spat = -1;  /* IncTray the last finished cycle ejected */
+
+/* WHAT WILL NOT BURN. A hopper item listed here is NOT consumed: it rides the
+   whole cycle and is spat onto the east tray as its bit on the last frame. */
+static const struct { int slot; IncTray tray; } unburnable[] = {
+    { MENU_SLOT_BLOOD_PEARL, INC_TRAY_BLOOD_PEARL },
+    { MENU_SLOT_GAOL_KEY,    INC_TRAY_GAOL_KEY    },
+};
+
+int incinerator_spat(void) { return last_spat; }
 
 int incinerator_cycle_active(void) { return cycle_t > 0; }
 
@@ -339,15 +360,32 @@ IncPress incinerator_button_press(void) {
        branch is taken BEFORE the hopper is cleared, so the caller is told which
        line to print eight seconds later without having to remember what was in
        it. */
-    /* >>> EXCEPT THE BLOOD PEARL, WHICH IS NOT CONSUMED AT ALL. <<< It stays
-       in the hopper for the whole cycle and only moves to the east tray on the
-       last frame (incinerator_cycle_update). Nothing is destroyed, so the
-       reload argument above does not apply — and a player who walks out
-       mid-cycle, which cancels it (incinerator_clear), finds the pearl still on
-       the belt where they left it rather than lost between the two ends. */
-    spitting = (hopper_slot == MENU_SLOT_BLOOD_PEARL);
-    if (spitting)                 r = INC_PRESS_SPAT;
-    else if (hopper_slot >= 0)  { r = INC_PRESS_BURNED; hopper_clear(); }
+    /* >>> EXCEPT WHAT WILL NOT BURN (the Blood Pearl, the Gaol Key), WHICH IS
+       NOT CONSUMED AT ALL. <<< It stays in the hopper for the whole cycle and
+       only moves to the east tray on the last frame (incinerator_cycle_update).
+       Nothing is destroyed, so the reload argument above does not apply — and a
+       player who walks out mid-cycle, which cancels it (incinerator_clear),
+       finds it still on the belt where they left it rather than lost between
+       the two ends. */
+    /* >>> AND A BURN WITH A YIELD PUTS IT ON THE TRAY NOW, in the same breath
+       as the item goes. <<< The sack is consumed here, so the key must exist
+       from here too: a cycle cancelled by leaving the room, or a save made at
+       the room's save point mid-cycle, would otherwise lose both. The room
+       holds the pickup back until the cycle ends (incinerator_room.c). */
+    {
+        int i;
+        spitting = -1;
+        for (i = 0; i < (int)(sizeof unburnable / sizeof unburnable[0]); i++)
+            if (unburnable[i].slot == hopper_slot) spitting = unburnable[i].tray;
+    }
+    if (spitting >= 0)            r = INC_PRESS_SPAT;
+    else if (hopper_slot >= 0) {
+        int i;
+        for (i = 0; i < (int)(sizeof burn_yield / sizeof burn_yield[0]); i++)
+            if (burn_yield[i].slot == hopper_slot) tray |= 1 << burn_yield[i].yields;
+        r = INC_PRESS_BURNED;
+        hopper_clear();
+    }
     else                          r = INC_PRESS_EMPTY;
 
     cycle_t   = IN_CYCLE_FRAMES;
@@ -387,11 +425,13 @@ void incinerator_cycle_update(void) {
                              inc.y + GROUND_FLOOR_Y + vent_y,
                              inc.z + vent_z,
                              1, 0);
-        /* The pearl comes out of the far end on the same frame as the soot. */
-        if (spitting) {
+        /* What will not burn comes out of the far end on the same frame as the
+           soot. last_spat tells the room which line to print. */
+        last_spat = spitting;
+        if (spitting >= 0) {
             hopper_clear();
-            tray_pearl = 1;
-            spitting   = 0;
+            tray |= 1 << spitting;
+            spitting = -1;
         }
         cycle_end = 1;
     }
@@ -516,7 +556,7 @@ void incinerator_clear(void) {
     inc.active = 0;
     cycle_t    = 0;
     cycle_end  = 0;
-    spitting   = 0;   /* the pearl stays in the hopper, unmoved */
+    spitting   = -1;  /* an unburnable item stays in the hopper, unmoved */
     /* The swell goes with the cycle that caused it. Left standing, a player who
        walked out mid-cycle would walk back into a furnace glowing at full burn
        with nothing running, and it would stay that way until the ramp happened
