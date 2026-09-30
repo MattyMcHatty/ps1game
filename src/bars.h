@@ -59,7 +59,9 @@
  * Pit can only be entered from the top of its shaft, where the drop is always
  * still to come. A room that can be re-entered with the bars already down has
  * to remember that OUTSIDE the instance (a GameFlag or a WorldDelta bit), the
- * way the crib's solved set does.
+ * way the crib's solved set does. The Sliding Bars Room does exactly that:
+ * its four gates' positions are one saved byte it owns (SaveData.sb_gates),
+ * and its init re-places them from it.
  *
  * TEXTURE: bars.tim, 4bpp 128x128 at x512 y256 — the LEFT HALF of the
  * wd_dr_crk page — with wd_dr_crk's own CLUT line at (0,497). Stretched from a
@@ -75,7 +77,9 @@
  * prop is NOT happy either way.
  * ----------------------------------------------------------------------- */
 
-#define MAX_BARS              2
+/* 4 for the Sliding Bars Room's four sliding gates (src/sliding_bars_room.c);
+   The Pit places one. Not saved per instance, so this costs the save nothing. */
+#define MAX_BARS              4
 
 /* The drop, in 1/256ths of a world unit per frame (and per frame squared). */
 #define BARS_GRAVITY        400    /* ~1.56 units/frame^2                     */
@@ -94,8 +98,15 @@ typedef enum {
     BARS_RAISED = 0,   /* hanging at its lift, not moving                      */
     BARS_FALLING,      /* dropped: in the air, falling or on a bounce          */
     BARS_DOWN,         /* on the floor                                         */
-    BARS_RISING        /* winching back up (bars_raise), then RAISED again     */
+    BARS_RISING,       /* winching back up (bars_raise), then RAISED again     */
+    BARS_SLIDING       /* travelling sideways on the floor (bars_slide), then
+                          DOWN again at the new spot                           */
 } BarsState;
+
+/* THE SLIDE (bars_slide) is one machinery clip: BARS_MCHNE_FRAMES, SFX_MCHNE
+   played once. The Sliding Bars Room moves each gate 1200 (two cells), so ~7
+   units a frame. */
+#define BARS_SLIDE_FRAMES   BARS_MCHNE_FRAMES
 
 /* Startup: read BARS.SMD (held for the run), measure and re-centre it, and
    register BARS.TIM (deferred — header only until the Catacombs bank is
@@ -131,7 +142,25 @@ void bars_raise(int idx, int32_t lift);
 /* 1 while the instance is BARS_RAISED (hanging still). */
 int  bars_raised(int idx);
 
-/* One frame of every falling or rising instance in current_area. */
+/* RESIZE one instance to `width` x `height` world units (the depth is never
+   scaled). The scale is worked out from the extents measured off the mesh at
+   load, so a re-export does not move it. Draw and collision both follow it.
+   The Sliding Bars Room fits the 860x860 model to its 600-wide gaps under an
+   800 vault, because anything past the gap would stand inside the stone and
+   the draw, sorted at true depth, would paint it over the block in front. Call
+   after bars_place. */
+void bars_set_size(int idx, int32_t width, int32_t height);
+
+/* Slide a DOWN instance along the floor to plan centre (x, z), linearly over
+   BARS_SLIDE_FRAMES, with SFX_MCHNE once. No-op in any other state. While it
+   moves, its push-out is along its THIN axis only, so a gate closing on the
+   player shoves them clear of its line rather than along it into a wall. */
+void bars_slide(int idx, int32_t x, int32_t z);
+
+/* 1 while the instance is BARS_SLIDING. */
+int  bars_sliding(int idx);
+
+/* One frame of every falling, rising or sliding instance in current_area. */
 void bars_update(void);
 
 /* Player push-out: the dresser's shallowest-axis scheme against the baked AABB,

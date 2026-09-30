@@ -28,6 +28,9 @@ typedef struct {
     int       landed;     /* the first impact has happened (its sound played)  */
     int32_t   rise_t;     /* frames into a bars_raise()                        */
     int32_t   rise_to;    /* the lift it is winching up to, whole units        */
+    int32_t   sx, sy;     /* width / height scale, 4096ths (bars_set_size)     */
+    int32_t   sl_fx, sl_fz, sl_tx, sl_tz;   /* a bars_slide(): from, to       */
+    int32_t   sl_t;       /* frames into it                                    */
 } Bars;
 
 static Bars bars[MAX_BARS];
@@ -132,6 +135,30 @@ void bars_upload_texture(void) {
 
 void bars_clear(void) { bars_count = 0; }
 
+/* World AABB of the rotated, scaled footprint, corner by corner — the crib's
+   bake, for the crib's reason. The drop moves only y, so only a scale or a
+   slide redoes it. */
+static void bars_bake(Bars *b) {
+    int32_t cs = icos(b->rot_y), sn = isin(b->rot_y);
+    int32_t mnx = (br_min_x * b->sx) >> 12, mxx = (br_max_x * b->sx) >> 12;
+    const int32_t lx[4] = { mnx, mxx, mxx, mnx };
+    const int32_t lz[4] = { br_min_z, br_min_z, br_max_z, br_max_z };
+    int k;
+    for (k = 0; k < 4; k++) {
+        int32_t wx = b->x + ((lx[k] * cs + lz[k] * sn) >> 12);
+        int32_t wz = b->z + ((lz[k] * cs - lx[k] * sn) >> 12);
+        if (k == 0) {
+            b->min_x = b->max_x = wx;
+            b->min_z = b->max_z = wz;
+        } else {
+            if (wx < b->min_x) b->min_x = wx;
+            if (wx > b->max_x) b->max_x = wx;
+            if (wz < b->min_z) b->min_z = wz;
+            if (wz > b->max_z) b->max_z = wz;
+        }
+    }
+}
+
 int bars_place(GameState area, int32_t x, int32_t y, int32_t z,
                int32_t rot_y, int32_t lift) {
     if (bars_count >= MAX_BARS) return -1;
@@ -145,27 +172,34 @@ int bars_place(GameState area, int32_t x, int32_t y, int32_t z,
     b->lift_fp = lift << 8;
     b->vel_fp  = 0;
     b->landed  = (lift <= 0);
-
-    /* World AABB of the rotated footprint, corner by corner — the crib's bake,
-       for the crib's reason. The drop moves only y, so this is never redone. */
-    int32_t cs = icos(rot_y), sn = isin(rot_y);
-    const int32_t lx[4] = { br_min_x, br_max_x, br_max_x, br_min_x };
-    const int32_t lz[4] = { br_min_z, br_min_z, br_max_z, br_max_z };
-    int k;
-    for (k = 0; k < 4; k++) {
-        int32_t wx = x + ((lx[k] * cs + lz[k] * sn) >> 12);
-        int32_t wz = z + ((lz[k] * cs - lx[k] * sn) >> 12);
-        if (k == 0) {
-            b->min_x = b->max_x = wx;
-            b->min_z = b->max_z = wz;
-        } else {
-            if (wx < b->min_x) b->min_x = wx;
-            if (wx > b->max_x) b->max_x = wx;
-            if (wz < b->min_z) b->min_z = wz;
-            if (wz > b->max_z) b->max_z = wz;
-        }
-    }
+    b->sx = b->sy = 4096;
+    bars_bake(b);
     return idx;
+}
+
+void bars_set_size(int idx, int32_t width, int32_t height) {
+    if (idx < 0 || idx >= bars_count) return;
+    int32_t w = br_max_x - br_min_x, h = br_max_y - br_min_y;
+    if (w <= 0 || h <= 0) return;   /* no mesh: nothing to fit */
+    bars[idx].sx = (width  << 12) / w;
+    bars[idx].sy = (height << 12) / h;
+    bars_bake(&bars[idx]);
+}
+
+void bars_slide(int idx, int32_t x, int32_t z) {
+    if (idx < 0 || idx >= bars_count) return;
+    Bars *b = &bars[idx];
+    if (b->state != BARS_DOWN) return;
+    b->state = BARS_SLIDING;
+    b->sl_fx = b->x;  b->sl_fz = b->z;
+    b->sl_tx = x;     b->sl_tz = z;
+    b->sl_t  = 0;
+    sound_play(SFX_MCHNE);
+}
+
+int bars_sliding(int idx) {
+    if (idx < 0 || idx >= bars_count) return 0;
+    return bars[idx].state == BARS_SLIDING;
 }
 
 void bars_drop(int idx) {
@@ -219,6 +253,22 @@ void bars_update(void) {
             continue;
         }
 
+        /* THE SLIDE, recomputed from the frame counter for the same reason,
+           and the AABB rebaked every frame so collision moves with the art. */
+        if (b->state == BARS_SLIDING) {
+            b->sl_t++;
+            if (b->sl_t >= BARS_SLIDE_FRAMES) {
+                b->x = b->sl_tx;
+                b->z = b->sl_tz;
+                b->state = BARS_DOWN;
+            } else {
+                b->x = b->sl_fx + ((b->sl_tx - b->sl_fx) * b->sl_t) / BARS_SLIDE_FRAMES;
+                b->z = b->sl_fz + ((b->sl_tz - b->sl_fz) * b->sl_t) / BARS_SLIDE_FRAMES;
+            }
+            bars_bake(b);
+            continue;
+        }
+
         if (b->state != BARS_FALLING) continue;
 
         /* Semi-implicit Euler: speed first, then position, so the first frame
@@ -259,8 +309,8 @@ void bars_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
            skips; down, it is the full 860 from the floor up. */
         int32_t floor_y   = b->y + GROUND_FLOOR_Y;
         int32_t base_y    = floor_y - (b->lift_fp >> 8);
-        int32_t solid_bot = base_y + br_max_y;
-        int32_t solid_top = base_y + br_min_y;
+        int32_t solid_bot = base_y + ((br_max_y * b->sy) >> 12);
+        int32_t solid_top = base_y + ((br_min_y * b->sy) >> 12);
         int32_t feet = py + GROUND_FLOOR_Y, head = py - BR_PLAYER_HEAD;
         if (head >= solid_bot || feet <= solid_top) continue;
 
@@ -272,6 +322,21 @@ void bars_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
         int32_t pl = *px - min_x, pr = max_x - *px;
         int32_t pf = *pz - min_z, pb = max_z - *pz;
         int32_t m = pl, ddx = -pl, ddz = 0;
+        if (b->state == BARS_SLIDING) {
+            /* MOVING: out along the thin axis only, to whichever side of the
+               line the body is on. The shallowest axis would be the direction
+               of travel, and that shoves the player ahead of the gate into the
+               next wall. */
+            if (b->max_x - b->min_x < b->max_z - b->min_z) {
+                ddz = 0;
+                ddx = (pl < pr) ? -pl : pr;
+            } else {
+                ddx = 0;
+                ddz = (pf < pb) ? -pf : pb;
+            }
+            *px += ddx; *pz += ddz;
+            continue;
+        }
         if (pr < m) { m = pr; ddx =  pr; ddz = 0; }
         if (pf < m) { m = pf; ddx = 0; ddz = -pf; }
         if (pb < m) {         ddx = 0; ddz =  pb; }
@@ -314,6 +379,15 @@ void bars_draw(RenderContext *ctx) {
         MATRIX m, combined;
         SVECTOR yaw_r = {0, (int16_t)b->rot_y, 0, 0};
         RotMatrix(&yaw_r, &m);
+        /* bars_set_size: scale the model's x (width) and y (height) columns,
+           so the scale is applied in model space before the yaw. */
+        if (b->sx != 4096 || b->sy != 4096) {
+            int r;
+            for (r = 0; r < 3; r++) {
+                m.m[r][0] = (int16_t)((m.m[r][0] * b->sx) >> 12);
+                m.m[r][1] = (int16_t)((m.m[r][1] * b->sy) >> 12);
+            }
+        }
         VECTOR pos = {b->x, b->y + GROUND_FLOOR_Y - (b->lift_fp >> 8), b->z};
         TransMatrix(&m, &pos);
         CompMatrixLV(&view, &m, &combined);

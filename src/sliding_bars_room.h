@@ -12,11 +12,13 @@
    gaps between them corridors 600 wide. Some of those gaps are closed by BARS:
    a pair of barred screens 100 apart, each a thin partition in the collision
    proxy. Loculi are cut into the blocks' faces and four incinerator panels are
-   set into the walls at waist height. The proxy is 58 walls and ONE floor face,
+   set into the walls at y[-300,-100] (the four gate buttons). The proxy is 58 walls and ONE floor face,
    so this is the single-floor case.
 
-   THE BARS ARE STATIC TODAY. The room is named for what they are going to do;
-   for now they are drawn and they collide, and nothing moves them.
+   THE MESH'S BARS ARE STATIC: drawn and colliding, and nothing moves them.
+   THE FOUR GATES MOVE. They are Bars props (src/bars.h), each slid two cells
+   along its line by one of the four incinerator panels in the mesh; see THE
+   GATES in sliding_bars_room.c for the grid, the table and the save.
 
    THE DOORS. Three are drawn and ONE is wired up:
 
@@ -53,5 +55,21 @@ int  sliding_bars_room_south_door_triggered(int lock);
 
 /* Arm every interaction in the room. Called by the spawn above. */
 void sliding_bars_room_arm(void);
+
+/* One frame of the four gates: their slides and their panels. Call every frame
+   in the room with main's `lock`, so the edge state stays current. */
+void sliding_bars_room_update(int lock);
+
+/* Re-place the gates from the saved state. main calls it after world_enter and
+   savegame_apply_pending, since a load installs the state AFTER the area init. */
+void sliding_bars_room_apply_flags(void);
+
+/* THE GATE STATE: bit i = gate i+1 is at its MOVED spot. Saved as
+   SaveData.sb_gates. reset_gates puts all four back to their start spots; it
+   takes effect the next time the room is entered (every entry re-places them),
+   so another room can call it. A new game calls it too. */
+int  sliding_bars_room_gates(void);
+void sliding_bars_room_set_gates(int bits);
+void sliding_bars_room_reset_gates(void);
 
 #endif

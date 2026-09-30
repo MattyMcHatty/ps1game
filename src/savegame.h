@@ -17,7 +17,14 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   30            /* v30: incin_tray_pearl. The Blood Pearl
+#define SAVE_VERSION   31            /* v31: sb_gates. The Sliding Bars Room's
+                                        four sliding gates stay where the player
+                                        left them, and a room placed by its own
+                                        init has nowhere in the world delta to
+                                        keep that. The WorldDelta is unchanged
+                                        in SHAPE, so the bump is the only thing
+                                        that rejects a v30 save.
+                                        v30: incin_tray_pearl. The Blood Pearl
                                         will not burn; the Incinerator spits it
                                         onto its east tray instead, as a pickup
                                         spawned at run time. The world delta
@@ -279,6 +286,9 @@ typedef struct {
                                        pickup it shows as is spawned at run
                                        time, which the world delta cannot
                                        record, so this is what brings it back. */
+    int32_t  sb_gates;              /* the Sliding Bars Room's four gates: bit
+                                       i = gate i+1 is at its MOVED spot. See
+                                       THE GATES in src/sliding_bars_room.c.  */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     uint8_t  item_order[MENU_ITEM_CELLS];  /* inventory grid: cell -> item ID + 1,
                                        0 = empty. Purely the ARRANGEMENT; what is

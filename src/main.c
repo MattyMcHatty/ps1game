@@ -274,6 +274,8 @@ void reset_game(RenderContext *ctx) {
                                item is NOT handed back first — a new
                                playthrough is not a continuation of the one
                                that left it there.                          */
+    sliding_bars_room_reset_gates(); /* ...and the Sliding Bars Room's four
+                               gates back to their start spots            */
     hatch_puzzle_reset();   /* ...and The Hatch's board, its shot and any
                                half-played descent dropped. The two keyholes
                                themselves are GameFlags and are cleared with
@@ -2325,12 +2327,16 @@ static void update_current_area(GameState area) {
            barred gaps between them thin walls in the proxy. multi_level is 0.
            One door wired, the south-west one back to the Crucifix Corridor; the
            other two are drawn and sealed. Nothing seeded; both Chapter 3 enemy
-           updates are called anyway, on the Tomb's argument. The bars do not
-           move yet. */
+           updates are called anyway, on the Tomb's argument.
+
+           THE FOUR GATES: Bars props slid by the four wall panels. Their
+           push-out is bars_collide, inside apply_collision_reception
+           (area-tagged); this runs their slides and the panels' presses. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
+        sliding_bars_room_update(lock);
 
         if (sliding_bars_room_south_door_triggered(lock)) {
             pending_area = STATE_CRUCIFIX_CORRIDOR;
@@ -4980,6 +4986,10 @@ int main(int argc, const char **argv) {
                                                     on the east tray: writes to
                                                     item_pickups, and reads a
                                                     flag a load installs */
+            if (pending_area == STATE_SLIDING_BARS_ROOM)
+                sliding_bars_room_apply_flags(); /* the four gates re-placed
+                                                    from the byte a load has
+                                                    only just installed */
             if (pending_area == STATE_THE_PIT)
                 the_pit_after_world_enter();     /* stows the ambush's two
                                                     Lumberers, which world_enter

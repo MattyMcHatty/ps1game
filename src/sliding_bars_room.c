@@ -203,9 +203,188 @@ void sliding_bars_room_upload_textures(void) {
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int south_circle_prev = 1;
+static int gate_circle_prev  = 1;   /* the four panels share one: one Circle */
 
 void sliding_bars_room_arm(void) {
     south_circle_prev = interact_tapped();
+    gate_circle_prev  = south_circle_prev;
+}
+
+/* ---- THE GATES -------------------------------------------------------------
+   THE PUZZLE. Read the room as a 7x7 grid of 600 cells, numbered 1..49 from
+   the NORTH-WEST corner, west to east then north to south: square n is column
+   c = (n-1)%7 (x[600c, 600c+600]) and row r = (n-1)/7 (z[3600-600r, 4200-600r]).
+   The nine blocks are 9, 11, 13, 23, 25, 27, 37, 39 and 41.
+
+   Four Bars instances are gates, each closing the gap between two cells, and
+   each has one incinerator panel (drawn by the mesh; the four in it are these
+   four) that slides it two cells along its line to its other spot, ONCE:
+
+     gate  panel                          start         moved
+     1     E wall of 36 (x=600  z=900)    38|45         40|47
+     2     S wall of 2  (x=900  z=3600)   15|16         29|30
+     3     S wall of 4  (x=2100 z=3600)   33|34         19|20
+     4     W wall of 28 (x=3600 z=2100)   12|19         14|21
+
+   Every gate's travel runs past the face of the block between its two spots,
+   so it rides on the CORRIDOR side of its line, 30 off it (its 50 depth leaves
+   5 clear of the stone), and never passes through a block — a gate half inside
+   the stone would paint over the face in front of it, since props sort at true
+   depth and the mesh 40 deeper. That is why it is also resized to the gap,
+   600 x 800 (bars_set_size): at 860 it would overhang into the stone at rest.
+   Gates 3 and 4 meet at 19's north-east corner when 3 is moved and 4 is at its
+   start; the two grilles cross there like fence panels at a post.
+
+   >>> THE INTENDED SOLUTION (the designer's, 2026-09-30). <<< From the
+   south-west door: press 1, then 2. Then, for the NORTH-EAST door, press 4
+   BEFORE 3. Pressing 3 first is a deliberate trap: it locks button 4 out (the
+   player can no longer reach square 28) and with it the north-east door, but
+   the SOUTH-EAST door is still reachable, so the player can go on. The way
+   back is the RESET BUTTON in another room (not built yet), which calls
+   sliding_bars_room_reset_gates() to put all four gates back to their start
+   spots so the puzzle can be solved again.
+
+     1 -> 2 -> 4 -> 3   both east doors reachable (button 4 then out of reach)
+     1 -> 2 -> 3        south-east door only; button 4 locked out
+
+   Checked by simulation (tracking where the player stands, since pressing 2
+   cuts them off from the south-west door) against the mesh's nine static
+   bars: 2|3, 4|5, 7|14, 17|24, 28|35, 29|36, 31|32, 33|40, 48|49.
+
+   >>> EVERY GATE JAMS AFTER ONE PRESS (the designer's call). <<< A panel
+   works only while its gate is at its START spot; once moved it stays moved
+   until sliding_bars_room_reset_gates(). If the panels toggled, the trap would
+   not hold: after 1 -> 2 -> 3 the player is still standing at button 3, and
+   pressing it again would send gate 3 home, so 4 -> 3 would open the
+   north-east door with no reset. Jamming also means a player past button 2
+   cannot retreat to the south-west door. A jammed panel's sign is down and a
+   press on it only says so ("It's jammed."). No extra state: jammed IS "its
+   bit is set", because every gate starts at 0.
+
+   STATE: sb_gates, bit i = gate i+1 is at its MOVED spot. Flipped on the frame
+   of the press, so leaving mid-slide (or saving) finds it at its destination.
+   Saved as SaveData.sb_gates; reset by a new game and by
+   sliding_bars_room_reset_gates(), for the room that will reset them. */
+#define SB_GATE_COUNT       4
+#define SB_GATE_WIDTH     600    /* the gap between two blocks               */
+#define SB_GATE_HEIGHT    800    /* floor to vault                           */
+#define SB_GATE_TEXT_Y   (-85)   /* glyph TOP, UNDER the panel: the panel is
+                                    y[-300,-100] (read off the visual mesh),
+                                    so the 28-tall line sits 15 below it,
+                                    y[-85,-57], clear of the y=0 floor */
+#define SB_GATE_TEXT_OUT   11    /* proud of the block face, as a door sign's */
+
+typedef struct {
+    int32_t ax, az;              /* START plan centre                        */
+    int32_t bx, bz;              /* MOVED plan centre                        */
+    int32_t rot;                 /* 0: runs along x; 1024: runs along z      */
+    int32_t px, pz;              /* the panel's centre, on the block face    */
+    int32_t tx, tz;              /* its sign's anchor (door_draw_string_3d)  */
+    int     plane, mirror;
+    int32_t nx, nz;              /* the face's outward normal, unit          */
+} SbGate;
+
+static const SbGate sb_gate[SB_GATE_COUNT] = {
+    /* 1: line z=600, blocks to the north; rides at z=570. Panel on block 37's
+          west face, approached from -X: YZ, mirror=1. */
+    { 1500,  570, 2700,  570,    0,
+       600,  900,  600 - SB_GATE_TEXT_OUT,  900 - 200, TEXT_PLANE_YZ, 1, -1, 0 },
+    /* 2: line x=600, blocks to the east; rides at x=570. Panel on block 9's
+          north face, approached from +Z: XY, mirror=1. */
+    {  570, 2700,  570, 1500, 1024,
+       900, 3600,  900 - 200, 3600 + SB_GATE_TEXT_OUT, TEXT_PLANE_XY, 1, 0, 1 },
+    /* 3: line x=3000, blocks to the east; rides at x=2970. Panel on block
+          11's north face, approached from +Z: XY, mirror=1. */
+    { 2970, 1500, 2970, 2700, 1024,
+      2100, 3600, 2100 - 200, 3600 + SB_GATE_TEXT_OUT, TEXT_PLANE_XY, 1, 0, 1 },
+    /* 4: line z=3000, blocks to the north; rides at z=2970. Panel on block
+          27's east face, approached from +X: YZ, mirror=0. */
+    { 2700, 2970, 3900, 2970,    0,
+      3600, 2100, 3600 + SB_GATE_TEXT_OUT, 2100 - 200, TEXT_PLANE_YZ, 0, 1, 0 },
+};
+
+static uint8_t sb_gates = 0;                  /* bit i: gate i+1 is MOVED */
+static int     sb_gate_idx[SB_GATE_COUNT] = { -1, -1, -1, -1 };
+
+int  sliding_bars_room_gates(void)          { return sb_gates; }
+void sliding_bars_room_set_gates(int bits)  { sb_gates = (uint8_t)(bits & 0x0F); }
+void sliding_bars_room_reset_gates(void)    { sb_gates = 0; }
+
+/* Clear the Bars array and stand all four gates where sb_gates says, at rest.
+   The Pit's instance goes with the clear; its own init re-places it. */
+static void sb_place_gates(void) {
+    int i;
+    bars_clear();
+    for (i = 0; i < SB_GATE_COUNT; i++) {
+        const SbGate *g = &sb_gate[i];
+        int moved = (sb_gates >> i) & 1;
+        sb_gate_idx[i] = bars_place(STATE_SLIDING_BARS_ROOM,
+                                    moved ? g->bx : g->ax,
+                                    SB_FLOOR_Y - GROUND_FLOOR_Y,
+                                    moved ? g->bz : g->az, g->rot, 0);
+        bars_set_size(sb_gate_idx[i], SB_GATE_WIDTH, SB_GATE_HEIGHT);
+    }
+}
+
+void sliding_bars_room_apply_flags(void) {
+    sb_place_gates();
+}
+
+/* One frame of the gates: the slides, then the four panels. Same edge rule
+   as the door: the edge state is kept current even while locked. A press on a
+   moving or JAMMED panel moves nothing, and its sign is down in both cases,
+   so the offer and the ability go together. */
+void sliding_bars_room_update(int lock) {
+    int held = interact_tapped();
+    int just = held && !gate_circle_prev;
+    int i;
+    gate_circle_prev = held;
+
+    bars_update();
+
+    if (lock || !just) return;
+    for (i = 0; i < SB_GATE_COUNT; i++) {
+        const SbGate *g = &sb_gate[i];
+        int32_t dx = cam_x - g->px, dz = cam_z - g->pz;
+        int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        if (xz >= SB_TRIGGER_RADIUS) continue;
+        if (!interact_facing(g->px, g->pz)) continue;
+        if (bars_sliding(sb_gate_idx[i])) return;
+        if ((sb_gates >> i) & 1) {          /* JAMMED: used once already */
+            show_pickup_msg_raw("It's jammed.");
+            return;
+        }
+        sb_gates |= (uint8_t)(1 << i);
+        bars_slide(sb_gate_idx[i], g->bx, g->bz);
+        return;
+    }
+}
+
+/* The panels' signs, on the door sign's fade. */
+static void sb_gate_text(RenderContext *ctx) {
+    int i;
+    for (i = 0; i < SB_GATE_COUNT; i++) {
+        const SbGate *g = &sb_gate[i];
+        int32_t dx = cam_x - g->px, dz = cam_z - g->pz;
+        int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        int fade = 256;
+        if (xz >= SB_TEXT_RADIUS) continue;
+        /* ONLY FROM IN FRONT OF THE FACE: door_draw_string_3d has no facing
+           test, and the corridor behind the block is inside the radius. */
+        if (dx * g->nx + dz * g->nz <= 0) continue;
+        if (bars_sliding(sb_gate_idx[i])) continue;
+        if ((sb_gates >> i) & 1) continue;  /* jammed */
+        if (xz > SB_FADE_NEAR) {
+            int range = SB_TEXT_RADIUS - SB_FADE_NEAR;
+            int prog  = xz - SB_FADE_NEAR;
+            if (prog > range) prog = range;
+            fade = 256 - ((prog * 256) / range);
+        }
+        door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to operate",
+                            g->tx, SB_GATE_TEXT_Y, g->tz,
+                            50, 255, 50, fade, g->mirror, g->plane,
+                            DOOR_PIXEL_SIZE);
+    }
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -268,6 +447,10 @@ void sliding_bars_room_init(void) {
 
     sb_floor_zones_init();
     cam_pitch = 0;
+
+    /* The four gates, where sb_gates left them. Placed again after a load by
+       sliding_bars_room_apply_flags(), which runs once the save's byte is in. */
+    sb_place_gates();
 
     sliding_bars_room_spawn_south();
 
@@ -473,11 +656,10 @@ void sliding_bars_room_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_sliding_bars_room_smd(ctx);
 
-    /* >>> LEVEL 8 REMOVES THE SIGN AND THE ENEMIES. <<< The room holds no
-       enemies or props today, so what it takes away is the one door sign —
-       STEP 3D's case. */
+    /* >>> LEVEL 8 REMOVES THE SIGNS, THE ENEMIES AND THE GATES. <<< */
     if (exp != DBG_EXP_NO_ENTITIES) {
         sb_south_door_text(ctx);  /* the SW door: XY plane, approached from +Z */
+        sb_gate_text(ctx);        /* the four panels                          */
         /* BOTH CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Both sheets sit at Voff 128, so each is handed the window to restore
@@ -489,5 +671,9 @@ void sliding_bars_room_draw(RenderContext *ctx) {
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        /* The four gates. AFTER the two enemy calls: the prop's UVs run past
+           127 and tile only under the 128 window the enemies put back
+           (src/bars.h). */
+        bars_draw(ctx);
     }
 }
