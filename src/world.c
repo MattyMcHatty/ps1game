@@ -155,6 +155,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_TOMB,           STATE_ROOM_OF_ARMS,
     STATE_THE_PIT,        STATE_NORTH_CHAMBER,
     STATE_ROOM_OF_HEADS,   STATE_CLEAVER_CORRIDOR,
+    STATE_CRUCIFIX_CORRIDOR,
 };
 
 static int room_index(GameState area) {
@@ -254,6 +255,9 @@ static int room_index(GameState area) {
         /* THE CLEAVER CORRIDOR, Chapter 3's ninth room, at the top of the North
            Chamber's ladder. Slot 35 of 64. */
         case STATE_CLEAVER_CORRIDOR:  return 35;
+        /* THE CRUCIFIX CORRIDOR, Chapter 3's tenth room, through the Up Down
+           Maze's lower north-east door. Slot 36 of 64. */
+        case STATE_CRUCIFIX_CORRIDOR: return 36;
         default:                   return 0;
     }
 }

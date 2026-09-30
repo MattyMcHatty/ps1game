@@ -93,6 +93,7 @@
 #include "north_chamber.h"
 #include "room_of_heads.h"
 #include "cleaver_corridor.h"
+#include "crucifix_corridor.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -342,6 +343,7 @@ static void load_area_geometry(GameState area) {
         case STATE_NORTH_CHAMBER:    north_chamber_load_geometry(); break;
         case STATE_ROOM_OF_HEADS:    room_of_heads_load_geometry(); break;
         case STATE_CLEAVER_CORRIDOR: cleaver_corridor_load_geometry(); break;
+        case STATE_CRUCIFIX_CORRIDOR: crucifix_corridor_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -1938,6 +1940,16 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* AND THE EAST DOOR, on the LOWER storey in the north-east corner, out
+           to the Crucifix Corridor. The fourth door: it shares the south door's
+           storey but is 9000 from it in plan, and the storey test keeps the two
+           upper doors out of reach, so still no veto chain. */
+        if (up_down_maze_east_door_triggered(lock)) {
+            pending_area = STATE_CRUCIFIX_CORRIDOR;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_INCINERATOR_ROOM) {
         /* THE INCINERATOR ROOM - Chapter 3's third room, and after the maze
            upstairs a deliberately ordinary one: the shared wall routine and two
@@ -2270,6 +2282,29 @@ static void update_current_area(GameState area) {
            door anyway. */
         if (cleaver_corridor_south_door_triggered(lock) &&
             game_state != STATE_LADDER_ANIM) {
+            pending_area = STATE_UP_DOWN_MAZE;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_CRUCIFIX_CORRIDOR) {
+        /* THE CRUCIFIX CORRIDOR - Chapter 3's tenth room: the shared wall
+           routine and three flat floor zones of one plane over a cross-shaped
+           proxy. multi_level is 0. One door wired, the west one back to the Up
+           Down Maze's lower storey; the arm's north and south doors are drawn
+           and sealed. Nothing seeded; both Chapter 3 enemy updates are called
+           anyway, on the Tomb's argument.
+
+           ONE PROP: a LIT sconce in the east alcove. Its box collides through
+           apply_collision_reception (sconces_collide, area-tagged); this flips
+           its flame. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+        sconces_update();
+
+        if (crucifix_corridor_west_door_triggered(lock)) {
             pending_area = STATE_UP_DOWN_MAZE;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
@@ -2713,6 +2748,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         room_of_heads_draw(ctx);
     else if (area == STATE_CLEAVER_CORRIDOR)
         cleaver_corridor_draw(ctx);
+    else if (area == STATE_CRUCIFIX_CORRIDOR)
+        crucifix_corridor_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3120,6 +3157,11 @@ int main(int argc, const char **argv) {
     cleaver_corridor_load_assets(); /* CHAPTER 3's ninth room: three borrowed
                                      headers (cobble, inner door, ladder) and
                                      NO registration - it owns nothing. No CD
+                                     access. */
+    loading_screen_pump(&ctx);
+    crucifix_corridor_load_assets(); /* CHAPTER 3's tenth room: two borrowed
+                                     headers (cobble, inner door) and NO
+                                     registration - it owns nothing. No CD
                                      access. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
@@ -3913,6 +3955,12 @@ int main(int argc, const char **argv) {
                    owns nothing. Same guarantee and same silent failure mode as
                    the branches around it. */
                 cleaver_corridor_upload_textures();
+            } else if (pending_area == STATE_CRUCIFIX_CORRIDOR) {
+                /* THE CRUCIFIX CORRIDOR. Cobble and the inner door through the
+                   Catacombs Entry's narrow uploaders, and the SCONCE's page
+                   through its own module's. It owns nothing. Same guarantee and
+                   same silent failure mode as the branches around it. */
+                crucifix_corridor_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4488,6 +4536,10 @@ int main(int argc, const char **argv) {
                    the UPPER storey. Same terms. */
                 if (current_area == STATE_CLEAVER_CORRIDOR)
                     up_down_maze_spawn_north();
+                /* ...and back from the CRUCIFIX CORRIDOR, at the east door on
+                   the LOWER storey. Same terms. */
+                if (current_area == STATE_CRUCIFIX_CORRIDOR)
+                    up_down_maze_spawn_east();
                 /* NO MUSIC LINE HERE EITHER, and a new Chapter 3 room does not
                    get one: see the chapter rule below the foot of this chain. */
             } else if (pending_area == STATE_INCINERATOR_ROOM) {
@@ -4592,6 +4644,11 @@ int main(int argc, const char **argv) {
                    a route. */
                 if (current_area == STATE_UP_DOWN_MAZE)
                     cleaver_corridor_spawn_south();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_CRUCIFIX_CORRIDOR) {
+                /* ONE ARRIVAL, the west door, so crucifix_corridor_init()'s
+                   default spawn is also the only one. */
+                crucifix_corridor_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -4953,7 +5010,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_THE_PIT ||
                    game_state == STATE_NORTH_CHAMBER ||
                    game_state == STATE_ROOM_OF_HEADS ||
-                   game_state == STATE_CLEAVER_CORRIDOR) {
+                   game_state == STATE_CLEAVER_CORRIDOR ||
+                   game_state == STATE_CRUCIFIX_CORRIDOR) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

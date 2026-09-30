@@ -175,6 +175,13 @@ typedef enum {
                                 column of ladder tiles lurches past a fixed camera;
                                 src/ladder_anim.h. Appended for the same reason,
                                 though nothing ever saves in it. */
+    STATE_CRUCIFIX_CORRIDOR, /* THE CRUCIFIX CORRIDOR, through the single door in
+                                the north-east corner of the Up Down Maze's LOWER
+                                storey. Chapter 3's tenth room: a cross laid flat
+                                under a y=-800 vault, with a lit sconce in the
+                                alcove at its head. See src/crucifix_corridor.h.
+                                Appended, not inserted: saves store raw enum
+                                values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

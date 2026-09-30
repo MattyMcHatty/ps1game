@@ -112,6 +112,7 @@ static const char *area_name(int area) {
         case STATE_NORTH_CHAMBER:     return "NORTH CHAMBER";
         case STATE_ROOM_OF_HEADS:     return "ROOM OF HEADS";
         case STATE_CLEAVER_CORRIDOR:  return "CLEAVER CORRIDOR";
+        case STATE_CRUCIFIX_CORRIDOR: return "CRUCIFIX CORRIDOR";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

@@ -119,6 +119,8 @@ add_executable(horror_game
     src/room_of_heads.c
     src/cleaver_corridor_mesh_collision.c
     src/cleaver_corridor.c
+    src/crucifix_corridor_mesh_collision.c
+    src/crucifix_corridor.c
     src/ladder_anim.c
     src/sconce.c
     src/oil_dispenser.c
@@ -311,6 +313,7 @@ set_source_files_properties(
     src/north_chamber_mesh_collision.c
     src/room_of_heads_mesh_collision.c
     src/cleaver_corridor_mesh_collision.c
+    src/crucifix_corridor_mesh_collision.c
     src/area_bank.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )

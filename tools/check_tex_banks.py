@@ -136,6 +136,10 @@ AREAS = {
                   # the inner door, and the ladder through
                   # north_chamber_upload_ladder().
                   "cleaver_corridor_upload_textures",
+                  # THE CRUCIFIX CORRIDOR, the chapter's tenth room, off the Up
+                  # Down Maze's lower storey: owns nothing, borrows cobble, the
+                  # inner door and the sconce's page.
+                  "crucifix_corridor_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

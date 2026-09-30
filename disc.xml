@@ -1246,6 +1246,19 @@
                  CLVRCRDR.SMD, 18,392 bytes, well inside the arena. -->
             <file name="CLVRCRDR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\cleaver_corridor.smd"/>
 
+            <!-- THE CRUCIFIX CORRIDOR, the chapter's TENTH room, through the
+                 single door in the north-east corner of the Up Down Maze's
+                 lower storey. A cross laid flat (corridor x[0,3600] z[-300,300],
+                 arm x[2400,3000] z[-1500,1500], y=-800 vault) with a lit sconce
+                 in the alcove at its head. See src/crucifix_corridor.h.
+
+                 NO NEW TEXTURE. COBBLE.TIM and CTCMBDR.TIM come through the
+                 Catacombs Entry's narrow uploaders, SCONCE.TIM through its own
+                 module's.
+
+                 CRCFXCRD.SMD, 16,700 bytes, well inside the arena. -->
+            <file name="CRCFXCRD.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\crucifix_corridor.smd"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

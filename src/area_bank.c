@@ -124,6 +124,10 @@ TexBank area_bank_of(GameState area) {
        Catacombs Entry's narrow uploaders, the ladder through the North
        Chamber's. Here by construction, as the Tomb is. */
     case STATE_CLEAVER_CORRIDOR:
+    /* THE CRUCIFIX CORRIDOR owns nothing either: cobble and the inner door
+       through the Catacombs Entry's narrow uploaders, the sconce through its
+       own module's. */
+    case STATE_CRUCIFIX_CORRIDOR:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -141,7 +145,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_THE_PIT ||
            area == STATE_NORTH_CHAMBER ||
            area == STATE_ROOM_OF_HEADS ||
-           area == STATE_CLEAVER_CORRIDOR;
+           area == STATE_CLEAVER_CORRIDOR ||
+           area == STATE_CRUCIFIX_CORRIDOR;
 }
 
 /* ---- The prop models -------------------------------------------------------

@@ -358,6 +358,17 @@ void up_down_maze_upload_textures(void) {
 #define UDM_NORTH_Z           3900
 #define UDM_NORTH_TEXT_Y     (-1186)   /* eye level on the y=-1000 walkway */
 
+/* THE EAST DOOR, on the LOWER storey, the single door in the north-east corner
+   (x[3300,3900] z[2700,3899] is open corridor floor, no walkway over it). Out to
+   the Crucifix Corridor, through its west door. In the YZ plane at fixed X,
+   approached from -X (wall 24 runs x=3900 with nx = -4096, so the walkable side
+   is -X), so TEXT_PLANE_YZ with mirror=1 and the sign 11 units proud of the wall
+   along -X. Nothing is overhead, but it takes the storey test like the others:
+   it costs nothing and keeps the four doors one rule. */
+#define UDM_EAST_X            3900
+#define UDM_EAST_Z            3600     /* the art spans z[3500,3700] */
+#define UDM_EAST_TEXT_Y       (-186)   /* eye level on the y=0 corridor floor */
+
 #define UDM_TEXT_RADIUS      1200
 #define UDM_FADE_NEAR         800
 #define UDM_TRIGGER_RADIUS    500
@@ -381,6 +392,7 @@ void up_down_maze_upload_textures(void) {
 static int west_circle_prev  = 1;
 static int south_circle_prev = 1;
 static int north_circle_prev = 1;
+static int east_circle_prev  = 1;
 
 static int circle_held(void) {
     return interact_tapped();
@@ -391,6 +403,7 @@ void up_down_maze_arm(void) {
     west_circle_prev  = held;
     south_circle_prev = held;
     north_circle_prev = held;
+    east_circle_prev  = held;
 }
 
 /* Is the player at a door — in plan AND on its storey? `eye_y` is what cam_y
@@ -439,6 +452,11 @@ int up_down_maze_north_door_triggered(int lock) {
     return udm_door_triggered(lock, &north_circle_prev,
                               UDM_NORTH_X, UDM_NORTH_Z, UDM_EYE_Y) &&
            game_flag(FLAG_CLEAVER_CORR_DOOR);
+}
+
+int up_down_maze_east_door_triggered(int lock) {
+    return udm_door_triggered(lock, &east_circle_prev,
+                              UDM_EAST_X, UDM_EAST_Z, UDM_LOWER_EYE_Y);
 }
 
 /* A door's floating sign. Same shape as every other sign in the game: opaque
@@ -504,6 +522,12 @@ static void udm_north_door_text(RenderContext *ctx) {
                   !game_flag(FLAG_CLEAVER_CORR_DOOR));
 }
 
+static void udm_east_door_text(RenderContext *ctx) {
+    udm_door_text(ctx, UDM_EAST_X, UDM_EAST_Z, UDM_LOWER_EYE_Y,
+                  UDM_EAST_X - 11, UDM_EAST_TEXT_Y, UDM_EAST_Z - 200,
+                  1, TEXT_PLANE_YZ, 0);   /* mirror=1: YZ door approached from -X */
+}
+
 void up_down_maze_spawn_west(void) {
     /* Clear of the wall push radius so the player is not shoved on their first
        frame, and facing +X — the direction of travel through the door, looking
@@ -550,6 +574,20 @@ void up_down_maze_spawn_north(void) {
     cam_vy  = 0;
     cam_z   = UDM_NORTH_Z - (UDM_WALL_RADIUS + 25);
     cam_rot = 2048;
+    up_down_maze_arm();
+}
+
+/* Arrival back from the Crucifix Corridor, on the LOWER floor in the north-east
+   corner, 220 off wall 24 and facing -X — the direction of travel, west out of
+   the corner. z=3600 is 299 short of the north wall 22, clear of the 195 push
+   radius. No FLOOR_UPPER zone contains (3680,3600), so apply_height() falls
+   through to the catch-all and keeps the player on the corridor floor. */
+void up_down_maze_spawn_east(void) {
+    cam_x   = UDM_EAST_X - (UDM_WALL_RADIUS + 25);
+    cam_y   = UDM_LOWER_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = UDM_EAST_Z;
+    cam_rot = 3072;
     up_down_maze_arm();
 }
 
@@ -823,6 +861,7 @@ void up_down_maze_draw(RenderContext *ctx) {
         udm_west_door_text(ctx);
         udm_south_door_text(ctx);
         udm_north_door_text(ctx);
+        udm_east_door_text(ctx);
         /* THE CRAWLERS, and the texture window above is precisely the trap they
            have to be bracketed against: their sheet sits at VRAM y=128, i.e.
            Voff 128, so drawn under a 128-tall window its V would wrap mod-128

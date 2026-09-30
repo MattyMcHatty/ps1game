@@ -194,6 +194,11 @@ static const char *const level_names[] = {
        arrival. "CLEAVER CORR": the full name is 16 characters, past the 14 the
        column allows. */
     "CLEAVER CORR",
+    /* THE CRUCIFIX CORRIDOR, the chapter's tenth room, off the Up Down Maze's
+       lower storey. The jump lands at its west door, its only arrival.
+       "CRUCIFIX CORR": the full name is 17 characters, past the 14 the column
+       allows. */
+    "CRUCIFIX CORR",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -236,6 +241,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* NORTH CHAMBER */
     STATE_LOADING,        /* ROOM OF HEADS */
     STATE_LOADING,        /* CLEAVER CORRIDOR */
+    STATE_LOADING,        /* CRUCIFIX CORRIDOR */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -276,6 +282,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_NORTH_CHAMBER,
     STATE_ROOM_OF_HEADS,
     STATE_CLEAVER_CORRIDOR,
+    STATE_CRUCIFIX_CORRIDOR,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

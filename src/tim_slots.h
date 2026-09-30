@@ -83,6 +83,10 @@
 #define TIM_TPAGE_BED      0x008c
 #define TIM_CLUT_BED       0x7811
 
+/* bld_prl.tim     4bpp  VRAM ( 912, 64)  \TEX\BLDPRL.TIM */
+#define TIM_TPAGE_BLDPRL   0x000e
+#define TIM_CLUT_BLDPRL    0x7860
+
 /* bl_ky_stn.tim   8bpp  VRAM ( 624,256)  \TEX\BLKYSTN.TIM */
 #define TIM_TPAGE_BLKYSTN  0x0099
 #define TIM_CLUT_BLKYSTN   0x78b0
