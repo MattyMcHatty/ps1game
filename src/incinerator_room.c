@@ -29,6 +29,7 @@
 #include "incinerator_panel.h"  /* ...and the board over its conveyor    */
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "item_pickup.h"        /* the Blood Pearl the machine spits out */
 
 /* Incinerator Room — see incinerator_room.h for the layout and the door list. */
 
@@ -400,6 +401,59 @@ static int button_circle_prev = 1;
    three. */
 static int button_pending = -1;
 
+/* ---- THE PEARL ON THE EAST TRAY ---------------------------------------------
+   The Blood Pearl will not burn (src/incinerator.h): the cycle ends by spitting
+   it onto the tray at the belt's far end, and it waits there as an ordinary
+   pickup. Measured off assets/props/Incinerator.smx like the west tray above:
+   the east tray is x[-200,-1] over z[-2950,-2750] with its surface at y=-100.
+
+   y: drawn at world_half 22 (the size it has on the Cleaver Corridor's sconce)
+   and bobbing 18. The world arithmetic said a centre at -145 cleared the tray,
+   but it drew half sunk into it: the sprite's SCREEN size is world_half * 256
+   / distance, which does not match the room's own projection. So the centre
+   sits at -200, 100 above the surface, and the sprite is pulled FORWARD in the
+   OT by INC_TRAY_E_OTZ so the tray it hovers over can never sort in front of
+   it. Spawn y is the centre plus IP_FLOAT_Y (50), which item_pickup_spawn_range
+   takes back off.
+
+   REACH 600: 350 could not be collected in play. 600 covers the east face
+   (294 from the tray centre) and the machine's north side beside the east end
+   (495), so it is reached from wherever the player walks round to look at
+   it. Nothing else in the room is collected by proximity, so the wide reach
+   cannot steal anything. */
+#define INC_TRAY_E_X        (-100)
+#define INC_TRAY_E_Z       (-2850)
+#define INC_TRAY_E_Y       (-200 + 50)
+#define INC_TRAY_E_REACH      600
+#define INC_TRAY_E_OTZ       (-60)   /* item_pickup otz_bias: toward the camera */
+
+/* 1 if the live pickup array holds an uncollected Blood Pearl. The room's only
+   pickup, so a pearl in here is the tray's. */
+static int tray_pearl_live(void) {
+    int i;
+    for (i = 0; i < item_pickup_count; i++)
+        if (item_pickups[i].active && item_pickups[i].kind == PICKUP_BLOOD_PEARL)
+            return 1;
+    return 0;
+}
+
+static void tray_pearl_spawn(void) {
+    int bp;
+    if (tray_pearl_live()) return;   /* world_enter already restored it */
+    bp = item_pickup_spawn_range(INC_TRAY_E_X, INC_TRAY_E_Y, INC_TRAY_E_Z,
+                                 PICKUP_BLOOD_PEARL, 1, INC_TRAY_E_REACH);
+    item_pickup_set_display(bp, 22, INC_TRAY_E_OTZ);
+}
+
+void incinerator_room_apply_flags(void) {
+    /* AFTER world_enter and savegame_apply_pending (main.c): the first is what
+       restores a pearl spat out on an earlier visit, and the second is what
+       installs the flag on a load. A load rebuilds this room from its seed,
+       which holds no pickup, so the flag is the only thing that brings the
+       pearl back. */
+    if (incinerator_tray_pearl()) tray_pearl_spawn();
+}
+
 static int circle_held(void) {
     return interact_tapped();
 }
@@ -474,10 +528,19 @@ int incinerator_room_machine_update(int lock) {
     incinerator_cycle_update();
     if (incinerator_cycle_finished()) {
         /* The brief's two lines, and the ONLY place either is printed. */
-        if (button_pending == INC_PRESS_BURNED) show_pickup_msg_raw("The item was destroyed!");
-        else                                   show_pickup_msg_raw("It has no effect");
+        if (button_pending == INC_PRESS_BURNED)    show_pickup_msg_raw("The item was destroyed!");
+        else if (button_pending == INC_PRESS_SPAT) {
+            show_pickup_msg_raw("That's one tough pearl!");
+            tray_pearl_spawn();   /* incinerator_cycle_update just set the flag */
+        }
+        else                                       show_pickup_msg_raw("It has no effect");
         button_pending = -1;
     }
+
+    /* The tray pearl was picked up: item_pickups_update (main.c) collected it
+       and granted the item, so the machine lets go of it. */
+    if (incinerator_tray_pearl() && !tray_pearl_live())
+        incinerator_set_tray_pearl(0);
 
     held = circle_held();
     just = held && !button_circle_prev;
@@ -499,6 +562,7 @@ int incinerator_room_machine_update(int lock) {
     case INC_PRESS_IGNORED:  return 0;   /* already running; not consumed */
     case INC_PRESS_EMPTY:    button_pending = INC_PRESS_EMPTY;  break;
     case INC_PRESS_BURNED:   button_pending = INC_PRESS_BURNED; break;
+    case INC_PRESS_SPAT:     button_pending = INC_PRESS_SPAT;   break;
     }
     return 1;
 }
@@ -955,6 +1019,10 @@ void incinerator_room_draw(RenderContext *ctx) {
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        /* A spat-out Blood Pearl on the east tray. After the enemy calls: its
+           art sits at Voff 64 and needs the 128 window they restore (the
+           Cleaver Corridor's order, for the same reason). */
+        item_pickups_draw(ctx);
     }
 
     /* The conveyor board LAST and OUTSIDE the entity test: it is a 2D overlay in

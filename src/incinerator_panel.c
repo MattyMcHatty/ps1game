@@ -94,6 +94,10 @@ _Static_assert(PICK_ROWS <= 3, "the picker panel fits three rows");
 #define IP_OT_LINE             10
 #define IP_OT_TEXWIN            8   /* reset the 128 window before the icons */
 #define IP_OT_ICON              7
+#define IP_OT_COUNT             5   /* the round count over an icon: yellow at
+                                       5, its shadow one step behind at 6 -
+                                       both in front of the icon at 7 (the
+                                       hatch puzzle's layering) */
 #define IP_OT_CURSOR            3
 #define IP_OT_TEXT              1
 
@@ -159,6 +163,22 @@ static void exit_board(void) {
     cam_pitch = 0;
     camera_release_player();
     interact_prev = 1;   /* swallow the held Circle so we don't re-open instantly */
+}
+
+/* The board's two log lines, "<pre><item name><post>". show_pickup_msg_raw
+   keeps 63 characters; the longest line this builds ("You placed the Magenta
+   Key Stone on the belt") is 44. */
+static void ip_log(const char *pre, int slot, const char *post) {
+    char buf[64];
+    const char *parts[3];
+    int i = 0, p;
+    parts[0] = pre; parts[1] = menu_item_name(slot); parts[2] = post;
+    for (p = 0; p < 3; p++) {
+        const char *s = parts[p];
+        while (*s && i < 63) buf[i++] = *s++;
+    }
+    buf[i] = '\0';
+    show_pickup_msg_raw(buf);
 }
 
 /* ---- Per-frame update ---------------------------------------------------- */
@@ -227,7 +247,7 @@ void incinerator_panel_update(void) {
                    their INVENTORY and that is off-screen while this board is
                    up. */
                 int slot = incinerator_retrieve();
-                if (slot >= 0) show_pickup_msg_raw(menu_item_name(slot));
+                if (slot >= 0) ip_log("You retrieved the ", slot, "");
             } else {
                 /* EMPTY: open the picker on the first cell, synced so a puzzle
                    grant is in one. */
@@ -265,9 +285,11 @@ void incinerator_panel_update(void) {
                it re-checks the hold itself, so a press that it refuses must not
                fall through to a state change — the board would then show an
                empty box over a lost item. */
-            if (incinerator_store(menu_item_at_cell(pick_cur)) > 0) {
+            int it = menu_item_at_cell(pick_cur);
+            if (incinerator_store(it) > 0) {
                 state = IP_BOARD;
                 sound_play(SFX_SELECT);
+                ip_log("You placed the ", it, " on the belt");
             }
         }
     }
@@ -303,6 +325,21 @@ static void ip_cursor(RenderContext *ctx, int x, int y, int w, int h) {
     ip_outline(ctx, x - 2, y - 2, w + 4, h + 4, 180, 180, 255, IP_OT_CURSOR);
 }
 
+/* A number in an icon's bottom-right corner, in the menu's digits — the hatch
+   puzzle's hp_icon_count, with the value passed in because the box's number is
+   the MACHINE's count, not the player's. 0 draws nothing. */
+static void ip_icon_count(RenderContext *ctx, int count, int x, int y, int size) {
+    if (count <= 0) return;
+    menu_draw_count(ctx, x + size - menu_count_width(count, 2), y + size,
+                    count, 2, IP_OT_COUNT);
+}
+
+/* The two ammo slots are the only ones the belt holds a QUANTITY of (up to
+   INC_AMMO_MAX); everything else goes on it whole and has no number. */
+static int ip_is_ammo(int slot) {
+    return slot == MENU_SLOT_ROUNDS || slot == MENU_SLOT_FLAME_ROUNDS;
+}
+
 void incinerator_panel_draw(RenderContext *ctx) {
     int slot;
 
@@ -326,11 +363,30 @@ void incinerator_panel_draw(RenderContext *ctx) {
     slot = incinerator_slot();
     ip_rect(ctx, BOX_X, BOX_Y, BOX_W, BOX_H, 35, 30, 45, IP_OT_PANEL);
     ip_outline(ctx, BOX_X, BOX_Y, BOX_W, BOX_H, 80, 70, 100, IP_OT_LINE);
-    if (slot >= 0)
-        menu_draw_item_icon(ctx, slot,
-                            BOX_X + (BOX_W - BOX_ICON) / 2,
-                            BOX_Y + (BOX_H - BOX_ICON) / 2,
-                            BOX_ICON, IP_OT_ICON);
+    /* _any, NOT the gated form: whatever is on the belt has left the inventory,
+       so menu_draw_item_icon() would see an item the player does not hold and
+       draw nothing - the box looked empty with something in it. */
+    if (slot >= 0) {
+        int ix = BOX_X + (BOX_W - BOX_ICON) / 2;
+        int iy = BOX_Y + (BOX_H - BOX_ICON) / 2;
+        menu_draw_item_icon_any(ctx, slot, ix, iy, BOX_ICON, IP_OT_ICON);
+        /* Rounds: how many are ON THE BELT, over the icon, and how many the
+           player still carries, under the box. Store takes at most
+           INC_AMMO_MAX, so without both numbers the player cannot tell how many
+           went in or what they have left. */
+        if (ip_is_ammo(slot)) {
+            char buf[16];
+            const char *pre = "Left: ";
+            int n = menu_item_count(slot), i = 0, d = 0;
+            char dig[8];
+            ip_icon_count(ctx, incinerator_count(), ix, iy, BOX_ICON);
+            while (*pre) buf[i++] = *pre++;
+            do { dig[d++] = (char)('0' + n % 10); n /= 10; } while (n && d < 7);
+            while (d) buf[i++] = dig[--d];
+            buf[i] = '\0';
+            btn_prompt_draw(ctx, BOX_X, BOX_Y + BOX_H + 6, buf, IP_OT_TEXT);
+        }
+    }
 
     /* --- Board cursor (hidden while the picker is up) --- */
     if (state == IP_BOARD) ip_cursor(ctx, BOX_X, BOX_Y, BOX_W, BOX_H);
@@ -350,6 +406,10 @@ void incinerator_panel_draw(RenderContext *ctx) {
             ip_outline(ctx, cx, cy, PICK_CELL, PICK_CELL, 80, 70, 100, IP_OT_LINE);
             menu_draw_item_icon(ctx, it, cx + PICK_PAD, cy + PICK_PAD,
                                 PICK_ICON, IP_OT_ICON);
+            /* What the player carries, as the inventory shows it. */
+            if (it >= 0)
+                ip_icon_count(ctx, menu_item_count(it), cx + PICK_PAD,
+                              cy + PICK_PAD, PICK_ICON);
         }
 
         cx = PICK_GRID_X + (pick_cur % PICK_COLS) * PICK_CELL;

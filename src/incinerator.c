@@ -183,14 +183,29 @@ static int hopper_count =  0;   /* rounds, or 1 for a plain item */
 int incinerator_slot(void)  { return hopper_slot; }
 int incinerator_count(void) { return hopper_count; }
 
-void incinerator_reset(void) { hopper_slot = -1; hopper_count = 0; }
+/* THE PEARL ON THE EAST TRAY. The Blood Pearl will not burn: a cycle run with
+   it in the hopper ends by spitting it out onto the tray at the far (east) end
+   of the belt, and this is 1 from then until the player picks it up. The ROOM
+   shows it as an ordinary pickup (src/incinerator_room.c), but the state lives
+   here beside the hopper because it is the same kind of thing — the player's
+   property, held by the machine — and it is saved the same way
+   (SaveData.incin_tray_pearl). A runtime pickup on its own would not survive a
+   save: the world delta only records what world_seed_room() placed. */
+static int tray_pearl = 0;
+
+int  incinerator_tray_pearl(void)       { return tray_pearl; }
+void incinerator_set_tray_pearl(int on) { tray_pearl = on ? 1 : 0; }
+
+static void hopper_clear(void) { hopper_slot = -1; hopper_count = 0; }
+
+void incinerator_reset(void) { hopper_clear(); tray_pearl = 0; }
 
 void incinerator_set_stored(int slot, int count) {
     /* Clamped on the way in exactly as savegame.c clamps the oil, and for the
        same reason: a corrupt slot would index menu_item_name() off the end and
        a corrupt count would hand the player rounds out of nothing. */
-    if (slot < 0 || slot >= MENU_ITEM_SLOTS) { incinerator_reset(); return; }
-    if (count < 1) { incinerator_reset(); return; }
+    if (slot < 0 || slot >= MENU_ITEM_SLOTS) { hopper_clear(); return; }
+    if (count < 1) { hopper_clear(); return; }
     if (count > INC_AMMO_MAX) count = INC_AMMO_MAX;
     hopper_slot  = slot;
     hopper_count = count;
@@ -274,7 +289,7 @@ int incinerator_retrieve(void) {
     int slot = hopper_slot;
     if (slot < 0) return -1;
     slot_give(slot, hopper_count);
-    incinerator_reset();
+    hopper_clear();
     return slot;
 }
 
@@ -305,6 +320,7 @@ int incinerator_retrieve(void) {
 
 static int32_t cycle_t   = 0;   /* frames left; 0 = idle */
 static int     cycle_end = 0;   /* latched for one frame when it finishes */
+static int     spitting  = 0;   /* this cycle is ejecting the Blood Pearl */
 
 int incinerator_cycle_active(void) { return cycle_t > 0; }
 
@@ -323,8 +339,16 @@ IncPress incinerator_button_press(void) {
        branch is taken BEFORE the hopper is cleared, so the caller is told which
        line to print eight seconds later without having to remember what was in
        it. */
-    r = (hopper_slot >= 0) ? INC_PRESS_BURNED : INC_PRESS_EMPTY;
-    if (r == INC_PRESS_BURNED) incinerator_reset();
+    /* >>> EXCEPT THE BLOOD PEARL, WHICH IS NOT CONSUMED AT ALL. <<< It stays
+       in the hopper for the whole cycle and only moves to the east tray on the
+       last frame (incinerator_cycle_update). Nothing is destroyed, so the
+       reload argument above does not apply — and a player who walks out
+       mid-cycle, which cancels it (incinerator_clear), finds the pearl still on
+       the belt where they left it rather than lost between the two ends. */
+    spitting = (hopper_slot == MENU_SLOT_BLOOD_PEARL);
+    if (spitting)                 r = INC_PRESS_SPAT;
+    else if (hopper_slot >= 0)  { r = INC_PRESS_BURNED; hopper_clear(); }
+    else                          r = INC_PRESS_EMPTY;
 
     cycle_t   = IN_CYCLE_FRAMES;
     cycle_end = 0;
@@ -363,6 +387,12 @@ void incinerator_cycle_update(void) {
                              inc.y + GROUND_FLOOR_Y + vent_y,
                              inc.z + vent_z,
                              1, 0);
+        /* The pearl comes out of the far end on the same frame as the soot. */
+        if (spitting) {
+            hopper_clear();
+            tray_pearl = 1;
+            spitting   = 0;
+        }
         cycle_end = 1;
     }
 }
@@ -486,6 +516,7 @@ void incinerator_clear(void) {
     inc.active = 0;
     cycle_t    = 0;
     cycle_end  = 0;
+    spitting   = 0;   /* the pearl stays in the hopper, unmoved */
     /* The swell goes with the cycle that caused it. Left standing, a player who
        walked out mid-cycle would walk back into a furnace glowing at full burn
        with nothing running, and it would stay that way until the ramp happened

@@ -483,24 +483,30 @@ void menu_inventory_load(const uint8_t *in) {
    note in menu_draw. */
 void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
                          int ot_idx) {
+    if (!menu_item_held(slot)) return;
+    menu_draw_item_icon_any(ctx, slot, x, y, size, ot_idx);
+}
+
+/* ...and the same icon WITHOUT the ownership test, for a box showing an item
+   that has left the inventory. The Incinerator's conveyor is the case: the
+   item on the belt is by definition not held, so the gated form above drew
+   its box empty. */
+void menu_draw_item_icon_any(RenderContext *ctx, int slot, int x, int y,
+                             int size, int ot_idx) {
     switch (slot) {
         case MENU_SLOT_FRONT_DOOR_KEY:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, key_tpage, key_clut,
                       key_u0, key_v0, key_u1, key_v1, 255, ot_idx);
             break;
         case MENU_SLOT_ROUNDS:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, rnds_tpage, rnds_clut,
                       rnds_u0, rnds_v0, rnds_u1, rnds_v1, 255, ot_idx);
             break;
         case MENU_SLOT_FLAME_ROUNDS:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, flmr_tpage, flmr_clut,
                       flmr_u0, flmr_v0, flmr_u1, flmr_v1, 255, ot_idx);
             break;
         case MENU_SLOT_COPPER_POT: {
-            if (!menu_item_held(slot)) return;
             uint16_t tp, cl; uint8_t u0, v0, u1, v1;
             copper_pot_icon(&tp, &cl, &u0, &v0, &u1, &v1);
             /* Full-brightness art — neutral 128 modulation (see draw_icon). */
@@ -508,47 +514,38 @@ void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
             break;
         }
         case MENU_SLOT_WAX_CUBE:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, waxcb_tpage, waxcb_clut,
                       waxcb_u0, waxcb_v0, waxcb_u1, waxcb_v1, 128, ot_idx);
             break;
         case MENU_SLOT_GREEN_KEY_STONE:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, gkst_tpage, gkst_clut,
                       gkst_u0, gkst_v0, gkst_u1, gkst_v1, 128, ot_idx);
             break;
         case MENU_SLOT_PIANO_KEY:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, pnok_tpage, pnok_clut,
                       pnok_u0, pnok_v0, pnok_u1, pnok_v1, 128, ot_idx);
             break;
         case MENU_SLOT_BLUE_KEY_STONE:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, bkst_tpage, bkst_clut,
                       bkst_u0, bkst_v0, bkst_u1, bkst_v1, 128, ot_idx);
             break;
         case MENU_SLOT_YELLOW_KEY_STONE:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, ykst_tpage, ykst_clut,
                       ykst_u0, ykst_v0, ykst_u1, ykst_v1, 128, ot_idx);
             break;
         case MENU_SLOT_MAGENTA_KEY_STONE:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, mkst_tpage, mkst_clut,
                       mkst_u0, mkst_v0, mkst_u1, mkst_v1, 128, ot_idx);
             break;
         case MENU_SLOT_HATCH_KEY:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, htky_tpage, htky_clut,
                       htky_u0, htky_v0, htky_u1, htky_v1, 128, ot_idx);
             break;
         case MENU_SLOT_VALVE_HANDLE:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, vlvh_tpage, vlvh_clut,
                       vlvh_u0, vlvh_v0, vlvh_u1, vlvh_v1, 128, ot_idx);
             break;
         case MENU_SLOT_BLOOD_PEARL:
-            if (!menu_item_held(slot)) return;
             draw_icon(ctx, x, y, size, bprl_tpage, bprl_clut,
                       bprl_u0, bprl_v0, bprl_u1, bprl_v1, 128, ot_idx);
             break;

@@ -83,6 +83,11 @@ int  incinerator_room_west_door_triggered(int lock);
    is a camera-locked board and belongs to src/incinerator_panel.h. */
 int  incinerator_room_machine_update(int lock);
 
+/* Put a spat-out Blood Pearl back on the east tray if the machine says one is
+   waiting there. main.c calls it after world_enter + savegame_apply_pending:
+   it writes to item_pickups and reads a flag a load installs. */
+void incinerator_room_apply_flags(void);
+
 /* Arm every interaction in the room. Called by the spawn above; exported so a
    caller that places the player some other way (a debug jump) can still ensure a
    Circle held through the transition does not fire on the arrival frame. */

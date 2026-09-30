@@ -103,7 +103,13 @@
 int  incinerator_slot(void);         /* MENU_SLOT_* held, or -1 if empty  */
 int  incinerator_count(void);        /* rounds held; 1 for a plain item   */
 void incinerator_set_stored(int slot, int count);  /* savegame restore    */
-void incinerator_reset(void);        /* new game: empty                   */
+void incinerator_reset(void);        /* new game: empty, tray included    */
+
+/* 1 while a spat-out Blood Pearl is sitting on the EAST tray waiting to be
+   picked up (see THE BUTTON below). Saved as SaveData.incin_tray_pearl; the
+   room turns it into a pickup on entry and clears it when that is collected. */
+int  incinerator_tray_pearl(void);
+void incinerator_set_tray_pearl(int on);
 
 /* Move the player's `slot` into the machine. Returns the count actually taken,
    or 0 if it refused (the hopper is full, or the player does not hold it).
@@ -143,7 +149,9 @@ int  incinerator_retrieve(void);
 typedef enum {
     INC_PRESS_IGNORED,   /* a cycle is already running: the press does nothing */
     INC_PRESS_EMPTY,     /* nothing in the hopper -> "It has no effect"        */
-    INC_PRESS_BURNED     /* something was in it, and is not now                */
+    INC_PRESS_BURNED,    /* something was in it, and is not now                */
+    INC_PRESS_SPAT       /* the Blood Pearl: it will not burn, and the cycle
+                            ends by spitting it onto the east tray             */
 } IncPress;
 
 IncPress incinerator_button_press(void);   /* starts the cycle; consumes       */

@@ -17,7 +17,17 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   29            /* v29: crawlers_dead is a uint16_t. The
+#define SAVE_VERSION   30            /* v30: incin_tray_pearl. The Blood Pearl
+                                        will not burn; the Incinerator spits it
+                                        onto its east tray instead, as a pickup
+                                        spawned at run time. The world delta
+                                        only records what world_seed_room()
+                                        placed, so without this a save made
+                                        before picking it up would lose it. The
+                                        WorldDelta is unchanged in SHAPE, so the
+                                        bump is the only thing that rejects a
+                                        v29 save.
+                                        v29: crawlers_dead is a uint16_t. The
                                         North Chamber's two Crawlers take the
                                         whole-game total to nine against the
                                         eight bits the field had, so
@@ -264,6 +274,11 @@ typedef struct {
                                        slots (1..INC_AMMO_MAX), else 1. Beside
                                        `incin_slot` and meaningless without it —
                                        see src/incinerator.h's hopper note.    */
+    int32_t  incin_tray_pearl;      /* 1 if a spat-out Blood Pearl is waiting
+                                       on the Incinerator's EAST tray. The
+                                       pickup it shows as is spawned at run
+                                       time, which the world delta cannot
+                                       record, so this is what brings it back. */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     uint8_t  item_order[MENU_ITEM_CELLS];  /* inventory grid: cell -> item ID + 1,
                                        0 = empty. Purely the ARRANGEMENT; what is

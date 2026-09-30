@@ -1964,6 +1964,10 @@ static void update_current_area(GameState area) {
         apply_height();
         update_crawlers();
         update_lumberers();
+        /* The Blood Pearl the machine spits onto its east tray. Pickups are
+           per-room: a room that does not call this can never have one
+           collected. */
+        item_pickups_update();
 
         /* Called UNCONDITIONALLY, `lock` passed in rather than tested out here:
            the function keeps its Circle edge state current while locked and
@@ -4864,6 +4868,11 @@ int main(int argc, const char **argv) {
                                                     item_pickups, which
                                                     world_enter above has only
                                                     just restored. */
+            if (pending_area == STATE_INCINERATOR_ROOM)
+                incinerator_room_apply_flags();  /* a spat-out Blood Pearl back
+                                                    on the east tray: writes to
+                                                    item_pickups, and reads a
+                                                    flag a load installs */
             if (pending_area == STATE_THE_PIT)
                 the_pit_after_world_enter();     /* stows the ambush's two
                                                     Lumberers, which world_enter

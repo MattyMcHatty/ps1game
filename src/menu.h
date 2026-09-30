@@ -87,6 +87,10 @@ const char *menu_item_name(int slot);
    caller must have reset the texture window — see the note in menu_draw. */
 void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
                          int ot_idx);
+/* The same with no ownership test: for a box holding an item that has left the
+   inventory (the Incinerator's conveyor). */
+void menu_draw_item_icon_any(RenderContext *ctx, int slot, int x, int y,
+                             int size, int ot_idx);
 /* ---- The reserve count over an icon ---------------------------------------
    menu_item_count is the ONE answer to "does this slot show a number, and what
    number" — the ammo reserves, and the Hatch Keys once there are two of them
