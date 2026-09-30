@@ -268,10 +268,10 @@ void sliding_bars_room_arm(void) {
 #define SB_GATE_COUNT       4
 #define SB_GATE_WIDTH     600    /* the gap between two blocks               */
 #define SB_GATE_HEIGHT    800    /* floor to vault                           */
-#define SB_GATE_TEXT_Y   (-85)   /* glyph TOP, UNDER the panel: the panel is
+#define SB_GATE_TEXT_Y  (-343)   /* glyph TOP, ABOVE the panel: the panel is
                                     y[-300,-100] (read off the visual mesh),
-                                    so the 28-tall line sits 15 below it,
-                                    y[-85,-57], clear of the y=0 floor */
+                                    so the 28-tall line sits 15 above it,
+                                    y[-343,-315], well under the -800 vault */
 #define SB_GATE_TEXT_OUT   11    /* proud of the block face, as a door sign's */
 
 typedef struct {

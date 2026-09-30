@@ -157,25 +157,25 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x80126E44
+  _end (heap start)   0x80127124
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             741116 bytes (724 KB)
+  heap size             740380 bytes (723 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
   texmgr peak bank      487424 bytes (476 KB)  65.8%   <- MANSION
   kept buffers           24576 bytes (24 KB)   3.3%
   chapter-scoped         43008 bytes (42 KB)   5.8%
-  PERMANENT TOTAL       555008 bytes (542 KB)  74.9%
-  FREE AT REST          186108 bytes (182 KB)  25.1%   <- STACK ALREADY SUBTRACTED
-                                  (was 334260 before the stack was counted;
+  PERMANENT TOTAL       555008 bytes (542 KB)  75.0%
+  FREE AT REST          185372 bytes (181 KB)  25.0%   <- STACK ALREADY SUBTRACTED
+                                  (was 333524 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
       THAT IS WHAT KILLS YOU, AND IT IS PER-ROOM. <<<
       The GARDEN COURTYARD is the tightest door in the game: it is the
       only transition that loads SND_BANK_BOSS, whose EMERGE clip is a
-      71,680-byte malloc — the largest single transient anywhere here —
+      71,680-byte malloc â€” the largest single transient anywhere here â€”
       and the Rabisu's model is loaded at the same door. Held together
       they would be 176,128 bytes at one instant; main.c SEQUENCES them
       (free before the bank swap, load after) so the peak is the model
@@ -198,7 +198,7 @@ THE HEAP
       it is the first thing to re-measure after anything that moves
       _end. src/rabisu.c's read_file now REFUSES a read that would
       cross $sp, so the next time this runs out it is a boss holding
-      its bind pose — or not drawn at all — and not a wild jump.
+      its bind pose â€” or not drawn at all â€” and not a wild jump.
       Method: force-boot the room in a headless build and print each
       buffer against $sp. See src/rabisu.c and PART 6 of
       tools/ADDING_THE_ASAG_FIGHT.txt.

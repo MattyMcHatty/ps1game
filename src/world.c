@@ -1641,6 +1641,43 @@ void world_seed_room(GameState area) {
                                          PICKUP_BLOOD_PEARL, 1, 300);
         item_pickup_set_display(bp, 22, 0);
     }
+
+    /* THE SLIDING BARS ROOM: two Crawlers and one Lumberer, in the corridors
+       of the 7x7 grid (src/sliding_bars_room.c, THE GATES, numbers the
+       squares). The room is one flat plane at y=0 under a vault at -800.
+
+       THE CRAWLERS, on the floor:
+
+         (3245,  328)   square 48, the south row: 328 off the south wall, 272
+                        off block 41, 355 off the static bars 48|49
+         ( 798, 3909)   square 2, the north row: 291 off the north wall, 309
+                        off block 9 (gate 2's panel is on its north face)
+
+       THE LUMBERER patrols the corridor row z[2400,3000] (squares 15-21)
+       between the two block rows, a straight east-west leg at z=2715:
+
+         A  ( 846, 2715)   square 16, 276 east of gate 2 at its start (x=570)
+         B  (3858, 2715)   square 21, 342 off the east wall
+
+       285 off both block rows. >>> GATE 3, ONCE MOVED, CUTS THIS LEG. <<< Its
+       moved spot is 19|20, riding at x=2970 across this row, and the lumberer
+       has no nav table here: after that press it stalls against the grille
+       rather than turning back. Gate 4 rides at z=2970 on the row's north
+       edge and clears the 100 LMB_BODY_RADIUS at 2715.
+
+       y: crawler_add_floor takes the floor surface (0); the lumberer takes
+       the standing anchor, 0 - 149, as in the Tomb.
+
+       >>> THE ORDER IS THE SAVE FORMAT, as in The Pit. <<< The room is slot
+       37 and no room after it places either, so these append: the 10th and
+       11th crawlers (MAX_CRAWLERS 11) and the 5th lumberer. */
+    if (area == STATE_SLIDING_BARS_ROOM) {
+        crawler_add_floor(3245,  328, 0, STATE_SLIDING_BARS_ROOM); /* square 48 */
+        crawler_add_floor( 798, 3909, 0, STATE_SLIDING_BARS_ROOM); /* square 2  */
+        lumberer_add( 846, 2715,           /* A: square 16 */
+                     3858, 2715,           /* B: square 21 */
+                     -149, STATE_SLIDING_BARS_ROOM);
+    }
 }
 
 void world_enter(GameState area) {
