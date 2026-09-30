@@ -32,6 +32,9 @@ typedef enum {
                                the player unbolts the 3D prop itself
                                (src/greenhouse_flood.c) and the mount's `present`
                                bit is what the world remembers */
+    ITEM_BLOOD_PEARL,       /* found resting on the unlit sconce at the east end of
+                               the Cleaver Corridor. No use yet — a flag item held
+                               for a puzzle still to be designed */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */
@@ -378,6 +381,18 @@ typedef enum {
        are bit positions in a saved word and inserting one renumbers every flag
        after it. This is bit 30 of 32. */
     FLAG_ASAG_DEAD,
+
+    /* THE CLEAVER CORRIDOR'S EAST DOOR (the one in its south wall at the east
+       end, out to the Up Down Maze's upper storey) is unlocked. FLAG_WEST_CORR_
+       DOOR's mechanic exactly: locked from the corridor side, the first Circle
+       there unlocks it, and until then the Up Down Maze's north door reads
+       "Locked from the other side" and does nothing.
+
+       >>> THIS IS BIT 31, THE LAST ONE. <<< game_flags is now FULL and the
+       _Static_assert below sits exactly on its limit. The next persistent bit
+       has to go somewhere else - a second word in SaveData, or a set in the
+       WorldDelta the way the cribs went (savegame.h, the v28 note). */
+    FLAG_CLEAVER_CORR_DOOR,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */

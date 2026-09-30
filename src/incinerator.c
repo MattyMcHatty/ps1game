@@ -234,6 +234,7 @@ static int slot_take(int slot) {
     case MENU_SLOT_YELLOW_KEY_STONE:  if (!(player_items & (1 << ITEM_YELLOW_KEY_STONE)))  return 0; player_items &= ~(1 << ITEM_YELLOW_KEY_STONE);  return 1;
     case MENU_SLOT_MAGENTA_KEY_STONE: if (!(player_items & (1 << ITEM_MAGENTA_KEY_STONE))) return 0; player_items &= ~(1 << ITEM_MAGENTA_KEY_STONE); return 1;
     case MENU_SLOT_VALVE_HANDLE:      if (!(player_items & (1 << ITEM_VALVE_HANDLE)))      return 0; player_items &= ~(1 << ITEM_VALVE_HANDLE);      return 1;
+    case MENU_SLOT_BLOOD_PEARL:       if (!(player_items & (1 << ITEM_BLOOD_PEARL)))       return 0; player_items &= ~(1 << ITEM_BLOOD_PEARL);       return 1;
     default: return 0;
     }
 }
@@ -252,6 +253,7 @@ static void slot_give(int slot, int count) {
     case MENU_SLOT_YELLOW_KEY_STONE:  player_items |= (1 << ITEM_YELLOW_KEY_STONE); break;
     case MENU_SLOT_MAGENTA_KEY_STONE: player_items |= (1 << ITEM_MAGENTA_KEY_STONE);break;
     case MENU_SLOT_VALVE_HANDLE:      player_items |= (1 << ITEM_VALVE_HANDLE);     break;
+    case MENU_SLOT_BLOOD_PEARL:       player_items |= (1 << ITEM_BLOOD_PEARL);      break;
     default: break;
     }
 }

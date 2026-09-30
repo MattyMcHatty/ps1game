@@ -28,7 +28,8 @@ extern volatile size_t  pad_buff_len[2];
    wide x 4 tall. The ITEMS column grew from 2 wide when the Yellow Key Stone
    made a 9th item; the cell and icon both shrank to pay for the extra column,
    which is what keeps the description box its original width. Widen the cells
-   again and DESC_W is what gives. */
+   again and DESC_W is what gives. (12 cells against 13 item IDs is on purpose
+   — see the inventory-order note in menu.h.) */
 #define ITEM_COLS            3
 #define WEAPON_COLS          2
 #define GRID_ROWS            4
@@ -137,6 +138,12 @@ static uint8_t  htky_u0, htky_v0, htky_u1, htky_v1;
 static uint16_t vlvh_tpage   = 0;
 static uint16_t vlvh_clut    = 0;
 static uint8_t  vlvh_u0, vlvh_v0, vlvh_u1, vlvh_v1;
+/* The Blood Pearl. 32x32 4bpp at VRAM (912,64), i.e. Voff 64 — a V range of
+   64..95 — and U 64..95 of its page, so the room's 128 window maps it to itself
+   like the hatch key's. */
+static uint16_t bprl_tpage   = 0;
+static uint16_t bprl_clut    = 0;
+static uint8_t  bprl_u0, bprl_v0, bprl_u1, bprl_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -157,6 +164,7 @@ static const char *item_descriptions[] = {
     "Magenta Key Stone\n\nA magenta jewel\nwith a key\nprotruding from\nthe back",
     "Hatch Key\n\nA key for the\nhatch at the back\nof the garden",
     "Valve Handle\n\nA wheel unbolted\nfrom a pipe in\nthe greenhouse\n",
+    "Blood Pearl\n\nIt's a disturbing\nshade of red",
 };
 
 static const char *weapon_descriptions[] = {
@@ -379,6 +387,7 @@ int menu_item_held(int slot) {
                                        return (player_items & (1 << ITEM_MAGENTA_KEY_STONE)) != 0;
         case MENU_SLOT_HATCH_KEY:      return player_hatch_keys > 0;
         case MENU_SLOT_VALVE_HANDLE:   return (player_items & (1 << ITEM_VALVE_HANDLE)) != 0;
+        case MENU_SLOT_BLOOD_PEARL:    return (player_items & (1 << ITEM_BLOOD_PEARL)) != 0;
         default: return 0;
     }
 }
@@ -397,6 +406,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_MAGENTA_KEY_STONE:return "Magenta Key Stone";
         case MENU_SLOT_HATCH_KEY:      return "Hatch Key";
         case MENU_SLOT_VALVE_HANDLE:   return "Valve Handle";
+        case MENU_SLOT_BLOOD_PEARL:    return "Blood Pearl";
         default: return "";
     }
 }
@@ -408,6 +418,13 @@ static int cell_of_item(int item) {
     for (c = 0; c < MENU_ITEM_CELLS; c++) if (item_cell[c] == (int8_t)item) return c;
     return -1;
 }
+
+int menu_item_at_cell(int cell) {
+    if (cell < 0 || cell >= MENU_ITEM_CELLS) return -1;
+    return item_cell[cell];
+}
+
+int menu_cell_of_item(int item) { return cell_of_item(item); }
 
 void menu_inventory_reset(void) {
     int c;
@@ -530,6 +547,11 @@ void menu_draw_item_icon(RenderContext *ctx, int slot, int x, int y, int size,
             draw_icon(ctx, x, y, size, vlvh_tpage, vlvh_clut,
                       vlvh_u0, vlvh_v0, vlvh_u1, vlvh_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_BLOOD_PEARL:
+            if (!menu_item_held(slot)) return;
+            draw_icon(ctx, x, y, size, bprl_tpage, bprl_clut,
+                      bprl_u0, bprl_v0, bprl_u1, bprl_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -589,6 +611,8 @@ void menu_init(void) {
                   &htky_u0, &htky_v0, &htky_u1, &htky_v1);
     load_icon_tim("\\TEX\\VLVHNDL.TIM;1", &vlvh_tpage, &vlvh_clut,
                   &vlvh_u0, &vlvh_v0, &vlvh_u1, &vlvh_v1);
+    load_icon_tim("\\TEX\\BLDPRL.TIM;1", &bprl_tpage, &bprl_clut,
+                  &bprl_u0, &bprl_v0, &bprl_u1, &bprl_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);

@@ -79,9 +79,10 @@ extern volatile size_t  pad_buff_len[2];
    starts at PICK_Y+22 = 52 and the item name sits at 182, so a 4th row would
    run to 220, past the panel's bottom edge at 198 and over the controls line at
    206). 4 x PICK_CELL is 168 = PICK_W exactly. src/stove_puzzle.c carries the
-   full derivation and the two must move together — they share MENU_ITEM_SLOTS. */
+   full derivation and the two must move together — they share MENU_ITEM_CELLS. */
 #define PICK_COLS               4
-#define PICK_ROWS  ((MENU_ITEM_SLOTS + PICK_COLS - 1) / PICK_COLS)
+#define PICK_ROWS  ((MENU_ITEM_CELLS + PICK_COLS - 1) / PICK_COLS)
+_Static_assert(PICK_ROWS <= 3, "the picker panel fits three rows");
 #define PICK_GRID_X   (PICK_X + (PICK_W - PICK_COLS * PICK_CELL) / 2)
 #define PICK_GRID_Y   (PICK_Y + 22)
 #define PICK_NAME_Y   (PICK_Y + PICK_H - 16)
@@ -105,7 +106,7 @@ typedef enum {
 
 static IpState state = IP_IDLE;
 
-static int pick_cur = 0;       /* picker cursor: MENU_SLOT_* */
+static int pick_cur = 0;  /* picker cursor: an inventory CELL */
 
 /* Pre-board camera, restored on the way out. */
 static int32_t save_cx, save_cy, save_cz, save_crot, save_cvy;
@@ -228,7 +229,9 @@ void incinerator_panel_update(void) {
                 int slot = incinerator_retrieve();
                 if (slot >= 0) show_pickup_msg_raw(menu_item_name(slot));
             } else {
-                /* EMPTY: open the picker on the first slot. */
+                /* EMPTY: open the picker on the first cell, synced so a puzzle
+                   grant is in one. */
+                menu_inventory_sync();
                 pick_cur = 0;
                 state    = IP_PICKER;
             }
@@ -238,7 +241,7 @@ void incinerator_panel_update(void) {
 
     /* IP_PICKER: PICK_COLS-wide grid over every inventory slot. Choosing an item
        MOVES it into the machine. The trailing cells of the last row may be past
-       MENU_ITEM_SLOTS; the guard below keeps the cursor out of them and the draw
+       MENU_ITEM_CELLS; the guard below keeps the cursor out of them and the draw
        loop never paints them. */
     {
         int row = pick_cur / PICK_COLS, col = pick_cur % PICK_COLS, next;
@@ -250,19 +253,19 @@ void incinerator_panel_update(void) {
         /* Blipped off the accepted cell, not the press: the guard here rejects a
            step into the last row's trailing cells, and the grid edges reject the
            rest. */
-        if (next < MENU_ITEM_SLOTS && next != pick_cur) {
+        if (next < MENU_ITEM_CELLS && next != pick_cur) {
             pick_cur = next;
             sound_play(SFX_CURSOR);
         }
 
         if (pressed & PAD_CROSS) { sound_play(SFX_BACK); state = IP_BOARD; return; }
-        if ((pressed & PAD_CIRCLE) && menu_item_held(pick_cur)) {
+        if ((pressed & PAD_CIRCLE) && menu_item_held(menu_item_at_cell(pick_cur))) {
             /* >>> incinerator_store() IS ASKED ONCE AND ITS ANSWER IS BELIEVED.
                <<< It is the only code that may move the item off the player, and
                it re-checks the hold itself, so a press that it refuses must not
                fall through to a state change — the board would then show an
                empty box over a lost item. */
-            if (incinerator_store(pick_cur) > 0) {
+            if (incinerator_store(menu_item_at_cell(pick_cur)) > 0) {
                 state = IP_BOARD;
                 sound_play(SFX_SELECT);
             }
@@ -339,12 +342,13 @@ void incinerator_panel_draw(RenderContext *ctx) {
         ip_outline(ctx, PICK_X, PICK_Y, PICK_W, PICK_H, 80, 80, 80, IP_OT_LINE);
         btn_prompt_draw(ctx, PICK_X + 8, PICK_Y + 6, "ITEMS", IP_OT_TEXT);
 
-        for (s = 0; s < MENU_ITEM_SLOTS; s++) {
+        for (s = 0; s < MENU_ITEM_CELLS; s++) {
+            int it = menu_item_at_cell(s);
             cx = PICK_GRID_X + (s % PICK_COLS) * PICK_CELL;
             cy = PICK_GRID_Y + (s / PICK_COLS) * PICK_CELL;
             ip_rect(ctx, cx, cy, PICK_CELL, PICK_CELL, 35, 30, 45, IP_OT_PANEL);
             ip_outline(ctx, cx, cy, PICK_CELL, PICK_CELL, 80, 70, 100, IP_OT_LINE);
-            menu_draw_item_icon(ctx, s, cx + PICK_PAD, cy + PICK_PAD,
+            menu_draw_item_icon(ctx, it, cx + PICK_PAD, cy + PICK_PAD,
                                 PICK_ICON, IP_OT_ICON);
         }
 
@@ -354,7 +358,7 @@ void incinerator_panel_draw(RenderContext *ctx) {
 
         /* Name of the highlighted item, along the panel's bottom edge. */
         btn_prompt_draw(ctx, PICK_X + 8, PICK_NAME_Y,
-                        menu_item_held(pick_cur) ? menu_item_name(pick_cur) : "Empty",
+                        menu_item_held(menu_item_at_cell(pick_cur)) ? menu_item_name(menu_item_at_cell(pick_cur)) : "Empty",
                         IP_OT_TEXT);
     }
 

@@ -21,6 +21,7 @@ typedef struct {
     int32_t   min_x, max_x, min_z, max_z;  /* world AABB, baked at place time  */
     int32_t   flame_phase;                 /* per-instance offset into the flip */
     int32_t   light;                       /* 0..256 eased glow, see below     */
+    int       lit;                         /* 0 = cold: no flame, no light     */
     int       active;
 } Sconce;
 
@@ -126,6 +127,7 @@ void sconces_publish_lights(void) {
     for (i = 0; i < sconce_count; i++) {
         Sconce *s = &sconces[i];
         if (!s->active || s->area != current_area) continue;
+        if (!s->lit) continue;   /* a cold sconce casts nothing */
 
         /* The gate is the RAW camera distance, never the lit one: asking the
            light whether the thing casting it is visible is a feedback loop
@@ -204,12 +206,14 @@ void sconce_upload_texture(void) {
 
 void sconces_clear(void) { sconce_count = 0; }
 
-void sconce_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y) {
+void sconce_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y,
+                  int lit) {
     if (sconce_count >= MAX_SCONCES) return;
     Sconce *s = &sconces[sconce_count++];
     s->area  = area;
     s->x = x;  s->y = y;  s->z = z;
     s->rot_y = rot_y;
+    s->lit    = lit;
     s->active = 1;
     /* Half a cell apart for consecutive instances, so a pair flanking something
        burns out of step. */
@@ -502,6 +506,7 @@ void sconces_draw(RenderContext *ctx) {
     for (i = 0; i < sconce_count; i++) {
         Sconce *s = &sconces[i];
         if (!s->active || s->area != current_area) continue;
+        if (!s->lit) continue;   /* cold: the coal bed stays black */
 
         int32_t dcx = s->x - cam_x, dcz = s->z - cam_z;
         int32_t dist = (dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz);

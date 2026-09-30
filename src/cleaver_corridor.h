@@ -32,7 +32,15 @@
      SOUTH  z=-300 x[3800,4000]   -> the Up Down Maze, through the north door on
                                      its UPPER storey. An XY-plane door in the
                                      south wall at the east end, approached from
-                                     +Z: mirror=1.
+                                     +Z: mirror=1. LOCKED FROM THIS SIDE: the
+                                     first Circle unlocks it
+                                     (FLAG_CLEAVER_CORR_DOOR), and the maze's
+                                     side reads "Locked from the other side"
+                                     until then.
+
+   THE SCONCE. One, UNLIT, at the east end on the centre line — 300 from each of
+   the three walls around it — with the Blood Pearl on its coal bed (placed in
+   src/world.c).
 
    THE CLEAVERS. Three guillotine blades hang across the corridor between the
    ladder and the south door — cleaver, gap, cleaver, gap, cleaver, gap, door,

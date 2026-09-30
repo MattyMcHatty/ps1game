@@ -432,19 +432,25 @@ int up_down_maze_south_door_triggered(int lock) {
                               UDM_SOUTH_X, UDM_SOUTH_Z, UDM_LOWER_EYE_Y);
 }
 
+/* LOCKED FROM THE OTHER SIDE until the Cleaver Corridor unlocks it — Reception's
+   NDOOR arrangement with the West Corridor, on FLAG_CLEAVER_CORR_DOOR. Tested
+   AFTER the shared trigger so the edge state still advances while it is locked. */
 int up_down_maze_north_door_triggered(int lock) {
     return udm_door_triggered(lock, &north_circle_prev,
-                              UDM_NORTH_X, UDM_NORTH_Z, UDM_EYE_Y);
+                              UDM_NORTH_X, UDM_NORTH_Z, UDM_EYE_Y) &&
+           game_flag(FLAG_CLEAVER_CORR_DOOR);
 }
 
 /* A door's floating sign. Same shape as every other sign in the game: opaque
    within UDM_FADE_NEAR, gone by UDM_TEXT_RADIUS — plus the storey test above.
    The caller passes the string's already-placed position and the plane/mirror
-   pair, which are the two things the two doors genuinely differ in. */
+   pair, which are the two things the two doors genuinely differ in — and
+   `locked`, which swaps the prompt for Reception's red "Locked from the other
+   side" (only the north door has a lock). */
 static void udm_door_text(RenderContext *ctx,
                           int32_t door_x, int32_t door_z, int32_t eye_y,
                           int32_t text_x, int32_t text_y, int32_t text_z,
-                          int mirror, int plane) {
+                          int mirror, int plane, int locked) {
     int32_t dx = cam_x - door_x;
     int32_t dz = cam_z - door_z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
@@ -463,6 +469,13 @@ static void udm_door_text(RenderContext *ctx,
         fade = 256 - ((prog * 256) / range);
     }
 
+    if (locked) {
+        door_draw_string_3d(ctx, "Locked from the other side",
+                            text_x, text_y, text_z,
+                            255, 50, 50, fade, mirror, plane,
+                            DOOR_PIXEL_SIZE);
+        return;
+    }
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
                         text_x, text_y, text_z,
                         50, 255, 50, fade, mirror, plane,
@@ -475,19 +488,20 @@ static void udm_door_text(RenderContext *ctx,
 static void udm_west_door_text(RenderContext *ctx) {
     udm_door_text(ctx, UDM_WEST_X, UDM_WEST_Z, UDM_EYE_Y,
                   UDM_WEST_X + 11, UDM_WEST_TEXT_Y, UDM_WEST_Z - 200,
-                  0, TEXT_PLANE_YZ);   /* mirror=0: YZ door approached from +X */
+                  0, TEXT_PLANE_YZ, 0);   /* mirror=0: YZ door approached from +X */
 }
 
 static void udm_south_door_text(RenderContext *ctx) {
     udm_door_text(ctx, UDM_SOUTH_X, UDM_SOUTH_Z, UDM_LOWER_EYE_Y,
                   UDM_SOUTH_X - 200, UDM_SOUTH_TEXT_Y, UDM_SOUTH_Z + 11,
-                  1, TEXT_PLANE_XY);   /* mirror=1: XY door approached from +Z */
+                  1, TEXT_PLANE_XY, 0);   /* mirror=1: XY door approached from +Z */
 }
 
 static void udm_north_door_text(RenderContext *ctx) {
     udm_door_text(ctx, UDM_NORTH_X, UDM_NORTH_Z, UDM_EYE_Y,
                   UDM_NORTH_X - 200, UDM_NORTH_TEXT_Y, UDM_NORTH_Z - 11,
-                  0, TEXT_PLANE_XY);   /* mirror=0: XY door approached from -Z */
+                  0, TEXT_PLANE_XY,       /* mirror=0: XY door approached from -Z */
+                  !game_flag(FLAG_CLEAVER_CORR_DOOR));
 }
 
 void up_down_maze_spawn_west(void) {

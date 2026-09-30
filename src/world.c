@@ -1611,6 +1611,29 @@ void world_seed_room(GameState area) {
                      -919,  275,           /* B: the south gallery         */
                      -1149, STATE_NORTH_CHAMBER);
     }
+
+    /* THE BLOOD PEARL, on the Cleaver Corridor's cold sconce at the east end
+       (src/cleaver_corridor.c, CC_SCONCE_X/Z — keep the two in step). No use
+       yet; a flag item waiting for its puzzle.
+
+       y: the sconce stands 180 tall on the y=0 floor (its measured mesh height,
+       src/sconce.c), so its coal bed is at -180. The pearl is drawn 22 either
+       side of its centre (world_half 22 — the default 70 would be wider than
+       the 120 stand) and bobs IP_BOB_AMP = 18, so the centre goes at -222 to
+       keep the whole sprite above the bowl at the bottom of the bob. Spawn y is
+       that plus IP_FLOAT_Y (50), which item_pickup_spawn_range takes back off.
+
+       REACH 300: sconces_collide holds the player 60 + 75 = 135 short of the
+       centre in x, and the 195 wall standoff lets them stand up to 105 off the
+       centre line — 240 Manhattan at the worst corner, over the default 200.
+       300 covers the whole face of the stand and cannot reach the south door
+       (500+ away). AUTHORED, not probed: world_seed_room runs for rooms whose
+       geometry is not resident. */
+    if (area == STATE_CLEAVER_CORRIDOR) {
+        int bp = item_pickup_spawn_range(4500, -222 + 50, 0,
+                                         PICKUP_BLOOD_PEARL, 1, 300);
+        item_pickup_set_display(bp, 22, 0);
+    }
 }
 
 void world_enter(GameState area) {

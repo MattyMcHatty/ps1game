@@ -823,8 +823,8 @@ void catacombs_entry_init(void) {
        Area-tagged, so the instances cannot collide or draw anywhere else even
        if a later room forgets to clear them. */
     sconces_clear();
-    sconce_place(STATE_CATACOMBS_ENTRY, -595, -GROUND_FLOOR_Y, 200, 0);
-    sconce_place(STATE_CATACOMBS_ENTRY,  595, -GROUND_FLOOR_Y, 200, 0);
+    sconce_place(STATE_CATACOMBS_ENTRY, -595, -GROUND_FLOOR_Y, 200, 0, 1);
+    sconce_place(STATE_CATACOMBS_ENTRY,  595, -GROUND_FLOOR_Y, 200, 0, 1);
 
     /* ---- THE OIL DISPENSER ------------------------------------------------
        ONE, set into the SOUTH-EAST CORNER of the burial-niche hall — the far

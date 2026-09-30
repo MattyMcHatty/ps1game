@@ -54,8 +54,13 @@ void sconces_clear(void);         /* drop every placed instance (an area's init)
 
 /* Place one. x/z is the model's centre in plan, y the floor reference (world y
    = y + GROUND_FLOOR_Y puts the base on the floor). rot_y is 0..4096 = a full
-   turn. */
-void sconce_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y);
+   turn.
+
+   `lit` 0 is a COLD sconce: the same stand and the same collision, but no flame
+   sprite and no point light, so it sits in the room's fog like any other prop
+   (the Cleaver Corridor's, with the Blood Pearl on its coal bed). */
+void sconce_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y,
+                  int lit);
 
 /* One frame of the flame flip. Call it from the room's update beside the other
    props'; nothing else in the module has per-frame state. */

@@ -70,10 +70,17 @@ extern volatile size_t  pad_buff_len[2];
    the Magenta Key Stone made it 10, which needs 4. Widen, never add a row.
    4 x PICK_CELL is 168 = PICK_W exactly, so PICK_GRID_X lands flush with the
    panel and the 30px icons keep their PICK_PAD inset at both edges.
-   The picker's grid is independent of the inventory menu's own 3x4 layout —
-   only the slot NUMBERS are shared. */
+
+   >>> AND IT NO LONGER GROWS WITH THE ITEM COUNT. <<< The grid is the player's
+   12 INVENTORY CELLS (menu_item_at_cell), in the pause menu's own arrangement,
+   not one cell per item ID. It used to be the IDs, which is why it kept having
+   to widen; at 13 IDs (the Blood Pearl) that would have been a 4th row. The
+   inventory is 12 cells however many items exist (menu.h says why that is
+   enough), so this is 4 x 3 for good. ALL SEVEN PICKERS work this way — this
+   one, piano, exit door, hatch, valve, keystone plinths, incinerator panel. */
 #define PICK_COLS               4
-#define PICK_ROWS  ((MENU_ITEM_SLOTS + PICK_COLS - 1) / PICK_COLS)
+#define PICK_ROWS  ((MENU_ITEM_CELLS + PICK_COLS - 1) / PICK_COLS)
+_Static_assert(PICK_ROWS <= 3, "the picker panel fits three rows");
 /* Grid centred in the panel, under the header, with room for the item name
    along the bottom edge. */
 #define PICK_GRID_X   (PICK_X + (PICK_W - PICK_COLS * PICK_CELL) / 2)
@@ -104,7 +111,7 @@ static SpState state = SP_IDLE;
 static int box_item[2] = { -1, -1 };
 static int board_cur   = 0;    /* 0 = box A, 1 = box B, 2 = COOK */
 static int pick_target = 0;    /* box the open picker fills       */
-static int pick_cur    = 0;    /* picker cursor: MENU_SLOT_*      */
+static int pick_cur    = 0;    /* picker cursor: an inventory CELL */
 static int cook_timer  = 0;
 
 /* Pre-puzzle camera, restored on the way out. */
@@ -274,18 +281,19 @@ void stove_puzzle_update(void) {
                 try_cook();
             } else {
                 pick_target = board_cur;
-                /* Open on the box's current item, else the first slot. */
-                pick_cur = box_item[board_cur] >= 0 ? box_item[board_cur] : 0;
+                /* Open on the cell holding the box's current item, else the
+                   first. Synced first so a puzzle grant is in a cell. */
+                menu_inventory_sync();
+                pick_cur = menu_cell_of_item(box_item[board_cur]);
+                if (pick_cur < 0) pick_cur = 0;
                 state    = SP_PICKER;
             }
         }
         return;
     }
 
-    /* SP_PICKER: PICK_COLS-wide grid over every inventory slot. Choosing an item
-       copies it into the box — the player keeps it either way. The trailing
-       cells of the last row may be past MENU_ITEM_SLOTS; the guard below keeps
-       the cursor out of them and the draw loop never paints them. */
+    /* SP_PICKER: PICK_COLS-wide grid over the inventory's cells. Choosing an
+       item copies it into the box — the player keeps it either way. */
     {
         int row = pick_cur / PICK_COLS, col = pick_cur % PICK_COLS;
         if (pressed & PAD_UP)    { if (row > 0) row--; }
@@ -296,14 +304,15 @@ void stove_puzzle_update(void) {
         /* Blipped off the accepted cell, not the press: the guard below rejects
            a step into the last row's trailing cells, and the grid edges reject
            the rest. */
-        if (next < MENU_ITEM_SLOTS && next != pick_cur) {
+        if (next < MENU_ITEM_CELLS && next != pick_cur) {
             pick_cur = next;
             sound_play(SFX_CURSOR);
         }
 
         if (pressed & PAD_CROSS) { sound_play(SFX_BACK); state = SP_BOARD; return; }
-        if ((pressed & PAD_CIRCLE) && menu_item_held(pick_cur) && !slot_taken(pick_cur)) {
-            box_item[pick_target] = pick_cur;
+        int it = menu_item_at_cell(pick_cur);
+        if ((pressed & PAD_CIRCLE) && it >= 0 && menu_item_held(it) && !slot_taken(it)) {
+            box_item[pick_target] = it;
             state = SP_BOARD;
             sound_play(SFX_SELECT);
         }
@@ -391,17 +400,18 @@ void stove_puzzle_draw(RenderContext *ctx) {
         btn_prompt_draw(ctx, PICK_X + 8, PICK_Y + 6, "ITEMS", SP_OT_TEXT);
 
         int s;
-        for (s = 0; s < MENU_ITEM_SLOTS; s++) {
+        for (s = 0; s < MENU_ITEM_CELLS; s++) {
             int cx = PICK_GRID_X + (s % PICK_COLS) * PICK_CELL;
             int cy = PICK_GRID_Y + (s / PICK_COLS) * PICK_CELL;
+            int it = menu_item_at_cell(s);
             /* Items already in the other box get a red cell so it's clear why
                Circle won't take them. */
-            int taken = slot_taken(s);
+            int taken = it >= 0 && slot_taken(it);
             sp_rect(ctx, cx, cy, PICK_CELL, PICK_CELL,
                     taken ? 60 : 35, taken ? 25 : 30, taken ? 30 : 45, SP_OT_PANEL);
             sp_outline(ctx, cx, cy, PICK_CELL, PICK_CELL,
                        taken ? 140 : 80, taken ? 70 : 70, taken ? 70 : 100, SP_OT_LINE);
-            menu_draw_item_icon(ctx, s, cx + PICK_PAD, cy + PICK_PAD,
+            menu_draw_item_icon(ctx, it, cx + PICK_PAD, cy + PICK_PAD,
                                 PICK_ICON, SP_OT_ICON);
         }
 
@@ -414,8 +424,10 @@ void stove_puzzle_draw(RenderContext *ctx) {
         /* Name of the highlighted item, along the panel's bottom edge. */
         {
             const char *label = "Empty";
-            if (slot_taken(pick_cur))         label = "In the other slot";
-            else if (menu_item_held(pick_cur)) label = menu_item_name(pick_cur);
+            int it = menu_item_at_cell(pick_cur);
+            if (it < 0)                  label = "Empty";
+            else if (slot_taken(it))     label = "In the other slot";
+            else if (menu_item_held(it)) label = menu_item_name(it);
             btn_prompt_draw(ctx, PICK_X + 8, PICK_NAME_Y, label, SP_OT_TEXT);
         }
     }

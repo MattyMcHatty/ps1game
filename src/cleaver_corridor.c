@@ -28,7 +28,9 @@
 #include "dresser.h"
 #include "sconce.h"
 #include "oil_dispenser.h"
-#include "player.h"             /* current_weapon, player_weapons */
+#include "player.h"             /* current_weapon, player_weapons, FLAG_CLEAVER_CORR_DOOR */
+#include "sound.h"              /* SFX_UNLOCK */
+#include "item_pickup.h"        /* the Blood Pearl on the sconce */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 
 /* The Cleaver Corridor — see cleaver_corridor.h for the layout, the shaft and
@@ -198,7 +200,25 @@ void cleaver_corridor_upload_textures(void) {
     /* ...and The Pit's rusty ironwork, which the CLEAVERS are modelled in
        (src/cleaver.h) — x704 y0, a page nothing else in this room draws. */
     the_pit_upload_rusty();
+    /* ...and the SCONCE's own page (x448 y0), for the cold one at the east end.
+       Nothing else here draws that page either. */
+    sconce_upload_texture();
 }
+
+/* ---- THE SCONCE ------------------------------------------------------------
+   ONE, COLD, at the corridor's EAST END: on the centre line (z=0) and 300 in
+   from the end wall (x=4800), so it is equidistant from all three walls around
+   it — north z=300, south z=-300, east x=4800. Past the south door (x[3800,
+   4000]), so it closes off the dead end without standing in the way out.
+
+   UNLIT (sconce_place's `lit` 0): no flame, no point light. The corridor stays
+   the dark the cleavers want, and the stand fogs in with the walls.
+
+   The BLOOD PEARL sits on its coal bed. That is a pickup, placed with the
+   room's other residents in src/world.c from these same two numbers — keep
+   them in step. */
+#define CC_SCONCE_X          4500
+#define CC_SCONCE_Z             0
 
 /* ---- THE LADDER ------------------------------------------------------------
    x=0, z[-100,100], running DOWN the shaft's east wall from the corridor floor.
@@ -227,7 +247,13 @@ void cleaver_corridor_upload_textures(void) {
    A door in the XY plane at fixed Z, approached from +Z (wall 1 runs z=-300
    with nz=+4096), so TEXT_PLANE_XY with mirror=1, the sign 11 proud of the wall
    along +Z, and the -200 on the X argument (the reading axis for an XY sign).
-   The maze's north door, the far side, takes the opposite pair. */
+   The maze's north door, the far side, takes the opposite pair.
+
+   >>> LOCKED FROM THIS SIDE. <<< The West Corridor's east door exactly (src/
+   west_corridor.c): the first Circle here unlocks it and stays in the room, the
+   next one goes through, and the Up Down Maze's north door reads "Locked from
+   the other side" until then. The lock is FLAG_CLEAVER_CORR_DOOR (player.h), a
+   GameFlag so it survives a save/load. */
 #define CC_SOUTH_X           3900     /* the art spans x[3800,4000] */
 #define CC_SOUTH_Z          (-300)
 #define CC_SOUTH_TEXT_Y      (-186)   /* eye level on the y=0 floor */
@@ -289,6 +315,13 @@ int cleaver_corridor_south_door_triggered(int lock) {
     xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (xz >= CC_TRIGGER_RADIUS) return 0;
     if (!interact_facing(CC_SOUTH_X, CC_SOUTH_Z)) return 0;
+
+    /* First press unlocks (no transition yet); after that, presses enter. */
+    if (!game_flag(FLAG_CLEAVER_CORR_DOOR)) {
+        game_flag_set(FLAG_CLEAVER_CORR_DOOR);
+        sound_play(SFX_UNLOCK);
+        return 0;
+    }
     return 1;
 }
 
@@ -307,7 +340,9 @@ static void cc_south_door_text(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
 
-    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+    door_draw_string_3d(ctx,
+                        game_flag(FLAG_CLEAVER_CORR_DOOR) ? "Press " BTN_CIRCLE " to enter"
+                                                          : "Press " BTN_CIRCLE " to unlock",
                         CC_SOUTH_X - 200, CC_SOUTH_TEXT_Y, CC_SOUTH_Z + 11,
                         50, 255, 50, fade, 1, TEXT_PLANE_XY,
                         DOOR_PIXEL_SIZE);
@@ -402,6 +437,10 @@ void cleaver_corridor_init(void) {
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
+
+    /* ...then this room's own sconce, cold, on the corridor floor. */
+    sconce_place(STATE_CLEAVER_CORRIDOR, CC_SCONCE_X, -GROUND_FLOOR_Y,
+                 CC_SCONCE_Z, 0, 0);
 
     /* THE CLEAVERS, cleared and re-placed ARMED on every entry: leaving the
        room is what resets them (src/cleaver.h). */
@@ -600,6 +639,10 @@ void cleaver_corridor_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_cleaver_corridor_smd(ctx);
 
+    /* The cold sconce. Its texture sits at Voff 0, so the window above serves
+       it; there are no lights to publish, it is unlit. */
+    sconces_draw(ctx);
+
     /* >>> LEVEL 8 REMOVES THE PROMPTS, THE CLEAVERS AND THE ENEMIES. <<< */
     if (exp != DBG_EXP_NO_ENTITIES) {
         cc_ladder_text(ctx);      /* the ladder: YZ plane, approached from +X */
@@ -618,5 +661,11 @@ void cleaver_corridor_draw(RenderContext *ctx) {
         /* The blades AFTER the two enemy calls, whose windows are restored for
            this Voff-0 art: their UVs reach 128 (the bars' rule). */
         cleavers_draw(ctx);
+        /* THE BLOOD PEARL, on the cold sconce. Pickups are not drawn globally:
+           a room that does not call this has no visible pickups at all, however
+           many world.c spawned into it. After the enemy calls for the same
+           reason as the blades — its art sits at Voff 64 and needs the 128
+           window they restore. */
+        item_pickups_draw(ctx);
     }
 }

@@ -39,6 +39,7 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\MGNKYSTN.TIM;1",   /* PICKUP_MAGENTA_KEY_STONE */
     "\\TEX\\HATCHKEY.TIM;1",   /* PICKUP_HATCH_KEY         */
     "\\TEX\\HELLUMIN.TIM;1",   /* PICKUP_HELLUMINATOR      */
+    "\\TEX\\BLDPRL.TIM;1",     /* PICKUP_BLOOD_PEARL       */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
@@ -50,6 +51,7 @@ static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Magenta Key Stone",       /* PICKUP_MAGENTA_KEY_STONE */
     "Hatch Key",               /* PICKUP_HATCH_KEY         */
     "Helluminator",            /* PICKUP_HELLUMINATOR      */
+    "Blood Pearl",             /* PICKUP_BLOOD_PEARL       */
 };
 
 /* Load one TIM into VRAM and record its tpage/clut and UV rect. The UV's U0 is
@@ -114,7 +116,7 @@ void item_pickups_reset(void) {
        into a fresh playthrough. (The yellow stone is not in this list: the Anzu
        puzzle is what awards it, and that module clears it.) */
     player_items &= ~((1 << ITEM_PIANO_KEY) | (1 << ITEM_BLUE_KEY_STONE) |
-                      (1 << ITEM_MAGENTA_KEY_STONE));
+                      (1 << ITEM_MAGENTA_KEY_STONE) | (1 << ITEM_BLOOD_PEARL));
     player_hatch_keys = 0;
     player_oil        = 0;   /* a new game holds no lantern and no oil */
 }
@@ -189,6 +191,7 @@ static void collect(ItemPickup *p) {
             current_weapon  = WEAPON_HELLUMINATOR;
             player_oil_refill();
             break;
+        case PICKUP_BLOOD_PEARL:  player_items |= (1 << ITEM_BLOOD_PEARL); break;
         default: break;
     }
     sound_play(SFX_PICKUP);

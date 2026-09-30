@@ -483,6 +483,16 @@
                      See tools/ADDING_AN_ITEM.txt. -->
                 <file name="HELLUMIN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\helluminator.tim"/>
                 <file name="VLVHNDL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\vlv_hndl.tim"/>
+                <!-- The Blood Pearl: pickup sprite AND menu icon, both loaded at
+                     startup. 32x32 4bpp at x912 y64 (Voff 64, U 64..95 of the
+                     x896 page - window-safe like the Hatch Key), CLUT (512,481).
+                     Source art: textures/catacombs/blood pearl.png (33x32,
+                     resampled to 32x32 and cut to 15 colours + transparent).
+                     4bpp because there is no free 256-word CLUT line left
+                     anywhere in VRAM; sixteen shades of red is plenty for a
+                     sphere. RESERVED in the Catacombs map (the only chapter it
+                     can be carried in). -->
+                <file name="BLDPRL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\bld_prl.tim"/>
                 <!-- Garden Stairs: the caged switchback stairway behind the
                      Attic Exit's unlocked door. XTDRCG/XTDROUTR are its two new
                      mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the

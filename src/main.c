@@ -2250,6 +2250,9 @@ static void update_current_area(GameState area) {
         update_crawlers();
         update_lumberers();
         cleavers_update();
+        /* The Blood Pearl on the cold sconce. Pickups are per-room here: a room
+           that does not call this can never have one collected. */
+        item_pickups_update();
 
         if (cleaver_corridor_ladder_triggered(lock)) {
             pending_area = STATE_NORTH_CHAMBER;

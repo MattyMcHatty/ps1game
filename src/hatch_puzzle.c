@@ -175,7 +175,8 @@ extern GameState current_area;
 #define HP_PICK_ICON          30
 #define HP_PICK_PAD            6
 #define HP_PICK_COLS           4
-#define HP_PICK_ROWS  ((MENU_ITEM_SLOTS + HP_PICK_COLS - 1) / HP_PICK_COLS)
+#define HP_PICK_ROWS  ((MENU_ITEM_CELLS + HP_PICK_COLS - 1) / HP_PICK_COLS)
+_Static_assert(HP_PICK_ROWS <= 3, "the picker panel fits three rows");
 #define HP_PICK_GRID_X  (HP_PICK_X + (HP_PICK_W - HP_PICK_COLS * HP_PICK_CELL) / 2)
 #define HP_PICK_GRID_Y  (HP_PICK_Y + 22)
 #define HP_PICK_NAME_Y  (HP_PICK_Y + HP_PICK_H - 16)
@@ -244,7 +245,7 @@ static const HpBeat HP_SCRIPT[] = {
 static HpState state     = HP_IDLE;
 static int     box_item  = -1;   /* MENU_SLOT_* in the item box, or -1 */
 static int     board_cur = 0;    /* 0 = the item box, 1 = USE          */
-static int     pick_cur  = 0;
+static int     pick_cur  = 0;  /* picker cursor: an inventory CELL */
 static int     timer     = 0;
 static int     drop_done = 0;    /* one frame, at the bottom of the shaft */
 
@@ -617,7 +618,9 @@ static int board_update(uint16_t btn) {
                 else
                     turn_key();
             } else {
-                pick_cur = box_item >= 0 ? box_item : 0;
+                menu_inventory_sync();   /* a puzzle grant must be in a cell */
+                pick_cur = menu_cell_of_item(box_item);
+                if (pick_cur < 0) pick_cur = 0;
                 state    = HP_PICKER;
             }
         }
@@ -627,7 +630,7 @@ static int board_update(uint16_t btn) {
     /* HP_PICKER: the stove's grid over every inventory slot. Choosing an item
        COPIES it into the box — nothing is spent until USE is pressed, and a
        player who backs out keeps everything. The trailing cells of the last row
-       may be past MENU_ITEM_SLOTS; the guard below keeps the cursor out of them
+       may be past MENU_ITEM_CELLS; the guard below keeps the cursor out of them
        and the draw loop never paints them. */
     {
         int row = pick_cur / HP_PICK_COLS, col = pick_cur % HP_PICK_COLS;
@@ -636,14 +639,14 @@ static int board_update(uint16_t btn) {
         if (pressed & PAD_LEFT)  { if (col > 0) col--; }
         if (pressed & PAD_RIGHT) { if (col < HP_PICK_COLS - 1) col++; }
         int next = row * HP_PICK_COLS + col;
-        if (next < MENU_ITEM_SLOTS && next != pick_cur) {
+        if (next < MENU_ITEM_CELLS && next != pick_cur) {
             pick_cur = next;
             sound_play(SFX_CURSOR);
         }
 
         if (pressed & PAD_CROSS) { sound_play(SFX_BACK); state = HP_BOARD; return 1; }
-        if ((pressed & PAD_CIRCLE) && menu_item_held(pick_cur)) {
-            box_item = pick_cur;
+        if ((pressed & PAD_CIRCLE) && menu_item_held(menu_item_at_cell(pick_cur))) {
+            box_item = menu_item_at_cell(pick_cur);
             state    = HP_BOARD;
             sound_play(SFX_SELECT);
         }
@@ -784,14 +787,15 @@ void hatch_puzzle_draw(RenderContext *ctx) {
         btn_prompt_draw(ctx, HP_PICK_X + 8, HP_PICK_Y + 6, "ITEMS", HP_OT_TEXT);
 
         int s;
-        for (s = 0; s < MENU_ITEM_SLOTS; s++) {
+        for (s = 0; s < MENU_ITEM_CELLS; s++) {
+            int it = menu_item_at_cell(s);
             int cx = HP_PICK_GRID_X + (s % HP_PICK_COLS) * HP_PICK_CELL;
             int cy = HP_PICK_GRID_Y + (s / HP_PICK_COLS) * HP_PICK_CELL;
             hp_rect(ctx, cx, cy, HP_PICK_CELL, HP_PICK_CELL, 35, 30, 45, HP_OT_PANEL);
             hp_outline(ctx, cx, cy, HP_PICK_CELL, HP_PICK_CELL, 80, 70, 100, HP_OT_LINE);
-            menu_draw_item_icon(ctx, s, cx + HP_PICK_PAD, cy + HP_PICK_PAD,
+            menu_draw_item_icon(ctx, it, cx + HP_PICK_PAD, cy + HP_PICK_PAD,
                                 HP_PICK_ICON, HP_OT_ICON);
-            hp_icon_count(ctx, s, cx + HP_PICK_PAD, cy + HP_PICK_PAD,
+            hp_icon_count(ctx, it, cx + HP_PICK_PAD, cy + HP_PICK_PAD,
                           HP_PICK_ICON);
         }
 
@@ -802,7 +806,7 @@ void hatch_puzzle_draw(RenderContext *ctx) {
         }
 
         {
-            const char *label = menu_item_held(pick_cur) ? menu_item_name(pick_cur)
+            const char *label = menu_item_held(menu_item_at_cell(pick_cur)) ? menu_item_name(menu_item_at_cell(pick_cur))
                                                          : "Empty";
             btn_prompt_draw(ctx, HP_PICK_X + 8, HP_PICK_NAME_Y, label, HP_OT_TEXT);
         }

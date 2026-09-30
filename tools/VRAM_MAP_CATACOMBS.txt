@@ -70,7 +70,7 @@ they are in the arena, or during the transition out of it:
                                  SCREEN over it (begin_loading_transition in
                                  src/main.c, and src/asag_boss.h). There is no
                                  door_anim in that path at all, so there is no
-                                 panel to survive across it â€” which is the one
+                                 panel to survive across it — which is the one
                                  thing this entry was ever about. A future exit
                                  that DOES animate a door puts its panel back on
                                  this list.
@@ -328,7 +328,7 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x704  IN USE by this bank: rusty.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
   x768  IN USE by this bank: lamashtu tablet.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
   x832  IN USE by this bank: catacomb inner door.tim   [also on this page, all re-uploaded on room entry: con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, stables wood.tim, xt_dr_cg.tim]
-  x896  BLOCKED - reserved: ghit.tim
+  x896  BLOCKED - reserved: bld_prl.tim, ghit.tim
 
 MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
   x320  BLOCKED - reserved: graveolver.tim   [also on this page, all re-uploaded on room entry: chain_128.tim, dbl_dr_rg.tim, frnt_dr.tim, greenhouse door.tim, red_crpt.tim]

@@ -107,7 +107,8 @@ static const struct { int x, y; } BOX_XY[XD_BOX_COUNT] = {
 #define PICK_COLS                 4   /* see the sizing note in stove_puzzle.c:
                                          the panel fits exactly 3 rows, so the
                                          grid widens as slots are added */
-#define PICK_ROWS  ((MENU_ITEM_SLOTS + PICK_COLS - 1) / PICK_COLS)
+#define PICK_ROWS  ((MENU_ITEM_CELLS + PICK_COLS - 1) / PICK_COLS)
+_Static_assert(PICK_ROWS <= 3, "the picker panel fits three rows");
 #define PICK_GRID_X   (PICK_X + (PICK_W - PICK_COLS * PICK_CELL) / 2)
 #define PICK_GRID_Y   (PICK_Y + 22)
 #define PICK_NAME_Y   (PICK_Y + PICK_H - 16)
@@ -149,9 +150,7 @@ static XdState state = XD_IDLE;
 static int box_item[XD_BOX_COUNT] = { -1, -1, -1 };
 static int board_cur   = XD_BOX_TOP;
 static int pick_target = XD_BOX_TOP;
-static int pick_cur    = 0;
-
-/* Pre-puzzle camera, restored on the way out. */
+static int pick_cur    = 0;  /* picker cursor: an inventory CELL */
 static int32_t save_cx, save_cy, save_cz, save_crot, save_cvy;
 static int32_t cam_anim_t = 0;
 static int32_t src_x, src_y, src_z, src_rot, rot_delta;
@@ -416,7 +415,9 @@ void exit_door_puzzle_update(void) {
             sound_play(SFX_SELECT);
             pick_target = board_cur;
             /* Open on the socket's current item, else the first slot. */
-            pick_cur = box_item[board_cur] >= 0 ? box_item[board_cur] : 0;
+            menu_inventory_sync();   /* a puzzle grant must be in a cell */
+            pick_cur = menu_cell_of_item(box_item[board_cur]);
+            if (pick_cur < 0) pick_cur = 0;
             state    = XD_PICKER;
         }
         return;
@@ -424,7 +425,7 @@ void exit_door_puzzle_update(void) {
 
     /* XD_PICKER: PICK_COLS-wide grid over every inventory slot. Choosing an item
        copies it into the socket — the player keeps it either way. The trailing
-       cells of the last row may be past MENU_ITEM_SLOTS; the guard below keeps
+       cells of the last row may be past MENU_ITEM_CELLS; the guard below keeps
        the cursor out of them and the draw loop never paints them. */
     {
         int row = pick_cur / PICK_COLS, col = pick_cur % PICK_COLS;
@@ -436,14 +437,14 @@ void exit_door_puzzle_update(void) {
         /* Blipped off the accepted cell, not the press: the guard below rejects
            a step into the last row's trailing cells, and the grid edges reject
            the rest. */
-        if (next < MENU_ITEM_SLOTS && next != pick_cur) {
+        if (next < MENU_ITEM_CELLS && next != pick_cur) {
             pick_cur = next;
             sound_play(SFX_CURSOR);
         }
 
         if (pressed & PAD_CROSS) { sound_play(SFX_BACK); state = XD_BOARD; return; }
-        if ((pressed & PAD_CIRCLE) && menu_item_held(pick_cur) && !slot_taken(pick_cur)) {
-            box_item[pick_target] = pick_cur;
+        if ((pressed & PAD_CIRCLE) && menu_item_held(menu_item_at_cell(pick_cur)) && !slot_taken(menu_item_at_cell(pick_cur))) {
+            box_item[pick_target] = menu_item_at_cell(pick_cur);
             state = XD_BOARD;
             /* There is no "confirm" control: the lock reads itself the moment
                all three sockets are filled, and stays silent unless the
@@ -559,17 +560,18 @@ void exit_door_puzzle_draw(RenderContext *ctx) {
         btn_prompt_draw(ctx, PICK_X + 8, PICK_Y + 6, "ITEMS", XD_OT_TEXT);
 
         int s;
-        for (s = 0; s < MENU_ITEM_SLOTS; s++) {
+        for (s = 0; s < MENU_ITEM_CELLS; s++) {
+            int it = menu_item_at_cell(s);
             int cx = PICK_GRID_X + (s % PICK_COLS) * PICK_CELL;
             int cy = PICK_GRID_Y + (s / PICK_COLS) * PICK_CELL;
             /* Items already in another socket get a red cell so it's clear why
                Circle won't take them. */
-            int taken = slot_taken(s);
+            int taken = it >= 0 && slot_taken(it);
             xd_rect(ctx, cx, cy, PICK_CELL, PICK_CELL,
                     taken ? 60 : 35, taken ? 25 : 30, taken ? 30 : 45, XD_OT_PANEL);
             xd_outline(ctx, cx, cy, PICK_CELL, PICK_CELL,
                        taken ? 140 : 80, taken ? 70 : 70, taken ? 70 : 100, XD_OT_LINE);
-            menu_draw_item_icon(ctx, s, cx + PICK_PAD, cy + PICK_PAD,
+            menu_draw_item_icon(ctx, it, cx + PICK_PAD, cy + PICK_PAD,
                                 PICK_ICON, XD_OT_ICON);
         }
 
@@ -582,8 +584,10 @@ void exit_door_puzzle_draw(RenderContext *ctx) {
         /* Name of the highlighted item, along the panel's bottom edge. */
         {
             const char *label = "Empty";
-            if (slot_taken(pick_cur))          label = "In another socket";
-            else if (menu_item_held(pick_cur)) label = menu_item_name(pick_cur);
+            int it = menu_item_at_cell(pick_cur);
+            if (it < 0)                        label = "Empty";
+            else if (slot_taken(it))           label = "In another socket";
+            else if (menu_item_held(it))       label = menu_item_name(it);
             btn_prompt_draw(ctx, PICK_X + 8, PICK_NAME_Y, label, XD_OT_TEXT);
         }
     }

@@ -28,24 +28,38 @@ void menu_draw(RenderContext *ctx);
 #define MENU_SLOT_MAGENTA_KEY_STONE 9
 #define MENU_SLOT_HATCH_KEY        10
 #define MENU_SLOT_VALVE_HANDLE     11
-#define MENU_ITEM_SLOTS           12   /* number of item IDs that exist */
+#define MENU_SLOT_BLOOD_PEARL      12
+#define MENU_ITEM_SLOTS           13   /* number of item IDs that exist */
 
 /* ---- Inventory order ------------------------------------------------------
    The ITEMS column is 3x4 = 12 CELLS, and which item ID lives in which cell is
    decided at runtime, not by the numbering above: a newly collected item drops
    into the first free cell and the player can rearrange the grid with Circle
-   (take) / Circle (place or swap). Past 12 items the layout itself has to grow
-   again — it went from 2x4 to 3x4, with smaller icons, when the Yellow Key
-   Stone made a 9th item.
+   (take) / Circle (place or swap). It went from 2x4 to 3x4, with smaller icons,
+   when the Yellow Key Stone made a 9th item.
 
    The arrangement is part of the save (SaveData.item_order), so it survives a
    save/load rather than snapping back to ID order.
 
-   >>> AND IT IS NOW EXACTLY FULL. <<< MENU_ITEM_SLOTS reached 12 with the Valve
-   Handle, so a player holding one of everything occupies every cell. A 13th item
-   needs the grid enlarged before it needs an ID — see tools/ADDING_AN_ITEM.txt,
-   which also records that 13 is the wall for the stove/piano/exit-door pickers
-   for an unrelated reason. */
+   >>> CELLS ARE NOT IDS, AND THERE ARE NOW MORE IDS THAN CELLS. <<< 13 items
+   exist against 12 cells, and that is deliberate: the grid only has to hold
+   what the player can carry AT ONCE, not everything the game contains. Every
+   Mansion and Garden item is consumed by its own puzzle before the catacomb
+   mouth (the stones at the exit door and the plinths, the pot and cube at the
+   stove, the keys in their locks, the valve in its pipe), so Chapter 3 starts
+   with only the two ammo types in the grid and its own items — the Blood Pearl
+   first — land in the space those left. Ammo and weapons are the only things
+   that carry across.
+
+   So the question for a new item is NOT "is MENU_ITEM_SLOTS past 12" but "can
+   the player be holding more than 12 things at one moment". If they can, the
+   grid has to grow; if not, just add the ID. menu_inventory_sync() places a
+   newly held item in the first free cell and has NOTHING to do if there is
+   none — the 13th thing held is silently left off the grid (only a debug grant
+   can do that today). See tools/ADDING_AN_ITEM.txt.
+
+   The puzzle PICKERS show these same 12 cells, in this same arrangement
+   (menu_item_at_cell below), which is why they never grow with the ID count. */
 #define MENU_ITEM_CELLS           12
 
 void menu_inventory_reset(void);   /* new game: empty every cell */
@@ -54,6 +68,12 @@ void menu_inventory_reset(void);   /* new game: empty every cell */
    pickup (so cells fill in collection order) and again when the menu opens, to
    catch grants and consumptions from elsewhere — puzzles, crates, debug grants. */
 void menu_inventory_sync(void);
+/* The pickers' view of the grid: the item ID in inventory cell `cell`, or -1
+   for an empty cell (or one out of range). Call menu_inventory_sync() when the
+   picker OPENS, so anything a puzzle granted since the last pickup or menu visit
+   is in a cell. menu_cell_of_item is the reverse, -1 if the item has no cell. */
+int  menu_item_at_cell(int cell);
+int  menu_cell_of_item(int item);
 /* Serialise/restore the arrangement: MENU_ITEM_CELLS bytes, each an item ID + 1
    with 0 for an empty cell. _load validates and then syncs, so a corrupt or
    stale blob degrades to the default first-free-cell order rather than lying

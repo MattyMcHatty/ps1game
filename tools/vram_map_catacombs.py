@@ -99,6 +99,9 @@ TEXDIR = os.path.join(ROOT, "textures")
 # two drifting copies of it would be worse than one.
 # ---------------------------------------------------------------------------
 RESERVED = dict(ASAG.RESERVED)
+# ...plus what only Chapter 3 can put in the inventory. The arena never sees
+# these: Asag is dead before the catacomb mouth opens.
+RESERVED["bld_prl.tim"] = "the Blood Pearl item (the Cleaver Corridor's sconce)"
 
 # ---------------------------------------------------------------------------
 # THE CHAPTER'S OWN ART. Eight room textures across five rooms, plus the two

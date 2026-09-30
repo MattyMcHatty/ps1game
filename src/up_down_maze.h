@@ -28,6 +28,7 @@
      WEST, UPPER   x=-300  z[-100,100]  y[-1400,-1000]   -> Catacombs Entry
      SOUTH, LOWER  z=-2100 x[500,700]   y[-400,0]        -> Incinerator Room
      NORTH, UPPER  z=3900  x[1100,1300] y[-1400,-1000]   -> Cleaver Corridor
+                   (locked from the corridor side until FLAG_CLEAVER_CORR_DOOR)
      east, upper   x=3900  z[-100,100]                   not built
      south, upper  z=-2100 x[1700,1900]                  not built
      east, lower   x=3900  z[3500,3700] y[-400,0]        not built

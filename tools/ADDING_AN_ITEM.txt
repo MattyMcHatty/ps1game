@@ -272,37 +272,58 @@ giving it one would silently rescale every existing swing.
                count, which travels with the icon rather than sitting in a fixed
                cell.
 
-  GRID CAPACITY: >>> THE GRID IS NOW EXACTLY FULL. <<< MENU_ITEM_CELLS is 12
-  (3 cols x 4 rows) and the Valve Handle made MENU_ITEM_SLOTS 12 as well, so a
-  player holding one of everything fills every cell and there is no spare. A
-  THIRTEENTH item cannot simply be appended: the grid itself has to grow first
-  (it went 2x4 -> 3x4, with smaller icons, when the Yellow Key Stone made a 9th),
-  and MENU_ITEM_CELLS must keep matching ITEM_COLS * GRID_ROWS — menu.c
-  static-asserts it. Note 13 is also the wall for the three PICKERS below, for a
-  completely unrelated reason, so both have to be answered at once.
+  GRID CAPACITY IS ABOUT WHAT IS HELD AT ONCE, NOT HOW MANY ITEMS EXIST.
+  MENU_ITEM_CELLS is 12 (3 cols x 4 rows) and MENU_ITEM_SLOTS is 13 — MORE IDS
+  THAN CELLS, deliberately. The grid only ever shows what the player is
+  carrying, and the chapters do not overlap:
 
-  >>> AND CHECK THE THREE PICKERS' COLUMN COUNT. <<< The stove, piano and
-  exit-door pickers each lay MENU_ITEM_SLOTS out in a PICK_COLS x PICK_ROWS grid
-  whose ROW COUNT IS DERIVED, and their panel fits EXACTLY THREE ROWS (grid top
-  at PICK_Y+22 = 52, three 42px rows end at 178, the item name sits at 182, the
-  panel ends at 198 and the controls line is at 206). A 4th row silently draws
-  over both. So a new slot that pushes ceil(SLOTS/PICK_COLS) past 3 needs
-  PICK_COLS WIDENED in all three files, never a row added — it went 2 -> 3 at 9
-  slots and 3 -> 4 when the Magenta Key Stone made 10. At 4 columns the grid is
-  168px, exactly PICK_W, so 13 slots is the next wall and that one needs a real
-  resize.
+    MANSION + GARDEN   every item is CONSUMED by its own puzzle before the
+                       catacomb mouth: the front door key in its lock, pot and
+                       cube at the stove, the four key stones at the exit door
+                       and the plinths, the piano key, the valve handle, the
+                       hatch keys. None of them reaches Chapter 3.
+    CATACOMBS          starts with only the two AMMO types in the grid (weapons
+                       live in the other column), so its own items (the Blood
+                       Pearl first) land in the cells the old ones left.
+
+  So the question for a new item is: CAN THE PLAYER BE HOLDING MORE THAN 12
+  THINGS AT ONE MOMENT? Count ammo (2) plus every item of the SAME CHAPTER that
+  can be held together — not the whole game. If the answer is no, just add the
+  ID; nothing about the grid or the pickers changes. If it is yes, the grid has
+  to grow, which changes SaveData.item_order (SAVE_VERSION bump) and the
+  pickers' three-row panel (below) at the same time.
+
+  >>> IF A NEW ITEM IS NOT CONSUMED, SAY SO AND RECOUNT. <<< The whole scheme
+  rests on every item leaving the inventory before the next chapter. A Mansion
+  item that survived into the Catacombs would be one more thing held at once.
+
+  When the grid IS full, menu_inventory_sync() places nothing — the 13th thing
+  held is silently absent from the grid (today only a debug grant can do that).
+
+  THE PICKERS SHOW THE SAME 12 CELLS. Seven boards (stove, piano, exit door,
+  hatch, valve, keystone plinths, incinerator panel) open an item picker, and
+  each lays out the INVENTORY'S CELLS — menu_item_at_cell(c), in the pause
+  menu's own arrangement — in a fixed 4 x 3 grid, not one cell per item ID. The
+  cursor (pick_cur) is a CELL index; the item under it is
+  menu_item_at_cell(pick_cur), -1 for an empty cell. Each picker calls
+  menu_inventory_sync() as it opens, so a puzzle grant is already in a cell.
+  Their panel fits EXACTLY THREE ROWS (grid top at PICK_Y+22 = 52, item name at
+  182, panel end at 198, controls line at 206) and each file static-asserts
+  PICK_ROWS <= 3, so growing MENU_ITEM_CELLS past 12 fails the build there
+  rather than drawing a 4th row over the name. A new item ID needs NOTHING in
+  any picker.
 
   ARRANGEMENT PERSISTENCE: the cell layout is in the save (SaveData.item_order,
   one byte per cell holding the item ID + 1). menu_inventory_load validates it
   and then syncs, so a blob that disagrees with what is held degrades to the
   default first-free-cell order instead of showing an item the player lost.
 
-  >>> THE STOVE PUZZLE SHARES THIS SLOT TABLE. <<<
-  src/stove_puzzle.c iterates MENU_ITEM_SLOTS to build its ingredient picker, so
-  a new slot appears there too. Its PICK_ROWS is computed from MENU_ITEM_SLOTS
-  and so adjusts itself. Only the pot+cube pair is a valid combination, so a new
-  item is selectable but inert — the same as Standard Rounds already were.
-  Harmless, but look at the picker and confirm rather than assuming.
+  >>> EVERY PICKER OFFERS EVERY HELD ITEM. <<< A new item is selectable in the
+  stove, piano, exit-door and other boards the moment it is held. Each board
+  only accepts its own answer, so it is inert there — the same as Standard
+  Rounds always were. The INCINERATOR is the exception: it takes anything, and
+  src/incinerator.c's slot_take()/slot_give() are switches by MENU_SLOT_*. A new
+  item needs a case in BOTH, or putting it in the hopper destroys it.
 
 
 ##########################################################################
@@ -339,6 +360,19 @@ btn_prompt_draw(ctx, x, y, str, 0) — it renders via FntSort into the OT.
 
                  No save-blob cost: the ItemPickup array is fixed-size, so a new
                  KIND is free. A new inventory FIELD is not — see below.
+
+  >>> THE ROOM MUST UPDATE AND DRAW PICKUPS ITSELF. <<< There is no global
+  pickup pass. Each room's block in src/main.c calls item_pickups_update() and
+  each room's *_draw() calls item_pickups_draw(ctx). A room that has never held
+  a pickup has NEITHER call, and a spawn into it is silently invisible AND
+  uncollectable — the Blood Pearl shipped that way into the Cleaver Corridor,
+  the first Chapter 3 room with a pickup. grep both names for the room before
+  placing anything:
+
+      Select-String src\main.c, src\<room>.c -Pattern "item_pickups_"
+
+  Draw it where the room's 128 texture window is live: after any enemy draw
+  that brackets its own window (crawlers, lumberers), which restores it.
 
   src/savegame.h >>> ANY NEW INVENTORY FIELD CHANGES SaveData. <<<
                  Add the field and BUMP SAVE_VERSION with a note saying what
@@ -422,12 +456,19 @@ In-game (needs an emulator; say so plainly if you have not run it):
 3. PER-TYPE BEHAVIOUR CHOSEN BY SNIFFING A STRING. `name[0] == 'F'` to pick the
    log wording. Put it in the table.
 
-4. FORGETTING THE SHARED SLOT TABLE. MENU_ITEM_SLOTS also drives the stove,
-   piano and exit-door pickers. Those list ITEM IDS (all of them, held or not),
-   which is why they were unaffected when the menu grid stopped being
-   ID-ordered — do not "fix" them to read item_cell[].
+4. GROWING THE GRID BECAUSE MENU_ITEM_SLOTS PASSED 12. The Blood Pearl was the
+   13th item and the first cut made the menu 3x5 and squeezed the pickers to
+   5 columns of smaller icons. Neither was needed: nothing from the Mansion or
+   Garden survives into the Catacombs, so 12 cells hold everything the player
+   can carry at once. Count what is held TOGETHER (STEP 6), not what exists.
+   (The pickers used to list ITEM IDS, which is what made them grow with the
+   count; they list the inventory's cells now, and must not go back.)
 
 5. ADDING AN INVENTORY FIELD WITHOUT BUMPING SAVE_VERSION. Old saves then load
    with the new field read from whatever those bytes used to mean.
 
 6. NOT CLEARING A NEW FIELD IN item_pickups_reset(). It survives "new game".
+
+7. PLACING A PICKUP IN A ROOM THAT NEVER CALLS item_pickups_update/_draw. It
+   spawns, and nothing ever draws it or lets it be taken (STEP 8). Every
+   Chapter 3 room lacked both calls until the Blood Pearl.

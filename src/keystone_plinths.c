@@ -216,7 +216,8 @@ static const struct { int16_t push; int16_t scale; uint8_t level; } GLOW[KP_LAYE
 #define PICK_ICON      30
 #define PICK_PAD        6
 #define PICK_COLS       4
-#define PICK_ROWS  ((MENU_ITEM_SLOTS + PICK_COLS - 1) / PICK_COLS)
+#define PICK_ROWS  ((MENU_ITEM_CELLS + PICK_COLS - 1) / PICK_COLS)
+_Static_assert(PICK_ROWS <= 3, "the picker panel fits three rows");
 #define PICK_GRID_X   (PICK_X + (PICK_W - PICK_COLS * PICK_CELL) / 2)
 #define PICK_GRID_Y   (PICK_Y + 22)
 #define PICK_NAME_Y   (PICK_Y + PICK_H - 16)
@@ -248,7 +249,7 @@ static uint8_t ptime[KP_COUNT];
 
 static int16_t top_level;     /* 0..256: the keystone's white top face */
 static int     cur      = 0;  /* the plinth the picker is filling      */
-static int     pick_cur = 0;  /* picker cursor: MENU_SLOT_*            */
+static int     pick_cur = 0;  /* picker cursor: an inventory CELL */
 static int     hold_timer = 0;
 static int     top_timer  = 0;
 
@@ -335,7 +336,10 @@ static void start_puzzle(int i) {
     }
 
     cur        = i;
-    pick_cur   = PLINTH[i].item;   /* open on the stone this plinth wants */
+    /* Open on the cell holding the stone this plinth wants, else the first. */
+    menu_inventory_sync();
+    pick_cur   = menu_cell_of_item(PLINTH[i].item);
+    if (pick_cur < 0) pick_cur = 0;
     cam_anim_t = 0;
     state      = KP_INTRO;
 }
@@ -503,7 +507,7 @@ void keystone_plinths_update(void) {
     }
 
     /* KP_PICKER: the whole inventory in a PICK_COLS-wide grid. The trailing cells
-       of the last row may be past MENU_ITEM_SLOTS; the guard below keeps the
+       of the last row may be past MENU_ITEM_CELLS; the guard below keeps the
        cursor out of them and the draw loop never paints them. */
     {
         uint16_t pressed = btn & ~kp_btn_prev;
@@ -517,7 +521,7 @@ void keystone_plinths_update(void) {
             if (pressed & PAD_RIGHT) { if (col < PICK_COLS - 1) col++; }
             {
                 int next = row * PICK_COLS + col;
-                if (next < MENU_ITEM_SLOTS && next != pick_cur) {
+                if (next < MENU_ITEM_CELLS && next != pick_cur) {
                     pick_cur = next;
                     sound_play(SFX_CURSOR);
                 }
@@ -525,8 +529,8 @@ void keystone_plinths_update(void) {
         }
 
         if (pressed & PAD_CROSS) { sound_play(SFX_BACK); exit_puzzle(); return; }
-        if ((pressed & PAD_CIRCLE) && menu_item_held(pick_cur)) {
-            if (pick_cur == PLINTH[cur].item) {
+        if ((pressed & PAD_CIRCLE) && menu_item_held(menu_item_at_cell(pick_cur))) {
+            if (menu_item_at_cell(pick_cur) == PLINTH[cur].item) {
                 place_stone(cur);
             } else {
                 /* Refused rather than swallowed: the player has to be told the
@@ -820,12 +824,13 @@ static void draw_picker(RenderContext *ctx) {
     kp_outline(ctx, PICK_X, PICK_Y, PICK_W, PICK_H, 80, 80, 80, KP_OT_LINE);
     btn_prompt_draw(ctx, PICK_X + 8, PICK_Y + 6, "PLACE AN ITEM", KP_OT_TEXT);
 
-    for (s = 0; s < MENU_ITEM_SLOTS; s++) {
+    for (s = 0; s < MENU_ITEM_CELLS; s++) {
+        int it = menu_item_at_cell(s);
         int cx = PICK_GRID_X + (s % PICK_COLS) * PICK_CELL;
         int cy = PICK_GRID_Y + (s / PICK_COLS) * PICK_CELL;
         kp_rect(ctx, cx, cy, PICK_CELL, PICK_CELL, 35, 30, 45, KP_OT_PANEL);
         kp_outline(ctx, cx, cy, PICK_CELL, PICK_CELL, 80, 70, 100, KP_OT_LINE);
-        menu_draw_item_icon(ctx, s, cx + PICK_PAD, cy + PICK_PAD,
+        menu_draw_item_icon(ctx, it, cx + PICK_PAD, cy + PICK_PAD,
                             PICK_ICON, KP_OT_ICON);
     }
 
@@ -836,7 +841,7 @@ static void draw_picker(RenderContext *ctx) {
     }
 
     btn_prompt_draw(ctx, PICK_X + 8, PICK_NAME_Y,
-                    menu_item_held(pick_cur) ? menu_item_name(pick_cur) : "Empty",
+                    menu_item_held(menu_item_at_cell(pick_cur)) ? menu_item_name(menu_item_at_cell(pick_cur)) : "Empty",
                     KP_OT_TEXT);
     btn_prompt_draw(ctx, 8, 206, BTN_CIRCLE " - Place  " BTN_CROSS " - Back",
                     KP_OT_TEXT);
