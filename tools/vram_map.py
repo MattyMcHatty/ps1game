@@ -828,6 +828,23 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim",    "legs.tim"),
     ("trck_clue.tim",             "legs.tim"),
     ("trees.tim",                 "legs.tim"),
+    #   bones.tim -> x640 y0, THE ROOM OF BONES' mound, ON THE SAME PAGE AND
+    # PALETTE (672,501) - the legs' terms exactly, and a fourth owner taking
+    # turns. Bones are drawn only in the Room of Bones, and the Rooms of Arms,
+    # Heads and Legs (and the Meat Plant, for the legs) each put their own
+    # pixels and CLUT line back on entry.
+    ("arms.tim",                  "bones.tim"),
+    ("heads.tim",                 "bones.tim"),
+    ("legs.tim",                  "bones.tim"),
+    ("asag.tim",                  "bones.tim"),
+    ("chnlnk.tim",                "bones.tim"),
+    ("gravel_texture.tim",        "bones.tim"),
+    ("greenhouse.tim",            "bones.tim"),
+    ("hatch.tim",                 "bones.tim"),
+    ("plinth_rg.tim",             "bones.tim"),
+    ("poison_flower_base.tim",    "bones.tim"),
+    ("trck_clue.tim",             "bones.tim"),
+    ("trees.tim",                 "bones.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

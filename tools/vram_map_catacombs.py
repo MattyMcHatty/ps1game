@@ -149,6 +149,7 @@ BANK = {
     "arms.tim":                 "the Room of Arms' arms field   x640 y0",
     "heads.tim":                "Room of Heads' piles (=arms pg) x640 y0",
     "legs.tim":                 "Room of Legs' pile (=arms pg)  x640 y0",
+    "bones.tim":                "Room of Bones' mound (=arms pg) x640 y0",
     "oil_container.tim":        "the oil dispenser              x896 y256",
     "crib.tim":                 "the Room of Arms' crib         x576 y0",
     "rusty.tim":                "The Pit's shaft ironwork       x704 y0",

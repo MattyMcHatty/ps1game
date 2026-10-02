@@ -63,6 +63,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   anzu2.tim            8       608     0    64    64     0   256,484
   arms.tim             8       640     0   128   128     0   672,501
   asag.tim             8       640     0   128   128     0   672,501
+  bones.tim            8       640     0   128   128     0   672,501
   chnlnk.tim           4       640     0   128   128     0   160,511
   gravel_texture.tim   4       640     0   128   128     0   0,480
   greenhouse.tim       8       640     0   128   128     0   672,497
@@ -265,6 +266,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=500  x[256,512)  mushy_closed.tim
   y=501  x[672,928)  arms.tim
   y=501  x[672,928)  asag.tim
+  y=501  x[672,928)  bones.tim
   y=501  x[0,16)  brick_wall.tim
   y=501  x[672,928)  heads.tim
   y=501  x[672,928)  legs.tim
@@ -344,6 +346,7 @@ OVERLAP CHECK
   anzu5.tim                                crib.tim             time-shared (streaming)
   anzu6.tim                                rusty.tim            time-shared (streaming)
   arms.tim                                 asag.tim             time-shared (streaming)
+  arms.tim                                 bones.tim            time-shared (streaming)
   arms.tim                                 chnlnk.tim           time-shared (streaming)
   arms.tim                                 gravel_texture.tim   time-shared (streaming)
   arms.tim                                 greenhouse.tim       time-shared (streaming)
@@ -354,6 +357,7 @@ OVERLAP CHECK
   arms.tim                                 poison_flower_base.tim time-shared (streaming)
   arms.tim                                 trck_clue.tim        time-shared (streaming)
   arms.tim                                 trees.tim            time-shared (streaming)
+  asag.tim                                 bones.tim            time-shared (streaming)
   asag.tim                                 chnlnk.tim           time-shared (streaming)
   asag.tim                                 gravel_texture.tim   time-shared (streaming)
   asag.tim                                 greenhouse.tim       time-shared (streaming)
@@ -375,6 +379,16 @@ OVERLAP CHECK
   bed.tim                                  plinth_diamond.tim   time-shared (streaming)
   bed.tim                                  xt_dr_cmplt.tim      time-shared (streaming)
   bed.tim                                  xt_dr_lckd.tim       time-shared (streaming)
+  bones.tim                                chnlnk.tim           time-shared (streaming)
+  bones.tim                                gravel_texture.tim   time-shared (streaming)
+  bones.tim                                greenhouse.tim       time-shared (streaming)
+  bones.tim                                hatch.tim            time-shared (streaming)
+  bones.tim                                heads.tim            time-shared (streaming)
+  bones.tim                                legs.tim             time-shared (streaming)
+  bones.tim                                plinth_rg.tim        time-shared (streaming)
+  bones.tim                                poison_flower_base.tim time-shared (streaming)
+  bones.tim                                trck_clue.tim        time-shared (streaming)
+  bones.tim                                trees.tim            time-shared (streaming)
   bookshelf.tim                            grss_gs.tim          time-shared (streaming)
   bookshelf.tim                            stn_stl.tim          time-shared (streaming)
   bookshelf.tim                            strs.tim             time-shared (streaming)

@@ -138,6 +138,9 @@ TexBank area_bank_of(GameState area) {
     /* THE MEAT PLANT owns nothing: rusty, the legs and the inner door, each
        through its owner's narrow uploader. */
     case STATE_MEAT_PLANT:
+    /* THE ROOM OF BONES owns BONES.TIM (on the arms' page, the legs' terms) and
+       borrows the rest. */
+    case STATE_ROOM_OF_BONES:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -159,7 +162,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_CRUCIFIX_CORRIDOR ||
            area == STATE_SLIDING_BARS_ROOM ||
            area == STATE_ROOM_OF_LEGS ||
-           area == STATE_MEAT_PLANT;
+           area == STATE_MEAT_PLANT ||
+           area == STATE_ROOM_OF_BONES;
 }
 
 /* ---- The prop models -------------------------------------------------------

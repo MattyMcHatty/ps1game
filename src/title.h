@@ -203,6 +203,13 @@ typedef enum {
                                 mass of legs standing in the middle. See
                                 src/meat_plant.h. Appended, not inserted: saves
                                 store raw enum values. */
+    STATE_ROOM_OF_BONES,     /* THE ROOM OF BONES, through the door at the back
+                                of the Meat Plant's west alcove. Chapter 3's
+                                fourteenth room: the Room of Arms' octagon,
+                                flat under a y=-800 vault, a mound of bones in
+                                the middle, a crib and one door. See
+                                src/room_of_bones.h. Appended, not inserted:
+                                saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

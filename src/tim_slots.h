@@ -91,6 +91,10 @@
 #define TIM_TPAGE_BLKYSTN  0x0099
 #define TIM_CLUT_BLKYSTN   0x78b0
 
+/* bones.tim       8bpp  VRAM ( 640,  0)  \TEXCTCMB\BONES.TIM */
+#define TIM_TPAGE_BONES    0x008a
+#define TIM_CLUT_BONES     0x7d6a
+
 /* bookshelf.tim   4bpp  VRAM ( 320,  0)  \TEX\BOOKSHLF.TIM */
 #define TIM_TPAGE_BOOKSHLF 0x0005
 #define TIM_CLUT_BOOKSHLF  0x7fc1

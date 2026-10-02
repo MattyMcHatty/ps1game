@@ -8,10 +8,10 @@ PER-AREA RESIDENT SET
   RABISU        210944 bytes (206 KB)   6 modules
   WEST_GARDEN   262144 bytes (256 KB)   7 modules
   ASAG               0 bytes (  0 KB)   0 modules
-  CATACOMBS     395264 bytes (386 KB)  14 modules
+  CATACOMBS     413696 bytes (404 KB)  15 modules
 
   peak bank         487424 bytes (476 KB)  <- this is what sets free-at-rest
-  all at once      1181696 bytes (1154 KB)  <- what the pre-bank design held
+  all at once      1200128 bytes (1172 KB)  <- what the pre-bank design held
 
 DECLARED vs REQUIRED
   catacombs_entry        73728  CATACOMBS
@@ -21,38 +21,39 @@ DECLARED vs REQUIRED
   garden_stairs          57344  MANSION|GARDEN|RABISU|WEST_GARDEN
   delivery_area          51200  MANSION|GARDEN|RABISU|WEST_GARDEN
   stables                51200  WEST_GARDEN
-  spider                 36864  MANSION|GARDEN|RABISU
   trick_drawers          36864  MANSION
   attic_exit             36864  MANSION
+  spider                 36864  MANSION|GARDEN|RABISU
   garden_courtyard       36864  GARDEN|RABISU|WEST_GARDEN
   rafflesia              36864  GARDEN|WEST_GARDEN
   fountain_square        36864  GARDEN
-  piano_props            30720  MANSION
   conservatory           30720  MANSION|GARDEN
-  maze_one               28672  GARDEN
+  piano_props            30720  MANSION
   rear_gate              28672  GARDEN
+  maze_one               28672  GARDEN
   outside_catacombs      24576  GARDEN
-  hall_2f                20480  MANSION
   zombie                 20480  MANSION
+  hall_2f                20480  MANSION
   attic_stairwell        18432  MANSION
-  master_bedroom         18432  MANSION
   dresser                18432  MANSION
-  maze_two               18432  GARDEN
+  master_bedroom         18432  MANSION
   keystone_maze          18432  GARDEN
   rabisu                 18432  GARDEN|RABISU|WEST_GARDEN
-  incinerator            18432  CATACOMBS
-  north_chamber          18432  CATACOMBS
-  oil_dispenser          18432  CATACOMBS
-  sconce                 18432  CATACOMBS
+  maze_two               18432  GARDEN
+  room_of_bones          18432  CATACOMBS
   room_of_heads          18432  CATACOMBS
-  the_pit                18432  CATACOMBS
+  oil_dispenser          18432  CATACOMBS
   room_of_arms           18432  CATACOMBS
   room_of_legs           18432  CATACOMBS
+  incinerator            18432  CATACOMBS
+  sconce                 18432  CATACOMBS
   crib                   18432  CATACOMBS
+  north_chamber          18432  CATACOMBS
+  the_pit                18432  CATACOMBS
   reception              10240  MANSION
-  east_stairwell         10240  MANSION|GARDEN|RABISU|WEST_GARDEN
-  piano_room             10240  MANSION
   concrete_props         10240  MANSION
+  piano_room             10240  MANSION
+  east_stairwell         10240  MANSION|GARDEN|RABISU|WEST_GARDEN
   bars                   10240  CATACOMBS
   creep                   6144  CATACOMBS
 

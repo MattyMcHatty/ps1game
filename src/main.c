@@ -97,6 +97,7 @@
 #include "sliding_bars_room.h"
 #include "room_of_legs.h"
 #include "meat_plant.h"
+#include "room_of_bones.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -352,6 +353,7 @@ static void load_area_geometry(GameState area) {
         case STATE_SLIDING_BARS_ROOM: sliding_bars_room_load_geometry(); break;
         case STATE_ROOM_OF_LEGS:     room_of_legs_load_geometry(); break;
         case STATE_MEAT_PLANT:       meat_plant_load_geometry(); break;
+        case STATE_ROOM_OF_BONES:    room_of_bones_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2373,10 +2375,11 @@ static void update_current_area(GameState area) {
         /* THE MEAT PLANT - Chapter 3's thirteenth room: the shared wall routine
            and ONE flat floor zone over a hall with four alcoves, a C-shaped mass
            of legs standing in the middle of it. multi_level is 0 and nothing is
-           shoot-over: the drawn mass is taller than its 600 proxy walls. One
-           door wired, the west one back to the Sliding Bars Room; the doors at
-           the backs of the west and south alcoves are drawn and sealed. No enemies seeded; both Chapter 3 enemy updates
-           are called anyway, on the Tomb's argument. */
+           shoot-over: the drawn mass is taller than its 600 proxy walls. Two
+           doors wired, the west one back to the Sliding Bars Room and the one
+           at the back of the west alcove on to the Room of Bones; the south
+           alcove's is drawn and sealed. No enemies seeded; both Chapter 3 enemy
+           updates are called anyway, on the Tomb's argument. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
@@ -2387,6 +2390,40 @@ static void update_current_area(GameState area) {
 
         if (meat_plant_west_door_triggered(lock)) {
             pending_area = STATE_SLIDING_BARS_ROOM;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the WEST-ALCOVE door, into the Room of Bones. Called
+           unconditionally for its edge state; the two doors are 2800 apart, so
+           they can never both be in reach on one frame. */
+        if (meat_plant_west_alcove_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_ROOM_OF_BONES;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_ROOM_OF_BONES) {
+        /* THE ROOM OF BONES - Chapter 3's fourteenth room: the shared wall
+           routine, ONE flat floor zone and one door, the Room of Legs' shape.
+           multi_level is 0 (three floor slabs of one plane). The mound of bones
+           in the middle is proxy walls 600 tall under a drawn mound 150-550
+           tall, so the gun shoots over them.
+
+           ONE PROP: the chapter's fourth CRIB, across the ring on the west side.
+           Its state machine and the Creeps it pours run from the area-tagged
+           cribs_update() / update_creeps() in the shared block, and its box
+           collides through apply_collision_reception, so nothing crib-specific
+           is needed here. No enemies seeded; both Chapter 3 enemy updates are
+           called anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (room_of_bones_east_door_triggered(lock)) {
+            pending_area = STATE_MEAT_PLANT;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -2861,6 +2898,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         room_of_legs_draw(ctx);
     else if (area == STATE_MEAT_PLANT)
         meat_plant_draw(ctx);
+    else if (area == STATE_ROOM_OF_BONES)
+        room_of_bones_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3292,6 +3331,14 @@ int main(int argc, const char **argv) {
                                      borrowed headers (rusty, legs, inner door)
                                      and NO registration - it owns nothing. No
                                      CD access. */
+    loading_screen_pump(&ctx);
+    room_of_bones_load_assets();  /* CHAPTER 3's fourteenth room: two borrowed
+                                     headers (cobble, inner door) and its OWN
+                                     deferred registration for BONES.TIM, on the
+                                     arms' page and palette, the legs' terms.
+                                     Deferred, so no CD access here. Above the
+                                     owner's call below, for the same reason as
+                                     the Room of Heads' line. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4112,6 +4159,14 @@ int main(int argc, const char **argv) {
                    Catacombs Entry's. Same guarantee and same silent failure mode
                    as the branches around it. */
                 meat_plant_upload_textures();
+            } else if (pending_area == STATE_ROOM_OF_BONES) {
+                /* THE ROOM OF BONES. Cobble and the inner door through the
+                   Catacombs Entry's narrow uploaders, plus its OWN - BONES.TIM
+                   on x640 y0, the ROOM OF ARMS' page and palette (the heads' and
+                   the legs' too), which each of those rooms' branches puts back
+                   on the way in there. Same guarantee and same silent failure
+                   mode as the branches around it. */
+                room_of_bones_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4823,9 +4878,19 @@ int main(int argc, const char **argv) {
                 room_of_legs_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_MEAT_PLANT) {
-                /* ONE ARRIVAL, the west door, so meat_plant_init()'s default
-                   spawn is also the only one. */
+                /* TWO ARRIVALS. meat_plant_init()'s default is the west door,
+                   from the Sliding Bars Room; back from the Room of Bones it is
+                   the west-alcove door. Keyed on current_area, the room being
+                   LEFT and not a route, so a debug jump or a title load still
+                   lands at the west door. */
                 meat_plant_init();
+                if (current_area == STATE_ROOM_OF_BONES)
+                    meat_plant_spawn_west_alcove();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_ROOM_OF_BONES) {
+                /* ONE ARRIVAL, the east door, so room_of_bones_init()'s default
+                   spawn is also the only one. */
+                room_of_bones_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5195,7 +5260,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_CRUCIFIX_CORRIDOR ||
                    game_state == STATE_SLIDING_BARS_ROOM ||
                    game_state == STATE_ROOM_OF_LEGS ||
-                   game_state == STATE_MEAT_PLANT) {
+                   game_state == STATE_MEAT_PLANT ||
+                   game_state == STATE_ROOM_OF_BONES) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {
