@@ -122,6 +122,7 @@
 #include "crib.h"
 #include "bars.h"
 #include "creep.h"
+#include "maggot.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "tentacle.h"
@@ -234,6 +235,8 @@ void reset_game(RenderContext *ctx) {
                               transient, exactly like the webs below
                               (src/creep.h). world_leave() makes the same call
                               on every room change. */
+    maggots_reset();       /* ...and every Maggot, on the creeps' terms
+                              (src/maggot.h); this also silences the buzz. */
     rafflesias_reset();
     mushrooms_reset();
     living_statues_reset();
@@ -523,6 +526,7 @@ static void update_current_area(GameState area) {
         update_spiders();
         update_crawlers();
         update_lumberers();
+        update_maggots();       /* ...and the maggots keep biting */
         update_rabisus();
         update_rafflesias();    /* ...and the garden flowers keep gripping */
         update_mushrooms();     /* ...and the Mushroom Head keeps hunting  */
@@ -540,6 +544,7 @@ static void update_current_area(GameState area) {
         update_spiders();
         update_crawlers();
         update_lumberers();
+        update_maggots();       /* ...and the maggots keep biting */
         update_rabisus();
         update_rafflesias();
         update_mushrooms();
@@ -561,6 +566,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_INCINERATOR_ROOM && incinerator_panel_active()) {
         update_crawlers();
         update_lumberers();
+        update_maggots();       /* ...and the maggots keep biting */
         player_status_update();
         incinerator_room_machine_update(1);
         incinerator_panel_update();
@@ -594,6 +600,7 @@ static void update_current_area(GameState area) {
         room_of_arms_examine_update(0);
         update_crawlers();
         update_lumberers();
+        update_maggots();       /* ...and the maggots keep biting */
         player_status_update();
         update_particles();
         return;
@@ -608,6 +615,7 @@ static void update_current_area(GameState area) {
         the_pit_descent_update(0);
         update_crawlers();
         update_lumberers();
+        update_maggots();       /* ...and the maggots keep biting */
         player_status_update();
         update_particles();
         return;
@@ -621,6 +629,7 @@ static void update_current_area(GameState area) {
         update_spiders();
         update_crawlers();
         update_lumberers();
+        update_maggots();       /* ...and the maggots keep biting */
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -644,6 +653,7 @@ static void update_current_area(GameState area) {
         update_spiders();
         update_crawlers();
         update_lumberers();
+        update_maggots();       /* ...and the maggots keep biting */
         update_rabisus();
         update_rafflesias();
         update_mushrooms();
@@ -780,6 +790,7 @@ static void update_current_area(GameState area) {
         update_spiders();
         update_crawlers();
         update_lumberers();
+        update_maggots();       /* ...and the maggots keep biting */
         update_rabisus();
         item_pickups_update();
         sml_meds_update();
@@ -876,6 +887,7 @@ static void update_current_area(GameState area) {
         update_spiders();
         update_crawlers();
         update_lumberers();
+        update_maggots();       /* ...and the maggots keep biting */
         update_rabisus();
         update_tentacles();    /* the four guarding the north levers */
         update_rafflesias();
@@ -899,6 +911,7 @@ static void update_current_area(GameState area) {
         update_spiders();
         update_crawlers();
         update_lumberers();
+        update_maggots();       /* ...and the maggots keep biting */
         update_rabisus();
         player_status_update();
         east_hall_quake_update();
@@ -2847,6 +2860,10 @@ static void update_current_area(GameState area) {
        this block, so the one call serves every room; and BELOW the NO_AI switch
        because, unlike the crib that made them, they are monsters. */
     update_creeps();
+    /* The Maggots — area-tagged, below the NO_AI switch, on the creeps' terms.
+       Also in every camera-locked branch above that updates the crawlers, so a
+       swarm keeps biting through a puzzle. */
+    update_maggots();
     webs_update();            /* spider webs in flight (area-tagged, so free
                                  in rooms that have none) */
     player_status_update();   /* ticks the web's poison timer down */
@@ -3578,6 +3595,14 @@ int main(int argc, const char **argv) {
                                  pairing it against a donor. */
     loading_screen_pump(&ctx);
     creeps_init();
+    loading_screen_pump(&ctx);
+    maggots_load_textures();  /* Chapter 3's fourth monster (src/maggot.h).
+                                 REGISTERED here, deferred to TEXBANK_CATACOMBS,
+                                 uploaded on entry to every Catacombs room by
+                                 the STATE_LOADING line beside the lumberer's.
+                                 Its page x[672,704) y[320,384) is owned
+                                 outright, so nothing has to be put back. */
+    maggots_init();
     loading_screen_pump(&ctx);
     rafflesias_load_assets();  /* garden flower sprites: REGISTERED here, uploaded
                                   on entry to the Outside Catacombs (they sit in
@@ -4404,6 +4429,12 @@ int main(int argc, const char **argv) {
                 lumberers_upload_textures();
             else
                 door_anim_restore_panels();
+            /* THE MAGGOT, x[672,704) y[320,384). Keyed on the bank like the two
+               lines above, so every Catacombs room can hold one without being
+               named. NO else: the slot is free everywhere else in VRAM, so
+               there is nobody to restore. */
+            if (area_bank_of(pending_area) & TEXBANK_CATACOMBS)
+                maggots_upload_textures();
             {
                 TILE *bg = (TILE *)ctx.next_packet;
                 setTile(bg);

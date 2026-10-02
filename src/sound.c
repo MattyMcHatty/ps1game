@@ -88,6 +88,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\LMBRMOAN.VAG;1",
     "\\SND\\LMBRYELL.VAG;1",
     "\\SND\\CREEP.VAG;1",
+    "\\SND\\BUZZ.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -322,6 +323,11 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        by, so it cost no other bank anything and `spare` stayed on 46,896 - see
        sound.h and tools/ADDING_A_SOUND.txt STEP 3. ~27 KB left in the chapter. */
     [SFX_CREEP]      = SND_BANK_CATACOMBS,
+    /* The maggots' buzz, CATACOMBS only: src/maggot.c is its only caller and
+       its texture is Chapter-3-only too. 13,696 B takes the bank to 176,960
+       against BOSS's 190,336, so `spare` stays on 46,896 - see sound.h.
+       ~13 KB left in the chapter. */
+    [SFX_BUZZ]       = SND_BANK_CATACOMBS,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -644,6 +650,14 @@ static int sfx_channel(SfxID id) {
        re-keys SFX_ZOMBIE. A hardware loop would put 0x04 on creep.vag's block 0
        and poison voice 20 for good. It is a one-shot today: block 2301 of 2302. */
     if (id == SFX_CREEP)       return 20;   /* SFX_DMNSPEAK's (BOSS)  one-shot */
+    /* THE MAGGOTS' BUZZ takes 22, the next voice out on the same argument: the
+       chapter's 9, 13, 14, 15, 16, 20 and 21 are all CATACOMBS effects, and 22
+       is SFX_BOOM's (BOSS) and SFX_WOOSH's (GARDEN), neither of which can be
+       loaded down here. Not poisoned - boom, woosh and buzz all carry their
+       loop flag on their LAST block only - and maggot.c re-keys it from C
+       every MGT_BUZZ_FRAMES rather than looping it in hardware, so it stays
+       that way. */
+    if (id == SFX_BUZZ)        return 22;   /* SFX_BOOM's (BOSS)      one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

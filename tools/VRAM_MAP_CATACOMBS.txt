@@ -306,6 +306,7 @@ THIS BANK'S OWN ART
   loculus.tim                the burial niches              x512 y0
   lumberer_a.tim             Lumberer images 1-3            x448 y128
   lumberer_b.tim             Lumberer images 4-6            x832 y128
+  maggot.tim                 Maggot, both images            x672 y320 4bpp
   oil_container.tim          the oil dispenser              x896 y256
   rusty.tim                  The Pit's shaft ironwork       x704 y0
   sconce.tim                 the wall sconces               x448 y0
@@ -338,7 +339,7 @@ MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
   x448  BLOCKED - reserved: flm_rnds.tim, hatch_key.tim
   x512  IN USE by this bank: bars.tim   [also on this page, all re-uploaded on room entry: pipe_button_off.tim, pipe_button_on.tim]
   x576  BLOCKED - reserved: bl_ky_stn.tim, pno_key.tim, vlv_hndl.tim
-  x640  BLOCKED - reserved: mgn_ky_stn.tim, sml_med.tim   [also on this page, all re-uploaded on room entry: creep.tim]
+  x640  IN USE by this bank: maggot.tim   [also on this page, all re-uploaded on room entry: creep.tim]
   x704  IN USE by this bank: incinerator.tim, ladder.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, vines.tim]
   x768  AVAILABLE, needs a way back first: wd_dr.tim
   x832  AVAILABLE, needs a way back first: wd_dr.tim

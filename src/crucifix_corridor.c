@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "crucifix_corridor.h"
 #include "lumberer.h"
+#include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
 #include "crucifix_corridor_mesh_collision.h"
@@ -569,8 +570,10 @@ void crucifix_corridor_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            maggots_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        draw_maggots(ctx);   /* area-tagged: free where none is placed */
     }
 }

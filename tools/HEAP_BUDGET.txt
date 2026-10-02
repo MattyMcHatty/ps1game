@@ -95,7 +95,8 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   piano_room.c             1         10240
   reception.c              1         10240
   creep.c                  1          6144
-  TOTAL                    77      1200128
+  maggot.c                 1          6144
+  TOTAL                    78      1206272
 
 DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)
   none
@@ -159,18 +160,18 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x801318A4
+  _end (heap start)   0x80133104
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             697500 bytes (681 KB)
+  heap size             691260 bytes (675 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak bank      487424 bytes (476 KB)  69.9%   <- MANSION
-  kept buffers           24576 bytes (24 KB)   3.5%
+  texmgr peak bank      487424 bytes (476 KB)  70.5%   <- MANSION
+  kept buffers           24576 bytes (24 KB)   3.6%
   chapter-scoped         43008 bytes (42 KB)   6.2%
-  PERMANENT TOTAL       555008 bytes (542 KB)  79.6%
-  FREE AT REST          142492 bytes (139 KB)  20.4%   <- STACK ALREADY SUBTRACTED
-                                  (was 290644 before the stack was counted;
+  PERMANENT TOTAL       555008 bytes (542 KB)  80.3%
+  FREE AT REST          136252 bytes (133 KB)  19.7%   <- STACK ALREADY SUBTRACTED
+                                  (was 284404 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -224,7 +225,7 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 139 KB printed above.
+  once read_file's margin comes off - against the 133 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

@@ -26,6 +26,7 @@
 #include "savegame.h"
 #include "crib.h"       /* the crib encounters' solved set rides in the delta */
 #include "creep.h"      /* ...and its Creeps are dropped on every room change */
+#include "maggot.h"
 #include "sound.h"
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below.
@@ -430,6 +431,9 @@ void world_leave(GameState area) {
        the consequence — a crib encounter is not resumable — is written up in
        src/crib.h. */
     creeps_reset();
+    /* The Maggots, on exactly the creeps' terms (src/maggot.h): dropped, not
+       rested, and the buzz goes with them. */
+    maggots_reset();
     /* ...and the cot that made them goes back to being a cot. It has to happen
        in the same breath as the line above, and the case that forces it is
        SAVING rather than leaving: savegame_capture() comes through here while

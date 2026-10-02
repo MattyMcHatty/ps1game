@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "north_chamber.h"
 #include "lumberer.h"
+#include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
 #include "north_chamber_mesh_collision.h"
@@ -792,8 +793,10 @@ void north_chamber_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            maggots_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        draw_maggots(ctx);   /* area-tagged: free where none is placed */
     }
 }

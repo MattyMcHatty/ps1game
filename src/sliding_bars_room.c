@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "sliding_bars_room.h"
 #include "lumberer.h"
+#include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
 #include "sliding_bars_room_mesh_collision.h"
@@ -789,9 +790,11 @@ void sliding_bars_room_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            maggots_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        draw_maggots(ctx);   /* area-tagged: free where none is placed */
         /* The four gates. AFTER the two enemy calls: the prop's UVs run past
            127 and tile only under the 128 window the enemies put back
            (src/bars.h). */

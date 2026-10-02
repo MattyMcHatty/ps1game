@@ -14,6 +14,7 @@
 #include "incinerator_room.h"
 #include "crawler.h"      /* Chapter 3's two enemies: drawn here so a  */
 #include "lumberer.h"     /* placement needs no edit to this file       */
+#include "maggot.h"
 #include "collision.h"
 #include "incinerator_room_mesh_collision.h"
 #include "incinerator_room_tex_map.h"
@@ -1040,9 +1041,11 @@ void incinerator_room_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            maggots_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        draw_maggots(ctx);   /* area-tagged: free where none is placed */
         /* A spat-out Blood Pearl on the east tray. After the enemy calls: its
            art sits at Voff 64 and needs the 128 window they restore (the
            Cleaver Corridor's order, for the same reason). */

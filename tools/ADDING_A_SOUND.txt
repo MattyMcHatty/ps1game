@@ -395,7 +395,7 @@ The SPU has 24 (0..23). The scheme:
                                                  >>> POISONED, see below
     20       SFX_DMNSPEAK     ...and SFX_HAD_DIE  (borrowed)
     21       SFX_EXPLODE
-    22       SFX_BOOM         ...and SFX_WOOSH    (borrowed)
+    22       SFX_BOOM         ...and SFX_WOOSH, and SFX_BUZZ   (borrowed)
     23       SFX_RBS_SWING
 
 Leave it in the pool unless one of these is true:

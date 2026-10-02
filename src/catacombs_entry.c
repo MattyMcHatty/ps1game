@@ -24,6 +24,7 @@
 #include "oil_dispenser.h"    /* the tank in the burial hall's far corner */
 #include "crawler.h"      /* Chapter 3's monster - none placed HERE, see below */
 #include "lumberer.h"     /* ...and its second, likewise drawn but not placed  */
+#include "maggot.h"
 #include "sml_med.h"            /* the hall's small medipac, seeded in world.c */
 #include "player.h"             /* show_pickup_msg_raw, current_weapon */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
@@ -1172,12 +1173,14 @@ void catacombs_entry_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            maggots_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
         /* ...and the LUMBERER beside it, on the same terms. The two used to
            share VRAM and could not be in a room together; they have a block each
            now (src/lumberer.h), so this room can hold either or both. */
         draw_lumberers(ctx);
+        draw_maggots(ctx);   /* area-tagged: free where none is placed */
 
         ce_sign(ctx, CE_TABLET_X, CE_TABLET_TEXT_Y, CE_TABLET_Z + 11,
                 CE_TABLET_X - 200, TEXT_PLANE_XY, 1);

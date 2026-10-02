@@ -168,7 +168,11 @@ AREAS = {
                   # at a time and no Catacombs room may hold both. Listed here
                   # for the same reason the crawler is - the module registers its
                   # own art, so this entry is what puts it in this area's bank.
-                  "lumberers_upload_textures"],
+                  "lumberers_upload_textures",
+                  # ...and the MAGGOT (src/maggot.c), uploaded by main.c on entry
+                  # to every room in this bank. Its page is owned outright, so
+                  # unlike the two above there is no donor to arbitrate with.
+                  "maggots_upload_textures"],
 }
 
 BIT = {"MANSION": 1 << 0, "GARDEN": 1 << 1, "RABISU": 1 << 2,

@@ -166,6 +166,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   vlv_hndl.tim         8       608   288    64    64    32   768,503
   hatch_key.tim        8       480   320    64    64    64   672,505
   creep.tim            8       640   320    64    64    64   672,511
+  maggot.tim           4       672   320   128    64    64   64,480
   crucifaxe.tim        8       320   384    64    64   128   0,500  <-- Voff>=128
   hadad_idle_64.tim    8       352   384    64    96   128   256,507  <-- Voff>=128
   hud.tim              4       384   384   320    56   128   176,511  <-- Voff>=128
@@ -184,6 +185,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
 
 CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=480  x[272,528)  bed.tim
+  y=480  x[64,80)  maggot.tim
   y=480  x[32,48)  chnlnk_dl.tim
   y=480  x[768,784)  double_door.tim
   y=480  x[0,16)  gravel_texture.tim

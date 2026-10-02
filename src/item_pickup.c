@@ -10,6 +10,7 @@
 #include "item_pickup.h"
 #include "menu.h"            /* menu_inventory_sync on collect */
 #include "sound.h"
+#include "meat_plant.h"      /* the maggot ambush the Meat Sack sets off */
 
 ItemPickup item_pickups[MAX_ITEM_PICKUPS];
 int        item_pickup_count = 0;
@@ -197,7 +198,11 @@ static void collect(ItemPickup *p) {
             player_oil_refill();
             break;
         case PICKUP_BLOOD_PEARL:  player_items |= (1 << ITEM_BLOOD_PEARL); break;
-        case PICKUP_MEAT_SACK:    player_items |= (1 << ITEM_MEAT_SACK);   break;
+        /* Taking the sack springs the Meat Plant's ambush: five Maggots out of
+           the pile (meat_plant.h). Once per playthrough because this collect
+           is — the pickup is persisted and never respawns. */
+        case PICKUP_MEAT_SACK:    player_items |= (1 << ITEM_MEAT_SACK);
+                                  meat_plant_release_maggots();            break;
         case PICKUP_GAOL_KEY:     player_items |= (1 << ITEM_GAOL_KEY);    break;
         default: break;
     }

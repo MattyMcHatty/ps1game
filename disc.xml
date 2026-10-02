@@ -275,6 +275,10 @@
                      free too (tools/ADDING_A_SOUND.txt STEP 3). 27 KB left in the
                      chapter before it becomes the largest bank. -->
                 <file name="CREEP.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\creep.vag"/>
+                <!-- The Maggot's buzz (src/maggot.c), SND_BANK_CATACOMBS. 11025 Hz
+                     mono, 2.17 s, 13,696 SPU bytes; a one-shot re-keyed from C,
+                     never a hardware loop (it borrows voice 22 - see sound.h). -->
+                <file name="BUZZ.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\buzz.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -1652,6 +1656,19 @@
                  at all by the time this was added, which is where
                  tools/ADDING_AN_ENEMY.txt STEP 3c still tells you to look. -->
             <file name="CREEP.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\creep.tim"/>
+
+            <!-- THE MAGGOT, the chapter's fourth monster (src/maggot.c): two
+                 64x64 images side by side, alternated for its wings. 4bpp, 128x64
+                 texels = 32 words by 64 rows at x[672,704) y[320,384), beside the
+                 creep and owned outright - nothing else in VRAM is there, so it
+                 is no time-share and nobody has a restore to run.
+
+                 >>> IT NEEDS THE TEXTURE-WINDOW BRACKET THE CREEP DOES NOT. <<<
+                 Voff is 64, but x672 is half way across its tpage (x640), so U
+                 runs 128..255 and a room's 128 window wraps it. src/maggot.c
+                 draws each sprite unmasked and restores the room's window, the
+                 spider's add_ft4_windowed(). CLUT at (64,480). -->
+            <file name="MAGGOT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\maggot.tim"/>
         </dir>
 
         </directory_tree>

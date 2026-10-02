@@ -21,6 +21,7 @@
 #include "mushroom.h"
 #include "lumberer.h"
 #include "creep.h"
+#include "maggot.h"
 #include "rabisu.h"
 #include "asag.h"          /* asag_head_box - where the head is         */
 #include "asag_fight.h"    /* ...and whether hitting it does anything   */
@@ -245,6 +246,18 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 13; best_idx = i;
         }
     }
+    /* The Maggots — the creep's loop, aimed through maggot_body_y() for the
+       creep's reason: it floats at eye level above its floor anchor. */
+    for (i = 0; i < maggot_count; i++) {
+        Maggot *mg = &maggots[i];
+        if (!mg->active || mg->state == MGT_DEAD || mg->area != current_area) continue;
+        if (weapon_aim_in_circle(mg->x, maggot_body_y(mg), mg->z,
+                                 MGT_HALF_W, MGT_HALF_H,
+                                 fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 14; best_idx = i;
+        }
+    }
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *rb = &rabisus[i];
         /* `dying` as well as `dead`: the boss stays on screen through its whole
@@ -389,6 +402,10 @@ static void graveolver_fire(void) {
            this line — it would take more than one shot before it mattered. */
         creep_damage(&creeps[best_idx],
                      creep_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 14) {
+        /* A MAGGOT: 2 HP and every round type at 1x, so two shots. */
+        maggot_damage(&maggots[best_idx],
+                      maggot_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 8) {
         /* Not an enemy and not scaled by a weakness table: a curtain asks the
            DAMAGE TYPE directly. DMG_FLAME clears a destructible one outright,

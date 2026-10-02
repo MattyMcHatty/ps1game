@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "room_of_heads.h"
 #include "lumberer.h"
+#include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
 #include "room_of_heads_mesh_collision.h"
@@ -561,10 +562,12 @@ void room_of_heads_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            maggots_set_texwindow(&tw);
             creeps_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        draw_maggots(ctx);   /* area-tagged: free where none is placed */
         /* The crib, then what it pours — the Room of Arms' order and reasons:
            AFTER the two enemy calls, whose windows are restored for this
            Voff-0 art, and the creeps after the cot so a body in front of it

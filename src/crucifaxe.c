@@ -31,6 +31,7 @@
 #include "living_statue.h"
 #include "hadad.h"
 #include "creep.h"
+#include "maggot.h"
 #include "crib.h"
 
 static SMD  *crucifaxe_smd  = NULL;
@@ -56,6 +57,7 @@ static int lmb_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
 static int had_hit_this_swing   = 0;
 static int crp_hit_this_swing   = 0;
+static int mgt_hit_this_swing   = 0;
 /* The crib gets its own per-swing latch and does NOT share the creeps'. One
    swing should be able to kill a creep AND wake the cot it is standing beside;
    they are independent things that happen to be in the same alcove. */
@@ -107,6 +109,7 @@ void update_crucifaxe(void) {
         lst_hit_this_swing     = 0;
         had_hit_this_swing     = 0;
         crp_hit_this_swing     = 0;
+        mgt_hit_this_swing     = 0;
         crib_hit_this_swing    = 0;
         asag_hit_this_swing    = 0;
         sound_play(SFX_SWING);
@@ -447,6 +450,14 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !crp_hit_this_swing) {
             if (creeps_try_hit())
                 crp_hit_this_swing = 1;
+        }
+
+        /* Maggot hit (1 damage of its 2 HP): the creep's block exactly, with its own latch so one swing
+           through a mixed swarm can take one of each. maggots_try_hit() measures
+           to the floating body, as creeps_try_hit() does. */
+        if (swing_timer <= SWING_DURATION && !mgt_hit_this_swing) {
+            if (maggots_try_hit())
+                mgt_hit_this_swing = 1;
         }
 
         /* THE CRIB, and this one is not a weapon hit at all — it is the TRIGGER

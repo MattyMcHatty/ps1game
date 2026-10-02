@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "room_of_arms.h"
 #include "lumberer.h"
+#include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
 #include "room_of_arms_mesh_collision.h"
@@ -940,6 +941,7 @@ void room_of_arms_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            maggots_set_texwindow(&tw);
             /* The CREEP is handed the same rect and does not currently use it.
                Its sprite is at Voff 0 and Uoff 0 (x960 y0 — see src/creep.c and
                disc.xml) so this room's 128 window serves it rather than masking
@@ -950,6 +952,7 @@ void room_of_arms_draw(RenderContext *ctx) {
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        draw_maggots(ctx);   /* area-tagged: free where none is placed */
         /* The crib in the south-west alcove. INSIDE the entity gate with the
            signs and the enemies, not with the room mesh: it is a prop, so a
            debug level that hides entities should hide it too, and the frame-rate

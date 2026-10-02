@@ -159,6 +159,7 @@ BANK = {
     "crawler_b.tim":            "Crawler frames 2,3             x704 y128",
     "lumberer_a.tim":           "Lumberer images 1-3            x448 y128",
     "lumberer_b.tim":           "Lumberer images 4-6            x832 y128",
+    "maggot.tim":               "Maggot, both images            x672 y320 4bpp",
 }
 
 tims = {}

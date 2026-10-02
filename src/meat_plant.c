@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "meat_plant.h"
 #include "lumberer.h"
+#include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
 #include "meat_plant_mesh_collision.h"
@@ -31,6 +32,7 @@
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 #include "item_pickup.h"        /* the Meat Sack in the courtyard */
+#include "title.h"              /* STATE_MEAT_PLANT, the maggots' area tag */
 
 /* The Meat Plant — see meat_plant.h for the layout and the doors. */
 
@@ -170,6 +172,39 @@ static void mp_build_cull_keys(void) {
         p += pt->len;
     }
     mp_key_count = n;
+}
+
+/* ---- The maggot ambush (meat_plant.h) ----------------------------------------
+   Five spots down the middle of the SPINE, the western side of the C of legs —
+   drawn at random once and then fixed, so the ambush is the same every
+   playthrough. ONE PER NORTH-SOUTH BAND of 400 across z[2300,4500], so they are
+   strung along the spine's length (z 2570..4140 of the 2000..4790 it spans at
+   x=-1700) rather than bunched at its waist, and x stays in the middle
+   [-1950,-1450]. Each is inside the pile's proxy outline and at least 190 clear of
+   its faces (so a body starts hidden in the drawn legs rather than poking out of
+   them), and 150+ Manhattan from every other (so the separation pass, whose
+   hard minimum is 2 * MGT_BODY_RADIUS = 120, does not fling them apart on frame
+   one). They are 1580..1910 from the sack at (0,3300): at MGT_SPEED that is
+   roughly 2.5-3 s from the pickup to the first bite.
+
+   Ghosts, like the creep (src/creep.h), so the legs between them and the player
+   are no obstacle: they fly straight out of the pile and through it. */
+#define MP_MAGGOT_COUNT 5
+static const int16_t mp_maggot_spawn[MP_MAGGOT_COUNT][2] = {
+    { -1470, 2570 },
+    { -1700, 2980 },
+    { -1810, 3230 },
+    { -1480, 3860 },
+    { -1710, 4140 },
+};
+
+void meat_plant_release_maggots(void) {
+    int i;
+    /* MP_FLOOR_Y - GROUND_FLOOR_Y = -149: the standing ANCHOR over this room's
+       one y=0 floor, not a body height — see maggot_spawn() in maggot.h. */
+    for (i = 0; i < MP_MAGGOT_COUNT; i++)
+        maggot_spawn(mp_maggot_spawn[i][0], mp_maggot_spawn[i][1],
+                     MP_FLOOR_Y - GROUND_FLOOR_Y, STATE_MEAT_PLANT);
 }
 
 void meat_plant_load_geometry(void) {
@@ -634,9 +669,11 @@ void meat_plant_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            maggots_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        draw_maggots(ctx);   /* area-tagged: free where none is placed */
         /* The Meat Sack. After the enemy draws, which restore the 128 window
            it samples under (Voff 64, src/menu.c). */
         item_pickups_draw(ctx);

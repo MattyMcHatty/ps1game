@@ -20,6 +20,7 @@
 #include "rafflesia.h"
 #include "mushroom.h"
 #include "lumberer.h"
+#include "maggot.h"
 #include "rabisu.h"
 #include "asag.h"
 #include "asag_fight.h"
@@ -283,6 +284,16 @@ static void hell_burn_tick(void) {
         lumberer_body(l, &cyc, &hh, &hw);
         if (HIT(l->x, cyc, l->z, hw, hh))
             lumberer_damage(l, lumberer_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
+    }
+    /* The Maggots — in graveolver_fire's list, so they are here too (the rule
+       above). Aimed through maggot_body_y(), where the floating body is. 1 a
+       second at 1x, so two seconds of burning kills one; a swarm in the beam
+       all burn together. */
+    for (i = 0; i < maggot_count; i++) {
+        Maggot *mg = &maggots[i];
+        if (!mg->active || mg->state == MGT_DEAD || mg->area != current_area) continue;
+        if (HIT(mg->x, maggot_body_y(mg), mg->z, MGT_HALF_W, MGT_HALF_H))
+            maggot_damage(mg, maggot_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
     }
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *rb = &rabisus[i];

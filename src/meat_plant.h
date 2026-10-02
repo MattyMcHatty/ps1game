@@ -84,4 +84,16 @@ int  meat_plant_south_alcove_door_triggered(int lock);
    through the transition does not fire on the arrival frame. */
 void meat_plant_arm(void);
 
+/* THE MAGGOT AMBUSH. Release five Maggots out of the western side of the mass
+   of legs (its spine, x[-2100,-1300] z[2800,4200]), all at once and attacking
+   from the first frame. Called by item_pickup.c on the frame the Meat Sack is
+   collected and by nothing else.
+
+   ONCE PER PLAYTHROUGH, AND THAT COSTS NO SAVE FIELD: the sack is a persisted
+   pickup (world.c), so the collect that calls this can only happen once. The
+   maggots themselves are transient (src/maggot.h) — leave the room, die or
+   reload mid-fight and they are gone, and with the sack already taken they
+   never come back. */
+void meat_plant_release_maggots(void);
+
 #endif

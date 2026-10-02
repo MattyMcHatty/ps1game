@@ -537,7 +537,28 @@ typedef enum {
                              on when a swing wakes the cot and re-keyed every
                              CRIB_LOOP_FRAMES until all ten Creeps are dead.
                              5.85 s, which is where CRIB_LOOP_FRAMES comes from */
-    SFX_COUNT      = 56,
+    /* ---- THE MAGGOT'S BUZZ ------------------------------------------------
+       Chapter 3's fourth monster (src/maggot.c), its only sound and its only
+       caller: one voice for the whole swarm, keyed while any maggot is alive
+       in the room and re-keyed from C every MGT_BUZZ_FRAMES (130), the clip's
+       own length.
+
+       FREE, on STEP 3's arithmetic: 13,696 SPU bytes takes SND_BANK_CATACOMBS
+       163,264 -> 176,960, still under the 190,336 BOSS sets `spare` by, so no
+       other bank lost a byte and `spare` stays on 46,896. That leaves about
+       13 KB in the chapter before it becomes the largest bank.
+
+       ON VOICE 22, BORROWED. The chapter's own 9, 13, 14, 15, 16, 20 and 21
+       are all taken by SND_BANK_CATACOMBS effects. 22 belongs to SFX_BOOM
+       (BOSS) and SFX_WOOSH (GARDEN), and neither bank can be loaded while
+       CATACOMBS is. NOT POISONED: boom.vag carries its loop flag on block 443
+       of 444 and spirit_woosh.vag on 1769 of 1770, and buzz.vag itself on 854
+       of 855. It must stay a one-shot re-keyed from C; a hardware loop would
+       put 0x04 on block 0 and poison 22 the way 17, 18 and 19 are. */
+    SFX_BUZZ       = 56,  /* BANKED (catacombs). The maggots' wings, re-keyed
+                             from C while any is alive. 2.17 s, which is where
+                             MGT_BUZZ_FRAMES comes from                        */
+    SFX_COUNT      = 57,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.
