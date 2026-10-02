@@ -13,7 +13,15 @@
  * lift that the drop animates.
  *
  * PLACED in the Cleaver Corridor, three of them across the corridor's width
- * (src/cleaver_corridor.c). Nothing in this module knows that.
+ * (src/cleaver_corridor.c), and in Cleaver L, four across its two arms
+ * (src/cleaver_l.c). Nothing in this module knows that. Only one of the two
+ * rooms is ever loaded, and each clears and re-places its own, so they share
+ * the MAX_CLEAVERS pool rather than adding to it.
+ *
+ * TWO YAWS. As modelled, the blade lies across an EAST-WEST run (30 thick in
+ * X, 550 wide in Z). Placed `turned`, it is yawed a quarter and lies across a
+ * NORTH-SOUTH one; the AABB, the trigger, the knockback and the draw all turn
+ * with it. Nothing finer is needed by a room built on a 90-degree grid.
  *
  * >>> THE MESH IS THE COLLISION DATA. <<< cleavers_load_assets() measures the
  * SMD's bounding box and that box is the whole of the prop's solid volume: 30
@@ -29,7 +37,9 @@
  * (650). A re-export that moves the blade moves the placement with it.
  *
  * THE CYCLE. A blade is placed ARMED: hanging at its lift, still. When the
- * player comes within CL_TRIGGER_REACH of it in plan it drops — under
+ * player comes within CL_TRIGGER_REACH of it along its run (and is inside
+ * its span across it, so a blade at the corner of an L ignores the other arm)
+ * it drops — under
  * CL_GRAVITY, which is two and a half times the bars' so it SLAMS rather than
  * falls, and bounces once, hard and small (CL_RESTITUTION), with SFX_SLAM on
  * the impact. From then on it is LIVE and never goes back to ARMED:
@@ -50,8 +60,8 @@
  *
  * THE HIT. Once per drop: if the edge is at or below the player's head while
  * they overlap the blade's footprint (CL_HIT_REACH either side of it), they
- * take CL_DAMAGE, SFX_HURT, and a knockback straight along X away from the
- * blade — the corridor's axis, so it throws them back the way they are on
+ * take CL_DAMAGE, SFX_HURT, and a knockback straight along the run away from
+ * the blade (X, or Z turned), so it throws them back the way they are on
  * rather than into a wall. collide then holds them off the fallen blade.
  *
  * COLLISION FOLLOWS THE LIFT, as the bars' does: raised, its solid span is over
@@ -78,7 +88,7 @@
  * AFTER draw_crawlers()/draw_lumberers(), which restore it — the bars' rule.
  * ----------------------------------------------------------------------- */
 
-#define MAX_CLEAVERS          3
+#define MAX_CLEAVERS          4    /* Cleaver L's four; the corridor uses three */
 
 /* The drop, in 1/256ths of a world unit per frame (and per frame squared). */
 #define CL_GRAVITY         1024    /* 4 units/frame^2 — the bars' is ~1.56      */
@@ -130,10 +140,11 @@ void cleavers_clear(void);
 /* Place one ARMED. (x, z) is the blade's plan CENTRE; `y` is the floor
    reference, world y = y + GROUND_FLOOR_Y (the crib's and the bars'
    convention); `lift` is how far above that floor its edge hangs; `ceiling_y`
-   is the WORLD y of the vault it hangs from (see THE SLOT above). Returns the
+   is the WORLD y of the vault it hangs from (see THE SLOT above); `turned` 1
+   yaws it a quarter to lie across a north-south run (see TWO YAWS). Returns the
    instance index, or -1 if MAX_CLEAVERS are placed. */
 int  cleaver_place(GameState area, int32_t x, int32_t y, int32_t z,
-                   int32_t lift, int32_t ceiling_y);
+                   int32_t lift, int32_t ceiling_y, int turned);
 
 /* One frame of every blade in current_area: the trigger, the cycle, the hit.
    Call AFTER the room's collision, so the hit test sees the player where this

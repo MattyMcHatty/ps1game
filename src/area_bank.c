@@ -141,6 +141,9 @@ TexBank area_bank_of(GameState area) {
     /* THE ROOM OF BONES owns BONES.TIM (on the arms' page, the legs' terms) and
        borrows the rest. */
     case STATE_ROOM_OF_BONES:
+    /* CLEAVER L owns nothing: cobble and the inner door through the Catacombs
+       Entry's narrow uploaders, and the blades' rusty through The Pit's. */
+    case STATE_CLEAVER_L:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -163,7 +166,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_SLIDING_BARS_ROOM ||
            area == STATE_ROOM_OF_LEGS ||
            area == STATE_MEAT_PLANT ||
-           area == STATE_ROOM_OF_BONES;
+           area == STATE_ROOM_OF_BONES ||
+           area == STATE_CLEAVER_L;
 }
 
 /* ---- The prop models -------------------------------------------------------

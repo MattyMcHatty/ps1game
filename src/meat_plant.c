@@ -208,11 +208,7 @@ void meat_plant_upload_textures(void) {
    A door in the YZ plane at fixed X, approached from +X, so TEXT_PLANE_YZ with
    mirror=0 and the sign 11 proud of the wall along +X — the Crucifix
    Corridor's west door exactly. The reading axis for a YZ sign is Z, so the
-   -200 door_draw_string_3d wants goes on the Z argument.
-
-   THE SOUTH-ALCOVE DOOR, z=0 x[-100,100] at the back of the south alcove, is
-   drawn and nothing else: no sign, no trigger. It reads as a sealed door until
-   the room behind it exists. */
+   -200 door_draw_string_3d wants goes on the Z argument. */
 #define MP_WEST_X          (-2700)
 #define MP_WEST_Z            5500     /* the art spans z[5400,5600] */
 #define MP_WEST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
@@ -232,14 +228,29 @@ void meat_plant_upload_textures(void) {
 #define MP_WA_X            (-3300)
 #define MP_WA_Z              3300     /* the art spans z[3200,3400] */
 
+/* ---- THE SOUTH-ALCOVE DOOR ------------------------------------------------
+   z=0, x[-100,100], y[-400,0] — at the back of the south alcove (wall 22, z=0
+   over x[-900,900], nz=+4096), in the middle of the room's south side. Out to
+   CLEAVER L, at its north door.
+
+   A door in the XY plane at fixed Z, approached from +Z, so TEXT_PLANE_XY with
+   mirror=1, the sign 11 proud of the wall along +Z and the -200 on the X
+   argument (the reading axis for an XY sign) — the Cleaver Corridor's south
+   door's pair. It is 3300 west and 3300 north of the west-alcove door, so no
+   two doors can ever be in reach on one frame. */
+#define MP_SA_X                 0     /* the art spans x[-100,100] */
+#define MP_SA_Z                 0
+
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int west_circle_prev = 1;
 static int wa_circle_prev   = 1;
+static int sa_circle_prev   = 1;
 
 void meat_plant_arm(void) {
     west_circle_prev = interact_tapped();
     wa_circle_prev   = west_circle_prev;
+    sa_circle_prev   = west_circle_prev;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -315,6 +326,56 @@ static void mp_west_alcove_door_text(RenderContext *ctx) {
                         MP_WA_X + 11, MP_WEST_TEXT_Y, MP_WA_Z - 200,
                         50, 255, 50, fade, 0, TEXT_PLANE_YZ,
                         DOOR_PIXEL_SIZE);
+}
+
+/* The south-alcove door: the same test and sign, in the XY plane. */
+int meat_plant_south_alcove_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !sa_circle_prev;
+    int32_t dx, dz, xz;
+    sa_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - MP_SA_X;
+    dz = cam_z - MP_SA_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= MP_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(MP_SA_X, MP_SA_Z)) return 0;
+    return 1;
+}
+
+static void mp_south_alcove_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - MP_SA_X;
+    int32_t dz = cam_z - MP_SA_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= MP_TEXT_RADIUS) return;
+
+    if (xz > MP_FADE_NEAR) {
+        int range = MP_TEXT_RADIUS - MP_FADE_NEAR;
+        int prog  = xz - MP_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        MP_SA_X - 200, MP_WEST_TEXT_Y, MP_SA_Z + 11,
+                        50, 255, 50, fade, 1, TEXT_PLANE_XY,
+                        DOOR_PIXEL_SIZE);
+}
+
+void meat_plant_spawn_south_alcove(void) {
+    /* Back from Cleaver L. 220 off wall 22 on its walkable +Z side, on the
+       door's centre line — 900 clear of both of the alcove's side walls, 11 and
+       12 — facing +Z, the direction of travel, out of the alcove into the hall.
+       The mass of legs' south arm starts at z~1199, ~980 off, so the 195 push
+       is quiet. */
+    cam_x   = MP_SA_X;
+    cam_y   = MP_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = MP_SA_Z + (MP_WALL_RADIUS + 25);
+    cam_rot = 0;                       /* facing +Z, north into the hall */
+    meat_plant_arm();
 }
 
 void meat_plant_spawn_west_alcove(void) {
@@ -564,6 +625,7 @@ void meat_plant_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         mp_west_door_text(ctx);    /* west: YZ plane, approached from +X */
         mp_west_alcove_door_text(ctx);   /* west alcove: the same plane */
+        mp_south_alcove_door_text(ctx);  /* south alcove: XY, from +Z */
         /* BOTH CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Both sheets sit at Voff 128, so each is handed the window to restore

@@ -1348,6 +1348,18 @@
 
                  BONEROOM.SMD, 16,308 bytes, well inside the arena. -->
             <file name="BONEROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\room_of_bones.smd"/>
+
+            <!-- CLEAVER L, the chapter's FIFTEENTH room, through the door at the
+                 back of the Meat Plant's south alcove. An L of two 600-wide
+                 shafts, open above y=-800 like the Cleaver Corridor, with four
+                 slamming cleavers. See src/cleaver_l.h.
+
+                 NO NEW TEXTURE. COBBLE.TIM and CTCMBDR.TIM come through the
+                 Catacombs Entry's narrow uploaders and the blades' RUSTY.TIM
+                 through The Pit's, the Cleaver Corridor's three.
+
+                 CLEAVERL.SMD, 15,140 bytes, well inside the arena. -->
+            <file name="CLEAVERL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\cleaver_l.smd"/>
             <file name="BONES.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\bones.tim"/>
 
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass

@@ -98,6 +98,7 @@
 #include "room_of_legs.h"
 #include "meat_plant.h"
 #include "room_of_bones.h"
+#include "cleaver_l.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -354,6 +355,7 @@ static void load_area_geometry(GameState area) {
         case STATE_ROOM_OF_LEGS:     room_of_legs_load_geometry(); break;
         case STATE_MEAT_PLANT:       meat_plant_load_geometry(); break;
         case STATE_ROOM_OF_BONES:    room_of_bones_load_geometry(); break;
+        case STATE_CLEAVER_L:        cleaver_l_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2404,6 +2406,40 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* ...and the SOUTH-ALCOVE door, into Cleaver L. Called unconditionally
+           for its edge state, and vetoed like the one above; it is 3300 from
+           either of the others, so none can share a frame anyway. */
+        if (meat_plant_south_alcove_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_CLEAVER_L;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_CLEAVER_L) {
+        /* CLEAVER L - Chapter 3's fifteenth room: the shared wall routine and
+           TWO flat floor zones of one plane, the two shafts of an L. multi_level
+           is 0. One door wired, the north one back to the Meat Plant; the west
+           one is drawn and sealed. Nothing seeded; both Chapter 3 enemy updates
+           are called anyway, on the Tomb's argument.
+
+           THE CLEAVERS (src/cleaver.h): four blades, two across each arm, the
+           Cleaver Corridor's terms. Their push runs inside
+           apply_collision_reception (cleavers_collide); their update runs AFTER
+           it, so the hit test sees the player where this frame's collision left
+           them. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+        cleavers_update();
+
+        if (cleaver_l_north_door_triggered(lock)) {
+            pending_area = STATE_MEAT_PLANT;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ROOM_OF_BONES) {
         /* THE ROOM OF BONES - Chapter 3's fourteenth room: the shared wall
            routine, ONE flat floor zone and one door, the Room of Legs' shape.
@@ -2900,6 +2936,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         meat_plant_draw(ctx);
     else if (area == STATE_ROOM_OF_BONES)
         room_of_bones_draw(ctx);
+    else if (area == STATE_CLEAVER_L)
+        cleaver_l_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3339,6 +3377,11 @@ int main(int argc, const char **argv) {
                                      Deferred, so no CD access here. Above the
                                      owner's call below, for the same reason as
                                      the Room of Heads' line. */
+    loading_screen_pump(&ctx);
+    cleaver_l_load_assets();      /* CHAPTER 3's fifteenth room: two borrowed
+                                     headers (cobble, inner door) and NO
+                                     registration - it owns nothing, and the
+                                     blades' rusty is The Pit's. No CD access. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4167,6 +4210,13 @@ int main(int argc, const char **argv) {
                    on the way in there. Same guarantee and same silent failure
                    mode as the branches around it. */
                 room_of_bones_upload_textures();
+            } else if (pending_area == STATE_CLEAVER_L) {
+                /* CLEAVER L. Cobble and the inner door through the Catacombs
+                   Entry's narrow uploaders, and The Pit's rusty for the blades,
+                   the Cleaver Corridor's three pages. It owns nothing. Same
+                   guarantee and same silent failure mode as the branches around
+                   it. */
+                cleaver_l_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4878,19 +4928,27 @@ int main(int argc, const char **argv) {
                 room_of_legs_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_MEAT_PLANT) {
-                /* TWO ARRIVALS. meat_plant_init()'s default is the west door,
+                /* THREE ARRIVALS. meat_plant_init()'s default is the west door,
                    from the Sliding Bars Room; back from the Room of Bones it is
-                   the west-alcove door. Keyed on current_area, the room being
-                   LEFT and not a route, so a debug jump or a title load still
-                   lands at the west door. */
+                   the west-alcove door, and back from Cleaver L the south-alcove
+                   one. Keyed on current_area, the room being LEFT and not a
+                   route, so a debug jump or a title load still lands at the
+                   west door. */
                 meat_plant_init();
                 if (current_area == STATE_ROOM_OF_BONES)
                     meat_plant_spawn_west_alcove();
+                else if (current_area == STATE_CLEAVER_L)
+                    meat_plant_spawn_south_alcove();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ROOM_OF_BONES) {
                 /* ONE ARRIVAL, the east door, so room_of_bones_init()'s default
                    spawn is also the only one. */
                 room_of_bones_init();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_CLEAVER_L) {
+                /* ONE ARRIVAL, the north door, so cleaver_l_init()'s default
+                   spawn is also the only one. */
+                cleaver_l_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5261,7 +5319,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_SLIDING_BARS_ROOM ||
                    game_state == STATE_ROOM_OF_LEGS ||
                    game_state == STATE_MEAT_PLANT ||
-                   game_state == STATE_ROOM_OF_BONES) {
+                   game_state == STATE_ROOM_OF_BONES ||
+                   game_state == STATE_CLEAVER_L) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

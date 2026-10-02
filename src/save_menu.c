@@ -117,6 +117,7 @@ static const char *area_name(int area) {
         case STATE_ROOM_OF_LEGS:      return "ROOM OF LEGS";
         case STATE_MEAT_PLANT:        return "MEAT PLANT";
         case STATE_ROOM_OF_BONES:     return "ROOM OF BONES";
+        case STATE_CLEAVER_L:         return "CLEAVER L";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

@@ -19,6 +19,7 @@
 
 typedef struct {
     GameState    area;                        /* only runs/draws/collides here */
+    int          turned;                      /* 1: yawed 90, across a N-S shaft */
     int32_t      x, y, z;                     /* centre in plan; world y = y+GROUND_FLOOR_Y */
     int32_t      min_x, max_x, min_z, max_z;  /* world AABB, baked at place time */
     int32_t      ceiling_y;                   /* world y of the vault it hangs from */
@@ -114,11 +115,12 @@ int32_t cleaver_authored_lift(void) { return cl_auth_lift; }
 void cleavers_clear(void) { cleaver_count = 0; }
 
 int cleaver_place(GameState area, int32_t x, int32_t y, int32_t z,
-                  int32_t lift, int32_t ceiling_y) {
+                  int32_t lift, int32_t ceiling_y, int turned) {
     if (cleaver_count >= MAX_CLEAVERS) return -1;
     int idx = cleaver_count++;
     Cleaver *c = &cleavers[idx];
     c->area      = area;
+    c->turned    = turned;
     c->x = x;  c->y = y;  c->z = z;
     c->ceiling_y = ceiling_y;
     c->active    = 1;
@@ -129,9 +131,15 @@ int cleaver_place(GameState area, int32_t x, int32_t y, int32_t z,
     c->landed    = 0;
     c->hit_done  = 0;
     c->timer     = 0;
-    /* No yaw: every blade hangs the way it was modelled, across the corridor. */
-    c->min_x = x + cl_min_x;  c->max_x = x + cl_max_x;
-    c->min_z = z + cl_min_z;  c->max_z = z + cl_max_z;
+    /* Two yaws only: as modelled, across an E-W run, or TURNED a quarter, across
+       a N-S one. The model is centred in plan, so the turn swaps its extents. */
+    if (turned) {
+        c->min_x = x + cl_min_z;  c->max_x = x + cl_max_z;
+        c->min_z = z + cl_min_x;  c->max_z = z + cl_max_x;
+    } else {
+        c->min_x = x + cl_min_x;  c->max_x = x + cl_max_x;
+        c->min_z = z + cl_min_z;  c->max_z = z + cl_max_z;
+    }
     return idx;
 }
 
@@ -155,9 +163,13 @@ static void cl_check_hit(Cleaver *c) {
     c->hit_done = 1;
     player_hurt(CL_DAMAGE);
     sound_play(SFX_HURT);
-    /* Straight along X, away from the blade: `from` is level with the player in
-       Z, so player_knockback's direction has no Z in it. Dead centre goes -X. */
-    player_knockback(cam_x > c->x ? c->x : c->x + 1, cam_z, CL_KNOCKBACK);
+    /* Straight along the run, away from the blade: `from` is level with the
+       player across it, so player_knockback's direction has nothing across the
+       run in it. Dead centre goes -X (or -Z, turned). */
+    if (c->turned)
+        player_knockback(cam_x, cam_z > c->z ? c->z : c->z + 1, CL_KNOCKBACK);
+    else
+        player_knockback(cam_x > c->x ? c->x : c->x + 1, cam_z, CL_KNOCKBACK);
     if (player_health <= 0) {
         player_health = 0;
         game_over     = 1;
@@ -173,10 +185,20 @@ void cleavers_update(void) {
 
         switch (c->state) {
         case CL_ARMED: {
-            /* "Almost underneath": in X only — the blade spans the corridor. */
-            int32_t dx = cam_x - c->x;
-            if (dx < 0) dx = -dx;
-            if (dx < CL_TRIGGER_REACH) cl_start_drop(c);
+            /* "Almost underneath": along the run (X, or Z turned)... */
+            int32_t d = c->turned ? cam_z - c->z : cam_x - c->x;
+            if (d < 0) d = -d;
+            if (d >= CL_TRIGGER_REACH) break;
+            /* ...and ACROSS it, inside the blade's span widened by CL_HIT_REACH.
+               A blade spanning its whole run passes this anywhere in it (the
+               Cleaver Corridor's), but one at the corner of an L would
+               otherwise fire on a player standing in the OTHER arm. */
+            if (c->turned) {
+                if (cam_x <= c->min_x - CL_HIT_REACH || cam_x >= c->max_x + CL_HIT_REACH) break;
+            } else {
+                if (cam_z <= c->min_z - CL_HIT_REACH || cam_z >= c->max_z + CL_HIT_REACH) break;
+            }
+            cl_start_drop(c);
             break;
         }
         case CL_RAISED:
@@ -261,7 +283,7 @@ void cleavers_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     }
 }
 
-/* The bars' draw without the yaw, plus THE SLOT: a primitive whose every vertex
+/* The bars' draw with only a quarter-turn for a yaw, plus THE SLOT: a primitive whose every vertex
    is above the instance's ceiling is not drawn (see cleaver.h). Sorted at TRUE
    scene depth with no +40, for the crib's and the bars' reason. */
 void cleavers_draw(RenderContext *ctx) {
@@ -288,8 +310,8 @@ void cleavers_draw(RenderContext *ctx) {
         int32_t slot_vy = c->ceiling_y - pos_y;
 
         MATRIX m, combined;
-        SVECTOR no_rot = {0, 0, 0, 0};
-        RotMatrix(&no_rot, &m);
+        SVECTOR rot = {0, (int16_t)(c->turned ? 1024 : 0), 0, 0};
+        RotMatrix(&rot, &m);
         VECTOR pos = {c->x, pos_y, c->z};
         TransMatrix(&m, &pos);
         CompMatrixLV(&view, &m, &combined);

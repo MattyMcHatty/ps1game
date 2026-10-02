@@ -289,7 +289,7 @@ static void cc_place_cleavers(void) {
         cleaver_place(STATE_CLEAVER_CORRIDOR, x0 + k * gap, -GROUND_FLOOR_Y,
                       cleaver_authored_z(),
                       cleaver_authored_lift() + CC_CLEAVER_RAISE,
-                      CC_CEILING_Y);
+                      CC_CEILING_Y, 0);
 }
 
 /* Circle edge-detect, one per way out. Seeded "held" by the arm below so a press

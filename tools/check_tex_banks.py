@@ -157,6 +157,10 @@ AREAS = {
                   # Plant's west alcove: owns bones.tim (on the arms' page, the
                   # legs' terms) and borrows cobble and the inner door.
                   "room_of_bones_upload_textures",
+                  # CLEAVER L, the chapter's fifteenth room, off the Meat Plant's
+                  # south alcove: owns nothing, and borrows cobble, the inner
+                  # door and rusty (The Pit's, for the blades).
+                  "cleaver_l_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

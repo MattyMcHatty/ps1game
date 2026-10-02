@@ -129,6 +129,8 @@ add_executable(horror_game
     src/meat_plant.c
     src/room_of_bones_mesh_collision.c
     src/room_of_bones.c
+    src/cleaver_l_mesh_collision.c
+    src/cleaver_l.c
     src/ladder_anim.c
     src/sconce.c
     src/oil_dispenser.c
@@ -326,6 +328,7 @@ set_source_files_properties(
     src/room_of_legs_mesh_collision.c
     src/meat_plant_mesh_collision.c
     src/room_of_bones_mesh_collision.c
+    src/cleaver_l_mesh_collision.c
     src/area_bank.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )

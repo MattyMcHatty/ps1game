@@ -210,6 +210,12 @@ typedef enum {
                                 the middle, a crib and one door. See
                                 src/room_of_bones.h. Appended, not inserted:
                                 saves store raw enum values. */
+    STATE_CLEAVER_L,         /* CLEAVER L, through the door at the back of the
+                                Meat Plant's south alcove. Chapter 3's fifteenth
+                                room: an L of two 600-wide shafts, flat, four
+                                slamming cleavers and one door wired. See
+                                src/cleaver_l.h. Appended, not inserted: saves
+                                store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn
