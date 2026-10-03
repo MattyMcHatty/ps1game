@@ -22,7 +22,7 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 45  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 46  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
@@ -36,7 +36,7 @@
                                crucifix_corridor, sliding_bars_room,
                                room_of_legs, meat_plant, room_of_bones,
                                cleaver_l, zig_zag_tomb, h_corridor,
-                               room_of_torsos.
+                               room_of_torsos, the_shelf.
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
                                are alternative rooms behind the same doors, and
@@ -139,10 +139,10 @@ void world_silence_monsters(void);
                                  — which is why crawlers_dead below is a
                                  uint16_t, the widening mushrooms_dead took. */
 #define WD_MAX_RABISUS    8
-/* bits: likewise one global area-tagged array. MAX_LUMBERERS is 7 since the Zig Zag
-   Tomb's two, so ONE more placement fills this byte; the ninth means widening
-   lumberers_dead to a uint16_t as crawlers_dead was (a SAVE_VERSION bump). */
-#define WD_MAX_LUMBERERS  8
+/* bits: likewise one global area-tagged array. 16 rather than 8 since The
+   Shelf's two took the whole-game total to nine — which is why lumberers_dead
+   below is a uint16_t, the widening crawlers_dead took (SAVE_VERSION 33). */
+#define WD_MAX_LUMBERERS 16
 /* Asag. Eight like the Rabisu's, and eight is generous: the arena is sealed and
    holds one. It is a whole byte either way — the point of the number is the
    ceiling it puts on placements, not the storage. */
@@ -202,8 +202,8 @@ typedef struct {
     uint16_t  crawlers_dead;                      /* likewise; 16 bits — see
                                                      WD_MAX_CRAWLERS           */
     uint8_t   rabisus_dead;                       /* likewise                 */
-    uint8_t   lumberers_dead;                     /* likewise; see
-                                                     WD_MAX_LUMBERERS      */
+    uint16_t  lumberers_dead;                     /* likewise; 16 bits — see
+                                                     WD_MAX_LUMBERERS          */
     uint16_t  mushrooms_dead;                     /* likewise; 16 bits — see
                                                      WD_MAX_MUSHROOMS          */
     uint16_t  living_statues_dead;                /* likewise; 16 bits — see

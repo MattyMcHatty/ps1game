@@ -310,6 +310,7 @@ THIS BANK'S OWN ART
   oil_container.tim          the oil dispenser              x896 y256
   rusty.tim                  The Pit's shaft ironwork       x704 y0
   sconce.tim                 the wall sconces               x448 y0
+  shelf_incinerator.tim      the Shelf's panel (=arms pg)   x640 y0
   torsos.tim                 Room of Torsos' piles (=arms pg) x640 y0
 
 THE SPRITE BAND  y[128,256)   (Voff 128: sprites only - a room's 128-tall
@@ -328,7 +329,7 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x448  IN USE by this bank: sconce.tim
   x512  IN USE by this bank: loculus.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim]
   x576  IN USE by this bank: crib.tim
-  x640  IN USE by this bank: arms.tim, bones.tim, heads.tim, legs.tim, torsos.tim   [also on this page, all re-uploaded on room entry: asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, hatch.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
+  x640  IN USE by this bank: arms.tim, bones.tim, heads.tim, legs.tim, shelf_incinerator.tim, torsos.tim   [also on this page, all re-uploaded on room entry: asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, hatch.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
   x704  IN USE by this bank: rusty.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
   x768  IN USE by this bank: lamashtu tablet.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
   x832  IN USE by this bank: catacomb inner door.tim   [also on this page, all re-uploaded on room entry: con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, stables wood.tim, xt_dr_cg.tim]

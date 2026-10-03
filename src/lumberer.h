@@ -94,7 +94,7 @@
  * for as long as the inventory menu is open (tools/ADDING_AN_ENEMY.txt STEP 6).
  * MAX_LUMBERERS is the budget for the WHOLE GAME, not per room, and
  * lumberer_add drops SILENTLY once it is full. Raise it (and WD_MAX_LUMBERERS
- * in src/world.h with it) before placing an eighth.
+ * in src/world.h with it) before placing a tenth.
  *
  * SOUND. TWO CLIPS OF ITS OWN, both SND_BANK_CATACOMBS and both on borrowed
  * voices (16 and 21 — the reasoning is in sound.c's sfx_channel, and it is the
@@ -112,7 +112,7 @@
  * sound_play(SFX_CRWL_SCRM) in src/lumberer.c; the bank has the room.
  * ----------------------------------------------------------------------- */
 
-#define MAX_LUMBERERS         7    /* WHOLE-GAME budget — see above            */
+#define MAX_LUMBERERS         9    /* WHOLE-GAME budget — see above            */
 #define LMB_MAX_HEALTH       10    /* ten crucifaxe swings or ten rounds        */
 
 /* ---- Speed, in units per frame. ONE number, because the brief is one gait:

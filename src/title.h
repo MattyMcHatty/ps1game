@@ -235,6 +235,13 @@ typedef enum {
                                 of torsos, a crib in the north-west corner and
                                 one door. See src/room_of_torsos.h. Appended,
                                 not inserted: saves store raw enum values. */
+    STATE_THE_SHELF,         /* THE SHELF, up the H Corridor's ladder and
+                                through the Up Down Maze's south-upper door.
+                                Chapter 3's nineteenth room: a long hall split
+                                into three lanes by two rows of bars, with two
+                                Lumberers and two Crawlers. See
+                                src/the_shelf.h. Appended, not inserted: saves
+                                store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

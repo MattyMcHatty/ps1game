@@ -60,9 +60,10 @@
  * nothing once the pool is full.
  * ----------------------------------------------------------------------- */
 
-#define MAX_CRAWLERS         11    /* 5 in the Up Down Maze + 2 in The Pit's
+#define MAX_CRAWLERS         13    /* 5 in the Up Down Maze + 2 in The Pit's
                                       ambush + 2 in the North Chamber's alcoves
-                                      + 2 in the Sliding Bars Room;
+                                      + 2 in the Sliding Bars Room + 2 at The
+                                      Shelf's west end;
                                       WD_MAX_CRAWLERS (16) is the ceiling */
 
 #define CRW_MAX_HEALTH        6    /* six crucifaxe swings or six rounds      */

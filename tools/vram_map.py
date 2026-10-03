@@ -863,6 +863,27 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim",    "torsos.tim"),
     ("trck_clue.tim",             "torsos.tim"),
     ("trees.tim",                 "torsos.tim"),
+    #   shelf_incinerator.tim -> x640 y0, THE SHELF's one incinerator panel, ON
+    # THE SAME PAGE AND PALETTE (672,501) - a sixth owner taking turns, on the
+    # torsos' terms. It is incinerator.tim byte for byte with only the two
+    # header addresses moved, because the Shelf ALSO draws the ladder and the
+    # ladder lives on the incinerator's own page (x704 y256) and CLUT line
+    # (304,511). Drawn only in the Shelf; every room that draws x640 y0 puts its
+    # own pixels and CLUT line back on entry.
+    ("arms.tim",                   "shelf_incinerator.tim"),
+    ("heads.tim",                  "shelf_incinerator.tim"),
+    ("legs.tim",                   "shelf_incinerator.tim"),
+    ("bones.tim",                  "shelf_incinerator.tim"),
+    ("torsos.tim",                 "shelf_incinerator.tim"),
+    ("asag.tim",                   "shelf_incinerator.tim"),
+    ("chnlnk.tim",                 "shelf_incinerator.tim"),
+    ("gravel_texture.tim",         "shelf_incinerator.tim"),
+    ("greenhouse.tim",             "shelf_incinerator.tim"),
+    ("hatch.tim",                  "shelf_incinerator.tim"),
+    ("plinth_rg.tim",              "shelf_incinerator.tim"),
+    ("poison_flower_base.tim",     "shelf_incinerator.tim"),
+    ("trck_clue.tim",              "shelf_incinerator.tim"),
+    ("trees.tim",                  "shelf_incinerator.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not
@@ -919,6 +940,7 @@ def rects_overlap(a, b):
 EXPORTER_ALIASES = {
     "pipe_128.tim":  "pipe_gh.tim",   # Chain Room's 'pipe_128' material
     "rusty_128.tim": "rusty.tim",     # the Cleaver prop's 'rusty_128' material
+    "ladder_128.tim": "ladder.tim",   # The Shelf's 'ladder_128' material
     # chain_128.tim STOPPED BEING AN ALIAS when Asag's arena shipped. Its mesh
     # uses the same Blender material name, but the arena cannot take chain.tim's
     # page (x704 y0 is a RESTORE page in that bank), so chain_128.tim was

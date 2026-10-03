@@ -155,6 +155,9 @@ TexBank area_bank_of(GameState area) {
     /* THE ROOM OF TORSOS owns TORSOS.TIM (on the arms' page, the legs' and
        bones' terms) and borrows the rest. */
     case STATE_ROOM_OF_TORSOS:
+    /* THE SHELF owns SHLFINCN.TIM (the incinerator's art on the arms' page,
+       because its own page is the ladder's) and borrows the rest. */
+    case STATE_THE_SHELF:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -181,7 +184,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_CLEAVER_L ||
            area == STATE_ZIG_ZAG_TOMB ||
            area == STATE_H_CORRIDOR ||
-           area == STATE_ROOM_OF_TORSOS;
+           area == STATE_ROOM_OF_TORSOS ||
+           area == STATE_THE_SHELF;
 }
 
 /* ---- The prop models -------------------------------------------------------

@@ -475,6 +475,54 @@ static const LmbNavNode lmb_zig_zag_nav_nodes[] = {
     { 3900, 3350,  2,  3,  3900, 2700,   3900, 3900 },   /* east gap, z~3300 */
 };
 
+/* ---- THE SHELF: THREE LANES JOINED AT ONE END -----------------------------
+   The room (src/the_shelf.h) is a hall x[-4800,-600] z[-2200,400] split by
+   two rows of bars that run from the east wall to x=-4200, so the walkable
+   floor is three east-west lanes that meet only in the open strip at the west
+   end — plus the east passage, which leaves the MIDDLE lane through the east
+   wall at z[-1200,-600]:
+
+       north corridor  z[-266,400]      behind the z[-333,-266] bars
+       middle          z[-1466,-333]
+       south corridor  z[-2200,-1533]   behind the z[-1533,-1466] bars
+       west end        x[-4800,-4200]   all three lanes open onto it
+       east passage    x[-600,600]      out of the middle lane
+
+   A lumberer in a barred corridor wakes to a player in the middle (1144 is
+   radial, and the lanes' centres are under 1000 apart), and the bars are
+   full-height collision walls, so they block the sightline as well as the
+   body: the player is UNSEEN and the routing takes over. Without this table it
+   walked straight at the player and stood against the bars; with it, it
+   follows its corridor west, round the end of the bars, and back up the
+   middle lane — the brief's "follow the corridor when on the wrong side".
+
+   THE ZONES: the three lanes cut AT THE BAR CENTRES (z=-300, z=-1500) and at
+   the bars' west end (x=-4200), the west strip, and the passage. They tile the
+   hall with no gap; the passage box covers a corner of solid rock too, which
+   is harmless (zones may cover floor a body cannot stand on).
+
+   THE NODES: one per opening, each centre ON the boundary it bridges (the
+   zombie rule) and on the lane's centre line, clearances 300 either side —
+   collinear, so the far stage is a straight run. Every node's `za` is the
+   lower index, and the lower-index zone wins on a shared boundary, which is
+   the invariant lmb_alert_goal's two-stage crossing depends on. */
+static const LmbNavZone lmb_shelf_nav_zones[] = {
+    /*  min_x  max_x  min_z  max_z             lane centre */
+    { -4200,  -600, -2200, -1500 },  /* 0: south corridor   z = -1866 */
+    { -4200,  -600,  -300,   400 },  /* 1: north corridor   z =    67 */
+    { -4200,  -600, -1500,  -300 },  /* 2: middle           z =  -900 */
+    { -4800, -4200, -2200,   400 },  /* 3: west end         x = -4500 */
+    {  -600,   600, -1200,     0 },  /* 4: east passage               */
+};
+
+static const LmbNavNode lmb_shelf_nav_nodes[] = {
+    /*    x      z    za  zb   za-clearance     zb-clearance  */
+    { -4200, -1866,  0,  3,  -3900, -1866,  -4500, -1866 },  /* south corridor */
+    { -4200,    67,  1,  3,  -3900,    67,  -4500,    67 },  /* north corridor */
+    { -4200,  -900,  2,  3,  -3900,  -900,  -4500,  -900 },  /* middle lane    */
+    {  -600,  -900,  2,  4,   -900,  -900,   -300,  -900 },  /* east passage   */
+};
+
 /* Active tables, chosen per-area. A room with NO table gets counts of zero,
    which makes lmb_nav_zone_at return -1 everywhere and the routing fall through
    to "walk at the player" — the behaviour every room had before this existed.
@@ -499,6 +547,13 @@ static void lmb_select_nav(void) {
         lmb_nav_nodes      = lmb_zig_zag_nav_nodes;
         lmb_nav_node_count = (int)(sizeof(lmb_zig_zag_nav_nodes) /
                                    sizeof(lmb_zig_zag_nav_nodes[0]));
+    } else if (current_area == STATE_THE_SHELF) {
+        lmb_nav_zones      = lmb_shelf_nav_zones;
+        lmb_nav_zone_count = (int)(sizeof(lmb_shelf_nav_zones) /
+                                   sizeof(lmb_shelf_nav_zones[0]));
+        lmb_nav_nodes      = lmb_shelf_nav_nodes;
+        lmb_nav_node_count = (int)(sizeof(lmb_shelf_nav_nodes) /
+                                   sizeof(lmb_shelf_nav_nodes[0]));
     } else {
         lmb_nav_zones = 0; lmb_nav_zone_count = 0;
         lmb_nav_nodes = 0; lmb_nav_node_count = 0;

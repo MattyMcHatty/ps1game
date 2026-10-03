@@ -98,9 +98,13 @@ STACK_TOP = 0x801FFF00   # BIOS default SP, grows down into the same region
 # it the same way if main()'s frame ever changes.
 STACK_FLOOR = 0x801DBD40   # measured $sp, September 2026 - see above
 
-disc = {}
-for f in ET.parse('disc.xml').getroot().iter('file'):
-    disc[f.get('name').upper()] = f.get('source')
+# The registration scanner and its two helpers live in tools/texmgr_count.py,
+# shared with tools/check_texmgr_cap.py (the build-time TEXMGR_MAX check) so the
+# two can never disagree about the count.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from texmgr_count import basename, LIT, disc_files, scan as scan_registrations  # noqa: E402
+
+disc = disc_files()
 
 # >>> ONE MODULE DOES NOT ROUND, AND THE DIFFERENCE IS A WHOLE CLIP. <<<
 # A CD read moves whole 2048-byte sectors, so the ordinary read_file() allocates
@@ -119,54 +123,16 @@ def rounded(name, mod=None):
         return (size + 3) & ~3
     return ((size + 2047) // 2048) * 2048
 
-def basename(path):
-    return path.replace('\\\\', '\\').split('\\')[-1].split(';')[0].upper()
-
-# The leading directory is optional and is matched LOOSELY, because there are
-# three of them now (\TEX\, \TEXASAG\, \TEXCTCMB\) and a scan that knows only
-# the first silently reports nothing the day a chapter gets its own - the same
-# quiet under-report the TABLE_DRIVEN_SCOPED note below already had to fix once.
-LIT = re.compile(r'"(\\\\(?:[A-Za-z0-9_]+\\\\)?[A-Za-z0-9_ ]+\.(?:TIM|SMD|PVA))(?:;1)?"')
-
 # ---------------------------------------------------------------------------
 # 1. texmgr registrations - permanent, and the number that grows per room
 # ---------------------------------------------------------------------------
-regs     = []  # (disc name, module) - read at startup, resident
-deferred = []  # (disc name, module) - registered but NOT read until a chapter door
-
 # >>> DEFERRED REGISTRATIONS COST NOTHING AT REST AND MUST NOT BE COUNTED AS
-# THOUGH THEY DID. <<< texmgr_register_deferred() records a name and a group and
-# reads no bytes (src/texmgr.h). Chapter 3's art is registered that way, so
-# during Chapters 1 and 2 it is worth one array slot apiece and nothing else.
-# They are LISTED separately rather than left out, because invisible is how a
-# budget tool starts lying: the moment the player walks through the catacomb
-# mouth these ARE resident and the 750 KB above them is not.
-#
-# NOTE the deferred scan runs BEFORE the plain-register one and the two are
-# mutually exclusive by construction: 'texmgr_register(' does not match
-# 'texmgr_register_deferred(' because of the open paren.
-for c in sorted(glob.glob('src/*.c')):
-    src = open(c, encoding='utf-8', errors='replace').read()
-    mod = os.path.basename(c)
-    for m in re.finditer(r'texmgr_register_deferred\(\s*"([^"]+)"', src):
-        deferred.append((basename(m.group(1)), mod))
-    if re.search(r'texmgr_register_deferred\(\s*(?:new_tex|shared_tex|raf_tex)', src):
-        for m in re.finditer(
-                r'(?:new_tex|shared_tex|raf_tex)[a-z_]*\[[^\]]*\]\s*=\s*\{(.*?)\};',
-                src, re.S):
-            for lit in LIT.findall(m.group(1)):
-                deferred.append((basename(lit), mod))
-        continue
-    for m in re.finditer(r'texmgr_register\(\s*"([^"]+)"', src):
-        regs.append((basename(m.group(1)), mod))
-    if re.search(r'texmgr_register\(\s*(?:new_tex|shared_tex|raf_tex)', src):
-        for m in re.finditer(
-                r'(?:new_tex|shared_tex|raf_tex)[a-z_]*\[[^\]]*\]\s*=\s*\{(.*?)\};',
-                src, re.S):
-            for lit in LIT.findall(m.group(1)):
-                regs.append((basename(lit), mod))
-regs     = [(n, m) for n, m in regs     if n in disc]
-deferred = [(n, m) for n, m in deferred if n in disc]
+# THOUGH THEY DID. <<< texmgr_register_deferred() recorded a name and a group and
+# read no bytes. It no longer exists - every registration is header-only and
+# banked now - but the scan still looks for it so an old call cannot vanish.
+# The scanner itself, and what it does and does not recognise, is in
+# tools/texmgr_count.py.
+regs, deferred = scan_registrations(disc=disc)
 
 # ---------------------------------------------------------------------------
 # 2. buffers whose pointer is kept - permanent
@@ -308,6 +274,9 @@ for m in sorted(by_mod, key=lambda k: -sum(rounded(n) for n in by_mod[k])):
     reg_total += b
     print("  %-24s %-5d %9d" % (m, len(by_mod[m]), b))
 print("  %-24s %-5d %9d" % ("TOTAL", len(regs), reg_total))
+from texmgr_count import texmgr_max  # noqa: E402
+print("  %-24s %-5d %9s   <- src/texmgr.c; %d spare, checked at build time"
+      % ("TEXMGR_MAX", texmgr_max(), "", texmgr_max() - len(regs) - len(deferred)))
 print()
 
 print("DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)")

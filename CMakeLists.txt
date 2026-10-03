@@ -96,6 +96,7 @@ add_executable(horror_game
     src/zig_zag_tomb.c
     src/h_corridor.c
     src/room_of_torsos.c
+    src/the_shelf.c
     src/ladder_anim.c
     src/sconce.c
     src/oil_dispenser.c
@@ -337,6 +338,17 @@ add_custom_target(room_data ALL
     COMMENT "Packing room data into build/rooms"
 )
 add_dependencies(horror_game room_data)
+
+# Fail the build if src/ registers more textures than TEXMGR_MAX in
+# src/texmgr.c. Past the cap a registration is refused and that texture draws
+# wrong in every room, with no other symptom - see tools/check_texmgr_cap.py.
+# main() also stops on a red screen at boot if one is refused anyway.
+add_custom_target(texmgr_cap ALL
+    COMMAND "${ROOM_PACK_PYTHON}" "${CMAKE_SOURCE_DIR}/tools/check_texmgr_cap.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Checking texmgr registrations against TEXMGR_MAX"
+)
+add_dependencies(horror_game texmgr_cap)
 
 # Convert the ELF to a raw PS-EXE (HORROR2.BIN) that the disc boots.
 # Without this the disc keeps packing a stale executable and code changes

@@ -123,6 +123,16 @@ TexBank texmgr_bank_loaded(void);
    overlay instead of by reading masks. */
 uint32_t texmgr_missed_uploads(void);
 
+/* The registration array: how many entries are used, how many there are
+   (TEXMGR_MAX), and how many texmgr_register() calls were REFUSED because it
+   was full. A refused registration returns -1 and that texture draws wrong in
+   every room, so main() checks texmgr_refused() once the startup block is done
+   and stops on a red screen if it is not zero. tools/check_texmgr_cap.py makes
+   the same check at build time. */
+int texmgr_registered(void);
+int texmgr_capacity(void);
+int texmgr_refused(void);
+
 uint16_t texmgr_tpage(int id);
 uint16_t texmgr_clut(int id);
 

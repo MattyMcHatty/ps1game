@@ -193,7 +193,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_ROOM_OF_LEGS,    STATE_MEAT_PLANT,
     STATE_ROOM_OF_BONES,   STATE_CLEAVER_L,
     STATE_ZIG_ZAG_TOMB,    STATE_H_CORRIDOR,
-    STATE_ROOM_OF_TORSOS,
+    STATE_ROOM_OF_TORSOS,  STATE_THE_SHELF,
 };
 
 static int room_index(GameState area) {
@@ -321,6 +321,9 @@ static int room_index(GameState area) {
            Corridor's south door. Slot 44 of 64. Seeded EMPTY: its one
            encounter is the crib, which keeps its own solved bit. */
         case STATE_ROOM_OF_TORSOS:    return 44;
+        /* THE SHELF, Chapter 3's nineteenth room, up the H Corridor's ladder
+           and through the Up Down Maze's south-upper door. Slot 45 of 64. */
+        case STATE_THE_SHELF:         return 45;
         default:                   return 0;
     }
 }
@@ -1800,6 +1803,44 @@ void world_seed_room(GameState area) {
         lumberer_add(3915, 2701,  435, 2701, -149, STATE_ZIG_ZAG_TOMB); /* north */
         lumberer_add( 258,  304, 3808,  304, -149, STATE_ZIG_ZAG_TOMB); /* south */
     }
+
+    /* THE SHELF: two Lumberers, one in each barred corridor, and two Crawlers
+       at the west end (src/the_shelf.h has the plan). The room is one flat
+       plane at y=0 under walls to -800.
+
+       LUMBERERS. Each starts at the corridor's EAST end, against the east wall,
+       and walks its full length to the WEST end, where the corridor opens into
+       the strip x[-4800,-4200] that joins the three lanes:
+
+         north  A ( -858,    67)  B (-4542,    67)   z[-266,400]
+         south  A ( -858, -1866)  B (-4542, -1866)   z[-2200,-1533]
+
+       Each is on its corridor's centre line, 333 from the bars and from the
+       outer wall, and 258 off the east and west walls at its two ends — the
+       Zig Zag Tomb's standoff — so neither wall-follows on an undisturbed
+       patrol. They wake on proximity (LMB_ALERT_RADIUS), so a player in the
+       middle lane is felt through the bars; the bars block the sightline, so
+       the routing takes over and they walk the corridor round the end of the
+       bars rather than into them (lmb_shelf_nav_* in src/lumberer.c).
+
+       CRAWLERS. Side by side at the west end, between the two rows of bars:
+       x=-4500 (300 off the west wall), z=-750 and z=-1050 — 300 apart across
+       the middle lane's centre line (-900), clear of CRW_SEP_RADIUS. The one
+       incinerator panel is on the wall behind them.
+
+       y: crawler_add_floor takes the floor surface (0); the lumberer takes the
+       standing anchor, 0 - 149, as in the Tomb.
+
+       >>> THE ORDER IS THE SAVE FORMAT. <<< The room is slot 45, the last, so
+       these append: the 8th and 9th lumberers (MAX_LUMBERERS 9, which is why
+       lumberers_dead is a uint16_t now) and the 12th and 13th crawlers
+       (MAX_CRAWLERS 13). */
+    if (area == STATE_THE_SHELF) {
+        lumberer_add( -858,    67, -4542,    67, -149, STATE_THE_SHELF); /* north */
+        lumberer_add( -858, -1866, -4542, -1866, -149, STATE_THE_SHELF); /* south */
+        crawler_add_floor(-4500,  -750, 0, STATE_THE_SHELF);
+        crawler_add_floor(-4500, -1050, 0, STATE_THE_SHELF);
+    }
 }
 
 void world_enter(GameState area) {
@@ -1963,7 +2004,7 @@ void world_save_delta(WorldDelta *d) {
         for (i = 0; i < world.lumberer_count; i++) areas[i] = world.lumberers[i].area;
         for (i = 0; i < world.lumberer_count; i++)
             if (world.lumberers[i].state == LMB_DEAD)
-                d->lumberers_dead |= (uint8_t)
+                d->lumberers_dead |= (uint16_t)
                     (1u << canonical_index(areas, world.lumberer_count, i));
     }
     {

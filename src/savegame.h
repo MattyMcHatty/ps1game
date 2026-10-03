@@ -17,7 +17,19 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   32            /* v32: flags2. game_flags filled at bit
+#define SAVE_VERSION   33            /* v33: lumberers_dead is a uint16_t.
+                                        The Shelf's two Lumberers take the
+                                        whole-game total to nine against the
+                                        eight bits the field had, so
+                                        WD_MAX_LUMBERERS went 8 -> 16 and
+                                        MAX_LUMBERERS 7 -> 9 - v29's widening
+                                        of crawlers_dead, again. The delta
+                                        grew, so delta_size already rejects a
+                                        v32 save; the bump makes the reason
+                                        legible. The Shelf is room 45, the
+                                        last, so its placements append and no
+                                        older bit moves.
+                                        v32: flags2. game_flags filled at bit
                                         31 and the Zig Zag Tomb's east door
                                         needed a 33rd, so GameFlags 32..63
                                         ride in a second word beside `flags`

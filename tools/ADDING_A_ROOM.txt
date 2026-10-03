@@ -309,19 +309,19 @@ spends; tools/HEAP_BUDGET.txt is where to watch it.
     (delivery_restore_textures / kitchen_restore_textures / the room's own
     *_upload_textures).
 
-    >>> AND COUNT THE REGISTRATIONS. <<< This has now filled up TWICE. It was 48
-    and had been reached EXACTLY when the Outside Catacombs landed; the Rafflesia
-    raised it to 56; Maze Two's plinth was then the 56th and it was raised to 64
-    (see the comment in src/texmgr.c). Check the live value there rather than
-    trusting this paragraph, and count what is actually registered rather than
-    assuming — most call sites are `for (i = 0; i < <ROOM>_NEW_TEX; i++)` loops,
-    so the count is the sum of those defines plus the standalone calls. A
-    texmgr_register past the cap fails SILENTLY and breaks that texture in every
-    room that draws it, so headroom is not permission to be careless. The way to
-    spend none at all is the one Fountain Square and the Garden Courtyard both
-    take: if another room already uploads the slot you need, call ITS
-    *_upload_textures() from yours and use TIM_SLOT() for the header, instead of
-    registering a second RAM copy of the same file.
+    >>> THE REGISTRATION CAP IS CHECKED FOR YOU NOW. <<< TEXMGR_MAX in
+    src/texmgr.c filled up repeatedly (48, 56, 64, 72, 80) and a registration
+    past it used to fail SILENTLY: that texture drew wrong in every room, and it
+    was whichever module registered LAST that broke, not the new one. Since
+    October 2026 the cap is 128 and overflow is loud twice over:
+      - tools/check_texmgr_cap.py runs before every compile and FAILS THE BUILD
+        if src/ registers more than TEXMGR_MAX (it prints "N of 128 ... spare");
+      - main() stops on a red boot screen if a registration is refused anyway.
+    The fix when either fires is to raise TEXMGR_MAX. Neither changes the advice
+    below: the way to spend no slot at all is the one Fountain Square and the
+    Garden Courtyard both take — if another room already uploads the slot you
+    need, call ITS narrow *_upload_x() from yours and use TIM_SLOT() for the
+    header, instead of registering a second RAM copy of the same file.
 
     >>> AND WATCH WHAT THE BORROWED UPLOADER ALSO STAMPS. <<< A full
     *_upload_textures() puts up every slot that room owns, not just the one you

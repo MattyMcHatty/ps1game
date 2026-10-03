@@ -174,6 +174,11 @@ AREAS = {
                   # the legs' and bones' terms) and borrows cobble and the inner
                   # door.
                   "room_of_torsos_upload_textures",
+                  # THE SHELF, the chapter's nineteenth room, up the H
+                  # Corridor's ladder: owns shelf_incinerator.tim (the
+                  # incinerator's art on the arms' page) and borrows cobble, the
+                  # inner door, the ladder and the bars.
+                  "the_shelf_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

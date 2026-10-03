@@ -1416,6 +1416,28 @@
             <file name="TRSOROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_torsos.smd"/>
             <file name="TORSOS.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\torsos.tim"/>
 
+            <!-- THE SHELF, the chapter's NINETEENTH room, up the H Corridor's
+                 ladder and through the Up Down Maze's south-upper door. A long
+                 hall split into three lanes by two rows of bars, open above
+                 y=-800, with a shaft down to the H Corridor at the end of its
+                 east passage. See src/the_shelf.h.
+
+                 ONE NEW FILE AND NO NEW ART. COBBLE.TIM and CTCMBDR.TIM come
+                 through the Catacombs Entry's narrow uploaders, LADDER.TIM
+                 through the North Chamber's and BARS.TIM through bars.c's.
+
+                 >>> SHLFINCN.TIM IS INCINPRP.TIM AT ANOTHER ADDRESS. <<< The
+                 room draws one panel of incinerator art AND the ladder, and
+                 those two share x704 y256 and the CLUT line (304,511). So the
+                 panel gets a byte-identical copy of textures/catacombs/
+                 incinerator.tim with only its two header addresses moved, to
+                 the arms' page and palette - x640 y0 and (672,501) - on the
+                 torsos' terms. Registered DEFERRED.
+
+                 THESHELF.SMD, 53,320 bytes before packing, inside the arena. -->
+            <file name="THESHELF.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\the_shelf.smd"/>
+            <file name="SHLFINCN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\shelf_incinerator.tim"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

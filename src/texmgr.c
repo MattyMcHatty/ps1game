@@ -1,17 +1,28 @@
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <psxgpu.h>
 #include <psxcd.h>
 #include "cdaudio.h"
 #include "texmgr.h"
 
-/* Registration cap. Overrunning it is a nasty failure: texmgr_register returns
-   -1, the caller stores tpage/clut 0, and the texture is then WRONG IN EVERY
-   ROOM that draws it — with no crash and no message. It has happened once (the
-   East Stairwell's duplicate upstairs/strs copies pushed cncrte and dresser off
-   the end, because both register AFTER it in main()). Each unused slot costs
-   ~48 bytes of BSS; the TIM buffers are malloc'd per bank load, so raising this
-   alone costs almost nothing at runtime.
+/* Registration cap. Overrunning it USED to be a nasty failure: texmgr_register
+   returns -1, the caller stores tpage/clut 0, and the texture is then WRONG IN
+   EVERY ROOM that draws it — with no crash and no message. It has happened once
+   (the East Stairwell's duplicate upstairs/strs copies pushed cncrte and dresser
+   off the end, because both register AFTER it in main()). Each unused slot costs
+   ~40 bytes of BSS (sizeof(TexEntry)); the TIM buffers are malloc'd per bank
+   load, so raising this alone costs almost nothing at runtime.
+
+   >>> IT IS NO LONGER SILENT, TWICE OVER. <<<
+     BUILD TIME  tools/check_texmgr_cap.py runs before every compile (CMake's
+                 texmgr_cap target), counts the registrations in src/ and FAILS
+                 THE BUILD if they exceed the TEXMGR_MAX below. It reads this
+                 #define, so raising the cap here is the whole fix.
+     RUN TIME    a refused registration is counted (texmgr_refused()), and
+                 main() stops on a red screen naming the count the moment the
+                 startup block finishes, before the title. The backstop for a
+                 registration the build-time scan cannot see.
 
    Raised 48 -> 56 when the Rafflesia arrived, 56 -> 64 for Maze Two's plinth,
    64 -> 72 for the Greenhouse, and 72 -> 80 for THE PIT's rusty ironwork, whose
@@ -29,6 +40,12 @@
    is the cost of making x[704,832) y128 a time-share instead of dead space.
    Nine slots spare.
 
+   80 -> 128 with the ROOM OF TORSOS, whose registration was the 79th of 80. Not
+   because anything was refused — because a cap one away from a silent failure
+   was costing a paragraph of care per room, and 48 more slots cost ~2 KB of BSS
+   against ~280 KB free at rest. The checks above are what make the number safe
+   to leave alone; py tools/heap_budget.py still prints the live count.
+
    >>> THE REAL CEILING USED TO BE MAIN RAM AND IS NOT ANY MORE. <<< Until
    September 2026 every registration held its whole TIM for the life of the run
    — 59 of them, 820 KB of a 937 KB heap — and this file's old comment said at
@@ -38,7 +55,7 @@
    texmgr.h, and tools/check_tex_banks.py, which is what stops a mis-tagged
    texture becoming a silent rendering bug. */
 
-#define TEXMGR_MAX 80
+#define TEXMGR_MAX 128
 
 typedef struct {
     uint8_t  *buf;    /* pixels: held only while a bank containing this is in  */
@@ -59,6 +76,7 @@ static int      entry_count   = 0;
 static TexBank  current_bank  = TEXBANK_MANSION;   /* what registrations get tagged */
 static TexBank  loaded_bank   = 0;                 /* nothing is loaded at boot     */
 static uint32_t missed        = 0;
+static int      refused       = 0;   /* registrations past TEXMGR_MAX */
 
 void texmgr_set_bank(TexBank banks) {
     current_bank = banks;
@@ -71,6 +89,10 @@ TexBank texmgr_bank_loaded(void) {
 uint32_t texmgr_missed_uploads(void) {
     return missed;
 }
+
+int texmgr_registered(void) { return entry_count; }
+int texmgr_capacity(void)   { return TEXMGR_MAX; }
+int texmgr_refused(void)    { return refused; }
 
 /* Read `sectors` sectors of a file into a fresh buffer. Returns NULL on any
    failure, which every caller treats as "this texture is absent" rather than as
@@ -100,7 +122,14 @@ static uint8_t *read_sectors(const char *path, int max_sectors, int *got) {
    lines later — and tpage/clut are functions of the VRAM rectangles in those
    headers, which are baked at build time and never move. */
 int texmgr_register(const char *filename) {
-    if (entry_count >= TEXMGR_MAX) return -1;
+    if (entry_count >= TEXMGR_MAX) {
+        /* Counted, and printed for an emulator log; main() turns a non-zero
+           count into a red boot screen (see the cap note above). */
+        refused++;
+        printf("TEXMGR: refused %s - TEXMGR_MAX (%d) is full\n",
+               filename, TEXMGR_MAX);
+        return -1;
+    }
 
     uint8_t *hdr = read_sectors(filename, 1, NULL);
     if (!hdr) return -1;

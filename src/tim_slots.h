@@ -499,6 +499,10 @@
 #define TIM_TPAGE_SHADOW   0x008a
 #define TIM_CLUT_SHADOW    0x7980
 
+/* shelf_incinerator.tim  8bpp  VRAM ( 640,  0)  \TEXCTCMB\SHLFINCN.TIM */
+#define TIM_TPAGE_SHLFINCN 0x008a
+#define TIM_CLUT_SHLFINCN  0x7d6a
+
 /* sml_med.tim     8bpp  VRAM ( 640,256)  \SML_MED.TIM */
 #define TIM_TPAGE_SML_MED  0x009a
 #define TIM_CLUT_SML_MED   0x7880

@@ -10,6 +10,7 @@
 #include "spi.h"
 #include "camera.h"
 #include "render.h"
+#include "texmgr.h"     /* texmgr_refused(): the boot-time cap check */
 #include "delivery_area.h"
 #include "player.h"
 #include "vampire.h"
@@ -102,6 +103,7 @@
 #include "zig_zag_tomb.h"
 #include "h_corridor.h"
 #include "room_of_torsos.h"
+#include "the_shelf.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -366,6 +368,7 @@ static void load_area_geometry(GameState area) {
         case STATE_ZIG_ZAG_TOMB:     zig_zag_tomb_load_geometry(); break;
         case STATE_H_CORRIDOR:       h_corridor_load_geometry(); break;
         case STATE_ROOM_OF_TORSOS:   room_of_torsos_load_geometry(); break;
+        case STATE_THE_SHELF:        the_shelf_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -1982,6 +1985,18 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* AND THE SOUTH-UPPER DOOR, at the south end of the south block's
+           walkway, out to The Shelf. The fifth: 1200 east of the south-lower
+           door in plan and a storey above it, so the storey test keeps the two
+           apart, and vetoed anyway since it can share a storey with the west
+           door. */
+        if (up_down_maze_south_upper_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_THE_SHELF;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_INCINERATOR_ROOM) {
         /* THE INCINERATOR ROOM - Chapter 3's third room, and after the maze
            upstairs a deliberately ordinary one: the shared wall routine and two
@@ -2532,8 +2547,8 @@ static void update_current_area(GameState area) {
         /* THE H CORRIDOR - Chapter 3's seventeenth room: the shared wall
            routine and ONE flat floor zone over three 600-wide corridors in an
            "h". multi_level is 0. One door wired, the north one back to the Zig
-           Zag Tomb, and the south one on to the Room of Torsos; the ladder is
-           drawn and sealed.
+           Zag Tomb, and the south one on to the Room of Torsos; the ladder
+           climbs to The Shelf, by the ladder transition.
            Nothing seeded; both Chapter 3 enemy updates are called anyway, on
            the Tomb's argument. The maggot drop out of the ladder shaft is
            timed here (src/h_corridor.h); the maggots themselves are updated by
@@ -2559,6 +2574,45 @@ static void update_current_area(GameState area) {
             pending_area = STATE_ROOM_OF_TORSOS;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the LADDER at the west leg's foot, up to The Shelf. Not a
+           door: the ladder climb (src/ladder_anim.h) replaces the swing, the
+           North Chamber's arrangement. Called unconditionally for its edge
+           state and vetoed if either door took this frame. */
+        if (h_corridor_ladder_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_THE_SHELF;
+            ladder_anim_start(LADDER_UP);
+            game_state   = STATE_LADDER_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_THE_SHELF) {
+        /* THE SHELF - Chapter 3's nineteenth room: the shared wall routine and
+           ONE flat floor zone over a hall split into three lanes by two rows of
+           bars. multi_level is 0. Two ways out: the north door back to the Up
+           Down Maze's upper storey, and the ladder down to the H Corridor by
+           the ladder transition. Two Lumberers patrol the barred corridors and
+           two Crawlers wait at the west end (src/world.c); the Lumberers route
+           round the bars on this room's own nav table (src/lumberer.c). */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (the_shelf_north_door_triggered(lock)) {
+            pending_area = STATE_UP_DOWN_MAZE;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the LADDER, down to the H Corridor. 3000 from the door in
+           Manhattan terms, so the two cannot share a frame; vetoed anyway. */
+        if (the_shelf_ladder_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_H_CORRIDOR;
+            ladder_anim_start(LADDER_DOWN);
+            game_state   = STATE_LADDER_ANIM;
             cdaudio_stop();
         }
     } else if (area == STATE_ROOM_OF_TORSOS) {
@@ -3093,6 +3147,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         h_corridor_draw(ctx);
     else if (area == STATE_ROOM_OF_TORSOS)
         room_of_torsos_draw(ctx);
+    else if (area == STATE_THE_SHELF)
+        the_shelf_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3557,6 +3613,13 @@ int main(int argc, const char **argv) {
                                      owner's call below, for the same reason as
                                      the Room of Heads' line. */
     loading_screen_pump(&ctx);
+    the_shelf_load_assets();      /* CHAPTER 3's nineteenth room: four borrowed
+                                     headers (cobble, inner door, ladder, bars)
+                                     and its OWN deferred registration for
+                                     SHLFINCN.TIM, the incinerator's art on the
+                                     arms' page and palette - the torsos'
+                                     terms. Deferred, so no CD access here. */
+    loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
                                      AT ALL. The names are recorded; the bytes
@@ -3812,6 +3875,26 @@ int main(int argc, const char **argv) {
 
     FntLoad(960, 0);
     gameover_fnt = FntOpen(40,  104, 240, 32, 0, 128);
+
+    /* >>> A FULL TEXTURE MANAGER STOPS THE GAME HERE, ON PURPOSE. <<< A
+       registration past TEXMGR_MAX returns -1 and its texture is then wrong in
+       every room that draws it, with no other symptom. Every registration is in
+       the startup block above, so this is the one place the count is final.
+       tools/check_texmgr_cap.py should have failed the build first; this is the
+       backstop for a call its scan cannot see. Raise TEXMGR_MAX in
+       src/texmgr.c. */
+    if (texmgr_refused()) {
+        char msg[96];
+        sprintf(msg, "TEXMGR_MAX EXCEEDED\n\n%d OF %d REGISTERED\n%d REFUSED\n\n"
+                     "RAISE TEXMGR_MAX IN\nSRC/TEXMGR.C",
+                texmgr_registered(), texmgr_capacity(), texmgr_refused());
+        render_set_clear_colour(&ctx, 120, 0, 0);
+        for (;;) {
+            ctx.next_packet = FntSort(&ctx.buffers[ctx.active_buffer].ot[1],
+                                      ctx.next_packet, 40, 80, msg);
+            flip_buffers(&ctx);
+        }
+    }
 
     /* menu_init and title_init open their own font streams, so call them
        after FntLoad above. */
@@ -4422,6 +4505,15 @@ int main(int argc, const char **argv) {
                    Creep's. Same guarantee and same silent failure mode as the
                    branches around it. */
                 room_of_torsos_upload_textures();
+            } else if (pending_area == STATE_THE_SHELF) {
+                /* THE SHELF. Cobble and the inner door through the Catacombs
+                   Entry's narrow uploaders, the ladder through the North
+                   Chamber's and the bars through bars.c's, plus its OWN -
+                   SHLFINCN.TIM on x640 y0, the ROOM OF ARMS' page and palette,
+                   which each of those rooms' branches puts back on the way in
+                   there. Same guarantee and same silent failure mode as the
+                   branches around it. */
+                the_shelf_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5003,6 +5095,10 @@ int main(int argc, const char **argv) {
                    the UPPER storey. Same terms. */
                 if (current_area == STATE_CLEAVER_CORRIDOR)
                     up_down_maze_spawn_north();
+                /* ...and back from THE SHELF, at the south-upper door on the
+                   UPPER storey. Same terms. */
+                if (current_area == STATE_THE_SHELF)
+                    up_down_maze_spawn_south_upper();
                 /* ...and back from the CRUCIFIX CORRIDOR, at the east door on
                    the LOWER storey. Same terms. */
                 if (current_area == STATE_CRUCIFIX_CORRIDOR)
@@ -5192,11 +5288,24 @@ int main(int argc, const char **argv) {
                 h_corridor_init();
                 if (current_area == STATE_ROOM_OF_TORSOS)
                     h_corridor_spawn_south();
+                /* ...and back DOWN the ladder from The Shelf, at its foot. */
+                else if (current_area == STATE_THE_SHELF)
+                    h_corridor_spawn_ladder();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ROOM_OF_TORSOS) {
                 /* ONE ARRIVAL, the east door, so room_of_torsos_init()'s
                    default spawn is also the only one. */
                 room_of_torsos_init();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_THE_SHELF) {
+                /* TWO ARRIVALS. the_shelf_init()'s default is the north door,
+                   from the Up Down Maze; up the ladder from the H Corridor it
+                   is the top of the ladder. Keyed on current_area, the room
+                   being LEFT and not a route, so a debug jump or a title load
+                   still lands at the door. */
+                the_shelf_init();
+                if (current_area == STATE_H_CORRIDOR)
+                    the_shelf_spawn_ladder();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5571,7 +5680,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_CLEAVER_L ||
                    game_state == STATE_ZIG_ZAG_TOMB ||
                    game_state == STATE_H_CORRIDOR ||
-                   game_state == STATE_ROOM_OF_TORSOS) {
+                   game_state == STATE_ROOM_OF_TORSOS ||
+                   game_state == STATE_THE_SHELF) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

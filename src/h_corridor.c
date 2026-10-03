@@ -213,15 +213,26 @@ void h_corridor_upload_textures(void) {
    argument. The Room of Torsos' east door, the far side, is a YZ door and takes
    its own pair.
 
-   THE LADDER, z=0 x[200,400], is drawn and nothing else: no sign, no trigger.
-   It reads as sealed until the room above it exists. It is 1700 from the south
-   door, so the two can never share a trigger. */
+   ---- THE LADDER ----
+   z=0, x[200,400], climbing the shaft's south wall from the west leg's foot.
+   Up to THE SHELF, onto the passage floor at the top of its ladder; the climb
+   is the ladder transition (src/ladder_anim.h), not a door.
+
+   The shaft is the west leg's own floor here — x[0,600] z[0,600], open above —
+   so the player stands in it, at the foot. The ladder's wall is wall 3 (z=0
+   over x[0,600], nz=+4095), approached from +Z: an XY-plane prompt with
+   mirror=1, 11 proud of the wall along +Z, the -200 on the X argument — the
+   south door's pair. It is 1800 from the south door and 5400 from the north,
+   so none of the three can share a trigger. */
 #define HC_NORTH_X           300     /* the art spans x[200,400] */
 #define HC_NORTH_Z          5400
 #define HC_NORTH_TEXT_Y     (-186)   /* eye level on the y=0 floor */
 #define HC_SOUTH_X          2100     /* the art spans x[2000,2200] */
 #define HC_SOUTH_Z             0
 #define HC_SOUTH_TEXT_Y     (-186)   /* eye level on the y=0 floor */
+#define HC_LADDER_X          300     /* the art spans x[200,400] */
+#define HC_LADDER_Z            0
+#define HC_LADDER_TEXT_Y    (-186)   /* eye level on the y=0 floor */
 
 #define HC_TEXT_RADIUS      1200
 #define HC_FADE_NEAR         800
@@ -231,10 +242,12 @@ void h_corridor_upload_textures(void) {
    carried in through the transition cannot fire on the arrival frame. */
 static int north_circle_prev = 1;
 static int south_circle_prev = 1;
+static int ladder_circle_prev = 1;
 
 void h_corridor_arm(void) {
-    north_circle_prev = interact_tapped();
-    south_circle_prev = north_circle_prev;
+    north_circle_prev  = interact_tapped();
+    south_circle_prev  = north_circle_prev;
+    ladder_circle_prev = north_circle_prev;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -312,6 +325,43 @@ static void hc_south_door_text(RenderContext *ctx) {
                         HC_SOUTH_X - 200, HC_SOUTH_TEXT_Y, HC_SOUTH_Z + 11,
                         50, 255, 50, fade,
                         1, TEXT_PLANE_XY,   /* mirror=1: XY door approached from +Z */
+                        DOOR_PIXEL_SIZE);
+}
+
+/* The ladder's Circle test, up to the Shelf. The doors' shape. */
+int h_corridor_ladder_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !ladder_circle_prev;
+    int32_t dx, dz, xz;
+    ladder_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - HC_LADDER_X;
+    dz = cam_z - HC_LADDER_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= HC_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(HC_LADDER_X, HC_LADDER_Z)) return 0;
+    return 1;
+}
+
+static void hc_ladder_text(RenderContext *ctx) {
+    int32_t dx = cam_x - HC_LADDER_X;
+    int32_t dz = cam_z - HC_LADDER_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= HC_TEXT_RADIUS) return;
+
+    if (xz > HC_FADE_NEAR) {
+        int range = HC_TEXT_RADIUS - HC_FADE_NEAR;
+        int prog  = xz - HC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to ascend",
+                        HC_LADDER_X - 200, HC_LADDER_TEXT_Y, HC_LADDER_Z + 11,
+                        50, 255, 50, fade,
+                        1, TEXT_PLANE_XY,   /* mirror=1: XY, approached from +Z */
                         DOOR_PIXEL_SIZE);
 }
 
@@ -398,6 +448,19 @@ void h_corridor_spawn_south(void) {
     cam_y   = HC_EYE_Y;
     cam_vy  = 0;
     cam_z   = HC_SOUTH_Z + (HC_WALL_RADIUS + 25);
+    cam_rot = 0;                       /* facing +Z, north */
+    h_corridor_arm();
+}
+
+void h_corridor_spawn_ladder(void) {
+    /* Back down the ladder from the Shelf. 220 off wall 3 on its walkable +Z
+       side, on the ladder's centre line (the west leg's, 300 clear of both its
+       walls), facing +Z — the direction of travel: the climb comes down the
+       shaft and steps off north, up the leg. */
+    cam_x   = HC_LADDER_X;
+    cam_y   = HC_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = HC_LADDER_Z + (HC_WALL_RADIUS + 25);
     cam_rot = 0;                       /* facing +Z, north */
     h_corridor_arm();
 }
@@ -623,6 +686,7 @@ void h_corridor_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         hc_north_door_text(ctx);   /* north: XY plane, approached from -Z */
         hc_south_door_text(ctx);   /* south: XY plane, approached from +Z */
+        hc_ladder_text(ctx);       /* ladder: XY plane, approached from +Z */
         /* THE CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Their sheets sit at Voff 128, so each is handed the window to restore

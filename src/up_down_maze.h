@@ -22,7 +22,7 @@
    it wants a FLOOR_RAMP zone in up_down_maze_floor_zones_init(), and that is the
    whole change.
 
-   THE DOORS. Six are drawn into the outer walls, and FOUR of them are wired
+   THE DOORS. Six are drawn into the outer walls, and FIVE of them are wired
    up:
 
      WEST, UPPER   x=-300  z[-100,100]  y[-1400,-1000]   -> Catacombs Entry
@@ -31,12 +31,13 @@
                    (locked from the corridor side until FLAG_CLEAVER_CORR_DOOR)
      EAST, LOWER   x=3900  z[3500,3700] y[-400,0]        -> Crucifix Corridor
                    (the single door in the lower maze's north-east corner)
+     SOUTH, UPPER  z=-2100 x[1700,1900] y[-1400,-1000]   -> The Shelf
+                   (the south end of the south block's walkway)
      east, upper   x=3900  z[-100,100]                   not built
-     south, upper  z=-2100 x[1700,1900]                  not built
 
-   The two unbuilt ones are drawn and nothing else: no sign, no trigger, no
-   collision gap. They read as sealed doors, which is what they are until the
-   rooms behind them exist, and wiring one up is a block of #defines in the .c
+   The unbuilt one is drawn and nothing else: no sign, no trigger, no
+   collision gap. It reads as a sealed door, which is what it is until the
+   room behind it exists, and wiring one up is a block of #defines in the .c
    plus the STEP 6 edits in tools/ADDING_A_ROOM.txt.
 
    >>> AND WITH TWO DOORS ON TWO STOREYS, THE STOREY TEST IS NOT THE UPSTAIRS
@@ -73,6 +74,9 @@ void up_down_maze_spawn_north(void);
 /* EAST is on the LOWER floor in the north-east corner, just inside the east
    door, facing west, for the way back from the Crucifix Corridor. */
 void up_down_maze_spawn_east(void);
+/* SOUTH-UPPER is on the UPPER floor at the south end of the south block's
+   walkway, facing north along it, for the way back from The Shelf. */
+void up_down_maze_spawn_south_upper(void);
 
 /* One frame of each door's Circle test. `lock` is main's usual suppression (a
    menu is up, a cutscene owns the camera). Returns 1 on a fresh press made in
@@ -87,6 +91,7 @@ int  up_down_maze_west_door_triggered(int lock);
 int  up_down_maze_south_door_triggered(int lock);
 int  up_down_maze_north_door_triggered(int lock);
 int  up_down_maze_east_door_triggered(int lock);
+int  up_down_maze_south_upper_door_triggered(int lock);
 
 /* Arm every interaction in the room. Called by the spawn above; exported so a
    caller that places the player some other way (a debug jump) can still ensure a
