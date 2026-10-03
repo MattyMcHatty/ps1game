@@ -10,6 +10,7 @@
 #include "collision.h"      /* GROUND_FLOOR_Y */
 #include "texmgr.h"
 #include "title.h"          /* current_area gate */
+#include "item_pickup.h"    /* the Blood Pearl a cold sconce can hold */
 #include "sconce.h"
 
 /* Sconce — see sconce.h for what it is and why its collision comes out of its
@@ -78,7 +79,47 @@ static int sconce_tex = -1;
    as one animation playing twice rather than as two fires. */
 static int32_t sc_tick = 0;
 
-void sconces_update(void) { sc_tick++; }
+/* ---- THE PEARL -------------------------------------------------------------
+   A cold sconce holding a Blood Pearl catches light when the pearl is taken.
+   The sconce does not carry a "has a pearl" flag: the pickup array already
+   says so. A PICKUP_BLOOD_PEARL whose X/Z is inside the stand's baked box, and
+   no more than SCONCE_PEARL_REACH above its lip, is the pearl on this sconce.
+   If that record is inactive, the pearl has been collected.
+
+   That record survives everything the sconce has to survive: world_leave/
+   world_enter memcpy the array whole, and a save load re-seeds the room and then
+   clears only `active` on the collected slots (world.c, items_gone), so kind and
+   position are still there. What does NOT survive it is a runtime spawn into
+   the same room — item_pickup_spawn_range reuses the first inactive slot — so a
+   room that spawns pickups at runtime must not also hold a pearl sconce.
+
+   Lighting is one-way and per visit: the room's init re-places the sconce cold,
+   and the first update after world_enter lights it again off the same record.
+   The glow then ramps in from 0 like any lit sconce's. */
+#define SCONCE_PEARL_REACH  200   /* pearl sits ~42 over the lip; 200 is generous */
+
+static void sconces_light_taken_pearls(void) {
+    int i, j;
+    for (i = 0; i < sconce_count; i++) {
+        Sconce *s = &sconces[i];
+        if (!s->active || s->lit || s->area != current_area) continue;
+        int32_t lip = s->y + GROUND_FLOOR_Y - sc_height;   /* -Y is up */
+        for (j = 0; j < item_pickup_count; j++) {
+            const ItemPickup *p = &item_pickups[j];
+            if (p->kind != PICKUP_BLOOD_PEARL) continue;
+            if (p->x < s->min_x || p->x > s->max_x) continue;
+            if (p->z < s->min_z || p->z > s->max_z) continue;
+            if (p->y > lip || p->y < lip - SCONCE_PEARL_REACH) continue;
+            if (!p->active) s->lit = 1;
+            break;
+        }
+    }
+}
+
+void sconces_update(void) {
+    sc_tick++;
+    sconces_light_taken_pearls();
+}
 
 /* ---- THE GLOW --------------------------------------------------------------
    A sconce pushes the dark back around itself, and it does it through the

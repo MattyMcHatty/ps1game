@@ -1730,6 +1730,23 @@ void world_seed_room(GameState area) {
         item_pickup_set_display(bp, 22, 0);
     }
 
+    /* A SECOND BLOOD PEARL, on the Up Down Maze's cold sconce across from the
+       door to The Shelf (src/up_down_maze.c, UDM_SCONCE_X/Z — keep the two in step).
+       The Cleaver Corridor's exactly, one storey up: the walkway is y=-1000,
+       so the coal bed is at -1180 and the centre at -1222, and the spawn y is
+       that plus IP_FLOAT_Y. Taking it lights the sconce (src/sconce.c).
+
+       REACH 300, on the same sum: the stand's box holds the player 135 off its
+       centre on every open face, and it stands mid-walkway, so all of them are
+       open; 300 covers them, and cannot reach it from the lower corridor,
+       which ITEM_PICKUP_HEIGHT rules out anyway (1000 below). Slot 0 of a room that had no pickups, so it moves no
+       existing items_gone bit. */
+    if (area == STATE_UP_DOWN_MAZE) {
+        int bp = item_pickup_spawn_range(1200, -1222 + 50, -1800,
+                                         PICKUP_BLOOD_PEARL, 1, 300);
+        item_pickup_set_display(bp, 22, 0);
+    }
+
     /* THE SLIDING BARS ROOM: two Crawlers and one Lumberer, in the corridors
        of the 7x7 grid (src/sliding_bars_room.c, THE GATES, numbers the
        squares). The room is one flat plane at y=0 under a vault at -800.

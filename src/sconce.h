@@ -58,12 +58,22 @@ void sconces_clear(void);         /* drop every placed instance (an area's init)
 
    `lit` 0 is a COLD sconce: the same stand and the same collision, but no flame
    sprite and no point light, so it sits in the room's fog like any other prop
-   (the Cleaver Corridor's, with the Blood Pearl on its coal bed). */
+   (the Cleaver Corridor's, with the Blood Pearl on its coal bed).
+
+   >>> A COLD SCONCE WITH A BLOOD PEARL ON IT LIGHTS WHEN THE PEARL IS TAKEN. <<<
+   Nothing to wire per room: "on it" means a PICKUP_BLOOD_PEARL in the room's
+   live pickup array whose X/Z falls inside this sconce's footprint, and
+   sconces_update() lights the sconce the first frame that pickup is inactive.
+   A collected pickup keeps its slot (active 0, kind and position intact) both
+   in world.c's room swap and across a save load, so on re-entry the sconce
+   comes back lit. The ONE way to break it is a runtime spawn into that room,
+   which reuses the first inactive slot and would overwrite the record. */
 void sconce_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y,
                   int lit);
 
-/* One frame of the flame flip. Call it from the room's update beside the other
-   props'; nothing else in the module has per-frame state. */
+/* One frame of the flame flip, and the pearl check above. Call it from the
+   room's update beside the other props', AFTER item_pickups_update() so the
+   sconce lights on the frame its pearl is collected. */
 void sconces_update(void);
 
 /* Hand this area's sconces to the renderer as point lights, one frame's worth,

@@ -30,6 +30,7 @@
 #include "oil_dispenser.h"
 #include "player.h"             /* current_weapon, player_weapons             */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "sliding_bars_room.h"  /* the reset button: sliding_bars_room_reset_gates */
 
 /* The Shelf — see the_shelf.h for the layout, the bars and the ways out. */
 
@@ -243,13 +244,30 @@ void the_shelf_upload_textures(void) {
    the player at z<=-195, well inside the 500 trigger.
 
    The two are 3000 apart in Manhattan terms, so they can never share a
-   trigger. */
+   trigger.
+
+   ---- THE RESET BUTTON ----
+   x=-4800, z[-1000,-800], y[-300,-100] — the one incinerator panel, on the
+   west wall at the west end, halfway between the two rows of bars. It is THE
+   SLIDING BARS ROOM'S RESET BUTTON (the "not built yet" one in
+   src/sliding_bars_room.c's THE GATES): a press puts all four gates back to
+   their start spots. It works every time; there is nothing to jam.
+
+   The west wall faces +X, so the sign is a YZ sign approached from +X:
+   mirror=0, 11 proud of the wall along +X, and the -200 on the Z argument —
+   the Sliding Bars Room's gate 4 panel exactly. Its text sits above the panel
+   at that room's -343, for the same reason. Wall radius 195 holds the player
+   at x>=-4605, well inside the 500 trigger, and the button is far from both
+   ways out. */
 #define TS_NORTH_X        (-2300)     /* the art spans x[-2400,-2200] */
 #define TS_NORTH_Z           400
 #define TS_NORTH_TEXT_Y     (-186)    /* eye level on the y=0 floor */
 #define TS_LADDER_X          300      /* the art spans x[200,400] */
 #define TS_LADDER_Z            0
 #define TS_LADDER_TEXT_Y    (-186)    /* eye level on the y=0 floor */
+#define TS_BUTTON_X        (-4800)    /* the panel spans z[-1000,-800] */
+#define TS_BUTTON_Z         (-900)
+#define TS_BUTTON_TEXT_Y    (-343)    /* glyph TOP, 15 above the y[-300,-100] panel */
 
 #define TS_TEXT_RADIUS      1200
 #define TS_FADE_NEAR         800
@@ -259,10 +277,12 @@ void the_shelf_upload_textures(void) {
    press carried in through the transition cannot fire on the arrival frame. */
 static int north_circle_prev  = 1;
 static int ladder_circle_prev = 1;
+static int button_circle_prev = 1;
 
 void the_shelf_arm(void) {
     north_circle_prev  = interact_tapped();
     ladder_circle_prev = north_circle_prev;
+    button_circle_prev = north_circle_prev;
 }
 
 /* One Circle test for either way out: a fresh press, in range, facing it.
@@ -288,6 +308,15 @@ int the_shelf_north_door_triggered(int lock) {
 
 int the_shelf_ladder_triggered(int lock) {
     return ts_triggered(lock, &ladder_circle_prev, TS_LADDER_X, TS_LADDER_Z);
+}
+
+/* The reset button. The gates are re-placed from the state on every entry to
+   the Sliding Bars Room, so clearing it here is the whole job. */
+void the_shelf_update(int lock) {
+    if (!ts_triggered(lock, &button_circle_prev, TS_BUTTON_X, TS_BUTTON_Z))
+        return;
+    sliding_bars_room_reset_gates();
+    show_pickup_msg_raw("You heard some slamming in the distance");
 }
 
 /* A floating prompt. Same shape as every door sign in the game: opaque within
@@ -555,13 +584,32 @@ void the_shelf_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_the_shelf_smd(ctx);
 
-    /* >>> LEVEL 8 REMOVES THE FOUR MONSTERS AND THE TWO SIGNS. <<< Nothing else
+    /* >>> LEVEL 8 REMOVES THE FOUR MONSTERS AND THE THREE SIGNS. <<< Nothing else
        stands in this room. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         ts_sign(ctx, "Press " BTN_CIRCLE " to enter",
                 TS_NORTH_X, TS_NORTH_TEXT_Y, TS_NORTH_Z);
         ts_sign(ctx, "Press " BTN_CIRCLE " to descend",
                 TS_LADDER_X, TS_LADDER_TEXT_Y, TS_LADDER_Z);
+        /* The reset button: a YZ sign approached from +X (mirror=0), so it
+           does not go through ts_sign's XY offsets. */
+        {
+            int32_t dx = cam_x - TS_BUTTON_X;
+            int32_t dz = cam_z - TS_BUTTON_Z;
+            int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+            if (xz < TS_TEXT_RADIUS) {
+                int fade = 256;
+                if (xz > TS_FADE_NEAR)
+                    fade = 256 - (((xz - TS_FADE_NEAR) * 256) /
+                                  (TS_TEXT_RADIUS - TS_FADE_NEAR));
+                door_draw_string_3d(ctx, "press " BTN_CIRCLE " to activate",
+                                    TS_BUTTON_X + 11, TS_BUTTON_TEXT_Y,
+                                    TS_BUTTON_Z - 200,
+                                    50, 255, 50, fade,
+                                    0, TEXT_PLANE_YZ,  /* mirror=0: from +X */
+                                    DOOR_PIXEL_SIZE);
+            }
+        }
         /* THE CHAPTER 3 ENEMIES. Their sheets sit at Voff 128, so each is
            handed the window to restore after drawing unmasked. */
         {

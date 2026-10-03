@@ -30,8 +30,9 @@ typedef enum {
                                 lantern the player would find a weapon that could
                                 not be used until a refill point they have not
                                 reached yet.                                    */
-    PICKUP_BLOOD_PEARL,      /* blood pearl     -> ITEM_BLOOD_PEARL bit. On the
-                                Cleaver Corridor's cold sconce; no use yet     */
+    PICKUP_BLOOD_PEARL,      /* blood pearl     -> player_blood_pearls (stacks,
+                                3 max). Each on a cold sconce, which lights
+                                when it is taken; no use yet                   */
     PICKUP_MEAT_SACK,        /* meat sack       -> ITEM_MEAT_SACK bit. In the
                                 middle of the Meat Plant; no use yet           */
     PICKUP_GAOL_KEY,         /* gaol key        -> ITEM_GAOL_KEY bit. Never

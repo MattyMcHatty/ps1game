@@ -244,6 +244,11 @@ static int slot_take(int slot) {
         if (player_hatch_keys <= 0) return 0;
         player_hatch_keys--;
         return 1;
+    case MENU_SLOT_BLOOD_PEARL:
+        /* The same: three can be carried, one goes in at a time. */
+        if (player_blood_pearls <= 0) return 0;
+        player_blood_pearls--;
+        return 1;
     case MENU_SLOT_FRONT_DOOR_KEY:
         if (!(player_keys & (1 << KEY_FRONT_DOOR))) return 0;
         player_keys &= ~(1 << KEY_FRONT_DOOR);
@@ -256,7 +261,6 @@ static int slot_take(int slot) {
     case MENU_SLOT_YELLOW_KEY_STONE:  if (!(player_items & (1 << ITEM_YELLOW_KEY_STONE)))  return 0; player_items &= ~(1 << ITEM_YELLOW_KEY_STONE);  return 1;
     case MENU_SLOT_MAGENTA_KEY_STONE: if (!(player_items & (1 << ITEM_MAGENTA_KEY_STONE))) return 0; player_items &= ~(1 << ITEM_MAGENTA_KEY_STONE); return 1;
     case MENU_SLOT_VALVE_HANDLE:      if (!(player_items & (1 << ITEM_VALVE_HANDLE)))      return 0; player_items &= ~(1 << ITEM_VALVE_HANDLE);      return 1;
-    case MENU_SLOT_BLOOD_PEARL:       if (!(player_items & (1 << ITEM_BLOOD_PEARL)))       return 0; player_items &= ~(1 << ITEM_BLOOD_PEARL);       return 1;
     case MENU_SLOT_MEAT_SACK:         if (!(player_items & (1 << ITEM_MEAT_SACK)))         return 0; player_items &= ~(1 << ITEM_MEAT_SACK);         return 1;
     case MENU_SLOT_GAOL_KEY:          if (!(player_items & (1 << ITEM_GAOL_KEY)))          return 0; player_items &= ~(1 << ITEM_GAOL_KEY);          return 1;
     default: return 0;
@@ -277,18 +281,25 @@ static void slot_give(int slot, int count) {
     case MENU_SLOT_YELLOW_KEY_STONE:  player_items |= (1 << ITEM_YELLOW_KEY_STONE); break;
     case MENU_SLOT_MAGENTA_KEY_STONE: player_items |= (1 << ITEM_MAGENTA_KEY_STONE);break;
     case MENU_SLOT_VALVE_HANDLE:      player_items |= (1 << ITEM_VALVE_HANDLE);     break;
-    case MENU_SLOT_BLOOD_PEARL:       player_items |= (1 << ITEM_BLOOD_PEARL);      break;
+    case MENU_SLOT_BLOOD_PEARL:       player_blood_pearls        += count; break;
     case MENU_SLOT_MEAT_SACK:         player_items |= (1 << ITEM_MEAT_SACK);        break;
     case MENU_SLOT_GAOL_KEY:          player_items |= (1 << ITEM_GAOL_KEY);         break;
     default: break;
     }
 }
 
+static int tray_waiting(int slot);   /* below, beside the unburnable table */
+
 int incinerator_store(int slot) {
     int n;
     if (hopper_slot >= 0) return 0;              /* one thing at a time */
     if (slot < 0 || slot >= MENU_ITEM_SLOTS) return 0;
     if (!menu_item_held(slot)) return 0;
+    /* THE TRAY HOLDS ONE OF EACH. It is a bitmask, so spitting a second Blood
+       Pearl onto a tray that still has one waiting would set a bit already set
+       and the second pearl would vanish. Refuse it here instead, before it
+       leaves the player, and let the panel say why. */
+    if (tray_waiting(slot)) return INC_STORE_TRAY_FULL;
     n = slot_take(slot);
     if (n <= 0) return 0;
     hopper_slot  = slot;
@@ -340,6 +351,15 @@ static const struct { int slot; IncTray tray; } unburnable[] = {
     { MENU_SLOT_BLOOD_PEARL, INC_TRAY_BLOOD_PEARL },
     { MENU_SLOT_GAOL_KEY,    INC_TRAY_GAOL_KEY    },
 };
+
+/* 1 if `slot` would be spat out and one of it is already on the east tray. */
+static int tray_waiting(int slot) {
+    int i;
+    for (i = 0; i < (int)(sizeof unburnable / sizeof unburnable[0]); i++)
+        if (unburnable[i].slot == slot && (tray & (1 << unburnable[i].tray)))
+            return 1;
+    return 0;
+}
 
 int incinerator_spat(void) { return last_spat; }
 

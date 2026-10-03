@@ -28,6 +28,7 @@
 #include "crawler.h"            /* Chapter 3's monster: five on the lower maze  */
 #include "lumberer.h"           /* ...and its second, drawn here but not placed */
 #include "maggot.h"
+#include "item_pickup.h"        /* the Blood Pearl on the sconce */
 
 /* Up Down Maze — see up_down_maze.h for the layout and the two-storey note. */
 
@@ -312,7 +313,37 @@ void up_down_maze_load_assets(void) {
 void up_down_maze_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
+    /* ...and the SCONCE's own page (x448 y0), for the one across from The Shelf's
+       door. The narrow form again, the Cleaver Corridor's call: nothing else
+       here draws that page. */
+    sconce_upload_texture();
 }
+
+/* ---- THE SCONCE ------------------------------------------------------------
+   ONE, COLD, on the UPPER storey across from the south-upper door to The
+   Shelf. The south block's walkway, x[900,2100] z[-2100,-1500], reads as TWO
+   600 SQUARES side by side; the door opens into the east one, x[1500,2100],
+   and the sconce stands in the EXACT MIDDLE of the west one:
+
+     x 1200   centre of x[900,1500]
+     z -1800  centre of z[-2100,-1500]
+
+   So a player arriving from The Shelf (facing +Z, camera right = +X) has it on
+   their LEFT. Its collision box, grown by the player's 75, is x[1065,1335]
+   z[-1935,-1665], nowhere near the arrival spot (1800,-1880) or the door's
+   approach.
+
+   y is the walkway's: UDM_UPPER_Y less GROUND_FLOOR_Y, so the base stands on
+   y=-1000 and sconces_collide's vertical gate keeps it from blocking the lower
+   corridor beneath.
+
+   THE BLOOD PEARL sits on its coal bed, placed in src/world.c from these same
+   two numbers — keep them in step. Taking it lights the sconce (src/sconce.c,
+   THE PEARL). Once lit, its light is FLAT IN Y like all this game's fog, so it
+   also lifts the lower corridor around the block within 750 — which can be
+   seen from up here over the walkway's edges anyway. */
+#define UDM_SCONCE_X          1200
+#define UDM_SCONCE_Z        (-1800)
 
 /* ---- THE DOORS: FIVE OF THE SIX ARE WIRED ---------------------------------
    WEST, UPPER   x=-300  z[-100,100]  y[-1400,-1000]  -> Catacombs Entry
@@ -663,12 +694,16 @@ void up_down_maze_init(void) {
        would stand in the middle of the lower maze.
 
        Clearing is safe: catacombs_entry_init() re-places all four on every entry
-       to that room, and this room places none of them. (Mistake 5 in
-       tools/ADDING_A_ROOM.txt.) */
+       to that room. (Mistake 5 in tools/ADDING_A_ROOM.txt.) */
     save_points_clear();
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
+
+    /* ...then this room's own sconce, cold, in the middle of the walkway's
+       west square, across from The Shelf's door. */
+    sconce_place(STATE_UP_DOWN_MAZE, UDM_SCONCE_X, UDM_UPPER_Y - GROUND_FLOOR_Y,
+                 UDM_SCONCE_Z, 0, 0);
 
     /* Resolve the view distance with no ease: the first frame in the room shows
        whatever the player walked in holding. */
@@ -677,13 +712,13 @@ void up_down_maze_init(void) {
 
 /* ---- The mesh --------------------------------------------------------------
    The standard room draw loop, copied verbatim from src/catacombs_entry.c apart
-   from the identifiers and the one thing that room has and this one does not:
-   the braziers' render_light_dist() discount. There are no lights placed here,
-   so the call would be a box-reject against an empty list on the hottest path in
-   the room. Put it back in BOTH places at once the day this room gets a light —
-   the cull's discount and the shading's must match, or a lit poly survives the
+   from the identifiers — INCLUDING the braziers' render_light_dist() discount,
+   now that the sconce across from The Shelf's door can light. It is in BOTH places, the
+   cull's and the shading's, and they must match, or a lit poly survives the
    cull and is then shaded as though it had not been, i.e. drawn in the clear
-   colour, a hole.
+   colour, a hole. While the sconce is cold the list is empty and the cull's
+   call never runs (it is short-circuited behind the camera's own reach); the
+   shading's is a box-reject against an empty list.
 
    Do not redesign the rest: the culling, the flat-poly OT sorting, the fog maths
    and the packet-overflow guards are all load-bearing (STEP 1). */
@@ -714,8 +749,17 @@ static void draw_up_down_maze_smd(RenderContext *ctx) {
             int32_t dx = (int32_t)cull_keys[i].x - cam_x;
             int32_t dz = (int32_t)cull_keys[i].z - cam_z;
             int32_t cd = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-            if (cd > cull)                        { p += stride; continue; }
-            if (dx * sn + dz * cs < -(700 << 12)) { p += stride; continue; }
+            /* SHORT-CIRCUITED ON PURPOSE, the Catacombs Entry's arrangement:
+               a primitive inside the camera's own reach never asks the light,
+               and only one the camera would drop pays for the test (which
+               box-rejects before it loops — render.h). The list is empty until
+               the sconce's Blood Pearl is taken. */
+            if (cd > cull &&
+                render_light_dist((int32_t)cull_keys[i].x,
+                                  (int32_t)cull_keys[i].z, cd) > cull)
+                { p += stride; continue; }
+            if (dx * sn + dz * cs < -(700 << 12))
+                { p += stride; continue; }
         }
 
         /* SURVIVED BOTH CULLS: only now is the header read and the vertex array
@@ -785,6 +829,10 @@ static void draw_up_down_maze_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        /* The sconce's discount, and it MUST match the one the cull above
+           applied or a lit poly survives the cull and is then shaded as though
+           it had not been — drawn in the clear colour, a hole. */
+        dist = render_light_dist(face_cx, face_cz, dist);
         int32_t fog = dist < udm_fog_near ? udm_fog_near : (dist > udm_fog_far ? udm_fog_far : dist);
         int32_t fog_factor = ((udm_fog_far - fog) << 8) / (udm_fog_far - udm_fog_near);
 
@@ -868,6 +916,11 @@ void up_down_maze_draw(RenderContext *ctx) {
     g_fog_near = udm_fog_near;
     g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : udm_fog_far;
 
+    /* THE SCONCE'S LIGHT, after the two numbers it is a discount on and before
+       the mesh that reads it. Nothing is published while it is cold; taking
+       its Blood Pearl lights it. */
+    sconces_publish_lights();
+
     /* Background in the SAME colour the fog saturates to, as the CLEAR COLOUR
        and not as a primitive: the draw environments carry isbg=1, so DrawOTagEnv
        has already filled the whole framebuffer before the first poly is drawn,
@@ -893,6 +946,10 @@ void up_down_maze_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     if (exp != DBG_EXP_NO_MESH) draw_up_down_maze_smd(ctx);
+
+    /* The sconce across from The Shelf's door. Its texture sits at Voff 0, so the
+       window above serves it. */
+    sconces_draw(ctx);
 
     /* >>> LEVEL 8 NOW REMOVES FIVE CRAWLERS AND THE SIGN. <<< This used to say
        the sign was all there is, and that the room held no monsters because
@@ -927,5 +984,9 @@ void up_down_maze_draw(RenderContext *ctx) {
            now (src/lumberer.h), so this room can hold either or both. */
         draw_lumberers(ctx);
         draw_maggots(ctx);   /* area-tagged: free where none is placed */
+        /* THE BLOOD PEARL, on the sconce. Pickups are not drawn globally. After
+           the enemy calls, which restore the 128 window its Voff-64 art needs —
+           the Cleaver Corridor's order. */
+        item_pickups_draw(ctx);
     }
 }

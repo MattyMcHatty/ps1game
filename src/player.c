@@ -24,6 +24,7 @@ int      graveolver_loaded = GRAVEOLVER_CAPACITY;  /* cylinder starts loaded   *
    than a hundred units the player never earned. */
 int      player_oil = 0;
 int      player_hatch_keys = 0;                    /* 0..HATCH_KEYS_MAX        */
+int      player_blood_pearls = 0;                  /* 0..BLOOD_PEARLS_MAX      */
 
 /* One row per AmmoType (see player.h). The muzzle-flash colour is the whole
    visual tell for which rounds are chambered, so keep them clearly distinct.

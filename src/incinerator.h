@@ -91,8 +91,9 @@
    cost a player their whole reserve in one press.
 
    Hatch Keys are the third counted slot (player_hatch_keys) and take exactly
-   one, because a hatch key is a thing rather than a quantity. Everything else
-   is a bit and moves whole.
+   one, because a hatch key is a thing rather than a quantity. Blood Pearls are
+   the fourth (player_blood_pearls) and take one on the same terms. Everything
+   else is a bit and moves whole.
 
    IT IS SAVED, as SaveData.incin_slot / incin_count (SAVE_VERSION 26). An item
    left in the machine has to still be there after a load, or the player loses
@@ -135,8 +136,12 @@ void incinerator_set_tray(int mask);     /* savegame restore; clamped      */
 void incinerator_tray_remove(IncTray t); /* the room: its pickup was taken */
 
 /* Move the player's `slot` into the machine. Returns the count actually taken,
-   or 0 if it refused (the hopper is full, or the player does not hold it).
-   THE ONLY code that takes the item off the player. */
+   or 0 if it refused (the hopper is full, or the player does not hold it), or
+   INC_STORE_TRAY_FULL if it is something that will not burn and one of it is
+   still waiting on the east tray — the tray holds one of each, and a second
+   spat onto it would be lost. THE ONLY code that takes the item off the
+   player. */
+#define INC_STORE_TRAY_FULL  (-1)
 int  incinerator_store(int slot);
 
 /* Give it back. Returns the MENU_SLOT_* handed over, or -1 if it was empty.

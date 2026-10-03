@@ -45,7 +45,7 @@ _Static_assert(sizeof(WorldDelta) <= SAVE_DELTA_MAX_BYTES,
    oil dispenser. Both savegame_write and savegame_read memcpy the whole struct
    in and out of a 128-byte `frame` on the STACK: one field past the frame is a
    silent overflow of a local buffer at exactly the moment the player is writing
-   to their card, which is the worst place in the game to find one. It is 96
+   to their card, which is the worst place in the game to find one. It is 120
    bytes today. */
 _Static_assert(sizeof(SaveData) <= MC_FRAME_SIZE,
                "SaveData outgrew one memory-card frame");
@@ -81,6 +81,7 @@ void savegame_capture(SaveData *sd) {
     sd->keys    = player_keys;
     sd->items   = player_items;
     sd->hatch_keys = player_hatch_keys;
+    sd->blood_pearls = player_blood_pearls;
     sd->oil        = player_oil;
     sd->disp_oil   = oil_dispenser_oil();
     /* The Incinerator's conveyor. Written unconditionally, -1 and 0 when it is
@@ -260,6 +261,9 @@ void savegame_apply_pending(void) {
     player_hatch_keys = (sd->hatch_keys < 0) ? 0
                       : (sd->hatch_keys > HATCH_KEYS_MAX) ? HATCH_KEYS_MAX
                       : (int)sd->hatch_keys;
+    player_blood_pearls = (sd->blood_pearls < 0) ? 0
+                        : (sd->blood_pearls > BLOOD_PEARLS_MAX) ? BLOOD_PEARLS_MAX
+                        : (int)sd->blood_pearls;
     /* Clamped on the way in like every other counter: the HUD and the menu both
        print it and the lantern spends it, so a corrupt value would show as a
        nonsense reading and burn for an implausible length of time. */

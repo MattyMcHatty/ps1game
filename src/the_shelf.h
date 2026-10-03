@@ -85,6 +85,12 @@ int  the_shelf_north_door_triggered(int lock);
 /* The same test for the top of the ladder, down to the H Corridor. */
 int  the_shelf_ladder_triggered(int lock);
 
+/* One frame of the reset button on the west wall: a fresh Circle in range and
+   facing it puts the Sliding Bars Room's four gates back to their start spots
+   (sliding_bars_room_reset_gates) and logs it. Call every frame in the room
+   with main's `lock`, so the edge state stays current. */
+void the_shelf_update(int lock);
+
 /* Arm every interaction in the room. Called by the spawns above; exported so a
    caller that places the player some other way can still ensure a Circle held
    through the transition does not fire on the arrival frame. */

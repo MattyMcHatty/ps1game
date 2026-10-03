@@ -32,11 +32,12 @@ typedef enum {
                                the player unbolts the 3D prop itself
                                (src/greenhouse_flood.c) and the mount's `present`
                                bit is what the world remembers */
-    ITEM_BLOOD_PEARL,       /* found resting on the unlit sconce at the east end of
-                               the Cleaver Corridor. No use yet — a flag item held
-                               for a puzzle still to be designed */
+    ITEM_RETIRED_BLOOD_PEARL, /* UNUSED. Was the Blood Pearl's flag bit; the pearl
+                               is a COUNTER now (player_blood_pearls, below), as
+                               there are three to find. The slot stays so the
+                               bits after it keep their numbers. Nothing sets it. */
     ITEM_MEAT_SACK,         /* lying in the middle of the Meat Plant floor. No use
-                               yet — a flag item like the Blood Pearl */
+                               yet — a flag item */
     ITEM_GAOL_KEY,          /* what is left of the Meat Sack after the Incinerator
                                has had it: the machine drops it on its east tray
                                (src/incinerator.h, THE EAST TRAY). No lock yet */
@@ -480,6 +481,14 @@ extern int       graveolver_loaded;  /* rounds currently in the cylinder (0..6) 
    how many are carried, not merely that one is. */
 #define HATCH_KEYS_MAX  2
 extern int player_hatch_keys;
+
+/* Blood Pearls held. A COUNTER for the same reason, and on the same terms as
+   the hatch keys: three are to be found, each on a cold sconce (the Cleaver
+   Corridor's and the Up Down Maze's so far; src/sconce.c lights a sconce when
+   its pearl is taken), and all of them stack into one inventory slot. No use
+   yet — the puzzle that spends them is still to be designed. */
+#define BLOOD_PEARLS_MAX  3
+extern int player_blood_pearls;
 
 /* --- The Helluminator's oil -------------------------------------------------
    >>> IT IS NOT AN AmmoType, AND THAT IS THE POINT. <<< The cylinder swap (R2)

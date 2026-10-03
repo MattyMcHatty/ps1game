@@ -1930,11 +1930,19 @@ static void update_current_area(GameState area) {
 
            ONE INTERACTION, the west door back to the Catacombs Entry, so no veto
            chain and no order to get right — the room has nothing else that
-           answers a button. */
+           answers a button.
+
+           ONE PROP NOW: a cold sconce on the south block's walkway across from
+           the door to The Shelf, with a Blood Pearl on it. Its box collides
+           through apply_collision_reception (sconces_collide, area-tagged);
+           the pickup update collects the pearl, and the sconce update after
+           it lights the sconce once the pearl is gone. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
+        item_pickups_update();
+        sconces_update();
 
         /* Called UNCONDITIONALLY, `lock` passed in rather than tested out here:
            the function keeps its Circle edge state current while locked and
@@ -2316,6 +2324,9 @@ static void update_current_area(GameState area) {
         /* The Blood Pearl on the cold sconce. Pickups are per-room here: a room
            that does not call this can never have one collected. */
         item_pickups_update();
+        /* ...and the sconce it sits on, AFTER it: taking the pearl lights the
+           sconce on the same frame (src/sconce.c, THE PEARL). */
+        sconces_update();
 
         if (cleaver_corridor_ladder_triggered(lock)) {
             pending_area = STATE_NORTH_CHAMBER;
@@ -2599,6 +2610,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_crawlers();
         update_lumberers();
+        the_shelf_update(lock);   /* the Sliding Bars Room's reset button */
 
         if (the_shelf_north_door_triggered(lock)) {
             pending_area = STATE_UP_DOWN_MAZE;

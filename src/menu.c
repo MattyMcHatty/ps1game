@@ -363,6 +363,9 @@ int menu_item_count(int slot) {
        not true of ammo, where the exact reserve is the point. */
     if (slot == MENU_SLOT_HATCH_KEY    && player_hatch_keys > 1)
         return player_hatch_keys;
+    /* Blood Pearls stack three to a cell, on the hatch keys' rule. */
+    if (slot == MENU_SLOT_BLOOD_PEARL  && player_blood_pearls > 1)
+        return player_blood_pearls;
     return 0;
 }
 
@@ -399,7 +402,7 @@ int menu_item_held(int slot) {
                                        return (player_items & (1 << ITEM_MAGENTA_KEY_STONE)) != 0;
         case MENU_SLOT_HATCH_KEY:      return player_hatch_keys > 0;
         case MENU_SLOT_VALVE_HANDLE:   return (player_items & (1 << ITEM_VALVE_HANDLE)) != 0;
-        case MENU_SLOT_BLOOD_PEARL:    return (player_items & (1 << ITEM_BLOOD_PEARL)) != 0;
+        case MENU_SLOT_BLOOD_PEARL:    return player_blood_pearls > 0;
         case MENU_SLOT_MEAT_SACK:      return (player_items & (1 << ITEM_MEAT_SACK)) != 0;
         case MENU_SLOT_GAOL_KEY:       return (player_items & (1 << ITEM_GAOL_KEY)) != 0;
         default: return 0;

@@ -266,7 +266,7 @@ void sliding_bars_room_arm(void) {
    BEFORE 3. Pressing 3 first is a deliberate trap: it locks button 4 out (the
    player can no longer reach square 28) and with it the north-east door, but
    the SOUTH-EAST door is still reachable, so the player can go on. The way
-   back is the RESET BUTTON in another room (not built yet), which calls
+   back is the RESET BUTTON on The Shelf's west wall (src/the_shelf.c), which calls
    sliding_bars_room_reset_gates() to put all four gates back to their start
    spots so the puzzle can be solved again.
 

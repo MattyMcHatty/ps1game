@@ -286,10 +286,15 @@ void incinerator_panel_update(void) {
                fall through to a state change — the board would then show an
                empty box over a lost item. */
             int it = menu_item_at_cell(pick_cur);
-            if (incinerator_store(it) > 0) {
+            int n  = incinerator_store(it);
+            if (n > 0) {
                 state = IP_BOARD;
                 sound_play(SFX_SELECT);
                 ip_log("You placed the ", it, " on the belt");
+            } else if (n == INC_STORE_TRAY_FULL) {
+                /* A second pearl while the first still waits on the tray. The
+                   picker stays up; nothing moved. */
+                ip_log("Take the ", it, " off the tray first");
             }
         }
     }

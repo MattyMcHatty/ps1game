@@ -32,7 +32,10 @@
      EAST, LOWER   x=3900  z[3500,3700] y[-400,0]        -> Crucifix Corridor
                    (the single door in the lower maze's north-east corner)
      SOUTH, UPPER  z=-2100 x[1700,1900] y[-1400,-1000]   -> The Shelf
-                   (the south end of the south block's walkway)
+                   (the south end of the south block's walkway; a cold
+                   sconce with a Blood Pearl on it stands in the middle of
+                   the walkway's west square, at (1200,-1800), on the
+                   arriving player's left)
      east, upper   x=3900  z[-100,100]                   not built
 
    The unbuilt one is drawn and nothing else: no sign, no trigger, no

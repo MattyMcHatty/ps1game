@@ -121,9 +121,10 @@ void item_pickups_reset(void) {
        into a fresh playthrough. (The yellow stone is not in this list: the Anzu
        puzzle is what awards it, and that module clears it.) */
     player_items &= ~((1 << ITEM_PIANO_KEY) | (1 << ITEM_BLUE_KEY_STONE) |
-                      (1 << ITEM_MAGENTA_KEY_STONE) | (1 << ITEM_BLOOD_PEARL) |
+                      (1 << ITEM_MAGENTA_KEY_STONE) |
                       (1 << ITEM_MEAT_SACK) | (1 << ITEM_GAOL_KEY));
-    player_hatch_keys = 0;
+    player_hatch_keys   = 0;
+    player_blood_pearls = 0;
     player_oil        = 0;   /* a new game holds no lantern and no oil */
 }
 
@@ -197,7 +198,12 @@ static void collect(ItemPickup *p) {
             current_weapon  = WEAPON_HELLUMINATOR;
             player_oil_refill();
             break;
-        case PICKUP_BLOOD_PEARL:  player_items |= (1 << ITEM_BLOOD_PEARL); break;
+        /* Counted like the hatch keys, and clamped the same way: three pearls
+           exist, so a duplicate spawn cannot push the count past them. Each
+           grants one whatever `amount` says. */
+        case PICKUP_BLOOD_PEARL:
+            if (player_blood_pearls < BLOOD_PEARLS_MAX) player_blood_pearls++;
+            break;
         /* Taking the sack springs the Meat Plant's ambush: five Maggots out of
            the pile (meat_plant.h). Once per playthrough because this collect
            is — the pickup is persisted and never respawns. */

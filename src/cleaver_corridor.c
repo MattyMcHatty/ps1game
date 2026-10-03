@@ -216,7 +216,8 @@ void cleaver_corridor_upload_textures(void) {
    4000]), so it closes off the dead end without standing in the way out.
 
    UNLIT (sconce_place's `lit` 0): no flame, no point light. The corridor stays
-   the dark the cleavers want, and the stand fogs in with the walls.
+   the dark the cleavers want, and the stand fogs in with the walls — until the
+   Blood Pearl on it is taken, which lights it (src/sconce.c, THE PEARL).
 
    The BLOOD PEARL sits on its coal bed. That is a pickup, placed with the
    room's other residents in src/world.c from these same two numbers — keep
@@ -472,8 +473,15 @@ static void draw_cleaver_corridor_smd(RenderContext *ctx) {
             int32_t dx = (int32_t)cull_keys[i].x - cam_x;
             int32_t dz = (int32_t)cull_keys[i].z - cam_z;
             int32_t cd = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-            if (cd > cull)                        { p += stride; continue; }
-            if (dx * sn + dz * cs < -(700 << 12)) { p += stride; continue; }
+            /* SHORT-CIRCUITED ON PURPOSE, the Crucifix Corridor's arrangement:
+               only a primitive the camera would drop asks the sconce's light,
+               which is empty until the Blood Pearl is taken (src/sconce.c). */
+            if (cd > cull &&
+                render_light_dist((int32_t)cull_keys[i].x,
+                                  (int32_t)cull_keys[i].z, cd) > cull)
+                { p += stride; continue; }
+            if (dx * sn + dz * cs < -(700 << 12))
+                { p += stride; continue; }
         }
 
         /* SURVIVED BOTH CULLS: only now is the header read and the vertex array
@@ -541,6 +549,10 @@ static void draw_cleaver_corridor_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        /* The sconce's discount, and it MUST match the one the cull above
+           applied or a lit poly survives the cull and is then shaded as though
+           it had not been — drawn in the clear colour, a hole. */
+        dist = render_light_dist(face_cx, face_cz, dist);
         int32_t fog = dist < cc_fog_near ? cc_fog_near : (dist > cc_fog_far ? cc_fog_far : dist);
         int32_t fog_factor = ((cc_fog_far - fog) << 8) / (cc_fog_far - cc_fog_near);
 
@@ -621,6 +633,11 @@ void cleaver_corridor_draw(RenderContext *ctx) {
     g_fog_near = cc_fog_near;
     g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : cc_fog_far;
 
+    /* THE SCONCE'S LIGHT, after the two numbers it is a discount on and before
+       the mesh that reads it. Nothing is published while the sconce is cold;
+       taking the Blood Pearl lights it (src/sconce.c, THE PEARL). */
+    sconces_publish_lights();
+
     /* The fog colour as the CLEAR colour, not a full-screen TILE (wrong turn #3
        in tools/DIAGNOSING_FRAME_RATE.txt). */
     render_set_clear_colour(ctx, CC_FOG_R, CC_FOG_G, CC_FOG_B);
@@ -643,8 +660,8 @@ void cleaver_corridor_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_cleaver_corridor_smd(ctx);
 
-    /* The cold sconce. Its texture sits at Voff 0, so the window above serves
-       it; there are no lights to publish, it is unlit. */
+    /* The sconce, cold until its Blood Pearl is taken. Its texture sits at
+       Voff 0, so the window above serves it. */
     sconces_draw(ctx);
 
     /* >>> LEVEL 8 REMOVES THE PROMPTS, THE CLEAVERS AND THE ENEMIES. <<< */

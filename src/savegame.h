@@ -17,7 +17,14 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   33            /* v33: lumberers_dead is a uint16_t.
+#define SAVE_VERSION   34            /* v34: blood_pearls. The Blood Pearl
+                                        was a bit in `items`; there are three
+                                        to find now, so it is a counter beside
+                                        hatch_keys. SaveData grew, which moves
+                                        every field after it; the bump is what
+                                        rejects a v33 save rather than
+                                        misreading one.
+                                        v33: lumberers_dead is a uint16_t.
                                         The Shelf's two Lumberers take the
                                         whole-game total to nine against the
                                         eight bits the field had, so
@@ -289,6 +296,7 @@ typedef struct {
     int32_t  keys;                  /* held-key bitmask */
     int32_t  items;                 /* held non-key item bitmask (player_items) */
     int32_t  hatch_keys;            /* hatch keys carried, 0..HATCH_KEYS_MAX */
+    int32_t  blood_pearls;          /* Blood Pearls carried, 0..BLOOD_PEARLS_MAX */
     int32_t  oil;                   /* Helluminator oil, 0..HELL_OIL_MAX      */
     int32_t  disp_oil;              /* what is left in the Catacombs oil
                                        dispenser, 0..OD_OIL_MAX. Beside `oil`
