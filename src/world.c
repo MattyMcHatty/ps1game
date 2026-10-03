@@ -194,6 +194,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_ROOM_OF_BONES,   STATE_CLEAVER_L,
     STATE_ZIG_ZAG_TOMB,    STATE_H_CORRIDOR,
     STATE_ROOM_OF_TORSOS,  STATE_THE_SHELF,
+    STATE_GAOL_ENTRY,
 };
 
 static int room_index(GameState area) {
@@ -324,6 +325,9 @@ static int room_index(GameState area) {
         /* THE SHELF, Chapter 3's nineteenth room, up the H Corridor's ladder
            and through the Up Down Maze's south-upper door. Slot 45 of 64. */
         case STATE_THE_SHELF:         return 45;
+        /* THE GAOL ENTRY, Chapter 3's twentieth room, through the Up Down
+           Maze's east-upper door. Slot 46 of 64. Seeded EMPTY. */
+        case STATE_GAOL_ENTRY:        return 46;
         default:                   return 0;
     }
 }

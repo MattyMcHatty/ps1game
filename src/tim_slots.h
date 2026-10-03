@@ -223,6 +223,10 @@
 #define TIM_TPAGE_FRNTDR   0x0015
 #define TIM_CLUT_FRNTDR    0x7e80
 
+/* gaol door.tim   4bpp  VRAM ( 640,  0)  \TEXCTCMB\GAOLDOOR.TIM */
+#define TIM_TPAGE_GAOLDOOR 0x000a
+#define TIM_CLUT_GAOLDOOR  0x7da4
+
 /* ghit.tim        8bpp  VRAM ( 896, 64)  \TEX\GHIT.TIM */
 #define TIM_TPAGE_GHIT     0x008e
 #define TIM_CLUT_GHIT      0x7f80

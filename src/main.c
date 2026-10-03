@@ -104,6 +104,7 @@
 #include "h_corridor.h"
 #include "room_of_torsos.h"
 #include "the_shelf.h"
+#include "gaol_entry.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -369,6 +370,7 @@ static void load_area_geometry(GameState area) {
         case STATE_H_CORRIDOR:       h_corridor_load_geometry(); break;
         case STATE_ROOM_OF_TORSOS:   room_of_torsos_load_geometry(); break;
         case STATE_THE_SHELF:        the_shelf_load_geometry(); break;
+        case STATE_GAOL_ENTRY:       gaol_entry_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2005,6 +2007,17 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* AND THE EAST-UPPER DOOR, at the end of the east spur's walkway, out
+           to the Gaol Entry. The sixth and last: the east-lower door is a
+           storey below and 3600 north, and the storey test keeps it apart from
+           everything on this floor; vetoed anyway, as the south-upper one is. */
+        if (up_down_maze_east_upper_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_GAOL_ENTRY;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_INCINERATOR_ROOM) {
         /* THE INCINERATOR ROOM - Chapter 3's third room, and after the maze
            upstairs a deliberately ordinary one: the shared wall routine and two
@@ -2627,6 +2640,23 @@ static void update_current_area(GameState area) {
             game_state   = STATE_LADDER_ANIM;
             cdaudio_stop();
         }
+    } else if (area == STATE_GAOL_ENTRY) {
+        /* THE GAOL ENTRY - Chapter 3's twentieth room: the shared wall routine,
+           ONE flat floor zone and one wired door, the plainest room in the
+           chapter. multi_level is 0. The gaol door in the east wall is drawn
+           and sealed. No enemies seeded; both Chapter 3 enemy updates are
+           called anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (gaol_entry_west_door_triggered(lock)) {
+            pending_area = STATE_UP_DOWN_MAZE;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
            routine, ONE flat floor zone and one door, the Room of Bones' shape.
@@ -3161,6 +3191,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         room_of_torsos_draw(ctx);
     else if (area == STATE_THE_SHELF)
         the_shelf_draw(ctx);
+    else if (area == STATE_GAOL_ENTRY)
+        gaol_entry_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3631,6 +3663,12 @@ int main(int argc, const char **argv) {
                                      SHLFINCN.TIM, the incinerator's art on the
                                      arms' page and palette - the torsos'
                                      terms. Deferred, so no CD access here. */
+    loading_screen_pump(&ctx);
+    gaol_entry_load_assets();     /* CHAPTER 3's twentieth room: three borrowed
+                                     headers (cobble, inner door, bars) and its
+                                     OWN deferred registration for GAOLDOOR.TIM,
+                                     4bpp on the arms' page with a palette of
+                                     its own. Deferred, so no CD access here. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4526,6 +4564,14 @@ int main(int argc, const char **argv) {
                    there. Same guarantee and same silent failure mode as the
                    branches around it. */
                 the_shelf_upload_textures();
+            } else if (pending_area == STATE_GAOL_ENTRY) {
+                /* THE GAOL ENTRY. Cobble and the inner door through the
+                   Catacombs Entry's narrow uploaders and the bars through
+                   bars.c's, plus its OWN - GAOLDOOR.TIM on x640 y0, the ROOM
+                   OF ARMS' page, which each of that page's owners' branches
+                   puts back on the way in there. Same guarantee and same silent
+                   failure mode as the branches around it. */
+                gaol_entry_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5111,6 +5157,10 @@ int main(int argc, const char **argv) {
                    UPPER storey. Same terms. */
                 if (current_area == STATE_THE_SHELF)
                     up_down_maze_spawn_south_upper();
+                /* ...and back from the GAOL ENTRY, at the east-upper door on
+                   the UPPER storey. Same terms. */
+                if (current_area == STATE_GAOL_ENTRY)
+                    up_down_maze_spawn_east_upper();
                 /* ...and back from the CRUCIFIX CORRIDOR, at the east door on
                    the LOWER storey. Same terms. */
                 if (current_area == STATE_CRUCIFIX_CORRIDOR)
@@ -5318,6 +5368,11 @@ int main(int argc, const char **argv) {
                 the_shelf_init();
                 if (current_area == STATE_H_CORRIDOR)
                     the_shelf_spawn_ladder();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_GAOL_ENTRY) {
+                /* ONE ARRIVAL, the west door, so gaol_entry_init()'s default
+                   spawn is also the only one. */
+                gaol_entry_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5693,7 +5748,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_ZIG_ZAG_TOMB ||
                    game_state == STATE_H_CORRIDOR ||
                    game_state == STATE_ROOM_OF_TORSOS ||
-                   game_state == STATE_THE_SHELF) {
+                   game_state == STATE_THE_SHELF ||
+                   game_state == STATE_GAOL_ENTRY) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

@@ -242,6 +242,12 @@ typedef enum {
                                 Lumberers and two Crawlers. See
                                 src/the_shelf.h. Appended, not inserted: saves
                                 store raw enum values. */
+    STATE_GAOL_ENTRY,        /* THE GAOL ENTRY, through the Up Down Maze's
+                                east-upper door. Chapter 3's twentieth room: an
+                                empty box with a sealed gaol door in its east
+                                wall, cells visible through its bars. See
+                                src/gaol_entry.h. Appended, not inserted: saves
+                                store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

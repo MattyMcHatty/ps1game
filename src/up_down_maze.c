@@ -345,12 +345,11 @@ void up_down_maze_upload_textures(void) {
 #define UDM_SCONCE_X          1200
 #define UDM_SCONCE_Z        (-1800)
 
-/* ---- THE DOORS: FIVE OF THE SIX ARE WIRED ---------------------------------
+/* ---- THE DOORS: ALL SIX ARE WIRED ----------------------------------------
    WEST, UPPER   x=-300  z[-100,100]  y[-1400,-1000]  -> Catacombs Entry
    SOUTH, LOWER  z=-2100 x[500,700]   y[-400,0]       -> Incinerator Room
-   (and NORTH-UPPER, EAST-LOWER and SOUTH-UPPER below)
+   (and NORTH-UPPER, EAST-LOWER, SOUTH-UPPER and EAST-UPPER below)
 
-   The sixth drawn into the outer walls, the east-upper one, is still sealed —
    up_down_maze.h lists them all with their coordinates.
 
    THE WEST DOOR is in the YZ plane at fixed X, approached from +X (wall 23 runs
@@ -417,6 +416,18 @@ void up_down_maze_upload_textures(void) {
 #define UDM_SOUTH_UP_Z      (-2100)
 #define UDM_SOUTH_UP_TEXT_Y  (-1186)   /* eye level on the y=-1000 walkway */
 
+/* THE EAST-UPPER DOOR, on the UPPER storey, at the east end of the east spur's
+   walkway (x[2699,3899] z[-300,300], y=-1000). Out to the Gaol Entry, through
+   the one wired door in its west wall. In the YZ plane at fixed X, approached
+   from -X (wall 24 runs x=3900 with nx = -4096, the full height of the room),
+   so TEXT_PLANE_YZ with mirror=1 and the sign 11 units proud of the wall along
+   -X — the east-lower door's pair, a storey up and 3600 south. The lower
+   corridor runs beside the spur underneath it, so it takes the storey test
+   like the other five. */
+#define UDM_EAST_UP_X         3900
+#define UDM_EAST_UP_Z            0     /* the art spans z[-100,100] */
+#define UDM_EAST_UP_TEXT_Y   (-1186)   /* eye level on the y=-1000 walkway */
+
 #define UDM_TEXT_RADIUS      1200
 #define UDM_FADE_NEAR         800
 #define UDM_TRIGGER_RADIUS    500
@@ -442,6 +453,7 @@ static int south_circle_prev = 1;
 static int north_circle_prev = 1;
 static int east_circle_prev  = 1;
 static int south_up_circle_prev = 1;
+static int east_up_circle_prev  = 1;
 
 static int circle_held(void) {
     return interact_tapped();
@@ -454,6 +466,7 @@ void up_down_maze_arm(void) {
     north_circle_prev = held;
     east_circle_prev  = held;
     south_up_circle_prev = held;
+    east_up_circle_prev  = held;
 }
 
 /* Is the player at a door — in plan AND on its storey? `eye_y` is what cam_y
@@ -512,6 +525,11 @@ int up_down_maze_east_door_triggered(int lock) {
 int up_down_maze_south_upper_door_triggered(int lock) {
     return udm_door_triggered(lock, &south_up_circle_prev,
                               UDM_SOUTH_UP_X, UDM_SOUTH_UP_Z, UDM_EYE_Y);
+}
+
+int up_down_maze_east_upper_door_triggered(int lock) {
+    return udm_door_triggered(lock, &east_up_circle_prev,
+                              UDM_EAST_UP_X, UDM_EAST_UP_Z, UDM_EYE_Y);
 }
 
 /* A door's floating sign. Same shape as every other sign in the game: opaque
@@ -589,6 +607,12 @@ static void udm_south_upper_door_text(RenderContext *ctx) {
                   1, TEXT_PLANE_XY, 0);   /* mirror=1: XY door approached from +Z */
 }
 
+static void udm_east_upper_door_text(RenderContext *ctx) {
+    udm_door_text(ctx, UDM_EAST_UP_X, UDM_EAST_UP_Z, UDM_EYE_Y,
+                  UDM_EAST_UP_X - 11, UDM_EAST_UP_TEXT_Y, UDM_EAST_UP_Z - 200,
+                  1, TEXT_PLANE_YZ, 0);   /* mirror=1: YZ door approached from -X */
+}
+
 void up_down_maze_spawn_west(void) {
     /* Clear of the wall push radius so the player is not shoved on their first
        frame, and facing +X — the direction of travel through the door, looking
@@ -664,6 +688,21 @@ void up_down_maze_spawn_south_upper(void) {
     cam_vy  = 0;
     cam_z   = UDM_SOUTH_UP_Z + (UDM_WALL_RADIUS + 25);
     cam_rot = 0;
+    up_down_maze_arm();
+}
+
+/* Arrival back from the Gaol Entry, on the UPPER floor at the east end of the
+   east spur, 220 off wall 24 and facing -X — the direction of travel, west
+   along the spur into the maze. z=0 is the spur's centre line, 300 from each
+   unrailed edge (z=+-300), and x=3680 is well inside the spur's FLOOR_UPPER
+   zone x[3299,3899] z[-300,300], which is found before the catch-all, so
+   apply_height() keeps the player up here. */
+void up_down_maze_spawn_east_upper(void) {
+    cam_x   = UDM_EAST_UP_X - (UDM_WALL_RADIUS + 25);
+    cam_y   = UDM_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = UDM_EAST_UP_Z;
+    cam_rot = 3072;
     up_down_maze_arm();
 }
 
@@ -965,6 +1004,7 @@ void up_down_maze_draw(RenderContext *ctx) {
         udm_north_door_text(ctx);
         udm_east_door_text(ctx);
         udm_south_upper_door_text(ctx);
+        udm_east_upper_door_text(ctx);
         /* THE CRAWLERS, and the texture window above is precisely the trap they
            have to be bracketed against: their sheet sits at VRAM y=128, i.e.
            Voff 128, so drawn under a 128-tall window its V would wrap mod-128

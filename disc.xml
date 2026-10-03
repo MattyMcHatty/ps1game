@@ -1438,6 +1438,24 @@
             <file name="THESHELF.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\the_shelf.smd"/>
             <file name="SHLFINCN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\shelf_incinerator.tim"/>
 
+            <!-- THE GAOL ENTRY, the chapter's TWENTIETH room, through the Up
+                 Down Maze's east-upper door. One empty box, y=-800 ceiling,
+                 with a sealed gaol door in its east wall and cells behind it
+                 seen through the bars. See src/gaol_entry.h.
+
+                 ONE NEW TEXTURE. COBBLE.TIM and CTCMBDR.TIM come through the
+                 Catacombs Entry's narrow uploaders and BARS.TIM through
+                 bars.c's. GAOLDOOR.TIM is art only this room draws, built from
+                 textures/catacombs/gaol door.png (128x128, 16 colours, 4bpp),
+                 registered DEFERRED.
+
+                 >>> IT TAKES THE ARMS' PAGE BUT NOT THE ARMS' PALETTE: x640 y0
+                 (4bpp, so x[640,672) only) with its CLUT at (576,502). <<< The
+                 page's other owners are never drawn with it and each puts its
+                 own art back on entry. See tools/vram_map.py. -->
+            <file name="GAOLENTR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\gaol_entry.smd"/>
+            <file name="GAOLDOOR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gaol door.tim"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

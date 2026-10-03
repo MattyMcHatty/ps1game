@@ -179,6 +179,11 @@ AREAS = {
                   # incinerator's art on the arms' page) and borrows cobble, the
                   # inner door, the ladder and the bars.
                   "the_shelf_upload_textures",
+                  # THE GAOL ENTRY, the chapter's twentieth room, off the Up
+                  # Down Maze's east-upper door: owns gaol door.tim (4bpp on
+                  # the arms' page, its own palette) and borrows cobble, the
+                  # inner door and the bars.
+                  "gaol_entry_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

@@ -884,6 +884,26 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim",     "shelf_incinerator.tim"),
     ("trck_clue.tim",              "shelf_incinerator.tim"),
     ("trees.tim",                  "shelf_incinerator.tim"),
+    #   gaol door.tim -> x640 y0, THE GAOL ENTRY's barred door, 4bpp, ON THE
+    # SAME PAGE (it covers x[640,672) only) - a seventh owner taking turns, on
+    # the torsos' terms, but with a CLUT of its own at (576,502), so the arms'
+    # palette line is untouched. Drawn only in the Gaol Entry; every room that
+    # draws x640 y0 puts its own pixels back on entry.
+    ("arms.tim",                    "gaol door.tim"),
+    ("heads.tim",                   "gaol door.tim"),
+    ("legs.tim",                    "gaol door.tim"),
+    ("bones.tim",                   "gaol door.tim"),
+    ("torsos.tim",                  "gaol door.tim"),
+    ("shelf_incinerator.tim",       "gaol door.tim"),
+    ("asag.tim",                    "gaol door.tim"),
+    ("chnlnk.tim",                  "gaol door.tim"),
+    ("gravel_texture.tim",          "gaol door.tim"),
+    ("greenhouse.tim",              "gaol door.tim"),
+    ("hatch.tim",                   "gaol door.tim"),
+    ("plinth_rg.tim",               "gaol door.tim"),
+    ("poison_flower_base.tim",      "gaol door.tim"),
+    ("trck_clue.tim",               "gaol door.tim"),
+    ("trees.tim",                   "gaol door.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not
