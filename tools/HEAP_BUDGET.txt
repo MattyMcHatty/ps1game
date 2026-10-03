@@ -160,18 +160,18 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x8010B268
+  _end (heap start)   0x8010B358
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             854744 bytes (835 KB)
+  heap size             854504 bytes (834 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
   texmgr peak bank      487424 bytes (476 KB)  57.0%   <- MANSION
   kept buffers           24576 bytes (24 KB)   2.9%
   chapter-scoped         43008 bytes (42 KB)   5.0%
-  PERMANENT TOTAL       555008 bytes (542 KB)  64.9%
-  FREE AT REST          299736 bytes (293 KB)  35.1%   <- STACK ALREADY SUBTRACTED
-                                  (was 447888 before the stack was counted;
+  PERMANENT TOTAL       555008 bytes (542 KB)  65.0%
+  FREE AT REST          299496 bytes (292 KB)  35.0%   <- STACK ALREADY SUBTRACTED
+                                  (was 447648 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.

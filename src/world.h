@@ -138,10 +138,9 @@ void world_silence_monsters(void);
                                  — which is why crawlers_dead below is a
                                  uint16_t, the widening mushrooms_dead took. */
 #define WD_MAX_RABISUS    8
-/* bits: likewise one global area-tagged array. 8 is generous — the Lumberer is
-   placed in the Tomb and the Tomb alone, and MAX_LUMBERERS is 6 — but this is a
-   whole byte either way, so the number is a ceiling on placements rather than
-   storage. */
+/* bits: likewise one global area-tagged array. MAX_LUMBERERS is 7 since the Zig Zag
+   Tomb's two, so ONE more placement fills this byte; the ninth means widening
+   lumberers_dead to a uint16_t as crawlers_dead was (a SAVE_VERSION bump). */
 #define WD_MAX_LUMBERERS  8
 /* Asag. Eight like the Rabisu's, and eight is generous: the arena is sealed and
    holds one. It is a whole byte either way — the point of the number is the

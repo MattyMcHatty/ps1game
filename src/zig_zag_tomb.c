@@ -40,15 +40,23 @@ static void *zz_buff = NULL;
    THE CHAPTER'S MACHINERY: cull and fog-far are equal, the base is scaled by
    what the player is carrying, and the scale eases rather than jumping.
 
-   450/1600 with +50%/+50% for the lantern — the Sliding Bars Room's numbers,
-   for the same grid of 600 blocks: down any lane the player sees two or three
-   cells and then the fog. 1260 primitives against that room's 1179. */
-#define ZZ_BASE_FOG_NEAR   450
-#define ZZ_BASE_FOG_FAR   1600
+   THE UP DOWN MAZE'S NUMBERS (src/up_down_maze.c says how they were chosen):
+   366/1300 at rest, and two equal ~46% bonuses for the lantern, so the three
+   sight lines are 1300 / 1900 / 2500 — even steps of 600, resolving to 1300,
+   1899 and 2498 in the integer arithmetic. 366/1300 keeps the 450/1600 ramp's
+   shape. At 1300 a lane shows two cells and then the fog, so the room's
+   Lumberers come out of it close; the Helluminator buys the long view down a
+   lane, and costs oil for it.
+
+   These were the Sliding Bars Room's 450/1600 with +50%/+50% (1600 / 2400 /
+   3200) until the room was given the maze's shorter reach. Shorter only
+   lightens the draw: cull and fog-far are equal, so less mesh is walked. */
+#define ZZ_BASE_FOG_NEAR   366
+#define ZZ_BASE_FOG_FAR   1300
 
 #define ZZ_VIEW_UNIT        256
-#define ZZ_VIEW_HELL_BONUS  128   /* +50% while the lantern is in hand   */
-#define ZZ_VIEW_BURN_BONUS  128   /* +50% more while it is actually lit  */
+#define ZZ_VIEW_HELL_BONUS  118   /* ~+46% while the lantern is in hand   */
+#define ZZ_VIEW_BURN_BONUS  118   /* ~+46% more while it is actually lit  */
 #define ZZ_VIEW_RATE          8   /* 1/256ths a frame; one bonus in 16 frames */
 
 static int32_t zz_view     = ZZ_VIEW_UNIT;       /* eased scale, 1/256ths */

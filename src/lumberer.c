@@ -425,6 +425,56 @@ static const LmbNavNode lmb_tomb_nav_nodes[] = {
     {  -300,  3300, 11, 15,   -300,  2700,   -300,  3900 },
 };
 
+/* ---- THE ZIG ZAG TOMB: ONE CORRIDOR, SO A CHAIN OF FOUR ZONES ---------------
+   The room (src/zig_zag_tomb.h) has a 4200 square of nine blocks like the
+   Tomb's, but three rows of bars close every north-south gap but one per row,
+   so the walkable floor is a single path:
+
+       north lane  z[3600,4200]
+         -> EAST gap  x[3600,4200] through the z~3300 bar row
+       lane        z[2400,3000]
+         -> WEST gap  x[0,600]     through the z~2100 bar row
+       lane        z[1200,1800]
+         -> EAST gap  x[3600,4200] through the z~900 bar row
+       south lane  z[0,600]
+
+   Without a graph an alerted lumberer walked at the player and stood against
+   the bars when they were in the next lane over. The bars are full-height
+   collision walls, so they also block the sightline: a player behind them is
+   UNSEEN and the routing takes over, which is exactly what is wanted.
+
+   THE ZONES ARE THE FOUR LANES, each band running the full width and cut AT
+   THE BAR ROWS, so a band also holds the half of each barred gap on its own
+   side of the bars — and that half is only reachable from that lane. The cuts
+   are where no body can stand: the z~900 and z~2100 bars span 66..133 either
+   side of 900/2100, and the z~3300 row sits at z[3266,3400], so 3350 has every
+   pocket on the correct side (south pockets end at 3233 and north ones begin
+   at 3500, once the 100 LMB_BODY_RADIUS is taken off the bars' faces). The
+   bands tile the room with no gap.
+
+   THE NODES ARE THE THREE OPEN GAPS, centre ON the cut and in the middle of
+   the gap's 600 width, clearances at the lane centres either side — collinear,
+   as the Tomb's are, so the far stage is a straight run through the gap.
+   Zones are ordered south to north so every node's `za` is the lower index,
+   the invariant lmb_alert_goal's two-stage crossing depends on.
+
+   Alcoves (the barred pockets) are not routed into: none is deep enough to
+   hide from a body this size, so walking at the player from the lane does. */
+static const LmbNavZone lmb_zig_zag_nav_zones[] = {
+    /* min_x max_x  min_z  max_z           lane centre */
+    {    0, 4200,     0,   900 },  /* 0: south lane   z = 300  */
+    {    0, 4200,   900,  2100 },  /* 1: lane         z = 1500 */
+    {    0, 4200,  2100,  3350 },  /* 2: lane         z = 2700 */
+    {    0, 4200,  3350,  4200 },  /* 3: north lane   z = 3900 */
+};
+
+static const LmbNavNode lmb_zig_zag_nav_nodes[] = {
+    /*   x     z    za  zb  za-clearance  zb-clearance */
+    { 3900,  900,  0,  1,  3900,  300,   3900, 1500 },   /* east gap, z~900  */
+    {  300, 2100,  1,  2,   300, 1500,    300, 2700 },   /* west gap, z~2100 */
+    { 3900, 3350,  2,  3,  3900, 2700,   3900, 3900 },   /* east gap, z~3300 */
+};
+
 /* Active tables, chosen per-area. A room with NO table gets counts of zero,
    which makes lmb_nav_zone_at return -1 everywhere and the routing fall through
    to "walk at the player" — the behaviour every room had before this existed.
@@ -442,6 +492,13 @@ static void lmb_select_nav(void) {
         lmb_nav_nodes      = lmb_tomb_nav_nodes;
         lmb_nav_node_count = (int)(sizeof(lmb_tomb_nav_nodes) /
                                    sizeof(lmb_tomb_nav_nodes[0]));
+    } else if (current_area == STATE_ZIG_ZAG_TOMB) {
+        lmb_nav_zones      = lmb_zig_zag_nav_zones;
+        lmb_nav_zone_count = (int)(sizeof(lmb_zig_zag_nav_zones) /
+                                   sizeof(lmb_zig_zag_nav_zones[0]));
+        lmb_nav_nodes      = lmb_zig_zag_nav_nodes;
+        lmb_nav_node_count = (int)(sizeof(lmb_zig_zag_nav_nodes) /
+                                   sizeof(lmb_zig_zag_nav_nodes[0]));
     } else {
         lmb_nav_zones = 0; lmb_nav_zone_count = 0;
         lmb_nav_nodes = 0; lmb_nav_node_count = 0;

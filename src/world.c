@@ -1764,6 +1764,34 @@ void world_seed_room(GameState area) {
     if (area == STATE_MEAT_PLANT) {
         item_pickup_spawn_amount(0, -50, 3300, PICKUP_MEAT_SACK, 1);
     }
+
+    /* THE ZIG ZAG TOMB: two Lumberers, each walking the full width of one of
+       the room's east-west lanes (src/zig_zag_tomb.h has the grid). The room is
+       one flat plane at y=0 under walls to -800.
+
+         north  A (3915, 2701)  B ( 435, 2701)   the lane z[2400,3000] between
+                the middle and northern block rows: the Z's westward leg,
+                between the z~3300 and z~2100 bar rows, so no partition
+                crosses it. 284 off the east wall at A.
+         south  A ( 258,  304)  B (3808,  304)   the lane z[0,600] south of
+                the last block row, below the z~900 bars. 258 off the west
+                wall at A, 304 off the south wall.
+
+       Measured against every wall in zig_zag_tomb_mesh_collision.c: the
+       nearest is 258 away, against the 100 LMB_BODY_RADIUS, so neither leg
+       ever wall-follows on an undisturbed patrol. Once alerted it follows the
+       zig-zag round to the player rather than walking into the bars: the room
+       has its own nav table (lmb_zig_zag_nav_* in src/lumberer.c).
+
+       y: the standing anchor, 0 - 149, as in the Tomb.
+
+       >>> THE ORDER IS THE SAVE FORMAT, as in The Pit. <<< The room is slot
+       42, the last, so these append: the 6th and 7th lumberers
+       (MAX_LUMBERERS 7). */
+    if (area == STATE_ZIG_ZAG_TOMB) {
+        lumberer_add(3915, 2701,  435, 2701, -149, STATE_ZIG_ZAG_TOMB); /* north */
+        lumberer_add( 258,  304, 3808,  304, -149, STATE_ZIG_ZAG_TOMB); /* south */
+    }
 }
 
 void world_enter(GameState area) {
