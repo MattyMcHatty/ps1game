@@ -193,6 +193,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_ROOM_OF_LEGS,    STATE_MEAT_PLANT,
     STATE_ROOM_OF_BONES,   STATE_CLEAVER_L,
     STATE_ZIG_ZAG_TOMB,    STATE_H_CORRIDOR,
+    STATE_ROOM_OF_TORSOS,
 };
 
 static int room_index(GameState area) {
@@ -316,6 +317,10 @@ static int room_index(GameState area) {
         /* THE H CORRIDOR, Chapter 3's seventeenth room, through the Zig Zag
            Tomb's south door. Slot 43 of 64. */
         case STATE_H_CORRIDOR:        return 43;
+        /* THE ROOM OF TORSOS, Chapter 3's eighteenth room, through the H
+           Corridor's south door. Slot 44 of 64. Seeded EMPTY: its one
+           encounter is the crib, which keeps its own solved bit. */
+        case STATE_ROOM_OF_TORSOS:    return 44;
         default:                   return 0;
     }
 }

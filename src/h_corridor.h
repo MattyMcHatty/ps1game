@@ -21,18 +21,20 @@
    z + 5400. Its north door at z=5400 x[200,400] is the Tomb's south door at
    z=0 x[200,400], the same x span.
 
-   THE DOORS AND THE LADDER. Two doors are drawn and ONE is wired up:
+   THE DOORS AND THE LADDER. Two doors are drawn and BOTH are wired up:
 
      NORTH  z=5400  x[200,400]    y[-400,0]   -> Zig Zag Tomb, south door
-     south  z=0     x[2000,2200]               not built (the east leg's foot)
+     SOUTH  z=0     x[2000,2200]  y[-400,0]   -> Room of Torsos, east door
+                                               (the east leg's foot)
      ladder z=0     x[200,400]    y[-1600,0]   not built (the west leg's foot;
                                                the maggot drop falls from it)
 
    The north door is in the XY plane approached from -Z (wall 9 runs z=5400
-   with nz=-4096), so TEXT_PLANE_XY with mirror=0. The unbuilt south door and
-   the ladder are drawn and nothing else: no sign, no trigger. The ladder climbs
-   a 600-square shaft over the west leg's south end to y=-1600, capped by one
-   black untextured quad.
+   with nz=-4096), so TEXT_PLANE_XY with mirror=0; the south door is the mirror
+   case, approached from +Z (wall 5 runs z=0 with nz=+4095), so mirror=1. The
+   ladder is drawn and nothing else: no sign, no trigger. It climbs a 600-square
+   shaft over the west leg's south end to y=-1600, capped by one black
+   untextured quad.
 
    THREE TEXTURES, ALL BORROWED — cobblestone and the catacomb inner door
    through src/catacombs_entry.c's narrow uploaders, the ladder through
@@ -48,13 +50,20 @@ void h_corridor_init(void);            /* collision + floor zone + spawn      */
 void h_corridor_draw(RenderContext *ctx);
 
 /* Arrival through the north door, from the Zig Zag Tomb: just inside it,
-   facing south. h_corridor_init()'s default, and today the only arrival. */
+   facing south. h_corridor_init()'s default. */
 void h_corridor_spawn_north(void);
+
+/* Arrival through the south door, back from the Room of Torsos: just inside
+   it, facing north up the east leg. */
+void h_corridor_spawn_south(void);
 
 /* One frame of the north door's Circle test. `lock` is main's usual
    suppression. Returns 1 on a fresh press made in range and facing the door —
    the frame main.c starts the transition on. */
 int  h_corridor_north_door_triggered(int lock);
+
+/* The same test for the south door, into the Room of Torsos. */
+int  h_corridor_south_door_triggered(int lock);
 
 /* Arm every interaction in the room. Called by the spawn above; exported so a
    caller that places the player some other way can still ensure a Circle held

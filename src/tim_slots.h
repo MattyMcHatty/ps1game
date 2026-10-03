@@ -547,6 +547,10 @@
 #define TIM_TPAGE_TNTCLIDL 0x0005
 #define TIM_CLUT_TNTCLIDL  0x7fc8
 
+/* torsos.tim      8bpp  VRAM ( 640,  0)  \TEXCTCMB\TORSOS.TIM */
+#define TIM_TPAGE_TORSOS   0x008a
+#define TIM_CLUT_TORSOS    0x7d6a
+
 /* trck_clue.tim   8bpp  VRAM ( 640,  0)  \TEX\TRCKCLUE.TIM */
 #define TIM_TPAGE_TRCKCLUE 0x008a
 #define TIM_CLUT_TRCKCLUE  0x7870

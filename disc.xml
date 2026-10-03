@@ -1381,8 +1381,8 @@
 
             <!-- THE H CORRIDOR, the chapter's SEVENTEENTH room, through the
                  Zig Zag Tomb's south door. Three 600-wide corridors in an "h",
-                 open above y=-800, with a sealed south door and an unwired
-                 ladder up a shaft. See src/h_corridor.h.
+                 open above y=-800, with a south door on to the Room of Torsos
+                 and an unwired ladder up a shaft. See src/h_corridor.h.
 
                  NO NEW TEXTURE. COBBLE.TIM and CTCMBDR.TIM come through the
                  Catacombs Entry's narrow uploaders and LADDER.TIM through the
@@ -1391,6 +1391,30 @@
                  HCORRDR.SMD, 24,088 bytes, well inside the arena. -->
             <file name="HCORRDR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\h_corridor.smd"/>
             <file name="BONES.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\bones.tim"/>
+
+            <!-- THE ROOM OF TORSOS, the chapter's EIGHTEENTH room, through the
+                 H Corridor's south door. The Room of Arms' octagon again
+                 (2586 across, y=-800 vault, one door in the east face), with
+                 three pointed piles of torsos and the chapter's fifth crib in
+                 the north-west corner. See src/room_of_torsos.h.
+
+                 ONE NEW TEXTURE. COBBLE.TIM and CTCMBDR.TIM come through the
+                 Catacombs Entry's narrow uploaders as every Chapter 3 room's do.
+                 TORSOS.TIM is art only this room draws, registered DEFERRED.
+
+                 >>> IT TAKES THE ARMS' PAGE AND THE ARMS' PALETTE: x640 y0 and
+                 (672,501), as HEADS.TIM, LEGS.TIM and BONES.TIM already do. <<<
+                 The five rooms are never drawn together, and each room's
+                 uploader puts its own art back on entry, so they simply
+                 overwrite each other. See tools/vram_map.py.
+
+                 TORSOS.TIM is built from textures/catacombs/torsos.png, already
+                 128x128 (16 colours), so unlike the legs and the bones it is not
+                 stretched.
+
+                 TRSOROOM.SMD, 15,828 bytes, well inside the arena. -->
+            <file name="TRSOROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_torsos.smd"/>
+            <file name="TORSOS.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\torsos.tim"/>
 
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the

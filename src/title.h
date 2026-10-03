@@ -229,6 +229,12 @@ typedef enum {
                                 wired; a second door and a ladder are drawn and
                                 sealed. See src/h_corridor.h. Appended, not
                                 inserted: saves store raw enum values. */
+    STATE_ROOM_OF_TORSOS,    /* THE ROOM OF TORSOS, through the H Corridor's
+                                south door. Chapter 3's eighteenth room: the
+                                Room of Arms' octagon with three pointed piles
+                                of torsos, a crib in the north-west corner and
+                                one door. See src/room_of_torsos.h. Appended,
+                                not inserted: saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

@@ -33,9 +33,10 @@ typedef struct {
     int       spawned;     /* Creeps released so far, 0..CRIB_CREEP_TOTAL       */
     int32_t   tilt;        /* current rock angle, PS1 units; 0 = level          */
 
-    /* ---- the two OUTER spawn points (crib_set_outer_spawns) ---- */
-    int       outer_set;   /* 0 = the cot's own long sides; 1 = the points below */
-    int32_t   out_x[2], out_y[2], out_z[2];   /* WORLD x/z, and world (mesh) y   */
+    /* ---- the OUTER spawn points (crib_set_outer_spawns / _add_outer_spawn) ---- */
+    int       outer_n;     /* 0 = the cot's own long sides; else how many below  */
+    int32_t   out_x[CRIB_MAX_OUTER], out_y[CRIB_MAX_OUTER], out_z[CRIB_MAX_OUTER];
+                           /* WORLD x/z, and world (mesh) y                      */
 } Crib;
 
 static Crib cribs[MAX_CRIBS];
@@ -165,7 +166,19 @@ void crib_set_outer_spawns(GameState area,
         if (!c->active || c->area != area || !c->encounter) continue;
         c->out_x[0] = x1;  c->out_y[0] = y1;  c->out_z[0] = z1;
         c->out_x[1] = x2;  c->out_y[1] = y2;  c->out_z[1] = z2;
-        c->outer_set = 1;
+        c->outer_n = 2;
+        return;
+    }
+}
+
+void crib_add_outer_spawn(GameState area, int32_t x, int32_t y, int32_t z) {
+    int i;
+    for (i = 0; i < crib_count; i++) {
+        Crib *c = &cribs[i];
+        if (!c->active || c->area != area || !c->encounter) continue;
+        if (c->outer_n >= CRIB_MAX_OUTER) return;
+        c->out_x[c->outer_n] = x;  c->out_y[c->outer_n] = y;  c->out_z[c->outer_n] = z;
+        c->outer_n++;
         return;
     }
 }
@@ -200,7 +213,7 @@ void crib_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y) 
     c->tick    = 0;
     c->spawned = 0;
     c->tilt    = 0;
-    c->outer_set = 0;   /* the Room of Arms' default; a room overrides after */
+    c->outer_n = 0;     /* the Room of Arms' default; a room overrides after */
 
     /* World AABB = the axis-aligned bound of the rotated mesh footprint, corner
        by corner, exactly as the lever, the sconce and the oil dispenser bake
@@ -295,9 +308,10 @@ static int32_t crib_beam_level(const Crib *c) {
     return (((num * num * 256) / (den * den)) * num) / den;
 }
 
-/* Release one Creep from one of THREE spawn points, chosen at random. By
-   default in MODEL space, so all three follow the instance's own yaw and a cot
-   standing at any rotation spills from the right places:
+/* Release one Creep from one of THREE spawn points (or 1 + however many outer
+   points the room set, up to CRIB_MAX_OUTER), chosen at random. By default in
+   MODEL space, so all three follow the instance's own yaw and a cot standing at
+   any rotation spills from the right places:
 
      0  the CENTRE of the cot, in plan
      1  a little outside it on one long side
@@ -306,8 +320,10 @@ static int32_t crib_beam_level(const Crib *c) {
    >>> POINTS 1 AND 2 CAN BE REPLACED PER ROOM, POINT 0 CANNOT. <<<
    crib_set_outer_spawns() hands an instance two WORLD points instead, which is
    how the Room of Heads' cot pours from the tops of the head piles either side
-   of it. Point 0 stays the cot's own centre in every room. The Room of Arms sets
-   nothing and keeps the long sides below.
+   of it, and crib_add_outer_spawn() appends a third — the Room of Torsos' three
+   pile tips. Point 0 stays the cot's own centre in every room, and every point
+   is equally likely, so a room with two outer points still draws 1 in 3 exactly
+   as before. The Room of Arms sets nothing and keeps the long sides below.
 
    >>> "LEFT" AND "RIGHT" ARE THE LONG SIDES, i.e. +/- Z. <<< The footprint is
    350 along X and 200 along Z, so X is the head-and-foot axis and Z is the pair
@@ -330,7 +346,8 @@ static int32_t crib_beam_level(const Crib *c) {
 static void crib_release(Crib *c) {
     int32_t cx = (cr_min_x + cr_max_x) / 2;
     int32_t cz = (cr_min_z + cr_max_z) / 2;
-    int     k  = (int)((uint32_t)rand() % 3u);
+    int     np = c->outer_n ? 1 + c->outer_n : 3;
+    int     k  = (int)((uint32_t)rand() % (uint32_t)np);
 
     /* Centre in plan for all three; only the Z offset differs. Measured off the
        mesh rather than written as literals, so a re-export that changes the
@@ -352,7 +369,7 @@ static void crib_release(Crib *c) {
        emergence is ABOVE the anchor, so the creep floats down to its hover
        height over the room's floor. Creeps do not collide with walls, so one
        starting inside a pile's collision footprint simply flies out of it. */
-    if (k != 0 && c->outer_set) {
+    if (k != 0 && c->outer_n) {
         creep_spawn(c->out_x[k - 1], c->out_z[k - 1], c->y, c->out_y[k - 1],
                     c->area);
         c->spawned++;

@@ -101,6 +101,7 @@
 #include "cleaver_l.h"
 #include "zig_zag_tomb.h"
 #include "h_corridor.h"
+#include "room_of_torsos.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -364,6 +365,7 @@ static void load_area_geometry(GameState area) {
         case STATE_CLEAVER_L:        cleaver_l_load_geometry(); break;
         case STATE_ZIG_ZAG_TOMB:     zig_zag_tomb_load_geometry(); break;
         case STATE_H_CORRIDOR:       h_corridor_load_geometry(); break;
+        case STATE_ROOM_OF_TORSOS:   room_of_torsos_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2530,7 +2532,8 @@ static void update_current_area(GameState area) {
         /* THE H CORRIDOR - Chapter 3's seventeenth room: the shared wall
            routine and ONE flat floor zone over three 600-wide corridors in an
            "h". multi_level is 0. One door wired, the north one back to the Zig
-           Zag Tomb; the south door and the ladder are drawn and sealed.
+           Zag Tomb, and the south one on to the Room of Torsos; the ladder is
+           drawn and sealed.
            Nothing seeded; both Chapter 3 enemy updates are called anyway, on
            the Tomb's argument. The maggot drop out of the ladder shaft is
            timed here (src/h_corridor.h); the maggots themselves are updated by
@@ -2543,6 +2546,41 @@ static void update_current_area(GameState area) {
 
         if (h_corridor_north_door_triggered(lock)) {
             pending_area = STATE_ZIG_ZAG_TOMB;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the SOUTH door, into the Room of Torsos. Called
+           unconditionally for its edge state; the two doors are 7200 apart in
+           Manhattan terms, so they cannot share a frame, and it is vetoed
+           anyway. */
+        if (h_corridor_south_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_ROOM_OF_TORSOS;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_ROOM_OF_TORSOS) {
+        /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
+           routine, ONE flat floor zone and one door, the Room of Bones' shape.
+           multi_level is 0 (three floor slabs of one plane). The three pointed
+           piles of torsos are proxy walls 299 tall under drawn piles that peak
+           at 300, so the gun shoots over them.
+
+           ONE PROP: the chapter's fifth CRIB, in the north-west corner. Its
+           state machine and the Creeps it pours run from the area-tagged
+           cribs_update() / update_creeps() in the shared block, and its box
+           collides through apply_collision_reception, so nothing crib-specific
+           is needed here. No enemies seeded; both Chapter 3 enemy updates are
+           called anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (room_of_torsos_east_door_triggered(lock)) {
+            pending_area = STATE_H_CORRIDOR;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -3053,6 +3091,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         zig_zag_tomb_draw(ctx);
     else if (area == STATE_H_CORRIDOR)
         h_corridor_draw(ctx);
+    else if (area == STATE_ROOM_OF_TORSOS)
+        room_of_torsos_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3507,6 +3547,15 @@ int main(int argc, const char **argv) {
                                      borrowed headers (cobble, inner door,
                                      ladder) and NO registration - it owns
                                      nothing. No CD access. */
+    loading_screen_pump(&ctx);
+    room_of_torsos_load_assets(); /* CHAPTER 3's eighteenth room: two borrowed
+                                     headers (cobble, inner door) and its OWN
+                                     deferred registration for TORSOS.TIM, on
+                                     the arms' page and palette, the legs' and
+                                     bones' terms - the 79th of TEXMGR_MAX's 80.
+                                     Deferred, so no CD access here. Above the
+                                     owner's call below, for the same reason as
+                                     the Room of Heads' line. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4364,6 +4413,15 @@ int main(int argc, const char **argv) {
                    owns nothing. Same guarantee and same silent failure mode as
                    the branches around it. */
                 h_corridor_upload_textures();
+            } else if (pending_area == STATE_ROOM_OF_TORSOS) {
+                /* THE ROOM OF TORSOS. Cobble and the inner door through the
+                   Catacombs Entry's narrow uploaders, plus its OWN - TORSOS.TIM
+                   on x640 y0, the ROOM OF ARMS' page and palette (the heads',
+                   legs' and bones' too), which each of those rooms' branches
+                   puts back on the way in there - and the crib's and the
+                   Creep's. Same guarantee and same silent failure mode as the
+                   branches around it. */
+                room_of_torsos_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5126,9 +5184,19 @@ int main(int argc, const char **argv) {
                     zig_zag_tomb_spawn_south();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_H_CORRIDOR) {
-                /* ONE ARRIVAL, the north door, so h_corridor_init()'s default
-                   spawn is also the only one. */
+                /* TWO ARRIVALS. h_corridor_init()'s default is the north door,
+                   from the Zig Zag Tomb; back from the Room of Torsos it is the
+                   south door at the foot of the east leg. Keyed on current_area,
+                   the room being LEFT and not a route, so a debug jump or a
+                   title load still lands at the north door. */
                 h_corridor_init();
+                if (current_area == STATE_ROOM_OF_TORSOS)
+                    h_corridor_spawn_south();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_ROOM_OF_TORSOS) {
+                /* ONE ARRIVAL, the east door, so room_of_torsos_init()'s
+                   default spawn is also the only one. */
+                room_of_torsos_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5502,7 +5570,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_ROOM_OF_BONES ||
                    game_state == STATE_CLEAVER_L ||
                    game_state == STATE_ZIG_ZAG_TOMB ||
-                   game_state == STATE_H_CORRIDOR) {
+                   game_state == STATE_H_CORRIDOR ||
+                   game_state == STATE_ROOM_OF_TORSOS) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

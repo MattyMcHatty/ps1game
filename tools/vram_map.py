@@ -845,6 +845,24 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim",    "bones.tim"),
     ("trck_clue.tim",             "bones.tim"),
     ("trees.tim",                 "bones.tim"),
+    #   torsos.tim -> x640 y0, THE ROOM OF TORSOS' piles, ON THE SAME PAGE AND
+    # PALETTE (672,501) - the bones' terms exactly, and a fifth owner taking
+    # turns. Torsos are drawn only in the Room of Torsos, and the Rooms of Arms,
+    # Heads, Legs and Bones (and the Meat Plant, for the legs) each put their
+    # own pixels and CLUT line back on entry.
+    ("arms.tim",                  "torsos.tim"),
+    ("heads.tim",                 "torsos.tim"),
+    ("legs.tim",                  "torsos.tim"),
+    ("bones.tim",                 "torsos.tim"),
+    ("asag.tim",                  "torsos.tim"),
+    ("chnlnk.tim",                "torsos.tim"),
+    ("gravel_texture.tim",        "torsos.tim"),
+    ("greenhouse.tim",            "torsos.tim"),
+    ("hatch.tim",                 "torsos.tim"),
+    ("plinth_rg.tim",             "torsos.tim"),
+    ("poison_flower_base.tim",    "torsos.tim"),
+    ("trck_clue.tim",             "torsos.tim"),
+    ("trees.tim",                 "torsos.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

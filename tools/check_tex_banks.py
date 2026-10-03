@@ -169,6 +169,11 @@ AREAS = {
                   # Zag Tomb's south door: owns nothing, and borrows cobble,
                   # the inner door and the ladder (the North Chamber's).
                   "h_corridor_upload_textures",
+                  # THE ROOM OF TORSOS, the chapter's eighteenth room, off the H
+                  # Corridor's south door: owns torsos.tim (on the arms' page,
+                  # the legs' and bones' terms) and borrows cobble and the inner
+                  # door.
+                  "room_of_torsos_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

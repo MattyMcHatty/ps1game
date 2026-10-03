@@ -203,23 +203,38 @@ void h_corridor_upload_textures(void) {
    reading axis for an XY sign). The Tomb's south door, the far side, takes the
    opposite pair.
 
-   THE SOUTH DOOR, z=0 x[2000,2200], and THE LADDER, z=0 x[200,400], are drawn
-   and nothing else: no sign, no trigger. They read as sealed until the rooms
-   behind them exist. */
+   ---- THE SOUTH DOOR ----
+   z=0, x[2000,2200], y[-400,0] — in the south wall at the foot of the east leg.
+   Out to THE ROOM OF TORSOS, through the one door in its east face.
+
+   In the XY plane at fixed Z, approached from +Z (wall 5 runs z=0 over
+   x[1800,2400] with nz=+4095, so the walkable side is +Z), so TEXT_PLANE_XY
+   with mirror=1, the sign 11 proud of the wall along +Z, and the -200 on the X
+   argument. The Room of Torsos' east door, the far side, is a YZ door and takes
+   its own pair.
+
+   THE LADDER, z=0 x[200,400], is drawn and nothing else: no sign, no trigger.
+   It reads as sealed until the room above it exists. It is 1700 from the south
+   door, so the two can never share a trigger. */
 #define HC_NORTH_X           300     /* the art spans x[200,400] */
 #define HC_NORTH_Z          5400
 #define HC_NORTH_TEXT_Y     (-186)   /* eye level on the y=0 floor */
+#define HC_SOUTH_X          2100     /* the art spans x[2000,2200] */
+#define HC_SOUTH_Z             0
+#define HC_SOUTH_TEXT_Y     (-186)   /* eye level on the y=0 floor */
 
 #define HC_TEXT_RADIUS      1200
 #define HC_FADE_NEAR         800
 #define HC_TRIGGER_RADIUS    500
 
-/* Circle edge-detect. Seeded "held" by the arm below so a press carried in
-   through the transition cannot fire on the arrival frame. */
+/* Circle edge-detect, one per door. Seeded "held" by the arm below so a press
+   carried in through the transition cannot fire on the arrival frame. */
 static int north_circle_prev = 1;
+static int south_circle_prev = 1;
 
 void h_corridor_arm(void) {
     north_circle_prev = interact_tapped();
+    south_circle_prev = north_circle_prev;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -259,6 +274,44 @@ static void hc_north_door_text(RenderContext *ctx) {
                         HC_NORTH_X - 200, HC_NORTH_TEXT_Y, HC_NORTH_Z - 11,
                         50, 255, 50, fade,
                         0, TEXT_PLANE_XY,   /* mirror=0: XY door approached from -Z */
+                        DOOR_PIXEL_SIZE);
+}
+
+/* The south door's Circle test. The north door's shape; the two are 7200
+   apart in Manhattan terms, so they can never both be in reach. */
+int h_corridor_south_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !south_circle_prev;
+    int32_t dx, dz, xz;
+    south_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - HC_SOUTH_X;
+    dz = cam_z - HC_SOUTH_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= HC_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(HC_SOUTH_X, HC_SOUTH_Z)) return 0;
+    return 1;
+}
+
+static void hc_south_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - HC_SOUTH_X;
+    int32_t dz = cam_z - HC_SOUTH_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= HC_TEXT_RADIUS) return;
+
+    if (xz > HC_FADE_NEAR) {
+        int range = HC_TEXT_RADIUS - HC_FADE_NEAR;
+        int prog  = xz - HC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        HC_SOUTH_X - 200, HC_SOUTH_TEXT_Y, HC_SOUTH_Z + 11,
+                        50, 255, 50, fade,
+                        1, TEXT_PLANE_XY,   /* mirror=1: XY door approached from +Z */
                         DOOR_PIXEL_SIZE);
 }
 
@@ -334,6 +387,18 @@ void h_corridor_spawn_north(void) {
     cam_vy  = 0;
     cam_z   = HC_NORTH_Z - (HC_WALL_RADIUS + 25);
     cam_rot = 2048;                    /* facing -Z, south */
+    h_corridor_arm();
+}
+
+void h_corridor_spawn_south(void) {
+    /* Back from the Room of Torsos. 220 off wall 5 on its walkable +Z side, on
+       the door's centre line (the east leg's, 300 clear of both its walls),
+       facing +Z — the direction of travel, north up the leg. */
+    cam_x   = HC_SOUTH_X;
+    cam_y   = HC_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = HC_SOUTH_Z + (HC_WALL_RADIUS + 25);
+    cam_rot = 0;                       /* facing +Z, north */
     h_corridor_arm();
 }
 
@@ -553,10 +618,11 @@ void h_corridor_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_h_corridor_smd(ctx);
 
-    /* >>> LEVEL 8 REMOVES THE SIGN AND THE ENEMIES. <<< Nothing else stands
+    /* >>> LEVEL 8 REMOVES THE SIGNS AND THE ENEMIES. <<< Nothing else stands
        in this room. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         hc_north_door_text(ctx);   /* north: XY plane, approached from -Z */
+        hc_south_door_text(ctx);   /* south: XY plane, approached from +Z */
         /* THE CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Their sheets sit at Voff 128, so each is handed the window to restore

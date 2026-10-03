@@ -95,6 +95,7 @@ add_executable(horror_game
     src/cleaver_l.c
     src/zig_zag_tomb.c
     src/h_corridor.c
+    src/room_of_torsos.c
     src/ladder_anim.c
     src/sconce.c
     src/oil_dispenser.c

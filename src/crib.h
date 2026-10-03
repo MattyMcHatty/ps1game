@@ -6,7 +6,7 @@
 #include "title.h"
 
 /* Crib: an iron cot, Chapter 3's fifth prop and the first thing in the
-   Catacombs that is furniture rather than machinery. FOUR stand in the game,
+   Catacombs that is furniture rather than machinery. FIVE stand in the game,
    each its own encounter with its own solved flag:
 
      ROOM OF ARMS    the alcove in the south-west corner (src/room_of_arms.c)
@@ -17,6 +17,9 @@
      ROOM OF BONES   across the ring between the mound of bones and the west
                      wall (src/room_of_bones.c), pouring from the door and the
                      top of the mound
+     ROOM OF TORSOS  in the north-west corner, against the chamfer between two
+                     of the three torso piles (src/room_of_torsos.c), pouring
+                     from the tip of each pile
 
 
    ONE texture of its own ("crib", \TEXCTCMB\CRIB.TIM) and one mesh
@@ -103,6 +106,7 @@
        crib_room_solved(STATE_ROOM_OF_HEADS)   the second crib event
        crib_room_solved(STATE_ROOM_OF_LEGS)    the third crib event
        crib_room_solved(STATE_ROOM_OF_BONES)   the fourth crib event
+       crib_room_solved(STATE_ROOM_OF_TORSOS)  the fifth crib event
 
    Solving one sets its room's bit and nothing else; neither implies the other.
    A later crib in a new room gets a new bit by being in a new room. To count
@@ -281,6 +285,11 @@
 
 #define MAX_CRIBS 4
 
+/* Room-authored spawn points a crib can pour from besides its own centre: two
+   for the Rooms of Heads, Legs and Bones, three for the Room of Torsos (one per
+   pile tip). See crib_set_outer_spawns() / crib_add_outer_spawn(). */
+#define CRIB_MAX_OUTER 3
+
 /* ---- Encounter timing, all in frames at 60 to the second ---------------- */
 #define CRIB_BEAM_RAMP        180   /* nothing -> full intensity: 3 seconds   */
 #define CRIB_BEAM_HOLD         60   /* lit, and one more second before a body */
@@ -405,6 +414,14 @@ void crib_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y);
 void crib_set_outer_spawns(GameState area,
                            int32_t x1, int32_t y1, int32_t z1,
                            int32_t x2, int32_t y2, int32_t z2);
+
+/* Append one more WORLD outer point (same terms as above) to the area's
+   ENCOUNTER crib, up to CRIB_MAX_OUTER in all. Call AFTER
+   crib_set_outer_spawns(), which resets the list to its own two; a third point
+   is what lets the Room of Torsos pour from all three of its pile tips. Points
+   past the cap are dropped. Every point, the cot's centre included, is then
+   equally likely. */
+void crib_add_outer_spawn(GameState area, int32_t x, int32_t y, int32_t z);
 
 /* Run the state machine for every crib in the current area: the rock, the beam
    ramp, the spawn cadence and the test for the encounter being over. Call it

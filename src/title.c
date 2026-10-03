@@ -226,6 +226,10 @@ static const char *const level_names[] = {
        Tomb's south door. The jump lands at its one wired door, the north one.
        10 characters. */
     "H CORRIDOR",
+    /* THE ROOM OF TORSOS, the chapter's eighteenth room, behind the H
+       Corridor's south door. The jump lands at its one door. 14 characters,
+       exactly what the column allows. */
+    "ROOM OF TORSOS",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -276,6 +280,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* CLEAVER L */
     STATE_LOADING,        /* ZIG ZAG TOMB */
     STATE_LOADING,        /* H CORRIDOR */
+    STATE_LOADING,        /* ROOM OF TORSOS */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -324,6 +329,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_CLEAVER_L,
     STATE_ZIG_ZAG_TOMB,
     STATE_H_CORRIDOR,
+    STATE_ROOM_OF_TORSOS,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------
