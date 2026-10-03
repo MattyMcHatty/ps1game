@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "room_of_bones_mesh_collision.h"
+#include "room_data.h"
 #include "room_of_bones_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -228,6 +228,9 @@ static void rob_build_cull_keys(void) {
 void room_of_bones_load_geometry(void) {
     rob_buff = room_arena_load("\\TEXCTCMB\\BONEROOM.SMD;1");
     rob_smd  = rob_buff ? smdInitData(rob_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (rob_smd && !room_data_bind(rob_smd->n_prims)) rob_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     rob_build_cull_keys();
@@ -341,7 +344,7 @@ void room_of_bones_spawn_east(void) {
 }
 
 void room_of_bones_init(void) {
-    room_of_bones_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* THE MOUND IS SHOT OVER. Its eight proxy walls are 600 tall against 800
        for the outer walls, and the DRAWN bones are 150-200 high at the mound's
        rim and peak at 550 over its middle, so a shot across it has at most the
@@ -432,7 +435,7 @@ static void draw_room_of_bones_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < ROOM_OF_BONES_PRIM_COUNT) && room_of_bones_nocull[i];
+        int nocull = (i < ROOM_OF_BONES_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -476,7 +479,7 @@ static void draw_room_of_bones_smd(RenderContext *ctx) {
         int32_t fog = dist < rob_fog_near ? rob_fog_near : (dist > rob_fog_far ? rob_fog_far : dist);
         int32_t fog_factor = ((rob_fog_far - fog) << 8) / (rob_fog_far - rob_fog_near);
 
-        uint8_t tex_idx = (i < ROOM_OF_BONES_PRIM_COUNT) ? room_of_bones_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < ROOM_OF_BONES_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < ROOM_OF_BONES_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + ROB_FOG_R * (256 - fog_factor)) >> 8);

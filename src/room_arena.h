@@ -18,11 +18,12 @@
  *
  * WHY IT IS SAFE TO OVERWRITE THE OUTGOING ROOM
  * ---------------------------------------------
- * Only ONE room is ever drawn. Collision and floor heights do NOT come from the
- * mesh — they are compile-time arrays in <room>_mesh_collision.c and hardcoded
- * zone tables in each room's floor_zones_init — so a room whose geometry has
- * been evicted still collides correctly right up to the moment it stops being
- * drawn. Entity state lives in world.c, which never touches the mesh either.
+ * Only ONE room is ever drawn. Collision walls DO arrive in the arena now, at the
+ * end of the room's file (src/room_data.h), but room_data_collision() COPIES
+ * them into current_collision_room at the room's init, and floor heights are
+ * hardcoded zone tables in each room's floor_zones_init — so a room whose
+ * geometry has been evicted still collides correctly right up to the moment it
+ * stops being drawn. Entity state lives in world.c, which never touches the mesh either.
  * Each room's SMD pointer is private to its own module; nothing reads another
  * room's geometry.
  *
@@ -62,5 +63,14 @@ void *room_arena_load(const char *filename);
 
 /* Bytes the last successful load occupied. Diagnostics only. */
 int room_arena_used(void);
+
+/* The EXACT size of the file the last successful load read (the read itself is
+ * whole sectors), or 0 if the last load failed or nothing is loaded. The room
+ * data block is found from the file's last 8 bytes, so src/room_data.c needs
+ * this and not room_arena_used(). */
+int room_arena_file_size(void);
+
+/* The arena itself, i.e. what the last successful room_arena_load() returned. */
+void *room_arena_base(void);
 
 #endif /* ROOM_ARENA_H */

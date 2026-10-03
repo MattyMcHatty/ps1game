@@ -13,7 +13,7 @@
 #include "reception.h"
 #include "collision.h"
 #include "cull_arena.h"
-#include "reception_mesh_collision.h"
+#include "room_data.h"
 #include "reception_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -201,6 +201,9 @@ static const struct { const char *file; int slot; } new_tex[RECEPTION_NEW_TEX] =
 void reception_load_geometry(void) {
     reception_buff = room_arena_load("\\RECEPT.SMD;1");
     reception_smd  = reception_buff ? smdInitData(reception_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (reception_smd && !room_data_bind(reception_smd->n_prims)) reception_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     rc_build_cull_keys();
@@ -607,7 +610,7 @@ void reception_doors_arm(void) {
 }
 
 void reception_init(void) {
-    reception_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     reception_floor_zones_init();
 
@@ -728,7 +731,7 @@ static void draw_reception_smd(RenderContext *ctx) {
            ~0 and the plain <=0 test flickered them in and out. Everything else
            (normal quads AND real triangles) uses the original test, so there is
            no extra back-face over-draw — perf matches the baseline. */
-        int nocull = (i < RECEPTION_PRIM_COUNT) && reception_nocull[i];
+        int nocull = (i < RECEPTION_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -787,7 +790,7 @@ static void draw_reception_smd(RenderContext *ctx) {
            textures every face (no 0xFF), but keep the guard for safety. UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in reception_draw, reproducing the Blender UVs. */
-        uint8_t tex_idx = (i < RECEPTION_PRIM_COUNT) ? reception_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < RECEPTION_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < RECEPTION_TEX_COUNT);
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);

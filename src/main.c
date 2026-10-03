@@ -99,6 +99,7 @@
 #include "meat_plant.h"
 #include "room_of_bones.h"
 #include "cleaver_l.h"
+#include "zig_zag_tomb.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -195,6 +196,7 @@ void reset_game(RenderContext *ctx) {
     player_health = MAX_HEALTH;
     player_save_count = 0;   /* fresh playthrough: no saves recorded yet */
     game_flags        = 0;   /* ...and no puzzle has happened yet */
+    game_flags2       = 0;   /* ...in either word (player.h, "BIT 32 ON") */
     swing_timer    = 0;
     vampire_kb_vx    = 0;
     vampire_kb_vz    = 0;
@@ -359,6 +361,7 @@ static void load_area_geometry(GameState area) {
         case STATE_MEAT_PLANT:       meat_plant_load_geometry(); break;
         case STATE_ROOM_OF_BONES:    room_of_bones_load_geometry(); break;
         case STATE_CLEAVER_L:        cleaver_l_load_geometry(); break;
+        case STATE_ZIG_ZAG_TOMB:     zig_zag_tomb_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2315,11 +2318,11 @@ static void update_current_area(GameState area) {
     } else if (area == STATE_CRUCIFIX_CORRIDOR) {
         /* THE CRUCIFIX CORRIDOR - Chapter 3's tenth room: the shared wall
            routine and three flat floor zones of one plane over a cross-shaped
-           proxy. multi_level is 0. Two doors wired: the west one back to the Up
-           Down Maze's lower storey, and the arm's north one out to the Sliding
-           Bars Room; the arm's south door is drawn and sealed. The two are 2700
-           apart, so no veto chain. Nothing seeded; both Chapter 3 enemy updates are called
-           anyway, on the Tomb's argument.
+           proxy. multi_level is 0. Three doors wired: the west one back to the
+           Up Down Maze's lower storey, the arm's north one out to the Sliding
+           Bars Room and the arm's south one out to the Zig Zag Tomb. Nothing
+           seeded; both Chapter 3 enemy updates are called anyway, on the
+           Tomb's argument.
 
            ONE PROP: a LIT sconce in the east alcove. Its box collides through
            apply_collision_reception (sconces_collide, area-tagged); this flips
@@ -2338,6 +2341,17 @@ static void update_current_area(GameState area) {
         }
         if (crucifix_corridor_north_door_triggered(lock)) {
             pending_area = STATE_SLIDING_BARS_ROOM;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the SOUTH door, into the Zig Zag Tomb. Called unconditionally
+           for its edge state, and vetoed like the Sliding Bars Room's extra
+           doors; it is 3000 from the north door and further from the west, so
+           none can share a frame anyway. */
+        if (crucifix_corridor_south_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_ZIG_ZAG_TOMB;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -2432,9 +2446,10 @@ static void update_current_area(GameState area) {
     } else if (area == STATE_CLEAVER_L) {
         /* CLEAVER L - Chapter 3's fifteenth room: the shared wall routine and
            TWO flat floor zones of one plane, the two shafts of an L. multi_level
-           is 0. One door wired, the north one back to the Meat Plant; the west
-           one is drawn and sealed. Nothing seeded; both Chapter 3 enemy updates
-           are called anyway, on the Tomb's argument.
+           is 0. Two doors wired: the north one back to the Meat Plant, and the
+           west one out to the Zig Zag Tomb, LOCKED FROM THIS SIDE (the first
+           Circle sets FLAG_ZIG_ZAG_DOOR and stays). Nothing seeded; both
+           Chapter 3 enemy updates are called anyway, on the Tomb's argument.
 
            THE CLEAVERS (src/cleaver.h): four blades, two across each arm, the
            Cleaver Corridor's terms. Their push runs inside
@@ -2449,6 +2464,47 @@ static void update_current_area(GameState area) {
 
         if (cleaver_l_north_door_triggered(lock)) {
             pending_area = STATE_MEAT_PLANT;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the WEST door, into the Zig Zag Tomb. Called unconditionally
+           for its edge state (and so the unlocking press registers), and
+           vetoed; the two doors are 3600 apart, so they cannot share a frame. */
+        if (cleaver_l_west_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_ZIG_ZAG_TOMB;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_ZIG_ZAG_TOMB) {
+        /* THE ZIG ZAG TOMB - Chapter 3's sixteenth room: the shared wall
+           routine and ONE flat floor zone over a 4200 square of nine blocks,
+           the barred partitions between them thin walls in the proxy.
+           multi_level is 0. Two doors wired: the north one back to the
+           Crucifix Corridor, and the east one out to Cleaver L, which reads
+           "Locked from the other side" until Cleaver L's west door has been
+           unlocked (FLAG_ZIG_ZAG_DOOR). The south door is drawn and sealed.
+           Nothing seeded; both Chapter 3 enemy updates are called anyway, on
+           the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (zig_zag_tomb_north_door_triggered(lock)) {
+            pending_area = STATE_CRUCIFIX_CORRIDOR;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the EAST door, into Cleaver L. Called unconditionally for its
+           edge state; the two doors are 6600 apart, so they cannot share a
+           frame, and it is vetoed anyway. */
+        if (zig_zag_tomb_east_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_CLEAVER_L;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -2955,6 +3011,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         room_of_bones_draw(ctx);
     else if (area == STATE_CLEAVER_L)
         cleaver_l_draw(ctx);
+    else if (area == STATE_ZIG_ZAG_TOMB)
+        zig_zag_tomb_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3399,6 +3457,11 @@ int main(int argc, const char **argv) {
                                      headers (cobble, inner door) and NO
                                      registration - it owns nothing, and the
                                      blades' rusty is The Pit's. No CD access. */
+    loading_screen_pump(&ctx);
+    zig_zag_tomb_load_assets();   /* CHAPTER 3's sixteenth room: four borrowed
+                                     headers (cobble, inner door, loculus,
+                                     bars) and NO registration - it owns
+                                     nothing. No CD access. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4242,6 +4305,13 @@ int main(int argc, const char **argv) {
                    guarantee and same silent failure mode as the branches around
                    it. */
                 cleaver_l_upload_textures();
+            } else if (pending_area == STATE_ZIG_ZAG_TOMB) {
+                /* THE ZIG ZAG TOMB. Cobble, the inner door and the loculus
+                   through the Catacombs Entry's narrow uploaders, and the bars
+                   through their own module's - the Sliding Bars Room's set less
+                   its panel. It owns nothing. Same guarantee and same silent
+                   failure mode as the branches around it. */
+                zig_zag_tomb_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -4933,12 +5003,16 @@ int main(int argc, const char **argv) {
                     cleaver_corridor_spawn_south();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_CRUCIFIX_CORRIDOR) {
-                /* TWO ARRIVALS. crucifix_corridor_init()'s default is the west
-                   door, from the Up Down Maze; back from the Sliding Bars Room
-                   it is the north door at the head of the arm. */
+                /* THREE ARRIVALS. crucifix_corridor_init()'s default is the
+                   west door, from the Up Down Maze; back from the Sliding Bars
+                   Room it is the north door at the head of the arm, and back
+                   from the Zig Zag Tomb the south door at its foot. Keyed on
+                   current_area, the room being LEFT and not a route. */
                 crucifix_corridor_init();
                 if (current_area == STATE_SLIDING_BARS_ROOM)
                     crucifix_corridor_spawn_north();
+                else if (current_area == STATE_ZIG_ZAG_TOMB)
+                    crucifix_corridor_spawn_south();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_SLIDING_BARS_ROOM) {
                 /* THREE ARRIVALS. sliding_bars_room_init()'s default is the
@@ -4977,9 +5051,24 @@ int main(int argc, const char **argv) {
                 room_of_bones_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_CLEAVER_L) {
-                /* ONE ARRIVAL, the north door, so cleaver_l_init()'s default
-                   spawn is also the only one. */
+                /* TWO ARRIVALS. cleaver_l_init()'s default is the north door,
+                   from the Meat Plant; back from the Zig Zag Tomb it is the
+                   west door at the end of the E-W shaft. Keyed on current_area,
+                   the room being LEFT and not a route, so a debug jump or a
+                   title load still lands at the north door. */
                 cleaver_l_init();
+                if (current_area == STATE_ZIG_ZAG_TOMB)
+                    cleaver_l_spawn_west();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_ZIG_ZAG_TOMB) {
+                /* TWO ARRIVALS. zig_zag_tomb_init()'s default is the north
+                   door, from the Crucifix Corridor; back from Cleaver L it is
+                   the east door. Keyed on current_area, the room being LEFT and
+                   not a route, so a debug jump or a title load still lands at
+                   the north door. */
+                zig_zag_tomb_init();
+                if (current_area == STATE_CLEAVER_L)
+                    zig_zag_tomb_spawn_east();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5351,7 +5440,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_ROOM_OF_LEGS ||
                    game_state == STATE_MEAT_PLANT ||
                    game_state == STATE_ROOM_OF_BONES ||
-                   game_state == STATE_CLEAVER_L) {
+                   game_state == STATE_CLEAVER_L ||
+                   game_state == STATE_ZIG_ZAG_TOMB) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

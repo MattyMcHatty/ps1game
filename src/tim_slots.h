@@ -371,6 +371,10 @@
 #define TIM_TPAGE_LUMBERB  0x008d
 #define TIM_CLUT_LUMBERB   0x79aa
 
+/* maggot.tim      4bpp  VRAM ( 672,320)  \TEXCTCMB\MAGGOT.TIM */
+#define TIM_TPAGE_MAGGOT   0x001a
+#define TIM_CLUT_MAGGOT    0x7804
+
 /* mansion.tim     8bpp  VRAM ( 448,128)  \TEX\MANSION.TIM */
 #define TIM_TPAGE_MANSION  0x0087
 #define TIM_CLUT_MANSION   0x7bd0

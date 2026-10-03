@@ -13,7 +13,7 @@
 #include "camera.h"
 #include "catacombs_entry.h"
 #include "collision.h"
-#include "catacombs_entry_mesh_collision.h"
+#include "room_data.h"
 #include "catacombs_entry_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -349,6 +349,9 @@ void catacombs_entry_load_geometry(void) {
     catacombs_entry_buff = room_arena_load("\\TEXCTCMB\\CTCMBENT.SMD;1");
     catacombs_entry_smd  = catacombs_entry_buff
                            ? smdInitData(catacombs_entry_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (catacombs_entry_smd && !room_data_bind(catacombs_entry_smd->n_prims)) catacombs_entry_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     ce_build_cull_keys();
@@ -734,7 +737,7 @@ void catacombs_entry_spawn_inner(void) {
 }
 
 void catacombs_entry_init(void) {
-    catacombs_entry_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The ENTRY CHAMBER's ceiling, which is the drawn one the player stands
        under on arrival — the lower hall's is at y=440, 800 above its own floor.
        One value is all collision_set_ceiling_y takes, and nothing in this room
@@ -944,7 +947,7 @@ static void draw_catacombs_entry_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < CATACOMBS_ENTRY_PRIM_COUNT) && catacombs_entry_nocull[i];
+        int nocull = (i < CATACOMBS_ENTRY_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -992,7 +995,7 @@ static void draw_catacombs_entry_smd(RenderContext *ctx) {
         int32_t fog = dist < ce_fog_near ? ce_fog_near : (dist > ce_fog_far ? ce_fog_far : dist);
         int32_t fog_factor = ((ce_fog_far - fog) << 8) / (ce_fog_far - ce_fog_near);
 
-        uint8_t tex_idx = (i < CATACOMBS_ENTRY_PRIM_COUNT) ? catacombs_entry_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < CATACOMBS_ENTRY_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < CATACOMBS_ENTRY_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + CE_FOG_R * (256 - fog_factor)) >> 8);

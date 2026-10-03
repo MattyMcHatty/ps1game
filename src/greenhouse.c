@@ -14,7 +14,7 @@
 #include "greenhouse.h"
 #include "collision.h"
 #include "player.h"
-#include "greenhouse_mesh_collision.h"
+#include "room_data.h"
 #include "greenhouse_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -386,6 +386,9 @@ static void gh_build_cull_keys(void) {
 void greenhouse_load_geometry(void) {
     greenhouse_buff = room_arena_load("\\TEX\\GRNHSE.SMD;1");
     greenhouse_smd  = greenhouse_buff ? smdInitData(greenhouse_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (greenhouse_smd && !room_data_bind(greenhouse_smd->n_prims)) greenhouse_smd = NULL;
     gh_build_cull_keys();
 }
 
@@ -585,7 +588,7 @@ void greenhouse_spawn_east(void) {
 }
 
 void greenhouse_init(void) {
-    greenhouse_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The shell is DRAWN to y=-900 at the eaves and the glass ridge runs on up
        to -900; the collision runs stop at -675, which is the height of the door
        and of the walls the player can actually be pushed by. STATE THE DRAWN
@@ -764,7 +767,7 @@ static void draw_greenhouse_smd(RenderContext *ctx) {
            build time in greenhouse_nocull — same scheme as the other rooms. This
            mesh has none either (gen_greenhouse_tex_map.py reports 0), but the
            table is generated and checked all the same. */
-        int nocull = (i < GREENHOUSE_PRIM_COUNT) && greenhouse_nocull[i];
+        int nocull = (i < GREENHOUSE_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -813,7 +816,7 @@ static void draw_greenhouse_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in greenhouse_draw. */
-        uint8_t tex_idx = (i < GREENHOUSE_PRIM_COUNT) ? greenhouse_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < GREENHOUSE_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < GREENHOUSE_TEX_COUNT);
 
         /* ---- THE ONE PER-POLY TEXTURE OVERRIDE IN THIS ROOM ----------------

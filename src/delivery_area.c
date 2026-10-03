@@ -25,6 +25,7 @@
 #include "delivery_intro.h"   /* the New Game arrival sequence's fade overlay */
 #include "tim_slots.h"
 #include "delivery_area_tex_map.h"
+#include "room_data.h"
 
 static SMD  *room_smd  = NULL;
 static void *room_buff = NULL;
@@ -222,6 +223,9 @@ void delivery_area_init(void) {
 void delivery_load_geometry(void) {
     room_buff = room_arena_load("\\DELIVERY.SMD");
     room_smd  = room_buff ? smdInitData(room_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (room_smd && !room_data_bind(room_smd->n_prims)) room_smd = NULL;
 }
 
 /* SMD FT4 layout, stride=32:
@@ -290,7 +294,7 @@ static void draw_smd_room(RenderContext *ctx) {
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in delivery_area_nocull — same scheme as the other rooms. */
-        int nocull = (i < DELIVERY_AREA_PRIM_COUNT) && delivery_area_nocull[i];
+        int nocull = (i < DELIVERY_AREA_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -339,7 +343,7 @@ static void draw_smd_room(RenderContext *ctx) {
 
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
-        uint8_t tex_idx = (i < DELIVERY_AREA_PRIM_COUNT) ? delivery_area_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < DELIVERY_AREA_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
 
         if (is_quad && tex_idx != 0xFF) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }

@@ -13,7 +13,7 @@
 #include "texmgr.h"
 #include "kitchen_dining.h"
 #include "collision.h"
-#include "kitchen_dining_mesh_collision.h"
+#include "room_data.h"
 #include "kitchen_dining_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -286,6 +286,9 @@ static const char *shared_tex_file[KITCHEN_SHARED_TEX] = {
 void kitchen_load_geometry(void) {
     kitchen_buff = room_arena_load("\\KITCHN.SMD;1");
     kitchen_smd  = kitchen_buff ? smdInitData(kitchen_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (kitchen_smd && !room_data_bind(kitchen_smd->n_prims)) kitchen_smd = NULL;
 }
 
 void kitchen_load_assets(void) {
@@ -324,7 +327,7 @@ void kitchen_upload_red_crpt(void)    { texmgr_upload(shared_id[2]); }
 void kitchen_upload_double_door(void) { delivery_upload_double_door(); }
 
 void kitchen_dining_init(void) {
-    kitchen_dining_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     kitchen_dining_floor_zones_init();
 
@@ -485,7 +488,7 @@ static void draw_kitchen_smd(RenderContext *ctx) {
 
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
-        uint8_t tex_idx = (i < KITCHEN_DINING_PRIM_COUNT) ? kitchen_dining_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < KITCHEN_DINING_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
 
         if (is_quad && tex_idx != 0xFF && tex_idx < KITCHEN_TEX_COUNT) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }

@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "cleaver_corridor_mesh_collision.h"
+#include "room_data.h"
 #include "cleaver_corridor_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -173,6 +173,9 @@ static void cc_build_cull_keys(void) {
 void cleaver_corridor_load_geometry(void) {
     cc_buff = room_arena_load("\\TEXCTCMB\\CLVRCRDR.SMD;1");
     cc_smd  = cc_buff ? smdInitData(cc_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (cc_smd && !room_data_bind(cc_smd->n_prims)) cc_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     cc_build_cull_keys();
@@ -416,7 +419,7 @@ void cleaver_corridor_spawn_ladder(void) {
 }
 
 void cleaver_corridor_init(void) {
-    cleaver_corridor_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The vault, read off the VISUAL mesh: y=-800 over the whole corridor, where
        the proxy's walls stop too. */
     collision_set_ceiling_y(-800);
@@ -497,7 +500,7 @@ static void draw_cleaver_corridor_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < CLEAVER_CORRIDOR_PRIM_COUNT) && cleaver_corridor_nocull[i];
+        int nocull = (i < CLEAVER_CORRIDOR_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -541,7 +544,7 @@ static void draw_cleaver_corridor_smd(RenderContext *ctx) {
         int32_t fog = dist < cc_fog_near ? cc_fog_near : (dist > cc_fog_far ? cc_fog_far : dist);
         int32_t fog_factor = ((cc_fog_far - fog) << 8) / (cc_fog_far - cc_fog_near);
 
-        uint8_t tex_idx = (i < CLEAVER_CORRIDOR_PRIM_COUNT) ? cleaver_corridor_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < CLEAVER_CORRIDOR_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < CLEAVER_CORRIDOR_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + CC_FOG_R * (256 - fog_factor)) >> 8);

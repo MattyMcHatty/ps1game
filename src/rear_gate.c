@@ -14,7 +14,7 @@
 #include "rear_gate.h"
 #include "collision.h"
 #include "player.h"              /* show_pickup_msg_raw — the plinth's log line */
-#include "rear_gate_mesh_collision.h"
+#include "room_data.h"
 #include "rear_gate_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -234,6 +234,9 @@ static void rg_build_cull_keys(void) {
 void rear_gate_load_geometry(void) {
     rear_gate_buff = room_arena_load("\\TEX\\REARGATE.SMD;1");
     rear_gate_smd  = rear_gate_buff ? smdInitData(rear_gate_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (rear_gate_smd && !room_data_bind(rear_gate_smd->n_prims)) rear_gate_smd = NULL;
     rg_build_cull_keys();
 }
 
@@ -651,7 +654,7 @@ void rear_gate_spawn_south(void) {
 }
 
 void rear_gate_init(void) {
-    rear_gate_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The perimeter hedge is DRAWN to y=-500 (the gates and the trees reach
        -600, but they are the openings and the skyline, not the roofline); the
        collision runs are only 500 tall in the wall list, which is the proxy, not
@@ -823,7 +826,7 @@ static void draw_rear_gate_smd(RenderContext *ctx) {
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in rear_gate_nocull — same scheme as the other rooms. This
            mesh has none, but the table is generated and checked all the same. */
-        int nocull = (i < REAR_GATE_PRIM_COUNT) && rear_gate_nocull[i];
+        int nocull = (i < REAR_GATE_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -872,7 +875,7 @@ static void draw_rear_gate_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in rear_gate_draw. */
-        uint8_t tex_idx = (i < REAR_GATE_PRIM_COUNT) ? rear_gate_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < REAR_GATE_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < REAR_GATE_TEX_COUNT);
         /* Purple fog, the same night sky the rest of the garden looks out on,
            and at Maze One's exact near/far — this is one continuous outdoors and

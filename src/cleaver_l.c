@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "cleaver_l_mesh_collision.h"
+#include "room_data.h"
 #include "cleaver_l_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -30,6 +30,7 @@
 #include "oil_dispenser.h"
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "sound.h"              /* SFX_UNLOCK, the west door's first press       */
 
 /* Cleaver L — see cleaver_l.h for the layout, the blades and the doors. */
 
@@ -168,6 +169,9 @@ static void cll_build_cull_keys(void) {
 void cleaver_l_load_geometry(void) {
     cll_buff = room_arena_load("\\TEXCTCMB\\CLEAVERL.SMD;1");
     cll_smd  = cll_buff ? smdInitData(cll_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (cll_smd && !room_data_bind(cll_smd->n_prims)) cll_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     cll_build_cull_keys();
@@ -202,12 +206,26 @@ void cleaver_l_upload_textures(void) {
    reading axis for an XY sign). The Meat Plant's south-alcove door, the far
    side, takes the opposite pair.
 
-   THE WEST DOOR, x=-2400 z[-2200,-2000] at the far end of the E-W shaft, is
-   drawn and nothing else: no sign, no trigger. It reads as a sealed door until
-   the room behind it exists. */
+   ---- THE WEST DOOR ----
+   x=-2400, z[-2200,-2000], y[-400,0] — the end wall of the E-W shaft. Out to
+   THE ZIG ZAG TOMB, through the east door in its east wall.
+
+   In the YZ plane at fixed X, approached from +X (the end wall's walkable side
+   is +X), so TEXT_PLANE_YZ with mirror=0, the sign 11 proud of the wall along
+   +X, and the -200 on the Z argument (the reading axis for a YZ sign). The Zig
+   Zag Tomb's east door, the far side, takes the opposite pair.
+
+   >>> LOCKED FROM THIS SIDE. <<< The Cleaver Corridor's south door exactly: the
+   first Circle here unlocks it and stays in the room, the next one goes
+   through, and the Zig Zag Tomb's east door reads "Locked from the other side"
+   until then. The lock is FLAG_ZIG_ZAG_DOOR (player.h), a GameFlag so it
+   survives a save/load. */
 #define CLL_NORTH_X           300     /* the art spans x[200,400] */
 #define CLL_NORTH_Z           600
 #define CLL_NORTH_TEXT_Y     (-186)   /* eye level on the y=0 floor */
+#define CLL_WEST_X          (-2400)
+#define CLL_WEST_Z          (-2100)   /* the art spans z[-2200,-2000] */
+#define CLL_WEST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
 #define CLL_TEXT_RADIUS      1200
 #define CLL_FADE_NEAR         800
 #define CLL_TRIGGER_RADIUS    500
@@ -271,9 +289,11 @@ static void cll_place_cleavers(void) {
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int north_circle_prev = 1;
+static int west_circle_prev  = 1;
 
 void cleaver_l_arm(void) {
     north_circle_prev = interact_tapped();
+    west_circle_prev  = north_circle_prev;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -315,6 +335,66 @@ static void cll_north_door_text(RenderContext *ctx) {
                         DOOR_PIXEL_SIZE);
 }
 
+/* The west door's Circle test. The north door's shape, plus the lock; the two
+   are 3600 apart, so they can never both be in reach. */
+int cleaver_l_west_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !west_circle_prev;
+    int32_t dx, dz, xz;
+    west_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - CLL_WEST_X;
+    dz = cam_z - CLL_WEST_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= CLL_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(CLL_WEST_X, CLL_WEST_Z)) return 0;
+
+    /* First press unlocks (no transition yet); after that, presses enter. */
+    if (!game_flag(FLAG_ZIG_ZAG_DOOR)) {
+        game_flag_set(FLAG_ZIG_ZAG_DOOR);
+        sound_play(SFX_UNLOCK);
+        return 0;
+    }
+    return 1;
+}
+
+static void cll_west_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - CLL_WEST_X;
+    int32_t dz = cam_z - CLL_WEST_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= CLL_TEXT_RADIUS) return;
+
+    if (xz > CLL_FADE_NEAR) {
+        int range = CLL_TEXT_RADIUS - CLL_FADE_NEAR;
+        int prog  = xz - CLL_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx,
+                        game_flag(FLAG_ZIG_ZAG_DOOR) ? "Press " BTN_CIRCLE " to enter"
+                                                     : "Press " BTN_CIRCLE " to unlock",
+                        CLL_WEST_X + 11, CLL_WEST_TEXT_Y, CLL_WEST_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ,
+                        DOOR_PIXEL_SIZE);
+}
+
+void cleaver_l_spawn_west(void) {
+    /* Back from the Zig Zag Tomb. 220 off the end wall on its walkable +X
+       side, on the shaft's centre line (300 clear of both side walls), facing
+       +X — the direction of travel, east up the shaft. The nearest blade, at
+       x=-1200, is 980 further on: the north arrival's distance to its first,
+       so nothing falls on arrival. */
+    cam_x   = CLL_WEST_X + (CLL_WALL_RADIUS + 25);
+    cam_y   = CLL_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = CLL_WEST_Z;
+    cam_rot = 1024;                    /* facing +X, east up the shaft */
+    cleaver_l_arm();
+}
+
 void cleaver_l_spawn_north(void) {
     /* 220 off wall 0 on its walkable -Z side, on the door's centre line (the
        shaft's, 300 clear of both side walls), facing -Z — the direction of
@@ -328,7 +408,7 @@ void cleaver_l_spawn_north(void) {
 }
 
 void cleaver_l_init(void) {
-    cleaver_l_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The walls' tops, y=-800: there is no vault mesh, the Cleaver Corridor's
        open dark. */
     collision_set_ceiling_y(-800);
@@ -405,7 +485,7 @@ static void draw_cleaver_l_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < CLEAVER_L_PRIM_COUNT) && cleaver_l_nocull[i];
+        int nocull = (i < CLEAVER_L_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -449,7 +529,7 @@ static void draw_cleaver_l_smd(RenderContext *ctx) {
         int32_t fog = dist < cll_fog_near ? cll_fog_near : (dist > cll_fog_far ? cll_fog_far : dist);
         int32_t fog_factor = ((cll_fog_far - fog) << 8) / (cll_fog_far - cll_fog_near);
 
-        uint8_t tex_idx = (i < CLEAVER_L_PRIM_COUNT) ? cleaver_l_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < CLEAVER_L_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < CLEAVER_L_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + CLL_FOG_R * (256 - fog_factor)) >> 8);
@@ -551,6 +631,7 @@ void cleaver_l_draw(RenderContext *ctx) {
     /* >>> LEVEL 8 REMOVES THE SIGN, THE CLEAVERS AND THE ENEMIES. <<< */
     if (exp != DBG_EXP_NO_ENTITIES) {
         cll_north_door_text(ctx);  /* north: XY plane, approached from -Z */
+        cll_west_door_text(ctx);   /* west:  YZ plane, approached from +X */
         /* BOTH CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Both sheets sit at Voff 128, so each is handed the window to restore

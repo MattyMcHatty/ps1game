@@ -13,7 +13,7 @@
 #include "camera.h"
 #include "up_down_maze.h"
 #include "collision.h"
-#include "up_down_maze_mesh_collision.h"
+#include "room_data.h"
 #include "up_down_maze_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -279,6 +279,9 @@ void up_down_maze_load_geometry(void) {
     up_down_maze_buff = room_arena_load("\\TEXCTCMB\\UPDNMAZE.SMD;1");
     up_down_maze_smd  = up_down_maze_buff
                         ? smdInitData(up_down_maze_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (up_down_maze_smd && !room_data_bind(up_down_maze_smd->n_prims)) up_down_maze_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     udm_build_cull_keys();
@@ -593,7 +596,7 @@ void up_down_maze_spawn_east(void) {
 }
 
 void up_down_maze_init(void) {
-    up_down_maze_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The DRAWN ceiling, read off the VISUAL mesh and not off the collision
        proxy: the vaulting over the whole room is at y=-1800, which is also where
        the outer walls' proxy faces stop. One value is all collision_set_ceiling_y
@@ -698,7 +701,7 @@ static void draw_up_down_maze_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < UP_DOWN_MAZE_PRIM_COUNT) && up_down_maze_nocull[i];
+        int nocull = (i < UP_DOWN_MAZE_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -744,7 +747,7 @@ static void draw_up_down_maze_smd(RenderContext *ctx) {
         int32_t fog = dist < udm_fog_near ? udm_fog_near : (dist > udm_fog_far ? udm_fog_far : dist);
         int32_t fog_factor = ((udm_fog_far - fog) << 8) / (udm_fog_far - udm_fog_near);
 
-        uint8_t tex_idx = (i < UP_DOWN_MAZE_PRIM_COUNT) ? up_down_maze_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < UP_DOWN_MAZE_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < UP_DOWN_MAZE_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + UDM_FOG_R * (256 - fog_factor)) >> 8);

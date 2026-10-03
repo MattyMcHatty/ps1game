@@ -13,7 +13,7 @@
 #include "camera.h"
 #include "keystone_maze.h"
 #include "collision.h"
-#include "keystone_maze_mesh_collision.h"
+#include "room_data.h"
 #include "keystone_maze_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -188,6 +188,9 @@ static void km_build_cull_keys(void) {
 void keystone_maze_load_geometry(void) {
     keystone_maze_buff = room_arena_load("\\TEX\\KEYSTONE.SMD;1");
     keystone_maze_smd  = keystone_maze_buff ? smdInitData(keystone_maze_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (keystone_maze_smd && !room_data_bind(keystone_maze_smd->n_prims)) keystone_maze_smd = NULL;
     km_build_cull_keys();
 }
 
@@ -501,7 +504,7 @@ void keystone_maze_spawn_east(void) {
 }
 
 void keystone_maze_init(void) {
-    keystone_maze_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The perimeter hedge is DRAWN to y=-500 (the gates reach -600, but they are
        the openings, not the roofline); most of the collision runs agree at 500,
        but the four corner plinths are only 120 and the keystone block 304 —
@@ -662,7 +665,7 @@ static void draw_keystone_maze_smd(RenderContext *ctx) {
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in keystone_maze_nocull — same scheme as the other rooms. */
-        int nocull = (i < KEYSTONE_MAZE_PRIM_COUNT) && keystone_maze_nocull[i];
+        int nocull = (i < KEYSTONE_MAZE_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -711,7 +714,7 @@ static void draw_keystone_maze_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in keystone_maze_draw. */
-        uint8_t tex_idx = (i < KEYSTONE_MAZE_PRIM_COUNT) ? keystone_maze_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < KEYSTONE_MAZE_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < KEYSTONE_MAZE_TEX_COUNT);
         /* Purple fog, the same night sky the rest of the garden looks out on,
            and at Fountain Square's exact near/far — this is one continuous

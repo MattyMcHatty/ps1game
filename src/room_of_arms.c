@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "room_of_arms_mesh_collision.h"
+#include "room_data.h"
 #include "room_of_arms_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -377,6 +377,9 @@ static void roa_build_cull_keys(void) {
 void room_of_arms_load_geometry(void) {
     roa_buff = room_arena_load("\\TEXCTCMB\\ARMSROOM.SMD;1");
     roa_smd  = roa_buff ? smdInitData(roa_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (roa_smd && !room_data_bind(roa_smd->n_prims)) roa_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     roa_build_cull_keys();
@@ -540,7 +543,7 @@ void room_of_arms_spawn_east(void) {
 }
 
 void room_of_arms_init(void) {
-    room_of_arms_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The DRAWN ceiling, read off the VISUAL mesh and not only off the collision
        proxy: the vaulting over the whole octagon is at y=-800, which is also
        where every one of the proxy's thirteen walls stops, so the two agree and
@@ -737,7 +740,7 @@ static void draw_room_of_arms_smd(RenderContext *ctx) {
            detects them and flags them here; the count it prints is the number
            to watch after any re-export, because a face that silently stops
            being flagged comes back as a hole. */
-        int nocull = (i < ROOM_OF_ARMS_PRIM_COUNT) && room_of_arms_nocull[i];
+        int nocull = (i < ROOM_OF_ARMS_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -778,7 +781,7 @@ static void draw_room_of_arms_smd(RenderContext *ctx) {
         otz += 40;
         if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
         if (arms_bias && i < ROOM_OF_ARMS_PRIM_COUNT &&
-            room_of_arms_tex_map[i] == ROA_TEX_ARMS) {
+            room_tex_map[i] == ROA_TEX_ARMS) {
             otz -= arms_bias;
             if (otz < 1) otz = 1;
         }
@@ -792,7 +795,7 @@ static void draw_room_of_arms_smd(RenderContext *ctx) {
         int32_t fog = dist < roa_fog_near ? roa_fog_near : (dist > roa_fog_far ? roa_fog_far : dist);
         int32_t fog_factor = ((roa_fog_far - fog) << 8) / (roa_fog_far - roa_fog_near);
 
-        uint8_t tex_idx = (i < ROOM_OF_ARMS_PRIM_COUNT) ? room_of_arms_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < ROOM_OF_ARMS_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < ROOM_OF_ARMS_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + ROA_FOG_R * (256 - fog_factor)) >> 8);

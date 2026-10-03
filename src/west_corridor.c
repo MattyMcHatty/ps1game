@@ -12,7 +12,7 @@
 #include "camera.h"
 #include "west_corridor.h"
 #include "collision.h"
-#include "west_corridor_mesh_collision.h"
+#include "room_data.h"
 #include "west_corridor_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -92,6 +92,9 @@ static uint16_t tex_clut[WEST_CORRIDOR_TEX_COUNT];
 void west_corridor_load_geometry(void) {
     west_corridor_buff = room_arena_load("\\TEX\\WSTCORR.SMD;1");
     west_corridor_smd  = west_corridor_buff ? smdInitData(west_corridor_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (west_corridor_smd && !room_data_bind(west_corridor_smd->n_prims)) west_corridor_smd = NULL;
 }
 
 /* STARTUP. Nothing but TIM_SLOT lines: the pixels of all seven textures are
@@ -256,7 +259,7 @@ void west_corridor_spawn_east(void) {
 }
 
 void west_corridor_init(void) {
-    west_corridor_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     west_corridor_floor_zones_init();
 
@@ -321,7 +324,7 @@ static void draw_west_corridor_smd(RenderContext *ctx) {
            build time in west_corridor_nocull — same scheme as the conservatory.
            (This mesh has none, but the table and the test stay: the flag is
            regenerated from the SMX and a re-export can introduce one.) */
-        int nocull = (i < WEST_CORRIDOR_PRIM_COUNT) && west_corridor_nocull[i];
+        int nocull = (i < WEST_CORRIDOR_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -372,7 +375,7 @@ static void draw_west_corridor_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in west_corridor_draw. */
-        uint8_t tex_idx = (i < WEST_CORRIDOR_PRIM_COUNT) ? west_corridor_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < WEST_CORRIDOR_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < WEST_CORRIDOR_TEX_COUNT);
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);

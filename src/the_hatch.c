@@ -13,7 +13,7 @@
 #include "camera.h"
 #include "the_hatch.h"
 #include "collision.h"
-#include "the_hatch_mesh_collision.h"
+#include "room_data.h"
 #include "the_hatch_tex_map.h"
 #include "hatch_doors.h"        /* the two leaves over the pit */
 #include "hatch_puzzle.h"       /* ...their two keyholes, and the drop */
@@ -281,6 +281,9 @@ static void th_build_cull_keys(void) {
 void the_hatch_load_geometry(void) {
     the_hatch_buff = room_arena_load("\\TEX\\THEHATCH.SMD;1");
     the_hatch_smd  = the_hatch_buff ? smdInitData(the_hatch_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (the_hatch_smd && !room_data_bind(the_hatch_smd->n_prims)) the_hatch_smd = NULL;
     th_build_cull_keys();
 
     /* THE PIT'S TWO DOORS, read HERE and not at startup. They are a prop in one
@@ -471,7 +474,7 @@ void the_hatch_spawn_west(void) {
 }
 
 void the_hatch_init(void) {
-    the_hatch_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The perimeter hedge is DRAWN to y=-500 (the gate reaches -600, but that is
        the opening, not the roofline), and every collision run agrees at 500. The
        hatch lid reaches -639 and is the tallest thing in the room, but it stands
@@ -698,7 +701,7 @@ static void draw_the_hatch_smd(RenderContext *ctx) {
            build time in the_hatch_nocull — same scheme as the other rooms. This
            mesh happens to contain none (the generator reports 0), but the table
            is generated and read the same way regardless. */
-        int nocull = (i < THE_HATCH_PRIM_COUNT) && the_hatch_nocull[i];
+        int nocull = (i < THE_HATCH_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -747,7 +750,7 @@ static void draw_the_hatch_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in the_hatch_draw. */
-        uint8_t tex_idx = (i < THE_HATCH_PRIM_COUNT) ? the_hatch_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < THE_HATCH_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < THE_HATCH_TEX_COUNT);
         /* THE PIT'S RED LIGHT, added to the baked colour BEFORE the fog and not
            after, so a lit poly fades with distance like every other one — see

@@ -12,7 +12,7 @@
 #include "camera.h"
 #include "library_destroyed.h"
 #include "collision.h"
-#include "library_destroyed_mesh_collision.h"
+#include "room_data.h"
 #include "library_destroyed_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -91,6 +91,9 @@ static uint16_t tex_clut[LD_TEX_COUNT];
 void library_destroyed_load_geometry(void) {
     ld_buff = room_arena_load("\\TEX\\LIBDEST.SMD;1");
     ld_smd  = ld_buff ? smdInitData(ld_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (ld_smd && !room_data_bind(ld_smd->n_prims)) ld_smd = NULL;
 }
 
 /* Nothing to read at STARTUP: every texture this room draws is registered and
@@ -265,7 +268,7 @@ void library_destroyed_spawn_south(void) {
 }
 
 void library_destroyed_init(void) {
-    library_destroyed_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The proxy mesh tops its walls out well short of the drawn roof; the mesh
        actually DRAWN has the reading room's ceiling at y=-730 (the entrance
        vestibule's is the lower -500), same as the Library. State the drawn value
@@ -337,7 +340,7 @@ static void draw_library_destroyed_smd(RenderContext *ctx) {
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in library_destroyed_nocull — same scheme as the other
            rooms. */
-        int nocull = (i < LIBRARY_DESTROYED_PRIM_COUNT) && library_destroyed_nocull[i];
+        int nocull = (i < LIBRARY_DESTROYED_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -387,7 +390,7 @@ static void draw_library_destroyed_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in library_destroyed_draw. */
-        uint8_t tex_idx = (i < LIBRARY_DESTROYED_PRIM_COUNT) ? library_destroyed_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < LIBRARY_DESTROYED_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < LD_TEX_COUNT);
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);

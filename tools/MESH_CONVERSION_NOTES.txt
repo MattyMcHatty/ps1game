@@ -115,7 +115,10 @@ The script:
   - classifies faces by normal: vertical -> walls, horizontal -> floors,
   - writes assets\<name>_collision.c and assets\<name>_collision.h.
 
-IMPORTANT — copy the generated files into src\ (that is the compiled copy):
+IMPORTANT — copy the generated files into src\ (that is the copy the build
+uses — since October 2026 it is READ by tools/pack_rooms.py and packed onto
+the end of the room's .SMD rather than compiled; see src/room_data.h and
+tools/ADDING_A_ROOM.txt STEP 4c. Hand edits stay literal assignments):
       copy assets\Reception_mesh_collision.c  src\reception_mesh_collision.c
       copy assets\Reception_mesh_collision.h  src\reception_mesh_collision.h
   (src\ uses lowercase filenames; contents are byte-identical to assets\.)

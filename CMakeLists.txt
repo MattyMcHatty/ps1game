@@ -36,12 +36,8 @@ add_executable(horror_game
     src/splash.c
     src/spi.c
     src/collision.c
-    src/delivery_area_mesh_collision.c
-    src/kitchen_dining_mesh_collision.c
     src/kitchen_dining.c
-    src/reception_mesh_collision.c
     src/reception.c
-    src/piano_room_mesh_collision.c
     src/piano_room.c
     src/piano_props.c
     src/piano_puzzle.c
@@ -54,83 +50,50 @@ add_executable(horror_game
     src/mushroom.c
     src/living_statue.c
     src/hadad.c
-    src/conservatory_mesh_collision.c
     src/conservatory.c
-    src/hall_2f_mesh_collision.c
     src/hall_2f.c
-    src/master_bedroom_mesh_collision.c
     src/master_bedroom.c
-    src/east_hall_mesh_collision.c
     src/east_hall.c
     src/east_hall_quake.c
-    src/library_mesh_collision.c
     src/library.c
-    src/library_destroyed_mesh_collision.c
     src/library_destroyed.c
-    src/east_stairwell_mesh_collision.c
     src/east_stairwell.c
-    src/attic_stairwell_mesh_collision.c
     src/attic_stairwell.c
-    src/attic_exit_mesh_collision.c
     src/attic_exit.c
-    src/garden_stairs_mesh_collision.c
     src/garden_stairs.c
-    src/garden_courtyard_mesh_collision.c
     src/garden_courtyard.c
-    src/fountain_square_mesh_collision.c
     src/fountain_square.c
-    src/outside_catacombs_mesh_collision.c
     src/outside_catacombs.c
     src/catacomb_doors.c
     src/catacomb_open.c
     src/hatch_arrival.c
-    src/maze_one_mesh_collision.c
     src/maze_one.c
-    src/maze_two_mesh_collision.c
     src/maze_two.c
-    src/keystone_maze_mesh_collision.c
     src/keystone_maze.c
     src/keystone_plinths.c
-    src/chain_room_mesh_collision.c
     src/chain_room.c
-    src/the_hatch_mesh_collision.c
     src/the_hatch.c
-    src/asag_arena_mesh_collision.c
     src/asag_arena.c
     src/asag.c
     # THE SIX TEXTURE BANKS -- which room's art is resident where, and the
     # swap itself (src/area_bank.h). Checked by tools/check_tex_banks.py.
     src/area_bank.c
-    src/catacombs_entry_mesh_collision.c
     src/catacombs_entry.c
-    src/up_down_maze_mesh_collision.c
     src/up_down_maze.c
-    src/incinerator_room_mesh_collision.c
     src/incinerator_room.c
-    src/tomb_mesh_collision.c
     src/tomb.c
-    src/room_of_arms_mesh_collision.c
     src/room_of_arms.c
-    src/the_pit_mesh_collision.c
     src/the_pit.c
-    src/north_chamber_mesh_collision.c
     src/north_chamber.c
-    src/room_of_heads_mesh_collision.c
     src/room_of_heads.c
-    src/cleaver_corridor_mesh_collision.c
     src/cleaver_corridor.c
-    src/crucifix_corridor_mesh_collision.c
     src/crucifix_corridor.c
-    src/sliding_bars_room_mesh_collision.c
     src/sliding_bars_room.c
-    src/room_of_legs_mesh_collision.c
     src/room_of_legs.c
-    src/meat_plant_mesh_collision.c
     src/meat_plant.c
-    src/room_of_bones_mesh_collision.c
     src/room_of_bones.c
-    src/cleaver_l_mesh_collision.c
     src/cleaver_l.c
+    src/zig_zag_tomb.c
     src/ladder_anim.c
     src/sconce.c
     src/oil_dispenser.c
@@ -144,13 +107,9 @@ add_executable(horror_game
     src/asag_fight.c
     src/hatch_doors.c
     src/hatch_puzzle.c
-    src/rear_gate_mesh_collision.c
     src/rear_gate.c
-    src/west_corridor_mesh_collision.c
     src/west_corridor.c
-    src/stables_mesh_collision.c
     src/greenhouse.c
-    src/greenhouse_mesh_collision.c
     src/stables.c
     src/rabisu_boss.c
     src/trial_end.c
@@ -174,6 +133,7 @@ add_executable(horror_game
     src/grinder_puzzle.c
     src/texmgr.c
     src/room_arena.c
+    src/room_data.c
     src/cull_arena.c
     src/key.c
     src/item_pickup.c
@@ -255,6 +215,7 @@ set_source_files_properties(
     src/debug_opts.c
     src/world.c
     src/room_arena.c
+    src/room_data.c
     src/cull_arena.c
     src/texmgr.c
     src/cdaudio.c
@@ -312,24 +273,9 @@ set_source_files_properties(
     # is noise next to the 100,352-byte model read, and this list is about COLD
     # code. If the arena's door ever starts dropping the faint clip, the answer
     # is tools/ADDING_THE_ASAG_FIGHT.txt PART 6 and not this line.
-    src/asag_arena_mesh_collision.c
-    # Chapter 3's collision table, init-only like every other one here, and
-    # the bank swap, which runs on an area boundary and nowhere else.
-    src/catacombs_entry_mesh_collision.c
-    src/up_down_maze_mesh_collision.c
-    src/incinerator_room_mesh_collision.c
-    src/tomb_mesh_collision.c
-    src/room_of_arms_mesh_collision.c
-    src/the_pit_mesh_collision.c
-    src/north_chamber_mesh_collision.c
-    src/room_of_heads_mesh_collision.c
-    src/cleaver_corridor_mesh_collision.c
-    src/crucifix_corridor_mesh_collision.c
-    src/sliding_bars_room_mesh_collision.c
-    src/room_of_legs_mesh_collision.c
-    src/meat_plant_mesh_collision.c
-    src/room_of_bones_mesh_collision.c
-    src/cleaver_l_mesh_collision.c
+    # The bank swap, which runs on an area boundary and nowhere else. (The rooms'
+    # *_mesh_collision.c files used to be listed here too; they are no longer
+    # compiled at all - tools/pack_rooms.py puts their walls on the disc.)
     src/area_bank.c
     PROPERTIES COMPILE_OPTIONS "-Os"
 )
@@ -370,6 +316,25 @@ set_target_properties(horror_game PROPERTIES
     OUTPUT_NAME "HORROR"
     SUFFIX ".exe"
 )
+
+# Pack every room's texture map, no-cull table and collision walls onto the end
+# of its .SMD (build/rooms/, which disc.xml reads). They used to be compiled in,
+# where all 43 rooms' copies sat in RAM for the whole game; now only the
+# current room's arrives, in the room arena with its mesh. The generated
+# src/<slug>_tex_map.h and src/<slug>_mesh_collision.c are still the sources -
+# they are READ by the packer, no longer compiled. See tools/pack_rooms.py and
+# tools/RAM_RECLAIM_CHECKLIST.txt PART A.
+#
+# The `python` on PATH is the Windows Store stub, so the real interpreter is
+# named; override with -DROOM_PACK_PYTHON=... on another machine.
+set(ROOM_PACK_PYTHON "C:/Users/virtu/AppData/Local/Python/bin/python.exe"
+    CACHE FILEPATH "Python interpreter that runs tools/pack_rooms.py")
+add_custom_target(room_data ALL
+    COMMAND "${ROOM_PACK_PYTHON}" "${CMAKE_SOURCE_DIR}/tools/pack_rooms.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Packing room data into build/rooms"
+)
+add_dependencies(horror_game room_data)
 
 # Convert the ELF to a raw PS-EXE (HORROR2.BIN) that the disc boots.
 # Without this the disc keeps packing a stale executable and code changes

@@ -12,7 +12,7 @@
 #include "camera.h"
 #include "east_hall.h"
 #include "collision.h"
-#include "east_hall_mesh_collision.h"
+#include "room_data.h"
 #include "east_hall_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -76,6 +76,9 @@ static uint16_t tex_clut[EAST_HALL_TEX_COUNT];
 void east_hall_load_geometry(void) {
     east_hall_buff = room_arena_load("\\TEX\\EASTHALL.SMD;1");
     east_hall_smd  = east_hall_buff ? smdInitData(east_hall_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (east_hall_smd && !room_data_bind(east_hall_smd->n_prims)) east_hall_smd = NULL;
 }
 
 /* Nothing to read at STARTUP: geometry moved to east_hall_load_geometry above,
@@ -265,7 +268,7 @@ void east_hall_spawn_south(void) {
 }
 
 void east_hall_init(void) {
-    east_hall_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* This room's proxy mesh (East Hall mesh.smx) tops its walls out at
        y=-375, but the mesh actually DRAWN (East Hall.smx -> east_hall.smd)
        has its ceiling at y=-520. State the drawn value so ceiling-mounted
@@ -358,7 +361,7 @@ static void draw_east_hall_smd(RenderContext *ctx) {
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in east_hall_nocull — same scheme as the other rooms. */
-        int nocull = (i < EAST_HALL_PRIM_COUNT) && east_hall_nocull[i];
+        int nocull = (i < EAST_HALL_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -408,7 +411,7 @@ static void draw_east_hall_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in east_hall_draw. */
-        uint8_t tex_idx = (i < EAST_HALL_PRIM_COUNT) ? east_hall_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < EAST_HALL_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < EAST_HALL_TEX_COUNT);
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);

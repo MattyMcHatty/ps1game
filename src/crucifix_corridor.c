@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "crucifix_corridor_mesh_collision.h"
+#include "room_data.h"
 #include "crucifix_corridor_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -163,6 +163,9 @@ static void xc_build_cull_keys(void) {
 void crucifix_corridor_load_geometry(void) {
     xc_buff = room_arena_load("\\TEXCTCMB\\CRCFXCRD.SMD;1");
     xc_smd  = xc_buff ? smdInitData(xc_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (xc_smd && !room_data_bind(xc_smd->n_prims)) xc_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     xc_build_cull_keys();
@@ -216,6 +219,18 @@ void crucifix_corridor_upload_textures(void) {
 #define XC_NORTH_Z           1500
 #define XC_NORTH_TEXT_Y      (-186)   /* eye level on the y=0 floor */
 
+/* ---- THE SOUTH DOOR --------------------------------------------------------
+   z=-1500, x[2600,2800], the end of the cross arm's south half. Out to THE ZIG
+   ZAG TOMB, at its north door.
+
+   In the XY plane at fixed Z, approached from +Z (wall 9 runs z=-1500 with
+   nz = +4096, so the walkable side is +Z): TEXT_PLANE_XY with mirror=1, the
+   sign 11 proud of the wall along +Z, and the -200 on the X argument. The north
+   door's mirror image across the corridor. */
+#define XC_SOUTH_X           2700     /* the art spans x[2600,2800] */
+#define XC_SOUTH_Z          (-1500)
+#define XC_SOUTH_TEXT_Y      (-186)   /* eye level on the y=0 floor */
+
 #define XC_TEXT_RADIUS       1200
 #define XC_FADE_NEAR          800
 #define XC_TRIGGER_RADIUS     500
@@ -224,11 +239,13 @@ void crucifix_corridor_upload_textures(void) {
    through the transition cannot fire on the arrival frame. */
 static int west_circle_prev  = 1;
 static int north_circle_prev = 1;
+static int south_circle_prev = 1;
 
 void crucifix_corridor_arm(void) {
     int held = interact_tapped();
     west_circle_prev  = held;
     north_circle_prev = held;
+    south_circle_prev = held;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -254,6 +271,10 @@ int crucifix_corridor_west_door_triggered(int lock) {
 
 int crucifix_corridor_north_door_triggered(int lock) {
     return xc_door_triggered(lock, &north_circle_prev, XC_NORTH_X, XC_NORTH_Z);
+}
+
+int crucifix_corridor_south_door_triggered(int lock) {
+    return xc_door_triggered(lock, &south_circle_prev, XC_SOUTH_X, XC_SOUTH_Z);
 }
 
 /* A door's floating sign. Same shape as every door sign in the game: opaque
@@ -293,6 +314,12 @@ static void xc_north_door_text(RenderContext *ctx) {
                  0, TEXT_PLANE_XY);   /* mirror=0: XY door approached from -Z */
 }
 
+static void xc_south_door_text(RenderContext *ctx) {
+    xc_door_text(ctx, XC_SOUTH_X, XC_SOUTH_Z,
+                 XC_SOUTH_X - 200, XC_SOUTH_TEXT_Y, XC_SOUTH_Z + 11,
+                 1, TEXT_PLANE_XY);   /* mirror=1: XY door approached from +Z */
+}
+
 void crucifix_corridor_spawn_west(void) {
     /* In from the Up Down Maze. 220 off wall 4 on its walkable +X side, on the
        corridor's centre line, facing +X — the direction of travel, east down
@@ -317,8 +344,20 @@ void crucifix_corridor_spawn_north(void) {
     crucifix_corridor_arm();
 }
 
+void crucifix_corridor_spawn_south(void) {
+    /* Back from the Zig Zag Tomb. 220 off wall 9 on its walkable +Z side, on
+       the arm's centre line (300 clear of its side walls), facing +Z — the
+       direction of travel, north up the arm toward the corridor. */
+    cam_x   = XC_SOUTH_X;
+    cam_y   = XC_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = XC_SOUTH_Z + (XC_WALL_RADIUS + 25);
+    cam_rot = 0;                       /* facing +Z, north up the arm */
+    crucifix_corridor_arm();
+}
+
 void crucifix_corridor_init(void) {
-    crucifix_corridor_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The vault, read off the VISUAL mesh: y=-800 over the whole cross, where
        the proxy's walls stop too. */
     collision_set_ceiling_y(-800);
@@ -401,7 +440,7 @@ static void draw_crucifix_corridor_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < CRUCIFIX_CORRIDOR_PRIM_COUNT) && crucifix_corridor_nocull[i];
+        int nocull = (i < CRUCIFIX_CORRIDOR_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -449,7 +488,7 @@ static void draw_crucifix_corridor_smd(RenderContext *ctx) {
         int32_t fog = dist < xc_fog_near ? xc_fog_near : (dist > xc_fog_far ? xc_fog_far : dist);
         int32_t fog_factor = ((xc_fog_far - fog) << 8) / (xc_fog_far - xc_fog_near);
 
-        uint8_t tex_idx = (i < CRUCIFIX_CORRIDOR_PRIM_COUNT) ? crucifix_corridor_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < CRUCIFIX_CORRIDOR_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < CRUCIFIX_CORRIDOR_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + XC_FOG_R * (256 - fog_factor)) >> 8);
@@ -556,12 +595,13 @@ void crucifix_corridor_draw(RenderContext *ctx) {
        window above serves it. */
     sconces_draw(ctx);
 
-    /* >>> LEVEL 8 REMOVES THE SIGN AND THE ENEMIES. <<< The room holds no
-       enemies today, so what it takes away is the one door sign — STEP 3D's
+    /* >>> LEVEL 8 REMOVES THE SIGNS AND THE ENEMIES. <<< The room holds no
+       enemies today, so what it takes away is the three door signs — STEP 3D's
        case. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         xc_west_door_text(ctx);   /* the west door: YZ plane, approached from +X */
         xc_north_door_text(ctx);  /* the north door: XY plane, approached from -Z */
+        xc_south_door_text(ctx);  /* the south door: XY plane, approached from +Z */
         /* BOTH CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Both sheets sit at Voff 128, so each is handed the window to restore

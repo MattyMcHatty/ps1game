@@ -161,6 +161,10 @@ AREAS = {
                   # south alcove: owns nothing, and borrows cobble, the inner
                   # door and rusty (The Pit's, for the blades).
                   "cleaver_l_upload_textures",
+                  # THE ZIG ZAG TOMB, the chapter's sixteenth room, off the
+                  # Crucifix Corridor's south door: owns nothing, and borrows
+                  # cobble, the inner door, the loculus and the bars.
+                  "zig_zag_tomb_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

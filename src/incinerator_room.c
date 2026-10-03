@@ -16,7 +16,7 @@
 #include "lumberer.h"     /* placement needs no edit to this file       */
 #include "maggot.h"
 #include "collision.h"
-#include "incinerator_room_mesh_collision.h"
+#include "room_data.h"
 #include "incinerator_room_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -237,6 +237,9 @@ void incinerator_room_load_geometry(void) {
     incinerator_room_buff = room_arena_load("\\TEXCTCMB\\INCINRTR.SMD;1");
     incinerator_room_smd  = incinerator_room_buff
                             ? smdInitData(incinerator_room_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (incinerator_room_smd && !room_data_bind(incinerator_room_smd->n_prims)) incinerator_room_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     inc_build_cull_keys();
@@ -722,7 +725,7 @@ void incinerator_room_spawn_west(void) {
 }
 
 void incinerator_room_init(void) {
-    incinerator_room_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The DRAWN ceiling, read off the VISUAL mesh and not only off the collision
        proxy: the vaulting over the whole room is at y=-800, which is also where
        the outer walls' proxy faces stop, so the two agree and the honest number
@@ -848,7 +851,7 @@ static void draw_incinerator_room_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < INCINERATOR_ROOM_PRIM_COUNT) && incinerator_room_nocull[i];
+        int nocull = (i < INCINERATOR_ROOM_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -895,7 +898,7 @@ static void draw_incinerator_room_smd(RenderContext *ctx) {
         int32_t fog = dist < inc_fog_near ? inc_fog_near : (dist > inc_fog_far ? inc_fog_far : dist);
         int32_t fog_factor = ((inc_fog_far - fog) << 8) / (inc_fog_far - inc_fog_near);
 
-        uint8_t tex_idx = (i < INCINERATOR_ROOM_PRIM_COUNT) ? incinerator_room_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < INCINERATOR_ROOM_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < INCINERATOR_ROOM_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + INC_FOG_R * (256 - fog_factor)) >> 8);

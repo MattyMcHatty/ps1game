@@ -398,16 +398,39 @@ typedef enum {
        has to go somewhere else - a second word in SaveData, or a set in the
        WorldDelta the way the cribs went (savegame.h, the v28 note). */
     FLAG_CLEAVER_CORR_DOOR,
+
+    /* ---- BIT 32 ON: THE SECOND WORD, game_flags2 (SaveData.flags2) --------
+       The note above came due, and the "second word in SaveData" is what it
+       became. A flag from here down is declared exactly like one above it and
+       read through the same game_flag()/game_flag_set(), which pick the word
+       from the enum value — no caller knows or cares which word it is in.
+       The END-OF-ENUM rule stands unchanged: bit N of the pair is N, and
+       inserting a member mid-enum still moves every bit after it. */
+
+    /* THE ZIG ZAG TOMB'S EAST DOOR (Cleaver L's west door, the far side) is
+       unlocked. FLAG_CLEAVER_CORR_DOOR's mechanic exactly: locked from CLEAVER
+       L's side, the first Circle there unlocks it, and until then the Zig Zag
+       Tomb's east door reads "Locked from the other side" and does nothing.
+       Bit 0 of game_flags2. */
+    FLAG_ZIG_ZAG_DOOR,
     MAX_GAME_FLAGS
 } GameFlag;
-extern int     game_flags;     /* bitmask — bit GameFlag set means it happened */
+extern int     game_flags;     /* bitmask — GameFlags 0..31                     */
+extern int     game_flags2;    /* bitmask — GameFlags 32..63, at bit (f - 32)   */
 
-/* game_flags is a 32-bit word in the save blob (SaveData.flags), so the enum
-   cannot outgrow it without widening that field and versioning every save. */
-_Static_assert(MAX_GAME_FLAGS <= 32, "game_flags is 32 bits wide");
+/* game_flags and game_flags2 are two 32-bit words in the save blob
+   (SaveData.flags, SaveData.flags2), so the enum cannot outgrow the pair
+   without a third field and a version bump. */
+_Static_assert(MAX_GAME_FLAGS <= 64, "game_flags + game_flags2 are 64 bits wide");
 
-static inline int game_flag(GameFlag f) { return (game_flags & (1 << f)) != 0; }
-static inline void game_flag_set(GameFlag f) { game_flags |= (1 << f); }
+static inline int game_flag(GameFlag f) {
+    return f < 32 ? (game_flags  & (1 << f))        != 0
+                  : (game_flags2 & (1 << (f - 32))) != 0;
+}
+static inline void game_flag_set(GameFlag f) {
+    if (f < 32) game_flags  |= (1 << f);
+    else        game_flags2 |= (1 << (f - 32));
+}
 
 /* Weapons the player owns. The crucifaxe is always present (bit 0); other
    weapons are found in the world. Menu WEAPONS column reads this bitmask. */

@@ -4,8 +4,7 @@
 #include "collision.h"
 #include "camera.h"
 #include "vampire.h"
-#include "delivery_area_mesh_collision.h"
-#include "kitchen_dining_mesh_collision.h"
+#include "room_data.h"     /* every room's walls, delivery's included */
 #include "crate.h"
 #include "dining_table.h"
 #include "dresser.h"
@@ -41,8 +40,13 @@ CollisionRoom current_collision_room;
    collision_set_wall_radius() appears further down. */
 static int32_t wall_radius = COLLISION_WALL_RADIUS;
 
+/* The Delivery Area's walls, from the delivery file the arena holds — every
+   caller but one runs this straight after delivery_load_geometry(). The one
+   that does not is main()'s startup, before any room is loaded: it gets an
+   empty room, and the title-exit path loads delivery and calls this again
+   before the first frame of play (src/room_data.h). */
 void collision_init(void) {
-    delivery_area_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
 }
 

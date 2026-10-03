@@ -13,7 +13,7 @@
 #include "camera.h"
 #include "maze_one.h"
 #include "collision.h"
-#include "maze_one_mesh_collision.h"
+#include "room_data.h"
 #include "maze_one_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -307,6 +307,9 @@ static void mo_build_cull_keys(void) {
 void maze_one_load_geometry(void) {
     maze_one_buff = room_arena_load("\\TEX\\MAZEONE.SMD;1");
     maze_one_smd  = maze_one_buff ? smdInitData(maze_one_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (maze_one_smd && !room_data_bind(maze_one_smd->n_prims)) maze_one_smd = NULL;
     mo_build_cull_keys();
 }
 
@@ -630,7 +633,7 @@ void maze_one_spawn_east(void) {
 }
 
 void maze_one_init(void) {
-    maze_one_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The perimeter hedge is DRAWN to y=-500 (the gates reach -600, but they are
        the openings, not the roofline); the collision runs are only 333 tall,
        which is the proxy, not what the player sees. State the DRAWN value so
@@ -808,7 +811,7 @@ static void draw_maze_one_smd(RenderContext *ctx) {
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in maze_one_nocull — same scheme as the other rooms. */
-        int nocull = (i < MAZE_ONE_PRIM_COUNT) && maze_one_nocull[i];
+        int nocull = (i < MAZE_ONE_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -855,7 +858,7 @@ static void draw_maze_one_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in maze_one_draw. */
-        uint8_t tex_idx = (i < MAZE_ONE_PRIM_COUNT) ? maze_one_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < MAZE_ONE_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < MAZE_ONE_TEX_COUNT);
         /* Purple fog, the same night sky the rest of the garden looks out on,
            and at Fountain Square's exact near/far — this is one continuous

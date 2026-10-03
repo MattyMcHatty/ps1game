@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "the_pit_mesh_collision.h"
+#include "room_data.h"
 #include "the_pit_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -403,6 +403,9 @@ static void pit_build_cull_keys(void) {
 void the_pit_load_geometry(void) {
     pit_buff = room_arena_load("\\TEXCTCMB\\THEPIT.SMD;1");
     pit_smd  = pit_buff ? smdInitData(pit_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (pit_smd && !room_data_bind(pit_smd->n_prims)) pit_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     pit_build_cull_keys();
@@ -1100,7 +1103,7 @@ void the_pit_spawn_south(void) {
 }
 
 void the_pit_init(void) {
-    the_pit_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The DRAWN ceiling, read off the VISUAL mesh and not only off the collision
        proxy: the vault over the whole shaft is at y=-1800, which is also where the
        gallery's proxy walls (6-13, 19-21) stop, so the two agree and the honest
@@ -1265,7 +1268,7 @@ static void draw_the_pit_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < THE_PIT_PRIM_COUNT) && the_pit_nocull[i];
+        int nocull = (i < THE_PIT_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -1317,7 +1320,7 @@ static void draw_the_pit_smd(RenderContext *ctx) {
         int32_t fog = dist < pit_fog_near ? pit_fog_near : (dist > pit_fog_far ? pit_fog_far : dist);
         int32_t fog_factor = ((pit_fog_far - fog) << 8) / (pit_fog_far - pit_fog_near);
 
-        uint8_t tex_idx = (i < THE_PIT_PRIM_COUNT) ? the_pit_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < THE_PIT_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < THE_PIT_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + PIT_FOG_R * (256 - fog_factor)) >> 8);

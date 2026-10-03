@@ -12,7 +12,7 @@
 #include "camera.h"
 #include "garden_stairs.h"
 #include "collision.h"
-#include "garden_stairs_mesh_collision.h"
+#include "room_data.h"
 #include "garden_stairs_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -202,6 +202,9 @@ static uint16_t tex_clut[GARDEN_STAIRS_TEX_COUNT];
 void garden_stairs_load_geometry(void) {
     garden_stairs_buff = room_arena_load("\\TEX\\GRDNSTRS.SMD;1");
     garden_stairs_smd  = garden_stairs_buff ? smdInitData(garden_stairs_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (garden_stairs_smd && !room_data_bind(garden_stairs_smd->n_prims)) garden_stairs_smd = NULL;
 }
 
 /* Register this room's streamed textures at STARTUP. Geometry is NOT loaded
@@ -406,7 +409,7 @@ void garden_stairs_spawn_bottom(void) {
 }
 
 void garden_stairs_init(void) {
-    garden_stairs_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The drawn mesh's roof is y=-2100, well above the proxy wall tops; state
        the DRAWN value so ceiling-mounted enemies hang flush with the roof the
        player can see (see tools/ADDING_A_ROOM.txt). */
@@ -486,7 +489,7 @@ static void draw_garden_stairs_smd(RenderContext *ctx) {
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in garden_stairs_nocull — same scheme as the other rooms. */
-        int nocull = (i < GARDEN_STAIRS_PRIM_COUNT) && garden_stairs_nocull[i];
+        int nocull = (i < GARDEN_STAIRS_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -539,7 +542,7 @@ static void draw_garden_stairs_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in garden_stairs_draw. */
-        uint8_t tex_idx = (i < GARDEN_STAIRS_PRIM_COUNT) ? garden_stairs_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < GARDEN_STAIRS_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < GARDEN_STAIRS_TEX_COUNT);
         /* Purple fog, the delivery area's SKY_FOG_* rather than the brown murk
            the interior rooms use — this is the one stairway that opens onto the

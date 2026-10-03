@@ -17,7 +17,15 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   31            /* v31: sb_gates. The Sliding Bars Room's
+#define SAVE_VERSION   32            /* v32: flags2. game_flags filled at bit
+                                        31 and the Zig Zag Tomb's east door
+                                        needed a 33rd, so GameFlags 32..63
+                                        ride in a second word beside `flags`
+                                        (player.h, "BIT 32 ON"). SaveData
+                                        grew, which moves every field after
+                                        it; the bump is what rejects a v31
+                                        save rather than misreading one.
+                                        v31: sb_gates. The Sliding Bars Room's
                                         four sliding gates stay where the player
                                         left them, and a room placed by its own
                                         init has nowhere in the world delta to
@@ -293,6 +301,8 @@ typedef struct {
                                        i = gate i+1 is at its MOVED spot. See
                                        THE GATES in src/sliding_bars_room.c.  */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
+    int32_t  flags2;                /* ...and GameFlags 32..63 (game_flags2).
+                                       See "BIT 32 ON" in player.h.          */
     uint8_t  item_order[MENU_ITEM_CELLS];  /* inventory grid: cell -> item ID + 1,
                                        0 = empty. Purely the ARRANGEMENT; what is
                                        held still comes from keys/items/ammo

@@ -10,7 +10,7 @@
 #include "camera.h"
 #include "collision.h"
 #include "asag_arena.h"
-#include "asag_arena_mesh_collision.h"
+#include "room_data.h"
 #include "asag_arena_tex_map.h"
 #include "asag.h"            /* the boss body: loaded per-room, drawn here */
 #include "asag_fight.h"      /* the fight: its world draws and its health bar */
@@ -191,6 +191,9 @@ uint16_t asag_arena_tex_clut(int slot) {
 void asag_arena_load_geometry(void) {
     asag_arena_buff = room_arena_load("\\TEXASAG\\ASAGARNA.SMD;1");
     asag_arena_smd  = asag_arena_buff ? smdInitData(asag_arena_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (asag_arena_smd && !room_data_bind(asag_arena_smd->n_prims)) asag_arena_smd = NULL;
 }
 
 /* Startup. NOTHING. No CD access, no LoadImage, no RAM copy, no texmgr
@@ -310,7 +313,7 @@ void asag_arena_spawn_shaft(void) {
 }
 
 void asag_arena_init(void) {
-    asag_arena_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
 
     /* READ OFF THE MESH, not off the collision proxy. The arena's perimeter
        walls top out at y=-1000 and that is the roofline over the walkable
@@ -611,13 +614,15 @@ static void draw_asag_arena_smd(RenderContext *ctx) {
         }
 
         /* Backface cull, honouring both the SMD's own per-primitive nocull flag
-           and the generated table. asag_arena_nocull[] rescues degenerate
+           and the generated table. room_nocull() (the packed copy of
+           src/asag_arena_tex_map.h's no-cull table) rescues degenerate
            "triangle-shaped" quads, whose fourth corner is collinear and whose
            winding the GTE therefore cannot judge. This mesh currently has ZERO
-           of them, so the table is all zeroes - it costs 522 bytes of rodata to
-           stay honest the next time the mesh is re-exported. */
+           of them, so the bits are all zero - they cost 66 bytes of the room
+           arena, while the room is loaded, to stay honest the next time the mesh
+           is re-exported. */
         int no_cull = pt->nocull ||
-                      (i < ASAG_ARENA_PRIM_COUNT && asag_arena_nocull[i]);
+                      (i < ASAG_ARENA_PRIM_COUNT && room_nocull(i));
         if (!no_cull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -689,7 +694,7 @@ static void draw_asag_arena_smd(RenderContext *ctx) {
         /* Per-prim texture index; SMD prim order matches the generated map.
            UVs come straight from the SMD primitive (offset 20+) and wrap via the
            128 texture window set in asag_arena_draw. */
-        uint8_t tex_idx = (i < ASAG_ARENA_PRIM_COUNT) ? asag_arena_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < ASAG_ARENA_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < ASAG_ARENA_TEX_COUNT);
 
         if (is_quad && textured) {

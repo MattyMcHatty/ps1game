@@ -13,7 +13,7 @@
 #include "camera.h"
 #include "chain_room.h"
 #include "collision.h"
-#include "chain_room_mesh_collision.h"
+#include "room_data.h"
 #include "chain_room_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -207,6 +207,9 @@ static void cr_build_cull_keys(void) {
 void chain_room_load_geometry(void) {
     chain_room_buff = room_arena_load("\\TEX\\CHNROOM.SMD;1");
     chain_room_smd  = chain_room_buff ? smdInitData(chain_room_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (chain_room_smd && !room_data_bind(chain_room_smd->n_prims)) chain_room_smd = NULL;
     cr_build_cull_keys();
 }
 
@@ -469,7 +472,7 @@ void chain_room_spawn_south(void) {
 }
 
 void chain_room_init(void) {
-    chain_room_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The perimeter hedge is DRAWN to y=-500 (the gates reach -600, but they are
        the openings, not the roofline); the collision runs are 500 tall here,
        which happens to agree. The brick wall and the chains are drawn to -700 —
@@ -624,7 +627,7 @@ static void draw_chain_room_smd(RenderContext *ctx) {
            build time in chain_room_nocull — same scheme as the other rooms. This
            mesh happens to contain none (the generator reports 0), but the table
            is generated and read the same way regardless. */
-        int nocull = (i < CHAIN_ROOM_PRIM_COUNT) && chain_room_nocull[i];
+        int nocull = (i < CHAIN_ROOM_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -673,7 +676,7 @@ static void draw_chain_room_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in chain_room_draw. */
-        uint8_t tex_idx = (i < CHAIN_ROOM_PRIM_COUNT) ? chain_room_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < CHAIN_ROOM_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < CHAIN_ROOM_TEX_COUNT);
         /* Purple fog, the same night sky the rest of the garden looks out on,
            and at Maze One's exact near/far — this is one continuous outdoors and

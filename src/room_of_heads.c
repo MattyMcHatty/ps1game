@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "room_of_heads_mesh_collision.h"
+#include "room_data.h"
 #include "room_of_heads_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -207,6 +207,9 @@ static void roh_build_cull_keys(void) {
 void room_of_heads_load_geometry(void) {
     roh_buff = room_arena_load("\\TEXCTCMB\\HEADROOM.SMD;1");
     roh_smd  = roh_buff ? smdInitData(roh_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (roh_smd && !room_data_bind(roh_smd->n_prims)) roh_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     roh_build_cull_keys();
@@ -319,7 +322,7 @@ void room_of_heads_spawn_east(void) {
 }
 
 void room_of_heads_init(void) {
-    room_of_heads_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* THE PILES ARE SHOT OVER. They are 185 tall in the proxy against 800 for
        the outer walls, so anything 200 or under is shoot-over: the player still
        walks round them, but a shot (and an enemy's sightline) passes above.
@@ -408,7 +411,7 @@ static void draw_room_of_heads_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < ROOM_OF_HEADS_PRIM_COUNT) && room_of_heads_nocull[i];
+        int nocull = (i < ROOM_OF_HEADS_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -452,7 +455,7 @@ static void draw_room_of_heads_smd(RenderContext *ctx) {
         int32_t fog = dist < roh_fog_near ? roh_fog_near : (dist > roh_fog_far ? roh_fog_far : dist);
         int32_t fog_factor = ((roh_fog_far - fog) << 8) / (roh_fog_far - roh_fog_near);
 
-        uint8_t tex_idx = (i < ROOM_OF_HEADS_PRIM_COUNT) ? room_of_heads_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < ROOM_OF_HEADS_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < ROOM_OF_HEADS_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + ROH_FOG_R * (256 - fog_factor)) >> 8);

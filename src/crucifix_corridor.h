@@ -14,7 +14,7 @@
    under a vault at y=-800. The collision proxy is exactly that outline: twelve
    walls and three floor faces of one plane, so this is the single-floor case.
 
-   THE DOORS. Three are drawn and TWO are wired up:
+   THE DOORS. All three are wired up:
 
      WEST   x=0     z[-100,100]   -> the Up Down Maze, lower storey, at its
                                      north-east door. YZ plane, approached from
@@ -22,10 +22,8 @@
      NORTH  z=1500  x[2600,2800]  -> the Sliding Bars Room, at its south-west
                                      door. XY plane, approached from -Z:
                                      mirror=0.
-     south  z=-1500 x[2600,2800]  the other end of the arm. Not built.
-
-   The unbuilt one is drawn and nothing else: no sign, no trigger. It reads as
-   a sealed door until the room behind it exists.
+     SOUTH  z=-1500 x[2600,2800]  -> the Zig Zag Tomb, at its north door.
+                                     XY plane, approached from +Z: mirror=1.
 
    THE SCONCE. One LIT sconce stands in the centre of the east alcove, at
    (3300,0) — the light at the end of the corridor. Its point light widens the
@@ -52,12 +50,16 @@ void crucifix_corridor_spawn_west(void);
 /* Arrival through the north door, back from the Sliding Bars Room: at the head
    of the arm's north half, facing south down it. */
 void crucifix_corridor_spawn_north(void);
+/* Arrival through the south door, back from the Zig Zag Tomb: at the foot of
+   the arm's south half, facing north up it. */
+void crucifix_corridor_spawn_south(void);
 
 /* One frame of a door's Circle test. `lock` is main's usual
    suppression. Returns 1 on a fresh press made in range, facing the door. Call
    it every frame and pass `lock` in, so the edge state stays current. */
 int  crucifix_corridor_west_door_triggered(int lock);
 int  crucifix_corridor_north_door_triggered(int lock);
+int  crucifix_corridor_south_door_triggered(int lock);
 
 /* Arm every interaction in the room. Called by the spawn above. */
 void crucifix_corridor_arm(void);

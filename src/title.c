@@ -219,6 +219,9 @@ static const char *const level_names[] = {
        the Meat Plant's south alcove. The jump lands at its one wired door, the
        north one. 9 characters. */
     "CLEAVER L",
+    /* THE ZIG ZAG TOMB, the chapter's sixteenth room, behind the Crucifix
+       Corridor's south door. The jump lands at its north door. 12 characters. */
+    "ZIG ZAG TOMB",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -267,6 +270,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* MEAT PLANT */
     STATE_LOADING,        /* ROOM OF BONES */
     STATE_LOADING,        /* CLEAVER L */
+    STATE_LOADING,        /* ZIG ZAG TOMB */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -313,6 +317,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_MEAT_PLANT,
     STATE_ROOM_OF_BONES,
     STATE_CLEAVER_L,
+    STATE_ZIG_ZAG_TOMB,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

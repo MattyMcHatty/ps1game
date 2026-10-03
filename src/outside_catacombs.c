@@ -12,7 +12,7 @@
 #include "camera.h"
 #include "outside_catacombs.h"
 #include "collision.h"
-#include "outside_catacombs_mesh_collision.h"
+#include "room_data.h"
 #include "outside_catacombs_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -158,6 +158,9 @@ void outside_catacombs_load_geometry(void) {
     outside_catacombs_buff = room_arena_load("\\TEX\\OUTCTCMB.SMD;1");
     outside_catacombs_smd  = outside_catacombs_buff
                              ? smdInitData(outside_catacombs_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (outside_catacombs_smd && !room_data_bind(outside_catacombs_smd->n_prims)) outside_catacombs_smd = NULL;
     /* The two door leaves in the catacomb mouth. NOT part of the arena — they
        are 4 KB of their own malloc, held only while the player is in this room
        and given back by main.c's load_area_geometry on the way out, exactly as
@@ -416,7 +419,7 @@ void outside_catacombs_spawn_south(void) {
 }
 
 void outside_catacombs_init(void) {
-    outside_catacombs_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The perimeter hedge is drawn to y=-1100 (the gate reaches only -600, but
        that is the opening, not the roofline); state the DRAWN value so anything
        ceiling-mounted hangs at the height the player actually sees. The
@@ -532,7 +535,7 @@ static void draw_outside_catacombs_smd(RenderContext *ctx) {
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in outside_catacombs_nocull — same scheme as the other
            rooms. */
-        int nocull = (i < OUTSIDE_CATACOMBS_PRIM_COUNT) && outside_catacombs_nocull[i];
+        int nocull = (i < OUTSIDE_CATACOMBS_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -581,7 +584,7 @@ static void draw_outside_catacombs_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in outside_catacombs_draw. */
-        uint8_t tex_idx = (i < OUTSIDE_CATACOMBS_PRIM_COUNT) ? outside_catacombs_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < OUTSIDE_CATACOMBS_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < OUTSIDE_CATACOMBS_TEX_COUNT);
         /* Purple fog, the same night sky the rest of the garden looks out on —
            this is one continuous outdoors, and the near/far are Fountain

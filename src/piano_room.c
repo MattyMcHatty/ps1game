@@ -12,7 +12,7 @@
 #include "camera.h"
 #include "piano_room.h"
 #include "collision.h"
-#include "piano_room_mesh_collision.h"
+#include "room_data.h"
 #include "piano_room_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -64,6 +64,9 @@ static int prpl_tex_id = -1;   /* texmgr id for the streamed prpl_wlppr */
 void piano_room_load_geometry(void) {
     piano_room_buff = room_arena_load("\\TEX\\PIANORM.SMD;1");
     piano_room_smd  = piano_room_buff ? smdInitData(piano_room_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (piano_room_smd && !room_data_bind(piano_room_smd->n_prims)) piano_room_smd = NULL;
 }
 
 /* Register this room's streamed textures at STARTUP. Geometry is NOT loaded
@@ -156,7 +159,7 @@ static void pdoor_text(RenderContext *ctx) {
 }
 
 void piano_room_init(void) {
-    piano_room_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     piano_room_floor_zones_init();
 
@@ -219,7 +222,7 @@ static void draw_piano_room_smd(RenderContext *ctx) {
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in piano_room_nocull — same scheme as reception. */
-        int nocull = (i < PIANO_ROOM_PRIM_COUNT) && piano_room_nocull[i];
+        int nocull = (i < PIANO_ROOM_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -269,7 +272,7 @@ static void draw_piano_room_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in piano_room_draw. */
-        uint8_t tex_idx = (i < PIANO_ROOM_PRIM_COUNT) ? piano_room_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < PIANO_ROOM_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < PIANO_ROOM_TEX_COUNT);
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);

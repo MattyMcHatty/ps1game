@@ -228,11 +228,14 @@ A ROOM IN A NEW AREA (a new chapter, a new sealed pocket) additionally gets:
     the licence Asag's arena and the Catacombs both use. Register the sharing in
     KNOWN_STREAM_PAIRS so tools/vram_map.py can see the decision.
 
->>> AND A NEW ROOM MOVES _end WHATEVER ELSE IT DOES. <<< Its code, its collision
-table, its per-poly texture map and its ~2.9 KB slot in world.c's RoomState
-array are all static, so they come off the heap for every area at once — 10 to
-20 KB a room, and banking does not help with it. That is the one budget a room
-always spends; tools/HEAP_BUDGET.txt is where to watch it.
+>>> AND A NEW ROOM MOVES _end WHATEVER ELSE IT DOES. <<< Its code and its
+~600-byte slot in world.c's RoomState array are static, so they come off the
+heap for every area at once, and banking does not help with that. It is about
+5 KB a room now. It was 10-20 KB until October 2026, when the collision table
+and per-poly texture map moved onto the disc (src/room_data.h) and the
+dog/zombie/crate half of RoomState was kept for the mansion only
+(tools/RAM_RECLAIM_CHECKLIST.txt). That is the one budget a room always
+spends; tools/HEAP_BUDGET.txt is where to watch it.
 
 
 ##########################################################################
@@ -435,10 +438,11 @@ always spends; tools/HEAP_BUDGET.txt is where to watch it.
          Everything in 3b above stands unchanged. This is the real constraint.
       2. SPU RAM. 512 KB, ~16 KB spare in the largest bank. See
          tools/ADDING_A_SOUND.txt STEP 3 and run its arithmetic.
-      3. _end. A room costs code + its collision table + its per-poly texture
-         map + ~2.9 KB in world.c's RoomState array, all of it static, all of it
-         off the heap for every area at once. 10-20 KB a room. There is room for
-         many more, but it is the one cost banking does NOT fix.
+      3. _end. A room costs its code + ~600 B in world.c's RoomState array,
+         all of it static, all of it off the heap for every area at once.
+         About 5 KB a room. Its collision and texture map no longer count: they
+         ride on the disc with the mesh (src/room_data.h). It is still the one
+         cost banking does NOT fix.
 
     >>> AND THE ONE THING YOU MUST ACTUALLY DO IS DECLARE THE BANK. <<< Put a
     texmgr_set_bank() at the top of the room's *_load_assets() naming every area
@@ -515,6 +519,14 @@ Two independent pipelines. Both are needed for a new room.
 4c. Copy the generated pair into src/, LOWERCASED, then hand-edit two things
     the generator does not emit — stale values here are a real bug:
 
+    >>> THIS FILE IS NO LONGER COMPILED. <<< Since October 2026 (tools/
+    RAM_RECLAIM_CHECKLIST.txt PART A) tools/pack_rooms.py READS it on every
+    build and packs the walls onto the end of the room's .SMD; the room loads
+    them with room_data_collision(). It is still the source of truth and still
+    where hand edits go — but ONLY LITERAL ASSIGNMENTS (r->x = 123;
+    r->walls[N].f = -45;). The packer fails the build on anything else, by
+    file and line. Do NOT add it to CMakeLists.txt.
+
       Copy-Item "assets\<Name> mesh_collision.c" "src\<slug>_mesh_collision.c"
       Copy-Item "assets\<Name> mesh_collision.h" "src\<slug>_mesh_collision.h"
 
@@ -541,6 +553,12 @@ Two independent pipelines. Both are needed for a new room.
     Read its output: it prints the SMX texture list, a per-slot poly count and
     the prim count. A texture with no slot is a hard error by design.
 
+    The header it writes is READ by tools/pack_rooms.py, not compiled in: only
+    <SLUG>_PRIM_COUNT is used by C (the cull-key clamp and CULL_ARENA_FITS).
+    The arrays reach the room through room_tex_map[i] / room_nocull(i)
+    (src/room_data.h), from the packed .SMD. The packer checks the header's
+    prim count against the .smd's own, so a stale header fails the build.
+
 
 ##########################################################################
  STEP 5 — THE ROOM MODULE (src/<slug>.c / .h)
@@ -553,8 +571,17 @@ Copy src/master_bedroom.c and rename. The parts that need real thought:
           void <slug>_load_geometry(void) {
               <slug>_buff = room_arena_load("\\TEX\\<NAME>.SMD;1");
               <slug>_smd  = <slug>_buff ? smdInitData(<slug>_buff) : NULL;
+              if (<slug>_smd && !room_data_bind(<slug>_smd->n_prims))
+                  <slug>_smd = NULL;      /* the packed tables; see below */
               <xx>_build_cull_keys();     /* see "Cull keys" below */
           }
+
+      THE BIND LINE (October 2026): the room's tex map, no-cull bits and
+      collision walls ride at the end of its own .SMD (tools/pack_rooms.py) and
+      room_data_bind() finds them. In the draw loop read room_tex_map[i] and
+      room_nocull(i), never <slug>_tex_map[] / <slug>_nocull[]; in _init call
+      room_data_collision(&current_collision_room), never
+      <slug>_collision_init(). Copying master_bedroom.c gets all three right.
 
       THE FOURTH LINE IS NOT OPTIONAL and it goes HERE, never anywhere else:
       src/cull_arena.h's one rule is that the keys are built on the same call
@@ -759,7 +786,7 @@ Copy src/master_bedroom.c and rename. The parts that need real thought:
       fire the nearest trigger and bounce the player straight back.
 
   <slug>_init()
-      *_collision_init(&current_collision_room); floor zones; default spawn
+      room_data_collision(&current_collision_room); floor zones; default spawn
       (main.c overrides it per arrival door); arm; place any props.
       ALSO: clear any global prop array that is neither in world.c's RoomState
       swap nor area-gated in its collide fn, if its instances fall inside this
@@ -802,6 +829,12 @@ Touch these files, in this order:
                      inverses and the save rebuild walks room_areas[] in order.
                      Seed any resident enemies / pickups for the room in
                      world_seed_room().
+                     >>> DEMON DOGS, ZOMBIES AND CRATES ONLY PERSIST IN THE
+                     TWELVE MANSION ROOMS in world.c's hostile_areas[]. <<<
+                     Any other room has no RoomHostiles slot, so those three
+                     arrays come back EMPTY every time it is entered. A new
+                     room that needs them joins that table first (and
+                     WORLD_HOSTILE_ROOMS goes up by one: ~2 KB of _end).
                      >>> world_seed_room() RUNS FOR ROOMS THAT ARE NOT LOADED.
                      Loading a save rebuilds all fifteen rooms with only one
                      room's geometry resident, so nothing you add there may read
@@ -879,12 +912,23 @@ Touch these files, in this order:
 
   src/save_menu.c    Add a `case STATE_<X>: return "<NAME>";` to area_name().
 
-  CMakeLists.txt     Add src/<slug>.c and src/<slug>_mesh_collision.c.
+  CMakeLists.txt     Add src/<slug>.c. NOT src/<slug>_mesh_collision.c — that
+                     file is read by tools/pack_rooms.py, which CMake runs on
+                     every build, and is no longer compiled (STEP 4c).
 
   disc.xml           Add the SMD and any new TIMs **inside the <dir name="TEX">
                      block**, 8.3 uppercase names. The ROOT directory must stay
                      within one 2048-byte sector or the disc will not boot
                      (freezes at the BIOS logo).
+
+                     >>> THE SMD'S source= IS THE PACKED COPY: <<<
+                       ...\ps1game\build\rooms\<path below assets\>
+                     e.g. build\rooms\catacombs\zig_zag_tomb.smd for
+                     assets\catacombs\zig_zag_tomb.smd. tools/pack_rooms.py
+                     maps one to the other and writes it on every build. Point
+                     it at assets\ instead and the room boots with NO tables:
+                     room_data_bind() fails, the mesh goes NULL and the room
+                     draws empty with no walls — loud, by design.
 
                      >>> THE TEX-SECTOR WARNING THAT USED TO BE HERE WAS
                      WRONG. <<< It claimed the August 2026 Chain Room boot

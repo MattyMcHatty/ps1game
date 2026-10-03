@@ -503,6 +503,11 @@ Two models exist:
      The array lives in world.c's RoomState and is swapped on every
      world_leave/world_enter. Costs sizeof(array) x WORLD_NUM_ROOMS in the
      on-card blob — a copy in EVERY room, even the empty ones.
+     >>> ZOMBIES, DOGS AND CRATES ARE MANSION-ONLY NOW. <<< Since October 2026
+     they live in world.c's RoomHostiles, which only the twelve Chapter 1
+     mansion rooms in hostile_areas[] have (tools/RAM_RECLAIM_CHECKLIST.txt
+     PART B). Placed anywhere else they are dropped the first time the player
+     leaves. A new enemy wants model B, not a fourth RoomHostiles array.
 
   B. GLOBAL + AREA-TAGGED (fat doors, tentacles, spiders)
      ONE array in the WorldState's global section. Each instance carries a

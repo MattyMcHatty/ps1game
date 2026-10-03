@@ -13,7 +13,7 @@
 #include "camera.h"
 #include "garden_courtyard.h"
 #include "collision.h"
-#include "garden_courtyard_mesh_collision.h"
+#include "room_data.h"
 #include "garden_courtyard_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -203,6 +203,9 @@ static void gc_build_cull_keys(void) {
 void garden_courtyard_load_geometry(void) {
     garden_courtyard_buff = room_arena_load("\\TEX\\GRDNCRTY.SMD;1");
     garden_courtyard_smd  = garden_courtyard_buff ? smdInitData(garden_courtyard_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (garden_courtyard_smd && !room_data_bind(garden_courtyard_smd->n_prims)) garden_courtyard_smd = NULL;
     /* Immediately after the mesh and nowhere else — the arena's one rule
        (src/cull_arena.h): keys rebuilt without the mesh would describe the
        room that ran last. */
@@ -402,7 +405,7 @@ void garden_courtyard_spawn_north(void) {
 }
 
 void garden_courtyard_init(void) {
-    garden_courtyard_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The drawn perimeter tops out at y=-800, far above the proxy walls' y=114;
        state the DRAWN value so ceiling-mounted enemies hang at the height the
        player actually sees (see tools/ADDING_A_ROOM.txt). */
@@ -513,7 +516,7 @@ static void draw_garden_courtyard_smd(RenderContext *ctx) {
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in garden_courtyard_nocull — same scheme as the other rooms. */
-        int nocull = (i < GARDEN_COURTYARD_PRIM_COUNT) && garden_courtyard_nocull[i];
+        int nocull = (i < GARDEN_COURTYARD_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -562,7 +565,7 @@ static void draw_garden_courtyard_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in garden_courtyard_draw. */
-        uint8_t tex_idx = (i < GARDEN_COURTYARD_PRIM_COUNT) ? garden_courtyard_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < GARDEN_COURTYARD_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < GARDEN_COURTYARD_TEX_COUNT);
         /* Purple fog, the delivery area's SKY_FOG_* rather than the brown murk
            the interior rooms use — this is the outdoors, and it is the same

@@ -216,6 +216,13 @@ typedef enum {
                                 slamming cleavers and one door wired. See
                                 src/cleaver_l.h. Appended, not inserted: saves
                                 store raw enum values. */
+    STATE_ZIG_ZAG_TOMB,      /* THE ZIG ZAG TOMB, through the Crucifix
+                                Corridor's south door. Chapter 3's sixteenth
+                                room: a 4200 square of nine blocks whose gaps
+                                are barred so the way through zig-zags; its east
+                                door to Cleaver L is locked from this side. See
+                                src/zig_zag_tomb.h. Appended, not inserted: saves
+                                store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "room_of_legs_mesh_collision.h"
+#include "room_data.h"
 #include "room_of_legs_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -221,6 +221,9 @@ static void rol_build_cull_keys(void) {
 void room_of_legs_load_geometry(void) {
     rol_buff = room_arena_load("\\TEXCTCMB\\LEGROOM.SMD;1");
     rol_smd  = rol_buff ? smdInitData(rol_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (rol_smd && !room_data_bind(rol_smd->n_prims)) rol_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     rol_build_cull_keys();
@@ -342,7 +345,7 @@ void room_of_legs_spawn_east(void) {
 }
 
 void room_of_legs_init(void) {
-    room_of_legs_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* THE PILE IS SHOT OVER. Its proxy walls (and the two funnel walls off its
        ends) are 599 tall against 800 for the outer walls, but the DRAWN legs
        are only 200 high, so a shot has nothing to hit up there: anything 600 or
@@ -432,7 +435,7 @@ static void draw_room_of_legs_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < ROOM_OF_LEGS_PRIM_COUNT) && room_of_legs_nocull[i];
+        int nocull = (i < ROOM_OF_LEGS_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -476,7 +479,7 @@ static void draw_room_of_legs_smd(RenderContext *ctx) {
         int32_t fog = dist < rol_fog_near ? rol_fog_near : (dist > rol_fog_far ? rol_fog_far : dist);
         int32_t fog_factor = ((rol_fog_far - fog) << 8) / (rol_fog_far - rol_fog_near);
 
-        uint8_t tex_idx = (i < ROOM_OF_LEGS_PRIM_COUNT) ? room_of_legs_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < ROOM_OF_LEGS_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < ROOM_OF_LEGS_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + ROL_FOG_R * (256 - fog_factor)) >> 8);

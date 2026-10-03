@@ -14,7 +14,7 @@
 #include "stables.h"
 #include "collision.h"
 #include "player.h"
-#include "stables_mesh_collision.h"
+#include "room_data.h"
 #include "stables_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -218,6 +218,9 @@ static void st_build_cull_keys(void) {
 void stables_load_geometry(void) {
     stables_buff = room_arena_load("\\TEX\\STABLES.SMD;1");
     stables_smd  = stables_buff ? smdInitData(stables_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (stables_smd && !room_data_bind(stables_smd->n_prims)) stables_smd = NULL;
     st_build_cull_keys();
 }
 
@@ -440,7 +443,7 @@ void stables_spawn_east(void) {
 }
 
 void stables_init(void) {
-    stables_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The perimeter is DRAWN to y=-500 — hedge on the east side, brick wall on
        the other three — and the collision runs are 500 tall to match. State the
        DRAWN value so anything ceiling-mounted hangs at the height the room
@@ -586,7 +589,7 @@ static void draw_stables_smd(RenderContext *ctx) {
            build time in stables_nocull — same scheme as the other rooms. This
            mesh has none either (gen_stables_tex_map.py reports 0), but the
            table is generated and checked all the same. */
-        int nocull = (i < STABLES_PRIM_COUNT) && stables_nocull[i];
+        int nocull = (i < STABLES_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -635,7 +638,7 @@ static void draw_stables_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in stables_draw. */
-        uint8_t tex_idx = (i < STABLES_PRIM_COUNT) ? stables_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < STABLES_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < STABLES_TEX_COUNT);
         /* Purple fog, the same night sky the rest of the garden looks out on,
            at FOUNTAIN SQUARE's exact near/far — the user asked for this room to

@@ -90,6 +90,7 @@ void savegame_capture(SaveData *sd) {
     sd->incin_tray  = incinerator_tray();
     sd->sb_gates = sliding_bars_room_gates();
     sd->flags   = game_flags;
+    sd->flags2  = game_flags2;
     menu_inventory_save(sd->item_order);
     sd->counter = 0;
     sd->delta_size = (uint32_t)sizeof(WorldDelta);
@@ -285,6 +286,7 @@ void savegame_apply_pending(void) {
        (sliding_bars_room_apply_flags in main.c). */
     sliding_bars_room_set_gates((int)sd->sb_gates);
     game_flags        = sd->flags;
+    game_flags2       = sd->flags2;
     player_save_count = (int)sd->counter;
     /* AFTER the inventory fields above: the arrangement is reconciled against
        what the player actually holds, so it has to be restored last. */

@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "north_chamber_mesh_collision.h"
+#include "room_data.h"
 #include "north_chamber_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -280,6 +280,9 @@ static void nc_build_cull_keys(void) {
 void north_chamber_load_geometry(void) {
     nc_buff = room_arena_load("\\TEXCTCMB\\NRTHCHMB.SMD;1");
     nc_smd  = nc_buff ? smdInitData(nc_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (nc_smd && !room_data_bind(nc_smd->n_prims)) nc_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     nc_build_cull_keys();
@@ -555,7 +558,7 @@ void north_chamber_spawn_ladder(void) {
 }
 
 void north_chamber_init(void) {
-    north_chamber_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The vault, read off the VISUAL mesh: y=-1800 over the whole chamber, where
        the proxy's outer walls stop too. 1800 over the ground, 800 over the
        gallery. */
@@ -633,7 +636,7 @@ static void draw_north_chamber_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < NORTH_CHAMBER_PRIM_COUNT) && north_chamber_nocull[i];
+        int nocull = (i < NORTH_CHAMBER_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -678,7 +681,7 @@ static void draw_north_chamber_smd(RenderContext *ctx) {
         int32_t fog = dist < nc_fog_near ? nc_fog_near : (dist > nc_fog_far ? nc_fog_far : dist);
         int32_t fog_factor = ((nc_fog_far - fog) << 8) / (nc_fog_far - nc_fog_near);
 
-        uint8_t tex_idx = (i < NORTH_CHAMBER_PRIM_COUNT) ? north_chamber_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < NORTH_CHAMBER_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < NORTH_CHAMBER_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + NC_FOG_R * (256 - fog_factor)) >> 8);

@@ -13,7 +13,7 @@
 #include "camera.h"
 #include "master_bedroom.h"
 #include "collision.h"
-#include "master_bedroom_mesh_collision.h"
+#include "room_data.h"
 #include "master_bedroom_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -140,6 +140,9 @@ static void mb_build_cull_keys(void) {
 void master_bedroom_load_geometry(void) {
     master_bedroom_buff = room_arena_load("\\TEX\\MSTRBED.SMD;1");
     master_bedroom_smd  = master_bedroom_buff ? smdInitData(master_bedroom_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (master_bedroom_smd && !room_data_bind(master_bedroom_smd->n_prims)) master_bedroom_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     mb_build_cull_keys();
@@ -284,7 +287,7 @@ void master_bedroom_spawn_east(void) {
 }
 
 void master_bedroom_init(void) {
-    master_bedroom_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     collision_set_ceiling_y(0);   /* proxy wall tops reach the drawn ceiling */
     master_bedroom_floor_zones_init();
 
@@ -363,7 +366,7 @@ static void draw_master_bedroom_smd(RenderContext *ctx) {
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in master_bedroom_nocull — same scheme as the conservatory. */
-        int nocull = (i < MASTER_BEDROOM_PRIM_COUNT) && master_bedroom_nocull[i];
+        int nocull = (i < MASTER_BEDROOM_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -413,7 +416,7 @@ static void draw_master_bedroom_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in master_bedroom_draw. */
-        uint8_t tex_idx = (i < MASTER_BEDROOM_PRIM_COUNT) ? master_bedroom_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < MASTER_BEDROOM_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < MASTER_BEDROOM_TEX_COUNT);
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);

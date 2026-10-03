@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "sliding_bars_room_mesh_collision.h"
+#include "room_data.h"
 #include "sliding_bars_room_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -158,6 +158,9 @@ static void sb_build_cull_keys(void) {
 void sliding_bars_room_load_geometry(void) {
     sb_buff = room_arena_load("\\TEXCTCMB\\SLDBARS.SMD;1");
     sb_smd  = sb_buff ? smdInitData(sb_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (sb_smd && !room_data_bind(sb_smd->n_prims)) sb_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     sb_build_cull_keys();
@@ -559,7 +562,7 @@ void sliding_bars_room_spawn_south(void) {
 }
 
 void sliding_bars_room_init(void) {
-    sliding_bars_room_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The vault, read off the VISUAL mesh: y=-800 over the whole square, where
        the proxy's walls stop too. */
     collision_set_ceiling_y(-800);
@@ -634,7 +637,7 @@ static void draw_sliding_bars_room_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < SLIDING_BARS_ROOM_PRIM_COUNT) && sliding_bars_room_nocull[i];
+        int nocull = (i < SLIDING_BARS_ROOM_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -678,7 +681,7 @@ static void draw_sliding_bars_room_smd(RenderContext *ctx) {
         int32_t fog = dist < sb_fog_near ? sb_fog_near : (dist > sb_fog_far ? sb_fog_far : dist);
         int32_t fog_factor = ((sb_fog_far - fog) << 8) / (sb_fog_far - sb_fog_near);
 
-        uint8_t tex_idx = (i < SLIDING_BARS_ROOM_PRIM_COUNT) ? sliding_bars_room_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < SLIDING_BARS_ROOM_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < SLIDING_BARS_ROOM_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + SB_FOG_R * (256 - fog_factor)) >> 8);

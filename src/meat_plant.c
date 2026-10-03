@@ -16,7 +16,7 @@
 #include "maggot.h"
 #include "crawler.h"
 #include "collision.h"
-#include "meat_plant_mesh_collision.h"
+#include "room_data.h"
 #include "meat_plant_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -210,6 +210,9 @@ void meat_plant_release_maggots(void) {
 void meat_plant_load_geometry(void) {
     mp_buff = room_arena_load("\\TEXCTCMB\\MEATPLNT.SMD;1");
     mp_smd  = mp_buff ? smdInitData(mp_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (mp_smd && !room_data_bind(mp_smd->n_prims)) mp_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
     mp_build_cull_keys();
@@ -442,7 +445,7 @@ void meat_plant_spawn_west(void) {
 }
 
 void meat_plant_init(void) {
-    meat_plant_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The vault, read off the VISUAL mesh: y=-800 over the whole hall, where
        the proxy's outer walls stop too. */
     collision_set_ceiling_y(-800);
@@ -514,7 +517,7 @@ static void draw_meat_plant_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < MEAT_PLANT_PRIM_COUNT) && meat_plant_nocull[i];
+        int nocull = (i < MEAT_PLANT_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -558,7 +561,7 @@ static void draw_meat_plant_smd(RenderContext *ctx) {
         int32_t fog = dist < mp_fog_near ? mp_fog_near : (dist > mp_fog_far ? mp_fog_far : dist);
         int32_t fog_factor = ((mp_fog_far - fog) << 8) / (mp_fog_far - mp_fog_near);
 
-        uint8_t tex_idx = (i < MEAT_PLANT_PRIM_COUNT) ? meat_plant_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < MEAT_PLANT_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < MEAT_PLANT_TEX_COUNT);
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + MP_FOG_R * (256 - fog_factor)) >> 8);

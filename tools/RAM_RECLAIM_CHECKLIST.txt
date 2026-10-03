@@ -1,0 +1,185 @@
+RAM RECLAIM — PLAN AND LIVE CHECKLIST  (started 2026-10-03)
+==============================================================
+Why: every room costs ~13.6 KB of PERMANENT main RAM (it moves _end), whatever
+area the player is in. Texture banking cannot help with that. FREE AT REST
+fell to 120 KB when the Zig Zag Tomb went in, under heap_budget.py's 128 KB
+warning line.
+
+Baseline (with the Zig Zag Tomb in, before any of this):
+    _end            0x80136664
+    FREE AT REST    122,588 bytes (120 KB)
+
+Order: PART A (room data out of the executable), then PART B (compact room
+state). Each part builds, makes a disc and boot-tests on its own.
+
+Legend:  [ ] to do   [~] in progress   [x] done   [!] problem, see note
+
+
+##########################################################################
+ PART A — ROOM DATA OUT OF THE EXECUTABLE           expected: ~110 KB back
+##########################################################################
+What moves: each room's per-poly texture map, its no-cull table and its
+collision walls. Today they are compiled into HORROR.BIN and sit in RAM for
+the whole game (68 KB of maps + 50 KB of collision code, 43 rooms). After this
+they ride at the end of the room's own .SMD file and arrive in the room arena
+with the mesh, so only the CURRENT room's copy is ever in RAM.
+
+What does NOT change: the generators (gen_<slug>_tex_map.py,
+smx_to_collision.py), the files they write, and hand edits in
+src/<slug>_mesh_collision.c. Those stay the source of truth. A new build step
+reads them and packs the data. The dresser and grinder tex maps are props, not
+rooms, and stay where they are.
+
+  [x] A1  Data format. One block appended after the SMD bytes:
+            header   magic, prim count, wall count, bounds, multi_level,
+                     shoot_over_mask
+            prim map 1 byte per prim: low 7 bits = texture slot (0x7F =
+                     untextured), bit 7 = never backface-cull. That merges the
+                     two tables into one byte, which is half the size.
+            walls    8 x int16 each (every coordinate in the game fits; checked)
+            footer   last 8 bytes: block offset + magic
+          smdInitData ignores bytes after the mesh, so the SMD itself is
+          untouched.
+
+  [x] A2  tools/pack_rooms.py. For each of the 43 rooms, it parses
+          src/<slug>_tex_map.h and src/<slug>_mesh_collision.c, and writes
+          build/rooms/<DISCNAME>.SMD = assets/<slug>.smd + the block.
+          assets/<slug>.smd itself is never modified.
+          FAILS THE BUILD on anything it does not understand: a statement that
+          is not a literal assignment, a wall with a missing field, a value out
+          of int16 range, more than 128 walls, or a prim count that does not
+          match the SMD's own header.
+          One special case: the kitchen's collision file has a
+          #ifdef DEBUG_COLLISION loop that sets every wall to y[-600,-375], and
+          DEBUG_COLLISION is ON. The packer reproduces it exactly.
+          RESULT: all 43 rooms pack, nothing rejected. 60,936 bytes of room
+          data now ride on the disc. The biggest file, MAZEONE.SMD, grows by
+          3,576 bytes.
+          FORMAT TWEAK FROM A1: the texture map keeps its exact old byte values
+          (0xFF = untextured) and no-cull is a separate 1-bit-per-prim set, so
+          every existing use, including Room of Arms' and Asag's special
+          ones, is a straight rename.
+
+  [x] A3  CMakeLists.txt: the packer runs on every `cmake --build`, before the
+          link. The 43 *_mesh_collision.c files leave add_executable.
+
+  [x] A4  disc.xml: the 43 room SMD entries read build\rooms\ instead of
+          assets\. Same disc names, so no directory grows.
+
+  [x] A5  src/room_data.c/.h (new):
+            room_data_bind()      - after room_arena_load, finds the block and
+                                    points room_prim_map at it
+            room_data_collision() - fills current_collision_room from it (all
+                                    zero when there is none: walls nowhere,
+                                    which is loud rather than silently stale)
+          room_arena_load() also records the file's exact size, so the footer
+          can be found.
+
+  [x] A6  tools/gen_room_arena.py sizes the arena from the PACKED files.
+          (Maze One grows ~4 KB, which is the one cost of this part.)
+          RESULT: arena 58 -> 60 sectors (118,784 -> 122,880 bytes), as predicted.
+
+  [x] A7  The 43 room modules, three mechanical edits each:
+            _load_geometry : room_data_bind(); no block -> mesh NULL (draws empty)
+            draw loop      : read room_prim_map[i] instead of <slug>_tex_map[i]
+                             and <slug>_nocull[i]
+            _init          : room_data_collision() instead of
+                             <slug>_collision_init()
+          plus collision.c's startup collision_init(), which runs before any
+          room is loaded and becomes "zero the room".
+          RESULT: all 43 done by script, each edit required to match exactly
+          once. Delivery is the one room whose walls come through collision.c
+          (collision_init), not its own init.
+
+  [x] A8  Verify:
+            [x] packer passes on all 43 rooms
+            [x] grep: no <slug>_tex_map / <slug>_nocull / <slug>_collision_init
+                left referenced in src/ (dresser/grinder excepted)
+            [x] build clean; nm shows no *_collision_init / room tex maps
+            [x] _end and FREE AT REST re-measured (tools/HEAP_BUDGET.txt)
+            [x] mkpsxiso + check_disc_root.py OK
+            [x] headless boot: zero exceptions in the log
+            [x] FORCE-BOOTED into the Kitchen and the Zig Zag Tomb with printf
+                in room_data.c: on the real disc, both binds succeed and the
+                walls loaded match the source files exactly (wall count, mask,
+                bounds, first and last wall, and the Kitchen's y[-600,-375]
+                special case). Instrumentation removed, and HORROR2.BIN checked
+                free of the debug strings.
+            RESULT:  _end 0x80136664 -> 0x8011AE7C
+                     FREE AT REST 122,588 -> 235,204 bytes  (+112.6 KB)
+                     HORROR2.BIN 880,640 -> 763,904 bytes
+            [ ] YOU, in the emulator (I cannot walk rooms headless):
+                  - new game: Delivery Area walls and the kitchen door
+                  - Kitchen (the special-case walls)
+                  - Catacombs Entry ramps (multi-level walls)
+                  - any room's textures look as before
+                  - title -> Load Game into a saved room
+
+  [x] A9  Docs: tools/ADDING_A_ROOM.txt STEP 4c/4d/6 (collision is no longer
+          compiled in; the packer and the build\rooms\ disc path are the new
+          steps) and tools/MESH_CONVERSION_NOTES.txt.
+
+
+##########################################################################
+ PART B — COMPACT ROOM STATE                        expected: ~65 KB back
+##########################################################################
+world.c keeps a RoomState for every room (43 x ~2.7 KB = 123 KB). 2,080 bytes
+of each are demon dogs, zombies and crates, which only Chapter 1's mansion
+rooms can hold. Split it:
+
+    every room   visited, keys, meds, item pickups, door state   (~600 B)
+    12 rooms     + dogs, zombies, crates                         (~2.1 KB)
+
+  [x] B1  The 12 rooms that KEEP hostiles (Chapter 1, the mansion):
+            Delivery Area, Kitchen/Dining, Reception, Piano Room,
+            Conservatory, 2F Hall, Master Bedroom, East Hall, Library,
+            East Stairwell, Attic Stairwell, Attic Exit
+
+  [x] B2  The 31 rooms that go COMPACT:
+            Garden Stairs and Garden Courtyard (the debug menu files them under
+              Chapter 1, but they are garden: nothing seeds or spawns a
+              zombie, dog or crate in either; checked)
+            all of Chapter 2, West Corridor and Library Destroyed included
+            Asag's Arena
+            all of Chapter 3, the Zig Zag Tomb included
+
+  [x] B3  world.c: a hostile-slot table (room -> 0..11, or -1), a
+          _Static_assert holding it to 12, and snapshot()/restore()/
+          world_save_delta() reading through it. Entering a compact room
+          clears the live dog/zombie/crate arrays, which is exactly what
+          world_seed_room() leaves there today.
+
+  [x] B4  Guard: zombies, dogs and crates are Chapter 1 content. A comment at
+          the table, and a line in ADDING_A_ROOM.txt and ADDING_AN_ENEMY.txt:
+          a room that ever needs them has to join the table first, or they
+          vanish on leaving the room.
+
+  [x] B5  Saves: WorldDelta and SaveData are unchanged in shape, so there is
+          NO version bump and saves made on the Zig Zag Tomb build (v32)
+          still load.
+
+  [x] B6  Verify:
+            [x] build clean, _Static_asserts hold
+            [x] _end and FREE AT REST re-measured
+            [x] mkpsxiso + check_disc_root.py OK
+            [x] headless boot: zero exceptions
+            RESULT:  world[] 123,068 -> 58,216 bytes  (-64.8 KB)
+                     _end 0x8011AE7C -> 0x8010B268
+                     FREE AT REST 235,204 -> 299,736 bytes
+            [ ] YOU, in the emulator:
+                  - kill a kitchen zombie, leave and come back: still dead
+                  - smash a delivery crate, leave and come back: still smashed
+                  - save in the mansion, reload: both of the above survive
+                  - Catacombs Entry medipac: take it, leave, come back: gone
+
+
+##########################################################################
+ AT THE END
+##########################################################################
+  [x] Final _end / FREE AT REST against the baseline above:
+          _end          0x80136664 -> 0x8010B268   (-176.1 KB)
+          FREE AT REST  122,588 -> 299,736 bytes  (120 KB -> 293 KB)
+          A new room now costs about 5 KB of _end, down from ~13.6 KB.
+  [x] Memory note on the new per-room cost, for future rooms
+  [ ] Nothing committed. The Zig Zag Tomb is still uncommitted underneath this
+      too; say how you want the commits split.

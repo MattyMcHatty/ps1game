@@ -12,7 +12,7 @@
 #include "camera.h"
 #include "fountain_square.h"
 #include "collision.h"
-#include "fountain_square_mesh_collision.h"
+#include "room_data.h"
 #include "fountain_square_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
@@ -135,6 +135,9 @@ static const char *new_tex_file[FOUNTAIN_SQUARE_NEW_TEX] = {
 void fountain_square_load_geometry(void) {
     fountain_square_buff = room_arena_load("\\TEX\\FNTNSQ.SMD;1");
     fountain_square_smd  = fountain_square_buff ? smdInitData(fountain_square_buff) : NULL;
+    /* ...and the tex map, no-cull bits and walls packed onto the end of
+       the same file (src/room_data.h). No block, no room. */
+    if (fountain_square_smd && !room_data_bind(fountain_square_smd->n_prims)) fountain_square_smd = NULL;
 }
 
 /* Read at STARTUP — the only safe time for CD access — the two textures this
@@ -507,7 +510,7 @@ void fountain_square_spawn_west(void) {
 }
 
 void fountain_square_init(void) {
-    fountain_square_collision_init(&current_collision_room);
+    room_data_collision(&current_collision_room);
     /* The perimeter hedge is drawn to y=-500 (the gates reach -600, but they
        are the openings, not the roofline); state the DRAWN value so anything
        ceiling-mounted hangs at the height the player actually sees. */
@@ -591,7 +594,7 @@ static void draw_fountain_square_smd(RenderContext *ctx) {
 
         /* Backface cull, except degenerate (triangle-shaped) quads flagged at
            build time in fountain_square_nocull — same scheme as the other rooms. */
-        int nocull = (i < FOUNTAIN_SQUARE_PRIM_COUNT) && fountain_square_nocull[i];
+        int nocull = (i < FOUNTAIN_SQUARE_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -640,7 +643,7 @@ static void draw_fountain_square_smd(RenderContext *ctx) {
         /* Per-prim texture index (SMD prim order matches the tex map). UVs come
            straight from the SMD primitive (offset 20+) and wrap via the 128
            texture window set in fountain_square_draw. */
-        uint8_t tex_idx = (i < FOUNTAIN_SQUARE_PRIM_COUNT) ? fountain_square_tex_map[i] : 0xFF;
+        uint8_t tex_idx = (i < FOUNTAIN_SQUARE_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < FOUNTAIN_SQUARE_TEX_COUNT);
         /* Purple fog, the same night sky the Garden Courtyard and the Garden
            Stairs look out on — this is one continuous outdoors. Only the

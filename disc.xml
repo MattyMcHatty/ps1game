@@ -14,11 +14,11 @@
             <file name="SYSTEM.CNF" type="data"
                 source="C:\Users\virtu\Documents\ps1game\system.cnf"/>
             <file name="DELIVERY.SMD" type="data"
-                source="C:\Users\virtu\Documents\ps1game\assets\delivery_area.smd"/>
+                source="C:\Users\virtu\Documents\ps1game\build\rooms\delivery_area.smd"/>
             <file name="KITCHN.SMD" type="data"
-                source="C:\Users\virtu\Documents\ps1game\assets\kitchen_dining.smd"/>
+                source="C:\Users\virtu\Documents\ps1game\build\rooms\kitchen_dining.smd"/>
             <file name="RECEPT.SMD" type="data"
-                source="C:\Users\virtu\Documents\ps1game\assets\Reception.smd"/>
+                source="C:\Users\virtu\Documents\ps1game\build\rooms\Reception.smd"/>
             <file name="GRAVEL.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\gravel_texture.tim"/>
             <file name="FENCE.TIM" type="data"
@@ -365,7 +365,7 @@
                 <!-- Piano room geometry lives here too (not the root) so the
                      root directory stays within one sector; loaded by our own
                      code (piano_room_load_assets) via the \TEX\ path. -->
-                <file name="PIANORM.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\Piano_Room.smd"/>
+                <file name="PIANORM.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\Piano_Room.smd"/>
                 <file name="PIANO.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Piano.smd"/>
                 <file name="BOOKCSE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Bookcase.smd"/>
                 <file name="PIANOKEY.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\piano_keys.tim"/>
@@ -374,8 +374,8 @@
                      over it and every baked UV/tpage/clut stays valid. -->
                 <file name="PIANOFUL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\piano_keys_full.tim"/>
                 <file name="BOOKSHLF.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\bookshelf.tim"/>
-                <file name="CONSRV.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\Conservatory.smd"/>
-                <file name="HALL2F.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\2f_hall.smd"/>
+                <file name="CONSRV.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\Conservatory.smd"/>
+                <file name="HALL2F.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\2f_hall.smd"/>
                 <file name="TRKDRWR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\trick_drawers.smd"/>
                 <file name="CLSDDRWR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\clsd_drwr.tim"/>
                 <file name="OPNDRWR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\opn_drwr.tim"/>
@@ -427,16 +427,16 @@
                 <file name="HADIDLE.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\hadad_idle_64.tim"/>
                 <file name="HADSTP1.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\hadad_stp1_64.tim"/>
                 <file name="HADSTP2.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\hadad_stp2_64.tim"/>
-                <file name="MSTRBED.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\master_bedroom.smd"/>
+                <file name="MSTRBED.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\master_bedroom.smd"/>
                 <file name="BED.TIM"      type="data" source="C:\Users\virtu\Documents\ps1game\textures\bed.tim"/>
-                <file name="EASTHALL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\east_hall.smd"/>
-                <file name="LIBRARY.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\library.smd"/>
-                <file name="LIBDEST.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\library_destroyed.smd"/>
-                <file name="EASTSTRW.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\east_stairwell.smd"/>
+                <file name="EASTHALL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\east_hall.smd"/>
+                <file name="LIBRARY.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\library.smd"/>
+                <file name="LIBDEST.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\library_destroyed.smd"/>
+                <file name="EASTSTRW.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\east_stairwell.smd"/>
                 <file name="CHNLNK.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\chnlnk.tim"/>
-                <file name="ATTCSTRW.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\attic_stairwell.smd"/>
+                <file name="ATTCSTRW.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\attic_stairwell.smd"/>
                 <file name="TRCKCLUE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\trck_clue.tim"/>
-                <file name="ATTCEXIT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\attic_exit.smd"/>
+                <file name="ATTCEXIT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\attic_exit.smd"/>
                 <file name="XTDRLCKD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_lckd.tim"/>
                 <file name="CHNLNKDR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\chainlink_door.smd"/>
                 <file name="LEVER.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\lever.smd"/>
@@ -517,7 +517,7 @@
                      mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the
                      door-opening transition (DOOR_PANEL_EXIT), which unlike the
                      other double doors uses a different image per leaf. -->
-                <file name="GRDNSTRS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\garden_stairs.smd"/>
+                <file name="GRDNSTRS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\garden_stairs.smd"/>
                 <file name="XTDROUTR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_outr.tim"/>
                 <file name="XTDRCG.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_cg.tim"/>
                 <file name="XTDRLHLF.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_lft_hlf.tim"/>
@@ -537,7 +537,7 @@
                      nothing else from — HEDGE on the clsd_drwr page (x384 y0),
                      GRDNGTE on the kchn_wl page (x512 y0) — and both pages were
                      already time-shared, so no new restore code was needed. -->
-                <file name="GRDNCRTY.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\garden_courtyard.smd"/>
+                <file name="GRDNCRTY.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\garden_courtyard.smd"/>
                 <file name="HEDGE.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\hedge.tim"/>
                 <file name="GRDNGTE.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\grdn_gte.tim"/>
 
@@ -551,7 +551,7 @@
                      (x768 y0), DRAIN on the opn_drwr page (x832 y0). Note the
                      .smx exports for this room live in assets/garden/, not
                      assets/. -->
-                <file name="FNTNSQ.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\fountain_square.smd"/>
+                <file name="FNTNSQ.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\fountain_square.smd"/>
                 <file name="FOUNTAIN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\fountain.tim"/>
                 <file name="DRAIN.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\drain.tim"/>
 
@@ -564,7 +564,7 @@
                      else from that were already time-shared: LMSHTBLT on the
                      brick_wall page (x768 y0), PSNFLWR on the trck_clue page
                      (x640 y0). Its .smx exports live in assets/garden/ too. -->
-                <file name="OUTCTCMB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\outside_catacombs.smd"/>
+                <file name="OUTCTCMB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\outside_catacombs.smd"/>
                 <file name="LMSHTBLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu tablet.tim"/>
                 <!-- THE CATACOMB DOORS: the two leaves standing in the mouth of
                      the facade at the room's north end, read on ENTRY into that
@@ -596,7 +596,7 @@
                      At 118 KB its SMD is by some way the largest on the disc and
                      it is what sizes the room arena (tools/gen_room_arena.py).
                      Its .smx exports live in assets/garden/ too. -->
-                <file name="MAZEONE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\maze_one.smd"/>
+                <file name="MAZEONE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\maze_one.smd"/>
                 <file name="PIPE.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\pipe.tim"/>
                 <file name="CHAIN.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\chain.tim"/>
 
@@ -614,7 +614,7 @@
                      Its SMD is 107 KB, second
                      only to Maze One's, so the room arena is unchanged.
                      Its .smx exports live in assets/garden/ too. -->
-                <file name="MAZETWO.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\maze_two.smd"/>
+                <file name="MAZETWO.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\maze_two.smd"/>
                 <file name="PLINTH.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\plinth.tim"/>
 
                 <!-- Keystone Maze: the third hedge maze, east through Maze One's
@@ -629,7 +629,7 @@
                      BED. Already time-shared seven ways, so no new restore.
                      Its SMD is 83 KB, well inside the arena Maze One sizes.
                      Its .smx exports live in assets/garden/ too. -->
-                <file name="KEYSTONE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\keystone_maze.smd"/>
+                <file name="KEYSTONE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\keystone_maze.smd"/>
                 <file name="PLNTHDMD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\plinth_diamond.tim"/>
 
                 <!-- Chain Room: the walled yard joining Maze Two's east gate to
@@ -668,7 +668,7 @@
                      At 14 KB its SMD is the SMALLEST on the disc; the room
                      arena is still sized by Maze One's 118 KB.
                      Its .smx exports live in assets/garden/ too. -->
-                <file name="CHNROOM.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\chain_room.smd"/>
+                <file name="CHNROOM.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\chain_room.smd"/>
 
                 <!-- The gate's two leaves as the door-anim transition draws them
                      (DOOR_PANEL_GATE). Like XTDRLHLF/XTDRRHLF these are separate
@@ -710,7 +710,7 @@
                                    kitchen already re-upload their own on entry,
                                    so it adds no restore obligation either.
                      Its .smx exports live in assets/garden/ too. -->
-                <file name="REARGATE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\rear_gate.smd"/>
+                <file name="REARGATE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\rear_gate.smd"/>
                 <file name="PLNTHRG.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\plinth_rg.tim"/>
                 <file name="DBLDRRG.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\dbl_dr_rg.tim"/>
 
@@ -746,7 +746,7 @@
                      NARROW uploads on the kitchen's and the piano room's RAM
                      copies), so it registers nothing with texmgr and adds no
                      restore obligation on anybody. -->
-                <file name="WSTCORR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\west_corridor.smd"/>
+                <file name="WSTCORR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\west_corridor.smd"/>
 
                 <!-- The Stables (src/stables.c): the yard WEST of the Rear Gate,
                      through that room's west gate. It is the first room of the
@@ -779,7 +779,7 @@
                      stables_draw serves them and the four borrowed slots alike.
                      Its .smx exports live in assets/garden/ like the rest of the
                      garden's. -->
-                <file name="STABLES.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\stables.smd"/>
+                <file name="STABLES.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\stables.smd"/>
                 <file name="GRNHOUSE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\greenhouse.tim"/>
                 <file name="STBLWOOD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\stables wood.tim"/>
                 <file name="STBLGLPH.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\stable glyphs.tim"/>
@@ -830,7 +830,7 @@
                      TIMs. See tools/HEAP_BUDGET.txt and the table in
                      src/greenhouse.c.
                      Its .smx exports live in assets/garden/. -->
-                <file name="GRNHSE.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\greenhouse.smd"/>
+                <file name="GRNHSE.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\greenhouse.smd"/>
                 <file name="FLWRBED.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\flowerbed.tim"/>
                 <file name="CUNEISYM.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\cuneiform _symbols.tim"/>
                 <file name="PSNFLGH.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\poison_flower_base_gh.tim"/>
@@ -900,7 +900,7 @@
                      room arena is still sized by that room, as is the cull
                      arena at 2056 prims against this room's 661.
                      Its .smx exports live in assets/garden/. -->
-                <file name="THEHATCH.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\the_hatch.smd"/>
+                <file name="THEHATCH.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\the_hatch.smd"/>
                 <file name="HATCH.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\hatch.tim"/>
                 <!-- THE BOOT SPLASH'S LOGO (src/splash.c). Read once, before the
                      startup asset block, and never again — the very first thing
@@ -966,7 +966,7 @@
 
              All exports live in assets/bosses/Asag Version Two/ and are
              regenerated by tools/export_asag.py. -->
-            <file name="ASAGARNA.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag Version Two_Arena.smd"/>
+            <file name="ASAGARNA.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\bosses\Asag Version Two\Asag Version Two_Arena.smd"/>
             <file name="ASGMUD.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\mud.tim"/>
             <file name="ASGWALL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\Boss Wall.tim"/>
             <file name="ASGSKIN.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\asag.tim"/>
@@ -1025,7 +1025,7 @@
              purge that frees one of them. Only ever one copy at a time.
 
              The .smx exports live in assets/catacombs/. -->
-            <file name="CTCMBENT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\catacombs_entry.smd"/>
+            <file name="CTCMBENT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\catacombs_entry.smd"/>
             <file name="COBBLE.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\cobblestones.tim"/>
             <file name="LOCULUS.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\loculus.tim"/>
             <file name="CTCMBDR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacomb inner door.tim"/>
@@ -1046,7 +1046,7 @@
                  sized to (src/room_arena_size.h). Re-run py tools/gen_room_arena.py
                  after any re-export: growing past that and the room draws empty,
                  deliberately and loudly. -->
-            <file name="UPDNMAZE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\up_down_maze.smd"/>
+            <file name="UPDNMAZE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\up_down_maze.smd"/>
 
             <!-- THE INCINERATOR ROOM, the chapter's third room, through the
                  SOUTH door on the LOWER floor of the maze above. One L-shaped
@@ -1065,7 +1065,7 @@
                  sizes (src/room_arena_size.h). Re-run py tools/gen_room_arena.py
                  after any re-export anyway: growing past it and the room draws
                  empty, deliberately and loudly. -->
-            <file name="INCINRTR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\incinerator_room.smd"/>
+            <file name="INCINRTR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\incinerator_room.smd"/>
 
             <!-- THE TOMB, the chapter's FOURTH room, behind the WEST door of the
                  Incinerator Room - the door that room's header had been listing
@@ -1088,7 +1088,7 @@
                  sizes (src/room_arena_size.h). Re-run py tools/gen_room_arena.py
                  after any re-export anyway: growing past it and the room draws
                  empty, deliberately and loudly. -->
-            <file name="TOMB.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\assets\tomb.smd"/>
+            <file name="TOMB.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\tomb.smd"/>
 
             <!-- THE ROOM OF ARMS, the chapter's FIFTH room, behind the WEST
                  door of the Tomb - the second of the three doors that room's
@@ -1126,7 +1126,7 @@
                  it. Comfortably inside the arena MAZEONE.SMD sizes
                  (src/room_arena_size.h) - re-run py tools/gen_room_arena.py
                  after any re-export anyway. -->
-            <file name="ARMSROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\room_of_arms.smd"/>
+            <file name="ARMSROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_arms.smd"/>
             <file name="ARMS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\arms.tim"/>
 
             <!-- THE PIT, the chapter's SIXTH room, behind the NORTH door of the
@@ -1191,7 +1191,7 @@
                  THEPIT.SMD, 33,028 bytes, comfortably inside the arena
                  MAZEONE.SMD already sizes (src/room_arena_size.h) - re-run
                  py tools/gen_room_arena.py after any re-export anyway. -->
-            <file name="THEPIT.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\the_pit.smd"/>
+            <file name="THEPIT.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\the_pit.smd"/>
             <file name="RUSTY.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\rusty.tim"/>
 
             <!-- THE NORTH CHAMBER, the chapter's SEVENTH room, behind The Pit's
@@ -1224,7 +1224,7 @@
 
                  NRTHCHMB.SMD, 72,492 bytes, inside the arena MAZEONE.SMD already
                  sizes (src/room_arena_size.h). -->
-            <file name="NRTHCHMB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\north_chamber.smd"/>
+            <file name="NRTHCHMB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\north_chamber.smd"/>
             <file name="LADDER.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\ladder.tim"/>
 
             <!-- THE ROOM OF HEADS, the chapter's EIGHTH room, behind the North
@@ -1250,7 +1250,7 @@
                  is what was drawn.
 
                  HEADROOM.SMD, 16,308 bytes, well inside the arena. -->
-            <file name="HEADROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\room_of_heads.smd"/>
+            <file name="HEADROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_heads.smd"/>
             <file name="HEADS.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\heads.tim"/>
 
             <!-- THE CLEAVER CORRIDOR, the chapter's NINTH room, at the top of
@@ -1263,7 +1263,7 @@
                  above - through the North Chamber's north_chamber_upload_ladder().
 
                  CLVRCRDR.SMD, 18,392 bytes, well inside the arena. -->
-            <file name="CLVRCRDR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\cleaver_corridor.smd"/>
+            <file name="CLVRCRDR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\cleaver_corridor.smd"/>
 
             <!-- THE CRUCIFIX CORRIDOR, the chapter's TENTH room, through the
                  single door in the north-east corner of the Up Down Maze's
@@ -1276,7 +1276,7 @@
                  module's.
 
                  CRCFXCRD.SMD, 16,700 bytes, well inside the arena. -->
-            <file name="CRCFXCRD.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\crucifix_corridor.smd"/>
+            <file name="CRCFXCRD.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\crucifix_corridor.smd"/>
 
             <!-- THE SLIDING BARS ROOM, the chapter's ELEVENTH room, through the
                  north door of the Crucifix Corridor's cross arm. A 4200 square
@@ -1290,7 +1290,7 @@
                  for smxlink's material lookup only; it is not shipped.)
 
                  SLDBARS.SMD, 66,740 bytes, inside the arena. -->
-            <file name="SLDBARS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\sliding_bars_room.smd"/>
+            <file name="SLDBARS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\sliding_bars_room.smd"/>
 
             <!-- THE ROOM OF LEGS, the chapter's TWELFTH room, through the NORTH
                  of the two doors in the Sliding Bars Room's east wall. The Room
@@ -1314,7 +1314,7 @@
                  puts ~330 world units on one UV tile.
 
                  LEGROOM.SMD, 15,828 bytes, well inside the arena. -->
-            <file name="LEGROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\room_of_legs.smd"/>
+            <file name="LEGROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_legs.smd"/>
             <file name="LEGS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\legs.tim"/>
 
             <!-- THE MEAT PLANT, the chapter's THIRTEENTH room, through the SOUTH
@@ -1328,7 +1328,7 @@
                  uploaders.
 
                  MEATPLNT.SMD, 79,628 bytes. -->
-            <file name="MEATPLNT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\meat_plant.smd"/>
+            <file name="MEATPLNT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\meat_plant.smd"/>
 
             <!-- THE ROOM OF BONES, the chapter's FOURTEENTH room, through the
                  door at the back of the Meat Plant's west alcove. The Room of
@@ -1351,7 +1351,7 @@
                  puts ~230 world units on one UV tile.
 
                  BONEROOM.SMD, 16,308 bytes, well inside the arena. -->
-            <file name="BONEROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\room_of_bones.smd"/>
+            <file name="BONEROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_bones.smd"/>
 
             <!-- CLEAVER L, the chapter's FIFTEENTH room, through the door at the
                  back of the Meat Plant's south alcove. An L of two 600-wide
@@ -1363,7 +1363,21 @@
                  through The Pit's, the Cleaver Corridor's three.
 
                  CLEAVERL.SMD, 15,140 bytes, well inside the arena. -->
-            <file name="CLEAVERL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\cleaver_l.smd"/>
+            <file name="CLEAVERL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\cleaver_l.smd"/>
+
+            <!-- THE ZIG ZAG TOMB, the chapter's SIXTEENTH room, through the
+                 Crucifix Corridor's south door. A 4200 square of nine blocks,
+                 the gaps between them barred so the way through zig-zags, open
+                 above y=-800. Its east door is Cleaver L's west one, locked
+                 from this side. See src/zig_zag_tomb.h.
+
+                 NO NEW TEXTURE. COBBLE.TIM, CTCMBDR.TIM and LOCULUS.TIM come
+                 through the Catacombs Entry's narrow uploaders and BARS.TIM
+                 through bars_upload_texture(), the Sliding Bars Room's set
+                 less its panel.
+
+                 ZIGZAGTB.SMD, 71,420 bytes, inside the 118,784-byte arena. -->
+            <file name="ZIGZAGTB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\zig_zag_tomb.smd"/>
             <file name="BONES.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\bones.tim"/>
 
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass

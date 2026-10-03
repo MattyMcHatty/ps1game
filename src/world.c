@@ -31,18 +31,50 @@
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below.
    This lives in RAM only — the memory card gets the far smaller WorldDelta
-   (see world.h), which is rebuilt into these by world_load_delta(). */
+   (see world.h), which is rebuilt into these by world_load_delta().
+
+   >>> SPLIT IN TWO, AND THE SPLIT IS BY CHAPTER. <<< Every room has a
+   RoomState: its pickups and its door. Only the TWELVE CHAPTER 1 MANSION ROOMS
+   (hostile_areas[] below) also have a RoomHostiles: demon dogs, zombies and
+   crates, 2,080 bytes a room, which nothing outside the mansion has ever held.
+   They used to be in every RoomState, which was 31 rooms x 2 KB of zeroes —
+   ~65 KB of RAM, in every area, for good (tools/RAM_RECLAIM_CHECKLIST.txt
+   PART B). A room with no RoomHostiles leaves the three live arrays EMPTY on
+   entry, exactly as world_seed_room() leaves them for every room it does not
+   place them in.
+
+   SO A ROOM OUTSIDE hostile_areas[] CAN NEVER KEEP A DOG, A ZOMBIE OR A CRATE:
+   they would be dropped the first time the player walked out. Put the room in
+   the table first (and raise WORLD_HOSTILE_ROOMS). */
 typedef struct {
     int       visited;
 
-    DemonDog  dogs[MAX_DEMON_DOGS];   int dog_count;
-    Zombie    zombs[MAX_ZOMBIES];     int zomb_count;
-    Crate      crates[MAX_CRATES];         int crate_count;
     KeyPickup  keys[MAX_KEYS];             int key_count;
     SmlMed     meds[MAX_SML_MEDS];         int med_count;
     ItemPickup items[MAX_ITEM_PICKUPS];    int item_count;
     DoorState  door_state;
 } RoomState;
+
+typedef struct {
+    DemonDog  dogs[MAX_DEMON_DOGS];   int dog_count;
+    Zombie    zombs[MAX_ZOMBIES];     int zomb_count;
+    Crate     crates[MAX_CRATES];     int crate_count;
+} RoomHostiles;
+
+/* The rooms that may hold demon dogs, zombies or crates: Chapter 1, the
+   mansion. Not the Garden Stairs or the Garden Courtyard, though the debug menu
+   files them under Chapter 1 — they are garden, and nothing seeds or spawns any
+   of the three in either. Not the West Corridor or Library Destroyed, the two
+   Chapter 2 rooms inside the house. The slot is the position in this table. */
+#define WORLD_HOSTILE_ROOMS 12
+static const GameState hostile_areas[] = {
+    STATE_DELIVERY_AREA,  STATE_KITCHEN_DINING, STATE_RECEPTION,
+    STATE_PIANO_ROOM,     STATE_CONSERVATORY,   STATE_2F_HALL,
+    STATE_MASTER_BEDROOM, STATE_EAST_HALL,      STATE_LIBRARY,
+    STATE_EAST_STAIRWELL, STATE_ATTIC_STAIRWELL, STATE_ATTIC_EXIT,
+};
+_Static_assert(sizeof hostile_areas / sizeof hostile_areas[0] == WORLD_HOSTILE_ROOMS,
+               "hostile_areas[] and WORLD_HOSTILE_ROOMS disagree");
 
 /* The live world, in RAM: the per-room snapshots plus global (non-room-swapped)
    state. The fatdoors are one global array tagged by area — they never pass
@@ -50,6 +82,7 @@ typedef struct {
    on every leave. */
 typedef struct {
     RoomState rooms[WORLD_NUM_ROOMS];
+    RoomHostiles hostiles[WORLD_HOSTILE_ROOMS];   /* see hostile_areas[] */
     FatDoor   fatdoors[MAX_FATDOORS];
     int       fatdoor_count;
     Tentacle  tentacles[MAX_TENTACLES];   /* also global + area-tagged, like fatdoors */
@@ -159,6 +192,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_CRUCIFIX_CORRIDOR, STATE_SLIDING_BARS_ROOM,
     STATE_ROOM_OF_LEGS,    STATE_MEAT_PLANT,
     STATE_ROOM_OF_BONES,   STATE_CLEAVER_L,
+    STATE_ZIG_ZAG_TOMB,
 };
 
 static int room_index(GameState area) {
@@ -276,6 +310,9 @@ static int room_index(GameState area) {
         /* CLEAVER L, Chapter 3's fifteenth room, through the door at the back
            of the Meat Plant's south alcove. Slot 41 of 64. */
         case STATE_CLEAVER_L:         return 41;
+        /* THE ZIG ZAG TOMB, Chapter 3's sixteenth room, through the Crucifix
+           Corridor's south door. Slot 42 of 64. */
+        case STATE_ZIG_ZAG_TOMB:      return 42;
         default:                   return 0;
     }
 }
@@ -293,22 +330,44 @@ static int room_index(GameState area) {
    not. */
 int world_room_index(GameState area) { return room_index(area); }
 
-/* live arrays -> room slot */
-static void snapshot(RoomState *r) {
-    memcpy(r->dogs,   demon_dogs, sizeof demon_dogs); r->dog_count   = demon_dog_count;
-    memcpy(r->zombs,  zombies,    sizeof zombies);    r->zomb_count  = zombie_count;
-    memcpy(r->crates, crates,     sizeof crates);     r->crate_count = crate_count;
+/* Room slot `room` (a room_index()) -> its RoomHostiles, or NULL for a room
+   outside hostile_areas[]. */
+static RoomHostiles *hostiles_of(int room) {
+    int i;
+    for (i = 0; i < WORLD_HOSTILE_ROOMS; i++)
+        if (room_areas[room] == hostile_areas[i]) return &world.hostiles[i];
+    return NULL;
+}
+
+/* live arrays -> room slot `room` */
+static void snapshot(int room) {
+    RoomState    *r = &world.rooms[room];
+    RoomHostiles *h = hostiles_of(room);
+    if (h) {
+        memcpy(h->dogs,   demon_dogs, sizeof demon_dogs); h->dog_count   = demon_dog_count;
+        memcpy(h->zombs,  zombies,    sizeof zombies);    h->zomb_count  = zombie_count;
+        memcpy(h->crates, crates,     sizeof crates);     h->crate_count = crate_count;
+    }
     memcpy(r->keys,   keys,       sizeof keys);       r->key_count   = key_count;
     memcpy(r->meds,   sml_meds,   sizeof sml_meds);   r->med_count   = sml_med_count;
     memcpy(r->items,  item_pickups, sizeof item_pickups); r->item_count = item_pickup_count;
     r->door_state = door_state;
 }
 
-/* room slot -> live arrays */
-static void restore(const RoomState *r) {
-    memcpy(demon_dogs, r->dogs,   sizeof demon_dogs); demon_dog_count = r->dog_count;
-    memcpy(zombies,    r->zombs,  sizeof zombies);    zombie_count    = r->zomb_count;
-    memcpy(crates,     r->crates, sizeof crates);     crate_count     = r->crate_count;
+/* room slot `room` -> live arrays. A room with no RoomHostiles gets the three
+   arrays EMPTY, which is what world_seed_room() leaves there for it. */
+static void restore(int room) {
+    const RoomState    *r = &world.rooms[room];
+    const RoomHostiles *h = hostiles_of(room);
+    if (h) {
+        memcpy(demon_dogs, h->dogs,   sizeof demon_dogs); demon_dog_count = h->dog_count;
+        memcpy(zombies,    h->zombs,  sizeof zombies);    zombie_count    = h->zomb_count;
+        memcpy(crates,     h->crates, sizeof crates);     crate_count     = h->crate_count;
+    } else {
+        memset(demon_dogs, 0, sizeof demon_dogs);         demon_dog_count = 0;
+        memset(zombies,    0, sizeof zombies);            zombie_count    = 0;
+        memset(crates,     0, sizeof crates);             crate_count     = 0;
+    }
     memcpy(keys,       r->keys,   sizeof keys);       key_count       = r->key_count;
     memcpy(sml_meds,   r->meds,   sizeof sml_meds);   sml_med_count   = r->med_count;
     memcpy(item_pickups, r->items, sizeof item_pickups); item_pickup_count = r->item_count;
@@ -347,7 +406,7 @@ void world_new_game(void) {
     /* The starting room (delivery) already has its entities set up by the
        startup inits + reset_game, so capture that as its initial state. */
     int d = room_index(STATE_DELIVERY_AREA);
-    snapshot(&world.rooms[d]);
+    snapshot(d);
     world.rooms[d].visited = 1;
     snapshot_fatdoors();
     /* The crib encounters are module state rather than a WorldState field
@@ -441,7 +500,7 @@ void world_leave(GameState area) {
        own would satisfy the encounter's "ten released and none alive" end
        condition for free. src/crib.h's note on cribs_rest() has the argument. */
     cribs_rest();
-    snapshot(&world.rooms[room_index(area)]);
+    snapshot(room_index(area));
     snapshot_fatdoors();
 }
 
@@ -1710,7 +1769,7 @@ void world_seed_room(GameState area) {
 void world_enter(GameState area) {
     RoomState *r = &world.rooms[room_index(area)];
     if (r->visited) {
-        restore(r);
+        restore(room_index(area));
     } else {
         /* First visit: build the room's residents from the seed above. They are
            snapshotted on the next world_leave() and persist (deaths stick). */
@@ -1776,24 +1835,30 @@ void world_save_delta(WorldDelta *d) {
     memset(d, 0, sizeof *d);
 
     for (r = 0; r < WORLD_NUM_ROOMS; r++) {
-        const RoomState *rs = &world.rooms[r];
-        RoomDelta       *rd = &d->rooms[r];
+        const RoomState    *rs = &world.rooms[r];
+        const RoomHostiles *hs = hostiles_of(r);
+        RoomDelta          *rd = &d->rooms[r];
         if (!rs->visited) continue;
         d->visited |= world_room_bit(r);
 
-        for (i = 0; i < MAX_ZOMBIES; i++)
-            if (rs->zombs[i].state == ZMB_DEAD)
-                rd->zombies_dead |= (uint8_t)(1u << i);
-        for (i = 0; i < MAX_DEMON_DOGS; i++)
-            if (rs->dogs[i].state == DDOG_DEAD)
-                rd->dogs_dead |= (uint8_t)(1u << i);
+        /* Dead dogs and zombies and smashed crates: mansion rooms only. Every
+           other room's three fields stay the zero the memset left, which is
+           what they always were. */
+        if (hs) {
+            for (i = 0; i < MAX_ZOMBIES; i++)
+                if (hs->zombs[i].state == ZMB_DEAD)
+                    rd->zombies_dead |= (uint8_t)(1u << i);
+            for (i = 0; i < MAX_DEMON_DOGS; i++)
+                if (hs->dogs[i].state == DDOG_DEAD)
+                    rd->dogs_dead |= (uint8_t)(1u << i);
 
-        for (i = 0; i < MAX_CRATES; i++) {
-            if (!rs->crates[i].active || rs->crates[i].state != CRATE_SMASHED)
-                continue;
-            rd->crates_smashed |= (uint16_t)(1u << i);
-            if (!crate_drop_present(rs, &rs->crates[i]))
-                rd->crate_drops_gone |= (uint16_t)(1u << i);
+            for (i = 0; i < MAX_CRATES; i++) {
+                if (!hs->crates[i].active || hs->crates[i].state != CRATE_SMASHED)
+                    continue;
+                rd->crates_smashed |= (uint16_t)(1u << i);
+                if (!crate_drop_present(rs, &hs->crates[i]))
+                    rd->crate_drops_gone |= (uint16_t)(1u << i);
+            }
         }
 
         /* An inactive slot is a pickup that was collected (or was never seeded,
@@ -1964,7 +2029,7 @@ void world_load_delta(const WorldDelta *d) {
 
         door_state = (DoorState)rd->door_state;
 
-        snapshot(&world.rooms[r]);
+        snapshot(r);
         world.rooms[r].visited = 1;
     }
 
