@@ -25,7 +25,8 @@
 
      NORTH  z=5400  x[200,400]    y[-400,0]   -> Zig Zag Tomb, south door
      south  z=0     x[2000,2200]               not built (the east leg's foot)
-     ladder z=0     x[200,400]    y[-1600,0]   not built (the west leg's foot)
+     ladder z=0     x[200,400]    y[-1600,0]   not built (the west leg's foot;
+                                               the maggot drop falls from it)
 
    The north door is in the XY plane approached from -Z (wall 9 runs z=5400
    with nz=-4096), so TEXT_PLANE_XY with mirror=0. The unbuilt south door and
@@ -59,5 +60,24 @@ int  h_corridor_north_door_triggered(int lock);
    caller that places the player some other way can still ensure a Circle held
    through the transition does not fire on the arrival frame. */
 void h_corridor_arm(void);
+
+/* THE MAGGOT DROP. On the first entry FROM THE ZIG ZAG TOMB, five Maggots fall
+   out of the ladder shaft one at a time, alternating between a spot either side
+   of the ladder (x=100 and x=500, z=150), each spawned high in the shaft so
+   gravity drops it into the corridor already hunting. ONCE PER PLAYTHROUGH:
+   FLAG_H_CORRIDOR_MAGGOTS is set on the arrival that springs it. The maggots
+   are transient (src/maggot.h), so leaving mid-drop loses whatever has not
+   fallen yet, and the flag means it never restarts.
+
+   >>> HOW THE ROOM KNOWS THE PLAYER CAME FROM THE TOMB. <<< Not current_area,
+   which a title load or debug jump overwrites (it is not a route). main.c
+   calls h_corridor_note_tomb_arrival() on the frame the Tomb's south door is
+   taken, and h_corridor_init() consumes that latch, so no other route into
+   this room — today a debug jump — can spring the drop. */
+void h_corridor_note_tomb_arrival(void);
+
+/* One frame of the drop's timer. Called from main.c's H Corridor update
+   branch; a no-op unless the drop was sprung on this visit. */
+void h_corridor_update(void);
 
 #endif

@@ -2518,6 +2518,10 @@ static void update_current_area(GameState area) {
         if (zig_zag_tomb_south_door_triggered(lock) &&
             game_state != STATE_DOOR_ANIM) {
             pending_area = STATE_H_CORRIDOR;
+            /* The corridor's maggot drop is sprung only by THIS route in, and
+               current_area cannot say so (it is not a route) — so the door
+               tells the room, and h_corridor_init() consumes it. */
+            h_corridor_note_tomb_arrival();
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -2528,11 +2532,14 @@ static void update_current_area(GameState area) {
            "h". multi_level is 0. One door wired, the north one back to the Zig
            Zag Tomb; the south door and the ladder are drawn and sealed.
            Nothing seeded; both Chapter 3 enemy updates are called anyway, on
-           the Tomb's argument. */
+           the Tomb's argument. The maggot drop out of the ladder shaft is
+           timed here (src/h_corridor.h); the maggots themselves are updated by
+           the area-tagged update_maggots() with every other room's. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
+        h_corridor_update();
 
         if (h_corridor_north_door_triggered(lock)) {
             pending_area = STATE_ZIG_ZAG_TOMB;

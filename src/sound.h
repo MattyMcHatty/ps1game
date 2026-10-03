@@ -106,7 +106,8 @@ typedef enum {
     SFX_GR_SHOT   = 12, /* grave-olver gunshot */
     SFX_GR_RELOAD = 13, /* grave-olver reload */
     SFX_TNTCL_WRTH = 14, /* tentacle writhe, looped while a tentacle is alert */
-    SFX_TNTCL_DIE  = 15, /* tentacle death — also the spider's (see spider.c) */
+    SFX_TNTCL_DIE  = 15, /* tentacle death — also the spider's (see spider.c)
+                            and the maggot's (maggot.c, the catacombs copy) */
     SFX_STEP1      = 16, /* footstep A, used by the conservatory<->2F stair transition */
     SFX_STEP2      = 17, /* footstep B */
     SFX_SLAM       = 18, /* drawers slam shut (trick-drawers puzzle fail); also

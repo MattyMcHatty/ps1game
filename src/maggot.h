@@ -103,6 +103,15 @@
    sample ends rather than leaving a gap. Re-measure if the clip is re-cut. */
 #define MGT_BUZZ_FRAMES      130
 
+/* THE DEATH. It bursts GREEN — insect ichor rather than the red
+   spawn_blood_burst() gives every other enemy — and cries with SFX_TNTCL_DIE,
+   the tentacle's wet pop, which is why that clip is now also in the Catacombs
+   bank. The peak colour of the burst; draw_particles fades it to black over
+   each particle's life, exactly as it fades the red. */
+#define MGT_ICHOR_R           70
+#define MGT_ICHOR_G          200
+#define MGT_ICHOR_B           20
+
 typedef enum {
     MGT_ATTACKING,  /* the only living state: from spawn, straight at the player */
     MGT_DEAD,

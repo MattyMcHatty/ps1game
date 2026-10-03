@@ -162,7 +162,26 @@ This is the step that gets skipped and it is the one that matters. Nothing at
 runtime reports an overflow: load_vag_at() silently drops any clip that will
 not fit, and that effect is then mute forever with no message.
 
-Run this, with your clip added to the right list:
+>>> USE tools\spu_budget.py. <<< It reads sound.c's file table and sfx_bank[]
+tags, sound.h's enum and disc.xml's sources, so it cannot go stale the way the
+hand-kept lists below did (they never learned SND_BANK_CATACOMBS). Tag the
+clip in sound.c first, or ask "what if" without editing anything:
+
+    py tools\spu_budget.py
+    py tools\spu_budget.py SFX_TNTCL_DIE:CATACOMBS
+
+As of the MAGGOT'S DEATH CRY (SFX_TNTCL_DIE's fourth copy, Oct 2026):
+
+    bank_base 0x46150   region 237232
+    house 162560   boss 190336   garden 177216   intro 22080   asag 170240
+    catacombs 188800   spare 46896
+
+  CATACOMBS IS 1.5 KB UNDER BOSS. The next Catacombs clip of any real size
+  makes it the largest bank, and from then on every byte it gains comes
+  straight off `spare`.
+
+The older hand-kept version follows for the record; it omits the Catacombs
+bank, so do not trust its `spare`:
 
     cd C:\Users\virtu\Documents\ps1game\sounds
     py -c "

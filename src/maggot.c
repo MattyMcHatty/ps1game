@@ -118,10 +118,17 @@ void maggot_damage(Maggot *m, int dmg) {
     if (m->health <= 0) {
         m->health = 0;
         m->state  = MGT_DEAD;
-        spawn_blood_burst(m->x, maggot_body_y(m), m->z);
-        /* No death sound, the creep's call: the bank has ~13 KB left after
-           the buzz. The buzz itself stops on the next update if this was the
-           last of the swarm. */
+        /* GREEN, not the red every other enemy bleeds: an insect's ichor.
+           spawn_burst() is spawn_blood_burst() with the colour exposed, so the
+           spray is the same size and life as everyone else's. */
+        spawn_burst(m->x, maggot_body_y(m), m->z,
+                    MGT_ICHOR_R, MGT_ICHOR_G, MGT_ICHOR_B);
+        /* The tentacle's wet death pop, borrowed the way the spider, the
+           Rafflesia and Asag's boils borrow it. Its SND_BANK_CATACOMBS tag is
+           in sound.c for this line — without it sound_play() would return
+           silently in every Catacombs room. The buzz itself stops on the next
+           update if this was the last of the swarm. */
+        sound_play(SFX_TNTCL_DIE);
     }
 }
 

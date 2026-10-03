@@ -413,6 +413,13 @@ typedef enum {
        Tomb's east door reads "Locked from the other side" and does nothing.
        Bit 0 of game_flags2. */
     FLAG_ZIG_ZAG_DOOR,
+
+    /* THE H CORRIDOR'S MAGGOT DROP has been sprung: the first entry from the
+       Zig Zag Tomb set it off, and it never runs again. Set on the arrival
+       frame, not when the fifth maggot falls, so leaving mid-drop forfeits the
+       rest rather than re-running the whole thing (src/h_corridor.h). Bit 1 of
+       game_flags2. */
+    FLAG_H_CORRIDOR_MAGGOTS,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

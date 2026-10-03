@@ -133,8 +133,15 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        silently in the one room the fight happens in — the trap sound.h's bank
        note opens with. It is 11,840 bytes and takes asag to 170,240, still
        20 KB under BOSS, which is the bank that sizes `spare`; `spare` does not
-       move. (tools/ADDING_A_SOUND.txt STEP 3, re-run with this added.) */
-    [SFX_TNTCL_DIE]  = SND_BANK_HOUSE | SND_BANK_GARDEN | SND_BANK_ASAG,
+       move. (tools/ADDING_A_SOUND.txt STEP 3, re-run with this added.)
+
+       ...and in the CATACOMBS bank, a fourth copy, as the MAGGOT's death cry
+       (src/maggot.c). It takes catacombs 176,960 -> 188,800, still 1.5 KB
+       under BOSS's 190,336, so `spare` stays 46,896 — but it is now within a
+       whisker of being the largest bank, and the next Catacombs clip of any
+       size WILL move `spare`. */
+    [SFX_TNTCL_DIE]  = SND_BANK_HOUSE | SND_BANK_GARDEN | SND_BANK_ASAG |
+                       SND_BANK_CATACOMBS,
     [SFX_STEP1]      = SND_RESIDENT,   /* the player walks in every room        */
     [SFX_STEP2]      = SND_RESIDENT,
     [SFX_SLAM]       = SND_RESIDENT,   /* the boss launching a shockwave        */

@@ -27,7 +27,8 @@
 #include "dresser.h"
 #include "sconce.h"
 #include "oil_dispenser.h"
-#include "player.h"             /* current_weapon, player_weapons */
+#include "player.h"             /* current_weapon, player_weapons, game flags */
+#include "title.h"              /* STATE_H_CORRIDOR, the maggots' area tag    */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 
 /* The H Corridor — see h_corridor.h for the layout and the doors. */
@@ -261,6 +262,69 @@ static void hc_north_door_text(RenderContext *ctx) {
                         DOOR_PIXEL_SIZE);
 }
 
+/* ---- THE MAGGOT DROP (h_corridor.h) -----------------------------------------
+   Two spots inside the ladder shaft (x[0,600] z[0,600], open to y=-1600), one
+   either side of the ladder's x[200,400] and 150 off the south wall it climbs,
+   so a body appears in the shaft rather than in the ladder. Taken in turn,
+   west spot first.
+
+   SPAWNED HIGH, ON PURPOSE. maggot_spawn() takes a floor ANCHOR, and
+   apply_ddog_height lets an anchor that starts ABOVE the floor fall under
+   GRAVITY to it (it only refuses to lift one that starts below). An anchor of
+   -1249 puts the body about y=-1270, inside the shaft and under its y=-1600
+   cap, and it falls the 1100 to the standing anchor in a little over a second
+   — a maggot dropping out of the dark above the ladder rather than appearing
+   from nothing on the floor. It hunts from its first frame (no emergence), so
+   it drifts out of the shaft as it falls.
+
+   THE TIMING: the first falls HC_MAGGOT_FIRST frames after arrival, the rest
+   every HC_MAGGOT_GAP. The arrival is 5000 down the west leg, and at MGT_SPEED
+   (11) that is ~7.5 s of flight, so all five are in the air before the first
+   one arrives: a string of them coming up the leg, not a clump. */
+#define HC_MAGGOT_COUNT        5
+#define HC_MAGGOT_FIRST       60    /* 1 s after the door                       */
+#define HC_MAGGOT_GAP        120    /* 2 s between drops                        */
+#define HC_MAGGOT_SPOT_Z     150
+#define HC_MAGGOT_DROP_Y    (-1100) /* above the standing anchor, in the shaft  */
+
+static const int16_t hc_maggot_spot_x[2] = { 100, 500 };
+
+static int hc_from_tomb      = 0;   /* latch: set by the Tomb's south door      */
+static int hc_maggots_left   = 0;   /* still to fall on this visit              */
+static int hc_maggot_timer   = 0;   /* frames to the next drop                  */
+static int hc_maggot_next    = 0;   /* which spot the next one falls from       */
+
+void h_corridor_note_tomb_arrival(void) {
+    hc_from_tomb = 1;
+}
+
+/* Called by h_corridor_init(): consume the latch, and spring the drop if this
+   is the arrival from the Tomb and it has never run. */
+static void hc_maggots_arm(void) {
+    int from_tomb = hc_from_tomb;
+    hc_from_tomb    = 0;
+    hc_maggots_left = 0;
+    if (!from_tomb || game_flag(FLAG_H_CORRIDOR_MAGGOTS)) return;
+    game_flag_set(FLAG_H_CORRIDOR_MAGGOTS);
+    hc_maggots_left = HC_MAGGOT_COUNT;
+    hc_maggot_timer = HC_MAGGOT_FIRST;
+    hc_maggot_next  = 0;
+}
+
+void h_corridor_update(void) {
+    if (hc_maggots_left <= 0 || game_over) return;
+    if (--hc_maggot_timer > 0) return;
+    /* A full pool places nothing; that one is lost rather than retried, which
+       only a pool already holding the Meat Plant's swarm could cause — and
+       maggots_reset() empties it on every room change. */
+    maggot_spawn(hc_maggot_spot_x[hc_maggot_next], HC_MAGGOT_SPOT_Z,
+                 HC_FLOOR_Y - GROUND_FLOOR_Y + HC_MAGGOT_DROP_Y,
+                 STATE_H_CORRIDOR);
+    hc_maggot_next ^= 1;
+    hc_maggots_left--;
+    hc_maggot_timer = HC_MAGGOT_GAP;
+}
+
 void h_corridor_spawn_north(void) {
     /* In from the Zig Zag Tomb. 220 off wall 9 on its walkable -Z side, on the
        door's centre line (the west leg's, 300 clear of both its walls), facing
@@ -294,6 +358,8 @@ void h_corridor_init(void) {
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
+
+    hc_maggots_arm();   /* the drop, if this is the Tomb arrival and the first */
 
     hc_view_resolve(1);
 }
