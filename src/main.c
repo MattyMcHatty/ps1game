@@ -100,6 +100,7 @@
 #include "room_of_bones.h"
 #include "cleaver_l.h"
 #include "zig_zag_tomb.h"
+#include "h_corridor.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -362,6 +363,7 @@ static void load_area_geometry(GameState area) {
         case STATE_ROOM_OF_BONES:    room_of_bones_load_geometry(); break;
         case STATE_CLEAVER_L:        cleaver_l_load_geometry(); break;
         case STATE_ZIG_ZAG_TOMB:     zig_zag_tomb_load_geometry(); break;
+        case STATE_H_CORRIDOR:       h_corridor_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2509,6 +2511,35 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* ...and the SOUTH door, into the H Corridor. Called unconditionally
+           for its edge state; it is 4200 from the north door and 5500 from the
+           east one in Manhattan terms, so none can share a frame, and it is
+           vetoed anyway. */
+        if (zig_zag_tomb_south_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_H_CORRIDOR;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_H_CORRIDOR) {
+        /* THE H CORRIDOR - Chapter 3's seventeenth room: the shared wall
+           routine and ONE flat floor zone over three 600-wide corridors in an
+           "h". multi_level is 0. One door wired, the north one back to the Zig
+           Zag Tomb; the south door and the ladder are drawn and sealed.
+           Nothing seeded; both Chapter 3 enemy updates are called anyway, on
+           the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (h_corridor_north_door_triggered(lock)) {
+            pending_area = STATE_ZIG_ZAG_TOMB;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ROOM_OF_BONES) {
         /* THE ROOM OF BONES - Chapter 3's fourteenth room: the shared wall
            routine, ONE flat floor zone and one door, the Room of Legs' shape.
@@ -3013,6 +3044,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         cleaver_l_draw(ctx);
     else if (area == STATE_ZIG_ZAG_TOMB)
         zig_zag_tomb_draw(ctx);
+    else if (area == STATE_H_CORRIDOR)
+        h_corridor_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3461,6 +3494,11 @@ int main(int argc, const char **argv) {
     zig_zag_tomb_load_assets();   /* CHAPTER 3's sixteenth room: four borrowed
                                      headers (cobble, inner door, loculus,
                                      bars) and NO registration - it owns
+                                     nothing. No CD access. */
+    loading_screen_pump(&ctx);
+    h_corridor_load_assets();     /* CHAPTER 3's seventeenth room: three
+                                     borrowed headers (cobble, inner door,
+                                     ladder) and NO registration - it owns
                                      nothing. No CD access. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
@@ -4312,6 +4350,13 @@ int main(int argc, const char **argv) {
                    its panel. It owns nothing. Same guarantee and same silent
                    failure mode as the branches around it. */
                 zig_zag_tomb_upload_textures();
+            } else if (pending_area == STATE_H_CORRIDOR) {
+                /* THE H CORRIDOR. Cobble and the inner door through the
+                   Catacombs Entry's narrow uploaders, and the ladder through
+                   the North Chamber's - the Cleaver Corridor's three pages. It
+                   owns nothing. Same guarantee and same silent failure mode as
+                   the branches around it. */
+                h_corridor_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5061,14 +5106,22 @@ int main(int argc, const char **argv) {
                     cleaver_l_spawn_west();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ZIG_ZAG_TOMB) {
-                /* TWO ARRIVALS. zig_zag_tomb_init()'s default is the north
+                /* THREE ARRIVALS. zig_zag_tomb_init()'s default is the north
                    door, from the Crucifix Corridor; back from Cleaver L it is
-                   the east door. Keyed on current_area, the room being LEFT and
-                   not a route, so a debug jump or a title load still lands at
-                   the north door. */
+                   the east door, and back from the H Corridor the south one.
+                   Keyed on current_area, the room being LEFT and not a route,
+                   so a debug jump or a title load still lands at the north
+                   door. */
                 zig_zag_tomb_init();
                 if (current_area == STATE_CLEAVER_L)
                     zig_zag_tomb_spawn_east();
+                else if (current_area == STATE_H_CORRIDOR)
+                    zig_zag_tomb_spawn_south();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_H_CORRIDOR) {
+                /* ONE ARRIVAL, the north door, so h_corridor_init()'s default
+                   spawn is also the only one. */
+                h_corridor_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5441,7 +5494,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_MEAT_PLANT ||
                    game_state == STATE_ROOM_OF_BONES ||
                    game_state == STATE_CLEAVER_L ||
-                   game_state == STATE_ZIG_ZAG_TOMB) {
+                   game_state == STATE_ZIG_ZAG_TOMB ||
+                   game_state == STATE_H_CORRIDOR) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

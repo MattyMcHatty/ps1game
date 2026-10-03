@@ -1378,6 +1378,18 @@
 
                  ZIGZAGTB.SMD, 71,420 bytes, inside the 118,784-byte arena. -->
             <file name="ZIGZAGTB.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\zig_zag_tomb.smd"/>
+
+            <!-- THE H CORRIDOR, the chapter's SEVENTEENTH room, through the
+                 Zig Zag Tomb's south door. Three 600-wide corridors in an "h",
+                 open above y=-800, with a sealed south door and an unwired
+                 ladder up a shaft. See src/h_corridor.h.
+
+                 NO NEW TEXTURE. COBBLE.TIM and CTCMBDR.TIM come through the
+                 Catacombs Entry's narrow uploaders and LADDER.TIM through the
+                 North Chamber's, the Cleaver Corridor's three.
+
+                 HCORRDR.SMD, 24,088 bytes, well inside the arena. -->
+            <file name="HCORRDR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\h_corridor.smd"/>
             <file name="BONES.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\bones.tim"/>
 
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass

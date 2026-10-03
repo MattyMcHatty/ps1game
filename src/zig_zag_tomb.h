@@ -23,17 +23,17 @@
    so from the north door (north-west corner) the way south runs east, west,
    east, and the east-west lanes between the rows are the legs of the Z.
 
-   THE DOORS. Three are drawn and TWO are wired up:
+   THE DOORS. Three, all wired up:
 
      NORTH  z=4200   x[200,400]   y[-400,0]  -> Crucifix Corridor, south door
      EAST   x=4200   z[1400,1600] y[-400,0]  -> Cleaver L, west door
-     south  z=0      x[200,400]              not built
+     SOUTH  z=0      x[200,400]   y[-400,0]  -> H Corridor, north door
 
    The north door is in the XY plane approached from -Z (wall 4 runs z=4200 with
    nz=-4095), so TEXT_PLANE_XY with mirror=0. The east door is in the YZ plane
    approached from -X (wall 32 runs x=4199 with nx=-4095), so TEXT_PLANE_YZ with
-   mirror=1. The unbuilt south one is drawn and nothing else: no sign, no
-   trigger. It reads as a sealed door until the room behind it exists.
+   mirror=1. The south door is in the XY plane approached from +Z (wall 3 runs
+   z=0 with nz=+4095), so TEXT_PLANE_XY with mirror=1.
 
    >>> THE EAST DOOR IS LOCKED FROM THIS SIDE'S POINT OF VIEW: "Locked from the
    other side". <<< The Cleaver Corridor / Up Down Maze pair exactly, on
@@ -58,6 +58,9 @@ void zig_zag_tomb_draw(RenderContext *ctx);
 void zig_zag_tomb_spawn_north(void);
 /* Arrival through the east door, from Cleaver L: just inside it, facing west. */
 void zig_zag_tomb_spawn_east(void);
+/* Arrival through the south door, from the H Corridor: just inside it, facing
+   north. */
+void zig_zag_tomb_spawn_south(void);
 
 /* One frame of each door's Circle test. `lock` is main's usual suppression.
    Returns 1 on a fresh press made in range and facing the door — the frame
@@ -65,6 +68,7 @@ void zig_zag_tomb_spawn_east(void);
    FLAG_ZIG_ZAG_DOOR is set, but still advances its edge state. */
 int  zig_zag_tomb_north_door_triggered(int lock);
 int  zig_zag_tomb_east_door_triggered(int lock);
+int  zig_zag_tomb_south_door_triggered(int lock);
 
 /* Arm every interaction in the room. Called by the spawns above; exported so a
    caller that places the player some other way can still ensure a Circle held

@@ -148,6 +148,10 @@ TexBank area_bank_of(GameState area) {
        through the Catacombs Entry's narrow uploaders, the bars through
        bars_upload_texture() - the Sliding Bars Room's set less its panel. */
     case STATE_ZIG_ZAG_TOMB:
+    /* THE H CORRIDOR owns nothing: cobble and the inner door through the
+       Catacombs Entry's narrow uploaders, the ladder through the North
+       Chamber's - the Cleaver Corridor's set. */
+    case STATE_H_CORRIDOR:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -172,7 +176,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_MEAT_PLANT ||
            area == STATE_ROOM_OF_BONES ||
            area == STATE_CLEAVER_L ||
-           area == STATE_ZIG_ZAG_TOMB;
+           area == STATE_ZIG_ZAG_TOMB ||
+           area == STATE_H_CORRIDOR;
 }
 
 /* ---- The prop models -------------------------------------------------------

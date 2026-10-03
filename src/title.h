@@ -223,6 +223,12 @@ typedef enum {
                                 door to Cleaver L is locked from this side. See
                                 src/zig_zag_tomb.h. Appended, not inserted: saves
                                 store raw enum values. */
+    STATE_H_CORRIDOR,        /* THE H CORRIDOR, through the Zig Zag Tomb's
+                                south door. Chapter 3's seventeenth room: three
+                                600-wide corridors in an "h", flat, one door
+                                wired; a second door and a ladder are drawn and
+                                sealed. See src/h_corridor.h. Appended, not
+                                inserted: saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

@@ -22,7 +22,7 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 43  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 44  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
@@ -35,7 +35,7 @@
                                north_chamber, room_of_heads, cleaver_corridor,
                                crucifix_corridor, sliding_bars_room,
                                room_of_legs, meat_plant, room_of_bones,
-                               cleaver_l, zig_zag_tomb.
+                               cleaver_l, zig_zag_tomb, h_corridor.
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
                                are alternative rooms behind the same doors, and

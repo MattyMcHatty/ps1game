@@ -165,6 +165,10 @@ AREAS = {
                   # Crucifix Corridor's south door: owns nothing, and borrows
                   # cobble, the inner door, the loculus and the bars.
                   "zig_zag_tomb_upload_textures",
+                  # THE H CORRIDOR, the chapter's seventeenth room, off the Zig
+                  # Zag Tomb's south door: owns nothing, and borrows cobble,
+                  # the inner door and the ladder (the North Chamber's).
+                  "h_corridor_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

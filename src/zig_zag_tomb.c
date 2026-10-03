@@ -215,13 +215,22 @@ void zig_zag_tomb_upload_textures(void) {
    11 proud of the wall along -X, and the -200 on the Z argument.
 
    >>> LOCKED FROM THE OTHER SIDE until Cleaver L unlocks it — the Up Down
-   Maze's north door and the Cleaver Corridor exactly, on FLAG_ZIG_ZAG_DOOR. <<<
-
-   THE SOUTH DOOR, z=0 x[200,400], is drawn and nothing else: no sign, no
-   trigger. It reads as a sealed door until the room behind it exists. */
+   Maze's north door and the Cleaver Corridor exactly, on FLAG_ZIG_ZAG_DOOR. <<< */
 #define ZZ_EAST_X           4200
 #define ZZ_EAST_Z           1500     /* the art spans z[1400,1600] */
 #define ZZ_EAST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
+
+/* ---- THE SOUTH DOOR --------------------------------------------------------
+   z=0, x[200,400], y[-400,0] — in the south wall at its west end, the foot of
+   the west lane. Out to THE H CORRIDOR, through the north door at the head of
+   its west leg (the two meshes share a world: H Corridor z = this z + 5400).
+
+   A door in the XY plane at fixed Z, approached from +Z (wall 3 runs z=0 with
+   nz=+4095), so TEXT_PLANE_XY with mirror=1, the sign 11 proud of the wall
+   along +Z, and the -200 on the X argument. The north door's opposite pair. */
+#define ZZ_SOUTH_X           300     /* the art spans x[200,400] */
+#define ZZ_SOUTH_Z             0
+#define ZZ_SOUTH_TEXT_Y     (-186)   /* eye level on the y=0 floor */
 
 #define ZZ_TEXT_RADIUS      1200
 #define ZZ_FADE_NEAR         800
@@ -231,11 +240,13 @@ void zig_zag_tomb_upload_textures(void) {
    carried in through the transition cannot fire on the arrival frame. */
 static int north_circle_prev = 1;
 static int east_circle_prev  = 1;
+static int south_circle_prev = 1;
 
 void zig_zag_tomb_arm(void) {
     int held = interact_tapped();
     north_circle_prev = held;
     east_circle_prev  = held;
+    south_circle_prev = held;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -258,6 +269,10 @@ static int zz_door_triggered(int lock, int *circle_prev,
 
 int zig_zag_tomb_north_door_triggered(int lock) {
     return zz_door_triggered(lock, &north_circle_prev, ZZ_NORTH_X, ZZ_NORTH_Z);
+}
+
+int zig_zag_tomb_south_door_triggered(int lock) {
+    return zz_door_triggered(lock, &south_circle_prev, ZZ_SOUTH_X, ZZ_SOUTH_Z);
 }
 
 /* Tested AFTER the shared trigger so the edge state still advances while it is
@@ -305,6 +320,12 @@ static void zz_north_door_text(RenderContext *ctx) {
                  0, TEXT_PLANE_XY, 0);   /* mirror=0: XY door approached from -Z */
 }
 
+static void zz_south_door_text(RenderContext *ctx) {
+    zz_door_text(ctx, ZZ_SOUTH_X, ZZ_SOUTH_Z,
+                 ZZ_SOUTH_X - 200, ZZ_SOUTH_TEXT_Y, ZZ_SOUTH_Z + 11,
+                 1, TEXT_PLANE_XY, 0);   /* mirror=1: XY door approached from +Z */
+}
+
 static void zz_east_door_text(RenderContext *ctx) {
     zz_door_text(ctx, ZZ_EAST_X, ZZ_EAST_Z,
                  ZZ_EAST_X - 11, ZZ_EAST_TEXT_Y, ZZ_EAST_Z - 200,
@@ -334,6 +355,19 @@ void zig_zag_tomb_spawn_east(void) {
     cam_vy  = 0;
     cam_z   = ZZ_EAST_Z;
     cam_rot = 3072;                    /* facing -X, west */
+    zig_zag_tomb_arm();
+}
+
+void zig_zag_tomb_spawn_south(void) {
+    /* Back from the H Corridor. 220 off wall 3 on its walkable +Z side, on the
+       door's centre line (the west lane's, 300 clear of the west wall and of
+       the first block's face), facing +Z — the direction of travel, north up
+       the lane. The z~900 bars across this lane are 680 further on. */
+    cam_x   = ZZ_SOUTH_X;
+    cam_y   = ZZ_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = ZZ_SOUTH_Z + (ZZ_WALL_RADIUS + 25);
+    cam_rot = 0;                       /* facing +Z, north */
     zig_zag_tomb_arm();
 }
 
@@ -555,6 +589,7 @@ void zig_zag_tomb_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         zz_north_door_text(ctx);   /* north: XY plane, approached from -Z */
         zz_east_door_text(ctx);    /* east:  YZ plane, approached from -X */
+        zz_south_door_text(ctx);   /* south: XY plane, approached from +Z */
         /* THE CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Their sheets sit at Voff 128, so each is handed the window to restore

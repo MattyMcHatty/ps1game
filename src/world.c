@@ -192,7 +192,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_CRUCIFIX_CORRIDOR, STATE_SLIDING_BARS_ROOM,
     STATE_ROOM_OF_LEGS,    STATE_MEAT_PLANT,
     STATE_ROOM_OF_BONES,   STATE_CLEAVER_L,
-    STATE_ZIG_ZAG_TOMB,
+    STATE_ZIG_ZAG_TOMB,    STATE_H_CORRIDOR,
 };
 
 static int room_index(GameState area) {
@@ -313,6 +313,9 @@ static int room_index(GameState area) {
         /* THE ZIG ZAG TOMB, Chapter 3's sixteenth room, through the Crucifix
            Corridor's south door. Slot 42 of 64. */
         case STATE_ZIG_ZAG_TOMB:      return 42;
+        /* THE H CORRIDOR, Chapter 3's seventeenth room, through the Zig Zag
+           Tomb's south door. Slot 43 of 64. */
+        case STATE_H_CORRIDOR:        return 43;
         default:                   return 0;
     }
 }
