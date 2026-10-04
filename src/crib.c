@@ -33,6 +33,11 @@ typedef struct {
     int       spawned;     /* Creeps released so far, 0..CRIB_CREEP_TOTAL       */
     int32_t   tilt;        /* current rock angle, PS1 units; 0 = level          */
 
+    /* ---- a Nursery MIRROR (crib_place_mirror) ---- */
+    int       mirror;      /* 1 = lit by another room's solved bit, never wakes */
+    int       mirror_paired;  /* 0 = no crib to mirror yet: always dark          */
+    GameState mirror_src;  /* the room whose crib_room_solved() lights it       */
+
     /* ---- the OUTER spawn points (crib_set_outer_spawns / _add_outer_spawn) ---- */
     int       outer_n;     /* 0 = the cot's own long sides; else how many below  */
     int32_t   out_x[CRIB_MAX_OUTER], out_y[CRIB_MAX_OUTER], out_z[CRIB_MAX_OUTER];
@@ -64,6 +69,18 @@ int crib_room_solved(GameState area) {
     /* world_room_bit(), not a shift of the mask: a 64-bit shift by a variable
        needs libgcc and there is none — see the note in src/world.h. */
     return (crib_solved_rooms & world_room_bit(world_room_index(area))) != 0;
+}
+
+/* The debug menu's grant (crib.h). A placed encounter cot still IDLE is put to
+   SOLVED too, so a jump straight into its room cannot wake it. */
+void crib_room_mark_solved(GameState area) {
+    int i;
+    crib_solved_rooms |= world_room_bit(world_room_index(area));
+    for (i = 0; i < crib_count; i++) {
+        Crib *c = &cribs[i];
+        if (c->active && c->area == area && c->encounter && c->state == CRIB_IDLE)
+            c->state = CRIB_SOLVED;
+    }
 }
 
 static SMD  *crib_smd = NULL;
@@ -214,6 +231,9 @@ void crib_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y) 
     c->spawned = 0;
     c->tilt    = 0;
     c->outer_n = 0;     /* the Room of Arms' default; a room overrides after */
+    c->mirror        = 0;
+    c->mirror_paired = 0;
+    c->mirror_src    = area;
 
     /* World AABB = the axis-aligned bound of the rotated mesh footprint, corner
        by corner, exactly as the lever, the sconce and the oil dispenser bake
@@ -244,6 +264,24 @@ void crib_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y) 
             if (wz > c->max_z) c->max_z = wz;
         }
     }
+}
+
+/* A mirror is an ordinary placement turned into scenery that can light: no
+   encounter, parked in SOLVED so cribs_update() and cribs_rest() treat it as an
+   inert cot, and told whose bit to read. The light itself is decided in
+   crib_beam_level(), live, and the rock in cribs_try_hit(). */
+void crib_place_mirror(GameState area, int32_t x, int32_t y, int32_t z,
+                       int32_t rot_y, int paired, GameState lit_by) {
+    int before = crib_count;
+    crib_place(area, x, y, z, rot_y);
+    if (crib_count == before) return;          /* MAX_CRIBS: nothing placed */
+
+    Crib *c = &cribs[crib_count - 1];
+    c->encounter     = 0;
+    c->state         = CRIB_SOLVED;
+    c->mirror        = 1;
+    c->mirror_paired = paired;
+    c->mirror_src    = lit_by;
 }
 
 /* ==========================================================================
@@ -290,6 +328,13 @@ static int32_t crib_rock(int32_t tick, int32_t amp) {
    appears to snap off at the end. */
 static int32_t crib_beam_level(const Crib *c) {
     int32_t num, den;
+
+    /* A NURSERY MIRROR is at full beam or none, on its paired room's bit and
+       nothing else — not its own state, so the one rock a swing gives it
+       (CRIB_ECHO) leaves the light exactly as it was. Read live every frame, so
+       it comes on the moment that room's encounter banks its bit. */
+    if (c->mirror)
+        return (c->mirror_paired && crib_room_solved(c->mirror_src)) ? 256 : 0;
 
     if (c->state == CRIB_ACTIVE) {
         if (c->tick >= CRIB_BEAM_RAMP) return 256;
@@ -531,8 +576,11 @@ int cribs_try_hit(void) {
            stays live for anything else in the room — the rule every module-side
            hit test in this game keeps (the Living Statue's note in
            src/crucifaxe.c is the long version). Same for a cot that is already
-           moving: an encounter in progress absorbs nothing. */
-        if (!c->encounter) continue;
+           moving: an encounter in progress absorbs nothing. A Nursery MIRROR
+           is the exception to the first rule: not an encounter, but it does
+           take the hit — and since it is parked in SOLVED, the code below gives
+           it the one ECHO rock and nothing else. */
+        if (!c->encounter && !c->mirror) continue;
         if (c->state != CRIB_IDLE && c->state != CRIB_SOLVED) continue;
 
         /* Reach to the box's SURFACE, by clamping the camera into the baked
@@ -630,13 +678,24 @@ void cribs_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
    whole thing rocks with the cot for free.
 
    Read the long note in crib.h before touching the subdivision, the peak
-   brightness, or the decision to draw both walls: each of those three is an
-   answer to something (the GPU's 1023-pixel primitive drop, additive
-   saturation, and what an additive volume looks like from inside) rather than a
-   preference. */
-static void crib_draw_beam(RenderContext *ctx, const Crib *c) {
-    int32_t level = crib_beam_level(c);
+   brightness, or the decision to draw only the NEAR walls: each of those three
+   is an answer to something (the GPU's 1023-pixel primitive drop, additive
+   saturation, and fill rate) rather than a preference.
+
+   `fog` is the instance's fog factor (256 = clear, 0 = fully fogged), the same
+   one its cot's polys are shaded with, so the light fades into the dark with
+   the cot instead of popping off at the cull line. */
+static void crib_draw_beam(RenderContext *ctx, const Crib *c, int32_t fog) {
+    int32_t level = (crib_beam_level(c) * fog) >> 8;
     if (level <= 0) return;
+
+    /* THE CAMERA IN THE COT'S OWN PLAN — the inverse of crib_place()'s yaw —
+       which is all the facing test below needs. The tilt of a rock is ignored:
+       it is at most CRIB_ROCK_AMP and the test only picks which walls to skip. */
+    int32_t ycs = icos(c->rot_y), ysn = isin(c->rot_y);
+    int32_t cwx = cam_x - c->x, cwz = cam_z - c->z;
+    int32_t clx = (cwx * ycs - cwz * ysn) >> 12;
+    int32_t clz = (cwx * ysn + cwz * ycs) >> 12;
 
     uint8_t  *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     uint32_t *ot      = ctx->buffers[ctx->active_buffer].ot;
@@ -659,6 +718,19 @@ static void crib_draw_beam(RenderContext *ctx, const Crib *c) {
 
     for (face = 0; face < 4; face++) {
         int a = face, b = (face + 1) & 3;
+
+        /* >>> ONLY THE WALLS THAT FACE THE CAMERA. <<< Face 0 is the -Z side,
+           1 the +X, 2 the +Z, 3 the -X (the perimeter above), and a wall faces
+           the camera when the camera is past the lid on that wall's side. That
+           halves the shaft's quads AND its fill — the far wall was the second
+           additive layer over the same pixels — at the price of the summed core
+           (crib.h, CRIB_BEAM_PEAK). The player is held off the box, so the
+           camera is never inside the lid's footprint and at least one wall is
+           always drawn. */
+        if ((face == 0 && clz >= cr_min_z) || (face == 1 && clx <= cr_max_x) ||
+            (face == 2 && clz <= cr_max_z) || (face == 3 && clx >= cr_min_x))
+            continue;
+
         for (col = 0; col < CRIB_BEAM_COLS; col++) {
             /* Interpolate along this face's edge, so the columns share their
                boundary exactly and the shaft has no seam down it. */
@@ -1002,7 +1074,7 @@ void cribs_draw(RenderContext *ctx) {
         /* The beam, LAST for this instance and inside its matrix — which is
            what makes it rock with the cot rather than stand still while the cot
            tips out from under it. */
-        crib_draw_beam(ctx, c);
+        crib_draw_beam(ctx, c, fog_factor);
     }
 
     /* Back to the plain view matrix — whatever the caller draws next is in world

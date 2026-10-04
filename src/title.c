@@ -240,6 +240,9 @@ static const char *const level_names[] = {
        gaol door. The jump lands at that door, on the cells' side, whether or
        not it has been unlocked. 10 characters. */
     "GAOL CELLS",
+    /* THE NURSERY, the chapter's twenty-second room, behind the Gaol Cells'
+       south-east door. The jump lands at its east door. 7 characters. */
+    "NURSERY",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -294,6 +297,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* THE SHELF */
     STATE_LOADING,        /* GAOL ENTRY */
     STATE_LOADING,        /* GAOL CELLS */
+    STATE_LOADING,        /* NURSERY */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -346,6 +350,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_THE_SHELF,
     STATE_GAOL_ENTRY,
     STATE_GAOL_CELLS,
+    STATE_NURSERY,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

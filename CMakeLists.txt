@@ -99,6 +99,8 @@ add_executable(horror_game
     src/the_shelf.c
     src/gaol_entry.c
     src/gaol_cells.c
+    src/nursery.c
+    src/gula_tablet.c
     src/ladder_anim.c
     src/sconce.c
     src/oil_dispenser.c

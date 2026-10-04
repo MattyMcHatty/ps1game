@@ -106,6 +106,8 @@
 #include "the_shelf.h"
 #include "gaol_entry.h"
 #include "gaol_cells.h"
+#include "nursery.h"
+#include "gula_tablet.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -373,6 +375,7 @@ static void load_area_geometry(GameState area) {
         case STATE_THE_SHELF:        the_shelf_load_geometry(); break;
         case STATE_GAOL_ENTRY:       gaol_entry_load_geometry(); break;
         case STATE_GAOL_CELLS:       gaol_cells_load_geometry(); break;
+        case STATE_NURSERY:          nursery_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2698,6 +2701,39 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* ...and the SOUTH door, in the south-east corner, into the Nursery.
+           Called unconditionally for its edge state; the two doors are ~5000
+           apart, so they cannot share a frame, and it is vetoed anyway. */
+        if (gaol_cells_south_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_NURSERY;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_NURSERY) {
+        /* THE NURSERY - Chapter 3's twenty-second room: the shared wall routine
+           and ONE flat floor zone over the Room of Arms' octagon. multi_level
+           is 0. One wired door, east, back to the Gaol Cells; the west door is
+           sealed behind the Gula Tablet.
+
+           TWO PROPS: the six mirror cots, which run from the area-tagged
+           cribs_update() in the shared block (their one rock when struck) and
+           light off the five crib rooms' solved bits, and the Gula Tablet. Both
+           collide through apply_collision_reception, so nothing prop-specific
+           is needed here. No enemies seeded; both Chapter 3 enemy updates are
+           called anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (nursery_east_door_triggered(lock)) {
+            pending_area = STATE_GAOL_CELLS;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
            routine, ONE flat floor zone and one door, the Room of Bones' shape.
@@ -3087,7 +3123,7 @@ static void update_current_area(GameState area) {
 
        >>> IT IS ABOVE THE NO_AI SWITCH ON PURPOSE, AND update_creeps() IS
        BELOW IT. <<< A crib is a prop with a timeline, not AI, and its beam is
-       the one genuinely expensive thing this feature draws (36 additive quads —
+       the one genuinely expensive thing this feature draws (up to 12 additive quads —
        src/crib.h). Leaving the timeline running with the monsters switched off
        is what lets the beam be measured on its own, which is the whole purpose
        of that switch. The encounter cannot COMPLETE in that state, because
@@ -3236,6 +3272,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         gaol_entry_draw(ctx);
     else if (area == STATE_GAOL_CELLS)
         gaol_cells_draw(ctx);
+    else if (area == STATE_NURSERY)
+        nursery_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3719,6 +3757,11 @@ int main(int argc, const char **argv) {
                                      GAOLMUD.TIM, on the crib's page and
                                      palette. Deferred, so no CD access here. */
     loading_screen_pump(&ctx);
+    nursery_load_assets();        /* CHAPTER 3's twenty-second room: three
+                                     borrowed headers (cobble, the gula tablet,
+                                     inner door) and no registration of its own.
+                                     No CD access here. */
+    loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
                                      AT ALL. The names are recorded; the bytes
@@ -3769,6 +3812,16 @@ int main(int argc, const char **argv) {
                                   measured for collision AND re-centred in RAM
                                   here, because it was exported in The Pit's
                                   world coordinates - see src/bars.h. */
+    loading_screen_pump(&ctx);
+    gula_tablet_load_assets(); /* CHAPTER 3's Gula Tablet (the Nursery's west
+                                  door), on the crib's terms: a deferred texture
+                                  registration - GULATBLT.TIM, which the
+                                  Nursery's floor tiles draw too - and one
+                                  sector of geometry held for the run. Its mesh
+                                  is its collision AND its position: exported
+                                  in the Nursery's coordinates and drawn there,
+                                  the Incinerator's arrangement - see
+                                  src/gula_tablet.h. */
     loading_screen_pump(&ctx);
     cleavers_load_assets();    /* CHAPTER 3's cleaver blades (the Cleaver
                                   Corridor), on the bars' terms: one sector of
@@ -4629,6 +4682,14 @@ int main(int argc, const char **argv) {
                    back on the way in there. Same guarantee and same silent
                    failure mode as the branches around it. */
                 gaol_cells_upload_textures();
+            } else if (pending_area == STATE_NURSERY) {
+                /* THE NURSERY. Cobble and the inner door through the Catacombs
+                   Entry's narrow uploaders, the gula tablet (x640 y0, the ROOM
+                   OF ARMS' page, its own CLUT) through the Gula Tablet's, and
+                   the crib's page - which the Gaol Cells' mud borrows - through
+                   the crib's. Same guarantee and same silent failure mode as
+                   the branches around it. */
+                nursery_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5435,9 +5496,17 @@ int main(int argc, const char **argv) {
                     gaol_entry_spawn_gaol_door();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_GAOL_CELLS) {
-                /* ONE ARRIVAL, the west gaol door, so gaol_cells_init()'s
-                   default spawn is also the only one. */
+                /* TWO ARRIVALS. gaol_cells_init() places the player at the
+                   west gaol door, from the Gaol Entry; back from the Nursery
+                   they come in through the south door instead. */
                 gaol_cells_init();
+                if (current_area == STATE_NURSERY)
+                    gaol_cells_spawn_south();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_NURSERY) {
+                /* ONE ARRIVAL, the east door, so nursery_init()'s default
+                   spawn is also the only one. */
+                nursery_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5815,7 +5884,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_ROOM_OF_TORSOS ||
                    game_state == STATE_THE_SHELF ||
                    game_state == STATE_GAOL_ENTRY ||
-                   game_state == STATE_GAOL_CELLS) {
+                   game_state == STATE_GAOL_CELLS ||
+                   game_state == STATE_NURSERY) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

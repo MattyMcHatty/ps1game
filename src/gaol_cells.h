@@ -15,11 +15,12 @@
    x=0 (the shared world's 900-unit offset: Cells x = Entry x - 900), which is
    what is seen back through the door's bars; it is outside the collision.
 
-   THE DOORS. Six are drawn and ONE is wired up:
+   THE DOORS. Six are drawn and TWO are wired up:
 
      WEST   x=0     z[300,700]    y[-400,0]  -> Gaol Entry, gaol door
                                                 LOCKED: takes the Gaol Key
-     south  x[4600,4800] z=-500   y[-400,0]     not built (catacomb inner door)
+     SOUTH  x[4600,4800] z=-500   y[-400,0]  -> Nursery, east door (the
+                                                south-east corner)
      east   x=5000  z[500,700]    y[-400,0]     not built (catacomb inner door)
      cells  three barred cell doors             drawn in solid walls
 
@@ -58,6 +59,13 @@ void gaol_cells_spawn_west(void);
    DOOR — the frame main.c starts the transition on. A press that unlocks it
    (Gaol Key carried) uses the key and returns 0. */
 int  gaol_cells_west_door_triggered(int lock);
+
+/* Arrival through the south door, from the Nursery: just inside it, facing
+   north back up into the cells. */
+void gaol_cells_spawn_south(void);
+
+/* One frame of the south door's Circle test, into the Nursery. Unlocked. */
+int  gaol_cells_south_door_triggered(int lock);
 
 /* Arm every interaction in the room. Called by the spawn above; exported so a
    caller that places the player some other way can still ensure a Circle held

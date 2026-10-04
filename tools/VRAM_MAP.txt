@@ -70,6 +70,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   gaol door.tim        4       640     0   128   128     0   576,502
   gravel_texture.tim   4       640     0   128   128     0   0,480
   greenhouse.tim       8       640     0   128   128     0   672,497
+  gula tablet.tim      4       640     0   128   128     0   592,502
   hatch.tim            8       640     0   128   128     0   256,506
   heads.tim            8       640     0   128   128     0   672,501
   legs.tim             8       640     0   128   128     0   672,501
@@ -282,6 +283,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=501  x[672,928)  torsos.tim
   y=502  x[560,576)  chain.tim
   y=502  x[576,592)  gaol door.tim
+  y=502  x[592,608)  gula tablet.tim
   y=502  x[0,256)  inr_dbl_dr_half.tim
   y=502  x[256,512)  pipe.tim
   y=502  x[528,544)  pipe_button_off.tim
@@ -364,6 +366,7 @@ OVERLAP CHECK
   arms.tim                                 gaol door.tim        time-shared (streaming)
   arms.tim                                 gravel_texture.tim   time-shared (streaming)
   arms.tim                                 greenhouse.tim       time-shared (streaming)
+  arms.tim                                 gula tablet.tim      time-shared (streaming)
   arms.tim                                 hatch.tim            time-shared (streaming)
   arms.tim                                 heads.tim            time-shared (streaming)
   arms.tim                                 legs.tim             time-shared (streaming)
@@ -378,6 +381,7 @@ OVERLAP CHECK
   asag.tim                                 gaol door.tim        time-shared (streaming)
   asag.tim                                 gravel_texture.tim   time-shared (streaming)
   asag.tim                                 greenhouse.tim       time-shared (streaming)
+  asag.tim                                 gula tablet.tim      time-shared (streaming)
   asag.tim                                 hatch.tim            time-shared (streaming)
   asag.tim                                 heads.tim            time-shared (streaming)
   asag.tim                                 legs.tim             time-shared (streaming)
@@ -402,6 +406,7 @@ OVERLAP CHECK
   bones.tim                                gaol door.tim        time-shared (streaming)
   bones.tim                                gravel_texture.tim   time-shared (streaming)
   bones.tim                                greenhouse.tim       time-shared (streaming)
+  bones.tim                                gula tablet.tim      time-shared (streaming)
   bones.tim                                hatch.tim            time-shared (streaming)
   bones.tim                                heads.tim            time-shared (streaming)
   bones.tim                                legs.tim             time-shared (streaming)
@@ -435,6 +440,7 @@ OVERLAP CHECK
   shelf_incinerator.tim                    gaol door.tim        time-shared (streaming)
   shelf_incinerator.tim                    gravel_texture.tim   time-shared (streaming)
   shelf_incinerator.tim                    greenhouse.tim       time-shared (streaming)
+  shelf_incinerator.tim                    gula tablet.tim      time-shared (streaming)
   shelf_incinerator.tim                    hatch.tim            time-shared (streaming)
   shelf_incinerator.tim                    heads.tim            time-shared (streaming)
   shelf_incinerator.tim                    legs.tim             time-shared (streaming)
@@ -456,6 +462,7 @@ OVERLAP CHECK
   chnlnk.tim                               gaol door.tim        time-shared (streaming)
   chnlnk.tim                               gravel_texture.tim   time-shared (streaming)
   chnlnk.tim                               greenhouse.tim       time-shared (streaming)
+  chnlnk.tim                               gula tablet.tim      time-shared (streaming)
   chnlnk.tim                               hatch.tim            time-shared (streaming)
   chnlnk.tim                               heads.tim            time-shared (streaming)
   chnlnk.tim                               legs.tim             time-shared (streaming)
@@ -548,6 +555,7 @@ OVERLAP CHECK
   frnt_dr.tim                              red_crpt.tim         time-shared (streaming)
   gaol door.tim                            gravel_texture.tim   time-shared (streaming)
   gaol door.tim                            greenhouse.tim       time-shared (streaming)
+  gaol door.tim                            gula tablet.tim      time-shared (streaming)
   gaol door.tim                            hatch.tim            time-shared (streaming)
   gaol door.tim                            heads.tim            time-shared (streaming)
   gaol door.tim                            legs.tim             time-shared (streaming)
@@ -562,6 +570,7 @@ OVERLAP CHECK
   gravel_gs.tim                            stable glyphs.tim    time-shared (streaming)
   gravel_gs.tim                            upstairs.tim         time-shared (streaming)
   gravel_texture.tim                       greenhouse.tim       time-shared (streaming)
+  gravel_texture.tim                       gula tablet.tim      time-shared (streaming)
   gravel_texture.tim                       hatch.tim            time-shared (streaming)
   gravel_texture.tim                       heads.tim            time-shared (streaming)
   gravel_texture.tim                       legs.tim             time-shared (streaming)
@@ -574,6 +583,7 @@ OVERLAP CHECK
   grdn_gte.tim                             loculus.tim          time-shared (streaming)
   grdngtl.tim                              lumberer_a.tim       time-shared (streaming)
   greenhouse door.tim                      red_crpt.tim         time-shared (streaming)
+  greenhouse.tim                           gula tablet.tim      time-shared (streaming)
   greenhouse.tim                           hatch.tim            time-shared (streaming)
   greenhouse.tim                           heads.tim            time-shared (streaming)
   greenhouse.tim                           legs.tim             time-shared (streaming)
@@ -589,6 +599,14 @@ OVERLAP CHECK
   grss.tim                                 xt_dr_lckd.tim       time-shared (streaming)
   grss_gs.tim                              stn_stl.tim          time-shared (streaming)
   grss_gs.tim                              strs.tim             time-shared (streaming)
+  gula tablet.tim                          hatch.tim            time-shared (streaming)
+  gula tablet.tim                          heads.tim            time-shared (streaming)
+  gula tablet.tim                          legs.tim             time-shared (streaming)
+  gula tablet.tim                          plinth_rg.tim        time-shared (streaming)
+  gula tablet.tim                          poison_flower_base.tim time-shared (streaming)
+  gula tablet.tim                          torsos.tim           time-shared (streaming)
+  gula tablet.tim                          trck_clue.tim        time-shared (streaming)
+  gula tablet.tim                          trees.tim            time-shared (streaming)
   hatch.tim                                heads.tim            time-shared (streaming)
   hatch.tim                                legs.tim             time-shared (streaming)
   hatch.tim                                plinth_rg.tim        time-shared (streaming)

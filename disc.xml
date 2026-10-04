@@ -1474,6 +1474,29 @@
             <file name="GAOLCELL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\gaol_cells.smd"/>
             <file name="GAOLMUD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\gaol_mud.tim"/>
 
+            <!-- THE NURSERY, the chapter's TWENTY-SECOND room, through the
+                 Gaol Cells' south-east door. The Room of Arms' octagon with six
+                 gula-tablet floor tiles, a mirror cot on each, and the Gula
+                 Tablet across its sealed west door. See src/nursery.h.
+
+                 NO TEXTURE OF ITS OWN. COBBLE and CTCMBDR are borrowed as
+                 every Chapter 3 room borrows them; GULATBLT.TIM belongs to the
+                 Gula Tablet prop, below, and the floor tiles draw it too. -->
+            <file name="NURSERY.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\nursery.smd"/>
+
+            <!-- THE GULA TABLET, the Nursery's prop: a 600 x 800 x 50 stone
+                 slab standing across its west door. Exported IN PLACE in the
+                 Nursery's coordinates and drawn exactly there - its mesh is
+                 its position AND its only collision data (src/gula_tablet.h).
+
+                 4bpp 128x128 at x640 y0, the ROOM OF ARMS' page - the gaol
+                 door's terms: it covers x[640,672) only, every owner of that
+                 page puts its own art back on entry, and none of them is drawn
+                 in the Nursery. Its CLUT is its OWN, at (592,502), beside the
+                 gaol door's. See tools/vram_map.py. -->
+            <file name="GULATBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\gula_tablet.smd"/>
+            <file name="GULATBLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gula tablet.tim"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

@@ -195,6 +195,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_ZIG_ZAG_TOMB,    STATE_H_CORRIDOR,
     STATE_ROOM_OF_TORSOS,  STATE_THE_SHELF,
     STATE_GAOL_ENTRY,      STATE_GAOL_CELLS,
+    STATE_NURSERY,
 };
 
 static int room_index(GameState area) {
@@ -332,6 +333,10 @@ static int room_index(GameState area) {
            Entry's gaol door. Slot 47 of 64. A Blood Pearl and two
            Lumberers (world_seed_room). */
         case STATE_GAOL_CELLS:        return 47;
+        /* THE NURSERY, Chapter 3's twenty-second room, through the Gaol
+           Cells' south door. Slot 48 of 64. Seeded EMPTY: its six cots are
+           placed by nursery_init() and light off the five crib rooms' bits. */
+        case STATE_NURSERY:           return 48;
         default:                   return 0;
     }
 }

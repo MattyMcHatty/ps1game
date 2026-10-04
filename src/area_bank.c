@@ -164,6 +164,10 @@ TexBank area_bank_of(GameState area) {
     /* THE GAOL CELLS owns GAOLMUD.TIM (Asag's mud converted again, on the
        crib's page and palette) and borrows the rest, the gaol door included. */
     case STATE_GAOL_CELLS:
+    /* THE NURSERY owns nothing: cobble and the inner door are borrowed, the
+       gula tablet comes through the Gula Tablet prop's uploader and the cots
+       through the crib's. */
+    case STATE_NURSERY:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -193,7 +197,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_ROOM_OF_TORSOS ||
            area == STATE_THE_SHELF ||
            area == STATE_GAOL_ENTRY ||
-           area == STATE_GAOL_CELLS;
+           area == STATE_GAOL_CELLS ||
+           area == STATE_NURSERY;
 }
 
 /* ---- The prop models -------------------------------------------------------

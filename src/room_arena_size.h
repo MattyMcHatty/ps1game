@@ -14,13 +14,13 @@
  *    122340 bytes   60 sectors  maze_one.smd
  *    114824 bytes   57 sectors  up_down_maze.smd
  *    112268 bytes   55 sectors  maze_two.smd
+ *     91848 bytes   45 sectors  gaol_cells.smd
  *     85572 bytes   42 sectors  keystone_maze.smd
  *     82512 bytes   41 sectors  meat_plant.smd
  *     74312 bytes   37 sectors  north_chamber.smd
  *     73812 bytes   37 sectors  zig_zag_tomb.smd
  *     70476 bytes   35 sectors  rear_gate.smd
  *     69812 bytes   35 sectors  Reception.smd
- *     69040 bytes   34 sectors  sliding_bars_room.smd
  *
  */
 #ifndef ROOM_ARENA_SIZE_H

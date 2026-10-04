@@ -189,6 +189,12 @@ AREAS = {
                   # again, on the crib's page and palette) and borrows cobble,
                   # the inner door, the bars and the gaol door.
                   "gaol_cells_upload_textures",
+                  # THE NURSERY, the chapter's twenty-second room, through the
+                  # Gaol Cells' south door: owns nothing. Borrows cobble and the
+                  # inner door, the gula tablet through the Gula Tablet prop's
+                  # uploader (gula tablet.tim, 4bpp on the arms' page, its own
+                  # palette) and the crib's page through the crib's.
+                  "nursery_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

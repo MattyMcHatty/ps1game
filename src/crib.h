@@ -112,6 +112,26 @@
    A later crib in a new room gets a new bit by being in a new room. To count
    them, count the set bits of crib_solved_mask().
 
+   ---- THE NURSERY'S MIRRORS ------------------------------------------------
+   The Nursery (src/nursery.c) stands SIX cots in a ring, and none of them is an
+   encounter. Each is a MIRROR of one crib elsewhere, placed with
+   crib_place_mirror(): it is LIT — the encounter's full beam, held still —
+   for exactly as long as its paired room's solved bit is set, and dark
+   otherwise. A swing still rocks it once (CRIB_ECHO), but it never wakes,
+   never pours a Creep, never plays SFX_CREEP and never changes its own light.
+   The pairing is the Nursery's to choose and it is written down there:
+
+       north        crib_room_solved(STATE_ROOM_OF_ARMS)
+       north-east   crib_room_solved(STATE_ROOM_OF_HEADS)
+       south-east   crib_room_solved(STATE_ROOM_OF_LEGS)
+       south        crib_room_solved(STATE_ROOM_OF_BONES)
+       south-west   crib_room_solved(STATE_ROOM_OF_TORSOS)
+       north-west   UNPAIRED — >>> THE SIXTH CRIB IS STILL TO COME. <<<
+
+   When the sixth crib encounter is built, its room already has a bit (it has a
+   room_index()), so pairing it is one line in nursery_init(): pass that room's
+   STATE_ and paired=1 to the north-west cot's crib_place_mirror().
+
    ADDING THE MECHANIC TO A ROOM is therefore: call crib_place() from its init
    with STATE_<ROOM>, call crib_upload_texture() and creeps_upload_texture()
    from its uploader, call cribs_update() and update_creeps() in its branch of
@@ -157,13 +177,13 @@
    which additive blending turns into nothing at all (src/incinerator.c's opening
    glow makes the same move and its note is the long version).
 
-   IT FLARES OUTWARD AS IT RISES — CRIB_BEAM_TOP_SCALE, about 1.8x the rim's
+   IT FLARES OUTWARD AS IT RISES — CRIB_BEAM_TOP_SCALE, about 1.5x the rim's
    plan size at the far end — so it is a splayed cone and not a box. Each
    perimeter quad is a trapezoid, and the scale is applied to each corner's
    offset from the cot's own plan CENTRE so the cone opens symmetrically whatever
    the mesh's origin happens to be.
 
-   >>> IT IS SUBDIVIDED 3 x 3 AND THAT IS A DRAWING LIMIT, NOT A STYLE CHOICE.
+   >>> IT IS SUBDIVIDED 3 x 2 AND THAT IS A DRAWING LIMIT, NOT A STYLE CHOICE.
    <<< The GPU DROPS a primitive whose screen extent passes 1023 pixels in either
    axis — it does not clip it (tools/ADDING_AN_ENEMY.txt mistake 13). At
    gte_SetGeomScreen(256) a span S passes 1023 at a VIEW DEPTH of S * 256 / 1023,
@@ -171,8 +191,8 @@
    not distance: a player standing 269 from the cot and merely TURNING drives it
    toward zero. The grid has to put every quad's threshold inside the 75 units the
    collision already holds the player off the box, so that no piece can be dropped
-   while it is still on screen — at 3 x 3 the widest quad is 210 across (threshold
-   52) and the tallest 233 (threshold 58).
+   while it is still on screen — at 3 x 2 the widest quad is 179 across (threshold
+   45) and the tallest 234 (threshold 58).
 
    >>> SIZE THE GRID ON THE WIDEST QUAD, WHICH SINCE THE FLARE IS AT THE TOP.
    <<< It was 2 x 4 while the shaft was a box, and two columns no longer fit: the
@@ -181,22 +201,31 @@
    droppable in play. Re-derive both numbers from CRIB_BEAM_TOP_SCALE whenever it
    moves. A round number is not the input.
 
-   BOTH WALLS OF THE SHAFT ARE DRAWN — there is no backface cull — because an
-   additive volume wants them. The far wall and the near wall sum, so the middle
-   of the shaft is brighter than its edges, which is what a beam looks like. That
-   is also why CRIB_BEAM_PEAK is 150 and not 255: two layers of 150 saturate to
-   white at the core and stay short of it at the rim, where one layer of 255
-   would blow the whole thing out flat.
+   >>> ONLY THE WALLS FACING THE CAMERA ARE DRAWN, AND BOTH USED TO BE. <<<
+   The far wall summed over the near one, so the core of the shaft was brighter
+   than its edges — but it was a second additive layer over the same pixels, and
+   the Nursery, with six cots lit and the Helluminator stretching the view across
+   the whole room, lagged on it (October 2026). crib_draw_beam() now skips the
+   walls whose side of the lid the camera is not on, a plan test in the cot's own
+   space rather than a gte_nclip(), so there is no winding to get backwards. One
+   or two walls of four are drawn: about half the quads and half the fill.
+   CRIB_BEAM_PEAK went 150 -> 220 to give the single layer the brightness the
+   summed pair had; the summed core is the look that was traded away.
 
-   >>> IT IS 36 ADDITIVE QUADS OVER A LOT OF SCREEN AND FILL RATE IS THIS
-   CONSOLE'S WEAK POINT — AND THE FLARE MADE EACH ONE BIGGER. <<< Nothing has
-   measured it. If the Room of Arms drops frames, read
-   tools/DIAGNOSING_FRAME_RATE.txt and measure U/D/G FIRST — optimising this room
-   by reasoning alone once made it 56% worse. The honest lever is then dropping
-   the far wall with a gte_nclip(), which halves the fill at the price of the
-   summed core above. Coarsening the grid is NOT a lever any more: 3 x 3 is the
-   minimum the flared shaft's own width allows, so going below it trades frames
-   for a beam that blinks out when the player stands beside the cot.
+   AT THE SAME TIME THE TOP THIRD WENT. The fall-off runs to black at the far
+   end, so the top row was the faintest third of the shaft but paid full fill.
+   The shaft is now two rows, 467 tall (the old bottom two), still falling to
+   black at its new top, and its flare is the same cone cut shorter (392, not
+   460). 3 x 4 x 2 = 24 quads before the facing test, against 36.
+
+   AND IT FADES WITH THE FOG. cribs_draw() hands the beam the cot's own fog
+   factor, so a distant lit cot dims into the dark with the wall behind it rather
+   than holding full brightness up to the cull line and popping off there.
+
+   Coarsening the grid is NOT a lever: 3 columns is the minimum the flared
+   shaft's own width allows, so going below it trades frames for a beam that
+   blinks out when the player stands beside the cot. Measure U/D/G FIRST
+   (tools/DIAGNOSING_FRAME_RATE.txt) before taking anything else off it.
 
    The intensity ramp is CUBIC rather than linear, and crib_beam_level() in the .c
    has the table showing why — a linear ramp over these same 180 frames looked
@@ -283,7 +312,9 @@
    property of THIS export and not a rule — re-UV the model past 127 on any axis
    and the window is load-bearing again. */
 
-#define MAX_CRIBS 4
+/* 6 for the Nursery's ring of mirror cots (src/nursery.c); every other room
+   places one. */
+#define MAX_CRIBS 6
 
 /* Room-authored spawn points a crib can pour from besides its own centre: two
    for the Rooms of Heads, Legs and Bones, three for the Room of Torsos (one per
@@ -330,18 +361,19 @@
 #define CRIB_ROCK_AMP        190
 
 /* The beam. Height is measured UP from the cot's top face, and -Y is up, so the
-   shaft's far end is at (rim y - CRIB_BEAM_HEIGHT). 700 takes it from the rim at
-   world y=-195 to y=-895, which is just past the Room of Arms' wall tops at
-   -800 — the room has no drawn ceiling at all (src/room_of_arms.c says so), so
-   the light reads as going up into the dark rather than stopping on a surface.
+   shaft's far end is at (rim y - CRIB_BEAM_HEIGHT). 467 takes it from the rim at
+   world y=-195 to y=-662, under every crib room's wall tops (-800), and the
+   fall-off reaches black there, so it fades out in the air rather than stopping
+   on a surface. It was 700, reaching -895; the top third was cut for fill rate
+   (see the note at the top of this file).
 
    CRIB_BEAM_COLS x CRIB_BEAM_ROWS is the subdivision, and the top of this file
    explains why it is a drawing limit rather than a preference. CRIB_BEAM_PEAK is
-   the per-layer brightness at the rim; both walls of the shaft are drawn and
-   they sum.
+   the brightness at the rim; only the walls facing the camera are drawn, so it
+   is the whole of it rather than half of a summed pair.
 
    >>> IT FLARES: THE SHAFT IS CRIB_BEAM_TOP_SCALE TIMES WIDER AT ITS FAR END
-   THAN AT THE RIM. <<< The scale is in 1/256ths, so 460 is about 1.8x, applied
+   THAN AT THE RIM. <<< The scale is in 1/256ths, so 392 is about 1.5x, applied
    to each plan corner's offset from the cot's own plan CENTRE and interpolated
    linearly with height. That turns each perimeter quad from a rectangle into a
    trapezoid and the shaft from a box into a splayed cone, which is what light
@@ -356,12 +388,18 @@
    inside 75. Dropping to three rows then buys most of the quad count back (36
    against the old 32) and its own threshold, 233 * 256 / 1023 = 58, is still
    inside 75. BOTH numbers have to be re-derived from CRIB_BEAM_TOP_SCALE
-   whenever it moves; the widest dimension is the one that governs. */
-#define CRIB_BEAM_HEIGHT     700
+   whenever it moves; the widest dimension is the one that governs.
+
+   >>> THEN THE TOP ROW WAS CUT: ROWS 3 -> 2, HEIGHT 700 -> 467, SCALE 460 ->
+   392. <<< Same cone, two thirds as tall: 460 was the scale at 700, and the
+   linear flare puts 256 + 204 * 2/3 = 392 at 467. The widest quad shrinks to
+   350 x 392/256 / 3 = 179 (threshold 45) and a row stays 234 tall (threshold
+   58), both still inside 75. */
+#define CRIB_BEAM_HEIGHT     467
 #define CRIB_BEAM_COLS         3
-#define CRIB_BEAM_ROWS         3
-#define CRIB_BEAM_PEAK       150
-#define CRIB_BEAM_TOP_SCALE  460   /* 1/256ths: 460 ~ 1.8x the rim's width */
+#define CRIB_BEAM_ROWS         2
+#define CRIB_BEAM_PEAK       220
+#define CRIB_BEAM_TOP_SCALE  392   /* 1/256ths: 392 ~ 1.5x the rim's width */
 
 /* The crucifaxe's reach to the cot, taken to the box's SURFACE and not to its
    centre. It has to be: the player is held 75 clear of an AABB whose plan
@@ -403,6 +441,15 @@ void cribs_clear(void);           /* drop every placed instance                 
    SOLVED according to the saved bitmask; any later one in the same area is
    scenery and never wakes. See the note at the top of this file. */
 void crib_place(GameState area, int32_t x, int32_t y, int32_t z, int32_t rot_y);
+
+/* Place a MIRROR cot (the Nursery's; see THE NURSERY'S MIRRORS above). Same
+   x/y/z/rot_y terms as crib_place(). It is never an encounter and does not
+   count as one: it is lit while crib_room_solved(lit_by) is set — read live
+   every frame, so it lights the moment that bit is banked or a save loads —
+   and rocks once when struck. paired=0 leaves it dark whatever lit_by says,
+   which is the slot for a crib that does not exist yet. */
+void crib_place_mirror(GameState area, int32_t x, int32_t y, int32_t z,
+                       int32_t rot_y, int paired, GameState lit_by);
 
 /* Replace spawn points 1 and 2 of the area's ENCOUNTER crib (see crib_release in
    the .c) with two room-authored points. x/z are WORLD, and y is the WORLD
@@ -466,4 +513,10 @@ void cribs_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 uint64_t crib_solved_mask(void);
 void     crib_solved_mask_set(uint64_t mask);   /* load; replaces the whole set */
 int      crib_room_solved(GameState area);
+
+/* Bank one room's bit as though its encounter had just been beaten — the debug
+   menu's crib options (src/debug_opts.h). Also settles that room's ENCOUNTER cot
+   if it is already placed and still IDLE, because a direct jump into a crib room
+   places it before the grant lands and crib_place() reads the bit only once. */
+void     crib_room_mark_solved(GameState area);
 #endif

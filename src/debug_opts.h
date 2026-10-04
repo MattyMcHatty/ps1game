@@ -169,6 +169,20 @@ typedef enum {
     DBG_ASAG_DEFEATED,       /* Asag dead: the catacomb doors stand open        */
     DBG_HAS_MEAT_SACK,       /* the Meat Plant's sack, in the inventory          */
     DBG_HAS_GAOL_KEY,        /* the key the Incinerator makes of the sack        */
+    /* THE FIVE CRIB FLAGS, one per crib encounter, so the Nursery's mirror cots
+       (src/nursery.c) can be lit without beating five rooms of Creeps first.
+       Each banks that room's bit in the solved set — crib_room_solved(STATE_
+       <ROOM>), the same bit the encounter sets when its tenth Creep dies — so
+       the crib in that room is SOLVED too (one rock when struck, no fight).
+       One-shot grants like the items above: a jump straight INTO a crib room
+       has already placed its cot by the time the latch is consumed, and
+       crib_room_mark_solved() settles it. The sixth crib has no option yet
+       because it has no room yet. */
+    DBG_CRIB_ARMS,           /* Room of Arms' crib beaten   (Nursery: north)      */
+    DBG_CRIB_HEADS,          /* Room of Heads' crib beaten  (Nursery: north-east) */
+    DBG_CRIB_LEGS,           /* Room of Legs' crib beaten   (Nursery: south-east) */
+    DBG_CRIB_BONES,          /* Room of Bones' crib beaten  (Nursery: south)      */
+    DBG_CRIB_TORSOS,         /* Room of Torsos' crib beaten (Nursery: south-west) */
     DEBUG_OPT_COUNT
 } DebugOpt;
 

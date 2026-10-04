@@ -917,6 +917,28 @@ KNOWN_STREAM_PAIRS = [
     ("anzu2.tim",                   "gaol_mud.tim"),
     ("anzu5.tim",                   "gaol_mud.tim"),
     ("red_wlppr.tim",               "gaol_mud.tim"),
+    #   gula tablet.tim -> x640 y0, THE NURSERY's floor tiles and the Gula
+    # Tablet prop, 4bpp, ON THE ARMS' PAGE (it covers x[640,672) only) - the
+    # gaol door's terms exactly, an eighth owner taking turns, with a CLUT of
+    # its own at (592,502). Drawn only in the Nursery; every room that draws
+    # x640 y0 puts its own pixels back on entry, and the Nursery puts this
+    # back on its own.
+    ("arms.tim",                    "gula tablet.tim"),
+    ("heads.tim",                   "gula tablet.tim"),
+    ("legs.tim",                    "gula tablet.tim"),
+    ("bones.tim",                   "gula tablet.tim"),
+    ("torsos.tim",                  "gula tablet.tim"),
+    ("shelf_incinerator.tim",       "gula tablet.tim"),
+    ("gaol door.tim",               "gula tablet.tim"),
+    ("asag.tim",                    "gula tablet.tim"),
+    ("chnlnk.tim",                  "gula tablet.tim"),
+    ("gravel_texture.tim",          "gula tablet.tim"),
+    ("greenhouse.tim",              "gula tablet.tim"),
+    ("hatch.tim",                   "gula tablet.tim"),
+    ("plinth_rg.tim",               "gula tablet.tim"),
+    ("poison_flower_base.tim",      "gula tablet.tim"),
+    ("trck_clue.tim",               "gula tablet.tim"),
+    ("trees.tim",                   "gula tablet.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

@@ -328,9 +328,11 @@ void gaol_cells_update(void) {
    with nx=+4095), so TEXT_PLANE_YZ with mirror=0 and the sign 11 proud of the
    wall along +X — the Gaol Entry's west door's terms.
 
-   THE OTHER DOORS ARE DRAWN AND NOTHING ELSE: the catacomb inner doors in the
-   south wall (x[4600,4800] z=-500) and the east wall (x=5000 z[500,700]), and
-   the three barred cell doors (x[600,1000] and x[3075,3525] at z~200,
+   THE SOUTH DOOR is wired too, below: the catacomb inner door in the south-east
+   corner of the south wall, into the Nursery.
+
+   THE OTHER DOORS ARE DRAWN AND NOTHING ELSE: the catacomb inner door in the
+   east wall (x=5000 z[500,700]), and the three barred cell doors (x[600,1000] and x[3075,3525] at z~200,
    x[4600,5000] at z~1000), which stand in solid proxy walls. No sign, no
    trigger. The mesh's own copy of the Gaol Entry, west of x=0, is what is
    seen back through the bars. */
@@ -343,10 +345,12 @@ void gaol_cells_update(void) {
 
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
-static int west_circle_prev = 1;
+static int west_circle_prev  = 1;
+static int south_circle_prev = 1;
 
 void gaol_cells_arm(void) {
-    west_circle_prev = interact_tapped();
+    west_circle_prev  = interact_tapped();
+    south_circle_prev = interact_tapped();
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -396,6 +400,67 @@ void gaol_cells_spawn_west(void) {
     cam_vy  = 0;
     cam_z   = GAC_WEST_Z;
     cam_rot = 1024;                    /* facing +X, east down the corridor */
+    gaol_cells_arm();
+}
+
+/* ---- THE SOUTH DOOR --------------------------------------------------------
+   x[4600,4800], z=-500, y[-400,0] — the catacomb inner door in the SOUTH-EAST
+   corner, in wall 25 (x[3525,4999] at z=-500, nz=+4096), into the Nursery's
+   east door. Unlocked.
+
+   A door in the XY plane at fixed Z, approached from +Z, so TEXT_PLANE_XY with
+   mirror=1, the -200 on the X argument, and the sign 11 proud of the wall along
+   +Z. The approach is the south-east cell block's strip, x[3525,4999]
+   z[-500,166], so nothing else is within the trigger radius. */
+#define GAC_SOUTH_X          4700     /* the art spans x[4600,4800] */
+#define GAC_SOUTH_Z          (-500)
+#define GAC_SOUTH_TEXT_Y     (-186)   /* eye level on the y=0 floor */
+
+int gaol_cells_south_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !south_circle_prev;
+    int32_t dx, dz, xz;
+    south_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - GAC_SOUTH_X;
+    dz = cam_z - GAC_SOUTH_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= GAC_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(GAC_SOUTH_X, GAC_SOUTH_Z)) return 0;
+    return 1;
+}
+
+static void gac_south_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - GAC_SOUTH_X;
+    int32_t dz = cam_z - GAC_SOUTH_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= GAC_TEXT_RADIUS) return;
+
+    if (xz > GAC_FADE_NEAR) {
+        int range = GAC_TEXT_RADIUS - GAC_FADE_NEAR;
+        int prog  = xz - GAC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        GAC_SOUTH_X - 200, GAC_SOUTH_TEXT_Y, GAC_SOUTH_Z + 11,
+                        50, 255, 50, fade, 1, TEXT_PLANE_XY,
+                        DOOR_PIXEL_SIZE);
+}
+
+void gaol_cells_spawn_south(void) {
+    /* 220 off wall 25 on its walkable +Z side, on the door's centre line,
+       facing +Z — the direction of travel, back up into the cells. (4700,-280)
+       is 299 off the east wall (x=4999) and 446 off the cell block's south
+       face (z=166), both clear of the 195 push. */
+    cam_x   = GAC_SOUTH_X;
+    cam_y   = GAC_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = GAC_SOUTH_Z + (GAC_WALL_RADIUS + 25);
+    cam_rot = 0;                       /* facing +Z, north */
     gaol_cells_arm();
 }
 
@@ -644,6 +709,7 @@ void gaol_cells_draw(RenderContext *ctx) {
     /* >>> LEVEL 8 REMOVES THE SIGN, THE ENEMIES AND THE PEARL. <<< */
     if (exp != DBG_EXP_NO_ENTITIES) {
         gac_west_door_text(ctx);   /* west: YZ plane, approached from +X */
+        gac_south_door_text(ctx);  /* south: XY plane, approached from +Z */
         /* THE CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Their sheets sit at Voff 128, so each is handed the window to restore

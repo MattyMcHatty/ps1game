@@ -287,6 +287,10 @@
 #define TIM_TPAGE_GRSSGS   0x0005
 #define TIM_CLUT_GRSSGS    0x7fce
 
+/* gula tablet.tim  4bpp  VRAM ( 640,  0)  \TEXCTCMB\GULATBLT.TIM */
+#define TIM_TPAGE_GULATBLT 0x000a
+#define TIM_CLUT_GULATBLT  0x7da5
+
 /* hadad_idle_64.tim  8bpp  VRAM ( 352,384)  \TEX\HADIDLE.TIM */
 #define TIM_TPAGE_HADIDLE  0x0095
 #define TIM_CLUT_HADIDLE   0x7ed0

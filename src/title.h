@@ -254,6 +254,12 @@ typedef enum {
                                 off cobbled corridors, mud floors. See
                                 src/gaol_cells.h. Appended, not inserted: saves
                                 store raw enum values. */
+    STATE_NURSERY,           /* THE NURSERY, through the Gaol Cells' south-east
+                                door. Chapter 3's twenty-second room: an octagon
+                                with six cots that light as the chapter's crib
+                                encounters are beaten, and the Gula Tablet across
+                                its west door. See src/nursery.h. Appended, not
+                                inserted: saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

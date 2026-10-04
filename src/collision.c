@@ -17,6 +17,7 @@
 #include "oil_dispenser.h"
 #include "incinerator.h"
 #include "crib.h"
+#include "gula_tablet.h"
 #include "bars.h"              /* The Pit's dropping portcullis           */
 #include "cleaver.h"           /* the Cleaver Corridor's slamming blades  */
 #include "rafflesia.h"
@@ -985,6 +986,10 @@ void apply_collision_reception(void) {
        a stretch of wall, and 195 would hold the player far enough off it that
        the alcove stopped being enterable. */
     cribs_collide(&cam_x, cam_y, &cam_z, 75);
+    /* The Nursery's Gula Tablet, on the crib's terms: its box is its own mesh
+       bounds, measured at load, and it gates itself to its area. Prop radius:
+       it is a 50-deep slab, not a wall run (src/gula_tablet.h). */
+    gula_tablets_collide(&cam_x, cam_y, &cam_z, 75);
     /* The Pit's bars, on the crib's terms: box and height out of its own mesh,
        gated to its area. The vertical gate reads the CURRENT lift, so while
        they hang over the alcove's mouth this is a no-op and once dropped it
