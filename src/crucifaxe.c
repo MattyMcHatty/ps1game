@@ -38,6 +38,7 @@ static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
 
 int swing_timer    = 0;
+static int swing_cooldown       = 0;   /* SWING_COOLDOWN rest after each swing */
 static int square_prev          = 0;   /* Square state last frame, for edge-detect */
 static int hit_this_swing       = 0;
 static int crate_hit_this_swing = 0;
@@ -83,7 +84,8 @@ void update_crucifaxe(void) {
     /* Edge-detect Square so the axe swings ONCE per press — holding it no longer
        auto-repeats. The swing_timer==0 gate already blocks a new swing until the
        current swing+return animation finishes (SWING_TOTAL frames), so that whole
-       animation doubles as the cooldown: a fresh press is required after it. */
+       animation doubles as the cooldown: a fresh press is required after it.
+       SWING_COOLDOWN more rest frames follow it, doubling press-to-press. */
     int square_held = 0;
     if (pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
@@ -92,7 +94,10 @@ void update_crucifaxe(void) {
     int square_just = square_held && !square_prev;
     square_prev = square_held;
 
-    if (game_state != STATE_MENU && swing_timer == 0 && square_just) {
+    if (swing_cooldown > 0) swing_cooldown--;
+
+    if (game_state != STATE_MENU && swing_timer == 0 && swing_cooldown == 0 &&
+        square_just) {
         swing_timer            = 1;
         hit_this_swing         = 0;
         crate_hit_this_swing   = 0;
@@ -295,11 +300,10 @@ void update_crucifaxe(void) {
         }
 
         /* Lumberer hit. The mushroom's block with the airborne test dropped —
-           this one never leaves the ground — and a smaller shove:
-           LMB_KNOCKBACK is 35 against the mushroom's 45, so ~280 units, which
-           is a little over half of the 450 the arm reaches. The axe therefore
-           buys a step back out of the swing and not an escape from the fight,
-           which is the right trade against something this slow.
+           this one never leaves the ground — and a much smaller shove:
+           LMB_KNOCKBACK slides it ~85 units, nowhere near out of the 450 the
+           arm reaches. The axe does not buy distance from this one; it is a
+           plug, and the shove only nudges it.
 
            >>> THE SHOVE LANDS DURING THE WIND-UP TOO, AND IT DOES NOT STOP IT.
            <<< update_lumberers lets the two attack phases tick through a
@@ -307,30 +311,15 @@ void update_crucifaxe(void) {
            pushes the body back mid-swing — dragging the wave's centre with it,
            because the wave is centred on the body — without letting the player
            hold the enemy in its wind-up forever. lumberer_damage handles waking
-           a patrolling one. */
+           a patrolling one.
+
+           >>> MEASURED TO THE PUSH SURFACE, NOT THE CENTRE, SINCE IT BECAME A
+           PLUG. <<< lumberers_collide holds the player 395 off its centre and
+           a centre test reached ~240, so the test lives in lumberer.c now —
+           see LMB_AXE_REACH. */
         if (swing_timer <= SWING_DURATION && !lmb_hit_this_swing) {
-            int li;
-            for (li = 0; li < lumberer_count; li++) {
-                Lumberer *l = &lumberers[li];
-                if (!l->active || l->state == LMB_DEAD ||
-                    l->area != current_area) continue;
-                int32_t dx     = l->x - cam_x;
-                int32_t dy     = (l->y + LMB_Y_OFFSET) - cam_y;
-                int32_t dz     = l->z - cam_z;
-                int32_t dist2d = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-                int32_t dist3d = dist2d + (dy < 0 ? -dy : dy);
-                if (dist3d < SWING_RANGE) {
-                    int32_t dot = ((int32_t)dx * isin(cam_rot) +
-                                   (int32_t)dz * icos(cam_rot)) >> 12;
-                    if (dot > 0) {
-                        l->kb_vx = dist2d > 0 ? (dx * LMB_KNOCKBACK) / dist2d : 0;
-                        l->kb_vz = dist2d > 0 ? (dz * LMB_KNOCKBACK) / dist2d : 0;
-                        lumberer_damage(l, 1);
-                        lmb_hit_this_swing = 1;
-                        break;
-                    }
-                }
-            }
+            if (lumberers_try_hit())
+                lmb_hit_this_swing = 1;
         }
 
         /* Living Statue hit. Same shape as the mushroom's above, with two
@@ -505,8 +494,10 @@ void update_crucifaxe(void) {
                 vine_hit_this_swing = 1;
         }
 
-        if (++swing_timer > SWING_TOTAL)
-            swing_timer = 0;
+        if (++swing_timer > SWING_TOTAL) {
+            swing_timer    = 0;
+            swing_cooldown = SWING_COOLDOWN;
+        }
     }
 }
 

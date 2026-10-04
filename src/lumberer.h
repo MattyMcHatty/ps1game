@@ -5,6 +5,7 @@
 #include "render.h"
 #include "damage.h"
 #include "title.h"   /* GameState — each lumberer is tagged with its area */
+#include "crucifaxe.h"   /* SWING_RANGE — LMB_AXE_REACH is derived from it */
 
 /* -----------------------------------------------------------------------
  * The Lumberer — Chapter 3's patrolling bruiser.
@@ -279,7 +280,72 @@
    away with it only while the goal is axis-aligned. */
 #define LMB_FACE_SCALE      256
 #define LMB_STEER_COMMIT     30
-#define LMB_KNOCKBACK        35    /* decays 7/8 a frame -> ~280 units total   */
+/* The axe's shove. Cut 60% from 35 by request ("knocked back too far"). The cut
+   is in DISTANCE, and the integer 7/8 decay truncates small speeds hard, so it
+   is not 35 * 0.4 = 14 (that slides 72/52 units, a 70% cut). Simulated against
+   the decay in update_lumberers: 35 slid 220 on an axis / 197 diagonal; 17
+   slides 89 / 82, 40% of each. Re-simulate if the decay changes. */
+#define LMB_KNOCKBACK        17    /* decays 7/8 a frame -> ~85 units total    */
+
+/* ---- THE PLUG. The player cannot walk through a lumberer, and in a corridor
+   cannot walk PAST one either: "it should get in the way — kill it quickly, run
+   away, or find another way round". lumberers_collide holds the player
+   LMB_HOLD_DIST off the body's centre, before the walls, the way hadads_collide
+   does (and for his reason: the walls must get the final say).
+
+   >>> TWO RADII, AND LMB_BODY_RADIUS IS NOT THIS ONE. <<< LMB_BODY_RADIUS (100)
+   is how far the WALLS hold the lumberer off, and every patrol leg and nav node
+   in world.c / lumberer.c is measured against it — it must not move. This is how
+   far the lumberer holds the PLAYER off, which is a different question.
+
+   >>> SIZED TO THE WIDEST CORRIDOR ONE PATROLS, OFF-CENTRE. <<< The Shelf's
+   barred corridors are 666 wide and the Gaol Cells' runs 600. A lumberer pushed
+   hard against one wall (100 off it) leaves a player hugging the other (195 off
+   it) a lateral gap of 666 - 100 - 195 = 371 from its centre; LMB_HOLD_DIST must
+   beat that, and 395 does with 24 to spare. On its centre line the gap is only
+   138, so a patrolling one is a solid plug with room to spare. A wider corridor
+   than 666 needs this re-done (the static assert below is the 666 case).
+
+   >>> THE PUSH IS CAPPED PER FRAME, AND THAT IS WHAT KEEPS IT IN THE LEVEL. <<<
+   Hadad's push is a teleport straight to the hold distance, and against a wall
+   at the wrong angle that threw the player through it (see "THE PUSH IS A
+   TELEPORT" in hadad.h). A lumberer can arrive ON TOP of the player — an
+   ambush drop, a knockback slide — so here the push moves at most
+   LMB_PUSH_STEP a frame. That is under the 195 wall standoff, so no single
+   frame can carry the player across a wall's face, and over the player's own
+   fastest step (sprint + strafe, 20 + 20 Manhattan) plus the body's 5-unit
+   gait, so a player walking INTO it is still stopped dead every frame.
+
+   The 200 is the same push radius as Hadad's, and close to this sprite's own
+   173 half-width, so the player is stopped about where the art says they
+   should be. The axe is measured from it too — see LMB_AXE_REACH. */
+#define LMB_PUSH_RADIUS     200
+#define LMB_WALL_LIKE_PUSH  195   /* what apply_collision_reception passes in */
+#define LMB_HOLD_DIST       (LMB_PUSH_RADIUS + LMB_WALL_LIKE_PUSH)   /* 395 */
+#define LMB_PUSH_STEP        48
+_Static_assert(LMB_HOLD_DIST > 666 - LMB_BODY_RADIUS - LMB_WALL_LIKE_PUSH,
+               "a lumberer must plug The Shelf's 666-wide corridors even when "
+               "it is pressed against one wall");
+_Static_assert(LMB_PUSH_STEP < LMB_WALL_LIKE_PUSH && LMB_PUSH_STEP > 20 + 20 + 5,
+               "the capped push must stop a sprinting player dead yet never "
+               "carry them across a wall face in one frame");
+
+/* ...and the crucifaxe's reach, measured to the PUSH SURFACE rather than the
+   centre (mistake 9 in tools/ADDING_AN_ENEMY.txt: a solid body must never park
+   the player outside the range they can hit it from). The old centre test was a
+   Manhattan SWING_RANGE (350) less the ~110 the body's centre sits below the
+   eye — about 240 on the floor, which the hold distance alone puts out of reach.
+
+   The axe now lands when (d - LMB_PUSH_RADIUS) + |dy| is under SWING_RANGE,
+   which on level ground is d < 200 + 350 - 110 = 440: past the 395 the player
+   is held at, so a swing from the plug connects, and still INSIDE the 450 arm,
+   so standing close enough to hit it is still standing close enough to be hit.
+   The two asserts are those two promises. */
+#define LMB_AXE_REACH       (LMB_PUSH_RADIUS + SWING_RANGE - 110)   /* 440 */
+_Static_assert(LMB_AXE_REACH > LMB_HOLD_DIST,
+               "the plug would hold the player outside the axe's reach");
+_Static_assert(LMB_AXE_REACH <= LMB_ATTACK_RADIUS,
+               "the axe would reach a lumberer from outside its arm");
 
 /* ---- LMB_NAV: ROUTING, which is a different problem from STEERING.
    >>> THE FEELER ABOVE FOLLOWS A WALL; IT DOES NOT GO ROUND A BLOCK. <<< An
@@ -456,6 +522,10 @@ void draw_lumberers(RenderContext *ctx);
    bar, and handles death. Both the crucifaxe and a Grave-olver round pass 1
    (scaled by lumberer_scale_damage). */
 void lumberer_damage(Lumberer *s, int dmg);
+/* The crucifaxe test, measured to the push surface (LMB_AXE_REACH); 1 on a hit. */
+int  lumberers_try_hit(void);
+/* The player's push-out (LMB_HOLD_DIST); called from apply_collision_reception. */
+void lumberers_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 
 /* Scale a hit by this enemy's weaknesses — there are none, by design. */
 int32_t lumberer_scale_damage(int32_t base, DamageType type);

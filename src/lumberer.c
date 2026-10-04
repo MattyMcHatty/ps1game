@@ -325,6 +325,65 @@ void lumberer_damage(Lumberer *s, int dmg) {
     }
 }
 
+/* The crucifaxe's lumberer test, measured to the push surface: see
+   LMB_AXE_REACH. Same height term (|dy| to the body's centre) and facing dot as
+   the centre test it replaces, and the same shove. Returns 1 on a hit so the
+   caller can spend the swing. */
+int lumberers_try_hit(void) {
+    int i;
+    for (i = 0; i < lumberer_count; i++) {
+        Lumberer *l = &lumberers[i];
+        if (!l->active || l->state == LMB_DEAD ||
+            l->area != current_area) continue;
+        int32_t dx = l->x - cam_x;
+        int32_t dy = (l->y + LMB_Y_OFFSET) - cam_y;
+        int32_t dz = l->z - cam_z;
+        int32_t d  = lmb_isqrt(dx * dx + dz * dz);
+        int32_t gh = d > LMB_PUSH_RADIUS ? d - LMB_PUSH_RADIUS : 0;
+        if (gh + (dy < 0 ? -dy : dy) >= SWING_RANGE) continue;
+        int32_t dot = ((int32_t)dx * isin(cam_rot) +
+                       (int32_t)dz * icos(cam_rot)) >> 12;
+        if (dot <= 0) continue;
+        l->kb_vx = d > 0 ? (dx * LMB_KNOCKBACK) / d : 0;
+        l->kb_vz = d > 0 ? (dz * LMB_KNOCKBACK) / d : 0;
+        lumberer_damage(l, 1);
+        return 1;
+    }
+    return 0;
+}
+
+/* The plug: see LMB_HOLD_DIST. A radial push like hadads_collide's, but
+   capped at LMB_PUSH_STEP a frame so it can never teleport the player through
+   a wall. A DROP is solid too — the vertical gate lets the player pass under
+   one still in the air — and the cap is what makes one landing on the player
+   squeeze them out rather than fling them. */
+void lumberers_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
+    int i;
+    for (i = 0; i < lumberer_count; i++) {
+        Lumberer *l = &lumberers[i];
+        if (!l->active || l->state == LMB_DEAD ||
+            l->area != current_area) continue;
+
+        /* The player's body span (feet at py + GROUND_FLOOR_Y, head at py - 30)
+           against the sprite's, so a lumberer on the North Chamber's gallery
+           does not block the floor beneath it. */
+        int32_t top = l->y + LMB_Y_OFFSET - LMB_HALF_H;
+        int32_t bot = l->y + LMB_Y_OFFSET + LMB_HALF_H;
+        if (py + GROUND_FLOOR_Y < top || py - 30 > bot) continue;
+
+        int32_t dx   = *px - l->x;
+        int32_t dz   = *pz - l->z;
+        int32_t need = LMB_PUSH_RADIUS + radius;
+        int32_t d    = lmb_isqrt(dx * dx + dz * dz);
+        if (d >= need) continue;
+        int32_t step = need - d;
+        if (step > LMB_PUSH_STEP) step = LMB_PUSH_STEP;
+        if (d == 0) { *px += step; continue; }   /* dead centre */
+        *px += (dx * step) / d;
+        *pz += (dz * step) / d;
+    }
+}
+
 /* ---- Routing: the Tomb's aisle graph ----------------------------------------
    >>> STEERING FOLLOWS A WALL. ROUTING GOES ROUND A BLOCK. THEY ARE NOT THE
    SAME PROBLEM AND lmb_steer BELOW ONLY SOLVES THE FIRST. <<< An alerted

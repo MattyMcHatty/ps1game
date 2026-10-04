@@ -31,6 +31,7 @@
 #include "rabisu.h"            /* the Rabisu boss is solid (area-tagged) */
 #include "hatch_doors.h"       /* The Hatch's pit doors, solid at any pose  */
 #include "catacomb_doors.h"    /* Outside Catacombs' two door leaves        */
+#include "lumberer.h"          /* the Lumberer plugs a corridor (area-tagged) */
 #include "asag.h"              /* ...and Asag, solid at any pose OR position */
 
 CollisionRoom current_collision_room;
@@ -915,6 +916,12 @@ void apply_collision_reception(void) {
        300 + 195 is a 495 stop, well past what a centre-based melee test could
        reach, which is why the crucifaxe measures to his surface. */
     hadads_collide(&cam_x, cam_y, &cam_z, HAD_WALL_LIKE_PUSH);
+    /* Lumberers, before the walls for the same reason as Hadad and with the
+       same wall-like radius: a body wide enough to plug the corridors it
+       patrols, so the player cannot just run past one. Capped per frame inside
+       the module, so it never throws the player through a wall. See
+       LMB_HOLD_DIST in lumberer.h. */
+    lumberers_collide(&cam_x, cam_y, &cam_z, LMB_WALL_LIKE_PUSH);
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly_y(&r->walls[i], &cam_x, &cam_z,
