@@ -184,6 +184,11 @@ AREAS = {
                   # the arms' page, its own palette) and borrows cobble, the
                   # inner door and the bars.
                   "gaol_entry_upload_textures",
+                  # THE GAOL CELLS, the chapter's twenty-first room, through
+                  # the Gaol Entry's gaol door: owns gaol_mud.tim (Asag's mud
+                  # again, on the crib's page and palette) and borrows cobble,
+                  # the inner door, the bars and the gaol door.
+                  "gaol_cells_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

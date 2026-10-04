@@ -1456,6 +1456,24 @@
             <file name="GAOLENTR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\gaol_entry.smd"/>
             <file name="GAOLDOOR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gaol door.tim"/>
 
+            <!-- THE GAOL CELLS, the chapter's TWENTY-FIRST room, through the
+                 Gaol Entry's gaol door (locked: the Gaol Key opens it from
+                 either side). Barred cells off cobbled corridors, mud floors.
+                 See src/gaol_cells.h.
+
+                 ONE NEW TEXTURE. COBBLE, CTCMBDR, BARS and GAOLDOOR are the
+                 Gaol Entry's set, borrowed through their owners' narrow
+                 uploaders. GAOLMUD.TIM is ASAG'S MUD converted again
+                 (textures/mud.png, the 128x128 resample ASGMUD.TIM came from):
+                 the Catacombs borrow nothing from another area's bank, and
+                 ASGMUD sits on cobblestone's page.
+
+                 >>> IT TAKES THE CRIB'S PAGE AND PALETTE: x576 y0, 8bpp, CLUT
+                 (256,484). <<< No crib is drawn in the cells, and every crib
+                 room puts the crib back on entry. See tools/vram_map.py. -->
+            <file name="GAOLCELL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\gaol_cells.smd"/>
+            <file name="GAOLMUD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\gaol_mud.tim"/>
+
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
                  torch stand, two of them flanking the lamashtu tablet in the
                  entry chamber. Its geometry and its texture ship HERE rather

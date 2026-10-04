@@ -421,6 +421,13 @@ typedef enum {
        rest rather than re-running the whole thing (src/h_corridor.h). Bit 1 of
        game_flags2. */
     FLAG_H_CORRIDOR_MAGGOTS,
+
+    /* THE GAOL DOOR is unlocked: the Gaol Entry's east door and the Gaol
+       Cells' west door, the two faces of one door. It takes the GAOL KEY, from
+       either side, and USES IT UP (ITEM_GAOL_KEY is cleared on the press that
+       sets this). From then on both faces read "Press O to enter". Bit 2 of
+       game_flags2. */
+    FLAG_GAOL_DOOR,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

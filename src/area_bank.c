@@ -161,6 +161,9 @@ TexBank area_bank_of(GameState area) {
     /* THE GAOL ENTRY owns GAOLDOOR.TIM (4bpp on the arms' page, its own
        palette) and borrows the rest. */
     case STATE_GAOL_ENTRY:
+    /* THE GAOL CELLS owns GAOLMUD.TIM (Asag's mud converted again, on the
+       crib's page and palette) and borrows the rest, the gaol door included. */
+    case STATE_GAOL_CELLS:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -189,7 +192,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_H_CORRIDOR ||
            area == STATE_ROOM_OF_TORSOS ||
            area == STATE_THE_SHELF ||
-           area == STATE_GAOL_ENTRY;
+           area == STATE_GAOL_ENTRY ||
+           area == STATE_GAOL_CELLS;
 }
 
 /* ---- The prop models -------------------------------------------------------

@@ -98,6 +98,7 @@ add_executable(horror_game
     src/room_of_torsos.c
     src/the_shelf.c
     src/gaol_entry.c
+    src/gaol_cells.c
     src/ladder_anim.c
     src/sconce.c
     src/oil_dispenser.c

@@ -105,6 +105,7 @@
 #include "room_of_torsos.h"
 #include "the_shelf.h"
 #include "gaol_entry.h"
+#include "gaol_cells.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
 #include "catacomb_walk.h"  /* the doors coming apart: Asag's ending, beat 2  */
@@ -371,6 +372,7 @@ static void load_area_geometry(GameState area) {
         case STATE_ROOM_OF_TORSOS:   room_of_torsos_load_geometry(); break;
         case STATE_THE_SHELF:        the_shelf_load_geometry(); break;
         case STATE_GAOL_ENTRY:       gaol_entry_load_geometry(); break;
+        case STATE_GAOL_CELLS:       gaol_cells_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2642,10 +2644,11 @@ static void update_current_area(GameState area) {
         }
     } else if (area == STATE_GAOL_ENTRY) {
         /* THE GAOL ENTRY - Chapter 3's twentieth room: the shared wall routine,
-           ONE flat floor zone and one wired door, the plainest room in the
-           chapter. multi_level is 0. The gaol door in the east wall is drawn
-           and sealed. No enemies seeded; both Chapter 3 enemy updates are
-           called anyway, on the Tomb's argument. */
+           ONE flat floor zone and two wired doors, the plainest room in the
+           chapter. multi_level is 0. The gaol door in the east wall is LOCKED
+           until the Gaol Key is used on it (FLAG_GAOL_DOOR, either side). No
+           enemies seeded; both Chapter 3 enemy updates are called anyway, on
+           the Tomb's argument. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
@@ -2654,6 +2657,35 @@ static void update_current_area(GameState area) {
         if (gaol_entry_west_door_triggered(lock)) {
             pending_area = STATE_UP_DOWN_MAZE;
             door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* ...and the GAOL DOOR, into the Gaol Cells. Called unconditionally
+           for its edge state (and so the unlocking press registers), and
+           vetoed; the two doors are 1900 apart, so they cannot share a frame. */
+        if (gaol_entry_gaol_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_GAOL_CELLS;
+            door_anim_start(DOOR_PANEL_GAOL);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_GAOL_CELLS) {
+        /* THE GAOL CELLS - Chapter 3's twenty-first room: the shared wall
+           routine and TWO flat floor zones of one plane. multi_level is 0. One
+           wired door, the west gaol door back to the Gaol Entry, LOCKED until
+           the Gaol Key is used on it (the Entry's lock, FLAG_GAOL_DOOR). The
+           south and east doors and the cell doors are drawn and sealed. No
+           enemies seeded; both Chapter 3 enemy updates are called anyway, on
+           the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (gaol_cells_west_door_triggered(lock)) {
+            pending_area = STATE_GAOL_ENTRY;
+            door_anim_start(DOOR_PANEL_GAOL);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -3193,6 +3225,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         the_shelf_draw(ctx);
     else if (area == STATE_GAOL_ENTRY)
         gaol_entry_draw(ctx);
+    else if (area == STATE_GAOL_CELLS)
+        gaol_cells_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3669,6 +3703,12 @@ int main(int argc, const char **argv) {
                                      OWN deferred registration for GAOLDOOR.TIM,
                                      4bpp on the arms' page with a palette of
                                      its own. Deferred, so no CD access here. */
+    loading_screen_pump(&ctx);
+    gaol_cells_load_assets();     /* CHAPTER 3's twenty-first room: four borrowed
+                                     headers (cobble, inner door, bars, gaol
+                                     door) and its OWN deferred registration for
+                                     GAOLMUD.TIM, on the crib's page and
+                                     palette. Deferred, so no CD access here. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4572,6 +4612,14 @@ int main(int argc, const char **argv) {
                    puts back on the way in there. Same guarantee and same silent
                    failure mode as the branches around it. */
                 gaol_entry_upload_textures();
+            } else if (pending_area == STATE_GAOL_CELLS) {
+                /* THE GAOL CELLS. The Gaol Entry's four pages through their
+                   narrow uploaders (the gaol door's is gaol_entry's), plus its
+                   OWN - GAOLMUD.TIM on x576 y0 with the CLUT at (256,484), the
+                   CRIB's page and palette, which every crib room's branch puts
+                   back on the way in there. Same guarantee and same silent
+                   failure mode as the branches around it. */
+                gaol_cells_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5370,9 +5418,17 @@ int main(int argc, const char **argv) {
                     the_shelf_spawn_ladder();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_GAOL_ENTRY) {
-                /* ONE ARRIVAL, the west door, so gaol_entry_init()'s default
-                   spawn is also the only one. */
+                /* TWO ARRIVALS. gaol_entry_init() places the player at the
+                   west door, from the Up Down Maze; back from the Gaol Cells
+                   they come in through the gaol door instead. */
                 gaol_entry_init();
+                if (current_area == STATE_GAOL_CELLS)
+                    gaol_entry_spawn_gaol_door();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_GAOL_CELLS) {
+                /* ONE ARRIVAL, the west gaol door, so gaol_cells_init()'s
+                   default spawn is also the only one. */
+                gaol_cells_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5749,7 +5805,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_H_CORRIDOR ||
                    game_state == STATE_ROOM_OF_TORSOS ||
                    game_state == STATE_THE_SHELF ||
-                   game_state == STATE_GAOL_ENTRY) {
+                   game_state == STATE_GAOL_ENTRY ||
+                   game_state == STATE_GAOL_CELLS) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

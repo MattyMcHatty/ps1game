@@ -248,6 +248,12 @@ typedef enum {
                                 wall, cells visible through its bars. See
                                 src/gaol_entry.h. Appended, not inserted: saves
                                 store raw enum values. */
+    STATE_GAOL_CELLS,        /* THE GAOL CELLS, through the Gaol Entry's gaol
+                                door, which the Gaol Key unlocks from either
+                                side. Chapter 3's twenty-first room: barred cells
+                                off cobbled corridors, mud floors. See
+                                src/gaol_cells.h. Appended, not inserted: saves
+                                store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

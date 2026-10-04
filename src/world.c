@@ -194,7 +194,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_ROOM_OF_BONES,   STATE_CLEAVER_L,
     STATE_ZIG_ZAG_TOMB,    STATE_H_CORRIDOR,
     STATE_ROOM_OF_TORSOS,  STATE_THE_SHELF,
-    STATE_GAOL_ENTRY,
+    STATE_GAOL_ENTRY,      STATE_GAOL_CELLS,
 };
 
 static int room_index(GameState area) {
@@ -328,6 +328,9 @@ static int room_index(GameState area) {
         /* THE GAOL ENTRY, Chapter 3's twentieth room, through the Up Down
            Maze's east-upper door. Slot 46 of 64. Seeded EMPTY. */
         case STATE_GAOL_ENTRY:        return 46;
+        /* THE GAOL CELLS, Chapter 3's twenty-first room, through the Gaol
+           Entry's gaol door. Slot 47 of 64. Seeded EMPTY. */
+        case STATE_GAOL_CELLS:        return 47;
         default:                   return 0;
     }
 }

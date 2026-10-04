@@ -123,6 +123,7 @@ static const char *area_name(int area) {
         case STATE_ROOM_OF_TORSOS:    return "ROOM OF TORSOS";
         case STATE_THE_SHELF:         return "THE SHELF";
         case STATE_GAOL_ENTRY:        return "GAOL ENTRY";
+        case STATE_GAOL_CELLS:        return "GAOL CELLS";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

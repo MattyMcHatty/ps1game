@@ -299,6 +299,7 @@ THIS BANK'S OWN ART
   crawler_b.tim              Crawler frames 2,3             x704 y128
   crib.tim                   the Room of Arms' crib         x576 y0
   gaol door.tim              the Gaol Entry's door (=arms pg) x640 y0
+  gaol_mud.tim               the Gaol Cells' mud (=crib pg)  x576 y0
   heads.tim                  Room of Heads' piles (=arms pg) x640 y0
   incinerator.tim            the Incinerator machine        x704 y256
   ladder.tim                 North Chamber's ladder         x704 y256
@@ -329,7 +330,7 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x384  IN USE by this bank: cobblestones.tim   [also on this page, all re-uploaded on room entry: chnlnk_dl.tim, clsd_drwr.tim, cncrte.tim, flowerbed.tim, hedge.tim, kchn_tile.tim, mud.tim, piano_keys.tim, piano_keys_full.tim, xt_dr_outr.tim]
   x448  IN USE by this bank: sconce.tim
   x512  IN USE by this bank: loculus.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim]
-  x576  IN USE by this bank: crib.tim
+  x576  IN USE by this bank: crib.tim, gaol_mud.tim
   x640  IN USE by this bank: arms.tim, bones.tim, gaol door.tim, heads.tim, legs.tim, shelf_incinerator.tim, torsos.tim   [also on this page, all re-uploaded on room entry: asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, hatch.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
   x704  IN USE by this bank: rusty.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
   x768  IN USE by this bank: lamashtu tablet.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]

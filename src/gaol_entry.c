@@ -27,7 +27,8 @@
 #include "dresser.h"
 #include "sconce.h"
 #include "oil_dispenser.h"
-#include "player.h"             /* current_weapon, player_weapons */
+#include "player.h"             /* current_weapon, player_weapons, the lock */
+#include "sound.h"              /* SFX_UNLOCK                               */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 
 /* The Gaol Entry — see gaol_entry.h for the layout and the doors. */
@@ -215,6 +216,14 @@ void gaol_entry_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
     bars_upload_texture();
+    gaol_entry_upload_gaol_door();
+}
+
+/* The gaol door on its own, for the GAOL CELLS, which draws it on both its
+   west door and its cell doors but has cobble, the inner door and the bars put
+   up through their own narrow uploaders already. The conservatory_upload_
+   con_tile pattern: one slot, no second RAM copy of the same TIM. */
+void gaol_entry_upload_gaol_door(void) {
     texmgr_upload(gaol_door_tex);
 }
 
@@ -228,9 +237,12 @@ void gaol_entry_upload_textures(void) {
    sign is Z, so the -200 door_draw_string_3d wants goes on the Z argument. No
    storey test: this room is flat, whatever the room behind the door is.
 
-   THE GAOL DOOR, x=899 z[300,700] in the east wall, is drawn and nothing
-   else: no sign, no trigger, no collision gap. It reads as a locked cell door,
-   which is what it is until the gaol behind it is built. */
+   THE GAOL DOOR, x=899 z[300,700] in the east wall, into the GAOL CELLS'
+   west door (src/gaol_cells.h). LOCKED until the Gaol Key is used on it from
+   either side — see THE LOCK below. A YZ door again, but approached from -X
+   (wall 3 runs x=899 with nx=-4096), so mirror=1 and the sign 11 proud of the
+   wall along -X: the Up Down Maze's east doors' terms. There is no collision
+   gap: like every door in the game it is a trigger on a wall, not a hole. */
 #define GAE_WEST_X           (-300)
 #define GAE_WEST_Z           (-200)   /* the art spans z[-300,-100] */
 #define GAE_WEST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
@@ -238,12 +250,61 @@ void gaol_entry_upload_textures(void) {
 #define GAE_FADE_NEAR         800
 #define GAE_TRIGGER_RADIUS    500
 
-/* Circle edge-detect. Seeded "held" by the arm below so a press carried in
-   through the transition cannot fire on the arrival frame. */
+#define GAE_GAOL_X            899
+#define GAE_GAOL_Z            500     /* the art spans z[300,700] */
+#define GAE_GAOL_TEXT_Y      (-186)
+
+/* Circle edge-detect, one per door. Seeded "held" by the arm below so a press
+   carried in through the transition cannot fire on the arrival frame. The two
+   doors are 1199 + 700 apart in Manhattan terms, so they never share a frame. */
 static int west_circle_prev = 1;
+static int gaol_circle_prev = 1;
 
 void gaol_entry_arm(void) {
     west_circle_prev = interact_tapped();
+    gaol_circle_prev = west_circle_prev;
+}
+
+/* ---- THE LOCK --------------------------------------------------------------
+   ONE DOOR, TWO FACES, ONE FLAG. The Gaol Entry's east door and the Gaol
+   Cells' west door are the same door, and FLAG_GAOL_DOOR (player.h) is its
+   whole state. Both faces call the same two functions, so the rule is written
+   once:
+
+     unlocked              the press enters
+     locked, key carried   the press UNLOCKS: the Gaol Key is used up, the
+                           flag is set, and the press does not also enter —
+                           the Cleaver L lock's beat, a second press goes through
+     locked, no key        nothing; the sign says what is needed
+
+   The press is the one that already passed its face's range and facing tests.
+   Returns 1 if this press should start the transition. */
+int gaol_door_press(void) {
+    if (game_flag(FLAG_GAOL_DOOR)) return 1;
+    if (!(player_items & (1 << ITEM_GAOL_KEY))) return 0;
+    player_items &= ~(1 << ITEM_GAOL_KEY);
+    game_flag_set(FLAG_GAOL_DOOR);
+    sound_play(SFX_UNLOCK);
+    show_pickup_msg_raw("Used Gaol Key");
+    return 0;
+}
+
+/* The sign, for either face: the same three states as the press. Red while it
+   cannot be opened, green once a press would do something. */
+void gaol_door_sign(RenderContext *ctx, int32_t tx, int32_t ty, int32_t tz,
+                    int fade, int mirror) {
+    if (game_flag(FLAG_GAOL_DOOR))
+        door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                            tx, ty, tz, 50, 255, 50, fade, mirror,
+                            TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+    else if (player_items & (1 << ITEM_GAOL_KEY))
+        door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to unlock",
+                            tx, ty, tz, 50, 255, 50, fade, mirror,
+                            TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
+    else
+        door_draw_string_3d(ctx, "Gaol Key required",
+                            tx, ty, tz, 255, 50, 50, fade, mirror,
+                            TEXT_PLANE_YZ, DOOR_PIXEL_SIZE);
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -283,6 +344,53 @@ static void gae_west_door_text(RenderContext *ctx) {
                         GAE_WEST_X + 11, GAE_WEST_TEXT_Y, GAE_WEST_Z - 200,
                         50, 255, 50, fade, 0, TEXT_PLANE_YZ,
                         DOOR_PIXEL_SIZE);
+}
+
+/* The gaol door's Circle test: the west door's shape, then THE LOCK above. */
+int gaol_entry_gaol_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !gaol_circle_prev;
+    int32_t dx, dz, xz;
+    gaol_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - GAE_GAOL_X;
+    dz = cam_z - GAE_GAOL_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= GAE_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(GAE_GAOL_X, GAE_GAOL_Z)) return 0;
+    return gaol_door_press();
+}
+
+static void gae_gaol_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - GAE_GAOL_X;
+    int32_t dz = cam_z - GAE_GAOL_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= GAE_TEXT_RADIUS) return;
+
+    if (xz > GAE_FADE_NEAR) {
+        int range = GAE_TEXT_RADIUS - GAE_FADE_NEAR;
+        int prog  = xz - GAE_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    gaol_door_sign(ctx, GAE_GAOL_X - 11, GAE_GAOL_TEXT_Y, GAE_GAOL_Z - 200,
+                   fade, 1);   /* mirror=1: YZ door approached from -X */
+}
+
+void gaol_entry_spawn_gaol_door(void) {
+    /* Back from the Gaol Cells. 220 off wall 3 on its walkable -X side, on the
+       door's centre line, facing -X — the direction of travel, back across
+       the room to the west door. (679,500) is 1200 off the north wall and
+       1000 off the south. */
+    cam_x   = GAE_GAOL_X - (GAE_WALL_RADIUS + 25);
+    cam_y   = GAE_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = GAE_GAOL_Z;
+    cam_rot = 3072;                    /* facing -X, west into the room */
+    gaol_entry_arm();
 }
 
 void gaol_entry_spawn_west(void) {
@@ -512,10 +620,11 @@ void gaol_entry_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_gaol_entry_smd(ctx);
 
-    /* >>> LEVEL 8 REMOVES THE SIGN, and the enemies if world.c ever places
-       any here. <<< Today the room is empty, so level 8 is the sign alone. */
+    /* >>> LEVEL 8 REMOVES THE SIGNS, and the enemies if world.c ever places
+       any here. <<< Today the room is empty, so level 8 is the signs alone. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         gae_west_door_text(ctx);   /* west: YZ plane, approached from +X */
+        gae_gaol_door_text(ctx);   /* gaol: YZ plane, approached from -X */
         /* THE CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Their sheets sit at Voff 128, so each is handed the window to restore

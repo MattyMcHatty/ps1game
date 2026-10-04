@@ -133,6 +133,30 @@
                                  because both rooms this transition joins upload
                                  it on entry and a tpage/clut is a compile-time
                                  constant. See there.                             */
+#define DOOR_PANEL_GAOL       8 /* gaol door — the barred door between the Gaol
+                                 Entry and the Gaol Cells. DOOR_PANEL_CATACOMB's
+                                 transition — its own clock (1 s shut, 3 s
+                                 swing, fade), SFX_CTCMBDR at 1 s, the half-
+                                 speed dolly, one leaf swinging — differing in
+                                 three things.
+
+                                 IT IS TWICE AS WIDE: 200 to the catacomb door's
+                                 100, at the same height. The gaol door in the
+                                 mesh is a broad 400 x 400 barred gate, not a
+                                 narrow catacomb slot.
+
+                                 IT IS HINGED ON ITS LEFT EDGE, where the
+                                 catacomb door is hinged on its right (the
+                                 greenhouse door's hinge_sign; the art is not
+                                 mirrored).
+
+                                 AND ITS TEXTURE IS ROOM ART, on the catacomb
+                                 door's argument: gaol door.tim is the Gaol
+                                 Entry's own slot 3, 4bpp at x640 y0, and BOTH
+                                 rooms this transition joins upload it on entry
+                                 (the Cells through gaol_entry_upload_gaol_door).
+                                 Its see-through texels are CLUT 0, so the black
+                                 shows between the bars, like the garden gate. */
 
 void door_anim_load_assets(void);   /* load the panel TIMs into VRAM (startup) */
 

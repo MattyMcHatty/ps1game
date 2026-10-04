@@ -266,6 +266,28 @@
 #define CAT_V_TOP        0
 #define CAT_V_BOT      127
 
+/* DOOR_PANEL_GAOL, the gaol door between the Gaol Entry and the Gaol Cells. The
+ * CATACOMB variant in everything but its shape: the catacomb clock, SFX_CTCMBDR
+ * and the half-speed dolly, all through is_cat() below. Two things differ.
+ *
+ * IT IS TWICE AS WIDE: 2 * CAT_PANEL_W = 200, at the same height — a square
+ * panel, which is what the mesh's 400 x 400 barred gate is. Closed, it spans
+ * x[60,260] of the 320-wide screen; the dolly scales about the screen centre,
+ * so even at CAT_ZOOM_MAX (1.2x) that span is x[36,284] and the leaf never
+ * leaves the screen.
+ *
+ * IT IS HINGED ON ITS LEFT EDGE, where the catacomb door is hinged on its right
+ * (hinge_sign -1, the greenhouse door's; the art is not mirrored).
+ *
+ * gaol door.tim is a FULL 128x128 TILE, 4bpp at (640,0), Voff 0 — checked in
+ * tools/VRAM_MAP.txt, per the greenhouse door's warning — so U and V both run
+ * 0..127. */
+#define GAOL_PANEL_W    (CAT_PANEL_W * 2)   /* 200 */
+#define GAOL_U_FREE      0
+#define GAOL_U_HINGE   127
+#define GAOL_V_TOP       0
+#define GAOL_V_BOT     127
+
 /* ==========================================================================
    DOOR_PANEL_FALL — the drop into Asag's arena. NOT A DOOR.
    ==========================================================================
@@ -342,7 +364,7 @@
 #define FALL_TOTAL_FRAMES    FALL_RUSH_FRAMES
 #define FALL_FADE_START      (FALL_TOTAL_FRAMES - FALL_FADE_OUT_FRAMES)  /* 105 */
 
-#define DOOR_PANEL_COUNT  8
+#define DOOR_PANEL_COUNT  9
 
 static int32_t  anim_timer  = 0;
 static int      anim_active = 0;
@@ -482,6 +504,11 @@ void door_anim_load_assets(void) {
        back off the disc. */
     panel_tpage[DOOR_PANEL_CATACOMB] = TIM_TPAGE_CTCMBDR;
     panel_clut [DOOR_PANEL_CATACOMB] = TIM_CLUT_CTCMBDR;
+    /* The gaol door: HEADER ONLY, on the catacomb door's argument. It is the
+       Gaol Entry's room art on the arms' page (x640 y0), which half of Chapter 3
+       takes turns on, and both rooms its transition joins put it up on entry. */
+    panel_tpage[DOOR_PANEL_GAOL] = TIM_TPAGE_GAOLDOOR;
+    panel_clut [DOOR_PANEL_GAOL] = TIM_CLUT_GAOLDOOR;
     /* The outer door is the default/fallback; require at least it to draw. */
     if (ok) tex_loaded = 1;
 }
@@ -559,7 +586,11 @@ void door_anim_start(int variant) {
    its own fade-in, so the two numbers come apart. See CAT_FADE_IN_FRAMES. */
 static int is_gate(void)             { return anim_variant == DOOR_PANEL_GATE; }
 static int is_fall(void)             { return anim_variant == DOOR_PANEL_FALL; }
-static int is_cat(void)              { return anim_variant == DOOR_PANEL_CATACOMB; }
+/* "cat" is the CATACOMB CLOCK, not the catacomb texture: the gaol door runs on
+   it too — its timing, its SFX_CTCMBDR, its half-speed dolly — and differs only
+   in geometry, which door_anim_draw's single-leaf branch decides by variant. */
+static int is_cat(void)              { return anim_variant == DOOR_PANEL_CATACOMB ||
+                                              anim_variant == DOOR_PANEL_GAOL;     }
 static int32_t swing_start(void)     { return is_cat()  ? CAT_SWING_START   :
                                               is_gate() ? GATE_SWING_START  : SWING_START;  }
 static int32_t swing_frames(void)    { return is_cat()  ? CAT_SWING_FRAMES  :
@@ -806,6 +837,9 @@ void door_anim_draw(RenderContext *ctx) {
      *                       than either (see the note by that define). It runs
      *                       on its own clock as well, but that is swing_start
      *                       and friends' business, not this branch's.
+     *   gaol door         - GAOL_PANEL_W, hinged on its LEFT edge, and TWICE
+     *                       the catacomb door's width; on the catacomb
+     *                       door's clock (is_cat)
      * `hinge_sign` is +1 for a right-hand hinge and -1 for a left-hand one, and
      * is the only thing the two paths differ by geometrically: the hinge moves
      * to the other side of centre and the free edge travels the other way. The
@@ -816,18 +850,26 @@ void door_anim_draw(RenderContext *ctx) {
      * UVs are selected per variant rather than assumed, so a third single door
      * with a differently-shaped source stays a two-line change here. */
     if (anim_variant == DOOR_PANEL_WOOD || anim_variant == DOOR_PANEL_GREENHOUSE ||
-        anim_variant == DOOR_PANEL_CATACOMB) {
+        anim_variant == DOOR_PANEL_CATACOMB || anim_variant == DOOR_PANEL_GAOL) {
         int     gh      = (anim_variant == DOOR_PANEL_GREENHOUSE);
         int     cat     = (anim_variant == DOOR_PANEL_CATACOMB);
-        int32_t w       = gh ? GH_PANEL_W : cat ? CAT_PANEL_W : PANEL_W;
-        int     u_free  = gh ? GH_U_FREE  : cat ? CAT_U_FREE  : WOOD_U_FREE;
-        int     u_hinge = gh ? GH_U_HINGE : cat ? CAT_U_HINGE : WOOD_U_HINGE;
-        int     v_top   = gh ? GH_V_TOP   : cat ? CAT_V_TOP   : WOOD_V_TOP;
-        int     v_bot   = gh ? GH_V_BOT   : cat ? CAT_V_BOT   : WOOD_V_BOT;
-        /* -1 = hinged on the LEFT edge. The catacomb door takes the wooden
-           door's RIGHT hinge: nothing in the brief asks otherwise, and a right
-           hinge is this file's default for a single leaf. */
-        int32_t hinge_sign = gh ? -1 : 1;
+        int     gaol    = (anim_variant == DOOR_PANEL_GAOL);
+        int32_t w       = gh   ? GH_PANEL_W   : cat ? CAT_PANEL_W :
+                          gaol ? GAOL_PANEL_W : PANEL_W;
+        int     u_free  = gh   ? GH_U_FREE    : cat ? CAT_U_FREE  :
+                          gaol ? GAOL_U_FREE  : WOOD_U_FREE;
+        int     u_hinge = gh   ? GH_U_HINGE   : cat ? CAT_U_HINGE :
+                          gaol ? GAOL_U_HINGE : WOOD_U_HINGE;
+        int     v_top   = gh   ? GH_V_TOP     : cat ? CAT_V_TOP   :
+                          gaol ? GAOL_V_TOP   : WOOD_V_TOP;
+        int     v_bot   = gh   ? GH_V_BOT     : cat ? CAT_V_BOT   :
+                          gaol ? GAOL_V_BOT   : WOOD_V_BOT;
+        /* -1 = hinged on the LEFT edge: the greenhouse door, and the gaol door,
+           which the brief hangs on the catacomb door's opposite edge. The
+           catacomb door takes the wooden door's RIGHT hinge: nothing in the
+           brief asks otherwise, and a right hinge is this file's default for a
+           single leaf. */
+        int32_t hinge_sign = (gh || gaol) ? -1 : 1;
 
         int32_t swing  = swing_angle();
         int32_t cos_t  = icos(swing);

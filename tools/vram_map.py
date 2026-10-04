@@ -904,6 +904,19 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim",      "gaol door.tim"),
     ("trck_clue.tim",               "gaol door.tim"),
     ("trees.tim",                   "gaol door.tim"),
+    #   gaol_mud.tim -> x576 y0, THE GAOL CELLS' mud, 8bpp, ON THE CRIB'S PAGE
+    # AND PALETTE (256,484) - the ladder's terms, a time-share inside Chapter 3.
+    # It is Asag's mud (textures/mud.png) converted again, because the
+    # Catacombs borrow nothing from another area's bank and ASGMUD sits on
+    # cobblestone's page. The crib is drawn only in the five crib rooms, the mud
+    # only in the Gaol Cells, and crib_upload_texture() puts the crib's pixels
+    # AND palette back on every crib-room entry. The page's three older
+    # occupants were already displaced by the crib and keep its restores:
+    #   anzu2, anzu5 -> anzu_tex_stream(), red_wlppr -> kitchen's stream.
+    ("crib.tim",                    "gaol_mud.tim"),
+    ("anzu2.tim",                   "gaol_mud.tim"),
+    ("anzu5.tim",                   "gaol_mud.tim"),
+    ("red_wlppr.tim",               "gaol_mud.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

@@ -227,6 +227,10 @@
 #define TIM_TPAGE_GAOLDOOR 0x000a
 #define TIM_CLUT_GAOLDOOR  0x7da4
 
+/* gaol_mud.tim    8bpp  VRAM ( 576,  0)  \TEXCTCMB\GAOLMUD.TIM */
+#define TIM_TPAGE_GAOLMUD  0x0089
+#define TIM_CLUT_GAOLMUD   0x7910
+
 /* ghit.tim        8bpp  VRAM ( 896, 64)  \TEX\GHIT.TIM */
 #define TIM_TPAGE_GHIT     0x008e
 #define TIM_CLUT_GHIT      0x7f80

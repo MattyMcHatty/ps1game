@@ -236,6 +236,10 @@ static const char *const level_names[] = {
     /* THE GAOL ENTRY, the chapter's twentieth room, behind the Up Down Maze's
        east-upper door. The jump lands at its one wired door. 10 characters. */
     "GAOL ENTRY",
+    /* THE GAOL CELLS, the chapter's twenty-first room, behind the Gaol Entry's
+       gaol door. The jump lands at that door, on the cells' side, whether or
+       not it has been unlocked. 10 characters. */
+    "GAOL CELLS",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -289,6 +293,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* ROOM OF TORSOS */
     STATE_LOADING,        /* THE SHELF */
     STATE_LOADING,        /* GAOL ENTRY */
+    STATE_LOADING,        /* GAOL CELLS */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -340,6 +345,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_ROOM_OF_TORSOS,
     STATE_THE_SHELF,
     STATE_GAOL_ENTRY,
+    STATE_GAOL_CELLS,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------
