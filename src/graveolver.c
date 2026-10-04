@@ -33,6 +33,7 @@
 #include "weapon.h"
 #include "vines.h"      /* the one PROP the gun can destroy */
 #include "damage.h"
+#include "menu.h"       /* the wheel's boxes show the inventory's ammo icons */
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -78,7 +79,15 @@ static int   recoil_timer     = 0;   /* counts down GRAV_RECOIL_FRAMES after a s
    it stays correct even if the chambered type somehow changed mid-flash. */
 static uint8_t flash_r = 255, flash_g = 255, flash_b = 255;
 
-/* --- Ammo swapping (R2) -----------------------------------------------------
+/* --- Reloading and ammo swapping (R2) ---------------------------------------
+   R2 has two jobs, told apart by how long it is held:
+     TAP  (released before WHEEL_HOLD_FRAMES)  tops the cylinder up to
+          GRAVEOLVER_CAPACITY from the chambered type's reserve.
+     HOLD (WHEEL_HOLD_FRAMES or longer)        opens the ammo wheel; the d-pad
+          picks a box and releasing R2 loads that type.
+   Both are decided on RELEASE except the wheel opening itself, so a tap never
+   flashes the wheel up and a hold never starts a top-up first.
+
    Swapping the chambered type costs a FULL reload: the same timer, dip and
    sound as a normal reload, with the type change applied only when the timer
    reaches 0. reload_to is the type the cylinder will hold once it completes;
@@ -87,10 +96,57 @@ static uint8_t flash_r = 255, flash_g = 255, flash_b = 255;
 
    swap_pending distinguishes the two so the "Loaded ..." log line is posted
    only for a real type change, and only on completion — never at the moment
-   R2 is pressed. Cancelling (a weapon switch mid-reload) drops both, leaving
+   R2 is released. Cancelling (a weapon switch mid-reload) drops both, leaving
    the cylinder exactly as it was. */
 static AmmoType reload_to     = AMMO_STANDARD;
 static int      swap_pending  = 0;
+
+/* --- The ammo wheel ----------------------------------------------------------
+   Four boxes in a cross around the screen centre, one per d-pad direction.
+   wheel_slots[] is the ONLY place that says which type sits where; a box whose
+   ammo is -1 is a placeholder for a type that does not exist yet and can never
+   be picked. ADDING AN AMMO TYPE: give it the next free box here.
+
+   A box can be picked when its type is the chambered one (picking it back is
+   how a player changes their mind) or the player holds reserve rounds of it.
+   Anything else ignores the d-pad, so an empty box simply does nothing. */
+#define WHEEL_HOLD_FRAMES 15    /* R2 held this long opens the wheel (0.25 s)   */
+#define WHEEL_CX         160    /* screen centre of the cross                    */
+#define WHEEL_CY          92    /* midway between the screen top and the HUD's
+                                   top edge (HUD_Y, 184): the middle of what the
+                                   player can actually see of the room          */
+#define WHEEL_SPACING     42    /* centre-to-box-centre distance                 */
+#define WHEEL_CELL        34    /* box size — the inventory menu's CELL_W        */
+#define WHEEL_ICON        24    /* icon size — the inventory menu's ICON_SIZE    */
+
+/* Wheel OT layers: inside the UI block (0..15), behind the HUD (0..6) and the
+   gun's own flash/reticule, so the wheel never covers the log or the health. */
+#define OT_WHEEL_BOX     12
+#define OT_WHEEL_LINE    11
+#define OT_WHEEL_ICON    10
+#define OT_WHEEL_COUNT    8     /* shadow lands one step behind, at 9           */
+#define OT_WHEEL_CURSOR   7
+
+enum { WHEEL_UP, WHEEL_LEFT, WHEEL_RIGHT, WHEEL_DOWN, WHEEL_SLOTS };
+
+static const struct {
+    int8_t ammo;        /* AmmoType, or -1 for a box with nothing in it yet */
+    int8_t menu_slot;   /* its inventory icon (MENU_SLOT_*)                 */
+    int8_t dx, dy;      /* box offset from the centre, in WHEEL_SPACINGs    */
+} wheel_slots[WHEEL_SLOTS] = {
+    [WHEEL_UP]    = { AMMO_STANDARD, MENU_SLOT_ROUNDS,        0, -1 },
+    [WHEEL_LEFT]  = { AMMO_FLAME,    MENU_SLOT_FLAME_ROUNDS, -1,  0 },
+    [WHEEL_RIGHT] = { -1,            -1,                      1,  0 },
+    [WHEEL_DOWN]  = { -1,            -1,                      0,  1 },
+};
+
+static int r2_frames   = -1;  /* frames R2 has been down; -1 = not armed       */
+static int wheel_open  = 0;
+static int wheel_pick  = WHEEL_UP;
+/* Set by graveolver_update on every frame the wheel is open and consumed by the
+   draw. A frame on which the update did not run at all (a cutscene took it)
+   therefore draws no wheel, rather than leaving the last one parked on screen. */
+static int wheel_show  = 0;
 
 /* --- Hold pose (view space), all easily tunable ------------------------------
    The model's long axis is X (the barrel), so a ~90 deg yaw points it into the
@@ -460,8 +516,14 @@ int graveolver_is_reloading(void) {
    happens when the timer counts down to 0 on its own). The cylinder is left at
    its current count AND its current type, so switching weapons part-way through
    an ammo swap keeps whatever was already chambered — the swap simply never
-   happened, and no "Loaded ..." line is posted. */
+   happened, and no "Loaded ..." line is posted.
+
+   It also shuts the ammo wheel and disarms R2: a weapon switch taken with the
+   wheel up must not leave the player rooted, or load a type into a gun that is
+   no longer in their hand when R2 comes up. */
 void graveolver_cancel_reload(void) {
+    wheel_open = 0;
+    r2_frames  = -1;
     if (reload_timer > 0) {
         reload_timer = 0;
         swap_pending = 0;
@@ -470,16 +532,24 @@ void graveolver_cancel_reload(void) {
     }
 }
 
-/* The next ammo type the player can actually chamber: one they hold reserve
-   rounds of, skipping the current type. Returns the current type when there is
-   nothing else to switch to, which is how R2 stays inert with only one type. */
-static AmmoType next_available_ammo(void) {
-    int i;
-    for (i = 1; i < MAX_AMMO_TYPES; i++) {
-        AmmoType t = (AmmoType)((graveolver_ammo + i) % MAX_AMMO_TYPES);
-        if (player_ammo[t] > 0) return t;
-    }
-    return graveolver_ammo;
+int graveolver_wheel_open(void) {
+    return wheel_open;
+}
+
+/* Can the wheel's cursor rest on this box? See the wheel_slots[] note. */
+static int wheel_pickable(int slot) {
+    int t = wheel_slots[slot].ammo;
+    if (t < 0) return 0;
+    return t == (int)graveolver_ammo || player_ammo[t] > 0;
+}
+
+/* Start the reload animation toward `target`. swap is 1 only for a real type
+   change, which is what posts the "Loaded ..." line on completion. */
+static void start_reload(AmmoType target, int swap) {
+    reload_to    = target;
+    swap_pending = swap;
+    reload_timer = GRAV_RELOAD_FRAMES;
+    sound_play(SFX_GR_RELOAD);
 }
 
 /* Finish a reload: empty whatever is chambered back into ITS OWN reserve, then
@@ -509,45 +579,84 @@ void graveolver_update(void) {
     /* Edge-detect Square so one press fires once; a short cooldown paces taps. */
     static int square_prev = 0;
     static int r2_prev     = 0;
+    static int dpad_prev   = 0;
     static int cooldown    = 0;
     if (cooldown > 0)    cooldown--;
     if (muzzle_flash > 0) muzzle_flash--;
     if (recoil_timer > 0) recoil_timer--;
 
-    int square_held = 0, r2_held = 0;
+    int square_held = 0, r2_held = 0, dpad = 0;
     if (pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
         square_held = (~pad->btn & PAD_SQUARE) ? 1 : 0;
         r2_held     = (~pad->btn & PAD_R2)     ? 1 : 0;
+        dpad        = ~pad->btn & (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT);
     }
     int square_just = square_held && !square_prev;
     int r2_just     = r2_held     && !r2_prev;
+    int dpad_just   = dpad & ~dpad_prev;
     square_prev = square_held;
     r2_prev     = r2_held;
+    dpad_prev   = dpad;
 
     /* A reload is running: count it down and settle the cylinder when it
-       finishes. No firing and no further swapping until it completes. */
+       finishes. No firing and no further swapping until it completes — and an
+       R2 pressed during it is NOT armed, so holding it through the end of a
+       reload does not roll straight into a tap or the wheel. */
     if (reload_timer > 0) {
         reload_timer--;
         if (reload_timer == 0) reload_complete();
         return;
     }
 
-    if (game_state == STATE_MENU)
+    if (game_state == STATE_MENU) {
+        wheel_open = 0;
+        r2_frames  = -1;
         return;
+    }
 
-    /* R2 swaps the chambered ammo type, at the cost of a full reload. Inert
-       unless there is another type in reserve to switch TO, so with only
-       Standard Rounds the button does nothing. */
-    if (r2_just) {
-        AmmoType target = next_available_ammo();
-        if (target != graveolver_ammo) {
-            reload_to    = target;
-            swap_pending = 1;
-            reload_timer = GRAV_RELOAD_FRAMES;
-            sound_play(SFX_GR_RELOAD);
+    /* R2: tap to top up, hold for the wheel (see the note at reload_to). While
+       it is down the gun does nothing else — no shot can go off mid-choice. */
+    if (r2_just) r2_frames = 0;
+    if (r2_frames >= 0) {
+        if (r2_held) {
+            if (!wheel_open && ++r2_frames >= WHEEL_HOLD_FRAMES) {
+                int s;
+                wheel_open = 1;
+                wheel_pick = WHEEL_UP;
+                for (s = 0; s < WHEEL_SLOTS; s++)
+                    if (wheel_slots[s].ammo == (int)graveolver_ammo) wheel_pick = s;
+            }
+            if (wheel_open) {
+                int dir = -1;
+                if      (dpad_just & PAD_UP)    dir = WHEEL_UP;
+                else if (dpad_just & PAD_LEFT)  dir = WHEEL_LEFT;
+                else if (dpad_just & PAD_RIGHT) dir = WHEEL_RIGHT;
+                else if (dpad_just & PAD_DOWN)  dir = WHEEL_DOWN;
+                if (dir >= 0 && dir != wheel_pick && wheel_pickable(dir)) {
+                    wheel_pick = dir;
+                    sound_play(SFX_CURSOR);
+                }
+                wheel_show = 1;
+            }
             return;
         }
+
+        /* Released. */
+        r2_frames = -1;
+        if (wheel_open) {
+            wheel_open = 0;
+            /* Leaving the cursor on the chambered type is a change of mind,
+               not a reload. */
+            AmmoType target = (AmmoType)wheel_slots[wheel_pick].ammo;
+            if (target != graveolver_ammo) start_reload(target, 1);
+        } else if (graveolver_loaded < GRAVEOLVER_CAPACITY &&
+                   player_ammo[graveolver_ammo] > 0) {
+            /* A tap: top up from the chambered type's own reserve. A full
+               cylinder, or nothing left to load, and the tap does nothing. */
+            start_reload(graveolver_ammo, 0);
+        }
+        return;
     }
 
     if (!square_just || cooldown != 0)
@@ -560,10 +669,7 @@ void graveolver_update(void) {
     } else if (player_ammo[graveolver_ammo] > 0) {
         /* Empty cylinder + trigger pull with rounds of the chambered type in
            reserve: an ordinary top-up, so the target type is the current one. */
-        reload_to    = graveolver_ammo;
-        swap_pending = 0;
-        reload_timer = GRAV_RELOAD_FRAMES;
-        sound_play(SFX_GR_RELOAD);
+        start_reload(graveolver_ammo, 0);
     }
 }
 
@@ -579,6 +685,62 @@ static void screen_tile(RenderContext *ctx, int x, int y, int w, int h,
     setWH(t, w, h);
     addPrim(&ctx->buffers[ctx->active_buffer].ot[ot], t);
     ctx->next_packet += sizeof(TILE);
+}
+
+static void screen_outline(RenderContext *ctx, int x, int y, int w, int h,
+                           uint8_t r, uint8_t g, uint8_t b, int ot) {
+    screen_tile(ctx, x,         y,         w, 1, r, g, b, ot);
+    screen_tile(ctx, x,         y + h - 1, w, 1, r, g, b, ot);
+    screen_tile(ctx, x,         y,         1, h, r, g, b, ot);
+    screen_tile(ctx, x + w - 1, y,         1, h, r, g, b, ot);
+}
+
+/* The ammo wheel: four boxes in the inventory menu's colours, each showing its
+   type's icon and reserve count, and the box under the cursor wearing the
+   menu's highlight (blue/white double outline with white corner ticks). */
+static void draw_ammo_wheel(RenderContext *ctx) {
+    const int pad = (WHEEL_CELL - WHEEL_ICON) / 2;
+    int s;
+    for (s = 0; s < WHEEL_SLOTS; s++) {
+        int bx = WHEEL_CX + wheel_slots[s].dx * WHEEL_SPACING - WHEEL_CELL / 2;
+        int by = WHEEL_CY + wheel_slots[s].dy * WHEEL_SPACING - WHEEL_CELL / 2;
+        screen_tile(ctx, bx, by, WHEEL_CELL, WHEEL_CELL, 35, 30, 45, OT_WHEEL_BOX);
+        screen_outline(ctx, bx, by, WHEEL_CELL, WHEEL_CELL, 80, 70, 100, OT_WHEEL_LINE);
+
+        int t = wheel_slots[s].ammo;
+        if (t >= 0 && (t == (int)graveolver_ammo || player_ammo[t] > 0)) {
+            int ix = bx + pad, iy = by + pad;
+            menu_draw_item_icon_any(ctx, wheel_slots[s].menu_slot, ix, iy,
+                                    WHEEL_ICON, OT_WHEEL_ICON);
+            int count = menu_item_count(wheel_slots[s].menu_slot);
+            if (count)
+                menu_draw_count(ctx, ix, iy + WHEEL_ICON, count, 2, OT_WHEEL_COUNT);
+        }
+
+        if (s == wheel_pick) {
+            int cx = bx + pad - 2, cy = by + pad - 2, cs = WHEEL_ICON + 4;
+            screen_outline(ctx, cx - 2, cy - 2, cs + 4, cs + 4, 80, 80, 200, OT_WHEEL_CURSOR);
+            screen_outline(ctx, cx, cy, cs, cs, 180, 180, 255, OT_WHEEL_CURSOR);
+            screen_tile(ctx, cx,          cy,          3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
+            screen_tile(ctx, cx + cs - 3, cy,          3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
+            screen_tile(ctx, cx,          cy + cs - 3, 3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
+            screen_tile(ctx, cx + cs - 3, cy + cs - 3, 3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
+        }
+    }
+
+    /* Texture window OFF in the icons' own bucket, added after them so it heads
+       the list — a room's 128 window would otherwise wrap the icons' UVs (the
+       HUD's hud_disable_texwindow has the whole story). */
+    {
+        uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+        if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
+            RECT full = {0, 0, 0, 0};
+            DR_TWIN *tw = (DR_TWIN *)ctx->next_packet;
+            setTexWindow(tw, &full);
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_WHEEL_ICON], tw);
+            ctx->next_packet += sizeof(DR_TWIN);
+        }
+    }
 }
 
 void draw_graveolver(RenderContext *ctx) {
@@ -635,8 +797,13 @@ void draw_graveolver(RenderContext *ctx) {
     /* Overlays are hidden behind the inventory menu, so skip them there. */
     if (game_state == STATE_MENU) return;
 
-    /* Aiming reticule: a white cross with a centre gap at the crosshair. */
-    {
+    /* Aiming reticule: a white cross with a centre gap at the crosshair. Hidden
+       while the ammo wheel is up — the d-pad is choosing ammo, not aiming, and
+       the cross would sit among the wheel's boxes. */
+    if (wheel_show) {
+        draw_ammo_wheel(ctx);
+        wheel_show = 0;
+    } else {
         int cx = aim_x, cy = aim_y;
         screen_tile(ctx, cx - 14, cy - 1, 8, 2, 255, 255, 255, OT_GUN_RETICULE);
         screen_tile(ctx, cx +  6, cy - 1, 8, 2, 255, 255, 255, OT_GUN_RETICULE);

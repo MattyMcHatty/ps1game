@@ -466,12 +466,14 @@ typedef enum {
 extern int player_weapons;     /* bitmask — bit WEAPON_* set means it is owned */
 
 /* --- Grave-olver ammunition -------------------------------------------------
-   The cylinder holds ONE type at a time; the reserve is counted per type. R2
-   swaps the chambered type, which costs a full reload (see graveolver.c).
+   The cylinder holds ONE type at a time; the reserve is counted per type. A
+   tap of R2 tops the cylinder up; holding R2 opens the ammo wheel, and the type
+   picked there is swapped in at the cost of a full reload (see graveolver.c).
 
    ADDING AN AMMO TYPE: add an AmmoType before MAX_AMMO_TYPES, add its row to
-   ammo_info[] in player.c, add a PickupKind + TIM in item_pickup.c, and give it
-   a DamageType that enemy weakness tables can key on (see damage.h). */
+   ammo_info[] in player.c, give it a free box in wheel_slots[] in graveolver.c,
+   add a PickupKind + TIM in item_pickup.c, and give it a DamageType that enemy
+   weakness tables can key on (see damage.h). */
 typedef enum {
     AMMO_STANDARD = 0,
     AMMO_FLAME,
@@ -506,8 +508,8 @@ extern int player_blood_pearls;
 
 /* --- The Helluminator's oil -------------------------------------------------
    >>> IT IS NOT AN AmmoType, AND THAT IS THE POINT. <<< The cylinder swap (R2)
-   walks ammo_info[] and will chamber anything the player holds reserve of, so an
-   AMMO_OIL would have had to be excluded by hand in next_available_ammo() — a
+   will chamber any type the player holds reserve of, so an AMMO_OIL would have
+   had to be kept out of the ammo wheel by hand — a
    conditional in exactly the place tools/ADDING_AN_ITEM.txt warns not to put
    one, and one that would need re-remembering for every later weapon. A separate
    scalar cannot be loaded into a revolver at all.

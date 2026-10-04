@@ -188,7 +188,14 @@ THE CYLINDER holds ONE type at a time:
     graveolver_ammo               the chambered type
     graveolver_loaded             rounds in the cylinder
 
-SWAPPING (R2) costs a full reload. The design that keeps this simple is ONE
+R2 IS TAP-TO-RELOAD, HOLD-FOR-WHEEL. A tap tops the cylinder up to six from
+the chambered type's reserve; holding it 0.25 s opens the ammo wheel (four
+boxes, one per d-pad direction), and the box under the cursor when R2 comes
+up is loaded. The wheel's layout is wheel_slots[] in src/graveolver.c and
+NOWHERE ELSE: a new type takes the next free box there (Standard is up, Flame
+is left, right and down are waiting).
+
+SWAPPING costs a full reload. The design that keeps this simple is ONE
 completion path for both cases (src/graveolver.c):
     reload_to     the type the cylinder will hold when the timer expires;
                   equals graveolver_ammo for an ordinary top-up
@@ -203,9 +210,10 @@ Sharing one path means the cancel case is automatically right: the cancel
 reload_timer, swap_pending AND reload_to, so an interrupted swap leaves the
 cylinder at its existing count and type and posts nothing.
 
-Gate the switch on availability: next_available_ammo() only returns a type the
-player holds reserve rounds of, so R2 is inert in a single-ammo playthrough
-instead of starting a pointless reload.
+Gate the switch on availability: wheel_pickable() lets the cursor onto a box
+only if the player holds reserve rounds of its type (or it is the chambered
+type), so an empty box ignores the d-pad and releasing R2 on the chambered
+type starts no reload.
 
   src/debug_opts.c  Grant the new type in debug_opts_apply_grants() alongside
                     the others, so switching is testable from a level-select
@@ -433,8 +441,9 @@ In-game (needs an emulator; say so plainly if you have not run it):
       description, and it can be carried to another cell (Circle, Circle) and
       swapped with an occupied one.
   [ ] Counted item: the HUD reads correctly at 1 and at 2+ digits.
-  [ ] Ammo: R2 swaps only with a second type held; the reload animation plays
-      in full; the message appears only on completion; switching weapons
+  [ ] Ammo: its box on the R2 wheel shows its icon and count, ignores the
+      d-pad while none is held, and loads it on release; the reload
+      animation plays in full; the message appears only on completion; switching weapons
       mid-swap keeps the ORIGINAL rounds; the muzzle flash is the right colour.
   [ ] Weaknesses: the weak enemy dies in the expected number of shots, and a
       non-weak one takes exactly as many as before.
