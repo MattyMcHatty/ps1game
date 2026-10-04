@@ -523,6 +523,68 @@ static const LmbNavNode lmb_shelf_nav_nodes[] = {
     {  -600,  -900,  2,  4,   -900,  -900,   -300,  -900 },  /* east passage   */
 };
 
+/* ---- THE GAOL CELLS: CORRIDORS, EIGHT CELLS, AND THE OPENINGS BETWEEN -----
+   The room (src/gaol_cells.h) is x[0,4999] z[-1200,2399], cut by thin walls
+   into rows:
+
+       north corridor  z[1799,2399]    full width
+       north cells     z[1033,1700]    four, x[0,999] [1099,2200] [2299,3525]
+                                       [3637,4999]
+       centre corridor z[233,966]      full width, the east door at its end
+       south cells     z[-500,166]     four, same columns
+       south strip     z[-1200,-600]   x[0,3525]
+
+   Each cell is open on ONE or TWO sides through a gap in its thin wall (the
+   barred fronts stand in solid wall and are not openings):
+
+       NW cell    north x[0,399]  to the corridor;  south x[600,999]  to the centre
+       N2, N3     south x[1799,2200], x[3075,3525]  to the centre
+       NE cell    north x[4599,4999] to the corridor  (the sconce is in here)
+       SW cell    south x[399,799]   to the strip
+       S2         north x[1799,2200] to the centre; south x[1399,1799] to the strip
+       S3         south x[3075,3525] to the strip
+       SE cell    north x[4599,4999] to the centre
+
+   So the north corridor reaches the rest of the room only through the two end
+   cells, and the south strip only through the S2 cell — without this table a
+   lumberer in either walked straight at a player in the centre corridor and
+   stood against the wall between.
+
+   THE ZONES are the corridors, the strip and the eight cells, cut at the
+   middle of each thin wall (z 1750, 1000, 200, -550; x 1050, 2250, 3581), so
+   they tile the room with no gap. Zones are ordered so every node's `za` is
+   the lower index (the invariant lmb_alert_goal's two-stage crossing depends
+   on). THE NODES are the ten openings, centre ON the cut in the middle of the
+   gap, clearances 300 either side across it — collinear, as everywhere else. */
+static const LmbNavZone lmb_gaol_nav_zones[] = {
+    /* min_x max_x  min_z  max_z */
+    {    0, 4999,  1750,  2399 },  /*  0: north corridor */
+    {    0, 1050,  1000,  1750 },  /*  1: NW cell        */
+    { 1050, 2250,  1000,  1750 },  /*  2: N2 cell        */
+    { 2250, 3581,  1000,  1750 },  /*  3: N3 cell        */
+    { 3581, 4999,  1000,  1750 },  /*  4: NE cell        */
+    {    0, 4999,   200,  1000 },  /*  5: centre corridor */
+    {    0, 1050,  -550,   200 },  /*  6: SW cell        */
+    { 1050, 2250,  -550,   200 },  /*  7: S2 cell        */
+    { 2250, 3581,  -550,   200 },  /*  8: S3 cell        */
+    { 3581, 4999,  -550,   200 },  /*  9: SE cell        */
+    {    0, 3525, -1200,  -550 },  /* 10: south strip    */
+};
+
+static const LmbNavNode lmb_gaol_nav_nodes[] = {
+    /*   x      z    za  zb  za-clearance   zb-clearance */
+    {  200,  1750,  0,  1,   200,  2050,    200,  1450 },  /* corridor - NW    */
+    { 4800,  1750,  0,  4,  4800,  2050,   4800,  1450 },  /* corridor - NE    */
+    {  800,  1000,  1,  5,   800,  1300,    800,   700 },  /* NW - centre      */
+    { 2000,  1000,  2,  5,  2000,  1300,   2000,   700 },  /* N2 - centre      */
+    { 3300,  1000,  3,  5,  3300,  1300,   3300,   700 },  /* N3 - centre      */
+    { 2000,   200,  5,  7,  2000,   500,   2000,  -100 },  /* centre - S2      */
+    { 4800,   200,  5,  9,  4800,   500,   4800,  -100 },  /* centre - SE      */
+    {  600,  -550,  6, 10,   600,  -250,    600,  -850 },  /* SW - strip       */
+    { 1600,  -550,  7, 10,  1600,  -250,   1600,  -850 },  /* S2 - strip       */
+    { 3300,  -550,  8, 10,  3300,  -250,   3300,  -850 },  /* S3 - strip       */
+};
+
 /* Active tables, chosen per-area. A room with NO table gets counts of zero,
    which makes lmb_nav_zone_at return -1 everywhere and the routing fall through
    to "walk at the player" — the behaviour every room had before this existed.
@@ -554,6 +616,13 @@ static void lmb_select_nav(void) {
         lmb_nav_nodes      = lmb_shelf_nav_nodes;
         lmb_nav_node_count = (int)(sizeof(lmb_shelf_nav_nodes) /
                                    sizeof(lmb_shelf_nav_nodes[0]));
+    } else if (current_area == STATE_GAOL_CELLS) {
+        lmb_nav_zones      = lmb_gaol_nav_zones;
+        lmb_nav_zone_count = (int)(sizeof(lmb_gaol_nav_zones) /
+                                   sizeof(lmb_gaol_nav_zones[0]));
+        lmb_nav_nodes      = lmb_gaol_nav_nodes;
+        lmb_nav_node_count = (int)(sizeof(lmb_gaol_nav_nodes) /
+                                   sizeof(lmb_gaol_nav_nodes[0]));
     } else {
         lmb_nav_zones = 0; lmb_nav_zone_count = 0;
         lmb_nav_nodes = 0; lmb_nav_node_count = 0;

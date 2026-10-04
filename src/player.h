@@ -428,6 +428,13 @@ typedef enum {
        sets this). From then on both faces read "Press O to enter". Bit 2 of
        game_flags2. */
     FLAG_GAOL_DOOR,
+
+    /* THE GAOL CELLS' MAGGOT DROP has been sprung: the player crossed the
+       tripwire in the centre corridor and five Maggots came out over the east
+       door. Never runs again. Set on the frame it trips, not when the fifth
+       maggot appears, so leaving mid-drop forfeits the rest
+       (src/gaol_cells.c). Bit 3 of game_flags2. */
+    FLAG_GAOL_CELLS_MAGGOTS,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

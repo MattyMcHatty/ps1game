@@ -329,7 +329,8 @@ static int room_index(GameState area) {
            Maze's east-upper door. Slot 46 of 64. Seeded EMPTY. */
         case STATE_GAOL_ENTRY:        return 46;
         /* THE GAOL CELLS, Chapter 3's twenty-first room, through the Gaol
-           Entry's gaol door. Slot 47 of 64. Seeded EMPTY. */
+           Entry's gaol door. Slot 47 of 64. A Blood Pearl and two
+           Lumberers (world_seed_room). */
         case STATE_GAOL_CELLS:        return 47;
         default:                   return 0;
     }
@@ -1864,6 +1865,41 @@ void world_seed_room(GameState area) {
         lumberer_add( -858, -1866, -4542, -1866, -149, STATE_THE_SHELF); /* south */
         crawler_add_floor(-4500,  -750, 0, STATE_THE_SHELF);
         crawler_add_floor(-4500, -1050, 0, STATE_THE_SHELF);
+    }
+
+    /* THE GAOL CELLS: a THIRD BLOOD PEARL and two Lumberers (src/gaol_cells.h
+       has the plan). One flat plane at y=0 under walls to -800.
+
+       THE PEARL, on the cold sconce in the north-east cell (src/gaol_cells.c,
+       GAC_SCONCE_X/Z — keep the two in step). The Cleaver Corridor's numbers
+       exactly, on the same y=0 floor: centre -222, spawn y that plus
+       IP_FLOAT_Y, REACH 300. The cell is x[3637,4999] z[1033,1700], so the
+       stand is 314+ off every wall and all four faces are open. Slot 0 of a
+       room that had no pickups, so it moves no existing items_gone bit.
+
+       THE LUMBERERS, each a straight leg down one of the two long open runs:
+
+         north  A (4720, 2135)  B (1072, 2135)   the north corridor
+                z[1799,2399]: 264 off its north wall, 336 off the cells' wall,
+                279 off the east wall at A.
+         south  A ( 401, -879)  B (2851, -879)   the south strip
+                z[-1200,-600]: 321 off the south wall, 279 off the cells'
+                wall, 401 off the west wall at A.
+
+       Neither leg crosses a wall, so neither wall-follows on an undisturbed
+       patrol. Once alerted they route through the cells' openings on this
+       room's nav table (lmb_gaol_nav_* in src/lumberer.c).
+
+       y: the standing anchor, 0 - 149, as in the Tomb.
+
+       >>> THE ORDER IS THE SAVE FORMAT. <<< The room is slot 47, the last, so
+       these append: the 10th and 11th lumberers (MAX_LUMBERERS 11). */
+    if (area == STATE_GAOL_CELLS) {
+        int bp = item_pickup_spawn_range(3999, -222 + 50, 1347,
+                                         PICKUP_BLOOD_PEARL, 1, 300);
+        item_pickup_set_display(bp, 22, 0);
+        lumberer_add(4720, 2135, 1072, 2135, -149, STATE_GAOL_CELLS); /* north */
+        lumberer_add( 401, -879, 2851, -879, -149, STATE_GAOL_CELLS); /* south */
     }
 }
 

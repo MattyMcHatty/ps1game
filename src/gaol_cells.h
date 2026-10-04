@@ -34,6 +34,13 @@
    art converted again for this chapter, registered DEFERRED on the CRIB'S page
    and palette (x576 y0, CLUT (256,484)). See gaol_cells_load_assets().
 
+   WHAT IS IN IT. A cold sconce with the chapter's third Blood Pearl on it, in
+   the north-east cell; two Lumberers, one down the north corridor and one
+   along the south strip (src/world.c), routing on this room's own nav table
+   (src/lumberer.c); and a once-per-playthrough MAGGOT DROP — five out of the
+   dark over the east door when the player crosses x=2637 in the centre
+   corridor (gaol_cells_update below).
+
    Its exports live in assets/catacombs/, beside the other Chapter 3 rooms'. */
 
 void gaol_cells_load_assets(void);     /* startup: one deferred reg + headers */
@@ -56,5 +63,11 @@ int  gaol_cells_west_door_triggered(int lock);
    caller that places the player some other way can still ensure a Circle held
    through the transition does not fire on the arrival frame. */
 void gaol_cells_arm(void);
+
+/* One frame of the maggot drop: the tripwire across the centre corridor, and
+   then the five appearing over the east door one at a time. Called from
+   main.c's Gaol Cells update branch; ONCE PER PLAYTHROUGH on
+   FLAG_GAOL_CELLS_MAGGOTS, set on the frame the wire trips. */
+void gaol_cells_update(void);
 
 #endif

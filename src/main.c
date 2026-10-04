@@ -2675,13 +2675,22 @@ static void update_current_area(GameState area) {
            routine and TWO flat floor zones of one plane. multi_level is 0. One
            wired door, the west gaol door back to the Gaol Entry, LOCKED until
            the Gaol Key is used on it (the Entry's lock, FLAG_GAOL_DOOR). The
-           south and east doors and the cell doors are drawn and sealed. No
-           enemies seeded; both Chapter 3 enemy updates are called anyway, on
-           the Tomb's argument. */
+           south and east doors and the cell doors are drawn and sealed. Two
+           Lumberers seeded (src/world.c), routing on the room's own nav table.
+
+           ONE PROP: a cold sconce in the north-east cell with a Blood Pearl
+           on it. The pickup update collects the pearl, and the sconce update
+           after it lights the sconce on the same frame. The MAGGOT DROP over
+           the east door is tripped and timed by gaol_cells_update(); the
+           maggots themselves are updated by the area-tagged update_maggots()
+           with every other room's. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
+        gaol_cells_update();
+        item_pickups_update();
+        sconces_update();
 
         if (gaol_cells_west_door_triggered(lock)) {
             pending_area = STATE_GAOL_ENTRY;

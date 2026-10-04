@@ -28,7 +28,9 @@
 #include "dresser.h"
 #include "sconce.h"
 #include "oil_dispenser.h"
-#include "player.h"             /* current_weapon, player_weapons */
+#include "player.h"             /* current_weapon, player_weapons, the drop's flag */
+#include "item_pickup.h"        /* the Blood Pearl on the sconce */
+#include "title.h"              /* STATE_GAOL_CELLS, the area tags */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 
 /* The Gaol Cells — see gaol_cells.h for the layout and the doors. */
@@ -232,6 +234,87 @@ void gaol_cells_upload_textures(void) {
     bars_upload_texture();
     gaol_entry_upload_gaol_door();
     texmgr_upload(mud_tex);
+    /* ...and the SCONCE's own page (x448 y0), for the cold one in the
+       north-east cell. Nothing else here draws that page either. */
+    sconce_upload_texture();
+}
+
+/* ---- THE SCONCE ------------------------------------------------------------
+   ONE, COLD, in the NORTH-EAST CELL x[3637,4999] z[1033,1700], the one
+   reached from the north corridor through its gap at x[4599,4999]: 362 off
+   the cell's west wall, 314 off its south one and 353 off its north one.
+
+   UNLIT (sconce_place's `lit` 0), as in the Cleaver Corridor and the Up Down
+   Maze: no flame, no point light, until the Blood Pearl on it is taken, which
+   lights it (src/sconce.c, THE PEARL).
+
+   The BLOOD PEARL is a pickup, placed with the room's other residents in
+   src/world.c from these same two numbers — keep them in step. */
+#define GAC_SCONCE_X          3999
+#define GAC_SCONCE_Z          1347
+
+/* ---- THE MAGGOT DROP ------------------------------------------------------
+   FIVE MAGGOTS OUT OF THE DARK OVER THE EAST DOOR (x=5000, z[500,700], its
+   top at y=-400), sprung the first time the player crosses the TRIPWIRE: a
+   band right across the centre corridor at x=2637, the full corridor width
+   z[233,966] between walls 29 and 27, and 200 deep so a sprinting player (20
+   a frame) cannot step over it. Either direction trips it.
+
+   Two spots 150 in from the east wall, either side of the door's centre line,
+   taken in turn. SPAWNED HIGH, the H Corridor's construction (h_corridor.c):
+   maggot_spawn() takes a floor ANCHOR and an anchor above the floor falls
+   under gravity to it, so an anchor of -599 puts the body about y=-620 —
+   above the door's head and under the y=-800 ceiling — and it drops into the
+   corridor already hunting.
+
+   THE TIMING: the first appears on the frame the wire trips, the rest every
+   GAC_MAGGOT_GAP. The door is ~2200 from the wire, ~200 frames at MGT_SPEED,
+   so all five are out before the first arrives — a string of them coming down
+   the corridor.
+
+   ONCE PER PLAYTHROUGH: FLAG_GAOL_CELLS_MAGGOTS is set on the frame it trips.
+   The maggots are transient (src/maggot.h), so leaving mid-drop loses whatever
+   has not appeared yet, and the flag means it never restarts. */
+#define GAC_WIRE_MIN_X        2537
+#define GAC_WIRE_MAX_X        2737
+#define GAC_WIRE_MIN_Z         233
+#define GAC_WIRE_MAX_Z         966
+
+#define GAC_MAGGOT_COUNT         5
+#define GAC_MAGGOT_GAP          45    /* 3/4 s between them                   */
+#define GAC_MAGGOT_X          4850    /* 150 in from the east wall            */
+#define GAC_MAGGOT_DROP_Y    (-450)   /* above the standing anchor            */
+
+static const int16_t gac_maggot_spot_z[2] = { 550, 650 };
+
+static int gac_maggots_left = 0;   /* still to appear on this visit             */
+static int gac_maggot_timer = 0;   /* frames to the next one                    */
+static int gac_maggot_next  = 0;   /* which spot the next one comes from        */
+
+void gaol_cells_update(void) {
+    if (game_over) return;
+
+    /* The wire. Checked every frame until the flag is set, then never again. */
+    if (!game_flag(FLAG_GAOL_CELLS_MAGGOTS) &&
+        cam_x >= GAC_WIRE_MIN_X && cam_x <= GAC_WIRE_MAX_X &&
+        cam_z >= GAC_WIRE_MIN_Z && cam_z <= GAC_WIRE_MAX_Z) {
+        game_flag_set(FLAG_GAOL_CELLS_MAGGOTS);
+        gac_maggots_left = GAC_MAGGOT_COUNT;
+        gac_maggot_timer = 1;              /* the first, this frame */
+        gac_maggot_next  = 0;
+    }
+
+    if (gac_maggots_left <= 0) return;
+    if (--gac_maggot_timer > 0) return;
+    /* A full pool places nothing; that one is lost rather than retried —
+       maggots_reset() empties the pool on every room change, so nothing else
+       can be holding it here. */
+    maggot_spawn(GAC_MAGGOT_X, gac_maggot_spot_z[gac_maggot_next],
+                 GAC_FLOOR_Y - GROUND_FLOOR_Y + GAC_MAGGOT_DROP_Y,
+                 STATE_GAOL_CELLS);
+    gac_maggot_next ^= 1;
+    gac_maggots_left--;
+    gac_maggot_timer = GAC_MAGGOT_GAP;
 }
 
 /* ---- THE WEST GAOL DOOR ----------------------------------------------------
@@ -339,6 +422,14 @@ void gaol_cells_init(void) {
     sconces_clear();
     oil_dispensers_clear();
 
+    /* ...then this room's own sconce, cold, in the north-east cell. */
+    sconce_place(STATE_GAOL_CELLS, GAC_SCONCE_X, -GROUND_FLOOR_Y,
+                 GAC_SCONCE_Z, 0, 0);
+
+    /* Nothing of a drop carries across a visit: the flag says whether the
+       wire can still trip, and a drop cut short by leaving stays cut short. */
+    gac_maggots_left = 0;
+
     gac_view_resolve(1);
 }
 
@@ -361,7 +452,13 @@ static void draw_gaol_cells_smd(RenderContext *ctx) {
             int32_t dx = (int32_t)cull_keys[i].x - cam_x;
             int32_t dz = (int32_t)cull_keys[i].z - cam_z;
             int32_t cd = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-            if (cd > cull)                        { p += stride; continue; }
+            /* SHORT-CIRCUITED ON PURPOSE, the Cleaver Corridor's arrangement:
+               only a primitive the camera would drop asks the sconce's light,
+               which is empty until the Blood Pearl is taken (src/sconce.c). */
+            if (cd > cull &&
+                render_light_dist((int32_t)cull_keys[i].x,
+                                  (int32_t)cull_keys[i].z, cd) > cull)
+                { p += stride; continue; }
             if (dx * sn + dz * cs < -(700 << 12)) { p += stride; continue; }
         }
 
@@ -430,6 +527,10 @@ static void draw_gaol_cells_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        /* The sconce's discount, and it MUST match the one the cull above
+           applied or a lit poly survives the cull and is then shaded as though
+           it had not been — drawn in the clear colour, a hole. */
+        dist = render_light_dist(face_cx, face_cz, dist);
         int32_t fog = dist < gac_fog_near ? gac_fog_near : (dist > gac_fog_far ? gac_fog_far : dist);
         int32_t fog_factor = ((gac_fog_far - fog) << 8) / (gac_fog_far - gac_fog_near);
 
@@ -510,6 +611,11 @@ void gaol_cells_draw(RenderContext *ctx) {
     g_fog_near = gac_fog_near;
     g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : gac_fog_far;
 
+    /* THE SCONCE'S LIGHT, after the two numbers it is a discount on and before
+       the mesh that reads it. Nothing is published while the sconce is cold;
+       taking the Blood Pearl lights it (src/sconce.c, THE PEARL). */
+    sconces_publish_lights();
+
     /* The fog colour as the CLEAR colour, not a full-screen TILE (wrong turn #3
        in tools/DIAGNOSING_FRAME_RATE.txt). */
     render_set_clear_colour(ctx, GAC_FOG_R, GAC_FOG_G, GAC_FOG_B);
@@ -531,8 +637,11 @@ void gaol_cells_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_gaol_cells_smd(ctx);
 
-    /* >>> LEVEL 8 REMOVES THE SIGN, and the enemies if world.c ever places
-       any here. <<< Today the room is empty, so level 8 is the sign alone. */
+    /* The sconce, cold until its Blood Pearl is taken. Its texture sits at
+       Voff 0, so the window above serves it. */
+    sconces_draw(ctx);
+
+    /* >>> LEVEL 8 REMOVES THE SIGN, THE ENEMIES AND THE PEARL. <<< */
     if (exp != DBG_EXP_NO_ENTITIES) {
         gac_west_door_text(ctx);   /* west: YZ plane, approached from +X */
         /* THE CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
@@ -548,5 +657,9 @@ void gaol_cells_draw(RenderContext *ctx) {
         draw_crawlers(ctx);
         draw_lumberers(ctx);
         draw_maggots(ctx);   /* area-tagged: free where none is placed */
+        /* THE BLOOD PEARL, on the cold sconce. Pickups are not drawn globally.
+           After the enemy calls: its art sits at Voff 64 and needs the 128
+           window they restore. */
+        item_pickups_draw(ctx);
     }
 }
