@@ -128,6 +128,13 @@ static const char *area_name(int area) {
         /* Not "ROOM OF BABY NAMES": do_save()'s on-card title is 32
            characters, and "3. ROOM OF BABY NAMES - 005 SAVES" is 33. */
         case STATE_ROOM_OF_BABY_NAMES: return "BABY NAMES";
+        /* The longest, "3. DEAD END CHRISTOF - 005 SAVES", is exactly the
+           32 do_save()'s on-card title allows. */
+        case STATE_DEAD_END_BENJ:     return "DEAD END BENJ";
+        case STATE_DEAD_END_MATTHEW:  return "DEAD END MATTHEW";
+        case STATE_DEAD_END_CHRISTOF: return "DEAD END CHRISTOF";
+        case STATE_DEAD_END_LUKE:     return "DEAD END LUKE";
+        case STATE_DEAD_END_MARK:     return "DEAD END MARK";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

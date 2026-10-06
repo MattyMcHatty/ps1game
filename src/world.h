@@ -22,7 +22,7 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 50  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 55  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
@@ -37,7 +37,10 @@
                                room_of_legs, meat_plant, room_of_bones,
                                cleaver_l, zig_zag_tomb, h_corridor,
                                room_of_torsos, the_shelf, gaol_entry,
-                               gaol_cells, nursery, room_of_baby_names.
+                               gaol_cells, nursery, room_of_baby_names,
+                               and the five Dead Ends (benj, matthew,
+                               christof, luke, mark) - one mesh, five slots,
+                               because each keeps its own pickups.
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
                                are alternative rooms behind the same doors, and

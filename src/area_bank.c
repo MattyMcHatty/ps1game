@@ -172,6 +172,12 @@ TexBank area_bank_of(GameState area) {
        own palette, the gula tablet's terms) and borrows cobble, the inner
        door and the sconce's gold for its plinth. */
     case STATE_ROOM_OF_BABY_NAMES:
+    /* THE FIVE DEAD ENDS own nothing: cobble and the inner door, borrowed. */
+    case STATE_DEAD_END_BENJ:
+    case STATE_DEAD_END_MATTHEW:
+    case STATE_DEAD_END_CHRISTOF:
+    case STATE_DEAD_END_LUKE:
+    case STATE_DEAD_END_MARK:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -203,7 +209,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_GAOL_ENTRY ||
            area == STATE_GAOL_CELLS ||
            area == STATE_NURSERY ||
-           area == STATE_ROOM_OF_BABY_NAMES;
+           area == STATE_ROOM_OF_BABY_NAMES ||
+           area_is_dead_end(area);
 }
 
 /* ---- The prop models -------------------------------------------------------

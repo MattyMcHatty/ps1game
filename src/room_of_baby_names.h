@@ -26,14 +26,22 @@
    column u[0,64) is Matthew/Mark/John/Christof top to bottom, u[64,128) is
    Benj/Luke/Antoni/blank.)
 
-   THE DOORS. Eight are drawn and ONE is wired up:
+   THE DOORS. Eight are drawn and SIX are wired up:
 
-     WEST ("John")  x=-1293 z[-107,107] y[-400,0]  -> Gaol Cells, east door
+     WEST ("John")      x=-1293 z[-107,107]  -> Gaol Cells, east door
+     NORTH-WEST (Benj)     (-914,  914)      -> STATE_DEAD_END_BENJ
+     NORTH (Matthew)       (   0, 1293)      -> STATE_DEAD_END_MATTHEW
+     EAST (Christof)       (1293,    0)      -> STATE_DEAD_END_CHRISTOF
+     SOUTH-EAST (Luke)     ( 914, -914)      -> STATE_DEAD_END_LUKE
+     SOUTH-WEST (Mark)     (-914, -914)      -> STATE_DEAD_END_MARK
 
    The west door is in the YZ plane approached from +X (wall 6 runs x=-1293
-   with nx=+4096), so TEXT_PLANE_YZ with mirror=0 — the Gaol Cells' west
-   door's terms. The other seven stand in solid octagon walls: no sign, no
-   trigger.
+   with nx=+4096), so TEXT_PLANE_YZ with mirror=0 - the Gaol Cells' west
+   door's terms. The five Dead End doors are one table in the .c, and their
+   signs are drawn on a fixed yaw, because four of the faces are diagonal.
+   The blank plate (north-east) will lead to The Neck and ANTONI (south) to the
+   Throat; neither room exists yet, so those two are drawn and sealed: no sign,
+   no trigger.
 
    THE PLINTH. "Press O to read" over it, turned to face the player from any
    side, and a Circle press posts its inscription to the log
@@ -52,9 +60,19 @@ void room_of_baby_names_upload_textures(void); /* room entry: pure LoadImage fro
 void room_of_baby_names_init(void);            /* collision + floor zone + spawn        */
 void room_of_baby_names_draw(RenderContext *ctx);
 
-/* Arrival through the west door, from the Gaol Cells, and the only arrival
-   there is: just inside it, facing east toward the plinth. */
+/* Arrival through the west door, from the Gaol Cells: just inside it, facing
+   east toward the plinth. room_of_baby_names_init()'s default. */
 void room_of_baby_names_spawn_west(void);
+
+/* Arrival back out of a Dead End: just inside the named door that Dead End is
+   behind, facing into the room. `dead_end` is its GameState; anything else
+   leaves the spawn alone. */
+void room_of_baby_names_spawn_from_dead_end(int dead_end);
+
+/* One frame of the five Dead End doors' Circle test. Returns the GameState
+   of the Dead End whose door was pressed (fresh press, in range, facing it),
+   or 0 for none. */
+int  room_of_baby_names_dead_end_triggered(int lock);
 
 /* One frame of the west door's Circle test. `lock` is main's usual
    suppression. Returns 1 on a fresh press made in range and facing the door —

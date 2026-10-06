@@ -1499,6 +1499,13 @@
             <file name="BBYNAMES.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_baby_names.smd"/>
             <file name="BBYNAMES.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\baby names.tim"/>
 
+            <!-- THE DEAD END, ONE MESH FOR FIVE ROOMS: a plain cobblestone
+                 corridor two squares long behind each of the Room of Baby
+                 Names' named doors (Benj, Matthew, Christof, Luke, Mark).
+                 See src/dead_end.h. NO TEXTURE OF ITS OWN: COBBLE and
+                 CTCMBDR are borrowed. -->
+            <file name="DEADEND.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\dead_end.smd"/>
+
             <!-- THE GULA TABLET, the Nursery's prop: a 600 x 800 x 50 stone
                  slab standing across its west door. Exported IN PLACE in the
                  Nursery's coordinates and drawn exactly there - its mesh is

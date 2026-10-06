@@ -280,8 +280,9 @@ void nursery_upload_textures(void) {
 #define NUR_TRIGGER_RADIUS    500
 
 /* THE GULA TABLET'S FACE: its east side, x=-1242 as authored, z[-300,300].
-   The sign stands 11 proud of it along +X — the Room of Baby Names' west
-   door's terms (YZ plane, approached from +X, mirror=0) — at the doors' eye
+   The sign stands 40 proud of it along +X (11 sat it inside the slab's
+   ordering table depth and it blended into the face) — the Room of Baby
+   Names' west door's terms (YZ plane, approached from +X, mirror=0) — at the doors' eye
    height, so it reads as a prompt in front of the slab. */
 #define NUR_TABLET_X        (-1242)
 #define NUR_TABLET_Z            0
@@ -347,7 +348,7 @@ static void nur_tablet_text(RenderContext *ctx) {
     }
 
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to read",
-                        NUR_TABLET_X + 11, NUR_TABLET_TEXT_Y, NUR_TABLET_Z - 200,
+                        NUR_TABLET_X + 40, NUR_TABLET_TEXT_Y, NUR_TABLET_Z - 200,
                         50, 255, 50, fade, 0, TEXT_PLANE_YZ,
                         DOOR_PIXEL_SIZE);
 }

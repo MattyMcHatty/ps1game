@@ -200,6 +200,9 @@ AREAS = {
                   # (4bpp on the arms' page, its own palette) and borrows
                   # cobble, the inner door and the sconce's gold.
                   "room_of_baby_names_upload_textures",
+                  # THE DEAD END, five rooms on one module behind the Room of
+                  # Baby Names' named doors: cobble and the inner door only.
+                  "dead_end_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

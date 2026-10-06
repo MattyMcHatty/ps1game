@@ -196,6 +196,9 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_ROOM_OF_TORSOS,  STATE_THE_SHELF,
     STATE_GAOL_ENTRY,      STATE_GAOL_CELLS,
     STATE_NURSERY,         STATE_ROOM_OF_BABY_NAMES,
+    STATE_DEAD_END_BENJ,   STATE_DEAD_END_MATTHEW,
+    STATE_DEAD_END_CHRISTOF, STATE_DEAD_END_LUKE,
+    STATE_DEAD_END_MARK,
 };
 
 static int room_index(GameState area) {
@@ -341,6 +344,16 @@ static int room_index(GameState area) {
            Gaol Cells' east door. Slot 49 of 64. Seeded EMPTY: its one
            interaction, the plinth, keeps no state. */
         case STATE_ROOM_OF_BABY_NAMES: return 49;
+        /* THE FIVE DEAD ENDS, behind the Room of Baby Names' named doors.
+           One mesh and one module (src/dead_end.c), but a slot EACH: the
+           pickups are room-swapped by slot, so Christof's Flame Rounds and
+           Luke's medipac would otherwise be one shared array. Slots 50-54
+           of 64. Seeded below. */
+        case STATE_DEAD_END_BENJ:     return 50;
+        case STATE_DEAD_END_MATTHEW:  return 51;
+        case STATE_DEAD_END_CHRISTOF: return 52;
+        case STATE_DEAD_END_LUKE:     return 53;
+        case STATE_DEAD_END_MARK:     return 54;
         default:                   return 0;
     }
 }
@@ -1910,6 +1923,37 @@ void world_seed_room(GameState area) {
         lumberer_add(4720, 2135, 1072, 2135, -149, STATE_GAOL_CELLS); /* north */
         lumberer_add( 401, -879, 2851, -879, -149, STATE_GAOL_CELLS); /* south */
     }
+
+    /* THE DEAD ENDS (src/dead_end.h): one occupant each, in the middle of the
+       corridor's NORTH square, (0, 900), opposite the door. The corridor is
+       x[-300,300] z[0,1200] with its floor at y=0, and the player arrives at
+       (0, 220) facing it.
+
+       y: the y=0 floor conventions — -149 the standing anchor for a lumberer,
+       0 the floor surface for crawler_add_floor, -50 for a floor-level item
+       pickup (item_pickup_spawn raises it IP_FLOAT_Y) and -149 for
+       sml_med_spawn (which adds SML_MED_FLOAT_Y), as the East Stairwell's.
+
+       THE LUMBERERS pace a 200-long leg down the middle of that square, A at
+       the centre and B toward the door, so each starts there facing the
+       player's way. 200 clears LMB_WAYPOINT_REACH (140), and both points are
+       200 off the side walls against the body's 100.
+
+       >>> THE ORDER IS THE SAVE FORMAT. <<< These rooms are slots 50-54, the
+       last, so their enemies append: Benj's and Mark's are the 12th and 13th
+       lumberers (MAX_LUMBERERS 13), Matthew's the 14th crawler
+       (MAX_CRAWLERS 14). */
+    if (area == STATE_DEAD_END_BENJ)
+        lumberer_add(0, 900, 0, 700, -149, STATE_DEAD_END_BENJ);
+    if (area == STATE_DEAD_END_MATTHEW)
+        crawler_add_floor(0, 900, 0, STATE_DEAD_END_MATTHEW);
+    if (area == STATE_DEAD_END_CHRISTOF)
+        item_pickup_spawn_amount(0, -50, 900, PICKUP_FLAME_ROUNDS,
+                                 GRAVEOLVER_CAPACITY);   /* one full cylinder */
+    if (area == STATE_DEAD_END_LUKE)
+        sml_med_spawn(0, -149, 900);
+    if (area == STATE_DEAD_END_MARK)
+        lumberer_add(0, 900, 0, 700, -149, STATE_DEAD_END_MARK);
 }
 
 void world_enter(GameState area) {

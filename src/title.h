@@ -266,7 +266,26 @@ typedef enum {
                                 doors and a gold plinth to read in the middle.
                                 See src/room_of_baby_names.h. Appended, not
                                 inserted: saves store raw enum values. */
+    /* THE DEAD ENDS: one mesh and one module (src/dead_end.c), five rooms.
+       Each is behind one of the Room of Baby Names' named doors and holds one
+       thing in the middle of its far square. They are FIVE STATES rather than
+       one state and an instance number because everything that tells them
+       apart is keyed by area: world.c's room slot (the pickups), the
+       Chapter 3 enemies' area tag (who is dead), and the area a save
+       records — a title load must come back into the right one.
+       >>> CONTIGUOUS, IN THIS ORDER. <<< area_is_dead_end() below is a range
+       test over them; add nothing between the first and the last. */
+    STATE_DEAD_END_BENJ,     /* north-west door: a Lumberer        */
+    STATE_DEAD_END_MATTHEW,  /* north door:      a Crawler         */
+    STATE_DEAD_END_CHRISTOF, /* east door:       Flame Rounds      */
+    STATE_DEAD_END_LUKE,     /* south-east door: a small medipac   */
+    STATE_DEAD_END_MARK,     /* south-west door: a Lumberer        */
 } GameState;
+
+/* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */
+static inline int area_is_dead_end(int a) {
+    return a >= STATE_DEAD_END_BENJ && a <= STATE_DEAD_END_MARK;
+}
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn
    tile — draw_title paints only the letters over it. Lives here rather than in

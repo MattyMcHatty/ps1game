@@ -248,6 +248,14 @@ static const char *const level_names[] = {
        "BABY NAMES": the full name is 18 characters, past the 14 the column
        allows. */
     "BABY NAMES",
+    /* THE FIVE DEAD ENDS, behind the Room of Baby Names' named doors. Each
+       jump lands at its one door. Matthew and Christof are cut to fit the
+       14-character column. */
+    "DEAD END BENJ",
+    "DEAD END MATT",
+    "DEAD END CHRIS",
+    "DEAD END LUKE",
+    "DEAD END MARK",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -304,6 +312,11 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* GAOL CELLS */
     STATE_LOADING,        /* NURSERY */
     STATE_LOADING,        /* BABY NAMES */
+    STATE_LOADING,        /* DEAD END BENJ */
+    STATE_LOADING,        /* DEAD END MATT */
+    STATE_LOADING,        /* DEAD END CHRIS */
+    STATE_LOADING,        /* DEAD END LUKE */
+    STATE_LOADING,        /* DEAD END MARK */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -358,6 +371,11 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_GAOL_CELLS,
     STATE_NURSERY,
     STATE_ROOM_OF_BABY_NAMES,
+    STATE_DEAD_END_BENJ,
+    STATE_DEAD_END_MATTHEW,
+    STATE_DEAD_END_CHRISTOF,
+    STATE_DEAD_END_LUKE,
+    STATE_DEAD_END_MARK,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------
