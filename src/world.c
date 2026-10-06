@@ -195,7 +195,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_ZIG_ZAG_TOMB,    STATE_H_CORRIDOR,
     STATE_ROOM_OF_TORSOS,  STATE_THE_SHELF,
     STATE_GAOL_ENTRY,      STATE_GAOL_CELLS,
-    STATE_NURSERY,
+    STATE_NURSERY,         STATE_ROOM_OF_BABY_NAMES,
 };
 
 static int room_index(GameState area) {
@@ -337,6 +337,10 @@ static int room_index(GameState area) {
            Cells' south door. Slot 48 of 64. Seeded EMPTY: its six cots are
            placed by nursery_init() and light off the five crib rooms' bits. */
         case STATE_NURSERY:           return 48;
+        /* THE ROOM OF BABY NAMES, Chapter 3's twenty-third room, through the
+           Gaol Cells' east door. Slot 49 of 64. Seeded EMPTY: its one
+           interaction, the plinth, keeps no state. */
+        case STATE_ROOM_OF_BABY_NAMES: return 49;
         default:                   return 0;
     }
 }

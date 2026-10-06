@@ -57,6 +57,11 @@ void nursery_spawn_east(void);
    main.c starts the transition on. */
 int  nursery_east_door_triggered(int lock);
 
+/* One frame of the Gula Tablet's Circle test: a fresh press in range and
+   facing it posts its inscription to the log. Returns 1 if it CONSUMED this
+   frame's Circle tap — the veto main.c hands the door trigger. */
+int  nursery_update(int lock);
+
 /* Arm every interaction in the room. Called by the spawn above; exported so a
    caller that places the player some other way can still ensure a Circle held
    through the transition does not fire on the arrival frame. */

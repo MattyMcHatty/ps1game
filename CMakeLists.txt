@@ -100,6 +100,7 @@ add_executable(horror_game
     src/gaol_entry.c
     src/gaol_cells.c
     src/nursery.c
+    src/room_of_baby_names.c
     src/gula_tablet.c
     src/ladder_anim.c
     src/sconce.c

@@ -329,10 +329,10 @@ void gaol_cells_update(void) {
    wall along +X — the Gaol Entry's west door's terms.
 
    THE SOUTH DOOR is wired too, below: the catacomb inner door in the south-east
-   corner of the south wall, into the Nursery.
+   corner of the south wall, into the Nursery. And so is THE EAST DOOR, the
+   catacomb inner door in the east wall, into the Room of Baby Names.
 
-   THE OTHER DOORS ARE DRAWN AND NOTHING ELSE: the catacomb inner door in the
-   east wall (x=5000 z[500,700]), and the three barred cell doors (x[600,1000] and x[3075,3525] at z~200,
+   THE OTHER DOORS ARE DRAWN AND NOTHING ELSE: the three barred cell doors (x[600,1000] and x[3075,3525] at z~200,
    x[4600,5000] at z~1000), which stand in solid proxy walls. No sign, no
    trigger. The mesh's own copy of the Gaol Entry, west of x=0, is what is
    seen back through the bars. */
@@ -347,10 +347,12 @@ void gaol_cells_update(void) {
    through the transition cannot fire on the arrival frame. */
 static int west_circle_prev  = 1;
 static int south_circle_prev = 1;
+static int east_circle_prev  = 1;
 
 void gaol_cells_arm(void) {
     west_circle_prev  = interact_tapped();
     south_circle_prev = interact_tapped();
+    east_circle_prev  = interact_tapped();
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -461,6 +463,72 @@ void gaol_cells_spawn_south(void) {
     cam_vy  = 0;
     cam_z   = GAC_SOUTH_Z + (GAC_WALL_RADIUS + 25);
     cam_rot = 0;                       /* facing +Z, north */
+    gaol_cells_arm();
+}
+
+/* ---- THE EAST DOOR ---------------------------------------------------------
+   x=5000, z[500,700], y[-400,0] — the catacomb inner door at the east end of
+   the centre corridor, in wall 44 (x=4999, z[-500,2399], nx=-4096), into the
+   Room of Baby Names' west door, the one with JOHN over it. Unlocked.
+
+   A door in the YZ plane at fixed X, approached from -X, so TEXT_PLANE_YZ with
+   mirror=1, the -200 on the Z argument, and the sign 11 proud of the wall
+   along -X — the Nursery's east door's terms. The approach is the centre
+   corridor, z[233,966], so nothing else is within the trigger radius.
+
+   >>> THE MAGGOT DROP COMES OUT OF THE DARK OVER THIS DOOR (above). <<< Its
+   two spots, (4850, 550/650), are 70 from this arrival's (4779,600), so a
+   player who comes back through the door before the wire is ever tripped
+   meets them on the doorstep when it is. */
+#define GAC_EAST_X           4999     /* wall 44; the art is at x=5000 */
+#define GAC_EAST_Z            600     /* the art spans z[500,700] */
+#define GAC_EAST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
+
+int gaol_cells_east_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !east_circle_prev;
+    int32_t dx, dz, xz;
+    east_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - GAC_EAST_X;
+    dz = cam_z - GAC_EAST_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= GAC_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(GAC_EAST_X, GAC_EAST_Z)) return 0;
+    return 1;
+}
+
+static void gac_east_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - GAC_EAST_X;
+    int32_t dz = cam_z - GAC_EAST_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= GAC_TEXT_RADIUS) return;
+
+    if (xz > GAC_FADE_NEAR) {
+        int range = GAC_TEXT_RADIUS - GAC_FADE_NEAR;
+        int prog  = xz - GAC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        GAC_EAST_X - 11, GAC_EAST_TEXT_Y, GAC_EAST_Z - 200,
+                        50, 255, 50, fade, 1, TEXT_PLANE_YZ,
+                        DOOR_PIXEL_SIZE);
+}
+
+void gaol_cells_spawn_east(void) {
+    /* 220 off wall 44 on its walkable -X side, on the door's centre line,
+       facing -X — the direction of travel, back west down the centre
+       corridor. (4779,600) is 366 off the corridor's north wall (z=966) and
+       409 off its south one (z=233), both clear of the 195 push. */
+    cam_x   = GAC_EAST_X - (GAC_WALL_RADIUS + 25);
+    cam_y   = GAC_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = GAC_EAST_Z;
+    cam_rot = 3072;                    /* facing -X, west */
     gaol_cells_arm();
 }
 
@@ -710,6 +778,7 @@ void gaol_cells_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         gac_west_door_text(ctx);   /* west: YZ plane, approached from +X */
         gac_south_door_text(ctx);  /* south: XY plane, approached from +Z */
+        gac_east_door_text(ctx);   /* east: YZ plane, approached from -X  */
         /* THE CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Their sheets sit at Voff 128, so each is handed the window to restore

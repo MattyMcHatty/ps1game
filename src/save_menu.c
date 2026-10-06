@@ -125,6 +125,9 @@ static const char *area_name(int area) {
         case STATE_GAOL_ENTRY:        return "GAOL ENTRY";
         case STATE_GAOL_CELLS:        return "GAOL CELLS";
         case STATE_NURSERY:           return "NURSERY";
+        /* Not "ROOM OF BABY NAMES": do_save()'s on-card title is 32
+           characters, and "3. ROOM OF BABY NAMES - 005 SAVES" is 33. */
+        case STATE_ROOM_OF_BABY_NAMES: return "BABY NAMES";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

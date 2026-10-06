@@ -243,6 +243,11 @@ static const char *const level_names[] = {
     /* THE NURSERY, the chapter's twenty-second room, behind the Gaol Cells'
        south-east door. The jump lands at its east door. 7 characters. */
     "NURSERY",
+    /* THE ROOM OF BABY NAMES, the chapter's twenty-third room, behind the
+       Gaol Cells' east door. The jump lands at its west door, the only one.
+       "BABY NAMES": the full name is 18 characters, past the 14 the column
+       allows. */
+    "BABY NAMES",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -298,6 +303,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* GAOL ENTRY */
     STATE_LOADING,        /* GAOL CELLS */
     STATE_LOADING,        /* NURSERY */
+    STATE_LOADING,        /* BABY NAMES */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -351,6 +357,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_GAOL_ENTRY,
     STATE_GAOL_CELLS,
     STATE_NURSERY,
+    STATE_ROOM_OF_BABY_NAMES,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

@@ -79,6 +79,10 @@
 #define TIM_TPAGE_BARS     0x0018
 #define TIM_CLUT_BARS      0x7c40
 
+/* baby names.tim  4bpp  VRAM ( 640,  0)  \TEXCTCMB\BBYNAMES.TIM */
+#define TIM_TPAGE_BBYNAMES 0x000a
+#define TIM_CLUT_BBYNAMES  0x7da6
+
 /* bed.tim         8bpp  VRAM ( 768,  0)  \TEX\BED.TIM */
 #define TIM_TPAGE_BED      0x008c
 #define TIM_CLUT_BED       0x7811

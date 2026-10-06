@@ -107,6 +107,7 @@
 #include "gaol_entry.h"
 #include "gaol_cells.h"
 #include "nursery.h"
+#include "room_of_baby_names.h"
 #include "gula_tablet.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
@@ -376,6 +377,7 @@ static void load_area_geometry(GameState area) {
         case STATE_GAOL_ENTRY:       gaol_entry_load_geometry(); break;
         case STATE_GAOL_CELLS:       gaol_cells_load_geometry(); break;
         case STATE_NURSERY:          nursery_load_geometry(); break;
+        case STATE_ROOM_OF_BABY_NAMES: room_of_baby_names_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2711,6 +2713,16 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* ...and the EAST door, at the end of the centre corridor, into the
+           Room of Baby Names. Same terms: called unconditionally for its edge
+           state, and the doors are far enough apart not to share a frame. */
+        if (gaol_cells_east_door_triggered(lock) &&
+            game_state != STATE_DOOR_ANIM) {
+            pending_area = STATE_ROOM_OF_BABY_NAMES;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_NURSERY) {
         /* THE NURSERY - Chapter 3's twenty-second room: the shared wall routine
            and ONE flat floor zone over the Room of Arms' octagon. multi_level
@@ -2728,11 +2740,41 @@ static void update_current_area(GameState area) {
         update_crawlers();
         update_lumberers();
 
-        if (nursery_east_door_triggered(lock)) {
-            pending_area = STATE_GAOL_CELLS;
-            door_anim_start(DOOR_PANEL_CATACOMB);
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
+        {
+            /* The tablet's read prompt first; the door only gets the frame
+               if the tablet did not take it. */
+            int read = nursery_update(lock);
+            if (nursery_east_door_triggered(lock) && !read) {
+                pending_area = STATE_GAOL_CELLS;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
+        }
+    } else if (area == STATE_ROOM_OF_BABY_NAMES) {
+        /* THE ROOM OF BABY NAMES - Chapter 3's twenty-third room: the shared
+           wall routine and ONE flat floor zone over the Nursery's octagon.
+           multi_level is 0. One wired door, west (the one with JOHN over
+           it), back to the Gaol Cells; the other seven are drawn and sealed.
+
+           THE PLINTH in the middle is four proxy walls, so it collides through
+           apply_collision_reception like the octagon. Its Circle prompt goes
+           FIRST and the door only gets the frame if the plinth did not take
+           it - the Room of Arms' examine order. No enemies seeded; both
+           Chapter 3 enemy updates are called anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        {
+            int read = room_of_baby_names_update(lock);
+            if (room_of_baby_names_west_door_triggered(lock) && !read) {
+                pending_area = STATE_GAOL_CELLS;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
         }
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
@@ -3274,6 +3316,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         gaol_cells_draw(ctx);
     else if (area == STATE_NURSERY)
         nursery_draw(ctx);
+    else if (area == STATE_ROOM_OF_BABY_NAMES)
+        room_of_baby_names_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3761,6 +3805,11 @@ int main(int argc, const char **argv) {
                                      borrowed headers (cobble, the gula tablet,
                                      inner door) and no registration of its own.
                                      No CD access here. */
+    loading_screen_pump(&ctx);
+    room_of_baby_names_load_assets(); /* CHAPTER 3's twenty-third room: one
+                                     DEFERRED registration (BBYNAMES.TIM, the
+                                     name plates) and four headers. No CD
+                                     access here. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4690,6 +4739,15 @@ int main(int argc, const char **argv) {
                    the crib's. Same guarantee and same silent failure mode as
                    the branches around it. */
                 nursery_upload_textures();
+            } else if (pending_area == STATE_ROOM_OF_BABY_NAMES) {
+                /* THE ROOM OF BABY NAMES. Cobble and the inner door through
+                   the Catacombs Entry's narrow uploaders and the plinth's gold
+                   through the sconce's, plus its OWN - BBYNAMES.TIM on x640 y0,
+                   the ROOM OF ARMS' page, its own CLUT - which each of that
+                   page's owners' branches puts back on the way in there. Same
+                   guarantee and same silent failure mode as the branches
+                   around it. */
+                room_of_baby_names_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5496,17 +5554,25 @@ int main(int argc, const char **argv) {
                     gaol_entry_spawn_gaol_door();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_GAOL_CELLS) {
-                /* TWO ARRIVALS. gaol_cells_init() places the player at the
+                /* THREE ARRIVALS. gaol_cells_init() places the player at the
                    west gaol door, from the Gaol Entry; back from the Nursery
-                   they come in through the south door instead. */
+                   they come in through the south door instead, and back from
+                   the Room of Baby Names through the east door. */
                 gaol_cells_init();
                 if (current_area == STATE_NURSERY)
                     gaol_cells_spawn_south();
+                else if (current_area == STATE_ROOM_OF_BABY_NAMES)
+                    gaol_cells_spawn_east();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_NURSERY) {
                 /* ONE ARRIVAL, the east door, so nursery_init()'s default
                    spawn is also the only one. */
                 nursery_init();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_ROOM_OF_BABY_NAMES) {
+                /* ONE ARRIVAL, the west door, so room_of_baby_names_init()'s
+                   default spawn is also the only one. */
+                room_of_baby_names_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -5885,7 +5951,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_THE_SHELF ||
                    game_state == STATE_GAOL_ENTRY ||
                    game_state == STATE_GAOL_CELLS ||
-                   game_state == STATE_NURSERY) {
+                   game_state == STATE_NURSERY ||
+                   game_state == STATE_ROOM_OF_BABY_NAMES) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

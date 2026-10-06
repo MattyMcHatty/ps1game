@@ -260,6 +260,12 @@ typedef enum {
                                 encounters are beaten, and the Gula Tablet across
                                 its west door. See src/nursery.h. Appended, not
                                 inserted: saves store raw enum values. */
+    STATE_ROOM_OF_BABY_NAMES,/* THE ROOM OF BABY NAMES, through the Gaol Cells'
+                                east door. Chapter 3's twenty-third room: an
+                                octagon with a name over each of its eight
+                                doors and a gold plinth to read in the middle.
+                                See src/room_of_baby_names.h. Appended, not
+                                inserted: saves store raw enum values. */
 } GameState;
 
 /* The title screen's background. It is the framebuffer CLEAR colour, not a drawn

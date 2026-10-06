@@ -168,6 +168,10 @@ TexBank area_bank_of(GameState area) {
        gula tablet comes through the Gula Tablet prop's uploader and the cots
        through the crib's. */
     case STATE_NURSERY:
+    /* THE ROOM OF BABY NAMES owns BBYNAMES.TIM (4bpp on the arms' page, its
+       own palette, the gula tablet's terms) and borrows cobble, the inner
+       door and the sconce's gold for its plinth. */
+    case STATE_ROOM_OF_BABY_NAMES:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -198,7 +202,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_THE_SHELF ||
            area == STATE_GAOL_ENTRY ||
            area == STATE_GAOL_CELLS ||
-           area == STATE_NURSERY;
+           area == STATE_NURSERY ||
+           area == STATE_ROOM_OF_BABY_NAMES;
 }
 
 /* ---- The prop models -------------------------------------------------------

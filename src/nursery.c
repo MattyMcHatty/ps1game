@@ -28,7 +28,7 @@
 #include "oil_dispenser.h"
 #include "crib.h"               /* the ring of six mirror cots */
 #include "gula_tablet.h"        /* the slab across the west door */
-#include "player.h"             /* current_weapon, player_weapons */
+#include "player.h"             /* current_weapon, player_weapons, show_pickup_msg_raw */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 
 /* The Nursery — see nursery.h for the layout, the door and the cots. */
@@ -269,7 +269,9 @@ void nursery_upload_textures(void) {
    YZ sign is Z, so the -200 door_draw_string_3d wants goes on the Z argument.
 
    THE WEST DOOR (x=-1293, the same span) is drawn and SEALED: the Gula Tablet
-   stands across it (src/gula_tablet.h). No sign, no trigger. */
+   stands across it (src/gula_tablet.h). No door sign, no door trigger — but
+   the tablet itself reads: "Press O to read" in front of its east face, and a
+   Circle press posts its inscription to the log (nursery_update). */
 #define NUR_EAST_X           1293
 #define NUR_EAST_Z              0     /* the art spans z[-107,107] */
 #define NUR_EAST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
@@ -277,12 +279,39 @@ void nursery_upload_textures(void) {
 #define NUR_FADE_NEAR         800
 #define NUR_TRIGGER_RADIUS    500
 
+/* THE GULA TABLET'S FACE: its east side, x=-1242 as authored, z[-300,300].
+   The sign stands 11 proud of it along +X — the Room of Baby Names' west
+   door's terms (YZ plane, approached from +X, mirror=0) — at the doors' eye
+   height, so it reads as a prompt in front of the slab. */
+#define NUR_TABLET_X        (-1242)
+#define NUR_TABLET_Z            0
+#define NUR_TABLET_TEXT_Y    (-186)
+
+static const char NUR_TABLET_READ[] = "Release my children from this earthly burden";
+
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
-static int east_circle_prev = 1;
+static int east_circle_prev   = 1;
+static int tablet_circle_prev = 1;
 
 void nursery_arm(void) {
-    east_circle_prev = interact_tapped();
+    east_circle_prev   = interact_tapped();
+    tablet_circle_prev = interact_tapped();
+}
+
+int nursery_update(int lock) {
+    int held = interact_tapped();
+    int just = held && !tablet_circle_prev;
+    int32_t dx, dz, xz;
+    tablet_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - NUR_TABLET_X;
+    dz = cam_z - NUR_TABLET_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= NUR_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(NUR_TABLET_X, NUR_TABLET_Z)) return 0;
+    show_pickup_msg_raw(NUR_TABLET_READ);
+    return 1;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -299,6 +328,28 @@ int nursery_east_door_triggered(int lock) {
     if (xz >= NUR_TRIGGER_RADIUS) return 0;
     if (!interact_facing(NUR_EAST_X, NUR_EAST_Z)) return 0;
     return 1;
+}
+
+/* The tablet's floating sign, the door's fade below on the tablet's face. */
+static void nur_tablet_text(RenderContext *ctx) {
+    int32_t dx = cam_x - NUR_TABLET_X;
+    int32_t dz = cam_z - NUR_TABLET_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= NUR_TEXT_RADIUS) return;
+
+    if (xz > NUR_FADE_NEAR) {
+        int range = NUR_TEXT_RADIUS - NUR_FADE_NEAR;
+        int prog  = xz - NUR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to read",
+                        NUR_TABLET_X + 11, NUR_TABLET_TEXT_Y, NUR_TABLET_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ,
+                        DOOR_PIXEL_SIZE);
 }
 
 /* The door's floating sign. Same shape as every other sign in the game: opaque
@@ -585,6 +636,7 @@ void nursery_draw(RenderContext *ctx) {
        this is the level that says whether they are why. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         nur_east_door_text(ctx);   /* east: YZ plane, approached from -X */
+        nur_tablet_text(ctx);      /* the tablet: YZ plane, approached from +X */
         /* THE CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
            Their sheets sit at Voff 128, so each is handed the window to restore

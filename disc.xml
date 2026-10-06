@@ -1484,6 +1484,21 @@
                  Gula Tablet prop, below, and the floor tiles draw it too. -->
             <file name="NURSERY.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\nursery.smd"/>
 
+            <!-- THE ROOM OF BABY NAMES, the chapter's TWENTY-THIRD room,
+                 through the Gaol Cells' east door. The Nursery's octagon with
+                 a door in every face, a name plate over each, and a gold
+                 plinth to read in the middle. See src/room_of_baby_names.h.
+
+                 ONE TEXTURE OF ITS OWN: BBYNAMES.TIM, the eight name plates,
+                 4bpp 128x128 at x640 y0 - the ROOM OF ARMS' page, on the gaol
+                 door's and the gula tablet's terms (it covers x[640,672) only,
+                 every owner of that page puts its own art back on entry, and
+                 none of them is drawn here). Its CLUT is its OWN, at
+                 (608,502), beside the gula tablet's. COBBLE, CTCMBDR and
+                 SCONCE are borrowed. See tools/vram_map.py. -->
+            <file name="BBYNAMES.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_baby_names.smd"/>
+            <file name="BBYNAMES.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\baby names.tim"/>
+
             <!-- THE GULA TABLET, the Nursery's prop: a 600 x 800 x 50 stone
                  slab standing across its west door. Exported IN PLACE in the
                  Nursery's coordinates and drawn exactly there - its mesh is
