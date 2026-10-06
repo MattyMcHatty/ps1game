@@ -121,7 +121,7 @@ static void nur_view_resolve(int snap) {
        south-east   ( 630, -597)   868    2542    the Room of Legs' crib
        south        (   0, -796)   796    3072    the Room of Bones' crib
        south-west   (-630, -597)   868    3602    the Room of Torsos' crib
-       north-west   (-630,  597)   868     494    NOTHING YET — see below
+       north-west   (-630,  597)   868     494    the Room of Guts' crib
 
    THESE ARE NOT ENCOUNTERS. Every one is a crib_place_mirror() (src/crib.h,
    THE NURSERY'S MIRRORS): it carries the encounter's beam at full, held still,
@@ -130,10 +130,14 @@ static void nur_view_resolve(int snap) {
    otherwise. A crucifaxe swing rocks it once and does nothing else: no Creeps,
    no loop, no change to its light.
 
-   >>> THE NORTH-WEST COT IS WAITING FOR THE SIXTH CRIB, WHICH IS STILL TO
-   COME. <<< It is placed UNPAIRED (paired=0), so it is always dark. When the
-   sixth crib encounter is built in its own room, change its line in
-   nursery_init() to pass that room's STATE_ and paired=1; nothing else moves.
+   THE NORTH-WEST COT WAS THE LAST TO BE PAIRED: the sixth crib is the Room of
+   Guts' (src/room_of_guts.c), behind the Throat.
+
+   >>> ALL SIX LIT RAISES THE GULA TABLET. <<< When every cot's paired room is
+   solved, nursery_init() lifts the slab NUR_TABLET_RISE off the west door, so
+   the door behind it shows on the NEXT entry after the last crib is beaten —
+   which is necessarily a later entry, since the last crib is in another room.
+   Nothing new is saved: it is the six crib bits, read on entry (nur_all_lit).
 
    CLEARANCES. The cots' outer ends sit at radius ~970 (north/south) and ~1040
    (the four diagonals) against an apothem of 1293, so the nearest wall is
@@ -271,7 +275,13 @@ void nursery_upload_textures(void) {
    THE WEST DOOR (x=-1293, the same span) is drawn and SEALED: the Gula Tablet
    stands across it (src/gula_tablet.h). No door sign, no door trigger — but
    the tablet itself reads: "Press O to read" in front of its east face, and a
-   Circle press posts its inscription to the log (nursery_update). */
+   Circle press posts its inscription to the log (nursery_update).
+
+   WITH ALL SIX COTS LIT the tablet stands lifted off the door and the door is
+   SHOWN, but it is still not wired: no sign, no trigger, nowhere to go yet —
+   and the proxy's west wall still runs across it. Wiring it is a door block
+   here, a pending_area in main.c, and a gap in the collision proxy. The read
+   prompt is withdrawn while it is lifted (nur_tablet_raised). */
 #define NUR_EAST_X           1293
 #define NUR_EAST_Z              0     /* the art spans z[-107,107] */
 #define NUR_EAST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
@@ -290,6 +300,29 @@ void nursery_upload_textures(void) {
 
 static const char NUR_TABLET_READ[] = "Release my children from this earthly burden";
 
+/* THE REVEAL: how far the slab lifts once all six cots are lit. The west
+   doorway is y[-400,0] and the slab is 800 tall, so 400 puts its base exactly
+   on the lintel and its top at y=-1200, the top of the octagon's stone (see
+   nursery_init's ceiling) — the door is uncovered and the slab stays inside the
+   wall it is set into. Lifted, its base is far above the player's head, so it
+   stops blocking (gula_tablets_collide). */
+#define NUR_TABLET_RISE       400
+
+/* Set by nursery_init(): every one of the six cots' rooms solved. While it is,
+   the tablet stands raised and its "Press O to read" prompt — which would hang
+   in the open doorway under the lifted slab — is not offered. */
+static int nur_tablet_raised = 0;
+
+/* The six crib bits the ring mirrors, in THE SIX COTS' table order. */
+static int nur_all_lit(void) {
+    return crib_room_solved(STATE_ROOM_OF_ARMS)   &&
+           crib_room_solved(STATE_ROOM_OF_HEADS)  &&
+           crib_room_solved(STATE_ROOM_OF_LEGS)   &&
+           crib_room_solved(STATE_ROOM_OF_BONES)  &&
+           crib_room_solved(STATE_ROOM_OF_TORSOS) &&
+           crib_room_solved(STATE_ROOM_OF_GUTS);
+}
+
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int east_circle_prev   = 1;
@@ -305,7 +338,7 @@ int nursery_update(int lock) {
     int just = held && !tablet_circle_prev;
     int32_t dx, dz, xz;
     tablet_circle_prev = held;
-    if (lock || !just) return 0;
+    if (lock || !just || nur_tablet_raised) return 0;
     dx = cam_x - NUR_TABLET_X;
     dz = cam_z - NUR_TABLET_Z;
     xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
@@ -338,7 +371,7 @@ static void nur_tablet_text(RenderContext *ctx) {
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int fade = 256;
 
-    if (xz >= NUR_TEXT_RADIUS) return;
+    if (xz >= NUR_TEXT_RADIUS || nur_tablet_raised) return;
 
     if (xz > NUR_FADE_NEAR) {
         int range = NUR_TEXT_RADIUS - NUR_FADE_NEAR;
@@ -431,14 +464,15 @@ void nursery_init(void) {
                       -NUR_CRIB_N_Z,    3072, 1, STATE_ROOM_OF_BONES);
     crib_place_mirror(STATE_NURSERY, -NUR_CRIB_DIAG_X, -GROUND_FLOOR_Y,
                       -NUR_CRIB_DIAG_Z, 3602, 1, STATE_ROOM_OF_TORSOS);
-    /* >>> THE SIXTH CRIB IS STILL TO COME. <<< Unpaired, so always dark. When
-       its encounter exists, pass its room's STATE_ and paired=1 here. */
     crib_place_mirror(STATE_NURSERY, -NUR_CRIB_DIAG_X, -GROUND_FLOOR_Y,
-                       NUR_CRIB_DIAG_Z,  494, 0, STATE_NURSERY);
+                       NUR_CRIB_DIAG_Z,  494, 1, STATE_ROOM_OF_GUTS);
 
-    /* THE GULA TABLET, across the west door, where its export stands it. */
+    /* THE GULA TABLET, across the west door, where its export stands it —
+       or, with all six cots lit, lifted clear of the door (NUR_TABLET_RISE). */
     gula_tablets_clear();
     gula_tablet_place(STATE_NURSERY);
+    nur_tablet_raised = nur_all_lit();
+    if (nur_tablet_raised) gula_tablet_set_rise(NUR_TABLET_RISE);
 
     nur_view_resolve(1);
 }

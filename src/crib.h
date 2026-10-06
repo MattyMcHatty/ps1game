@@ -6,8 +6,8 @@
 #include "title.h"
 
 /* Crib: an iron cot, Chapter 3's fifth prop and the first thing in the
-   Catacombs that is furniture rather than machinery. FIVE stand in the game,
-   each its own encounter with its own solved flag:
+   Catacombs that is furniture rather than machinery. SIX stand in the game as
+   encounters, each with its own solved flag:
 
      ROOM OF ARMS    the alcove in the south-west corner (src/room_of_arms.c)
      ROOM OF HEADS   the gap between the two western head piles
@@ -20,6 +20,8 @@
      ROOM OF TORSOS  in the north-west corner, against the chamfer between two
                      of the three torso piles (src/room_of_torsos.c), pouring
                      from the tip of each pile
+     ROOM OF GUTS    in the north-west corner (src/room_of_guts.c), pouring
+                     from the room's other three corners — the sixth and last
 
 
    ONE texture of its own ("crib", \TEXCTCMB\CRIB.TIM) and one mesh
@@ -107,6 +109,7 @@
        crib_room_solved(STATE_ROOM_OF_LEGS)    the third crib event
        crib_room_solved(STATE_ROOM_OF_BONES)   the fourth crib event
        crib_room_solved(STATE_ROOM_OF_TORSOS)  the fifth crib event
+       crib_room_solved(STATE_ROOM_OF_GUTS)    the sixth crib event
 
    Solving one sets its room's bit and nothing else; neither implies the other.
    A later crib in a new room gets a new bit by being in a new room. To count
@@ -126,11 +129,10 @@
        south-east   crib_room_solved(STATE_ROOM_OF_LEGS)
        south        crib_room_solved(STATE_ROOM_OF_BONES)
        south-west   crib_room_solved(STATE_ROOM_OF_TORSOS)
-       north-west   UNPAIRED — >>> THE SIXTH CRIB IS STILL TO COME. <<<
+       north-west   crib_room_solved(STATE_ROOM_OF_GUTS)
 
-   When the sixth crib encounter is built, its room already has a bit (it has a
-   room_index()), so pairing it is one line in nursery_init(): pass that room's
-   STATE_ and paired=1 to the north-west cot's crib_place_mirror().
+   All six are paired now. With all six lit, the Nursery lifts the Gula Tablet
+   off its west door on entry (src/nursery.c, nur_all_lit).
 
    ADDING THE MECHANIC TO A ROOM is therefore: call crib_place() from its init
    with STATE_<ROOM>, call crib_upload_texture() and creeps_upload_texture()

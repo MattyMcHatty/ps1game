@@ -280,6 +280,17 @@ typedef enum {
     STATE_DEAD_END_CHRISTOF, /* east door:       Flame Rounds      */
     STATE_DEAD_END_LUKE,     /* south-east door: a small medipac   */
     STATE_DEAD_END_MARK,     /* south-west door: a Lumberer        */
+    STATE_THROAT,            /* THE THROAT, through the Room of Baby Names'
+                                south door (ANTONI). Chapter 3's twenty-ninth
+                                room: the Dead End's corridor with a second,
+                                sealed door at its south end. See
+                                src/throat.h. Appended, not inserted: saves
+                                store raw enum values. */
+    STATE_ROOM_OF_GUTS,      /* THE ROOM OF GUTS, through the Throat's south
+                                door. Chapter 3's thirtieth room: the Room of
+                                Arms' octagon floored with guts, and the SIXTH
+                                and last crib encounter. See
+                                src/room_of_guts.h. Appended, not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

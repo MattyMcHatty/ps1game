@@ -102,6 +102,8 @@ add_executable(horror_game
     src/nursery.c
     src/room_of_baby_names.c
     src/dead_end.c
+    src/throat.c
+    src/room_of_guts.c
     src/gula_tablet.c
     src/ladder_anim.c
     src/sconce.c

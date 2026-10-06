@@ -16,21 +16,23 @@
    THE SIX COTS. One stands on each tile, its long axis pointing at the centre
    of the room. They are MIRRORS, not encounters (src/crib.h, THE NURSERY'S
    MIRRORS): each is lit — the encounter's beam, held still — while one of the
-   chapter's five crib encounters is solved, and dark otherwise. Struck, they
+   chapter's six crib encounters is solved, and dark otherwise. Struck, they
    rock once and nothing else. The pairing (src/nursery.c, THE SIX COTS):
 
        north        Room of Arms        south        Room of Bones
        north-east   Room of Heads       south-west   Room of Torsos
-       south-east   Room of Legs        north-west   THE SIXTH CRIB — still to
-                                                     come; dark until it exists
+       south-east   Room of Legs        north-west   Room of Guts
 
    THE GULA TABLET. A stone slab standing across the west door, placed where
-   its own export puts it (src/gula_tablet.h).
+   its own export puts it (src/gula_tablet.h). With ALL SIX cots lit it stands
+   lifted 400 off the floor on entry, uncovering the west door.
 
    THE DOORS. Two are drawn and ONE is wired up:
 
      EAST   x=1293  z[-107,107] y[-400,0]  -> Gaol Cells, south door
-     west   x=-1293 z[-107,107] y[-400,0]     sealed behind the Gula Tablet
+     west   x=-1293 z[-107,107] y[-400,0]     sealed behind the Gula Tablet;
+                                              shown, not yet wired, once it
+                                              is lifted
 
    The east door is in the YZ plane approached from -X (wall 6 runs x=1293
    with nx=-4095), so TEXT_PLANE_YZ with mirror=1 — the Room of Torsos' east

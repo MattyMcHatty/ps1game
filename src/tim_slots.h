@@ -295,6 +295,10 @@
 #define TIM_TPAGE_GULATBLT 0x000a
 #define TIM_CLUT_GULATBLT  0x7da5
 
+/* guts.tim        4bpp  VRAM ( 640,  0)  \TEXCTCMB\GUTS.TIM */
+#define TIM_TPAGE_GUTS     0x000a
+#define TIM_CLUT_GUTS      0x7da7
+
 /* hadad_idle_64.tim  8bpp  VRAM ( 352,384)  \TEX\HADIDLE.TIM */
 #define TIM_TPAGE_HADIDLE  0x0095
 #define TIM_CLUT_HADIDLE   0x7ed0

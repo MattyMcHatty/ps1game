@@ -962,6 +962,29 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim",       "baby names.tim"),
     ("trck_clue.tim",                "baby names.tim"),
     ("trees.tim",                    "baby names.tim"),
+    #   guts.tim -> x640 y0, THE ROOM OF GUTS' floor, 4bpp, ON THE ARMS' PAGE
+    # (it covers x[640,672) only) - the baby names' terms exactly, a tenth
+    # owner taking turns, with a CLUT of its own at (624,502). Drawn only in
+    # that room; every room that draws x640 y0 puts its own pixels back on
+    # entry, and the Room of Guts puts this back on its own.
+    ("arms.tim",                    "guts.tim"),
+    ("heads.tim",                   "guts.tim"),
+    ("legs.tim",                    "guts.tim"),
+    ("bones.tim",                   "guts.tim"),
+    ("torsos.tim",                  "guts.tim"),
+    ("shelf_incinerator.tim",       "guts.tim"),
+    ("gaol door.tim",               "guts.tim"),
+    ("gula tablet.tim",             "guts.tim"),
+    ("baby names.tim",              "guts.tim"),
+    ("asag.tim",                    "guts.tim"),
+    ("chnlnk.tim",                  "guts.tim"),
+    ("gravel_texture.tim",          "guts.tim"),
+    ("greenhouse.tim",              "guts.tim"),
+    ("hatch.tim",                   "guts.tim"),
+    ("plinth_rg.tim",               "guts.tim"),
+    ("poison_flower_base.tim",      "guts.tim"),
+    ("trck_clue.tim",               "guts.tim"),
+    ("trees.tim",                   "guts.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

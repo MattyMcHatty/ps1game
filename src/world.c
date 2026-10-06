@@ -198,7 +198,8 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_NURSERY,         STATE_ROOM_OF_BABY_NAMES,
     STATE_DEAD_END_BENJ,   STATE_DEAD_END_MATTHEW,
     STATE_DEAD_END_CHRISTOF, STATE_DEAD_END_LUKE,
-    STATE_DEAD_END_MARK,
+    STATE_DEAD_END_MARK,   STATE_THROAT,
+    STATE_ROOM_OF_GUTS,
 };
 
 static int room_index(GameState area) {
@@ -354,6 +355,13 @@ static int room_index(GameState area) {
         case STATE_DEAD_END_CHRISTOF: return 52;
         case STATE_DEAD_END_LUKE:     return 53;
         case STATE_DEAD_END_MARK:     return 54;
+        /* THE THROAT, Chapter 3's twenty-ninth room, behind the Room of Baby
+           Names' ANTONI door. Slot 55 of 64. Seeded EMPTY. */
+        case STATE_THROAT:            return 55;
+        /* THE ROOM OF GUTS, Chapter 3's thirtieth room, behind the Throat's
+           south door. Slot 56 of 64, and so the sixth crib's solved bit.
+           Seeded EMPTY: its Creeps are the crib's, and transient. */
+        case STATE_ROOM_OF_GUTS:      return 56;
         default:                   return 0;
     }
 }

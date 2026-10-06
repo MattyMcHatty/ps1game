@@ -43,8 +43,20 @@ void gula_tablet_upload_texture(void);  /* room entry: pure LoadImage, no CD    
 void gula_tablets_clear(void);
 
 /* Stand the tablet in `area`, where its export puts it. One instance; a second
-   call moves the tag. */
+   call moves the tag. Places it LOWERED, i.e. at rest across the door. */
 void gula_tablet_place(GameState area);
+
+/* Lift the placed tablet `rise` units straight up (+ve is up, so the world y
+   of every vertex goes DOWN by it). The draw translates by it and the collision
+   box moves with it, so a slab lifted clear of the player's head stops
+   blocking. 0 is the export's own position. Call AFTER gula_tablet_place(),
+   which resets it.
+
+   >>> THIS IS THE NURSERY'S REVEAL. <<< With all six cribs solved — every cot
+   in the ring lit — nursery_init() lifts the slab off the west door on the next
+   entry (src/nursery.c). It is a STATE on entry, not an animation: nothing
+   about it is saved, it is re-derived from the six crib bits every time. */
+void gula_tablet_set_rise(int32_t rise);
 
 void gula_tablets_draw(RenderContext *ctx);
 void gula_tablets_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);

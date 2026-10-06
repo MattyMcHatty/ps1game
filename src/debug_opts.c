@@ -4,7 +4,7 @@
 #include "valve_handle.h"   /* DBG_HAS_VALVE_HANDLE takes the wheel off its pipe */
 #include "birdcage.h"       /* DBG_HAS_HATCH_KEYS washes Maze One's cage out     */
 #include "catacomb_doors.h" /* DBG_ASAG_DEFEATED poses the leaves on a direct jump */
-#include "crib.h"           /* the five DBG_CRIB_* options bank solved bits      */
+#include "crib.h"           /* the six DBG_CRIB_* options bank solved bits       */
 
 int debug_opts[DEBUG_OPT_COUNT] = { 0 };   /* all cheats off by default; the
                                               rest zero-initialise with it */
@@ -31,6 +31,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "LEGS CRIB DONE",
     "BONES CRIB DONE",
     "TORSOS CRIB DONE",   /* 16 chars — the label limit exactly */
+    "GUTS CRIB DONE",
 };
 
 static int grants_pending = 0;
@@ -364,10 +365,11 @@ void debug_opts_apply_grants(void) {
     if (debug_opts[DBG_HAS_MEAT_SACK]) player_items |= (1 << ITEM_MEAT_SACK);
     if (debug_opts[DBG_HAS_GAOL_KEY])  player_items |= (1 << ITEM_GAOL_KEY);
 
-    /* The five crib encounters, each its own room's solved bit (crib.h). */
+    /* The six crib encounters, each its own room's solved bit (crib.h). */
     if (debug_opts[DBG_CRIB_ARMS])   crib_room_mark_solved(STATE_ROOM_OF_ARMS);
     if (debug_opts[DBG_CRIB_HEADS])  crib_room_mark_solved(STATE_ROOM_OF_HEADS);
     if (debug_opts[DBG_CRIB_LEGS])   crib_room_mark_solved(STATE_ROOM_OF_LEGS);
     if (debug_opts[DBG_CRIB_BONES])  crib_room_mark_solved(STATE_ROOM_OF_BONES);
     if (debug_opts[DBG_CRIB_TORSOS]) crib_room_mark_solved(STATE_ROOM_OF_TORSOS);
+    if (debug_opts[DBG_CRIB_GUTS])   crib_room_mark_solved(STATE_ROOM_OF_GUTS);
 }

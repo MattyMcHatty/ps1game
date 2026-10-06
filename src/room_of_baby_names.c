@@ -221,9 +221,9 @@ void room_of_baby_names_upload_textures(void) {
    wall along +X — the Gaol Cells' west door's terms. The reading axis for a
    YZ sign is Z, so the -200 door_draw_string_3d wants goes on the Z argument.
 
-   FIVE MORE ARE WIRED to the Dead Ends (the table below), and the last two —
-   the blank plate north-east and ANTONI south — are drawn and nothing else,
-   waiting on The Neck and the Throat. */
+   SIX MORE ARE WIRED, through the table below: five to the Dead Ends and
+   ANTONI (south) to the Throat. The last, the blank plate north-east, is drawn
+   and nothing else, waiting on The Neck. */
 #define RBN_WEST_X          (-1293)
 #define RBN_WEST_Z              0     /* the art spans z[-107,107] */
 #define RBN_WEST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
@@ -231,8 +231,9 @@ void room_of_baby_names_upload_textures(void) {
 #define RBN_FADE_NEAR         800
 #define RBN_TRIGGER_RADIUS    500
 
-/* ---- THE FIVE DEAD END DOORS -----------------------------------------------
-   One row per named door that leads to a Dead End (src/dead_end.h). Each
+/* ---- THE SIX NAMED DOORS ---------------------------------------------------
+   One row per named door that leads somewhere: five Dead Ends
+   (src/dead_end.h) and the Throat (src/throat.h), behind Antoni. Each
    centre is the midpoint of its octagon face, read off the inner-door polys
    in Room of Baby Names.smx: the four diagonals at (+-914, +-914), the two
    square faces at 1293 out.
@@ -244,14 +245,14 @@ void room_of_baby_names_upload_textures(void) {
      sign_yaw   cam_rot of a player FACING the door, i.e. the outward normal.
                 door_draw_string_3d_yaw reads along the right of that yaw, so
                 the sign reads forwards from inside the room. The yaw form is
-                used for all five because four of the faces are diagonal and
+                used for all six because four of the faces are diagonal and
                 TEXT_PLANE_XY/_YZ only offer the square facings.
 
    The trigger is the west door's: Manhattan from the centre under
    RBN_TRIGGER_RADIUS, and facing it. Neighbouring doors are 1293 apart in
    Manhattan terms, so no two 500 radii overlap. */
 #define RBN_DE_SPAWN_OFF      220   /* the chapter's 195 push + 25, as the west door */
-#define RBN_DE_DOOR_COUNT       5
+#define RBN_DE_DOOR_COUNT       6
 
 typedef struct {
     int16_t   x, z;
@@ -267,6 +268,7 @@ static const RbnDeadEndDoor rbn_de_doors[RBN_DE_DOOR_COUNT] = {
     { 1293,     0, -4096,     0,  3072, 1024, STATE_DEAD_END_CHRISTOF }, /* E  */
     {  914,  -914, -2896,  2896,  3584, 1536, STATE_DEAD_END_LUKE     }, /* SE */
     { -914,  -914,  2896,  2896,   512, 2560, STATE_DEAD_END_MARK     }, /* SW */
+    {    0, -1293,     0,  4096,     0, 2048, STATE_THROAT            }, /* S, Antoni */
 };
 
 /* ---- THE PLINTH ------------------------------------------------------------
@@ -308,7 +310,7 @@ static const char RBN_READ_2[] = "cannot walk through the gates of heaven";
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int west_circle_prev   = 1;
-static int de_circle_prev     = 1;   /* one for all five: one test a frame */
+static int de_circle_prev     = 1;   /* one for all six: one test a frame */
 static int plinth_circle_prev = 1;
 
 /* Frames until the second half of the inscription posts; 0 = none pending. */
@@ -337,7 +339,7 @@ int room_of_baby_names_west_door_triggered(int lock) {
     return 1;
 }
 
-int room_of_baby_names_dead_end_triggered(int lock) {
+int room_of_baby_names_named_door_triggered(int lock) {
     int held = interact_tapped();
     int just = held && !de_circle_prev;
     int k;
@@ -408,9 +410,9 @@ static void rbn_west_door_text(RenderContext *ctx) {
                         DOOR_PIXEL_SIZE);
 }
 
-/* The five Dead End doors' signs, each on its door's fixed outward yaw and 11
+/* The six named doors' signs, each on its door's fixed outward yaw and 11
    proud of the face. Centred on the point given, so no -200. */
-static void rbn_dead_end_doors_text(RenderContext *ctx) {
+static void rbn_named_doors_text(RenderContext *ctx) {
     int k;
     for (k = 0; k < RBN_DE_DOOR_COUNT; k++) {
         const RbnDeadEndDoor *d = &rbn_de_doors[k];
@@ -449,11 +451,11 @@ void room_of_baby_names_spawn_west(void) {
     room_of_baby_names_arm();
 }
 
-void room_of_baby_names_spawn_from_dead_end(int dead_end) {
+void room_of_baby_names_spawn_from_named_door(int from) {
     int k;
     for (k = 0; k < RBN_DE_DOOR_COUNT; k++) {
         const RbnDeadEndDoor *d = &rbn_de_doors[k];
-        if (d->dest != dead_end) continue;
+        if (d->dest != from) continue;
         /* RBN_DE_SPAWN_OFF along the face's inward normal, on its centre
            line, facing into the room. The diagonals land ~535 from either
            neighbouring face, the square ones likewise, so the 195 push is
@@ -684,11 +686,11 @@ void room_of_baby_names_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_room_of_baby_names_smd(ctx);
 
-    /* >>> LEVEL 8 REMOVES THE SEVEN SIGNS AND THE ENEMIES. <<< The room has
+    /* >>> LEVEL 8 REMOVES THE EIGHT SIGNS AND THE ENEMIES. <<< The room has
        no props, so the signs are what stands in it. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         rbn_west_door_text(ctx);   /* west: YZ plane, approached from +X */
-        rbn_dead_end_doors_text(ctx); /* the five Dead Ends: fixed yaws   */
+        rbn_named_doors_text(ctx); /* Dead Ends + Throat: fixed yaws  */
         rbn_plinth_text(ctx);     /* the plinth: on the camera's yaw     */
         /* THE CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.

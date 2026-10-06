@@ -178,6 +178,11 @@ TexBank area_bank_of(GameState area) {
     case STATE_DEAD_END_CHRISTOF:
     case STATE_DEAD_END_LUKE:
     case STATE_DEAD_END_MARK:
+    /* THE THROAT owns nothing either: the Dead End's two, borrowed. */
+    case STATE_THROAT:
+    /* THE ROOM OF GUTS owns GUTS.TIM (4bpp on the arms' page, its own
+       palette, the baby names' terms) and borrows the rest. */
+    case STATE_ROOM_OF_GUTS:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -210,7 +215,9 @@ int area_is_catacombs(GameState area) {
            area == STATE_GAOL_CELLS ||
            area == STATE_NURSERY ||
            area == STATE_ROOM_OF_BABY_NAMES ||
-           area_is_dead_end(area);
+           area_is_dead_end(area) ||
+           area == STATE_THROAT ||
+           area == STATE_ROOM_OF_GUTS;
 }
 
 /* ---- The prop models -------------------------------------------------------

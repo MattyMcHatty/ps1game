@@ -1506,6 +1506,27 @@
                  CTCMBDR are borrowed. -->
             <file name="DEADEND.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\dead_end.smd"/>
 
+            <!-- THE THROAT: the Dead End's corridor with a second door at its
+                 south end, behind the Room of Baby Names' ANTONI door. See
+                 src/throat.h. NO TEXTURE OF ITS OWN: COBBLE and CTCMBDR are
+                 borrowed. -->
+            <file name="THROAT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\throat.smd"/>
+
+            <!-- THE ROOM OF GUTS, the chapter's THIRTIETH room, through the
+                 Throat's south door. The Room of Arms' octagon floored with
+                 guts, and the sixth and last crib in its north-west corner.
+                 See src/room_of_guts.h.
+
+                 ONE TEXTURE OF ITS OWN: GUTS.TIM, the floor, 4bpp 128x128 at
+                 x640 y0 - the ROOM OF ARMS' page, on the gula tablet's and the
+                 baby names' terms (it covers x[640,672) only, every owner of
+                 that page puts its own art back on entry, and none of them is
+                 drawn here). Its CLUT is its OWN, at (624,502), beside the
+                 baby names'. COBBLE and CTCMBDR are borrowed. Built from
+                 textures/catacombs/guts.png. See tools/vram_map.py. -->
+            <file name="GUTSROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_guts.smd"/>
+            <file name="GUTS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\guts.tim"/>
+
             <!-- THE GULA TABLET, the Nursery's prop: a 600 x 800 x 50 stone
                  slab standing across its west door. Exported IN PLACE in the
                  Nursery's coordinates and drawn exactly there - its mesh is

@@ -109,6 +109,8 @@
 #include "nursery.h"
 #include "room_of_baby_names.h"
 #include "dead_end.h"
+#include "throat.h"
+#include "room_of_guts.h"
 #include "gula_tablet.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
@@ -385,6 +387,8 @@ static void load_area_geometry(GameState area) {
         case STATE_DEAD_END_CHRISTOF:
         case STATE_DEAD_END_LUKE:
         case STATE_DEAD_END_MARK:    dead_end_load_geometry(); break;
+        case STATE_THROAT:           throat_load_geometry(); break;
+        case STATE_ROOM_OF_GUTS:     room_of_guts_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2770,8 +2774,9 @@ static void update_current_area(GameState area) {
            it - the Room of Arms' examine order. No enemies seeded; both
            Chapter 3 enemy updates are called anyway, on the Tomb's argument.
 
-           FIVE MORE DOORS lead to the Dead Ends; their test returns WHICH
-           one, and that GameState is the pending area. Both door tests are
+           SIX MORE DOORS lead to the Dead Ends and (ANTONI) the Throat;
+           their test returns WHICH one, and that GameState is the pending
+           area. Both door tests are
            called every frame for their edge state, and the plinth vetoes
            both. Doors are 1293 apart, so two cannot share a press. */
         apply_collision_reception();
@@ -2782,7 +2787,7 @@ static void update_current_area(GameState area) {
         {
             int read = room_of_baby_names_update(lock);
             int west = room_of_baby_names_west_door_triggered(lock);
-            int dead = room_of_baby_names_dead_end_triggered(lock);
+            int dead = room_of_baby_names_named_door_triggered(lock);
             if (west && !read) {
                 pending_area = STATE_GAOL_CELLS;
                 door_anim_start(DOOR_PANEL_CATACOMB);
@@ -2813,6 +2818,52 @@ static void update_current_area(GameState area) {
 
         if (dead_end_door_triggered(lock)) {
             pending_area = STATE_ROOM_OF_BABY_NAMES;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_THROAT) {
+        /* THE THROAT - Chapter 3's twenty-ninth room (src/throat.c): the
+           Dead End's corridor, so the shared wall routine and ONE flat floor
+           zone, multi_level 0. Two wired doors: north, back to the Room of
+           Baby Names at ANTONI, and south, into the Room of Guts. They are
+           1199 apart, so one press cannot reach both. Nothing is seeded; both
+           Chapter 3 enemy updates run anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (throat_north_door_triggered(lock)) {
+            pending_area = STATE_ROOM_OF_BABY_NAMES;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        if (throat_south_door_triggered(lock)) {
+            pending_area = STATE_ROOM_OF_GUTS;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_ROOM_OF_GUTS) {
+        /* THE ROOM OF GUTS - Chapter 3's thirtieth room: the shared wall
+           routine, ONE flat floor zone and one door, the Room of Torsos'
+           octagon with nothing standing on its floor. multi_level is 0.
+
+           ONE PROP: the chapter's sixth and last CRIB, in the north-west
+           corner. Its state machine and the Creeps it pours run from the
+           area-tagged cribs_update() / update_creeps() in the shared block,
+           and its box collides through apply_collision_reception, so nothing
+           crib-specific is needed here. No enemies seeded; both Chapter 3
+           enemy updates are called anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (room_of_guts_east_door_triggered(lock)) {
+            pending_area = STATE_THROAT;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
@@ -3361,6 +3412,10 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         room_of_baby_names_draw(ctx);
     else if (area_is_dead_end(area))
         dead_end_draw(ctx);
+    else if (area == STATE_THROAT)
+        throat_draw(ctx);
+    else if (area == STATE_ROOM_OF_GUTS)
+        room_of_guts_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3857,6 +3912,17 @@ int main(int argc, const char **argv) {
     dead_end_load_assets();       /* CHAPTER 3's five Dead Ends, one module:
                                      two borrowed headers (cobble, inner door)
                                      and no registration. No CD access here. */
+    loading_screen_pump(&ctx);
+    throat_load_assets();         /* CHAPTER 3's twenty-ninth room: the Dead
+                                     End's two borrowed headers and no
+                                     registration. No CD access here. */
+    loading_screen_pump(&ctx);
+    room_of_guts_load_assets();   /* CHAPTER 3's thirtieth room: two borrowed
+                                     headers (cobble, inner door) and its OWN
+                                     deferred registration for GUTS.TIM, 4bpp
+                                     on the arms' page with its own palette -
+                                     the baby names' terms. Deferred, so no CD
+                                     access here. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4800,6 +4866,16 @@ int main(int argc, const char **argv) {
                    Catacombs Entry's narrow uploaders, and nothing of their
                    own. */
                 dead_end_upload_textures();
+            } else if (pending_area == STATE_THROAT) {
+                /* THE THROAT. The Dead End's two, the same way. */
+                throat_upload_textures();
+            } else if (pending_area == STATE_ROOM_OF_GUTS) {
+                /* THE ROOM OF GUTS. Cobble and the inner door through the
+                   Catacombs Entry's narrow uploaders, plus its OWN - GUTS.TIM,
+                   4bpp on x640 y0, the ROOM OF ARMS' page, which each of that
+                   page's owners puts back on the way in there - and the crib's
+                   and the Creep's. */
+                room_of_guts_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5622,14 +5698,15 @@ int main(int argc, const char **argv) {
                 nursery_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ROOM_OF_BABY_NAMES) {
-                /* SIX ARRIVALS. room_of_baby_names_init()'s default is the
-                   west door, from the Gaol Cells; back out of a Dead End it
-                   is that Dead End's named door. Keyed on current_area, the
-                   room being LEFT and not a route, so a debug jump or a title
-                   load still lands at the west door. */
+                /* SEVEN ARRIVALS. room_of_baby_names_init()'s default is the
+                   west door, from the Gaol Cells; back out of a Dead End or
+                   the Throat it is that room's named door. Keyed on
+                   current_area, the room being LEFT and not a route, so a
+                   debug jump or a title load still lands at the west door. */
                 room_of_baby_names_init();
-                if (area_is_dead_end(current_area))
-                    room_of_baby_names_spawn_from_dead_end(current_area);
+                if (area_is_dead_end(current_area) ||
+                    current_area == STATE_THROAT)
+                    room_of_baby_names_spawn_from_named_door(current_area);
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (area_is_dead_end(pending_area)) {
                 /* ONE ARRIVAL, the south door, in all five. Which Dead End
@@ -5637,6 +5714,21 @@ int main(int argc, const char **argv) {
                    already swapped in that one's pickups, and its enemy is
                    tagged with it. */
                 dead_end_init();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_THROAT) {
+                /* TWO ARRIVALS. throat_init()'s default is the north door,
+                   from the Room of Baby Names; back out of the Room of Guts it
+                   is the south door. Keyed on current_area, the room being
+                   LEFT and not a route, so a debug jump or a title load still
+                   lands at the north door. */
+                throat_init();
+                if (current_area == STATE_ROOM_OF_GUTS)
+                    throat_spawn_south();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_ROOM_OF_GUTS) {
+                /* ONE ARRIVAL, the east door, so room_of_guts_init()'s spawn
+                   is the only one. */
+                room_of_guts_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -6017,7 +6109,9 @@ int main(int argc, const char **argv) {
                    game_state == STATE_GAOL_CELLS ||
                    game_state == STATE_NURSERY ||
                    game_state == STATE_ROOM_OF_BABY_NAMES ||
-                   area_is_dead_end(game_state)) {
+                   area_is_dead_end(game_state) ||
+                   game_state == STATE_THROAT ||
+                   game_state == STATE_ROOM_OF_GUTS) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

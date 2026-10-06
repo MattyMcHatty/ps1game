@@ -30,6 +30,10 @@ static int32_t gt_min_y = 0, gt_max_y = 0;   /*  -800 ..     0             */
 
 static int gt_tex = -1;
 
+/* How far the slab stands above its export's position, in world units (+ve is
+   up). gula_tablet_set_rise(); 0 on every gula_tablet_place(). */
+static int32_t gt_rise = 0;
+
 /* The player's head, relative to cam_y — the crib's CR_PLAYER_HEAD, and the
    same figure apply_collision_* uses for its own body span. */
 #define GT_PLAYER_HEAD 30
@@ -91,15 +95,20 @@ void gula_tablets_clear(void) { gt_active = 0; }
 void gula_tablet_place(GameState area) {
     gt_area   = area;
     gt_active = 1;
+    gt_rise   = 0;
 }
+
+void gula_tablet_set_rise(int32_t rise) { gt_rise = rise; }
 
 /* Player push-out against the measured box, Minkowski-expanded by the caller's
    radius and resolved along the shallowest axis — the crib's scheme. */
 void gula_tablets_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     if (!gt_active || gt_area != current_area || !gt_smd) return;
 
+    /* -Y is up, so a slab lifted by gt_rise spans y[min - rise, max - rise].
+       Lifted clear of the head, the test below lets the player walk under. */
     int32_t feet = py + GROUND_FLOOR_Y, head = py - GT_PLAYER_HEAD;
-    if (head >= gt_max_y || feet <= gt_min_y) return;
+    if (head >= gt_max_y - gt_rise || feet <= gt_min_y - gt_rise) return;
 
     int32_t min_x = gt_min_x - radius, max_x = gt_max_x + radius;
     int32_t min_z = gt_min_z - radius, max_z = gt_max_z + radius;
@@ -130,6 +139,14 @@ void gula_tablets_draw(RenderContext *ctx) {
 
     MATRIX view;
     camera_build_view(&view);
+    /* THE RISE, folded into the translation: a world point p lifted by r is
+       p + (0,-r,0), which the view takes to R*p + (T - r * R's y column). One
+       multiply per row, no model matrix. */
+    if (gt_rise) {
+        view.t[0] -= (view.m[0][1] * gt_rise) >> 12;
+        view.t[1] -= (view.m[1][1] * gt_rise) >> 12;
+        view.t[2] -= (view.m[2][1] * gt_rise) >> 12;
+    }
     gte_SetRotMatrix(&view);
     gte_SetTransMatrix(&view);
 
