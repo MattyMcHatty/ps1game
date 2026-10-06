@@ -111,6 +111,7 @@
 #include "dead_end.h"
 #include "throat.h"
 #include "room_of_guts.h"
+#include "neck.h"
 #include "gula_tablet.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
@@ -389,6 +390,7 @@ static void load_area_geometry(GameState area) {
         case STATE_DEAD_END_MARK:    dead_end_load_geometry(); break;
         case STATE_THROAT:           throat_load_geometry(); break;
         case STATE_ROOM_OF_GUTS:     room_of_guts_load_geometry(); break;
+        case STATE_NECK:             neck_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2765,8 +2767,8 @@ static void update_current_area(GameState area) {
     } else if (area == STATE_ROOM_OF_BABY_NAMES) {
         /* THE ROOM OF BABY NAMES - Chapter 3's twenty-third room: the shared
            wall routine and ONE flat floor zone over the Nursery's octagon.
-           multi_level is 0. One wired door, west (the one with JOHN over
-           it), back to the Gaol Cells; the other seven are drawn and sealed.
+           multi_level is 0. The west door (the one with JOHN over it) goes
+           back to the Gaol Cells.
 
            THE PLINTH in the middle is four proxy walls, so it collides through
            apply_collision_reception like the octagon. Its Circle prompt goes
@@ -2774,7 +2776,8 @@ static void update_current_area(GameState area) {
            it - the Room of Arms' examine order. No enemies seeded; both
            Chapter 3 enemy updates are called anyway, on the Tomb's argument.
 
-           SIX MORE DOORS lead to the Dead Ends and (ANTONI) the Throat;
+           SEVEN MORE DOORS lead to the Dead Ends, (ANTONI) the Throat and
+           (the blank plate) the Neck;
            their test returns WHICH one, and that GameState is the pending
            area. Both door tests are
            called every frame for their edge state, and the plinth vetoes
@@ -2867,6 +2870,41 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        }
+    } else if (area == STATE_NECK) {
+        /* THE NECK - Chapter 3's thirty-first room (src/neck.c): a long hall
+           with two full-height pillars, so the shared wall routine and ONE
+           flat floor zone, multi_level 0. One wired door, west, back to the
+           Room of Baby Names at the blank plate; the east door is drawn and
+           sealed. Nothing is seeded; both Chapter 3 enemy updates run anyway,
+           on the Tomb's argument.
+
+           THE SAVE POINT in the north-east corner is asked FIRST and its
+           answer vetoes the door - the Catacombs Entry's order. The two are
+           the hall's length apart today; the order is there for whenever the
+           sealed east door beside the save point is wired. The veto goes in as the
+           door's `lock` rather than skipping the call, so its edge state stays
+           current. */
+        save_points_update();   /* spin the corner's save point */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        {
+            int nk_saving = (!lock && save_point_triggered());
+            if (nk_saving) {
+                /* current_area is already STATE_NECK, so the menu returns
+                   here. */
+                save_menu_open();
+                game_state = STATE_SAVE_MENU;
+            }
+            if (neck_west_door_triggered(nk_saving ? 1 : lock)) {
+                pending_area = STATE_ROOM_OF_BABY_NAMES;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
         }
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
@@ -3416,6 +3454,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         throat_draw(ctx);
     else if (area == STATE_ROOM_OF_GUTS)
         room_of_guts_draw(ctx);
+    else if (area == STATE_NECK)
+        neck_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3923,6 +3963,10 @@ int main(int argc, const char **argv) {
                                      on the arms' page with its own palette -
                                      the baby names' terms. Deferred, so no CD
                                      access here. */
+    loading_screen_pump(&ctx);
+    neck_load_assets();           /* CHAPTER 3's thirty-first room: the
+                                     Throat's two borrowed headers and no
+                                     registration. No CD access here. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4876,6 +4920,9 @@ int main(int argc, const char **argv) {
                    page's owners puts back on the way in there - and the crib's
                    and the Creep's. */
                 room_of_guts_upload_textures();
+            } else if (pending_area == STATE_NECK) {
+                /* THE NECK. The Throat's two, the same way. */
+                neck_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5698,14 +5745,15 @@ int main(int argc, const char **argv) {
                 nursery_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ROOM_OF_BABY_NAMES) {
-                /* SEVEN ARRIVALS. room_of_baby_names_init()'s default is the
+                /* EIGHT ARRIVALS. room_of_baby_names_init()'s default is the
                    west door, from the Gaol Cells; back out of a Dead End or
-                   the Throat it is that room's named door. Keyed on
+                   the Throat or the Neck it is that room's named door. Keyed on
                    current_area, the room being LEFT and not a route, so a
                    debug jump or a title load still lands at the west door. */
                 room_of_baby_names_init();
                 if (area_is_dead_end(current_area) ||
-                    current_area == STATE_THROAT)
+                    current_area == STATE_THROAT ||
+                    current_area == STATE_NECK)
                     room_of_baby_names_spawn_from_named_door(current_area);
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (area_is_dead_end(pending_area)) {
@@ -5729,6 +5777,11 @@ int main(int argc, const char **argv) {
                 /* ONE ARRIVAL, the east door, so room_of_guts_init()'s spawn
                    is the only one. */
                 room_of_guts_init();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_NECK) {
+                /* ONE ARRIVAL, the west door, so neck_init()'s spawn is the
+                   only one. (A save loaded here restores cam_x/z after.) */
+                neck_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -6111,7 +6164,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_ROOM_OF_BABY_NAMES ||
                    area_is_dead_end(game_state) ||
                    game_state == STATE_THROAT ||
-                   game_state == STATE_ROOM_OF_GUTS) {
+                   game_state == STATE_ROOM_OF_GUTS ||
+                   game_state == STATE_NECK) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

@@ -209,6 +209,9 @@ AREAS = {
                   # THE ROOM OF GUTS, behind the Throat's south door: owns
                   # guts.tim (4bpp on the arms' page, its own palette).
                   "room_of_guts_upload_textures",
+                  # THE NECK, behind the Room of Baby Names' blank-plate door:
+                  # cobble and the inner door only.
+                  "neck_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

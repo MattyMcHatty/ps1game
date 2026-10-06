@@ -1527,6 +1527,12 @@
             <file name="GUTSROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_guts.smd"/>
             <file name="GUTS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\guts.tim"/>
 
+            <!-- THE NECK, the chapter's THIRTY-FIRST room, through the Room of
+                 Baby Names' north-east (blank plate) door. A long hall with two
+                 pillars and a save point, entered by its west door. See src/neck.h. NO TEXTURE OF ITS
+                 OWN: COBBLE and CTCMBDR are borrowed. -->
+            <file name="NECK.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\neck.smd"/>
+
             <!-- THE GULA TABLET, the Nursery's prop: a 600 x 800 x 50 stone
                  slab standing across its west door. Exported IN PLACE in the
                  Nursery's coordinates and drawn exactly there - its mesh is

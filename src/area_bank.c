@@ -183,6 +183,8 @@ TexBank area_bank_of(GameState area) {
     /* THE ROOM OF GUTS owns GUTS.TIM (4bpp on the arms' page, its own
        palette, the baby names' terms) and borrows the rest. */
     case STATE_ROOM_OF_GUTS:
+    /* THE NECK owns nothing: the Throat's two, borrowed. */
+    case STATE_NECK:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -217,7 +219,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_ROOM_OF_BABY_NAMES ||
            area_is_dead_end(area) ||
            area == STATE_THROAT ||
-           area == STATE_ROOM_OF_GUTS;
+           area == STATE_ROOM_OF_GUTS ||
+           area == STATE_NECK;
 }
 
 /* ---- The prop models -------------------------------------------------------

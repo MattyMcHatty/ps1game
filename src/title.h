@@ -291,6 +291,11 @@ typedef enum {
                                 Arms' octagon floored with guts, and the SIXTH
                                 and last crib encounter. See
                                 src/room_of_guts.h. Appended, not inserted. */
+    STATE_NECK,              /* THE NECK, through the Room of Baby Names'
+                                north-east door (the blank plate). Chapter 3's
+                                thirty-first room: a long hall with two
+                                pillars and a save point. See src/neck.h.
+                                Appended, not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

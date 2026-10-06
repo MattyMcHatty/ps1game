@@ -221,9 +221,9 @@ void room_of_baby_names_upload_textures(void) {
    wall along +X — the Gaol Cells' west door's terms. The reading axis for a
    YZ sign is Z, so the -200 door_draw_string_3d wants goes on the Z argument.
 
-   SIX MORE ARE WIRED, through the table below: five to the Dead Ends and
-   ANTONI (south) to the Throat. The last, the blank plate north-east, is drawn
-   and nothing else, waiting on The Neck. */
+   SEVEN MORE ARE WIRED, through the table below: five to the Dead Ends,
+   ANTONI (south) to the Throat and the blank plate (north-east) to The
+   Neck. */
 #define RBN_WEST_X          (-1293)
 #define RBN_WEST_Z              0     /* the art spans z[-107,107] */
 #define RBN_WEST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
@@ -231,9 +231,10 @@ void room_of_baby_names_upload_textures(void) {
 #define RBN_FADE_NEAR         800
 #define RBN_TRIGGER_RADIUS    500
 
-/* ---- THE SIX NAMED DOORS ---------------------------------------------------
+/* ---- THE SEVEN NAMED DOORS -------------------------------------------------
    One row per named door that leads somewhere: five Dead Ends
-   (src/dead_end.h) and the Throat (src/throat.h), behind Antoni. Each
+   (src/dead_end.h), the Throat (src/throat.h) behind Antoni, and The Neck
+   (src/neck.h) behind the blank plate - "named" by position only. Each
    centre is the midpoint of its octagon face, read off the inner-door polys
    in Room of Baby Names.smx: the four diagonals at (+-914, +-914), the two
    square faces at 1293 out.
@@ -245,14 +246,14 @@ void room_of_baby_names_upload_textures(void) {
      sign_yaw   cam_rot of a player FACING the door, i.e. the outward normal.
                 door_draw_string_3d_yaw reads along the right of that yaw, so
                 the sign reads forwards from inside the room. The yaw form is
-                used for all six because four of the faces are diagonal and
+                used for all seven because five of the faces are diagonal and
                 TEXT_PLANE_XY/_YZ only offer the square facings.
 
    The trigger is the west door's: Manhattan from the centre under
    RBN_TRIGGER_RADIUS, and facing it. Neighbouring doors are 1293 apart in
    Manhattan terms, so no two 500 radii overlap. */
 #define RBN_DE_SPAWN_OFF      220   /* the chapter's 195 push + 25, as the west door */
-#define RBN_DE_DOOR_COUNT       6
+#define RBN_DE_DOOR_COUNT       7
 
 typedef struct {
     int16_t   x, z;
@@ -269,6 +270,7 @@ static const RbnDeadEndDoor rbn_de_doors[RBN_DE_DOOR_COUNT] = {
     {  914,  -914, -2896,  2896,  3584, 1536, STATE_DEAD_END_LUKE     }, /* SE */
     { -914,  -914,  2896,  2896,   512, 2560, STATE_DEAD_END_MARK     }, /* SW */
     {    0, -1293,     0,  4096,     0, 2048, STATE_THROAT            }, /* S, Antoni */
+    {  914,   914, -2896, -2896,  2560,  512, STATE_NECK              }, /* NE, blank */
 };
 
 /* ---- THE PLINTH ------------------------------------------------------------
@@ -310,7 +312,7 @@ static const char RBN_READ_2[] = "cannot walk through the gates of heaven";
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int west_circle_prev   = 1;
-static int de_circle_prev     = 1;   /* one for all six: one test a frame */
+static int de_circle_prev     = 1;   /* one for all seven: one test a frame */
 static int plinth_circle_prev = 1;
 
 /* Frames until the second half of the inscription posts; 0 = none pending. */
@@ -410,7 +412,7 @@ static void rbn_west_door_text(RenderContext *ctx) {
                         DOOR_PIXEL_SIZE);
 }
 
-/* The six named doors' signs, each on its door's fixed outward yaw and 11
+/* The seven named doors' signs, each on its door's fixed outward yaw and 11
    proud of the face. Centred on the point given, so no -200. */
 static void rbn_named_doors_text(RenderContext *ctx) {
     int k;

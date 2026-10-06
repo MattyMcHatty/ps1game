@@ -137,6 +137,7 @@ static const char *area_name(int area) {
         case STATE_DEAD_END_MARK:     return "DEAD END MARK";
         case STATE_THROAT:            return "THROAT";
         case STATE_ROOM_OF_GUTS:      return "ROOM OF GUTS";
+        case STATE_NECK:              return "THE NECK";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

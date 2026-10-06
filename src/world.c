@@ -199,7 +199,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_DEAD_END_BENJ,   STATE_DEAD_END_MATTHEW,
     STATE_DEAD_END_CHRISTOF, STATE_DEAD_END_LUKE,
     STATE_DEAD_END_MARK,   STATE_THROAT,
-    STATE_ROOM_OF_GUTS,
+    STATE_ROOM_OF_GUTS,    STATE_NECK,
 };
 
 static int room_index(GameState area) {
@@ -362,6 +362,10 @@ static int room_index(GameState area) {
            south door. Slot 56 of 64, and so the sixth crib's solved bit.
            Seeded EMPTY: its Creeps are the crib's, and transient. */
         case STATE_ROOM_OF_GUTS:      return 56;
+        /* THE NECK, Chapter 3's thirty-first room, behind the Room of Baby
+           Names' blank-plate door. Slot 57 of 64. Seeded EMPTY: its save
+           point is a prop, placed by neck_init(). */
+        case STATE_NECK:              return 57;
         default:                   return 0;
     }
 }
