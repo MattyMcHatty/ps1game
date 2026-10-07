@@ -13,8 +13,7 @@
    door at z[800,1000] in each end wall:
 
      WEST  x=0     -> the Room of Baby Names, the blank-plate door
-     EAST  x=2999  -> drawn and sealed: no sign, no trigger, nothing behind it
-                      yet
+     EAST  x=2999  -> the Head, its west door
 
    THE SAVE POINT stands in the north-east corner, 200 off both walls.
 
@@ -31,17 +30,21 @@ void neck_upload_textures(void); /* room entry: pure LoadImage from RAM    */
 void neck_init(void);            /* collision + floor zone + spawn + save point */
 void neck_draw(RenderContext *ctx);
 
-/* Arrival through the west door, from the Room of Baby Names - the only
-   arrival, and neck_init()'s spawn: just inside it, facing east down the
-   hall. */
+/* Arrival through the west door, from the Room of Baby Names - and
+   neck_init()'s default spawn: just inside it, facing east down the hall. */
 void neck_spawn_west(void);
 
-/* One frame of the west door's Circle test. `lock` is main's usual
-   suppression (and the save point's veto). Returns 1 on a fresh press made in
-   range and facing the door. */
-int  neck_west_door_triggered(int lock);
+/* Arrival through the east door, back from the Head: just inside it, facing
+   west down the hall. main.c calls it after neck_init(). */
+void neck_spawn_east(void);
 
-/* Arm every interaction in the room (the door and the save point). Called by
+/* One frame of each door's Circle test. `lock` is main's usual suppression
+   (and the save point's veto). Returns 1 on a fresh press made in range and
+   facing the door. Call both every frame, for their edge state. */
+int  neck_west_door_triggered(int lock);
+int  neck_east_door_triggered(int lock);
+
+/* Arm every interaction in the room (both doors and the save point). Called by
    the spawn above. */
 void neck_arm(void);
 

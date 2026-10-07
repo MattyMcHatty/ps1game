@@ -112,6 +112,8 @@
 #include "throat.h"
 #include "room_of_guts.h"
 #include "neck.h"
+#include "the_head.h"
+#include "arm_switch.h"     /* The Head's eight arm switches */
 #include "gula_tablet.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
 #include "cleaver.h"        /* the Cleaver Corridor's slamming blades */
@@ -391,6 +393,7 @@ static void load_area_geometry(GameState area) {
         case STATE_THROAT:           throat_load_geometry(); break;
         case STATE_ROOM_OF_GUTS:     room_of_guts_load_geometry(); break;
         case STATE_NECK:             neck_load_geometry(); break;
+        case STATE_THE_HEAD:         the_head_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2874,17 +2877,17 @@ static void update_current_area(GameState area) {
     } else if (area == STATE_NECK) {
         /* THE NECK - Chapter 3's thirty-first room (src/neck.c): a long hall
            with two full-height pillars, so the shared wall routine and ONE
-           flat floor zone, multi_level 0. One wired door, west, back to the
-           Room of Baby Names at the blank plate; the east door is drawn and
-           sealed. Nothing is seeded; both Chapter 3 enemy updates run anyway,
-           on the Tomb's argument.
+           flat floor zone, multi_level 0. Two wired doors: west, back to the
+           Room of Baby Names at the blank plate, and east, on to the Head.
+           Nothing is seeded; both Chapter 3 enemy updates run anyway, on the
+           Tomb's argument.
 
            THE SAVE POINT in the north-east corner is asked FIRST and its
-           answer vetoes the door - the Catacombs Entry's order. The two are
-           the hall's length apart today; the order is there for whenever the
-           sealed east door beside the save point is wired. The veto goes in as the
-           door's `lock` rather than skipping the call, so its edge state stays
-           current. */
+           answer vetoes BOTH doors - the Catacombs Entry's order. It stands
+           700 north of the east door, so the circles do not meet today; the
+           order is what guarantees one press never does two things. The veto
+           goes in as each door's `lock` rather than skipping the call, so
+           their edge state stays current. */
         save_points_update();   /* spin the corner's save point */
         apply_collision_reception();
         apply_height();
@@ -2905,6 +2908,32 @@ static void update_current_area(GameState area) {
                 game_state   = STATE_DOOR_ANIM;
                 cdaudio_stop();
             }
+            if (neck_east_door_triggered(nk_saving ? 1 : lock)) {
+                pending_area = STATE_THE_HEAD;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
+        }
+    } else if (area == STATE_THE_HEAD) {
+        /* THE HEAD - Chapter 3's thirty-second room (src/the_head.c): a wide
+           box, so the shared wall routine and ONE flat floor zone,
+           multi_level 0. One wired door, west, back to the Neck; the east
+           door is drawn and sealed in the Lamashtu relief, behind the proxy's
+           east wall. The eight arm switches are drawn only - nothing is
+           wired to them, and they stand where the player cannot reach.
+           Nothing is seeded; both Chapter 3 enemy updates run anyway, on the
+           Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (the_head_west_door_triggered(lock)) {
+            pending_area = STATE_NECK;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
@@ -3456,6 +3485,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         room_of_guts_draw(ctx);
     else if (area == STATE_NECK)
         neck_draw(ctx);
+    else if (area == STATE_THE_HEAD)
+        the_head_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -3819,7 +3850,7 @@ int main(int argc, const char **argv) {
                                      that is NOT purely a borrower: two of its
                                      three headers are borrowed like the four
                                      calls above, and the third is its OWN
-                                     deferred registration for ARMS.TIM, art
+                                     deferred registration for ARMS2.TIM, art
                                      nothing else in the game draws. Deferred, so
                                      still no CD access here - only the header is
                                      read at startup and the pixels wait for the
@@ -3968,6 +3999,12 @@ int main(int argc, const char **argv) {
                                      Throat's two borrowed headers and no
                                      registration. No CD access here. */
     loading_screen_pump(&ctx);
+    the_head_load_assets();       /* CHAPTER 3's thirty-second room: the
+                                     Throat's two borrowed headers and ONE
+                                     deferred registration for LMSPEARL.TIM,
+                                     4bpp on the arms' page with its own
+                                     palette. No CD access here. */
+    loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
                                      AT ALL. The names are recorded; the bytes
@@ -4028,6 +4065,14 @@ int main(int argc, const char **argv) {
                                   in the Nursery's coordinates and drawn there,
                                   the Incinerator's arrangement - see
                                   src/gula_tablet.h. */
+    loading_screen_pump(&ctx);
+    arm_switch_load_assets();  /* CHAPTER 3's Arm Switch (The Head's east
+                                  wall, eight of them), on the Gula Tablet's
+                                  terms: a deferred LMSHARM.TIM registration
+                                  and one sector of geometry held for the run.
+                                  Exported in The Head's coordinates, which
+                                  fix X and Y; each is the mesh slid along Z -
+                                  see src/arm_switch.h. */
     loading_screen_pump(&ctx);
     cleavers_load_assets();    /* CHAPTER 3's cleaver blades (the Cleaver
                                   Corridor), on the bars' terms: one sector of
@@ -4923,6 +4968,12 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_NECK) {
                 /* THE NECK. The Throat's two, the same way. */
                 neck_upload_textures();
+            } else if (pending_area == STATE_THE_HEAD) {
+                /* THE HEAD. The Throat's two, plus its own relief over the
+                   arms' page (x640 y0) and the arm switches' page (x768 y0).
+                   Every other owner of either page puts its own art back on
+                   the way in there. */
+                the_head_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5779,9 +5830,19 @@ int main(int argc, const char **argv) {
                 room_of_guts_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_NECK) {
-                /* ONE ARRIVAL, the west door, so neck_init()'s spawn is the
-                   only one. (A save loaded here restores cam_x/z after.) */
+                /* TWO ARRIVALS. neck_init()'s default is the west door, from
+                   the Room of Baby Names; back from the Head it is the east
+                   door. Keyed on current_area, the room being LEFT and not a
+                   route, so a debug jump or a title load still lands at the
+                   west door. (A save loaded here restores cam_x/z after.) */
                 neck_init();
+                if (current_area == STATE_THE_HEAD)
+                    neck_spawn_east();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_THE_HEAD) {
+                /* ONE ARRIVAL, the west door, so the_head_init()'s spawn is
+                   the only one. (A save loaded here restores cam_x/z after.) */
+                the_head_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -6165,7 +6226,8 @@ int main(int argc, const char **argv) {
                    area_is_dead_end(game_state) ||
                    game_state == STATE_THROAT ||
                    game_state == STATE_ROOM_OF_GUTS ||
-                   game_state == STATE_NECK) {
+                   game_state == STATE_NECK ||
+                   game_state == STATE_THE_HEAD) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

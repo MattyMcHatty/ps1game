@@ -661,7 +661,7 @@ KNOWN_STREAM_PAIRS = [
     ("Rabisu tex.tim", "incinerator.tim"),
     ("incinerator.tim", "vines.tim"),
     # ---- THE ROOM OF ARMS, Chapter 3's fifth room, through the Tomb's west door
-    #   arms.tim -> the trck_clue / hatch page (x640 y0), the field of grasping
+    #   arms2.tim -> the trck_clue / hatch page (x640 y0), the field of grasping
     # arms in the sealed pocket behind that room's north-west screen wall. It is
     # the chapter's FIRST room texture that is not the Catacombs Entry's, and the
     # page it takes is the one tools/VRAM_MAP_CATACOMBS.txt marks "x640  FREE -
@@ -690,15 +690,15 @@ KNOWN_STREAM_PAIRS = [
     # so the pair is restored together, palette and all, by the one stream in
     # asag_arena_load_assets(). Chapter 3 and Asag's arena are also the two
     # places in the game that can never be resident at once.
-    ("asag.tim",               "arms.tim"),
-    ("chnlnk.tim",             "arms.tim"),
-    ("gravel_texture.tim",     "arms.tim"),
-    ("greenhouse.tim",         "arms.tim"),
-    ("hatch.tim",              "arms.tim"),
-    ("plinth_rg.tim",          "arms.tim"),
-    ("poison_flower_base.tim", "arms.tim"),
-    ("trck_clue.tim",          "arms.tim"),
-    ("trees.tim",              "arms.tim"),
+    ("asag.tim",               "arms2.tim"),
+    ("chnlnk.tim",             "arms2.tim"),
+    ("gravel_texture.tim",     "arms2.tim"),
+    ("greenhouse.tim",         "arms2.tim"),
+    ("hatch.tim",              "arms2.tim"),
+    ("plinth_rg.tim",          "arms2.tim"),
+    ("poison_flower_base.tim", "arms2.tim"),
+    ("trck_clue.tim",          "arms2.tim"),
+    ("trees.tim",              "arms2.tim"),
     #   crib.tim -> the anzu2 / anzu5 / red_wlppr page (x576 y0), the Room of
     # Arms' cot. An exact 128x128 8bpp fit, and the FIRST use of a page
     # src/anzu_tex.c's anzu_tex_stream() note has been holding open: "it unlocks
@@ -803,7 +803,7 @@ KNOWN_STREAM_PAIRS = [
     # Arms, and each room's uploader puts its own pixels and CLUT line back on
     # every entry. The page's nine older occupants were already displaced by the
     # arms and keep the restores listed beside the arms pairs above.
-    ("arms.tim",                  "heads.tim"),
+    ("arms2.tim",                  "heads.tim"),
     ("asag.tim",                  "heads.tim"),
     ("chnlnk.tim",                "heads.tim"),
     ("gravel_texture.tim",        "heads.tim"),
@@ -817,7 +817,7 @@ KNOWN_STREAM_PAIRS = [
     # PALETTE (672,501) - the heads' terms exactly, and a third owner taking
     # turns. Legs are drawn only in the Room of Legs, and the Rooms of Arms,
     # Heads and Legs each put their own pixels and CLUT line back on entry.
-    ("arms.tim",                  "legs.tim"),
+    ("arms2.tim",                  "legs.tim"),
     ("heads.tim",                 "legs.tim"),
     ("asag.tim",                  "legs.tim"),
     ("chnlnk.tim",                "legs.tim"),
@@ -833,7 +833,7 @@ KNOWN_STREAM_PAIRS = [
     # turns. Bones are drawn only in the Room of Bones, and the Rooms of Arms,
     # Heads and Legs (and the Meat Plant, for the legs) each put their own
     # pixels and CLUT line back on entry.
-    ("arms.tim",                  "bones.tim"),
+    ("arms2.tim",                  "bones.tim"),
     ("heads.tim",                 "bones.tim"),
     ("legs.tim",                  "bones.tim"),
     ("asag.tim",                  "bones.tim"),
@@ -850,7 +850,7 @@ KNOWN_STREAM_PAIRS = [
     # turns. Torsos are drawn only in the Room of Torsos, and the Rooms of Arms,
     # Heads, Legs and Bones (and the Meat Plant, for the legs) each put their
     # own pixels and CLUT line back on entry.
-    ("arms.tim",                  "torsos.tim"),
+    ("arms2.tim",                  "torsos.tim"),
     ("heads.tim",                 "torsos.tim"),
     ("legs.tim",                  "torsos.tim"),
     ("bones.tim",                 "torsos.tim"),
@@ -870,7 +870,7 @@ KNOWN_STREAM_PAIRS = [
     # ladder lives on the incinerator's own page (x704 y256) and CLUT line
     # (304,511). Drawn only in the Shelf; every room that draws x640 y0 puts its
     # own pixels and CLUT line back on entry.
-    ("arms.tim",                   "shelf_incinerator.tim"),
+    ("arms2.tim",                   "shelf_incinerator.tim"),
     ("heads.tim",                  "shelf_incinerator.tim"),
     ("legs.tim",                   "shelf_incinerator.tim"),
     ("bones.tim",                  "shelf_incinerator.tim"),
@@ -889,7 +889,7 @@ KNOWN_STREAM_PAIRS = [
     # the torsos' terms, but with a CLUT of its own at (576,502), so the arms'
     # palette line is untouched. Drawn only in the Gaol Entry; every room that
     # draws x640 y0 puts its own pixels back on entry.
-    ("arms.tim",                    "gaol door.tim"),
+    ("arms2.tim",                    "gaol door.tim"),
     ("heads.tim",                   "gaol door.tim"),
     ("legs.tim",                    "gaol door.tim"),
     ("bones.tim",                   "gaol door.tim"),
@@ -923,7 +923,7 @@ KNOWN_STREAM_PAIRS = [
     # its own at (592,502). Drawn only in the Nursery; every room that draws
     # x640 y0 puts its own pixels back on entry, and the Nursery puts this
     # back on its own.
-    ("arms.tim",                    "gula tablet.tim"),
+    ("arms2.tim",                    "gula tablet.tim"),
     ("heads.tim",                   "gula tablet.tim"),
     ("legs.tim",                    "gula tablet.tim"),
     ("bones.tim",                   "gula tablet.tim"),
@@ -945,7 +945,7 @@ KNOWN_STREAM_PAIRS = [
     # (608,502). Drawn only in that room; every room that draws x640 y0 puts
     # its own pixels back on entry, and the Room of Baby Names puts this back
     # on its own.
-    ("arms.tim",                     "baby names.tim"),
+    ("arms2.tim",                     "baby names.tim"),
     ("heads.tim",                    "baby names.tim"),
     ("legs.tim",                     "baby names.tim"),
     ("bones.tim",                    "baby names.tim"),
@@ -967,7 +967,7 @@ KNOWN_STREAM_PAIRS = [
     # owner taking turns, with a CLUT of its own at (624,502). Drawn only in
     # that room; every room that draws x640 y0 puts its own pixels back on
     # entry, and the Room of Guts puts this back on its own.
-    ("arms.tim",                    "guts.tim"),
+    ("arms2.tim",                    "guts.tim"),
     ("heads.tim",                   "guts.tim"),
     ("legs.tim",                    "guts.tim"),
     ("bones.tim",                   "guts.tim"),
@@ -985,6 +985,46 @@ KNOWN_STREAM_PAIRS = [
     ("poison_flower_base.tim",      "guts.tim"),
     ("trck_clue.tim",               "guts.tim"),
     ("trees.tim",                   "guts.tim"),
+    #   lamashtu pearl.tim -> x640 y0, THE HEAD's east-wall relief, 4bpp, ON
+    # THE ARMS' PAGE (it covers x[640,672) only) - the guts' terms exactly, one
+    # more owner taking turns, with a CLUT of its own at (704,480). Drawn only
+    # in The Head; every room that draws x640 y0 puts its own pixels back on
+    # entry, and The Head puts this back on its own.
+    ("arms2.tim",                    "lamashtu pearl.tim"),
+    ("heads.tim",                    "lamashtu pearl.tim"),
+    ("legs.tim",                     "lamashtu pearl.tim"),
+    ("bones.tim",                    "lamashtu pearl.tim"),
+    ("torsos.tim",                   "lamashtu pearl.tim"),
+    ("shelf_incinerator.tim",        "lamashtu pearl.tim"),
+    ("gaol door.tim",                "lamashtu pearl.tim"),
+    ("gula tablet.tim",              "lamashtu pearl.tim"),
+    ("baby names.tim",               "lamashtu pearl.tim"),
+    ("guts.tim",                     "lamashtu pearl.tim"),
+    ("asag.tim",                     "lamashtu pearl.tim"),
+    ("chnlnk.tim",                   "lamashtu pearl.tim"),
+    ("gravel_texture.tim",           "lamashtu pearl.tim"),
+    ("greenhouse.tim",               "lamashtu pearl.tim"),
+    ("hatch.tim",                    "lamashtu pearl.tim"),
+    ("plinth_rg.tim",                "lamashtu pearl.tim"),
+    ("poison_flower_base.tim",       "lamashtu pearl.tim"),
+    ("trck_clue.tim",                "lamashtu pearl.tim"),
+    ("trees.tim",                    "lamashtu pearl.tim"),
+    #   lamashtu arm.tim -> x768 y0, THE ARM SWITCH (The Head's eight, src/
+    # arm_switch.h), 4bpp, on the brick_wall / lamashtu tablet page (it covers
+    # x[768,800) only), with a CLUT of its own at (720,480). Drawn only in The
+    # Head, whose uploader puts it back. The one other Chapter 3 tenant, the
+    # lamashtu tablet, is drawn only in the Catacombs Entry and the Outside
+    # Catacombs, and both put it back with their own full uploaders on entry;
+    # the mansion and garden tenants are re-uploaded by their own rooms.
+    ("lamashtu tablet.tim",          "lamashtu arm.tim"),
+    ("brick_wall.tim",               "lamashtu arm.tim"),
+    ("grss.tim",                     "lamashtu arm.tim"),
+    ("bed.tim",                      "lamashtu arm.tim"),
+    ("fountain.tim",                 "lamashtu arm.tim"),
+    ("pipe.tim",                     "lamashtu arm.tim"),
+    ("plinth_diamond.tim",           "lamashtu arm.tim"),
+    ("xt_dr_cmplt.tim",              "lamashtu arm.tim"),
+    ("xt_dr_lckd.tim",               "lamashtu arm.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

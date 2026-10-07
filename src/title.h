@@ -296,6 +296,11 @@ typedef enum {
                                 thirty-first room: a long hall with two
                                 pillars and a save point. See src/neck.h.
                                 Appended, not inserted. */
+    STATE_THE_HEAD,          /* THE HEAD, through the Neck's east door.
+                                Chapter 3's thirty-second room: a wide hall
+                                whose east wall is a Lamashtu relief, with
+                                eight arm switches over the elbows. See
+                                src/the_head.h. Appended, not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

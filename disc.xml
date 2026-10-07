@@ -1102,7 +1102,7 @@
                  ONE NEW TEXTURE, AND IT IS THE CHAPTER'S FIRST ROOM TEXTURE
                  THAT IS NOT THE CATACOMBS ENTRY'S. The other two this room
                  draws - COBBLE.TIM and CTCMBDR.TIM - come through that room's
-                 narrow uploaders as every Chapter 3 room's have; ARMS.TIM is
+                 narrow uploaders as every Chapter 3 room's have; ARMS2.TIM is
                  new art that only this room draws, so this room owns it and
                  registers it, DEFERRED like the rest of the chapter.
 
@@ -1127,7 +1127,7 @@
                  (src/room_arena_size.h) - re-run py tools/gen_room_arena.py
                  after any re-export anyway. -->
             <file name="ARMSROOM.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\room_of_arms.smd"/>
-            <file name="ARMS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\arms.tim"/>
+            <file name="ARMS2.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\arms2.tim"/>
 
             <!-- THE PIT, the chapter's SIXTH room, behind the NORTH door of the
                  Tomb - the last of the three doors that room's header has been
@@ -1241,7 +1241,7 @@
                  (672,501). <<< The Room of Heads and the Room of Arms are never
                  drawn together, and each room's uploader puts its own art back
                  on entry, so the two simply overwrite each other. Every other
-                 occupant of that page was already displaced by ARMS.TIM and has
+                 occupant of that page was already displaced by ARMS2.TIM and has
                  its own restore. See tools/vram_map.py.
 
                  HEADS.TIM is built from textures/catacombs/heads_128.png, the
@@ -1532,6 +1532,31 @@
                  pillars and a save point, entered by its west door. See src/neck.h. NO TEXTURE OF ITS
                  OWN: COBBLE and CTCMBDR are borrowed. -->
             <file name="NECK.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\neck.smd"/>
+
+            <!-- THE HEAD, the chapter's THIRTY-SECOND room, through the Neck's
+                 east door. A wide hall whose east wall is a relief of Lamashtu
+                 figures, with eight arm switches over their elbows. See
+                 src/the_head.h. It OWNS one texture: LMSPEARL.TIM, the relief,
+                 4bpp 128x128 at x640 y0 - the arms' page, the guts' terms: it
+                 covers x[640,672) only, every owner of that page puts its own
+                 art back on entry, and none of them is drawn here. Its CLUT is
+                 its OWN, at (704,480). COBBLE and CTCMBDR are borrowed. -->
+            <file name="THEHEAD.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\the_head.smd"/>
+            <file name="LMSPEARL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu pearl.tim"/>
+
+            <!-- THE ARM SWITCH, The Head's prop: a stone arm reaching out of
+                 the relief, eight of them in one north-south row. Exported IN
+                 PLACE in The Head's coordinates, which fix every switch's X and
+                 Y; each is the same mesh slid along Z (src/arm_switch.h).
+
+                 4bpp 128x128 (the 64x64 source stretched, since the UVs span
+                 the full tile) at x768 y0, the lamashtu tablet's page. The
+                 tablet is drawn only in the Catacombs Entry and the Outside
+                 Catacombs, and both put it back on entry; the page's mansion
+                 and garden occupants are re-uploaded by their own rooms. Its
+                 CLUT is its OWN, at (720,480). See tools/vram_map.py. -->
+            <file name="ARMSWTCH.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\arm_switch.smd"/>
+            <file name="LMSHARM.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu arm.tim"/>
 
             <!-- THE GULA TABLET, the Nursery's prop: a 600 x 800 x 50 stone
                  slab standing across its west door. Exported IN PLACE in the

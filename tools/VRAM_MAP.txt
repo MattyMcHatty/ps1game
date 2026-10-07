@@ -62,7 +62,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   crib.tim             8       576     0   128   128     0   256,484
   red_wlppr.tim        4       576     0   128   128     0   0,492
   anzu2.tim            8       608     0    64    64     0   256,484
-  arms.tim             8       640     0   128   128     0   672,501
+  arms2.tim            8       640     0   128   128     0   672,501
   asag.tim             8       640     0   128   128     0   672,501
   baby names.tim       4       640     0   128   128     0   608,502
   bones.tim            8       640     0   128   128     0   672,501
@@ -75,6 +75,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   guts.tim             4       640     0   128   128     0   624,502
   hatch.tim            8       640     0   128   128     0   256,506
   heads.tim            8       640     0   128   128     0   672,501
+  lamashtu pearl.tim   4       640     0   128   128     0   704,480
   legs.tim             8       640     0   128   128     0   672,501
   plinth_rg.tim        8       640     0   128   128     0   256,506
   poison_flower_base.tim 8       640     0    64    64     0   672,496
@@ -93,6 +94,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   brick_wall.tim       4       768     0   128   128     0   0,501
   fountain.tim         8       768     0   128   128     0   672,491
   grss.tim             4       768     0   128   128     0   80,511
+  lamashtu arm.tim     4       768     0   128   128     0   720,480
   lamashtu tablet.tim  8       768     0   128   128     0   672,495
   pipe.tim             8       768     0   128   128     0   256,502
   plinth_diamond.tim   8       768     0   128   128     0   256,510
@@ -196,6 +198,8 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=480  x[32,48)  chnlnk_dl.tim
   y=480  x[768,784)  double_door.tim
   y=480  x[0,16)  gravel_texture.tim
+  y=480  x[720,736)  lamashtu arm.tim
+  y=480  x[704,720)  lamashtu pearl.tim
   y=480  x[48,64)  mist.tim
   y=480  x[256,272)  rusty_fence.tim
   y=480  x[16,32)  trees_dl.tim
@@ -274,7 +278,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=500  x[0,256)  crucifaxe.tim
   y=500  x[672,928)  loculus.tim
   y=500  x[256,512)  mushy_closed.tim
-  y=501  x[672,928)  arms.tim
+  y=501  x[672,928)  arms2.tim
   y=501  x[672,928)  asag.tim
   y=501  x[672,928)  bones.tim
   y=501  x[0,16)  brick_wall.tim
@@ -363,24 +367,25 @@ OVERLAP CHECK
   anzu5.tim                                gaol_mud.tim         time-shared (streaming)
   anzu5.tim                                crib.tim             time-shared (streaming)
   anzu6.tim                                rusty.tim            time-shared (streaming)
-  arms.tim                                 asag.tim             time-shared (streaming)
-  arms.tim                                 baby names.tim       time-shared (streaming)
-  arms.tim                                 bones.tim            time-shared (streaming)
-  arms.tim                                 shelf_incinerator.tim time-shared (streaming)
-  arms.tim                                 chnlnk.tim           time-shared (streaming)
-  arms.tim                                 gaol door.tim        time-shared (streaming)
-  arms.tim                                 gravel_texture.tim   time-shared (streaming)
-  arms.tim                                 greenhouse.tim       time-shared (streaming)
-  arms.tim                                 gula tablet.tim      time-shared (streaming)
-  arms.tim                                 guts.tim             time-shared (streaming)
-  arms.tim                                 hatch.tim            time-shared (streaming)
-  arms.tim                                 heads.tim            time-shared (streaming)
-  arms.tim                                 legs.tim             time-shared (streaming)
-  arms.tim                                 plinth_rg.tim        time-shared (streaming)
-  arms.tim                                 poison_flower_base.tim time-shared (streaming)
-  arms.tim                                 torsos.tim           time-shared (streaming)
-  arms.tim                                 trck_clue.tim        time-shared (streaming)
-  arms.tim                                 trees.tim            time-shared (streaming)
+  arms2.tim                                asag.tim             time-shared (streaming)
+  arms2.tim                                baby names.tim       time-shared (streaming)
+  arms2.tim                                bones.tim            time-shared (streaming)
+  arms2.tim                                shelf_incinerator.tim time-shared (streaming)
+  arms2.tim                                chnlnk.tim           time-shared (streaming)
+  arms2.tim                                gaol door.tim        time-shared (streaming)
+  arms2.tim                                gravel_texture.tim   time-shared (streaming)
+  arms2.tim                                greenhouse.tim       time-shared (streaming)
+  arms2.tim                                gula tablet.tim      time-shared (streaming)
+  arms2.tim                                guts.tim             time-shared (streaming)
+  arms2.tim                                hatch.tim            time-shared (streaming)
+  arms2.tim                                heads.tim            time-shared (streaming)
+  arms2.tim                                lamashtu pearl.tim   time-shared (streaming)
+  arms2.tim                                legs.tim             time-shared (streaming)
+  arms2.tim                                plinth_rg.tim        time-shared (streaming)
+  arms2.tim                                poison_flower_base.tim time-shared (streaming)
+  arms2.tim                                torsos.tim           time-shared (streaming)
+  arms2.tim                                trck_clue.tim        time-shared (streaming)
+  arms2.tim                                trees.tim            time-shared (streaming)
   asag.tim                                 baby names.tim       time-shared (streaming)
   asag.tim                                 bones.tim            time-shared (streaming)
   asag.tim                                 shelf_incinerator.tim time-shared (streaming)
@@ -392,6 +397,7 @@ OVERLAP CHECK
   asag.tim                                 guts.tim             time-shared (streaming)
   asag.tim                                 hatch.tim            time-shared (streaming)
   asag.tim                                 heads.tim            time-shared (streaming)
+  asag.tim                                 lamashtu pearl.tim   time-shared (streaming)
   asag.tim                                 legs.tim             time-shared (streaming)
   asag.tim                                 plinth_rg.tim        time-shared (streaming)
   asag.tim                                 poison_flower_base.tim time-shared (streaming)
@@ -408,6 +414,7 @@ OVERLAP CHECK
   baby names.tim                           guts.tim             time-shared (streaming)
   baby names.tim                           hatch.tim            time-shared (streaming)
   baby names.tim                           heads.tim            time-shared (streaming)
+  baby names.tim                           lamashtu pearl.tim   time-shared (streaming)
   baby names.tim                           legs.tim             time-shared (streaming)
   baby names.tim                           plinth_rg.tim        time-shared (streaming)
   baby names.tim                           poison_flower_base.tim time-shared (streaming)
@@ -420,6 +427,7 @@ OVERLAP CHECK
   bed.tim                                  brick_wall.tim       time-shared (streaming)
   bed.tim                                  fountain.tim         time-shared (streaming)
   bed.tim                                  grss.tim             time-shared (streaming)
+  bed.tim                                  lamashtu arm.tim     time-shared (streaming)
   bed.tim                                  lamashtu tablet.tim  time-shared (streaming)
   bed.tim                                  pipe.tim             time-shared (streaming)
   bed.tim                                  plinth_diamond.tim   time-shared (streaming)
@@ -434,6 +442,7 @@ OVERLAP CHECK
   bones.tim                                guts.tim             time-shared (streaming)
   bones.tim                                hatch.tim            time-shared (streaming)
   bones.tim                                heads.tim            time-shared (streaming)
+  bones.tim                                lamashtu pearl.tim   time-shared (streaming)
   bones.tim                                legs.tim             time-shared (streaming)
   bones.tim                                plinth_rg.tim        time-shared (streaming)
   bones.tim                                poison_flower_base.tim time-shared (streaming)
@@ -445,6 +454,7 @@ OVERLAP CHECK
   bookshelf.tim                            strs.tim             time-shared (streaming)
   brick_wall.tim                           fountain.tim         time-shared (streaming)
   brick_wall.tim                           grss.tim             time-shared (streaming)
+  brick_wall.tim                           lamashtu arm.tim     time-shared (streaming)
   brick_wall.tim                           lamashtu tablet.tim  time-shared (streaming)
   brick_wall.tim                           pipe.tim             time-shared (streaming)
   brick_wall.tim                           plinth_diamond.tim   time-shared (streaming)
@@ -469,6 +479,7 @@ OVERLAP CHECK
   shelf_incinerator.tim                    guts.tim             time-shared (streaming)
   shelf_incinerator.tim                    hatch.tim            time-shared (streaming)
   shelf_incinerator.tim                    heads.tim            time-shared (streaming)
+  shelf_incinerator.tim                    lamashtu pearl.tim   time-shared (streaming)
   shelf_incinerator.tim                    legs.tim             time-shared (streaming)
   shelf_incinerator.tim                    plinth_rg.tim        time-shared (streaming)
   shelf_incinerator.tim                    poison_flower_base.tim time-shared (streaming)
@@ -492,6 +503,7 @@ OVERLAP CHECK
   chnlnk.tim                               guts.tim             time-shared (streaming)
   chnlnk.tim                               hatch.tim            time-shared (streaming)
   chnlnk.tim                               heads.tim            time-shared (streaming)
+  chnlnk.tim                               lamashtu pearl.tim   time-shared (streaming)
   chnlnk.tim                               legs.tim             time-shared (streaming)
   chnlnk.tim                               plinth_rg.tim        time-shared (streaming)
   chnlnk.tim                               poison_flower_base.tim time-shared (streaming)
@@ -573,6 +585,7 @@ OVERLAP CHECK
   flowerbed.tim                            piano_keys_full.tim  time-shared (streaming)
   flowerbed.tim                            xt_dr_outr.tim       time-shared (streaming)
   fountain.tim                             grss.tim             time-shared (streaming)
+  fountain.tim                             lamashtu arm.tim     time-shared (streaming)
   fountain.tim                             lamashtu tablet.tim  time-shared (streaming)
   fountain.tim                             pipe.tim             time-shared (streaming)
   fountain.tim                             plinth_diamond.tim   time-shared (streaming)
@@ -586,6 +599,7 @@ OVERLAP CHECK
   gaol door.tim                            guts.tim             time-shared (streaming)
   gaol door.tim                            hatch.tim            time-shared (streaming)
   gaol door.tim                            heads.tim            time-shared (streaming)
+  gaol door.tim                            lamashtu pearl.tim   time-shared (streaming)
   gaol door.tim                            legs.tim             time-shared (streaming)
   gaol door.tim                            plinth_rg.tim        time-shared (streaming)
   gaol door.tim                            poison_flower_base.tim time-shared (streaming)
@@ -602,6 +616,7 @@ OVERLAP CHECK
   gravel_texture.tim                       guts.tim             time-shared (streaming)
   gravel_texture.tim                       hatch.tim            time-shared (streaming)
   gravel_texture.tim                       heads.tim            time-shared (streaming)
+  gravel_texture.tim                       lamashtu pearl.tim   time-shared (streaming)
   gravel_texture.tim                       legs.tim             time-shared (streaming)
   gravel_texture.tim                       plinth_rg.tim        time-shared (streaming)
   gravel_texture.tim                       poison_flower_base.tim time-shared (streaming)
@@ -616,12 +631,14 @@ OVERLAP CHECK
   greenhouse.tim                           guts.tim             time-shared (streaming)
   greenhouse.tim                           hatch.tim            time-shared (streaming)
   greenhouse.tim                           heads.tim            time-shared (streaming)
+  greenhouse.tim                           lamashtu pearl.tim   time-shared (streaming)
   greenhouse.tim                           legs.tim             time-shared (streaming)
   greenhouse.tim                           plinth_rg.tim        time-shared (streaming)
   greenhouse.tim                           poison_flower_base.tim time-shared (streaming)
   greenhouse.tim                           torsos.tim           time-shared (streaming)
   greenhouse.tim                           trck_clue.tim        time-shared (streaming)
   greenhouse.tim                           trees.tim            time-shared (streaming)
+  grss.tim                                 lamashtu arm.tim     time-shared (streaming)
   grss.tim                                 lamashtu tablet.tim  time-shared (streaming)
   grss.tim                                 pipe.tim             time-shared (streaming)
   grss.tim                                 plinth_diamond.tim   time-shared (streaming)
@@ -632,6 +649,7 @@ OVERLAP CHECK
   gula tablet.tim                          guts.tim             time-shared (streaming)
   gula tablet.tim                          hatch.tim            time-shared (streaming)
   gula tablet.tim                          heads.tim            time-shared (streaming)
+  gula tablet.tim                          lamashtu pearl.tim   time-shared (streaming)
   gula tablet.tim                          legs.tim             time-shared (streaming)
   gula tablet.tim                          plinth_rg.tim        time-shared (streaming)
   gula tablet.tim                          poison_flower_base.tim time-shared (streaming)
@@ -640,6 +658,7 @@ OVERLAP CHECK
   gula tablet.tim                          trees.tim            time-shared (streaming)
   guts.tim                                 hatch.tim            time-shared (streaming)
   guts.tim                                 heads.tim            time-shared (streaming)
+  guts.tim                                 lamashtu pearl.tim   time-shared (streaming)
   guts.tim                                 legs.tim             time-shared (streaming)
   guts.tim                                 plinth_rg.tim        time-shared (streaming)
   guts.tim                                 poison_flower_base.tim time-shared (streaming)
@@ -647,12 +666,14 @@ OVERLAP CHECK
   guts.tim                                 trck_clue.tim        time-shared (streaming)
   guts.tim                                 trees.tim            time-shared (streaming)
   hatch.tim                                heads.tim            time-shared (streaming)
+  hatch.tim                                lamashtu pearl.tim   time-shared (streaming)
   hatch.tim                                legs.tim             time-shared (streaming)
   hatch.tim                                plinth_rg.tim        time-shared (streaming)
   hatch.tim                                poison_flower_base.tim time-shared (streaming)
   hatch.tim                                torsos.tim           time-shared (streaming)
   hatch.tim                                trck_clue.tim        time-shared (streaming)
   hatch.tim                                trees.tim            time-shared (streaming)
+  heads.tim                                lamashtu pearl.tim   time-shared (streaming)
   heads.tim                                legs.tim             time-shared (streaming)
   heads.tim                                plinth_rg.tim        time-shared (streaming)
   heads.tim                                poison_flower_base.tim time-shared (streaming)
@@ -670,6 +691,17 @@ OVERLAP CHECK
   kchn_tile.tim                            xt_dr_outr.tim       time-shared (streaming)
   kchn_wl.tim                              loculus.tim          time-shared (streaming)
   ladder.tim                               vines.tim            time-shared (streaming)
+  lamashtu arm.tim                         lamashtu tablet.tim  time-shared (streaming)
+  lamashtu arm.tim                         pipe.tim             time-shared (streaming)
+  lamashtu arm.tim                         plinth_diamond.tim   time-shared (streaming)
+  lamashtu arm.tim                         xt_dr_cmplt.tim      time-shared (streaming)
+  lamashtu arm.tim                         xt_dr_lckd.tim       time-shared (streaming)
+  lamashtu pearl.tim                       legs.tim             time-shared (streaming)
+  lamashtu pearl.tim                       plinth_rg.tim        time-shared (streaming)
+  lamashtu pearl.tim                       poison_flower_base.tim time-shared (streaming)
+  lamashtu pearl.tim                       torsos.tim           time-shared (streaming)
+  lamashtu pearl.tim                       trck_clue.tim        time-shared (streaming)
+  lamashtu pearl.tim                       trees.tim            time-shared (streaming)
   lamashtu tablet.tim                      pipe.tim             time-shared (streaming)
   lamashtu tablet.tim                      plinth_diamond.tim   time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_cmplt.tim      time-shared (streaming)

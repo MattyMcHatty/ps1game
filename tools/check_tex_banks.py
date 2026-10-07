@@ -212,6 +212,9 @@ AREAS = {
                   # THE NECK, behind the Room of Baby Names' blank-plate door:
                   # cobble and the inner door only.
                   "neck_upload_textures",
+                  # THE HEAD, behind the Neck's east door: owns lamashtu
+                  # pearl.tim, and reaches arm_switch_upload_texture().
+                  "the_head_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

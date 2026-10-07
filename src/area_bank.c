@@ -185,6 +185,9 @@ TexBank area_bank_of(GameState area) {
     case STATE_ROOM_OF_GUTS:
     /* THE NECK owns nothing: the Throat's two, borrowed. */
     case STATE_NECK:
+    /* THE HEAD owns LMSPEARL.TIM (4bpp on the arms' page, its own palette),
+       and its arm switches LMSHARM.TIM (4bpp, x768 y0). */
+    case STATE_THE_HEAD:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -220,7 +223,8 @@ int area_is_catacombs(GameState area) {
            area_is_dead_end(area) ||
            area == STATE_THROAT ||
            area == STATE_ROOM_OF_GUTS ||
-           area == STATE_NECK;
+           area == STATE_NECK ||
+           area == STATE_THE_HEAD;
 }
 
 /* ---- The prop models -------------------------------------------------------

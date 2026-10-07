@@ -11,332 +11,340 @@
 #include "cull_arena.h"
 #include "tim_slots.h"
 #include "camera.h"
-#include "neck.h"
+#include "the_head.h"
 #include "lumberer.h"
 #include "crawler.h"
 #include "collision.h"
 #include "room_data.h"
-#include "neck_tex_map.h"
+#include "the_head_tex_map.h"
 #include "btn_glyph.h"
 #include "door.h"
 #include "texmgr.h"
 #include "catacombs_entry.h"    /* the two narrow uploaders this room borrows */
 #include "save_point.h"
+#include "arm_switch.h"
 #include "dresser.h"
 #include "sconce.h"
 #include "oil_dispenser.h"
 #include "player.h"             /* current_weapon, player_weapons             */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 
-/* The Neck — see neck.h. Copied from src/throat.c, the last Chapter 3 room
-   with no art of its own. */
+/* The Head — see the_head.h. Copied from src/neck.c, next door, with the
+   save point taken out and the Lamashtu relief and its arm switches put in. */
 
-static SMD  *nk_smd  = NULL;
-static void *nk_buff = NULL;
+static SMD  *th_smd  = NULL;
+static void *th_buff = NULL;
 
 /* ---- View distance ---------------------------------------------------------
    THE CHAPTER'S MACHINERY: cull and fog-far are equal, the base is scaled by
    what the player is carrying, and the scale eases rather than jumping.
 
-   450/1600 and the full +50%/+50% lantern bonus - the Room of Baby Names'
-   numbers, next door, as the Throat takes them. */
-#define NK_BASE_FOG_NEAR   450
-#define NK_BASE_FOG_FAR   1600
+   450/1600 and the full +50%/+50% lantern bonus - the Neck's numbers, next
+   door. */
+#define TH_BASE_FOG_NEAR   450
+#define TH_BASE_FOG_FAR   1600
 
-#define NK_VIEW_UNIT        256
-#define NK_VIEW_HELL_BONUS  128   /* +50% while the lantern is in hand   */
-#define NK_VIEW_BURN_BONUS  128   /* +50% more while it is actually lit  */
-#define NK_VIEW_RATE          8   /* 1/256ths a frame; one bonus in 16 frames */
+#define TH_VIEW_UNIT        256
+#define TH_VIEW_HELL_BONUS  128   /* +50% while the lantern is in hand   */
+#define TH_VIEW_BURN_BONUS  128   /* +50% more while it is actually lit  */
+#define TH_VIEW_RATE          8   /* 1/256ths a frame; one bonus in 16 frames */
 
-static int32_t nk_view     = NK_VIEW_UNIT;       /* eased scale, 1/256ths */
-static int32_t nk_fog_near = NK_BASE_FOG_NEAR;   /* resolved, this frame  */
-static int32_t nk_fog_far  = NK_BASE_FOG_FAR;
+static int32_t th_view     = TH_VIEW_UNIT;       /* eased scale, 1/256ths */
+static int32_t th_fog_near = TH_BASE_FOG_NEAR;   /* resolved, this frame  */
+static int32_t th_fog_far  = TH_BASE_FOG_FAR;
 
-static int32_t nk_view_target(void) {
-    int32_t s = NK_VIEW_UNIT;
+static int32_t th_view_target(void) {
+    int32_t s = TH_VIEW_UNIT;
     if (current_weapon == WEAPON_HELLUMINATOR &&
         (player_weapons & (1 << WEAPON_HELLUMINATOR))) {
-        s += NK_VIEW_HELL_BONUS;
-        if (helluminator_burning()) s += NK_VIEW_BURN_BONUS;
+        s += TH_VIEW_HELL_BONUS;
+        if (helluminator_burning()) s += TH_VIEW_BURN_BONUS;
     }
     return s;
 }
 
 /* Ease one frame toward the target, then resolve both distances from it. `snap`
    jumps straight there, for room entry. */
-static void nk_view_resolve(int snap) {
-    int32_t target = nk_view_target();
+static void th_view_resolve(int snap) {
+    int32_t target = th_view_target();
     if (snap) {
-        nk_view = target;
-    } else if (nk_view < target) {
-        nk_view += NK_VIEW_RATE;
-        if (nk_view > target) nk_view = target;
-    } else if (nk_view > target) {
-        nk_view -= NK_VIEW_RATE;
-        if (nk_view < target) nk_view = target;
+        th_view = target;
+    } else if (th_view < target) {
+        th_view += TH_VIEW_RATE;
+        if (th_view > target) th_view = target;
+    } else if (th_view > target) {
+        th_view -= TH_VIEW_RATE;
+        if (th_view < target) th_view = target;
     }
-    nk_fog_near = (NK_BASE_FOG_NEAR * nk_view) >> 8;
-    nk_fog_far  = (NK_BASE_FOG_FAR  * nk_view) >> 8;
+    th_fog_near = (TH_BASE_FOG_NEAR * th_view) >> 8;
+    th_fog_far  = (TH_BASE_FOG_FAR  * th_view) >> 8;
 }
 
 /* The chapter's near-black with a cold lift (src/catacombs_entry.c says why it
    is not a true black). */
-#define NK_FOG_R             7
-#define NK_FOG_G             6
-#define NK_FOG_B             9
+#define TH_FOG_R             7
+#define TH_FOG_G             6
+#define TH_FOG_B             9
 
-/* Wall standoff. The chapter's 195. The pillars stand 600 off the north and
-   south walls, so the aisles either side of them are 210 wide walkable. */
-#define NK_WALL_RADIUS      195
+/* Wall standoff. The chapter's 195. */
+#define TH_WALL_RADIUS      195
 
 /* Standing eye on this room's one floor (y=0): less GROUND_FLOOR_Y and the
    40-unit standoff apply_height applies. */
-#define NK_FLOOR_Y            0
-#define NK_EYE_Y           (NK_FLOOR_Y - GROUND_FLOOR_Y - 40)
+#define TH_FLOOR_Y            0
+#define TH_EYE_Y           (TH_FLOOR_Y - GROUND_FLOOR_Y - 40)
 
 /* ---- Floor zones -----------------------------------------------------------
-   ONE, FLAT, AT y=0, over the proxy's one floor face (x[0,2999] z[0,1800],
-   the FLOOR list at the foot of src/neck_mesh_collision.c). The pillars are
-   walls only; the zone runs under them and nobody can stand there. */
-static void nk_floor_zones_init(void) {
+   ONE, FLAT, AT y=0, over the proxy's one floor face (x[0,2210] z[0,3000],
+   the FLOOR list at the foot of src/the_head_mesh_collision.c). The visual
+   floor runs on to x=2400 under the relief, but the proxy's east wall stands
+   at x=2210, so nobody reaches it. */
+static void th_floor_zones_init(void) {
     int i = 0;
 
     floor_zones[i].type  = FLOOR_FLAT;
-    floor_zones[i].min_x =    0;  floor_zones[i].max_x = 3000;
-    floor_zones[i].min_z =    0;  floor_zones[i].max_z = 1800;
-    floor_zones[i].y     = NK_FLOOR_Y;
+    floor_zones[i].min_x =    0;  floor_zones[i].max_x = 2210;
+    floor_zones[i].min_z =    0;  floor_zones[i].max_z = 3000;
+    floor_zones[i].y     = TH_FLOOR_Y;
     i++;
 
     floor_zone_count = i;
 }
 
 /* ---- Textures --------------------------------------------------------------
-   TWO, BOTH BORROWED, BOTH AT Voff 0:
+   THREE, ALL AT Voff 0:
 
-     0 cobblestones        walls, pillars, floor, ceiling: 329 of 333 (x384 y0)
-     1 catacomb inner door the two doorways, 2 polys each            (x832 y0)
+     0 cobblestones        walls, floor, ceiling: 301 of 342      (x384 y0)
+     1 lamashtu pearl      the east wall's relief, 37 polys, 4bpp (x640 y0)  OWNED HERE
+     2 catacomb inner door the two doorways, 2 polys each        (x832 y0)
 
-   Both come through src/catacombs_entry.c's narrow uploaders, as every
-   Chapter 3 room takes them. The room owns nothing, so there is no
-   registration and nothing of anybody else's to put back. */
-#define NECK_TEX_COUNT 2
+   Slots 0 and 2 come through src/catacombs_entry.c's narrow uploaders, as
+   every Chapter 3 room takes them.
 
-static uint16_t tex_tpage[NECK_TEX_COUNT];
-static uint16_t tex_clut[NECK_TEX_COUNT];
+   >>> SLOT 1 TIME-SHARES THE ROOM OF ARMS' PAGE, NOT ITS PALETTE. <<< 4bpp, so
+   it covers x[640,672) only — the guts' terms exactly, one more owner taking
+   turns on x640 y0. None of those rooms is ever drawn with this one, and each
+   one's uploader puts its own art back on every entry, so none owes the
+   others a restore. Its CLUT is its own, at (704,480).
+
+   128x128 AS AUTHORED (textures/catacombs/lamashtu pearl.png, quantised to 16
+   colours), so there is no stretch. Each half of the wall either side of the
+   east door carries the figure about twice over (the UVs run 44 texels per 200
+   units of Z and wrap under the 128 window); the bottom register (y[-400,0])
+   and the top (y[-800,-400]) each hold one full copy of the art vertically.
+
+   The ARM SWITCHES' texture (src/arm_switch.h) is the fourth page this room
+   draws, x768 y0, uploaded through that module's narrow uploader below. */
+#define THE_HEAD_TEX_COUNT 3
+
+static uint16_t tex_tpage[THE_HEAD_TEX_COUNT];
+static uint16_t tex_clut[THE_HEAD_TEX_COUNT];
+
+/* The one texmgr entry this room owns (slot 1). -1 until registration, which is
+   also what a registration past TEXMGR_MAX leaves — texmgr_upload on -1 is a
+   no-op, and the relief draws as whatever was last on x640 y0. tools/
+   check_texmgr_cap.py fails the build before that can ship. */
+static int pearl_tex = -1;
 
 /* ---- The cull key (STEP 3B, tools/DIAGNOSING_FRAME_RATE.txt) ---------------
-   Copied from src/throat.c. The keys go in the SHARED arena
+   Copied from src/neck.c. The keys go in the SHARED arena
    (src/cull_arena.h) and are built on the same call that reloads the mesh they
    describe. No box key and no side-plane cull: nothing here would feed one. */
-static int nk_key_count = 0;
+static int th_key_count = 0;
 
-static void nk_build_cull_keys(void) {
-    nk_key_count = 0;
-    if (!nk_smd) return;
-    uint8_t *p = (uint8_t *)nk_smd->p_prims;
-    int i, n = nk_smd->n_prims;
-    if (n > NECK_PRIM_COUNT) n = NECK_PRIM_COUNT;
+static void th_build_cull_keys(void) {
+    th_key_count = 0;
+    if (!th_smd) return;
+    uint8_t *p = (uint8_t *)th_smd->p_prims;
+    int i, n = th_smd->n_prims;
+    if (n > THE_HEAD_PRIM_COUNT) n = THE_HEAD_PRIM_COUNT;
     for (i = 0; i < n; i++) {
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
         uint16_t     *vi = (uint16_t *)(p + 4);
-        SVECTOR      *v0 = &nk_smd->p_verts[vi[0]];
+        SVECTOR      *v0 = &th_smd->p_verts[vi[0]];
         cull_keys[i].x      = v0->vx;
         cull_keys[i].z      = v0->vz;
         cull_keys[i].stride = pt->len;
         cull_keys[i].pad    = 0;
         p += pt->len;
     }
-    nk_key_count = n;
+    th_key_count = n;
 }
 
-void neck_load_geometry(void) {
-    nk_buff = room_arena_load("\\TEXCTCMB\\NECK.SMD;1");
-    nk_smd  = nk_buff ? smdInitData(nk_buff) : NULL;
+void the_head_load_geometry(void) {
+    th_buff = room_arena_load("\\TEXCTCMB\\THEHEAD.SMD;1");
+    th_smd  = th_buff ? smdInitData(th_buff) : NULL;
     /* ...and the tex map, no-cull bits and walls packed onto the end of
        the same file (src/room_data.h). No block, no room. */
-    if (nk_smd && !room_data_bind(nk_smd->n_prims)) nk_smd = NULL;
+    if (th_smd && !room_data_bind(th_smd->n_prims)) th_smd = NULL;
     /* The one rule from src/cull_arena.h: build the keys HERE, on the same call
        that reloads the mesh they describe, and nowhere else. */
-    nk_build_cull_keys();
+    th_build_cull_keys();
 }
 
-/* STARTUP: two compile-time headers and no CD access. It declares the bank,
-   which py tools/check_tex_banks.py checks against the uploader graph. */
-void neck_load_assets(void) {
+/* STARTUP, and it does not touch the drive: three compile-time headers and ONE
+   deferred registration. The bank mask is derived, not guessed — py
+   tools/check_tex_banks.py walks the uploader graph and fails if CATACOMBS is not
+   in it. */
+void the_head_load_assets(void) {
     texmgr_set_bank(TEXBANK_CATACOMBS);
+    pearl_tex = texmgr_register("\\TEXCTCMB\\LMSPEARL.TIM;1");
 
     TIM_SLOT(0, COBBLE);
-    TIM_SLOT(1, CTCMBDR);
+    TIM_SLOT(1, LMSPEARL);
+    TIM_SLOT(2, CTCMBDR);
 }
 
 /* Pure LoadImage from the RAM copies area_bank_sync() has already read — no CD
    access, safe during the transition (main's STATE_LOADING DrawSyncs first). */
-void neck_upload_textures(void) {
+void the_head_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
+    /* The relief, over whichever of the x640 y0 page's owners was last. */
+    texmgr_upload(pearl_tex);
+    /* ...and the arm switches' page (x768 y0), through that module's narrow
+       uploader. Neither page is anybody else's in this room, so no ordering
+       rule. */
+    arm_switch_upload_texture();
 }
 
 /* ---- THE DOORS -------------------------------------------------------------
-   TWO, BOTH WIRED. Both are z[800,1000], y[-400,0], on the centre line:
+   TWO DRAWN, ONE WIRED. Both are z[1400,1600], y[-400,0], on the centre line:
 
-     WEST  x=0     -> the Room of Baby Names, through the door with the blank
-                      plate over it (that room's north-east face)
-     EAST  x=2999  -> the Head, its west door
+     WEST  x=0     -> the Neck, through that room's east door
+     EAST  x=2400  -> nothing yet: drawn and sealed, no sign, no trigger. It is
+                      in the relief wall, behind the proxy's east wall at
+                      x=2210, so the player cannot reach it anyway.
 
-   Both are in the YZ plane at fixed X. The west door is approached from +X
-   (wall 1 runs x=0 with nx=+4096), so TEXT_PLANE_YZ with mirror=0 and the sign
-   11 proud of the wall along +X - the Room of Baby Names' own west door's
-   terms. The east door is the mirror case (wall 2 runs x=2999 with nx=-4096):
-   approached from -X, mirror=1, the sign 11 proud along -X. The reading axis
-   for a YZ sign is Z, so the -200 door_draw_string_3d wants goes on the Z
-   argument. */
-#define NK_WEST_X               0
-#define NK_WEST_Z             900
-#define NK_EAST_X            2999
-#define NK_EAST_Z             900
-#define NK_DOOR_TEXT_Y       (-186)   /* eye level on the y=0 floor */
-#define NK_TEXT_RADIUS       1200
-#define NK_FADE_NEAR          800
-#define NK_TRIGGER_RADIUS     500
+   The west door is in the YZ plane at fixed X, approached from +X (wall 1 runs
+   x=0 with nx=+4096), so TEXT_PLANE_YZ with mirror=0 and the sign 11 proud of
+   the wall along +X - the Neck's own west door's terms. The reading axis for a
+   YZ sign is Z, so the -200 door_draw_string_3d wants goes on the Z argument. */
+#define TH_WEST_X               0
+#define TH_WEST_Z            1500
+#define TH_DOOR_TEXT_Y       (-186)   /* eye level on the y=0 floor */
+#define TH_TEXT_RADIUS       1200
+#define TH_FADE_NEAR          800
+#define TH_TRIGGER_RADIUS     500
 
-/* ---- THE SAVE POINT --------------------------------------------------------
-   In the NORTH-EAST CORNER, 200 off the east wall (x=2999) and 200 off the
-   north wall (z=1800) - the Catacombs Entry's corner save on that room's
-   194/195, rounded. The model's own footprint is 70 plus the 55 standoff
-   save_points_collide is called with, so the player stops 125 short of it and
-   is never pushed into the corner.
+/* ---- THE ARM SWITCHES ------------------------------------------------------
+   EIGHT, one over each Lamashtu ELBOW in the BOTTOM register of the east
+   wall's relief (y[-400,0]), all at the export's own X and Y (src/
+   arm_switch.h) so the row is dead straight north to south. Only Z moves:
+   the export stood at z=2592 under an armpit, and the armpits put the
+   switches in tight pairs 123 apart; the elbows space them 272-310 apart.
 
-   y is the floor (0) less 300 and rot/scale are reception's, so it reads as
-   the identical prop on the identical terms (reception's floor is y=0 too).
+   WHERE THE ELBOWS ARE. The relief's U runs 44 texels per 200 units of Z,
+   DOWN as Z goes up, restarting either side of the east door (z[200,1400] and
+   z[1600,2800] both run U 130 -> -134). One figure per 128-texel tile, its
+   arms raised, with the elbows at the bottom of each bend: u=31 and u=91 in
+   the art (v=63, inside the switch's own height). The Z for each is solved
+   against the actual UVs of the wall's bottom row. Each half of the wall
+   crosses two figures, two elbows each: 4 + 4. */
+static const int32_t th_arm_switch_z[ARM_SWITCH_MAX] = {
+     381,  654,  964, 1236,      /* south of the east door */
+    1781, 2054, 2364, 2636,      /* north of it */
+};
 
-   It is 700 north of the east door's centre (900 Manhattan, against a 500
-   trigger), so the two circles do not meet; main.c still asks the save point
-   first and hands its answer to BOTH doors as a veto, the Catacombs Entry's
-   order, so one press can never do two things. It is 399 clear of the east
-   pillar's corner. */
-#define NK_SAVE_X            2799
-#define NK_SAVE_Y            (NK_FLOOR_Y - 300)
-#define NK_SAVE_Z            1600
-
-/* Circle edge-detect, one per door. Seeded "held" by the arm below so a press
-   carried in through the transition cannot fire on the arrival frame. */
+/* Circle edge-detect. Seeded "held" by the arm below so a press carried in
+   through the transition cannot fire on the arrival frame. */
 static int west_circle_prev = 1;
-static int east_circle_prev = 1;
 
-void neck_arm(void) {
+void the_head_arm(void) {
     west_circle_prev = interact_tapped();
-    east_circle_prev = west_circle_prev;
-    save_point_arm();
 }
 
-/* The shared body of both doors' tests. THE EDGE STATE IS KEPT UP TO DATE EVEN
-   WHILE LOCKED, so a Circle held across a menu closing does not read as a fresh
-   press on the frame the lock lifts. */
-static int nk_door_triggered(int32_t door_x, int32_t door_z, int *circle_prev,
-                             int lock) {
+/* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
+   menu closing does not read as a fresh press on the frame the lock lifts. */
+int the_head_west_door_triggered(int lock) {
     int held = interact_tapped();
-    int just = held && !*circle_prev;
+    int just = held && !west_circle_prev;
     int32_t dx, dz, xz;
-    *circle_prev = held;
+    west_circle_prev = held;
     if (lock || !just) return 0;
-    dx = cam_x - door_x;
-    dz = cam_z - door_z;
+    dx = cam_x - TH_WEST_X;
+    dz = cam_z - TH_WEST_Z;
     xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-    if (xz >= NK_TRIGGER_RADIUS) return 0;
-    if (!interact_facing(door_x, door_z)) return 0;
+    if (xz >= TH_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(TH_WEST_X, TH_WEST_Z)) return 0;
     return 1;
 }
 
-int neck_west_door_triggered(int lock) {
-    return nk_door_triggered(NK_WEST_X, NK_WEST_Z, &west_circle_prev, lock);
-}
-
-int neck_east_door_triggered(int lock) {
-    return nk_door_triggered(NK_EAST_X, NK_EAST_Z, &east_circle_prev, lock);
-}
-
 /* The floating sign. Same shape as every other sign in the game: opaque within
-   NK_FADE_NEAR, gone by NK_TEXT_RADIUS. `sign_x` is the wall X pushed 11 toward
-   the player; `mirror` is the side it is read from (see THE DOORS above). */
-static void nk_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
-                         int32_t sign_x, int mirror) {
-    int32_t dx = cam_x - door_x;
-    int32_t dz = cam_z - door_z;
+   TH_FADE_NEAR, gone by TH_TEXT_RADIUS. */
+static void th_west_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - TH_WEST_X;
+    int32_t dz = cam_z - TH_WEST_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int fade = 256;
 
-    if (xz >= NK_TEXT_RADIUS) return;
-    if (xz > NK_FADE_NEAR) {
-        int range = NK_TEXT_RADIUS - NK_FADE_NEAR;
-        int prog  = xz - NK_FADE_NEAR;
+    if (xz >= TH_TEXT_RADIUS) return;
+    if (xz > TH_FADE_NEAR) {
+        int range = TH_TEXT_RADIUS - TH_FADE_NEAR;
+        int prog  = xz - TH_FADE_NEAR;
         if (prog > range) prog = range;
         fade = 256 - ((prog * 256) / range);
     }
     door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
-                        sign_x, NK_DOOR_TEXT_Y, door_z - 200,
-                        50, 255, 50, fade, mirror, TEXT_PLANE_YZ,
+                        TH_WEST_X + 11, TH_DOOR_TEXT_Y, TH_WEST_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ,
                         DOOR_PIXEL_SIZE);
 }
 
-void neck_spawn_west(void) {
+void the_head_spawn_west(void) {
     /* 220 off wall 1 on its walkable +X side, on the door's centre line,
-       facing +X down the hall. (220,900) is 380 clear of the west pillar. */
-    cam_x   = NK_WEST_X + (NK_WALL_RADIUS + 25);
-    cam_y   = NK_EYE_Y;
+       facing +X toward the relief. */
+    cam_x   = TH_WEST_X + (TH_WALL_RADIUS + 25);
+    cam_y   = TH_EYE_Y;
     cam_vy  = 0;
-    cam_z   = NK_WEST_Z;
-    cam_rot = 1024;                    /* facing +X, east down the hall */
-    neck_arm();
+    cam_z   = TH_WEST_Z;
+    cam_rot = 1024;                    /* facing +X, east toward the relief */
+    the_head_arm();
 }
 
-void neck_spawn_east(void) {
-    /* 220 off wall 2 on its walkable -X side, on the door's centre line,
-       facing -X back down the hall. (2779,900) is 379 clear of the east
-       pillar and 700 south of the save point. */
-    cam_x   = NK_EAST_X - (NK_WALL_RADIUS + 25);
-    cam_y   = NK_EYE_Y;
-    cam_vy  = 0;
-    cam_z   = NK_EAST_Z;
-    cam_rot = 3072;                    /* facing -X, west down the hall */
-    neck_arm();
-}
-
-void neck_init(void) {
+void the_head_init(void) {
     room_data_collision(&current_collision_room);
     /* THE WALLS, read off the VISUAL mesh: the stone rises to y=-800, where
-       the proxy's walls and pillars stop too. */
+       the proxy's four walls stop too. */
     collision_set_ceiling_y(-800);
-    collision_set_wall_radius(NK_WALL_RADIUS);
+    collision_set_wall_radius(TH_WALL_RADIUS);
 
-    nk_floor_zones_init();
+    th_floor_zones_init();
     cam_pitch = 0;
 
-    neck_spawn_west();
+    the_head_spawn_west();
 
     /* Save points, dressers, sconces and oil dispensers are global arrays, and
        two of the four are not area-gated in every collide routine, so an
        instance left from another room would block invisibly anywhere it falls
-       inside x[0,3000] z[0,1800]. Cleared as the Throat clears them; safe,
-       because catacombs_entry_init() re-places all four. THEN this room's own
-       save point (see NK_SAVE_X above). */
+       inside x[0,2210] z[0,3000]. Cleared as the Neck clears them; safe,
+       because catacombs_entry_init() re-places all four. */
     save_points_clear();
-    save_point_add(NK_SAVE_X, NK_SAVE_Y, NK_SAVE_Z, 512, 2048);
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
 
-    nk_view_resolve(1);
+    /* THE ARM SWITCHES (see th_arm_switch_z above): area-tagged, so placing
+       them every entry is what keeps them here and nowhere else. */
+    {
+        int i;
+        arm_switches_clear();
+        for (i = 0; i < ARM_SWITCH_MAX; i++)
+            arm_switch_add(STATE_THE_HEAD, th_arm_switch_z[i]);
+    }
+
+    th_view_resolve(1);
 }
 
-static void draw_neck_smd(RenderContext *ctx) {
-    if (!nk_smd) return;
+static void draw_the_head_smd(RenderContext *ctx) {
+    if (!th_smd) return;
 
-    uint8_t *p = (uint8_t *)nk_smd->p_prims;
-    int i, n = nk_key_count;
+    uint8_t *p = (uint8_t *)th_smd->p_prims;
+    int i, n = th_key_count;
 
     /* HOISTED OUT OF THE LOOP, all four (STEP 3C fix 1). */
     int32_t cull = DEBUG_CULL_DIST();
-    if (!cull) cull = nk_fog_far;   /* resolved by nk_view_resolve() this frame */
+    if (!cull) cull = th_fog_far;   /* resolved by th_view_resolve() this frame */
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
@@ -357,9 +365,9 @@ static void draw_neck_smd(RenderContext *ctx) {
         int is_quad = (pt->type >= 2);
 
         uint16_t *vi = (uint16_t *)(p + 4);
-        SVECTOR *v0 = &nk_smd->p_verts[vi[0]];
-        SVECTOR *v1 = &nk_smd->p_verts[vi[1]];
-        SVECTOR *v2 = &nk_smd->p_verts[vi[2]];
+        SVECTOR *v0 = &th_smd->p_verts[vi[0]];
+        SVECTOR *v1 = &th_smd->p_verts[vi[1]];
+        SVECTOR *v2 = &th_smd->p_verts[vi[2]];
 
         DVECTOR sv[4];
         int32_t sz[4];
@@ -375,7 +383,7 @@ static void draw_neck_smd(RenderContext *ctx) {
             p += stride; continue;
         }
 
-        int nocull = (i < NECK_PRIM_COUNT) && room_nocull(i);
+        int nocull = (i < THE_HEAD_PRIM_COUNT) && room_nocull(i);
         if (!pt->nocull && !nocull) {
             gte_nclip();
             gte_stopz(&nclip);
@@ -388,7 +396,7 @@ static void draw_neck_smd(RenderContext *ctx) {
         SVECTOR *v3    = 0;
         int32_t  v2_sz = sz[3];   /* v2's SZ, before the quad path reuses sz[3] */
         if (is_quad) {
-            v3 = &nk_smd->p_verts[vi[3]];
+            v3 = &th_smd->p_verts[vi[3]];
             gte_ldv0(v3);
             gte_rtps();
             gte_stsxy(&sv[3]);
@@ -416,15 +424,15 @@ static void draw_neck_smd(RenderContext *ctx) {
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog = dist < nk_fog_near ? nk_fog_near : (dist > nk_fog_far ? nk_fog_far : dist);
-        int32_t fog_factor = ((nk_fog_far - fog) << 8) / (nk_fog_far - nk_fog_near);
+        int32_t fog = dist < th_fog_near ? th_fog_near : (dist > th_fog_far ? th_fog_far : dist);
+        int32_t fog_factor = ((th_fog_far - fog) << 8) / (th_fog_far - th_fog_near);
 
-        uint8_t tex_idx = (i < NECK_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
-        int     textured = (tex_idx != 0xFF && tex_idx < NECK_TEX_COUNT);
+        uint8_t tex_idx = (i < THE_HEAD_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
+        int     textured = (tex_idx != 0xFF && tex_idx < THE_HEAD_TEX_COUNT);
 
-        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + NK_FOG_R * (256 - fog_factor)) >> 8);
-        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + NK_FOG_G * (256 - fog_factor)) >> 8);
-        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + NK_FOG_B * (256 - fog_factor)) >> 8);
+        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + TH_FOG_R * (256 - fog_factor)) >> 8);
+        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + TH_FOG_G * (256 - fog_factor)) >> 8);
+        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + TH_FOG_B * (256 - fog_factor)) >> 8);
 
         if (is_quad && textured) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
@@ -487,21 +495,21 @@ static void draw_neck_smd(RenderContext *ctx) {
     }
 }
 
-void neck_draw(RenderContext *ctx) {
+void the_head_draw(RenderContext *ctx) {
     int exp = DEBUG_EXPERIMENT();
 
     /* THIS frame's view distance, before anything reads it. */
-    nk_view_resolve(0);
+    th_view_resolve(0);
 
-    g_fog_near = nk_fog_near;
-    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : nk_fog_far;
+    g_fog_near = th_fog_near;
+    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : th_fog_far;
 
     /* The fog colour as the CLEAR colour, not a full-screen TILE (wrong turn #3
        in tools/DIAGNOSING_FRAME_RATE.txt). */
-    render_set_clear_colour(ctx, NK_FOG_R, NK_FOG_G, NK_FOG_B);
+    render_set_clear_colour(ctx, TH_FOG_R, TH_FOG_G, TH_FOG_B);
 
     /* 128x128 texture window so per-poly UVs wrap within each texture's page.
-       Both textures sit at Voff 0. */
+       All three textures, and the arm switches', sit at Voff 0. */
     {
         RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
         DR_TWIN *twin = (DR_TWIN *)ctx->next_packet;
@@ -515,16 +523,15 @@ void neck_draw(RenderContext *ctx) {
     gte_SetRotMatrix(&rot_matrix);
     gte_SetTransMatrix(&rot_matrix);
 
-    if (exp != DBG_EXP_NO_MESH) draw_neck_smd(ctx);
+    if (exp != DBG_EXP_NO_MESH) draw_the_head_smd(ctx);
 
-    /* >>> LEVEL 8 IS THE SAVE POINT AND THE SIGNS. <<< Nothing else stands in
-       the Neck. The two Chapter 3 enemy draws are area-tagged and cost nothing
+    /* >>> LEVEL 8 IS THE ARM SWITCHES AND THE SIGN. <<< Nothing else stands in
+       the Head. The two Chapter 3 enemy draws are area-tagged and cost nothing
        here; they are called on the Tomb's argument, so a room that is later
        given an occupant in world.c draws it without an edit. */
     if (exp != DBG_EXP_NO_ENTITIES) {
-        save_points_draw(ctx);
-        nk_door_text(ctx, NK_WEST_X, NK_WEST_Z, NK_WEST_X + 11, 0);  /* from +X */
-        nk_door_text(ctx, NK_EAST_X, NK_EAST_Z, NK_EAST_X - 11, 1);  /* from -X */
+        arm_switches_draw(ctx);    /* x768 y0, Voff 0: the window above serves it */
+        th_west_door_text(ctx);    /* west: YZ plane, approached from +X */
         /* THE CHAPTER 3 ENEMIES. Their sheets sit at Voff 128, so each is
            handed the window to restore after drawing unmasked. */
         {

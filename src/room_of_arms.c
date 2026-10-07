@@ -400,10 +400,10 @@ void room_of_arms_load_geometry(void) {
    room left on x640 y0. */
 void room_of_arms_load_assets(void) {
     texmgr_set_bank(TEXBANK_CATACOMBS);
-    arms_tex = texmgr_register("\\TEXCTCMB\\ARMS.TIM;1");
+    arms_tex = texmgr_register("\\TEXCTCMB\\ARMS2.TIM;1");
 
     TIM_SLOT(0, COBBLE);
-    TIM_SLOT(1, ARMS);
+    TIM_SLOT(1, ARMS2);
     TIM_SLOT(2, CTCMBDR);
 }
 

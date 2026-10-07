@@ -59,9 +59,9 @@
 #define TIM_TPAGE_ANZU6    0x008b
 #define TIM_CLUT_ANZU6     0x7a10
 
-/* arms.tim        8bpp  VRAM ( 640,  0)  \TEXCTCMB\ARMS.TIM */
-#define TIM_TPAGE_ARMS     0x008a
-#define TIM_CLUT_ARMS      0x7d6a
+/* arms2.tim       8bpp  VRAM ( 640,  0)  \TEXCTCMB\ARMS2.TIM */
+#define TIM_TPAGE_ARMS2    0x008a
+#define TIM_CLUT_ARMS2     0x7d6a
 
 /* mud.tim         8bpp  VRAM ( 384,  0)  \TEXASAG\ASGMUD.TIM */
 #define TIM_TPAGE_ASGMUD   0x0086
@@ -367,9 +367,17 @@
 #define TIM_TPAGE_LEGS     0x008a
 #define TIM_CLUT_LEGS      0x7d6a
 
+/* lamashtu arm.tim  4bpp  VRAM ( 768,  0)  \TEXCTCMB\LMSHARM.TIM */
+#define TIM_TPAGE_LMSHARM  0x000c
+#define TIM_CLUT_LMSHARM   0x782d
+
 /* lamashtu tablet.tim  8bpp  VRAM ( 768,  0)  \TEX\LMSHTBLT.TIM */
 #define TIM_TPAGE_LMSHTBLT 0x008c
 #define TIM_CLUT_LMSHTBLT  0x7bea
+
+/* lamashtu pearl.tim  4bpp  VRAM ( 640,  0)  \TEXCTCMB\LMSPEARL.TIM */
+#define TIM_TPAGE_LMSPEARL 0x000a
+#define TIM_CLUT_LMSPEARL  0x782c
 
 /* loculus.tim     8bpp  VRAM ( 512,  0)  \TEXCTCMB\LOCULUS.TIM */
 #define TIM_TPAGE_LOCULUS  0x0088

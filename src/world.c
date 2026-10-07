@@ -200,6 +200,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_DEAD_END_CHRISTOF, STATE_DEAD_END_LUKE,
     STATE_DEAD_END_MARK,   STATE_THROAT,
     STATE_ROOM_OF_GUTS,    STATE_NECK,
+    STATE_THE_HEAD,
 };
 
 static int room_index(GameState area) {
@@ -366,6 +367,10 @@ static int room_index(GameState area) {
            Names' blank-plate door. Slot 57 of 64. Seeded EMPTY: its save
            point is a prop, placed by neck_init(). */
         case STATE_NECK:              return 57;
+        /* THE HEAD, Chapter 3's thirty-second room, behind the Neck's east
+           door. Slot 58 of 64. Seeded EMPTY: its arm switches are props,
+           placed by the_head_init(). */
+        case STATE_THE_HEAD:          return 58;
         default:                   return 0;
     }
 }
