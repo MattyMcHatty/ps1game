@@ -17,7 +17,13 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   34            /* v34: blood_pearls. The Blood Pearl
+#define SAVE_VERSION   35            /* v35: arm_pearls. Which of The
+                                        Head's eight arm switches hold a Blood
+                                        Pearl (src/arm_puzzle.h). SaveData
+                                        grew by one field at its end-of-world
+                                        group, so the bump rejects a v34 save
+                                        rather than misreading it.
+                                        v34: blood_pearls. The Blood Pearl
                                         was a bit in `items`; there are three
                                         to find now, so it is a counter beside
                                         hatch_keys. SaveData grew, which moves
@@ -320,6 +326,10 @@ typedef struct {
     int32_t  sb_gates;              /* the Sliding Bars Room's four gates: bit
                                        i = gate i+1 is at its MOVED spot. See
                                        THE GATES in src/sliding_bars_room.c.  */
+    int32_t  arm_pearls;            /* The Head's arm switches: bit i = switch
+                                       i (south to north) holds a Blood Pearl.
+                                       The pearls are out of the inventory, so
+                                       without this a save would lose them.  */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     int32_t  flags2;                /* ...and GameFlags 32..63 (game_flags2).
                                        See "BIT 32 ON" in player.h.          */

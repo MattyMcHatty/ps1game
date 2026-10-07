@@ -135,6 +135,7 @@
 #include "stove_puzzle.h"
 #include "incinerator.h"
 #include "incinerator_panel.h"
+#include "arm_puzzle.h"
 #include "crib.h"
 #include "bars.h"
 #include "creep.h"
@@ -225,6 +226,7 @@ void reset_game(RenderContext *ctx) {
     kitchen_stove_reset();
     stove_puzzle_arm();      /* drop any in-progress cook, clear the board */
     incinerator_panel_arm(); /* ...and drop the conveyor board and its shot   */
+    arm_puzzle_arm();        /* ...and The Head's arm board and its shot     */
     piano_puzzle_arm();      /* ...and any in-progress piano key placement  */
     exit_door_puzzle_arm();  /* ...and any keystones left in the exit door  */
     cam_pitch = 0;           /* a puzzle camera never survives a reset */
@@ -300,6 +302,10 @@ void reset_game(RenderContext *ctx) {
                                that left it there.                          */
     sliding_bars_room_reset_gates(); /* ...and the Sliding Bars Room's four
                                gates back to their start spots            */
+    arm_puzzle_reset();     /* ...and every hand in The Head's relief empty.
+                               The solved bit is a GameFlag and goes with
+                               game_flags2 above; the board itself is dropped
+                               by the_head_init on the next entry.         */
     hatch_puzzle_reset();   /* ...and The Hatch's board, its shot and any
                                half-played descent dropped. The two keyholes
                                themselves are GameFlags and are cleared with
@@ -605,6 +611,17 @@ static void update_current_area(GameState area) {
         player_status_update();
         incinerator_room_machine_update(1);
         incinerator_panel_update();
+        update_particles();
+        return;
+    }
+    /* ...and The Head's arm switches: the shot over one arm and its box. The
+       two Chapter 3 enemy ticks keep running on the Tomb's argument (none is
+       seeded here today). */
+    if (area == STATE_THE_HEAD && arm_puzzle_active()) {
+        update_crawlers();
+        update_lumberers();
+        player_status_update();
+        arm_puzzle_update();
         update_particles();
         return;
     }
@@ -2918,22 +2935,40 @@ static void update_current_area(GameState area) {
     } else if (area == STATE_THE_HEAD) {
         /* THE HEAD - Chapter 3's thirty-second room (src/the_head.c): a wide
            box, so the shared wall routine and ONE flat floor zone,
-           multi_level 0. One wired door, west, back to the Neck; the east
-           door is drawn and sealed in the Lamashtu relief, behind the proxy's
-           east wall. The eight arm switches are drawn only - nothing is
-           wired to them, and they stand where the player cannot reach.
-           Nothing is seeded; both Chapter 3 enemy updates run anyway, on the
-           Tomb's argument. */
+           multi_level 0. Two doors: west, back to the Neck, and east, in
+           the Lamashtu relief, locked by the eight ARM SWITCHES
+           (src/arm_puzzle.h) - the room beyond is not built, so once they
+           are solved it only logs "Coming Soon". Nothing is seeded; both
+           Chapter 3 enemy updates run anyway, on the Tomb's argument.
+
+           THE ARM IN REACH VETOES THE EAST DOOR: arms 4 and 5 stand 264 and
+           281 either side of it, so near the door's edge both can be in
+           reach, and one Circle must never do two things. The veto goes in
+           as `lock` so the door's edge state stays current. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
 
-        if (the_head_west_door_triggered(lock)) {
-            pending_area = STATE_NECK;
-            door_anim_start(DOOR_PANEL_CATACOMB);
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
+        {
+            int took = 0;
+            if (the_head_west_door_triggered(lock)) {
+                took         = 1;
+                pending_area = STATE_NECK;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
+            if (the_head_east_door_triggered(took || lock ||
+                                             arm_puzzle_targeted())) {
+                took = 1;
+                show_pickup_msg_raw("Coming Soon");
+            }
+            /* The arms' own trigger, and the turn of any arm that has just
+               been given or relieved of a pearl. From the next frame the
+               board owns the camera through the branch at the top of this
+               function. */
+            if (!lock && !took) arm_puzzle_update();
         }
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
@@ -6262,6 +6297,7 @@ int main(int argc, const char **argv) {
                 int puzzle = (area == STATE_2F_HALL && trick_drawers_puzzle_active()) ||
                              (area == STATE_KITCHEN_DINING && stove_puzzle_active()) ||
                              (area == STATE_INCINERATOR_ROOM && incinerator_panel_active()) ||
+                             (area == STATE_THE_HEAD && arm_puzzle_active()) ||
                              (area == STATE_PIANO_ROOM && piano_puzzle_active()) ||
                              (area == STATE_PIANO_ROOM && anzu_puzzle_active()) ||
                              /* The Room of Arms' overhead shot of the arms

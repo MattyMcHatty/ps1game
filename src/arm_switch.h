@@ -49,6 +49,17 @@ void arm_switches_clear(void);
    be in the same area (a later call with another area re-tags the row). */
 void arm_switch_add(GameState area, int32_t z);
 
+int     arm_switch_count(void);     /* how many arm_switch_add() placed     */
+int32_t arm_switch_z(int i);        /* switch i's centre Z, as placed       */
+
+/* Switch i's pose this frame: `angle` (4096 = a full turn) about the shoulder,
+   positive = HAND DOWN, and whether a Blood Pearl rests in its hand. The pivot
+   is the export's one untextured face, measured at load (src/arm_switch.c).
+   The pearl is a fixed sprite (item_pickup_draw_fixed), not a pickup: it
+   cannot be walked into, does not bob, and is saved by whoever owns the pose —
+   src/arm_puzzle.c. arm_switches_clear() zeroes every pose. */
+void arm_switch_set_pose(int i, int32_t angle, int pearl);
+
 void arm_switches_draw(RenderContext *ctx);
 
 #endif

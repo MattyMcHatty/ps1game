@@ -184,6 +184,17 @@ typedef enum {
     DBG_CRIB_BONES,          /* Room of Bones' crib beaten  (Nursery: south)      */
     DBG_CRIB_TORSOS,         /* Room of Torsos' crib beaten (Nursery: south-west) */
     DBG_CRIB_GUTS,           /* Room of Guts' crib beaten   (Nursery: north-west) */
+    /* THE THREE BLOOD PEARLS, one option each, so The Head's arm switches
+       (src/arm_puzzle.h) can be played without fetching them. Each is +1
+       player_blood_pearls AND that pearl's sconce pickup marked TAKEN
+       (world_take_sconce_pearl), so it is not there to collect a second time
+       and the sconce stands lit, exactly as after a real pickup. The pickup is
+       still SEEDED and then deactivated rather than not seeded at all: its
+       inactive record is what lights the sconce (src/sconce.c) and what keeps
+       every later pickup in the room on its saved slot. */
+    DBG_PEARL_CLEAVER,       /* the Cleaver Corridor's sconce pearl              */
+    DBG_PEARL_UP_DOWN,       /* the Up Down Maze's sconce pearl                  */
+    DBG_PEARL_GAOL,          /* the Gaol Cells' sconce pearl                     */
     DEBUG_OPT_COUNT
 } DebugOpt;
 

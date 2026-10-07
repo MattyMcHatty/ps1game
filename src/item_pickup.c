@@ -325,3 +325,61 @@ void item_pickups_draw(RenderContext *ctx) {
         addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
     }
 }
+
+/* A sprite with no pickup behind it: see item_pickup.h. item_pickups_draw()'s
+   quad, with the size taken from the GTE's own depth (SZ, against the 256 of
+   gte_SetGeomScreen) so it scales correctly in a close-up. */
+void item_pickup_draw_fixed(RenderContext *ctx, PickupKind kind,
+                            int32_t x, int32_t y, int32_t z,
+                            int32_t world_half, int32_t otz_bias) {
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    Sprite  *s;
+    SVECTOR  sv;
+    DVECTOR  screen;
+    int32_t  sz, otz, half, dx, dz, wdist;
+    POLY_FT4 *poly;
+    uint8_t  fc;
+
+    if ((unsigned)kind >= PICKUP_KIND_COUNT) return;
+    s = &sprites[kind];
+    if (!s->tpage) return;
+
+    dx = x - cam_x; dz = z - cam_z;
+    wdist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (wdist >= g_fog_far) return;
+
+    sv.vx = (int16_t)x; sv.vy = (int16_t)y; sv.vz = (int16_t)z; sv.pad = 0;
+    gte_ldv0(&sv);
+    gte_rtps();
+    gte_stsxy(&screen);
+    gte_stsz(&sz);
+    if (sz <= 0) return;                         /* behind the camera */
+    if (screen.vx <= -1023 || screen.vx >= 1023 ||
+        screen.vy <= -1023 || screen.vy >= 1023) return;
+
+    otz = (sz >> 2) + otz_bias;                  /* the AVSZ3 scale of one point */
+    if (otz < SCENE_OT_MIN)  otz = SCENE_OT_MIN;
+    if (otz > OT_LENGTH - 2) otz = OT_LENGTH - 2;
+    if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) return;
+
+    half = (world_half * 256) / sz;
+    if (half < 2)   half = 2;
+    if (half > 120) half = 120;
+
+    poly = (POLY_FT4 *)ctx->next_packet;
+    setPolyFT4(poly);
+    fc = (uint8_t)((128 * render_fog_scale(wdist)) >> 8);
+    setRGB0(poly, fc, fc, fc);
+    poly->x0 = (int16_t)(screen.vx - half); poly->y0 = (int16_t)(screen.vy - half);
+    poly->x1 = (int16_t)(screen.vx + half); poly->y1 = (int16_t)(screen.vy - half);
+    poly->x2 = (int16_t)(screen.vx - half); poly->y2 = (int16_t)(screen.vy + half);
+    poly->x3 = (int16_t)(screen.vx + half); poly->y3 = (int16_t)(screen.vy + half);
+    poly->u0 = s->u0; poly->v0 = s->v0;
+    poly->u1 = s->u1; poly->v1 = s->v0;
+    poly->u2 = s->u0; poly->v2 = s->v1;
+    poly->u3 = s->u1; poly->v3 = s->v1;
+    poly->clut  = s->clut;
+    poly->tpage = s->tpage;
+    ctx->next_packet += sizeof(POLY_FT4);
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[otz], poly);
+}

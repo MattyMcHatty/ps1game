@@ -11,6 +11,7 @@
 #include "oil_dispenser.h"   /* the Catacombs tank rides in SaveData.disp_oil */
 #include "incinerator.h"     /* ...and its conveyor in incin_slot/incin_count   */
 #include "sliding_bars_room.h" /* ...and the four gates in sb_gates            */
+#include "arm_puzzle.h"      /* ...and The Head's pearls in arm_pearls          */
 
 /* ---- PlayStation memory-card directory format ------------------------------
    Block 0 is the directory. Frame 0 is the card header ("MC" magic). Frames
@@ -45,7 +46,7 @@ _Static_assert(sizeof(WorldDelta) <= SAVE_DELTA_MAX_BYTES,
    oil dispenser. Both savegame_write and savegame_read memcpy the whole struct
    in and out of a 128-byte `frame` on the STACK: one field past the frame is a
    silent overflow of a local buffer at exactly the moment the player is writing
-   to their card, which is the worst place in the game to find one. It is 120
+   to their card, which is the worst place in the game to find one. It is 124
    bytes today. */
 _Static_assert(sizeof(SaveData) <= MC_FRAME_SIZE,
                "SaveData outgrew one memory-card frame");
@@ -90,6 +91,7 @@ void savegame_capture(SaveData *sd) {
     sd->incin_count = incinerator_count();
     sd->incin_tray  = incinerator_tray();
     sd->sb_gates = sliding_bars_room_gates();
+    sd->arm_pearls = arm_puzzle_pearls();
     sd->flags   = game_flags;
     sd->flags2  = game_flags2;
     menu_inventory_save(sd->item_order);
@@ -289,6 +291,9 @@ void savegame_apply_pending(void) {
     /* The gates. Only the byte: the room re-places them after world_enter
        (sliding_bars_room_apply_flags in main.c). */
     sliding_bars_room_set_gates((int)sd->sb_gates);
+    /* The Head's pearls. Only the bits, masked by the setter: the_head_init()
+       poses the arms from them on entry (arm_puzzle_arm). */
+    arm_puzzle_set_pearls((int)sd->arm_pearls);
     game_flags        = sd->flags;
     game_flags2       = sd->flags2;
     player_save_count = (int)sd->counter;

@@ -5,6 +5,7 @@
 #include "birdcage.h"       /* DBG_HAS_HATCH_KEYS washes Maze One's cage out     */
 #include "catacomb_doors.h" /* DBG_ASAG_DEFEATED poses the leaves on a direct jump */
 #include "crib.h"           /* the six DBG_CRIB_* options bank solved bits       */
+#include "world.h"          /* DBG_PEARL_* take the pearl off its sconce          */
 
 int debug_opts[DEBUG_OPT_COUNT] = { 0 };   /* all cheats off by default; the
                                               rest zero-initialise with it */
@@ -32,6 +33,9 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "BONES CRIB DONE",
     "TORSOS CRIB DONE",   /* 16 chars — the label limit exactly */
     "GUTS CRIB DONE",
+    "PEARL CLEAVER",
+    "PEARL UP DOWN",
+    "PEARL GAOL",
 };
 
 static int grants_pending = 0;
@@ -372,4 +376,19 @@ void debug_opts_apply_grants(void) {
     if (debug_opts[DBG_CRIB_BONES])  crib_room_mark_solved(STATE_ROOM_OF_BONES);
     if (debug_opts[DBG_CRIB_TORSOS]) crib_room_mark_solved(STATE_ROOM_OF_TORSOS);
     if (debug_opts[DBG_CRIB_GUTS])   crib_room_mark_solved(STATE_ROOM_OF_GUTS);
+
+    /* The three Blood Pearls: in the pocket, and gone from their sconces. */
+    {
+        static const struct { DebugOpt opt; GameState area; } pearls[] = {
+            { DBG_PEARL_CLEAVER, STATE_CLEAVER_CORRIDOR },
+            { DBG_PEARL_UP_DOWN, STATE_UP_DOWN_MAZE     },
+            { DBG_PEARL_GAOL,    STATE_GAOL_CELLS       },
+        };
+        int i;
+        for (i = 0; i < 3; i++) {
+            if (!debug_opts[pearls[i].opt]) continue;
+            if (player_blood_pearls < BLOOD_PEARLS_MAX) player_blood_pearls++;
+            world_take_sconce_pearl(pearls[i].area);
+        }
+    }
 }

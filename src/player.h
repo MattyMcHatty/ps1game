@@ -435,6 +435,13 @@ typedef enum {
        maggot appears, so leaving mid-drop forfeits the rest
        (src/gaol_cells.c). Bit 3 of game_flags2. */
     FLAG_GAOL_CELLS_MAGGOTS,
+
+    /* THE HEAD'S ARM SWITCHES are solved: Blood Pearls rest in arms 2, 3 and 6
+       (counted from the north), and the east door unlocks. The arms are locked
+       out from then on, pearls and all (src/arm_puzzle.h). Which hands hold a
+       pearl is SaveData.arm_pearls; this is only "it is done". Bit 4 of
+       game_flags2. */
+    FLAG_HEAD_ARMS_SOLVED,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

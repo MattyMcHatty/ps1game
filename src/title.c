@@ -28,6 +28,7 @@ enum { DBG_COL_LEVELS = 0, DBG_COL_OPTS };
 static int debug_menu_open   = 0;
 static int debug_menu_cursor = 0;    /* row in the left (level) column  */
 static int debug_opt_cursor  = 0;    /* row in the right (option) column */
+static int debug_opt_scroll  = 0;    /* first option row on screen          */
 static int debug_col         = DBG_COL_LEVELS;
 static int debug_scroll      = 0;    /* first VISIBLE row of the level column */
 static int level_select_fnt  = -1;
@@ -47,6 +48,10 @@ static int debug_fnt         = -1;   /* left column, top-left  */
    longer of the two lists, so it does not jump around as entries are added.
    The taller column (levels) SCROLLS to stay clear of it — see DBG_LIST_ROWS. */
 #define DBG_FOOTER_Y    224
+/* Rows of the OPTIONS column on screen at once: y=24 down to the footer, 8px
+   each. The column outgrew it at 28 options (the three Blood Pearls), so it
+   scrolls with its cursor the way the level column does. */
+#define DBG_OPT_ROWS    ((DBG_FOOTER_Y - DBG_OPT_TOP_Y) / 8)
 
 /* Rows of the level column that are on screen at once. The column opens at y=8
    with "LEVEL SELECT" and a blank row, so the list itself runs from y=24, and
@@ -831,8 +836,9 @@ void draw_title(RenderContext *ctx) {
            string building, and no font stream — see the cap noted above); the
            8px advance matches the left column's line height. */
         btn_prompt_draw(ctx, DBG_OPT_X, 8, "OPTIONS", 1);
-        for (k = 0; k < DEBUG_OPT_COUNT; k++) {
-            int oy = DBG_OPT_TOP_Y + k * 8;
+        for (k = debug_opt_scroll;
+             k < DEBUG_OPT_COUNT && k < debug_opt_scroll + DBG_OPT_ROWS; k++) {
+            int oy = DBG_OPT_TOP_Y + (k - debug_opt_scroll) * 8;
             if (debug_col == DBG_COL_OPTS && k == debug_opt_cursor)
                 btn_prompt_draw(ctx, DBG_OPT_X, oy, "*", 1);
             btn_prompt_draw(ctx, DBG_OPT_BOX_X,  oy, debug_opts[k] ? "[X]" : "[ ]", 1);
@@ -1050,6 +1056,11 @@ void update_title(void) {
                 debug_opt_cursor = (debug_opt_cursor + DEBUG_OPT_COUNT - 1) % DEBUG_OPT_COUNT;
             if (nav & PAD_DOWN)
                 debug_opt_cursor = (debug_opt_cursor + 1) % DEBUG_OPT_COUNT;
+            /* Keep the cursor's row on screen, wraps included. */
+            if (debug_opt_cursor < debug_opt_scroll)
+                debug_opt_scroll = debug_opt_cursor;
+            if (debug_opt_cursor >= debug_opt_scroll + DBG_OPT_ROWS)
+                debug_opt_scroll = debug_opt_cursor - DBG_OPT_ROWS + 1;
         }
 
         if (pressed & (PAD_SELECT | PAD_CROSS)) {

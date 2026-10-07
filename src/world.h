@@ -103,6 +103,14 @@ void world_new_game(void);          /* reset all rooms; capture the starting roo
 void world_leave(GameState area);   /* live entities  -> the area's saved slot */
 void world_enter(GameState area);   /* the area's saved slot -> live entities   */
 
+/* DEBUG (DBG_PEARL_*): mark the Blood Pearl on `area`'s sconce as already
+   collected. Deactivated wherever the room's pickups live right now — the live
+   array if it is the current room, its saved slot if visited — and, for a room
+   not yet seeded, on its first world_enter. The record is kept, inactive, so
+   the sconce lights (src/sconce.c) and the save's items_gone bit is set as if
+   it had been picked up. Cleared by world_new_game(). */
+void world_take_sconce_pearl(GameState area);
+
 /* Build a room's entities into the live arrays exactly as a FIRST VISIT leaves
    them. May not touch the current room's mesh or collision data — it is called
    for rooms that are not loaded (see world.c). */

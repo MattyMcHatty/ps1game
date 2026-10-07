@@ -23,6 +23,7 @@
 #include "catacombs_entry.h"    /* the two narrow uploaders this room borrows */
 #include "save_point.h"
 #include "arm_switch.h"
+#include "arm_puzzle.h"         /* the arms' board, and the east door's lock     */
 #include "dresser.h"
 #include "sconce.h"
 #include "oil_dispenser.h"
@@ -209,12 +210,20 @@ void the_head_upload_textures(void) {
 }
 
 /* ---- THE DOORS -------------------------------------------------------------
-   TWO DRAWN, ONE WIRED. Both are z[1400,1600], y[-400,0], on the centre line:
+   TWO, BOTH WIRED. Both are z[1400,1600], y[-400,0], on the centre line:
 
      WEST  x=0     -> the Neck, through that room's east door
-     EAST  x=2400  -> nothing yet: drawn and sealed, no sign, no trigger. It is
-                      in the relief wall, behind the proxy's east wall at
-                      x=2210, so the player cannot reach it anyway.
+     EAST  x=2400  -> LOCKED BY THE ARM SWITCHES (src/arm_puzzle.h): a red
+                      "Locked by some mechanism" until FLAG_HEAD_ARMS_SOLVED,
+                      then "Press O to enter". The room beyond is not built, so
+                      the press only logs "Coming Soon".
+
+   The east door is in the relief wall, 190 behind the proxy's east wall at
+   x=2210, so its trigger and fade are measured from THAT wall's face at the
+   door's Z (TH_EAST_REACH_X) — the closest the player can stand is x=2015,
+   which would leave the door itself 385 away and the 500 circle a sliver. The
+   sign stays on the door, 11 proud of it along -X, mirror=1 (approached from
+   -X), the Neck's east door's terms.
 
    The west door is in the YZ plane at fixed X, approached from +X (wall 1 runs
    x=0 with nx=+4096), so TEXT_PLANE_YZ with mirror=0 and the sign 11 proud of
@@ -226,6 +235,16 @@ void the_head_upload_textures(void) {
 #define TH_TEXT_RADIUS       1200
 #define TH_FADE_NEAR          800
 #define TH_TRIGGER_RADIUS     500
+
+#define TH_EAST_X            2400
+#define TH_EAST_Z            1500
+#define TH_EAST_REACH_X      2210   /* the proxy wall in front of it */
+/* The east sign: two lines at 3 units a font pixel (the default is
+   DOOR_PIXEL_SIZE, 4), 9 pixels apart (7 of glyph, 2 of gap). The block is
+   48 tall and centred on the west door's eye-level line. */
+#define TH_EAST_PIXEL           3
+#define TH_EAST_LINE         (9 * TH_EAST_PIXEL)
+#define TH_EAST_TEXT_Y       (TH_DOOR_TEXT_Y - 12)
 
 /* ---- THE ARM SWITCHES ------------------------------------------------------
    EIGHT, one over each Lamashtu ELBOW in the BOTTOM register of the east
@@ -249,9 +268,11 @@ static const int32_t th_arm_switch_z[ARM_SWITCH_MAX] = {
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int west_circle_prev = 1;
+static int east_circle_prev = 1;
 
 void the_head_arm(void) {
     west_circle_prev = interact_tapped();
+    east_circle_prev = west_circle_prev;
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -268,6 +289,56 @@ int the_head_west_door_triggered(int lock) {
     if (xz >= TH_TRIGGER_RADIUS) return 0;
     if (!interact_facing(TH_WEST_X, TH_WEST_Z)) return 0;
     return 1;
+}
+
+/* The east door. Its own edge state; `lock` carries main's veto (an arm in
+   reach), and a press while the arms are unsolved does nothing — the red sign
+   has already said why. */
+int the_head_east_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !east_circle_prev;
+    int32_t dx, dz, xz;
+    east_circle_prev = held;
+    if (lock || !just) return 0;
+    if (!arm_puzzle_solved()) return 0;
+    dx = cam_x - TH_EAST_REACH_X;
+    dz = cam_z - TH_EAST_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= TH_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(TH_EAST_REACH_X, TH_EAST_Z)) return 0;
+    return 1;
+}
+
+static void th_east_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - TH_EAST_REACH_X;
+    int32_t dz = cam_z - TH_EAST_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= TH_TEXT_RADIUS) return;
+    if (xz > TH_FADE_NEAR) {
+        int range = TH_TEXT_RADIUS - TH_FADE_NEAR;
+        int prog  = xz - TH_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+    /* TWO LINES AT A SMALLER SIZE. On one line at the default size the locked
+       text ran ~576 wide, over arms 4 and 5 either side of the door (z 1236
+       and 1781), and they drew across it; "some mechanism" at TH_EAST_PIXEL
+       is 252 wide, inside z[1374,1626]. */
+    {
+        uint8_t r = 50, g = 255, b = 50;
+        const char *l1 = "Press " BTN_CIRCLE, *l2 = "to enter";
+        if (!arm_puzzle_solved()) {
+            r = 255; g = 50; l1 = "Locked by"; l2 = "some mechanism";
+        }
+        door_draw_string_3d(ctx, l1, TH_EAST_X - 11, TH_EAST_TEXT_Y,
+                            TH_EAST_Z - 200, r, g, b, fade, 1, TEXT_PLANE_YZ,
+                            TH_EAST_PIXEL);
+        door_draw_string_3d(ctx, l2, TH_EAST_X - 11,
+                            TH_EAST_TEXT_Y + TH_EAST_LINE, TH_EAST_Z - 200,
+                            r, g, b, fade, 1, TEXT_PLANE_YZ, TH_EAST_PIXEL);
+    }
 }
 
 /* The floating sign. Same shape as every other sign in the game: opaque within
@@ -332,6 +403,9 @@ void the_head_init(void) {
         for (i = 0; i < ARM_SWITCH_MAX; i++)
             arm_switch_add(STATE_THE_HEAD, th_arm_switch_z[i]);
     }
+    /* ...and only now the puzzle: it poses the switches just placed from the
+       saved pearls, so a hand holding one is already down on arrival. */
+    arm_puzzle_arm();
 
     th_view_resolve(1);
 }
@@ -532,6 +606,8 @@ void the_head_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         arm_switches_draw(ctx);    /* x768 y0, Voff 0: the window above serves it */
         th_west_door_text(ctx);    /* west: YZ plane, approached from +X */
+        th_east_door_text(ctx);    /* east: YZ plane, approached from -X */
+        arm_puzzle_draw(ctx);      /* the "Press O" sign, or the board     */
         /* THE CHAPTER 3 ENEMIES. Their sheets sit at Voff 128, so each is
            handed the window to restore after drawing unmasked. */
         {

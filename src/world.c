@@ -459,8 +459,29 @@ static void snapshot_fatdoors(void) {
     world.valve_mount_count = valve_mount_count;
 }
 
+/* Rooms whose sconce pearl a debug grant has taken (world_take_sconce_pearl).
+   Outside `world` so it is plainly not part of any save; world_new_game clears
+   it, so a later real New Game seeds every pearl again. */
+static uint64_t debug_pearls_taken = 0;
+
+static void take_pearls(ItemPickup *items, int count) {
+    int i;
+    for (i = 0; i < count; i++)
+        if (items[i].kind == PICKUP_BLOOD_PEARL) items[i].active = 0;
+}
+
+void world_take_sconce_pearl(GameState area) {
+    int r = room_index(area);
+    debug_pearls_taken |= world_room_bit(r);
+    if (area == current_area)
+        take_pearls(item_pickups, item_pickup_count);
+    else if (world.rooms[r].visited)
+        take_pearls(world.rooms[r].items, world.rooms[r].item_count);
+}
+
 void world_new_game(void) {
     memset(&world, 0, sizeof world);
+    debug_pearls_taken = 0;
     /* The starting room (delivery) already has its entities set up by the
        startup inits + reset_game, so capture that as its initial state. */
     int d = room_index(STATE_DELIVERY_AREA);
@@ -1982,6 +2003,8 @@ void world_enter(GameState area) {
            snapshotted on the next world_leave() and persist (deaths stick). */
         world_seed_room(area);
         r->visited = 1;
+        if (debug_pearls_taken & world_room_bit(room_index(area)))
+            take_pearls(item_pickups, item_pickup_count);
     }
 }
 

@@ -41,6 +41,9 @@ void the_head_spawn_west(void);
 /* One frame of the west door's Circle test. `lock` is main's usual
    suppression. Returns 1 on a fresh press made in range and facing the door. */
 int  the_head_west_door_triggered(int lock);
+/* The east door, locked until the arm switches are solved (src/arm_puzzle.h);
+   1 on a press once they are. */
+int  the_head_east_door_triggered(int lock);
 
 /* Arm every interaction in the room (the door). Called by the spawn above. */
 void the_head_arm(void);

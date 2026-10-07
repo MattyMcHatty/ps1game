@@ -115,6 +115,18 @@ void item_pickup_set_display(int index, int32_t world_half, int32_t otz_bias);
 
 void item_pickups_update(void);
 void item_pickups_draw(RenderContext *ctx);
+
+/* One kind's sprite as a FIXED ORNAMENT: drawn at world (x, y, z) exactly, with
+   no float, no bob, and nothing in item_pickups[] — so it cannot be walked
+   into and collected, and nothing about it is saved per room. Whoever calls it
+   owns the state that says it is there (The Head's arm switches hold a Blood
+   Pearl this way). Sized by its TRUE projected depth rather than the pickups'
+   X/Z-distance estimate, because the callers look at it from close-up puzzle
+   shots where that estimate is badly wrong. Uses the GTE matrix already set,
+   which must be the camera view. otz_bias as item_pickup_set_display(). */
+void item_pickup_draw_fixed(RenderContext *ctx, PickupKind kind,
+                            int32_t x, int32_t y, int32_t z,
+                            int32_t world_half, int32_t otz_bias);
 void item_pickups_reset(void);   /* also resets the weapon/rounds inventory */
 
 #endif
