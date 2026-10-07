@@ -28,6 +28,8 @@
 #include "hadad.h"           /* he can come into the mansion through here */
 #include "web.h"
 #include "item_pickup.h"
+#include "adapa.h"
+#include "adapa_death.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -479,11 +481,17 @@ void library_draw(RenderContext *ctx) {
         zombies_set_texwindow(&tw);
         spiders_set_texwindow(&tw);
         hadads_set_texwindow(&tw);
+        adapas_set_texwindow(&tw);
     }
     draw_zombies(ctx);
     draw_spiders(ctx);
     draw_rabisus(ctx);
     draw_hadads(ctx);
+    /* ADAPA (src/adapa.h), once the four above are dead and the player has been
+       out and back; then his death's spirit. This Library only — the destroyed
+       one is a different room and he never comes there. */
+    draw_adapa(ctx);
+    adapa_death_draw(ctx);
     webs_draw(ctx);
     item_pickups_draw(ctx);
 

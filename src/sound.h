@@ -574,7 +574,20 @@ typedef enum {
        flag on block 964 of 965 and stone_slide.vag on 295 of 296. */
     SFX_STONE_SLIDE = 57, /* BANKED (catacombs). An arm switch turning. 0.75 s,
                              which is where AP_TURN_FRAMES comes from          */
-    SFX_COUNT      = 58,
+    /* ---- ADAPA ------------------------------------------------------------
+       The mini-boss (src/adapa.c), its only sound: on each arrival, on each
+       hit — he fades out for exactly this clip's length, which is where
+       ADP_FADE_FRAMES comes from — and on his death. HOUSE bank, because the
+       Library and the Piano Room are. 26,368 SPU bytes.
+
+       His death also plays SFX_WOOSH, which is now HOUSE|GARDEN for it. The two
+       together take HOUSE 162,560 -> 217,280, which makes it the LARGEST bank:
+       `spare` falls from 43,696 to 19,952. Ask before spending much more.
+
+       ON VOICE 21, BORROWED from SFX_EXPLODE (BOSS|ASAG) and SFX_LMBR_YELL
+       (CATACOMBS) — see sfx_channel() for the poison check. */
+    SFX_ADAPA      = 58,  /* BANKED (house). Adapa's cry, 4.18 s               */
+    SFX_COUNT      = 59,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

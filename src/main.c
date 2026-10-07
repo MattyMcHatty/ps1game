@@ -140,6 +140,8 @@
 #include "bars.h"
 #include "creep.h"
 #include "maggot.h"
+#include "adapa.h"
+#include "adapa_death.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "tentacle.h"
@@ -262,6 +264,8 @@ void reset_game(RenderContext *ctx) {
     hadads_reset();
     hadad_library_reset(); /* ...and any half-played crawl under the shelving */
     hadad_grinder_reset(); /* ...and any half-played death in the grinders     */
+    adapa_reset();         /* ...and Adapa, and the watch that arms him        */
+    adapa_death_reset();   /* ...and any half-played death of his             */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
     rabisus_reset();
@@ -625,15 +629,35 @@ static void update_current_area(GameState area) {
         update_particles();
         return;
     }
-    /* ...and the piano room's key puzzle. Nothing else lives in that room, so
-       there is no enemy tick to keep running alongside it. */
+    /* ...and the piano room's key puzzle. The only thing that can be in that
+       room with it is Adapa, and he only comes once BOTH its puzzles are
+       solved — but if a board can still be opened then, he keeps coming
+       (enemies act during a puzzle; tools/ADDING_AN_ENEMY.txt STEP 7). */
     if (area == STATE_PIANO_ROOM && piano_puzzle_active()) {
+        update_adapa();
+        adapa_death_update();
         piano_puzzle_update();
         return;
     }
     /* ...and the same room's Anzu Tablet puzzle. */
     if (area == STATE_PIANO_ROOM && anzu_puzzle_active()) {
+        update_adapa();
+        adapa_death_update();
         anzu_puzzle_update();
+        return;
+    }
+    /* ...and ADAPA'S DEATH (src/adapa_death.h), in either of his rooms: the
+       camera turns onto him, he fades, and his spirit climbs out of sight.
+       update_adapa stays — it is what keeps the arming watch and the body's
+       state honest — but nothing else runs: no update_camera, no collision, no
+       doors, the player anchored where they stood. The Library's other enemies
+       are all dead by construction (that is what armed him there). */
+    if ((area == STATE_PIANO_ROOM || area == STATE_LIBRARY) &&
+        adapa_death_cutscene()) {
+        update_adapa();
+        player_status_update();
+        adapa_death_update();
+        update_particles();
         return;
     }
     /* ...and the Room of Arms' gap examine: the camera goes 1500 straight up
@@ -1213,6 +1237,8 @@ static void update_current_area(GameState area) {
         update_crawlers();
         update_lumberers();
         update_rabisus();
+        update_adapa();        /* ...and once all four are dead, Adapa */
+        adapa_death_update();
         item_pickups_update();
         if (!lock && library_wdoor_triggered()) {
             pending_area = STATE_EAST_HALL;
@@ -3322,6 +3348,8 @@ static void update_current_area(GameState area) {
            the Yellow Key Stone in front of the piano — without this tick it
            would never bob or be pickable. */
         item_pickups_update();
+        update_adapa();          /* once both puzzles are solved, Adapa */
+        adapa_death_update();
         if (!lock) piano_puzzle_update();  /* examine prompt + puzzle trigger */
         if (!lock) anzu_puzzle_update();   /* Anzu frame prompt + puzzle trigger */
         if (!lock && pdoor_triggered()) {
@@ -4261,6 +4289,13 @@ int main(int argc, const char **argv) {
                                  Its page x[672,704) y[320,384) is owned
                                  outright, so nothing has to be put back. */
     maggots_init();
+    loading_screen_pump(&ctx);
+    adapas_load_textures();   /* the Library / Piano Room mini-boss (src/adapa.h).
+                                 REGISTERED here in TEXBANK_MANSION, uploaded on
+                                 entry to his two rooms by the STATE_LOADING line
+                                 after the lumberer's — over the exit door's
+                                 leaves, which that block's restore puts back. */
+    adapas_init();
     loading_screen_pump(&ctx);
     rafflesias_load_assets();  /* garden flower sprites: REGISTERED here, uploaded
                                   on entry to the Outside Catacombs (they sit in
@@ -5202,6 +5237,18 @@ int main(int argc, const char **argv) {
                there is nobody to restore. */
             if (area_bank_of(pending_area) & TEXBANK_CATACOMBS)
                 maggots_upload_textures();
+            /* ADAPA, over the LUMBERER's second block x[832,960) y128, i.e. over
+               the exit door's two leaves (src/adapa.h). AFTER the restore two
+               lines up, so on entry to his rooms the leaves go back and he goes
+               straight over them; adapas_upload_textures() then marks them
+               taken, and the restore puts them back on entry to whichever room
+               comes next. Neither of his rooms opens the exit door.
+               Uploaded on EVERY entry to the two rooms, not only when he is
+               due: on a title-screen load the flags that decide that are not
+               restored until after this block (src/adapa.h). It is a pure
+               LoadImage from RAM. */
+            if (pending_area == STATE_PIANO_ROOM || pending_area == STATE_LIBRARY)
+                adapas_upload_textures();
             {
                 TILE *bg = (TILE *)ctx.next_packet;
                 setTile(bg);
@@ -6046,6 +6093,13 @@ int main(int argc, const char **argv) {
 
             /* Restore the entered room's entities into the live arrays. */
             world_enter(pending_area);
+            /* Adapa: cash in "the player has left the room" for whichever room
+               he was watching, and park him (and his death) for this one.
+               After world_enter so the Library's enemies are in the live
+               arrays; it decides nothing that needs the saved flags, which a
+               title-screen load only restores further down. */
+            adapa_room_enter(pending_area);
+            adapa_death_enter();
             current_area = pending_area;
             game_state   = pending_area;
             /* If this transition came from a title-screen Load Game, overwrite
@@ -6375,7 +6429,11 @@ int main(int argc, const char **argv) {
                                (area == STATE_THE_PIT && the_pit_descent_active()) ||
                                (area == STATE_DELIVERY_AREA && delivery_intro_active()) ||
                                (area == STATE_LIBRARY_DESTROYED && hadad_library_cutscene()) ||
-                               (area == STATE_REAR_GATE && hadad_grinder_cutscene());
+                               (area == STATE_REAR_GATE && hadad_grinder_cutscene()) ||
+                               /* Adapa's death: the log line is posted as
+                                  control returns, so the cutscene list. */
+                               ((area == STATE_PIANO_ROOM ||
+                                 area == STATE_LIBRARY) && adapa_death_cutscene());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();

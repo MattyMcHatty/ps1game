@@ -314,6 +314,10 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 14; best_idx = i;
         }
     }
+    /* NO ADAPA LOOP, AND THAT IS THE DESIGN, NOT AN OVERSIGHT. Only the
+       Helluminator can hurt him (src/adapa.h), so a round goes through him as
+       if he were not there — he is a ghost — and is spent on whatever is
+       behind. helluminator.c's sweep is the one list he is in. */
     for (i = 0; i < rabisu_count; i++) {
         Rabisu *rb = &rabisus[i];
         /* `dying` as well as `dead`: the boss stays on screen through its whole

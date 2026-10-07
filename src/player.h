@@ -442,6 +442,26 @@ typedef enum {
        pearl is SaveData.arm_pearls; this is only "it is done". Bit 4 of
        game_flags2. */
     FLAG_HEAD_ARMS_SOLVED,
+    /* ADAPA, the mini-boss (src/adapa.h). Three bits and no entity in the
+       world blob, because nothing else about him survives a room change:
+       leaving mid-fight heals him back to ADP_MAX_HEALTH by design.
+
+         FLAG_ADAPA_PIANO_ARMED    the player has LEFT the Piano Room with both
+                                   its puzzles (FLAG_PIANO_SOLVED and
+                                   FLAG_ANZU_SOLVED) done. Every entry after
+                                   that brings him.
+         FLAG_ADAPA_LIBRARY_ARMED  the player has LEFT the Library with its
+                                   three spiders and its zombie dead. Every
+                                   entry after that brings him — into
+                                   STATE_LIBRARY only; the destroyed Library
+                                   is a different area and never does.
+         FLAG_ADAPA_DEAD           he has been killed, in either room. Set on
+                                   the killing blow, not at the end of the
+                                   death scene. The flag the game will need
+                                   later. Bits 5-7 of game_flags2. */
+    FLAG_ADAPA_PIANO_ARMED,
+    FLAG_ADAPA_LIBRARY_ARMED,
+    FLAG_ADAPA_DEAD,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

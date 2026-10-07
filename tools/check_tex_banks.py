@@ -87,6 +87,9 @@ AREAS = {
         # would make ~34 KB of zombie sprites resident in banks that never draw
         # one.
         "zombies_upload_textures",
+        # ...and ADAPA (src/adapa.c), which main.c uploads on entry to the
+        # Piano Room and the Library and nowhere else. Both are MANSION rooms.
+        "adapas_upload_textures",
     ],
     "GARDEN": [
         "garden_stairs_upload_textures", "fountain_square_upload_textures",

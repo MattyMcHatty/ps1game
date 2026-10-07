@@ -21,6 +21,8 @@
 #include "piano_puzzle.h"
 #include "anzu_puzzle.h"
 #include "item_pickup.h"
+#include "adapa.h"
+#include "adapa_death.h"
 
 extern volatile uint8_t pad_buff[2][34];
 extern volatile size_t  pad_buff_len[2];
@@ -374,6 +376,16 @@ void piano_room_draw(RenderContext *ctx) {
     gte_SetTransMatrix(&rot_matrix);
 
     draw_piano_room_smd(ctx);
+    /* ADAPA (src/adapa.h), once both puzzles are solved and the player has been
+       out and back. His sheet is at Voff 128, so he is handed the room's 128
+       window to restore around his own full one. Then his death's spirit, which
+       wants the same plain view matrix. */
+    {
+        RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+        adapas_set_texwindow(&tw);
+    }
+    draw_adapa(ctx);
+    adapa_death_draw(ctx);
     /* The Yellow Key Stone, once the Anzu Tablet has dropped it by the piano.
        Its 32x32 sprite sits at VRAM Voff 0 with its U inside 128, so the room's
        texture window leaves the UVs intact (see tools/ADDING_AN_ITEM.txt). */

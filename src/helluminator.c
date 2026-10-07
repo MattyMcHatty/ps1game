@@ -25,6 +25,7 @@
 #include "asag.h"
 #include "asag_fight.h"
 #include "living_statue.h"
+#include "adapa.h"
 #include "vampire.h"
 #include "particles.h"   /* spawn_blood_burst, for the vampire */
 #include "damage.h"
@@ -381,6 +382,18 @@ static void hell_burn_tick(void) {
         if (HIT(s->x, cyc, s->z, hw, hh))
             living_statue_burn(s, living_statue_scale_damage(HELL_TICK_DAMAGE,
                                                              DMG_HOLY));
+    }
+    /* >>> ADAPA, AND THIS WEAPON ONLY. <<< The second deliberate exception to
+       the "both lists match" rule above: nothing but the lantern can hurt him
+       (src/adapa.h), so graveolver_fire has no loop for him and crucifaxe.c no
+       hit block, and both say so. adapa_burnable() is the whole gate — FLOAT in
+       the current room; fading, waiting and dying he cannot be touched. A tick
+       is 1 at 1x, so five seconds of burn kill him, one per arrival. */
+    if (adapa_burnable()) {
+        int32_t ax, ay, az;
+        adapa_body(&ax, &ay, &az);
+        if (HIT(ax, ay, az, ADP_HALF_W, ADP_HALF_H))
+            adapa_burn(adapa_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
     }
     if (vampire_health > 0 &&
         HIT(vampire_x, vampire_y + VAMPIRE_Y, vampire_z,

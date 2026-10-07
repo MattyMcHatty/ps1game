@@ -90,6 +90,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\CREEP.VAG;1",
     "\\SND\\BUZZ.VAG;1",
     "\\SND\\STNSLIDE.VAG;1",
+    "\\SND\\ADAPA.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -283,7 +284,10 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        the Rear Gate is the only room either can sound in, and both are far too
        big for the 3.3 KB of resident headroom. Full reasoning in sound.h. */
     [SFX_HAD_DIE]    = SND_BANK_GARDEN,
-    [SFX_WOOSH]      = SND_BANK_GARDEN,
+    /* ...and HOUSE as well, for ADAPA's spirit (src/adapa.c): his death in the
+       Library or the Piano Room ends on Hadad's own rise, woosh and all, and
+       both rooms are on the house bank. A second copy at 28,352 SPU bytes. */
+    [SFX_WOOSH]      = SND_BANK_GARDEN | SND_BANK_HOUSE,
     /* The Greenhouse vine curtain's grind: SFX_MCHNE re-cut for this bank,
        because the original is HOUSE-only and too big to copy here. See the
        block on SFX_MCHNE_GH in sound.h — it is what makes GARDEN the
@@ -339,6 +343,9 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     /* The arm switches' grind, CATACOMBS only: src/arm_puzzle.c is its only
        caller and The Head is a Chapter 3 room. See sound.h for its voice. */
     [SFX_STONE_SLIDE] = SND_BANK_CATACOMBS,
+    /* Adapa's cry, HOUSE only: src/adapa.c is its only caller and he is only
+       ever in the Library or the Piano Room. See sound.h for its voice. */
+    [SFX_ADAPA]      = SND_BANK_HOUSE,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -672,6 +679,13 @@ static int sfx_channel(SfxID id) {
     /* THE ARM SWITCHES' GRIND takes 23, the next voice out again (sound.h):
        SFX_RBS_SWING's, and the Rabisu never stands in Chapter 3. */
     if (id == SFX_STONE_SLIDE) return 23;   /* SFX_RBS_SWING's (alias) one-shot */
+    /* ADAPA takes 21, SFX_EXPLODE's (BOSS|ASAG) and SFX_LMBR_YELL's
+       (CATACOMBS): none of those three banks can be in while HOUSE is. 4.18 s
+       is far too long for the pool, whose slot for id 58 (FIRST_VOICE + 2) is
+       SFX_STEP2's — every second footstep would chop it. Not poisoned:
+       explode.vag carries its loop flag on block 2115 of 2116 and adapa.vag on
+       1644 of 1645. */
+    if (id == SFX_ADAPA)       return 21;   /* SFX_EXPLODE's (BOSS)   one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

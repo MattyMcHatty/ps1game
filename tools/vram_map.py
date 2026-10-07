@@ -254,6 +254,18 @@ KNOWN_STREAM_PAIRS = [
     ("grdngtl.tim",        "lumberer_a.tim"),
     ("xt_dr_lft_hlf.tim",  "lumberer_b.tim"),
     ("xt_dr_rt_hlf.tim",   "lumberer_b.tim"),
+    # ...and ADAPA (src/adapa.c), the mini-boss, on the lumberer's SECOND block
+    # x[832,960) y128: two 4bpp 256x128 halves, adapa_a at x[832,896) (frames
+    # 0-1) and adapa_b at x[896,960) (frames 2-3). He exists only in the Library
+    # (before it is destroyed) and the Piano Room. Neither is in Chapter 3, so
+    # he never meets a lumberer, and neither opens the exit door, so the two
+    # leaves are never wanted while he is up. adapas_upload_textures() calls
+    # door_anim_panels_taken() exactly as the lumberer does, so the leaves come
+    # back on entry to the next room through the same restore.
+    ("xt_dr_lft_hlf.tim",  "adapa_a.tim"),
+    ("xt_dr_rt_hlf.tim",   "adapa_b.tim"),
+    ("lumberer_b.tim",     "adapa_a.tim"),
+    ("lumberer_b.tim",     "adapa_b.tim"),
     # Maze One, east of Fountain Square through that room's east gate. It draws
     # hedge, grdn_gte and grss_gs from the Garden Courtyard's slots, drain from
     # Fountain Square's narrow upload and poison_flower_base from the Outside

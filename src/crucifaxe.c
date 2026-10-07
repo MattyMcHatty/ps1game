@@ -449,6 +449,10 @@ void update_crucifaxe(void) {
                 mgt_hit_this_swing = 1;
         }
 
+        /* NO ADAPA BLOCK, AND THAT IS THE DESIGN, NOT AN OVERSIGHT. Only the
+           Helluminator can hurt him (src/adapa.h); the axe passes through a
+           ghost. There is deliberately no adapas_try_hit() to call. */
+
         /* THE CRIB, and this one is not a weapon hit at all — it is the TRIGGER
            for the whole Room of Arms encounter (src/crib.h). A connected swing
            wakes an idle cot into its rock/beam/spawn sequence, gives a solved

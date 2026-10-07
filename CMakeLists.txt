@@ -161,6 +161,8 @@ add_executable(horror_game
     src/lumberer.c
     src/creep.c
     src/maggot.c
+    src/adapa.c
+    src/adapa_death.c
     src/rabisu.c
     src/web.c
     src/sound.c

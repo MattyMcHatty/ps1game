@@ -280,6 +280,12 @@
                      never a hardware loop (it borrows voice 22 - see sound.h). -->
                 <file name="BUZZ.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\buzz.vag"/>
                 <file name="STNSLIDE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\stone_slide.vag"/>
+                <!-- Adapa (src/adapa.c), SND_BANK_HOUSE: he lives in the Library
+                     and the Piano Room, both on the house bank. 11025 Hz mono,
+                     4.18 s, 26,368 SPU bytes; played on every arrival, on every
+                     hit (he fades for exactly its length) and on his death.
+                     Voice 21, borrowed from SFX_EXPLODE (BOSS|ASAG). -->
+                <file name="ADAPA.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\adapa.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -914,6 +920,22 @@
                      32 VRAM words by 128 rows, and x=672 y=128 is the only hole
                      of that shape VRAM has left. -->
                 <file name="ERLOGO.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\menus\er_logo_128.tim"/>
+                <!-- ADAPA, the Library / Piano Room mini-boss (src/adapa.c).
+                     Four frames, one per quarter of textures/adapa.png, shipped
+                     as two 4bpp 256x128 halves because a 256-row texture can
+                     only start at VRAM y 0 or 256 (y%256 + height must not pass
+                     256) and both are spoken for - ADAPAA is frames 0-1 (the top
+                     row), ADAPAB frames 2-3. They are quantised against ONE
+                     master palette and carry STP on every opaque CLUT entry so
+                     his fades can blend; tools/split_adapa_sheet.py makes both
+                     from the original (its tim switch runs the conversions).
+                     VRAM: the LUMBERER's second block x[832,960) y128, over the
+                     XTDRLHLF / XTDRRHLF leaves, which he never needs - neither of
+                     his rooms opens the exit door - and which door_anim's restore
+                     puts back on entry to the next room. CLUTs (80,480) and
+                     (96,480). In TEX: the root is full. -->
+                <file name="ADAPAA.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\adapa_a.tim"/>
+                <file name="ADAPAB.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\adapa_b.tim"/>
             </dir>
         <dir name="TEXASAG">
         <!-- ================= ASAG'S ARENA AND ASAG ==========================
