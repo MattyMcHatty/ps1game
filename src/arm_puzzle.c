@@ -28,9 +28,13 @@ extern volatile size_t  pad_buff_len[2];
    "Down a little": 12 degrees (4096 = 360). The hand is ~200 from the
    shoulder, so it drops ~40 — plainly visible from the floor, and nowhere
    near the bottom of the relief. Eased over AP_TURN_FRAMES, and the unlock
-   lands as it ends. */
+   lands as it ends.
+
+   45 FRAMES IS THE GRIND'S LENGTH: SFX_STONE_SLIDE runs 0.75 s, so the arm
+   stops moving as the stone stops sounding, and the unlock sound comes after
+   it rather than over it. */
 #define AP_DOWN_ANGLE     136
-#define AP_TURN_FRAMES     24
+#define AP_TURN_FRAMES     45
 #define AP_TURN_STEP     ((AP_DOWN_ANGLE + AP_TURN_FRAMES - 1) / AP_TURN_FRAMES)
 
 /* ---- Reach -----------------------------------------------------------------
@@ -219,6 +223,10 @@ static void exit_board(void) {
     cam_pitch = 0;
     camera_release_player();
     interact_prev = 1;
+    /* THE GRIND, as the arm starts to move: only if the board changed what
+       it holds, so opening and closing it without a change is silent. Up or
+       down, it is the same stone. */
+    if (ap_angle[ap_arm] != ap_rest_angle(ap_arm)) sound_play(SFX_STONE_SLIDE);
     ap_arm = -1;
 
     /* THE ANSWER, checked as the player steps back. The flag is set NOW, so a

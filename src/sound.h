@@ -559,7 +559,22 @@ typedef enum {
     SFX_BUZZ       = 56,  /* BANKED (catacombs). The maggots' wings, re-keyed
                              from C while any is alive. 2.17 s, which is where
                              MGT_BUZZ_FRAMES comes from                        */
-    SFX_COUNT      = 57,
+    /* ---- THE ARM SWITCHES' GRIND ------------------------------------------
+       The Head's stone arms (src/arm_puzzle.c): played once, as an arm starts
+       to turn — hand DOWN when a Blood Pearl has been put in it, hand UP when
+       one has been taken out. Its only caller, and The Head is Chapter 3, so
+       SND_BANK_CATACOMBS only. 4,736 SPU bytes.
+
+       ON VOICE 23, BORROWED from SFX_RBS_SWING. Every voice the chapter
+       already uses (9, 13, 14, 15, 16, 20, 21, 22) is a CATACOMBS effect, and
+       its pool slot (FIRST_VOICE + 57 % 8 = 2) is SFX_STEP2's — the player
+       walks off the moment the board closes, so the first footstep would chop
+       it. The Rabisu's swing is played by the Rabisu alone, which is placed
+       in the Garden Courtyard alone. NOT POISONED: swing.vag carries its loop
+       flag on block 964 of 965 and stone_slide.vag on 295 of 296. */
+    SFX_STONE_SLIDE = 57, /* BANKED (catacombs). An arm switch turning. 0.75 s,
+                             which is where AP_TURN_FRAMES comes from          */
+    SFX_COUNT      = 58,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

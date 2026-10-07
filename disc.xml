@@ -279,6 +279,7 @@
                      mono, 2.17 s, 13,696 SPU bytes; a one-shot re-keyed from C,
                      never a hardware loop (it borrows voice 22 - see sound.h). -->
                 <file name="BUZZ.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\buzz.vag"/>
+                <file name="STNSLIDE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\stone_slide.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

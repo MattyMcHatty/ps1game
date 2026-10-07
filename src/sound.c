@@ -89,6 +89,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\LMBRYELL.VAG;1",
     "\\SND\\CREEP.VAG;1",
     "\\SND\\BUZZ.VAG;1",
+    "\\SND\\STNSLIDE.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -335,6 +336,9 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        against BOSS's 190,336, so `spare` stays on 46,896 - see sound.h.
        ~13 KB left in the chapter. */
     [SFX_BUZZ]       = SND_BANK_CATACOMBS,
+    /* The arm switches' grind, CATACOMBS only: src/arm_puzzle.c is its only
+       caller and The Head is a Chapter 3 room. See sound.h for its voice. */
+    [SFX_STONE_SLIDE] = SND_BANK_CATACOMBS,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -665,6 +669,9 @@ static int sfx_channel(SfxID id) {
        every MGT_BUZZ_FRAMES rather than looping it in hardware, so it stays
        that way. */
     if (id == SFX_BUZZ)        return 22;   /* SFX_BOOM's (BOSS)      one-shot */
+    /* THE ARM SWITCHES' GRIND takes 23, the next voice out again (sound.h):
+       SFX_RBS_SWING's, and the Rabisu never stands in Chapter 3. */
+    if (id == SFX_STONE_SLIDE) return 23;   /* SFX_RBS_SWING's (alias) one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;
