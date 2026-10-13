@@ -9,6 +9,7 @@
 #include "camera.h"
 #include "collision.h"      /* GROUND_FLOOR_Y */
 #include "title.h"          /* current_area gate */
+#include "area_bank.h"      /* area_is_catacombs: the Kennels' fog */
 #include "lever.h"
 
 #define MAX_LEVERS         8
@@ -179,13 +180,22 @@ void levers_draw(RenderContext *ctx) {
 
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
+    /* THE FOG. The Attic Exit's numbers are baked in below; a Chapter 3 room
+       (the Kennels) has already set g_fog_near/g_fog_far to its own eased
+       distances this frame, and fogs to the chapter's 7,6,9 as the bars do. */
+    int catacombs = area_is_catacombs(current_area);
+    int32_t fog_factor = 256;
+    uint8_t fr = 20, fg = 15, fb = 10;
+    if (catacombs) { fr = 7; fg = 6; fb = 9; }
+
     int i;
     for (i = 0; i < lever_count; i++) {
         Lever *lv = &levers[i];
         if (!lv->active || lv->area != current_area) continue;
 
         int32_t dcx = lv->x - cam_x, dcz = lv->z - cam_z;
-        if ((dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz) > 1500) continue;
+        int32_t dist = (dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz);
+        if (dist > (catacombs ? g_fog_far : 1500)) continue;
 
         MATRIX pm, combined;
         SVECTOR prot = {0, lv->rot_y, 0, 0};
@@ -212,6 +222,14 @@ void levers_draw(RenderContext *ctx) {
             CompMatrixLV(&view, &model, &combined);
         } else {
             CompMatrixLV(&view, &pm, &combined);
+        }
+
+        if (catacombs) {
+            fog_factor = render_fog_scale(dist);
+        } else {
+            int32_t fog_start = 350, fog_end = 1500;   /* matches the room */
+            int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
+            fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
         }
 
         gte_SetRotMatrix(&combined);
@@ -278,15 +296,10 @@ void levers_draw(RenderContext *ctx) {
             otz += 40;
             if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
 
-            int32_t fog_start = 350, fog_end = 1500;   /* matches the room */
-            int32_t dist = (dcx < 0 ? -dcx : dcx) + (dcz < 0 ? -dcz : dcz);
-            int32_t fog = dist < fog_start ? fog_start : (dist > fog_end ? fog_end : dist);
-            int32_t fog_factor = ((fog_end - fog) << 8) / (fog_end - fog_start);
-
             uint8_t *col = p + 16;
-            uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + 20 * (256 - fog_factor)) >> 8);
-            uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + 15 * (256 - fog_factor)) >> 8);
-            uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + 10 * (256 - fog_factor)) >> 8);
+            uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + fr * (256 - fog_factor)) >> 8);
+            uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + fg * (256 - fog_factor)) >> 8);
+            uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + fb * (256 - fog_factor)) >> 8);
 
             if (is_quad) {
                 if (ctx->next_packet + sizeof(POLY_F4) > buf_end) { p += stride; continue; }
@@ -322,9 +335,8 @@ void levers_draw(RenderContext *ctx) {
 
 /* ---- CHAPTER 3 -----------------------------------------------------------
    Give the model back. Called only from chapter_enter_catacombs()
-   (src/area_bank.h) when the destination's bank does not contain it - the
-   Catacombs and Asag's arena today, where nothing
-   this prop is placed in can ever be entered again. Every draw and collide
+   (src/area_bank.h) when the destination's bank does not contain it - Asag's
+   arena today. The Catacombs KEEP it: the Kennels place four. Every draw and collide
    in this file already bails on a NULL SMD, so the prop simply stops
    existing rather than needing a flag of its own. Safe if never loaded. */
 void levers_free_assets(void) {

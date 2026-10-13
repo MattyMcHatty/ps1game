@@ -11,6 +11,7 @@
 #include "oil_dispenser.h"   /* the Catacombs tank rides in SaveData.disp_oil */
 #include "incinerator.h"     /* ...and its conveyor in incin_slot/incin_count   */
 #include "sliding_bars_room.h" /* ...and the four gates in sb_gates            */
+#include "kennels_puzzle.h"    /* ...and the Kennels' levers in kn_levers     */
 #include "arm_puzzle.h"      /* ...and The Head's pearls in arm_pearls          */
 
 /* ---- PlayStation memory-card directory format ------------------------------
@@ -92,6 +93,7 @@ void savegame_capture(SaveData *sd) {
     sd->incin_tray  = incinerator_tray();
     sd->sb_gates = sliding_bars_room_gates();
     sd->arm_pearls = arm_puzzle_pearls();
+    sd->kn_levers  = kennels_puzzle_levers();
     sd->flags   = game_flags;
     sd->flags2  = game_flags2;
     menu_inventory_save(sd->item_order);
@@ -294,6 +296,9 @@ void savegame_apply_pending(void) {
     /* The Head's pearls. Only the bits, masked by the setter: the_head_init()
        poses the arms from them on entry (arm_puzzle_arm). */
     arm_puzzle_set_pearls((int)sd->arm_pearls);
+    /* The Kennels' levers. Only the bits: the room re-places its levers and
+       gates after world_enter (kennels_puzzle_place in main.c). */
+    kennels_puzzle_set_levers((int)sd->kn_levers);
     game_flags        = sd->flags;
     game_flags2       = sd->flags2;
     player_save_count = (int)sd->counter;

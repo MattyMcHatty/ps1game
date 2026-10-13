@@ -30,6 +30,7 @@
 #include "oil_dispenser.h"
 #include "player.h"             /* current_weapon, player_weapons             */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "kennels_puzzle.h"     /* the four levers and the four cell gates    */
 
 /* The Kennels — see kennels.h. Copied from src/neck.c. */
 
@@ -340,12 +341,19 @@ void kennels_init(void) {
        two of the four are not area-gated in every collide routine, so an
        instance left from another room would block invisibly anywhere it falls
        inside x[-2389,2387] z[0,4299]. Cleared as the Neck clears them; safe,
-       because catacombs_entry_init() re-places all four. The bars props and
-       the gula tablet are area-tagged and need nothing. */
+       because catacombs_entry_init() re-places all four. The gula tablet is
+       area-tagged and needs nothing. */
     save_points_clear();
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
+
+    /* THE LEVER PUZZLE (src/kennels_puzzle.h): four levers on the east wall
+       and a Bars gate in each of the four cell mouths, placed from the saved
+       levers. Both prop arrays are cleared first; The Pit and the Sliding
+       Bars Room re-place their own bars, and the Attic Exit its levers, on
+       their own entries. */
+    kennels_puzzle_place();
 
     kn_view_resolve(1);
 }
@@ -539,8 +547,9 @@ void kennels_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_kennels_smd(ctx);
 
-    /* >>> LEVEL 8 IS THE SIGN. <<< Nothing else stands in the Kennels - the
-       bars and posts are mesh. The two Chapter 3 enemy draws are area-tagged and
+    /* >>> LEVEL 8 IS THE SIGN AND THE PUZZLE. <<< The kennel front and the
+       posts are mesh; the four cell gates and the levers are props. The two
+       Chapter 3 enemy draws are area-tagged and
        cost nothing here; they are called on the Tomb's argument, so a room that
        is later given an occupant in world.c draws it without an edit. */
     if (exp != DBG_EXP_NO_ENTITIES) {
@@ -554,5 +563,7 @@ void kennels_draw(RenderContext *ctx) {
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        /* AFTER the enemies: the bars need the 128 window they restore. */
+        kennels_puzzle_draw(ctx);
     }
 }

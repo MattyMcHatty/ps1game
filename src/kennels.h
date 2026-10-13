@@ -32,6 +32,11 @@
 
    Nothing is seeded in it.
 
+   THE LEVER PUZZLE (src/kennels_puzzle.h). Four cells - the north-west bay,
+   the two kennels, the north-east bay - each behind a Bars gate in its
+   mouth, and four Levers on the east wall x=1800; a cell opens when exactly
+   its levers are down. kennels_init() places both.
+
    FIVE TEXTURES, ONE OF THEM ITS OWN: GULACODE.TIM (4bpp, x768 y0, on the arm
    switch's page AND palette - see kennels.c), STREAMED on entry rather than
    registered. Cobblestone and the inner door

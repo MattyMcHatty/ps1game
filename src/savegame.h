@@ -17,7 +17,14 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   35            /* v35: arm_pearls. Which of The
+#define SAVE_VERSION   36            /* v36: kn_levers. Which of the
+                                        Kennels' four levers are down
+                                        (src/kennels_puzzle.h); the cell
+                                        gates are derived from it on entry.
+                                        SaveData grew by one field after
+                                        arm_pearls, so the bump rejects a v35
+                                        save rather than misreading it.
+                                        v35: arm_pearls. Which of The
                                         Head's eight arm switches hold a Blood
                                         Pearl (src/arm_puzzle.h). SaveData
                                         grew by one field at its end-of-world
@@ -330,6 +337,9 @@ typedef struct {
                                        i (south to north) holds a Blood Pearl.
                                        The pearls are out of the inventory, so
                                        without this a save would lose them.  */
+    int32_t  kn_levers;             /* the Kennels' levers: bit i = lever i+1
+                                       (north to south) is DOWN. See
+                                       src/kennels_puzzle.h.                  */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     int32_t  flags2;                /* ...and GameFlags 32..63 (game_flags2).
                                        See "BIT 32 ON" in player.h.          */

@@ -58,7 +58,8 @@ int  levers_any_solid(void);
 void levers_draw(RenderContext *ctx);
 
 
-/* Free the prop's geometry on the one-way walk into the Catacombs.
+/* Free the prop's geometry on the walk into Asag's arena (the Catacombs keep
+   it for the Kennels).
    src/area_bank.h owns the decision; nothing else may call it. */
 void levers_free_assets(void);
 

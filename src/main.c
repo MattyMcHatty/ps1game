@@ -114,6 +114,7 @@
 #include "neck.h"
 #include "the_head.h"
 #include "kennels.h"
+#include "kennels_puzzle.h"
 #include "arm_switch.h"     /* The Head's eight arm switches */
 #include "gula_tablet.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
@@ -307,6 +308,7 @@ void reset_game(RenderContext *ctx) {
                                that left it there.                          */
     sliding_bars_room_reset_gates(); /* ...and the Sliding Bars Room's four
                                gates back to their start spots            */
+    kennels_puzzle_reset(); /* ...and the Kennels' four levers all up        */
     arm_puzzle_reset();     /* ...and every hand in The Head's relief empty.
                                The solved bit is a GameFlag and goes with
                                game_flags2 above; the board itself is dropped
@@ -3014,7 +3016,13 @@ static void update_current_area(GameState area) {
            hall with four posts and two barred kennels at its north end, so the
            shared wall routine and ONE flat floor zone, multi_level 0. One door,
            south, back to the Nursery's west door. Nothing is seeded; both
-           Chapter 3 enemy updates run anyway, on the Tomb's argument. */
+           Chapter 3 enemy updates run anyway, on the Tomb's argument.
+
+           THE LEVER PUZZLE (src/kennels_puzzle.h) runs every frame: the
+           levers and gates keep moving under a lock, only the Circle is held
+           off. Its gates collide through apply_collision_reception. The
+           levers are on the east wall, nowhere near the south door, so the
+           two never share a press. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
@@ -3026,6 +3034,7 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        kennels_puzzle_update(lock);
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
            routine, ONE flat floor zone and one door, the Room of Bones' shape.
@@ -6274,6 +6283,10 @@ int main(int argc, const char **argv) {
                 sliding_bars_room_apply_flags(); /* the four gates re-placed
                                                     from the byte a load has
                                                     only just installed */
+            if (pending_area == STATE_KENNELS)
+                kennels_puzzle_place();          /* the levers and gates, the
+                                                    same: from the byte a load
+                                                    has only just installed */
             if (pending_area == STATE_THE_PIT)
                 the_pit_after_world_enter();     /* stows the ambush's two
                                                     Lumberers, which world_enter

@@ -271,7 +271,10 @@ static const struct {
     { PROP_CHAPTERS_1_2, dresser_free_assets,          dresser_reload_assets          },
     { PROP_CHAPTERS_1_2, fatdoors_free_assets,         fatdoors_reload_assets         },
     { PROP_CHAPTERS_1_2, grinder_free_assets,          grinder_reload_assets          },
-    { PROP_CHAPTERS_1_2, levers_free_assets,           levers_reload_assets           },
+    /* The lever is the one prop Chapter 3 places too: the Kennels' four
+       (src/kennels_puzzle.c). One sector, so the Catacombs keep it. */
+    { PROP_CHAPTERS_1_2 | TEXBANK_CATACOMBS,
+                         levers_free_assets,           levers_reload_assets           },
 };
 #define PROP_COUNT ((int)(sizeof prop_banks / sizeof prop_banks[0]))
 

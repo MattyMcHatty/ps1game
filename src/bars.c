@@ -31,6 +31,8 @@ typedef struct {
     int32_t   sx, sy;     /* width / height scale, 4096ths (bars_set_size)     */
     int32_t   sl_fx, sl_fz, sl_tx, sl_tz;   /* a bars_slide(): from, to       */
     int32_t   sl_t;       /* frames into it                                    */
+    int       recessed;   /* bars_set_recessed: the room's depth bias, and not
+                             drawn at all while RAISED                        */
 } Bars;
 
 static Bars bars[MAX_BARS];
@@ -173,8 +175,15 @@ int bars_place(GameState area, int32_t x, int32_t y, int32_t z,
     b->vel_fp  = 0;
     b->landed  = (lift <= 0);
     b->sx = b->sy = 4096;
+    b->recessed = 0;
     bars_bake(b);
     return idx;
+}
+
+
+void bars_set_recessed(int idx) {
+    if (idx < 0 || idx >= bars_count) return;
+    bars[idx].recessed = 1;
 }
 
 void bars_set_size(int idx, int32_t width, int32_t height) {
@@ -311,8 +320,34 @@ void bars_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
         int32_t base_y    = floor_y - (b->lift_fp >> 8);
         int32_t solid_bot = base_y + ((br_max_y * b->sy) >> 12);
         int32_t solid_top = base_y + ((br_min_y * b->sy) >> 12);
+
         int32_t feet = py + GROUND_FLOOR_Y, head = py - BR_PLAYER_HEAD;
         if (head >= solid_bot || feet <= solid_top) continue;
+
+        /* SET AT AN ANGLE (the Kennels' two corner cells, at 45 degrees): the
+           AABB of a diagonal gate is a square that reaches well out into the
+           room in front of it, so the body is taken into the gate's own frame
+           and pushed out of the true box there. A turned gate never slides. */
+        if (b->rot_y & 1023) {
+            int32_t cs = icos(b->rot_y), sn = isin(b->rot_y);
+            int32_t dx = *px - b->x, dz = *pz - b->z;
+            /* The inverse of bars_bake()'s turn. */
+            int32_t lx = (dx * cs - dz * sn) >> 12;
+            int32_t lz = (dx * sn + dz * cs) >> 12;
+            int32_t mnx = ((br_min_x * b->sx) >> 12) - radius;
+            int32_t mxx = ((br_max_x * b->sx) >> 12) + radius;
+            int32_t mnz = br_min_z - radius, mxz = br_max_z + radius;
+            if (lx <= mnx || lx >= mxx || lz <= mnz || lz >= mxz) continue;
+
+            int32_t ol = lx - mnx, orr = mxx - lx, of = lz - mnz, ob = mxz - lz;
+            int32_t m = ol, plx = -ol, plz = 0;
+            if (orr < m) { m = orr; plx = orr; plz = 0; }
+            if (of  < m) { m = of;  plx = 0;   plz = -of; }
+            if (ob  < m) {          plx = 0;   plz = ob;  }
+            *px += (plx * cs + plz * sn) >> 12;
+            *pz += (plz * cs - plx * sn) >> 12;
+            continue;
+        }
 
         int32_t min_x = b->min_x - radius, max_x = b->max_x + radius;
         int32_t min_z = b->min_z - radius, max_z = b->max_z + radius;
@@ -366,6 +401,8 @@ void bars_draw(RenderContext *ctx) {
     for (i = 0; i < bars_count; i++) {
         Bars *b = &bars[i];
         if (!b->active || b->area != current_area) continue;
+        /* Wound all the way up behind its lintel: out of sight. */
+        if (b->recessed && b->state == BARS_RAISED) continue;
 
         /* The room's fog-far and lights, as the crib's does. In The Pit that
            is a live number the Helluminator moves, AND the ambush opens it up
@@ -447,6 +484,9 @@ void bars_draw(RenderContext *ctx) {
 
             gte_stotz(&otz);
             if (otz <= 0) { p += stride; continue; }
+            /* Recessed: the room mesh's own +40, so the wall in front of it
+               wins. Nothing stands behind it close enough to tie. */
+            if (b->recessed) otz += 40;
             if (otz < SCENE_OT_MIN)   otz = SCENE_OT_MIN;
             if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
 

@@ -77,8 +77,9 @@
  * prop is NOT happy either way.
  * ----------------------------------------------------------------------- */
 
-/* 4 for the Sliding Bars Room's four sliding gates (src/sliding_bars_room.c);
-   The Pit places one. Not saved per instance, so this costs the save nothing. */
+/* 4 for the Sliding Bars Room's four sliding gates (src/sliding_bars_room.c)
+   and the Kennels' four cell fronts (src/kennels_puzzle.c); The Pit places
+   one. Not saved per instance, so this costs the save nothing. */
 #define MAX_BARS              4
 
 /* The drop, in 1/256ths of a world unit per frame (and per frame squared). */
@@ -150,6 +151,20 @@ int  bars_raised(int idx);
    the draw, sorted at true depth, would paint it over the block in front. Call
    after bars_place. */
 void bars_set_size(int idx, int32_t width, int32_t height);
+
+/* RECESS one instance: a gate standing BEHIND a lintel (the Kennels' cells),
+   which has to rise up into the stone rather than in front of it. Sorted with
+   the room mesh's +40 rather than at true depth, so the lintel and the wall
+   over it hide it as it goes up, and not drawn at all once RAISED - a room
+   with no ceiling would otherwise show its top standing over the walls. Only
+   for a gate with nothing close behind it: with the bias it loses every tie
+   to a wall it touches. Call after bars_place. */
+void bars_set_recessed(int idx);
+
+/* A GATE TURNED OFF THE AXES (rot_y not a multiple of 1024) collides
+   against its TRUE box in its own frame, not the world AABB, which for the
+   Kennels' 45-degree corner cells would be a square reaching ~400 out into
+   the hall. Such a gate must not be bars_slide()'d. */
 
 /* Slide a DOWN instance along the floor to plan centre (x, z), linearly over
    BARS_SLIDE_FRAMES, with SFX_MCHNE once. No-op in any other state. While it
