@@ -30,12 +30,13 @@
    nz=+4096), so TEXT_PLANE_XY with mirror=1 and the sign 11 proud of the wall
    along +Z - the Throat's south door's terms.
 
-   Nothing is seeded in it.
+   world.c seeds nothing in it; the lever puzzle places its own eight dogs.
 
    THE LEVER PUZZLE (src/kennels_puzzle.h). Four cells - the north-west bay,
    the two kennels, the north-east bay - each behind a Bars gate in its
    mouth, and four Levers on the east wall x=1800; a cell opens when exactly
-   its levers are down. kennels_init() places both.
+   its levers are down. Two DEMON DOGS lie idle in each cell and come out
+   when its gate lifts. kennels_init() places all of it.
 
    FIVE TEXTURES, ONE OF THEM ITS OWN: GULACODE.TIM (4bpp, x768 y0, on the arm
    switch's page AND palette - see kennels.c), STREAMED on entry rather than

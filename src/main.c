@@ -3022,11 +3022,17 @@ static void update_current_area(GameState area) {
            levers and gates keep moving under a lock, only the Circle is held
            off. Its gates collide through apply_collision_reception. The
            levers are on the east wall, nowhere near the south door, so the
-           two never share a press. */
+           two never share a press.
+
+           AND EIGHT DEMON DOGS, two caged in each cell, seeded by the puzzle
+           (not by world.c - this is not a hostile room) and woken by it when
+           their gate lifts; update_demon_dogs never wakes one here by
+           distance. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
+        update_demon_dogs();
 
         if (kennels_south_door_triggered(lock)) {
             pending_area = STATE_NURSERY;
@@ -4755,6 +4761,8 @@ int main(int argc, const char **argv) {
                 anzu_tex_stream();
             } else if (pending_area == STATE_CONSERVATORY) {
                 conservatory_upload_textures(); /* 6 streamed slots (see module) */
+                demon_dogs_upload_texture();    /* its three dogs' sheet: a CD
+                                                   read, bracketed itself */
             } else if (pending_area == STATE_2F_HALL) {
                 hall_2f_upload_textures();       /* 4 streamed slots (see module) */
             } else if (pending_area == STATE_MASTER_BEDROOM) {
@@ -5155,6 +5163,9 @@ int main(int argc, const char **argv) {
                    — restore them. Unconditional for the same reason as the
                    kitchen's restore below. */
                 delivery_restore_textures();
+                /* ...and its three dogs' sheet, streamed off the disc (src/
+                   demondog.c, THE SHEET): a CD read, bracketed itself. */
+                demon_dogs_upload_texture();
             } else if (pending_area == STATE_KITCHEN_DINING) {
                 /* Reception overwrites the kitchen's stn_stl/kchn_tile/red_crpt
                    slots (plus kchn_wl via the dresser), and the piano room
@@ -6631,6 +6642,10 @@ int main(int argc, const char **argv) {
                    than a startup LoadImage (src/zombie.c), so like the spiders'
                    they hold no pixels until a bank containing them is in. */
                 zombies_upload_textures();
+                /* ...and the demon dogs' sheet. It is streamed on entry to the
+                   rooms that have dogs, and this path does not pass through
+                   STATE_LOADING where that happens. */
+                demon_dogs_upload_texture();
                 /* Same reason, for the sound banks: a session that reached the
                    Garden Courtyard and then went back to the title would
                    otherwise start the new game with the boss bank still in and

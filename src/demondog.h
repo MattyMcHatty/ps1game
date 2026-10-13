@@ -85,6 +85,17 @@ extern int      demon_dog_count;
 
 void demon_dogs_init(void);
 void demon_dogs_reset(void);
+
+/* Room entry: stream the one "demon dog" sheet (DDOG.TIM) into VRAM - nothing
+   is held in RAM. Call on entry to every room that has dogs (the Delivery Area,
+   the Conservatory, the Kennels) and on the New Game path. A CD read with its
+   own cdaudio_suspend/resume; see THE SHEET in demondog.c. */
+void demon_dogs_upload_texture(void);
+
+/* Wake dog i: DORMANT -> ALERT, with the bark. The Kennels' dogs never wake by
+   distance (they are caged); the lever puzzle calls this when a cell's gate
+   starts to lift. */
+void demon_dog_wake(int i);
 /* Put every still-living dog back at its spawn point, asleep, at full health
    (deaths stick). Called when leaving a room and when saving. */
 /* Scale a hit by this enemy's weaknesses (see damage.h). */

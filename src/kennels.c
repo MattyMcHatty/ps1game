@@ -31,6 +31,7 @@
 #include "player.h"             /* current_weapon, player_weapons             */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 #include "kennels_puzzle.h"     /* the four levers and the four cell gates    */
+#include "demondog.h"           /* the eight caged dogs: sheet, draw          */
 
 /* The Kennels — see kennels.h. Copied from src/neck.c. */
 
@@ -250,6 +251,11 @@ void kennels_upload_textures(void) {
     kn_stream_tim(KN_CODES_FILE, scratch, KN_TEX_SCRATCH);
     cdaudio_resume();
     free(scratch);
+
+    /* ...and the eight caged dogs' sheet, AFTER the scratch above is freed so
+       the two reads never hold their buffers at once. Its own read and its own
+       bracket; the same VRAM slot the mansion uses (src/demondog.c). */
+    demon_dogs_upload_texture();
 }
 
 /* ---- THE SOUTH DOOR --------------------------------------------------------
@@ -560,9 +566,11 @@ void kennels_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            demon_dogs_set_texwindow(&tw);   /* the strip is at Voff 128 too */
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        draw_demon_dogs(ctx);   /* the eight in the cells (src/kennels_puzzle.h) */
         /* AFTER the enemies: the bars need the 128 window they restore. */
         kennels_puzzle_draw(ctx);
     }

@@ -183,6 +183,15 @@ void bars_update(void);
    routine calls it unconditionally. */
 void bars_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
 
+/* Hitscan volume: the gate's real box at its current lift, no standoff; a
+   turned gate in its own frame. Area-gated. collision_segment_blocked asks it,
+   so a shut gate stops the Grave-olver and the Helluminator alike. */
+int  bars_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack);
+
+/* Any gate placed in the current area: collision_segment_blocked's skip test
+   (see levers_any_solid). */
+int  bars_any_solid(void);
+
 void bars_draw(RenderContext *ctx);
 
 #endif

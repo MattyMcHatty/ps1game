@@ -101,6 +101,7 @@ int collide_wall(Wall *w, int32_t *px, int32_t *pz, int32_t radius) {
 #define PS_ALTAR      0x0100
 #define PS_CHAINLINK  0x0200
 #define PS_LEVER      0x0400
+#define PS_BARS       0x0800
 
 static int props_block_point(int32_t x, int32_t y, int32_t z, int mask) {
     if ((mask & PS_CRATE)     && crates_point_solid(x, y, z, SHOT_PROP_SLACK))        return 1;
@@ -114,10 +115,11 @@ static int props_block_point(int32_t x, int32_t y, int32_t z, int mask) {
     if ((mask & PS_ALTAR)     && attic_stairwell_altar_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
     if ((mask & PS_CHAINLINK) && chainlink_doors_point_solid(x, y, z, SHOT_PROP_SLACK)) return 1;
     if ((mask & PS_LEVER)     && levers_point_solid(x, y, z, SHOT_PROP_SLACK))          return 1;
+    if ((mask & PS_BARS)      && bars_point_solid(x, y, z, SHOT_PROP_SLACK))            return 1;
     return 0;
 }
 
-/* WHICH prop families the current area holds anything solid of. The same eleven
+/* WHICH prop families the current area holds anything solid of. The same twelve
    families as above, but asking only their active/state/area gates — no
    coordinates, so it is one pass over eleven short arrays, and it is done ONCE
    per segment rather than once per sample point.
@@ -168,6 +170,7 @@ static int props_solid_mask(void) {
     if (attic_stairwell_altar_any_solid())  m |= PS_ALTAR;
     if (chainlink_doors_any_solid())        m |= PS_CHAINLINK;
     if (levers_any_solid())                 m |= PS_LEVER;
+    if (bars_any_solid())                   m |= PS_BARS;
     return m;
 }
 

@@ -111,11 +111,16 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     [SFX_HURT]       = SND_RESIDENT,
     [SFX_PICKUP]     = SND_RESIDENT,
     [SFX_SMASH]      = SND_RESIDENT,   /* the boss's shockwave hit / parry     */
-    [SFX_DOGBARK]    = SND_BANK_HOUSE,
+    /* ...and both dog clips in the CATACOMBS bank too, for the Kennels' eight
+       caged dogs (src/kennels_puzzle.c). 31.6 KB between them, and it makes
+       CATACOMBS the largest bank: 193,536 -> 225,152, so `spare` falls 19,952
+       -> 12,080 (py tools/spu_budget.py). The next Catacombs clip comes out of
+       that 12 KB directly. */
+    [SFX_DOGBARK]    = SND_BANK_HOUSE | SND_BANK_CATACOMBS,
     [SFX_AXEHIT]     = SND_RESIDENT,
     /* Re-cut from 22050 Hz to the 11025 house standard (20.1 KB -> 9.8 KB) to
        pay for SFX_RUMBLE's house copy below. Nothing times off its length. */
-    [SFX_DOGDIE]     = SND_BANK_HOUSE,
+    [SFX_DOGDIE]     = SND_BANK_HOUSE | SND_BANK_CATACOMBS,
     [SFX_UNLOCK]     = SND_RESIDENT,
     [SFX_DOOR]       = SND_RESIDENT,   /* plays on the way OUT of the courtyard,
                                           while the BOSS bank is still in       */

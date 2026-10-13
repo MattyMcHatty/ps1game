@@ -187,17 +187,9 @@
 #define TIM_TPAGE_DBLDRRG  0x0015
 #define TIM_CLUT_DBLDRRG   0x7ea0
 
-/* ddog_alert.tim  8bpp  VRAM ( 640,448)  \DDALERT.TIM */
-#define TIM_TPAGE_DDALERT  0x009a
-#define TIM_CLUT_DDALERT   0x7900
-
-/* ddog_alert2.tim  8bpp  VRAM ( 736,384)  \DDALRT2.TIM */
-#define TIM_TPAGE_DDALRT2  0x009b
-#define TIM_CLUT_DDALRT2   0x7940
-
-/* ddog_sleep.tim  8bpp  VRAM ( 640,384)  \DDSLEEP.TIM */
-#define TIM_TPAGE_DDSLEEP  0x009a
-#define TIM_CLUT_DDSLEEP   0x78c0
+/* demon_dog.tim   8bpp  VRAM ( 640,384)  \DDOG.TIM */
+#define TIM_TPAGE_DDOG     0x009a
+#define TIM_CLUT_DDOG      0x78c0
 
 /* din_cl.tim      4bpp  VRAM ( 448,256)  \DINCL.TIM */
 #define TIM_TPAGE_DINCL    0x0017

@@ -10,6 +10,7 @@
 #include "title.h"            /* STATE_KENNELS */
 #include "lever.h"
 #include "bars.h"
+#include "demondog.h"
 #include "kennels_puzzle.h"
 
 /* The Kennels' lever puzzle - see kennels_puzzle.h for the rules. */
@@ -65,6 +66,27 @@ static const struct {
     /* D */ {  1582, 3382,  512, 849 },
 };
 
+/* ---- The dogs ------------------------------------------------------------------------
+   TWO DEMON DOGS IN EACH CELL, demon_dogs[2c] and [2c+1] in cell c. They lie
+   IDLE while the cell is shut - src/demondog.c never wakes a Kennels dog by
+   distance - and the puzzle wakes both the moment their gate starts to lift.
+   The rising gate holds them until its base clears their heads (they collide
+   with the bars like the player does), so they come out barking a beat into
+   the winch.
+
+   Each pair stands across its cell at mid-depth, 600 apart (the dogs' hard
+   spacing is 360, and it pushes even sleeping dogs) and 200-odd off the side
+   walls. The corner bays' pairs are set out along the bay's own axes. */
+#define KP_DOGS          (2 * KP_COUNT)
+#define KP_DOG_Y         (-GROUND_FLOOR_Y)   /* standing on the y=0 floor */
+
+static const int32_t KP_DOG_XZ[KP_DOGS][2] = {
+    /* A */ { -2006, 3496 }, { -1696, 3806 },
+    /* B */ {  -900, 4000 }, {  -400, 4100 },
+    /* C */ {   400, 4100 }, {   900, 4000 },
+    /* D */ {  1696, 3806 }, {  2006, 3496 },
+};
+
 /* ---- The wiring ------------------------------------------------------------------
    Exactly these levers down, and every other one up. */
 #define KP_L(n)          (1 << ((n) - 1))
@@ -100,13 +122,16 @@ static const uint8_t KP_COMBO[KP_COUNT] = {
 
 /* ---- State --------------------------------------------------------------------- */
 static uint8_t kp_levers = 0;           /* SAVED. bit i: lever i+1 is down */
+static uint8_t kp_dogs_dead = 0;        /* SAVED. bit i: demon_dogs[i] is dead */
 static uint8_t kp_anim[KP_COUNT];       /* frames into the throw, 0..KP_THROW_FRAMES */
 static int     kp_gate[KP_COUNT] = { -1, -1, -1, -1 };   /* bars_place()'s index */
 static int     interact_prev = 1;       /* Circle edge-detect */
 
 int  kennels_puzzle_levers(void)         { return kp_levers; }
 void kennels_puzzle_set_levers(int bits) { kp_levers = (uint8_t)(bits & 0x0F); }
-void kennels_puzzle_reset(void)          { kp_levers = 0; }
+int  kennels_puzzle_dogs_dead(void)      { return kp_dogs_dead; }
+void kennels_puzzle_set_dogs_dead(int bits) { kp_dogs_dead = (uint8_t)bits; }
+void kennels_puzzle_reset(void)          { kp_levers = 0; kp_dogs_dead = 0; }
 
 static int kp_down(int i) { return (kp_levers >> i) & 1; }
 
@@ -146,6 +171,26 @@ void kennels_puzzle_place(void) {
                                 open ? KP_GATE_H : 0);
         bars_set_size(kp_gate[i], KP_GATE[i].width, KP_GATE_H);
         bars_set_recessed(kp_gate[i]);
+    }
+
+    /* THE DOGS. The Kennels is not one of world.c's hostile rooms, so
+       world_enter() leaves the dog array EMPTY here and keeps nothing on the
+       way out: the room seeds its own eight, and the dead ones stay dead
+       through kp_dogs_dead. Which is why this has to run AFTER world_enter -
+       main.c calls it again from its post-world_enter block. A dog in a cell
+       that is already open is up on arrival, without the bark. */
+    demon_dog_count = KP_DOGS;
+    for (i = 0; i < KP_DOGS; i++) {
+        DemonDog *d = &demon_dogs[i];
+        *d = (DemonDog){0};
+        d->x = d->spawn_x = KP_DOG_XZ[i][0];
+        d->y = d->spawn_y = KP_DOG_Y;
+        d->z = d->spawn_z = KP_DOG_XZ[i][1];
+        d->health = DDOG_MAX_HEALTH;
+        d->active = 1;
+        if ((kp_dogs_dead >> i) & 1)            d->state = DDOG_DEAD;
+        else if (kp_levers == KP_COMBO[i / 2])  d->state = DDOG_ALERT;
+        else                                    d->state = DDOG_DORMANT;
     }
 
     /* Don't treat a Circle held through the door transition as an interact. */
@@ -193,6 +238,20 @@ void kennels_puzzle_update(int lock) {
         }
     }
     bars_update();
+
+    /* THE DOGS: a gate off the floor - rising, up, or dropping again after it
+       was up - lets its pair loose. demon_dog_wake() is a no-op on a dog that
+       is already awake or dead. */
+    for (i = 0; i < KP_COUNT; i++)
+        if (!bars_settled(kp_gate[i])) {
+            demon_dog_wake(2 * i);
+            demon_dog_wake(2 * i + 1);
+        }
+    /* ...and the dead, kept as they fall, so leaving the room cannot lose
+       them (nothing in world.c snapshots this room's dogs). */
+    if (demon_dog_count == KP_DOGS)
+        for (i = 0; i < KP_DOGS; i++)
+            if (demon_dogs[i].state == DDOG_DEAD) kp_dogs_dead |= (uint8_t)(1 << i);
 
     /* THE CIRCLE. A lever mid-travel ignores it, so a mashed button cannot
        leave one stuck between up and down. */

@@ -25,13 +25,21 @@
    Free play, no camera: Circle swings a lever over half a second with the
    Attic Exit's clunk - UP is 45 degrees above level, DOWN 45 below.
 
-   SAVED: the four levers, as one byte (SaveData.kn_levers). The gates are not
-   - they are derived from the levers on every entry. This module owns the
-   placements of both props, so the lever <-> cell wiring has one source of
+   EIGHT DEMON DOGS, two in each cell. They lie idle while their cell is shut
+   and wake, barking, when its gate starts to lift; the gate holds them until
+   it is high enough to pass under, and then they hunt the player.
+
+   SAVED: the four levers and which dogs are dead, a byte each, packed into
+   SaveData.kennels. The gates are not - they are derived
+   from the levers on every entry. This module owns the placements of the
+   props AND the dogs, so the lever <-> cell <-> dog wiring has one source of
    truth. */
 
-/* Place the four levers and the four gates from the saved levers. Call from
-   kennels_init(), and again after a Load Game has installed the byte. */
+/* Place the four levers, the four gates and the eight dogs from the saved
+   bytes. Call from kennels_init(), and AGAIN after world_enter() - which
+   empties the dog array in any room outside world.c's hostile_areas[] - from
+   main.c's post-world_enter block. That second call is also what picks up a
+   Load Game's bytes. */
 void kennels_puzzle_place(void);
 
 /* Per frame: the Circle test, the throws, the gates. `lock` is main's usual
@@ -46,6 +54,10 @@ void kennels_puzzle_draw(RenderContext *ctx);
 /* The save byte: bit i = lever i+1 is DOWN. */
 int  kennels_puzzle_levers(void);
 void kennels_puzzle_set_levers(int bits);
-void kennels_puzzle_reset(void);   /* new game: every lever up */
+/* The save byte: bit i = demon_dogs[i] is dead. */
+int  kennels_puzzle_dogs_dead(void);
+void kennels_puzzle_set_dogs_dead(int bits);
+
+void kennels_puzzle_reset(void);   /* new game: every lever up, every dog alive */
 
 #endif

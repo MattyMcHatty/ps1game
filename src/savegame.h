@@ -17,13 +17,16 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   36            /* v36: kn_levers. Which of the
-                                        Kennels' four levers are down
-                                        (src/kennels_puzzle.h); the cell
-                                        gates are derived from it on entry.
-                                        SaveData grew by one field after
-                                        arm_pearls, so the bump rejects a v35
-                                        save rather than misreading it.
+#define SAVE_VERSION   36            /* v36: kennels. Which of the
+                                        Kennels' four levers are down, and
+                                        which of its eight caged dogs are dead
+                                        (src/kennels_puzzle.h), packed into one
+                                        field - a second would not fit the
+                                        frame. The cell gates are derived from
+                                        the levers on entry. SaveData grew by
+                                        one field after arm_pearls, so the bump
+                                        rejects a v35 save rather than
+                                        misreading it.
                                         v35: arm_pearls. Which of The
                                         Head's eight arm switches hold a Blood
                                         Pearl (src/arm_puzzle.h). SaveData
@@ -337,9 +340,16 @@ typedef struct {
                                        i (south to north) holds a Blood Pearl.
                                        The pearls are out of the inventory, so
                                        without this a save would lose them.  */
-    int32_t  kn_levers;             /* the Kennels' levers: bit i = lever i+1
-                                       (north to south) is DOWN. See
-                                       src/kennels_puzzle.h.                  */
+    int32_t  kennels;               /* the Kennels (src/kennels_puzzle.h):
+                                       bits 0..3  lever i+1 (north to south)
+                                                  is DOWN;
+                                       bits 8..15 demon_dogs[i] is dead. The
+                                       room is not a world.c hostile room, so
+                                       the world delta never sees its dogs.
+                                       ONE field because SaveData is at its
+                                       128-byte frame (the assert in
+                                       savegame.c); the next room-owned byte
+                                       has room in bits 16..31 here.          */
     int32_t  flags;                 /* persistent GameFlag bitmask (game_flags) */
     int32_t  flags2;                /* ...and GameFlags 32..63 (game_flags2).
                                        See "BIT 32 ON" in player.h.          */

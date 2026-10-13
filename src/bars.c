@@ -379,6 +379,47 @@ void bars_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     }
 }
 
+/* HITSCAN: the gate's real volume at its CURRENT lift, no body radius - the
+   Grave-olver and the Helluminator both ask this through
+   collision_segment_blocked, so a shut gate stops both, and a raised one stops
+   neither once its base is over the line. A turned gate is tested in its own
+   frame, as bars_collide does. The bars are see-through and a shot is stopped
+   anyway: the gaps are ~40 wide and a gate is meant to keep what is behind it
+   in. */
+int bars_point_solid(int32_t x, int32_t y, int32_t z, int32_t slack) {
+    int i;
+    for (i = 0; i < bars_count; i++) {
+        Bars *b = &bars[i];
+        if (!b->active || b->area != current_area) continue;
+
+        int32_t base_y = b->y + GROUND_FLOOR_Y - (b->lift_fp >> 8);
+        int32_t top_y  = base_y + ((br_min_y * b->sy) >> 12);
+        if (y > base_y + slack || y < top_y - slack) continue;
+
+        if (b->rot_y & 1023) {
+            int32_t cs = icos(b->rot_y), sn = isin(b->rot_y);
+            int32_t dx = x - b->x, dz = z - b->z;
+            int32_t lx = (dx * cs - dz * sn) >> 12;
+            int32_t lz = (dx * sn + dz * cs) >> 12;
+            if (lx < ((br_min_x * b->sx) >> 12) - slack ||
+                lx > ((br_max_x * b->sx) >> 12) + slack) continue;
+            if (lz < br_min_z - slack || lz > br_max_z + slack) continue;
+            return 1;
+        }
+        if (x < b->min_x - slack || x > b->max_x + slack) continue;
+        if (z < b->min_z - slack || z > b->max_z + slack) continue;
+        return 1;
+    }
+    return 0;
+}
+
+int bars_any_solid(void) {
+    int i;
+    for (i = 0; i < bars_count; i++)
+        if (bars[i].active && bars[i].area == current_area) return 1;
+    return 0;
+}
+
 /* The crib's draw with the tilt and the beam taken out: one yaw, one
    translation, the textured-prim loop. Sorted at TRUE scene depth with no +40,
    for the crib's reason — the room biases its own mesh 40 buckets deeper and a

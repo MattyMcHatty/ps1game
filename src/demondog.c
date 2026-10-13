@@ -13,6 +13,8 @@
 #include "demondog.h"
 #include "sound.h"
 #include "title.h"   /* game_state — conservatory dogs use a shorter wake range */
+#include "cdaudio.h" /* suspend/resume around the sheet's entry-time read */
+#include "bars.h"    /* the Kennels' cell gates hold a dog in */
 
 DemonDog demon_dogs[MAX_DEMON_DOGS];
 int      demon_dog_count = 0;
@@ -58,29 +60,62 @@ static void add_ddog_ft4_windowed(RenderContext *ctx, int32_t otz, POLY_FT4 *pol
     }
 }
 
-/* One dog frame's draw handles. u0/v0 are the texture's origin WITHIN its tpage,
-   derived from the TIM's own VRAM rect rather than hardcoded: ddog_alert2 sits at
-   x=736 in a tpage based at x=704, and the old fixed "u 0..63" sampled the left
-   half of that page instead — which is the Rabisu's corner, so the open-mouth
-   frame drew the Rabisu. Same derivation as anzu_tex.c's load_tile. */
+/* One texture's draw handles. u0/v0 are its origin WITHIN its tpage, derived
+   from the TIM's own VRAM rect rather than hardcoded (anzu_tex.c's load_tile
+   derivation; a hardcoded u once sampled the Rabisu's corner). */
 typedef struct {
     uint16_t tpage, clut;
     uint8_t  u0, v0;
 } DDogTex;
 
-static DDogTex ddog_sleep_tex, ddog_alert_tex, ddog_alert2_tex, ddog_shadow_tex;
+static DDogTex ddog_sheet_tex, ddog_shadow_tex;
 
-static void load_tim(const char *filename, DDogTex *out) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, filename)) return;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
+/* ---- THE SHEET -------------------------------------------------------------
+   ONE TEXTURE, "demon dog". AUTHORED as 128x128 with a 64x64 frame in each
+   corner (textures/demon dog.png):
+
+     top-left     ACTIVE, frame 1      top-right    ACTIVE, frame 2
+     bottom-left  IDLE                 bottom-right unused
+
+   LOADED as a 192x64 strip of the three it uses, in that order (8bpp,
+   textures/demon_dog.tim, made by tools/pack_demon_dog.py). The square as
+   authored would be 64 VRAM words wide, and at the only place it can go that
+   runs into the CLUT band at x672 y480 - the tool's docstring has the detail.
+
+   It was three TIMs (DDSLEEP, DDALERT, DDALRT2) LoadImage'd at startup and held
+   in VRAM for the run. Now it is STREAMED: read off the disc into a scratch
+   buffer on entry to a room that has dogs, LoadImage'd, freed - nothing is
+   resident in RAM anywhere and it is in no texture bank. That is the
+   Greenhouse's pattern 2 (tools/heap_budget.py), and the choice was forced: free
+   at rest is under the 128 KB line below which tools/HEAP_BUDGET.txt says not
+   to add a registration, and even its 14 KB of sectors in the MANSION bank would have made
+   that bank the peak.
+
+   THE ROOMS: the Delivery Area and the Conservatory in the mansion, the Kennels
+   in the Catacombs. main.c calls demon_dogs_upload_texture() on entry to each,
+   and on the New Game path, which does not pass through STATE_LOADING.
+
+   THE SLOT is x[640,736) y[384,448) with its CLUT at (0,483) - inside where the
+   three old frames were - and it is the SAME slot in both chapters: nothing in the
+   Catacombs touches that block either (tools/VRAM_MAP_CATACOMBS.txt). Voff 128,
+   so every frame is drawn bracketed by add_ddog_ft4_windowed. The handles are
+   derived from the TIM's rect, so moving the slot is a re-convert of
+   textures/demon_dog.tim and nothing here. */
+#define DDOG_SHEET_FILE   "\\DDOG.TIM;1"
+#define DDOG_SHEET_BYTES  (7 * 2048)   /* demon_dog.tim is 12,832 bytes */
+
+/* Each frame's corner within the strip. */
+#define DDOG_ACTIVE1_U     0
+#define DDOG_ACTIVE1_V     0
+#define DDOG_ACTIVE2_U    64
+#define DDOG_ACTIVE2_V     0
+#define DDOG_IDLE_U      128
+#define DDOG_IDLE_V        0
+
+/* LoadImage a TIM already in `buf` and fill `out`'s handles from its rects. */
+static void ddog_tim_to_vram(uint32_t *buf, DDogTex *out) {
     TIM_IMAGE tim;
-    GetTimInfo((uint32_t *)buf, &tim);
+    GetTimInfo(buf, &tim);
     LoadImage(tim.prect, tim.paddr);
     DrawSync(0);
     if (tim.mode & 0x8) {
@@ -94,13 +129,43 @@ static void load_tim(const char *filename, DDogTex *out) {
     int px_mult  = (bpp_mode == 0) ? 4 : (bpp_mode == 1) ? 2 : 1;  /* px per word */
     out->u0 = (uint8_t)((tim.prect->x & 63) * px_mult);
     out->v0 = (uint8_t)(tim.prect->y % 256);
+}
+
+/* Room entry, inside STATE_LOADING (or the New Game path): one 7-sector read,
+   bracketed by cdaudio_suspend/resume as every mid-game CdRead must be. */
+void demon_dogs_upload_texture(void) {
+    CdlFILE file;
+    uint8_t *buf;
+    int sectors;
+    if (!CdSearchFile(&file, DDOG_SHEET_FILE)) return;
+    sectors = (file.size + 2047) / 2048;
+    if (sectors * 2048 > DDOG_SHEET_BYTES) return;   /* too big for the scratch */
+    buf = malloc(DDOG_SHEET_BYTES);
+    if (!buf) return;   /* draw last visit's pixels rather than crash */
+    cdaudio_suspend();
+    CdControl(CdlSetloc, &file.pos, NULL);
+    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
+    CdReadSync(0, NULL);
+    cdaudio_resume();
+    ddog_tim_to_vram((uint32_t *)buf, &ddog_sheet_tex);
+    free(buf);
+}
+
+static void load_tim(const char *filename, DDogTex *out) {
+    CdlFILE file;
+    if (!CdSearchFile(&file, filename)) return;
+    int sectors = (file.size + 2047) / 2048;
+    void *buf = malloc(sectors * 2048);
+    if (!buf) return;
+    CdControl(CdlSetloc, &file.pos, NULL);
+    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
+    CdReadSync(0, NULL);
+    ddog_tim_to_vram((uint32_t *)buf, out);
     free(buf);
 }
 
 void demon_dogs_init(void) {
-    load_tim("\\DDSLEEP.TIM;1", &ddog_sleep_tex);
-    load_tim("\\DDALERT.TIM;1", &ddog_alert_tex);
-    load_tim("\\DDALRT2.TIM;1", &ddog_alert2_tex);
+    /* The shadow only, for the run: the dog's own sheet is streamed per room. */
     load_tim("\\SHADOW.TIM;1",  &ddog_shadow_tex);
 
     int i = 0;
@@ -165,6 +230,16 @@ int32_t demon_dog_scale_damage(int32_t base, DamageType type) {
                         WEAKNESS_COUNT(demon_dog_weakness));
 }
 
+void demon_dog_wake(int i) {
+    DemonDog *d;
+    if (i < 0 || i >= demon_dog_count) return;
+    d = &demon_dogs[i];
+    if (!d->active || d->state != DDOG_DORMANT) return;
+    d->state      = DDOG_ALERT;
+    d->bark_timer = DDOG_BARK_INTERVAL;
+    sound_play(SFX_DOGBARK);
+}
+
 void demon_dogs_rest(void) {
     int i;
     for (i = 0; i < demon_dog_count; i++) {
@@ -205,6 +280,7 @@ void update_demon_dogs(void) {
             d->z += d->kb_vz;
             apply_ddog_collision(&d->x, &d->z, d->on_upper_floor, d->on_ramp);
             crates_collide(&d->x, d->y, &d->z, 80);
+            bars_collide(&d->x, d->y, &d->z, 80);
             if (d->kb_vx > 0) d->kb_vx =  (  d->kb_vx * 7) >> 3;
             else               d->kb_vx = -((-d->kb_vx * 7) >> 3);
             if (d->kb_vz > 0) d->kb_vz =  (  d->kb_vz * 7) >> 3;
@@ -222,6 +298,10 @@ void update_demon_dogs(void) {
         if (d->lunging && dist2d >= DDOG_CATCH_DIST) d->lunging = 0;
 
         if (d->state == DDOG_DORMANT) {
+            /* THE KENNELS' DOGS ARE CAGED: they lie idle however close the
+               player comes, and only the puzzle wakes them, when their cell's
+               gate starts to lift (demon_dog_wake, src/kennels_puzzle.c). */
+            if (current_area == STATE_KENNELS) continue;
             int32_t wake = (current_area == STATE_CONSERVATORY)
                            ? DDOG_WAKE_RADIUS_CONS : DDOG_WAKE_RADIUS;
             if (dist2d < wake) {
@@ -295,6 +375,7 @@ void update_demon_dogs(void) {
         int32_t feeler_z = d->z + (desired_z * DDOG_FEELER_LEN) / desired_dist;
         int32_t fx = feeler_x, fz = feeler_z;
         crates_collide(&fx, d->y, &fz, 80);
+        bars_collide(&fx, d->y, &fz, 80);
         apply_ddog_collision(&fx, &fz, d->on_upper_floor, d->on_ramp);
         int blocked = (fx != feeler_x || fz != feeler_z);
 
@@ -319,11 +400,13 @@ void update_demon_dogs(void) {
 
             int32_t tlx = lx, tlz = lz;
             crates_collide(&tlx, d->y, &tlz, 80);
+            bars_collide(&tlx, d->y, &tlz, 80);
             apply_ddog_collision(&tlx, &tlz, d->on_upper_floor, d->on_ramp);
             int left_blocked = (tlx != lx || tlz != lz);
 
             int32_t trx = rx, trz = rz;
             crates_collide(&trx, d->y, &trz, 80);
+            bars_collide(&trx, d->y, &trz, 80);
             apply_ddog_collision(&trx, &trz, d->on_upper_floor, d->on_ramp);
             int right_blocked = (trx != rx || trz != rz);
 
@@ -368,6 +451,7 @@ void update_demon_dogs(void) {
         d->z += blend_z;
         apply_ddog_collision(&d->x, &d->z, d->on_upper_floor, d->on_ramp);
         crates_collide(&d->x, d->y, &d->z, 80);
+        bars_collide(&d->x, d->y, &d->z, 80);
     }
 
     /* --- Dog vs dog hard collision (after every dog has moved) --- */
@@ -460,8 +544,10 @@ static void draw_ddog_shadow(RenderContext *ctx, DemonDog *d) {
     add_ddog_ft4_windowed(ctx, shadow_otz, poly);
 }
 
+/* (fu, fv): the frame's corner within the sheet - DDOG_ACTIVE1_U and kin. */
 static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
-                              const DDogTex *tex, int flip) {
+                              int fu, int fv, int flip) {
+    const DDogTex *tex = &ddog_sheet_tex;
     int32_t rx  = icos(cam_rot);
     int32_t rz  = -isin(cam_rot);
 
@@ -549,9 +635,10 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
     poly->x2 = sv[3].vx; poly->y2 = sv[3].vy;
     poly->x3 = sv[2].vx; poly->y3 = sv[2].vy;
 
-    uint8_t u_left  = flip ? tex->u0 + 63 : tex->u0;
-    uint8_t u_right = flip ? tex->u0      : tex->u0 + 63;
-    uint8_t v_start = tex->v0;
+    uint8_t u0      = (uint8_t)(tex->u0 + fu);
+    uint8_t u_left  = flip ? u0 + 63 : u0;
+    uint8_t u_right = flip ? u0      : u0 + 63;
+    uint8_t v_start = (uint8_t)(tex->v0 + fv);
     poly->u0 = u_left;  poly->v0 = v_start;
     poly->u1 = u_right; poly->v1 = v_start;
     poly->u2 = u_left;  poly->v2 = v_start + 63;
@@ -594,7 +681,7 @@ static void draw_ddog_sprite(RenderContext *ctx, DemonDog *d,
     }
 }
 
-/* NOTE: the dog sprites (VRAM Voff 128/192) and shadow (Voff 160) all sit past
+/* NOTE: the dog strip (VRAM Voff 128..191) and shadow (Voff 160) all sit past
    Voff 128, so every one of them goes through add_ddog_ft4_windowed — without
    that bracket a room's 128x128 texture window wraps their V and they sample the
    wrong texels. A room that places dogs must call demon_dogs_set_texwindow() with
@@ -612,18 +699,18 @@ void draw_demon_dogs(RenderContext *ctx) {
         draw_ddog_shadow(ctx, d);
 
         if (d->state == DDOG_DORMANT) {
-            draw_ddog_sprite(ctx, d, &ddog_sleep_tex, 0);
+            draw_ddog_sprite(ctx, d, DDOG_IDLE_U, DDOG_IDLE_V, 0);
         } else {
             /* Flip the sprite when the dog is to the player's right so it
                always faces toward the player. Camera right vector = (icos, -isin). */
             int32_t dot = ((dx >> 4) * (icos(cam_rot) >> 4))
                         - ((dz >> 4) * (isin(cam_rot) >> 4));
             int flip = dot <= 0;
-            /* Alternate between open-mouth and closed-mouth every 15 frames */
+            /* The sheet's two top frames, alternating every 25 frames. */
             if ((d->anim_tick / 25) & 1)
-                draw_ddog_sprite(ctx, d, &ddog_alert2_tex, flip);
+                draw_ddog_sprite(ctx, d, DDOG_ACTIVE2_U, DDOG_ACTIVE2_V, flip);
             else
-                draw_ddog_sprite(ctx, d, &ddog_alert_tex,  flip);
+                draw_ddog_sprite(ctx, d, DDOG_ACTIVE1_U, DDOG_ACTIVE1_V, flip);
         }
     }
 }
