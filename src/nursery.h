@@ -27,12 +27,13 @@
    its own export puts it (src/gula_tablet.h). With ALL SIX cots lit it stands
    lifted 400 off the floor on entry, uncovering the west door.
 
-   THE DOORS. Two are drawn and ONE is wired up:
+   THE DOORS. Both are drawn and wired:
 
      EAST   x=1293  z[-107,107] y[-400,0]  -> Gaol Cells, south door
-     west   x=-1293 z[-107,107] y[-400,0]     sealed behind the Gula Tablet;
-                                              shown, not yet wired, once it
-                                              is lifted
+     WEST   x=-1293 z[-107,107] y[-400,0]  -> the Kennels, its south door -
+                                              but with NO SIGN AND NO TRIGGER
+                                              until the tablet is lifted, i.e.
+                                              until all six cots are lit
 
    The east door is in the YZ plane approached from -X (wall 6 runs x=1293
    with nx=-4095), so TEXT_PLANE_YZ with mirror=1 — the Room of Torsos' east
@@ -54,10 +55,19 @@ void nursery_draw(RenderContext *ctx);
    there is: just inside it, facing west into the ring of cots. */
 void nursery_spawn_east(void);
 
+/* Arrival back through the west door, from the Kennels: just inside it,
+   facing east into the ring of cots. main.c calls it after nursery_init(). */
+void nursery_spawn_west(void);
+
 /* One frame of the east door's Circle test. `lock` is main's usual suppression.
    Returns 1 on a fresh press made in range and facing the door — the frame
    main.c starts the transition on. */
 int  nursery_east_door_triggered(int lock);
+
+/* The same for the west door, to the Kennels - except that it returns 0
+   outright until all six cots are lit and the Gula Tablet stands lifted. Call
+   it every frame regardless, for its edge state. */
+int  nursery_west_door_triggered(int lock);
 
 /* One frame of the Gula Tablet's Circle test: a fresh press in range and
    facing it posts its inscription to the log. Returns 1 if it CONSUMED this

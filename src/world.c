@@ -200,7 +200,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_DEAD_END_CHRISTOF, STATE_DEAD_END_LUKE,
     STATE_DEAD_END_MARK,   STATE_THROAT,
     STATE_ROOM_OF_GUTS,    STATE_NECK,
-    STATE_THE_HEAD,
+    STATE_THE_HEAD,        STATE_KENNELS,
 };
 
 static int room_index(GameState area) {
@@ -371,6 +371,9 @@ static int room_index(GameState area) {
            door. Slot 58 of 64. Seeded EMPTY: its arm switches are props,
            placed by the_head_init(). */
         case STATE_THE_HEAD:          return 58;
+        /* THE KENNELS, Chapter 3's thirty-third room, behind the Nursery's
+           west door. Slot 59 of 64. Seeded EMPTY. */
+        case STATE_KENNELS:           return 59;
         default:                   return 0;
     }
 }

@@ -301,6 +301,11 @@ typedef enum {
                                 whose east wall is a Lamashtu relief, with
                                 eight arm switches over the elbows. See
                                 src/the_head.h. Appended, not inserted. */
+    STATE_KENNELS,           /* THE KENNELS, through the Nursery's west door
+                                (behind the Gula Tablet, open once all six
+                                cots are lit). Chapter 3's thirty-third room:
+                                a long hall ending in two barred kennels. See
+                                src/kennels.h. Appended, not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

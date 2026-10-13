@@ -35,6 +35,14 @@
 #define TIM_SLOT(slot, NAME) \
     (tex_tpage[slot] = TIM_TPAGE_##NAME, tex_clut[slot] = TIM_CLUT_##NAME)
 
+/* adapa_a.tim     4bpp  VRAM ( 832,128)  \TEX\ADAPAA.TIM */
+#define TIM_TPAGE_ADAPAA   0x000d
+#define TIM_CLUT_ADAPAA    0x7805
+
+/* adapa_b.tim     4bpp  VRAM ( 896,128)  \TEX\ADAPAB.TIM */
+#define TIM_TPAGE_ADAPAB   0x000e
+#define TIM_CLUT_ADAPAB    0x7806
+
 /* anzu1.tim       8bpp  VRAM ( 480,  0)  \TEX\ANZU1.TIM */
 #define TIM_TPAGE_ANZU1    0x0087
 #define TIM_CLUT_ANZU1     0x78d0
@@ -290,6 +298,10 @@
 /* grss_gs.tim     4bpp  VRAM ( 320,  0)  \TEX\GRSSGS.TIM */
 #define TIM_TPAGE_GRSSGS   0x0005
 #define TIM_CLUT_GRSSGS    0x7fce
+
+/* gula codes.tim  4bpp  VRAM ( 768,  0)  \TEXCTCMB\GULACODE.TIM */
+#define TIM_TPAGE_GULACODE 0x000c
+#define TIM_CLUT_GULACODE  0x782d
 
 /* gula tablet.tim  4bpp  VRAM ( 640,  0)  \TEXCTCMB\GULATBLT.TIM */
 #define TIM_TPAGE_GULATBLT 0x000a

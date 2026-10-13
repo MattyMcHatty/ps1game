@@ -113,6 +113,7 @@
 #include "room_of_guts.h"
 #include "neck.h"
 #include "the_head.h"
+#include "kennels.h"
 #include "arm_switch.h"     /* The Head's eight arm switches */
 #include "gula_tablet.h"
 #include "ladder_anim.h"    /* North Chamber <-> Cleaver Corridor ladder climb */
@@ -404,6 +405,7 @@ static void load_area_geometry(GameState area) {
         case STATE_ROOM_OF_GUTS:     room_of_guts_load_geometry(); break;
         case STATE_NECK:             neck_load_geometry(); break;
         case STATE_THE_HEAD:         the_head_load_geometry(); break;
+        case STATE_KENNELS:          kennels_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2785,8 +2787,9 @@ static void update_current_area(GameState area) {
     } else if (area == STATE_NURSERY) {
         /* THE NURSERY - Chapter 3's twenty-second room: the shared wall routine
            and ONE flat floor zone over the Room of Arms' octagon. multi_level
-           is 0. One wired door, east, back to the Gaol Cells; the west door is
-           sealed behind the Gula Tablet.
+           is 0. Two doors: east, back to the Gaol Cells, and west, to the
+           Kennels - sealed behind the Gula Tablet, and offered (sign and
+           trigger) only once all six cots are lit and the tablet stands lifted.
 
            TWO PROPS: the six mirror cots, which run from the area-tagged
            cribs_update() in the shared block (their one rock when struck) and
@@ -2805,6 +2808,16 @@ static void update_current_area(GameState area) {
             int read = nursery_update(lock);
             if (nursery_east_door_triggered(lock) && !read) {
                 pending_area = STATE_GAOL_CELLS;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
+            /* The west door says no for itself until the tablet is up. The
+               two doors are the octagon's width apart, so no press can reach
+               both; `read` is passed anyway, the tablet's prompt being
+               withdrawn exactly when this door is offered. */
+            if (nursery_west_door_triggered(lock || read)) {
+                pending_area = STATE_KENNELS;
                 door_anim_start(DOOR_PANEL_CATACOMB);
                 game_state   = STATE_DOOR_ANIM;
                 cdaudio_stop();
@@ -2995,6 +3008,23 @@ static void update_current_area(GameState area) {
                board owns the camera through the branch at the top of this
                function. */
             if (!lock && !took) arm_puzzle_update();
+        }
+    } else if (area == STATE_KENNELS) {
+        /* THE KENNELS - Chapter 3's thirty-third room (src/kennels.c): a long
+           hall with four posts and two barred kennels at its north end, so the
+           shared wall routine and ONE flat floor zone, multi_level 0. One door,
+           south, back to the Nursery's west door. Nothing is seeded; both
+           Chapter 3 enemy updates run anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (kennels_south_door_triggered(lock)) {
+            pending_area = STATE_NURSERY;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
@@ -3550,6 +3580,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         neck_draw(ctx);
     else if (area == STATE_THE_HEAD)
         the_head_draw(ctx);
+    else if (area == STATE_KENNELS)
+        kennels_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4067,6 +4099,11 @@ int main(int argc, const char **argv) {
                                      deferred registration for LMSPEARL.TIM,
                                      4bpp on the arms' page with its own
                                      palette. No CD access here. */
+    loading_screen_pump(&ctx);
+    kennels_load_assets();        /* CHAPTER 3's thirty-third room: five
+                                     compile-time headers and no
+                                     registration - its own GULACODE.TIM is
+                                     STREAMED on entry. No CD access here. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -5044,6 +5081,16 @@ int main(int argc, const char **argv) {
                    Every other owner of either page puts its own art back on
                    the way in there. */
                 the_head_upload_textures();
+            } else if (pending_area == STATE_KENNELS) {
+                /* THE KENNELS. Cobble and the inner door through the Catacombs
+                   Entry's narrow uploaders, the gula tablet through the Gula
+                   Tablet's and the bars through bars.c's, plus its OWN -
+                   GULACODE.TIM on x768 y0 over the arm switch, pixels AND
+                   palette, which The Head's branch puts back on the way in
+                   there. That one is STREAMED (a CdRead into a freed scratch
+                   buffer, bracketed by cdaudio_suspend/resume), not banked:
+                   the heap had no registration to spare. */
+                kennels_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5873,9 +5920,14 @@ int main(int argc, const char **argv) {
                     gaol_cells_spawn_east();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_NURSERY) {
-                /* ONE ARRIVAL, the east door, so nursery_init()'s default
-                   spawn is also the only one. */
+                /* TWO ARRIVALS. nursery_init()'s default is the east door,
+                   from the Gaol Cells; back from the Kennels it is the west
+                   door. Keyed on current_area, the room being LEFT and not a
+                   route, so a debug jump or a title load still lands at the
+                   east door. */
                 nursery_init();
+                if (current_area == STATE_KENNELS)
+                    nursery_spawn_west();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ROOM_OF_BABY_NAMES) {
                 /* EIGHT ARRIVALS. room_of_baby_names_init()'s default is the
@@ -5925,6 +5977,11 @@ int main(int argc, const char **argv) {
                 /* ONE ARRIVAL, the west door, so the_head_init()'s spawn is
                    the only one. (A save loaded here restores cam_x/z after.) */
                 the_head_init();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_KENNELS) {
+                /* ONE ARRIVAL, the south door, so kennels_init()'s spawn is
+                   the only one. (A save loaded here restores cam_x/z after.) */
+                kennels_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -6316,7 +6373,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_THROAT ||
                    game_state == STATE_ROOM_OF_GUTS ||
                    game_state == STATE_NECK ||
-                   game_state == STATE_THE_HEAD) {
+                   game_state == STATE_THE_HEAD ||
+                   game_state == STATE_KENNELS) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

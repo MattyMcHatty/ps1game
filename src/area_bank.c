@@ -188,6 +188,9 @@ TexBank area_bank_of(GameState area) {
     /* THE HEAD owns LMSPEARL.TIM (4bpp on the arms' page, its own palette),
        and its arm switches LMSHARM.TIM (4bpp, x768 y0). */
     case STATE_THE_HEAD:
+    /* THE KENNELS own GULACODE.TIM (4bpp on the arm switch's page and
+       palette) and borrow the rest, the gula tablet and the bars among it. */
+    case STATE_KENNELS:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -224,7 +227,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_THROAT ||
            area == STATE_ROOM_OF_GUTS ||
            area == STATE_NECK ||
-           area == STATE_THE_HEAD;
+           area == STATE_THE_HEAD ||
+           area == STATE_KENNELS;
 }
 
 /* ---- The prop models -------------------------------------------------------

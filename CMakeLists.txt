@@ -106,6 +106,7 @@ add_executable(horror_game
     src/room_of_guts.c
     src/neck.c
     src/the_head.c
+    src/kennels.c
     src/arm_switch.c
     src/arm_puzzle.c
     src/gula_tablet.c

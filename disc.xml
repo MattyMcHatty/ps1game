@@ -1581,6 +1581,21 @@
             <file name="ARMSWTCH.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\arm_switch.smd"/>
             <file name="LMSHARM.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu arm.tim"/>
 
+            <!-- THE KENNELS, the chapter's THIRTY-THIRD room, through the
+                 Nursery's west door (behind the Gula Tablet, which lifts once
+                 all six cots are lit). A long hall ending in two barred
+                 kennels. See src/kennels.h. It OWNS one texture: GULACODE.TIM,
+                 the fourteen panels on its back walls, 4bpp 128x128 at x768 y0
+                 - the ARM SWITCH'S page AND palette (720,480): it covers
+                 x[768,800) only, the arm switch is drawn in The Head alone and
+                 The Head puts it back on entry. (Not the baby names' page,
+                 x640: the gula tablet in this room's own floor is on it.)
+                 COBBLE, CTCMBDR, GULATBLT and BARS are borrowed. The mesh's
+                 'bars_128' material is textures\bars_128.tim, an exporter
+                 alias of bars.tim that is NOT shipped (tools/vram_map.py). -->
+            <file name="KENNELS.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\kennels.smd"/>
+            <file name="GULACODE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gula codes.tim"/>
+
             <!-- THE GULA TABLET, the Nursery's prop: a 600 x 800 x 50 stone
                  slab standing across its west door. Exported IN PLACE in the
                  Nursery's coordinates and drawn exactly there - its mesh is

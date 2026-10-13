@@ -218,6 +218,9 @@ AREAS = {
                   # THE HEAD, behind the Neck's east door: owns lamashtu
                   # pearl.tim, and reaches arm_switch_upload_texture().
                   "the_head_upload_textures",
+                  # THE KENNELS, behind the Nursery's west door: owns gula
+                  # codes.tim, and reaches the gula tablet's and the bars'.
+                  "kennels_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

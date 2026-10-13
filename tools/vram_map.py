@@ -1037,6 +1037,21 @@ KNOWN_STREAM_PAIRS = [
     ("plinth_diamond.tim",           "lamashtu arm.tim"),
     ("xt_dr_cmplt.tim",              "lamashtu arm.tim"),
     ("xt_dr_lckd.tim",               "lamashtu arm.tim"),
+    #   gula codes.tim -> x768 y0, THE KENNELS' fourteen wall panels, 4bpp, on
+    # the arm switch's page AND its CLUT (720,480) - one texture displaced and
+    # one uploader restoring it: the arm switch is drawn only in The Head, and
+    # the_head_upload_textures() puts it back. The page's other tenants are
+    # re-uploaded by their own rooms, as the arm switch's note above says.
+    ("lamashtu arm.tim",             "gula codes.tim"),
+    ("lamashtu tablet.tim",          "gula codes.tim"),
+    ("brick_wall.tim",               "gula codes.tim"),
+    ("grss.tim",                     "gula codes.tim"),
+    ("bed.tim",                      "gula codes.tim"),
+    ("fountain.tim",                 "gula codes.tim"),
+    ("pipe.tim",                     "gula codes.tim"),
+    ("plinth_diamond.tim",           "gula codes.tim"),
+    ("xt_dr_cmplt.tim",              "gula codes.tim"),
+    ("xt_dr_lckd.tim",               "gula codes.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not
@@ -1094,6 +1109,7 @@ EXPORTER_ALIASES = {
     "pipe_128.tim":  "pipe_gh.tim",   # Chain Room's 'pipe_128' material
     "rusty_128.tim": "rusty.tim",     # the Cleaver prop's 'rusty_128' material
     "ladder_128.tim": "ladder.tim",   # The Shelf's 'ladder_128' material
+    "bars_128.tim":  "bars.tim",      # the Kennels' 'bars_128' material
     # chain_128.tim STOPPED BEING AN ALIAS when Asag's arena shipped. Its mesh
     # uses the same Blender material name, but the arena cannot take chain.tim's
     # page (x704 y0 is a RESTORE page in that bank), so chain_128.tim was

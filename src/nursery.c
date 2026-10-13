@@ -272,18 +272,23 @@ void nursery_upload_textures(void) {
    wall along -X — the Room of Torsos' east door exactly. The reading axis for a
    YZ sign is Z, so the -200 door_draw_string_3d wants goes on the Z argument.
 
-   THE WEST DOOR (x=-1293, the same span) is drawn and SEALED: the Gula Tablet
-   stands across it (src/gula_tablet.h). No door sign, no door trigger — but
-   the tablet itself reads: "Press O to read" in front of its east face, and a
-   Circle press posts its inscription to the log (nursery_update).
+   THE WEST DOOR (x=-1293, the same span) leads to the Kennels (src/kennels.h)
+   and is SEALED until all six cots are lit: the Gula Tablet stands across it
+   (src/gula_tablet.h). While it does, the door has NO SIGN AND NO TRIGGER —
+   the tablet itself reads instead: "Press O to read" in front of its east
+   face, and a Circle press posts its inscription to the log (nursery_update).
 
-   WITH ALL SIX COTS LIT the tablet stands lifted off the door and the door is
-   SHOWN, but it is still not wired: no sign, no trigger, nowhere to go yet —
-   and the proxy's west wall still runs across it. Wiring it is a door block
-   here, a pending_area in main.c, and a gap in the collision proxy. The read
-   prompt is withdrawn while it is lifted (nur_tablet_raised). */
+   WITH ALL SIX COTS LIT the tablet stands lifted off the door, the read prompt
+   is withdrawn, and the door gets its sign and its trigger
+   (nur_tablet_raised gates both). The mirror case of the east door: in the YZ
+   plane approached from +X (wall 3 runs x=-1293 with nx=+4095), so mirror=0
+   and the sign 11 proud along +X. The proxy's west wall still runs across the
+   doorway, as the east one does across its own; a door is a Circle press from
+   in front of it, not a gap to walk through. */
 #define NUR_EAST_X           1293
 #define NUR_EAST_Z              0     /* the art spans z[-107,107] */
+#define NUR_WEST_X         (-1293)
+#define NUR_WEST_Z              0     /* the art spans z[-107,107] */
 #define NUR_EAST_TEXT_Y      (-186)   /* eye level on the y=0 floor */
 #define NUR_TEXT_RADIUS      1200
 #define NUR_FADE_NEAR         800
@@ -326,11 +331,13 @@ static int nur_all_lit(void) {
 /* Circle edge-detect. Seeded "held" by the arm below so a press carried in
    through the transition cannot fire on the arrival frame. */
 static int east_circle_prev   = 1;
+static int west_circle_prev   = 1;
 static int tablet_circle_prev = 1;
 
 void nursery_arm(void) {
     east_circle_prev   = interact_tapped();
-    tablet_circle_prev = interact_tapped();
+    west_circle_prev   = east_circle_prev;
+    tablet_circle_prev = east_circle_prev;
 }
 
 int nursery_update(int lock) {
@@ -361,6 +368,23 @@ int nursery_east_door_triggered(int lock) {
     xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     if (xz >= NUR_TRIGGER_RADIUS) return 0;
     if (!interact_facing(NUR_EAST_X, NUR_EAST_Z)) return 0;
+    return 1;
+}
+
+/* The west door's test: the east door's, but it says no outright until the
+   tablet stands lifted — the edge state is still kept current, so the first
+   press after the lift is a real one. */
+int nursery_west_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !west_circle_prev;
+    int32_t dx, dz, xz;
+    west_circle_prev = held;
+    if (lock || !just || !nur_tablet_raised) return 0;
+    dx = cam_x - NUR_WEST_X;
+    dz = cam_z - NUR_WEST_Z;
+    xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    if (xz >= NUR_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(NUR_WEST_X, NUR_WEST_Z)) return 0;
     return 1;
 }
 
@@ -409,6 +433,29 @@ static void nur_east_door_text(RenderContext *ctx) {
                         DOOR_PIXEL_SIZE);
 }
 
+/* The west door's sign: nothing at all until the tablet is up. Same height
+   and fade as the east one, approached from +X. */
+static void nur_west_door_text(RenderContext *ctx) {
+    int32_t dx = cam_x - NUR_WEST_X;
+    int32_t dz = cam_z - NUR_WEST_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= NUR_TEXT_RADIUS || !nur_tablet_raised) return;
+
+    if (xz > NUR_FADE_NEAR) {
+        int range = NUR_TEXT_RADIUS - NUR_FADE_NEAR;
+        int prog  = xz - NUR_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+
+    door_draw_string_3d(ctx, "Press " BTN_CIRCLE " to enter",
+                        NUR_WEST_X + 11, NUR_EAST_TEXT_Y, NUR_WEST_Z - 200,
+                        50, 255, 50, fade, 0, TEXT_PLANE_YZ,
+                        DOOR_PIXEL_SIZE);
+}
+
 void nursery_spawn_east(void) {
     /* 220 off wall 6 on its walkable -X side, on the door's centre line,
        facing -X — the direction of travel, into the ring of cots. (1073,0) is
@@ -420,6 +467,19 @@ void nursery_spawn_east(void) {
     cam_vy  = 0;
     cam_z   = NUR_EAST_Z;
     cam_rot = 3072;                    /* facing -X, west into the room */
+    nursery_arm();
+}
+
+void nursery_spawn_west(void) {
+    /* The east spawn mirrored: 220 off wall 3 on its walkable +X side, on the
+       door's centre line, facing +X into the ring. (-1073,0) is ~250 off the
+       north-west cot's box, as (1073,0) is off the north-east one's. Only
+       reached from the Kennels, so the tablet is up and not in the way. */
+    cam_x   = NUR_WEST_X + (NUR_WALL_RADIUS + 25);
+    cam_y   = NUR_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = NUR_WEST_Z;
+    cam_rot = 1024;                    /* facing +X, east into the room */
     nursery_arm();
 }
 
@@ -671,6 +731,7 @@ void nursery_draw(RenderContext *ctx) {
        this is the level that says whether they are why. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         nur_east_door_text(ctx);   /* east: YZ plane, approached from -X */
+        nur_west_door_text(ctx);   /* west: from +X, once the tablet is up */
         nur_tablet_text(ctx);      /* the tablet: YZ plane, approached from +X */
         /* THE CHAPTER 3 ENEMIES, drawn in every room of the chapter whether or
            not world.c places one here: the area tag makes an absent enemy free.
