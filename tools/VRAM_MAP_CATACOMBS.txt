@@ -302,6 +302,8 @@ THIS BANK'S OWN ART
   gaol door.tim              the Gaol Entry's door (=arms pg) x640 y0
   gaol_mud.tim               the Gaol Cells' mud (=crib pg)  x576 y0
   gula tablet.tim            the Nursery's gula tablet (=arms pg) x640 y0
+  gula_a.tim                 Gula frames 0,1 (=crawler_a; Kennels only) x320 y128
+  gula_b.tim                 Gula frames 2,3 (=crawler_b; Kennels only) x704 y128
   heads.tim                  Room of Heads' piles (=arms pg) x640 y0
   incinerator.tim            the Incinerator machine        x704 y256
   ladder.tim                 North Chamber's ladder         x704 y256
@@ -321,10 +323,10 @@ THE SPRITE BAND  y[128,256)   (Voff 128: sprites only - a room's 128-tall
 texture window wraps V here, so anything drawn from this band must bracket
 its own window. Blocks are 128 words x 128 rows: one enemy sheet half.)
 
-  x[320,448)  IN USE by this bank: crawler_a.tim
+  x[320,448)  IN USE by this bank: crawler_a.tim, gula_a.tim
   x[448,576)  IN USE by this bank: lumberer_a.tim
   x[576,704)  BLOCKED - reserved: cppr_pt.tim, key.tim, shadow.tim
-  x[704,832)  IN USE by this bank: crawler_b.tim
+  x[704,832)  IN USE by this bank: crawler_b.tim, gula_b.tim
   x[832,960)  IN USE by this bank: lumberer_b.tim
 
 MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)

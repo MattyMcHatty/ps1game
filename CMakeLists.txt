@@ -165,6 +165,8 @@ add_executable(horror_game
     src/maggot.c
     src/adapa.c
     src/adapa_death.c
+    src/gula.c
+    src/gula_death.c
     src/rabisu.c
     src/web.c
     src/sound.c

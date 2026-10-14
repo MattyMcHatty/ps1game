@@ -33,6 +33,7 @@
 #include "creep.h"
 #include "maggot.h"
 #include "crib.h"
+#include "gula.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -55,6 +56,7 @@ static int raf_hit_this_swing   = 0;
 static int crw_hit_this_swing   = 0;
 static int msh_hit_this_swing   = 0;
 static int lmb_hit_this_swing   = 0;
+static int gula_hit_this_swing  = 0;
 static int lst_hit_this_swing   = 0;
 static int had_hit_this_swing   = 0;
 static int crp_hit_this_swing   = 0;
@@ -111,6 +113,7 @@ void update_crucifaxe(void) {
         crw_hit_this_swing     = 0;
         msh_hit_this_swing     = 0;
         lmb_hit_this_swing     = 0;
+        gula_hit_this_swing    = 0;
         lst_hit_this_swing     = 0;
         had_hit_this_swing     = 0;
         crp_hit_this_swing     = 0;
@@ -320,6 +323,14 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !lmb_hit_this_swing) {
             if (lumberers_try_hit())
                 lmb_hit_this_swing = 1;
+        }
+
+        /* Gula (src/gula.h). Measured to her push surface like the lumberer,
+           for the lumberer's reason: she is a solid body that holds the player
+           off her centre. No knockback - she does not move, at all. */
+        if (swing_timer <= SWING_DURATION && !gula_hit_this_swing) {
+            if (gula_try_hit())
+                gula_hit_this_swing = 1;
         }
 
         /* Living Statue hit. Same shape as the mushroom's above, with two

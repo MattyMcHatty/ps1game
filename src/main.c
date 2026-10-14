@@ -144,6 +144,8 @@
 #include "maggot.h"
 #include "adapa.h"
 #include "adapa_death.h"
+#include "gula.h"
+#include "gula_death.h"
 #include "concrete_props.h"
 #include "copper_pot.h"
 #include "tentacle.h"
@@ -268,6 +270,8 @@ void reset_game(RenderContext *ctx) {
     hadad_grinder_reset(); /* ...and any half-played death in the grinders     */
     adapa_reset();         /* ...and Adapa, and the watch that arms him        */
     adapa_death_reset();   /* ...and any half-played death of his             */
+    gula_reset();          /* ...and Gula, the Kennels' one-off, and her howl  */
+    gula_death_reset();    /* ...and any half-played death of hers            */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
     rabisus_reset();
@@ -661,6 +665,17 @@ static void update_current_area(GameState area) {
         update_adapa();
         player_status_update();
         adapa_death_update();
+        update_particles();
+        return;
+    }
+    /* ...and GULA'S DEATH (src/gula_death.h), in the Kennels: Adapa's scene
+       exactly. update_gula stays (her state, and any flash, keep ticking);
+       nothing else runs. Her eight dogs are all dead by construction - that is
+       what called her. */
+    if (area == STATE_KENNELS && gula_death_cutscene()) {
+        update_gula();
+        player_status_update();
+        gula_death_update();
         update_particles();
         return;
     }
@@ -3033,8 +3048,16 @@ static void update_current_area(GameState area) {
         update_crawlers();
         update_lumberers();
         update_demon_dogs();
+        /* GULA (src/gula.h): watches for the eighth dog to fall, then fades in
+           on the inlay and fights from there. Her death director arms off the
+           killing blow and owns the room through the branch further up. */
+        update_gula();
+        gula_death_update();
 
-        if (kennels_south_door_triggered(lock)) {
+        /* THE SEAL, tested BEFORE the trigger so the trigger is not polled
+           while she lives (ADDING_A_BOSS_ENCOUNTER.txt STEP 9); her death
+           re-arms it as the seal lifts. */
+        if (!gula_seals_door() && kennels_south_door_triggered(lock)) {
             pending_area = STATE_NURSERY;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
@@ -4663,6 +4686,12 @@ int main(int argc, const char **argv) {
                    mansion's and the garden's texture RAM at the same
                    transition. The two are deliberately separate calls because
                    they need different places in this function's ordering. */
+                /* ...EXCEPT THE KENNELS, which has a bank of its own: Gula's
+                   howl and her spirit's woosh did not fit in the chapter's,
+                   so everything the room plays was copied into one made for
+                   it (SND_BANK_KENNELS in src/sound.h). Before the chapter
+                   test, which it would otherwise match. */
+                (pending_area == STATE_KENNELS) ? SND_BANK_KENNELS :
                 area_is_catacombs(pending_area) ? SND_BANK_CATACOMBS :
                 SND_BANK_HOUSE);
 
@@ -5233,8 +5262,17 @@ int main(int argc, const char **argv) {
                for the same reason: it means "put the crawler back where crawlers
                can exist", and every Chapter 3 room falls out of that without
                being named. */
-            if (area_bank_of(pending_area) & TEXBANK_CATACOMBS)
+            /* >>> NOT IN THE KENNELS. <<< GULA's two halves are on the
+               crawler's two blocks while the player is in there (src/gula.h),
+               streamed by kennels_upload_textures() above; no crawler is ever
+               placed in the Kennels, and every other Chapter 3 room puts the
+               crawler back through this same line on the way in. */
+            if ((area_bank_of(pending_area) & TEXBANK_CATACOMBS) &&
+                pending_area != STATE_KENNELS)
                 crawlers_upload_textures();
+            else if (pending_area == STATE_KENNELS) {
+                /* Gula's, and not the spiders' or the flowers' either */
+            }
             else if (pending_area == STATE_OUTSIDE_CATACOMBS ||
                 pending_area == STATE_MAZE_ONE ||
                 pending_area == STATE_MAZE_TWO ||
@@ -6177,6 +6215,11 @@ int main(int argc, const char **argv) {
                title-screen load only restores further down. */
             adapa_room_enter(pending_area);
             adapa_death_enter();
+            /* Gula: parked for this room - watching, in the Kennels. Whether
+               she is due is asked every frame (the dogs-dead byte a load
+               installs arrives further down). */
+            gula_room_enter(pending_area);
+            gula_death_enter();
             current_area = pending_area;
             game_state   = pending_area;
             /* If this transition came from a title-screen Load Game, overwrite
@@ -6515,7 +6558,9 @@ int main(int argc, const char **argv) {
                                /* Adapa's death: the log line is posted as
                                   control returns, so the cutscene list. */
                                ((area == STATE_PIANO_ROOM ||
-                                 area == STATE_LIBRARY) && adapa_death_cutscene());
+                                 area == STATE_LIBRARY) && adapa_death_cutscene()) ||
+                               /* ...and Gula's, the same scene. */
+                               (area == STATE_KENNELS && gula_death_cutscene());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();

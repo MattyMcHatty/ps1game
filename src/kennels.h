@@ -17,8 +17,9 @@
      - at the north end, TWO KENNELS: barred cages x[-1200,-50] and
        x[4,1200], z[3700,4299], behind a bars front at z[3600,3700] (the
        collision proxy stops it at y=-400, the drawn bars at y=-600);
-     - FOUR square posts, 200 across and 600 tall, at (+-700, 900) and
-       (+-700, 2500);
+     - FOUR square posts, 200 across, at (+-700, 900) and (+-700, 2500):
+       600 tall in the collision proxy, but DRAWN floor to ceiling (y 0 to
+       -800 in Kennels.smx) - read the drawn one for anything seen;
      - a 4x4 inlay of gula-tablet tiles on the floor, x[-400,400]
        z[1400,2200], and fourteen GULA CODES panels high on the back walls.
 
@@ -31,6 +32,11 @@
    along +Z - the Throat's south door's terms.
 
    world.c seeds nothing in it; the lever puzzle places its own eight dogs.
+
+   GULA (src/gula.h). When the eighth dog dies she fades in on the inlay, and
+   the door is sealed until her death scene ends. Her sheet streams over the
+   CRAWLER's two blocks, so no crawler may be placed here, and the room has a
+   sound bank of its own (SND_BANK_KENNELS, src/sound.h).
 
    THE LEVER PUZZLE (src/kennels_puzzle.h). Four cells - the north-west bay,
    the two kennels, the north-east bay - each behind a Bars gate in its

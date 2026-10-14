@@ -587,7 +587,25 @@ typedef enum {
        ON VOICE 21, BORROWED from SFX_EXPLODE (BOSS|ASAG) and SFX_LMBR_YELL
        (CATACOMBS) — see sfx_channel() for the poison check. */
     SFX_ADAPA      = 58,  /* BANKED (house). Adapa's cry, 4.18 s               */
-    SFX_COUNT      = 59,
+    /* ---- GULA ---------------------------------------------------------------
+       The Kennels' one-off (src/gula.c): her howl, played on a C-side loop -
+       howl, one second of silence, howl - from the moment she starts to fade
+       in until the killing blow, which plays it once more as her death cry
+       (src/gula_death.c, Adapa's beat). 11025 Hz mono, 1330 blocks = 3.38 s =
+       203 frames, which is where GULA_HOWL_FRAMES comes from. 21,280 SPU bytes.
+
+       SND_BANK_KENNELS ONLY, the bank made for her (below): the CATACOMBS bank
+       had 12,080 bytes spare and this clip plus the spirit's woosh are 49 KB.
+
+       ON VOICE 20, BORROWED from SFX_DMNSPEAK (BOSS|ASAG), SFX_HAD_DIE
+       (GARDEN) and SFX_CREEP (CATACOMBS): none of the three is in the Kennels
+       bank, and all three are one-shots, so none has ever moved voice 20's
+       repeat address (sound.h's poison note; howl.vag carries its loop flag on
+       block 1329 of 1330, so it does not poison it either). Off the pool
+       because 3.4 s is far too long for it: FIRST_VOICE + 59 % 8 is SFX_HURT's
+       slot, and the shockwave plays SFX_HURT on every hit. */
+    SFX_HOWL       = 59,  /* BANKED (kennels). Gula's howl, 3.38 s              */
+    SFX_COUNT      = 60,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.
@@ -698,6 +716,29 @@ typedef enum {
        chapter_enter_catacombs() does the other - because they are needed at
        different points in STATE_LOADING's ordering. */
     SND_BANK_CATACOMBS = 32,
+    /* THE KENNELS, AND NOTHING ELSE IS ON IT. Split off the CATACOMBS bank for
+       GULA (src/gula.h): her howl and the spirit's woosh are 49 KB between
+       them, and CATACOMBS had 12 KB spare under the largest bank - so they fit
+       nowhere the Kennels already loaded. A room-sized bank instead holds
+       EVERYTHING the Kennels plays that is not resident:
+
+           DOGBARK  DOGDIE   the eight caged dogs (src/kennels_puzzle.c)
+           MCHNE             the cell gates winching (src/bars.c)
+           CTCMBDR           the catacomb door, played on the way OUT of here
+                             (a door sound's bank is the room being LEFT)
+           WOOSH  HOWL       Gula, and her spirit
+
+       Every clip is a SECOND copy of its tag; that is the deal sfx_bank[]'s
+       mask makes. 133,248 bytes (py tools/spu_budget.py), far under the
+       largest bank, so `spare` does not move from 12,080.
+
+       >>> THE PRICE IS A BANK SWAP ON BOTH SIDES OF THE KENNELS' ONE DOOR. <<<
+       The Nursery is CATACOMBS, so going in reads this bank and coming out
+       reads that one back (~225 KB, about a second behind the door's black
+       screen). And it is a placement rule: a Chapter 3 enemy put in the
+       Kennels later is MUTE until its clips are tagged here as well. The next
+       free bit is 128, and sfx_bank[] is a uint8_t, so it is the last one. */
+    SND_BANK_KENNELS = 64,
 } SoundBank;
 
 void sound_init(void);

@@ -1052,6 +1052,29 @@ KNOWN_STREAM_PAIRS = [
     ("plinth_diamond.tim",           "gula codes.tim"),
     ("xt_dr_cmplt.tim",              "gula codes.tim"),
     ("xt_dr_lckd.tim",               "gula codes.tim"),
+    # ...and GULA (src/gula.c), the Kennels' one-off, over the CRAWLER's two
+    # blocks: gula_a (frames 0-1) at x[320,448) y128 and gula_b (frames 2-3) at
+    # x[704,832) y128, both 8bpp 256x128 on ONE palette at crawler_a's CLUT line
+    # (672,506). The brief was the full 256x256 sheet at more than 16 colours,
+    # and this is the only 8bpp 256x256 that fits: no crawler is ever placed in
+    # the Kennels, main.c skips the crawler upload for that room alone, and
+    # every other Chapter 3 room's entry re-uploads the crawler (pixels and
+    # CLUTs). STREAMED off the disc on entry, so it costs no heap at rest. The
+    # crawler's own sharers (spider, flower, zombies, the logo) are listed so
+    # the overlaps read as the same three-way share one tenant further out.
+    ("crawler_a.tim",      "gula_a.tim"),
+    ("crawler_b.tim",      "gula_b.tim"),
+    ("spdr_rst.tim",       "gula_a.tim"),
+    ("spdr_wk.tim",        "gula_a.tim"),
+    ("rafflesia1.tim",     "gula_a.tim"),
+    ("rafflesia2.tim",     "gula_a.tim"),
+    ("zombie_sleep.tim",   "gula_b.tim"),
+    ("zombie_alert.tim",   "gula_b.tim"),
+    ("er_logo_128.tim",    "gula_b.tim"),
+    # The palette: both halves carry the SAME 256 words at (672,506), so their
+    # CLUTs coincide by design, and crawler_a's is the line they borrow.
+    ("gula_a.tim",         "gula_b.tim"),
+    ("crawler_a.tim",      "gula_b.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

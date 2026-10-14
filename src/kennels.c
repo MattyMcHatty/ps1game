@@ -32,6 +32,8 @@
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 #include "kennels_puzzle.h"     /* the four levers and the four cell gates    */
 #include "demondog.h"           /* the eight caged dogs: sheet, draw          */
+#include "gula.h"               /* ...and what their deaths call up            */
+#include "gula_death.h"
 
 /* The Kennels — see kennels.h. Copied from src/neck.c. */
 
@@ -88,6 +90,14 @@ static void kn_view_resolve(int snap) {
 #define KN_FOG_R             7
 #define KN_FOG_G             6
 #define KN_FOG_B             9
+
+/* The gula-tablet inlay, x[-400,400] z[1400,2200], with a margin for the
+   cull key (a poly's first vertex, which may sit on the box's edge). The tiles
+   Gula stands on, lit through the fog while she is up (src/gula.h). */
+#define KN_INLAY_X0       (-410)
+#define KN_INLAY_X1         410
+#define KN_INLAY_Z0        1390
+#define KN_INLAY_Z1        2210
 
 /* Wall standoff. The chapter's 195. The posts stand 600 in from the side walls
    and 800 off the south wall, so nothing here is a squeeze. */
@@ -256,6 +266,12 @@ void kennels_upload_textures(void) {
        the two reads never hold their buffers at once. Its own read and its own
        bracket; the same VRAM slot the mansion uses (src/demondog.c). */
     demon_dogs_upload_texture();
+
+    /* ...and GULA's two halves, last and on the same terms: their own 34 KB
+       scratch, freed before this returns. They land on the CRAWLER's two
+       blocks, which is why main.c skips the crawler upload for this room
+       (src/gula.h). A no-op once she is dead. */
+    gula_upload_textures();
 }
 
 /* ---- THE SOUTH DOOR --------------------------------------------------------
@@ -301,6 +317,8 @@ int kennels_south_door_triggered(int lock) {
 /* The door's floating sign. Same shape as every other sign in the game: opaque
    within KN_FADE_NEAR, gone by KN_TEXT_RADIUS. */
 static void kn_south_door_text(RenderContext *ctx) {
+    /* No offer on a door that will not answer: sealed while Gula lives. */
+    if (gula_seals_door()) return;
     int32_t dx = cam_x - KN_SOUTH_X;
     int32_t dz = cam_z - KN_SOUTH_Z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
@@ -376,14 +394,25 @@ static void draw_kennels_smd(RenderContext *ctx) {
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
+    /* GULA LIGHTS HER OWN SPOT (src/gula.h): while she is up, the gula-tablet
+       inlay she stands on is exempt from the distance cull and drawn at her
+       fade instead of the fog's. Only those sixteen tiles - the room's view
+       distance does not move. 0 before the eighth dog and after she is gone. */
+    int32_t reveal = gula_reveal();
+
     for (i = 0; i < n; i++) {
         /* THE REJECT PATH READS cull_keys, NOT THE MESH. */
         uint8_t stride = cull_keys[i].stride;
+        int     inlay  = 0;
         {
             int32_t dx = (int32_t)cull_keys[i].x - cam_x;
             int32_t dz = (int32_t)cull_keys[i].z - cam_z;
             int32_t cd = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-            if (cd > cull)                        { p += stride; continue; }
+            if (reveal > 0 &&
+                cull_keys[i].x >= KN_INLAY_X0 && cull_keys[i].x <= KN_INLAY_X1 &&
+                cull_keys[i].z >= KN_INLAY_Z0 && cull_keys[i].z <= KN_INLAY_Z1)
+                inlay = 1;
+            if (cd > cull && !inlay)              { p += stride; continue; }
             if (dx * sn + dz * cs < -(700 << 12)) { p += stride; continue; }
         }
 
@@ -457,6 +486,10 @@ static void draw_kennels_smd(RenderContext *ctx) {
 
         uint8_t tex_idx = (i < KENNELS_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < KENNELS_TEX_COUNT);
+
+        /* ...and only the TABLET tiles in that box (texture slot 1): her fade
+           as a floor under the fog's, so it never darkens a near tile. */
+        if (inlay && tex_idx == 1 && reveal > fog_factor) fog_factor = reveal;
 
         uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + KN_FOG_R * (256 - fog_factor)) >> 8);
         uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + KN_FOG_G * (256 - fog_factor)) >> 8);
@@ -567,10 +600,15 @@ void kennels_draw(RenderContext *ctx) {
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
             demon_dogs_set_texwindow(&tw);   /* the strip is at Voff 128 too */
+            gula_set_texwindow(&tw);         /* ...and Gula's halves         */
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
         draw_demon_dogs(ctx);   /* the eight in the cells (src/kennels_puzzle.h) */
+        /* GULA and her wave, then her spirit (src/gula.h). Both want the plain
+           view matrix, which nothing above has replaced. */
+        draw_gula(ctx);
+        gula_death_draw(ctx);
         /* AFTER the enemies: the bars need the 128 window they restore. */
         kennels_puzzle_draw(ctx);
     }

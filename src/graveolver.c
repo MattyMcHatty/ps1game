@@ -20,6 +20,7 @@
 #include "rafflesia.h"
 #include "mushroom.h"
 #include "lumberer.h"
+#include "gula.h"
 #include "creep.h"
 #include "maggot.h"
 #include "rabisu.h"
@@ -314,6 +315,16 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 14; best_idx = i;
         }
     }
+    /* Gula, the Kennels' one-off (src/gula.h): one body, rooted, hittable only
+       while she fights - not while she fades in, not while she dies. */
+    if (gula_hittable()) {
+        int32_t gx, gy, gz, ghh, ghw;
+        gula_body(&gx, &gy, &gz, &ghh, &ghw);
+        if (weapon_aim_in_circle(gx, gy, gz, ghw, ghh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 15; best_idx = 0;
+        }
+    }
     /* NO ADAPA LOOP, AND THAT IS THE DESIGN, NOT AN OVERSIGHT. Only the
        Helluminator can hurt him (src/adapa.h), so a round goes through him as
        if he were not there — he is a ghost — and is spent on whatever is
@@ -476,6 +487,9 @@ static void graveolver_fire(void) {
            table doubles DMG_FLAME) — so 20 or 10 shots to kill. */
         rabisu_damage(&rabisus[best_idx],
                       rabisu_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 15) {
+        /* Gula: 1 from any round - her table only names DMG_HOLY. */
+        gula_damage(gula_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 9) {
         /* ASAG'S HEAD. >>> NO WEAKNESS TABLE AND NO damage_scale() CALL. <<<
            "Every weapon deals 1x damage to Asag" was the brief, in as many

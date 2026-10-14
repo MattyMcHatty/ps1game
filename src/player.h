@@ -462,6 +462,11 @@ typedef enum {
     FLAG_ADAPA_PIANO_ARMED,
     FLAG_ADAPA_LIBRARY_ARMED,
     FLAG_ADAPA_DEAD,
+    /* GULA, the Kennels' one-off (src/gula.h), has been killed. Set on the
+       killing blow, not at the end of her death scene (Adapa's reasoning).
+       The only thing saved about her: alive, she is re-derived on every entry
+       from the Kennels' dogs-dead byte. Bit 8 of game_flags2. */
+    FLAG_GULA_DEAD,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

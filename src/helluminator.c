@@ -26,6 +26,7 @@
 #include "asag_fight.h"
 #include "living_statue.h"
 #include "adapa.h"
+#include "gula.h"
 #include "vampire.h"
 #include "particles.h"   /* spawn_blood_burst, for the vampire */
 #include "damage.h"
@@ -389,6 +390,15 @@ static void hell_burn_tick(void) {
        hit block, and both say so. adapa_burnable() is the whole gate — FLOAT in
        the current room; fading, waiting and dying he cannot be touched. A tick
        is 1 at 1x, so five seconds of burn kill him, one per arrival. */
+    /* GULA, at 2x (her table doubles DMG_HOLY): two a second, so ten seconds
+       of burn put her down. gula_hittable() is FIGHT in the current room -
+       fading in and dying she cannot be touched. */
+    if (gula_hittable()) {
+        int32_t gx, gy, gz, ghh, ghw;
+        gula_body(&gx, &gy, &gz, &ghh, &ghw);
+        if (HIT(gx, gy, gz, ghw, ghh))
+            gula_damage(gula_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
+    }
     if (adapa_burnable()) {
         int32_t ax, ay, az;
         adapa_body(&ax, &ay, &az);

@@ -282,6 +282,11 @@
                      hit (he fades for exactly its length) and on his death.
                      Voice 21, borrowed from SFX_EXPLODE (BOSS|ASAG). -->
                 <file name="ADAPA.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\adapa.vag"/>
+                <!-- Gula (src/gula.c), SND_BANK_KENNELS - the bank made for
+                     her, because CATACOMBS had 12 KB spare. 11025 Hz mono,
+                     3.38 s, 21,280 SPU bytes; re-keyed from C (howl, 1 s,
+                     howl...) and once more on her death. Voice 20. -->
+                <file name="HOWL.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\howl.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -1591,6 +1596,19 @@
                  alias of bars.tim that is NOT shipped (tools/vram_map.py). -->
             <file name="KENNELS.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\kennels.smd"/>
             <file name="GULACODE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gula codes.tim"/>
+            <!-- GULA, the Kennels' one-off (src/gula.h). Her four frames are
+                 one 256x256 sheet, and the brief was that sheet in FULL at
+                 8bpp and 256 colours - no 2x2, no 4bpp. An 8bpp texture 256
+                 rows tall cannot be placed in this VRAM (V is eight bits), so
+                 it ships as two 256x128 halves on ONE palette, written by
+                 tools/split_gula_sheet.py: GULAA frames 0-1 over the crawler's
+                 x[320,448) y128, GULAB frames 2-3 over its x[704,832) y128,
+                 the CLUT on crawler_a's line (672,506). No crawler is placed in
+                 the Kennels and every other Chapter 3 room re-uploads the
+                 crawler on entry. STREAMED on entry to the Kennels, not
+                 registered: 64 KB resident was not there to spend. -->
+            <file name="GULAA.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\gula_a.tim"/>
+            <file name="GULAB.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\gula_b.tim"/>
 
             <!-- THE GULA TABLET, the Nursery's prop: a 600 x 800 x 50 stone
                  slab standing across its west door. Exported IN PLACE in the

@@ -33,6 +33,7 @@
 #include "hatch_doors.h"       /* The Hatch's pit doors, solid at any pose  */
 #include "catacomb_doors.h"    /* Outside Catacombs' two door leaves        */
 #include "lumberer.h"          /* the Lumberer plugs a corridor (area-tagged) */
+#include "gula.h"              /* ...and Gula, rooted in the Kennels         */
 #include "asag.h"              /* ...and Asag, solid at any pose OR position */
 
 CollisionRoom current_collision_room;
@@ -926,6 +927,10 @@ void apply_collision_reception(void) {
        the module, so it never throws the player through a wall. See
        LMB_HOLD_DIST in lumberer.h. */
     lumberers_collide(&cam_x, cam_y, &cam_z, LMB_WALL_LIKE_PUSH);
+    /* Gula, the Kennels' one-off (src/gula.h): rooted in open floor, but given
+       the lumberers' place and radius all the same, so her push and the walls
+       can never disagree about where the player ends up. */
+    gula_collide(&cam_x, cam_y, &cam_z, GULA_WALL_LIKE_PUSH);
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly_y(&r->walls[i], &cam_x, &cam_z,

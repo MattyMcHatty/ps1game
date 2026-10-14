@@ -91,6 +91,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\BUZZ.VAG;1",
     "\\SND\\STNSLIDE.VAG;1",
     "\\SND\\ADAPA.VAG;1",
+    "\\SND\\HOWL.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -116,11 +117,11 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        CATACOMBS the largest bank: 193,536 -> 225,152, so `spare` falls 19,952
        -> 12,080 (py tools/spu_budget.py). The next Catacombs clip comes out of
        that 12 KB directly. */
-    [SFX_DOGBARK]    = SND_BANK_HOUSE | SND_BANK_CATACOMBS,
+    [SFX_DOGBARK]    = SND_BANK_HOUSE | SND_BANK_CATACOMBS | SND_BANK_KENNELS,
     [SFX_AXEHIT]     = SND_RESIDENT,
     /* Re-cut from 22050 Hz to the 11025 house standard (20.1 KB -> 9.8 KB) to
        pay for SFX_RUMBLE's house copy below. Nothing times off its length. */
-    [SFX_DOGDIE]     = SND_BANK_HOUSE | SND_BANK_CATACOMBS,
+    [SFX_DOGDIE]     = SND_BANK_HOUSE | SND_BANK_CATACOMBS | SND_BANK_KENNELS,
     [SFX_UNLOCK]     = SND_RESIDENT,
     [SFX_DOOR]       = SND_RESIDENT,   /* plays on the way OUT of the courtyard,
                                           while the BOSS bank is still in       */
@@ -167,7 +168,8 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        against a 231 KB largest, so the 17.3 KB second copy does not move
        `spare` at all (tools/ADDING_A_SOUND.txt STEP 3 — `spare` is the region
        less the LARGEST bank, and CATACOMBS is nowhere near it). */
-    [SFX_MCHNE]      = SND_BANK_HOUSE | SND_BANK_CATACOMBS,
+    [SFX_MCHNE]      = SND_BANK_HOUSE | SND_BANK_CATACOMBS |
+                       SND_BANK_KENNELS,   /* the Kennels' cell gates */
     /* >>> THESE THREE WERE SND_RESIDENT AND DID NOT NEED TO BE. <<< They fire
        mid-fight and a bank swap is a CD read, so residency looked like the only
        way to guarantee they were loaded. It was not: they are played by
@@ -292,7 +294,8 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     /* ...and HOUSE as well, for ADAPA's spirit (src/adapa.c): his death in the
        Library or the Piano Room ends on Hadad's own rise, woosh and all, and
        both rooms are on the house bank. A second copy at 28,352 SPU bytes. */
-    [SFX_WOOSH]      = SND_BANK_GARDEN | SND_BANK_HOUSE,
+    [SFX_WOOSH]      = SND_BANK_GARDEN | SND_BANK_HOUSE |
+                       SND_BANK_KENNELS,   /* ...and GULA's spirit, src/gula_death.c */
     /* The Greenhouse vine curtain's grind: SFX_MCHNE re-cut for this bank,
        because the original is HOUSE-only and too big to copy here. See the
        block on SFX_MCHNE_GH in sound.h — it is what makes GARDEN the
@@ -325,7 +328,7 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        through a one-way door, so there is nowhere else it could be
        wanted and a second bit would cost its own copy for nothing. */
     [SFX_GLUG]       = SND_BANK_CATACOMBS,
-    [SFX_CTCMBDR]    = SND_BANK_CATACOMBS,
+    [SFX_CTCMBDR]    = SND_BANK_CATACOMBS | SND_BANK_KENNELS,   /* leaving the Kennels */
     [SFX_CRWL_SCRM]  = SND_BANK_CATACOMBS,
     [SFX_CRWL_WHSP]  = SND_BANK_CATACOMBS,
     /* The Lumberer's two, CATACOMBS and nothing else: src/lumberer.c is their
@@ -351,6 +354,10 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
     /* Adapa's cry, HOUSE only: src/adapa.c is its only caller and he is only
        ever in the Library or the Piano Room. See sound.h for its voice. */
     [SFX_ADAPA]      = SND_BANK_HOUSE,
+    /* Gula's howl, KENNELS only: src/gula.c and src/gula_death.c are its only
+       callers and she is only ever in the Kennels. The bank exists for her -
+       see SND_BANK_KENNELS in sound.h for what else had to come with her. */
+    [SFX_HOWL]       = SND_BANK_KENNELS,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -691,6 +698,11 @@ static int sfx_channel(SfxID id) {
        explode.vag carries its loop flag on block 2115 of 2116 and adapa.vag on
        1644 of 1645. */
     if (id == SFX_ADAPA)       return 21;   /* SFX_EXPLODE's (BOSS)   one-shot */
+    /* GULA'S HOWL takes 20 (sound.h): its three other claimants - DMNSPEAK,
+       HAD_DIE, CREEP - are all one-shots and none is in the KENNELS bank, the
+       only bank the howl is in. The howl is re-keyed from C, never a hardware
+       loop, so it leaves the voice clean for them too. */
+    if (id == SFX_HOWL)        return 20;   /* SFX_DMNSPEAK's (BOSS)  one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

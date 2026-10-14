@@ -170,7 +170,20 @@ clip in sound.c first, or ask "what if" without editing anything:
     py tools\spu_budget.py
     py tools\spu_budget.py SFX_TNTCL_DIE:CATACOMBS
 
-As of the MAGGOT'S DEATH CRY (SFX_TNTCL_DIE's fourth copy, Oct 2026):
+As of GULA'S HOWL (Oct 2026), which needed a SEVENTH bank:
+
+    bank_base 0x46150   region 237232
+    house 217280   boss 190336   garden 177216   intro 22080   asag 170240
+    catacombs 225152   kennels 133248   spare 12080
+
+  CATACOMBS HAD 12 KB LEFT AND THE HOWL + THE SPIRIT'S WOOSH WERE 49 KB, so
+  the Kennels was given SND_BANK_KENNELS (bit 64): a copy of every clip that
+  room plays - dogs, gate machinery, the catacomb door, howl, woosh. A
+  ROOM-SIZED BANK IS THE ANSWER WHEN ONE ROOM OUTGROWS ITS CHAPTER'S, and
+  its price is a bank read on both sides of that room's doors. sfx_bank[] is
+  a uint8_t, so 128 is the last free bit. See sound.h.
+
+Earlier, as of the MAGGOT'S DEATH CRY (SFX_TNTCL_DIE's fourth copy, Oct 2026):
 
     bank_base 0x46150   region 237232
     house 162560   boss 190336   garden 177216   intro 22080   asag 170240
