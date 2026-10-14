@@ -44,14 +44,16 @@ static void *kn_buff = NULL;
    THE CHAPTER'S MACHINERY: cull and fog-far are equal, the base is scaled by
    what the player is carrying, and the scale eases rather than jumping.
 
-   450/1600 and the full +50%/+50% lantern bonus - the Neck's numbers. The
-   Nursery caps its bonus because of six lit cots; nothing here glows. */
-#define KN_BASE_FOG_NEAR   450
-#define KN_BASE_FOG_FAR   1600
+   366/1300 and the ~+46%/+46% lantern bonus - the Up Down Maze's numbers
+   (src/up_down_maze.c says why): 1300 / 1900 / 2500 at rest, raised and lit.
+   366/1300 keeps the 450/1600 ramp's shape, only shorter. Anything that
+   lengthens these has to be measured BURNING, not at rest. */
+#define KN_BASE_FOG_NEAR   366
+#define KN_BASE_FOG_FAR   1300
 
 #define KN_VIEW_UNIT        256
-#define KN_VIEW_HELL_BONUS  128   /* +50% while the lantern is in hand   */
-#define KN_VIEW_BURN_BONUS  128   /* +50% more while it is actually lit  */
+#define KN_VIEW_HELL_BONUS  118   /* ~+46% while the lantern is in hand   */
+#define KN_VIEW_BURN_BONUS  118   /* ~+46% more while it is actually lit  */
 #define KN_VIEW_RATE          8   /* 1/256ths a frame; one bonus in 16 frames */
 
 static int32_t kn_view     = KN_VIEW_UNIT;       /* eased scale, 1/256ths */

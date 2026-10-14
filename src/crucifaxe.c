@@ -39,7 +39,6 @@ static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
 
 int swing_timer    = 0;
-static int swing_cooldown       = 0;   /* SWING_COOLDOWN rest after each swing */
 static int square_prev          = 0;   /* Square state last frame, for edge-detect */
 static int hit_this_swing       = 0;
 static int crate_hit_this_swing = 0;
@@ -87,7 +86,7 @@ void update_crucifaxe(void) {
        auto-repeats. The swing_timer==0 gate already blocks a new swing until the
        current swing+return animation finishes (SWING_TOTAL frames), so that whole
        animation doubles as the cooldown: a fresh press is required after it.
-       SWING_COOLDOWN more rest frames follow it, doubling press-to-press. */
+       The slow return is sized to be the whole cooldown (crucifaxe.h). */
     int square_held = 0;
     if (pad_buff_len[0]) {
         PadResponse *pad = (PadResponse *)pad_buff[0];
@@ -96,9 +95,7 @@ void update_crucifaxe(void) {
     int square_just = square_held && !square_prev;
     square_prev = square_held;
 
-    if (swing_cooldown > 0) swing_cooldown--;
-
-    if (game_state != STATE_MENU && swing_timer == 0 && swing_cooldown == 0 &&
+    if (game_state != STATE_MENU && swing_timer == 0 &&
         square_just) {
         swing_timer            = 1;
         hit_this_swing         = 0;
@@ -510,8 +507,7 @@ void update_crucifaxe(void) {
         }
 
         if (++swing_timer > SWING_TOTAL) {
-            swing_timer    = 0;
-            swing_cooldown = SWING_COOLDOWN;
+            swing_timer = 0;
         }
     }
 }
