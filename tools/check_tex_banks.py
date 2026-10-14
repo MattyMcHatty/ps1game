@@ -221,6 +221,9 @@ AREAS = {
                   # THE KENNELS, behind the Nursery's west door: owns gula
                   # codes.tim, and reaches the gula tablet's and the bars'.
                   "kennels_upload_textures",
+                  # THE LAMASHTU ARENA, behind The Head's east door: the
+                  # Tomb's three, cobble, the loculus and the inner door.
+                  "lamashtu_arena_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

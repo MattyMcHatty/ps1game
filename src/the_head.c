@@ -215,8 +215,8 @@ void the_head_upload_textures(void) {
      WEST  x=0     -> the Neck, through that room's east door
      EAST  x=2400  -> LOCKED BY THE ARM SWITCHES (src/arm_puzzle.h): a red
                       "Locked by some mechanism" until FLAG_HEAD_ARMS_SOLVED,
-                      then "Press O to enter". The room beyond is not built, so
-                      the press only logs "Coming Soon".
+                      then "Press O to enter", through to the Lamashtu Arena's
+                      west door (src/lamashtu_arena.h).
 
    The east door is in the relief wall, 190 behind the proxy's east wall at
    x=2210, so its trigger and fade are measured from THAT wall's face at the
@@ -370,6 +370,19 @@ void the_head_spawn_west(void) {
     cam_vy  = 0;
     cam_z   = TH_WEST_Z;
     cam_rot = 1024;                    /* facing +X, east toward the relief */
+    the_head_arm();
+}
+
+void the_head_spawn_east(void) {
+    /* Back from the Lamashtu Arena: 220 off the proxy's east wall (x=2210) on
+       its walkable -X side, on the door's centre line, facing -X into the
+       hall. Arms 4 and 5 stand at z 1236 and 1781, 264 and 281 off this line,
+       so the spawn is clear of both. */
+    cam_x   = TH_EAST_REACH_X - (TH_WALL_RADIUS + 25);
+    cam_y   = TH_EYE_Y;
+    cam_vy  = 0;
+    cam_z   = TH_EAST_Z;
+    cam_rot = 3072;                    /* facing -X, west into the hall */
     the_head_arm();
 }
 

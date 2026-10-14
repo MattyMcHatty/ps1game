@@ -306,6 +306,12 @@ typedef enum {
                                 cots are lit). Chapter 3's thirty-third room:
                                 a long hall ending in two barred kennels. See
                                 src/kennels.h. Appended, not inserted. */
+    STATE_LAMASHTU_ARENA,    /* THE LAMASHTU ARENA, through The Head's east
+                                door (unlocked by the arm switches). Chapter
+                                3's thirty-fourth room: a great hall of
+                                twenty-four pillars, where Lamashtu will be
+                                fought. See src/lamashtu_arena.h. Appended,
+                                not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

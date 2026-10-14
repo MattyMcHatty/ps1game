@@ -1596,6 +1596,14 @@
                  alias of bars.tim that is NOT shipped (tools/vram_map.py). -->
             <file name="KENNELS.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\kennels.smd"/>
             <file name="GULACODE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gula codes.tim"/>
+
+            <!-- THE LAMASHTU ARENA, the chapter's THIRTY-FOURTH room, through
+                 The Head's east door (unlocked by the arm switches). A great
+                 hall of twenty-four pillars where Lamashtu will be fought. See
+                 src/lamashtu_arena.h. It owns NO texture: COBBLE, LOCULUS and
+                 CTCMBDR are borrowed, the Tomb's set. The biggest mesh on the
+                 disc (2097 prims), so it sizes the room and cull arenas. -->
+            <file name="LMSARENA.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\lamashtu_arena.smd"/>
             <!-- GULA, the Kennels' one-off (src/gula.h). Her four frames are
                  one 256x256 sheet, and the brief was that sheet in FULL at
                  8bpp and 256 colours - no 2x2, no 4bpp. An 8bpp texture 256

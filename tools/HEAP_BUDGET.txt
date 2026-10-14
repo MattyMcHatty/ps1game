@@ -173,18 +173,18 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x8012E4B4
+  _end (heap start)   0x80130330
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             710796 bytes (694 KB)
+  heap size             702992 bytes (687 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak bank      301056 bytes (294 KB)  42.4%   <- MAZE_ONE (largest room set)
-  kept buffers           28672 bytes (28 KB)   4.0%
+  texmgr peak bank      301056 bytes (294 KB)  42.8%   <- MAZE_ONE (largest room set)
+  kept buffers           28672 bytes (28 KB)   4.1%
   chapter-scoped         43008 bytes (42 KB)   6.1%
-  PERMANENT TOTAL       372736 bytes (364 KB)  52.4%
-  FREE AT REST          338060 bytes (330 KB)  47.6%   <- STACK ALREADY SUBTRACTED
-                                  (was 486212 before the stack was counted;
+  PERMANENT TOTAL       372736 bytes (364 KB)  53.0%
+  FREE AT REST          330256 bytes (323 KB)  47.0%   <- STACK ALREADY SUBTRACTED
+                                  (was 478408 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -243,7 +243,7 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 330 KB printed above.
+  once read_file's margin comes off - against the 322 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

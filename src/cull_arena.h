@@ -52,11 +52,12 @@
  * the mesh would be describing whatever room ran last.
  */
 
-/* Sized to the largest mesh on the disc, which is Maze One's. cull_arena.c
+/* Sized to the largest mesh on the disc, which is the Lamashtu Arena's (2097;
+ * Maze One's 2056 was the largest until October 2026). cull_arena.c
  * static-asserts every room that uses the arena against this, so a re-export
  * that grows a mesh past it is a compile error rather than an overrun.
  */
-#define CULL_ARENA_PRIMS 2056
+#define CULL_ARENA_PRIMS 2097
 
 typedef struct { int16_t x, z; uint8_t stride, pad; } CullKey;
 typedef struct { int16_t min_x, max_x, min_z, max_z; } CullBox;

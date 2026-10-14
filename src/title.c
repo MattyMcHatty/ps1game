@@ -266,6 +266,7 @@ static const char *const level_names[] = {
     "NECK",
     "THE HEAD",
     "KENNELS",
+    "LAMASHTU ARENA",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -332,6 +333,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* NECK */
     STATE_LOADING,        /* THE HEAD */
     STATE_LOADING,        /* KENNELS */
+    STATE_LOADING,        /* LAMASHTU ARENA */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -396,6 +398,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_NECK,
     STATE_THE_HEAD,
     STATE_KENNELS,
+    STATE_LAMASHTU_ARENA,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------

@@ -11,6 +11,7 @@
  *
  * The ten largest meshes on the disc at generation time:
  *
+ *    124456 bytes   61 sectors  lamashtu_arena.smd
  *    122340 bytes   60 sectors  maze_one.smd
  *    114824 bytes   57 sectors  up_down_maze.smd
  *    112268 bytes   55 sectors  maze_two.smd
@@ -20,13 +21,12 @@
  *     74312 bytes   37 sectors  north_chamber.smd
  *     73812 bytes   37 sectors  zig_zag_tomb.smd
  *     70476 bytes   35 sectors  rear_gate.smd
- *     69812 bytes   35 sectors  Reception.smd
  *
  */
 #ifndef ROOM_ARENA_SIZE_H
 #define ROOM_ARENA_SIZE_H
 
-#define ROOM_ARENA_SECTORS 60
+#define ROOM_ARENA_SECTORS 61
 #define ROOM_ARENA_BYTES   (ROOM_ARENA_SECTORS * 2048)
 
 #endif /* ROOM_ARENA_SIZE_H */

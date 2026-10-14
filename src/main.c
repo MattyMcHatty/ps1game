@@ -114,6 +114,7 @@
 #include "neck.h"
 #include "the_head.h"
 #include "kennels.h"
+#include "lamashtu_arena.h"
 #include "kennels_puzzle.h"
 #include "arm_switch.h"     /* The Head's eight arm switches */
 #include "gula_tablet.h"
@@ -412,6 +413,7 @@ static void load_area_geometry(GameState area) {
         case STATE_NECK:             neck_load_geometry(); break;
         case STATE_THE_HEAD:         the_head_load_geometry(); break;
         case STATE_KENNELS:          kennels_load_geometry(); break;
+        case STATE_LAMASHTU_ARENA:   lamashtu_arena_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -2993,8 +2995,8 @@ static void update_current_area(GameState area) {
            box, so the shared wall routine and ONE flat floor zone,
            multi_level 0. Two doors: west, back to the Neck, and east, in
            the Lamashtu relief, locked by the eight ARM SWITCHES
-           (src/arm_puzzle.h) - the room beyond is not built, so once they
-           are solved it only logs "Coming Soon". Nothing is seeded; both
+           (src/arm_puzzle.h) - once they are solved it leads to the
+           Lamashtu Arena (src/lamashtu_arena.c). Nothing is seeded; both
            Chapter 3 enemy updates run anyway, on the Tomb's argument.
 
            THE ARM IN REACH VETOES THE EAST DOOR: arms 4 and 5 stand 264 and
@@ -3017,8 +3019,11 @@ static void update_current_area(GameState area) {
             }
             if (the_head_east_door_triggered(took || lock ||
                                              arm_puzzle_targeted())) {
-                took = 1;
-                show_pickup_msg_raw("Coming Soon");
+                took         = 1;
+                pending_area = STATE_LAMASHTU_ARENA;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
             }
             /* The arms' own trigger, and the turn of any arm that has just
                been given or relieved of a pearl. From the next frame the
@@ -3064,6 +3069,24 @@ static void update_current_area(GameState area) {
             cdaudio_stop();
         }
         kennels_puzzle_update(lock);
+    } else if (area == STATE_LAMASHTU_ARENA) {
+        /* THE LAMASHTU ARENA - Chapter 3's thirty-fourth room
+           (src/lamashtu_arena.c): one great hall of twenty-four pillars, so
+           the shared wall routine and ONE flat floor zone, multi_level 0.
+           One door, west, back to The Head's east door. Nothing is seeded
+           and Lamashtu is not in it yet; both Chapter 3 enemy updates run
+           anyway, on the Tomb's argument. */
+        apply_collision_reception();
+        apply_height();
+        update_crawlers();
+        update_lumberers();
+
+        if (lamashtu_arena_west_door_triggered(lock)) {
+            pending_area = STATE_THE_HEAD;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
            routine, ONE flat floor zone and one door, the Room of Bones' shape.
@@ -3620,6 +3643,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         the_head_draw(ctx);
     else if (area == STATE_KENNELS)
         kennels_draw(ctx);
+    else if (area == STATE_LAMASHTU_ARENA)
+        lamashtu_arena_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4142,6 +4167,10 @@ int main(int argc, const char **argv) {
                                      compile-time headers and no
                                      registration - its own GULACODE.TIM is
                                      STREAMED on entry. No CD access here. */
+    loading_screen_pump(&ctx);
+    lamashtu_arena_load_assets(); /* CHAPTER 3's thirty-fourth room: the
+                                     Tomb's three borrowed headers and no
+                                     registration. No CD access here. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -5137,6 +5166,11 @@ int main(int argc, const char **argv) {
                    buffer, bracketed by cdaudio_suspend/resume), not banked:
                    the heap had no registration to spare. */
                 kennels_upload_textures();
+            } else if (pending_area == STATE_LAMASHTU_ARENA) {
+                /* THE LAMASHTU ARENA. The Tomb's three - cobble, the loculus
+                   and the inner door - through the Catacombs Entry's narrow
+                   uploaders. It owns nothing, so it displaces nobody. */
+                lamashtu_arena_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -6032,14 +6066,25 @@ int main(int argc, const char **argv) {
                     neck_spawn_east();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_THE_HEAD) {
-                /* ONE ARRIVAL, the west door, so the_head_init()'s spawn is
-                   the only one. (A save loaded here restores cam_x/z after.) */
+                /* TWO ARRIVALS. the_head_init()'s default is the west door,
+                   from the Neck; back from the Lamashtu Arena it is the east
+                   door. Keyed on current_area, the room being LEFT and not a
+                   route, so a debug jump or a title load still lands at the
+                   west door. (A save loaded here restores cam_x/z after.) */
                 the_head_init();
+                if (current_area == STATE_LAMASHTU_ARENA)
+                    the_head_spawn_east();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_KENNELS) {
                 /* ONE ARRIVAL, the south door, so kennels_init()'s spawn is
                    the only one. (A save loaded here restores cam_x/z after.) */
                 kennels_init();
+                /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_LAMASHTU_ARENA) {
+                /* ONE ARRIVAL, the west door, so lamashtu_arena_init()'s spawn
+                   is the only one. (A save loaded here restores cam_x/z
+                   after.) */
+                lamashtu_arena_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
@@ -6448,7 +6493,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_ROOM_OF_GUTS ||
                    game_state == STATE_NECK ||
                    game_state == STATE_THE_HEAD ||
-                   game_state == STATE_KENNELS) {
+                   game_state == STATE_KENNELS ||
+                   game_state == STATE_LAMASHTU_ARENA) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

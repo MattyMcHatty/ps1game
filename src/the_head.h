@@ -13,12 +13,13 @@
    the relief. A catacomb inner door at z[1400,1600] in each end wall:
 
      WEST  x=0     -> the Neck, its east door
-     EAST  x=2400  -> drawn and sealed: no sign, no trigger, nothing behind it
-                      yet
+     EAST  x=2400  -> the Lamashtu Arena, its west door - locked until the
+                      arm switches are solved (src/arm_puzzle.h)
 
    THE ARM SWITCHES: eight stone arms reaching out of the relief, one over
    each Lamashtu elbow in its bottom register, in one straight north-south
-   row (src/arm_switch.h). Drawn only; nothing is wired to them yet.
+   row (src/arm_switch.h). Blood Pearls in the right three unlock the east
+   door (src/arm_puzzle.h).
 
    Nothing is seeded in it.
 
@@ -34,9 +35,13 @@ void the_head_upload_textures(void); /* room entry: pure LoadImage from RAM     
 void the_head_init(void);            /* collision + floor zone + spawn + switches */
 void the_head_draw(RenderContext *ctx);
 
-/* Arrival through the west door, from the Neck - the only arrival, and
-   the_head_init()'s spawn: just inside it, facing east toward the relief. */
+/* Arrival through the west door, from the Neck - the_head_init()'s default
+   spawn: just inside it, facing east toward the relief. */
 void the_head_spawn_west(void);
+
+/* Arrival back through the east door, from the Lamashtu Arena: just inside
+   it, facing west into the hall. main.c calls it after the_head_init(). */
+void the_head_spawn_east(void);
 
 /* One frame of the west door's Circle test. `lock` is main's usual
    suppression. Returns 1 on a fresh press made in range and facing the door. */

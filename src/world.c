@@ -201,6 +201,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_DEAD_END_MARK,   STATE_THROAT,
     STATE_ROOM_OF_GUTS,    STATE_NECK,
     STATE_THE_HEAD,        STATE_KENNELS,
+    STATE_LAMASHTU_ARENA,
 };
 
 static int room_index(GameState area) {
@@ -374,6 +375,9 @@ static int room_index(GameState area) {
         /* THE KENNELS, Chapter 3's thirty-third room, behind the Nursery's
            west door. Slot 59 of 64. Seeded EMPTY. */
         case STATE_KENNELS:           return 59;
+        /* THE LAMASHTU ARENA, Chapter 3's thirty-fourth room, behind The
+           Head's east door. Slot 60 of 64. Seeded EMPTY. */
+        case STATE_LAMASHTU_ARENA:    return 60;
         default:                   return 0;
     }
 }

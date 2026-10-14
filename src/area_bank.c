@@ -191,6 +191,8 @@ TexBank area_bank_of(GameState area) {
     /* THE KENNELS own GULACODE.TIM (4bpp on the arm switch's page and
        palette) and borrow the rest, the gula tablet and the bars among it. */
     case STATE_KENNELS:
+    /* THE LAMASHTU ARENA owns nothing: the Tomb's three, borrowed. */
+    case STATE_LAMASHTU_ARENA:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -228,7 +230,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_ROOM_OF_GUTS ||
            area == STATE_NECK ||
            area == STATE_THE_HEAD ||
-           area == STATE_KENNELS;
+           area == STATE_KENNELS ||
+           area == STATE_LAMASHTU_ARENA;
 }
 
 /* ---- The prop models -------------------------------------------------------
