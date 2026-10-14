@@ -373,6 +373,14 @@ for _area, _fns in CTB.AREAS.items():
     bank_sizes[_area] = sum(_msz.get(m, 0) for m in _mods)
 peak_bank_area = max(bank_sizes, key=lambda a: bank_sizes[a])
 peak_bank = bank_sizes[peak_bank_area]
+# ...BUT SINCE OCTOBER 2026 THE UNIT IS THE ROOM, NOT THE AREA (src/texmgr.h,
+# TEXTURES BY ROOM): texmgr holds only what the room being entered uploads, so
+# the charge is the largest ROOM set. The area banks are still printed by
+# tools/check_tex_banks.py - they are the fallback for a texture the generated
+# table does not name - but they no longer say what is resident.
+import gen_tex_rooms as GTR
+peak_bank, _peak_room = GTR.peak_room_bytes()
+peak_bank_area = _peak_room[6:] + " (largest room set)"
 
 out = subprocess.run([NM, ELF], capture_output=True, text=True).stdout
 end = [int(l.split()[0], 16) & 0xFFFFFFFF for l in out.splitlines()

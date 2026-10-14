@@ -6349,6 +6349,13 @@ int main(int argc, const char **argv) {
                                                     init is too early for the
                                                     same reason as the line
                                                     above. */
+            /* THE ROOM IS UP: close texmgr's late-load window, opened by
+               area_bank_sync() at the top of this branch. Last of all, because
+               room inits and the flag re-derives above upload too (the Attic
+               Exit's door). From here an unheld texture is a silent no-op
+               again rather than a CD read in the middle of play (texmgr.h,
+               TEXTURES BY ROOM). */
+            texmgr_loading_done();
         } else if (game_state == STATE_DOOR_ANIM) {
             /* RE-style door transition: a black screen with the door swinging
                open, then a fade to black. Draws nothing of the live room — when
@@ -6691,6 +6698,7 @@ int main(int argc, const char **argv) {
                    rooms that have dogs, and this path does not pass through
                    STATE_LOADING where that happens. */
                 demon_dogs_upload_texture();
+                texmgr_loading_done();   /* the late-load window, as above */
                 /* Same reason, for the sound banks: a session that reached the
                    Garden Courtyard and then went back to the title would
                    otherwise start the new game with the boss bank still in and

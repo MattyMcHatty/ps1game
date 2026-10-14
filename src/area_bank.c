@@ -322,5 +322,9 @@ void area_bank_sync(GameState area) {
        load — but if one of them is going to be the peak it should be the one
        that is measured, which is the texture bank. */
     props_sync(bank);
-    texmgr_bank_select(bank);
+    /* TEXTURES BY ROOM, not by area (src/texmgr.h): the destination room's own
+       set, from tools/gen_tex_rooms.py's table. The area's bank is passed for
+       the fallback - any texture the table does not name is held by area, the
+       way every texture used to be. */
+    texmgr_room_select((int)area, bank);
 }

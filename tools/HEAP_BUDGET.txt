@@ -173,18 +173,18 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x8012CC24
+  _end (heap start)   0x8012E4B4
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             717084 bytes (700 KB)
+  heap size             710796 bytes (694 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak bank      536576 bytes (524 KB)  74.8%   <- CATACOMBS
+  texmgr peak bank      301056 bytes (294 KB)  42.4%   <- MAZE_ONE (largest room set)
   kept buffers           28672 bytes (28 KB)   4.0%
-  chapter-scoped         43008 bytes (42 KB)   6.0%
-  PERMANENT TOTAL       608256 bytes (594 KB)  84.8%
-  FREE AT REST          108828 bytes (106 KB)  15.2%   <- STACK ALREADY SUBTRACTED
-                                  (was 256980 before the stack was counted;
+  chapter-scoped         43008 bytes (42 KB)   6.1%
+  PERMANENT TOTAL       372736 bytes (364 KB)  52.4%
+  FREE AT REST          338060 bytes (330 KB)  47.6%   <- STACK ALREADY SUBTRACTED
+                                  (was 486212 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -243,13 +243,10 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 106 KB printed above.
+  once read_file's margin comes off - against the 330 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 
-  *** WARNING: under 128 KB free at rest, with the stack already
-      subtracted. Do not add a registration without reclaiming one
-      first. See the two no-cost patterns in the docstring at the
-      top of this file. ***
+  OK: comfortable margin.
 
 Regenerate with:  python tools/heap_budget.py > tools/HEAP_BUDGET.txt

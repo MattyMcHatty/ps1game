@@ -368,6 +368,20 @@ add_custom_target(texmgr_cap ALL
 )
 add_dependencies(horror_game texmgr_cap)
 
+# Which ROOMS need each texture held in RAM (src/texmgr.h, TEXTURES BY ROOM):
+# generated from the uploader call graph on every build, written only when it
+# changes, and compiled in. See tools/gen_tex_rooms.py.
+add_custom_target(tex_rooms ALL
+    COMMAND "${ROOM_PACK_PYTHON}" "${CMAKE_SOURCE_DIR}/tools/gen_tex_rooms.py"
+            "${CMAKE_BINARY_DIR}"
+    BYPRODUCTS "${CMAKE_BINARY_DIR}/tex_rooms_gen.c"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Generating per-room texture sets"
+)
+target_sources(horror_game PRIVATE "${CMAKE_BINARY_DIR}/tex_rooms_gen.c")
+target_include_directories(horror_game PRIVATE "${CMAKE_SOURCE_DIR}/src")
+add_dependencies(horror_game tex_rooms)
+
 # Convert the ELF to a raw PS-EXE (HORROR2.BIN) that the disc boots.
 # Without this the disc keeps packing a stale executable and code changes
 # never reach the game.

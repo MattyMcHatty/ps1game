@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <psxgpu.h>
 #include <psxcd.h>
 #include "cdaudio.h"
@@ -69,25 +70,49 @@ typedef struct {
        bytes. */
     const char *file;
     TexBank   banks;
+    /* The rooms that hold it (tools/gen_tex_rooms.py's table), or none if the
+       table has no row for it - then `banks` decides, the old way. */
+    uint32_t  rooms[TEX_ROOM_WORDS];
+    int       has_rooms;
 } TexEntry;
+
+/* The generated table, build/tex_rooms_gen.c. */
+extern const TexRoomRow tex_rooms[];
+extern const int        tex_rooms_count;
 
 static TexEntry entries[TEXMGR_MAX];
 static int      entry_count   = 0;
 static TexBank  current_bank  = TEXBANK_MANSION;   /* what registrations get tagged */
-static TexBank  loaded_bank   = 0;                 /* nothing is loaded at boot     */
+static int      loaded_room   = -1;                /* nothing is loaded at boot     */
+static int      loading_room  = -1;                /* >= 0: late loads allowed      */
 static uint32_t missed        = 0;
+static uint32_t late          = 0;
 static int      refused       = 0;   /* registrations past TEXMGR_MAX */
 
 void texmgr_set_bank(TexBank banks) {
     current_bank = banks;
 }
 
-TexBank texmgr_bank_loaded(void) {
-    return loaded_bank;
-}
-
 uint32_t texmgr_missed_uploads(void) {
     return missed;
+}
+
+uint32_t texmgr_late_loads(void) {
+    return late;
+}
+
+/* "\\TEXCTCMB\\GULAA.TIM;1" -> does it name `base` ("GULAA.TIM")? Case-blind,
+   ignoring the directory and the ;1. */
+static int tim_is(const char *path, const char *base) {
+    const char *p = path, *q;
+    for (q = path; *q; q++) if (*q == '\\') p = q + 1;
+    while (*p && *p != ';' && *base) {
+        char a = *p, b = *base;
+        if (a >= 'a' && a <= 'z') a -= 32;
+        if (a != b) return 0;
+        p++; base++;
+    }
+    return *base == 0 && (*p == 0 || *p == ';');
 }
 
 int texmgr_registered(void) { return entry_count; }
@@ -140,6 +165,18 @@ int texmgr_register(const char *filename) {
     e->banks    = current_bank;
     e->buf      = NULL;
     e->valid    = 0;
+    e->has_rooms = 0;
+    {
+        int r, w;
+        for (r = 0; r < tex_rooms_count; r++) {
+            if (!tim_is(filename, tex_rooms[r].tim)) continue;
+            for (w = 0; w < TEX_ROOM_WORDS; w++) e->rooms[w] = tex_rooms[r].rooms[w];
+            e->has_rooms = 1;
+            break;
+        }
+        if (!e->has_rooms)
+            printf("TEXMGR: %s has no room row - held by its area\n", filename);
+    }
 
     TIM_IMAGE t;
     GetTimInfo((uint32_t *)hdr, &t);
@@ -170,25 +207,30 @@ static void entry_free(TexEntry *e) {
     e->valid = 0;
 }
 
-void texmgr_bank_select(TexBank bank) {
-    if (bank == loaded_bank) return;
+static int entry_wanted(const TexEntry *e, int room, TexBank area_bank) {
+    if (e->has_rooms)
+        return room >= 0 && room < 32 * TEX_ROOM_WORDS &&
+               ((e->rooms[room >> 5] >> (room & 31)) & 1);
+    return e->banks != TEXBANK_RESIDENT && (e->banks & area_bank);
+}
+
+void texmgr_room_select(int room, TexBank area_bank) {
+    int i;
+    loading_room = room;   /* the late-load window opens (texmgr.h) */
+    if (room == loaded_room) return;
 
     /* >>> FREE EVERYTHING GOING OUT BEFORE READING ANYTHING COMING IN. <<<
-       Two banks held at once is up to 900 KB against a 937 KB heap whose top IS
-       the stack: malloc would succeed on memory the stack is using and the next
-       CdRead would DMA through a return address
-       (tools/DIAGNOSING_A_BOOT_CRASH.txt section 2). The loop is split in two
-       passes for exactly that reason and must not be merged into one.
+       Two sets held at once is how the heap runs into the stack: malloc would
+       succeed on memory the stack is using and the next CdRead would DMA
+       through a return address (tools/DIAGNOSING_A_BOOT_CRASH.txt section 2).
+       Two passes for exactly that reason; do not merge them.
 
-       Note this runs over ALL entries both times, not over the difference:
-       an entry in both the outgoing and the incoming bank is skipped by the
-       free pass (it is in `bank`) and skipped by the load pass (it already has
-       its buf), so it is never given up and re-read. That is what makes
-       Mansion -> Garden cost 424 KB of reads rather than 424 KB on top of
-       everything the two share. */
-    int i;
+       An entry both rooms want is skipped by both passes - never given up and
+       re-read - which is what makes most doors free: the rooms of one chunk of
+       the map share most of what they draw. */
     for (i = 0; i < entry_count; i++)
-        if (entries[i].banks != TEXBANK_RESIDENT && !(entries[i].banks & bank))
+        if (entries[i].banks != TEXBANK_RESIDENT &&
+            !entry_wanted(&entries[i], room, area_bank))
             entry_free(&entries[i]);
 
     /* The drive cannot do a data read while CD-DA streams — it hangs
@@ -196,16 +238,33 @@ void texmgr_bank_select(TexBank bank) {
        nothing is playing, and resume restores the playback position. */
     cdaudio_suspend();
     for (i = 0; i < entry_count; i++)
-        if (entries[i].banks & bank)
+        if (entry_wanted(&entries[i], room, area_bank))
             entry_load(&entries[i]);
     cdaudio_resume();
 
-    loaded_bank = bank;
+    loaded_room = room;
+}
+
+void texmgr_loading_done(void) {
+    loading_room = -1;
 }
 
 void texmgr_upload(int id) {
     if (id < 0 || id >= entry_count) return;
     TexEntry *e = &entries[id];
+    if (!e->valid && loading_room >= 0 && e->file) {
+        /* THE SAFETY NET (texmgr.h): a room's entry asked for a texture its
+           generated set does not hold. Read it now - this is STATE_LOADING -
+           and say so, so the table gets fixed. It stays held until the next
+           room select decides it is not wanted. */
+        cdaudio_suspend();
+        int ok = entry_load(e);
+        cdaudio_resume();
+        if (ok) {
+            late++;
+            printf("TEXMGR: late load %s for room %d\n", e->file, loading_room);
+        }
+    }
     if (!e->valid) { missed++; return; }
     LoadImage(e->tim.prect, e->tim.paddr);
     DrawSync(0);

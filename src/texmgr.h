@@ -102,19 +102,64 @@ int texmgr_register(const char *filename);
    A no-op, silently, if this texture's bank is not loaded. See the note above. */
 void texmgr_upload(int id);
 
-/* Make `bank` the loaded one: free the pixels of everything not in it, then
-   read the pixels of everything in it that is not already held. Frees before it
-   reads, always, because the heap top IS the stack and holding two banks at
-   once is how that ends (tools/DIAGNOSING_A_BOOT_CRASH.txt section 2).
+/* ===========================================================================
+   TEXTURES BY ROOM — WHAT REPLACED THE AREA AS THE UNIT (October 2026)
+   ===========================================================================
+   The banks above made the game hold one AREA at a time. That stopped being
+   enough when Chapter 3 grew to thirty-four rooms: its one bank was 524 KB and
+   set free-at-rest for the whole game, while no single room in it needs more
+   than ~270 KB. So texmgr now holds exactly what the ROOM being entered uploads:
+
+     - tools/gen_tex_rooms.py walks the same uploader call graph
+       tools/check_tex_banks.py does, per room, and generates
+       build/tex_rooms_gen.c — one row per TIM, naming the rooms that need it.
+       CMake runs it on every build; nobody maintains the table by hand.
+     - texmgr_register() finds its TIM's row and keeps that room mask. A TIM
+       with no row falls back to its declared AREA mask (the old behaviour), so
+       a missed row costs memory, never a texture.
+     - texmgr_room_select() frees every entry the destination room does not
+       need, then reads what it lacks. Entries two rooms share are neither
+       freed nor re-read, so a door between rooms of one chunk of the map
+       usually reads a few 18 KB TIMs, or nothing.
+
+   >>> AND THE FAILURE IS NO LONGER SILENT ON A ROOM ENTRY. <<< From
+   texmgr_room_select() until texmgr_loading_done(), an upload of an entry that
+   is not held READS IT THEN AND THERE (a CD read is legal during STATE_LOADING)
+   and prints "TEXMGR: late load" to the emulator log. A late load means the
+   generator's table is short for that room: fix tools/gen_tex_rooms.py. Outside
+   that window an unheld upload is still the silent no-op described above,
+   which is why the generator must cover the few MID-ROOM uploads too.
+
+   The AREA masks (texmgr_set_bank) are kept: they are the fallback above,
+   tools/check_tex_banks.py still checks them, and main.c's per-area lines
+   (area_bank_of) still read them.
+   =========================================================================== */
+#define TEX_ROOM_WORDS 4   /* GameState bits: 128 states */
+
+typedef struct {
+    const char *tim;                  /* basename, upper case: "ADAPAA.TIM"  */
+    uint32_t    rooms[TEX_ROOM_WORDS];
+} TexRoomRow;
+
+/* Make `room` the loaded set: free the pixels of everything it does not need,
+   then read the pixels of everything it does that is not already held. Frees
+   before it reads, always, because the heap top IS the stack
+   (tools/DIAGNOSING_A_BOOT_CRASH.txt section 2). `area_bank` is the room's
+   area, for entries the generated table does not name.
 
    >>> THIS TOUCHES THE DRIVE, so it is legal only where a CD read is legal —
    inside main's STATE_LOADING, and on the one title-exit path that skips it.
-   <<< It brackets its own cdaudio_suspend/resume, as sound_bank_select() does.
-   A no-op when the right bank is already in, which is every transition inside
-   an area, so the caller runs it unconditionally. */
-void texmgr_bank_select(TexBank bank);
+   <<< It brackets its own cdaudio_suspend/resume, and it opens the late-load
+   window that texmgr_loading_done() closes. */
+void texmgr_room_select(int room, TexBank area_bank);
 
-TexBank texmgr_bank_loaded(void);
+/* Close the late-load window: from here texmgr_upload() of an unheld entry is
+   a silent no-op again (no CD reads mid-room). Call when the room's entry
+   uploads are done. */
+void texmgr_loading_done(void);
+
+/* How many textures were late-loaded (see above). Zero in a correct build. */
+uint32_t texmgr_late_loads(void);
 
 /* How many times texmgr_upload() has been called on an entry whose bank is not
    loaded — i.e. how many times the silent failure above has actually happened.
