@@ -6,7 +6,9 @@
 
 /* The Lamashtu Arena: Chapter 3's THIRTY-FOURTH room, through The Head's east
    door - the one the arm switches unlock (src/arm_puzzle.h). It is where the
-   fight with Lamashtu will be; the boss is not in it yet.
+   fight with Lamashtu will be. SHE STANDS IN IT NOW (src/lamashtu.h), five
+   600-unit squares down the door aisle at (2700, 1500), playing her two clips
+   on a loop; the fight itself is not built.
 
    THE SHAPE. One great hall, x[0,7800] z[-1200,4200], flat at y=0, its stone
    rising to y=-800. TWENTY-FOUR square pillars, 600 across and floor to
@@ -23,7 +25,8 @@
    along +X - The Head's own west door's terms. The door sits on the aisle
    between the z[600,1200] and z[1800,2400] pillar rows.
 
-   Nothing is seeded in it.
+   Nothing is seeded in it by world.c. The room places ONE prop itself: a
+   gate (src/bars.h) standing in the gap on her -Z side, at (2700, 900).
 
    THREE TEXTURES, AND THE ROOM OWNS NONE OF THEM: cobblestone, the loculus and
    the inner door, the Tomb's set exactly, through src/catacombs_entry.c's three

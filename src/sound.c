@@ -92,6 +92,9 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\STNSLIDE.VAG;1",
     "\\SND\\ADAPA.VAG;1",
     "\\SND\\HOWL.VAG;1",
+    "\\SND\\LMSCHIME.VAG;1",
+    "\\SND\\LMSCRY.VAG;1",
+    "\\SND\\LMSSCRM.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -169,7 +172,8 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        `spare` at all (tools/ADDING_A_SOUND.txt STEP 3 — `spare` is the region
        less the LARGEST bank, and CATACOMBS is nowhere near it). */
     [SFX_MCHNE]      = SND_BANK_HOUSE | SND_BANK_CATACOMBS |
-                       SND_BANK_KENNELS,   /* the Kennels' cell gates */
+                       SND_BANK_KENNELS |  /* the Kennels' cell gates */
+                       SND_BANK_LAMASHTU,  /* the arena's gate */
     /* >>> THESE THREE WERE SND_RESIDENT AND DID NOT NEED TO BE. <<< They fire
        mid-fight and a bank swap is a CD read, so residency looked like the only
        way to guarantee they were loaded. It was not: they are played by
@@ -328,7 +332,8 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        through a one-way door, so there is nowhere else it could be
        wanted and a second bit would cost its own copy for nothing. */
     [SFX_GLUG]       = SND_BANK_CATACOMBS,
-    [SFX_CTCMBDR]    = SND_BANK_CATACOMBS | SND_BANK_KENNELS,   /* leaving the Kennels */
+    [SFX_CTCMBDR]    = SND_BANK_CATACOMBS | SND_BANK_KENNELS |  /* leaving the Kennels */
+                       SND_BANK_LAMASHTU,                      /* ...and the arena  */
     [SFX_CRWL_SCRM]  = SND_BANK_CATACOMBS,
     [SFX_CRWL_WHSP]  = SND_BANK_CATACOMBS,
     /* The Lumberer's two, CATACOMBS and nothing else: src/lumberer.c is their
@@ -342,7 +347,7 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        36,864 B takes that bank to 163,264 against the 190,336 BOSS sets `spare`
        by, so it cost no other bank anything and `spare` stayed on 46,896 - see
        sound.h and tools/ADDING_A_SOUND.txt STEP 3. ~27 KB left in the chapter. */
-    [SFX_CREEP]      = SND_BANK_CATACOMBS,
+    [SFX_CREEP]      = SND_BANK_CATACOMBS | SND_BANK_LAMASHTU,   /* + the arena */
     /* The maggots' buzz, CATACOMBS only: src/maggot.c is its only caller and
        its texture is Chapter-3-only too. 13,696 B takes the bank to 176,960
        against BOSS's 190,336, so `spare` stays on 46,896 - see sound.h.
@@ -358,6 +363,11 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        callers and she is only ever in the Kennels. The bank exists for her -
        see SND_BANK_KENNELS in sound.h for what else had to come with her. */
     [SFX_HOWL]       = SND_BANK_KENNELS,
+    /* Lamashtu's three, LAMASHTU only: the bank exists for them - see
+       SND_BANK_LAMASHTU in sound.h for what else had to come with them. */
+    [SFX_LMS_CHIME]  = SND_BANK_LAMASHTU,
+    [SFX_LMS_CRY]    = SND_BANK_LAMASHTU,
+    [SFX_LMS_SCREAM] = SND_BANK_LAMASHTU,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -703,6 +713,11 @@ static int sfx_channel(SfxID id) {
        only bank the howl is in. The howl is re-keyed from C, never a hardware
        loop, so it leaves the voice clean for them too. */
     if (id == SFX_HOWL)        return 20;   /* SFX_DMNSPEAK's (BOSS)  one-shot */
+    /* LAMASHTU'S THREE take 13, 15 and 21 (sound.h): every other claimant of
+       those voices is outside SND_BANK_LAMASHTU, the only bank they are in. */
+    if (id == SFX_LMS_CHIME)   return 13;   /* SFX_GAS's     (GARDEN) one-shot */
+    if (id == SFX_LMS_CRY)     return 15;   /* SFX_HISS's    (GARDEN) one-shot */
+    if (id == SFX_LMS_SCREAM)  return 21;   /* SFX_EXPLODE's (BOSS)   one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

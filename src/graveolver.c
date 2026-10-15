@@ -21,6 +21,7 @@
 #include "mushroom.h"
 #include "lumberer.h"
 #include "gula.h"
+#include "lamashtu.h"     /* the one spot on her back that can be hurt */
 #include "creep.h"
 #include "maggot.h"
 #include "rabisu.h"
@@ -325,6 +326,19 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 15; best_idx = 0;
         }
     }
+    /* LAMASHTU (src/lamashtu.h): ONLY the glowing spot on her back, and only
+       from behind her - lamashtu_anus_target() says no from anywhere else, so
+       a round at her face goes through her as Asag's body lets rounds through
+       his. Nothing else on her is in this list, on purpose. */
+    {
+        int32_t lx, ly, lz, lw, lh;
+        if (lamashtu_anus_target(&lx, &ly, &lz, &lw, &lh) &&
+            weapon_aim_in_circle(lx, ly, lz, lw, lh, fx, fz,
+                                 GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 16; best_idx = 0;
+        }
+    }
     /* NO ADAPA LOOP, AND THAT IS THE DESIGN, NOT AN OVERSIGHT. Only the
        Helluminator can hurt him (src/adapa.h), so a round goes through him as
        if he were not there — he is a ghost — and is spent on whatever is
@@ -487,6 +501,10 @@ static void graveolver_fire(void) {
            table doubles DMG_FLAME) — so 20 or 10 shots to kill. */
         rabisu_damage(&rabisus[best_idx],
                       rabisu_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 16) {
+        /* Lamashtu's spot: 1 from any round, no weakness table - every weapon
+           is 1x against her (src/lamashtu.h), so ten rounds. */
+        lamashtu_damage(GUN_DAMAGE);
     } else if (best_kind == 15) {
         /* Gula: 1 from any round - her table only names DMG_HOLY. */
         gula_damage(gula_scale_damage(GUN_DAMAGE, dmg_type));

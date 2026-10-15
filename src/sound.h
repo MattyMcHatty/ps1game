@@ -605,7 +605,26 @@ typedef enum {
        because 3.4 s is far too long for it: FIRST_VOICE + 59 % 8 is SFX_HURT's
        slot, and the shockwave plays SFX_HURT on every hit. */
     SFX_HOWL       = 59,  /* BANKED (kennels). Gula's howl, 3.38 s              */
-    SFX_COUNT      = 60,
+    /* ---- LAMASHTU ----------------------------------------------------------
+       Her three, for the fight in the Lamashtu Arena (src/lamashtu.h). Nothing
+       plays them yet - the fight is not built - but they are in the arena's
+       bank so it can. 11025 Hz mono, all three ordinary one-shots (loop flag
+       on the last block only: 529/530, 1766/1767, 1099/1100).
+
+       SND_BANK_LAMASHTU ONLY, the bank made for this room (below): 54 KB
+       between them against the CATACOMBS bank's 12 KB of headroom.
+
+       EACH ON A BORROWED VOICE, none of whose other claimants is in that
+       bank: 13 (GAS, GLUG, RUMBLE_2, VOMIT), 15 (HISS, LASER, CRWL_SCRM) and
+       21 (EXPLODE, LMBR_YELL, ADAPA). Off the pool because the crying and the
+       scream are 4.5 s and 2.8 s and every pool slot is a weapon or a
+       footstep the player fires all through a fight; the chime goes with them
+       so the three never cut one another. None of 13/15/21 is poisoned
+       (sound.c's sfx_channel notes). */
+    SFX_LMS_CHIME  = 60,  /* BANKED (lamashtu). lamashtu chime,  1.35 s         */
+    SFX_LMS_CRY    = 61,  /* BANKED (lamashtu). lamashtu crying, 4.49 s         */
+    SFX_LMS_SCREAM = 62,  /* BANKED (lamashtu). lamashtu scream, 2.79 s         */
+    SFX_COUNT      = 63,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.
@@ -739,6 +758,24 @@ typedef enum {
        Kennels later is MUTE until its clips are tagged here as well. The next
        free bit is 128, and sfx_bank[] is a uint8_t, so it is the last one. */
     SND_BANK_KENNELS = 64,
+    /* THE LAMASHTU ARENA, and nothing else is on it - the Kennels' move again,
+       for the same reason. Lamashtu's three clips are 54 KB and CATACOMBS had
+       12 KB under the largest bank, so the arena got a bank of its own holding
+       EVERYTHING the room plays that is not resident:
+
+           CTCMBDR           the catacomb door, on the way OUT of here
+           CREEP             the cribs' baby cry, for the fight
+           MCHNE             the gate's winch, should the fight move it
+           LMS_CHIME  LMS_CRY  LMS_SCREAM   hers
+
+       THE SAME PRICE AND THE SAME RULE: a bank read on both sides of the
+       arena's one door (The Head is CATACOMBS), and a Chapter 3 enemy placed
+       in here later - a crawler, a lumberer, a maggot - is MUTE until its
+       clips are tagged here too. The Creep makes no sound of its own.
+
+       >>> THIS IS THE LAST BIT. <<< sfx_bank[] is a uint8_t; the next bank
+       means widening it to uint16_t first. */
+    SND_BANK_LAMASHTU = 128,
 } SoundBank;
 
 void sound_init(void);

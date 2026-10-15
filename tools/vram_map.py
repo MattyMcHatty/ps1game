@@ -929,6 +929,15 @@ KNOWN_STREAM_PAIRS = [
     ("anzu2.tim",                   "gaol_mud.tim"),
     ("anzu5.tim",                   "gaol_mud.tim"),
     ("red_wlppr.tim",               "gaol_mud.tim"),
+    #   lamashtu.tim -> x576 y0, LAMASHTU's skin, 4bpp 128x128 (x[576,608)),
+    # ON THE CRIB'S PAGE with a CLUT of its own at (640,502) - the gaol mud's
+    # terms, one more owner taking turns inside Chapter 3. She is drawn only in
+    # the Lamashtu Arena, which has no crib and no mud; crib_upload_texture()
+    # and the Gaol Cells' uploader put theirs back on entry to their rooms. The
+    # page's older occupants keep the crib's restores.
+    ("crib.tim",                    "lamashtu.tim"),
+    ("gaol_mud.tim",                "lamashtu.tim"),
+    ("red_wlppr.tim",               "lamashtu.tim"),
     #   gula tablet.tim -> x640 y0, THE NURSERY's floor tiles and the Gula
     # Tablet prop, 4bpp, ON THE ARMS' PAGE (it covers x[640,672) only) - the
     # gaol door's terms exactly, an eighth owner taking turns, with a CLUT of

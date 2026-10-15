@@ -291,6 +291,14 @@
 #define TIM_TPAGE_GRSSGS   0x0005
 #define TIM_CLUT_GRSSGS    0x7fce
 
+/* gula_a.tim      8bpp  VRAM ( 320,128)  \TEXCTCMB\GULAA.TIM */
+#define TIM_TPAGE_GULAA    0x0085
+#define TIM_CLUT_GULAA     0x7eaa
+
+/* gula_b.tim      8bpp  VRAM ( 704,128)  \TEXCTCMB\GULAB.TIM */
+#define TIM_TPAGE_GULAB    0x008b
+#define TIM_CLUT_GULAB     0x7eaa
+
 /* gula codes.tim  4bpp  VRAM ( 768,  0)  \TEXCTCMB\GULACODE.TIM */
 #define TIM_TPAGE_GULACODE 0x000c
 #define TIM_CLUT_GULACODE  0x782d
@@ -366,6 +374,10 @@
 /* ladder.tim      8bpp  VRAM ( 704,256)  \TEXCTCMB\LADDER.TIM */
 #define TIM_TPAGE_LADDER   0x009b
 #define TIM_CLUT_LADDER    0x7fd3
+
+/* lamashtu.tim    4bpp  VRAM ( 576,  0)  \TEXCTCMB\LAMASHTU.TIM */
+#define TIM_TPAGE_LAMASHTU 0x0009
+#define TIM_CLUT_LAMASHTU  0x7da8
 
 /* legs.tim        8bpp  VRAM ( 640,  0)  \TEXCTCMB\LEGS.TIM */
 #define TIM_TPAGE_LEGS     0x008a

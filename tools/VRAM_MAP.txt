@@ -60,6 +60,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   loculus.tim          8       512     0   128   128     0   672,500
   gaol_mud.tim         8       576     0   128   128     0   256,484
   crib.tim             8       576     0   128   128     0   256,484
+  lamashtu.tim         4       576     0   128   128     0   640,502
   red_wlppr.tim        4       576     0   128   128     0   0,492
   anzu2.tim            8       608     0    64    64     0   256,484
   arms2.tim            8       640     0   128   128     0   672,501
@@ -297,6 +298,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=502  x[592,608)  gula tablet.tim
   y=502  x[624,640)  guts.tim
   y=502  x[0,256)  inr_dbl_dr_half.tim
+  y=502  x[640,656)  lamashtu.tim
   y=502  x[256,512)  pipe.tim
   y=502  x[528,544)  pipe_button_off.tim
   y=502  x[544,560)  pipe_button_on.tim
@@ -480,6 +482,7 @@ OVERLAP CHECK
   catacomb inner door.tim                  stables wood.tim     time-shared (streaming)
   catacomb inner door.tim                  xt_dr_cg.tim         time-shared (streaming)
   gaol_mud.tim                             crib.tim             time-shared (streaming)
+  gaol_mud.tim                             lamashtu.tim         time-shared (streaming)
   gaol_mud.tim                             red_wlppr.tim        time-shared (streaming)
   gula_a.tim                               crawler_a.tim        time-shared (streaming)
   gula_a.tim                               rafflesia1.tim       time-shared (streaming)
@@ -577,6 +580,7 @@ OVERLAP CHECK
   crawler_a.tim                            spdr_wk.tim          time-shared (streaming)
   crawler_b.tim                            zombie_alert.tim     time-shared (streaming)
   crawler_b.tim                            zombie_sleep.tim     time-shared (streaming)
+  crib.tim                                 lamashtu.tim         time-shared (streaming)
   crib.tim                                 red_wlppr.tim        time-shared (streaming)
   cuneiform _symbols.tim                   dresser.tim          time-shared (streaming)
   cuneiform _symbols.tim                   grdn_gte.tim         time-shared (streaming)
@@ -734,6 +738,7 @@ OVERLAP CHECK
   lamashtu tablet.tim                      plinth_diamond.tim   time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_cmplt.tim      time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_lckd.tim       time-shared (streaming)
+  lamashtu.tim                             red_wlppr.tim        time-shared (streaming)
   legs.tim                                 plinth_rg.tim        time-shared (streaming)
   legs.tim                                 poison_flower_base.tim time-shared (streaming)
   legs.tim                                 torsos.tim           time-shared (streaming)

@@ -35,6 +35,7 @@
 #include "lumberer.h"          /* the Lumberer plugs a corridor (area-tagged) */
 #include "gula.h"              /* ...and Gula, rooted in the Kennels         */
 #include "asag.h"              /* ...and Asag, solid at any pose OR position */
+#include "lamashtu.h"          /* ...and Lamashtu, solid at any pose         */
 
 CollisionRoom current_collision_room;
 
@@ -1046,6 +1047,11 @@ void apply_collision_reception(void) {
        969 units into the room and the slam and faint bring it to floor level.
        See src/asag.h. */
     asag_collide(&cam_x, cam_y, &cam_z, 75);
+    /* Lamashtu, the same collider on her own placed pose (src/lamashtu.h) -
+       "her own mesh for collision". Area-gated inside. Prop radius, Asag's, so
+       the crucifaxe still reaches the spot on her back from where the push
+       stops the player. */
+    lamashtu_collide(&cam_x, cam_y, &cam_z, 75);
     /* The Hatch's two pit doors; area-tagged like the props above, so this is a
        no-op everywhere else and in every room where they are not even loaded.
        PROP radius rather than the 195 wall standoff: the open leaves lie flat on

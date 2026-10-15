@@ -287,6 +287,13 @@
                      3.38 s, 21,280 SPU bytes; re-keyed from C (howl, 1 s,
                      howl...) and once more on her death. Voice 20. -->
                 <file name="HOWL.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\howl.vag"/>
+                <!-- Lamashtu's three (src/lamashtu.h), SND_BANK_LAMASHTU - the
+                     arena's own bank, because CATACOMBS had 12 KB spare and
+                     these are 54 KB. 11025 Hz mono one-shots: chime 1.35 s,
+                     crying 4.49 s, scream 2.79 s. Voices 13, 15 and 21. -->
+                <file name="LMSCHIME.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lms_chime.vag"/>
+                <file name="LMSCRY.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lms_crying.vag"/>
+                <file name="LMSSCRM.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lms_scream.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -1604,6 +1611,16 @@
                  CTCMBDR are borrowed, the Tomb's set. The biggest mesh on the
                  disc (2097 prims), so it sizes the room and cull arenas. -->
             <file name="LMSARENA.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\lamashtu_arena.smd"/>
+            <!-- LAMASHTU HERSELF (src/lamashtu.h): her mesh and her two clips,
+                 baked by tools/export_lamashtu.py (PVA2, 12 fps) and read on
+                 the way INTO the arena only, freed on the way out - ~65 KB,
+                 room-scoped like Asag's. Her skin, 128x128 4bpp on the crib's
+                 page x576 y0 with its CLUT at (640,502), is registered through
+                 texmgr and uploaded by the arena's own uploader. -->
+            <file name="LAMASHTU.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Lamashtu\Lamashtu.smd"/>
+            <file name="LMSIDLE.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Lamashtu\Lamashtu_idle.pva"/>
+            <file name="LMSSHRK.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Lamashtu\Lamashtu_shriek.pva"/>
+            <file name="LAMASHTU.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu.tim"/>
             <!-- GULA, the Kennels' one-off (src/gula.h). Her four frames are
                  one 256x256 sheet, and the brief was that sheet in FULL at
                  8bpp and 256 colours - no 2x2, no 4bpp. An 8bpp texture 256

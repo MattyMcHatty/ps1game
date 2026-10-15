@@ -26,6 +26,9 @@
 #include "oil_dispenser.h"
 #include "player.h"             /* current_weapon, player_weapons             */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "lamashtu.h"           /* the boss: drawn, reset and textured from here */
+#include "creep.h"              /* the Creep's sheet is in VRAM for the fight    */
+#include "bars.h"               /* one gate, beside her                          */
 
 /* The Lamashtu Arena — see lamashtu_arena.h. Copied from src/the_head.c, next
    door, with the relief and the arm switches taken out, the Tomb's three
@@ -174,11 +177,22 @@ void lamashtu_arena_load_assets(void) {
 }
 
 /* Pure LoadImage from the RAM copies texmgr already holds — no CD access, safe
-   during the transition (main's STATE_LOADING DrawSyncs first). */
+   during the transition (main's STATE_LOADING DrawSyncs first).
+
+   THREE MORE FOR THE FIGHT, all registered by their own modules, so the room
+   still owns nothing:
+     lamashtu  her skin, x576 y0 - the CRIB's page; no crib stands in here and
+               every room that has one uploads it on entry (src/lamashtu.h)
+     creep     the Creep's sheet, x640 y320 - in VRAM for the fight to come;
+               none is placed yet
+     bars      the gate beside her, x512 y256 */
 void lamashtu_arena_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_loculus();
     catacombs_entry_upload_inner_door();
+    lamashtu_upload_texture();
+    creeps_upload_texture();
+    bars_upload_texture();
 }
 
 /* ---- THE DOOR --------------------------------------------------------------
@@ -242,6 +256,13 @@ static void la_west_door_text(RenderContext *ctx) {
                         DOOR_PIXEL_SIZE);
 }
 
+/* The bars' gap: centred on the aisle x[2400,3000] and on the pillar row
+   z[600,1200]. */
+#define LA_BARS_X            2700
+#define LA_BARS_Z             900
+#define LA_BARS_W             600   /* the gap, pillar face to pillar face  */
+#define LA_BARS_H             600   /* 200 short of the 800 vault, by request */
+
 void lamashtu_arena_spawn_west(void) {
     /* 220 off wall 0 on its walkable +X side, on the door's centre line,
        facing +X down the hall. The first pillar column starts at x=600, so
@@ -275,6 +296,26 @@ void lamashtu_arena_init(void) {
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
+
+    /* LAMASHTU: full health and her idle from the top, on EVERY arrival - a
+       debug jump finds what a walk-in does. Nothing about her is saved yet. */
+    lamashtu_reset();
+
+    /* THE BARS, in the gap on her -Z side: the north-south aisle x[2400,3000]
+       between the pillars at x[1800,2400] and x[3000,3600], on the z[600,1200]
+       pillar row's centre line - beside her, not in front of or behind her.
+       Standing (lift 0) and resized to 600 x 600: the gap's width, so it
+       meets both pillar faces rather than running into the stone (the model
+       is 860 x 860, src/bars.h), and 600 tall, well short of the 800 vault.
+       rot 0 is the model's own run, along X. bars_clear() first because the
+       instances are global - the Kennels' and the Pit's would otherwise ride
+       in. */
+    bars_clear();
+    {
+        int b = bars_place(STATE_LAMASHTU_ARENA, LA_BARS_X,
+                           LA_FLOOR_Y - GROUND_FLOOR_Y, LA_BARS_Z, 0, 0);
+        if (b >= 0) bars_set_size(b, LA_BARS_W, LA_BARS_H);
+    }
 
     la_view_resolve(1);
 }
@@ -468,10 +509,16 @@ void lamashtu_arena_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_lamashtu_arena_smd(ctx);
 
-    /* >>> LEVEL 8 IS THE SIGN. <<< Nothing else stands in the arena yet. The
-       two Chapter 3 enemy draws are area-tagged and cost nothing here; they are
-       called on the Tomb's argument, so a room that is later given an occupant
-       in world.c draws it without an edit. */
+    /* LAMASHTU, straight after the room and under the same plain view: her
+       vertices are world space and she loads no matrix (src/lamashtu.h). Her
+       skin is at Voff 0 on a page-aligned slot, so the room's 128 window is
+       hers too and there is nothing to bracket. Drawn at any range, unfogged -
+       Gula's rule. */
+    if (exp != DBG_EXP_NO_ENTITIES) lamashtu_draw(ctx);
+
+    /* >>> LEVEL 8 IS THE SIGN, THE GATE AND THE ENEMIES. <<< The Chapter 3
+       enemy draws are area-tagged and cost nothing until something is placed;
+       the Creep's is here because the fight will pour them. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         la_west_door_text(ctx);    /* west: YZ plane, approached from +X */
         /* THE CHAPTER 3 ENEMIES. Their sheets sit at Voff 128, so each is
@@ -480,8 +527,13 @@ void lamashtu_arena_draw(RenderContext *ctx) {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
+            creeps_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        draw_creeps(ctx);
+        /* AFTER the enemy sprites, which restore the 128 window this prop's
+           UVs (0..192) depend on - bars.h says it is not happy either way. */
+        bars_draw(ctx);
     }
 }

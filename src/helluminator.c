@@ -27,6 +27,7 @@
 #include "living_statue.h"
 #include "adapa.h"
 #include "gula.h"
+#include "lamashtu.h"
 #include "vampire.h"
 #include "particles.h"   /* spawn_blood_burst, for the vampire */
 #include "damage.h"
@@ -398,6 +399,15 @@ static void hell_burn_tick(void) {
         gula_body(&gx, &gy, &gz, &ghh, &ghw);
         if (HIT(gx, gy, gz, ghw, ghh))
             gula_damage(gula_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
+    }
+    /* LAMASHTU, at 1x: one a second, so ten seconds of burn on the spot on her
+       back. lamashtu_anus_target() is 0 unless the player is behind her - the
+       cone does not reach it through her. */
+    {
+        int32_t lx, ly, lz, lw, lh;
+        if (lamashtu_anus_target(&lx, &ly, &lz, &lw, &lh) &&
+            HIT(lx, ly, lz, lw, lh))
+            lamashtu_damage(HELL_TICK_DAMAGE);
     }
     if (adapa_burnable()) {
         int32_t ax, ay, az;

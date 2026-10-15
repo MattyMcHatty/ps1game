@@ -115,6 +115,7 @@
 #include "the_head.h"
 #include "kennels.h"
 #include "lamashtu_arena.h"
+#include "lamashtu.h"         /* the Lamashtu Arena's boss: the body */
 #include "kennels_puzzle.h"
 #include "arm_switch.h"     /* The Head's eight arm switches */
 #include "gula_tablet.h"
@@ -272,6 +273,7 @@ void reset_game(RenderContext *ctx) {
     adapa_reset();         /* ...and Adapa, and the watch that arms him        */
     adapa_death_reset();   /* ...and any half-played death of his             */
     gula_reset();          /* ...and Gula, the Kennels' one-off, and her howl  */
+    lamashtu_reset();      /* ...and Lamashtu's health and clip                */
     gula_death_reset();    /* ...and any half-played death of hers            */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
@@ -3073,13 +3075,18 @@ static void update_current_area(GameState area) {
         /* THE LAMASHTU ARENA - Chapter 3's thirty-fourth room
            (src/lamashtu_arena.c): one great hall of twenty-four pillars, so
            the shared wall routine and ONE flat floor zone, multi_level 0.
-           One door, west, back to The Head's east door. Nothing is seeded
-           and Lamashtu is not in it yet; both Chapter 3 enemy updates run
-           anyway, on the Tomb's argument. */
+           One door, west, back to The Head's east door. Nothing is seeded;
+           both Chapter 3 enemy updates run anyway, on the Tomb's argument.
+
+           LAMASHTU stands in it (src/lamashtu.h): for now she only plays her
+           two clips back to back, and can be hurt through the one glowing
+           spot on her back. Her body collides through
+           apply_collision_reception. */
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
+        lamashtu_update();
 
         if (lamashtu_arena_west_door_triggered(lock)) {
             pending_area = STATE_THE_HEAD;
@@ -4171,6 +4178,10 @@ int main(int argc, const char **argv) {
     lamashtu_arena_load_assets(); /* CHAPTER 3's thirty-fourth room: the
                                      Tomb's three borrowed headers and no
                                      registration. No CD access here. */
+    lamashtu_load_assets();       /* ...and its boss's skin: ONE deferred
+                                     registration, header only. Her mesh and
+                                     clips are ROOM-SCOPED, read on the way
+                                     into the arena (see STATE_LOADING). */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4621,6 +4632,7 @@ int main(int argc, const char **argv) {
                one if/else. */
             if (pending_area != STATE_GARDEN_COURTYARD) rabisus_free_model();
             if (pending_area != STATE_ASAG_ARENA)       asags_free_model();
+            if (pending_area != STATE_LAMASHTU_ARENA)   lamashtus_free_model();
             loading_screen_pump(&ctx);
 
             /* THE CHAPTER BOUNDARY, and it goes HERE for the reason the boss
@@ -4721,6 +4733,10 @@ int main(int argc, const char **argv) {
                    it (SND_BANK_KENNELS in src/sound.h). Before the chapter
                    test, which it would otherwise match. */
                 (pending_area == STATE_KENNELS) ? SND_BANK_KENNELS :
+                /* ...AND THE LAMASHTU ARENA, the same move for the same reason:
+                   her three clips and the Creep's cry did not fit the chapter's
+                   bank (SND_BANK_LAMASHTU in src/sound.h). */
+                (pending_area == STATE_LAMASHTU_ARENA) ? SND_BANK_LAMASHTU :
                 area_is_catacombs(pending_area) ? SND_BANK_CATACOMBS :
                 SND_BANK_HOUSE);
 
@@ -5169,8 +5185,14 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_LAMASHTU_ARENA) {
                 /* THE LAMASHTU ARENA. The Tomb's three - cobble, the loculus
                    and the inner door - through the Catacombs Entry's narrow
-                   uploaders. It owns nothing, so it displaces nobody. */
+                   uploaders - plus LAMASHTU's skin over the crib's page, the
+                   Creep's sheet and the bars (src/lamashtu_arena.c). */
                 lamashtu_arena_upload_textures();
+
+                /* HER MESH AND CLIPS, after the textures as Asag's are, and with
+                   the free up above the bank swap: free early, load late. ~65 KB
+                   (src/lamashtu.h). */
+                lamashtus_load_model();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -6762,6 +6784,7 @@ int main(int argc, const char **argv) {
                    start the new game still holding 204 KB of a boss it has just
                    left behind. Idempotent, so a cold boot does nothing. */
                 asags_free_model();
+                lamashtus_free_model();   /* ...and Lamashtu's, the same way */
                 loading_screen_pump(&ctx);
                 /* COLLISION, for the same "the arena may hold any room at all"
                    reason as the geometry above. These two install the delivery
@@ -6885,6 +6908,7 @@ int main(int argc, const char **argv) {
                missing, and the two are now symmetric. */
             rabisus_free_model();
             asags_free_model();
+            lamashtus_free_model();
             /* Put the opening sequence's voice back in the shared SPU region,
                the way it was at boot. Doing it HERE — while the player is
                looking at the title with the drive idle — is what keeps the

@@ -34,6 +34,7 @@
 #include "maggot.h"
 #include "crib.h"
 #include "gula.h"
+#include "lamashtu.h"
 
 static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
@@ -56,6 +57,7 @@ static int crw_hit_this_swing   = 0;
 static int msh_hit_this_swing   = 0;
 static int lmb_hit_this_swing   = 0;
 static int gula_hit_this_swing  = 0;
+static int lms_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
 static int had_hit_this_swing   = 0;
 static int crp_hit_this_swing   = 0;
@@ -111,6 +113,7 @@ void update_crucifaxe(void) {
         msh_hit_this_swing     = 0;
         lmb_hit_this_swing     = 0;
         gula_hit_this_swing    = 0;
+        lms_hit_this_swing     = 0;
         lst_hit_this_swing     = 0;
         had_hit_this_swing     = 0;
         crp_hit_this_swing     = 0;
@@ -328,6 +331,14 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !gula_hit_this_swing) {
             if (gula_try_hit())
                 gula_hit_this_swing = 1;
+        }
+
+        /* Lamashtu (src/lamashtu.h): the glowing spot on her back and nothing
+           else, measured to the spot and only from behind her. No knockback -
+           she does not move. */
+        if (swing_timer <= SWING_DURATION && !lms_hit_this_swing) {
+            if (lamashtu_try_hit())
+                lms_hit_this_swing = 1;
         }
 
         /* Living Statue hit. Same shape as the mushroom's above, with two
