@@ -732,8 +732,11 @@ void draw_helluminator(RenderContext *ctx) {
        room; the pair gives it the same 2px weight the gun's arms have.
 
        It brightens with the flame, so the reticule doubles as the "it is lit"
-       tell alongside the HUD's oil count. */
-    if (aiming) {
+       tell alongside the HUD's oil count.
+
+       Not while the weapon wheel is up, though: the d-pad is choosing a weapon
+       and the ring would sit among the wheel's boxes. */
+    if (aiming && !weapon_wheel_open()) {
         const int SEGS = 24;
         int cx = aim_x, cy = aim_y;
         /* Same swell and the same tint as the lamp: white while the wick is

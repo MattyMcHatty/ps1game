@@ -106,42 +106,23 @@ static AmmoType reload_to     = AMMO_STANDARD;
 static int      swap_pending  = 0;
 
 /* --- The ammo wheel ----------------------------------------------------------
-   Four boxes in a cross around the screen centre, one per d-pad direction.
-   wheel_slots[] is the ONLY place that says which type sits where; a box whose
-   ammo is -1 is a placeholder for a type that does not exist yet and can never
-   be picked. ADDING AN AMMO TYPE: give it the next free box here.
+   Four boxes in a cross around the screen centre, one per d-pad direction; the
+   boxes' layout and look are the shared selection wheel's (weapon.h), which the
+   weapon wheel on Triangle uses too. wheel_slots[] is the ONLY place that says
+   which type sits where; a box whose ammo is -1 is a placeholder for a type
+   that does not exist yet and can never be picked. ADDING AN AMMO TYPE: give it the next free box here.
 
    A box can be picked when its type is the chambered one (picking it back is
    how a player changes their mind) or the player holds reserve rounds of it.
    Anything else ignores the d-pad, so an empty box simply does nothing. */
-#define WHEEL_HOLD_FRAMES 15    /* R2 held this long opens the wheel (0.25 s)   */
-#define WHEEL_CX         160    /* screen centre of the cross                    */
-#define WHEEL_CY          92    /* midway between the screen top and the HUD's
-                                   top edge (HUD_Y, 184): the middle of what the
-                                   player can actually see of the room          */
-#define WHEEL_SPACING     42    /* centre-to-box-centre distance                 */
-#define WHEEL_CELL        34    /* box size — the inventory menu's CELL_W        */
-#define WHEEL_ICON        24    /* icon size — the inventory menu's ICON_SIZE    */
-
-/* Wheel OT layers: inside the UI block (0..15), behind the HUD (0..6) and the
-   gun's own flash/reticule, so the wheel never covers the log or the health. */
-#define OT_WHEEL_BOX     12
-#define OT_WHEEL_LINE    11
-#define OT_WHEEL_ICON    10
-#define OT_WHEEL_COUNT    8     /* shadow lands one step behind, at 9           */
-#define OT_WHEEL_CURSOR   7
-
-enum { WHEEL_UP, WHEEL_LEFT, WHEEL_RIGHT, WHEEL_DOWN, WHEEL_SLOTS };
-
 static const struct {
     int8_t ammo;        /* AmmoType, or -1 for a box with nothing in it yet */
     int8_t menu_slot;   /* its inventory icon (MENU_SLOT_*)                 */
-    int8_t dx, dy;      /* box offset from the centre, in WHEEL_SPACINGs    */
 } wheel_slots[WHEEL_SLOTS] = {
-    [WHEEL_UP]    = { AMMO_STANDARD, MENU_SLOT_ROUNDS,        0, -1 },
-    [WHEEL_LEFT]  = { AMMO_FLAME,    MENU_SLOT_FLAME_ROUNDS, -1,  0 },
-    [WHEEL_RIGHT] = { AMMO_SCATTER,  MENU_SLOT_SCATTER_ROUNDS, 1,  0 },
-    [WHEEL_DOWN]  = { -1,            -1,                      0,  1 },
+    [WHEEL_UP]    = { AMMO_STANDARD, MENU_SLOT_ROUNDS         },
+    [WHEEL_LEFT]  = { AMMO_FLAME,    MENU_SLOT_FLAME_ROUNDS   },
+    [WHEEL_RIGHT] = { AMMO_SCATTER,  MENU_SLOT_SCATTER_ROUNDS },
+    [WHEEL_DOWN]  = { -1,            -1                       },
 };
 
 static int r2_frames   = -1;  /* frames R2 has been down; -1 = not armed       */
@@ -710,11 +691,7 @@ void graveolver_update(void) {
                     if (wheel_slots[s].ammo == (int)graveolver_ammo) wheel_pick = s;
             }
             if (wheel_open) {
-                int dir = -1;
-                if      (dpad_just & PAD_UP)    dir = WHEEL_UP;
-                else if (dpad_just & PAD_LEFT)  dir = WHEEL_LEFT;
-                else if (dpad_just & PAD_RIGHT) dir = WHEEL_RIGHT;
-                else if (dpad_just & PAD_DOWN)  dir = WHEEL_DOWN;
+                int dir = wheel_dpad_dir(dpad_just);
                 if (dir >= 0 && dir != wheel_pick && wheel_pickable(dir)) {
                     wheel_pick = dir;
                     sound_play(SFX_CURSOR);
@@ -769,60 +746,25 @@ static void screen_tile(RenderContext *ctx, int x, int y, int w, int h,
     ctx->next_packet += sizeof(TILE);
 }
 
-static void screen_outline(RenderContext *ctx, int x, int y, int w, int h,
-                           uint8_t r, uint8_t g, uint8_t b, int ot) {
-    screen_tile(ctx, x,         y,         w, 1, r, g, b, ot);
-    screen_tile(ctx, x,         y + h - 1, w, 1, r, g, b, ot);
-    screen_tile(ctx, x,         y,         1, h, r, g, b, ot);
-    screen_tile(ctx, x + w - 1, y,         1, h, r, g, b, ot);
-}
-
 /* The ammo wheel: four boxes in the inventory menu's colours, each showing its
    type's icon and reserve count, and the box under the cursor wearing the
    menu's highlight (blue/white double outline with white corner ticks). */
 static void draw_ammo_wheel(RenderContext *ctx) {
-    const int pad = (WHEEL_CELL - WHEEL_ICON) / 2;
     int s;
     for (s = 0; s < WHEEL_SLOTS; s++) {
-        int bx = WHEEL_CX + wheel_slots[s].dx * WHEEL_SPACING - WHEEL_CELL / 2;
-        int by = WHEEL_CY + wheel_slots[s].dy * WHEEL_SPACING - WHEEL_CELL / 2;
-        screen_tile(ctx, bx, by, WHEEL_CELL, WHEEL_CELL, 35, 30, 45, OT_WHEEL_BOX);
-        screen_outline(ctx, bx, by, WHEEL_CELL, WHEEL_CELL, 80, 70, 100, OT_WHEEL_LINE);
+        int ix, iy;
+        wheel_draw_box(ctx, s, s == wheel_pick, &ix, &iy);
 
         int t = wheel_slots[s].ammo;
         if (t >= 0 && (t == (int)graveolver_ammo || player_ammo[t] > 0)) {
-            int ix = bx + pad, iy = by + pad;
             menu_draw_item_icon_any(ctx, wheel_slots[s].menu_slot, ix, iy,
                                     WHEEL_ICON, OT_WHEEL_ICON);
             int count = menu_item_count(wheel_slots[s].menu_slot);
             if (count)
                 menu_draw_count(ctx, ix, iy + WHEEL_ICON, count, 2, OT_WHEEL_COUNT);
         }
-
-        if (s == wheel_pick) {
-            int cx = bx + pad - 2, cy = by + pad - 2, cs = WHEEL_ICON + 4;
-            screen_outline(ctx, cx - 2, cy - 2, cs + 4, cs + 4, 80, 80, 200, OT_WHEEL_CURSOR);
-            screen_outline(ctx, cx, cy, cs, cs, 180, 180, 255, OT_WHEEL_CURSOR);
-            screen_tile(ctx, cx,          cy,          3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
-            screen_tile(ctx, cx + cs - 3, cy,          3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
-            screen_tile(ctx, cx,          cy + cs - 3, 3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
-            screen_tile(ctx, cx + cs - 3, cy + cs - 3, 3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
-        }
     }
-
-    /* Texture window OFF in the icons' own bucket, added after them so it heads
-       the list — a room's 128 window would otherwise wrap the icons' UVs (the
-       HUD's hud_disable_texwindow has the whole story). */
-    {
-        uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-        if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
-            RECT full = {0, 0, 0, 0};
-            DR_TWIN *tw = (DR_TWIN *)ctx->next_packet;
-            setTexWindow(tw, &full);
-            addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_WHEEL_ICON], tw);
-            ctx->next_packet += sizeof(DR_TWIN);
-        }
-    }
+    wheel_draw_done(ctx);
 }
 
 void draw_graveolver(RenderContext *ctx) {
@@ -881,8 +823,8 @@ void draw_graveolver(RenderContext *ctx) {
 
     /* Aiming reticule: a cross with a centre gap at the crosshair, in the
        chambered type's colour (ammo_info[].reticle_*). Hidden while the ammo
-       wheel is up — the d-pad is choosing ammo, not aiming, and the cross would
-       sit among the wheel's boxes.
+       wheel or the weapon wheel is up — the d-pad is choosing, not aiming, and
+       the cross would sit among the wheel's boxes.
 
        A type with a WIDE field (the Scattershot) also gets four corner brackets
        at the field's own edges, so what the player sees is exactly the box a
@@ -891,7 +833,7 @@ void draw_graveolver(RenderContext *ctx) {
     if (wheel_show) {
         draw_ammo_wheel(ctx);
         wheel_show = 0;
-    } else {
+    } else if (!weapon_wheel_open()) {
         const AmmoInfo *ai = &ammo_info[graveolver_ammo];
         uint8_t r = ai->reticle_r, g = ai->reticle_g, b = ai->reticle_b;
         int cx = aim_x, cy = aim_y;

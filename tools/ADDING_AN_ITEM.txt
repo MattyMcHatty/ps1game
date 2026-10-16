@@ -193,7 +193,11 @@ the chambered type's reserve; holding it 0.25 s opens the ammo wheel (four
 boxes, one per d-pad direction), and the box under the cursor when R2 comes
 up is loaded. The wheel's layout is wheel_slots[] in src/graveolver.c and
 NOWHERE ELSE: a new type takes the next free box there (Standard is up, Flame
-is left, Scattershot is right, down is waiting).
+is left, Scattershot is right, down is waiting). Where the boxes sit and how
+they look is the shared selection wheel in src/weapon.c, which the WEAPON
+wheel (hold Triangle) also draws; a new WEAPON takes the next free box in
+weapon_wheel_slots[] there (Crucifaxe up, Grave-olver left, Helluminator
+right, down is waiting).
 
 SWAPPING costs a full reload. The design that keeps this simple is ONE
 completion path for both cases (src/graveolver.c):

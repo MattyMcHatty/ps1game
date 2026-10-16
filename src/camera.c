@@ -280,10 +280,11 @@ void update_camera(void) {
         if (circle_frames > 0 && circle_frames < LOOK_HOLD_FRAMES) tap_frame = 1;
         circle_frames = 0;
     }
-    /* The Grave-olver's ammo wheel (hold R2) owns the d-pad while it is up, so
-       it is neither look mode, aiming, nor walking: the player is rooted and the
-       crosshair stays where it was. */
-    int wheel = graveolver_wheel_open();
+    /* The Grave-olver's ammo wheel (hold R2) and the weapon wheel (hold
+       Triangle) own the d-pad while they are up, so it is neither look mode,
+       aiming, nor walking: the player is rooted and the crosshair stays where
+       it was. */
+    int wheel = graveolver_wheel_open() || weapon_wheel_open();
     look_mode = (circle_frames >= LOOK_HOLD_FRAMES && !aiming && !anchored &&
                  !wheel) ? 1 : 0;
     if (look_mode) {

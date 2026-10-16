@@ -8,12 +8,13 @@
 /*
  * Weapon layer: owns the equipped-weapon dispatch shared by every playable area.
  * Each concrete weapon (crucifaxe, grave-olver) provides its own init/draw (and,
- * later, its own update/fire); this module loads them all, cycles the equipped
- * one on L2, and routes update/draw to whichever is current (see player.h
- * current_weapon / player_weapons).
+ * later, its own update/fire); this module loads them all, switches the equipped
+ * one on Triangle (tap = next owned, hold = the weapon wheel), and routes
+ * update/draw to whichever is current (see player.h current_weapon /
+ * player_weapons).
  */
 void weapons_init(void);            /* load every weapon's model (startup) */
-void weapons_update(void);          /* Triangle switch + the equipped weapon's update */
+void weapons_update(void);          /* Triangle switch/wheel + the equipped weapon's update */
 void weapons_draw(RenderContext *ctx);
 
 /* Weapon-switch animation, shared by each weapon's draw: the outgoing weapon
@@ -21,6 +22,35 @@ void weapons_draw(RenderContext *ctx);
    offset (0 = in place, positive = lowered) to add to the model's hold pose. */
 int  weapon_switch_offset(void);
 int  weapon_switching(void);        /* 1 while a switch animation is in progress */
+
+/* ---- The selection wheel ----------------------------------------------------
+   Four boxes in a cross around the screen centre, one per d-pad direction. Two
+   wheels use it: the Grave-olver's AMMO wheel (hold R2, graveolver.c) and the
+   WEAPON wheel (hold Triangle, weapon.c). Each owns what sits in its boxes and
+   when it is open; this layer owns only where the boxes are and how they look,
+   so the two can never drift apart. A press shorter than WHEEL_HOLD_FRAMES is
+   a tap and keeps that button's old job (top-up / cycle to the next weapon). */
+#define WHEEL_HOLD_FRAMES 15    /* held this long opens a wheel (0.25 s)        */
+#define WHEEL_ICON        24    /* icon size — the inventory menu's ICON_SIZE    */
+
+/* Wheel OT layers: inside the UI block (0..15), behind the HUD (0..6) and the
+   gun's own flash/reticule, so a wheel never covers the log or the health. */
+#define OT_WHEEL_ICON    10
+#define OT_WHEEL_COUNT    8     /* shadow lands one step behind, at 9           */
+
+enum { WHEEL_UP, WHEEL_LEFT, WHEEL_RIGHT, WHEEL_DOWN, WHEEL_SLOTS };
+
+/* The box a d-pad press (this frame's NEW presses) points at, or -1. */
+int  wheel_dpad_dir(int dpad_just);
+/* Draw box `slot` (WHEEL_*), wearing the inventory cursor if `picked`, and
+   return in *ix/*iy where its WHEEL_ICON-sized icon goes. Draw the icon into
+   OT_WHEEL_ICON, then call wheel_draw_done once after the last box. */
+void wheel_draw_box(RenderContext *ctx, int slot, int picked, int *ix, int *iy);
+void wheel_draw_done(RenderContext *ctx);
+
+/* 1 while the weapon wheel is up: it owns the d-pad (camera.c roots the player)
+   and the crosshair is hidden, as for graveolver_wheel_open. */
+int  weapon_wheel_open(void);
 
 /* Shared flat-shaded, view-space weapon-model renderer used by each weapon's
    draw. weapon_vs is the fully-built view-space transform for the model; the

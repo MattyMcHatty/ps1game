@@ -13,6 +13,8 @@
 #include "crucifaxe.h"
 #include "graveolver.h"
 #include "helluminator.h"
+#include "menu.h"        /* the weapon wheel's boxes show the menu's weapon icons */
+#include "sound.h"       /* SFX_CURSOR as a wheel's cursor moves */
 #include "weapon.h"
 
 extern volatile uint8_t pad_buff[2][34];
@@ -118,6 +120,137 @@ int weapon_switch_offset(void) {
 
 int weapon_switching(void) { return switch_phase != 0; }
 
+/* ---- The selection wheel's look (shared — see weapon.h) --------------------- */
+#define WHEEL_CX         160    /* screen centre of the cross                    */
+#define WHEEL_CY          92    /* midway between the screen top and the HUD's
+                                   top edge (HUD_Y, 184): the middle of what the
+                                   player can actually see of the room          */
+#define WHEEL_SPACING     42    /* centre-to-box-centre distance                 */
+#define WHEEL_CELL        34    /* box size — the inventory menu's CELL_W        */
+#define OT_WHEEL_BOX     12
+#define OT_WHEEL_LINE    11
+#define OT_WHEEL_CURSOR   7
+
+static const int8_t wheel_dx[WHEEL_SLOTS] = { [WHEEL_UP] =  0, [WHEEL_LEFT] = -1,
+                                              [WHEEL_RIGHT] = 1, [WHEEL_DOWN] = 0 };
+static const int8_t wheel_dy[WHEEL_SLOTS] = { [WHEEL_UP] = -1, [WHEEL_LEFT] =  0,
+                                              [WHEEL_RIGHT] = 0, [WHEEL_DOWN] = 1 };
+
+/* Screen-space filled rect helper (2D, no GTE). */
+static void screen_tile(RenderContext *ctx, int x, int y, int w, int h,
+                        uint8_t r, uint8_t g, uint8_t b, int ot) {
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    if (ctx->next_packet + sizeof(TILE) > buf_end) return;
+    TILE *t = (TILE *)ctx->next_packet;
+    setTile(t);
+    setRGB0(t, r, g, b);
+    setXY0(t, x, y);
+    setWH(t, w, h);
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[ot], t);
+    ctx->next_packet += sizeof(TILE);
+}
+
+static void screen_outline(RenderContext *ctx, int x, int y, int w, int h,
+                           uint8_t r, uint8_t g, uint8_t b, int ot) {
+    screen_tile(ctx, x,         y,         w, 1, r, g, b, ot);
+    screen_tile(ctx, x,         y + h - 1, w, 1, r, g, b, ot);
+    screen_tile(ctx, x,         y,         1, h, r, g, b, ot);
+    screen_tile(ctx, x + w - 1, y,         1, h, r, g, b, ot);
+}
+
+int wheel_dpad_dir(int dpad_just) {
+    if (dpad_just & PAD_UP)    return WHEEL_UP;
+    if (dpad_just & PAD_LEFT)  return WHEEL_LEFT;
+    if (dpad_just & PAD_RIGHT) return WHEEL_RIGHT;
+    if (dpad_just & PAD_DOWN)  return WHEEL_DOWN;
+    return -1;
+}
+
+/* A box in the inventory menu's colours; the picked one also wears the menu's
+   highlight (blue/white double outline with white corner ticks). */
+void wheel_draw_box(RenderContext *ctx, int slot, int picked, int *ix, int *iy) {
+    const int pad = (WHEEL_CELL - WHEEL_ICON) / 2;
+    int bx = WHEEL_CX + wheel_dx[slot] * WHEEL_SPACING - WHEEL_CELL / 2;
+    int by = WHEEL_CY + wheel_dy[slot] * WHEEL_SPACING - WHEEL_CELL / 2;
+    screen_tile(ctx, bx, by, WHEEL_CELL, WHEEL_CELL, 35, 30, 45, OT_WHEEL_BOX);
+    screen_outline(ctx, bx, by, WHEEL_CELL, WHEEL_CELL, 80, 70, 100, OT_WHEEL_LINE);
+    *ix = bx + pad;
+    *iy = by + pad;
+
+    if (picked) {
+        int cx = bx + pad - 2, cy = by + pad - 2, cs = WHEEL_ICON + 4;
+        screen_outline(ctx, cx - 2, cy - 2, cs + 4, cs + 4, 80, 80, 200, OT_WHEEL_CURSOR);
+        screen_outline(ctx, cx, cy, cs, cs, 180, 180, 255, OT_WHEEL_CURSOR);
+        screen_tile(ctx, cx,          cy,          3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
+        screen_tile(ctx, cx + cs - 3, cy,          3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
+        screen_tile(ctx, cx,          cy + cs - 3, 3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
+        screen_tile(ctx, cx + cs - 3, cy + cs - 3, 3, 3, 255, 255, 255, OT_WHEEL_CURSOR);
+    }
+}
+
+/* Texture window OFF in the icons' own bucket, added after them so it heads
+   the list — a room's 128 window would otherwise wrap the icons' UVs (the
+   HUD's hud_disable_texwindow has the whole story). */
+void wheel_draw_done(RenderContext *ctx) {
+    uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
+        RECT full = {0, 0, 0, 0};
+        DR_TWIN *tw = (DR_TWIN *)ctx->next_packet;
+        setTexWindow(tw, &full);
+        addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_WHEEL_ICON], tw);
+        ctx->next_packet += sizeof(DR_TWIN);
+    }
+}
+
+/* ---- The weapon wheel (hold Triangle) ---------------------------------------
+   Triangle has two jobs, told apart by how long it is held, exactly as R2 is
+   for the Grave-olver:
+     TAP  (released before WHEEL_HOLD_FRAMES)  switches to the next owned
+          weapon, as Triangle always did.
+     HOLD (WHEEL_HOLD_FRAMES or longer)        opens the weapon wheel; the d-pad
+          picks a box and releasing Triangle switches to that weapon.
+   Both are decided on RELEASE except the wheel opening itself. Until it opens
+   the equipped weapon keeps working, so a hold that becomes a tap costs nothing.
+
+   weapon_wheel_slots[] is the ONLY place that says which weapon sits where; -1
+   is an empty box. A box can be picked only if its weapon is owned.
+
+   Opening the wheel puts the weapon in hand down the way a switch does: a
+   reload is abandoned, a burning lantern goes out and a swing is cut short.
+   While the wheel is up the equipped weapon's update does not run at all, so
+   nothing can be fired or reloaded mid-choice. */
+static const int8_t weapon_wheel_slots[WHEEL_SLOTS] = {
+    [WHEEL_UP]    = WEAPON_CRUCIFAXE,
+    [WHEEL_LEFT]  = WEAPON_GRAVEOLVER,
+    [WHEEL_RIGHT] = WEAPON_HELLUMINATOR,
+    [WHEEL_DOWN]  = -1,
+};
+
+static int tri_frames   = -1;  /* frames Triangle has been down; -1 = not armed */
+static int wwheel_open  = 0;
+static int wwheel_pick  = WHEEL_UP;
+/* Set by weapons_update on every frame the wheel is open and consumed by the
+   draw, as the ammo wheel's wheel_show is. */
+static int wwheel_show  = 0;
+
+int weapon_wheel_open(void) { return wwheel_open; }
+
+static int weapon_owned(int w) {
+    return w >= 0 && (player_weapons & (1 << w)) != 0;
+}
+
+static void draw_weapon_wheel(RenderContext *ctx) {
+    int s;
+    for (s = 0; s < WHEEL_SLOTS; s++) {
+        int ix, iy;
+        wheel_draw_box(ctx, s, s == wwheel_pick, &ix, &iy);
+        if (weapon_owned(weapon_wheel_slots[s]))
+            menu_draw_weapon_icon(ctx, weapon_wheel_slots[s], ix, iy,
+                                  WHEEL_ICON, OT_WHEEL_ICON);
+    }
+    wheel_draw_done(ctx);
+}
+
 /* The next OWNED weapon after current_weapon (wrapping), or current if it's the
    only one. */
 static int next_owned_weapon(void) {
@@ -129,7 +262,43 @@ static int next_owned_weapon(void) {
     return current_weapon;
 }
 
+/* Put the weapon in hand away without starting a switch — what both a switch
+   and the wheel opening do to it. */
+static void put_weapon_down(void) {
+    /* Switching away mid-reload interrupts it — the cylinder stays empty
+       and the reload must be restarted after switching back. */
+    graveolver_cancel_reload();
+    /* And a lantern being put away goes out. Nothing is lost by it —
+       oil is spent per second of burning, so releasing Square early and
+       switching are the same act. */
+    helluminator_cancel_burn();
+}
+
+static void start_switch(int target) {
+    if (target == current_weapon) return;
+    put_weapon_down();
+    switch_target = target;
+    switch_phase  = 1;
+    switch_timer  = 0;
+}
+
 void weapons_update(void) {
+    /* Triangle and the d-pad are edge-detected every frame, a switch or not, so
+       a press made during a switch is simply dropped rather than firing the
+       moment it ends. */
+    static int tri_prev  = 0;
+    static int dpad_prev = 0;
+    int tri_held = 0, dpad = 0;
+    if (pad_buff_len[0]) {
+        PadResponse *pad = (PadResponse *)pad_buff[0];
+        tri_held = (~pad->btn & PAD_TRIANGLE) ? 1 : 0;
+        dpad     = ~pad->btn & (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT);
+    }
+    int tri_just  = tri_held && !tri_prev;
+    int dpad_just = dpad & ~dpad_prev;
+    tri_prev  = tri_held;
+    dpad_prev = dpad;
+
     /* Drive an in-progress switch; block all weapon input until it finishes. */
     if (switch_phase) {
         switch_timer++;
@@ -146,30 +315,49 @@ void weapons_update(void) {
         return;
     }
 
-    /* Edge-detect Triangle so one press starts one switch (L2 is now aiming). */
-    static int tri_prev = 0;
-    int tri_held = 0;
-    if (pad_buff_len[0]) {
-        PadResponse *pad = (PadResponse *)pad_buff[0];
-        tri_held = (~pad->btn & PAD_TRIANGLE) ? 1 : 0;
+    /* Triangle: tap for the next weapon, hold for the wheel (see the note at
+       weapon_wheel_slots). Not armed in the menu, nor while the ammo wheel is
+       up — R2 + d-pad is already choosing something. */
+    if (game_state == STATE_MENU) {
+        wwheel_open = 0;
+        tri_frames  = -1;
+    } else if (tri_just && !graveolver_wheel_open()) {
+        tri_frames = 0;
     }
-    if (tri_held && !tri_prev && game_state != STATE_MENU) {
-        int target = next_owned_weapon();
-        if (target != current_weapon) {
-            /* Switching away mid-reload interrupts it — the cylinder stays empty
-               and the reload must be restarted after switching back. */
-            graveolver_cancel_reload();
-            /* And a lantern being put away goes out. Nothing is lost by it —
-               oil is spent per second of burning, so releasing Square early and
-               switching are the same act. */
-            helluminator_cancel_burn();
-            switch_target = target;
-            switch_phase  = 1;
-            switch_timer  = 0;
+    if (tri_frames >= 0) {
+        if (tri_held) {
+            if (!wwheel_open && ++tri_frames >= WHEEL_HOLD_FRAMES) {
+                int s;
+                wwheel_open = 1;
+                wwheel_pick = WHEEL_UP;
+                for (s = 0; s < WHEEL_SLOTS; s++)
+                    if (weapon_wheel_slots[s] == (int)current_weapon) wwheel_pick = s;
+                put_weapon_down();
+                swing_timer = 0;   /* abort any in-progress crucifaxe swing */
+            }
+            if (wwheel_open) {
+                int dir = wheel_dpad_dir(dpad_just);
+                if (dir >= 0 && dir != wwheel_pick &&
+                    weapon_owned(weapon_wheel_slots[dir])) {
+                    wwheel_pick = dir;
+                    sound_play(SFX_CURSOR);
+                }
+                wwheel_show = 1;
+                return;
+            }
+        } else {
+            /* Released. Leaving the cursor on the weapon in hand is a change of
+               mind, not a switch. */
+            tri_frames = -1;
+            if (wwheel_open) {
+                wwheel_open = 0;
+                start_switch(weapon_wheel_slots[wwheel_pick]);
+            } else {
+                start_switch(next_owned_weapon());
+            }
+            if (switch_phase) return;   /* a switch just started this frame */
         }
     }
-    tri_prev = tri_held;
-    if (switch_phase) return;   /* a switch just started this frame */
 
     /* Route to the equipped weapon's update. The crucifaxe's melee swing only
        runs while it is equipped (a gun can't chop crates/doors); the grave-olver
@@ -189,6 +377,11 @@ void weapons_draw(RenderContext *ctx) {
         draw_helluminator(ctx);
     else
         draw_crucifaxe(ctx);
+
+    if (wwheel_show) {
+        if (game_state != STATE_MENU) draw_weapon_wheel(ctx);
+        wwheel_show = 0;
+    }
 }
 
 void weapon_render_model(RenderContext *ctx, SMD *smd, MATRIX *weapon_vs,
