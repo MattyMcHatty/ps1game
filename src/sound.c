@@ -172,8 +172,7 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        `spare` at all (tools/ADDING_A_SOUND.txt STEP 3 — `spare` is the region
        less the LARGEST bank, and CATACOMBS is nowhere near it). */
     [SFX_MCHNE]      = SND_BANK_HOUSE | SND_BANK_CATACOMBS |
-                       SND_BANK_KENNELS |  /* the Kennels' cell gates */
-                       SND_BANK_LAMASHTU,  /* the arena's gate */
+                       SND_BANK_KENNELS,   /* the Kennels' cell gates */
     /* >>> THESE THREE WERE SND_RESIDENT AND DID NOT NEED TO BE. <<< They fire
        mid-fight and a bank swap is a CD read, so residency looked like the only
        way to guarantee they were loaded. It was not: they are played by
@@ -204,7 +203,8 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        the 100,352-byte model read and not the sum. See PART 6 of
        tools/ADDING_THE_ASAG_FIGHT.txt, which is where that sequencing is
        defended and where it cost a crash to find. */
-    [SFX_EXPLODE]    = SND_BANK_BOSS | SND_BANK_ASAG,
+    [SFX_EXPLODE]    = SND_BANK_BOSS | SND_BANK_ASAG |
+                       SND_BANK_LAMASHTU,   /* ...and Lamashtu's death */
     [SFX_EMERGE]     = SND_BANK_BOSS,
     /* THE DEMON SPEAKS IN BOTH BOSS ROOMS, so it is in both banks — the same
        two-copies answer SFX_GATE and SFX_RUMBLE below already take. Asag's
@@ -223,7 +223,8 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        sound_bank_select's read is a 55,296-byte malloc that is freed before
        main.c loads the boss model, and main.c sequences the two deliberately,
        so the door's peak is still the 108,544-byte model read and not the sum. */
-    [SFX_DMNSPEAK]   = SND_BANK_BOSS | SND_BANK_ASAG,
+    [SFX_DMNSPEAK]   = SND_BANK_BOSS | SND_BANK_ASAG |
+                       SND_BANK_LAMASHTU,   /* ...and Lamashtu's opening */
     [SFX_RBS_SWING]  = SND_RESIDENT,   /* aliases a resident, so: resident      */
     [SFX_NINURTA]    = SND_BANK_INTRO, /* title screen only; see sound.h        */
     [SFX_CURSOR]     = SND_RESIDENT,   /* the menus open under every bank there */

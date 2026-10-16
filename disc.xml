@@ -1621,6 +1621,12 @@
             <file name="LMSIDLE.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Lamashtu\Lamashtu_idle.pva"/>
             <file name="LMSSHRK.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Lamashtu\Lamashtu_shriek.pva"/>
             <file name="LAMASHTU.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu.tim"/>
+            <!-- THE LAMASHTU CREEP (src/lms_creep.h), what she pours out of
+                 herself: one 64x64 8bpp frame ON THE CREEP'S OWN SLOT
+                 x[640,672) y[320,384) and its CLUT line (672,511) - a
+                 time-share, since no crib stands in the arena and every crib
+                 room uploads the Creep on its way in. -->
+            <file name="LMSCREEP.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu creep.tim"/>
             <!-- GULA, the Kennels' one-off (src/gula.h). Her four frames are
                  one 256x256 sheet, and the brief was that sheet in FULL at
                  8bpp and 256 colours - no 2x2, no 4bpp. An 8bpp texture 256

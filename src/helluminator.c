@@ -27,6 +27,7 @@
 #include "living_statue.h"
 #include "adapa.h"
 #include "gula.h"
+#include "lms_creep.h"   /* Lamashtu's Creeps burn; the crib's do not */
 #include "lamashtu.h"
 #include "vampire.h"
 #include "particles.h"   /* spawn_blood_burst, for the vampire */
@@ -223,6 +224,14 @@ static void hell_burn_tick(void) {
         if (!d->active || d->state == DDOG_DEAD) continue;
         if (HIT(d->x, d->y + DDOG_Y_OFFSET, d->z, DDOG_HALF_W, DDOG_HALF_H))
             demon_dog_damage(d, demon_dog_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
+    }
+    /* LAMASHTU'S CREEPS (src/lms_creep.h): one hit point, so one tick of burn.
+       The crib's Creeps are deliberately NOT in this sweep. */
+    for (i = 0; i < lms_creep_count; i++) {
+        LmsCreep *lc = &lms_creeps[i];
+        if (!lc->active || lc->state == LCR_DEAD || lc->area != current_area) continue;
+        if (HIT(lc->x, lms_creep_body_y(lc), lc->z, LCR_HALF_W, LCR_HALF_H))
+            lms_creep_damage(lc, lms_creep_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
     }
     for (i = 0; i < zombie_count; i++) {
         Zombie *z = &zombies[i];

@@ -467,6 +467,10 @@ typedef enum {
        The only thing saved about her: alive, she is re-derived on every entry
        from the Kennels' dogs-dead byte. Bit 8 of game_flags2. */
     FLAG_GULA_DEAD,
+    /* LAMASHTU, the Lamashtu Arena's boss (src/lamashtu_boss.h), has been
+       killed. Set on the killing blow. From then on the arena is empty, open
+       and has the chapter's music. Bit 9 of game_flags2. */
+    FLAG_LAMASHTU_DEAD,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

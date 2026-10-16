@@ -80,7 +80,7 @@
 /* 4 for the Sliding Bars Room's four sliding gates (src/sliding_bars_room.c)
    and the Kennels' four cell fronts (src/kennels_puzzle.c); The Pit places
    one. Not saved per instance, so this costs the save nothing. */
-#define MAX_BARS              4
+#define MAX_BARS             24
 
 /* The drop, in 1/256ths of a world unit per frame (and per frame squared). */
 #define BARS_GRAVITY        400    /* ~1.56 units/frame^2                     */
@@ -100,9 +100,17 @@ typedef enum {
     BARS_FALLING,      /* dropped: in the air, falling or on a bounce          */
     BARS_DOWN,         /* on the floor                                         */
     BARS_RISING,       /* winching back up (bars_raise), then RAISED again     */
-    BARS_SLIDING       /* travelling sideways on the floor (bars_slide), then
+    BARS_SLIDING,      /* travelling sideways on the floor (bars_slide), then
                           DOWN again at the new spot                           */
+    BARS_POPPING,      /* coming up out of the floor (bars_pop_up), then DOWN  */
+    BARS_SINKING       /* going down into it (bars_sink), then FREED           */
 } BarsState;
+
+/* THE POP (bars_pop_up / bars_sink): the Lamashtu Arena's gates come up out of
+   the floor and go back into it, linearly, in this many frames - 0.4 s, under
+   the brief's "no more than 0.5 seconds either way". SFX_SLAM plays as they
+   arrive, up or down - once a frame, however many arrive together. */
+#define BARS_POP_FRAMES      24
 
 /* THE SLIDE (bars_slide) is one machinery clip: BARS_MCHNE_FRAMES, SFX_MCHNE
    played once. The Sliding Bars Room moves each gate 1200 (two cells), so ~7
@@ -174,6 +182,18 @@ void bars_slide(int idx, int32_t x, int32_t z);
 
 /* 1 while the instance is BARS_SLIDING. */
 int  bars_sliding(int idx);
+
+/* Place one BELOW the floor, resized to width x height, and bring it up out of
+   it over BARS_POP_FRAMES; it is then DOWN like any placed gate. Returns the
+   index or -1. */
+int  bars_pop_up(GameState area, int32_t x, int32_t y, int32_t z,
+                 int32_t rot_y, int32_t width, int32_t height);
+/* Send one back down into the floor over BARS_POP_FRAMES (from wherever it
+   is), and FREE its instance once it is all the way under: nothing of it is
+   drawn, collided with or kept. bars_place reuses the slot. */
+void bars_sink(int idx);
+/* 1 while the slot holds a live gate (popping, up, or sinking). */
+int  bars_in_use(int idx);
 
 /* One frame of every falling, rising or sliding instance in current_area. */
 void bars_update(void);

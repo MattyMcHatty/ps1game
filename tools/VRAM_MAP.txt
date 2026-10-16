@@ -181,6 +181,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   vlv_hndl.tim         8       608   288    64    64    32   768,503
   hatch_key.tim        8       480   320    64    64    64   672,505
   creep.tim            8       640   320    64    64    64   672,511
+  lamashtu creep.tim   8       640   320    64    64    64   672,511
   maggot.tim           4       672   320   128    64    64   64,480
   crucifaxe.tim        8       320   384    64    64   128   0,500  <-- Voff>=128
   hadad_idle_64.tim    8       352   384    64    96   128   256,507  <-- Voff>=128
@@ -347,6 +348,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=511  x[224,240)  grss_gs.tim
   y=511  x[176,192)  hud.tim
   y=511  x[304,560)  ladder.tim
+  y=511  x[672,928)  lamashtu creep.tim
   y=511  x[32,48)  piano_keys.tim
   y=511  x[32,48)  piano_keys_full.tim
   y=511  x[256,272)  poison_flower_base_gh.tim
@@ -580,6 +582,7 @@ OVERLAP CHECK
   crawler_a.tim                            spdr_wk.tim          time-shared (streaming)
   crawler_b.tim                            zombie_alert.tim     time-shared (streaming)
   crawler_b.tim                            zombie_sleep.tim     time-shared (streaming)
+  creep.tim                                lamashtu creep.tim   time-shared (streaming)
   crib.tim                                 lamashtu.tim         time-shared (streaming)
   crib.tim                                 red_wlppr.tim        time-shared (streaming)
   cuneiform _symbols.tim                   dresser.tim          time-shared (streaming)

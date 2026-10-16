@@ -936,6 +936,10 @@ KNOWN_STREAM_PAIRS = [
     # and the Gaol Cells' uploader put theirs back on entry to their rooms. The
     # page's older occupants keep the crib's restores.
     ("crib.tim",                    "lamashtu.tim"),
+    #   lamashtu creep.tim -> x640 y320, THE LAMASHTU CREEP, 8bpp 64x64 ON THE
+    # CREEP'S OWN SLOT AND CLUT LINE (672,511): drawn only in the Lamashtu
+    # Arena, which has no crib; every crib room's uploader puts the Creep back.
+    ("creep.tim",                   "lamashtu creep.tim"),
     ("gaol_mud.tim",                "lamashtu.tim"),
     ("red_wlppr.tim",               "lamashtu.tim"),
     #   gula tablet.tim -> x640 y0, THE NURSERY's floor tiles and the Gula

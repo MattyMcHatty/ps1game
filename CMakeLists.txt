@@ -168,6 +168,8 @@ add_executable(horror_game
     src/adapa_death.c
     src/gula.c
     src/lamashtu.c
+    src/lamashtu_boss.c
+    src/lms_creep.c
     src/gula_death.c
     src/rabisu.c
     src/web.c

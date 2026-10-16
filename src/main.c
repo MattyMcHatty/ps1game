@@ -116,6 +116,7 @@
 #include "kennels.h"
 #include "lamashtu_arena.h"
 #include "lamashtu.h"         /* the Lamashtu Arena's boss: the body */
+#include "lamashtu_boss.h"    /* ...and her encounter: the director */
 #include "kennels_puzzle.h"
 #include "arm_switch.h"     /* The Head's eight arm switches */
 #include "gula_tablet.h"
@@ -143,6 +144,7 @@
 #include "crib.h"
 #include "bars.h"
 #include "creep.h"
+#include "lms_creep.h"   /* ...and Lamashtu's own, in her arena */
 #include "maggot.h"
 #include "adapa.h"
 #include "adapa_death.h"
@@ -257,6 +259,7 @@ void reset_game(RenderContext *ctx) {
     spiders_reset();
     crawlers_reset();
     lumberers_reset();
+    lms_creeps_reset();    /* ...and every one Lamashtu poured, on the same terms */
     creeps_reset();        /* ...and every Creep a crib had poured out. There is
                               no creeps_rest() and nothing comes back: they are
                               transient, exactly like the webs below
@@ -274,6 +277,7 @@ void reset_game(RenderContext *ctx) {
     adapa_death_reset();   /* ...and any half-played death of his             */
     gula_reset();          /* ...and Gula, the Kennels' one-off, and her howl  */
     lamashtu_reset();      /* ...and Lamashtu's health and clip                */
+    lamashtu_boss_reset(); /* ...and any half-played encounter of hers         */
     gula_death_reset();    /* ...and any half-played death of hers            */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
@@ -676,6 +680,18 @@ static void update_current_area(GameState area) {
        exactly. update_gula stays (her state, and any flash, keep ticking);
        nothing else runs. Her eight dogs are all dead by construction - that is
        what called her. */
+    /* ...and LAMASHTU's opening and death (src/lamashtu_boss.h): the camera is
+       the director's, the player anchored. Her body and her gates keep
+       moving; nothing else runs. The fight between is free play and does not
+       come through here. */
+    if (area == STATE_LAMASHTU_ARENA && lamashtu_boss_cutscene()) {
+        lamashtu_boss_update();
+        lamashtu_update();
+        bars_update();
+        player_status_update();
+        update_particles();
+        return;
+    }
     if (area == STATE_KENNELS && gula_death_cutscene()) {
         update_gula();
         player_status_update();
@@ -3086,9 +3102,19 @@ static void update_current_area(GameState area) {
         apply_height();
         update_crawlers();
         update_lumberers();
+        /* THE DIRECTOR BEFORE THE BODY: a hit the body latched last frame is
+           read here and the fade starts this frame. The body after collision,
+           because her shove is resolved against the walls between steps (Gula's
+           shove, src/gula.c). */
+        lamashtu_boss_update();
         lamashtu_update();
+        bars_update();
 
-        if (lamashtu_arena_west_door_triggered(lock)) {
+        /* THE SEAL, tested BEFORE the trigger so the trigger is not polled
+           while she lives (ADDING_A_BOSS_ENCOUNTER.txt STEP 9); her death
+           re-arms it as the seal lifts. */
+        if (!lamashtu_boss_seals_door() &&
+            lamashtu_arena_west_door_triggered(lock)) {
             pending_area = STATE_THE_HEAD;
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
@@ -3527,6 +3553,8 @@ static void update_current_area(GameState area) {
        this block, so the one call serves every room; and BELOW the NO_AI switch
        because, unlike the crib that made them, they are monsters. */
     update_creeps();
+    /* ...and Lamashtu's, on the same terms (src/lms_creep.h). */
+    update_lms_creeps();
     /* The Maggots — area-tagged, below the NO_AI switch, on the creeps' terms.
        Also in every camera-locked branch above that updates the crawlers, so a
        swarm keeps biting through a puzzle. */
@@ -4396,6 +4424,11 @@ int main(int argc, const char **argv) {
                                  pairing it against a donor. */
     loading_screen_pump(&ctx);
     creeps_init();
+    /* THE LAMASHTU CREEP (src/lms_creep.h): the Creep's copy that Lamashtu
+       pours, on a time-share of the Creep's own slot. Registered here, uploaded
+       by the Lamashtu Arena's uploader. */
+    lms_creeps_load_textures();
+    lms_creeps_init();
     loading_screen_pump(&ctx);
     maggots_load_textures();  /* Chapter 3's fourth monster (src/maggot.h).
                                  REGISTERED here, deferred to TEXBANK_CATACOMBS,
@@ -6265,6 +6298,12 @@ int main(int argc, const char **argv) {
             if (area_is_catacombs(pending_area)) {
                 if (pending_area == STATE_CATACOMBS_ENTRY)
                     cdaudio_stop();
+                /* THE LAMASHTU ARENA, while she lives: silent until her
+                   encounter starts the bosses' music on its first line
+                   (src/lamashtu_boss.h) - the Rabisu's and Asag's rule. */
+                else if (pending_area == STATE_LAMASHTU_ARENA &&
+                         !game_flag(FLAG_LAMASHTU_DEAD))
+                    cdaudio_stop();
                 else
                     cdaudio_play(CDAUDIO_CATACOMBS_TRACK, 1);
             }
@@ -6635,7 +6674,10 @@ int main(int argc, const char **argv) {
                                ((area == STATE_PIANO_ROOM ||
                                  area == STATE_LIBRARY) && adapa_death_cutscene()) ||
                                /* ...and Gula's, the same scene. */
-                               (area == STATE_KENNELS && gula_death_cutscene());
+                               (area == STATE_KENNELS && gula_death_cutscene()) ||
+                               /* ...and Lamashtu's opening and death. */
+                               (area == STATE_LAMASHTU_ARENA &&
+                                lamashtu_boss_cutscene());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();

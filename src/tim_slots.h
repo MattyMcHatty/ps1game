@@ -383,6 +383,10 @@
 #define TIM_TPAGE_LEGS     0x008a
 #define TIM_CLUT_LEGS      0x7d6a
 
+/* lamashtu creep.tim  8bpp  VRAM ( 640,320)  \TEXCTCMB\LMSCREEP.TIM */
+#define TIM_TPAGE_LMSCREEP 0x009a
+#define TIM_CLUT_LMSCREEP  0x7fea
+
 /* lamashtu arm.tim  4bpp  VRAM ( 768,  0)  \TEXCTCMB\LMSHARM.TIM */
 #define TIM_TPAGE_LMSHARM  0x000c
 #define TIM_CLUT_LMSHARM   0x782d

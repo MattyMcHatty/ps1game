@@ -307,6 +307,7 @@ THIS BANK'S OWN ART
   heads.tim                  Room of Heads' piles (=arms pg) x640 y0
   incinerator.tim            the Incinerator machine        x704 y256
   ladder.tim                 North Chamber's ladder         x704 y256
+  lamashtu creep.tim         her Creeps (=creep slot; arena only) x640 y320
   lamashtu tablet.tim        the entry hall's tablet        x768 y0
   lamashtu.tim               Lamashtu's skin (=crib pg; arena only) x576 y0 4bpp
   legs.tim                   Room of Legs' pile (=arms pg)  x640 y0
@@ -348,7 +349,7 @@ MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
   x448  BLOCKED - reserved: flm_rnds.tim, hatch_key.tim
   x512  IN USE by this bank: bars.tim   [also on this page, all re-uploaded on room entry: pipe_button_off.tim, pipe_button_on.tim]
   x576  BLOCKED - reserved: bl_ky_stn.tim, pno_key.tim, vlv_hndl.tim
-  x640  IN USE by this bank: maggot.tim   [also on this page, all re-uploaded on room entry: creep.tim]
+  x640  IN USE by this bank: lamashtu creep.tim, maggot.tim   [also on this page, all re-uploaded on room entry: creep.tim]
   x704  IN USE by this bank: incinerator.tim, ladder.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, vines.tim]
   x768  AVAILABLE, needs a way back first: wd_dr.tim
   x832  AVAILABLE, needs a way back first: wd_dr.tim

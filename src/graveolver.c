@@ -23,6 +23,7 @@
 #include "gula.h"
 #include "lamashtu.h"     /* the one spot on her back that can be hurt */
 #include "creep.h"
+#include "lms_creep.h"
 #include "maggot.h"
 #include "rabisu.h"
 #include "asag.h"          /* asag_head_box - where the head is         */
@@ -304,6 +305,17 @@ static void graveolver_fire(void) {
             best_depth = depth; best_kind = 13; best_idx = i;
         }
     }
+    /* ...and Lamashtu's (src/lms_creep.h), the same loop at their own size. */
+    for (i = 0; i < lms_creep_count; i++) {
+        LmsCreep *lc = &lms_creeps[i];
+        if (!lc->active || lc->state == LCR_DEAD || lc->area != current_area) continue;
+        if (weapon_aim_in_circle(lc->x, lms_creep_body_y(lc), lc->z,
+                                 LCR_HALF_W, LCR_HALF_H,
+                                 fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
+            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
+            best_depth = depth; best_kind = 17; best_idx = i;
+        }
+    }
     /* The Maggots — the creep's loop, aimed through maggot_body_y() for the
        creep's reason: it floats at eye level above its floor anchor. */
     for (i = 0; i < maggot_count; i++) {
@@ -501,6 +513,10 @@ static void graveolver_fire(void) {
            table doubles DMG_FLAME) — so 20 or 10 shots to kill. */
         rabisu_damage(&rabisus[best_idx],
                       rabisu_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (best_kind == 17) {
+        /* A LAMASHTU CREEP: the Creep's one hit point, so any round. */
+        lms_creep_damage(&lms_creeps[best_idx],
+                         lms_creep_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (best_kind == 16) {
         /* Lamashtu's spot: 1 from any round, no weakness table - every weapon
            is 1x against her (src/lamashtu.h), so ten rounds. */

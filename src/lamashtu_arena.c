@@ -27,8 +27,9 @@
 #include "player.h"             /* current_weapon, player_weapons             */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 #include "lamashtu.h"           /* the boss: drawn, reset and textured from here */
-#include "creep.h"              /* the Creep's sheet is in VRAM for the fight    */
-#include "bars.h"               /* one gate, beside her                          */
+#include "lms_creep.h"          /* her Creeps' sheet, in VRAM for the fight      */
+#include "bars.h"               /* the fight's gates (src/lamashtu_boss.c)       */
+#include "lamashtu_boss.h"      /* the encounter: its seal, its lights and lines */
 
 /* The Lamashtu Arena — see lamashtu_arena.h. Copied from src/the_head.c, next
    door, with the relief and the arm switches taken out, the Tomb's three
@@ -41,30 +42,33 @@ static void *la_buff = NULL;
    THE CHAPTER'S MACHINERY: cull and fog-far are equal, the base is scaled by
    what the player is carrying, and the scale eases rather than jumping.
 
-   366/1300 and the ~+46%/+46% lantern bonus - THE KENNELS' NUMBERS, exactly
-   (src/kennels.c): 1300 / 1900 / 2500 at rest, raised and lit. Anything that
-   lengthens these has to be measured BURNING, not at rest - this is the
-   biggest mesh on the disc. */
+   1300 / 1800 / 2200 - at rest, with the lantern in hand, and with it lit:
+   the user's figures, SHORTER than the Kennels' 1300 / 1900 / 2500 under the
+   lantern. Anything that lengthens these has to be measured BURNING, not at
+   rest - this is the biggest mesh on the disc.
+
+   >>> THE EASED QUANTITY IS FOG-FAR ITSELF, IN WORLD UNITS, not the Kennels'
+   256ths scale. <<< 1300 x n/256 cannot land on 1800 or 2200 (the nearest are
+   1797 and 2193), so la_view holds the distance and fog-near follows it at the
+   Kennels' 366:1300 ratio. LA_VIEW_RATE 40 is the Kennels' 8/256 of 1300 a
+   frame, so the ease feels the same. */
 #define LA_BASE_FOG_NEAR   366
 #define LA_BASE_FOG_FAR   1300
 
-#define LA_VIEW_UNIT        256
-#define LA_VIEW_HELL_BONUS  118   /* ~+46% while the lantern is in hand   */
-#define LA_VIEW_BURN_BONUS  118   /* ~+46% more while it is actually lit  */
-#define LA_VIEW_RATE          8   /* 1/256ths a frame; one bonus in 16 frames */
+#define LA_VIEW_REST      1300   /* fog-far at rest                       */
+#define LA_VIEW_HELL      1800   /* ...with the lantern in hand            */
+#define LA_VIEW_BURN      2200   /* ...and while it is actually lit        */
+#define LA_VIEW_RATE        40   /* world units a frame                    */
 
-static int32_t la_view     = LA_VIEW_UNIT;       /* eased scale, 1/256ths */
+static int32_t la_view     = LA_VIEW_REST;       /* eased fog-far, world units */
 static int32_t la_fog_near = LA_BASE_FOG_NEAR;   /* resolved, this frame  */
 static int32_t la_fog_far  = LA_BASE_FOG_FAR;
 
 static int32_t la_view_target(void) {
-    int32_t s = LA_VIEW_UNIT;
     if (current_weapon == WEAPON_HELLUMINATOR &&
-        (player_weapons & (1 << WEAPON_HELLUMINATOR))) {
-        s += LA_VIEW_HELL_BONUS;
-        if (helluminator_burning()) s += LA_VIEW_BURN_BONUS;
-    }
-    return s;
+        (player_weapons & (1 << WEAPON_HELLUMINATOR)))
+        return helluminator_burning() ? LA_VIEW_BURN : LA_VIEW_HELL;
+    return LA_VIEW_REST;
 }
 
 /* Ease one frame toward the target, then resolve both distances from it. `snap`
@@ -80,8 +84,8 @@ static void la_view_resolve(int snap) {
         la_view -= LA_VIEW_RATE;
         if (la_view < target) la_view = target;
     }
-    la_fog_near = (LA_BASE_FOG_NEAR * la_view) >> 8;
-    la_fog_far  = (LA_BASE_FOG_FAR  * la_view) >> 8;
+    la_fog_far  = la_view;
+    la_fog_near = (LA_BASE_FOG_NEAR * la_view) / LA_BASE_FOG_FAR;
 }
 
 /* The chapter's near-black with a cold lift (src/catacombs_entry.c says why it
@@ -183,15 +187,15 @@ void lamashtu_arena_load_assets(void) {
    still owns nothing:
      lamashtu  her skin, x576 y0 - the CRIB's page; no crib stands in here and
                every room that has one uploads it on entry (src/lamashtu.h)
-     creep     the Creep's sheet, x640 y320 - in VRAM for the fight to come;
-               none is placed yet
+     lms creep the LAMASHTU CREEP's sheet, x640 y320 - the Creep's own slot,
+               time-shared: no crib stands in here (src/lms_creep.h)
      bars      the gate beside her, x512 y256 */
 void lamashtu_arena_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_loculus();
     catacombs_entry_upload_inner_door();
     lamashtu_upload_texture();
-    creeps_upload_texture();
+    lms_creeps_upload_texture();
     bars_upload_texture();
 }
 
@@ -256,13 +260,6 @@ static void la_west_door_text(RenderContext *ctx) {
                         DOOR_PIXEL_SIZE);
 }
 
-/* The bars' gap: centred on the aisle x[2400,3000] and on the pillar row
-   z[600,1200]. */
-#define LA_BARS_X            2700
-#define LA_BARS_Z             900
-#define LA_BARS_W             600   /* the gap, pillar face to pillar face  */
-#define LA_BARS_H             600   /* 200 short of the 800 vault, by request */
-
 void lamashtu_arena_spawn_west(void) {
     /* 220 off wall 0 on its walkable +X side, on the door's centre line,
        facing +X down the hall. The first pillar column starts at x=600, so
@@ -297,25 +294,15 @@ void lamashtu_arena_init(void) {
     sconces_clear();
     oil_dispensers_clear();
 
-    /* LAMASHTU: full health and her idle from the top, on EVERY arrival - a
-       debug jump finds what a walk-in does. Nothing about her is saved yet. */
-    lamashtu_reset();
-
-    /* THE BARS, in the gap on her -Z side: the north-south aisle x[2400,3000]
-       between the pillars at x[1800,2400] and x[3000,3600], on the z[600,1200]
-       pillar row's centre line - beside her, not in front of or behind her.
-       Standing (lift 0) and resized to 600 x 600: the gap's width, so it
-       meets both pillar faces rather than running into the stone (the model
-       is 860 x 860, src/bars.h), and 600 tall, well short of the 800 vault.
-       rot 0 is the model's own run, along X. bars_clear() first because the
-       instances are global - the Kennels' and the Pit's would otherwise ride
-       in. */
+    /* LAMASHTU AND HER ENCOUNTER, on EVERY arrival - a debug jump finds what a
+       walk-in does. The body comes up hidden at full health; the director
+       arms itself on its first update (src/lamashtu_boss.h) unless she is
+       dead, and places her, shows her and brings phase 1's gates up out of
+       the floor. bars_clear() first: the gate instances are global, and the
+       Kennels' and the Pit's would otherwise ride in. */
     bars_clear();
-    {
-        int b = bars_place(STATE_LAMASHTU_ARENA, LA_BARS_X,
-                           LA_FLOOR_Y - GROUND_FLOOR_Y, LA_BARS_Z, 0, 0);
-        if (b >= 0) bars_set_size(b, LA_BARS_W, LA_BARS_H);
-    }
+    lamashtu_reset();
+    lamashtu_boss_enter();
 
     la_view_resolve(1);
 }
@@ -513,27 +500,34 @@ void lamashtu_arena_draw(RenderContext *ctx) {
        vertices are world space and she loads no matrix (src/lamashtu.h). Her
        skin is at Voff 0 on a page-aligned slot, so the room's 128 window is
        hers too and there is nothing to bracket. Drawn at any range, unfogged -
-       Gula's rule. */
+       Gula's rule. Her shockwave draws with her. */
     if (exp != DBG_EXP_NO_ENTITIES) lamashtu_draw(ctx);
 
     /* >>> LEVEL 8 IS THE SIGN, THE GATE AND THE ENEMIES. <<< The Chapter 3
        enemy draws are area-tagged and cost nothing until something is placed;
        the Creep's is here because the fight will pour them. */
     if (exp != DBG_EXP_NO_ENTITIES) {
-        la_west_door_text(ctx);    /* west: YZ plane, approached from +X */
+        /* Not while the encounter seals the door: offering "Press O" on a
+           door that will not answer is worse than offering nothing. */
+        if (!lamashtu_boss_seals_door())
+            la_west_door_text(ctx);    /* west: YZ plane, approached from +X */
         /* THE CHAPTER 3 ENEMIES. Their sheets sit at Voff 128, so each is
            handed the window to restore after drawing unmasked. */
         {
             RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             crawlers_set_texwindow(&tw);
             lumberers_set_texwindow(&tw);
-            creeps_set_texwindow(&tw);
+            lms_creeps_set_texwindow(&tw);
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
-        draw_creeps(ctx);
+        draw_lms_creeps(ctx);
         /* AFTER the enemy sprites, which restore the 128 window this prop's
            UVs (0..192) depend on - bars.h says it is not happy either way. */
         bars_draw(ctx);
+        /* The death's lights, which want the plain view the bars put back. */
+        lamashtu_boss_draw(ctx);
     }
+    /* The two lines, on top of everything. */
+    lamashtu_boss_draw_overlay(ctx);
 }

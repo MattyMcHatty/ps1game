@@ -33,6 +33,8 @@ typedef struct {
     int32_t   sl_t;       /* frames into it                                    */
     int       recessed;   /* bars_set_recessed: the room's depth bias, and not
                              drawn at all while RAISED                        */
+    int32_t   pop_t;      /* frames into a bars_pop_up() / bars_sink()         */
+    int32_t   pop_h;      /* the height it travels: its own, after any resize  */
 } Bars;
 
 static Bars bars[MAX_BARS];
@@ -163,8 +165,16 @@ static void bars_bake(Bars *b) {
 
 int bars_place(GameState area, int32_t x, int32_t y, int32_t z,
                int32_t rot_y, int32_t lift) {
-    if (bars_count >= MAX_BARS) return -1;
-    int idx = bars_count++;
+    /* A slot a sunk gate gave back (bars_sink frees its instance once it is
+       under the floor) before a new one: the Lamashtu Arena pops and sinks
+       gates all fight long, and only ever has ~22 at once. */
+    int idx;
+    for (idx = 0; idx < bars_count; idx++)
+        if (!bars[idx].active) break;
+    if (idx == bars_count) {
+        if (bars_count >= MAX_BARS) return -1;
+        bars_count++;
+    }
     Bars *b = &bars[idx];
     b->area  = area;
     b->x = x;  b->y = y;  b->z = z;
@@ -176,8 +186,50 @@ int bars_place(GameState area, int32_t x, int32_t y, int32_t z,
     b->landed  = (lift <= 0);
     b->sx = b->sy = 4096;
     b->recessed = 0;
+    b->pop_t = 0;
+    b->pop_h = 0;
     bars_bake(b);
     return idx;
+}
+
+/* ---- THE POP: up out of the floor, down into it --------------------------
+   A NEGATIVE lift, which every other part of this module already reads
+   correctly: the draw translates the base below the floor, and the
+   collision's and the hitscan's vertical gates put the top rail below the
+   player's feet until enough of the gate is up to stop them. All that is new
+   is the draw flattening whatever is still under the floor ONTO the floor
+   line (bars_draw), because props sort at true depth and a gate drawn whole
+   below the floor would show through it. */
+int bars_pop_up(GameState area, int32_t x, int32_t y, int32_t z,
+                int32_t rot_y, int32_t width, int32_t height) {
+    int idx = bars_place(area, x, y, z, rot_y, 0);
+    if (idx < 0) return -1;
+    bars_set_size(idx, width, height);
+    Bars *b = &bars[idx];
+    b->pop_h   = height;
+    b->lift_fp = -(height << 8);
+    b->state   = BARS_POPPING;
+    b->pop_t   = 0;
+    return idx;
+}
+
+void bars_sink(int idx) {
+    if (idx < 0 || idx >= bars_count) return;
+    Bars *b = &bars[idx];
+    if (!b->active) return;
+    if (b->pop_h <= 0) b->pop_h = ((br_max_y - br_min_y) * b->sy) >> 12;
+    /* From wherever it is: a gate still coming up goes straight back down
+       from that height, rather than finishing its rise first. */
+    int32_t up = b->pop_h + (b->lift_fp >> 8);           /* how much is showing */
+    if (up < 0) up = 0;
+    b->pop_t = b->pop_h > 0
+             ? BARS_POP_FRAMES - (up * BARS_POP_FRAMES) / b->pop_h : 0;
+    b->state = BARS_SINKING;
+}
+
+int bars_in_use(int idx) {
+    if (idx < 0 || idx >= bars_count) return 0;
+    return bars[idx].active;
 }
 
 
@@ -241,10 +293,33 @@ int bars_raised(int idx) {
 }
 
 void bars_update(void) {
-    int i;
+    int i, slam = 0;
     for (i = 0; i < bars_count; i++) {
         Bars *b = &bars[i];
         if (!b->active || b->area != current_area) continue;
+
+        /* THE POP, both ways, linear over BARS_POP_FRAMES. A sunk gate is
+           GONE - the slot is freed, so nothing draws, collides or blocks a shot
+           from under the floor. */
+        if (b->state == BARS_POPPING || b->state == BARS_SINKING) {
+            b->pop_t++;
+            int32_t t = b->pop_t > BARS_POP_FRAMES ? BARS_POP_FRAMES : b->pop_t;
+            int32_t below = (b->state == BARS_POPPING)
+                          ? (b->pop_h * (BARS_POP_FRAMES - t)) / BARS_POP_FRAMES
+                          : (b->pop_h * t) / BARS_POP_FRAMES;
+            b->lift_fp = -(below << 8);
+            if (b->pop_t >= BARS_POP_FRAMES) {
+                slam = 1;   /* home: up against the vault's line, or under */
+                if (b->state == BARS_POPPING) {
+                    b->lift_fp = 0;
+                    b->state   = BARS_DOWN;
+                    b->landed  = 1;
+                } else {
+                    b->active = 0;
+                }
+            }
+            continue;
+        }
 
         /* THE RISE. Recomputed from the frame counter, not accumulated, so it
            ends exactly on BARS_RISE_FRAMES (the piano bookcase's reasoning). The
@@ -305,6 +380,10 @@ void bars_update(void) {
             }
         }
     }
+    /* THE POP'S SOUND: SFX_SLAM (resident) as gates arrive, ONCE however
+       many arrive on the same frame - a phase change moves up to twenty
+       together, and twenty keys of one voice is one clipped click. */
+    if (slam) sound_play(SFX_SLAM);
 }
 
 void bars_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
@@ -454,6 +533,26 @@ void bars_draw(RenderContext *ctx) {
         dist = render_light_dist(b->x, b->z, dist);
         if (dist > g_fog_far) continue;
 
+        /* COMING UP OUT OF THE FLOOR (or going back into it): every vertex
+           still below the floor line is drawn ON it, in model space, so the
+           part of the gate under the floor is squashed flat rather than drawn
+           through the floor that should hide it. Model y is up-negative and
+           scaled by sy, so "at or above the floor" is vy <= -sink/sy. */
+        SVECTOR *vb = bars_smd->p_verts;
+        static SVECTOR pop_v[64];
+        if (b->lift_fp < 0) {
+            int32_t sink = -(b->lift_fp >> 8);
+            if (b->pop_h > 0 && sink >= b->pop_h) continue;   /* all under */
+            if (bars_smd->n_verts > 64 || b->sy <= 0) continue;
+            int32_t lim = -((sink << 12) / b->sy);
+            int v;
+            for (v = 0; v < bars_smd->n_verts; v++) {
+                pop_v[v] = bars_smd->p_verts[v];
+                if (pop_v[v].vy > lim) pop_v[v].vy = (int16_t)lim;
+            }
+            vb = pop_v;
+        }
+
         MATRIX m, combined;
         SVECTOR yaw_r = {0, (int16_t)b->rot_y, 0, 0};
         RotMatrix(&yaw_r, &m);
@@ -484,9 +583,9 @@ void bars_draw(RenderContext *ctx) {
             int           textured = pt->texture;
 
             uint16_t *vi = (uint16_t *)(p + 4);
-            SVECTOR *v0 = &bars_smd->p_verts[vi[0]];
-            SVECTOR *v1 = &bars_smd->p_verts[vi[1]];
-            SVECTOR *v2 = &bars_smd->p_verts[vi[2]];
+            SVECTOR *v0 = &vb[vi[0]];
+            SVECTOR *v1 = &vb[vi[1]];
+            SVECTOR *v2 = &vb[vi[2]];
 
             DVECTOR sv[4];
             int32_t sz[4], otz, nclip;
@@ -511,7 +610,7 @@ void bars_draw(RenderContext *ctx) {
             if (sz[1] == 0 || sz[2] == 0 || sz[3] == 0) { p += stride; continue; }
 
             if (is_quad) {
-                SVECTOR *v3 = &bars_smd->p_verts[vi[3]];
+                SVECTOR *v3 = &vb[vi[3]];
                 gte_ldv0(v3);
                 gte_rtps();
                 gte_stsxy(&sv[3]);

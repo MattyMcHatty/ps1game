@@ -764,9 +764,14 @@ typedef enum {
        EVERYTHING the room plays that is not resident:
 
            CTCMBDR           the catacomb door, on the way OUT of here
-           CREEP             the cribs' baby cry, for the fight
-           MCHNE             the gate's winch, should the fight move it
+           CREEP             the cribs' baby cry, when a Creep closes in
+           DMNSPEAK          the opening's two lines (the bosses' voice)
+           EXPLODE           her death (the Rabisu's and Asag's)
            LMS_CHIME  LMS_CRY  LMS_SCREAM   hers
+
+       213,376 bytes (py tools/spu_budget.py), under CATACOMBS' 225,152, so
+       `spare` does not move. NO MCHNE: the arena's gates pop up out of the
+       floor (bars_pop_up), they do not winch.
 
        THE SAME PRICE AND THE SAME RULE: a bank read on both sides of the
        arena's one door (The Head is CATACOMBS), and a Chapter 3 enemy placed

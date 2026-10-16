@@ -26,6 +26,7 @@
 #include "savegame.h"
 #include "crib.h"       /* the crib encounters' solved set rides in the delta */
 #include "creep.h"      /* ...and its Creeps are dropped on every room change */
+#include "lms_creep.h"  /* ...and so are Lamashtu's */
 #include "maggot.h"
 #include "sound.h"
 
@@ -576,6 +577,7 @@ void world_leave(GameState area) {
        the consequence — a crib encounter is not resumable — is written up in
        src/crib.h. */
     creeps_reset();
+    lms_creeps_reset();   /* Lamashtu's, the same way (src/lms_creep.h) */
     /* The Maggots, on exactly the creeps' terms (src/maggot.h): dropped, not
        rested, and the buzz goes with them. */
     maggots_reset();

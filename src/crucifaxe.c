@@ -31,6 +31,7 @@
 #include "living_statue.h"
 #include "hadad.h"
 #include "creep.h"
+#include "lms_creep.h"
 #include "maggot.h"
 #include "crib.h"
 #include "gula.h"
@@ -61,6 +62,7 @@ static int lms_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
 static int had_hit_this_swing   = 0;
 static int crp_hit_this_swing   = 0;
+static int lcr_hit_this_swing   = 0;
 static int mgt_hit_this_swing   = 0;
 /* The crib gets its own per-swing latch and does NOT share the creeps'. One
    swing should be able to kill a creep AND wake the cot it is standing beside;
@@ -117,6 +119,7 @@ void update_crucifaxe(void) {
         lst_hit_this_swing     = 0;
         had_hit_this_swing     = 0;
         crp_hit_this_swing     = 0;
+        lcr_hit_this_swing     = 0;
         mgt_hit_this_swing     = 0;
         crib_hit_this_swing    = 0;
         asag_hit_this_swing    = 0;
@@ -458,6 +461,11 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !crp_hit_this_swing) {
             if (creeps_try_hit())
                 crp_hit_this_swing = 1;
+        }
+        /* ...and Lamashtu's, the same test at their own size, own latch. */
+        if (swing_timer <= SWING_DURATION && !lcr_hit_this_swing) {
+            if (lms_creeps_try_hit())
+                lcr_hit_this_swing = 1;
         }
 
         /* Maggot hit (1 damage of its 2 HP): the creep's block exactly, with its own latch so one swing
