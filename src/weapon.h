@@ -56,6 +56,23 @@ int  weapon_aim_in_circle(int32_t ex, int32_t cyc, int32_t ez,
                           int32_t fx, int32_t fz,
                           int32_t radius, int32_t range, int32_t *out_depth);
 
+/* The same test with a BOX of half-extents rx x ry pixels instead of a square
+   `radius` — the circle above is this with rx == ry (the test was always a box;
+   "circle" is the name it grew up with). The Scattershot's wide, shallow field
+   is the reason it exists. */
+int  weapon_aim_in_box(int32_t ex, int32_t cyc, int32_t ez,
+                       int32_t hw, int32_t hh,
+                       int32_t fx, int32_t fz,
+                       int32_t rx, int32_t ry, int32_t range, int32_t *out_depth);
+
+/* 1 if the line from the camera STRAIGHT TO a world point is clear of walls and
+   solid props. weapon_aim_clear below asks about the crosshair line instead,
+   which is right when the field is a few pixels across and wrong when it is a
+   third of the screen: a target 90 px off the crosshair would be judged by a
+   wall it is nowhere near. A weapon that hits everything in a wide field asks
+   this, once per target, at the target. */
+int  weapon_aim_clear_to(int32_t px, int32_t py, int32_t pz);
+
 /* 1 if the crosshair line is clear out to `depth` — no wall or solid prop nearer
    than the target under the crosshair, so a closer table stops the shot even
    when the enemy is still inside the circle. */

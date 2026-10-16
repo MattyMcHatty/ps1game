@@ -513,14 +513,26 @@ extern int player_weapons;     /* bitmask — bit WEAPON_* set means it is owned
 typedef enum {
     AMMO_STANDARD = 0,
     AMMO_FLAME,
+    AMMO_SCATTER,
     MAX_AMMO_TYPES
 } AmmoType;
 
+/* THE AIM FIELD IS PER TYPE. aim_hw/aim_hh are the half-extents, in screen
+   pixels, of the box around the crosshair a target's silhouette has to touch
+   (weapon_aim_in_box). Standard and Flame use the old 14 px both ways; the
+   Scattershot's is 96 x 26, i.e. 3/5 of the 320 screen across and only a
+   little taller than the others. `spread` is the other half of what makes a
+   scattershot: 0 spends the round on the NEAREST thing in the field, 1 hits
+   EVERY thing in it whose own line from the camera is clear. The reticule is
+   drawn to the field's size in the reticle_* colour. */
 typedef struct {
     const char *name;       /* HUD label beside the count, e.g. "Flame Rounds" */
     const char *load_msg;   /* pickup-log line posted when a swap completes    */
     DamageType  damage;     /* what enemy weakness tables key on               */
     uint8_t     flash_r, flash_g, flash_b;   /* muzzle-flash colour when fired */
+    int16_t     aim_hw, aim_hh;              /* aim field half-size, pixels    */
+    uint8_t     spread;                      /* 1 = hits everything in it      */
+    uint8_t     reticle_r, reticle_g, reticle_b;
 } AmmoInfo;
 
 extern const AmmoInfo ammo_info[MAX_AMMO_TYPES];

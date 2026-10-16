@@ -52,6 +52,14 @@ int weapon_aim_in_circle(int32_t ex, int32_t cyc, int32_t ez,
                          int32_t hw, int32_t hh,
                          int32_t fx, int32_t fz,
                          int32_t radius, int32_t range, int32_t *out_depth) {
+    return weapon_aim_in_box(ex, cyc, ez, hw, hh, fx, fz,
+                             radius, radius, range, out_depth);
+}
+
+int weapon_aim_in_box(int32_t ex, int32_t cyc, int32_t ez,
+                      int32_t hw, int32_t hh,
+                      int32_t fx, int32_t fz,
+                      int32_t rx, int32_t ry, int32_t range, int32_t *out_depth) {
     int32_t depth = ((ex - cam_x) * fx + (ez - cam_z) * fz) >> 12;
     if (depth <= 0 || depth > range) return 0;
 
@@ -63,8 +71,8 @@ int weapon_aim_in_circle(int32_t ex, int32_t cyc, int32_t ez,
        unhittable: a tentacle is 262 units across, ~84px at close range against a
        flat 14px of aim slop, so only the middle strip of the visible body
        scored. */
-    int32_t phw = (hw * WEAPON_PROJ_H) / depth + radius;
-    int32_t phh = (hh * WEAPON_PROJ_H) / depth + radius;
+    int32_t phw = (hw * WEAPON_PROJ_H) / depth + rx;
+    int32_t phh = (hh * WEAPON_PROJ_H) / depth + ry;
 
     int32_t ax = aim_x - cx; if (ax < 0) ax = -ax;
     int32_t ay = aim_y - cy; if (ay < 0) ay = -ay;
@@ -72,6 +80,10 @@ int weapon_aim_in_circle(int32_t ex, int32_t cyc, int32_t ez,
 
     *out_depth = depth;
     return 1;
+}
+
+int weapon_aim_clear_to(int32_t px, int32_t py, int32_t pz) {
+    return !collision_segment_blocked(cam_x, cam_y, cam_z, px, py, pz);
 }
 
 int weapon_aim_clear(int32_t fx, int32_t fz, int32_t depth) {

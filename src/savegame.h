@@ -17,7 +17,13 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   36            /* v36: kennels. Which of the
+#define SAVE_VERSION   37            /* v37: Scattershot Rounds. A third
+                                        AmmoType makes ammo[] one int longer,
+                                        which moves every field after it (and
+                                        loaded/loaded_type shrink to int16 to
+                                        pay for it); the bump rejects a v36
+                                        save rather than misreading it.
+                                        v36: kennels. Which of the
                                         Kennels' four levers are down, and
                                         which of its eight caged dogs are dead
                                         (src/kennels_puzzle.h), packed into one
@@ -306,8 +312,12 @@ typedef struct {
     int32_t  cam_x, cam_y, cam_z, cam_rot;
     int32_t  health;
     int32_t  ammo[MAX_AMMO_TYPES];  /* reserve ammo, per AmmoType */
-    int32_t  loaded;                /* rounds in the Grave-olver cylinder */
-    int32_t  loaded_type;           /* AmmoType currently chambered */
+    /* 16 bits each, not 32: SaveData fills its 128-byte frame exactly, and the
+       third AmmoType's slot in ammo[] above had to come from somewhere. Both
+       are tiny (0..GRAVEOLVER_CAPACITY, 0..MAX_AMMO_TYPES-1), and the pair
+       still occupies one aligned word. */
+    int16_t  loaded;                /* rounds in the Grave-olver cylinder */
+    int16_t  loaded_type;           /* AmmoType currently chambered */
     int32_t  weapons;               /* owned-weapon bitmask */
     int32_t  keys;                  /* held-key bitmask */
     int32_t  items;                 /* held non-key item bitmask (player_items) */
@@ -321,7 +331,7 @@ typedef struct {
                                        should trip over the other. */
     int32_t  incin_slot;            /* MENU_SLOT_* sitting on the Incinerator's
                                        conveyor, or -1 when it is empty.       */
-    int32_t  incin_count;           /* how many of it: rounds for the two ammo
+    int32_t  incin_count;           /* how many of it: rounds for the three ammo
                                        slots (1..INC_AMMO_MAX), else 1. Beside
                                        `incin_slot` and meaningless without it —
                                        see src/incinerator.h's hopper note.    */

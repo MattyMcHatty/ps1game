@@ -52,7 +52,8 @@ extern volatile size_t  pad_buff_len[2];
    on-screen rectangle, width included — see weapon_aim_in_circle in weapon.h,
    which owns the test itself. */
 #define GUN_RANGE        4000  /* max forward distance a shot reaches           */
-#define GUN_AIM_RADIUS     14  /* crosshair hit circle, in screen pixels        */
+/* The aim field's SIZE is per ammo type now - ammo_info[].aim_hw/aim_hh in
+   player.c (14 x 14 for Standard and Flame, the old GUN_AIM_RADIUS). */
 #define GUN_DAMAGE         1   /* one crucifaxe hit                           */
 #define GUN_FLASH_FRAMES   4   /* white screen-flash duration                */
 #define GUN_HIT_BACKOFF   30   /* pull the hit sprite toward the camera a bit */
@@ -139,7 +140,7 @@ static const struct {
 } wheel_slots[WHEEL_SLOTS] = {
     [WHEEL_UP]    = { AMMO_STANDARD, MENU_SLOT_ROUNDS,        0, -1 },
     [WHEEL_LEFT]  = { AMMO_FLAME,    MENU_SLOT_FLAME_ROUNDS, -1,  0 },
-    [WHEEL_RIGHT] = { -1,            -1,                      1,  0 },
+    [WHEEL_RIGHT] = { AMMO_SCATTER,  MENU_SLOT_SCATTER_ROUNDS, 1,  0 },
     [WHEEL_DOWN]  = { -1,            -1,                      0,  1 },
 };
 
@@ -186,52 +187,235 @@ void graveolver_init(void) {
 /* The aim geometry — the crosshair ray, the screen projection, the circle test
    and the blocked-line test — was hoisted into the shared weapon layer when the
    Helluminator needed the same maths with a wider circle. See weapon.h; the gun
-   supplies GUN_AIM_RADIUS and GUN_RANGE where those functions were previously
+   supplies its aim field and GUN_RANGE where those functions were previously
    reading them out of this file. */
 
-/* Fire one round: flash + hitscan the nearest enemy under the reticule. The
-   caller has already confirmed a round is chambered and spends it. */
+/* ---- One shot's state --------------------------------------------------------
+   Set by graveolver_fire for the length of one shot and read by consider(), so
+   the target loops below each stay one call long. The field and the spread
+   come from the chambered type's row in ammo_info[] (player.h) - which is the
+   only place that says a Scattershot is different. */
+static int32_t    shot_fx, shot_fz;    /* isin/icos(cam_rot)                     */
+static int32_t    shot_rx, shot_ry;    /* aim field half-extents, pixels         */
+static int        shot_spread;         /* 1 = hit everything in the field        */
+static DamageType shot_dmg;
+static int        best_kind, best_idx;
+static int32_t    best_depth;
+
+/* How consider() decides whether a target is behind a wall. */
+enum {
+    CLR_LINE,   /* the ordinary test                                          */
+    CLR_BOIL,   /* Asag's boils: cleared short of themselves (asag_fight.h)   */
+    CLR_NONE    /* a vine curtain: it IS the prop the test would trip on      */
+};
+
+/* Apply one round to one target. `kind`/`idx` are the codes the loops in
+   graveolver_fire hand to consider(); the per-target notes live here. */
+static void gun_hit(int kind, int idx) {
+    DamageType dmg_type = shot_dmg;
+
+    if (kind == 0) {
+        demon_dog_damage(&demon_dogs[idx],
+                   demon_dog_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 1) {
+        zombie_damage(&zombies[idx],
+                      zombie_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 3) {
+        tentacle_shoot(&tentacles[idx],
+                       tentacle_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 4) {
+        spider_damage(&spiders[idx],
+                      spider_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 11) {
+        /* A CRAWLER. Its weakness table's one entry is DMG_HOLY and no round
+           this gun chambers carries that type, so every shot does the flat 1 —
+           the table is asked all the same, the way every other enemy's is, so
+           that a second entry reaches the gun without anyone coming back here.
+           Six rounds to kill, and each one also sends an advancing crawler into
+           its retreat (see crawler_damage), which is what makes the gun the
+           tool for keeping one off you rather than the tool for killing it. */
+        crawler_damage(&crawlers[idx],
+                       crawler_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 6) {
+        /* 1 from a Standard Round, 2 from a Flame Round (its weakness table
+           doubles DMG_FLAME) — so four shots to kill, or two. */
+        rafflesia_shoot(&rafflesias[idx],
+                        rafflesia_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 7) {
+        /* No weaknesses: 1 from any round, so five shots to kill whatever is
+           chambered (see mushroom.h). */
+        mushroom_damage(&mushrooms[idx],
+                        mushroom_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 12) {
+        /* No weaknesses: 1 from any round, so ten shots to kill whatever is
+           chambered (see lumberer.h). Unlike the crawler, a round does NOT move
+           it — this one has no retreat and nothing about being shot changes
+           what it is doing, beyond waking a patrolling one. */
+        lumberer_damage(&lumberers[idx],
+                        lumberer_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 13) {
+        /* A CREEP. One hit point and no weakness table worth the name, so any
+           round of any type kills it outright. creep_scale_damage is asked
+           anyway, the way every other enemy here is asked, so that giving the
+           thing a weakness later reaches the gun without anyone coming back to
+           this line — it would take more than one shot before it mattered. */
+        creep_damage(&creeps[idx],
+                     creep_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 14) {
+        /* A MAGGOT: 2 HP and every round type at 1x, so two shots. */
+        maggot_damage(&maggots[idx],
+                      maggot_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 8) {
+        /* Not an enemy and not scaled by a weakness table: a curtain asks the
+           DAMAGE TYPE directly. DMG_FLAME clears a destructible one outright,
+           a Standard Round does nothing but scatter leaves. */
+        vines_shoot(idx, (int)dmg_type);
+    } else if (kind == 5) {
+        /* Boss: 1 from a Standard Round, 2 from a Flame Round (its weakness
+           table doubles DMG_FLAME) — so 20 or 10 shots to kill. */
+        rabisu_damage(&rabisus[idx],
+                      rabisu_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 17) {
+        /* A LAMASHTU CREEP: the Creep's one hit point, so any round. */
+        lms_creep_damage(&lms_creeps[idx],
+                         lms_creep_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 16) {
+        /* Lamashtu's spot: 1 from any round, no weakness table - every weapon
+           is 1x against her (src/lamashtu.h), so ten rounds. */
+        lamashtu_damage(GUN_DAMAGE);
+    } else if (kind == 15) {
+        /* Gula: 1 from any round - her table only names DMG_HOLY. */
+        gula_damage(gula_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 9) {
+        /* ASAG'S HEAD. >>> NO WEAKNESS TABLE AND NO damage_scale() CALL. <<<
+           "Every weapon deals 1x damage to Asag" was the brief, in as many
+           words, so a Flame Round is a Standard Round here and the absence of a
+           table is the design rather than an omission. 20 HP means twenty
+           connected shots, all of them landed inside exposure windows that add
+           up to a few seconds an attack — which is what makes the boils, and
+           the faint they buy, the way through the fight rather than a
+           decoration on it. */
+        asag_damage(GUN_DAMAGE);
+    } else if (kind == 10) {
+        /* A BOIL. 3 HP, so three rounds of anything this gun chambers — the
+           boils DO have a weakness table now, but its one entry is DMG_HOLY
+           and no round carries that type. It is asked all the same, the way
+           every other enemy above is asked, so a second entry added to that
+           table reaches the gun without anyone having to come back here. */
+        asag_boil_damage(idx,
+                         asag_boil_scale_damage(GUN_DAMAGE, dmg_type));
+    } else {
+        vampire_health   -= vampire_scale_damage(GUN_DAMAGE, dmg_type);
+        vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
+        if (vampire_health <= 0)
+            spawn_blood_burst(vampire_x, vampire_y, vampire_z);
+    }
+}
+
+/* The point `back` units short of (ex,cy,ez), on the line from the camera to
+   it, never pulled back past halfway. `depth` is the point's forward depth. */
+static void toward_camera(int32_t ex, int32_t cy, int32_t ez, int32_t depth,
+                          int32_t back, int32_t *px, int32_t *py, int32_t *pz) {
+    int32_t keep;
+    if (back > depth / 2) back = depth / 2;
+    if (back < 0)         back = 0;
+    keep = depth - back;
+    *px = cam_x + ((ex - cam_x) * keep) / depth;
+    *py = cam_y + ((cy - cam_y) * keep) / depth;
+    *pz = cam_z + ((ez - cam_z) * keep) / depth;
+}
+
+/* One candidate. Every target the gun can hit comes through here, so the two
+   ways a round can behave are written once:
+
+     NEAREST (spread 0 - Standard and Flame): the round goes to the closest
+     thing in the field whose CROSSHAIR line is clear; graveolver_fire applies
+     it after the sweep. This is the gun as it always was.
+
+     SPREAD (spread 1 - the Scattershot): every thing in the field is hit, here
+     and now, if the line from the camera to IT is clear. Not the crosshair
+     line: the field is 3/5 of the screen wide, and a zombie 90 px left of the
+     crosshair has nothing to do with a pillar the crosshair is on. The line
+     stops short of the body by its own half-width, so a target standing
+     against a wall is judged by what is in front of it, not the wall behind.
+     A vine curtain is a prop on that line, so it stops the pellets meant for
+     whatever is behind it, as a wall would. */
+static void consider(int kind, int idx, int32_t ex, int32_t cy, int32_t ez,
+                     int32_t hw, int32_t hh, int32_t range, int clear) {
+    int32_t depth;
+    if (!weapon_aim_in_box(ex, cy, ez, hw, hh, shot_fx, shot_fz,
+                           shot_rx, shot_ry, range, &depth))
+        return;
+
+    if (shot_spread) {
+        int32_t px, py, pz;
+        if (clear == CLR_BOIL)
+            toward_camera(ex, cy, ez, depth,
+                          depth - asag_boil_clear_depth(ez, depth), &px, &py, &pz);
+        else
+            toward_camera(ex, cy, ez, depth, hw, &px, &py, &pz);
+        if (clear != CLR_NONE && !weapon_aim_clear_to(px, py, pz)) return;
+        gun_hit(kind, idx);
+        toward_camera(ex, cy, ez, depth, GUN_HIT_BACKOFF, &px, &py, &pz);
+        bullet_hit_spawn(px, py, pz);
+        return;
+    }
+
+    if (depth >= best_depth) return;
+    if (clear == CLR_LINE && !weapon_aim_clear(shot_fx, shot_fz, depth)) return;
+    if (clear == CLR_BOIL &&
+        !weapon_aim_clear(shot_fx, shot_fz, asag_boil_clear_depth(ez, depth)))
+        return;
+    best_depth = depth; best_kind = kind; best_idx = idx;
+}
+
+/* Fire one round: flash + hitscan under the reticule - the nearest enemy, or
+   for a Scattershot every enemy in its field (see consider). The caller has
+   already confirmed a round is chambered and spends it. */
 static void graveolver_fire(void) {
+    const AmmoInfo *ai = &ammo_info[graveolver_ammo];
+    int i;
     muzzle_flash = GUN_FLASH_FRAMES;
     recoil_timer = GRAV_RECOIL_FRAMES;
     /* The flash colour is the chambered ammo's — white for Standard, orange for
-       Flame. Latched here rather than read at draw time (see flash_r). */
-    flash_r = ammo_info[graveolver_ammo].flash_r;
-    flash_g = ammo_info[graveolver_ammo].flash_g;
-    flash_b = ammo_info[graveolver_ammo].flash_b;
+       Flame, light green for Scattershot. Latched here rather than read at draw
+       time (see flash_r). */
+    flash_r = ai->flash_r;
+    flash_g = ai->flash_g;
+    flash_b = ai->flash_b;
     sound_play(SFX_GR_SHOT);
 
-    int32_t fx = isin(cam_rot), fz = icos(cam_rot);
-    int      best_kind = -1, best_idx = -1;
-    int32_t  best_depth = 0x7fffffff, depth;
-    int i;
+    shot_fx     = isin(cam_rot);
+    shot_fz     = icos(cam_rot);
+    shot_rx     = ai->aim_hw;
+    shot_ry     = ai->aim_hh;
+    shot_spread = ai->spread;
+    /* One round is one point of BASE damage; each enemy scales it by its own
+       weakness to the chambered ammo's damage type (see damage.h). Flame Rounds
+       are not stronger in general — only against what burns. A Scattershot
+       deals that same one point to EACH thing it hits. */
+    shot_dmg    = ai->damage;
+    best_kind   = -1;
+    best_idx    = -1;
+    best_depth  = 0x7fffffff;
 
     for (i = 0; i < demon_dog_count; i++) {
         DemonDog *d = &demon_dogs[i];
         if (!d->active || d->state == DDOG_DEAD) continue;
-        if (weapon_aim_in_circle(d->x, d->y + DDOG_Y_OFFSET, d->z,
-                            DDOG_HALF_W, DDOG_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 0; best_idx = i;
-        }
+        consider(0, i, d->x, d->y + DDOG_Y_OFFSET, d->z,
+                 DDOG_HALF_W, DDOG_HALF_H, GUN_RANGE, CLR_LINE);
     }
     for (i = 0; i < zombie_count; i++) {
         Zombie *z = &zombies[i];
         if (!z->active || z->state == ZMB_DEAD) continue;
-        if (weapon_aim_in_circle(z->x, z->y + ZMB_Y_OFFSET, z->z,
-                            ZMB_HALF_W, ZMB_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 1; best_idx = i;
-        }
+        consider(1, i, z->x, z->y + ZMB_Y_OFFSET, z->z,
+                 ZMB_HALF_W, ZMB_HALF_H, GUN_RANGE, CLR_LINE);
     }
     for (i = 0; i < spider_count; i++) {
         Spider *s = &spiders[i];
         if (!s->active || s->state == SPD_DEAD || s->area != current_area) continue;
-        if (weapon_aim_in_circle(s->x, s->y + SPD_Y_OFFSET, s->z,
-                            SPD_HALF_W, SPD_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 4; best_idx = i;
-        }
+        consider(4, i, s->x, s->y + SPD_Y_OFFSET, s->z,
+                 SPD_HALF_W, SPD_HALF_H, GUN_RANGE, CLR_LINE);
     }
     /* The Catacombs' crawler. Aimed at wherever it happens to be — the circle
        test is given the body's real centre, so one clinging to a wall is shot
@@ -239,41 +423,29 @@ static void graveolver_fire(void) {
     for (i = 0; i < crawler_count; i++) {
         Crawler *s = &crawlers[i];
         if (!s->active || s->state == CRW_DEAD || s->area != current_area) continue;
-        if (weapon_aim_in_circle(s->x, s->y + CRW_Y_OFFSET, s->z,
-                            CRW_HALF_W, CRW_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 11; best_idx = i;
-        }
+        consider(11, i, s->x, s->y + CRW_Y_OFFSET, s->z,
+                 CRW_HALF_W, CRW_HALF_H, GUN_RANGE, CLR_LINE);
     }
     for (i = 0; i < tentacle_count; i++) {
         Tentacle *t = &tentacles[i];
         if (!t->active || t->health <= 0 || t->area != current_area) continue;
         int32_t cyc, hh, hw;
         tentacle_body(t, &cyc, &hh, &hw);
-        if (weapon_aim_in_circle(t->x, cyc, t->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 3; best_idx = i;
-        }
+        consider(3, i, t->x, cyc, t->z, hw, hh, GUN_RANGE, CLR_LINE);
     }
     for (i = 0; i < rafflesia_count; i++) {
         Rafflesia *rf = &rafflesias[i];
         if (!rf->active || rf->health <= 0 || rf->area != current_area) continue;
         int32_t cyc, hh, hw;
         rafflesia_body(rf, &cyc, &hh, &hw);
-        if (weapon_aim_in_circle(rf->x, cyc, rf->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 6; best_idx = i;
-        }
+        consider(6, i, rf->x, cyc, rf->z, hw, hh, GUN_RANGE, CLR_LINE);
     }
     for (i = 0; i < mushroom_count; i++) {
         Mushroom *m = &mushrooms[i];
         if (!m->active || m->state == MSH_DEAD || m->area != current_area) continue;
         int32_t cyc, hh, hw;
         mushroom_body(m, &cyc, &hh, &hw);
-        if (weapon_aim_in_circle(m->x, cyc, m->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 7; best_idx = i;
-        }
+        consider(7, i, m->x, cyc, m->z, hw, hh, GUN_RANGE, CLR_LINE);
     }
     /* The Catacombs' lumberer. Like the crawler's loop above, aimed at wherever
        it happens to be — the circle is built from lumberer_body(), so a body
@@ -283,10 +455,7 @@ static void graveolver_fire(void) {
         if (!l->active || l->state == LMB_DEAD || l->area != current_area) continue;
         int32_t cyc, hh, hw;
         lumberer_body(l, &cyc, &hh, &hw);
-        if (weapon_aim_in_circle(l->x, cyc, l->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 12; best_idx = i;
-        }
+        consider(12, i, l->x, cyc, l->z, hw, hh, GUN_RANGE, CLR_LINE);
     }
     /* The Creeps the Room of Arms' crib pours out. The circle is built from the
        same half-extents the sprite is drawn at, centred on creep_body_y() —
@@ -298,45 +467,30 @@ static void graveolver_fire(void) {
     for (i = 0; i < creep_count; i++) {
         Creep *cr = &creeps[i];
         if (!cr->active || cr->state == CRP_DEAD || cr->area != current_area) continue;
-        if (weapon_aim_in_circle(cr->x, creep_body_y(cr), cr->z,
-                                 CRP_HALF_W, CRP_HALF_H,
-                                 fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 13; best_idx = i;
-        }
+        consider(13, i, cr->x, creep_body_y(cr), cr->z,
+                 CRP_HALF_W, CRP_HALF_H, GUN_RANGE, CLR_LINE);
     }
     /* ...and Lamashtu's (src/lms_creep.h), the same loop at their own size. */
     for (i = 0; i < lms_creep_count; i++) {
         LmsCreep *lc = &lms_creeps[i];
         if (!lc->active || lc->state == LCR_DEAD || lc->area != current_area) continue;
-        if (weapon_aim_in_circle(lc->x, lms_creep_body_y(lc), lc->z,
-                                 LCR_HALF_W, LCR_HALF_H,
-                                 fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 17; best_idx = i;
-        }
+        consider(17, i, lc->x, lms_creep_body_y(lc), lc->z,
+                 LCR_HALF_W, LCR_HALF_H, GUN_RANGE, CLR_LINE);
     }
     /* The Maggots — the creep's loop, aimed through maggot_body_y() for the
        creep's reason: it floats at eye level above its floor anchor. */
     for (i = 0; i < maggot_count; i++) {
         Maggot *mg = &maggots[i];
         if (!mg->active || mg->state == MGT_DEAD || mg->area != current_area) continue;
-        if (weapon_aim_in_circle(mg->x, maggot_body_y(mg), mg->z,
-                                 MGT_HALF_W, MGT_HALF_H,
-                                 fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 14; best_idx = i;
-        }
+        consider(14, i, mg->x, maggot_body_y(mg), mg->z,
+                 MGT_HALF_W, MGT_HALF_H, GUN_RANGE, CLR_LINE);
     }
     /* Gula, the Kennels' one-off (src/gula.h): one body, rooted, hittable only
        while she fights - not while she fades in, not while she dies. */
     if (gula_hittable()) {
         int32_t gx, gy, gz, ghh, ghw;
         gula_body(&gx, &gy, &gz, &ghh, &ghw);
-        if (weapon_aim_in_circle(gx, gy, gz, ghw, ghh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 15; best_idx = 0;
-        }
+        consider(15, 0, gx, gy, gz, ghw, ghh, GUN_RANGE, CLR_LINE);
     }
     /* LAMASHTU (src/lamashtu.h): ONLY the glowing spot on her back, and only
        from behind her - lamashtu_anus_target() says no from anywhere else, so
@@ -344,12 +498,8 @@ static void graveolver_fire(void) {
        his. Nothing else on her is in this list, on purpose. */
     {
         int32_t lx, ly, lz, lw, lh;
-        if (lamashtu_anus_target(&lx, &ly, &lz, &lw, &lh) &&
-            weapon_aim_in_circle(lx, ly, lz, lw, lh, fx, fz,
-                                 GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 16; best_idx = 0;
-        }
+        if (lamashtu_anus_target(&lx, &ly, &lz, &lw, &lh))
+            consider(16, 0, lx, ly, lz, lw, lh, GUN_RANGE, CLR_LINE);
     }
     /* NO ADAPA LOOP, AND THAT IS THE DESIGN, NOT AN OVERSIGHT. Only the
        Helluminator can hurt him (src/adapa.h), so a round goes through him as
@@ -362,10 +512,7 @@ static void graveolver_fire(void) {
         if (!rb->active || rb->dead || rb->dying || rb->area != current_area) continue;
         int32_t cyc, hh, hw;
         rabisu_body(rb, &cyc, &hh, &hw);
-        if (weapon_aim_in_circle(rb->x, cyc, rb->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 5; best_idx = i;
-        }
+        consider(5, i, rb->x, cyc, rb->z, hw, hh, GUN_RANGE, CLR_LINE);
     }
     /* ---- ASAG: THE HEAD WHILE IT IS EXPOSED, AND THE TWO BOILS ------------
        >>> THE HEAD IS ONLY A TARGET WHILE asag_exposed(). <<< That is the whole
@@ -379,53 +526,38 @@ static void graveolver_fire(void) {
        it is actually vulnerable. `depth < best_depth` sorts the rest. */
     if (asag_exposed()) {
         int32_t hx, hy, hz, hw, hh;
-        if (asag_head_box(&hx, &hy, &hz, &hw, &hh) &&
-            weapon_aim_in_circle(hx, hy, hz, hw, hh, fx, fz,
-                                 GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-            best_depth = depth; best_kind = 9; best_idx = 0;
-        }
+        if (asag_head_box(&hx, &hy, &hz, &hw, &hh))
+            consider(9, 0, hx, hy, hz, hw, hh, GUN_RANGE, CLR_LINE);
     }
     for (i = 0; i < ASAG_BOIL_COUNT; i++) {
         int32_t bx, by, bz, bw, bh;
         if (!asag_boil_target(i, &bx, &by, &bz, &bw, &bh)) continue;
-        /* >>> CLEARED SHORT OF ITSELF. <<< The boil faces are at z=2734 and the
-           collision proxy's back wall is at z=2700 — 34 units IN FRONT of them,
-           because the proxy is a rectangle and the lumps stand proud of the
-           wall it approximates. weapon_aim_clear() out to the boil's own depth
-           therefore reports every shot blocked, by a wall standing inside the
-           target. This is the runbook's mistake 2 in a different hat and
-           asag_boil_clear_depth() is the documented fix; asag_fight.h has the
-           argument, including why the backoff is a fraction of the shot rather
-           than a fixed 80 off the end of it (this weapon's range hid that; the
-           lantern's did not). */
+        /* >>> CLEARED SHORT OF ITSELF (CLR_BOIL). <<< The boil faces are at
+           z=2734 and the collision proxy's back wall is at z=2700 — 34 units IN
+           FRONT of them, because the proxy is a rectangle and the lumps stand
+           proud of the wall it approximates. weapon_aim_clear() out to the
+           boil's own depth therefore reports every shot blocked, by a wall
+           standing inside the target. This is the runbook's mistake 2 in a
+           different hat and asag_boil_clear_depth() is the documented fix;
+           asag_fight.h has the argument, including why the backoff is a
+           fraction of the shot rather than a fixed 80 off the end of it (this
+           weapon's range hid that; the lantern's did not). */
         /* THE REACH GOES THROUGH asag_boil_reach() TOO, and it changes nothing
            here: this weapon's 4000 is already longer than the boils' 2400 and
            the call hands it straight back. It is written this way for the
            reason the line below it is — one rule, asked by both weapons, so a
            later change to either number cannot leave the two disagreeing about
            where a boil can be hit from. */
-        if (weapon_aim_in_circle(bx, by, bz, bw, bh, fx, fz,
-                                 GUN_AIM_RADIUS, asag_boil_reach(GUN_RANGE),
-                                 &depth) &&
-            depth < best_depth) {
-            int32_t clr = asag_boil_clear_depth(bz, depth);
-            if (weapon_aim_clear(fx, fz, clr)) {
-                best_depth = depth; best_kind = 10; best_idx = i;
-            }
-        }
+        consider(10, i, bx, by, bz, bw, bh, asag_boil_reach(GUN_RANGE), CLR_BOIL);
     }
 
-    if (vampire_health > 0 &&
-        weapon_aim_in_circle(vampire_x, vampire_y + VAMPIRE_Y, vampire_z,
-                        VAMPIRE_HALF_W, VAMPIRE_HALF_H, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-        depth < best_depth && weapon_aim_clear(fx, fz, depth)) {
-        best_kind = 2;
-    }
+    if (vampire_health > 0)
+        consider(2, 0, vampire_x, vampire_y + VAMPIRE_Y, vampire_z,
+                 VAMPIRE_HALF_W, VAMPIRE_HALF_H, GUN_RANGE, CLR_LINE);
 
     /* VINE CURTAINS, and they are the only PROP that competes for the
-       crosshair. They are deliberately tested LAST and outside the pattern
-       above: vines_point_solid puts them in props_block_point, so
+       crosshair. They are deliberately tested LAST and with no clear test
+       (CLR_NONE): vines_point_solid puts them in props_block_point, so
        weapon_aim_clear would reject a curtain on account of the curtain itself
        if it were tested the way an enemy is. Testing it here, against the best
        depth the enemies produced, gets both halves right — a curtain nearer
@@ -436,118 +568,16 @@ static void graveolver_fire(void) {
         if (!vn->active || vn->state != VINE_INTACT || vn->area != current_area) continue;
         int32_t cyc, hh, hw;
         vines_body(i, &cyc, &hh, &hw);
-        if (weapon_aim_in_circle(vn->x, cyc, vn->z, hw, hh, fx, fz, GUN_AIM_RADIUS, GUN_RANGE, &depth) &&
-            depth < best_depth) {
-            best_depth = depth; best_kind = 8; best_idx = i;
-        }
+        consider(8, i, vn->x, cyc, vn->z, hw, hh, GUN_RANGE, CLR_NONE);
     }
 
-    /* Nothing hittable in the circle (or a wall/prop was the nearest thing under
-       it): no damage, no impact sprite — ghit only marks enemy hits. */
-    if (best_kind < 0)
+    /* A Scattershot has already landed every pellet it is going to. Otherwise:
+       nothing hittable in the field (or a wall/prop was the nearest thing under
+       it) — no damage, no impact sprite; ghit only marks enemy hits. */
+    if (shot_spread || best_kind < 0)
         return;
 
-    /* One round is one point of BASE damage; each enemy scales it by its own
-       weakness to the chambered ammo's damage type (see damage.h). Flame Rounds
-       are not stronger in general — only against what burns. */
-    DamageType dmg_type = ammo_info[graveolver_ammo].damage;
-
-    if (best_kind == 0) {
-        demon_dog_damage(&demon_dogs[best_idx],
-                   demon_dog_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 1) {
-        zombie_damage(&zombies[best_idx],
-                      zombie_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 3) {
-        tentacle_shoot(&tentacles[best_idx],
-                       tentacle_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 4) {
-        spider_damage(&spiders[best_idx],
-                      spider_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 11) {
-        /* A CRAWLER. Its weakness table's one entry is DMG_HOLY and no round
-           this gun chambers carries that type, so every shot does the flat 1 —
-           the table is asked all the same, the way every other enemy's is, so
-           that a second entry reaches the gun without anyone coming back here.
-           Six rounds to kill, and each one also sends an advancing crawler into
-           its retreat (see crawler_damage), which is what makes the gun the
-           tool for keeping one off you rather than the tool for killing it. */
-        crawler_damage(&crawlers[best_idx],
-                       crawler_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 6) {
-        /* 1 from a Standard Round, 2 from a Flame Round (its weakness table
-           doubles DMG_FLAME) — so four shots to kill, or two. */
-        rafflesia_shoot(&rafflesias[best_idx],
-                        rafflesia_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 7) {
-        /* No weaknesses: 1 from any round, so five shots to kill whatever is
-           chambered (see mushroom.h). */
-        mushroom_damage(&mushrooms[best_idx],
-                        mushroom_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 12) {
-        /* No weaknesses: 1 from any round, so ten shots to kill whatever is
-           chambered (see lumberer.h). Unlike the crawler, a round does NOT move
-           it — this one has no retreat and nothing about being shot changes
-           what it is doing, beyond waking a patrolling one. */
-        lumberer_damage(&lumberers[best_idx],
-                        lumberer_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 13) {
-        /* A CREEP. One hit point and no weakness table worth the name, so any
-           round of any type kills it outright. creep_scale_damage is asked
-           anyway, the way every other enemy here is asked, so that giving the
-           thing a weakness later reaches the gun without anyone coming back to
-           this line — it would take more than one shot before it mattered. */
-        creep_damage(&creeps[best_idx],
-                     creep_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 14) {
-        /* A MAGGOT: 2 HP and every round type at 1x, so two shots. */
-        maggot_damage(&maggots[best_idx],
-                      maggot_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 8) {
-        /* Not an enemy and not scaled by a weakness table: a curtain asks the
-           DAMAGE TYPE directly. DMG_FLAME clears a destructible one outright,
-           a Standard Round does nothing but scatter leaves. */
-        vines_shoot(best_idx, (int)dmg_type);
-    } else if (best_kind == 5) {
-        /* Boss: 1 from a Standard Round, 2 from a Flame Round (its weakness
-           table doubles DMG_FLAME) — so 20 or 10 shots to kill. */
-        rabisu_damage(&rabisus[best_idx],
-                      rabisu_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 17) {
-        /* A LAMASHTU CREEP: the Creep's one hit point, so any round. */
-        lms_creep_damage(&lms_creeps[best_idx],
-                         lms_creep_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 16) {
-        /* Lamashtu's spot: 1 from any round, no weakness table - every weapon
-           is 1x against her (src/lamashtu.h), so ten rounds. */
-        lamashtu_damage(GUN_DAMAGE);
-    } else if (best_kind == 15) {
-        /* Gula: 1 from any round - her table only names DMG_HOLY. */
-        gula_damage(gula_scale_damage(GUN_DAMAGE, dmg_type));
-    } else if (best_kind == 9) {
-        /* ASAG'S HEAD. >>> NO WEAKNESS TABLE AND NO damage_scale() CALL. <<<
-           "Every weapon deals 1x damage to Asag" was the brief, in as many
-           words, so a Flame Round is a Standard Round here and the absence of a
-           table is the design rather than an omission. 20 HP means twenty
-           connected shots, all of them landed inside exposure windows that add
-           up to a few seconds an attack — which is what makes the boils, and
-           the faint they buy, the way through the fight rather than a
-           decoration on it. */
-        asag_damage(GUN_DAMAGE);
-    } else if (best_kind == 10) {
-        /* A BOIL. 3 HP, so three rounds of anything this gun chambers — the
-           boils DO have a weakness table now, but its one entry is DMG_HOLY
-           and no round carries that type. It is asked all the same, the way
-           every other enemy above is asked, so a second entry added to that
-           table reaches the gun without anyone having to come back here. */
-        asag_boil_damage(best_idx,
-                         asag_boil_scale_damage(GUN_DAMAGE, dmg_type));
-    } else {
-        vampire_health   -= vampire_scale_damage(GUN_DAMAGE, dmg_type);
-        vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
-        if (vampire_health <= 0)
-            spawn_blood_burst(vampire_x, vampire_y, vampire_z);
-    }
+    gun_hit(best_kind, best_idx);
 
     /* Impact sprite on the struck enemy, pulled a touch toward the camera so it
        sits in front of the body rather than inside it. */
@@ -555,7 +585,7 @@ static void graveolver_fire(void) {
         int32_t d = best_depth - GUN_HIT_BACKOFF;
         if (d < 1) d = 1;
         int32_t hx, hy, hz;
-        weapon_aim_ray_point(fx, fz, d, &hx, &hy, &hz);
+        weapon_aim_ray_point(shot_fx, shot_fz, d, &hx, &hy, &hz);
         bullet_hit_spawn(hx, hy, hz);
     }
 }
@@ -849,18 +879,39 @@ void draw_graveolver(RenderContext *ctx) {
     /* Overlays are hidden behind the inventory menu, so skip them there. */
     if (game_state == STATE_MENU) return;
 
-    /* Aiming reticule: a white cross with a centre gap at the crosshair. Hidden
-       while the ammo wheel is up — the d-pad is choosing ammo, not aiming, and
-       the cross would sit among the wheel's boxes. */
+    /* Aiming reticule: a cross with a centre gap at the crosshair, in the
+       chambered type's colour (ammo_info[].reticle_*). Hidden while the ammo
+       wheel is up — the d-pad is choosing ammo, not aiming, and the cross would
+       sit among the wheel's boxes.
+
+       A type with a WIDE field (the Scattershot) also gets four corner brackets
+       at the field's own edges, so what the player sees is exactly the box a
+       target has to touch (weapon_aim_in_box). The 14 px types are the old
+       cross alone - their arms already reach the field's edge. */
     if (wheel_show) {
         draw_ammo_wheel(ctx);
         wheel_show = 0;
     } else {
+        const AmmoInfo *ai = &ammo_info[graveolver_ammo];
+        uint8_t r = ai->reticle_r, g = ai->reticle_g, b = ai->reticle_b;
         int cx = aim_x, cy = aim_y;
-        screen_tile(ctx, cx - 14, cy - 1, 8, 2, 255, 255, 255, OT_GUN_RETICULE);
-        screen_tile(ctx, cx +  6, cy - 1, 8, 2, 255, 255, 255, OT_GUN_RETICULE);
-        screen_tile(ctx, cx - 1, cy - 14, 2, 8, 255, 255, 255, OT_GUN_RETICULE);
-        screen_tile(ctx, cx - 1, cy +  6, 2, 8, 255, 255, 255, OT_GUN_RETICULE);
+        screen_tile(ctx, cx - 14, cy - 1, 8, 2, r, g, b, OT_GUN_RETICULE);
+        screen_tile(ctx, cx +  6, cy - 1, 8, 2, r, g, b, OT_GUN_RETICULE);
+        screen_tile(ctx, cx - 1, cy - 14, 2, 8, r, g, b, OT_GUN_RETICULE);
+        screen_tile(ctx, cx - 1, cy +  6, 2, 8, r, g, b, OT_GUN_RETICULE);
+        if (ai->aim_hw > 14 || ai->aim_hh > 14) {
+            int x0 = cx - ai->aim_hw, x1 = cx + ai->aim_hw;   /* outer edges */
+            int y0 = cy - ai->aim_hh, y1 = cy + ai->aim_hh;
+            const int arm = 12;
+            screen_tile(ctx, x0,       y0,       arm, 2,   r, g, b, OT_GUN_RETICULE);
+            screen_tile(ctx, x0,       y0,       2,   arm, r, g, b, OT_GUN_RETICULE);
+            screen_tile(ctx, x1 - arm, y0,       arm, 2,   r, g, b, OT_GUN_RETICULE);
+            screen_tile(ctx, x1 - 2,   y0,       2,   arm, r, g, b, OT_GUN_RETICULE);
+            screen_tile(ctx, x0,       y1 - 2,   arm, 2,   r, g, b, OT_GUN_RETICULE);
+            screen_tile(ctx, x0,       y1 - arm, 2,   arm, r, g, b, OT_GUN_RETICULE);
+            screen_tile(ctx, x1 - arm, y1 - 2,   arm, 2,   r, g, b, OT_GUN_RETICULE);
+            screen_tile(ctx, x1 - 2,   y1 - arm, 2,   arm, r, g, b, OT_GUN_RETICULE);
+        }
     }
 
     /* Muzzle flash: a brief semi-transparent wash over the whole screen, in the
@@ -889,7 +940,7 @@ void draw_graveolver(RenderContext *ctx) {
 }
 
 /* Debug overlay: the crosshair hit circle itself, a yellow ring of exactly
-   GUN_AIM_RADIUS pixels drawn in 2D at the crosshair. This is the actual hit
+   the chambered type's aim_hw x aim_hh pixels drawn in 2D at the crosshair. This is the actual hit
    field — an enemy is struck only when part of its body projects inside this
    ring — so you can see directly how much aim slop there is. */
 void graveolver_debug_draw(RenderContext *ctx) {
@@ -898,12 +949,14 @@ void graveolver_debug_draw(RenderContext *ctx) {
     const int SEGS = 20;
     int cx = aim_x, cy = aim_y;
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-    int prev_x = cx + GUN_AIM_RADIUS, prev_y = cy;   /* isin/icos: angle 0 -> +X */
+    int rx = ammo_info[graveolver_ammo].aim_hw;
+    int ry = ammo_info[graveolver_ammo].aim_hh;
+    int prev_x = cx + rx, prev_y = cy;   /* isin/icos: angle 0 -> +X */
     int s;
     for (s = 1; s <= SEGS; s++) {
         int32_t ang = (s * 4096) / SEGS;             /* 0..4096 = full turn */
-        int nx = cx + ((icos(ang) * GUN_AIM_RADIUS) >> 12);
-        int ny = cy + ((isin(ang) * GUN_AIM_RADIUS) >> 12);
+        int nx = cx + ((icos(ang) * rx) >> 12);
+        int ny = cy + ((isin(ang) * ry) >> 12);
         if (ctx->next_packet + sizeof(LINE_F2) > buf_end) return;
         LINE_F2 *ln = (LINE_F2 *)ctx->next_packet;
         setLineF2(ln);

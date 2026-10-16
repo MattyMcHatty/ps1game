@@ -105,6 +105,7 @@ RESERVED  (a global; overwriting it breaks something)
   texture              bpp     x     y   wpx     h  Voff  clut(x,y)   what it is
   --------------------------------------------------------------------------
   ghit.tim             8     896    64    16    16    64  0,510       bullet-impact sprite
+  scat_rnds.tim        4     904    64    32    32    64  560,481     scattershot rounds
   key.tim              8     640   128    32    32   128  0,481       door key
   cppr_pt.tim          8     640   128    32    32   128  0,505       copper pot; time-shares the spent key slot
   shadow.tim           8     640   160    64    32   160  0,486       entity drop shadows
@@ -180,7 +181,7 @@ WHAT IS LEFT FOR THE ARENA
   x704  y0    FREE - 8bpp full page  [RESTORE: anzu3.tim, anzu6.tim]
   x768  y0    FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
   x832  y0    FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
-  x896  y0    TAKEN - reserved: ghit.tim
+  x896  y0    TAKEN - reserved: ghit.tim, scat_rnds.tim
   x960  y0    FONT - never available
   x320  y256  4bpp ONLY - right half reserved: graveolver.tim
   x384  y256  4bpp ONLY - right half reserved: stnd_rnds.tim

@@ -54,6 +54,7 @@ RESERVED  (a global; overwriting it breaks something)
   texture              bpp     x     y   wpx     h  Voff  clut(x,y)   what it is
   --------------------------------------------------------------------------
   ghit.tim             8     896    64    16    16    64  0,510       bullet-impact sprite
+  scat_rnds.tim        4     904    64    32    32    64  560,481     scattershot rounds
   rafflesia1.tim       8     320   128   128   128   128  256,496     Rafflesia, resting  (streamed in on entry here)
   rafflesia2.tim       8     384   128   128   128   128  256,497     Rafflesia, waking   (streamed in on entry here)
   dbl_dr_hlf.tim       8     512   128    64   128   128  0,487       double-door panel half
@@ -128,7 +129,7 @@ WHAT IS LEFT FOR THE GREENHOUSE
   x704  y0    IN USE by this bank: poison_flower_base_gh.tim, stable glyphs.tim
   x768  y0    IN USE by this bank: brick_wall.tim
   x832  y0    IN USE by this bank: stables wood.tim
-  x896  y0    TAKEN - reserved: ghit.tim
+  x896  y0    TAKEN - reserved: ghit.tim, scat_rnds.tim
   x960  y0    FONT - never available
   x320  y256  IN USE by this bank: greenhouse door.tim
   x384  y256  IN USE by this bank: pipe_gh.tim

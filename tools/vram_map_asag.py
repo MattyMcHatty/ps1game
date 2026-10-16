@@ -116,6 +116,7 @@ RESERVED = {
     "graveolver.tim":     "the Grave-olver",
     "stnd_rnds.tim":      "standard rounds",
     "flm_rnds.tim":       "flame rounds",
+    "scat_rnds.tim":      "scattershot rounds",
     "helluminator.tim":   "the Helluminator (menu icon in every room)",
     # --- Healing, which the player may use mid-fight -----------------------
     "sml_med.tim":        "small medkit",

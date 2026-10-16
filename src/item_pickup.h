@@ -38,6 +38,7 @@ typedef enum {
     PICKUP_GAOL_KEY,         /* gaol key        -> ITEM_GAOL_KEY bit. Never
                                 placed by world.c: the Incinerator leaves it on
                                 its east tray when it burns the Meat Sack      */
+    PICKUP_SCATTER_ROUNDS,   /* scattershot rounds -> player_ammo[AMMO_SCATTER] */
     PICKUP_KIND_COUNT
 } PickupKind;
 

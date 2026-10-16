@@ -43,6 +43,7 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\BLDPRL.TIM;1",     /* PICKUP_BLOOD_PEARL       */
     "\\TEX\\MTSCK.TIM;1",      /* PICKUP_MEAT_SACK         */
     "\\TEX\\GLKY.TIM;1",       /* PICKUP_GAOL_KEY          */
+    "\\TEX\\SCATRNDS.TIM;1",   /* PICKUP_SCATTER_ROUNDS    */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
@@ -57,6 +58,7 @@ static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Blood Pearl",             /* PICKUP_BLOOD_PEARL       */
     "Meat Sack",               /* PICKUP_MEAT_SACK         */
     "Gaol Key",                /* PICKUP_GAOL_KEY          */
+    "Scattershot Rounds",      /* PICKUP_SCATTER_ROUNDS    */
 };
 
 /* Load one TIM into VRAM and record its tpage/clut and UV rect. The UV's U0 is
@@ -175,6 +177,7 @@ static void collect(ItemPickup *p) {
             break;
         case PICKUP_ROUNDS:       player_ammo[AMMO_STANDARD] += p->amount;  break;
         case PICKUP_FLAME_ROUNDS: player_ammo[AMMO_FLAME]    += p->amount;  break;
+        case PICKUP_SCATTER_ROUNDS: player_ammo[AMMO_SCATTER] += p->amount; break;
         /* Flag items: one bit each in player_items, like the copper pot and the
            green key stone. Both are puzzle inputs; nothing consumes them yet. */
         case PICKUP_PIANO_KEY:      player_items |= (1 << ITEM_PIANO_KEY);      break;

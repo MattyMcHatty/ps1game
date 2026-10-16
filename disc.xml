@@ -527,6 +527,14 @@
                      on its east tray when it burns the Meat Sack. RESERVED in
                      the Catacombs map. -->
                 <file name="GLKY.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gl_ky.tim"/>
+                <!-- Scattershot Rounds: pickup sprite AND menu icon, both
+                     loaded at startup. 32x32 4bpp at x904 y64, left of the
+                     Blood Pearl (Voff 64, V 64..95 and U 32..63 of the x896
+                     page - window-safe), CLUT (560,481). No window-safe 64x64
+                     gap was left, so textures/scatteshot rounds.png (64x64) is
+                     downscaled to textures/scat_rnds.png first. Ammo carries
+                     across chapters, so it is RESERVED in every map. -->
+                <file name="SCATRNDS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\scat_rnds.tim"/>
                 <!-- Garden Stairs: the caged switchback stairway behind the
                      Attic Exit's unlocked door. XTDRCG/XTDROUTR are its two new
                      mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the

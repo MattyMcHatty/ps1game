@@ -193,7 +193,7 @@ the chambered type's reserve; holding it 0.25 s opens the ammo wheel (four
 boxes, one per d-pad direction), and the box under the cursor when R2 comes
 up is loaded. The wheel's layout is wheel_slots[] in src/graveolver.c and
 NOWHERE ELSE: a new type takes the next free box there (Standard is up, Flame
-is left, right and down are waiting).
+is left, Scattershot is right, down is waiting).
 
 SWAPPING costs a full reload. The design that keeps this simple is ONE
 completion path for both cases (src/graveolver.c):
@@ -290,12 +290,12 @@ giving it one would silently rescale every existing swing.
                        cube at the stove, the four key stones at the exit door
                        and the plinths, the piano key, the valve handle, the
                        hatch keys. None of them reaches Chapter 3.
-    CATACOMBS          starts with only the two AMMO types in the grid (weapons
+    CATACOMBS          starts with only the three AMMO types in the grid (weapons
                        live in the other column), so its own items (the Blood
                        Pearl first) land in the cells the old ones left.
 
   So the question for a new item is: CAN THE PLAYER BE HOLDING MORE THAN 12
-  THINGS AT ONE MOMENT? Count ammo (2) plus every item of the SAME CHAPTER that
+  THINGS AT ONE MOMENT? Count ammo (3) plus every item of the SAME CHAPTER that
   can be held together — not the whole game. If the answer is no, just add the
   ID; nothing about the grid or the pickers changes. If it is yes, the grid has
   to grow, which changes SaveData.item_order (SAVE_VERSION bump) and the
@@ -385,8 +385,14 @@ btn_prompt_draw(ctx, x, y, str, 0) — it renders via FntSort into the OT.
   src/savegame.h >>> ANY NEW INVENTORY FIELD CHANGES SaveData. <<<
                  Add the field and BUMP SAVE_VERSION with a note saying what
                  changed. Old saves are then rejected cleanly. SaveData must
-                 stay well under 128 bytes (one card frame); it is ~84 today
-                 (v13 added the 12-byte inventory arrangement).
+                 fit one 128-byte card frame, and
+                 >>> IT IS FULL. <<< SaveData fills its 128-byte card frame
+                 EXACTLY (Oct 2026): the Scattershot's ammo[] slot only fit
+                 because loaded/loaded_type shrank to int16. The next field has
+                 to be paid for the same way - narrow or pack something - and
+                 savegame.c's _Static_assert fails the build if it is not.
+                 (It was ~84 when this was first written; v13 added the
+                 12-byte inventory arrangement.)
 
   src/savegame.c Mirror the field in savegame_capture() and
                  savegame_apply_pending(). CLAMP anything used as an array index

@@ -339,10 +339,11 @@ static void ip_icon_count(RenderContext *ctx, int count, int x, int y, int size)
                     count, 2, IP_OT_COUNT);
 }
 
-/* The two ammo slots are the only ones the belt holds a QUANTITY of (up to
+/* The three ammo slots are the only ones the belt holds a QUANTITY of (up to
    INC_AMMO_MAX); everything else goes on it whole and has no number. */
 static int ip_is_ammo(int slot) {
-    return slot == MENU_SLOT_ROUNDS || slot == MENU_SLOT_FLAME_ROUNDS;
+    return slot == MENU_SLOT_ROUNDS || slot == MENU_SLOT_FLAME_ROUNDS ||
+           slot == MENU_SLOT_SCATTER_ROUNDS;
 }
 
 void incinerator_panel_draw(RenderContext *ctx) {

@@ -31,7 +31,8 @@ void menu_draw(RenderContext *ctx);
 #define MENU_SLOT_BLOOD_PEARL      12
 #define MENU_SLOT_MEAT_SACK        13
 #define MENU_SLOT_GAOL_KEY         14
-#define MENU_ITEM_SLOTS           15   /* number of item IDs that exist */
+#define MENU_SLOT_SCATTER_ROUNDS   15
+#define MENU_ITEM_SLOTS           16   /* number of item IDs that exist */
 
 /* ---- Inventory order ------------------------------------------------------
    The ITEMS column is 3x4 = 12 CELLS, and which item ID lives in which cell is
@@ -49,7 +50,7 @@ void menu_draw(RenderContext *ctx);
    Mansion and Garden item is consumed by its own puzzle before the catacomb
    mouth (the stones at the exit door and the plinths, the pot and cube at the
    stove, the keys in their locks, the valve in its pipe), so Chapter 3 starts
-   with only the two ammo types in the grid and its own items — the Blood Pearl
+   with only the three ammo types in the grid and its own items — the Blood Pearl
    first — land in the space those left. Ammo and weapons are the only things
    that carry across.
 

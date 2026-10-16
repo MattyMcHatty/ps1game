@@ -154,6 +154,11 @@ static uint8_t  msck_u0, msck_v0, msck_u1, msck_v1;
 static uint16_t glky_tpage   = 0;
 static uint16_t glky_clut    = 0;
 static uint8_t  glky_u0, glky_v0, glky_u1, glky_v1;
+/* Scattershot Rounds. 32x32 4bpp at VRAM (904,64), left of the Blood Pearl:
+   Voff 64 (V 64..95) and U 32..63 of the x896 page - window-safe. */
+static uint16_t scat_tpage   = 0;
+static uint16_t scat_clut    = 0;
+static uint8_t  scat_u0, scat_v0, scat_u1, scat_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -177,6 +182,7 @@ static const char *item_descriptions[] = {
     "Blood Pearl\n\nIt's a disturbing\nshade of red",
     "Meat Sack\n\nMeat bound with\ntwine. It's\nsquishy",
     "Gaol Key\n\nIt's made of\nhuman bones...",
+    "Scattershot Rounds\n\nA spread of\nshot. Hits all\nin its path",
 };
 
 static const char *weapon_descriptions[] = {
@@ -358,6 +364,8 @@ int menu_item_count(int slot) {
         return player_ammo[AMMO_STANDARD];
     if (slot == MENU_SLOT_FLAME_ROUNDS && player_ammo[AMMO_FLAME] > 0)
         return player_ammo[AMMO_FLAME];
+    if (slot == MENU_SLOT_SCATTER_ROUNDS && player_ammo[AMMO_SCATTER] > 0)
+        return player_ammo[AMMO_SCATTER];
     /* Hatch keys stack two to a cell. Only worth a number once there are two —
        a "1" over the icon of a thing you obviously hold once is noise, which is
        not true of ammo, where the exact reserve is the point. */
@@ -405,6 +413,7 @@ int menu_item_held(int slot) {
         case MENU_SLOT_BLOOD_PEARL:    return player_blood_pearls > 0;
         case MENU_SLOT_MEAT_SACK:      return (player_items & (1 << ITEM_MEAT_SACK)) != 0;
         case MENU_SLOT_GAOL_KEY:       return (player_items & (1 << ITEM_GAOL_KEY)) != 0;
+        case MENU_SLOT_SCATTER_ROUNDS: return player_ammo[AMMO_SCATTER] > 0;
         default: return 0;
     }
 }
@@ -426,6 +435,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_BLOOD_PEARL:    return "Blood Pearl";
         case MENU_SLOT_MEAT_SACK:      return "Meat Sack";
         case MENU_SLOT_GAOL_KEY:       return "Gaol Key";
+        case MENU_SLOT_SCATTER_ROUNDS: return "Scattershot Rounds";
         default: return "";
     }
 }
@@ -576,6 +586,10 @@ void menu_draw_item_icon_any(RenderContext *ctx, int slot, int x, int y,
             draw_icon(ctx, x, y, size, glky_tpage, glky_clut,
                       glky_u0, glky_v0, glky_u1, glky_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_SCATTER_ROUNDS:
+            draw_icon(ctx, x, y, size, scat_tpage, scat_clut,
+                      scat_u0, scat_v0, scat_u1, scat_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -641,6 +655,8 @@ void menu_init(void) {
                   &msck_u0, &msck_v0, &msck_u1, &msck_v1);
     load_icon_tim("\\TEX\\GLKY.TIM;1", &glky_tpage, &glky_clut,
                   &glky_u0, &glky_v0, &glky_u1, &glky_v1);
+    load_icon_tim("\\TEX\\SCATRNDS.TIM;1", &scat_tpage, &scat_clut,
+                  &scat_u0, &scat_v0, &scat_u1, &scat_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);

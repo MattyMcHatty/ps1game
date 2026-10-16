@@ -539,6 +539,10 @@
 #define TIM_TPAGE_RUSTY    0x008b
 #define TIM_CLUT_RUSTY     0x7950
 
+/* scat_rnds.tim   4bpp  VRAM ( 904, 64)  \TEX\SCATRNDS.TIM */
+#define TIM_TPAGE_SCATRNDS 0x000e
+#define TIM_CLUT_SCATRNDS  0x7863
+
 /* sconce.tim      8bpp  VRAM ( 448,  0)  \TEXCTCMB\SCONCE.TIM */
 #define TIM_TPAGE_SCONCE   0x0087
 #define TIM_CLUT_SCONCE    0x7daa

@@ -32,8 +32,14 @@ int      player_blood_pearls = 0;                  /* 0..BLOOD_PEARLS_MAX      *
    called "Flame Rounds" — that is the wording the log line was specified with,
    not a typo. */
 const AmmoInfo ammo_info[MAX_AMMO_TYPES] = {
-    { "Standard Rounds", "Loaded Standard Rounds", DMG_KINETIC, 255, 255, 255 },
-    { "Flame Rounds",    "Loaded Fire Rounds",     DMG_FLAME,   255, 140,  20 },
+    { "Standard Rounds",    "Loaded Standard Rounds",    DMG_KINETIC, 255, 255, 255,
+      14, 14, 0, 255, 255, 255 },
+    { "Flame Rounds",       "Loaded Fire Rounds",        DMG_FLAME,   255, 140,  20,
+      14, 14, 0, 255, 255, 255 },
+    /* Kinetic, so every weakness table treats a pellet as a Standard Round;
+       what sets it apart is the field and the spread, not the damage. */
+    { "Scattershot Rounds", "Loaded Scattershot Rounds", DMG_KINETIC, 150, 255, 150,
+      96, 26, 1, 150, 255, 150 },
 };
 
 void player_oil_refill(void) {

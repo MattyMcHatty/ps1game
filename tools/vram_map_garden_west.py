@@ -68,6 +68,7 @@ RESERVED = {
     "graveolver.tim":     "the Grave-olver",
     "stnd_rnds.tim":      "standard rounds",
     "flm_rnds.tim":       "flame rounds",
+    "scat_rnds.tim":      "scattershot rounds",
     "wx_cb.tim":          "wax cube",
     "grn_ky_stn.tim":     "green key stone",
     "ylw_ky_stn.tim":     "yellow key stone",

@@ -238,6 +238,13 @@ static int slot_take(int slot) {
         player_ammo[AMMO_FLAME] -= n;
         return n;
     }
+    case MENU_SLOT_SCATTER_ROUNDS: {
+        int n = player_ammo[AMMO_SCATTER];
+        if (n <= 0) return 0;
+        if (n > INC_AMMO_MAX) n = INC_AMMO_MAX;
+        player_ammo[AMMO_SCATTER] -= n;
+        return n;
+    }
     case MENU_SLOT_HATCH_KEY:
         /* Counted like ammo, but ONE — a hatch key is a thing, not a quantity,
            and the door it opens wants a specific number of them. */
@@ -271,6 +278,7 @@ static void slot_give(int slot, int count) {
     switch (slot) {
     case MENU_SLOT_ROUNDS:            player_ammo[AMMO_STANDARD] += count; break;
     case MENU_SLOT_FLAME_ROUNDS:      player_ammo[AMMO_FLAME]    += count; break;
+    case MENU_SLOT_SCATTER_ROUNDS:    player_ammo[AMMO_SCATTER]  += count; break;
     case MENU_SLOT_HATCH_KEY:         player_hatch_keys          += count; break;
     case MENU_SLOT_FRONT_DOOR_KEY:    player_keys  |= (1 << KEY_FRONT_DOOR);        break;
     case MENU_SLOT_COPPER_POT:        player_items |= (1 << ITEM_COPPER_POT);       break;
