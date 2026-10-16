@@ -43,7 +43,9 @@ void crates_init(void) {
     if (crate_buffer)
         crate_smd = smdInitData(crate_buffer);
 
-    /* Load crate texture into VRAM (16bpp, no CLUT needed) */
+    /* Load crate texture into VRAM. It is 4bpp, so the CLUT goes up too: the
+       tpage/clut the draw uses are the ones smxlink baked into CRATE.SMD from
+       this same .tim, so nothing here records them. */
     void *tim_buf = NULL;
     load_file("\\WCRATE.TIM;1", &tim_buf, NULL);
     if (tim_buf) {
@@ -51,6 +53,10 @@ void crates_init(void) {
         GetTimInfo((uint32_t *)tim_buf, &tim);
         LoadImage(tim.prect, tim.paddr);
         DrawSync(0);
+        if (tim.mode & 0x8) {
+            LoadImage(tim.crect, tim.caddr);
+            DrawSync(0);
+        }
         free(tim_buf);
     }
 

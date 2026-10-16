@@ -53,32 +53,32 @@ FIXED REGIONS  (identical in every bank)
 RESERVED  (a global; overwriting it breaks something)
   texture              bpp     x     y   wpx     h  Voff  clut(x,y)   what it is
   --------------------------------------------------------------------------
-  ghit.tim             8     896    64    16    16    64  0,510       bullet-impact sprite
+  !! grdngtl.tim is listed as reserved but no such .tim exists
+  !! grdngtr.tim is listed as reserved but no such .tim exists
+  !! dbl_dr_hlf.tim is listed as reserved but no such .tim exists
+  !! inr_dbl_dr_half.tim is listed as reserved but no such .tim exists
+  graveolver.tim       4     912     0    64    64     0  0,508       the Grave-olver
+  ghit.tim             4     896    64    16    16    64  0,510       bullet-impact sprite
   scat_rnds.tim        4     904    64    32    32    64  560,481     scattershot rounds
-  rafflesia1.tim       8     320   128   128   128   128  256,496     Rafflesia, resting  (streamed in on entry here)
-  rafflesia2.tim       8     384   128   128   128   128  256,497     Rafflesia, waking   (streamed in on entry here)
-  dbl_dr_hlf.tim       8     512   128    64   128   128  0,487       double-door panel half
-  grdngtl.tim          8     544   128    64   128   128  672,493     GATE panel, left half - THIS bank's own transition
-  inr_dbl_dr_half.tim  8     576   128    64   128   128  0,502       inner double-door panel half
-  grdngtr.tim          8     608   128    64   128   128  672,494     GATE panel, right half - THIS bank's own transition
-  key.tim              8     640   128    32    32   128  0,481       door key (menu icon in every room)
-  cppr_pt.tim          8     640   128    32    32   128  0,505       copper pot; time-shares the spent key slot
+  pno_key.tim          4     904    96    32    32    96  256,482     piano key item
+  bl_ky_stn.tim        4     920    96    32    32    96  768,482     blue key stone
+  rafflesia1.tim       4     320   128   128   128   128  256,496     Rafflesia, resting  (streamed in on entry here)
+  rafflesia2.tim       4     384   128   128   128   128  256,497     Rafflesia, waking   (streamed in on entry here)
+  key.tim              4     640   128    32    32   128  0,481       door key (menu icon in every room)
+  cppr_pt.tim          4     640   128    32    32   128  0,505       copper pot; time-shares the spent key slot
   xt_dr_lft_hlf.tim    8     832   128    64   128   128  672,486     outer-door panel, left half
   xt_dr_rt_hlf.tim     8     896   128    64   128   128  672,487     outer-door panel, right half
-  shadow.tim           8     640   160    64    32   160  0,486       entity drop shadows
-  graveolver.tim       8     352   256    64    64     0  0,508       the Grave-olver
-  stnd_rnds.tim        8     416   256    64    64     0  0,509       standard rounds
-  flm_rnds.tim         8     480   256    64    64     0  256,481     flame rounds
+  shadow.tim           4     640   160    64    32   160  0,486       entity drop shadows
   wx_cb.tim            4     544   256    32    32     0  192,511     wax cube
   grn_ky_stn.tim       4     552   256    32    32     0  208,511     green key stone
-  ylw_ky_stn.tim       8     560   256    32    32     0  256,489     yellow key stone
-  pno_key.tim          8     608   256    32    32     0  256,482     piano key item
-  bl_ky_stn.tim        8     624   256    32    32     0  768,482     blue key stone
-  sml_med.tim          8     640   256    64    64     0  0,482       small medkit
-  mgn_ky_stn.tim       8     672   256    32    32     0  256,494     magenta key stone
-  helluminator.tim     8     544   288    64    64    32  672,510     the Helluminator (menu icon in every room)
-  vlv_hndl.tim         8     608   288    64    64    32  768,503     the Valve Handle item (menu icon in every room)
-  crucifaxe.tim        8     320   384    64    64   128  0,500       the weapon, world sprite and menu icon
+  sml_med.tim          4     640   256    32    32     0  0,482       small medkit
+  ylw_ky_stn.tim       4     648   256    32    32     0  256,489     yellow key stone
+  stnd_rnds.tim        4     832   256    64    64     0  0,509       standard rounds
+  flm_rnds.tim         4     848   256    64    64     0  256,481     flame rounds
+  vlv_hndl.tim         4     608   288    64    64    32  768,503     the Valve Handle item (menu icon in every room)
+  helluminator.tim     4     832   320    64    64    64  672,510     the Helluminator (menu icon in every room)
+  mgn_ky_stn.tim       4     848   320    32    32    64  256,494     magenta key stone
+  crucifaxe.tim        4     320   384    64    64   128  0,500       the weapon, world sprite and menu icon
   hud.tim              4     384   384   320    56   128  176,511     the HUD panel
   mushy_run.tim        8     464   384    96    96   128  256,498     Mushroom Head, running
   mushy_behind.tim     8     512   384    96    96   128  256,499     Mushroom Head, from behind
@@ -90,20 +90,20 @@ THIS BANK'S ROOM ART
   texture              bpp     x     y   wpx     h  Voff  clut(x,y)   what it is
   --------------------------------------------------------------------------
   grss_gs.tim          4     320     0   128   128     0  224,511     Stables: the yard                       (borrowed)
-  hedge.tim            8     384     0   128   128     0  672,489     Stables: east perimeter + gate alcove   (borrowed)
-  flowerbed.tim        8     384     0   128   128     0  672,489     Greenhouse: the beds along the aisles       OWNED
-  grdn_gte.tim         8     512     0   128   128     0  672,490     Stables: the gate leaf                  (borrowed)
+  hedge.tim            4     384     0   128   128     0  672,489     Stables: east perimeter + gate alcove   (borrowed)
+  flowerbed.tim        4     384     0   128   128     0  672,489     Greenhouse: the beds along the aisles       OWNED
+  grdn_gte.tim         4     512     0   128   128     0  672,490     Stables: the gate leaf                  (borrowed)
   cuneiform _symbols.tim 8     512     0   128   128     0  672,490     Greenhouse: the marked pipework             OWNED
-  greenhouse.tim       8     640     0   128   128     0  672,497     Stables: the building beyond the west wall  OWNED
+  greenhouse.tim       4     640     0   128   128     0  672,497     Stables: the building beyond the west wall  OWNED
   stable glyphs.tim    4     704     0   128   128     0  256,511     Stables: markings on the blocks' faces      OWNED
   poison_flower_base_gh.tim 4     704     0    64    64     0  256,511     Greenhouse: flower-bed soil, 4bpp clone     OWNED
   brick_wall.tim       4     768     0   128   128     0  0,501       Stables: north/south/west walls         (borrowed)
-  stables wood.tim     8     832     0   128   128     0  672,498     Stables: the two stable blocks              OWNED
+  stables wood.tim     4     832     0   128   128     0  672,498     Stables: the two stable blocks              OWNED
   greenhouse door.tim  4     320   256    64    64     0  272,511     Stables: the shut door in the west wall     OWNED
   pipe_gh.tim          4     384   256   128   128     0  512,502     Greenhouse: the standing pipe, 4bpp clone   OWNED
   pipe_button_off.tim  4     512   256    32    32     0  528,502     Greenhouse: the button on the pipework      OWNED
   pipe_button_on.tim   4     520   256    32    32     0  544,502     Greenhouse: the button, lit                 OWNED
-  vines.tim            8     704   256   128   128     0  672,509     Greenhouse: the vines prop                  OWNED
+  vines.tim            4     704   256   128   128     0  672,509     Greenhouse: the vines prop                  OWNED
 
 WHAT IS LEFT FOR THE GREENHOUSE
 
@@ -122,24 +122,24 @@ WHAT IS LEFT FOR THE GREENHOUSE
 
   x320  y0    IN USE by this bank: grss_gs.tim
   x384  y0    IN USE by this bank: flowerbed.tim, hedge.tim
-  x448  y0    FREE - 8bpp full page  [RESTORE: anzu1.tim, anzu4.tim, wd_flr.tim]
+  x448  y0    FREE - 8bpp full page  [RESTORE: wd_flr.tim]
   x512  y0    IN USE by this bank: cuneiform _symbols.tim, grdn_gte.tim
-  x576  y0    FREE - 8bpp full page  [RESTORE: anzu2.tim, anzu5.tim, red_wlppr.tim]
+  x576  y0    FREE - 8bpp full page  [RESTORE: hadad_idle_64.tim, red_wlppr.tim]
   x640  y0    IN USE by this bank: greenhouse.tim
   x704  y0    IN USE by this bank: poison_flower_base_gh.tim, stable glyphs.tim
   x768  y0    IN USE by this bank: brick_wall.tim
   x832  y0    IN USE by this bank: stables wood.tim
-  x896  y0    TAKEN - reserved: ghit.tim, scat_rnds.tim
+  x896  y0    TAKEN - reserved: bl_ky_stn.tim, ghit.tim, graveolver.tim
   x960  y0    FONT - never available
-  x320  y256  IN USE by this bank: greenhouse door.tim
-  x384  y256  IN USE by this bank: pipe_gh.tim
-  x448  y256  4bpp ONLY - right half reserved: flm_rnds.tim
+  x320  y256  IN USE by this bank: greenhouse door.tim  (4bpp: right half still free, 4bpp only)
+  x384  y256  IN USE by this bank: pipe_gh.tim  (4bpp: right half still free, 4bpp only)
+  x448  y256  FREE - 8bpp full page  [RESTORE: din_cl.tim]
   x512  y256  IN USE by this bank: pipe_button_off.tim, pipe_button_on.tim
-  x576  y256  4bpp ONLY - right half reserved: bl_ky_stn.tim, pno_key.tim
-  x640  y256  TAKEN - reserved: sml_med.tim
+  x576  y256  4bpp ONLY - right half reserved: vlv_hndl.tim
+  x640  y256  TAKEN - reserved: sml_med.tim, ylw_ky_stn.tim
   x704  y256  IN USE by this bank: vines.tim
   x768  y256  FREE - 8bpp full page  [RESTORE: wd_dr.tim]
-  x832  y256  FREE - 8bpp full page  [RESTORE: wd_dr.tim]
+  x832  y256  TAKEN - reserved: flm_rnds.tim, helluminator.tim, mgn_ky_stn.tim
   x896  y256  FREE - 8bpp full page  [RESTORE: stn_gls.tim]
   x960  y256  FREE - 8bpp full page  [RESTORE: grinder.tim, trees_dl.tim]
 

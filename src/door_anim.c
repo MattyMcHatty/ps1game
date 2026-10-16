@@ -122,12 +122,19 @@
 #define DOOR_HALF_H     100     /* half the door height on screen */
 #define PERSP_D         220     /* fake-perspective focal distance (bigger = flatter) */
 
-/* Both door TIMs are 64x128 and were placed so that within their page the texels
- * span U[0,63] V[128,255] (dbl_dr_hlf at VRAM x=512 y=128, inr_dbl_dr_half at
- * x=576 y=128). U=0 is the inner edge (door handle / centre seam). Because the
- * in-page texel offsets match, the same UV constants serve every variant. */
-#define DOOR_U_INNER    0
-#define DOOR_U_OUTER   63
+/* The house double doors draw from the WHOLE door texture, one half per leaf:
+ * double_door.tim for DOOR_PANEL_OUTER and inr_dbl_dr.tim for DOOR_PANEL_INNER.
+ * Both are 4bpp 128x128, which is 32 VRAM words by 128 rows - exactly the
+ * footprint of the 8bpp 64x128 half-door TIMs they replace - so each is loaded
+ * into that retired half's slot (see SLOT_OUTER below) rather than its own
+ * room slot, which other rooms stream over. Both slots are page-aligned at
+ * Voff 128, so within the page the left leaf is U[0,63] (outer edge at 0, seam
+ * at 63) and the right leaf U[64,127] (seam at 64, outer edge at 127), V
+ * [128,255]. Same constants for both variants. */
+#define DOOR_L_U_OUTER   0
+#define DOOR_L_U_SEAM   63
+#define DOOR_R_U_SEAM   64
+#define DOOR_R_U_OUTER 127
 #define DOOR_V_TOP    128
 #define DOOR_V_BOT    255
 
@@ -176,13 +183,14 @@
  * swing still pivots about its own outer edge and neither image is stretched. */
 #define EXIT_INSET       (EXIT_PANEL_W / 10)
 
-/* DOOR_PANEL_GATE, the garden gate. Two 64x128 TIMs like the exit door, but
- * they could NOT be page-aligned — there is no free 64-word column left at a
- * page boundary — so each sits in the RIGHT half of a page it shares with
- * something else (grdngtl at VRAM x544 on the dbl_dr_hlf page, grdngtr at x608
- * on the inr_dbl_dr_half page). Both are therefore at U 64..127 rather than
- * 0..63; V is 128..255 as usual. Left leaf reads outer-edge-first, right leaf
- * seam-first, exactly as the exit door's pair do.
+/* DOOR_PANEL_GATE, the garden gate. ONE texture, grdn_gte.tim (4bpp 128x128),
+ * one half per leaf, loaded into the slot the old left-leaf TIM grdngtl had:
+ * VRAM x544 y128, the RIGHT half of the page the outer double door sits in.
+ * At 4bpp that half of the page is U 128..255, so the left leaf is U[128,191]
+ * and the right leaf U[192,255]; V is 128..255 as usual. door_anim_draw resets
+ * the texture window to no-wrapping, so U past 127 is fine here. Left leaf
+ * reads outer-edge-first, right leaf seam-first, exactly as the exit door's
+ * pair do.
  *
  * No EXIT_INSET here: the art is see-through, so overlapping the leaves would
  * double-draw the bars down the centre seam instead of hiding a hairline.
@@ -194,10 +202,10 @@
  * 96 * ZOOM_MAX/256 = 134 either side of centre, which still lands inside the
  * screen; anything much past this would start clipping the hinge off-screen. */
 #define GATE_PANEL_W    ((PANEL_W * 12) / 10)   /* 96 */
-#define GATE_L_U_OUTER   64
-#define GATE_L_U_SEAM   127
-#define GATE_R_U_SEAM    64
-#define GATE_R_U_OUTER  127
+#define GATE_L_U_OUTER  128
+#define GATE_L_U_SEAM   191
+#define GATE_R_U_SEAM   192
+#define GATE_R_U_OUTER  255
 
 /* DOOR_PANEL_GREENHOUSE, the door between the Stables and the Greenhouse. The
  * WOOD variant's geometry - one leaf, the whole door swinging - on the shared
@@ -370,14 +378,14 @@ static int32_t  anim_timer  = 0;
 static int      anim_active = 0;
 static int      anim_variant = DOOR_PANEL_OUTER;   /* which door texture to draw */
 
-/* One tpage/clut pair per variant (indexed by DOOR_PANEL_*). For the single- and
- * mirrored-double-door variants this is the whole story — one image serves both
- * leaves. */
+/* One tpage/clut pair per variant (indexed by DOOR_PANEL_*). For the single-leaf
+ * doors and the double doors drawn from two halves of one image this is the
+ * whole story. */
 static uint16_t panel_tpage[DOOR_PANEL_COUNT];
 static uint16_t panel_clut [DOOR_PANEL_COUNT];
-/* The RIGHT leaf of the two variants whose leaves are different images rather
- * than one image drawn twice mirrored (DOOR_PANEL_EXIT, DOOR_PANEL_GATE). Their
- * left leaf uses the panel_* entry above; the others leave this unset. */
+/* The RIGHT leaf of the one variant whose leaves are different images rather
+ * than two halves of one image (DOOR_PANEL_EXIT). Its left leaf uses the
+ * panel_* entry above; the others leave this unset. */
 static uint16_t panel_r_tpage[DOOR_PANEL_COUNT];
 static uint16_t panel_r_clut [DOOR_PANEL_COUNT];
 static int      tex_loaded  = 0;
@@ -386,9 +394,28 @@ static int      tex_loaded  = 0;
 /* Mirrors fatdoors_load_assets: a CD read + LoadImage, done ONCE at startup.
  * LoadImage is only safe before the per-frame draw loop begins (see
  * tools/TEXTURING_NOTES.txt) — never call this mid-game. */
+/* Where a panel goes in VRAM when it is NOT where its own .tim says. */
+typedef struct {
+    int16_t x, y;     /* pixel rect origin, VRAM words */
+    int16_t cx, cy;   /* CLUT origin */
+} PanelSlot;
+
+/* THE THREE WHOLE-DOOR PANELS ARE ROOM ART LOADED SOMEWHERE ELSE. double_door,
+   inr_dbl_dr and grdn_gte each have a room slot of their own that other rooms
+   stream over, so the transition cannot draw from there. Each is instead put
+   up a second time, here, into the slot (and CLUT) of the half-door TIM it
+   replaced. Those were reserved for exactly this and nothing else writes them
+   except the Lumberer, which door_anim_restore_panels answers. A 4bpp 128x128
+   door is the same 32x128 words as the 8bpp 64x128 half it stands in for. */
+static const PanelSlot SLOT_OUTER = { 512, 128,   0, 487 };  /* was dbl_dr_hlf      */
+static const PanelSlot SLOT_INNER = { 576, 128,   0, 502 };  /* was inr_dbl_dr_half */
+static const PanelSlot SLOT_GATE  = { 544, 128, 672, 493 };  /* was grdngtl         */
+
 /* Load one door-panel TIM into VRAM and record its tpage/clut through the given
- * pointers. Returns 1 on success. */
-static int load_panel_to(const char *path, uint16_t *tpage_out, uint16_t *clut_out) {
+ * pointers. `at` moves it (pixels and CLUT) off the slot its header names;
+ * NULL leaves it there. Returns 1 on success. */
+static int load_panel_to(const char *path, const PanelSlot *at,
+                         uint16_t *tpage_out, uint16_t *clut_out) {
     CdlFILE file;
     if (!CdSearchFile(&file, (char *)path)) return 0;
 
@@ -402,14 +429,20 @@ static int load_panel_to(const char *path, uint16_t *tpage_out, uint16_t *clut_o
 
     TIM_IMAGE tim;
     GetTimInfo((uint32_t *)buf, &tim);
-    LoadImage(tim.prect, tim.paddr);
+    RECT prect = *tim.prect;
+    RECT crect = (tim.mode & 0x8) ? *tim.crect : prect;
+    if (at) {
+        prect.x = at->x;  prect.y = at->y;
+        crect.x = at->cx; crect.y = at->cy;
+    }
+    LoadImage(&prect, tim.paddr);
     DrawSync(0);
     if (tim.mode & 0x8) {
-        LoadImage(tim.crect, tim.caddr);
+        LoadImage(&crect, tim.caddr);
         DrawSync(0);
-        *clut_out = getClut(tim.crect->x, tim.crect->y);
+        *clut_out = getClut(crect.x, crect.y);
     }
-    *tpage_out = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
+    *tpage_out = getTPage(tim.mode & 0x3, 0, prect.x, prect.y);
 
     free(buf);
     return 1;
@@ -424,13 +457,18 @@ static int load_panel_to(const char *path, uint16_t *tpage_out, uint16_t *clut_o
    the Crawler, and it is why tools/VRAM_MAP.txt reports the Voff-128 band as
    full when a third of it is art the Catacombs never draws.
 
-   door_anim_restore_panels() is the way back. Three leaves sit in the two pages
-   the Lumberer's sheet takes (src/lumberer.h):
+   door_anim_restore_panels() is the way back. These leaves sit in or beside
+   the two pages the Lumberer's sheet takes (src/lumberer.h):
 
-     dbl_dr_hlf    x[512,544) y128   DOOR_PANEL_OUTER's single leaf
-     grdngtl       x[544,576) y128   DOOR_PANEL_GATE's left leaf
+     double_door   x[512,544) y128   DOOR_PANEL_OUTER, both leaves
+     grdn_gte      x[544,576) y128   DOOR_PANEL_GATE, both leaves
      xt_dr_lft_hlf x[832,864) y128   DOOR_PANEL_EXIT's left leaf
      xt_dr_rt_hlf  x[896,928) y128   DOOR_PANEL_EXIT's right leaf
+
+   Since the Lumberer went 4bpp its halves are 64 words wide (x[448,512) and
+   x[832,896)), so of these only xt_dr_lft_hlf is actually overwritten now. The
+   restore still puts all of them back: it is one gated read each, and it means
+   the next sheet that grows does not have to remember this list.
 
    IT RE-READS FROM THE DISC RATHER THAN FROM A texmgr COPY, and that is the
    whole reason it is affordable. A texmgr registration would make these ~35 KB
@@ -448,17 +486,22 @@ void door_anim_panels_taken(void) { panels_taken = 1; }
 
 /* Load into a variant's own slot — what every variant's single/left leaf wants. */
 static int load_panel(const char *path, int variant) {
-    return load_panel_to(path, &panel_tpage[variant], &panel_clut[variant]);
+    return load_panel_to(path, NULL, &panel_tpage[variant], &panel_clut[variant]);
 }
 
-/* ...and into the right-leaf slot, for the two variants that have one. */
+/* ...and into the right-leaf slot, for the one variant that has one. */
 static int load_panel_r(const char *path, int variant) {
-    return load_panel_to(path, &panel_r_tpage[variant], &panel_r_clut[variant]);
+    return load_panel_to(path, NULL, &panel_r_tpage[variant], &panel_r_clut[variant]);
+}
+
+/* A whole-door texture into its reserved panel slot (see SLOT_OUTER above). */
+static int load_panel_at(const char *path, const PanelSlot *at, int variant) {
+    return load_panel_to(path, at, &panel_tpage[variant], &panel_clut[variant]);
 }
 
 void door_anim_load_assets(void) {
-    int ok = load_panel("\\DBLDRHLF.TIM;1", DOOR_PANEL_OUTER);
-    load_panel("\\INRDRHLF.TIM;1", DOOR_PANEL_INNER);
+    int ok = load_panel_at("\\DBLDOOR.TIM;1", &SLOT_OUTER, DOOR_PANEL_OUTER);
+    load_panel_at("\\INRDBLDR.TIM;1", &SLOT_INNER, DOOR_PANEL_INNER);
     /* wd_dr is also loaded by fatdoors_load_assets (same VRAM rect, 768,256);
        re-reading it here just records its tpage the same way as the others. */
     load_panel("\\WDDR.TIM;1", DOOR_PANEL_WOOD);
@@ -467,9 +510,8 @@ void door_anim_load_assets(void) {
        images rather than one image drawn twice. */
     load_panel("\\TEX\\XTDRLHLF.TIM;1", DOOR_PANEL_EXIT);
     load_panel_r("\\TEX\\XTDRRHLF.TIM;1", DOOR_PANEL_EXIT);
-    /* The garden gate's two leaves, same arrangement. */
-    load_panel("\\TEX\\GRDNGTL.TIM;1", DOOR_PANEL_GATE);
-    load_panel_r("\\TEX\\GRDNGTR.TIM;1", DOOR_PANEL_GATE);
+    /* The garden gate: one texture, both leaves (see GATE_L_U_OUTER). */
+    load_panel_at("\\TEX\\GRDNGTE.TIM;1", &SLOT_GATE, DOOR_PANEL_GATE);
     /* The greenhouse door: HEADER ONLY, no CD read and no LoadImage.
        Every panel above lives in a VRAM rect nobody else writes, so loading it
        once at startup settles it for the whole run. This one does not: its
@@ -532,10 +574,10 @@ void door_anim_load_assets(void) {
 void door_anim_restore_panels(void) {
     if (!panels_taken) return;
     panels_taken = 0;
-    load_panel  ("\\DBLDRHLF.TIM;1",      DOOR_PANEL_OUTER);
-    load_panel  ("\\TEX\\XTDRLHLF.TIM;1", DOOR_PANEL_EXIT);
-    load_panel_r("\\TEX\\XTDRRHLF.TIM;1", DOOR_PANEL_EXIT);
-    load_panel  ("\\TEX\\GRDNGTL.TIM;1",  DOOR_PANEL_GATE);
+    load_panel_at("\\DBLDOOR.TIM;1",      &SLOT_OUTER, DOOR_PANEL_OUTER);
+    load_panel   ("\\TEX\\XTDRLHLF.TIM;1", DOOR_PANEL_EXIT);
+    load_panel_r ("\\TEX\\XTDRRHLF.TIM;1", DOOR_PANEL_EXIT);
+    load_panel_at("\\TEX\\GRDNGTE.TIM;1",  &SLOT_GATE,  DOOR_PANEL_GATE);
 }
 
 /* ------------------------------------------------------------- state machine */
@@ -973,12 +1015,11 @@ void door_anim_draw(RenderContext *ctx) {
 
         /* Right leaf: shut. Drawn first so the swinging leaf overlaps it rather
            than the other way about, which matters for the frame or two either
-           side of fully closed. */
+           side of fully closed. The other half of the same texture. */
         {
             int32_t xl = DOOR_CENTER_X;                  /* seam (inner) edge */
             int32_t xr = DOOR_CENTER_X + GATE_PANEL_W;   /* outer edge        */
-            emit_panel_tex(ctx, buf_end,
-                       panel_r_tpage[anim_variant], panel_r_clut[anim_variant],
+            emit_panel(ctx, buf_end,
                        xl, top,  xr, top,
                        xl, bot,  xr, bot,
                        GATE_R_U_SEAM, DOOR_V_TOP,  GATE_R_U_OUTER, DOOR_V_TOP,
@@ -1001,16 +1042,16 @@ void door_anim_draw(RenderContext *ctx) {
         return;
     }
 
-    /* Left leaf: static, closed. Spans x[center-W, center]; mirrored so the
-     * handle (U inner) sits at the centre seam (x = center). */
+    /* Left leaf: static, closed. Spans x[center-W, center], drawn from the
+     * door texture's left half: outer edge on the left, seam at centre. */
     {
         int32_t xl = DOOR_CENTER_X - PANEL_W;  /* outer edge */
         int32_t xr = DOOR_CENTER_X;            /* seam (inner) edge */
         emit_panel(ctx, buf_end,
                    xl, top,  xr, top,
                    xl, bot,  xr, bot,
-                   DOOR_U_OUTER, DOOR_V_TOP,  DOOR_U_INNER, DOOR_V_TOP,
-                   DOOR_U_OUTER, DOOR_V_BOT,  DOOR_U_INNER, DOOR_V_BOT,
+                   DOOR_L_U_OUTER, DOOR_V_TOP,  DOOR_L_U_SEAM, DOOR_V_TOP,
+                   DOOR_L_U_OUTER, DOOR_V_BOT,  DOOR_L_U_SEAM, DOOR_V_BOT,
                    intensity, zoom);
     }
 
@@ -1031,8 +1072,8 @@ void door_anim_draw(RenderContext *ctx) {
         emit_panel(ctx, buf_end,
                    free_x,  DOOR_CENTER_Y - free_hh,  hinge_x, top,
                    free_x,  DOOR_CENTER_Y + free_hh,  hinge_x, bot,
-                   DOOR_U_INNER, DOOR_V_TOP,  DOOR_U_OUTER, DOOR_V_TOP,
-                   DOOR_U_INNER, DOOR_V_BOT,  DOOR_U_OUTER, DOOR_V_BOT,
+                   DOOR_R_U_SEAM, DOOR_V_TOP,  DOOR_R_U_OUTER, DOOR_V_TOP,
+                   DOOR_R_U_SEAM, DOOR_V_BOT,  DOOR_R_U_OUTER, DOOR_V_BOT,
                    intensity, zoom);
     }
 }

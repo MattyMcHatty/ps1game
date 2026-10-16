@@ -16,8 +16,10 @@
  *     if (door_anim_finished()) game_state = STATE_LOADING;
  *
  * `variant` selects which door texture the panel is drawn with: */
-#define DOOR_PANEL_OUTER  0   /* dbl_dr_hlf       — standard door (default)     */
-#define DOOR_PANEL_INNER  1   /* inr_dbl_dr_half  — interior door (-> reception) */
+#define DOOR_PANEL_OUTER  0   /* double_door, one half per leaf — standard door
+                                 (default)                                       */
+#define DOOR_PANEL_INNER  1   /* inr_dbl_dr, one half per leaf — interior door
+                                 (-> reception)                                  */
 #define DOOR_PANEL_WOOD   2   /* wd_dr — SINGLE wooden door (reception west wall);
                                  one leaf, the whole door swings open            */
 #define DOOR_PANEL_EXIT   3   /* xt_dr_lft_hlf + xt_dr_rt_hlf — the Attic Exit's
@@ -29,10 +31,9 @@
                                  450x467 xt_dr panel the player walks up to in
                                  the Attic Exit. Also plays Garden Stairs ->
                                  Garden Courtyard.                                */
-#define DOOR_PANEL_GATE   4   /* grdngtl + grdngtr — the wrought-iron garden gate
-                                 between the Garden Courtyard and Fountain Square.
-                                 Two textures like the exit door, but only the
-                                 LEFT leaf swings; the right stays shut. It is
+#define DOOR_PANEL_GATE   4   /* grdn_gte, one half per leaf — the wrought-iron
+                                 garden gate between the Garden Courtyard and
+                                 Fountain Square. Only the LEFT leaf swings; the right stays shut. It is
                                  also the one variant that does NOT play SFX_DOOR:
                                  it plays SFX_GATE, and its swing is cut to that
                                  clip's length so the leaf stops when the hinge

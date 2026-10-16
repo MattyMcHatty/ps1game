@@ -53,71 +53,71 @@ The transient allocations still have to FIT in whatever is left, so treat the
 TEXMGR REGISTRATIONS  (resident for the whole run)
   module                   regs      bytes
   --------------------------------------------
-  catacombs_entry.c        4         73728
-  crawler.c                2         69632
-  kitchen_dining.c         6         69632
-  lumberer.c               2         69632
+  kitchen_dining.c         6         61440
   garden_stairs.c          4         57344
   delivery_area.c          5         51200
-  stables.c                4         51200
+  catacombs_entry.c        4         40960
   adapa.c                  2         36864
   attic_exit.c             2         36864
-  fountain_square.c        2         36864
-  garden_courtyard.c       2         36864
-  rafflesia.c              2         36864
+  crawler.c                2         36864
+  lumberer.c               2         36864
   spider.c                 2         36864
   trick_drawers.c          2         36864
+  stables.c                4         34816
   conservatory.c           3         30720
   piano_props.c            3         30720
-  maze_one.c               2         28672
   rear_gate.c              2         28672
-  outside_catacombs.c      2         24576
+  fountain_square.c        2         20480
+  garden_courtyard.c       2         20480
   hall_2f.c                2         20480
-  zombie.c                 2         20480
-  attic_stairwell.c        1         18432
-  crib.c                   1         18432
-  dresser.c                1         18432
-  gaol_cells.c             1         18432
+  maze_one.c               2         20480
+  rafflesia.c              2         20480
   incinerator.c            1         18432
-  keystone_maze.c          1         18432
-  master_bedroom.c         1         18432
-  maze_two.c               1         18432
-  north_chamber.c          1         18432
-  oil_dispenser.c          1         18432
   rabisu.c                 1         18432
-  room_of_arms.c           1         18432
-  room_of_bones.c          1         18432
-  room_of_heads.c          1         18432
-  room_of_legs.c           1         18432
-  room_of_torsos.c         1         18432
   sconce.c                 1         18432
-  the_pit.c                1         18432
   the_shelf.c              1         18432
+  outside_catacombs.c      2         14336
+  zombie.c                 2         12288
   arm_switch.c             1         10240
+  attic_stairwell.c        1         10240
   bars.c                   1         10240
   concrete_props.c         1         10240
+  crib.c                   1         10240
+  dresser.c                1         10240
   east_stairwell.c         1         10240
+  gaol_cells.c             1         10240
   gaol_entry.c             1         10240
   gula_tablet.c            1         10240
+  keystone_maze.c          1         10240
   lamashtu.c               1         10240
+  master_bedroom.c         1         10240
+  maze_two.c               1         10240
+  north_chamber.c          1         10240
+  oil_dispenser.c          1         10240
   piano_room.c             1         10240
   reception.c              1         10240
+  room_of_arms.c           1         10240
   room_of_baby_names.c     1         10240
+  room_of_bones.c          1         10240
   room_of_guts.c           1         10240
+  room_of_heads.c          1         10240
+  room_of_legs.c           1         10240
+  room_of_torsos.c         1         10240
   seal.c                   1         10240
   the_head.c               1         10240
-  creep.c                  1          6144
+  the_pit.c                1         10240
   lms_creep.c              1          6144
   maggot.c                 1          6144
-  TOTAL                    92      1386496
+  creep.c                  1          4096
+  TOTAL                    92      1062912
   TEXMGR_MAX               128               <- src/texmgr.c; 36 spare, checked at build time
 
 DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)
   none
 
 DUPLICATE REGISTRATIONS  (the same TIM held in RAM more than once)
-  LMSHTBLT.TIM       18432 wasted   catacombs_entry.c, outside_catacombs.c
-  ---> reclaimable with narrow uploaders: 18432 bytes (18 KB)
+  LMSHTBLT.TIM       10240 wasted   catacombs_entry.c, outside_catacombs.c
+  ---> reclaimable with narrow uploaders: 10240 bytes (10 KB)
        Each of these is one texture at one VRAM address, so ONE copy
        serves every room that draws it; the others want TIM_SLOT() for
        the header and a call to the owner's narrow upload function.
@@ -158,36 +158,36 @@ CHAPTER-SCOPED BUFFERS  (held through Chapters 1-2, freed at the catacomb mouth)
 
 ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   rabisu.c                 RBSIDLE.PVA       57344  -> p
-  fatdoor.c                WDDR.TIM          34816  -> tim_buf
   rabisu.c                 RABISU.SMD        28672  -> rabisu_buff
   asag.c                   ASGHSLAM.PVA      24012  -> asags_free_model()
   asag.c                   ASGHLAS.PVA       20652  -> asags_free_model()
   asag.c                   ASGHVOM.PVA       19212  -> asags_free_model()
   asag.c                   ASGHFNT.PVA       19212  -> asags_free_model()
   chainlink_door.c         CHNLNK.TIM        10240  -> tim
+  fatdoor.c                WDDR.TIM          10240  -> tim_buf
   fatdoor.c                WDDRCRK.TIM       10240  -> crk_buf
   grinder.c                GRINDER.TIM        6144  -> tbuf
   asag.c                   ASGHIDLE.PVA       4812  -> asags_free_model()
   asag.c                   ASGBODY.SMD        4468  -> asags_free_model()
-  TOTAL                                     239824   <- PEAK, not a resting cost
+  TOTAL                                     215248   <- PEAK, not a resting cost
 
   These cost nothing at rest and everything at the moment they are in.
   The transition that loads them is the peak this heap has to survive,
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x80139BCC
+  _end (heap start)   0x8013A864
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             663924 bytes (648 KB)
+  heap size             660700 bytes (645 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak bank      301056 bytes (294 KB)  45.3%   <- MAZE_ONE (largest room set)
+  texmgr peak bank      243712 bytes (238 KB)  36.9%   <- REAR_GATE (largest room set)
   kept buffers           28672 bytes (28 KB)   4.3%
   chapter-scoped         43008 bytes (42 KB)   6.5%
-  PERMANENT TOTAL       372736 bytes (364 KB)  56.1%
-  FREE AT REST          291188 bytes (284 KB)  43.9%   <- STACK ALREADY SUBTRACTED
-                                  (was 439340 before the stack was counted;
+  PERMANENT TOTAL       315392 bytes (308 KB)  47.7%
+  FREE AT REST          345308 bytes (337 KB)  52.3%   <- STACK ALREADY SUBTRACTED
+                                  (was 493460 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -246,7 +246,7 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 284 KB printed above.
+  once read_file's margin comes off - against the 337 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

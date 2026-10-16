@@ -25,8 +25,8 @@ static SMD  *fatdoor_smd    = NULL;
 static void *fatdoor_buffer = NULL;
 
 /* Cracked-door texture (wd_dr_crk.tim), swapped in for a door on its last hit.
-   It is 8bpp+CLUT (the intact wd_dr.tim baked into the SMD is 16bpp, no CLUT),
-   but both are 128x128 so the texel-based UVs and the shared 128 texture window
+   It is 8bpp+CLUT (the intact wd_dr.tim baked into the SMD is 4bpp), but both
+   are 128x128 so the texel-based UVs and the shared 128 texture window
    map either one correctly — we only override the per-poly tpage/clut. 0 = not
    loaded, in which case we fall back to the baked intact texture. */
 static uint16_t fatdoor_crk_tpage = 0;
@@ -49,8 +49,9 @@ void fatdoors_load_assets(void) {
     if (fatdoor_buffer)
         fatdoor_smd = smdInitData(fatdoor_buffer);
 
-    /* Door texture (16bpp, no CLUT). LoadImage is only safe at startup, before
-       the per-frame draw loop begins (see TEXTURING_NOTES). */
+    /* Door texture (4bpp + CLUT; the tpage/clut are baked into FATDOOR.SMD
+       from this same .tim). LoadImage is only safe at startup, before the
+       per-frame draw loop begins (see TEXTURING_NOTES). */
     void *tim_buf = NULL;
     load_file("\\WDDR.TIM;1", &tim_buf);
     if (tim_buf) {
@@ -58,6 +59,10 @@ void fatdoors_load_assets(void) {
         GetTimInfo((uint32_t *)tim_buf, &tim);
         LoadImage(tim.prect, tim.paddr);
         DrawSync(0);
+        if (tim.mode & 0x8) {
+            LoadImage(tim.crect, tim.caddr);
+            DrawSync(0);
+        }
         free(tim_buf);
     }
 

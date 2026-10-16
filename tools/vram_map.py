@@ -642,6 +642,21 @@ KNOWN_STREAM_PAIRS = [
     ("wd_flr.tim", "sconce.tim"),
     ("anzu1.tim", "sconce.tim"),
     ("anzu4.tim", "sconce.tim"),
+    #   anzu_tab.tim -> the left half of page 832 at y0 (October 2026). The whole
+    # Anzu tablet in one 4bpp texture, and the piano room's puzzle draws it under
+    # the room's 128 window, so it needs U < 128 at Voff 0. Every occupant of
+    # that slot is texmgr-owned room art that the piano room never draws, and
+    # texmgr_upload always LoadImages, so each owner is put back on entry to its
+    # own room; anzu_tex_stream() puts the tablet back on piano-room entry. The
+    # slot it left (x832 y256) holds four pickup sprites, which are resident.
+    ("anzu_tab.tim", "catacomb inner door.tim"),
+    ("anzu_tab.tim", "con_tile.tim"),
+    ("anzu_tab.tim", "double_door.tim"),
+    ("anzu_tab.tim", "drain.tim"),
+    ("anzu_tab.tim", "opn_drwr.tim"),
+    ("anzu_tab.tim", "plinth.tim"),
+    ("anzu_tab.tim", "stables wood.tim"),
+    ("anzu_tab.tim", "xt_dr_cg.tim"),
     #   oil_container.tim -> the stn_gls page (x896 y256), the Chapter 3 oil
     # dispenser's art. An exact 128x128 8bpp fit on a page with ONE occupant, and
     # the first use of a page the "way back" commit made borrowable: stn_gls is

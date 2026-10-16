@@ -43,32 +43,12 @@
 #define TIM_TPAGE_ADAPAB   0x000e
 #define TIM_CLUT_ADAPAB    0x7806
 
-/* anzu1.tim       8bpp  VRAM ( 480,  0)  \TEX\ANZU1.TIM */
-#define TIM_TPAGE_ANZU1    0x0087
-#define TIM_CLUT_ANZU1     0x78d0
+/* anzu_tab.tim    4bpp  VRAM ( 832,  0)  \TEX\ANZUTAB.TIM */
+#define TIM_TPAGE_ANZUTAB  0x000d
+#define TIM_CLUT_ANZUTAB   0x78d0
 
-/* anzu2.tim       8bpp  VRAM ( 608,  0)  \TEX\ANZU2.TIM */
-#define TIM_TPAGE_ANZU2    0x0089
-#define TIM_CLUT_ANZU2     0x7910
-
-/* anzu3.tim       8bpp  VRAM ( 736,  0)  \TEX\ANZU3.TIM */
-#define TIM_TPAGE_ANZU3    0x008b
-#define TIM_CLUT_ANZU3     0x7950
-
-/* anzu4.tim       8bpp  VRAM ( 480, 64)  \TEX\ANZU4.TIM */
-#define TIM_TPAGE_ANZU4    0x0087
-#define TIM_CLUT_ANZU4     0x7990
-
-/* anzu5.tim       8bpp  VRAM ( 608, 64)  \TEX\ANZU5.TIM */
-#define TIM_TPAGE_ANZU5    0x0089
-#define TIM_CLUT_ANZU5     0x79d0
-
-/* anzu6.tim       8bpp  VRAM ( 736, 64)  \TEX\ANZU6.TIM */
-#define TIM_TPAGE_ANZU6    0x008b
-#define TIM_CLUT_ANZU6     0x7a10
-
-/* arms2.tim       8bpp  VRAM ( 640,  0)  \TEXCTCMB\ARMS2.TIM */
-#define TIM_TPAGE_ARMS2    0x008a
+/* arms2.tim       4bpp  VRAM ( 640,  0)  \TEXCTCMB\ARMS2.TIM */
+#define TIM_TPAGE_ARMS2    0x000a
 #define TIM_CLUT_ARMS2     0x7d6a
 
 /* mud.tim         8bpp  VRAM ( 384,  0)  \TEXASAG\ASGMUD.TIM */
@@ -91,20 +71,20 @@
 #define TIM_TPAGE_BBYNAMES 0x000a
 #define TIM_CLUT_BBYNAMES  0x7da6
 
-/* bed.tim         8bpp  VRAM ( 768,  0)  \TEX\BED.TIM */
-#define TIM_TPAGE_BED      0x008c
+/* bed.tim         4bpp  VRAM ( 768,  0)  \TEX\BED.TIM */
+#define TIM_TPAGE_BED      0x000c
 #define TIM_CLUT_BED       0x7811
 
 /* bld_prl.tim     4bpp  VRAM ( 912, 64)  \TEX\BLDPRL.TIM */
 #define TIM_TPAGE_BLDPRL   0x000e
 #define TIM_CLUT_BLDPRL    0x7860
 
-/* bl_ky_stn.tim   8bpp  VRAM ( 624,256)  \TEX\BLKYSTN.TIM */
-#define TIM_TPAGE_BLKYSTN  0x0099
+/* bl_ky_stn.tim   4bpp  VRAM ( 920, 96)  \TEX\BLKYSTN.TIM */
+#define TIM_TPAGE_BLKYSTN  0x000e
 #define TIM_CLUT_BLKYSTN   0x78b0
 
-/* bones.tim       8bpp  VRAM ( 640,  0)  \TEXCTCMB\BONES.TIM */
-#define TIM_TPAGE_BONES    0x008a
+/* bones.tim       4bpp  VRAM ( 640,  0)  \TEXCTCMB\BONES.TIM */
+#define TIM_TPAGE_BONES    0x000a
 #define TIM_CLUT_BONES     0x7d6a
 
 /* bookshelf.tim   4bpp  VRAM ( 320,  0)  \TEX\BOOKSHLF.TIM */
@@ -135,40 +115,40 @@
 #define TIM_TPAGE_CNCRTE   0x0006
 #define TIM_CLUT_CNCRTE    0x7fc7
 
-/* cobblestones.tim  8bpp  VRAM ( 384,  0)  \TEXCTCMB\COBBLE.TIM */
-#define TIM_TPAGE_COBBLE   0x0086
+/* cobblestones.tim  4bpp  VRAM ( 384,  0)  \TEXCTCMB\COBBLE.TIM */
+#define TIM_TPAGE_COBBLE   0x0006
 #define TIM_CLUT_COBBLE    0x7cea
 
 /* con_tile.tim    4bpp  VRAM ( 832,  0)  \TEX\CONTILE.TIM */
 #define TIM_TPAGE_CONTILE  0x000d
 #define TIM_CLUT_CONTILE   0x7fc6
 
-/* cppr_pt.tim     8bpp  VRAM ( 640,128)  \TEX\CPPRPOT.TIM */
-#define TIM_TPAGE_CPPRPOT  0x008a
+/* cppr_pt.tim     4bpp  VRAM ( 640,128)  \TEX\CPPRPOT.TIM */
+#define TIM_TPAGE_CPPRPOT  0x000a
 #define TIM_CLUT_CPPRPOT   0x7e40
 
-/* crawler_a.tim   8bpp  VRAM ( 320,128)  \TEXCTCMB\CRAWLRA.TIM */
-#define TIM_TPAGE_CRAWLRA  0x0085
+/* crawler_a.tim   4bpp  VRAM ( 320,128)  \TEXCTCMB\CRAWLRA.TIM */
+#define TIM_TPAGE_CRAWLRA  0x0005
 #define TIM_CLUT_CRAWLRA   0x7eaa
 
-/* crawler_b.tim   8bpp  VRAM ( 704,128)  \TEXCTCMB\CRAWLRB.TIM */
-#define TIM_TPAGE_CRAWLRB  0x008b
+/* crawler_b.tim   4bpp  VRAM ( 704,128)  \TEXCTCMB\CRAWLRB.TIM */
+#define TIM_TPAGE_CRAWLRB  0x000b
 #define TIM_CLUT_CRAWLRB   0x7f2a
 
-/* creep.tim       8bpp  VRAM ( 640,320)  \TEXCTCMB\CREEP.TIM */
-#define TIM_TPAGE_CREEP    0x009a
+/* creep.tim       4bpp  VRAM ( 640,320)  \TEXCTCMB\CREEP.TIM */
+#define TIM_TPAGE_CREEP    0x001a
 #define TIM_CLUT_CREEP     0x7fea
 
-/* crucifaxe.tim   8bpp  VRAM ( 320,384)  \CRFXICON.TIM */
-#define TIM_TPAGE_CRFXICON 0x0095
+/* crucifaxe.tim   4bpp  VRAM ( 320,384)  \CRFXICON.TIM */
+#define TIM_TPAGE_CRFXICON 0x0015
 #define TIM_CLUT_CRFXICON  0x7d00
 
-/* crib.tim        8bpp  VRAM ( 576,  0)  \TEXCTCMB\CRIB.TIM */
-#define TIM_TPAGE_CRIB     0x0089
+/* crib.tim        4bpp  VRAM ( 576,  0)  \TEXCTCMB\CRIB.TIM */
+#define TIM_TPAGE_CRIB     0x0009
 #define TIM_CLUT_CRIB      0x7910
 
-/* catacomb inner door.tim  8bpp  VRAM ( 832,  0)  \TEXCTCMB\CTCMBDR.TIM */
-#define TIM_TPAGE_CTCMBDR  0x008d
+/* catacomb inner door.tim  4bpp  VRAM ( 832,  0)  \TEXCTCMB\CTCMBDR.TIM */
+#define TIM_TPAGE_CTCMBDR  0x000d
 #define TIM_CLUT_CTCMBDR   0x7caa
 
 /* cuneiform _symbols.tim  8bpp  VRAM ( 512,  0)  \TEX\CUNEISYM.TIM */
@@ -178,10 +158,6 @@
 /* double_door.tim  4bpp  VRAM ( 832,  0)  \DBLDOOR.TIM */
 #define TIM_TPAGE_DBLDOOR  0x000d
 #define TIM_CLUT_DBLDOOR   0x7830
-
-/* dbl_dr_hlf.tim  8bpp  VRAM ( 512,128)  \DBLDRHLF.TIM */
-#define TIM_TPAGE_DBLDRHLF 0x0088
-#define TIM_CLUT_DBLDRHLF  0x79c0
 
 /* dbl_dr_rg.tim   4bpp  VRAM ( 320,256)  \TEX\DBLDRRG.TIM */
 #define TIM_TPAGE_DBLDRRG  0x0015
@@ -195,12 +171,12 @@
 #define TIM_TPAGE_DINCL    0x0017
 #define TIM_CLUT_DINCL     0x7bc0
 
-/* drain.tim       8bpp  VRAM ( 832,  0)  \TEX\DRAIN.TIM */
-#define TIM_TPAGE_DRAIN    0x008d
+/* drain.tim       4bpp  VRAM ( 832,  0)  \TEX\DRAIN.TIM */
+#define TIM_TPAGE_DRAIN    0x000d
 #define TIM_CLUT_DRAIN     0x7b2a
 
-/* dresser.tim     8bpp  VRAM ( 512,  0)  \TEX\DRESSER.TIM */
-#define TIM_TPAGE_DRESSER  0x0088
+/* dresser.tim     4bpp  VRAM ( 512,  0)  \TEX\DRESSER.TIM */
+#define TIM_TPAGE_DRESSER  0x0008
 #define TIM_CLUT_DRESSER   0x7ec0
 
 /* er_logo_128.tim  4bpp  VRAM ( 672,128)  \TEX\ERLOGO.TIM */
@@ -211,16 +187,16 @@
 #define TIM_TPAGE_FENCE    0x000b
 #define TIM_CLUT_FENCE     0x7810
 
-/* flm_rnds.tim    8bpp  VRAM ( 480,256)  \TEX\FLMRNDS.TIM */
-#define TIM_TPAGE_FLMRNDS  0x0097
+/* flm_rnds.tim    4bpp  VRAM ( 848,256)  \TEX\FLMRNDS.TIM */
+#define TIM_TPAGE_FLMRNDS  0x001d
 #define TIM_CLUT_FLMRNDS   0x7850
 
-/* flowerbed.tim   8bpp  VRAM ( 384,  0)  \TEX\FLWRBED.TIM */
-#define TIM_TPAGE_FLWRBED  0x0086
+/* flowerbed.tim   4bpp  VRAM ( 384,  0)  \TEX\FLWRBED.TIM */
+#define TIM_TPAGE_FLWRBED  0x0006
 #define TIM_CLUT_FLWRBED   0x7a6a
 
-/* fountain.tim    8bpp  VRAM ( 768,  0)  \TEX\FOUNTAIN.TIM */
-#define TIM_TPAGE_FOUNTAIN 0x008c
+/* fountain.tim    4bpp  VRAM ( 768,  0)  \TEX\FOUNTAIN.TIM */
+#define TIM_TPAGE_FOUNTAIN 0x000c
 #define TIM_CLUT_FOUNTAIN  0x7aea
 
 /* frnt_dr.tim     4bpp  VRAM ( 320,256)  \TEX\FRNTDR.TIM */
@@ -231,12 +207,12 @@
 #define TIM_TPAGE_GAOLDOOR 0x000a
 #define TIM_CLUT_GAOLDOOR  0x7da4
 
-/* gaol_mud.tim    8bpp  VRAM ( 576,  0)  \TEXCTCMB\GAOLMUD.TIM */
-#define TIM_TPAGE_GAOLMUD  0x0089
+/* gaol_mud.tim    4bpp  VRAM ( 576,  0)  \TEXCTCMB\GAOLMUD.TIM */
+#define TIM_TPAGE_GAOLMUD  0x0009
 #define TIM_CLUT_GAOLMUD   0x7910
 
-/* ghit.tim        8bpp  VRAM ( 896, 64)  \TEX\GHIT.TIM */
-#define TIM_TPAGE_GHIT     0x008e
+/* ghit.tim        4bpp  VRAM ( 896, 64)  \TEX\GHIT.TIM */
+#define TIM_TPAGE_GHIT     0x000e
 #define TIM_CLUT_GHIT      0x7f80
 
 /* gl_ky.tim       4bpp  VRAM ( 912, 96)  \TEX\GLKY.TIM */
@@ -251,28 +227,20 @@
 #define TIM_TPAGE_GRAVELGS 0x000b
 #define TIM_CLUT_GRAVELGS  0x7fcf
 
-/* graveolver.tim  8bpp  VRAM ( 352,256)  \TEX\GRAVOLVR.TIM */
-#define TIM_TPAGE_GRAVOLVR 0x0095
+/* graveolver.tim  4bpp  VRAM ( 912,  0)  \TEX\GRAVOLVR.TIM */
+#define TIM_TPAGE_GRAVOLVR 0x000e
 #define TIM_CLUT_GRAVOLVR  0x7f00
 
-/* grdn_gte.tim    8bpp  VRAM ( 512,  0)  \TEX\GRDNGTE.TIM */
-#define TIM_TPAGE_GRDNGTE  0x0088
+/* grdn_gte.tim    4bpp  VRAM ( 512,  0)  \TEX\GRDNGTE.TIM */
+#define TIM_TPAGE_GRDNGTE  0x0008
 #define TIM_CLUT_GRDNGTE   0x7aaa
-
-/* grdngtl.tim     8bpp  VRAM ( 544,128)  \TEX\GRDNGTL.TIM */
-#define TIM_TPAGE_GRDNGTL  0x0088
-#define TIM_CLUT_GRDNGTL   0x7b6a
-
-/* grdngtr.tim     8bpp  VRAM ( 608,128)  \TEX\GRDNGTR.TIM */
-#define TIM_TPAGE_GRDNGTR  0x0089
-#define TIM_CLUT_GRDNGTR   0x7baa
 
 /* grinder.tim     8bpp  VRAM ( 992,256)  \TEX\GRINDER.TIM */
 #define TIM_TPAGE_GRINDER  0x009f
 #define TIM_CLUT_GRINDER   0x7ef0
 
-/* greenhouse.tim  8bpp  VRAM ( 640,  0)  \TEX\GRNHOUSE.TIM */
-#define TIM_TPAGE_GRNHOUSE 0x008a
+/* greenhouse.tim  4bpp  VRAM ( 640,  0)  \TEX\GRNHOUSE.TIM */
+#define TIM_TPAGE_GRNHOUSE 0x000a
 #define TIM_CLUT_GRNHOUSE  0x7c6a
 
 /* greenhouse door.tim  4bpp  VRAM ( 320,256)  \TEX\GRNHSDR.TIM */
@@ -311,36 +279,36 @@
 #define TIM_TPAGE_GUTS     0x000a
 #define TIM_CLUT_GUTS      0x7da7
 
-/* hadad_idle_64.tim  8bpp  VRAM ( 352,384)  \TEX\HADIDLE.TIM */
-#define TIM_TPAGE_HADIDLE  0x0095
+/* hadad_idle_64.tim  4bpp  VRAM ( 608,  0)  \TEX\HADIDLE.TIM */
+#define TIM_TPAGE_HADIDLE  0x0009
 #define TIM_CLUT_HADIDLE   0x7ed0
 
-/* hadad_stp1_64.tim  8bpp  VRAM ( 608,384)  \TEX\HADSTP1.TIM */
-#define TIM_TPAGE_HADSTP1  0x0099
+/* hadad_stp1_64.tim  4bpp  VRAM ( 928,  0)  \TEX\HADSTP1.TIM */
+#define TIM_TPAGE_HADSTP1  0x000e
 #define TIM_CLUT_HADSTP1   0x7f10
 
-/* hadad_stp2_64.tim  8bpp  VRAM ( 992,384)  \TEX\HADSTP2.TIM */
-#define TIM_TPAGE_HADSTP2  0x009f
+/* hadad_stp2_64.tim  4bpp  VRAM ( 608,128)  \TEX\HADSTP2.TIM */
+#define TIM_TPAGE_HADSTP2  0x0009
 #define TIM_CLUT_HADSTP2   0x7f50
 
-/* hatch.tim       8bpp  VRAM ( 640,  0)  \TEX\HATCH.TIM */
-#define TIM_TPAGE_HATCH    0x008a
+/* hatch.tim       4bpp  VRAM ( 640,  0)  \TEX\HATCH.TIM */
+#define TIM_TPAGE_HATCH    0x000a
 #define TIM_CLUT_HATCH     0x7e90
 
-/* hatch_key.tim   8bpp  VRAM ( 480,320)  \TEX\HATCHKEY.TIM */
-#define TIM_TPAGE_HATCHKEY 0x0097
+/* hatch_key.tim   4bpp  VRAM ( 896, 80)  \TEX\HATCHKEY.TIM */
+#define TIM_TPAGE_HATCHKEY 0x000e
 #define TIM_CLUT_HATCHKEY  0x7e6a
 
-/* heads.tim       8bpp  VRAM ( 640,  0)  \TEXCTCMB\HEADS.TIM */
-#define TIM_TPAGE_HEADS    0x008a
+/* heads.tim       4bpp  VRAM ( 640,  0)  \TEXCTCMB\HEADS.TIM */
+#define TIM_TPAGE_HEADS    0x000a
 #define TIM_CLUT_HEADS     0x7d6a
 
-/* hedge.tim       8bpp  VRAM ( 384,  0)  \TEX\HEDGE.TIM */
-#define TIM_TPAGE_HEDGE    0x0086
+/* hedge.tim       4bpp  VRAM ( 384,  0)  \TEX\HEDGE.TIM */
+#define TIM_TPAGE_HEDGE    0x0006
 #define TIM_CLUT_HEDGE     0x7a6a
 
-/* helluminator.tim  8bpp  VRAM ( 544,288)  \TEX\HELLUMIN.TIM */
-#define TIM_TPAGE_HELLUMIN 0x0098
+/* helluminator.tim  4bpp  VRAM ( 832,320)  \TEX\HELLUMIN.TIM */
+#define TIM_TPAGE_HELLUMIN 0x001d
 #define TIM_CLUT_HELLUMIN  0x7faa
 
 /* hud.tim         4bpp  VRAM ( 384,384)  \TEX\HUD.TIM */
@@ -355,32 +323,28 @@
 #define TIM_TPAGE_INRDBLDR 0x0019
 #define TIM_CLUT_INRDBLDR  0x7c00
 
-/* inr_dbl_dr_half.tim  8bpp  VRAM ( 576,128)  \INRDRHLF.TIM */
-#define TIM_TPAGE_INRDRHLF 0x0089
-#define TIM_CLUT_INRDRHLF  0x7d80
-
 /* kchn_tile.tim   4bpp  VRAM ( 384,  0)  \TEX\KCHNTILE.TIM */
 #define TIM_TPAGE_KCHNTILE 0x0006
 #define TIM_CLUT_KCHNTILE  0x7a80
 
-/* kchn_wl.tim     8bpp  VRAM ( 512,  0)  \TEX\KCHNWL.TIM */
-#define TIM_TPAGE_KCHNWL   0x0088
+/* kchn_wl.tim     4bpp  VRAM ( 512,  0)  \TEX\KCHNWL.TIM */
+#define TIM_TPAGE_KCHNWL   0x0008
 #define TIM_CLUT_KCHNWL    0x7dc0
 
-/* key.tim         8bpp  VRAM ( 640,128)  \KEY.TIM */
-#define TIM_TPAGE_KEY      0x008a
+/* key.tim         4bpp  VRAM ( 640,128)  \KEY.TIM */
+#define TIM_TPAGE_KEY      0x000a
 #define TIM_CLUT_KEY       0x7840
 
-/* ladder.tim      8bpp  VRAM ( 704,256)  \TEXCTCMB\LADDER.TIM */
-#define TIM_TPAGE_LADDER   0x009b
+/* ladder.tim      4bpp  VRAM ( 704,256)  \TEXCTCMB\LADDER.TIM */
+#define TIM_TPAGE_LADDER   0x001b
 #define TIM_CLUT_LADDER    0x7fd3
 
 /* lamashtu.tim    4bpp  VRAM ( 576,  0)  \TEXCTCMB\LAMASHTU.TIM */
 #define TIM_TPAGE_LAMASHTU 0x0009
 #define TIM_CLUT_LAMASHTU  0x7da8
 
-/* legs.tim        8bpp  VRAM ( 640,  0)  \TEXCTCMB\LEGS.TIM */
-#define TIM_TPAGE_LEGS     0x008a
+/* legs.tim        4bpp  VRAM ( 640,  0)  \TEXCTCMB\LEGS.TIM */
+#define TIM_TPAGE_LEGS     0x000a
 #define TIM_CLUT_LEGS      0x7d6a
 
 /* lamashtu creep.tim  8bpp  VRAM ( 640,320)  \TEXCTCMB\LMSCREEP.TIM */
@@ -391,32 +355,32 @@
 #define TIM_TPAGE_LMSHARM  0x000c
 #define TIM_CLUT_LMSHARM   0x782d
 
-/* lamashtu tablet.tim  8bpp  VRAM ( 768,  0)  \TEX\LMSHTBLT.TIM */
-#define TIM_TPAGE_LMSHTBLT 0x008c
+/* lamashtu tablet.tim  4bpp  VRAM ( 768,  0)  \TEX\LMSHTBLT.TIM */
+#define TIM_TPAGE_LMSHTBLT 0x000c
 #define TIM_CLUT_LMSHTBLT  0x7bea
 
 /* lamashtu pearl.tim  4bpp  VRAM ( 640,  0)  \TEXCTCMB\LMSPEARL.TIM */
 #define TIM_TPAGE_LMSPEARL 0x000a
 #define TIM_CLUT_LMSPEARL  0x782c
 
-/* loculus.tim     8bpp  VRAM ( 512,  0)  \TEXCTCMB\LOCULUS.TIM */
-#define TIM_TPAGE_LOCULUS  0x0088
+/* loculus.tim     4bpp  VRAM ( 512,  0)  \TEXCTCMB\LOCULUS.TIM */
+#define TIM_TPAGE_LOCULUS  0x0008
 #define TIM_CLUT_LOCULUS   0x7d2a
 
-/* ls_atk.tim      8bpp  VRAM ( 896,384)  \TEX\LSATK.TIM */
-#define TIM_TPAGE_LSATK    0x009e
+/* ls_atk.tim      4bpp  VRAM ( 896,384)  \TEX\LSATK.TIM */
+#define TIM_TPAGE_LSATK    0x001e
 #define TIM_CLUT_LSATK     0x7e50
 
-/* ls_idle.tim     8bpp  VRAM ( 960,384)  \TEX\LSIDLE.TIM */
-#define TIM_TPAGE_LSIDLE   0x009f
+/* ls_idle.tim     4bpp  VRAM ( 960,384)  \TEX\LSIDLE.TIM */
+#define TIM_TPAGE_LSIDLE   0x001f
 #define TIM_CLUT_LSIDLE    0x7e10
 
-/* lumberer_a.tim  8bpp  VRAM ( 448,128)  \TEXCTCMB\LUMBERA.TIM */
-#define TIM_TPAGE_LUMBERA  0x0087
+/* lumberer_a.tim  4bpp  VRAM ( 448,128)  \TEXCTCMB\LUMBERA.TIM */
+#define TIM_TPAGE_LUMBERA  0x0007
 #define TIM_CLUT_LUMBERA   0x7bd0
 
-/* lumberer_b.tim  8bpp  VRAM ( 832,128)  \TEXCTCMB\LUMBERB.TIM */
-#define TIM_TPAGE_LUMBERB  0x008d
+/* lumberer_b.tim  4bpp  VRAM ( 832,128)  \TEXCTCMB\LUMBERB.TIM */
+#define TIM_TPAGE_LUMBERB  0x000d
 #define TIM_CLUT_LUMBERB   0x79aa
 
 /* maggot.tim      4bpp  VRAM ( 672,320)  \TEXCTCMB\MAGGOT.TIM */
@@ -427,8 +391,8 @@
 #define TIM_TPAGE_MANSION  0x0087
 #define TIM_CLUT_MANSION   0x7bd0
 
-/* mgn_ky_stn.tim  8bpp  VRAM ( 672,256)  \TEX\MGNKYSTN.TIM */
-#define TIM_TPAGE_MGNKYSTN 0x009a
+/* mgn_ky_stn.tim  4bpp  VRAM ( 848,320)  \TEX\MGNKYSTN.TIM */
+#define TIM_TPAGE_MGNKYSTN 0x001d
 #define TIM_CLUT_MGNKYSTN  0x7b90
 
 /* mist.tim        4bpp  VRAM ( 832,448)  \TEX\MIST.TIM */
@@ -455,8 +419,8 @@
 #define TIM_TPAGE_MTSCK    0x000e
 #define TIM_CLUT_MTSCK     0x7861
 
-/* oil_container.tim  8bpp  VRAM ( 896,256)  \TEXCTCMB\OILCNTNR.TIM */
-#define TIM_TPAGE_OILCNTNR 0x009e
+/* oil_container.tim  4bpp  VRAM ( 896,256)  \TEXCTCMB\OILCNTNR.TIM */
+#define TIM_TPAGE_OILCNTNR 0x001e
 #define TIM_CLUT_OILCNTNR  0x7e2a
 
 /* opn_drwr.tim    8bpp  VRAM ( 832,  0)  \TEX\OPNDRWR.TIM */
@@ -471,8 +435,8 @@
 #define TIM_TPAGE_PIANOKEY 0x0006
 #define TIM_CLUT_PIANOKEY  0x7fc2
 
-/* pipe.tim        8bpp  VRAM ( 768,  0)  \TEX\PIPE.TIM */
-#define TIM_TPAGE_PIPE     0x008c
+/* pipe.tim        4bpp  VRAM ( 768,  0)  \TEX\PIPE.TIM */
+#define TIM_TPAGE_PIPE     0x000c
 #define TIM_CLUT_PIPE      0x7d90
 
 /* pipe_button_on.tim  4bpp  VRAM ( 520,256)  \TEX\PIPEBTNN.TIM */
@@ -487,20 +451,20 @@
 #define TIM_TPAGE_PIPEGH   0x0016
 #define TIM_CLUT_PIPEGH    0x7da0
 
-/* plinth.tim      8bpp  VRAM ( 832,  0)  \TEX\PLINTH.TIM */
-#define TIM_TPAGE_PLINTH   0x008d
+/* plinth.tim      4bpp  VRAM ( 832,  0)  \TEX\PLINTH.TIM */
+#define TIM_TPAGE_PLINTH   0x000d
 #define TIM_CLUT_PLINTH    0x7dd0
 
-/* plinth_diamond.tim  8bpp  VRAM ( 768,  0)  \TEX\PLNTHDMD.TIM */
-#define TIM_TPAGE_PLNTHDMD 0x008c
+/* plinth_diamond.tim  4bpp  VRAM ( 768,  0)  \TEX\PLNTHDMD.TIM */
+#define TIM_TPAGE_PLNTHDMD 0x000c
 #define TIM_CLUT_PLNTHDMD  0x7f90
 
 /* plinth_rg.tim   8bpp  VRAM ( 640,  0)  \TEX\PLNTHRG.TIM */
 #define TIM_TPAGE_PLNTHRG  0x008a
 #define TIM_CLUT_PLNTHRG   0x7e90
 
-/* pno_key.tim     8bpp  VRAM ( 608,256)  \TEX\PNOKEY.TIM */
-#define TIM_TPAGE_PNOKEY   0x0099
+/* pno_key.tim     4bpp  VRAM ( 904, 96)  \TEX\PNOKEY.TIM */
+#define TIM_TPAGE_PNOKEY   0x000e
 #define TIM_CLUT_PNOKEY    0x7890
 
 /* prpl_wlppr.tim  4bpp  VRAM ( 384,256)  \TEX\PRPLWLP.TIM */
@@ -511,20 +475,20 @@
 #define TIM_TPAGE_PSNFLGH  0x000b
 #define TIM_CLUT_PSNFLGH   0x7fd0
 
-/* poison_flower_base.tim  8bpp  VRAM ( 640,  0)  \TEX\PSNFLWR.TIM */
-#define TIM_TPAGE_PSNFLWR  0x008a
+/* poison_flower_base.tim  4bpp  VRAM ( 640,  0)  \TEX\PSNFLWR.TIM */
+#define TIM_TPAGE_PSNFLWR  0x000a
 #define TIM_CLUT_PSNFLWR   0x7c2a
 
 /* Rabisu tex.tim  8bpp  VRAM ( 704,256)  \TEX\RABISU.TIM */
 #define TIM_TPAGE_RABISU   0x009b
 #define TIM_CLUT_RABISU    0x7a2a
 
-/* rafflesia1.tim  8bpp  VRAM ( 320,128)  \TEX\RAFLSIA1.TIM */
-#define TIM_TPAGE_RAFLSIA1 0x0085
+/* rafflesia1.tim  4bpp  VRAM ( 320,128)  \TEX\RAFLSIA1.TIM */
+#define TIM_TPAGE_RAFLSIA1 0x0005
 #define TIM_CLUT_RAFLSIA1  0x7c10
 
-/* rafflesia2.tim  8bpp  VRAM ( 384,128)  \TEX\RAFLSIA2.TIM */
-#define TIM_TPAGE_RAFLSIA2 0x0086
+/* rafflesia2.tim  4bpp  VRAM ( 384,128)  \TEX\RAFLSIA2.TIM */
+#define TIM_TPAGE_RAFLSIA2 0x0006
 #define TIM_CLUT_RAFLSIA2  0x7c50
 
 /* red_crpt.tim    4bpp  VRAM ( 320,256)  \TEX\REDCRPT.TIM */
@@ -535,8 +499,8 @@
 #define TIM_TPAGE_REDWLPPR 0x0009
 #define TIM_CLUT_REDWLPPR  0x7b00
 
-/* rusty.tim       8bpp  VRAM ( 704,  0)  \TEXCTCMB\RUSTY.TIM */
-#define TIM_TPAGE_RUSTY    0x008b
+/* rusty.tim       4bpp  VRAM ( 704,  0)  \TEXCTCMB\RUSTY.TIM */
+#define TIM_TPAGE_RUSTY    0x000b
 #define TIM_CLUT_RUSTY     0x7950
 
 /* scat_rnds.tim   4bpp  VRAM ( 904, 64)  \TEX\SCATRNDS.TIM */
@@ -551,16 +515,16 @@
 #define TIM_TPAGE_SEAL     0x0009
 #define TIM_CLUT_SEAL      0x7da8
 
-/* shadow.tim      8bpp  VRAM ( 640,160)  \SHADOW.TIM */
-#define TIM_TPAGE_SHADOW   0x008a
+/* shadow.tim      4bpp  VRAM ( 640,160)  \SHADOW.TIM */
+#define TIM_TPAGE_SHADOW   0x000a
 #define TIM_CLUT_SHADOW    0x7980
 
 /* shelf_incinerator.tim  8bpp  VRAM ( 640,  0)  \TEXCTCMB\SHLFINCN.TIM */
 #define TIM_TPAGE_SHLFINCN 0x008a
 #define TIM_CLUT_SHLFINCN  0x7d6a
 
-/* sml_med.tim     8bpp  VRAM ( 640,256)  \SML_MED.TIM */
-#define TIM_TPAGE_SML_MED  0x009a
+/* sml_med.tim     4bpp  VRAM ( 640,256)  \SML_MED.TIM */
+#define TIM_TPAGE_SML_MED  0x001a
 #define TIM_CLUT_SML_MED   0x7880
 
 /* spdr_rst.tim    8bpp  VRAM ( 320,128)  \SPDRRST.TIM */
@@ -575,16 +539,16 @@
 #define TIM_TPAGE_STBLGLPH 0x000b
 #define TIM_CLUT_STBLGLPH  0x7fd0
 
-/* stables wood.tim  8bpp  VRAM ( 832,  0)  \TEX\STBLWOOD.TIM */
-#define TIM_TPAGE_STBLWOOD 0x008d
+/* stables wood.tim  4bpp  VRAM ( 832,  0)  \TEX\STBLWOOD.TIM */
+#define TIM_TPAGE_STBLWOOD 0x000d
 #define TIM_CLUT_STBLWOOD  0x7caa
 
-/* stnd_rnds.tim   8bpp  VRAM ( 416,256)  \TEX\STNDRNDS.TIM */
-#define TIM_TPAGE_STNDRNDS 0x0096
+/* stnd_rnds.tim   4bpp  VRAM ( 832,256)  \TEX\STNDRNDS.TIM */
+#define TIM_TPAGE_STNDRNDS 0x001d
 #define TIM_CLUT_STNDRNDS  0x7f40
 
-/* stn_gls.tim     8bpp  VRAM ( 896,256)  \STNGLS.TIM */
-#define TIM_TPAGE_STNGLS   0x009e
+/* stn_gls.tim     4bpp  VRAM ( 896,256)  \STNGLS.TIM */
+#define TIM_TPAGE_STNGLS   0x001e
 #define TIM_CLUT_STNGLS    0x7a00
 
 /* stn_stl.tim     4bpp  VRAM ( 320,  0)  \TEX\STNSTL.TIM */
@@ -607,12 +571,12 @@
 #define TIM_TPAGE_TNTCLIDL 0x0005
 #define TIM_CLUT_TNTCLIDL  0x7fc8
 
-/* torsos.tim      8bpp  VRAM ( 640,  0)  \TEXCTCMB\TORSOS.TIM */
-#define TIM_TPAGE_TORSOS   0x008a
+/* torsos.tim      4bpp  VRAM ( 640,  0)  \TEXCTCMB\TORSOS.TIM */
+#define TIM_TPAGE_TORSOS   0x000a
 #define TIM_CLUT_TORSOS    0x7d6a
 
-/* trck_clue.tim   8bpp  VRAM ( 640,  0)  \TEX\TRCKCLUE.TIM */
-#define TIM_TPAGE_TRCKCLUE 0x008a
+/* trck_clue.tim   4bpp  VRAM ( 640,  0)  \TEX\TRCKCLUE.TIM */
+#define TIM_TPAGE_TRCKCLUE 0x000a
 #define TIM_CLUT_TRCKCLUE  0x7870
 
 /* trees.tim       4bpp  VRAM ( 640,  0)  \TEX\TREES.TIM */
@@ -627,21 +591,21 @@
 #define TIM_TPAGE_UPSTAIRS 0x000b
 #define TIM_CLUT_UPSTAIRS  0x7fc4
 
-/* vines.tim       8bpp  VRAM ( 704,256)  \TEX\VINES.TIM */
-#define TIM_TPAGE_VINES    0x009b
+/* vines.tim       4bpp  VRAM ( 704,256)  \TEX\VINES.TIM */
+#define TIM_TPAGE_VINES    0x001b
 #define TIM_CLUT_VINES     0x7f6a
 
-/* vlv_hndl.tim    8bpp  VRAM ( 608,288)  \TEX\VLVHNDL.TIM */
-#define TIM_TPAGE_VLVHNDL  0x0099
+/* vlv_hndl.tim    4bpp  VRAM ( 608,288)  \TEX\VLVHNDL.TIM */
+#define TIM_TPAGE_VLVHNDL  0x0019
 #define TIM_CLUT_VLVHNDL   0x7df0
 
-/* wdcrate.tim    16bpp  VRAM ( 896,  0)  \WCRATE.TIM */
-#define TIM_TPAGE_WCRATE   0x010e
-#define TIM_CLUT_WCRATE    0x0000  /* 16bpp: no palette */
+/* wdcrate.tim     4bpp  VRAM ( 896,  0)  \WCRATE.TIM */
+#define TIM_TPAGE_WCRATE   0x000e
+#define TIM_CLUT_WCRATE    0x7808
 
-/* wd_dr.tim      16bpp  VRAM ( 768,256)  \WDDR.TIM */
-#define TIM_TPAGE_WDDR     0x011c
-#define TIM_CLUT_WDDR      0x0000  /* 16bpp: no palette */
+/* wd_dr.tim       4bpp  VRAM ( 768,256)  \WDDR.TIM */
+#define TIM_TPAGE_WDDR     0x001c
+#define TIM_CLUT_WDDR      0x7807
 
 /* wd_dr_crk.tim   4bpp  VRAM ( 512,256)  \WDDRCRK.TIM */
 #define TIM_TPAGE_WDDRCRK  0x0018
@@ -679,16 +643,16 @@
 #define TIM_TPAGE_XTDRRHLF 0x008e
 #define TIM_CLUT_XTDRRHLF  0x79ea
 
-/* ylw_ky_stn.tim  8bpp  VRAM ( 560,256)  \TEX\YLKYSTN.TIM */
-#define TIM_TPAGE_YLKYSTN  0x0098
+/* ylw_ky_stn.tim  4bpp  VRAM ( 648,256)  \TEX\YLKYSTN.TIM */
+#define TIM_TPAGE_YLKYSTN  0x001a
 #define TIM_CLUT_YLKYSTN   0x7a50
 
-/* zombie_alert.tim  8bpp  VRAM ( 768,128)  \ZALERT.TIM */
-#define TIM_TPAGE_ZALERT   0x008c
+/* zombie_alert.tim  4bpp  VRAM ( 768,128)  \ZALERT.TIM */
+#define TIM_TPAGE_ZALERT   0x000c
 #define TIM_CLUT_ZALERT    0x7cc0
 
-/* zombie_sleep.tim  8bpp  VRAM ( 704,128)  \ZSLEEP.TIM */
-#define TIM_TPAGE_ZSLEEP   0x008b
+/* zombie_sleep.tim  4bpp  VRAM ( 704,128)  \ZSLEEP.TIM */
+#define TIM_TPAGE_ZSLEEP   0x000b
 #define TIM_CLUT_ZSLEEP    0x7c80
 
 #endif /* TIM_SLOTS_H */

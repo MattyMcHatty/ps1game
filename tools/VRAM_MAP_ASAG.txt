@@ -104,25 +104,25 @@ FIXED REGIONS  (identical in every bank)
 RESERVED  (a global; overwriting it breaks something)
   texture              bpp     x     y   wpx     h  Voff  clut(x,y)   what it is
   --------------------------------------------------------------------------
-  ghit.tim             8     896    64    16    16    64  0,510       bullet-impact sprite
+  graveolver.tim       4     912     0    64    64     0  0,508       the Grave-olver
+  ghit.tim             4     896    64    16    16    64  0,510       bullet-impact sprite
   scat_rnds.tim        4     904    64    32    32    64  560,481     scattershot rounds
-  key.tim              8     640   128    32    32   128  0,481       door key
-  cppr_pt.tim          8     640   128    32    32   128  0,505       copper pot; time-shares the spent key slot
-  shadow.tim           8     640   160    64    32   160  0,486       entity drop shadows
-  graveolver.tim       8     352   256    64    64     0  0,508       the Grave-olver
-  stnd_rnds.tim        8     416   256    64    64     0  0,509       standard rounds
-  flm_rnds.tim         8     480   256    64    64     0  256,481     flame rounds
+  hatch_key.tim        4     896    80    32    32    80  672,505     hatch key (both break in the lock, but a save made carrying one arrives here with it)
+  pno_key.tim          4     904    96    32    32    96  256,482     piano key item
+  bl_ky_stn.tim        4     920    96    32    32    96  768,482     blue key stone
+  key.tim              4     640   128    32    32   128  0,481       door key
+  cppr_pt.tim          4     640   128    32    32   128  0,505       copper pot; time-shares the spent key slot
+  shadow.tim           4     640   160    64    32   160  0,486       entity drop shadows
   wx_cb.tim            4     544   256    32    32     0  192,511     wax cube
   grn_ky_stn.tim       4     552   256    32    32     0  208,511     green key stone
-  ylw_ky_stn.tim       8     560   256    32    32     0  256,489     yellow key stone
-  pno_key.tim          8     608   256    32    32     0  256,482     piano key item
-  bl_ky_stn.tim        8     624   256    32    32     0  768,482     blue key stone
-  sml_med.tim          8     640   256    64    64     0  0,482       small medkit
-  mgn_ky_stn.tim       8     672   256    32    32     0  256,494     magenta key stone
-  helluminator.tim     8     544   288    64    64    32  672,510     the Helluminator (menu icon in every room)
-  vlv_hndl.tim         8     608   288    64    64    32  768,503     the Valve Handle item
-  hatch_key.tim        8     480   320    64    64    64  672,505     hatch key (both break in the lock, but a save made carrying one arrives here with it)
-  crucifaxe.tim        8     320   384    64    64   128  0,500       the Crucifaxe - the parry, if the axe cannot cut
+  sml_med.tim          4     640   256    32    32     0  0,482       small medkit
+  ylw_ky_stn.tim       4     648   256    32    32     0  256,489     yellow key stone
+  stnd_rnds.tim        4     832   256    64    64     0  0,509       standard rounds
+  flm_rnds.tim         4     848   256    64    64     0  256,481     flame rounds
+  vlv_hndl.tim         4     608   288    64    64    32  768,503     the Valve Handle item
+  helluminator.tim     4     832   320    64    64    64  672,510     the Helluminator (menu icon in every room)
+  mgn_ky_stn.tim       4     848   320    32    32    64  256,494     magenta key stone
+  crucifaxe.tim        4     320   384    64    64   128  0,500       the Crucifaxe - the parry, if the axe cannot cut
   hud.tim              4     384   384   320    56   128  176,511     the HUD panel
 
 THIS BANK'S ROOM ART
@@ -174,28 +174,28 @@ WHAT IS LEFT FOR THE ARENA
 
   x320  y0    FREE - 8bpp full page  [RESTORE: tntcl_actv.tim, tntcl_idle.tim]
   x384  y0    IN USE by this bank: mud.tim
-  x448  y0    FREE - 8bpp full page  [RESTORE: anzu1.tim, anzu4.tim, wd_flr.tim]
+  x448  y0    FREE - 8bpp full page  [RESTORE: wd_flr.tim]
   x512  y0    IN USE by this bank: Boss Wall.tim
-  x576  y0    FREE - 8bpp full page  [RESTORE: anzu2.tim, anzu5.tim, red_wlppr.tim]
+  x576  y0    FREE - 8bpp full page  [RESTORE: hadad_idle_64.tim, red_wlppr.tim]
   x640  y0    IN USE by this bank: asag.tim
-  x704  y0    FREE - 8bpp full page  [RESTORE: anzu3.tim, anzu6.tim]
+  x704  y0    FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
   x768  y0    FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
   x832  y0    FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
-  x896  y0    TAKEN - reserved: ghit.tim, scat_rnds.tim
+  x896  y0    TAKEN - reserved: bl_ky_stn.tim, ghit.tim, graveolver.tim
   x960  y0    FONT - never available
-  x320  y256  4bpp ONLY - right half reserved: graveolver.tim
-  x384  y256  4bpp ONLY - right half reserved: stnd_rnds.tim
-  x448  y256  4bpp ONLY - right half reserved: flm_rnds.tim, hatch_key.tim
-  x512  y256  4bpp ONLY - right half reserved: grn_ky_stn.tim, helluminator.tim
-  x576  y256  4bpp ONLY - right half reserved: bl_ky_stn.tim, pno_key.tim
-  x640  y256  TAKEN - reserved: sml_med.tim
+  x320  y256  FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
+  x384  y256  FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
+  x448  y256  FREE - 8bpp full page  [RESTORE: din_cl.tim]
+  x512  y256  4bpp ONLY - right half reserved: grn_ky_stn.tim, wx_cb.tim
+  x576  y256  4bpp ONLY - right half reserved: vlv_hndl.tim
+  x640  y256  TAKEN - reserved: sml_med.tim, ylw_ky_stn.tim
   x704  y256  FREE - 8bpp full page  [free: every occupant is re-uploaded on room entry]
   x768  y256  FREE - 8bpp full page  [RESTORE: wd_dr.tim]
-  x832  y256  FREE - 8bpp full page  [RESTORE: wd_dr.tim]
+  x832  y256  TAKEN - reserved: flm_rnds.tim, helluminator.tim, mgn_ky_stn.tim
   x896  y256  FREE - 8bpp full page  [RESTORE: stn_gls.tim]
   x960  y256  FREE - 8bpp full page  [RESTORE: grinder.tim, trees_dl.tim]
 
-  FULL 8bpp PAGES AVAILABLE TO THE ARENA: 11
+  FULL 8bpp PAGES AVAILABLE TO THE ARENA: 13
 
 Regenerate with:  py tools/vram_map_asag.py > tools/VRAM_MAP_ASAG.txt
 And keep tools/VRAM_MAP.txt regenerated too - it is still the authority on

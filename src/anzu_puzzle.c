@@ -402,10 +402,12 @@ void anzu_puzzle_update(void) {
 
 /* ---- Drawing ------------------------------------------------------------- */
 
-/* The four corners of a tile's art within its VRAM rect, in the order
-   top-left, top-right, bottom-left, bottom-right. */
-static const uint8_t CORNER_DU[4] = { 0, ANZU_TILE_PX - 1, 0,              ANZU_TILE_PX - 1 };
-static const uint8_t CORNER_DV[4] = { 0, 0,                ANZU_TILE_PX - 1, ANZU_TILE_PX - 1 };
+/* The four corners of a tile's art, in the order top-left, top-right,
+   bottom-left, bottom-right: 0 = the tile's first texel on that axis, 1 = its
+   last. The size comes from the tile (anzu_tex.h): the tiles are a third of the
+   texture wide, not square. */
+static const uint8_t CORNER_DU[4] = { 0, 1, 0, 1 };
+static const uint8_t CORNER_DV[4] = { 0, 0, 1, 1 };
 
 /* Which tile corner lands on each poly corner, per quarter turn CLOCKWISE.
    Row r is rotation r*90deg; the four entries are the poly's TL,TR,BL,BR.
@@ -420,8 +422,8 @@ static const uint8_t ROT_CORNER[4][4] = {
 
 static void tile_uv(const AnzuTex *a, int rot, int corner, uint8_t *u, uint8_t *v) {
     int c = ROT_CORNER[rot & 3][corner];
-    *u = (uint8_t)(a->u0 + CORNER_DU[c]);
-    *v = (uint8_t)(a->v0 + CORNER_DV[c]);
+    *u = (uint8_t)(a->u0 + CORNER_DU[c] * a->du);
+    *v = (uint8_t)(a->v0 + CORNER_DV[c] * a->dv);
 }
 
 /* Filled 2D rect at an OT index (same helper every board in this game uses). */
@@ -452,8 +454,8 @@ static void az_cursor(RenderContext *ctx, int x, int y, int w, int h) {
 }
 
 /* A tile drawn flat on the screen, rotated. No texture-window reset is needed:
-   every anzu tile lives at u 64..127 / v 0..127 of its page, which is inside
-   the 128x128 window the piano room sorts at OT_LENGTH-1. */
+   the tablet lives at u 0..127 / v 0..127 of its page, which is inside the
+   128x128 window the piano room sorts at OT_LENGTH-1. */
 static void az_tile_2d(RenderContext *ctx, int tile, int rot,
                        int x, int y, int w, int h, int ot_idx) {
     if (tile < 0) return;

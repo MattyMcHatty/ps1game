@@ -586,12 +586,11 @@
    the offset, which goes strongly negative. Break the invariant and he floats
    or sinks by exactly the error.
 
-   The art is three 64x96 8bpp TIMs, not the 128x128 the older sprite enemies
-   use, because the only VRAM left in the game is the 96-row band under the HUD
-   and three frames need three slots in it (tools/ADDING_AN_ENEMY.txt STEP
-   3b-ter). The quad's world size is set HERE and not by the art, so the smaller
-   texture costs resolution and nothing else. All three sit at Voff 128, so
-   every quad brackets its own texture window. */
+   The art is three 128x128 4bpp TIMs (they were 64x96 8bpp, stretched onto
+   this square quad, until the October 2026 texture rework). The quad's world
+   size is set HERE and not by the art. Their slots are right halves of pages
+   (U 128..255) and one is at Voff 128, so every quad brackets its own texture
+   window; that is what lets them sit anywhere in VRAM. */
 #define HAD_HALF_W          300
 #define HAD_HALF_H          300
 #define HAD_Y_OFFSET       (-150)   /* 150 - HAD_HALF_H */

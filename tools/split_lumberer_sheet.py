@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Split textures/catacombs/lumberer.png into the two halves the TIM pair is
+"""RETIRED (October 2026). The Lumberer is 4bpp now, made from
+textures/new textures/256x256/lumberer.png by tools/convert_new_textures.py.
+This script builds the OLD 8bpp halves from the old art and would undo that, so
+it refuses to run. Kept for the reasoning below.
+
+Split textures/catacombs/lumberer.png into the two halves the TIM pair is
 built from, and (with --tim) convert both.
 
 RUN THIS WHENEVER THE ART CHANGES. The Lumberer's six frames are one 256x256
@@ -44,6 +49,7 @@ TIMS = [(os.path.join('textures', 'lumberer_a.tim'), TOP, 448, 128, 256, 495),
 
 
 def main():
+    sys.exit('retired: run tools/convert_new_textures.py instead (see the docstring)')
     im = Image.open(SRC).convert('RGBA')
     if im.size != (256, 256):
         sys.exit('%s is %dx%d; the sheet must be 256x256' % ((SRC,) + im.size))

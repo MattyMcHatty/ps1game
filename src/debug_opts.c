@@ -196,8 +196,8 @@ void debug_opts_apply_grants(void) {
            to cook a second one.
 
            No texture upload to match the pot's above — for the same reason as
-           the piano key. grn_ky_stn (552,256), ylw_ky_stn (560,256) and
-           bl_ky_stn (624,256) each own their VRAM outright: nothing streams over
+           the piano key. grn_ky_stn (552,256), ylw_ky_stn (648,256) and
+           bl_ky_stn (920,96) each own their VRAM outright: nothing streams over
            them, and menu_init LoadImages all three once at startup, so the menu
            icons are already correct on a direct jump. */
         player_items |= (1 << ITEM_GREEN_KEY_STONE)  |

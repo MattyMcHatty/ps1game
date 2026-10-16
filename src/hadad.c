@@ -23,9 +23,8 @@ int   hadad_count = 0;
 /* ---- Sprites ----------------------------------------------------------------
    Three textures, each owning its own VRAM slot: no texmgr, no re-upload on a
    room transition, just one CD read and one LoadImage apiece at startup. Same
-   arrangement as the Living Statue's two and the Mushroom Head's four, and
-   affordable for the same reason — 96 rows fit the band under the HUD, which is
-   all VRAM has left.
+   arrangement as the Living Statue's two and the Mushroom Head's four. Each is
+   a 32x128-word slot that no TIM in any room claims (tools/VRAM_MAP.txt).
 
    The UV rect is derived from the TIM's own prect rather than hard-coded, so
    moving a slot in png_to_tim needs no matching edit here. */

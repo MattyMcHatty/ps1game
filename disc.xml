@@ -67,10 +67,6 @@
                 source="C:\Users\virtu\Documents\ps1game\textures\din_cl.tim"/>
             <file name="STNGLS.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\stn_gls.tim"/>
-            <file name="DBLDRHLF.TIM" type="data"
-                source="C:\Users\virtu\Documents\ps1game\textures\dbl_dr_hlf.tim"/>
-            <file name="INRDRHLF.TIM" type="data"
-                source="C:\Users\virtu\Documents\ps1game\textures\inr_dbl_dr_half.tim"/>
             <file name="ZSLEEP.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\zombie_sleep.tim"/>
             <file name="ZALERT.TIM" type="data"
@@ -457,16 +453,12 @@
                 <file name="LEVER.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\lever.smd"/>
                 <file name="PNOKEY.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\pno_key.tim"/>
                 <file name="BLKYSTN.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\bl_ky_stn.tim"/>
-                <!-- The Anzu Tablet puzzle (piano room). The six anzu tiles are
-                     the 3x2 jigsaw of the tablet relief; ANZU3 doubles as the
-                     Tablets prop's face texture. -->
+                <!-- The Anzu Tablet puzzle (piano room). ANZUTAB is the whole
+                     tablet relief in one 4bpp texture; src/anzu_tex.c cuts the
+                     six puzzle tiles out of it by UV, and its top-right tile
+                     doubles as the Tablets prop's face texture. -->
                 <file name="TABLETS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\tablets.smd"/>
-                <file name="ANZU1.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu1.tim"/>
-                <file name="ANZU2.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu2.tim"/>
-                <file name="ANZU3.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu3.tim"/>
-                <file name="ANZU4.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu4.tim"/>
-                <file name="ANZU5.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu5.tim"/>
-                <file name="ANZU6.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu6.tim"/>
+                <file name="ANZUTAB.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu_tab.tim"/>
                 <file name="YLKYSTN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\ylw_ky_stn.tim"/>
                 <!-- The Attic Exit's exit-door puzzle. XTDRCMPL.TIM is the
                      UNLOCKED door art, built at the SAME VRAM slot and CLUT slot
@@ -692,15 +684,6 @@
                      arena is still sized by Maze One's 118 KB.
                      Its .smx exports live in assets/garden/ too. -->
                 <file name="CHNROOM.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\chain_room.smd"/>
-
-                <!-- The gate's two leaves as the door-anim transition draws them
-                     (DOOR_PANEL_GATE). Like XTDRLHLF/XTDRRHLF these are separate
-                     per-leaf images, but unlike them they could not be
-                     page-aligned — no free 64-word column remains at a page
-                     boundary — so each sits in the right half of a page
-                     (x544 / x608, y128) and is sampled at U 64..127. -->
-                <file name="GRDNGTL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\grdngtl.tim"/>
-                <file name="GRDNGTR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\grdngtr.tim"/>
 
                 <!-- Delivery Area: the remodelled yard draws trees and chnlnk
                      alongside gravel, whose VRAM page (x640 y0) all three used
@@ -1812,6 +1795,14 @@
                  bottom-left, bottom-right. An idle crawler holds on the first; a
                  moving one cycles all four.
 
+                 >>> 4bpp SINCE OCTOBER 2026. <<< Both halves are now made from
+                 the reworked one-piece sheet in textures/new textures/256x256/
+                 by tools/convert_new_textures.py: 4bpp, ONE exact 16-colour
+                 palette for both halves, same VRAM origins and CLUT slots as
+                 below. At 4bpp a 256-wide half is 64 words, so each now covers
+                 only the first page of the two the text below describes. The
+                 8bpp history below is kept for the reasoning.
+
                  TWO FILES FOR ONE SHEET, AND THE SPLIT IS A VRAM LIMIT RATHER THAN
                  A CHOICE. The art is one 256x256 image and its frames are 128x128,
                  but an 8bpp texture 256 rows tall cannot be placed anywhere in this
@@ -1853,6 +1844,16 @@
                  row first: 0/1 are the body approaching the camera, 2/3 are it
                  walking away, and 4/5 are the attack - the arm raised, then the
                  arm down as the shockwave goes out.
+
+                 >>> 4bpp SINCE OCTOBER 2026. <<< Both halves are now made from
+                 the reworked one-piece sheet in textures/new textures/256x256/
+                 by tools/convert_new_textures.py: 4bpp, ONE exact 16-colour
+                 palette for both halves, same VRAM origins and CLUT slots as
+                 below. At 4bpp a 256-wide half is 64 words, so each now covers
+                 only the first page of the two the text below describes. The
+                 8bpp history below is kept for the reasoning.
+                 tools/split_lumberer_sheet.py below is RETIRED: it makes the
+                 old 8bpp halves and would undo this.
 
                  TWO FILES FOR ONE SHEET, and it is the crawler's problem above
                  word for word: the art is one 256x256 image and an 8bpp texture

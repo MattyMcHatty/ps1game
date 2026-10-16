@@ -34,21 +34,22 @@ typedef struct {
        a tile and overrides `tex`. */
     int      anzu_tile;
     /* UV remap, for a model whose UVs were authored against a 128x128 square but
-       whose texture is actually smaller:
-           u = uv_u0 + ((raw_u - uv_u0) * uv_span) / 128
+       whose texture is actually a smaller rect somewhere else:
+           u = uv_u0 + ((raw_u - uv_raw_u0) * uv_span_u) / 128
+           v = uv_v0 + ((raw_v - uv_raw_v0) * uv_span_v) / 128
 
        The subtraction is the part that is easy to get wrong. `smxlink -tp`
        already ADDS the texture's origin within its tpage to every baked UV, so
-       the tablets' face comes out of the .smd as u 64..192 / v 0..128, not
-       0..128 — it is the 128-wide SPAN that has to be scaled down to the tile,
-       about that origin, not the absolute value. Scaling the absolute value
-       instead lands the right half of the face outside the tile entirely, in
-       whatever texture sits in the next page.
+       the tablets' face comes out of the .smd as u 64..192 / v 0..128 (the old
+       64x64 anzu3 tile sat at u 64 of its page), not 0..128 - it is the
+       128-wide SPAN that has to be scaled down to the tile, about the BAKED
+       origin, and then moved to wherever the tile is now. Scaling the absolute
+       value instead lands the face in whatever texture sits beside the tile.
 
-       uv_span 0 means "use the baked UVs unchanged" (every prop but the
+       uv_span_u 0 means "use the baked UVs unchanged" (every prop but the
        tablets). Doing this here rather than rewriting the .smx keeps the asset
        re-exportable from Blender without silently breaking the mapping. */
-    uint8_t  uv_u0, uv_v0, uv_span;
+    uint8_t  uv_raw_u0, uv_raw_v0, uv_u0, uv_v0, uv_span_u, uv_span_v;
     int32_t  x, y, z, rot_y;
     int32_t  min_x, max_x, min_z, max_z;     /* world-space collision footprint */
     int32_t  solid_h;                        /* solid height above the floor    */
@@ -168,7 +169,7 @@ void piano_props_place(void) {
        footprint x +/-195, z +/-50. */
     props[0].smd  = piano_smd;
     props[0].tex  = piano_keys_tex();
-    props[0].anzu_tile = -1;  props[0].uv_span = 0;
+    props[0].anzu_tile = -1;  props[0].uv_span_u = 0;
     props[0].x    = -420;  props[0].y = -149;  props[0].z = 850;
     props[0].rot_y = 0;
     props[0].min_x = -420 - 195;  props[0].max_x = -420 + 195;
@@ -181,7 +182,7 @@ void piano_props_place(void) {
        z=-8 centres it on the room's z span; the ends bury into the walls. */
     props[1].smd  = bookcase_smd;
     props[1].tex  = bookcase_tex;
-    props[1].anzu_tile = -1;  props[1].uv_span = 0;
+    props[1].anzu_tile = -1;  props[1].uv_span_u = 0;
     props[1].x    = -1150;  props[1].y = -149;  props[1].z = -8;
     props[1].rot_y = 0;
     /* Collision box widened past the model's 25-unit half-width so the player
@@ -197,14 +198,18 @@ void piano_props_place(void) {
        that face looks east, back into the room, so the player reads it on the
        way to the frame. Retired for good once the puzzle is solved.
 
-       The face's UVs were authored against a 128x128 square; anzu3 is a 64x64
-       tile sitting at u64,v0 of its page, hence the uv remap. */
+       The face's UVs were authored against a 128x128 square and baked against
+       the old 64x64 anzu3 tile at u64,v0 of its page; tile 3 is now the right
+       third of the top row of anzu_tab, hence the uv remap. */
     props[2].smd  = tablets_smd;
     props[2].tex  = -1;
     props[2].anzu_tile = 2;                    /* anzu3 */
-    props[2].uv_u0  = anzu_tex(2)->u0;
-    props[2].uv_v0  = anzu_tex(2)->v0;
-    props[2].uv_span = ANZU_TILE_PX - 1;       /* raw 0..128 -> 0..63 within the tile */
+    props[2].uv_raw_u0 = 64;                   /* baked into TABLETS.SMD */
+    props[2].uv_raw_v0 = 0;
+    props[2].uv_u0     = anzu_tex(2)->u0;
+    props[2].uv_v0     = anzu_tex(2)->v0;
+    props[2].uv_span_u = anzu_tex(2)->du;      /* raw 0..128 -> the tile's width */
+    props[2].uv_span_v = anzu_tex(2)->dv;      /* ...and its height              */
     props[2].x    = -2200;  props[2].y = -149;  props[2].z = 350;
     props[2].rot_y = 0;
     props[2].min_x = -2200 - 40;  props[2].max_x = -2200 + 40;
@@ -217,7 +222,7 @@ void piano_props_place(void) {
        the frame stays put whether the puzzle is solved or not. */
     props[3].smd  = NULL;
     props[3].tex  = -1;
-    props[3].anzu_tile = -1;  props[3].uv_span = 0;
+    props[3].anzu_tile = -1;  props[3].uv_span_u = 0;
     props[3].x    = -2281;  props[3].y = -149;  props[3].z = 7;
     props[3].rot_y = 0;
     props[3].min_x = -2301;  props[3].max_x = -2261;
@@ -374,15 +379,15 @@ int piano_props_any_solid(void) {
     return 0;
 }
 
-/* Baked UV -> the UV this prop's texture actually wants (see uv_span in
-   PianoProp). uv_span 0 is the identity, which is every prop but the tablets. */
+/* Baked UV -> the UV this prop's texture actually wants (see the UV remap in
+   PianoProp). uv_span_u 0 is the identity, which is every prop but the tablets. */
 static inline uint8_t remap_u(const PianoProp *p, uint8_t u) {
-    return p->uv_span ? (uint8_t)(p->uv_u0 + (((int)u - p->uv_u0) * p->uv_span) / 128)
-                      : u;
+    return p->uv_span_u ? (uint8_t)(p->uv_u0 + (((int)u - p->uv_raw_u0) * p->uv_span_u) / 128)
+                        : u;
 }
 static inline uint8_t remap_v(const PianoProp *p, uint8_t v) {
-    return p->uv_span ? (uint8_t)(p->uv_v0 + (((int)v - p->uv_v0) * p->uv_span) / 128)
-                      : v;
+    return p->uv_span_u ? (uint8_t)(p->uv_v0 + (((int)v - p->uv_raw_v0) * p->uv_span_v) / 128)
+                        : v;
 }
 
 /* Render every prop with the piano room's fog and texture window. Textured
