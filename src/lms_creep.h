@@ -53,14 +53,15 @@
 #define LCR_MAX_HEALTH         1   /* anything that connects kills it          */
 #define LCR_SPEED             11   /* a shade quicker than the demon dog's 10  */
 
-/* Contact: a quarter of MAX_HEALTH (100) per second, i.e. 5 points every 12
-   frames, PER CREEP. LCR_CATCH_DIST is Manhattan, as every enemy's reach test
+/* Contact: 1 point every 12 frames (5 per second), for the WHOLE SWARM, not
+   per creep — one shared bite clock in lms_creep.c, so ten creeps in reach
+   hurt exactly as much as one. LCR_CATCH_DIST is Manhattan, as every enemy's reach test
    in this game is, and it has to cover a creep that has stopped on the
    DIAGONAL: the stop below is a true radius, and a radius of 110 reaches a
    Manhattan 110 * sqrt(2) = 156. 170 clears that with a margin rather than
    leaving a ring of lms_creeps that have arrived and cannot bite. */
 #define LCR_CATCH_DIST       170
-#define LCR_DAMAGE_AMOUNT      5
+#define LCR_DAMAGE_AMOUNT      1
 #define LCR_DAMAGE_TICK       12
 
 /* Where it stops: a TRUE radial distance from the player, so the ring is round
@@ -184,7 +185,6 @@ typedef struct {
     int32_t    emerge_y;       /* the crib corner it came out of, WORLD y        */
     int        emerge;         /* frames of LCR_EMERGE_FRAMES left               */
     int        health;
-    int        damage_timer;
     LmsLmsCreepState state;
     int32_t    active;
     int        on_upper_floor;

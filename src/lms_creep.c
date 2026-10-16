@@ -28,6 +28,10 @@ int   lms_creep_count = 0;
 /* THE CRY's clock: frames until it is re-keyed; 0 = not playing. */
 static int lcr_cry_timer = 0;
 
+/* THE BITE's clock, ONE for the whole swarm: frames until any creep may bite
+   again. Shared on purpose so their damage never stacks (see update). */
+static int lcr_bite_timer = 0;
+
 /* The body sprite. A DEFERRED texmgr registration, like every other piece of
    Chapter 3 art: the TIM header is read at boot and the pixels only arrive when
    TEXBANK_CATACOMBS is selected at the catacomb mouth (src/texmgr.h), so
@@ -88,6 +92,7 @@ void lms_creeps_reset(void) {
     lms_creep_count = 0;
     if (lcr_cry_timer > 0) sound_stop(SFX_CREEP);
     lcr_cry_timer = 0;
+    lcr_bite_timer = 0;
 }
 
 int lms_creep_spawn(int32_t x, int32_t z, int32_t anchor_y, int32_t emerge_y,
@@ -230,6 +235,7 @@ void update_lms_creeps(void) {
     static int hurt_sfx_cooldown = 0;
     int i, biting = 0;
     if (hurt_sfx_cooldown > 0) hurt_sfx_cooldown--;
+    if (lcr_bite_timer > 0) lcr_bite_timer--;
 
     for (i = 0; i < lms_creep_count; i++) {
         LmsCreep *c = &lms_creeps[i];
@@ -238,8 +244,6 @@ void update_lms_creeps(void) {
            gating on game_state would let the player pause a swarm with Start
            (tools/ADDING_AN_ENEMY.txt STEP 6). */
         if (!c->active || c->state == LCR_DEAD || c->area != current_area) continue;
-
-        if (c->damage_timer > 0) c->damage_timer--;
 
         int32_t px = player_x(), py = player_y(), pz = player_z();
         int32_t dx = px - c->x;
@@ -282,20 +286,23 @@ void update_lms_creeps(void) {
            floor — but the separate tests are also what stops a creep biting
            across a storey, which is the OTHER thing the vertical term is for.
 
-           >>> AND NOTHING CAPS THE TOTAL ACROSS CREEPS. <<< Each body runs its
-           own damage_timer, so a ring of ten deals ten times 5 hp every 12
-           frames and empties a full 100 in two seconds. That is the encounter's
-           actual difficulty and it is intended: a creep is trivially killable
-           and the threat is arithmetic, not any one of them. If this ever needs
-           softening, soften it HERE with an explicit whole-swarm budget rather
-           than by slowing the spawn cadence, which is the crib's timing and
-           belongs to the prop. */
+           >>> THE DAMAGE DOES NOT STACK. <<< There is ONE bite clock for the
+           whole swarm (lcr_bite_timer), not one per body: whichever creep in
+           reach finds it at 0 bites for LCR_DAMAGE_AMOUNT (1 hp) and resets it
+           to LCR_DAMAGE_TICK (12 frames). So the swarm deals at most 5 hp a
+           second however many of them ring the player — one creep and ten are
+           the same 20 seconds to empty a full 100. Do not move the clock back
+           onto the creep: per-body timers made ten creeps ten times as deadly
+           (5 hp each every 12 frames emptied 100 in 0.4 s). Tune the threat
+           HERE, with LCR_DAMAGE_AMOUNT / LCR_DAMAGE_TICK, rather than by
+           slowing the spawn cadence, which is the crib's timing and belongs
+           to the prop. */
         if (!game_over && dist2d < LCR_CATCH_DIST &&
             (dy < 0 ? -dy : dy) < LCR_CATCH_DIST)
             biting = 1;   /* in reach: the cry below keys on any of them */
         if (!game_over && dist2d < LCR_CATCH_DIST &&
-            (dy < 0 ? -dy : dy) < LCR_CATCH_DIST && c->damage_timer == 0) {
-            c->damage_timer = LCR_DAMAGE_TICK;
+            (dy < 0 ? -dy : dy) < LCR_CATCH_DIST && lcr_bite_timer == 0) {
+            lcr_bite_timer = LCR_DAMAGE_TICK;
             player_hurt(LCR_DAMAGE_AMOUNT);
             if (hurt_sfx_cooldown == 0) {
                 sound_play(SFX_HURT);

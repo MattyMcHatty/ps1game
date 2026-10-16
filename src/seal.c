@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <psxgpu.h>
 #include <psxgte.h>
 #include <psxcd.h>
@@ -786,6 +787,26 @@ static int32_t white_level(void) {
     return k;
 }
 
+/* ---- The line ---------------------------------------------------------------
+   One line as the seal starts to light, in the bosses' subtitle style
+   (lamashtu_boss.c's lbe_line): centred, 8 px a character, at their first row
+   and their OT. Up for 6 s from the emerge - the bosses' cadence a line.
+   Sorted BEFORE draw_white puts its tile in the same OT slot: LIFO, so the
+   text is drawn after the white, never under it. */
+static const char *SL_LINE = "AT LAST, I AM FREE...";
+#define SL_TEXT_Y       194
+#define SL_TEXT_OT        2
+#define SL_T_LINE_FROM  SL_T_LINES_FROM
+#define SL_T_LINE_TO   (SL_T_LINE_FROM + 360)
+
+static void draw_line(RenderContext *ctx) {
+    if (!seal_cutscene()) return;
+    if (scene_t < SL_T_LINE_FROM || scene_t >= SL_T_LINE_TO) return;
+    int x = (SCREEN_XRES - (int)strlen(SL_LINE) * 8) / 2;
+    if (x < 0) x = 0;
+    btn_prompt_draw(ctx, x, SL_TEXT_Y, SL_LINE, SL_TEXT_OT);
+}
+
 /* ---- The room ---------------------------------------------------------------
    draw_lamashtu_arena_smd() with the fog and the distance cull taken out and
    the fade-in's light scale on the colour instead. */
@@ -976,5 +997,6 @@ void seal_draw(RenderContext *ctx) {
         }
     }
 
+    draw_line(ctx);
     draw_white(ctx, white_level());
 }
