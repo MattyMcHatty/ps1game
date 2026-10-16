@@ -117,6 +117,7 @@
 #include "lamashtu_arena.h"
 #include "lamashtu.h"         /* the Lamashtu Arena's boss: the body */
 #include "lamashtu_boss.h"    /* ...and her encounter: the director */
+#include "seal.h"             /* THE SEAL, where her arena fades to on her death */
 #include "kennels_puzzle.h"
 #include "arm_switch.h"     /* The Head's eight arm switches */
 #include "gula_tablet.h"
@@ -278,6 +279,7 @@ void reset_game(RenderContext *ctx) {
     gula_reset();          /* ...and Gula, the Kennels' one-off, and her howl  */
     lamashtu_reset();      /* ...and Lamashtu's health and clip                */
     lamashtu_boss_reset(); /* ...and any half-played encounter of hers         */
+    seal_reset();          /* ...and the Seal she leaves behind, and its scene */
     gula_death_reset();    /* ...and any half-played death of hers            */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
@@ -420,6 +422,7 @@ static void load_area_geometry(GameState area) {
         case STATE_THE_HEAD:         the_head_load_geometry(); break;
         case STATE_KENNELS:          kennels_load_geometry(); break;
         case STATE_LAMASHTU_ARENA:   lamashtu_arena_load_geometry(); break;
+        case STATE_SEAL:             seal_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -537,6 +540,11 @@ static int soft_reset_allowed(GameState s) {
    (tools/TEXTURE_STREAMING_DEBUG.txt). Both of Asag's cuts happen in silence
    anyway — the boss's track was cut on the killing blow — so this is the belt
    to those braces, and it costs nothing when nothing is playing. */
+/* 1 from the Lamashtu Arena's hand-off into the Seal to the end of that load:
+   a doorless transition WITHOUT the red loading screen (see the arena's branch
+   in update_current_area). Cleared by STATE_LOADING when the room is built. */
+static int silent_transition = 0;
+
 static void begin_loading_transition(GameState to) {
     pending_area = to;
     cdaudio_stop();
@@ -688,6 +696,16 @@ static void update_current_area(GameState area) {
         lamashtu_boss_update();
         lamashtu_update();
         bars_update();
+        player_status_update();
+        update_particles();
+        return;
+    }
+    /* ...and THE SEAL's scene (src/seal.h): the camera rising off the player
+       and circling the seal while its lines light and it blows. Nothing else
+       is in the room. It runs on into the sign-off screen, whose own branch at
+       the foot of main() owns the frame from then on. */
+    if (area == STATE_SEAL && seal_cutscene()) {
+        seal_cutscene_update();
         player_status_update();
         update_particles();
         return;
@@ -1109,6 +1127,11 @@ static void update_current_area(GameState area) {
         update_particles();
         return;
     }
+    /* ROOTED (camera.h): turn and attack but no walking - the Lamashtu Arena's
+       fade into the dark and the Seal's black second. Set on every frame, here,
+       from the room the player is actually in. */
+    player_rooted = (area == STATE_LAMASHTU_ARENA && lamashtu_boss_roots_player()) ||
+                    (area == STATE_SEAL && seal_roots_player());
     update_camera();
     /* Menu open: the area still ticks (enemies move, gravity applies) but every
        player-driven level interaction — doors, stairs, the drawer puzzle, save
@@ -3120,6 +3143,27 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+
+        /* THE HAND-OFF INTO THE SEAL (src/seal.h). Her death has faded the room
+           to black around a rooted player; now the Seal is loaded under that
+           black. No door and NO RED LOADING SCREEN: silent_transition tells the
+           foot of main() to leave the black frame up. Not while the menu is
+           open - the director holds the request until it closes. */
+        if (!lock && lamashtu_boss_leaving()) {
+            pending_area      = STATE_SEAL;
+            cdaudio_stop();
+            silent_transition = 1;
+            game_state        = STATE_LOADING;
+        }
+    } else if (area == STATE_SEAL) {
+        /* THE SEAL - Chapter 3's thirty-fifth room (src/seal.c): a flat floor
+           in a void, the shared wall routine and ONE flat floor zone. No door,
+           no enemies. Its black opening roots the player (above); its fade-in
+           and the centre's prompt are seal_update's. The scene the prompt
+           starts runs through its own branch further up. */
+        apply_collision_reception();
+        apply_height();
+        seal_update(lock);
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
            routine, ONE flat floor zone and one door, the Room of Bones' shape.
@@ -3680,6 +3724,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         kennels_draw(ctx);
     else if (area == STATE_LAMASHTU_ARENA)
         lamashtu_arena_draw(ctx);
+    else if (area == STATE_SEAL)
+        seal_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4210,6 +4256,8 @@ int main(int argc, const char **argv) {
                                      registration, header only. Her mesh and
                                      clips are ROOM-SCOPED, read on the way
                                      into the arena (see STATE_LOADING). */
+    seal_load_assets();           /* CHAPTER 3's thirty-fifth room, the Seal:
+                                     ONE deferred registration, header only. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4770,6 +4818,9 @@ int main(int argc, const char **argv) {
                    her three clips and the Creep's cry did not fit the chapter's
                    bank (SND_BANK_LAMASHTU in src/sound.h). */
                 (pending_area == STATE_LAMASHTU_ARENA) ? SND_BANK_LAMASHTU :
+                /* ...AND THE SEAL, a bank of its own: the emerge it plays as
+                   its lines light did not fit hers (SND_BANK_SEAL). */
+                (pending_area == STATE_SEAL) ? SND_BANK_SEAL :
                 area_is_catacombs(pending_area) ? SND_BANK_CATACOMBS :
                 SND_BANK_HOUSE);
 
@@ -5226,6 +5277,10 @@ int main(int argc, const char **argv) {
                    the free up above the bank swap: free early, load late. ~65 KB
                    (src/lamashtu.h). */
                 lamashtus_load_model();
+            } else if (pending_area == STATE_SEAL) {
+                /* THE SEAL. Its one texture, its own: seal.tim over the crib's
+                   page with Lamashtu's palette (src/seal.c). */
+                seal_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -6141,6 +6196,12 @@ int main(int argc, const char **argv) {
                    after.) */
                 lamashtu_arena_init();
                 /* NO MUSIC LINE, same chapter rule as the rooms above. */
+            } else if (pending_area == STATE_SEAL) {
+                /* ONE ARRIVAL, the arena's hand-off, into the south-east
+                   corner (src/seal.h). A debug jump lands there too. */
+                seal_init();
+                /* NO MUSIC LINE: the Seal is silent, which the chapter's
+                   block below says. */
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -6304,6 +6365,9 @@ int main(int argc, const char **argv) {
                 else if (pending_area == STATE_LAMASHTU_ARENA &&
                          !game_flag(FLAG_LAMASHTU_DEAD))
                     cdaudio_stop();
+                /* THE SEAL: silent, start to finish (src/seal.h). */
+                else if (pending_area == STATE_SEAL)
+                    cdaudio_stop();
                 else
                     cdaudio_play(CDAUDIO_CATACOMBS_TRACK, 1);
             }
@@ -6311,6 +6375,7 @@ int main(int argc, const char **argv) {
             /* The room is built; it draws itself from the bottom of this frame
                on, so the loading screen is finished with. */
             loading_screen_up = 0;
+            silent_transition = 0;
 
             /* Restore the entered room's entities into the live arrays. */
             world_enter(pending_area);
@@ -6555,7 +6620,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_NECK ||
                    game_state == STATE_THE_HEAD ||
                    game_state == STATE_KENNELS ||
-                   game_state == STATE_LAMASHTU_ARENA) {
+                   game_state == STATE_LAMASHTU_ARENA ||
+                   game_state == STATE_SEAL) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {
@@ -6677,7 +6743,9 @@ int main(int argc, const char **argv) {
                                (area == STATE_KENNELS && gula_death_cutscene()) ||
                                /* ...and Lamashtu's opening and death. */
                                (area == STATE_LAMASHTU_ARENA &&
-                                lamashtu_boss_cutscene());
+                                lamashtu_boss_cutscene()) ||
+                               /* ...and the Seal's scene. */
+                               (area == STATE_SEAL && seal_cutscene());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();
@@ -6708,7 +6776,18 @@ int main(int argc, const char **argv) {
                        of it — a loading screen with a scene still showing
                        through. The HUD and the debug overlay go with it for the
                        same reason. */
-                    show_loading_screen_now(&ctx);
+                    /* ...EXCEPT THE SEAL'S HAND-OFF, which happens in the black
+                       the arena has already faded to and must stay black: no
+                       red screen. The frame is drawn as usual - black, and the
+                       HUD the player still has - and STATE_LOADING flips onto
+                       the black clear colour after it. */
+                    if (silent_transition) {
+                        draw_current_area(&ctx, area);
+                        draw_player_systems(&ctx);
+                        hud_draw(&ctx);
+                    } else {
+                        show_loading_screen_now(&ctx);
+                    }
                 } else {
                     {
                         int t0 = perf_ticks_now();

@@ -224,6 +224,9 @@ AREAS = {
                   # THE LAMASHTU ARENA, behind The Head's east door: the
                   # Tomb's three, cobble, the loculus and the inner door.
                   "lamashtu_arena_upload_textures",
+                  # THE SEAL, where the arena fades to on her death: owns
+                  # seal.tim (4bpp on the crib's page, Lamashtu's palette).
+                  "seal_upload_textures",
                   "crawlers_upload_textures",
                   # ...and the LUMBERER, which main.c streams into the TOMB in
                   # the crawler's place rather than beside it: the two share

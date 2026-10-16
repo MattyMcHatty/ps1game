@@ -778,9 +778,21 @@ typedef enum {
        in here later - a crawler, a lumberer, a maggot - is MUTE until its
        clips are tagged here too. The Creep makes no sound of its own.
 
-       >>> THIS IS THE LAST BIT. <<< sfx_bank[] is a uint8_t; the next bank
-       means widening it to uint16_t first. */
+       It was the last bit of a uint8_t; sfx_bank[] is a uint16_t now (the
+       Seal's bank, below, is what widened it). */
     SND_BANK_LAMASHTU = 128,
+    /* SND_BANK_SEAL — THE SEAL (src/seal.h), where the arena fades to on her
+       death. Two clips, both for its scene:
+
+           EMERGE    as the seal's lines light (70 KB, 11.1 s)
+           EXPLODE   the first of its blasts   (34 KB)
+
+       A BANK OF ITS OWN because EMERGE does not fit Lamashtu's: 70 KB against
+       her bank's ~23 KB of headroom. 104 KB, far under CATACOMBS' 225 KB, so
+       `spare` does not move. Nothing else in that room makes a sound but the
+       player, whose clips are resident. The swap is read in the black of the
+       arena's silent hand-off, after her model is freed. */
+    SND_BANK_SEAL     = 256,
 } SoundBank;
 
 void sound_init(void);

@@ -319,6 +319,14 @@ static void draw_lamashtu_arena_smd(RenderContext *ctx) {
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
+    /* THE VOID after her death (src/lamashtu_boss.h): the whole room scaled
+       toward black, the fog colour with it. Out altogether, nothing is queued. */
+    int32_t lit = lamashtu_boss_room_light();
+    if (lit <= 0) return;
+    int32_t fog_r = (LA_FOG_R * lit) >> 8;
+    int32_t fog_g = (LA_FOG_G * lit) >> 8;
+    int32_t fog_b = (LA_FOG_B * lit) >> 8;
+
     for (i = 0; i < n; i++) {
         /* THE REJECT PATH READS cull_keys, NOT THE MESH. */
         uint8_t stride = cull_keys[i].stride;
@@ -397,13 +405,14 @@ static void draw_lamashtu_arena_smd(RenderContext *ctx) {
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
         int32_t fog = dist < la_fog_near ? la_fog_near : (dist > la_fog_far ? la_fog_far : dist);
         int32_t fog_factor = ((la_fog_far - fog) << 8) / (la_fog_far - la_fog_near);
+        fog_factor = (fog_factor * lit) >> 8;
 
         uint8_t tex_idx = (i < LAMASHTU_ARENA_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < LAMASHTU_ARENA_TEX_COUNT);
 
-        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + LA_FOG_R * (256 - fog_factor)) >> 8);
-        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + LA_FOG_G * (256 - fog_factor)) >> 8);
-        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + LA_FOG_B * (256 - fog_factor)) >> 8);
+        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + fog_r * (256 - fog_factor)) >> 8);
+        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + fog_g * (256 - fog_factor)) >> 8);
+        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + fog_b * (256 - fog_factor)) >> 8);
 
         if (is_quad && textured) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
@@ -477,7 +486,11 @@ void lamashtu_arena_draw(RenderContext *ctx) {
 
     /* The fog colour as the CLEAR colour, not a full-screen TILE (wrong turn #3
        in tools/DIAGNOSING_FRAME_RATE.txt). */
-    render_set_clear_colour(ctx, LA_FOG_R, LA_FOG_G, LA_FOG_B);
+    {
+        int32_t lit = lamashtu_boss_room_light();   /* the void: out to black */
+        render_set_clear_colour(ctx, (LA_FOG_R * lit) >> 8, (LA_FOG_G * lit) >> 8,
+                                (LA_FOG_B * lit) >> 8);
+    }
 
     /* 128x128 texture window so per-poly UVs wrap within each texture's page.
        All three textures sit at Voff 0. */

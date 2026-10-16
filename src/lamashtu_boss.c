@@ -132,6 +132,12 @@ static const LbePhase PHASE[LBE_PHASES] = {
 #define LBE_T_D_CAM_BACK  60   /* 1 s back to the player                      */
 #define LBE_SHAKE_MAX     11
 
+/* The void: the arena goes out around a rooted player, then holds black. The
+   Seal holds another second of black before it starts to come in, so the two
+   seconds of dark the brief asks for straddle the (silent) load. */
+#define LBE_T_VOID_FADE  360   /* 6 s fading to black                         */
+#define LBE_T_VOID_BLACK  60   /* 1 s black here, the other 1 s in the Seal   */
+
 /* ---- The lines --------------------------------------------------------------
    As given, wrapped by hand at their own punctuation: the debug font is 8 px a
    character on a 320 screen, so 40 is the limit (the Rabisu's rule). */
@@ -158,6 +164,9 @@ typedef enum {
     LBE_D_BURN,
     LBE_D_FADE,
     LBE_D_CAM_BACK,
+    LBE_VOID_FADE,    /* free play, rooted: the arena fading to black          */
+    LBE_VOID_BLACK,   /* free play, rooted: black, counting down to the Seal   */
+    LBE_VOID_LEAVE,   /* black: main.c takes the hand-off on its first chance  */
     LBE_DONE,
 } LbeState;
 
@@ -296,6 +305,24 @@ int lamashtu_boss_cutscene(void) {
 int lamashtu_boss_seals_door(void) {
     return state != LBE_IDLE && state != LBE_DONE;
 }
+
+int lamashtu_boss_roots_player(void) {
+    return state == LBE_VOID_FADE || state == LBE_VOID_BLACK ||
+           state == LBE_VOID_LEAVE;
+}
+
+int32_t lamashtu_boss_room_light(void) {
+    if (state == LBE_VOID_FADE) {
+        int32_t l = 256 - (phase_t * 256) / LBE_T_VOID_FADE;
+        return l < 0 ? 0 : l;
+    }
+    if (state == LBE_VOID_BLACK || state == LBE_VOID_LEAVE) return 0;
+    return 256;
+}
+
+/* Held at 1 rather than pulsed, so a frame main.c cannot act on (the menu is
+   open) only delays the hand-off. The arena's next init parks it. */
+int lamashtu_boss_leaving(void) { return state == LBE_VOID_LEAVE; }
 
 static void park(void) {
     state       = LBE_IDLE;
@@ -490,9 +517,18 @@ void lamashtu_boss_update(void) {
             cam_rot = save_crot; cam_vy = save_cvy; cam_pitch = 0;
             camera_release_player();
             lamashtu_arena_arm();      /* a Circle held through it must not fire */
-            cdaudio_play(CDAUDIO_CATACOMBS_TRACK, 1);
-            state = LBE_DONE;
+            /* NO MUSIC. The chapter's track used to come back here; now the
+               arena goes out around the player in silence (THE VOID). */
+            enter(LBE_VOID_FADE);
         }
+        break;
+
+    case LBE_VOID_FADE:
+        if (phase_t >= LBE_T_VOID_FADE) enter(LBE_VOID_BLACK);
+        break;
+
+    case LBE_VOID_BLACK:
+        if (phase_t >= LBE_T_VOID_BLACK) enter(LBE_VOID_LEAVE);
         break;
 
     default:

@@ -112,6 +112,14 @@ extern int sprint_stamina;        /* remaining sprint frames; 0 = exhausted     
 extern int sprint_cooldown;       /* 1 = sprint locked until bar fully refills   */
 
 extern int     aiming;            /* 1 while L2 aiming (player movement frozen)   */
+
+/* ROOTED: the player can turn, aim and attack but cannot walk, strafe or
+   sprint, and knockback does not move them. Footsteps stay quiet with it. Set
+   by main.c on EVERY frame, immediately before update_camera(), from the
+   current room's say-so (the Lamashtu Arena's fade into the dark and the
+   Seal's black opening, src/lamashtu_boss.h and src/seal.h) - so it cannot be
+   left on by a room the player has walked out of. */
+extern int     player_rooted;
 extern int32_t aim_x, aim_y;      /* crosshair screen position (moves while aiming) */
 
 void update_camera(void);

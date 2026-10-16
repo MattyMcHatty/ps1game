@@ -942,6 +942,16 @@ KNOWN_STREAM_PAIRS = [
     ("creep.tim",                   "lamashtu creep.tim"),
     ("gaol_mud.tim",                "lamashtu.tim"),
     ("red_wlppr.tim",               "lamashtu.tim"),
+    #   seal.tim -> x576 y0, THE SEAL's floor, 4bpp 128x128 (x[576,608)), ON
+    # THE CRIB'S PAGE AND ON LAMASHTU'S OWN CLUT LINE (640,502). Drawn only in
+    # the Seal, which has no crib, no mud and no Lamashtu; the arena puts her
+    # skin and palette back on entry and every crib room puts the crib back.
+    ("lamashtu.tim",                "seal.tim"),
+    ("crib.tim",                    "seal.tim"),
+    ("gaol_mud.tim",                "seal.tim"),
+    ("red_wlppr.tim",               "seal.tim"),
+    ("anzu2.tim",                   "seal.tim"),
+    ("anzu5.tim",                   "seal.tim"),
     #   gula tablet.tim -> x640 y0, THE NURSERY's floor tiles and the Gula
     # Tablet prop, 4bpp, ON THE ARMS' PAGE (it covers x[640,672) only) - the
     # gaol door's terms exactly, an eighth owner taking turns, with a CLUT of

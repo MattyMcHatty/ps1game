@@ -202,7 +202,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_DEAD_END_MARK,   STATE_THROAT,
     STATE_ROOM_OF_GUTS,    STATE_NECK,
     STATE_THE_HEAD,        STATE_KENNELS,
-    STATE_LAMASHTU_ARENA,
+    STATE_LAMASHTU_ARENA,  STATE_SEAL,
 };
 
 static int room_index(GameState area) {
@@ -379,6 +379,9 @@ static int room_index(GameState area) {
         /* THE LAMASHTU ARENA, Chapter 3's thirty-fourth room, behind The
            Head's east door. Slot 60 of 64. Seeded EMPTY. */
         case STATE_LAMASHTU_ARENA:    return 60;
+        /* THE SEAL, Chapter 3's thirty-fifth room, where the arena fades to
+           on Lamashtu's death. Slot 61 of 64. Seeded EMPTY. */
+        case STATE_SEAL:              return 61;
         default:                   return 0;
     }
 }

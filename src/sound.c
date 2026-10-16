@@ -110,7 +110,7 @@ static const char *sfx_files[SFX_COUNT] = {
    SND_RESIDENT: see the note on SoundBank. */
 #define SND_RESIDENT 0
 
-static const uint8_t sfx_bank[SFX_COUNT] = {
+static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
     [SFX_SWING]      = SND_RESIDENT,   /* the boss's foot-slash windup uses it */
     [SFX_HURT]       = SND_RESIDENT,
     [SFX_PICKUP]     = SND_RESIDENT,
@@ -204,8 +204,11 @@ static const uint8_t sfx_bank[SFX_COUNT] = {
        tools/ADDING_THE_ASAG_FIGHT.txt, which is where that sequencing is
        defended and where it cost a crash to find. */
     [SFX_EXPLODE]    = SND_BANK_BOSS | SND_BANK_ASAG |
-                       SND_BANK_LAMASHTU,   /* ...and Lamashtu's death */
-    [SFX_EMERGE]     = SND_BANK_BOSS,
+                       SND_BANK_LAMASHTU |  /* ...and Lamashtu's death */
+                       SND_BANK_SEAL,       /* ...and the Seal's blasts */
+    /* ...and THE SEAL's lines lighting (src/seal.c), in that room's own bank:
+       70 KB did not fit Lamashtu's. */
+    [SFX_EMERGE]     = SND_BANK_BOSS | SND_BANK_SEAL,
     /* THE DEMON SPEAKS IN BOTH BOSS ROOMS, so it is in both banks — the same
        two-copies answer SFX_GATE and SFX_RUMBLE below already take. Asag's
        opening puts one line of it over each of its two subtitles, exactly as

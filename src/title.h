@@ -312,6 +312,11 @@ typedef enum {
                                 twenty-four pillars, where Lamashtu will be
                                 fought. See src/lamashtu_arena.h. Appended,
                                 not inserted. */
+    STATE_SEAL,              /* THE SEAL, where Lamashtu's arena fades to on
+                                her death - no door in or out. Chapter 3's
+                                thirty-fifth room and its last: a black void
+                                with the seal on the floor. See src/seal.h.
+                                Appended, not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

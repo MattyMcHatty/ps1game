@@ -160,6 +160,7 @@ BANK = {
     "crib.tim":                 "the Room of Arms' crib         x576 y0",
     "lamashtu.tim":             "Lamashtu's skin (=crib pg; arena only) x576 y0 4bpp",
     "lamashtu creep.tim":       "her Creeps (=creep slot; arena only) x640 y320",
+    "seal.tim":                 "the Seal's floor (=crib pg, Lamashtu's CLUT) x576 y0 4bpp",
     "rusty.tim":                "The Pit's shaft ironwork       x704 y0",
     "ladder.tim":               "North Chamber's ladder         x704 y256",
     "bars.tim":                 "The Pit's dropping bars        x512 y256 4bpp",

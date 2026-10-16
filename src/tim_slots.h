@@ -543,6 +543,10 @@
 #define TIM_TPAGE_SCONCE   0x0087
 #define TIM_CLUT_SCONCE    0x7daa
 
+/* seal.tim        4bpp  VRAM ( 576,  0)  \TEXCTCMB\SEAL.TIM */
+#define TIM_TPAGE_SEAL     0x0009
+#define TIM_CLUT_SEAL      0x7da8
+
 /* shadow.tim      8bpp  VRAM ( 640,160)  \SHADOW.TIM */
 #define TIM_TPAGE_SHADOW   0x008a
 #define TIM_CLUT_SHADOW    0x7980

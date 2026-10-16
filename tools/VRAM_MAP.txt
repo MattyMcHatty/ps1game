@@ -62,6 +62,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   crib.tim             8       576     0   128   128     0   256,484
   lamashtu.tim         4       576     0   128   128     0   640,502
   red_wlppr.tim        4       576     0   128   128     0   0,492
+  seal.tim             4       576     0   128   128     0   640,502
   anzu2.tim            8       608     0    64    64     0   256,484
   arms2.tim            8       640     0   128   128     0   672,501
   asag.tim             8       640     0   128   128     0   672,501
@@ -305,6 +306,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=502  x[544,560)  pipe_button_on.tim
   y=502  x[512,528)  pipe_gh.tim
   y=502  x[672,928)  sconce.tim
+  y=502  x[640,656)  seal.tim
   y=503  x[0,256)  kchn_wl.tim
   y=503  x[256,512)  plinth.tim
   y=503  x[768,1024)  vlv_hndl.tim
@@ -486,6 +488,7 @@ OVERLAP CHECK
   gaol_mud.tim                             crib.tim             time-shared (streaming)
   gaol_mud.tim                             lamashtu.tim         time-shared (streaming)
   gaol_mud.tim                             red_wlppr.tim        time-shared (streaming)
+  gaol_mud.tim                             seal.tim             time-shared (streaming)
   gula_a.tim                               crawler_a.tim        time-shared (streaming)
   gula_a.tim                               rafflesia1.tim       time-shared (streaming)
   gula_a.tim                               rafflesia2.tim       time-shared (streaming)
@@ -585,6 +588,7 @@ OVERLAP CHECK
   creep.tim                                lamashtu creep.tim   time-shared (streaming)
   crib.tim                                 lamashtu.tim         time-shared (streaming)
   crib.tim                                 red_wlppr.tim        time-shared (streaming)
+  crib.tim                                 seal.tim             time-shared (streaming)
   cuneiform _symbols.tim                   dresser.tim          time-shared (streaming)
   cuneiform _symbols.tim                   grdn_gte.tim         time-shared (streaming)
   cuneiform _symbols.tim                   kchn_wl.tim          time-shared (streaming)
@@ -742,6 +746,7 @@ OVERLAP CHECK
   lamashtu tablet.tim                      xt_dr_cmplt.tim      time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_lckd.tim       time-shared (streaming)
   lamashtu.tim                             red_wlppr.tim        time-shared (streaming)
+  lamashtu.tim                             seal.tim             time-shared (streaming)
   legs.tim                                 plinth_rg.tim        time-shared (streaming)
   legs.tim                                 poison_flower_base.tim time-shared (streaming)
   legs.tim                                 torsos.tim           time-shared (streaming)
@@ -785,6 +790,7 @@ OVERLAP CHECK
   prpl_wlppr.tim                           stove.tim            time-shared (streaming)
   rafflesia1.tim                           spdr_rst.tim         time-shared (streaming)
   rafflesia2.tim                           spdr_wk.tim          time-shared (streaming)
+  red_wlppr.tim                            seal.tim             time-shared (streaming)
   rusty.tim                                rusty_fence.tim      time-shared (streaming)
   rusty.tim                                stable glyphs.tim    time-shared (streaming)
   rusty.tim                                upstairs.tim         time-shared (streaming)

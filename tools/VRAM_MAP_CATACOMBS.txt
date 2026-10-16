@@ -318,6 +318,7 @@ THIS BANK'S OWN ART
   oil_container.tim          the oil dispenser              x896 y256
   rusty.tim                  The Pit's shaft ironwork       x704 y0
   sconce.tim                 the wall sconces               x448 y0
+  seal.tim                   the Seal's floor (=crib pg, Lamashtu's CLUT) x576 y0 4bpp
   shelf_incinerator.tim      the Shelf's panel (=arms pg)   x640 y0
   torsos.tim                 Room of Torsos' piles (=arms pg) x640 y0
 
@@ -336,7 +337,7 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x384  IN USE by this bank: cobblestones.tim   [also on this page, all re-uploaded on room entry: chnlnk_dl.tim, clsd_drwr.tim, cncrte.tim, flowerbed.tim, hedge.tim, kchn_tile.tim, mud.tim, piano_keys.tim, piano_keys_full.tim, xt_dr_outr.tim]
   x448  IN USE by this bank: sconce.tim
   x512  IN USE by this bank: loculus.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim]
-  x576  IN USE by this bank: crib.tim, gaol_mud.tim, lamashtu.tim
+  x576  IN USE by this bank: crib.tim, gaol_mud.tim, lamashtu.tim, seal.tim
   x640  IN USE by this bank: baby names.tim, bones.tim, gaol door.tim, gula tablet.tim, heads.tim, legs.tim, shelf_incinerator.tim, torsos.tim   [also on this page, all re-uploaded on room entry: arms2.tim, asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, guts.tim, hatch.tim, lamashtu pearl.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
   x704  IN USE by this bank: rusty.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
   x768  IN USE by this bank: lamashtu tablet.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, gula codes.tim, lamashtu arm.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]

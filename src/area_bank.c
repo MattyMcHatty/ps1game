@@ -193,6 +193,8 @@ TexBank area_bank_of(GameState area) {
     case STATE_KENNELS:
     /* THE LAMASHTU ARENA owns nothing: the Tomb's three, borrowed. */
     case STATE_LAMASHTU_ARENA:
+    /* THE SEAL owns SEAL.TIM (4bpp on the crib's page, Lamashtu's palette). */
+    case STATE_SEAL:
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
@@ -231,7 +233,8 @@ int area_is_catacombs(GameState area) {
            area == STATE_NECK ||
            area == STATE_THE_HEAD ||
            area == STATE_KENNELS ||
-           area == STATE_LAMASHTU_ARENA;
+           area == STATE_LAMASHTU_ARENA ||
+           area == STATE_SEAL;
 }
 
 /* ---- The prop models -------------------------------------------------------

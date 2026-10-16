@@ -20,6 +20,7 @@ int32_t cam_rot = 0;
 int32_t cam_pitch = 0;
 int32_t cam_kb_vx = 0;
 int32_t cam_kb_vz = 0;
+int     player_rooted = 0;   /* camera.h: turn and attack, no walking */
 
 /* Player anchor (see camera.h): held position while a puzzle owns the camera. */
 static int32_t anchor_x = 0, anchor_y = 0, anchor_z = 0;
@@ -222,6 +223,10 @@ void update_camera(void) {
 
     /* Player knockback (tentacle hits): displace and decay before input, so it
        stacks with walking and gets wall-resolved by the later apply_collision. */
+    if (player_rooted) {
+        cam_kb_vx = 0;   /* nothing shifts a rooted player, a shove included */
+        cam_kb_vz = 0;
+    }
     if (cam_kb_vx != 0 || cam_kb_vz != 0) {
         cam_x += cam_kb_vx;
         cam_z += cam_kb_vz;
@@ -315,6 +320,11 @@ void update_camera(void) {
 
     if (btn & PAD_LEFT)  cam_rot = (cam_rot - 32) & 4095;
     if (btn & PAD_RIGHT) cam_rot = (cam_rot + 32) & 4095;
+
+    /* ROOTED (camera.h): the turn above is all the d-pad does. Skipping the
+       sprint machine as well leaves the stamina bar where it was, and skipping
+       the footstep block keeps a held Up from walking on the spot audibly. */
+    if (player_rooted) goto debug_toggle;
 
     /* Sprint state machine ------------------------------------------------
        sprint_cooldown is a lock flag (0/1), not a countdown.

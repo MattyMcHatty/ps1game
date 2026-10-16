@@ -1627,6 +1627,14 @@
                  time-share, since no crib stands in the arena and every crib
                  room uploads the Creep on its way in. -->
             <file name="LMSCREEP.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu creep.tim"/>
+            <!-- THE SEAL, the chapter's THIRTY-FIFTH room (src/seal.h), where
+                 the arena fades to on Lamashtu's death: 107 prims, the seal
+                 alone, on a black void. It owns SEAL.TIM, 4bpp
+                 on the crib's page x576 y0 with Lamashtu's CLUT line
+                 (640,502) - she and it are never drawn together, and the
+                 arena re-uploads her skin on entry. -->
+            <file name="SEAL.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\seal.smd"/>
+            <file name="SEAL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\seal.tim"/>
             <!-- GULA, the Kennels' one-off (src/gula.h). Her four frames are
                  one 256x256 sheet, and the brief was that sheet in FULL at
                  8bpp and 256 colours - no 2x2, no 4bpp. An 8bpp texture 256
