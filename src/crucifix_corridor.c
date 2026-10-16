@@ -195,6 +195,25 @@ void crucifix_corridor_upload_textures(void) {
 #define XC_SCONCE_X          3300
 #define XC_SCONCE_Z             0
 
+/* ---- THE SAVE POINT --------------------------------------------------------
+   JUST IN FRONT OF THE SCONCE, on its corridor side, on the centre line: 180
+   short of the stand, which leaves 50 between the save's footprint (70) and the
+   sconce's (60). The corridor's walkable band is only 210 wide and the save's
+   footprint plus the 55 standoff save_points_collide is called with is 250, so
+   it closes the alcove off: the player meets it at x=2995 and cannot reach
+   round it to the sconce, which asks nothing of them anyway.
+
+   Clear of the cross arm: the arm's walkable band is x[2595,2805], 190 short of
+   where the player stops. The nearest doors, the arm's north and south ones at
+   (2700,+-1500), are 1920 away (Manhattan) against a 500 trigger, so the circles
+   do not meet; main.c still asks the save first and vetoes all three doors with
+   its answer, the Neck's order.
+
+   y is the floor (0) less 300 and rot/scale are reception's, the Neck's terms. */
+#define XC_SAVE_X            3120
+#define XC_SAVE_Y            (XC_FLOOR_Y - 300)
+#define XC_SAVE_Z               0
+
 /* ---- THE WEST DOOR ---------------------------------------------------------
    x=0, z[-100,100]. Out to THE UP DOWN MAZE, onto its lower storey at the
    north-east door.
@@ -246,6 +265,7 @@ void crucifix_corridor_arm(void) {
     west_circle_prev  = held;
     north_circle_prev = held;
     south_circle_prev = held;
+    save_point_arm();
 }
 
 /* THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a
@@ -378,9 +398,17 @@ void crucifix_corridor_init(void) {
     sconces_clear();
     oil_dispensers_clear();
 
-    /* ...then this room's own sconce, LIT, in the centre of the east alcove. */
+    /* ...then this room's own sconce, LIT, in the centre of the east alcove,
+       and the save point just in front of it (see XC_SAVE_X above). */
     sconce_place(STATE_CRUCIFIX_CORRIDOR, XC_SCONCE_X, -GROUND_FLOOR_Y,
                  XC_SCONCE_Z, 0, 1);
+    save_point_add(XC_SAVE_X, XC_SAVE_Y, XC_SAVE_Z, 512, 2048);
+    /* THE SCONCE SORTS UNBIASED (src/sconce.c, "NO +40") and this stands only
+       180 in front of it, so at the default +40 — a 160-unit push back — the
+       save sorted level with the stand and the sconce showed through it. Lifted
+       to true scene depth, the stand's own terms, every save poly is nearer
+       than every sconce poly from anywhere the player can stand. */
+    save_points_set_ot_lift(40);
 
     xc_view_resolve(1);
 }
@@ -595,10 +623,11 @@ void crucifix_corridor_draw(RenderContext *ctx) {
        window above serves it. */
     sconces_draw(ctx);
 
-    /* >>> LEVEL 8 REMOVES THE SIGNS AND THE ENEMIES. <<< The room holds no
-       enemies today, so what it takes away is the three door signs — STEP 3D's
-       case. */
+    /* >>> LEVEL 8 REMOVES THE SAVE POINT, THE SIGNS AND THE ENEMIES. <<< The
+       room holds no enemies today, so what it takes away is the save point in
+       front of the sconce and the three door signs — STEP 3D's case. */
     if (exp != DBG_EXP_NO_ENTITIES) {
+        save_points_draw(ctx);
         xc_west_door_text(ctx);   /* the west door: YZ plane, approached from +X */
         xc_north_door_text(ctx);  /* the north door: XY plane, approached from -Z */
         xc_south_door_text(ctx);  /* the south door: XY plane, approached from +Z */

@@ -2495,37 +2495,54 @@ static void update_current_area(GameState area) {
            seeded; both Chapter 3 enemy updates are called anyway, on the
            Tomb's argument.
 
-           ONE PROP: a LIT sconce in the east alcove. Its box collides through
-           apply_collision_reception (sconces_collide, area-tagged); this flips
-           its flame. */
+           TWO PROPS: a LIT sconce in the east alcove and a SAVE POINT just in
+           front of it. Both boxes collide through apply_collision_reception
+           (sconces_collide, area-tagged, and save_points_collide); this flips
+           the flame and spins the save.
+
+           THE SAVE POINT is asked FIRST and its answer vetoes all three doors -
+           the Neck's order. It is 1920 from the nearest door, so the circles do
+           not meet today; the order is what guarantees one press never does two
+           things. The veto goes in as each door's `lock` so their edge state
+           stays current. */
+        save_points_update();
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
         sconces_update();
 
-        if (crucifix_corridor_west_door_triggered(lock)) {
-            pending_area = STATE_UP_DOWN_MAZE;
-            door_anim_start(DOOR_PANEL_CATACOMB);
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
-        }
-        if (crucifix_corridor_north_door_triggered(lock)) {
-            pending_area = STATE_SLIDING_BARS_ROOM;
-            door_anim_start(DOOR_PANEL_CATACOMB);
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
-        }
-        /* ...and the SOUTH door, into the Zig Zag Tomb. Called unconditionally
-           for its edge state, and vetoed like the Sliding Bars Room's extra
-           doors; it is 3000 from the north door and further from the west, so
-           none can share a frame anyway. */
-        if (crucifix_corridor_south_door_triggered(lock) &&
-            game_state != STATE_DOOR_ANIM) {
-            pending_area = STATE_ZIG_ZAG_TOMB;
-            door_anim_start(DOOR_PANEL_CATACOMB);
-            game_state   = STATE_DOOR_ANIM;
-            cdaudio_stop();
+        {
+            int xc_saving = (!lock && save_point_triggered());
+            if (xc_saving) {
+                /* current_area is already STATE_CRUCIFIX_CORRIDOR, so the menu
+                   returns here. */
+                save_menu_open();
+                game_state = STATE_SAVE_MENU;
+            }
+            if (crucifix_corridor_west_door_triggered(xc_saving ? 1 : lock)) {
+                pending_area = STATE_UP_DOWN_MAZE;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
+            if (crucifix_corridor_north_door_triggered(xc_saving ? 1 : lock)) {
+                pending_area = STATE_SLIDING_BARS_ROOM;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
+            /* ...and the SOUTH door, into the Zig Zag Tomb. Called
+               unconditionally for its edge state, and vetoed like the Sliding
+               Bars Room's extra doors; it is 3000 from the north door and
+               further from the west, so none can share a frame anyway. */
+            if (crucifix_corridor_south_door_triggered(xc_saving ? 1 : lock) &&
+                game_state != STATE_DOOR_ANIM) {
+                pending_area = STATE_ZIG_ZAG_TOMB;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
         }
     } else if (area == STATE_SLIDING_BARS_ROOM) {
         /* THE SLIDING BARS ROOM - Chapter 3's eleventh room: the shared wall

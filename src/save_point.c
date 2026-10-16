@@ -110,8 +110,18 @@ void save_points_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
     }
 }
 
+/* OT buckets taken off the +40 bias the draw shares with the room mesh — see
+   save_points_set_ot_lift() in the header. Reset by every clear, so only the
+   room that asks for it after its clear gets it. */
+static int32_t sp_ot_lift = 0;
+
 void save_points_clear(void) {
     save_point_count = 0;
+    sp_ot_lift       = 0;
+}
+
+void save_points_set_ot_lift(int32_t buckets) {
+    sp_ot_lift = buckets;
 }
 
 /* Spin every save point slowly about its Y axis, forever. */
@@ -263,7 +273,10 @@ void save_points_draw(RenderContext *ctx) {
 
             gte_stotz(&otz);
             if (otz <= 0) { p += stride; continue; }
-            otz += 40;
+            otz += 40 - sp_ot_lift;
+            /* Only reachable with a lift: without one the +40 keeps every poly
+               clear of the menu's reserved range for free (src/sconce.c). */
+            if (otz < SCENE_OT_MIN)   otz = SCENE_OT_MIN;
             if (otz >= OT_LENGTH - 1) otz = OT_LENGTH - 2;
 
             /* Distance fog on the ROOM's curve, for the reason the cull above

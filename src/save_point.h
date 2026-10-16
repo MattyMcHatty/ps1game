@@ -31,6 +31,13 @@ void save_points_update(void); /* slow indefinite Y-axis spin */
 /* scale is fixed-point with 4096 = 1.0 (use 4096 for full size, 2048 for half). */
 int  save_point_add(int32_t x, int32_t y, int32_t z, int32_t rot_y, int32_t scale);
 void save_points_draw(RenderContext *ctx);
+/* Sort this room's save points `buckets` OT slots nearer than the +40 bias they
+   share with the room mesh by default (a bucket is 4 world units). 40 puts them
+   at true scene depth, the sconce's rule (src/sconce.c): for a save point that
+   stands close in front of another prop which already sorts unbiased, and would
+   otherwise tie with it or lose. Call after save_points_clear(), which resets it
+   to 0. */
+void save_points_set_ot_lift(int32_t buckets);
 /* Player collision against the save-point meshes (call from apply_collision_*).
    Gated on py so a save point only blocks the level it stands on — the Garden
    Stairs stacks landings over one XZ footprint. */

@@ -31,6 +31,9 @@
    while the corridor between is still dark; the draw loop carries the
    Catacombs Entry's light-aware cull and fog for exactly that.
 
+   THE SAVE POINT stands just in front of the sconce, at (3120,0), and closes
+   the alcove off — see XC_SAVE_X in the .c.
+
    TWO TEXTURES, BOTH BORROWED: cobblestone and the inner door through
    src/catacombs_entry.c's narrow uploaders, plus the sconce's own page through
    sconce_upload_texture(). The room registers nothing.
