@@ -205,9 +205,10 @@ void demon_dogs_reset(void) {
     demon_dog_count = ddog_default_count;
 }
 
-/* No weaknesses yet — add a { DMG_*, percent } line to give it one (damage.h). */
+/* Holy fire at 2x: the Helluminator ticks a dog for 2 a second, so 3 HP is two
+   seconds of burn. Add a { DMG_*, percent } line for another (damage.h). */
 static const Weakness demon_dog_weakness[] = {
-    { DMG_KINETIC, 100 },   /* placeholder: 100% = no change. Replace or append. */
+    { DMG_HOLY, 200 },
 };
 
 /* Ranged damage. Moved here from a static in graveolver.c when the Helluminator

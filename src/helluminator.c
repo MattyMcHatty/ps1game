@@ -55,13 +55,31 @@ extern volatile size_t  pad_buff_len[2];
    THREE TIMES THE GUN'S CROSSHAIR CIRCLE (14 -> 42 px), matching the reticule
    drawn at three times the size — what the player sees is what burns.
 
-   The RANGE is deliberately shorter than the gun's 4000. A revolver reaches
-   across the room; a lantern lights what is near it, and 1800 is about as far as
-   any of the garden rooms' fog lets you see a target clearly anyway. Making the
-   circle wider without shortening the reach would have turned it into a
-   room-clearing weapon rather than a close one. */
+   >>> THE RANGE IS THE ROOM'S FOG, SO IT BURNS ONLY WHAT CAN BE SEEN. <<<
+   It used to be a fixed number (1800, then 2500). Now a target counts only if
+   it is inside g_fog_far, measured the way the sprite draws measure it before
+   they cull: the Manhattan XZ distance from the camera (zombie.c, adapa.c,
+   ...). So "in reach" and "drawn" use the same test and can never disagree.
+   The forward depth weapon_aim_in_circle tests is never more than that
+   Manhattan distance, so passing g_fog_far there as well changes nothing.
+
+   The reach therefore changes with the room. The Catacombs' lit lantern pushes
+   its own fog back (catacombs_entry.c, lamashtu_arena.c), so lighting it
+   lengthens its reach too, which is the right answer. g_fog_far is set by each
+   room's DRAW, so this reads last frame's value. On the first frame after a
+   room change that is the old room's, and a burn tick is 60 frames long, so it
+   does not matter.
+
+   GULA AND LAMASHTU ARE DRAWN UNFOGGED and can be seen past this. They are
+   held to the fog anyway, so the lantern has one rule everywhere. */
 #define HELL_AIM_RADIUS    42
-#define HELL_RANGE       1800
+#define HELL_RANGE       g_fog_far
+
+/* 1 if (x,z) is inside the fog: the same test that culls a sprite. */
+static int hell_in_fog(int32_t x, int32_t z) {
+    int32_t dx = x - cam_x, dz = z - cam_z;
+    return (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) < g_fog_far;
+}
 
 /* ---- Hold pose (view space) -------------------------------------------------
    The Grave-olver's, and on purpose: this model has the same shape in the same
@@ -215,7 +233,8 @@ static void hell_burn_tick(void) {
     int i;
 
     #define HIT(EX, CY, EZ, HW, HH) \
-        (weapon_aim_in_circle((EX), (CY), (EZ), (HW), (HH), fx, fz, \
+        (hell_in_fog((EX), (EZ)) && \
+         weapon_aim_in_circle((EX), (CY), (EZ), (HW), (HH), fx, fz, \
                               HELL_AIM_RADIUS, HELL_RANGE, &depth) && \
          weapon_aim_clear(fx, fz, depth))
 
@@ -321,16 +340,11 @@ static void hell_burn_tick(void) {
        Same two targets, same exposure gate, same backoff on the boils' clear
        test — see the long notes at those call sites. The one thing worth saying
        HERE is about RANGE, because it changes what this weapon is for in this
-       fight: HELL_RANGE is 1800 against the Grave-olver's 4000, and the boils
-       are on the back wall at z=2734. From the landing at z=300 that is 2400
-       away and the lantern simply does not reach — the player has to walk most
-       of the way up the arena to burn a boil, which is where the slam lands and
-       where the vomit pours. That is a real trade and it is the room's geometry
-       making it, not a rule written anywhere.
-
-       The HEAD is the other way round: the slam brings it to the floor at
-       z=1487 and the faint drops it at z=1929, so both of the long exposures
-       are inside the lantern's reach from the middle of the arena. */
+       fight: HELL_RANGE is the room's fog, and this arena fogs at
+       ASAG_CULL_DIST (7000), so the whole of it is in reach. With the old
+       fixed 1800 the lantern could not reach the boils on the back wall
+       (z=2734) from the landing (z=300), and the player had to walk up into the
+       slam and the vomit to burn one. That trade is gone. */
     if (asag_exposed()) {
         int32_t hx, hy, hz, hw, hh;
         if (asag_head_box(&hx, &hy, &hz, &hw, &hh) && HIT(hx, hy, hz, hw, hh))
@@ -339,19 +353,18 @@ static void hell_burn_tick(void) {
     for (i = 0; i < ASAG_BOIL_COUNT; i++) {
         int32_t bx, by, bz, bw, bh;
         if (!asag_boil_target(i, &bx, &by, &bz, &bw, &bh)) continue;
-        /* >>> AND THE REACH IS THE BOILS' OWN, NOT HELL_RANGE. <<< The
-           paragraph above says this weapon's 1800 is a real trade; it is, and
-           it stays one for everything else in this sweep. It is not one for the
-           boils, because 1800 is a RADIUS and they sit in the corners of a room
-           3000 WIDE: from x=-1200 the right boil was out of reach at ANY depth,
-           which is where the vomit's centre lane drives the player. Measured on
-           a floor sweep — see asag_fight.h, which has the numbers and the
-           trade-off this cost. */
-        if (weapon_aim_in_circle(bx, by, bz, bw, bh, fx, fz,
+        /* >>> THE REACH IS asag_boil_reach(), NOT HELL_RANGE ALONE. <<< In
+           this arena's 7000 fog that is just HELL_RANGE (it returns the longer
+           of the two). The rule exists for a lantern shorter than
+           ASAG_BOIL_REACH: at the old fixed 1800, from x=-1200 the right boil
+           was out of reach at ANY depth, and the vomit's centre lane drives the
+           player there. See asag_fight.h. The fog test comes first, as in HIT. */
+        if (hell_in_fog(bx, bz) &&
+            weapon_aim_in_circle(bx, by, bz, bw, bh, fx, fz,
                                  HELL_AIM_RADIUS, asag_boil_reach(HELL_RANGE),
                                  &depth)) {
             /* >>> AND THIS WEAPON IS THE ONE THE BACKOFF HAD TO BE FIXED FOR.
-               <<< HELL_RANGE puts the player up at the back of the arena to
+               <<< The old fixed 1800 put the player up at the back of the arena to
                reach a boil at all, and from there the line to it meets the
                proxy wall at a steep angle — where a FLAT 80 units of backoff is
                short of the 34-unit gap and every burn off the axis was eaten by

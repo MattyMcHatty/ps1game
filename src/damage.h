@@ -35,12 +35,13 @@ typedef enum {
        NOT an AmmoType: the Grave-olver's cylinder can never hold oil, so this
        type reaches an enemy only from the lantern (see helluminator.h).
 
-       ZOMBIES ARE 3x WEAK TO IT ({ DMG_HOLY, 300 } in zombie.c) and nothing
-       else is, which is exactly why it has its own type rather than reusing
-       DMG_FLAME: that one line raised the lantern's tick against the walking
-       dead from 1 to 3 without touching what Flame Rounds do to them. Every
-       other enemy's table still falls through to the unmodified base, so the
-       lantern does its stated 1 hp/sec to all of them.
+       ZOMBIES ARE 3x WEAK TO IT ({ DMG_HOLY, 300 } in zombie.c), which is
+       exactly why it has its own type rather than reusing DMG_FLAME: that one
+       line raised the lantern's tick against the walking dead from 1 to 3
+       without touching what Flame Rounds do to them. Asag's boils are 3x too;
+       demon dogs, crawlers, Gula and the Rabisu are 2x. Every other enemy's
+       table falls through to the unmodified base, so the lantern does its
+       stated 1 hp/sec to them.
 
        A weakness is not the only way an enemy can answer holy fire. The Living
        Statue takes the plain 1 but is the one enemy the lantern can damage at

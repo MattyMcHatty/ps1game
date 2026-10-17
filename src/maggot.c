@@ -97,13 +97,13 @@ int maggots_alive_in(GameState area) {
     return n;
 }
 
-/* EVERY TYPE AT 1x, listed rather than left to damage_scale()'s "no entry =
-   unmodified" default, so the brief ("each weapon does 1x") is a fact readable
-   here and not an absence. A new DamageType gets 1x by default too; add it
-   here if it ever reaches this enemy. */
+/* EVERY TYPE LISTED, rather than left to damage_scale()'s "no entry =
+   unmodified" default, so what each weapon does is a fact readable here and not
+   an absence. Flame Rounds are 2x (one round kills); the rest are 1x. A new
+   DamageType gets 1x by default; add it here if it ever reaches this enemy. */
 static const Weakness maggot_weakness[] = {
     { DMG_KINETIC, 100 },   /* Standard Rounds          */
-    { DMG_FLAME,   100 },   /* Flame Rounds             */
+    { DMG_FLAME,   200 },   /* Flame Rounds             */
     { DMG_HOLY,    100 },   /* the Helluminator's tick  */
 };
 

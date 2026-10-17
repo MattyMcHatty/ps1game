@@ -618,11 +618,13 @@ void rabisu_fight_begin(Rabisu *r) {
     r->sweep_target = (rbs_rand() & 1) ? 4096 : -4096;
 }
 
-/* Flame Rounds do double damage; a standard round and a deflected fireball both
-   do 1, so 20 HP is 20 standard rounds or 10 flame rounds. Append
-   another { DMG_*, percent } line to give it a second weakness (damage.h). */
+/* Flame Rounds and the Helluminator's holy fire both do double damage; a
+   standard round and a deflected fireball both do 1, so 20 HP is 20 standard
+   rounds, 10 flame rounds or 10 seconds of burn. Append another
+   { DMG_*, percent } line for a further weakness (damage.h). */
 static const Weakness rabisu_weakness[] = {
     { DMG_FLAME, 200 },
+    { DMG_HOLY,  200 },
 };
 
 int32_t rabisu_scale_damage(int32_t base, DamageType type) {

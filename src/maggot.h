@@ -53,19 +53,18 @@
    is full. */
 #define MAX_MAGGOTS           12
 
-/* TWO hits from anything. Every weapon does 1 to it — the axe's swing, one
-   round of either type, one second of the lantern — because its weakness table
-   pins every damage type at 100% (maggot.c), so "hits to kill" is this number
-   whatever the player is holding. */
+/* TWO hits from anything but a Flame Round. The axe's swing, a Standard or
+   Scattershot round and one second of the lantern each do 1; a Flame Round does
+   2 and kills outright (its weakness table, maggot.c). */
 #define MGT_MAX_HEALTH         2
 #define MGT_SPEED             11   /* the creep's: a shade quicker than a dog  */
 
-/* Contact — the creep's arithmetic exactly: a quarter of MAX_HEALTH per second
-   per maggot, Manhattan reach that covers a body stopped on the diagonal of
+/* Contact — 15 points a second per maggot (5 every 20 frames; the creep's is
+   25), Manhattan reach that covers a body stopped on the diagonal of
    MGT_STOP_DIST (110 * sqrt(2) = 156 < 170). Stacks across maggots. */
 #define MGT_CATCH_DIST       170
 #define MGT_DAMAGE_AMOUNT      5
-#define MGT_DAMAGE_TICK       12
+#define MGT_DAMAGE_TICK       20
 
 /* Where it stops: a TRUE radius from the player, inside SWING_RANGE. */
 #define MGT_STOP_DIST        110
@@ -168,7 +167,7 @@ void draw_maggots(RenderContext *ctx);
 /* Deal damage from any source. Two calls of 1 kill it. */
 void maggot_damage(Maggot *m, int dmg);
 
-/* 1x from every damage type, explicitly (see MGT_MAX_HEALTH). */
+/* 2x from DMG_FLAME, 1x from the rest, explicitly (see MGT_MAX_HEALTH). */
 int32_t maggot_scale_damage(int32_t base, DamageType type);
 
 /* The crucifaxe's hit test, measured to the body's own geometry — the creep's

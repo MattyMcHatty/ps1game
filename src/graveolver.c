@@ -243,7 +243,8 @@ static void gun_hit(int kind, int idx) {
         creep_damage(&creeps[idx],
                      creep_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (kind == 14) {
-        /* A MAGGOT: 2 HP and every round type at 1x, so two shots. */
+        /* A MAGGOT: 2 HP, Flame at 2x and the rest at 1x - so one Flame
+           Round, or two of anything else. */
         maggot_damage(&maggots[idx],
                       maggot_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (kind == 8) {
