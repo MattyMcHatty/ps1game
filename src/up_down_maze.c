@@ -29,6 +29,7 @@
 #include "lumberer.h"           /* ...and its second, drawn here but not placed */
 #include "maggot.h"
 #include "item_pickup.h"        /* the Blood Pearl on the sconce */
+#include "sml_med.h"            /* world.c's medipacs, drawn here              */
 
 /* Up Down Maze — see up_down_maze.h for the layout and the two-storey note. */
 
@@ -1028,5 +1029,6 @@ void up_down_maze_draw(RenderContext *ctx) {
            the enemy calls, which restore the 128 window its Voff-64 art needs —
            the Cleaver Corridor's order. */
         item_pickups_draw(ctx);
+        sml_meds_draw(ctx);     /* the medipac on the north-west stub */
     }
 }

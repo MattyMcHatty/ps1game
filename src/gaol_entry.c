@@ -30,6 +30,7 @@
 #include "player.h"             /* current_weapon, player_weapons, the lock */
 #include "sound.h"              /* SFX_UNLOCK                               */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "sml_med.h"            /* world.c's medipacs, drawn here              */
 
 /* The Gaol Entry — see gaol_entry.h for the layout and the doors. */
 
@@ -638,5 +639,8 @@ void gaol_entry_draw(RenderContext *ctx) {
         draw_crawlers(ctx);
         draw_lumberers(ctx);
         draw_maggots(ctx);   /* area-tagged: free where none is placed */
+        /* The medipac, after the enemy calls: it needs the 128 window those
+           restore. sml_med.tim is at Voff 0 on its own page. */
+        sml_meds_draw(ctx);
     }
 }

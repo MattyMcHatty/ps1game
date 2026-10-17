@@ -49,6 +49,12 @@
 
    Its exports live in assets/catacombs/, beside the other two Chapter 3 rooms'. */
 
+/* How many pickups world_seed_room() seeds in this room (the Scattershot and
+   Standard Rounds by the south-east corner). The east tray spawns its pickups
+   at RUN TIME, and only into slots from here up — see item_pickup_spawn_from().
+   Change one, change both. */
+#define INC_SEEDED_PICKUPS  2
+
 void incinerator_room_load_assets(void);     /* startup: headers only, no CD, no regs */
 void incinerator_room_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void incinerator_room_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */

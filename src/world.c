@@ -246,22 +246,18 @@ static int room_index(GameState area) {
            ONE medipac, seeded below, so this slot is what makes collecting it
            stick across a re-entry as well as across a save. */
         case STATE_CATACOMBS_ENTRY:   return 27;
-        /* The Up Down Maze. Seeded EMPTY — world_seed_room has no branch for it
-           — and like Asag's arena that is not a stub: Chapter 3 has no monsters
-           yet and nothing from Chapters 1 or 2 can be placed down here, because
-           area_bank_sync() has freed their art (src/area_bank.h). It still needs
-           a slot of its own, because without one it would fall through the
-           default below and share the DELIVERY AREA's, which is how a room
-           silently inherits another room's smashed crates and dead enemies. */
+        /* The Up Down Maze. Seeded by world_seed_room (crawlers, a Blood
+           Pearl and CHAPTER 3'S SUPPLIES). It needs a slot of its own, because
+           without one it would fall through the default below and share the
+           DELIVERY AREA's, which is how a room silently inherits another
+           room's smashed crates and dead enemies. */
         case STATE_UP_DOWN_MAZE:      return 28;
-        /* The Incinerator Room. Seeded EMPTY, for the same two reasons as the
-           two rooms above: Chapter 3's one monster is placed in the maze and
-           nowhere else so far, and nothing from Chapters 1 or 2 can be placed
-           down here because area_bank_sync() has freed their art
-           (src/area_bank.h). It still needs a slot of its own, because without
-           one it would fall through the default below and share the DELIVERY
-           AREA's, which is how a room silently inherits another room's smashed
-           crates and dead enemies. */
+        /* The Incinerator Room. Seeded with two boxes of rounds (CHAPTER 3'S
+           SUPPLIES, INC_SEEDED_PICKUPS); the east tray's pickups are spawned at
+           run time. It needs a slot of its own, because without one it would
+           fall through the default below and share the DELIVERY AREA's, which
+           is how a room silently inherits another room's smashed crates and
+           dead enemies. */
         case STATE_INCINERATOR_ROOM:  return 29;
         /* The Tomb. Seeded EMPTY, for the same two reasons as the three rooms
            above: Chapter 3's one monster is placed in the maze and nowhere else
@@ -334,7 +330,7 @@ static int room_index(GameState area) {
            and through the Up Down Maze's south-upper door. Slot 45 of 64. */
         case STATE_THE_SHELF:         return 45;
         /* THE GAOL ENTRY, Chapter 3's twentieth room, through the Up Down
-           Maze's east-upper door. Slot 46 of 64. Seeded EMPTY. */
+           Maze's east-upper door. Slot 46 of 64. One medipac. */
         case STATE_GAOL_ENTRY:        return 46;
         /* THE GAOL CELLS, Chapter 3's twenty-first room, through the Gaol
            Entry's gaol door. Slot 47 of 64. A Blood Pearl and two
@@ -366,15 +362,15 @@ static int room_index(GameState area) {
            Seeded EMPTY: its Creeps are the crib's, and transient. */
         case STATE_ROOM_OF_GUTS:      return 56;
         /* THE NECK, Chapter 3's thirty-first room, behind the Room of Baby
-           Names' blank-plate door. Slot 57 of 64. Seeded EMPTY: its save
-           point is a prop, placed by neck_init(). */
+           Names' blank-plate door. Slot 57 of 64. One medipac; its save
+           point and oil tank are props, placed by neck_init(). */
         case STATE_NECK:              return 57;
         /* THE HEAD, Chapter 3's thirty-second room, behind the Neck's east
            door. Slot 58 of 64. Seeded EMPTY: its arm switches are props,
            placed by the_head_init(). */
         case STATE_THE_HEAD:          return 58;
         /* THE KENNELS, Chapter 3's thirty-third room, behind the Nursery's
-           west door. Slot 59 of 64. Seeded EMPTY. */
+           west door. Slot 59 of 64. Two boxes of rounds, two medipacs. */
         case STATE_KENNELS:           return 59;
         /* THE LAMASHTU ARENA, Chapter 3's thirty-fourth room, behind The
            Head's east door. Slot 60 of 64. Seeded EMPTY. */
@@ -1604,8 +1600,8 @@ void world_seed_room(GameState area) {
         living_statue_add(4500,  1200, -280, 1, STATE_THE_HATCH);
     }
 
-    /* Catacombs Entry: ONE small medipac, and it is the whole of Chapter 3's
-       supply so far. It lies OUT ON THE OPEN FLOOR of the burial-niche hall,
+    /* Catacombs Entry: ONE small medipac, the first of Chapter 3's supplies
+       (the rest are at the end of this function). It lies OUT ON THE OPEN FLOOR of the burial-niche hall,
        mid-way along it and all but on the line the inner door sits on (that
        door's centre is z=1402), so it is collected in passing on the walk east
        rather than being a detour — unlike the save point, which stays a corner
@@ -2004,6 +2000,112 @@ void world_seed_room(GameState area) {
         sml_med_spawn(0, -149, 900);
     if (area == STATE_DEAD_END_MARK)
         lumberer_add(0, 900, 0, 700, -149, STATE_DEAD_END_MARK);
+
+    /* ---- CHAPTER 3'S SUPPLIES --------------------------------------------
+       Ammunition and medipacs through the Catacombs, as authored by the
+       designer (room, X/Z, count). LAST in this function, so in a room that
+       already seeds a pickup above (the Up Down Maze's and the Gaol Cells'
+       pearls, the Meat Sack) these take the slots after it and move no
+       existing items_gone bit.
+
+       y: the two floor conventions, on each room's own floor —
+         y=0 floors      -50 for a pickup (item_pickup_spawn raises it
+                         IP_FLOAT_Y), -149 for a medipac (sml_med_spawn adds
+                         SML_MED_FLOAT_Y)
+         y=-1000 floors  the same less 1000: -1050 / -1149. The Up Down Maze's
+                         block tops, The Pit's gallery and the North Chamber's
+                         gallery are all walked at y=-1000 (their headers).
+       ITEM_PICKUP_HEIGHT (150) and SML_MED_PICKUP_HEIGHT (300) are both well
+       short of the 1000 between storeys, so an upper item is never collected
+       from below or a lower one from above.
+
+       Every point was checked against its room's collision proxy: inside the
+       bounds and at least 193 off any wall, so none is inside the 195 push
+       radius by more than the pickup reach covers. AUTHORED, not probed:
+       world_seed_room runs for rooms whose geometry is not resident.
+
+       Each room below now calls item_pickups_update/_draw and/or
+       sml_meds_update/_draw for what it holds (tools/ADDING_AN_ITEM.txt
+       STEP 8, trap 7). */
+
+    /* THE UP DOWN MAZE: a medipac up on the north-west stub (block top
+       x[-300,299] z[2100,2700]), and two lots of Flame Rounds in the lower
+       corridors — the far north-east, and the open stretch east of the big
+       plateau, neither under a block. */
+    if (area == STATE_UP_DOWN_MAZE) {
+        sml_med_spawn(69, -1149, 2386);                               /* upper */
+        item_pickup_spawn_amount(2348, -50, 2932, PICKUP_FLAME_ROUNDS, 3);
+        item_pickup_spawn_amount(2397, -50, 1767, PICKUP_FLAME_ROUNDS, 3);
+    }
+
+    /* THE SLIDING BARS ROOM: in the grid's corridors, one flat plane at y=0. */
+    if (area == STATE_SLIDING_BARS_ROOM) {
+        item_pickup_spawn_amount(2670, -50,  890, PICKUP_SCATTER_ROUNDS, 3);
+        sml_med_spawn(1503, -149, 2086);
+        item_pickup_spawn_amount(2169, -50, 1496, PICKUP_ROUNDS, 6);
+    }
+
+    /* THE MEAT PLANT: Flame Rounds, after the Meat Sack, which keeps slot 0. */
+    if (area == STATE_MEAT_PLANT)
+        item_pickup_spawn_amount(-854, -50, 3973, PICKUP_FLAME_ROUNDS, 3);
+
+    /* THE SHELF: a row of four along the hall's south side, z=-1883, from the
+       east end west. */
+    if (area == STATE_THE_SHELF) {
+        item_pickup_spawn_amount( -957, -50, -1883, PICKUP_SCATTER_ROUNDS, 3);
+        item_pickup_spawn_amount(-1497, -50, -1883, PICKUP_FLAME_ROUNDS,   3);
+        item_pickup_spawn_amount(-2121, -50, -1883, PICKUP_ROUNDS,         3);
+        sml_med_spawn(-2877, -149, -1883);
+    }
+
+    /* THE INCINERATOR ROOM: two boxes near the east wall (x=1000). EXACTLY
+       INC_SEEDED_PICKUPS of them (src/incinerator_room.h) — the east tray
+       spawns its pickups at run time into the slots after these. */
+    if (area == STATE_INCINERATOR_ROOM) {
+        item_pickup_spawn_amount(709, -50, -1174, PICKUP_SCATTER_ROUNDS, 3);
+        item_pickup_spawn_amount(709, -50, -1506, PICKUP_ROUNDS,         6);
+    }
+
+    /* THE PIT: one at the dead end of each gallery arm, up at y=-1000 — the
+       medipac on the west arm (x[-2104,-1504]), the Flame Rounds on the east
+       (x[2099,2699]). */
+    if (area == STATE_THE_PIT) {
+        sml_med_spawn(-1772, -1149, 2987);
+        item_pickup_spawn_amount(2423, -1050, 2987, PICKUP_FLAME_ROUNDS, 3);
+    }
+
+    /* THE NORTH CHAMBER: two on the ground at the north end — the medipac
+       under the east gallery arm, the Scattershot in the west alcove — and a
+       second Scattershot up on the platform over the cage (y=-1000). */
+    if (area == STATE_NORTH_CHAMBER) {
+        sml_med_spawn(2095, -149, 3407);                              /* lower */
+        item_pickup_spawn_amount(-1480,   -50, 3407, PICKUP_SCATTER_ROUNDS, 3);
+        item_pickup_spawn_amount(  620, -1050, 2088, PICKUP_SCATTER_ROUNDS, 3);
+    }
+
+    /* THE GAOL ENTRY: a medipac by the north end. */
+    if (area == STATE_GAOL_ENTRY)
+        sml_med_spawn(641, -149, 1425);
+
+    /* THE GAOL CELLS: three boxes in the cells. After the pearl (slot 0). */
+    if (area == STATE_GAOL_CELLS) {
+        item_pickup_spawn_amount(1321, -50, 1362, PICKUP_ROUNDS,         3);
+        item_pickup_spawn_amount( 291, -50, -136, PICKUP_SCATTER_ROUNDS, 3);
+        item_pickup_spawn_amount(2620, -50, -170, PICKUP_FLAME_ROUNDS,   3);
+    }
+
+    /* THE KENNELS: the big cache, side by side at the north end, and a
+       medipac in each of the two far corners. */
+    if (area == STATE_KENNELS) {
+        item_pickup_spawn_amount(-286, -50, 3951, PICKUP_ROUNDS,         18);
+        item_pickup_spawn_amount( 214, -50, 3951, PICKUP_SCATTER_ROUNDS,  9);
+        sml_med_spawn( 1894, -149, 3779);
+        sml_med_spawn(-1923, -149, 3679);
+    }
+
+    /* THE NECK: a medipac in the aisle between the two pillars. */
+    if (area == STATE_NECK)
+        sml_med_spawn(1469, -149, 887);
 }
 
 void world_enter(GameState area) {

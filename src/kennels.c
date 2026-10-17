@@ -34,6 +34,8 @@
 #include "demondog.h"           /* the eight caged dogs: sheet, draw          */
 #include "gula.h"               /* ...and what their deaths call up            */
 #include "gula_death.h"
+#include "item_pickup.h"        /* world.c's pickups, drawn here               */
+#include "sml_med.h"            /* world.c's medipacs, drawn here              */
 
 /* The Kennels — see kennels.h. Copied from src/neck.c. */
 
@@ -613,5 +615,9 @@ void kennels_draw(RenderContext *ctx) {
         gula_death_draw(ctx);
         /* AFTER the enemies: the bars need the 128 window they restore. */
         kennels_puzzle_draw(ctx);
+        /* The pickups, after the enemy calls: the item sprites need the 128
+           window those restore. sml_med.tim is at Voff 0 on its own page. */
+        item_pickups_draw(ctx);
+        sml_meds_draw(ctx);
     }
 }

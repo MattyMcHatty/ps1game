@@ -8,7 +8,7 @@
 #include "menu.h"
 #include "title.h"
 #include "world.h"
-#include "oil_dispenser.h"   /* the Catacombs tank rides in SaveData.disp_oil */
+#include "oil_dispenser.h"   /* the oil tanks ride in SaveData.disp_oil[] */
 #include "incinerator.h"     /* ...and its conveyor in incin_slot/incin_count   */
 #include "sliding_bars_room.h" /* ...and the four gates in sb_gates            */
 #include "kennels_puzzle.h"    /* ...and the Kennels' levers + dogs (kennels) */
@@ -51,6 +51,8 @@ _Static_assert(sizeof(WorldDelta) <= SAVE_DELTA_MAX_BYTES,
    bytes today. */
 _Static_assert(sizeof(SaveData) <= MC_FRAME_SIZE,
                "SaveData outgrew one memory-card frame");
+_Static_assert(OD_TANK_COUNT <= sizeof(((SaveData *)0)->disp_oil),
+               "a new oil tank needs a byte in SaveData.disp_oil");
 
 /* ---- Save-block icon (cosmetic; shown in the console card manager) ---------
    16x16 4bpp bitmap + a 16-entry BGR555 palette, both generated from
@@ -85,7 +87,8 @@ void savegame_capture(SaveData *sd) {
     sd->hatch_keys = player_hatch_keys;
     sd->blood_pearls = player_blood_pearls;
     sd->oil        = player_oil;
-    sd->disp_oil   = oil_dispenser_oil();
+    for (int i = 0; i < OD_TANK_COUNT; i++)
+        sd->disp_oil[i] = (uint8_t)oil_dispenser_oil(i);
     /* The Incinerator's conveyor. Written unconditionally, -1 and 0 when it is
        empty, so a reader never has to ask whether the fields are live. */
     sd->incin_slot  = incinerator_slot();
@@ -278,7 +281,8 @@ void savegame_apply_pending(void) {
     /* The tank, clamped by the setter itself rather than here — it is the only
        way into that scalar, so putting the clamp behind it covers this call and
        every later one. */
-    oil_dispenser_set_oil((int)sd->disp_oil);
+    for (int i = 0; i < OD_TANK_COUNT; i++)
+        oil_dispenser_set_oil(i, (int)sd->disp_oil[i]);
     /* ...and the conveyor, clamped by its setter for the same reason: a slot
        off the end of MENU_ITEM_SLOTS would index menu_item_name() out of
        bounds, and the setter is the only way into those two.

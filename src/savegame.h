@@ -17,7 +17,12 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   37            /* v37: Scattershot Rounds. A third
+#define SAVE_VERSION   38            /* v38: a tank per oil dispenser. The
+                                        Neck has a second tank with its own
+                                        oil, so disp_oil is a byte per OdTank
+                                        now instead of one int32 - the same
+                                        four bytes, but no longer one number.
+                                        v37: Scattershot Rounds. A third
                                         AmmoType makes ammo[] one int longer,
                                         which moves every field after it (and
                                         loaded/loaded_type shrink to int16 to
@@ -324,8 +329,12 @@ typedef struct {
     int32_t  hatch_keys;            /* hatch keys carried, 0..HATCH_KEYS_MAX */
     int32_t  blood_pearls;          /* Blood Pearls carried, 0..BLOOD_PEARLS_MAX */
     int32_t  oil;                   /* Helluminator oil, 0..HELL_OIL_MAX      */
-    int32_t  disp_oil;              /* what is left in the Catacombs oil
-                                       dispenser, 0..OD_OIL_MAX. Beside `oil`
+    uint8_t  disp_oil[4];           /* what is left in each oil dispenser's
+                                       tank, 0..OD_OIL_MAX, indexed by OdTank
+                                       (src/oil_dispenser.h; savegame.c asserts
+                                       OD_TANK_COUNT fits). Bytes, not an
+                                       int32 each: SaveData fills its frame,
+                                       and 100 fits a byte. Beside `oil`
                                        because the two are the same substance in
                                        two places, and a reader checking one
                                        should trip over the other. */

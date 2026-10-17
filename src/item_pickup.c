@@ -132,8 +132,13 @@ void item_pickups_reset(void) {
 
 int item_pickup_spawn_range(int32_t x, int32_t y, int32_t z, PickupKind kind,
                             int32_t amount, int32_t radius) {
+    return item_pickup_spawn_from(0, x, y, z, kind, amount, radius);
+}
+
+int item_pickup_spawn_from(int first, int32_t x, int32_t y, int32_t z,
+                           PickupKind kind, int32_t amount, int32_t radius) {
     int i;
-    for (i = 0; i < MAX_ITEM_PICKUPS; i++) {
+    for (i = (first < 0 ? 0 : first); i < MAX_ITEM_PICKUPS; i++) {
         if (!item_pickups[i].active) {
             item_pickups[i].x         = x;
             item_pickups[i].y         = y - IP_FLOAT_Y;   /* -Y is up */

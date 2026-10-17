@@ -603,33 +603,17 @@ int catacombs_entry_interact_update(int lock) {
        stale while one of them is firing.
 
        IT IS THE ONE THAT DOES SOMETHING, so it is the one that does not go
-       through ce_examine: the arithmetic runs in src/oil_dispenser.c and hands
-       back which of four things happened, and the wording is the room's.
+       through ce_examine: oil_dispenser_press() pours from this room's tank
+       and posts whichever of its four lines applies (src/oil_dispenser.c owns
+       the arithmetic AND the wording, which the Neck's tank shares).
 
        >>> THE PRESS IS TESTED FIRST AND THE POUR HAPPENS SECOND. <<< There is
-       no case in which oil_dispenser_refill() is called for a press that was
-       out of range, facing the wrong way, locked, or not an edge — it spends a
-       resource, so it must never be asked speculatively. */
+       no case in which the tank is asked for a press that was out of range,
+       facing the wrong way, locked, or not an edge — it spends a resource, so
+       it must never be asked speculatively. */
     int took3 = 0;
     if (ce_press_at((took || took2) ? 1 : lock, &oil_circle_prev, OD_X, OD_Z)) {
-        switch (oil_dispenser_refill()) {
-        case OD_REFILL_NO_LANTERN:
-            /* No lantern: the line says what is IN it, not what it does. The
-               player is being shown the thing they will come back for. */
-            show_pickup_msg_raw("It appears to be filled with oil...");
-            break;
-        case OD_REFILL_EMPTY:
-            show_pickup_msg_raw("The dispenser is empty");
-            break;
-        case OD_REFILL_FULL:
-            /* NOT IN THE SPEC, and a judgement: a press that is refused has to
-               say so or it reads as a dropped input. It spends nothing. */
-            show_pickup_msg_raw("The Helluminator is already full");
-            break;
-        case OD_REFILL_DONE:
-            show_pickup_msg_raw("Refilled the Helluminator");
-            break;
-        }
+        oil_dispenser_press(OD_TANK_CATACOMBS_ENTRY);
         took3 = 1;
     }
     return took || took2 || took3;
@@ -864,7 +848,8 @@ void catacombs_entry_init(void) {
        Area-tagged, so the instance cannot collide or draw anywhere else even if
        a later room forgets to clear it. */
     oil_dispensers_clear();
-    oil_dispenser_place(STATE_CATACOMBS_ENTRY, OD_X, 1240 - GROUND_FLOOR_Y, OD_Z, 0);
+    oil_dispenser_place(STATE_CATACOMBS_ENTRY, OD_TANK_CATACOMBS_ENTRY,
+                        OD_X, 1240 - GROUND_FLOOR_Y, OD_Z, 0);
 
     /* Resolve the view distance with no ease: the first frame in the room shows
        whatever the player walked in holding, rather than easing out from the

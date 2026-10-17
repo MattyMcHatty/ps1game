@@ -29,6 +29,8 @@
 #include "oil_dispenser.h"
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "item_pickup.h"        /* world.c's pickups, drawn here               */
+#include "sml_med.h"            /* world.c's medipacs, drawn here              */
 
 /* The North Chamber — see north_chamber.h for the layout, the two storeys and
    the door list. */
@@ -801,5 +803,9 @@ void north_chamber_draw(RenderContext *ctx) {
         draw_crawlers(ctx);
         draw_lumberers(ctx);
         draw_maggots(ctx);   /* area-tagged: free where none is placed */
+        /* The pickups, after the enemy calls: the item sprites need the 128
+           window those restore. sml_med.tim is at Voff 0 on its own page. */
+        item_pickups_draw(ctx);
+        sml_meds_draw(ctx);
     }
 }

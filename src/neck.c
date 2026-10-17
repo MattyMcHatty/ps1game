@@ -27,6 +27,8 @@
 #include "oil_dispenser.h"
 #include "player.h"             /* current_weapon, player_weapons             */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "item_pickup.h"        /* world.c's pickups, drawn here               */
+#include "sml_med.h"            /* the medipac between the pillars            */
 
 /* The Neck — see neck.h. Copied from src/throat.c, the last Chapter 3 room
    with no art of its own. */
@@ -111,7 +113,8 @@ static void nk_floor_zones_init(void) {
 }
 
 /* ---- Textures --------------------------------------------------------------
-   TWO, BOTH BORROWED, BOTH AT Voff 0:
+   TWO FOR THE MESH, BOTH BORROWED, BOTH AT Voff 0 (the oil dispenser's own
+   texture is uploaded beside them, by its module — see THE OIL DISPENSER):
 
      0 cobblestones        walls, pillars, floor, ceiling: 329 of 333 (x384 y0)
      1 catacomb inner door the two doorways, 2 polys each            (x832 y0)
@@ -174,6 +177,7 @@ void neck_load_assets(void) {
 void neck_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
+    oil_dispenser_upload_texture();   /* the tank in the south-east corner */
 }
 
 /* ---- THE DOORS -------------------------------------------------------------
@@ -218,14 +222,43 @@ void neck_upload_textures(void) {
 #define NK_SAVE_Y            (NK_FLOOR_Y - 300)
 #define NK_SAVE_Z            1600
 
-/* Circle edge-detect, one per door. Seeded "held" by the arm below so a press
-   carried in through the transition cannot fire on the arrival frame. */
+/* ---- THE OIL DISPENSER -----------------------------------------------------
+   The chapter's second tank, OD_TANK_NECK, with a reservoir of its own (20 to
+   start — src/oil_dispenser.c's od_tank_start[]). In the SOUTH-EAST CORNER,
+   where the east wall (wall 2, x=2999) meets the south wall (wall 3, z=0):
+   exactly the corner the Catacombs Entry's tank is set into, so it takes that
+   one's numbers with this room's walls — origin 2 in from both, rot 0, which
+   points the spout back up the (-X,+Z) diagonal into the hall.
+
+   THE SIGN is that tank's, moved here: 110 out along the diagonal at half
+   size, so it spans x[2847,2991] z[8,152] — clear of both walls — and its
+   glyph top hangs 150 above the floor, under the tank, as the Entry's does
+   (1090 over a 1240 floor).
+
+   ITS PRESS goes LAST in main.c's veto chain, after the save point and both
+   doors. The east door's 500 circle (about 2999,900) and this one (about
+   2997,2) are 900 apart Manhattan, so a thin sliver near (2950,450) is inside
+   both; the chain is what makes one press there do one thing. The save point
+   is 1598 north of it. */
+#define NK_OD_X              2997
+#define NK_OD_Z                 2
+#define NK_OD_TEXT_X         2919     /* 110 out along the (-X,+Z) diagonal */
+#define NK_OD_TEXT_Z           80
+#define NK_OD_TEXT_Y         (NK_FLOOR_Y - 150)   /* glyph TOP, under the tank */
+#define NK_OD_TEXT_YAW       1536     /* 135 deg: face back north-west       */
+#define NK_OD_TEXT_PIXEL        2     /* half DOOR_PIXEL_SIZE, as the Entry's */
+
+/* Circle edge-detect, one per door and one for the tank. Seeded "held" by the
+   arm below so a press carried in through the transition cannot fire on the
+   arrival frame. */
 static int west_circle_prev = 1;
 static int east_circle_prev = 1;
+static int oil_circle_prev  = 1;
 
 void neck_arm(void) {
     west_circle_prev = interact_tapped();
     east_circle_prev = west_circle_prev;
+    oil_circle_prev  = west_circle_prev;
     save_point_arm();
 }
 
@@ -255,6 +288,14 @@ int neck_east_door_triggered(int lock) {
     return nk_door_triggered(NK_EAST_X, NK_EAST_Z, &east_circle_prev, lock);
 }
 
+/* The tank's tap: the doors' own edge/range/facing test about the corner, then
+   the pour and its log line (src/oil_dispenser.c owns both). */
+int neck_oil_update(int lock) {
+    if (!nk_door_triggered(NK_OD_X, NK_OD_Z, &oil_circle_prev, lock)) return 0;
+    oil_dispenser_press(OD_TANK_NECK);
+    return 1;
+}
+
 /* The floating sign. Same shape as every other sign in the game: opaque within
    NK_FADE_NEAR, gone by NK_TEXT_RADIUS. `sign_x` is the wall X pushed 11 toward
    the player; `mirror` is the side it is read from (see THE DOORS above). */
@@ -276,6 +317,27 @@ static void nk_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
                         sign_x, NK_DOOR_TEXT_Y, door_z - 200,
                         50, 255, 50, fade, mirror, TEXT_PLANE_YZ,
                         DOOR_PIXEL_SIZE);
+}
+
+/* The tank's sign, on a free yaw: the range and fade are measured from the
+   tank (NK_OD_X/Z) and the glyphs laid out about the sign point — the Catacombs
+   Entry's ce_sign_yaw(), for the same reason. */
+static void nk_oil_text(RenderContext *ctx) {
+    int32_t dx = cam_x - NK_OD_X;
+    int32_t dz = cam_z - NK_OD_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= NK_TEXT_RADIUS) return;
+    if (xz > NK_FADE_NEAR) {
+        int range = NK_TEXT_RADIUS - NK_FADE_NEAR;
+        int prog  = xz - NK_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+    door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to refill",
+                            NK_OD_TEXT_X, NK_OD_TEXT_Y, NK_OD_TEXT_Z,
+                            50, 255, 50, fade, NK_OD_TEXT_YAW, NK_OD_TEXT_PIXEL);
 }
 
 void neck_spawn_west(void) {
@@ -318,12 +380,16 @@ void neck_init(void) {
        instance left from another room would block invisibly anywhere it falls
        inside x[0,3000] z[0,1800]. Cleared as the Throat clears them; safe,
        because catacombs_entry_init() re-places all four. THEN this room's own
-       save point (see NK_SAVE_X above). */
+       save point (see NK_SAVE_X above) and its own oil tank (THE OIL
+       DISPENSER, above), which draws on OD_TANK_NECK's reservoir — the clear
+       drops the placement, never the oil. */
     save_points_clear();
     save_point_add(NK_SAVE_X, NK_SAVE_Y, NK_SAVE_Z, 512, 2048);
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
+    oil_dispenser_place(STATE_NECK, OD_TANK_NECK,
+                        NK_OD_X, NK_FLOOR_Y - GROUND_FLOOR_Y, NK_OD_Z, 0);
 
     nk_view_resolve(1);
 }
@@ -517,14 +583,23 @@ void neck_draw(RenderContext *ctx) {
 
     if (exp != DBG_EXP_NO_MESH) draw_neck_smd(ctx);
 
-    /* >>> LEVEL 8 IS THE SAVE POINT AND THE SIGNS. <<< Nothing else stands in
-       the Neck. The two Chapter 3 enemy draws are area-tagged and cost nothing
-       here; they are called on the Tomb's argument, so a room that is later
-       given an occupant in world.c draws it without an edit. */
+    /* The oil tank, a fixture of the hall like the Catacombs Entry's, so not
+       under the LEVEL 8 switch. It NEEDS the 128 window set above: its UVs run
+       past one tile and only land on the art because the window wraps them
+       (src/oil_dispenser.c). */
+    oil_dispensers_draw(ctx);
+
+    /* >>> LEVEL 8 IS THE SAVE POINT, THE SIGNS AND THE MEDIPAC. <<< The two
+       Chapter 3 enemy draws are area-tagged and cost nothing here; they are
+       called on the Tomb's argument, so a room that is later given an occupant
+       in world.c draws it without an edit. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         save_points_draw(ctx);
         nk_door_text(ctx, NK_WEST_X, NK_WEST_Z, NK_WEST_X + 11, 0);  /* from +X */
         nk_door_text(ctx, NK_EAST_X, NK_EAST_Z, NK_EAST_X - 11, 1);  /* from -X */
+        nk_oil_text(ctx);
+        /* The tank's level, on the signs' own fade curve (src/oil_dispenser.h). */
+        oil_dispensers_draw_bar(ctx, NK_TEXT_RADIUS, NK_FADE_NEAR);
         /* THE CHAPTER 3 ENEMIES. Their sheets sit at Voff 128, so each is
            handed the window to restore after drawing unmasked. */
         {
@@ -534,5 +609,9 @@ void neck_draw(RenderContext *ctx) {
         }
         draw_crawlers(ctx);
         draw_lumberers(ctx);
+        /* The pickups, after the enemy calls: the item sprites need the 128
+           window those restore. sml_med.tim is at Voff 0 on its own page. */
+        item_pickups_draw(ctx);
+        sml_meds_draw(ctx);
     }
 }

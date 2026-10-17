@@ -17,7 +17,10 @@
 
    THE SAVE POINT stands in the north-east corner, 200 off both walls.
 
-   Nothing is seeded in it.
+   THE OIL DISPENSER stands in the south-east corner: the chapter's second
+   tank, with a reservoir of its own (OD_TANK_NECK, src/oil_dispenser.h).
+
+   world.c seeds one small medipac, between the pillars.
 
    TWO TEXTURES, BOTH BORROWED: cobblestone and the inner door, through
    src/catacombs_entry.c's narrow uploaders.
@@ -44,8 +47,13 @@ void neck_spawn_east(void);
 int  neck_west_door_triggered(int lock);
 int  neck_east_door_triggered(int lock);
 
-/* Arm every interaction in the room (both doors and the save point). Called by
-   the spawn above. */
+/* The oil tank's Circle: pours and posts the log line on a fresh press made in
+   range and facing it, and returns 1 if it took the press. Call every frame,
+   AFTER both doors, with their answers folded into `lock`. */
+int  neck_oil_update(int lock);
+
+/* Arm every interaction in the room (both doors, the tank and the save point).
+   Called by the spawn above. */
 void neck_arm(void);
 
 #endif

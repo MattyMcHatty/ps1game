@@ -20,6 +20,7 @@
 
 typedef struct {
     GameState area;                        /* only draws/collides in this room */
+    int       tank;                        /* OdTank: whose reservoir it pours */
     int32_t   x, y, z, rot_y;              /* floor corner; world y = y+GROUND_FLOOR_Y */
     int32_t   min_x, max_x, min_z, max_z;  /* world AABB, baked at place time  */
     int       active;
@@ -50,26 +51,43 @@ static int oil_tex = -1;
    Feet are cam_y + GROUND_FLOOR_Y. */
 #define OD_PLAYER_HEAD 30
 
-/* ---- THE RESERVOIR ---------------------------------------------------------
-   ONE scalar for the whole game, not a field of OilDispenser — oil_dispenser.h
-   sets out at length why that is forced by clear()/place() running on every
-   room entry, and what has to change the day a second refill point ships. Full
-   at module scope so a run that never touches reset_game still starts sane. */
-static int32_t reservoir = OD_OIL_MAX;
+/* ---- THE RESERVOIRS --------------------------------------------------------
+   One per OdTank, not a field of OilDispenser — oil_dispenser.h says why that
+   is forced by clear()/place() running on every room entry. Started from
+   od_tank_start[] at module scope so a run that never touches reset_game still
+   starts sane. */
+static const int32_t od_tank_start[OD_TANK_COUNT] = {
+    50,   /* OD_TANK_CATACOMBS_ENTRY: half a lantern, the chapter's first fill */
+    20,   /* OD_TANK_NECK                                                     */
+};
 
-int oil_dispenser_oil(void) { return (int)reservoir; }
+static int32_t reservoir[OD_TANK_COUNT] = { 50, 20 };
 
-void oil_dispenser_set_oil(int units) {
+_Static_assert(sizeof od_tank_start / sizeof od_tank_start[0] == OD_TANK_COUNT,
+               "od_tank_start[] needs a row per OdTank");
+
+/* Every way in takes a tank id, and a bad one (a corrupt save, a typo at a
+   placement) must not index past the array. Tank 0 is the safe fallback. */
+static int od_tank(int tank) {
+    return (tank < 0 || tank >= OD_TANK_COUNT) ? 0 : tank;
+}
+
+int oil_dispenser_oil(int tank) { return (int)reservoir[od_tank(tank)]; }
+
+void oil_dispenser_set_oil(int tank, int units) {
     /* Clamped on the way in exactly as savegame.c clamps player_oil, and for
        the same reason: the bar prints it and the refill spends it, so a corrupt
        value would show as a bar off the end of its trough and a lantern filled
        from nothing. */
     if (units < 0)           units = 0;
     if (units > OD_OIL_MAX)  units = OD_OIL_MAX;
-    reservoir = units;
+    reservoir[od_tank(tank)] = units;
 }
 
-void oil_dispensers_reset(void) { reservoir = OD_OIL_MAX; }
+void oil_dispensers_reset(void) {
+    int t;
+    for (t = 0; t < OD_TANK_COUNT; t++) reservoir[t] = od_tank_start[t];
+}
 
 /* Pour. The arithmetic is the whole of it and it lives HERE rather than in the
    room, because the room's business is which button was pressed and what the
@@ -80,9 +98,10 @@ void oil_dispensers_reset(void) { reservoir = OD_OIL_MAX; }
    the lantern is told about the oil whether the tank is full or dry, because
    what they are being told is that there is oil here at all, and "the dispenser
    is empty" to someone who cannot use it either way is a fact about nothing. */
-OdRefill oil_dispenser_refill(void) {
+OdRefill oil_dispenser_refill(int tank) {
+    int32_t *res = &reservoir[od_tank(tank)];
     if (!(player_weapons & (1 << WEAPON_HELLUMINATOR))) return OD_REFILL_NO_LANTERN;
-    if (reservoir <= 0)                                 return OD_REFILL_EMPTY;
+    if (*res <= 0)                                      return OD_REFILL_EMPTY;
 
     int32_t need = HELL_OIL_MAX - player_oil;
     if (need <= 0) return OD_REFILL_FULL;
@@ -91,9 +110,9 @@ OdRefill oil_dispenser_refill(void) {
        transfer is the SHORTFALL, capped by what is in the tank, so a tank with
        30 left in it puts 30 into a lantern that is 60 short and is then empty
        — rather than refusing because it cannot fill the lantern outright. */
-    int32_t moved = (need < reservoir) ? need : reservoir;
+    int32_t moved = (need < *res) ? need : *res;
     player_oil += (int)moved;
-    reservoir  -= moved;
+    *res       -= moved;
 
     /* THE GLUG, AND IT IS HERE RATHER THAN BESIDE THE LOG LINE IN THE ROOM.
        This is the only branch in the game in which oil actually moves, so it is
@@ -104,9 +123,37 @@ OdRefill oil_dispenser_refill(void) {
 
        SND_BANK_CATACOMBS, so it is silent everywhere the bank is not loaded —
        which is every room but this chapter's, and this prop is only ever placed
-       in one of them. */
+       in this chapter's rooms. */
     sound_play(SFX_GLUG);
     return OD_REFILL_DONE;
+}
+
+/* The log line for each case. Moved here from the Catacombs Entry when the
+   Neck got a tank of its own: two rooms saying the same four things should
+   say them from one place.
+
+   >>> THE PRESS IS TESTED FIRST AND THE POUR HAPPENS SECOND. <<< The room only
+   calls this for a press that was in range, facing the tank, unlocked and an
+   edge — it spends a resource, so it must never be asked speculatively. */
+void oil_dispenser_press(int tank) {
+    switch (oil_dispenser_refill(tank)) {
+    case OD_REFILL_NO_LANTERN:
+        /* No lantern: the line says what is IN it, not what it does. The
+           player is being shown the thing they will come back for. */
+        show_pickup_msg_raw("It appears to be filled with oil...");
+        break;
+    case OD_REFILL_EMPTY:
+        show_pickup_msg_raw("The dispenser is empty");
+        break;
+    case OD_REFILL_FULL:
+        /* NOT IN THE SPEC, and a judgement: a press that is refused has to
+           say so or it reads as a dropped input. It spends nothing. */
+        show_pickup_msg_raw("The Helluminator is already full");
+        break;
+    case OD_REFILL_DONE:
+        show_pickup_msg_raw("Refilled the Helluminator");
+        break;
+    }
 }
 
 static void *read_file(const char *name) {
@@ -160,18 +207,19 @@ void oil_dispenser_load_assets(void) {
 
 /* Room entry: pure LoadImage out of the RAM copy area_bank_sync() has already
    read. No CD access, so it is safe inside main's STATE_LOADING. Called from
-   catacombs_entry_upload_textures(). */
+   catacombs_entry_upload_textures() and neck_upload_textures(). */
 void oil_dispenser_upload_texture(void) {
     texmgr_upload(oil_tex);
 }
 
 void oil_dispensers_clear(void) { dispenser_count = 0; }
 
-void oil_dispenser_place(GameState area, int32_t x, int32_t y, int32_t z,
-                         int32_t rot_y) {
+void oil_dispenser_place(GameState area, int tank, int32_t x, int32_t y,
+                         int32_t z, int32_t rot_y) {
     if (dispenser_count >= MAX_OIL_DISPENSERS) return;
     OilDispenser *d = &dispensers[dispenser_count++];
     d->area  = area;
+    d->tank  = od_tank(tank);
     d->x = x;  d->y = y;  d->z = z;
     d->rot_y = rot_y;
     d->active = 1;
@@ -544,8 +592,9 @@ void oil_dispensers_draw_bar(RenderContext *ctx, int32_t radius, int32_t fade_ne
             ctx->next_packet += sizeof(TILE);
         }
 
-        int32_t frac   = (reservoir * 256) / OD_OIL_MAX;   /* 256 = a full tank */
-        int16_t fill_w = (int16_t)((reservoir * OD_BAR_W) / OD_OIL_MAX);
+        int32_t oil    = reservoir[d->tank];
+        int32_t frac   = (oil * 256) / OD_OIL_MAX;   /* 256 = a full lantern */
+        int16_t fill_w = (int16_t)((oil * OD_BAR_W) / OD_OIL_MAX);
         if (fill_w > 0 && ctx->next_packet + sizeof(TILE) <= buf_end) {
             /* Blue (40,90,255) at full to red (220,30,30) at empty. The fade is
                folded into the same shift, so this is two multiplies per channel

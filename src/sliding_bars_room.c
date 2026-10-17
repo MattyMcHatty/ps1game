@@ -30,6 +30,8 @@
 #include "oil_dispenser.h"
 #include "player.h"             /* current_weapon, player_weapons */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
+#include "item_pickup.h"        /* world.c's pickups, drawn here               */
+#include "sml_med.h"            /* world.c's medipacs, drawn here              */
 
 /* The Sliding Bars Room — see sliding_bars_room.h for the layout and the
    doors. */
@@ -798,6 +800,10 @@ void sliding_bars_room_draw(RenderContext *ctx) {
         draw_crawlers(ctx);
         draw_lumberers(ctx);
         draw_maggots(ctx);   /* area-tagged: free where none is placed */
+        /* The pickups, after the enemy calls: the item sprites need the 128
+           window those restore. sml_med.tim is at Voff 0 on its own page. */
+        item_pickups_draw(ctx);
+        sml_meds_draw(ctx);
         /* The four gates. AFTER the two enemy calls: the prop's UVs run past
            127 and tile only under the 128 window the enemies put back
            (src/bars.h). */

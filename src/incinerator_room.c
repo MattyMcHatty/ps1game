@@ -442,8 +442,9 @@ tray_item[INC_TRAY_COUNT] = {
     { PICKUP_GAOL_KEY,    -2905, "The key won't burn!"     }, /* INC_TRAY_GAOL_KEY    */
 };
 
-/* 1 if the live pickup array holds an uncollected one of tray item t. The tray
-   is the room's only source of pickups, so one of these in here is the tray's. */
+/* 1 if the live pickup array holds an uncollected one of tray item t. The
+   room's SEEDED pickups are ammo, never a tray kind, so one of these in here is
+   the tray's. */
 static int tray_live(int t) {
     int i;
     for (i = 0; i < item_pickup_count; i++)
@@ -459,8 +460,12 @@ static void tray_spawn(void) {
         int ip;
         if (!(mask & (1 << t)) || tray_live(t)) continue;   /* world_enter
                                                    already restored it */
-        ip = item_pickup_spawn_range(INC_TRAY_E_X, INC_TRAY_E_Y, tray_item[t].z,
-                                     tray_item[t].kind, 1, INC_TRAY_E_REACH);
+        /* PAST THE SEEDED SLOTS. Reusing a collected seeded slot would save
+           it as "not taken" while this sits on the tray, and the load would
+           bring the seeded ammo back — see item_pickup_spawn_from(). */
+        ip = item_pickup_spawn_from(INC_SEEDED_PICKUPS,
+                                    INC_TRAY_E_X, INC_TRAY_E_Y, tray_item[t].z,
+                                    tray_item[t].kind, 1, INC_TRAY_E_REACH);
         item_pickup_set_display(ip, 22, INC_TRAY_E_OTZ);
     }
 }

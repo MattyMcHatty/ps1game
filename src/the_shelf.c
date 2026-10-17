@@ -31,6 +31,9 @@
 #include "player.h"             /* current_weapon, player_weapons             */
 #include "helluminator.h"       /* helluminator_burning — a view-distance factor */
 #include "sliding_bars_room.h"  /* the reset button: sliding_bars_room_reset_gates */
+#include "sound.h"              /* SFX_SLAM (resident) on the reset button    */
+#include "item_pickup.h"        /* world.c's pickups, drawn here               */
+#include "sml_med.h"            /* world.c's medipacs, drawn here              */
 
 /* The Shelf — see the_shelf.h for the layout, the bars and the ways out. */
 
@@ -316,6 +319,7 @@ void the_shelf_update(int lock) {
     if (!ts_triggered(lock, &button_circle_prev, TS_BUTTON_X, TS_BUTTON_Z))
         return;
     sliding_bars_room_reset_gates();
+    sound_play(SFX_SLAM);
     show_pickup_msg_raw("You heard some slamming in the distance");
 }
 
@@ -621,5 +625,9 @@ void the_shelf_draw(RenderContext *ctx) {
         draw_crawlers(ctx);
         draw_lumberers(ctx);
         draw_maggots(ctx);   /* area-tagged: free where none is placed */
+        /* The pickups, after the enemy calls: the item sprites need the 128
+           window those restore. sml_med.tim is at Voff 0 on its own page. */
+        item_pickups_draw(ctx);
+        sml_meds_draw(ctx);
     }
 }

@@ -107,6 +107,13 @@ int  item_pickup_spawn_amount(int32_t x, int32_t y, int32_t z, PickupKind kind,
    0 for radius to fall back to ITEM_PICKUP_RADIUS. */
 int  item_pickup_spawn_range(int32_t x, int32_t y, int32_t z, PickupKind kind,
                              int32_t amount, int32_t radius);
+/* As _range, but only ever into slot `first` or later. For a pickup spawned at
+   RUN TIME into a room that also has SEEDED ones: the save records a seeded
+   pickup as taken by its slot being inactive, so a run-time spawn that reused a
+   collected seeded slot would read as "not taken" in the next save and bring
+   the seeded one back on load. Pass the room's seeded count. */
+int  item_pickup_spawn_from(int first, int32_t x, int32_t y, int32_t z,
+                            PickupKind kind, int32_t amount, int32_t radius);
 
 /* Set one pickup's display overrides (see the notes on the struct above). Pass
    the index a spawn returned; a negative index is a no-op, so the return value

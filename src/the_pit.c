@@ -30,6 +30,8 @@
 #include "helluminator.h"       /* helluminator_burning â€” a view-distance factor */
 #include "sound.h"              /* the descent's footfalls                    */
 #include "bars.h"               /* the portcullis over the north alcove       */
+#include "item_pickup.h"        /* world.c's pickups, drawn here               */
+#include "sml_med.h"            /* world.c's medipacs, drawn here              */
 
 /* The Pit â€” see the_pit.h for the layout, the two levels and the door list. */
 
@@ -1477,6 +1479,10 @@ void the_pit_draw(RenderContext *ctx) {
         draw_crawlers(ctx);
         draw_lumberers(ctx);
         draw_maggots(ctx);   /* area-tagged: free where none is placed */
+        /* The pickups, after the enemy calls: the item sprites need the 128
+           window those restore. sml_med.tim is at Voff 0 on its own page. */
+        item_pickups_draw(ctx);
+        sml_meds_draw(ctx);
         /* The bars over the north alcove. Inside the entity gate, as the Room
            of Arms' crib is, and AFTER the two enemy calls for a stronger reason
            than the crib's: this prop's UVs run past 127 and only tile because

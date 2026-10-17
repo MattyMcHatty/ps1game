@@ -306,7 +306,7 @@ void reset_game(RenderContext *ctx) {
                                into the mansion — see src/sound.h.        */
     greenhouse_flood_reset();/* ...and back OUT of the inventory, or a new
                                playthrough starts holding one              */
-    oil_dispensers_reset(); /* ...and the Catacombs oil tank back to full. NOT
+    oil_dispensers_reset(); /* ...and every oil tank back to its start. NOT
                                where player_oil is cleared (that is
                                item_pickups_reset, via crates_reset above, with
                                the rest of the inventory) — the tank is a fixture
@@ -2073,6 +2073,7 @@ static void update_current_area(GameState area) {
         update_lumberers();
         item_pickups_update();
         sconces_update();
+        sml_meds_update();     /* the medipac on the north-west stub */
 
         /* Called UNCONDITIONALLY, `lock` passed in rather than tested out here:
            the function keeps its Circle edge state current while locked and
@@ -2373,6 +2374,8 @@ static void update_current_area(GameState area) {
         apply_height();
         update_crawlers();
         update_lumberers();
+        item_pickups_update();
+        sml_meds_update();
 
         /* Both called UNCONDITIONALLY, `lock` passed in rather than tested out
            here: each keeps its Circle edge state current while locked and
@@ -2413,6 +2416,8 @@ static void update_current_area(GameState area) {
         apply_height();
         update_crawlers();
         update_lumberers();
+        item_pickups_update();
+        sml_meds_update();
 
         if (north_chamber_south_door_triggered(lock)) {
             pending_area = STATE_THE_PIT;
@@ -2560,6 +2565,8 @@ static void update_current_area(GameState area) {
         apply_height();
         update_crawlers();
         update_lumberers();
+        item_pickups_update();
+        sml_meds_update();
         sliding_bars_room_update(lock);
 
         if (sliding_bars_room_south_door_triggered(lock)) {
@@ -2768,6 +2775,8 @@ static void update_current_area(GameState area) {
         apply_height();
         update_crawlers();
         update_lumberers();
+        item_pickups_update();
+        sml_meds_update();
         the_shelf_update(lock);   /* the Sliding Bars Room's reset button */
 
         if (the_shelf_north_door_triggered(lock)) {
@@ -2796,6 +2805,7 @@ static void update_current_area(GameState area) {
         apply_height();
         update_crawlers();
         update_lumberers();
+        sml_meds_update();     /* the medipac by the gaol door */
 
         if (gaol_entry_west_door_triggered(lock)) {
             pending_area = STATE_UP_DOWN_MAZE;
@@ -3012,23 +3022,28 @@ static void update_current_area(GameState area) {
            with two full-height pillars, so the shared wall routine and ONE
            flat floor zone, multi_level 0. Two wired doors: west, back to the
            Room of Baby Names at the blank plate, and east, on to the Head.
-           Nothing is seeded; both Chapter 3 enemy updates run anyway, on the
-           Tomb's argument.
+           world.c seeds one medipac; both Chapter 3 enemy updates run anyway,
+           on the Tomb's argument.
 
            THE SAVE POINT in the north-east corner is asked FIRST and its
            answer vetoes BOTH doors - the Catacombs Entry's order. It stands
            700 north of the east door, so the circles do not meet today; the
            order is what guarantees one press never does two things. The veto
            goes in as each door's `lock` rather than skipping the call, so
-           their edge state stays current. */
+           their edge state stays current. THE OIL TANK in the south-east
+           corner goes last, vetoed by all three: its circle and the east
+           door's share a sliver (src/neck.c, THE OIL DISPENSER). */
         save_points_update();   /* spin the corner's save point */
         apply_collision_reception();
         apply_height();
         update_crawlers();
         update_lumberers();
+        item_pickups_update();
+        sml_meds_update();
 
         {
             int nk_saving = (!lock && save_point_triggered());
+            int nk_door   = 0;
             if (nk_saving) {
                 /* current_area is already STATE_NECK, so the menu returns
                    here. */
@@ -3040,13 +3055,16 @@ static void update_current_area(GameState area) {
                 door_anim_start(DOOR_PANEL_CATACOMB);
                 game_state   = STATE_DOOR_ANIM;
                 cdaudio_stop();
+                nk_door = 1;
             }
             if (neck_east_door_triggered(nk_saving ? 1 : lock)) {
                 pending_area = STATE_THE_HEAD;
                 door_anim_start(DOOR_PANEL_CATACOMB);
                 game_state   = STATE_DOOR_ANIM;
                 cdaudio_stop();
+                nk_door = 1;
             }
+            neck_oil_update((nk_saving || nk_door) ? 1 : lock);
         }
     } else if (area == STATE_THE_HEAD) {
         /* THE HEAD - Chapter 3's thirty-second room (src/the_head.c): a wide
@@ -3110,6 +3128,8 @@ static void update_current_area(GameState area) {
         apply_height();
         update_crawlers();
         update_lumberers();
+        item_pickups_update();
+        sml_meds_update();
         update_demon_dogs();
         /* GULA (src/gula.h): watches for the eighth dog to fall, then fades in
            on the inlay and fights from there. Her death director arms off the

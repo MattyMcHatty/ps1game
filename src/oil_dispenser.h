@@ -59,29 +59,41 @@
    scalar rather than an AmmoType, and the same reasoning applies a second time
    here.
 
-   >>> IT IS ONE RESERVOIR FOR THE WHOLE GAME, NOT ONE PER INSTANCE. <<< A
-   module-level scalar, not a field of OilDispenser, and that is forced rather
-   than chosen: catacombs_entry_init() calls oil_dispensers_clear() and places
-   the prop again on EVERY entry to the room, so per-instance state would top
-   itself back up every time the player walked out and back. There is exactly
-   one refill point in the game today and one scalar describes it exactly.
-   WHEN A SECOND ONE SHIPS this has to become an array that clear() does not
-   touch, indexed by placement order the way world.c indexes its entities, with
-   a save field per tank — and the two would otherwise silently share a tank,
-   which is the kind of bug that reads as a memory fault.
+   >>> ONE RESERVOIR PER TANK, AND NOT A FIELD OF OilDispenser. <<< Every
+   room that clears the props (catacombs_entry_init(), neck_init() and the
+   rest) places them again on EVERY entry, so per-instance state would top
+   itself back up every time the player walked out and back. So the oil lives in
+   a module array that clear() never touches, indexed by OdTank — a fixed id per
+   tank in the game, passed to oil_dispenser_place() — and a placement only
+   says WHICH tank it is drawing from.
 
-   IT IS SAVED, as SaveData.disp_oil (SAVE_VERSION 24). A dispenser that came
-   back full after a load would make the whole resource free.
+   EACH TANK STARTS WITH ITS OWN AMOUNT (od_tank_start[] in the .c), and that
+   is only ever the first-visit number: what a tank holds after that is the
+   array, and the array is saved.
+
+   IT IS SAVED, as SaveData.disp_oil[] (one byte per tank, SAVE_VERSION 38 —
+   it was one int32 for the single tank from v24, split into bytes because
+   SaveData fills its frame exactly). A dispenser that came back full after a
+   load would make the whole resource free.
 
    THE BAR over it is the only readout: blue at full, red at empty, and it fades
    up on exactly the curve the examine prompt does, so the tank tells you what
-   is in it at the same moment it tells you it can be used. */
+   is in it at the same moment it tells you it can be used. Its length is out of
+   OD_OIL_MAX — a lantern's worth — not out of the tank's starting amount, so a
+   tank that starts at 20 shows a short bar: what it holds, in lanterns. */
 #define OD_OIL_MAX  100
 
 #define MAX_OIL_DISPENSERS 4
 
-/* What a press on the dispenser did. The room turns these into log lines — it
-   owns the room's wording, this module owns the arithmetic. */
+/* Every tank in the game. Append; the order is the save format (one byte of
+   SaveData.disp_oil[] each, and savegame.c asserts the count fits it). */
+typedef enum {
+    OD_TANK_CATACOMBS_ENTRY = 0,   /* the burial hall's south-east corner */
+    OD_TANK_NECK,                  /* the Neck's south-east corner        */
+    OD_TANK_COUNT
+} OdTank;
+
+/* What a press on the dispenser did. */
 typedef enum {
     OD_REFILL_NO_LANTERN,  /* the player does not own the Helluminator      */
     OD_REFILL_EMPTY,       /* the tank is dry; nothing moved                */
@@ -89,16 +101,22 @@ typedef enum {
     OD_REFILL_DONE         /* oil moved: the lantern is full or the tank dry */
 } OdRefill;
 
-/* Pour. Moves min(what the lantern is short, what the tank holds) from one to
-   the other and says which of the four cases happened. The ONLY thing that
-   spends the reservoir. */
-OdRefill oil_dispenser_refill(void);
+/* Pour from `tank`. Moves min(what the lantern is short, what the tank holds)
+   from one to the other and says which of the four cases happened. The ONLY
+   thing that spends a reservoir. */
+OdRefill oil_dispenser_refill(int tank);
 
-int  oil_dispenser_oil(void);            /* 0..OD_OIL_MAX, for the bar + save  */
-void oil_dispenser_set_oil(int units);   /* savegame restore; clamps           */
-void oil_dispensers_reset(void);         /* new game: the tank back to full    */
+/* A press on `tank`'s tap, already tested for edge, range and facing by the
+   room: pours, and posts the log line for whichever of the four cases it was.
+   Every tank says the same four things, so the wording lives here once rather
+   than in each room that stands one. */
+void oil_dispenser_press(int tank);
 
-/* The bar over the tank. `radius`/`fade_near` are the caller's own prompt-fade
+int  oil_dispenser_oil(int tank);            /* 0..OD_OIL_MAX, bar + save  */
+void oil_dispenser_set_oil(int tank, int units); /* savegame restore; clamps */
+void oil_dispensers_reset(void);         /* new game: every tank to its start  */
+
+/* The bar over each tank. `radius`/`fade_near` are the caller's own prompt-fade
    numbers — passed in rather than duplicated here so the bar and the prompt it
    belongs beside can never drift onto different curves. Call it from the room's
    draw, after the room mesh. */
@@ -110,9 +128,10 @@ void oil_dispensers_clear(void);         /* drop every placed instance          
 
 /* Place one. x/z is the model's ORIGIN in plan — the floor corner the tank is
    set into, not its centre — and y the floor reference (world y = y +
-   GROUND_FLOOR_Y). rot_y is 0..4096 = a full turn. */
-void oil_dispenser_place(GameState area, int32_t x, int32_t y, int32_t z,
-                         int32_t rot_y);
+   GROUND_FLOOR_Y). rot_y is 0..4096 = a full turn. `tank` is the OdTank whose
+   reservoir it pours from and shows. */
+void oil_dispenser_place(GameState area, int tank, int32_t x, int32_t y,
+                         int32_t z, int32_t rot_y);
 
 void oil_dispensers_draw(RenderContext *ctx);
 void oil_dispensers_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
