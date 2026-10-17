@@ -317,6 +317,11 @@ typedef enum {
                                 thirty-fifth room and its last: a black void
                                 with the seal on the floor. See src/seal.h.
                                 Appended, not inserted. */
+    STATE_DESCENT_TO_HELL,   /* DESCENT TO HELL, where the Seal's white lands -
+                                no door in or out. Chapter 4's first room, and
+                                a CUTSCENE from its first frame to its last:
+                                the fall down the spinning lava tube. See
+                                src/descent_to_hell.h. Appended, not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

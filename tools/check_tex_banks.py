@@ -239,14 +239,21 @@ AREAS = {
                   # to every room in this bank. Its page is owned outright, so
                   # unlike the two above there is no donor to arbitrate with.
                   "maggots_upload_textures"],
+    # CHAPTER 4, behind the Seal's white. One room so far.
+    "UNDERWORLD": [
+                  # DESCENT TO HELL, where the Seal's white lands: owns lava.tim
+                  # and hell bg.tim (both 4bpp) and borrows nothing.
+                  "descent_to_hell_upload_textures"],
 }
 
 BIT = {"MANSION": 1 << 0, "GARDEN": 1 << 1, "RABISU": 1 << 2,
-       "WEST_GARDEN": 1 << 3, "ASAG": 1 << 4, "CATACOMBS": 1 << 5}
+       "WEST_GARDEN": 1 << 3, "ASAG": 1 << 4, "CATACOMBS": 1 << 5,
+       "UNDERWORLD": 1 << 6}
 NAME = {v: k for k, v in BIT.items()}
 CONST = {"TEXBANK_MANSION": BIT["MANSION"], "TEXBANK_GARDEN": BIT["GARDEN"],
          "TEXBANK_RABISU": BIT["RABISU"], "TEXBANK_WEST_GARDEN": BIT["WEST_GARDEN"],
          "TEXBANK_ASAG": BIT["ASAG"], "TEXBANK_CATACOMBS": BIT["CATACOMBS"],
+         "TEXBANK_UNDERWORLD": BIT["UNDERWORLD"],
          "TEXBANK_RESIDENT": 0}
 
 

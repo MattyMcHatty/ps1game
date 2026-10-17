@@ -198,6 +198,14 @@ TexBank area_bank_of(GameState area) {
     case STATE_TOMB:
         return TEXBANK_CATACOMBS;
 
+    /* ---- CHAPTER 4 ----------------------------------------------------- */
+    /* DESCENT TO HELL owns LAVA.TIM and HELLBG.TIM (both 4bpp, x576 y0 and
+       x640 y0) and borrows nothing. It is reached only from the Seal's white,
+       one way, and leaves only for the title, so selecting this bank hands
+       back the whole of Chapter 3's art and every prop model. */
+    case STATE_DESCENT_TO_HELL:
+        return TEXBANK_UNDERWORLD;
+
     default:
         return TEXBANK_MANSION;
     }

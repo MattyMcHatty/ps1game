@@ -36,8 +36,10 @@
                light red and orange, flowing out from the bird like a fuse;
                fully lit, five explosions go off across the seal and the
                screen fades to white.
-     WHITE     the room holds full white and trial_end_start() takes it to the
-               sign-off screen - a PLACEHOLDER until Chapter 4 exists.
+     WHITE     the room holds full white for half a second, and then
+               seal_leaving() has main.c load DESCENT TO HELL under it - no
+               door, no LOADING screen, the white held across the load. That
+               room ends in the sign-off screen now (src/descent_to_hell.h).
 
    ONE TEXTURE, AND THE ROOM OWNS IT: seal.tim, 4bpp at x576 y0 on the crib's
    page with Lamashtu's palette line (640,502). Only her arena draws either of
@@ -60,6 +62,7 @@ void seal_update(int lock);
 
 int  seal_roots_player(void);    /* 1 during BLACK: turn and attack, no walking */
 int  seal_cutscene(void);        /* 1 from the scene's first frame to the end   */
+int  seal_leaving(void);         /* 1 once the white has been held: go to Ch 4  */
 void seal_cutscene_update(void); /* the scene's tick, in main's cutscene branch */
 
 #endif

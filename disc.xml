@@ -1976,6 +1976,30 @@
             <file name="MAGGOT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\maggot.tim"/>
         </dir>
 
+        <dir name="TEXUNDW">
+        <!-- ================= CHAPTER 4: THE UNDERWORLD =======================
+             A DIRECTORY OF ITS OWN, for the reason TEXCTCMB has one: \TEX\'s
+             record is already five sectors long. TEXUNDW sorts after SYSTEM.CNF
+             and after TEXCTCMB, so its root record lands in the root's SECOND
+             sector, as TEXCTCMB's does. Run py tools/check_disc_root.py after
+             ANY change here.
+
+             DESCENT TO HELL, the chapter's first room (src/descent_to_hell.h):
+             a cutscene, never walked in, where the Seal's white lands. Five
+             prims - a hell backdrop box with the lava far below - and the TUBE,
+             a 360-prim prop of its own the camera falls through, spinning.
+
+             Its two textures are both 4bpp and both its own: LAVA.TIM at x576
+             y0 with Lamashtu's CLUT line (640,502) - the Seal's terms exactly,
+             and the Seal is the only way in - and HELLBG.TIM at x640 y0 with
+             the gaol door's CLUT line (576,502). Every room that draws either
+             page puts its own art back on entry. -->
+            <file name="DESCENT.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\descent_to_hell.smd"/>
+            <file name="DSCTUBE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\underworld\descent_tube.smd"/>
+            <file name="LAVA.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\lava.tim"/>
+            <file name="HELLBG.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\hell bg.tim"/>
+        </dir>
+
         </directory_tree>
     </track>
 
@@ -2034,6 +2058,12 @@
          (music/mp3_to_wav.py is NOT the tool: it is the sound-effect path and
          always mixes to mono, which mkpsxiso would then silently upsample). -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\leberch-creepy-511957.wav"/>
+
+    <!-- Track 10: DESCENT TO HELL's wind. 16.8 s, played once from the first
+         frame of that room's fade in; the sign-off screen's track replaces it.
+         APPENDED, for the reason Track 9 gives. 44100 Hz 16-bit stereo:
+         ffmpeg -y -i wind.mp3 -ar 44100 -ac 2 -c:a pcm_s16le wind.wav -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\wind.wav"/>
 
 
 </iso_project>

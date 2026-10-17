@@ -109,6 +109,7 @@ add_executable(horror_game
     src/kennels.c
     src/lamashtu_arena.c
     src/seal.c
+    src/descent_to_hell.c
     src/kennels_puzzle.c
     src/arm_switch.c
     src/arm_puzzle.c

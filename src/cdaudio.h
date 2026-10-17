@@ -43,12 +43,12 @@
 
    THAT IS A PLACEHOLDER AND THE TWO FIGHTS CURRENTLY SOUND THE SAME. Giving
    Asag his own track is ONE line appended to the foot of disc.xml and CHANGING
-   THE 6 BELOW TO 10. Nothing else: no call site mentions a number, they all go
+   THE 6 BELOW TO 11. Nothing else: no call site mentions a number, they all go
    through this name, which is why the name exists.
 
-   >>> THE RESERVED SLOT IS NOW 10, NOT 9. <<< The Catacombs took 9 in September
-   2026, which cost this nothing: the reservation was never about the number 9,
-   it was about the track being APPENDED. The track NUMBER is a line's position
+   >>> THE RESERVED SLOT IS NOW 11. <<< The Catacombs took 9 in September 2026
+   and Descent to Hell's wind took 10 in October, which cost this nothing: the
+   reservation was never about a number, it was about the track being APPENDED. The track NUMBER is a line's position
    in disc.xml and nothing else, so Asag's must go after the Catacombs' at the
    foot of that file — inserted anywhere else it renumbers every track after it
    and every room in the game plays the wrong music.
@@ -67,7 +67,11 @@
    would arrive with The Hatch's music still playing. */
 #define CDAUDIO_ASAG_TRACK      6   /* BORROWED from the courtyard — see above.
                                        Append his track to disc.xml and change
-                                       this 6 to a 10.                        */
+                                       this 6 to an 11.                       */
+/* CHAPTER 4: DESCENT TO HELL's wind, 16.8 s - longer than the scene, so it is
+   played ONCE (no loop) from the first frame of the fade in, and the sign-off
+   screen's own track replaces it (src/descent_to_hell.c). */
+#define CDAUDIO_WIND_TRACK     10   /* Descent to Hell (16.8 s), one shot    */
 
 void cdaudio_init(void);
 /* loop = 1 repeats the track for as long as the room lasts; loop = 0 plays it

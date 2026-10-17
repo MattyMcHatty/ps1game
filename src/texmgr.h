@@ -83,6 +83,7 @@ typedef uint32_t TexBank;
 #define TEXBANK_WEST_GARDEN  (1u << 3)  /* the Stables and the Greenhouse       */
 #define TEXBANK_ASAG         (1u << 4)  /* empty: that room streams its own art */
 #define TEXBANK_CATACOMBS    (1u << 5)
+#define TEXBANK_UNDERWORLD   (1u << 6)  /* Chapter 4, behind the Seal's white */
 
 /* Tag every registration made AFTER this call. A module sets it at the top of
    its *_load_assets() and is not obliged to put it back — main() sets it again

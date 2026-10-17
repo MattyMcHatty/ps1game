@@ -35,5 +35,9 @@ int  intro_finished(void);           /* 1 once, when the sequence is over       
    still fits inside 320px. */
 int  intro_text_width(const char *s);
 void intro_text_draw(RenderContext *ctx, const char *s, int y, int level, int ot);
+/* ...and at a stated left edge and colour, optionally semi-transparent (see
+   intro.c). Descent to Hell's lines use it. */
+void intro_text_draw_at(RenderContext *ctx, const char *s, int x, int y,
+                        uint8_t r, uint8_t g, uint8_t b, int ot, int semi);
 
 #endif

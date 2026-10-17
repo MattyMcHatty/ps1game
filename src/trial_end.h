@@ -6,6 +6,17 @@
 /* ============================================================================
    THE TRIAL-END SCREEN — where this build of the game stops
    ============================================================================
+   >>> WHERE IT IS ARMED TODAY: THE END OF DESCENT TO HELL. <<< Chapter 4's
+   opening cutscene (src/descent_to_hell.c) fades to white with its last line
+   still up, holds it, and calls trial_end_start(); the wash below dissolves
+   that white room to purple. Before Chapter 4 the Seal called it at the end of
+   its own white (src/seal.c); the Seal now hands off to Descent to Hell
+   instead. The game-state list in main.c's foot branch must include whichever
+   room arms it, or this screen never gets the frame.
+
+   The notes below are the screen's history, kept as the map of how it has
+   been gated before.
+
    Armed on ONE frame only: the one where The Hatch's descent reaches the bottom
    of the shaft (main.c's hatch branch, at hatch_puzzle_drop_done()). The drop
    used to hand off to ASAG'S ARENA; the arena, its boss, its meshes and its

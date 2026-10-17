@@ -268,6 +268,7 @@ static const char *const level_names[] = {
     "KENNELS",
     "LAMASHTU ARENA",
     "SEAL",
+    "DESCENT TO HELL",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -336,6 +337,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* KENNELS */
     STATE_LOADING,        /* LAMASHTU ARENA */
     STATE_LOADING,        /* SEAL */
+    STATE_LOADING,        /* DESCENT TO HELL */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -402,6 +404,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_KENNELS,
     STATE_LAMASHTU_ARENA,
     STATE_SEAL,
+    STATE_DESCENT_TO_HELL,
 };
 
 /* ---- Chapter headings in the level column ---------------------------------
@@ -423,6 +426,7 @@ static const DebugChapter debug_chapters[] = {
     {  0, "CHAPTER 1" },
     { 14, "CHAPTER 2" },   /* FOUNTAIN SQR onwards, WEST CORRIDOR included */
     { 27, "CHAPTER 3" },   /* CATACOMBS ENTRY onwards */
+    { 63, "CHAPTER 4" },   /* DESCENT TO HELL onwards */
 };
 #define DEBUG_CHAPTER_COUNT \
     ((int)(sizeof(debug_chapters) / sizeof(debug_chapters[0])))

@@ -118,6 +118,7 @@
 #include "lamashtu.h"         /* the Lamashtu Arena's boss: the body */
 #include "lamashtu_boss.h"    /* ...and her encounter: the director */
 #include "seal.h"             /* THE SEAL, where her arena fades to on her death */
+#include "descent_to_hell.h"  /* CHAPTER 4: the fall the Seal's white lands in  */
 #include "kennels_puzzle.h"
 #include "arm_switch.h"     /* The Head's eight arm switches */
 #include "gula_tablet.h"
@@ -280,6 +281,7 @@ void reset_game(RenderContext *ctx) {
     lamashtu_reset();      /* ...and Lamashtu's health and clip                */
     lamashtu_boss_reset(); /* ...and any half-played encounter of hers         */
     seal_reset();          /* ...and the Seal she leaves behind, and its scene */
+    descent_to_hell_reset();/* ...and the fall it ends in, and the tube's RAM */
     gula_death_reset();    /* ...and any half-played death of hers            */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
@@ -358,6 +360,9 @@ static void load_area_geometry(GameState area) {
        that is the room being entered, and this is a no-op when they are not
        loaded. See src/catacomb_doors.h. */
     catacomb_doors_unload();
+    /* ...and Descent to Hell's tube, the same again: 20 KB of .smd held only
+       while that room is the one on screen (src/descent_to_hell.h). */
+    descent_to_hell_unload_tube();
 
     switch (area) {
         case STATE_DELIVERY_AREA:    delivery_load_geometry();         break;
@@ -423,6 +428,7 @@ static void load_area_geometry(GameState area) {
         case STATE_KENNELS:          kennels_load_geometry(); break;
         case STATE_LAMASHTU_ARENA:   lamashtu_arena_load_geometry(); break;
         case STATE_SEAL:             seal_load_geometry(); break;
+        case STATE_DESCENT_TO_HELL:  descent_to_hell_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -708,6 +714,25 @@ static void update_current_area(GameState area) {
         seal_cutscene_update();
         player_status_update();
         update_particles();
+        /* THE HAND-OFF INTO DESCENT TO HELL (src/descent_to_hell.h). The scene
+           has faded to white and held it; the next room is loaded under that
+           white - the arena -> Seal hand-off's silent transition, with the
+           loading frame painted white instead of black (STATE_LOADING). */
+        if (seal_leaving()) {
+            pending_area      = STATE_DESCENT_TO_HELL;
+            cdaudio_stop();
+            silent_transition = 1;
+            game_state        = STATE_LOADING;
+        }
+        return;
+    }
+    /* ...and DESCENT TO HELL, which is a cutscene from its first frame to its
+       last: the camera falling down the spinning tube, the lines, the white.
+       Nothing else is in the room and nothing else ticks. It ends in the
+       sign-off screen, whose own branch at the foot of main() owns the frame
+       from then on. */
+    if (area == STATE_DESCENT_TO_HELL) {
+        descent_to_hell_update();
         return;
     }
     if (area == STATE_KENNELS && gula_death_cutscene()) {
@@ -3763,6 +3788,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         lamashtu_arena_draw(ctx);
     else if (area == STATE_SEAL)
         seal_draw(ctx);
+    else if (area == STATE_DESCENT_TO_HELL)
+        descent_to_hell_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4295,6 +4322,9 @@ int main(int argc, const char **argv) {
                                      into the arena (see STATE_LOADING). */
     seal_load_assets();           /* CHAPTER 3's thirty-fifth room, the Seal:
                                      ONE deferred registration, header only. */
+    descent_to_hell_load_assets();/* CHAPTER 4's first room, Descent to Hell:
+                                     TWO deferred registrations, headers only.
+                                     Its tube is ROOM-SCOPED, read on entry. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4858,6 +4888,10 @@ int main(int argc, const char **argv) {
                 /* ...AND THE SEAL, a bank of its own: the emerge it plays as
                    its lines light did not fit hers (SND_BANK_SEAL). */
                 (pending_area == STATE_SEAL) ? SND_BANK_SEAL :
+                /* ...AND DESCENT TO HELL KEEPS IT. The room plays nothing, and
+                   the Seal is the only way in, so naming the bank already
+                   loaded makes this transition read no sound at all. */
+                (pending_area == STATE_DESCENT_TO_HELL) ? SND_BANK_SEAL :
                 area_is_catacombs(pending_area) ? SND_BANK_CATACOMBS :
                 SND_BANK_HOUSE);
 
@@ -5318,6 +5352,11 @@ int main(int argc, const char **argv) {
                 /* THE SEAL. Its one texture, its own: seal.tim over the crib's
                    page with Lamashtu's palette (src/seal.c). */
                 seal_upload_textures();
+            } else if (pending_area == STATE_DESCENT_TO_HELL) {
+                /* DESCENT TO HELL. Its two textures, its own: the lava on the
+                   Seal's slot and palette, the hell backdrop on the gaol
+                   door's (src/descent_to_hell.c). */
+                descent_to_hell_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5470,7 +5509,10 @@ int main(int argc, const char **argv) {
                describing something the code did not do.
                Nothing has to be put back on the way out — the exit is a
                transition and this same line runs on the far side of it. */
-            else if (pending_area != STATE_ASAG_ARENA)
+            /* ...AND NEITHER DOES DESCENT TO HELL, a cutscene with nothing in
+               it but the tube. */
+            else if (pending_area != STATE_ASAG_ARENA &&
+                     pending_area != STATE_DESCENT_TO_HELL)
                 spiders_upload_textures();
 
             /* THE ZOMBIE PAIR, x704/x768 y128 — the other half of what the
@@ -5536,11 +5578,15 @@ int main(int argc, const char **argv) {
             if (pending_area == STATE_PIANO_ROOM || pending_area == STATE_LIBRARY)
                 adapas_upload_textures();
             {
+                /* WHITE, NOT BLACK, INTO DESCENT TO HELL: the Seal hands off in
+                   full white and the room fades up out of it, so this one
+                   frame between them must not flash black. */
+                uint8_t k = (pending_area == STATE_DESCENT_TO_HELL) ? 255 : 0;
                 TILE *bg = (TILE *)ctx.next_packet;
                 setTile(bg);
                 setXY0(bg, 0, 0);
                 setWH(bg, SCREEN_XRES, SCREEN_YRES);
-                setRGB0(bg, 0, 0, 0);
+                setRGB0(bg, k, k, k);
                 addPrim(&ctx.buffers[ctx.active_buffer].ot[OT_LENGTH - 1], bg);
                 ctx.next_packet += sizeof(TILE);
             }
@@ -6239,6 +6285,16 @@ int main(int argc, const char **argv) {
                 seal_init();
                 /* NO MUSIC LINE: the Seal is silent, which the chapter's
                    block below says. */
+            } else if (pending_area == STATE_DESCENT_TO_HELL) {
+                /* ONE ARRIVAL, the Seal's white, and no spawn to speak of: the
+                   camera is the scene's from the first frame (src/
+                   descent_to_hell.h). A debug jump lands there too. THE WIND,
+                   ONCE (16.8 s, longer than the scene), from this frame - the
+                   room's first, which is the first frame of its fade in. The
+                   sign-off screen's track replaces it. cdaudio_play switches
+                   tracks outright, so a debug jump's leftover piano goes. */
+                descent_to_hell_init();
+                cdaudio_play(CDAUDIO_WIND_TRACK, 0);
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -6658,7 +6714,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_THE_HEAD ||
                    game_state == STATE_KENNELS ||
                    game_state == STATE_LAMASHTU_ARENA ||
-                   game_state == STATE_SEAL) {
+                   game_state == STATE_SEAL ||
+                   game_state == STATE_DESCENT_TO_HELL) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {
@@ -6782,7 +6839,10 @@ int main(int argc, const char **argv) {
                                (area == STATE_LAMASHTU_ARENA &&
                                 lamashtu_boss_cutscene()) ||
                                /* ...and the Seal's scene. */
-                               (area == STATE_SEAL && seal_cutscene());
+                               (area == STATE_SEAL && seal_cutscene()) ||
+                               /* ...and Descent to Hell, which is nothing
+                                  else. */
+                               (area == STATE_DESCENT_TO_HELL);
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();
@@ -6818,10 +6878,15 @@ int main(int argc, const char **argv) {
                        red screen. The frame is drawn as usual - black, and the
                        HUD the player still has - and STATE_LOADING flips onto
                        the black clear colour after it. */
+                    /* ...and the Seal's own hand-off into Descent to Hell, out
+                       of its scene's white: no HUD there, as there is none
+                       over the scene. */
                     if (silent_transition) {
                         draw_current_area(&ctx, area);
-                        draw_player_systems(&ctx);
-                        hud_draw(&ctx);
+                        if (!cutscene) {
+                            draw_player_systems(&ctx);
+                            hud_draw(&ctx);
+                        }
                     } else {
                         show_loading_screen_now(&ctx);
                     }

@@ -205,6 +205,18 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_LAMASHTU_ARENA,  STATE_SEAL,
 };
 
+/* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
+   opening cutscene. The player never has control there, never saves there, and
+   leaves only for the title, so there is nothing about it to persist - and
+   giving it a slot would grow WorldDelta and reject every existing save for
+   nothing. world_enter() and world_leave() skip their snapshot/restore for it
+   instead, because room_index() would otherwise answer 0 and the visit would
+   be written over the DELIVERY AREA's state (see world_room_index in
+   world.h). */
+static int area_untracked(GameState area) {
+    return area == STATE_DESCENT_TO_HELL;
+}
+
 static int room_index(GameState area) {
     switch (area) {
         case STATE_DELIVERY_AREA:  return 0;
@@ -587,6 +599,7 @@ void world_leave(GameState area) {
        own would satisfy the encounter's "ten released and none alive" end
        condition for free. src/crib.h's note on cribs_rest() has the argument. */
     cribs_rest();
+    if (area_untracked(area)) return;   /* no slot: nothing to keep */
     snapshot(room_index(area));
     snapshot_fatdoors();
 }
@@ -2109,6 +2122,9 @@ void world_seed_room(GameState area) {
 }
 
 void world_enter(GameState area) {
+    /* No slot: empty the live arrays (the seed places nothing for this area)
+       and remember nothing. */
+    if (area_untracked(area)) { world_seed_room(area); return; }
     RoomState *r = &world.rooms[room_index(area)];
     if (r->visited) {
         restore(room_index(area));

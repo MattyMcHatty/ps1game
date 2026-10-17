@@ -27,7 +27,6 @@
 #include "sound.h"              /* SFX_EMERGE, SFX_EXPLODE: SND_BANK_SEAL        */
 #include "particles.h"          /* spawn_burst - the explosions' debris        */
 #include "rabisu.h"             /* rbs_glow_quad/point/pillar - every light    */
-#include "trial_end.h"          /* where the white goes: the sign-off          */
 
 /* The Seal - see seal.h. The room half is copied from src/lamashtu_arena.c
    (itself the_head.c's), which has been through DIAGNOSING_FRAME_RATE.txt;
@@ -145,7 +144,7 @@ typedef enum {
     SL_READY,      /* free play, the prompt live                                */
     SL_RISE,       /* the scene: up off the player to the orbit                  */
     SL_ORBIT,      /* the scene: round and round, the lines, the blasts, white   */
-    SL_WHITE,      /* held white; trial_end has the screen                      */
+    SL_WHITE,      /* held white, then main.c loads Descent to Hell under it    */
 } SlState;
 
 static SlState state    = SL_OFF;
@@ -172,6 +171,15 @@ int seal_roots_player(void) { return state == SL_BLACK; }
 
 int seal_cutscene(void) {
     return state == SL_RISE || state == SL_ORBIT || state == SL_WHITE;
+}
+
+/* How long the white is held before the next room is loaded under it: long
+   enough to read as the screen STAYING white, not as a cut. The load itself
+   then holds it a while longer (main.c paints its one frame white too). */
+#define SL_T_WHITE_HOLD  30
+
+int seal_leaving(void) {
+    return state == SL_WHITE && phase_t >= SL_T_WHITE_HOLD;
 }
 
 /* The room's brightness, 0..256. */
@@ -297,7 +305,8 @@ void seal_update(int lock) {
      728 .. 1050   the explode: five blasts across it, the light curtains
                    climbing over its first second
      960 .. 1050   to white, landing as the explode ends
-           1050   trial_end_start(), and the room holds white under its wash
+           1050   the room holds full white for SL_T_WHITE_HOLD, and then
+                  seal_leaving() has main.c load Descent to Hell under it
 
    THE SHOT. The orbit's centre is SL_FOCUS - the circle's centre nudged north
    toward the bird so the whole seal, x[-677,677] z[-643,1071], sits in frame.
@@ -457,7 +466,7 @@ void seal_cutscene_update(void) {
     sl_clock++;
     phase_t++;
 
-    if (state == SL_WHITE) return;   /* trial_end has it from here */
+    if (state == SL_WHITE) return;   /* held; seal_leaving() counts it out */
 
     scene_t++;
 
@@ -488,8 +497,7 @@ void seal_cutscene_update(void) {
     }
 
     if (scene_t >= SL_T_SCENE) {
-        /* THE PLACEHOLDER ENDING: the sign-off screen, out of full white. */
-        trial_end_start();
+        /* FULL WHITE, held - and then Chapter 4 (seal_leaving, below). */
         enter(SL_WHITE);
     }
 }
@@ -738,11 +746,11 @@ static void draw_blasts(RenderContext *ctx) {
 }
 
 /* ---- The white --------------------------------------------------------------
-   An ADDITIVE full-screen tile (ABR=1) at ot[2]: in front of the scene and
-   behind trial_end's wash at ot[1], which subtracts it back down to black and
-   adds the sign-off's purple - so white dissolves into that screen exactly as
-   a room does. The DR_TPAGE goes in AFTER the tile: an OT node is LIFO, and
-   the GPU must see the blend mode first (trial_end.c's wash, the same note). */
+   An ADDITIVE full-screen tile (ABR=1) at ot[2], in front of the scene. At
+   full it is the white the room hands Descent to Hell (src/descent_to_hell.h),
+   which fades up out of the same white. The DR_TPAGE goes in AFTER the tile:
+   an OT node is LIFO, and the GPU must see the blend mode first (trial_end.c's
+   wash, the same note). */
 #define SL_OT_WHITE  2
 
 static void draw_white(RenderContext *ctx, int32_t k) {

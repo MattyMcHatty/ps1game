@@ -1113,6 +1113,42 @@ KNOWN_STREAM_PAIRS = [
     # CLUTs coincide by design, and crawler_a's is the line they borrow.
     ("gula_a.tim",         "gula_b.tim"),
     ("crawler_a.tim",      "gula_b.tim"),
+    # ============ CHAPTER 4: THE UNDERWORLD =================================
+    #   lava.tim -> x576 y0, DESCENT TO HELL's lava (the floor and the tube),
+    # 4bpp 128x128, ON THE SEAL'S SLOT AND CLUT LINE (640,502) - the Seal's
+    # terms exactly. The room is reached only from the Seal and leaves only
+    # for the title; every room that draws this page or that palette puts its
+    # own back on entry, so this mirrors every pair seal.tim already has.
+    ("lamashtu.tim",                   "lava.tim"),
+    ("crib.tim",                       "lava.tim"),
+    ("gaol_mud.tim",                   "lava.tim"),
+    ("red_wlppr.tim",                  "lava.tim"),
+    ("anzu2.tim",                      "lava.tim"),
+    ("anzu5.tim",                      "lava.tim"),
+    ("seal.tim",                       "lava.tim"),
+    #   hell bg.tim -> x640 y0, DESCENT TO HELL's backdrop walls, 4bpp
+    # 128x128, ON THE GAOL DOOR'S PAGE AND CLUT LINE (576,502) - its terms,
+    # one more owner taking turns. Mirrors every pair gaol door.tim has.
+    ("arms2.tim",                      "hell bg.tim"),
+    ("heads.tim",                      "hell bg.tim"),
+    ("legs.tim",                       "hell bg.tim"),
+    ("bones.tim",                      "hell bg.tim"),
+    ("torsos.tim",                     "hell bg.tim"),
+    ("shelf_incinerator.tim",          "hell bg.tim"),
+    ("asag.tim",                       "hell bg.tim"),
+    ("chnlnk.tim",                     "hell bg.tim"),
+    ("gravel_texture.tim",             "hell bg.tim"),
+    ("greenhouse.tim",                 "hell bg.tim"),
+    ("hatch.tim",                      "hell bg.tim"),
+    ("plinth_rg.tim",                  "hell bg.tim"),
+    ("poison_flower_base.tim",         "hell bg.tim"),
+    ("trck_clue.tim",                  "hell bg.tim"),
+    ("trees.tim",                      "hell bg.tim"),
+    ("gula tablet.tim",                "hell bg.tim"),
+    ("baby names.tim",                 "hell bg.tim"),
+    ("guts.tim",                       "hell bg.tim"),
+    ("lamashtu pearl.tim",             "hell bg.tim"),
+    ("gaol door.tim",                  "hell bg.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

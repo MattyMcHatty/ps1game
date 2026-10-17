@@ -62,6 +62,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   lamashtu.tim         4       576     0   128   128     0   640,502
   red_wlppr.tim        4       576     0   128   128     0   0,492
   seal.tim             4       576     0   128   128     0   640,502
+  lava.tim             4       576     0   128   128     0   640,502
   hadad_idle_64.tim    4       608     0   128   128     0   256,507
   arms2.tim            4       640     0   128   128     0   672,501
   asag.tim             8       640     0   128   128     0   672,501
@@ -83,6 +84,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   torsos.tim           4       640     0   128   128     0   672,501
   trck_clue.tim        4       640     0   128   128     0   768,481
   trees.tim            4       640     0   128   128     0   48,511
+  hell bg.tim          4       640     0   128   128     0   576,502
   chain.tim            4       704     0   128   128     0   560,502
   gravel_gs.tim        4       704     0   128   128     0   240,511
   poison_flower_base_gh.tim 4       704     0    64    64     0   256,511
@@ -293,6 +295,8 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=502  x[512,528)  pipe_gh.tim
   y=502  x[672,928)  sconce.tim
   y=502  x[640,656)  seal.tim
+  y=502  x[576,592)  hell bg.tim
+  y=502  x[640,656)  lava.tim
   y=503  x[0,16)  kchn_wl.tim
   y=503  x[256,272)  plinth.tim
   y=503  x[768,784)  vlv_hndl.tim
@@ -387,6 +391,7 @@ OVERLAP CHECK
   arms2.tim                                torsos.tim           time-shared (streaming)
   arms2.tim                                trck_clue.tim        time-shared (streaming)
   arms2.tim                                trees.tim            time-shared (streaming)
+  arms2.tim                                hell bg.tim          time-shared (streaming)
   asag.tim                                 baby names.tim       time-shared (streaming)
   asag.tim                                 bones.tim            time-shared (streaming)
   asag.tim                                 shelf_incinerator.tim time-shared (streaming)
@@ -405,6 +410,7 @@ OVERLAP CHECK
   asag.tim                                 torsos.tim           time-shared (streaming)
   asag.tim                                 trck_clue.tim        time-shared (streaming)
   asag.tim                                 trees.tim            time-shared (streaming)
+  asag.tim                                 hell bg.tim          time-shared (streaming)
   baby names.tim                           bones.tim            time-shared (streaming)
   baby names.tim                           shelf_incinerator.tim time-shared (streaming)
   baby names.tim                           chnlnk.tim           time-shared (streaming)
@@ -422,6 +428,7 @@ OVERLAP CHECK
   baby names.tim                           torsos.tim           time-shared (streaming)
   baby names.tim                           trck_clue.tim        time-shared (streaming)
   baby names.tim                           trees.tim            time-shared (streaming)
+  baby names.tim                           hell bg.tim          time-shared (streaming)
   bars.tim                                 pipe_button_off.tim  time-shared (streaming)
   bars.tim                                 pipe_button_on.tim   time-shared (streaming)
   bars.tim                                 wd_dr_crk.tim        time-shared (streaming)
@@ -451,6 +458,7 @@ OVERLAP CHECK
   bones.tim                                torsos.tim           time-shared (streaming)
   bones.tim                                trck_clue.tim        time-shared (streaming)
   bones.tim                                trees.tim            time-shared (streaming)
+  bones.tim                                hell bg.tim          time-shared (streaming)
   bookshelf.tim                            grss_gs.tim          time-shared (streaming)
   bookshelf.tim                            stn_stl.tim          time-shared (streaming)
   bookshelf.tim                            strs.tim             time-shared (streaming)
@@ -474,6 +482,7 @@ OVERLAP CHECK
   gaol_mud.tim                             lamashtu.tim         time-shared (streaming)
   gaol_mud.tim                             red_wlppr.tim        time-shared (streaming)
   gaol_mud.tim                             seal.tim             time-shared (streaming)
+  gaol_mud.tim                             lava.tim             time-shared (streaming)
   gula_a.tim                               crawler_a.tim        time-shared (streaming)
   gula_a.tim                               rafflesia1.tim       time-shared (streaming)
   gula_a.tim                               rafflesia2.tim       time-shared (streaming)
@@ -499,6 +508,7 @@ OVERLAP CHECK
   shelf_incinerator.tim                    torsos.tim           time-shared (streaming)
   shelf_incinerator.tim                    trck_clue.tim        time-shared (streaming)
   shelf_incinerator.tim                    trees.tim            time-shared (streaming)
+  shelf_incinerator.tim                    hell bg.tim          time-shared (streaming)
   chain.tim                                gravel_gs.tim        time-shared (streaming)
   chain.tim                                poison_flower_base_gh.tim time-shared (streaming)
   chain.tim                                rusty.tim            time-shared (streaming)
@@ -523,6 +533,7 @@ OVERLAP CHECK
   chnlnk.tim                               torsos.tim           time-shared (streaming)
   chnlnk.tim                               trck_clue.tim        time-shared (streaming)
   chnlnk.tim                               trees.tim            time-shared (streaming)
+  chnlnk.tim                               hell bg.tim          time-shared (streaming)
   chnlnk_dl.tim                            clsd_drwr.tim        time-shared (streaming)
   chnlnk_dl.tim                            cncrte.tim           time-shared (streaming)
   chnlnk_dl.tim                            cobblestones.tim     time-shared (streaming)
@@ -571,6 +582,7 @@ OVERLAP CHECK
   crib.tim                                 lamashtu.tim         time-shared (streaming)
   crib.tim                                 red_wlppr.tim        time-shared (streaming)
   crib.tim                                 seal.tim             time-shared (streaming)
+  crib.tim                                 lava.tim             time-shared (streaming)
   cuneiform _symbols.tim                   dresser.tim          time-shared (streaming)
   cuneiform _symbols.tim                   grdn_gte.tim         time-shared (streaming)
   cuneiform _symbols.tim                   kchn_wl.tim          time-shared (streaming)
@@ -619,6 +631,7 @@ OVERLAP CHECK
   gaol door.tim                            torsos.tim           time-shared (streaming)
   gaol door.tim                            trck_clue.tim        time-shared (streaming)
   gaol door.tim                            trees.tim            time-shared (streaming)
+  gaol door.tim                            hell bg.tim          time-shared (streaming)
   gravel_gs.tim                            poison_flower_base_gh.tim time-shared (streaming)
   gravel_gs.tim                            rusty.tim            time-shared (streaming)
   gravel_gs.tim                            rusty_fence.tim      time-shared (streaming)
@@ -636,6 +649,7 @@ OVERLAP CHECK
   gravel_texture.tim                       torsos.tim           time-shared (streaming)
   gravel_texture.tim                       trck_clue.tim        time-shared (streaming)
   gravel_texture.tim                       trees.tim            time-shared (streaming)
+  gravel_texture.tim                       hell bg.tim          time-shared (streaming)
   grdn_gte.tim                             kchn_wl.tim          time-shared (streaming)
   grdn_gte.tim                             loculus.tim          time-shared (streaming)
   greenhouse door.tim                      red_crpt.tim         time-shared (streaming)
@@ -650,6 +664,7 @@ OVERLAP CHECK
   greenhouse.tim                           torsos.tim           time-shared (streaming)
   greenhouse.tim                           trck_clue.tim        time-shared (streaming)
   greenhouse.tim                           trees.tim            time-shared (streaming)
+  greenhouse.tim                           hell bg.tim          time-shared (streaming)
   grss.tim                                 gula codes.tim       time-shared (streaming)
   grss.tim                                 lamashtu arm.tim     time-shared (streaming)
   grss.tim                                 lamashtu tablet.tim  time-shared (streaming)
@@ -675,6 +690,7 @@ OVERLAP CHECK
   gula tablet.tim                          torsos.tim           time-shared (streaming)
   gula tablet.tim                          trck_clue.tim        time-shared (streaming)
   gula tablet.tim                          trees.tim            time-shared (streaming)
+  gula tablet.tim                          hell bg.tim          time-shared (streaming)
   guts.tim                                 hatch.tim            time-shared (streaming)
   guts.tim                                 heads.tim            time-shared (streaming)
   guts.tim                                 lamashtu pearl.tim   time-shared (streaming)
@@ -684,6 +700,7 @@ OVERLAP CHECK
   guts.tim                                 torsos.tim           time-shared (streaming)
   guts.tim                                 trck_clue.tim        time-shared (streaming)
   guts.tim                                 trees.tim            time-shared (streaming)
+  guts.tim                                 hell bg.tim          time-shared (streaming)
   hatch.tim                                heads.tim            time-shared (streaming)
   hatch.tim                                lamashtu pearl.tim   time-shared (streaming)
   hatch.tim                                legs.tim             time-shared (streaming)
@@ -692,6 +709,7 @@ OVERLAP CHECK
   hatch.tim                                torsos.tim           time-shared (streaming)
   hatch.tim                                trck_clue.tim        time-shared (streaming)
   hatch.tim                                trees.tim            time-shared (streaming)
+  hatch.tim                                hell bg.tim          time-shared (streaming)
   heads.tim                                lamashtu pearl.tim   time-shared (streaming)
   heads.tim                                legs.tim             time-shared (streaming)
   heads.tim                                plinth_rg.tim        time-shared (streaming)
@@ -699,6 +717,7 @@ OVERLAP CHECK
   heads.tim                                torsos.tim           time-shared (streaming)
   heads.tim                                trck_clue.tim        time-shared (streaming)
   heads.tim                                trees.tim            time-shared (streaming)
+  heads.tim                                hell bg.tim          time-shared (streaming)
   hedge.tim                                kchn_tile.tim        time-shared (streaming)
   hedge.tim                                mud.tim              time-shared (streaming)
   hedge.tim                                piano_keys.tim       time-shared (streaming)
@@ -721,17 +740,20 @@ OVERLAP CHECK
   lamashtu pearl.tim                       torsos.tim           time-shared (streaming)
   lamashtu pearl.tim                       trck_clue.tim        time-shared (streaming)
   lamashtu pearl.tim                       trees.tim            time-shared (streaming)
+  lamashtu pearl.tim                       hell bg.tim          time-shared (streaming)
   lamashtu tablet.tim                      pipe.tim             time-shared (streaming)
   lamashtu tablet.tim                      plinth_diamond.tim   time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_cmplt.tim      time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_lckd.tim       time-shared (streaming)
   lamashtu.tim                             red_wlppr.tim        time-shared (streaming)
   lamashtu.tim                             seal.tim             time-shared (streaming)
+  lamashtu.tim                             lava.tim             time-shared (streaming)
   legs.tim                                 plinth_rg.tim        time-shared (streaming)
   legs.tim                                 poison_flower_base.tim time-shared (streaming)
   legs.tim                                 torsos.tim           time-shared (streaming)
   legs.tim                                 trck_clue.tim        time-shared (streaming)
   legs.tim                                 trees.tim            time-shared (streaming)
+  legs.tim                                 hell bg.tim          time-shared (streaming)
   lumberer_a.tim                           mansion.tim          time-shared (streaming)
   lumberer_b.tim                           xt_dr_lft_hlf.tim    time-shared (streaming)
   mud.tim                                  piano_keys.tim       time-shared (streaming)
@@ -759,9 +781,11 @@ OVERLAP CHECK
   plinth_rg.tim                            torsos.tim           time-shared (streaming)
   plinth_rg.tim                            trck_clue.tim        time-shared (streaming)
   plinth_rg.tim                            trees.tim            time-shared (streaming)
+  plinth_rg.tim                            hell bg.tim          time-shared (streaming)
   poison_flower_base.tim                   torsos.tim           time-shared (streaming)
   poison_flower_base.tim                   trck_clue.tim        time-shared (streaming)
   poison_flower_base.tim                   trees.tim            time-shared (streaming)
+  poison_flower_base.tim                   hell bg.tim          time-shared (streaming)
   poison_flower_base_gh.tim                rusty.tim            time-shared (streaming)
   poison_flower_base_gh.tim                rusty_fence.tim      time-shared (streaming)
   poison_flower_base_gh.tim                stable glyphs.tim    time-shared (streaming)
@@ -770,18 +794,23 @@ OVERLAP CHECK
   rafflesia1.tim                           spdr_rst.tim         time-shared (streaming)
   rafflesia2.tim                           spdr_wk.tim          time-shared (streaming)
   red_wlppr.tim                            seal.tim             time-shared (streaming)
+  red_wlppr.tim                            lava.tim             time-shared (streaming)
   rusty.tim                                rusty_fence.tim      time-shared (streaming)
   rusty.tim                                stable glyphs.tim    time-shared (streaming)
   rusty.tim                                upstairs.tim         time-shared (streaming)
   rusty_fence.tim                          stable glyphs.tim    time-shared (streaming)
   rusty_fence.tim                          upstairs.tim         time-shared (streaming)
   sconce.tim                               wd_flr.tim           time-shared (streaming)
+  seal.tim                                 lava.tim             time-shared (streaming)
   stable glyphs.tim                        upstairs.tim         time-shared (streaming)
   stables wood.tim                         xt_dr_cg.tim         time-shared (streaming)
   stn_stl.tim                              strs.tim             time-shared (streaming)
   torsos.tim                               trck_clue.tim        time-shared (streaming)
   torsos.tim                               trees.tim            time-shared (streaming)
+  torsos.tim                               hell bg.tim          time-shared (streaming)
   trck_clue.tim                            trees.tim            time-shared (streaming)
+  trck_clue.tim                            hell bg.tim          time-shared (streaming)
+  trees.tim                                hell bg.tim          time-shared (streaming)
   xt_dr_cmplt.tim                          xt_dr_lckd.tim       time-shared (streaming)
   No unexpected pixel collisions.
 

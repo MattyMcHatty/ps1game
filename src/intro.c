@@ -352,11 +352,12 @@ int intro_finished(void) {
 
 /* ------------------------------------------------------------------ drawing */
 static void tile_run(RenderContext *ctx, int x, int y, int w,
-                     uint8_t r, uint8_t g, uint8_t b, int ot) {
+                     uint8_t r, uint8_t g, uint8_t b, int ot, int semi) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     if (ctx->next_packet + sizeof(TILE) > buf_end) return;
     TILE *tl = (TILE *)ctx->next_packet;
     setTile(tl);
+    if (semi) setSemiTrans(tl, 1);
     setXY0(tl, x, y);
     setWH(tl, w, 1);
     setRGB0(tl, r, g, b);
@@ -380,11 +381,19 @@ int intro_text_width(const char *s) {
    streams draw at a fixed brightness, so they cannot be faded at all. */
 void intro_text_draw(RenderContext *ctx, const char *s, int y, int level, int ot) {
     if (level <= 0) return;
-    uint8_t r = (uint8_t)(TEXT_R * level / 255);
-    uint8_t g = (uint8_t)(TEXT_G * level / 255);
-    uint8_t b = (uint8_t)(TEXT_B * level / 255);
+    intro_text_draw_at(ctx, s, (SCREEN_XRES - intro_text_width(s)) / 2, y,
+                       (uint8_t)(TEXT_R * level / 255),
+                       (uint8_t)(TEXT_G * level / 255),
+                       (uint8_t)(TEXT_B * level / 255), ot, 0);
+}
 
-    int x = (SCREEN_XRES - intro_text_width(s)) / 2;
+/* The same glyphs at a stated left edge and colour. `semi` sets the semi-trans
+   bit on every run, which with an ADDITIVE DR_TPAGE (ABR=1) sorted after them
+   in the same OT slot is a true fade over any picture - the caller owns that
+   DR_TPAGE, because it owns the slot. Added for Descent to Hell's lines
+   (src/descent_to_hell.c), which sit at the screen's edges and corners. */
+void intro_text_draw_at(RenderContext *ctx, const char *s, int x, int y,
+                        uint8_t r, uint8_t g, uint8_t b, int ot, int semi) {
     for (; *s; s++) {
         const uint8_t *gl = glyph_for(*s);
         if (gl) {
@@ -396,7 +405,7 @@ void intro_text_draw(RenderContext *ctx, const char *s, int y, int level, int ot
                     if (!(bits & (1 << col))) { col++; continue; }
                     int start = col;
                     while (col < GLYPH_W && (bits & (1 << col))) col++;
-                    tile_run(ctx, x + start, y + row, col - start, r, g, b, ot);
+                    tile_run(ctx, x + start, y + row, col - start, r, g, b, ot, semi);
                 }
             }
         }

@@ -307,6 +307,10 @@
 #define TIM_TPAGE_HEDGE    0x0006
 #define TIM_CLUT_HEDGE     0x7a6a
 
+/* hell bg.tim     4bpp  VRAM ( 640,  0)  \TEXUNDW\HELLBG.TIM */
+#define TIM_TPAGE_HELLBG   0x000a
+#define TIM_CLUT_HELLBG    0x7da4
+
 /* helluminator.tim  4bpp  VRAM ( 832,320)  \TEX\HELLUMIN.TIM */
 #define TIM_TPAGE_HELLUMIN 0x001d
 #define TIM_CLUT_HELLUMIN  0x7faa
@@ -342,6 +346,10 @@
 /* lamashtu.tim    4bpp  VRAM ( 576,  0)  \TEXCTCMB\LAMASHTU.TIM */
 #define TIM_TPAGE_LAMASHTU 0x0009
 #define TIM_CLUT_LAMASHTU  0x7da8
+
+/* lava.tim        4bpp  VRAM ( 576,  0)  \TEXUNDW\LAVA.TIM */
+#define TIM_TPAGE_LAVA     0x0009
+#define TIM_CLUT_LAVA      0x7da8
 
 /* legs.tim        4bpp  VRAM ( 640,  0)  \TEXCTCMB\LEGS.TIM */
 #define TIM_TPAGE_LEGS     0x000a
