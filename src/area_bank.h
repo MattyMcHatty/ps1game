@@ -105,6 +105,12 @@ TexBank area_bank_of(GameState area);
    re-reading that. */
 int area_is_catacombs(GameState area);
 
+/* 1 if this area belongs to Chapter 4, the Underworld. Its rooms share one fog
+   and one sky (src/underworld.h) and the SND_BANK_UNDERWORLD sound bank - all
+   but Descent to Hell, which is a cutscene with neither and keeps the Seal's
+   sound bank (see main.c's sound_bank_select line). */
+int area_is_underworld(GameState area);
+
 /* Called from main's STATE_LOADING, and from the one title-exit path that does
    not pass through it — and NOWHERE ELSE, because it does CD reads.
 

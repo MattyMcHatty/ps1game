@@ -1989,15 +1989,28 @@
              prims - a hell backdrop box with the lava far below - and the TUBE,
              a 360-prim prop of its own the camera falls through, spinning.
 
-             Its two textures are both 4bpp and both its own: LAVA.TIM at x576
-             y0 with Lamashtu's CLUT line (640,502) - the Seal's terms exactly,
-             and the Seal is the only way in - and HELLBG.TIM at x640 y0 with
-             the gaol door's CLUT line (576,502). Every room that draws either
-             page puts its own art back on entry. -->
+             Its two textures are both 4bpp and both its own: LAVA.TIM at x320
+             y256 with CLUT (944,502), a page start the Underworld map calls
+             FREE - it moved off the Seal's slot when Hell Hath No Fury came to
+             draw both - and HELLBG.TIM at x640 y0 with the gaol door's CLUT
+             line (576,502). Every room that draws either page puts its own art
+             back on entry. -->
             <file name="DESCENT.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\descent_to_hell.smd"/>
             <file name="DSCTUBE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\underworld\descent_tube.smd"/>
             <file name="LAVA.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\lava.tim"/>
             <file name="HELLBG.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\hell bg.tim"/>
+        <!-- THE SKYBOX, drawn in every Chapter 4 room but the Descent
+             (src/underworld_sky.h): a sixteen-sided ring from "Underworld
+             Skybox.smx", textured with the Descent's HELLBG.TIM above, so it
+             ships no texture of its own. -->
+            <file name="UWSKY.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\underworld\underworld_skybox.smd"/>
+        <!-- HELL HATH NO FURY (src/hell_hath_no_fury.h), where the Descent's
+             white lands: an open octagonal platform of volcanic rock over
+             lava. Owns VOLCANIC.TIM (4bpp x384 y256, CLUT 928,502) and borrows
+             the Descent's lava, cobble, the inner door, the Seal's floor and
+             the resident wooden door. -->
+            <file name="HHNF.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\hell_hath_no_fury.smd"/>
+            <file name="VOLCANIC.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\volcanic.tim"/>
         </dir>
 
         </directory_tree>

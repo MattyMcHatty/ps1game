@@ -360,9 +360,11 @@ void catacombs_entry_load_geometry(void) {
 /* STARTUP, and it does NOT touch the drive. Four deferred registrations and
    four compile-time headers; the reads happen at the chapter door. */
 void catacombs_entry_load_assets(void) {
-    /* BANK: Chapter 3. Derived, not guessed - py tools/check_tex_banks.py
-       walks the uploader call graph and fails the build if this is short. */
-    texmgr_set_bank(TEXBANK_CATACOMBS);
+    /* BANK: Chapter 3, and Chapter 4 too - Hell Hath No Fury borrows cobble
+       and the inner door through the two narrow uploaders below. Derived, not
+       guessed - py tools/check_tex_banks.py walks the uploader call graph and
+       fails the build if this is short. */
+    texmgr_set_bank(TEXBANK_CATACOMBS | TEXBANK_UNDERWORLD);
     for (int i = 0; i < CATACOMBS_ENTRY_NEW_TEX; i++)
         new_tex_id[i] = texmgr_register(new_tex_file[i]);
 
@@ -417,7 +419,8 @@ void catacombs_entry_upload_textures(void) {
 
    texmgr_upload() on an entry whose bank is out is a no-op, so calling these
    from a room in another chapter would leave that page as it was rather than
-   crash — see the note above. Nothing does; both callers are Chapter 3. */
+   crash — see the note above. Chapter 4 now does: Hell Hath No Fury calls
+   both, and the mask in catacombs_entry_load_assets() carries its bank. */
 void catacombs_entry_upload_cobble(void) {
     texmgr_upload(new_tex_id[0]);
 }

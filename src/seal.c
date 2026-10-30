@@ -125,7 +125,9 @@ void seal_load_geometry(void) {
 }
 
 void seal_load_assets(void) {
-    texmgr_set_bank(TEXBANK_CATACOMBS);
+    /* Chapter 3's, and Chapter 4's too: Hell Hath No Fury lays the seal into
+       its floor through seal_upload_textures(). */
+    texmgr_set_bank(TEXBANK_CATACOMBS | TEXBANK_UNDERWORLD);
     seal_tex = texmgr_register("\\TEXCTCMB\\SEAL.TIM;1");
     TIM_SLOT(0, SEAL);
 }

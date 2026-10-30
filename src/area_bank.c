@@ -199,11 +199,17 @@ TexBank area_bank_of(GameState area) {
         return TEXBANK_CATACOMBS;
 
     /* ---- CHAPTER 4 ----------------------------------------------------- */
-    /* DESCENT TO HELL owns LAVA.TIM and HELLBG.TIM (both 4bpp, x576 y0 and
+    /* DESCENT TO HELL owns LAVA.TIM and HELLBG.TIM (both 4bpp, x320 y256 and
        x640 y0) and borrows nothing. It is reached only from the Seal's white,
        one way, and leaves only for the title, so selecting this bank hands
        back the whole of Chapter 3's art and every prop model. */
     case STATE_DESCENT_TO_HELL:
+    /* HELL HATH NO FURY owns VOLCANIC.TIM (4bpp x384 y256) and draws the sky,
+       which with the room's lava is the Descent's art. It borrows cobble and the
+       inner door through the Catacombs Entry's narrow uploaders and the seal
+       through the Seal's, so those three modules' masks carry this bank too -
+       py tools/check_tex_banks.py walks the graph and proves it. */
+    case STATE_HELL_HATH_NO_FURY:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -243,6 +249,11 @@ int area_is_catacombs(GameState area) {
            area == STATE_KENNELS ||
            area == STATE_LAMASHTU_ARENA ||
            area == STATE_SEAL;
+}
+
+int area_is_underworld(GameState area) {
+    return area == STATE_DESCENT_TO_HELL ||
+           area == STATE_HELL_HATH_NO_FURY;
 }
 
 /* ---- The prop models -------------------------------------------------------

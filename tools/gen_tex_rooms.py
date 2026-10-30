@@ -120,8 +120,8 @@ def extra_rules(room, area):
         pass                                    # Gula's sheet, streamed
     elif room in FLOWER_ROOMS:
         e.append("rafflesias_upload_textures")
-    elif room not in ("STATE_ASAG_ARENA", "STATE_DESCENT_TO_HELL"):
-        e.append("spiders_upload_textures")
+    elif room != "STATE_ASAG_ARENA" and area != "UNDERWORLD":
+        e.append("spiders_upload_textures")     # main.c: !area_is_underworld
     if area == "MANSION":
         e.append("zombies_upload_textures")
     if area == "CATACOMBS":

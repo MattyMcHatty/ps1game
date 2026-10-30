@@ -347,9 +347,9 @@
 #define TIM_TPAGE_LAMASHTU 0x0009
 #define TIM_CLUT_LAMASHTU  0x7da8
 
-/* lava.tim        4bpp  VRAM ( 576,  0)  \TEXUNDW\LAVA.TIM */
-#define TIM_TPAGE_LAVA     0x0009
-#define TIM_CLUT_LAVA      0x7da8
+/* lava.tim        4bpp  VRAM ( 320,256)  \TEXUNDW\LAVA.TIM */
+#define TIM_TPAGE_LAVA     0x0015
+#define TIM_CLUT_LAVA      0x7dbb
 
 /* legs.tim        4bpp  VRAM ( 640,  0)  \TEXCTCMB\LEGS.TIM */
 #define TIM_TPAGE_LEGS     0x000a
@@ -606,6 +606,10 @@
 /* vlv_hndl.tim    4bpp  VRAM ( 608,288)  \TEX\VLVHNDL.TIM */
 #define TIM_TPAGE_VLVHNDL  0x0019
 #define TIM_CLUT_VLVHNDL   0x7df0
+
+/* volcanic.tim    4bpp  VRAM ( 384,256)  \TEXUNDW\VOLCANIC.TIM */
+#define TIM_TPAGE_VOLCANIC 0x0016
+#define TIM_CLUT_VOLCANIC  0x7dba
 
 /* wdcrate.tim     4bpp  VRAM ( 896,  0)  \WCRATE.TIM */
 #define TIM_TPAGE_WCRATE   0x000e

@@ -1114,18 +1114,6 @@ KNOWN_STREAM_PAIRS = [
     ("gula_a.tim",         "gula_b.tim"),
     ("crawler_a.tim",      "gula_b.tim"),
     # ============ CHAPTER 4: THE UNDERWORLD =================================
-    #   lava.tim -> x576 y0, DESCENT TO HELL's lava (the floor and the tube),
-    # 4bpp 128x128, ON THE SEAL'S SLOT AND CLUT LINE (640,502) - the Seal's
-    # terms exactly. The room is reached only from the Seal and leaves only
-    # for the title; every room that draws this page or that palette puts its
-    # own back on entry, so this mirrors every pair seal.tim already has.
-    ("lamashtu.tim",                   "lava.tim"),
-    ("crib.tim",                       "lava.tim"),
-    ("gaol_mud.tim",                   "lava.tim"),
-    ("red_wlppr.tim",                  "lava.tim"),
-    ("anzu2.tim",                      "lava.tim"),
-    ("anzu5.tim",                      "lava.tim"),
-    ("seal.tim",                       "lava.tim"),
     #   hell bg.tim -> x640 y0, DESCENT TO HELL's backdrop walls, 4bpp
     # 128x128, ON THE GAOL DOOR'S PAGE AND CLUT LINE (576,502) - its terms,
     # one more owner taking turns. Mirrors every pair gaol door.tim has.
@@ -1149,6 +1137,22 @@ KNOWN_STREAM_PAIRS = [
     ("guts.tim",                       "hell bg.tim"),
     ("lamashtu pearl.tim",             "hell bg.tim"),
     ("gaol door.tim",                  "hell bg.tim"),
+    #   lava.tim -> x320 y256, DESCENT TO HELL's lava (the floor and the tube),
+    # lent to HELL HATH NO FURY, 4bpp 128x128, CLUT (944,502). A page start
+    # tools/VRAM_MAP_CATACOMBS.txt calls FREE - every tenant is re-uploaded by
+    # its own room on entry, and the chapter is only ever left for the title.
+    # It sat on the Seal's slot until Hell Hath No Fury came to draw both.
+    ("chain_128.tim",                  "lava.tim"),
+    ("dbl_dr_rg.tim",                  "lava.tim"),
+    ("frnt_dr.tim",                    "lava.tim"),
+    ("greenhouse door.tim",            "lava.tim"),
+    ("red_crpt.tim",                   "lava.tim"),
+    #   volcanic.tim -> x384 y256, HELL HATH NO FURY's floor: the other FREE
+    # page's start, under the room's 128 window. Over pipe_gh, prpl_wlppr and
+    # stove (the kitchen restores stove on every entry).
+    ("pipe_gh.tim",                    "volcanic.tim"),
+    ("prpl_wlppr.tim",                 "volcanic.tim"),
+    ("stove.tim",                      "volcanic.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

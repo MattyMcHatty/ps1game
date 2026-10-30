@@ -62,7 +62,6 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   lamashtu.tim         4       576     0   128   128     0   640,502
   red_wlppr.tim        4       576     0   128   128     0   0,492
   seal.tim             4       576     0   128   128     0   640,502
-  lava.tim             4       576     0   128   128     0   640,502
   hadad_idle_64.tim    4       608     0   128   128     0   256,507
   arms2.tim            4       640     0   128   128     0   672,501
   asag.tim             8       640     0   128   128     0   672,501
@@ -151,9 +150,11 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   frnt_dr.tim          4       320   256   128   128     0   0,506
   greenhouse door.tim  4       320   256    64    64     0   272,511
   red_crpt.tim         4       320   256   128   128     0   0,493
+  lava.tim             4       320   256   128   128     0   944,502
   pipe_gh.tim          4       384   256   128   128     0   512,502
   prpl_wlppr.tim       4       384   256   128   128     0   0,511
   stove.tim            4       384   256   128   128     0   0,494
+  volcanic.tim         4       384   256   128   128     0   928,502
   din_cl.tim           4       448   256   128   128     0   0,495
   bars.tim             4       512   256   128   128     0   0,497
   pipe_button_off.tim  4       512   256    32    32     0   528,502
@@ -296,7 +297,8 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=502  x[672,928)  sconce.tim
   y=502  x[640,656)  seal.tim
   y=502  x[576,592)  hell bg.tim
-  y=502  x[640,656)  lava.tim
+  y=502  x[944,960)  lava.tim
+  y=502  x[928,944)  volcanic.tim
   y=503  x[0,16)  kchn_wl.tim
   y=503  x[256,272)  plinth.tim
   y=503  x[768,784)  vlv_hndl.tim
@@ -482,7 +484,6 @@ OVERLAP CHECK
   gaol_mud.tim                             lamashtu.tim         time-shared (streaming)
   gaol_mud.tim                             red_wlppr.tim        time-shared (streaming)
   gaol_mud.tim                             seal.tim             time-shared (streaming)
-  gaol_mud.tim                             lava.tim             time-shared (streaming)
   gula_a.tim                               crawler_a.tim        time-shared (streaming)
   gula_a.tim                               rafflesia1.tim       time-shared (streaming)
   gula_a.tim                               rafflesia2.tim       time-shared (streaming)
@@ -519,6 +520,7 @@ OVERLAP CHECK
   chain_128.tim                            frnt_dr.tim          time-shared (streaming)
   chain_128.tim                            greenhouse door.tim  time-shared (streaming)
   chain_128.tim                            red_crpt.tim         time-shared (streaming)
+  chain_128.tim                            lava.tim             time-shared (streaming)
   chnlnk.tim                               gaol door.tim        time-shared (streaming)
   chnlnk.tim                               gravel_texture.tim   time-shared (streaming)
   chnlnk.tim                               greenhouse.tim       time-shared (streaming)
@@ -582,7 +584,6 @@ OVERLAP CHECK
   crib.tim                                 lamashtu.tim         time-shared (streaming)
   crib.tim                                 red_wlppr.tim        time-shared (streaming)
   crib.tim                                 seal.tim             time-shared (streaming)
-  crib.tim                                 lava.tim             time-shared (streaming)
   cuneiform _symbols.tim                   dresser.tim          time-shared (streaming)
   cuneiform _symbols.tim                   grdn_gte.tim         time-shared (streaming)
   cuneiform _symbols.tim                   kchn_wl.tim          time-shared (streaming)
@@ -590,6 +591,7 @@ OVERLAP CHECK
   dbl_dr_rg.tim                            frnt_dr.tim          time-shared (streaming)
   dbl_dr_rg.tim                            greenhouse door.tim  time-shared (streaming)
   dbl_dr_rg.tim                            red_crpt.tim         time-shared (streaming)
+  dbl_dr_rg.tim                            lava.tim             time-shared (streaming)
   double_door.tim                          drain.tim            time-shared (streaming)
   double_door.tim                          opn_drwr.tim         time-shared (streaming)
   double_door.tim                          plinth.tim           time-shared (streaming)
@@ -618,6 +620,7 @@ OVERLAP CHECK
   fountain.tim                             xt_dr_lckd.tim       time-shared (streaming)
   frnt_dr.tim                              greenhouse door.tim  time-shared (streaming)
   frnt_dr.tim                              red_crpt.tim         time-shared (streaming)
+  frnt_dr.tim                              lava.tim             time-shared (streaming)
   gaol door.tim                            gravel_texture.tim   time-shared (streaming)
   gaol door.tim                            greenhouse.tim       time-shared (streaming)
   gaol door.tim                            gula tablet.tim      time-shared (streaming)
@@ -653,6 +656,7 @@ OVERLAP CHECK
   grdn_gte.tim                             kchn_wl.tim          time-shared (streaming)
   grdn_gte.tim                             loculus.tim          time-shared (streaming)
   greenhouse door.tim                      red_crpt.tim         time-shared (streaming)
+  greenhouse door.tim                      lava.tim             time-shared (streaming)
   greenhouse.tim                           gula tablet.tim      time-shared (streaming)
   greenhouse.tim                           guts.tim             time-shared (streaming)
   greenhouse.tim                           hatch.tim            time-shared (streaming)
@@ -747,7 +751,6 @@ OVERLAP CHECK
   lamashtu tablet.tim                      xt_dr_lckd.tim       time-shared (streaming)
   lamashtu.tim                             red_wlppr.tim        time-shared (streaming)
   lamashtu.tim                             seal.tim             time-shared (streaming)
-  lamashtu.tim                             lava.tim             time-shared (streaming)
   legs.tim                                 plinth_rg.tim        time-shared (streaming)
   legs.tim                                 poison_flower_base.tim time-shared (streaming)
   legs.tim                                 torsos.tim           time-shared (streaming)
@@ -773,6 +776,7 @@ OVERLAP CHECK
   pipe_button_on.tim                       wd_dr_crk.tim        time-shared (streaming)
   pipe_gh.tim                              prpl_wlppr.tim       time-shared (streaming)
   pipe_gh.tim                              stove.tim            time-shared (streaming)
+  pipe_gh.tim                              volcanic.tim         time-shared (streaming)
   plinth.tim                               stables wood.tim     time-shared (streaming)
   plinth.tim                               xt_dr_cg.tim         time-shared (streaming)
   plinth_diamond.tim                       xt_dr_cmplt.tim      time-shared (streaming)
@@ -791,20 +795,21 @@ OVERLAP CHECK
   poison_flower_base_gh.tim                stable glyphs.tim    time-shared (streaming)
   poison_flower_base_gh.tim                upstairs.tim         time-shared (streaming)
   prpl_wlppr.tim                           stove.tim            time-shared (streaming)
+  prpl_wlppr.tim                           volcanic.tim         time-shared (streaming)
   rafflesia1.tim                           spdr_rst.tim         time-shared (streaming)
   rafflesia2.tim                           spdr_wk.tim          time-shared (streaming)
+  red_crpt.tim                             lava.tim             time-shared (streaming)
   red_wlppr.tim                            seal.tim             time-shared (streaming)
-  red_wlppr.tim                            lava.tim             time-shared (streaming)
   rusty.tim                                rusty_fence.tim      time-shared (streaming)
   rusty.tim                                stable glyphs.tim    time-shared (streaming)
   rusty.tim                                upstairs.tim         time-shared (streaming)
   rusty_fence.tim                          stable glyphs.tim    time-shared (streaming)
   rusty_fence.tim                          upstairs.tim         time-shared (streaming)
   sconce.tim                               wd_flr.tim           time-shared (streaming)
-  seal.tim                                 lava.tim             time-shared (streaming)
   stable glyphs.tim                        upstairs.tim         time-shared (streaming)
   stables wood.tim                         xt_dr_cg.tim         time-shared (streaming)
   stn_stl.tim                              strs.tim             time-shared (streaming)
+  stove.tim                                volcanic.tim         time-shared (streaming)
   torsos.tim                               trck_clue.tim        time-shared (streaming)
   torsos.tim                               trees.tim            time-shared (streaming)
   torsos.tim                               hell bg.tim          time-shared (streaming)

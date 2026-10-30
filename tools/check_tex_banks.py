@@ -239,11 +239,16 @@ AREAS = {
                   # to every room in this bank. Its page is owned outright, so
                   # unlike the two above there is no donor to arbitrate with.
                   "maggots_upload_textures"],
-    # CHAPTER 4, behind the Seal's white. One room so far.
+    # CHAPTER 4, behind the Seal's white.
     "UNDERWORLD": [
                   # DESCENT TO HELL, where the Seal's white lands: owns lava.tim
                   # and hell bg.tim (both 4bpp) and borrows nothing.
-                  "descent_to_hell_upload_textures"],
+                  "descent_to_hell_upload_textures",
+                  # HELL HATH NO FURY, where the Descent's white lands: owns
+                  # volcanic.tim, borrows the Descent's lava and (through the
+                  # sky, underworld_sky.c) its hell bg, cobble and the inner
+                  # door (the Catacombs Entry's) and the seal (the Seal's).
+                  "hell_hath_no_fury_upload_textures"],
 }
 
 BIT = {"MANSION": 1 << 0, "GARDEN": 1 << 1, "RABISU": 1 << 2,

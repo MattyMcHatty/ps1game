@@ -9,64 +9,67 @@ PER-AREA RESIDENT SET
   WEST_GARDEN   212992 bytes (208 KB)   7 modules
   ASAG               0 bytes (  0 KB)   0 modules
   CATACOMBS     380928 bytes (372 KB)  28 modules
+  UNDERWORLD     81920 bytes ( 80 KB)   4 modules
 
   peak bank         483328 bytes (472 KB)  <- this is what sets free-at-rest
-  all at once      1062912 bytes (1038 KB)  <- what the pre-bank design held
+  all at once      1093632 bytes (1068 KB)  <- what the pre-bank design held
 
 DECLARED vs REQUIRED
   kitchen_dining         61440  MANSION
   garden_stairs          57344  MANSION|GARDEN|RABISU|WEST_GARDEN
   delivery_area          51200  MANSION|GARDEN|RABISU|WEST_GARDEN
-  catacombs_entry        40960  CATACOMBS
-  trick_drawers          36864  MANSION
+  catacombs_entry        40960  CATACOMBS|UNDERWORLD
   attic_exit             36864  MANSION
   spider                 36864  MANSION|GARDEN|RABISU
   adapa                  36864  MANSION
-  lumberer               36864  CATACOMBS
+  trick_drawers          36864  MANSION
   crawler                36864  CATACOMBS
+  lumberer               36864  CATACOMBS
   stables                34816  WEST_GARDEN
   piano_props            30720  MANSION
   conservatory           30720  MANSION|GARDEN
   rear_gate              28672  GARDEN
   hall_2f                20480  MANSION
-  maze_one               20480  GARDEN
-  rafflesia              20480  GARDEN|WEST_GARDEN
   fountain_square        20480  GARDEN
   garden_courtyard       20480  GARDEN|RABISU|WEST_GARDEN
+  maze_one               20480  GARDEN
+  rafflesia              20480  GARDEN|WEST_GARDEN
+  descent_to_hell        20480  UNDERWORLD
   rabisu                 18432  GARDEN|RABISU|WEST_GARDEN
-  incinerator            18432  CATACOMBS
   the_shelf              18432  CATACOMBS
   sconce                 18432  CATACOMBS
+  incinerator            18432  CATACOMBS
   outside_catacombs      14336  GARDEN
   zombie                 12288  MANSION
+  east_stairwell         10240  MANSION|GARDEN|RABISU|WEST_GARDEN
   piano_room             10240  MANSION
   concrete_props         10240  MANSION
+  master_bedroom         10240  MANSION
+  dresser                10240  MANSION
   attic_stairwell        10240  MANSION
   reception              10240  MANSION
-  east_stairwell         10240  MANSION|GARDEN|RABISU|WEST_GARDEN
-  dresser                10240  MANSION
-  master_bedroom         10240  MANSION
-  maze_two               10240  GARDEN
   keystone_maze          10240  GARDEN
+  maze_two               10240  GARDEN
   the_pit                10240  CATACOMBS
-  gaol_cells             10240  CATACOMBS
-  room_of_arms           10240  CATACOMBS
-  crib                   10240  CATACOMBS
-  oil_dispenser          10240  CATACOMBS
-  north_chamber          10240  CATACOMBS
-  the_head               10240  CATACOMBS
-  lamashtu               10240  CATACOMBS
-  gula_tablet            10240  CATACOMBS
-  room_of_bones          10240  CATACOMBS
-  room_of_baby_names     10240  CATACOMBS
-  room_of_heads          10240  CATACOMBS
-  room_of_guts           10240  CATACOMBS
-  arm_switch             10240  CATACOMBS
   room_of_torsos         10240  CATACOMBS
-  seal                   10240  CATACOMBS
-  room_of_legs           10240  CATACOMBS
-  gaol_entry             10240  CATACOMBS
+  lamashtu               10240  CATACOMBS
+  room_of_heads          10240  CATACOMBS
   bars                   10240  CATACOMBS
+  room_of_guts           10240  CATACOMBS
+  gula_tablet            10240  CATACOMBS
+  the_head               10240  CATACOMBS
+  crib                   10240  CATACOMBS
+  gaol_entry             10240  CATACOMBS
+  room_of_bones          10240  CATACOMBS
+  oil_dispenser          10240  CATACOMBS
+  room_of_arms           10240  CATACOMBS
+  arm_switch             10240  CATACOMBS
+  room_of_baby_names     10240  CATACOMBS
+  gaol_cells             10240  CATACOMBS
+  north_chamber          10240  CATACOMBS
+  room_of_legs           10240  CATACOMBS
+  seal                   10240  CATACOMBS|UNDERWORLD
+  hell_hath_no_fury      10240  UNDERWORLD
   maggot                  6144  CATACOMBS
   lms_creep               6144  CATACOMBS
   creep                   4096  CATACOMBS

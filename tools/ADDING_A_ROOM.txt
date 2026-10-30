@@ -228,6 +228,29 @@ A ROOM IN A NEW AREA (a new chapter, a new sealed pocket) additionally gets:
     the licence Asag's arena and the Catacombs both use. Register the sharing in
     KNOWN_STREAM_PAIRS so tools/vram_map.py can see the decision.
 
+>>> A CHAPTER 4 (UNDERWORLD) ROOM HAS THREE RULES OF ITS OWN. <<< Copy
+src/hell_hath_no_fury.c, not master_bedroom.c: it is that room's loop with
+all three already in it.
+  1. THE FOG IS THE CHAPTER'S, NOT THE ROOM'S. g_fog_near/g_fog_far and the
+     mesh's fog maths come from UW_FOG_NEAR / UW_FOG_FAR / UW_FOG_R,G,B in
+     src/underworld.h and nothing else - no light, no lantern ease, no
+     per-room value. The clear colour is the fog colour.
+  2. EVERY ROOM DRAWS THE SKY: underworld_sky_draw(ctx, cx, cy, cz) with the
+     centre of the room's own geometry (x/z mid-bounds, y half way up), inside
+     the DBG_EXP_NO_MESH test, and the room's mesh clamps its far otz to
+     UW_SKY_OT - 1. Call underworld_sky_load() from _load_geometry() and
+     underworld_sky_upload_textures() from _upload_textures(). It has no
+     collision. See src/underworld_sky.h. The sky draws the Descent's hell bg,
+     so x640 y0 is taken in EVERY Underworld room: never put room art there.
+  3. THE BOOKKEEPING: add the room to area_is_underworld() as well as
+     area_bank_of() (TEXBANK_UNDERWORLD), which also gives it
+     SND_BANK_UNDERWORLD and skips the spider sheets; its own VRAM is read off
+     tools/VRAM_MAP_UNDERWORLD.txt (py tools/vram_map_underworld.py), which
+     lists the pages free down here and the one borrowed-RESIDENT texture
+     (wd_dr, x768 y256) a new room must not take without a restore. Ship to
+     \TEXUNDW\. A Chapter 4 room may re-lay any page its neighbours use as long
+     as each room uploads what it draws on entry.
+
 >>> AND A NEW ROOM MOVES _end WHATEVER ELSE IT DOES. <<< Its code and its
 ~600-byte slot in world.c's RoomState array are static, so they come off the
 heap for every area at once, and banking does not help with that. It is about

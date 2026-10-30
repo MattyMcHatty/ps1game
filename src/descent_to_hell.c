@@ -15,7 +15,6 @@
 #include "room_data.h"
 #include "cdaudio.h"
 #include "intro.h"              /* the fade-able 5x7 font - the lines          */
-#include "trial_end.h"          /* where the white goes: the sign-off          */
 #include "descent_to_hell.h"
 #include "descent_to_hell_tex_map.h"
 
@@ -28,13 +27,15 @@ static void *dh_buff = NULL;
 
 /* ---- Textures --------------------------------------------------------------
    TWO, BOTH OWNED, BOTH 4bpp 128x128:
-     0  lava     x576 y0, Lamashtu's CLUT line (640,502) - the Seal's slot and
-                 palette exactly. The only way in is the Seal, the Seal puts its
-                 own back on entry, and so does every other owner of that page.
+     0  lava     x320 y256, CLUT (944,502): a page start the Underworld map
+                 calls FREE. It sat on the Seal's slot until Hell Hath No Fury
+                 came to draw the lava AND the seal.
      1  hell bg  x640 y0, the gaol door's CLUT line (576,502). Every room that
                  draws x640 y0 uploads its own pixels on entry; the gaol rooms
                  upload the gaol door's palette with them.
-   The tube is drawn with slot 0 as well. */
+   The tube is drawn with slot 0 as well. Both are LENT to the rest of the
+   chapter through the narrow uploaders below: the lava to Hell Hath No Fury,
+   hell bg to the skybox (src/underworld_sky.c). */
 #define DH_TEX_COUNT 2
 
 static uint16_t tex_tpage[DH_TEX_COUNT];
@@ -53,7 +54,17 @@ void descent_to_hell_load_assets(void) {
 /* Pure LoadImage from the RAM copies texmgr holds - no CD access, safe during
    the transition (main's STATE_LOADING DrawSyncs first). */
 void descent_to_hell_upload_textures(void) {
-    if (lava_tex   >= 0) texmgr_upload(lava_tex);
+    descent_to_hell_upload_lava();
+    descent_to_hell_upload_hell_bg();
+}
+
+/* One texture each, for the chapter's other rooms - a second registration
+   would hold a second RAM copy of the same pixels. */
+void descent_to_hell_upload_lava(void) {
+    if (lava_tex >= 0) texmgr_upload(lava_tex);
+}
+
+void descent_to_hell_upload_hell_bg(void) {
     if (hellbg_tex >= 0) texmgr_upload(hellbg_tex);
 }
 
@@ -164,12 +175,12 @@ void descent_to_hell_load_geometry(void) {
 #define DH_T_WHITE_FROM   870   /* the fade to white, the last line up...      */
 #define DH_T_WHITE_TO     970   /* ...full white; the fall stops here          */
 #define DH_T_END         1210   /* the last line 4 s in the white, then the
-                                   sign-off                                    */
+                                   hand-off to Hell Hath No Fury               */
 
 typedef enum {
     DH_OFF = 0,
     DH_FALL,      /* the fade in, the fall, the lines, the fade to white        */
-    DH_WHITE,     /* held white; trial_end has the screen                       */
+    DH_WHITE,     /* held white; main.c is loading the platform under it        */
 } DhState;
 
 static DhState state = DH_OFF;
@@ -233,20 +244,21 @@ void descent_to_hell_init(void) {
 }
 
 void descent_to_hell_update(void) {
-    if (state != DH_FALL) return;   /* DH_WHITE: trial_end has it from here */
+    if (state != DH_FALL) return;   /* DH_WHITE: main.c has it from here */
 
     dh_t++;
     spin = (spin + DH_SPIN) & 4095;
     dh_place_camera();
 
     if (dh_t >= DH_T_END) {
-        /* THE END OF THE BUILD: the thank-you screen, out of full white. It
-           dissolves this room - still drawn, frozen - to its purple, and owns
-           the frame from here (main.c's trial_end branch). */
-        trial_end_start();
+        /* OUT OF THE WHITE AND ON: main.c sees descent_to_hell_leaving() this
+           same frame and loads Hell Hath No Fury under the white, which this
+           room keeps drawing until the transition takes the frame. */
         state = DH_WHITE;
     }
 }
+
+int descent_to_hell_leaving(void) { return state == DH_WHITE; }
 
 /* ---- The lines -------------------------------------------------------------
    One at a time, each at its own place: a quick fade in as the one before

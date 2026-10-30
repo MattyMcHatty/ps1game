@@ -6,13 +6,13 @@
 /* ============================================================================
    THE TRIAL-END SCREEN — where this build of the game stops
    ============================================================================
-   >>> WHERE IT IS ARMED TODAY: THE END OF DESCENT TO HELL. <<< Chapter 4's
-   opening cutscene (src/descent_to_hell.c) fades to white with its last line
-   still up, holds it, and calls trial_end_start(); the wash below dissolves
-   that white room to purple. Before Chapter 4 the Seal called it at the end of
-   its own white (src/seal.c); the Seal now hands off to Descent to Hell
-   instead. The game-state list in main.c's foot branch must include whichever
-   room arms it, or this screen never gets the frame.
+   >>> NOTHING ARMS IT TODAY. <<< Until October 2026 the end of Descent to Hell
+   called trial_end_start() out of its held white; it now hands off to Hell
+   Hath No Fury instead (src/descent_to_hell.h), so the screen is unreachable
+   again, kept compiling for whichever room ends the next build. Before
+   Chapter 4 the Seal called it at the end of its own white (src/seal.c). The
+   game-state list in main.c's foot branch must include whichever room arms
+   it, or this screen never gets the frame.
 
    The notes below are the screen's history, kept as the map of how it has
    been gated before.

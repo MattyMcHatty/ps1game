@@ -793,6 +793,23 @@ typedef enum {
        player, whose clips are resident. The swap is read in the black of the
        arena's silent hand-off, after her model is freed. */
     SND_BANK_SEAL     = 256,
+    /* THE UNDERWORLD - CHAPTER 4, AND IT IS EMPTY, as SND_BANK_CATACOMBS was
+       on the day Chapter 3 opened and for the same reason, more strongly: the
+       chapter is reached through the Seal's white and Descent to Hell, one way,
+       and nothing of Chapters 1-3 can follow the player in. Everything the
+       PLAYER makes a noise with is SND_RESIDENT and plays here regardless.
+
+       So the whole shared region, about 232 KB, is Chapter 4's, and every clip
+       its rooms and enemies gain should be tagged SND_BANK_UNDERWORLD (and,
+       like the Kennels' and Lamashtu's, given a bank of their own only if one
+       room outgrows it). Re-run STEP 3 of tools/ADDING_A_SOUND.txt before
+       spending it: it is free until it is the LARGEST bank.
+
+       Selected for every area_is_underworld() room but DESCENT TO HELL, which
+       keeps the Seal's bank so its silent hand-off reads no sound at all. The
+       swap to this one is read under the Descent's white, on the way into
+       Hell Hath No Fury. */
+    SND_BANK_UNDERWORLD = 512,
 } SoundBank;
 
 void sound_init(void);

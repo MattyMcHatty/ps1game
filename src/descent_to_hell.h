@@ -39,25 +39,32 @@
                starts to come up, and stays.
      TO WHITE  the screen fades to white with the last line still up, turning
                it deep red so it reads against the white.
-     WHITE     the last line held 4 s in it, then trial_end_start(): the thank-you screen,
-               which dissolves this room (white, red line and all) to its
-               purple. The sign-off is where the build ends.
+     WHITE     the last line held 4 s in it, then descent_to_hell_leaving()
+               goes true and main.c loads HELL HATH NO FURY under the white
+               (a silent transition, its loading frame white), which fades up
+               out of it (src/hell_hath_no_fury.h). Until Chapter 4 had a
+               second room this was trial_end_start(), the thank-you screen.
 
    Its two textures are its own, both 4bpp: LAVA.TIM at x576 y0 on Lamashtu's
    CLUT line (the Seal's terms) and HELLBG.TIM at x640 y0 on the gaol door's.
 
    THE WIND (CD track 10, CDAUDIO_WIND_TRACK) plays once from the first frame
-   of the fade in; the sign-off brings its own track in over it. */
+   of the fade in, and has run out by the white; the platform is silent. */
 
 void descent_to_hell_load_assets(void);     /* startup: two registrations      */
 void descent_to_hell_load_geometry(void);   /* ROOM ENTRY: the mesh + the tube */
 void descent_to_hell_unload_tube(void);     /* every transition: the tube back */
 void descent_to_hell_upload_textures(void); /* room entry: pure LoadImage      */
+void descent_to_hell_upload_lava(void);     /* ...the lava alone (HHNF)        */
+void descent_to_hell_upload_hell_bg(void);  /* ...hell bg alone (the skybox)   */
 void descent_to_hell_init(void);            /* camera at the top, the clock    */
 void descent_to_hell_draw(RenderContext *ctx);
 void descent_to_hell_reset(void);           /* new game / title                */
 
 /* The scene's tick, in main's cutscene branch. The whole visit is one. */
 void descent_to_hell_update(void);
+
+/* 1 once the last line has been held in the white: go to Hell Hath No Fury. */
+int  descent_to_hell_leaving(void);
 
 #endif

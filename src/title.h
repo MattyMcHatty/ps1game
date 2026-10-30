@@ -322,6 +322,11 @@ typedef enum {
                                 a CUTSCENE from its first frame to its last:
                                 the fall down the spinning lava tube. See
                                 src/descent_to_hell.h. Appended, not inserted. */
+    STATE_HELL_HATH_NO_FURY, /* HELL HATH NO FURY, where the Descent's white
+                                lands - Chapter 4's first PLAYABLE room: an
+                                open volcanic platform under the burning sky.
+                                See src/hell_hath_no_fury.h. Appended, not
+                                inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

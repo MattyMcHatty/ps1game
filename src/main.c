@@ -119,6 +119,8 @@
 #include "lamashtu_boss.h"    /* ...and her encounter: the director */
 #include "seal.h"             /* THE SEAL, where her arena fades to on her death */
 #include "descent_to_hell.h"  /* CHAPTER 4: the fall the Seal's white lands in  */
+#include "hell_hath_no_fury.h"/* ...and the platform the Descent's white lands on */
+#include "underworld_sky.h"   /* ...and the sky over every room after it         */
 #include "kennels_puzzle.h"
 #include "arm_switch.h"     /* The Head's eight arm switches */
 #include "gula_tablet.h"
@@ -282,6 +284,7 @@ void reset_game(RenderContext *ctx) {
     lamashtu_boss_reset(); /* ...and any half-played encounter of hers         */
     seal_reset();          /* ...and the Seal she leaves behind, and its scene */
     descent_to_hell_reset();/* ...and the fall it ends in, and the tube's RAM */
+    hell_hath_no_fury_reset();/* ...and the white the platform fades up out of */
     gula_death_reset();    /* ...and any half-played death of hers            */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
@@ -363,6 +366,12 @@ static void load_area_geometry(GameState area) {
     /* ...and Descent to Hell's tube, the same again: 20 KB of .smd held only
        while that room is the one on screen (src/descent_to_hell.h). */
     descent_to_hell_unload_tube();
+    /* ...and the Underworld's sky, 2 KB held across Chapter 4's rooms: kept on
+       a move between two of them (underworld_sky_load is then a no-op), handed
+       back on the way into anything else - which today means the title's next
+       load, the only way out of the chapter (src/underworld_sky.h). */
+    if (!area_is_underworld(area) || area == STATE_DESCENT_TO_HELL)
+        underworld_sky_unload();
 
     switch (area) {
         case STATE_DELIVERY_AREA:    delivery_load_geometry();         break;
@@ -429,6 +438,7 @@ static void load_area_geometry(GameState area) {
         case STATE_LAMASHTU_ARENA:   lamashtu_arena_load_geometry(); break;
         case STATE_SEAL:             seal_load_geometry(); break;
         case STATE_DESCENT_TO_HELL:  descent_to_hell_load_geometry(); break;
+        case STATE_HELL_HATH_NO_FURY:hell_hath_no_fury_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -550,6 +560,13 @@ static int soft_reset_allowed(GameState s) {
    a doorless transition WITHOUT the red loading screen (see the arena's branch
    in update_current_area). Cleared by STATE_LOADING when the room is built. */
 static int silent_transition = 0;
+/* ...and of those, the ones handed off in WHITE rather than black: the
+   loading frame is painted white and the room on the far side fades up out of
+   it. Set alongside silent_transition by the hand-off that wants it; cleared
+   with it at the foot of STATE_LOADING. Today: Descent to Hell -> Hell Hath No
+   Fury. (The Seal -> Descent hand-off is white too, keyed on its destination,
+   which fades up out of white on its own clock.) */
+static int white_transition = 0;
 
 static void begin_loading_transition(GameState to) {
     pending_area = to;
@@ -728,11 +745,23 @@ static void update_current_area(GameState area) {
     }
     /* ...and DESCENT TO HELL, which is a cutscene from its first frame to its
        last: the camera falling down the spinning tube, the lines, the white.
-       Nothing else is in the room and nothing else ticks. It ends in the
-       sign-off screen, whose own branch at the foot of main() owns the frame
-       from then on. */
+       Nothing else is in the room and nothing else ticks.
+
+       THE HAND-OFF INTO HELL HATH NO FURY (src/hell_hath_no_fury.h). The fall
+       ends in full white with its last line held in it; then the next room is
+       loaded under that white - the Seal's own hand-off into this room, again
+       a silent transition with the loading frame painted white - and the
+       platform fades up out of it. white_transition is what tells the far
+       side to fade; a debug jump into the platform does not set it. */
     if (area == STATE_DESCENT_TO_HELL) {
         descent_to_hell_update();
+        if (descent_to_hell_leaving()) {
+            pending_area      = STATE_HELL_HATH_NO_FURY;
+            cdaudio_stop();
+            silent_transition = 1;
+            white_transition  = 1;
+            game_state        = STATE_LOADING;
+        }
         return;
     }
     if (area == STATE_KENNELS && gula_death_cutscene()) {
@@ -1156,7 +1185,8 @@ static void update_current_area(GameState area) {
        fade into the dark and the Seal's black second. Set on every frame, here,
        from the room the player is actually in. */
     player_rooted = (area == STATE_LAMASHTU_ARENA && lamashtu_boss_roots_player()) ||
-                    (area == STATE_SEAL && seal_roots_player());
+                    (area == STATE_SEAL && seal_roots_player()) ||
+                    (area == STATE_HELL_HATH_NO_FURY && hell_hath_no_fury_fading());
     update_camera();
     /* Menu open: the area still ticks (enemies move, gravity applies) but every
        player-driven level interaction — doors, stairs, the drawer puzzle, save
@@ -3226,6 +3256,15 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         seal_update(lock);
+    } else if (area == STATE_HELL_HATH_NO_FURY) {
+        /* HELL HATH NO FURY - Chapter 4's first playable room
+           (src/hell_hath_no_fury.c): an open platform, the shared wall routine
+           (its eight rim edges and the ruin) and ONE flat floor zone. No
+           enemies, no props, and its four doors lead nowhere yet. The fade up
+           out of the Descent's white roots the player (above). */
+        apply_collision_reception();
+        apply_height();
+        hell_hath_no_fury_update(lock);
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
            routine, ONE flat floor zone and one door, the Room of Bones' shape.
@@ -3790,6 +3829,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         seal_draw(ctx);
     else if (area == STATE_DESCENT_TO_HELL)
         descent_to_hell_draw(ctx);
+    else if (area == STATE_HELL_HATH_NO_FURY)
+        hell_hath_no_fury_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4325,6 +4366,11 @@ int main(int argc, const char **argv) {
     descent_to_hell_load_assets();/* CHAPTER 4's first room, Descent to Hell:
                                      TWO deferred registrations, headers only.
                                      Its tube is ROOM-SCOPED, read on entry. */
+    hell_hath_no_fury_load_assets();/* ...and Hell Hath No Fury: ONE deferred
+                                     registration, header only. */
+    underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
+                                     registrations. Its model is read on entry
+                                     to the first room that draws it. */
     loading_screen_pump(&ctx);
     catacombs_entry_load_assets();/* CHAPTER 3: four DEFERRED registrations and
                                      four compile-time headers, and NO CD ACCESS
@@ -4892,6 +4938,11 @@ int main(int argc, const char **argv) {
                    the Seal is the only way in, so naming the bank already
                    loaded makes this transition read no sound at all. */
                 (pending_area == STATE_DESCENT_TO_HELL) ? SND_BANK_SEAL :
+                /* ...AND THE REST OF CHAPTER 4 -> its OWN bank, EMPTY for the
+                   Catacombs' reason: the way in is one-way, and everything the
+                   player makes a noise with is resident (SND_BANK_UNDERWORLD).
+                   Read under the Descent's white. */
+                area_is_underworld(pending_area) ? SND_BANK_UNDERWORLD :
                 area_is_catacombs(pending_area) ? SND_BANK_CATACOMBS :
                 SND_BANK_HOUSE);
 
@@ -5353,10 +5404,17 @@ int main(int argc, const char **argv) {
                    page with Lamashtu's palette (src/seal.c). */
                 seal_upload_textures();
             } else if (pending_area == STATE_DESCENT_TO_HELL) {
-                /* DESCENT TO HELL. Its two textures, its own: the lava on the
-                   Seal's slot and palette, the hell backdrop on the gaol
-                   door's (src/descent_to_hell.c). */
+                /* DESCENT TO HELL. Its two textures, its own: the lava on a
+                   free y256 page, the hell backdrop on the gaol door's page
+                   and palette (src/descent_to_hell.c). */
                 descent_to_hell_upload_textures();
+            } else if (pending_area == STATE_HELL_HATH_NO_FURY) {
+                /* HELL HATH NO FURY. Its volcanic rock, cobble and the inner
+                   door through the Catacombs Entry's narrow uploaders, the
+                   seal through the Seal's, and the Descent's lava and (for
+                   the sky) hell bg through its own (src/hell_hath_no_fury.c).
+                   The wooden door is resident. */
+                hell_hath_no_fury_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -5510,9 +5568,10 @@ int main(int argc, const char **argv) {
                Nothing has to be put back on the way out — the exit is a
                transition and this same line runs on the far side of it. */
             /* ...AND NEITHER DOES DESCENT TO HELL, a cutscene with nothing in
-               it but the tube. */
+               it but the tube - nor any of CHAPTER 4: no spider can follow the
+               player down, and their page's row below is the sky's. */
             else if (pending_area != STATE_ASAG_ARENA &&
-                     pending_area != STATE_DESCENT_TO_HELL)
+                     !area_is_underworld(pending_area))
                 spiders_upload_textures();
 
             /* THE ZOMBIE PAIR, x704/x768 y128 — the other half of what the
@@ -5581,7 +5640,10 @@ int main(int argc, const char **argv) {
                 /* WHITE, NOT BLACK, INTO DESCENT TO HELL: the Seal hands off in
                    full white and the room fades up out of it, so this one
                    frame between them must not flash black. */
-                uint8_t k = (pending_area == STATE_DESCENT_TO_HELL) ? 255 : 0;
+                /* ...AND INTO HELL HATH NO FURY, out of the Descent's white, the
+                   same again (white_transition). */
+                uint8_t k = (pending_area == STATE_DESCENT_TO_HELL ||
+                             white_transition) ? 255 : 0;
                 TILE *bg = (TILE *)ctx.next_packet;
                 setTile(bg);
                 setXY0(bg, 0, 0);
@@ -6295,6 +6357,16 @@ int main(int argc, const char **argv) {
                    tracks outright, so a debug jump's leftover piano goes. */
                 descent_to_hell_init();
                 cdaudio_play(CDAUDIO_WIND_TRACK, 0);
+            } else if (pending_area == STATE_HELL_HATH_NO_FURY) {
+                /* ONE ARRIVAL, the Descent's white, into the centre of the
+                   platform (src/hell_hath_no_fury.h); a debug jump lands in
+                   the same place. Only the hand-off fades up out of white.
+                   SILENT: the wind has run out by the end of the fall, and
+                   cdaudio_stop() also ends a debug jump's leftover track.
+                   (A save loaded here restores cam_x/z after.) */
+                hell_hath_no_fury_init();
+                if (white_transition) hell_hath_no_fury_from_white();
+                cdaudio_stop();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -6469,6 +6541,7 @@ int main(int argc, const char **argv) {
                on, so the loading screen is finished with. */
             loading_screen_up = 0;
             silent_transition = 0;
+            white_transition  = 0;
 
             /* Restore the entered room's entities into the live arrays. */
             world_enter(pending_area);
@@ -6715,7 +6788,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_KENNELS ||
                    game_state == STATE_LAMASHTU_ARENA ||
                    game_state == STATE_SEAL ||
-                   game_state == STATE_DESCENT_TO_HELL) {
+                   game_state == STATE_DESCENT_TO_HELL ||
+                   game_state == STATE_HELL_HATH_NO_FURY) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {
@@ -6842,7 +6916,11 @@ int main(int argc, const char **argv) {
                                (area == STATE_SEAL && seal_cutscene()) ||
                                /* ...and Descent to Hell, which is nothing
                                   else. */
-                               (area == STATE_DESCENT_TO_HELL);
+                               (area == STATE_DESCENT_TO_HELL) ||
+                               /* ...and Hell Hath No Fury's fade up out of
+                                  the Descent's white: no HUD over the white. */
+                               (area == STATE_HELL_HATH_NO_FURY &&
+                                hell_hath_no_fury_fading());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();

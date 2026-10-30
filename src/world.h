@@ -22,7 +22,7 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 62  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 63  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
@@ -42,7 +42,9 @@
                                christof, luke, mark) - one mesh, five slots,
                                because each keeps its own pickups - the
                                throat, room_of_guts, neck, the_head, kennels,
-                               lamashtu_arena and seal.
+                               lamashtu_arena and seal, and Chapter 4's
+                               hell_hath_no_fury. (Descent to Hell has no
+                               slot - see area_untracked in world.c.)
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
                                are alternative rooms behind the same doors, and
