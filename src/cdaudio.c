@@ -113,6 +113,14 @@
 #define CD_VOL_FULL    0x7FFF   /* SPU CD input: always full, see above  */
 #define CD_MIX_FULL       128   /* drive mixer: 128 == 100%              */
 #define CD_MIX_BOSS        26   /* 20% of CD_MIX_FULL                    */
+/* THE GAOL'S TRACK is mastered 7.6 dB hotter than the chapter's (RMS 3430 vs
+ * 1432 across the two WAVs), and at full level it buries the maggots' buzz
+ * (buzz.vag is a quiet clip, RMS 780) in the Gaol Cells, where it carries over
+ * the chapter's track in the Meat Plant without trouble. 128 * 1432 / 3430
+ * brings it down to the chapter track's loudness, so every Gaol room hears its
+ * effects against the same music level the rest of Chapter 3 does. Re-measure
+ * if either WAV is replaced. */
+#define CD_MIX_GAOL        53   /* ~41% of CD_MIX_FULL                   */
 
 static int           cd_audio_playing = 0;
 static int           cd_track_num     = 0;
@@ -341,8 +349,9 @@ void cdaudio_play(int track, int loop) {
        downmix to mono, and setting them would collapse the stereo image as a
        side effect of turning the music down. */
     {
-        uint8_t v = (track == CDAUDIO_COURTYARD_TRACK) ? CD_MIX_BOSS
-                                                       : CD_MIX_FULL;
+        uint8_t v = (track == CDAUDIO_COURTYARD_TRACK) ? CD_MIX_BOSS :
+                    (track == CDAUDIO_GAOL_TRACK)      ? CD_MIX_GAOL :
+                                                         CD_MIX_FULL;
         CdlATV mix = { v, 0, v, 0 };
         CdMix(&mix);
     }
