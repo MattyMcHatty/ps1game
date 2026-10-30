@@ -3270,11 +3270,26 @@ static void update_current_area(GameState area) {
         /* HELL HATH NO FURY - Chapter 4's first playable room
            (src/hell_hath_no_fury.c): an open platform, the shared wall routine
            (its eight rim edges and the ruin) and ONE flat floor zone. No
-           enemies, no props, and its four doors lead nowhere yet. The fade up
-           out of the Descent's white roots the player (above). */
+           enemies, and its four doors lead nowhere yet. The fade up out of
+           the Descent's white roots the player (above).
+
+           TWO PROPS: the save point at the northern tip, asked FIRST, and the
+           oil tank in the ruin's inside corner, vetoed by it - the Neck's
+           order, so one press never does two things. */
+        save_points_update();   /* spin the north rim's save point */
         apply_collision_reception();
         apply_height();
         hell_hath_no_fury_update(lock);
+        {
+            int hf_saving = (!lock && save_point_triggered());
+            if (hf_saving) {
+                /* current_area is already STATE_HELL_HATH_NO_FURY, so the
+                   menu returns here. */
+                save_menu_open();
+                game_state = STATE_SAVE_MENU;
+            }
+            hell_hath_no_fury_oil_update(hf_saving ? 1 : lock);
+        }
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
            routine, ONE flat floor zone and one door, the Room of Bones' shape.

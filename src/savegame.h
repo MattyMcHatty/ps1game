@@ -17,7 +17,13 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   38            /* v38: a tank per oil dispenser. The
+#define SAVE_VERSION   39            /* v39: a third tank, Hell Hath No
+                                        Fury's (OD_TANK_HHNF). Same layout,
+                                        but a v38 save holds 0 in that byte
+                                        and would load the tank dry, so the
+                                        bump rejects it rather than
+                                        misreading it.
+                                        v38: a tank per oil dispenser. The
                                         Neck has a second tank with its own
                                         oil, so disp_oil is a byte per OdTank
                                         now instead of one int32 - the same

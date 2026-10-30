@@ -27,6 +27,8 @@
 #include "bars.h"
 #include "item_pickup.h"
 #include "particles.h"
+#include "btn_glyph.h"
+#include "door.h"               /* the tank's sign                            */
 
 /* Hell Hath No Fury - see hell_hath_no_fury.h. The room half is
    src/master_bedroom.c's, which has been through DIAGNOSING_FRAME_RATE.txt,
@@ -50,6 +52,46 @@ static void *hhnf_buff = NULL;
 /* THE CENTRE, on the seal, facing north (+Z): out across the platform to the
    two north doors with the ruin behind the player's right shoulder. */
 #define HHNF_SPAWN_ROT       0
+
+/* ---- THE SAVE POINT --------------------------------------------------------
+   At the NORTHERN TIP: the middle of the north rim (wall 1, z=4200, which runs
+   x[600,3600]), 200 in from it - the Neck's corner standoff. The model's own
+   footprint is 70 plus the 55 standoff save_points_collide is called with, so
+   the player stops 125 short of it. y is the floor (0) less 300 and rot/scale
+   are reception's, as everywhere. */
+#define HHNF_SAVE_X          2100
+#define HHNF_SAVE_Y          (HHNF_FLOOR_Y - 300)
+#define HHNF_SAVE_Z          4000
+
+/* ---- THE OIL DISPENSER -----------------------------------------------------
+   OD_TANK_HHNF, half full to start (src/oil_dispenser.c's od_tank_start[]).
+   In the INSIDE CORNER of the ruin's L, where its east arm's west face (wall
+   10, x=3199) meets its south arm's north face (wall 13, z=1000): a corner
+   whose walls are +X and -Z, i.e. exactly the Neck's south-east corner, so it
+   takes that tank's terms - origin 2 in from both, rot 0, which points the
+   spout back up the (-X,+Z) diagonal at the seal. The ruin is 600 tall, so the
+   tank (170 to 280 up) hangs well inside its face.
+
+   THE SIGN is the Neck's, moved here: 78 out along each axis at half size, its
+   glyph top 150 above the floor, under the tank.
+
+   ITS PRESS goes after the save point's in main.c, vetoed by it. The save
+   point is 3195 north of it, so they never share a circle; the order is what
+   guarantees it. */
+#define HHNF_OD_X            3197
+#define HHNF_OD_Z            1002
+#define HHNF_OD_TEXT_X       3119     /* 78 out along the (-X,+Z) diagonal */
+#define HHNF_OD_TEXT_Z       1080
+#define HHNF_OD_TEXT_Y       (HHNF_FLOOR_Y - 150)  /* glyph TOP, under the tank */
+#define HHNF_OD_TEXT_YAW     1536     /* 135 deg: face back north-west     */
+#define HHNF_OD_TEXT_PIXEL      2     /* half DOOR_PIXEL_SIZE, the Neck's  */
+#define HHNF_TEXT_RADIUS     1200
+#define HHNF_FADE_NEAR        800
+#define HHNF_TRIGGER_RADIUS   500
+
+/* Circle edge-detect for the tank. Seeded "held" by the init so a press
+   carried in through the transition cannot fire on the arrival frame. */
+static int oil_circle_prev = 1;
 
 static void hhnf_floor_zones_init(void) {
     floor_zones[0].type  = FLOOR_FLAT;
@@ -105,6 +147,9 @@ void hell_hath_no_fury_upload_textures(void) {
     seal_upload_textures();
     descent_to_hell_upload_lava();
     underworld_sky_upload_textures();
+    /* The tank in the ruin: x896 y256, CLUT (672,504), over stn_gls exactly
+       as in Chapter 3, which the player has already passed through. */
+    oil_dispenser_upload_texture();
 }
 
 /* ---- The cull key (STEP 3B, tools/DIAGNOSING_FRAME_RATE.txt) ---------------
@@ -251,13 +296,62 @@ void hell_hath_no_fury_init(void) {
     drop_t = HHNF_T_DROP;
 
     /* The global prop arrays, as the Seal clears them: an instance left from
-       another room would block invisibly inside x[0,4200) z[0,4200). */
+       another room would block invisibly inside x[0,4200) z[0,4200). THEN
+       this room's own save point and tank (see above); the clear drops the
+       placement, never OD_TANK_HHNF's oil. */
     save_points_clear();
+    save_point_add(HHNF_SAVE_X, HHNF_SAVE_Y, HHNF_SAVE_Z, 512, 2048);
     dressers_clear();
     sconces_clear();
     oil_dispensers_clear();
+    oil_dispenser_place(STATE_HELL_HATH_NO_FURY, OD_TANK_HHNF,
+                        HHNF_OD_X, HHNF_FLOOR_Y - GROUND_FLOOR_Y, HHNF_OD_Z, 0);
     bars_clear();
     reset_particles();
+
+    oil_circle_prev = interact_tapped();
+    save_point_arm();
+}
+
+/* The tank's tap: the Neck's edge/range/facing test about the corner, then
+   the pour and its log line (src/oil_dispenser.c owns both). THE EDGE STATE
+   IS KEPT UP TO DATE EVEN WHILE LOCKED, so a Circle held across a menu
+   closing does not read as a fresh press when the lock lifts. */
+int hell_hath_no_fury_oil_update(int lock) {
+    int held = interact_tapped();
+    int just = held && !oil_circle_prev;
+    int32_t dx, dz;
+    oil_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - HHNF_OD_X;
+    dz = cam_z - HHNF_OD_Z;
+    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= HHNF_TRIGGER_RADIUS)
+        return 0;
+    if (!interact_facing(HHNF_OD_X, HHNF_OD_Z)) return 0;
+    oil_dispenser_press(OD_TANK_HHNF);
+    return 1;
+}
+
+/* The tank's sign, on a free yaw: the range and fade are measured from the
+   tank and the glyphs laid out about the sign point - the Neck's
+   nk_oil_text(). */
+static void hhnf_oil_text(RenderContext *ctx) {
+    int32_t dx = cam_x - HHNF_OD_X;
+    int32_t dz = cam_z - HHNF_OD_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= HHNF_TEXT_RADIUS) return;
+    if (xz > HHNF_FADE_NEAR) {
+        int range = HHNF_TEXT_RADIUS - HHNF_FADE_NEAR;
+        int prog  = xz - HHNF_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+    door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to refill",
+                            HHNF_OD_TEXT_X, HHNF_OD_TEXT_Y, HHNF_OD_TEXT_Z,
+                            50, 255, 50, fade, HHNF_OD_TEXT_YAW,
+                            HHNF_OD_TEXT_PIXEL);
 }
 
 void hell_hath_no_fury_update(int lock) {
@@ -502,11 +596,20 @@ void hell_hath_no_fury_draw(RenderContext *ctx) {
         draw_hhnf_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS NEARLY EMPTY HERE. <<< Nothing stands on the platform
-       yet - no enemies, no props, no door signs - so the only entity is any
-       pickup a later seed puts down. */
-    if (exp != DBG_EXP_NO_ENTITIES)
+    /* The tank, a fixture of the ruin as the Neck's is of its hall, so not
+       under the LEVEL 8 switch. It NEEDS the 128 window set above: its UVs run
+       past one tile and only land on the art because the window wraps them. */
+    oil_dispensers_draw(ctx);
+
+    /* >>> LEVEL 8 IS THE SAVE POINT, THE TANK'S SIGN AND BAR, AND ANY PICKUP
+       a later seed puts down. No enemies, no door signs yet. */
+    if (exp != DBG_EXP_NO_ENTITIES) {
+        save_points_draw(ctx);
+        hhnf_oil_text(ctx);
+        /* The tank's level, on the sign's own fade curve. */
+        oil_dispensers_draw_bar(ctx, HHNF_TEXT_RADIUS, HHNF_FADE_NEAR);
         item_pickups_draw(ctx);
+    }
 
     draw_white(ctx);
 }

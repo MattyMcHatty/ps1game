@@ -81,6 +81,7 @@ THIS BANK'S ART
   cobblestones.tim           HHNF: the ruin (Catacombs Entry's) x384 y0
   hell bg.tim                Descent: the backdrop (owned; the sky) x640 y0
   lava.tim                   Descent: the lava (owned; HHNF too) x320 y256
+  oil_container.tim          HHNF: the ruin's oil tank (the prop's) x896 y256
   seal.tim                   HHNF: the floor seal (the Seal's)  x576 y0
   volcanic.tim               HHNF: the platform (owned)         x384 y256
   wd_dr.tim                  HHNF: two doors - BORROWED RESIDENT, see head x768 y256
@@ -116,7 +117,7 @@ MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
   x704  FREE - costs nothing   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, incinerator.tim, ladder.tim, vines.tim]
   x768  IN USE by this bank: wd_dr.tim
   x832  BLOCKED - reserved: flm_rnds.tim, helluminator.tim, mgn_ky_stn.tim
-  x896  AVAILABLE, needs a way back first: stn_gls.tim   [also on this page, all re-uploaded on room entry: oil_container.tim]
+  x896  IN USE by this bank: oil_container.tim
 
 Regenerate with:  py tools/vram_map_underworld.py > tools/VRAM_MAP_UNDERWORLD.txt
 And keep tools/VRAM_MAP.txt regenerated too - it is still the authority on

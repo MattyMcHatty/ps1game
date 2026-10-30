@@ -74,6 +74,7 @@ BANK = {
     "catacomb inner door.tim": "HHNF: two doors (Catacombs Entry's) x832 y0",
     "seal.tim":                "HHNF: the floor seal (the Seal's)  x576 y0",
     "wd_dr.tim":               "HHNF: two doors - BORROWED RESIDENT, see head x768 y256",
+    "oil_container.tim":       "HHNF: the ruin's oil tank (the prop's) x896 y256",
 }
 
 tims = {}

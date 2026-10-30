@@ -18,7 +18,9 @@
    (src/underworld_sky.h), which is centred on it. On the platform:
      - the SEAL, laid into the floor at the centre (seal.tim, 20 above it);
      - an L-shaped cobblestone RUIN in the south-east, x[2800,3400)
-       z[800,1400), 600 tall;
+       z[800,1400), 600 tall, with an OIL DISPENSER (OD_TANK_HHNF, half full
+       to start) set into the inside corner of its L;
+     - a SAVE POINT at the northern tip, the middle of the north rim;
      - FOUR DOORS, one in each cut corner: catacomb inner doors south-west and
        north-east, wooden doors south-east and north-west. Distortions of the
        chapters behind the player. NOTHING IS BEHIND THEM YET - they have no
@@ -60,5 +62,10 @@ int  hell_hath_no_fury_intro(void);
 /* 1 while the room is fading up out of the white: the player can turn but not
    walk (camera.h's player_rooted), and the HUD stays down. */
 int  hell_hath_no_fury_fading(void);
+
+/* The oil tank's tap (OD_TANK_HHNF): a fresh Circle in range of the ruin's
+   inside corner and facing it pours and posts the log line. Returns 1 on a
+   press it took. main.c passes the save point's answer in as `lock`. */
+int  hell_hath_no_fury_oil_update(int lock);
 
 #endif

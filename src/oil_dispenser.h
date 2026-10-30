@@ -44,7 +44,8 @@
    and are a no-op in every other room. Without the tag an instance left
    standing would block the player invisibly anywhere its coordinates land.
 
-   CHAPTER 3 ONLY, and it is NOT in src/area_bank.c's free list for that reason:
+   CHAPTERS 3 AND 4 (Hell Hath No Fury stands one in its ruin), and it is NOT
+   in src/area_bank.c's free list for that reason:
    the purge at the catacomb mouth gives back the props Chapters 1 and 2 use,
    and this is one of the few that has to survive it. Its texture is an ordinary
    deferred TEXBANK_CATACOMBS registration, so it holds no pixels at all until
@@ -90,6 +91,8 @@
 typedef enum {
     OD_TANK_CATACOMBS_ENTRY = 0,   /* the burial hall's south-east corner */
     OD_TANK_NECK,                  /* the Neck's south-east corner        */
+    OD_TANK_HHNF,                  /* Hell Hath No Fury's ruin, its inside
+                                      corner (Chapter 4's first tank)     */
     OD_TANK_COUNT
 } OdTank;
 

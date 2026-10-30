@@ -59,9 +59,10 @@ static int oil_tex = -1;
 static const int32_t od_tank_start[OD_TANK_COUNT] = {
     50,   /* OD_TANK_CATACOMBS_ENTRY: half a lantern, the chapter's first fill */
     20,   /* OD_TANK_NECK                                                     */
+    50,   /* OD_TANK_HHNF: half a lantern again, Chapter 4's first fill       */
 };
 
-static int32_t reservoir[OD_TANK_COUNT] = { 50, 20 };
+static int32_t reservoir[OD_TANK_COUNT] = { 50, 20, 50 };
 
 _Static_assert(sizeof od_tank_start / sizeof od_tank_start[0] == OD_TANK_COUNT,
                "od_tank_start[] needs a row per OdTank");
@@ -121,9 +122,9 @@ OdRefill oil_dispenser_refill(int tank) {
        each get their line and no noise. STEP 8's rule, which is that the cue
        belongs at the EVENT.
 
-       SND_BANK_CATACOMBS, so it is silent everywhere the bank is not loaded —
-       which is every room but this chapter's, and this prop is only ever placed
-       in this chapter's rooms. */
+       SND_BANK_CATACOMBS | SND_BANK_UNDERWORLD, so it is silent everywhere
+       neither bank is loaded — which is every room but Chapters 3 and 4, and
+       this prop is only ever placed in those chapters' rooms. */
     sound_play(SFX_GLUG);
     return OD_REFILL_DONE;
 }
@@ -172,11 +173,12 @@ static void *read_file(const char *name) {
    one sector of TIM header, no pixels — so Chapters 1 and 2 pay nothing for it
    (src/texmgr.h). */
 void oil_dispenser_load_assets(void) {
-    /* BANK: Chapter 3 and nothing else. Derived, not guessed — py
-       tools/check_tex_banks.py walks the uploader call graph (this module is
-       reached from catacombs_entry_upload_textures) and fails the build if this
-       mask is short. */
-    texmgr_set_bank(TEXBANK_CATACOMBS);
+    /* BANK: Chapter 3, and Chapter 4 too - Hell Hath No Fury stands a tank in
+       its ruin. Derived, not guessed — py tools/check_tex_banks.py walks the
+       uploader call graph (this module is reached from
+       catacombs_entry_upload_textures and hell_hath_no_fury_upload_textures)
+       and fails the build if this mask is short. */
+    texmgr_set_bank(TEXBANK_CATACOMBS | TEXBANK_UNDERWORLD);
 
     oil_buf = read_file("\\TEXCTCMB\\OILDISP.SMD;1");
     if (oil_buf) oil_smd = smdInitData(oil_buf);
@@ -207,7 +209,8 @@ void oil_dispenser_load_assets(void) {
 
 /* Room entry: pure LoadImage out of the RAM copy area_bank_sync() has already
    read. No CD access, so it is safe inside main's STATE_LOADING. Called from
-   catacombs_entry_upload_textures() and neck_upload_textures(). */
+   catacombs_entry_upload_textures(), neck_upload_textures() and
+   hell_hath_no_fury_upload_textures(). */
 void oil_dispenser_upload_texture(void) {
     texmgr_upload(oil_tex);
 }

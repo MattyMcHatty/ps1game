@@ -330,12 +330,11 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
     [SFX_VOMIT]      = SND_BANK_ASAG,
     [SFX_SLAM_ASAG]  = SND_BANK_ASAG,
     [SFX_LASER]      = SND_BANK_ASAG,
-    /* CHAPTER 3. The only member of its bank, and tagged with that bit
-       and nothing else, which is what the note above SND_BANK_CATACOMBS
-       asks of every clip the chapter gains: it plays in one room reached
-       through a one-way door, so there is nowhere else it could be
-       wanted and a second bit would cost its own copy for nothing. */
-    [SFX_GLUG]       = SND_BANK_CATACOMBS,
+    /* CHAPTER 3, and CHAPTER 4: Hell Hath No Fury stands an oil tank in
+       its ruin, and the Underworld's bank is the only one loaded there.
+       The second bit costs a second 4 KB copy in a bank that was nearly
+       empty (tools/spu_budget.py: 4,160 of 237,232). */
+    [SFX_GLUG]       = SND_BANK_CATACOMBS | SND_BANK_UNDERWORLD,
     [SFX_CTCMBDR]    = SND_BANK_CATACOMBS | SND_BANK_KENNELS |  /* leaving the Kennels */
                        SND_BANK_LAMASHTU,                      /* ...and the arena  */
     [SFX_CRWL_SCRM]  = SND_BANK_CATACOMBS,
