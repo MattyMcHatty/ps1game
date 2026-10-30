@@ -34,6 +34,12 @@
    entry. See tools/ADDING_A_ROOM.txt STEP 6. */
 #define CDAUDIO_CATACOMBS_TRACK 9   /* the Catacombs (120.0 s), all rooms but
                                        the Entry — see above               */
+/* THE GAOL: leberch-horror-creepy-255685, 106.6 s. The Gaol side of the
+   Catacombs - Gaol Entry through the Kennels, Dead Ends included - plays this
+   INSTEAD of CDAUDIO_CATACOMBS_TRACK. Same one-place rule: main.c's Chapter 3
+   music block, keyed on area_is_gaol() (src/area_bank.c). The Lamashtu arena
+   and the Seal are NOT Gaol rooms for this purpose and stay silent. */
+#define CDAUDIO_GAOL_TRACK     11   /* the Gaol (106.6 s)                     */
 /* ASAG'S ARENA. >>> IT BORROWS THE COURTYARD'S TRACK, AND IT IS SUPPOSED TO
    GIVE IT BACK. <<< Asag's opening starts music on its first subtitle, the way
    the Rabisu's reveal does, and there is no sixty-megabyte stereo master for
@@ -43,11 +49,12 @@
 
    THAT IS A PLACEHOLDER AND THE TWO FIGHTS CURRENTLY SOUND THE SAME. Giving
    Asag his own track is ONE line appended to the foot of disc.xml and CHANGING
-   THE 6 BELOW TO 11. Nothing else: no call site mentions a number, they all go
+   THE 6 BELOW TO 12. Nothing else: no call site mentions a number, they all go
    through this name, which is why the name exists.
 
-   >>> THE RESERVED SLOT IS NOW 11. <<< The Catacombs took 9 in September 2026
-   and Descent to Hell's wind took 10 in October, which cost this nothing: the
+   >>> THE RESERVED SLOT IS NOW 12. <<< The Catacombs took 9 in September 2026,
+   Descent to Hell's wind took 10 and the Gaol took 11 in October, which cost
+   this nothing: the
    reservation was never about a number, it was about the track being APPENDED. The track NUMBER is a line's position
    in disc.xml and nothing else, so Asag's must go after the Catacombs' at the
    foot of that file — inserted anywhere else it renumbers every track after it
@@ -67,7 +74,7 @@
    would arrive with The Hatch's music still playing. */
 #define CDAUDIO_ASAG_TRACK      6   /* BORROWED from the courtyard — see above.
                                        Append his track to disc.xml and change
-                                       this 6 to an 11.                       */
+                                       this 6 to a 12.                        */
 /* CHAPTER 4: DESCENT TO HELL's wind, 16.8 s - longer than the scene, so it is
    played ONCE (no loop) from the first frame of the fade in, and the sign-off
    screen's own track replaces it (src/descent_to_hell.c). */

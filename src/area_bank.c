@@ -251,6 +251,21 @@ int area_is_catacombs(GameState area) {
            area == STATE_SEAL;
 }
 
+/* An explicit list rather than a STATE_ range: rooms are appended to the
+   GameState enum, so a later Gaol room would land outside any range. */
+int area_is_gaol(GameState area) {
+    return area == STATE_GAOL_ENTRY ||
+           area == STATE_GAOL_CELLS ||
+           area == STATE_NURSERY ||
+           area == STATE_ROOM_OF_BABY_NAMES ||
+           area_is_dead_end(area) ||
+           area == STATE_THROAT ||
+           area == STATE_ROOM_OF_GUTS ||
+           area == STATE_NECK ||
+           area == STATE_THE_HEAD ||
+           area == STATE_KENNELS;
+}
+
 int area_is_underworld(GameState area) {
     return area == STATE_DESCENT_TO_HELL ||
            area == STATE_HELL_HATH_NO_FURY;

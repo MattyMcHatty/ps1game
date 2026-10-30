@@ -2078,5 +2078,14 @@
          ffmpeg -y -i wind.mp3 -ar 44100 -ac 2 -c:a pcm_s16le wind.wav -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\wind.wav"/>
 
+    <!-- Track 11: THE GAOL. 106.6 s, the second half of the Catacombs' own
+         music: Gaol Entry, Gaol Cells, the Nursery, the Room of Baby Names, the
+         five Dead Ends, the Throat, the Neck, the Room of Guts, the Head and the
+         Kennels (area_is_gaol() in src/area_bank.c). The Lamashtu arena and the
+         Seal stay silent. APPENDED, for the reason Track 9 gives.
+         44100 Hz 16-bit stereo:
+         ffmpeg -y -i leberch-horror-creepy-255685.mp3 -ar 44100 -ac 2 -c:a pcm_s16le -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\leberch-horror-creepy-255685.wav"/>
+
 
 </iso_project>

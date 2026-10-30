@@ -6524,15 +6524,19 @@ int main(int argc, const char **argv) {
             if (area_is_catacombs(pending_area)) {
                 if (pending_area == STATE_CATACOMBS_ENTRY)
                     cdaudio_stop();
-                /* THE LAMASHTU ARENA, while she lives: silent until her
-                   encounter starts the bosses' music on its first line
-                   (src/lamashtu_boss.h) - the Rabisu's and Asag's rule. */
-                else if (pending_area == STATE_LAMASHTU_ARENA &&
-                         !game_flag(FLAG_LAMASHTU_DEAD))
+                /* THE LAMASHTU ARENA: silent until her encounter starts the
+                   bosses' music on its first line (src/lamashtu_boss.h) - the
+                   Rabisu's and Asag's rule - and silent again once she is
+                   dead, by request (it used to fall back to the chapter's). */
+                else if (pending_area == STATE_LAMASHTU_ARENA)
                     cdaudio_stop();
                 /* THE SEAL: silent, start to finish (src/seal.h). */
                 else if (pending_area == STATE_SEAL)
                     cdaudio_stop();
+                /* THE GAOL SIDE, Gaol Entry through the Kennels: its own
+                   track (src/cdaudio.h, area_is_gaol()). */
+                else if (area_is_gaol(pending_area))
+                    cdaudio_play(CDAUDIO_GAOL_TRACK, 1);
                 else
                     cdaudio_play(CDAUDIO_CATACOMBS_TRACK, 1);
             }

@@ -105,6 +105,13 @@ TexBank area_bank_of(GameState area);
    re-reading that. */
 int area_is_catacombs(GameState area);
 
+/* 1 if this Catacombs room is on the GAOL side and plays CDAUDIO_GAOL_TRACK
+   rather than the chapter's: Gaol Entry, Gaol Cells, Nursery, Room of Baby
+   Names, the Dead Ends, Throat, Neck, Room of Guts, the Head and the Kennels.
+   NOT the Lamashtu arena or the Seal - those are silent (main.c's Chapter 3
+   music block). A new room here must also be in area_is_catacombs(). */
+int area_is_gaol(GameState area);
+
 /* 1 if this area belongs to Chapter 4, the Underworld. Its rooms share one fog
    and one sky (src/underworld.h) and the SND_BANK_UNDERWORLD sound bank - all
    but Descent to Hell, which is a cutscene with neither and keeps the Seal's
