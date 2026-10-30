@@ -21,16 +21,13 @@ extern volatile size_t  pad_buff_len[2];
 /* ---- Debug menu (opened with Select on the title screen) -------------------
    Two columns side by side: rooms to jump to on the left, cheat toggles on the
    right (see debug_opts.h). Left/Right switches column and each keeps its own
-   cursor, so moving across never loses your place in the room list. */
+   cursor, so moving across never loses your place in the room list. Both
+   columns are collapsed under group headings (see DebugTree below). */
 
 enum { DBG_COL_LEVELS = 0, DBG_COL_OPTS };
 
 static int debug_menu_open   = 0;
-static int debug_menu_cursor = 0;    /* row in the left (level) column  */
-static int debug_opt_cursor  = 0;    /* row in the right (option) column */
-static int debug_opt_scroll  = 0;    /* first option row on screen          */
 static int debug_col         = DBG_COL_LEVELS;
-static int debug_scroll      = 0;    /* first VISIBLE row of the level column */
 static int level_select_fnt  = -1;
 static int debug_fnt         = -1;   /* left column, top-left  */
 
@@ -268,8 +265,10 @@ static const char *const level_names[] = {
     "KENNELS",
     "LAMASHTU ARENA",
     "SEAL",
-    "DESCENT TO HELL",
-    "HELL HATH NO FURY",
+    /* DESCENT TO HELL and HELL HATH NO FURY, cut to fit the 14-character
+       column (15 and 17 in full). */
+    "DESCENT",
+    "HELL HATH",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -410,81 +409,147 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_HELL_HATH_NO_FURY,
 };
 
-/* ---- Chapter headings in the level column ---------------------------------
-   `first` is the index in level_names of the chapter's first room; the chapter
-   runs to the room before the next chapter's first, so the list only has to
-   stay in chapter order (it already is) for the headings to fall in the right
-   places. Adding a room in the middle of a chapter needs nothing here; adding
-   one at the head of a chapter means bumping the `first` below it.
+/* ---- Collapsible groups, used by both columns -----------------------------
+   Each column is a run of items under group headings. A heading is a row of its
+   own and Circle on it opens or closes the group; a closed group shows only its
+   heading. `first` is the index of the group's first item, and the group runs
+   to the item before the next group's first, so the items only have to stay in
+   group order for the headings to fall in the right places.
 
-   The split is by position in this list rather than by anything the rooms know
-   about themselves because it does not follow the geography: WEST CORRIDOR is
-   a house room and sits with the garden rooms of chapter two. */
+   The cursor and the scroll window both count VISIBLE ROWS — headings, plus the
+   items of open groups — and debug_tree_row maps a row back to what is on it.
+   Opening or closing a group never moves the rows above it, so a cursor sitting
+   on a heading stays on that heading through the toggle. */
 typedef struct {
     int         first;
     const char *name;
-} DebugChapter;
+} DebugGroup;
 
-static const DebugChapter debug_chapters[] = {
-    {  0, "CHAPTER 1" },
-    { 14, "CHAPTER 2" },   /* FOUNTAIN SQR onwards, WEST CORRIDOR included */
-    { 27, "CHAPTER 3" },   /* CATACOMBS ENTRY onwards */
-    { 63, "CHAPTER 4" },   /* DESCENT TO HELL onwards */
+typedef struct {
+    const DebugGroup *groups;
+    int      group_count;
+    int      item_count;
+    int      window;      /* rows on screen at once                   */
+    uint32_t open;        /* bit g set = group g is expanded          */
+    int      cursor;      /* visible row the cursor is on             */
+    int      scroll;      /* first visible row on screen              */
+} DebugTree;
+
+#define DBG_COUNT(a)  ((int)(sizeof(a) / sizeof((a)[0])))
+
+/* Level column: `first` indexes level_names. The split is by position in that
+   list rather than by anything the rooms know about themselves because it does
+   not follow the geography: WEST CORRIDOR is a house room and sits with the
+   garden rooms of chapter two. Adding a room in the middle of a chapter needs
+   nothing here; adding one at the head of a chapter means bumping the `first`
+   below it. Headings are at most 16 characters (see title_init). */
+static const DebugGroup debug_chapters[] = {
+    {  0, "CH1 - MANSION"    },
+    { 14, "CH2 - GARDEN"     },   /* FOUNTAIN SQR onwards, WEST CORRIDOR included */
+    { 27, "CH3 - CATACOMBS"  },   /* CATACOMBS ENTRY onwards */
+    { 63, "CH4 - UNDERWORLD" },   /* DESCENT TO HELL onwards */
 };
-#define DEBUG_CHAPTER_COUNT \
-    ((int)(sizeof(debug_chapters) / sizeof(debug_chapters[0])))
 
-/* The rule drawn under each heading, and the rows a heading costs: the name and
-   its rule, plus a blank spacer row for every chapter after the first (the
-   first sits directly under "LEVEL SELECT" and needs no gap). */
-#define DBG_CHAPTER_RULE  "---------"
-#define DBG_CHAPTER_ROWS(c)  ((c) ? 3 : 2)
+/* Option column: the DebugOpt enum is in the order the options were ADDED, not
+   the order they read best in, so the column draws through this table instead
+   and `first` below indexes it. Every DebugOpt must appear exactly once — the
+   size check under it fails the build if a new option has not been placed. */
+static const DebugOpt debug_opt_order[] = {
+    /* PLAYER */
+    DBG_HAS_GRAVEOLVER, DBG_HAS_HELLUMINATOR,
+    DBG_INFINITE_LIFE,  DBG_INFINITE_STAMINA,
+    /* CH1 - MANSION: the house's items and the Attic Exit's door */
+    DBG_HAS_WAX_AND_POT, DBG_HAS_PIANO_KEY,
+    DBG_HAS_KEY_STONES,  DBG_EXIT_DOOR_SOLVED,
+    /* CH2 - GARDEN: the valve and keystone chains, Hadad, Asag */
+    DBG_HAS_VALVE_HANDLE, DBG_HAS_HATCH_KEYS,
+    DBG_HADAD_FLAG_ONE,   DBG_HADAD_FLAG_TWO, DBG_HADAD_FLAG_THREE,
+    DBG_ASAG_DEFEATED,
+    /* CH3 - CATACOMBS */
+    DBG_HAS_MEAT_SACK, DBG_HAS_GAOL_KEY,
+    DBG_CRIB_ARMS,  DBG_CRIB_HEADS,  DBG_CRIB_LEGS,
+    DBG_CRIB_BONES, DBG_CRIB_TORSOS, DBG_CRIB_GUTS,
+    DBG_PEARL_CLEAVER, DBG_PEARL_UP_DOWN, DBG_PEARL_GAOL,
+};
+typedef char debug_opt_order_is_complete
+    [(DBG_COUNT(debug_opt_order) == DEBUG_OPT_COUNT) ? 1 : -1];
 
-/* Index of the room one past the end of chapter c. */
-static int debug_chapter_end(int c) {
-    return (c + 1 < DEBUG_CHAPTER_COUNT) ? debug_chapters[c + 1].first
-                                         : LEVEL_SELECT_COUNT;
+/* No Chapter 4 group: nothing in it has an option yet. */
+static const DebugGroup debug_opt_groups[] = {
+    {  0, "PLAYER"          },
+    {  4, "CH1 - MANSION"   },
+    {  8, "CH2 - GARDEN"    },
+    { 14, "CH3 - CATACOMBS" },
+};
+
+static DebugTree debug_levels = {
+    debug_chapters, DBG_COUNT(debug_chapters), LEVEL_SELECT_COUNT, DBG_LIST_ROWS
+};
+static DebugTree debug_optlist = {
+    debug_opt_groups, DBG_COUNT(debug_opt_groups), DEBUG_OPT_COUNT, DBG_OPT_ROWS
+};
+
+/* Index of the item one past the end of group g. */
+static int debug_group_end(const DebugTree *t, int g) {
+    return (g + 1 < t->group_count) ? t->groups[g + 1].first : t->item_count;
 }
 
-/* Row of the drawn list a room sits on, counting the headings — the cursor
-   indexes ROOMS, the scroll window counts ROWS, and this is the bridge. */
-static int debug_level_row(int lvl) {
-    int row = 0, c;
-    for (c = 0; c < DEBUG_CHAPTER_COUNT; c++) {
-        int end = debug_chapter_end(c);
-        row += DBG_CHAPTER_ROWS(c);
-        if (lvl < end) return row + (lvl - debug_chapters[c].first);
-        row += end - debug_chapters[c].first;
+/* Rows group g takes up: its heading, plus its items while it is open. */
+static int debug_group_rows(const DebugTree *t, int g) {
+    if (!((t->open >> g) & 1)) return 1;
+    return 1 + debug_group_end(t, g) - t->groups[g].first;
+}
+
+static int debug_tree_rows(const DebugTree *t) {
+    int g, rows = 0;
+    for (g = 0; g < t->group_count; g++) rows += debug_group_rows(t, g);
+    return rows;
+}
+
+/* What is on visible row r: the item's index, or -1 for a heading. *group gets
+   the group the row belongs to either way. */
+static int debug_tree_row(const DebugTree *t, int r, int *group) {
+    int g;
+    for (g = 0; g < t->group_count; g++) {
+        int n = debug_group_rows(t, g);
+        if (r < n) {
+            *group = g;
+            return r ? t->groups[g].first + r - 1 : -1;
+        }
+        r -= n;
     }
-    return row;
-}
-
-/* Chapter the cursor is in, so a room at the head of one can drag its heading
-   into view with it rather than sitting on the top line orphaned. */
-static int debug_level_chapter(int lvl) {
-    int c;
-    for (c = DEBUG_CHAPTER_COUNT - 1; c > 0; c--)
-        if (lvl >= debug_chapters[c].first) return c;
-    return 0;
+    *group = 0;
+    return -1;
 }
 
 /* Pull the scroll window onto the cursor: the fewest rows that puts it back on
-   screen, so the list only moves when it has to. Called on every cursor move
-   and when the menu opens. */
-static void debug_scroll_follow(void) {
-    int row   = debug_level_row(debug_menu_cursor);
-    int total = debug_level_row(LEVEL_SELECT_COUNT - 1) + 1;
-    int c     = debug_level_chapter(debug_menu_cursor);
-    int top   = row;
+   screen, so the list only moves when it has to — and back up when closing a
+   group has left blank rows at the bottom of the window. */
+static void debug_tree_follow(DebugTree *t) {
+    int rows = debug_tree_rows(t);
+    if (t->cursor < t->scroll)              t->scroll = t->cursor;
+    if (t->cursor >= t->scroll + t->window) t->scroll = t->cursor - t->window + 1;
+    if (t->scroll > rows - t->window)       t->scroll = rows - t->window;
+    if (t->scroll < 0)                      t->scroll = 0;
+}
 
-    /* Stepping onto a chapter's first room shows that chapter's heading too. */
-    if (debug_menu_cursor == debug_chapters[c].first)
-        top -= DBG_CHAPTER_ROWS(c);
+/* Up/Down: one row, wrapping round either end. */
+static void debug_tree_step(DebugTree *t, int step) {
+    int rows = debug_tree_rows(t);
+    t->cursor = (t->cursor + step + rows) % rows;
+    debug_tree_follow(t);
+}
 
-    if (top < debug_scroll)                     debug_scroll = top;
-    if (row >= debug_scroll + DBG_LIST_ROWS)    debug_scroll = row - DBG_LIST_ROWS + 1;
-    if (debug_scroll > total - DBG_LIST_ROWS)   debug_scroll = total - DBG_LIST_ROWS;
-    if (debug_scroll < 0)                       debug_scroll = 0;
+/* Circle on a heading. Opening scrolls down far enough to show as much of the
+   group as fits, without pushing its heading off the top. */
+static void debug_tree_toggle(DebugTree *t, int g) {
+    t->open ^= 1u << g;
+    if ((t->open >> g) & 1) {
+        int last = t->cursor + debug_group_rows(t, g) - 1;
+        if (last >= t->scroll + t->window) t->scroll = last - t->window + 1;
+        if (t->scroll > t->cursor)         t->scroll = t->cursor;
+    }
+    debug_tree_follow(t);
 }
 
 /* ---- Letter bitmasks: 7 rows x 5 cols, row 0 = top ---- */
@@ -816,47 +881,46 @@ void draw_title(RenderContext *ctx) {
         draw_title_captions(ctx);
 
     if (debug_menu_open) {
-        int k, c, row = 0;
-        /* Left column: rooms under their chapter headings, windowed to the rows
-           that fit above the footer (see DBG_LIST_ROWS). Only the rows inside
-           the window are printed at all — FntPrint advances a line per string
-           printed, so skipping the rest is what does the scrolling, and it
-           keeps the stream's per-frame character budget down as a bonus.
+        const DebugTree *lv = &debug_levels, *op = &debug_optlist;
+        int r, g, k, rows;
+        /* Left column: chapter headings, each followed by its rooms while it is
+           open, windowed to the rows that fit above the footer (see
+           DBG_LIST_ROWS). Only the rows inside the window are printed at all —
+           FntPrint advances a line per string printed, so skipping the rest is
+           what does the scrolling, and it keeps the stream's per-frame character
+           budget down as a bonus. Headings print as "*NAME" and rooms one step
+           in as " * NAME", 17 characters at most either way (see title_init).
            The cursor only shows while this column is active, so it is always
-           clear which room Circle will act on. */
-#define DBG_ROW_SHOWN(r)  ((r) >= debug_scroll && (r) < debug_scroll + DBG_LIST_ROWS)
+           clear which row Circle will act on. */
         FntPrint(debug_fnt, "LEVEL SELECT\n\n");
-        for (c = 0; c < DEBUG_CHAPTER_COUNT; c++) {
-            int end = debug_chapter_end(c);
-            if (c) {
-                if (DBG_ROW_SHOWN(row)) FntPrint(debug_fnt, "\n");
-                row++;
-            }
-            if (DBG_ROW_SHOWN(row)) FntPrint(debug_fnt, "%s\n", debug_chapters[c].name);
-            row++;
-            if (DBG_ROW_SHOWN(row)) FntPrint(debug_fnt, "%s\n", DBG_CHAPTER_RULE);
-            row++;
-            for (k = debug_chapters[c].first; k < end; k++, row++) {
-                if (!DBG_ROW_SHOWN(row)) continue;
-                FntPrint(debug_fnt, "%s %s\n",
-                         (debug_col == DBG_COL_LEVELS && k == debug_menu_cursor)
-                             ? "*" : " ",
-                         level_names[k]);
-            }
+        rows = debug_tree_rows(lv);
+        for (r = lv->scroll; r < rows && r < lv->scroll + lv->window; r++) {
+            const char *mark =
+                (debug_col == DBG_COL_LEVELS && r == lv->cursor) ? "*" : " ";
+            k = debug_tree_row(lv, r, &g);
+            if (k < 0) FntPrint(debug_fnt, "%s%s\n", mark, lv->groups[g].name);
+            else       FntPrint(debug_fnt, " %s %s\n", mark, level_names[k]);
         }
-#undef DBG_ROW_SHOWN
         FntFlush(debug_fnt);
 
-        /* Right column: cheat toggles, as "*[X] NAME" — cursor, then a checkbox
-           carrying the on/off state. Drawn piece by piece at fixed columns (no
-           string building, and no font stream — see the cap noted above); the
-           8px advance matches the left column's line height. */
+        /* Right column: group headings, and under each open one its cheat
+           toggles as "*[X] NAME" — cursor, then a checkbox carrying the on/off
+           state. A heading sits in the checkbox's column, so the boxes are what
+           tell the two apart. Drawn piece by piece at fixed columns (no string
+           building, and no font stream — see the cap noted above); the 8px
+           advance matches the left column's line height. */
         btn_prompt_draw(ctx, DBG_OPT_X, 8, "OPTIONS", 1);
-        for (k = debug_opt_scroll;
-             k < DEBUG_OPT_COUNT && k < debug_opt_scroll + DBG_OPT_ROWS; k++) {
-            int oy = DBG_OPT_TOP_Y + (k - debug_opt_scroll) * 8;
-            if (debug_col == DBG_COL_OPTS && k == debug_opt_cursor)
+        rows = debug_tree_rows(op);
+        for (r = op->scroll; r < rows && r < op->scroll + op->window; r++) {
+            int oy = DBG_OPT_TOP_Y + (r - op->scroll) * 8;
+            if (debug_col == DBG_COL_OPTS && r == op->cursor)
                 btn_prompt_draw(ctx, DBG_OPT_X, oy, "*", 1);
+            k = debug_tree_row(op, r, &g);
+            if (k < 0) {
+                btn_prompt_draw(ctx, DBG_OPT_BOX_X, oy, op->groups[g].name, 1);
+                continue;
+            }
+            k = debug_opt_order[k];
             btn_prompt_draw(ctx, DBG_OPT_BOX_X,  oy, debug_opts[k] ? "[X]" : "[ ]", 1);
             btn_prompt_draw(ctx, DBG_OPT_NAME_X, oy, debug_opt_names[k], 1);
         }
@@ -927,8 +991,10 @@ void title_init(void) {
        TM_CARD's, but needs a wider window (32-char titles + a dash and a space
        on each side is 36 characters, so 304px / 38 characters from x=8). */
     load_list_fnt = FntOpen(8, TMENU_Y, 304, 80, 0, 512);
-    /* Debug menu's LEFT column only — 128px is 16 characters, and "* MASTER
-       BEDROOM" is exactly 16. The right column needs no stream (see the eight-
+    /* Debug menu's LEFT column only — 136px is 17 characters, which runs it
+       right up to the options column's cursor at x=144: a heading is "*" plus
+       up to 16 ("*CH4 - UNDERWORLD"), a room " * " plus up to 14 ("ROOM OF
+       TORSOS"). The right column needs no stream (see the eight-
        stream cap documented at the top of this file). This is the eighth and
        last FntOpen in the project.
 
@@ -939,7 +1005,7 @@ void title_init(void) {
        per level costs 14 + sum(strlen(name) + 3), which was 268 at eighteen
        rooms and had already overrun 256. 512 leaves room for roughly sixteen
        more entries; raise it again when the list next grows. */
-    debug_fnt = FntOpen(8, 8, 128, 224, 0, 512);
+    debug_fnt = FntOpen(8, 8, 136, 224, 0, 512);
 }
 
 /* ---- Held-direction auto-repeat -------------------------------------------
@@ -1027,10 +1093,12 @@ void update_title(void) {
            otherwise rolling onto the combo with Start first would open New Game
            on the way in. */
         if ((pressed & DEBUG_COMBO) && (held & DEBUG_COMBO) == DEBUG_COMBO) {
-            debug_menu_open   = 1;
-            debug_menu_cursor = 0;
-            debug_scroll      = 0;
-            debug_scroll_follow();
+            /* The room list opens fully collapsed with the cursor on the first
+               chapter; the options keep whatever was left open last time. */
+            debug_menu_open     = 1;
+            debug_levels.open   = 0;
+            debug_levels.cursor = 0;
+            debug_levels.scroll = 0;
             sound_play(SFX_SELECT);
         } else if ((pressed & PAD_START) && !(held & (DEBUG_COMBO & ~PAD_START))) {
             tmenu        = TM_MAIN;   /* New Game / Load Game */
@@ -1059,24 +1127,11 @@ void update_title(void) {
         if (pressed & (PAD_LEFT | PAD_RIGHT))
             debug_col = (debug_col == DBG_COL_LEVELS) ? DBG_COL_OPTS : DBG_COL_LEVELS;
 
-        if (debug_col == DBG_COL_LEVELS) {
-            if (nav & PAD_UP)
-                debug_menu_cursor = (debug_menu_cursor + LEVEL_SELECT_COUNT - 1) % LEVEL_SELECT_COUNT;
-            if (nav & PAD_DOWN)
-                debug_menu_cursor = (debug_menu_cursor + 1) % LEVEL_SELECT_COUNT;
-            /* After every move, not only the ones that leave the window: a wrap
-               round either end of the list jumps the window the whole way. */
-            debug_scroll_follow();
-        } else {
-            if (nav & PAD_UP)
-                debug_opt_cursor = (debug_opt_cursor + DEBUG_OPT_COUNT - 1) % DEBUG_OPT_COUNT;
-            if (nav & PAD_DOWN)
-                debug_opt_cursor = (debug_opt_cursor + 1) % DEBUG_OPT_COUNT;
-            /* Keep the cursor's row on screen, wraps included. */
-            if (debug_opt_cursor < debug_opt_scroll)
-                debug_opt_scroll = debug_opt_cursor;
-            if (debug_opt_cursor >= debug_opt_scroll + DBG_OPT_ROWS)
-                debug_opt_scroll = debug_opt_cursor - DBG_OPT_ROWS + 1;
+        {
+            DebugTree *t = (debug_col == DBG_COL_LEVELS) ? &debug_levels
+                                                         : &debug_optlist;
+            if (nav & PAD_UP)   debug_tree_step(t, -1);
+            if (nav & PAD_DOWN) debug_tree_step(t,  1);
         }
 
         if (pressed & (PAD_SELECT | PAD_CROSS)) {
@@ -1084,15 +1139,22 @@ void update_title(void) {
             sound_play(SFX_BACK);
         }
         if (pressed & PAD_CIRCLE) {
+            DebugTree *t = (debug_col == DBG_COL_LEVELS) ? &debug_levels
+                                                         : &debug_optlist;
+            int g, k = debug_tree_row(t, t->cursor, &g);
             sound_play(SFX_SELECT);
-            if (debug_col == DBG_COL_OPTS) {
+            if (k < 0) {
+                /* A heading, in either column: open or close its group. */
+                debug_tree_toggle(t, g);
+            } else if (debug_col == DBG_COL_OPTS) {
                 /* Toggling leaves the menu open so several can be set in a row. */
-                debug_opts[debug_opt_cursor] = !debug_opts[debug_opt_cursor];
+                k = debug_opt_order[k];
+                debug_opts[k] = !debug_opts[k];
             } else {
                 debug_menu_open = 0;
-                GameState target = level_states[debug_menu_cursor];
+                GameState target = level_states[k];
                 /* STATE_LOADING entries (kitchen, reception) need the area to switch to. */
-                if (target == STATE_LOADING) pending_area = level_pending[debug_menu_cursor];
+                if (target == STATE_LOADING) pending_area = level_pending[k];
                 /* The inventory cheats can't be handed out yet — the destination
                    room hasn't initialised. Arm them; main.c applies them once it
                    has, alongside a staged save's player state. */

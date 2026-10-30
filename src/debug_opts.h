@@ -10,6 +10,10 @@
  *   - Continuous (INFINITE LIFE / STAMINA): the systems that would spend the
  *     resource read the flag every frame, so they can be flipped between runs
  *     and take effect on the next jump with no extra plumbing.
+ * The menu shows them grouped (PLAYER, then one group per chapter) through
+ * title.c's debug_opt_order table, not in enum order: a new option must be
+ * added there too, and the build fails until it is.
+ *
  *   - One-shot grants (GRAVE-OLVER / HELLUMINATOR / WAX AND POT / PIANO KEY /
  *     KEY STONES / EXIT DOOR SOLVED / the three HADAD flags / MEAT SACK /
  *     GAOL KEY): they hand the
