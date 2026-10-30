@@ -764,6 +764,16 @@ static void update_current_area(GameState area) {
         }
         return;
     }
+    /* ...and HELL HATH NO FURY's opening drop (src/hell_hath_no_fury.h): the
+       camera comes down out of the fog onto the seal. No update_camera,
+       collision or apply_height - they would drop the eye to the floor from
+       the first frame. Nothing else is in the room. */
+    if (area == STATE_HELL_HATH_NO_FURY && hell_hath_no_fury_intro()) {
+        hell_hath_no_fury_update(1);
+        player_status_update();
+        update_particles();
+        return;
+    }
     if (area == STATE_KENNELS && gula_death_cutscene()) {
         update_gula();
         player_status_update();
@@ -6360,13 +6370,12 @@ int main(int argc, const char **argv) {
             } else if (pending_area == STATE_HELL_HATH_NO_FURY) {
                 /* ONE ARRIVAL, the Descent's white, into the centre of the
                    platform (src/hell_hath_no_fury.h); a debug jump lands in
-                   the same place. Only the hand-off fades up out of white.
-                   SILENT: the wind has run out by the end of the fall, and
-                   cdaudio_stop() also ends a debug jump's leftover track.
+                   the same place. Only the hand-off fades up out of white and
+                   plays the opening drop. NO MUSIC LINE: the chapter's block
+                   below plays the Underworld's track.
                    (A save loaded here restores cam_x/z after.) */
                 hell_hath_no_fury_init();
                 if (white_transition) hell_hath_no_fury_from_white();
-                cdaudio_stop();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -6540,6 +6549,13 @@ int main(int argc, const char **argv) {
                 else
                     cdaudio_play(CDAUDIO_CATACOMBS_TRACK, 1);
             }
+            /* CHAPTER 4 MUSIC, the Catacombs' rule above: every Underworld
+               room plays the chapter's track (src/cdaudio.h) from its first
+               frame, by every route in. DESCENT TO HELL is the exception: a
+               cutscene that started its own wind in the chain above. */
+            if (area_is_underworld(pending_area) &&
+                pending_area != STATE_DESCENT_TO_HELL)
+                cdaudio_play(CDAUDIO_UNDERWORLD_TRACK, 1);
 
             /* The room is built; it draws itself from the bottom of this frame
                on, so the loading screen is finished with. */
@@ -6922,9 +6938,11 @@ int main(int argc, const char **argv) {
                                   else. */
                                (area == STATE_DESCENT_TO_HELL) ||
                                /* ...and Hell Hath No Fury's fade up out of
-                                  the Descent's white: no HUD over the white. */
+                                  the Descent's white and its opening drop:
+                                  no HUD over either. */
                                (area == STATE_HELL_HATH_NO_FURY &&
-                                hell_hath_no_fury_fading());
+                                (hell_hath_no_fury_fading() ||
+                                 hell_hath_no_fury_intro()));
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();

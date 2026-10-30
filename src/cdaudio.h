@@ -49,12 +49,12 @@
 
    THAT IS A PLACEHOLDER AND THE TWO FIGHTS CURRENTLY SOUND THE SAME. Giving
    Asag his own track is ONE line appended to the foot of disc.xml and CHANGING
-   THE 6 BELOW TO 12. Nothing else: no call site mentions a number, they all go
+   THE 6 BELOW TO 13. Nothing else: no call site mentions a number, they all go
    through this name, which is why the name exists.
 
-   >>> THE RESERVED SLOT IS NOW 12. <<< The Catacombs took 9 in September 2026,
-   Descent to Hell's wind took 10 and the Gaol took 11 in October, which cost
-   this nothing: the
+   >>> THE RESERVED SLOT IS NOW 13. <<< The Catacombs took 9 in September 2026,
+   Descent to Hell's wind took 10, the Gaol 11 and the Underworld 12 in
+   October, which cost this nothing: the
    reservation was never about a number, it was about the track being APPENDED. The track NUMBER is a line's position
    in disc.xml and nothing else, so Asag's must go after the Catacombs' at the
    foot of that file — inserted anywhere else it renumbers every track after it
@@ -74,11 +74,17 @@
    would arrive with The Hatch's music still playing. */
 #define CDAUDIO_ASAG_TRACK      6   /* BORROWED from the courtyard — see above.
                                        Append his track to disc.xml and change
-                                       this 6 to a 12.                        */
+                                       this 6 to a 13.                        */
 /* CHAPTER 4: DESCENT TO HELL's wind, 16.8 s - longer than the scene, so it is
    played ONCE (no loop) from the first frame of the fade in, and the sign-off
    screen's own track replaces it (src/descent_to_hell.c). */
 #define CDAUDIO_WIND_TRACK     10   /* Descent to Hell (16.8 s), one shot    */
+/* CHAPTER 4: kulakovka-dark-synthwave-624644, 139.2 s, the CHAPTER's track -
+   the Catacombs' rule: written once, in main.c's STATE_LOADING, keyed on
+   area_is_underworld(). Every Underworld room plays it but Descent to Hell,
+   which is a cutscene with its own wind. A new Chapter 4 room inherits it by
+   being added to area_is_underworld(); one that should differ says so there. */
+#define CDAUDIO_UNDERWORLD_TRACK 12 /* the Underworld (139.2 s)               */
 
 void cdaudio_init(void);
 /* loop = 1 repeats the track for as long as the room lasts; loop = 0 plays it

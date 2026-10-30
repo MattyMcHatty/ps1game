@@ -904,7 +904,9 @@ Touch these files, in this order:
                         silent room and it is the exception stated there. The
                         GAOL side (Gaol Entry onward) plays CDAUDIO_GAOL_TRACK
                         instead: a new room there must ALSO be added to
-                        area_is_gaol() in src/area_bank.c. A new
+                        area_is_gaol() in src/area_bank.c. CHAPTER 4
+                        rooms get CDAUDIO_UNDERWORLD_TRACK the same way, from
+                        the block after it, keyed on area_is_underworld(). A new
                         room that wants silence or its own track says so in
                         THAT block, not in the chain.
                      5. draw_current_area(): `else if (area == STATE_<X>)`

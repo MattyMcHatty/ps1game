@@ -150,11 +150,88 @@ void hell_hath_no_fury_load_geometry(void) {
 
 static int32_t fade_t = HHNF_T_FADE;   /* HHNF_T_FADE = not fading */
 
-void hell_hath_no_fury_from_white(void) { fade_t = 0; }
+/* ---- The opening drop ------------------------------------------------------
+   Under the fade, and on long after it: the camera hangs straight over the
+   centre of the seal, looking straight down (the Descent's pitch, yaw north),
+   and comes down onto it, slowing to nothing as it reaches the player's eye.
+
+   THE HEIGHT. The fog is measured in Manhattan XZ, so an overhead camera reads
+   as close however high it is. For the drop only, draw_hhnf_smd adds the
+   camera's rise above the eye to that distance - the chapter's 800/3500 are
+   untouched, only where they are measured from changes (src/underworld.h) -
+   and the drop starts 3300 up: the seal's centre is then 200 inside the cull
+   line, a few percent out of the fog, and the floor round it further in.
+
+   THE SPEED. 9 s, by request (an even deceleration from the Descent's speed
+   took 13.7). It starts at the Descent's one steady speed (5950 in 740
+   frames, 8.04 a frame) and slows to zero, LATE rather than evenly: speed =
+   v0 * (1 - tau^3), tau = t / T, which averages 3/4 of v0, so the 3300 takes
+   T = 3300 / (0.75 * v0) = 540 frames at v0 = 8.15 - the Descent's to 1.4%.
+   Integrated: rise = R * (1 - (4 tau - tau^4) / 3).
+
+   THE TURN. In the last HHNF_T_TURN frames - from 200 above the eye, just
+   short of the player's height - the pitch eases from straight down to level
+   (smoothstep), the yaw held north throughout, so the drop lands on the
+   ground facing north and hands the player control on that frame.
+
+   >>> NO BEHIND-THE-YAW CULL DURING THE DROP. <<< draw_hhnf_smd's 700-unit
+   test ignores pitch; looking straight down from 3300 the screen reaches
+   ~1550 south of the camera, so it would cut a straight edge across the seal
+   (memory: overhead-camera-behind-cull). The whole platform is cheap. */
+#define HHNF_DROP_RISE   3300
+#define HHNF_T_DROP       540
+#define HHNF_T_TURN       100
+#define HHNF_PITCH_DOWN  1024   /* the Descent's DH_PITCH_DOWN */
+
+static int32_t drop_t = HHNF_T_DROP;   /* HHNF_T_DROP = not dropping */
+
+/* The ends are early returns, not clamps (memory: clamp-before-divide). */
+static void hhnf_place_camera(void) {
+    if (drop_t >= HHNF_T_DROP) return;
+    int32_t s = HHNF_T_DROP - drop_t;              /* frames left, 1..T */
+    int32_t u  = (drop_t << 12) / HHNF_T_DROP;     /* tau, 0..4096 */
+    int32_t u2 = (u * u) >> 12;
+    int32_t u4 = (u2 * u2) >> 12;
+    int32_t r  = HHNF_DROP_RISE -
+                 ((HHNF_DROP_RISE * ((4 * u - u4) / 3)) >> 12);
+    cam_x   = HHNF_CX;
+    cam_z   = HHNF_CZ;
+    cam_y   = HHNF_EYE_Y - r;
+    cam_vy  = 0;
+    cam_rot = HHNF_SPAWN_ROT;
+    if (s >= HHNF_T_TURN) {
+        cam_pitch = HHNF_PITCH_DOWN;
+    } else {
+        int32_t w = (s << 8) / HHNF_T_TURN;        /* 256 -> 0 */
+        cam_pitch = (w * w * (768 - 2 * w)) >> 14; /* 1024 * smoothstep */
+    }
+}
+
+/* On the ground, facing north: the spawn, and the player's from here. */
+static void hhnf_land(void) {
+    cam_x     = HHNF_CX;
+    cam_z     = HHNF_CZ;
+    cam_y     = HHNF_EYE_Y;
+    cam_vy    = 0;
+    cam_rot   = HHNF_SPAWN_ROT;
+    cam_pitch = 0;
+    camera_look_cancel();
+}
+
+void hell_hath_no_fury_from_white(void) {
+    fade_t = 0;
+    drop_t = 0;
+    hhnf_place_camera();   /* the first frame drawn is the top of the drop */
+}
 
 int hell_hath_no_fury_fading(void) { return fade_t < HHNF_T_FADE; }
 
-void hell_hath_no_fury_reset(void) { fade_t = HHNF_T_FADE; }
+int hell_hath_no_fury_intro(void) { return drop_t < HHNF_T_DROP; }
+
+void hell_hath_no_fury_reset(void) {
+    fade_t = HHNF_T_FADE;
+    drop_t = HHNF_T_DROP;
+}
 
 void hell_hath_no_fury_init(void) {
     room_data_collision(&current_collision_room);
@@ -169,8 +246,9 @@ void hell_hath_no_fury_init(void) {
     cam_pitch = 0;
     camera_look_cancel();
 
-    /* No fade unless main.c asks for one (the Descent's hand-off). */
+    /* No fade or drop unless main.c asks for one (the Descent's hand-off). */
     fade_t = HHNF_T_FADE;
+    drop_t = HHNF_T_DROP;
 
     /* The global prop arrays, as the Seal clears them: an instance left from
        another room would block invisibly inside x[0,4200) z[0,4200). */
@@ -185,6 +263,11 @@ void hell_hath_no_fury_init(void) {
 void hell_hath_no_fury_update(int lock) {
     (void)lock;
     if (fade_t < HHNF_T_FADE) fade_t++;
+    if (drop_t < HHNF_T_DROP) {
+        drop_t++;
+        if (drop_t >= HHNF_T_DROP) hhnf_land();
+        else                       hhnf_place_camera();
+    }
 }
 
 /* ---- The mesh --------------------------------------------------------------
@@ -204,6 +287,11 @@ static void draw_hhnf_smd(RenderContext *ctx) {
     int32_t fog_start = UW_FOG_NEAR < cull ? UW_FOG_NEAR : cull / 2;
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    /* THE OPENING DROP: its height counts toward the fog and the cull, and
+       the behind test is off (see "The opening drop"). 0 / on otherwise. */
+    int     dropping = hell_hath_no_fury_intro();
+    int32_t rise     = dropping ? HHNF_EYE_Y - cam_y : 0;
+    if (rise < 0) rise = 0;
 
     for (i = 0; i < n; i++) {
         /* >>> THE REJECT PATH READS cull_keys, NOT THE MESH. <<< */
@@ -211,9 +299,9 @@ static void draw_hhnf_smd(RenderContext *ctx) {
         {
             int32_t dx = (int32_t)cull_keys[i].x - cam_x;
             int32_t dz = (int32_t)cull_keys[i].z - cam_z;
-            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) > cull)
+            if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) + rise > cull)
                 { p += stride; continue; }
-            if (dx * sn + dz * cs < -(700 << 12))
+            if (!dropping && dx * sn + dz * cs < -(700 << 12))
                 { p += stride; continue; }
         }
 
@@ -280,7 +368,7 @@ static void draw_hhnf_smd(RenderContext *ctx) {
         int32_t face_cz = ((int32_t)v0->vz + v2->vz) / 2;
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
-        int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+        int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) + rise;
         int32_t fog = dist < fog_start ? fog_start : (dist > cull ? cull : dist);
         int32_t fog_factor = ((cull - fog) << 8) / (cull - fog_start);
 

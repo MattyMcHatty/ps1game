@@ -27,8 +27,15 @@
    player at the rim. One flat floor zone.
 
    THE ARRIVAL. One, the Descent's white, into the CENTRE of the room (on the
-   seal), facing north. A debug jump or a save loaded here lands in the same
-   place without the fade.
+   seal), facing north - by THE OPENING DROP: under the fade the camera hangs
+   3300 straight over the seal looking down, just out of the fog, and comes
+   down onto it, slowing to a stop at the player's eye and pitching up to
+   face north on the way, then hands over control (hell_hath_no_fury.c). A
+   debug jump or a save loaded here lands in the same place with neither the
+   fade nor the drop.
+
+   THE MUSIC is the chapter's (CDAUDIO_UNDERWORLD_TRACK, main.c's Chapter 4
+   block), from the first frame.
 
    Chapter rules (the fog, the sky): src/underworld.h. */
 
@@ -40,10 +47,15 @@ void hell_hath_no_fury_draw(RenderContext *ctx);
 void hell_hath_no_fury_update(int lock);
 void hell_hath_no_fury_reset(void);           /* new game / title              */
 
-/* Arm the fade up out of white. main.c calls it after hell_hath_no_fury_init()
-   when the player arrived through the Descent's white hand-off, and not for a
-   debug jump or a save load. */
+/* Arm the fade up out of white and the opening drop. main.c calls it after
+   hell_hath_no_fury_init() when the player arrived through the Descent's
+   white hand-off, and not for a debug jump or a save load. */
 void hell_hath_no_fury_from_white(void);
+
+/* 1 while the opening drop runs: the camera is the room's, the player has no
+   control at all, and the HUD and menu stay down (main.c's cutscene branch,
+   which ticks hell_hath_no_fury_update in place of update_camera). */
+int  hell_hath_no_fury_intro(void);
 
 /* 1 while the room is fading up out of the white: the player can turn but not
    walk (camera.h's player_rooted), and the HUD stays down. */

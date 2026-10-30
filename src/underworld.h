@@ -26,6 +26,10 @@
    2. THE SKY. Every room but the Descent draws src/underworld_sky.c's ring,
       centred on its own geometry.
 
+   3. THE MUSIC. Every room but the Descent plays CDAUDIO_UNDERWORLD_TRACK
+      (src/cdaudio.h), from main.c's Chapter 4 music block - no music line
+      of a room's own.
+
    Which rooms are in the chapter is area_is_underworld() in src/area_bank.h;
    their textures are TEXBANK_UNDERWORLD and their sounds SND_BANK_UNDERWORLD
    (src/sound.h), which is empty today: nothing in the chapter makes a sound

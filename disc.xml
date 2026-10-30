@@ -2087,5 +2087,12 @@
          ffmpeg -y -i leberch-horror-creepy-255685.mp3 -ar 44100 -ac 2 -c:a pcm_s16le -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\leberch-horror-creepy-255685.wav"/>
 
+    <!-- Track 12: THE UNDERWORLD. 139.2 s, Chapter 4's own music: every room in
+         the chapter but Descent to Hell, which keeps its wind (main.c's Chapter 4
+         music block, keyed on area_is_underworld()). APPENDED, for the reason
+         Track 9 gives. 44100 Hz 16-bit stereo:
+         ffmpeg -y -i kulakovka-dark-synthwave-624644.mp3 -ar 44100 -ac 2 -c:a pcm_s16le -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\kulakovka-dark-synthwave-624644.wav"/>
+
 
 </iso_project>

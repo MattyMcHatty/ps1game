@@ -49,7 +49,8 @@
    CLUT line (the Seal's terms) and HELLBG.TIM at x640 y0 on the gaol door's.
 
    THE WIND (CD track 10, CDAUDIO_WIND_TRACK) plays once from the first frame
-   of the fade in, and has run out by the white; the platform is silent. */
+   of the fade in, and has run out by the white; the platform plays the
+   chapter's own track (CDAUDIO_UNDERWORLD_TRACK). */
 
 void descent_to_hell_load_assets(void);     /* startup: two registrations      */
 void descent_to_hell_load_geometry(void);   /* ROOM ENTRY: the mesh + the tube */
