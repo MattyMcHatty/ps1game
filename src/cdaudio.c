@@ -121,6 +121,9 @@
  * effects against the same music level the rest of Chapter 3 does. Re-measure
  * if either WAV is replaced. */
 #define CD_MIX_GAOL        53   /* ~41% of CD_MIX_FULL                   */
+/* THE UNDERWORLD'S TRACK at full level overshadows Chapter 4's sound effects.
+ * Halved by ear, at the user's request — not measured like the Gaol's. */
+#define CD_MIX_UNDERWORLD  64   /* 50% of CD_MIX_FULL                    */
 
 static int           cd_audio_playing = 0;
 static int           cd_track_num     = 0;
@@ -351,6 +354,7 @@ void cdaudio_play(int track, int loop) {
     {
         uint8_t v = (track == CDAUDIO_COURTYARD_TRACK) ? CD_MIX_BOSS :
                     (track == CDAUDIO_GAOL_TRACK)      ? CD_MIX_GAOL :
+                    (track == CDAUDIO_UNDERWORLD_TRACK) ? CD_MIX_UNDERWORLD :
                                                          CD_MIX_FULL;
         CdlATV mix = { v, 0, v, 0 };
         CdMix(&mix);
