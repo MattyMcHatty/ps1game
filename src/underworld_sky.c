@@ -103,6 +103,7 @@ static void draw_face(RenderContext *ctx, uint8_t *p, uint8_t *buf_end,
     uint8_t  *uv  = p + 20;
     int32_t qx[4], qy[4], qz[4], qu[4], qv[4];
     int k, s, t, behind = 0;
+    int left = 0, right = 0, above = 0, below = 0;
 
     for (k = 0; k < 4; k++) {
         SVECTOR *v = &sky_smd->p_verts[vi[k]];
@@ -113,13 +114,33 @@ static void draw_face(RenderContext *ctx, uint8_t *p, uint8_t *buf_end,
         qv[k] = uv[k * 2 + 1];
 
         SVECTOR w = { (int16_t)qx[k], (int16_t)qy[k], (int16_t)qz[k], 0 };
+        DVECTOR sv;
         int32_t sz;
         gte_ldv0(&w);
         gte_rtps();
+        gte_stsxy(&sv);
         gte_stsz(&sz);
         if (sz <= UW_SKY_NEAR) behind++;
+        if (sv.vx < 0)            left++;
+        if (sv.vx >= SCREEN_XRES) right++;
+        if (sv.vy < 0)            above++;
+        if (sv.vy >= SCREEN_YRES) below++;
     }
     if (behind == 4) return;   /* the whole face is behind the camera */
+
+    /* >>> A FACE WHOLLY OFF ONE SIDE OF THE SCREEN IS REJECTED HERE TOO. <<<
+       Only when all four corners are IN FRONT: then every grid point, being a
+       blend of the corners, lies in the convex region "in front of the camera
+       and beyond that screen edge", so every cell the grid would build is off
+       the screen and the cell loop below would discard it after projecting 25
+       points to find that out. The GTE clamps SX/SY to +-1024, which keeps a
+       point on the same side of 0 and of the screen size, so the counts are
+       exact. A face with a corner behind the camera is left to the cell loop:
+       its corners' screen positions prove nothing. Measured (Oct 2026, Hell
+       Hath No Fury, force-booted): 53-55 hblanks a frame -> 36, in every
+       direction, and in every room that draws the ring. */
+    if (behind == 0 &&
+        (left == 4 || right == 4 || above == 4 || below == 4)) return;
 
     /* Project the grid, a row at a time down the v0->v2 / v1->v3 edges. */
     for (t = 0; t <= UW_SKY_SUB; t++) {

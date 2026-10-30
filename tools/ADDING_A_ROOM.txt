@@ -733,6 +733,16 @@ Copy src/master_bedroom.c and rename. The parts that need real thought:
       lot" is wrong turn #2 in DIAGNOSING_FRAME_RATE.txt, and it has now been
       the tempting wrong answer four times.
 
+      >>> ONE EXCEPTION, MEASURED: THE KEY-POINT-AND-RADIUS SIDE CULL. <<<
+      Hell Hath No Fury (DIAGNOSING_FRAME_RATE.txt STEP 3I) had all four items
+      and still ran at 30fps facing in, because its fog distance is nearly the
+      room's own size and the distance cull passed almost everything. The box
+      cull measured a loss there too; a side test off the key's own vertex,
+      with a radius in CullKey.pad, took every pose back to 60fps. If a meter
+      says a room needs a side cull, copy THAT one from src/hell_hath_no_fury.c
+      (it is also the only one that holds with the camera pitched), not the
+      Greenhouse's box.
+
   2. HOIST THE FOUR CONSTANTS OUT OF THE LOOP (STEP 3C fix 1)
       None of these can change while a frame is being queued, and all four were
       being recomputed per primitive in the rooms that came in slow:

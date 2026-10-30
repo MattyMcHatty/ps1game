@@ -152,10 +152,32 @@ void hell_hath_no_fury_upload_textures(void) {
     oil_dispenser_upload_texture();
 }
 
-/* ---- The cull key (STEP 3B, tools/DIAGNOSING_FRAME_RATE.txt) ---------------
-   Copied from src/master_bedroom.c. Built on the same call that reloads the
-   mesh it describes, and nowhere else. NO BOX KEY, for that room's reason. */
-static int hhnf_key_count = 0;
+/* ---- The cull key, and its RADIUS (tools/DIAGNOSING_FRAME_RATE.txt STEP 3I) -
+   Built on the same call that reloads the mesh it describes, and nowhere else.
+
+   >>> THIS ROOM HAS A SIDE-PLANE CULL, BECAUSE A METER ASKED, AND IT IS NOT
+   THE GREENHOUSE'S. <<< Measured (Oct 2026, force-booted, 12 poses): facing
+   the seal from anywhere on the rim D read 257-273 and the room ran at 30fps,
+   ~460 primitives a frame through the GTE and ~180 of them on screen - the
+   distance cull passes nearly the whole platform (3500 against 4200) and the
+   behind test was the only heading test the loop had.
+
+   THE GREENHOUSE'S BOX TEST WAS TRIED FIRST AND MEASURED A LOSS: it cut the GTE
+   load 480 -> 187 and the mesh's time went 179 -> 194. Four corners at four
+   CPU multiplies each cost more than the transforms they saved - the GTE is
+   cheap, the R3000's multiplier is not. What went in instead is ONE point and
+   ONE radius: the key's own vertex, whose forward term the behind test has
+   already paid for, plus two multiplies for its side term, and the radius in
+   the key's spare byte (pad = ceil(R/4), 255 = too big, never side-culled),
+   so nothing extra is read. It culls less than the box (55% of what reaches
+   it against 69%) and is the one that is faster: mesh 186-206 -> 152-169,
+   every measured pose back to 60fps. No cull_boxes.
+
+   R is the box's half-perimeter-plus: (max_x-min_x) + (max_z-min_z), which is
+   at least the distance from v0 to any vertex. hhnf_y_lo/hi are the mesh's
+   height range, for the pitch term in the test (see draw_hhnf_smd). */
+static int     hhnf_key_count = 0;
+static int32_t hhnf_y_lo = 0, hhnf_y_hi = 0;
 
 static void hhnf_build_cull_keys(void) {
     hhnf_key_count = 0;
@@ -163,14 +185,32 @@ static void hhnf_build_cull_keys(void) {
     uint8_t *p = (uint8_t *)hhnf_smd->p_prims;
     int i, n = hhnf_smd->n_prims;
     if (n > HELL_HATH_NO_FURY_PRIM_COUNT) n = HELL_HATH_NO_FURY_PRIM_COUNT;
+    hhnf_y_lo = hhnf_y_hi = 0;
     for (i = 0; i < n; i++) {
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
         uint16_t     *vi = (uint16_t *)(p + 4);
         SVECTOR      *v0 = &hhnf_smd->p_verts[vi[0]];
+        int nv = (pt->type >= 2) ? 4 : 3;
+        int16_t lo_x = v0->vx, hi_x = v0->vx;
+        int16_t lo_z = v0->vz, hi_z = v0->vz;
+        int k;
+        for (k = 0; k < nv; k++) {
+            SVECTOR *vk = &hhnf_smd->p_verts[vi[k]];
+            if (vk->vx < lo_x) lo_x = vk->vx;
+            if (vk->vx > hi_x) hi_x = vk->vx;
+            if (vk->vz < lo_z) lo_z = vk->vz;
+            if (vk->vz > hi_z) hi_z = vk->vz;
+            if (vk->vy < hhnf_y_lo) hhnf_y_lo = vk->vy;
+            if (vk->vy > hhnf_y_hi) hhnf_y_hi = vk->vy;
+        }
         cull_keys[i].x      = v0->vx;
         cull_keys[i].z      = v0->vz;
         cull_keys[i].stride = pt->len;
-        cull_keys[i].pad    = 0;
+        {
+            int32_t rad = (hi_x - lo_x) + (hi_z - lo_z);   /* >= any |v - v0| */
+            rad = (rad + 3) >> 2;
+            cull_keys[i].pad = (uint8_t)(rad >= 255 ? 255 : rad);
+        }
         p += pt->len;
     }
     hhnf_key_count = n;
@@ -387,6 +427,56 @@ static void draw_hhnf_smd(RenderContext *ctx) {
     int32_t rise     = dropping ? HHNF_EYE_Y - cam_y : 0;
     if (rise < 0) rise = 0;
 
+    /* ---- THE SIDE-PLANE CULL'S PER-FRAME TERMS ------------------------------
+       The side planes of the Greenhouse's test (src/greenhouse.c, "SIDE-PLANE
+       FRUSTUM CULL") - 8*side > 5*fwd is outside the right plane on a 320-wide
+       screen at gte_SetGeomScreen(256) - taken from one point and a radius
+       rather than a box (see hhnf_build_cull_keys for why), and with ONE
+       addition: THE CAMERA HERE IS NOT ALWAYS LEVEL. The look button tilts it
+       up to LOOK_MAX_ANG and the opening drop points it straight down, and the
+       Greenhouse's planes are vertical only at pitch 0.
+
+       Pitch turns about the view's own X axis, so a point's view X (sd below) is
+       unchanged and only its DEPTH moves: depth = f*cos(p) + dy*sin(p), dy its
+       height below the eye. A point is outside the right plane when 8*sd >
+       5*depth. Bounding depth from ABOVE keeps that a proof: dy*sin(p) <=
+       |sin(p)| * max|dy| over the mesh's height range, a per-frame constant.
+       Sign-agnostic, so it holds whichever way pitch is measured.
+
+       THE RADIUS. What is left, 8*sd - 5*cos(p)*f, changes by at most
+       sqrt(64 + 25) < 10 per world unit moved in (x,z), so every vertex within
+       R of the key point is outside the plane if the key point is by more than
+       10*R. pad*4 >= R, hence pad*40.
+
+       ARITHMETIC. f and sd are <<12. f*cos(p) is formed as ((f>>8)*pc)>>4 to
+       stay inside an int32; both shifts floor, i.e. UNDER-estimate depth, by
+       under 272 in the <<12 domain, so +512 restores the upper bound. The
+       |sin| term is exact. Worst case: f ~27M, the slack ~15M (the drop's 3500
+       of dy), x5 -> ~215M, plus the radius term's ~42M, inside an int32.
+       cos(p) >= 0 for every pitch the game uses (-228..1024); a negative one
+       switches the test off rather than inverting it. LEVEL 5 switches it off
+       for the A/B.
+
+       HHNF_SIDE_MARGIN is one world unit of view X. Swept offline over the
+       platform at 32 headings and seven pitch/height pairs (the drop's
+       included): without it, two vertices at pitch 120 sat 0.003 px inside the
+       screen edge against exact trig - isin/icos's rounding, not the bound -
+       and with it, zero holes. */
+#define HHNF_SIDE_MARGIN  (8 << 12)
+    int     no_frustum = (DEBUG_EXPERIMENT() == DBG_EXP_NO_FRUSTUM);
+    int     pitched    = (cam_pitch != 0);
+    int32_t pc = icos(cam_pitch);
+    int32_t pslack = 0;
+    if (pc < 0) no_frustum = 1;
+    if (pitched) {
+        int32_t ps   = isin(cam_pitch);
+        int32_t dylo = hhnf_y_lo - cam_y, dyhi = hhnf_y_hi - cam_y;
+        if (ps   < 0) ps   = -ps;
+        if (dylo < 0) dylo = -dylo;
+        if (dyhi < 0) dyhi = -dyhi;
+        pslack = ps * (dylo > dyhi ? dylo : dyhi) + 512;
+    }
+
     for (i = 0; i < n; i++) {
         /* >>> THE REJECT PATH READS cull_keys, NOT THE MESH. <<< */
         uint8_t stride = cull_keys[i].stride;
@@ -397,6 +487,17 @@ static void draw_hhnf_smd(RenderContext *ctx) {
                 { p += stride; continue; }
             if (!dropping && dx * sn + dz * cs < -(700 << 12))
                 { p += stride; continue; }
+        }
+        /* The side planes, off the key point and its radius. */
+        if (!no_frustum && cull_keys[i].pad != 255) {
+            int32_t dx = (int32_t)cull_keys[i].x - cam_x;
+            int32_t dz = (int32_t)cull_keys[i].z - cam_z;
+            int32_t f  = dx * sn + dz * cs;
+            int32_t sd = dx * cs - dz * sn;
+            int32_t r  = ((int32_t)cull_keys[i].pad * 40) << 12;   /* >= 10R */
+            if (pitched) f = (((f >> 8) * pc) >> 4) + pslack;
+            f = f * 5 + HHNF_SIDE_MARGIN + r;
+            if (sd * 8 > f || -sd * 8 > f) { p += stride; continue; }
         }
 
         /* Survived both. NOW address the mesh. */

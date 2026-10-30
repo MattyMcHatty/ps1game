@@ -1115,3 +1115,79 @@ behaviour-neutral by construction. But U/D/G at levels 1, 4 and 8, standing in
 the connector at (1621,1102) looking down the hall, is still owed — and if the
 mesh turns out not to have been the cost, this section is the eighth wrong turn
 and should say so.
+
+
+##########################################################################
+ STEP 3I — HELL HATH NO FURY, AND THE SIDE CULL THAT FINALLY PAID
+##########################################################################
+Reported (Oct 2026) as "slowdown in certain spots, generally facing the seal".
+THE FIRST ROOM IN THIS DOCUMENT THAT ALREADY HAD ALL FOUR OF ADDING_A_ROOM.txt
+STEP 5's PERFORMANCE LIST AND STILL LAGGED. The list is necessary; it is not
+sufficient for a room shaped like this one.
+
+MEASURED, not counted: force-booted, music off (cdaudio_play stubbed — a playing
+track stalls Redux every 20 frames), the camera scripted through 12 poses held
+120 frames each, U/D/G and VB summed and averaged per pose, and the draw split
+with perf_ticks_now() pairs around the sky and the mesh (STEP 3G's method).
+
+    facing the seal from the rim   VB 2.00   D 257-273   sky 53   mesh 188-209
+    facing out, off the rim        VB 1.00   D 105-112   sky 44   mesh 55
+    U was 5 everywhere: no enemies. The frame is the draw.
+
+WHY THE SEAL. The chapter fog (src/underworld.h, 3500, which nothing may change)
+against a 4200 platform means the distance cull passes ~477 of 682 primitives
+from anywhere, and the -700 behind test was the only heading-dependent test in
+the loop. Facing in across the platform put ~460 a frame through the GTE for
+~180 on screen; facing out, 176.
+
+THREE THINGS WERE TRIED, MEASURED A/B IN ONE RUN EACH:
+
+ 1. THE SKY: REJECT A FACE WHOLLY OFF ONE SIDE OF THE SCREEN (underworld_sky.c).
+    Only faces with all four corners behind the camera were skipped; every other
+    face projected its whole 5x5 grid and the cell loop then threw most of it
+    away. All four corners in front and all four off the same screen edge
+    proves every cell is off it. 53-55 -> 36 hblanks, every pose, every
+    Chapter 4 room. Free.
+
+ 2. THE GREENHOUSE'S BOX CULL — A LOSS, AGAIN. GTE load 480 -> 187, mesh time
+    179 -> 194. Four corners x four CPU multiplies per primitive cost more than
+    the transforms they saved: the GTE is cheap and the R3000's multiplier is
+    not. That is now three rooms measuring this test neutral-or-worse, and the
+    reason is the same in all three. Removed.
+
+ 3. ONE POINT AND ONE RADIUS — THE WIN. The key's own vertex, whose forward
+    term the behind test has already paid for, plus two multiplies for its side
+    term, against the plane pushed out by 10*R. R rides in CullKey.pad (ceil
+    R/4, 255 = never side-cull), so the hot path reads nothing new. It culls
+    LESS than the box (55% of what reaches it against 69%) and is the one that
+    is faster:
+
+        pose                  D before -> after    VB before -> after
+        (2700,3000) at seal       273 -> 216          2.00 -> 1.00
+        (2400, 900) north         270 -> 227          2.00 -> 1.00
+        east rim at seal          267 -> 216          2.00 -> 1.00
+        south rim at seal         258 -> 213          2.00 -> 1.00
+        west rim at seal          244 -> 207          1.20 -> 1.00
+
+    Every measured pose at 60fps, with 35-60 hblanks to spare.
+
+>>> THE LESSON: THE SIDE CULL WAS NEVER WRONG, ITS COST WAS. <<< Every earlier
+verdict on it measured a test that spent as much as it saved. A test that rides
+on work already done (the behind test's forward term, the key's spare byte)
+crosses over. Cheapest-possible-test first, then measure; and a room whose
+distance cull is inert (fog distance near the room's own size) is where it is
+worth trying.
+
+>>> AND THE CAMERA IS NOT ALWAYS LEVEL. <<< Every side-plane test in the game
+assumes vertical planes, i.e. cam_pitch 0; the look button tilts up to
+LOOK_MAX_ANG and this room's opening drop looks straight down. This room's test
+bounds depth from above with |sin p| * max|dy| over the mesh's height range,
+which keeps it a proof at any pitch — swept offline at 32 headings and seven
+pitch/height pairs, zero holes after a one-world-unit margin for isin/icos's
+rounding (without it: two vertices 0.003 px inside the screen edge). The older
+rooms' side tests have NOT been checked against a pitched camera.
+
+A NOTE THAT COST A ROUND: the first offline count blamed 60 floor tiles lying
+under the seal as hidden overdraw. They are not hidden — the seal's art has
+see-through texels and the floor is meant to show through them. Check what a
+"duplicate" surface is FOR before proposing to delete it.
