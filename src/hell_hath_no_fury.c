@@ -28,7 +28,7 @@
 #include "item_pickup.h"
 #include "particles.h"
 #include "btn_glyph.h"
-#include "door.h"               /* the tank's sign                            */
+#include "door.h"               /* the tank's and the south-west door's signs */
 
 /* Hell Hath No Fury - see hell_hath_no_fury.h. The room half is
    src/master_bedroom.c's, which has been through DIAGNOSING_FRAME_RATE.txt,
@@ -93,6 +93,29 @@ static void *hhnf_buff = NULL;
    carried in through the transition cannot fire on the arrival frame. */
 static int oil_circle_prev = 1;
 
+/* ---- THE SOUTH-WEST DOOR, to Sharur's Trial --------------------------------
+   The catacomb inner door polys span (400,200)-(200,400): centre (300,300), on
+   the cut corner x+z=600 (collision wall 4, inward normal (+0.707,+0.707)), so
+   the player walks up to it from the north-east. The other three doors still
+   lead nowhere and have no prompt.
+
+   THE SIGN is on a free yaw facing the way the reader faces - 2560, south-west
+   - 11 off the door toward the player, at the doorway's mid-height (the door
+   is 400 tall here). THE SPAWN, for an arrival back through it, is 250 in
+   along the normal (177 on each axis), clear of the 195 push radius, facing
+   north-east out across the platform. */
+#define HHNF_SW_X            300
+#define HHNF_SW_Z            300
+#define HHNF_SW_TEXT_X       308
+#define HHNF_SW_TEXT_Z       308
+#define HHNF_SW_TEXT_Y       (HHNF_FLOOR_Y - 200)
+#define HHNF_SW_TEXT_YAW     2560
+#define HHNF_SW_SPAWN_X      477
+#define HHNF_SW_SPAWN_Z      477
+#define HHNF_SW_SPAWN_ROT    512
+
+static int sw_circle_prev = 1;
+
 static void hhnf_floor_zones_init(void) {
     floor_zones[0].type  = FLOOR_FLAT;
     floor_zones[0].min_x = 0;  floor_zones[0].max_x = 4200;
@@ -141,7 +164,7 @@ void hell_hath_no_fury_load_assets(void) {
 /* Pure LoadImage from the RAM copies texmgr holds - no CD access, safe during
    the transition (main's STATE_LOADING DrawSyncs first). */
 void hell_hath_no_fury_upload_textures(void) {
-    if (volcanic_tex >= 0) texmgr_upload(volcanic_tex);
+    hell_hath_no_fury_upload_volcanic();
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
     seal_upload_textures();
@@ -150,6 +173,12 @@ void hell_hath_no_fury_upload_textures(void) {
     /* The tank in the ruin: x896 y256, CLUT (672,504), over stn_gls exactly
        as in Chapter 3, which the player has already passed through. */
     oil_dispenser_upload_texture();
+}
+
+/* The volcanic rock alone, for the chapter's other rooms (Sharur's Trial's
+   paths) - a second registration would hold a second RAM copy of it. */
+void hell_hath_no_fury_upload_volcanic(void) {
+    if (volcanic_tex >= 0) texmgr_upload(volcanic_tex);
 }
 
 /* ---- The cull key, and its RADIUS (tools/DIAGNOSING_FRAME_RATE.txt STEP 3I) -
@@ -350,7 +379,54 @@ void hell_hath_no_fury_init(void) {
     reset_particles();
 
     oil_circle_prev = interact_tapped();
+    sw_circle_prev  = oil_circle_prev;
     save_point_arm();
+}
+
+/* Back in through the south-west door, out of Sharur's Trial. */
+void hell_hath_no_fury_spawn_sw(void) {
+    cam_x     = HHNF_SW_SPAWN_X;
+    cam_y     = HHNF_EYE_Y;
+    cam_vy    = 0;
+    cam_z     = HHNF_SW_SPAWN_Z;
+    cam_rot   = HHNF_SW_SPAWN_ROT;
+    cam_pitch = 0;
+    camera_look_cancel();
+    sw_circle_prev = interact_tapped();
+}
+
+/* The south-west door's press: a fresh Circle within reach and facing it. The
+   edge state is kept up to date while locked, as the tank's is. */
+int hell_hath_no_fury_sw_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !sw_circle_prev;
+    int32_t dx, dz;
+    sw_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - HHNF_SW_X;
+    dz = cam_z - HHNF_SW_Z;
+    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= HHNF_TRIGGER_RADIUS)
+        return 0;
+    return interact_facing(HHNF_SW_X, HHNF_SW_Z);
+}
+
+static void hhnf_sw_text(RenderContext *ctx) {
+    int32_t dx = cam_x - HHNF_SW_X;
+    int32_t dz = cam_z - HHNF_SW_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= HHNF_TEXT_RADIUS) return;
+    if (xz > HHNF_FADE_NEAR) {
+        int range = HHNF_TEXT_RADIUS - HHNF_FADE_NEAR;
+        int prog  = xz - HHNF_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+    door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
+                            HHNF_SW_TEXT_X, HHNF_SW_TEXT_Y, HHNF_SW_TEXT_Z,
+                            50, 255, 50, fade, HHNF_SW_TEXT_YAW,
+                            DOOR_PIXEL_SIZE);
 }
 
 /* The tank's tap: the Neck's edge/range/facing test about the corner, then
@@ -702,14 +778,18 @@ void hell_hath_no_fury_draw(RenderContext *ctx) {
        past one tile and only land on the art because the window wraps them. */
     oil_dispensers_draw(ctx);
 
-    /* >>> LEVEL 8 IS THE SAVE POINT, THE TANK'S SIGN AND BAR, AND ANY PICKUP
-       a later seed puts down. No enemies, no door signs yet. */
+    /* >>> LEVEL 8 IS THE SAVE POINT, THE TANK'S SIGN AND BAR, THE SOUTH-WEST
+       DOOR'S SIGN AND ANY PICKUP a later seed puts down. No enemies. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         save_points_draw(ctx);
         hhnf_oil_text(ctx);
         /* The tank's level, on the sign's own fade curve. */
         oil_dispensers_draw_bar(ctx, HHNF_TEXT_RADIUS, HHNF_FADE_NEAR);
         item_pickups_draw(ctx);
+        /* Not while the white is up or the drop runs: the arrival is the
+           Descent's, not a door's. */
+        if (!hell_hath_no_fury_intro() && !hell_hath_no_fury_fading())
+            hhnf_sw_text(ctx);
     }
 
     draw_white(ctx);

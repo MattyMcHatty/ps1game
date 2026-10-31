@@ -507,6 +507,10 @@
 #define TIM_TPAGE_REDWLPPR 0x0009
 #define TIM_CLUT_REDWLPPR  0x7b00
 
+/* rocks.tim       4bpp  VRAM ( 512,  0)  \TEXUNDW\ROCKS.TIM */
+#define TIM_TPAGE_ROCKS    0x0008
+#define TIM_CLUT_ROCKS     0x7dbc
+
 /* rusty.tim       4bpp  VRAM ( 704,  0)  \TEXCTCMB\RUSTY.TIM */
 #define TIM_TPAGE_RUSTY    0x000b
 #define TIM_CLUT_RUSTY     0x7950

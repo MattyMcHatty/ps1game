@@ -31,10 +31,12 @@ down here may hold any of them.
               back. Taking one obliges you to write the restore first.
 
 >>> ONE BORROW HERE RELIES ON A STARTUP UPLOAD STAYING PUT. <<< Hell Hath No
-Fury's two wooden doors draw wd_dr at x768 y256, which src/fatdoor.c uploads
-ONCE at boot and nothing streams. It is listed in THIS BANK'S ART below as
-borrowed-resident: a future Underworld room that takes x768 y256 must give
-Hell Hath No Fury a way to put wd_dr back first.
+Fury's two wooden doors (and Sharur's Trial's two) draw wd_dr at x768 y256,
+which src/fatdoor.c uploads ONCE at boot and nothing streams - and it is ALSO
+DOOR_PANEL_WOOD's panel, the transition out of Sharur's Trial. It is listed in
+THIS BANK'S ART below as borrowed-resident: a future Underworld room that takes
+x768 y256 must give both rooms, and the wooden transition, a way to put wd_dr
+back first.
 
 THE SKY owns no texture: src/underworld_sky.c draws the Descent's hell bg. Every
 room's mesh art needs a page START (x a multiple of 64, Voff 0) because rooms,
@@ -73,7 +75,8 @@ BANK = {
     "cobblestones.tim":        "HHNF: the ruin (Catacombs Entry's) x384 y0",
     "catacomb inner door.tim": "HHNF: two doors (Catacombs Entry's) x832 y0",
     "seal.tim":                "HHNF: the floor seal (the Seal's)  x576 y0",
-    "wd_dr.tim":               "HHNF: two doors - BORROWED RESIDENT, see head x768 y256",
+    "wd_dr.tim":               "HHNF, Sharur: doors - BORROWED RESIDENT, see head x768 y256",
+    "rocks.tim":               "Sharur: the outcrops (owned)       x512 y0",
     "oil_container.tim":       "HHNF: the ruin's oil tank (the prop's) x896 y256",
 }
 

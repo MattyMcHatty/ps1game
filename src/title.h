@@ -327,6 +327,10 @@ typedef enum {
                                 open volcanic platform under the burning sky.
                                 See src/hell_hath_no_fury.h. Appended, not
                                 inserted. */
+    STATE_SHARURS_TRIAL,     /* SHARUR'S TRIAL, behind Hell Hath No Fury's
+                                south-west door - Chapter 4's second room: a
+                                lava sea with paths, rocks and ruins. See
+                                src/sharurs_trial.h. Appended, not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

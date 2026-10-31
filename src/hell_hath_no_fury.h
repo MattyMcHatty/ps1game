@@ -23,13 +23,17 @@
      - a SAVE POINT at the northern tip, the middle of the north rim;
      - FOUR DOORS, one in each cut corner: catacomb inner doors south-west and
        north-east, wooden doors south-east and north-west. Distortions of the
-       chapters behind the player. NOTHING IS BEHIND THEM YET - they have no
-       prompt and no trigger until the rooms they lead to exist.
+       chapters behind the player. The SOUTH-WEST one leads to SHARUR'S TRIAL
+       (src/sharurs_trial.h), whose side of it is a WOODEN door: this side
+       plays DOOR_PANEL_CATACOMB, the way back DOOR_PANEL_WOOD. The other three
+       lead nowhere yet - no prompt and no trigger until their rooms exist.
    No wall is drawn round the edge; the collision proxy's eight edges stop the
    player at the rim. One flat floor zone.
 
-   THE ARRIVAL. One, the Descent's white, into the CENTRE of the room (on the
-   seal), facing north - by THE OPENING DROP: under the fade the camera hangs
+   THE ARRIVALS. Two. Back through the south-west door from Sharur's Trial
+   (hell_hath_no_fury_spawn_sw), just inside it facing north-east. And the
+   Descent's white, into the CENTRE of the room (on the seal), facing north -
+   by THE OPENING DROP: under the fade the camera hangs
    3300 straight over the seal looking down, just out of the fog, and comes
    down onto it, slowing to a stop at the player's eye and pitching up to
    face north on the way, then hands over control (hell_hath_no_fury.c). A
@@ -44,6 +48,7 @@
 void hell_hath_no_fury_load_assets(void);     /* startup: one registration     */
 void hell_hath_no_fury_load_geometry(void);   /* ROOM ENTRY: mesh + the sky    */
 void hell_hath_no_fury_upload_textures(void); /* room entry: pure LoadImage    */
+void hell_hath_no_fury_upload_volcanic(void); /* ...the rock alone (Sharur's)  */
 void hell_hath_no_fury_init(void);            /* collision, floor, spawn       */
 void hell_hath_no_fury_draw(RenderContext *ctx);
 void hell_hath_no_fury_update(int lock);
@@ -67,5 +72,14 @@ int  hell_hath_no_fury_fading(void);
    inside corner and facing it pours and posts the log line. Returns 1 on a
    press it took. main.c passes the save point's answer in as `lock`. */
 int  hell_hath_no_fury_oil_update(int lock);
+
+/* The SOUTH-WEST door, to Sharur's Trial: a fresh Circle within reach and
+   facing it. The edge state is kept current while locked; main.c passes the
+   save point's and the tank's answers in as `lock`. */
+int  hell_hath_no_fury_sw_door_triggered(int lock);
+
+/* Arrival back through the south-west door: just inside it, facing north-east.
+   main.c calls it after hell_hath_no_fury_init(). */
+void hell_hath_no_fury_spawn_sw(void);
 
 #endif

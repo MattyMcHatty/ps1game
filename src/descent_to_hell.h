@@ -56,7 +56,7 @@ void descent_to_hell_load_assets(void);     /* startup: two registrations      *
 void descent_to_hell_load_geometry(void);   /* ROOM ENTRY: the mesh + the tube */
 void descent_to_hell_unload_tube(void);     /* every transition: the tube back */
 void descent_to_hell_upload_textures(void); /* room entry: pure LoadImage      */
-void descent_to_hell_upload_lava(void);     /* ...the lava alone (HHNF)        */
+void descent_to_hell_upload_lava(void);     /* ...the lava alone (HHNF, Sharur)*/
 void descent_to_hell_upload_hell_bg(void);  /* ...hell bg alone (the skybox)   */
 void descent_to_hell_init(void);            /* camera at the top, the clock    */
 void descent_to_hell_draw(RenderContext *ctx);

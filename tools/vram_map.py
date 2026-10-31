@@ -1153,6 +1153,15 @@ KNOWN_STREAM_PAIRS = [
     ("pipe_gh.tim",                    "volcanic.tim"),
     ("prpl_wlppr.tim",                 "volcanic.tim"),
     ("stove.tim",                      "volcanic.tim"),
+    #   rocks.tim -> x512 y0, SHARUR'S TRIAL's outcrops, 4bpp, CLUT (960,502).
+    # A page start tools/VRAM_MAP_UNDERWORLD.txt calls FREE: every tenant is
+    # re-uploaded by its own room on entry, and none is drawn in Chapter 4.
+    ("Boss Wall.tim",                  "rocks.tim"),
+    ("cuneiform _symbols.tim",         "rocks.tim"),
+    ("dresser.tim",                    "rocks.tim"),
+    ("grdn_gte.tim",                   "rocks.tim"),
+    ("kchn_wl.tim",                    "rocks.tim"),
+    ("loculus.tim",                    "rocks.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

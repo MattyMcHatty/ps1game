@@ -203,7 +203,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_ROOM_OF_GUTS,    STATE_NECK,
     STATE_THE_HEAD,        STATE_KENNELS,
     STATE_LAMASHTU_ARENA,  STATE_SEAL,
-    STATE_HELL_HATH_NO_FURY,
+    STATE_HELL_HATH_NO_FURY, STATE_SHARURS_TRIAL,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -392,6 +392,11 @@ static int room_index(GameState area) {
            on Lamashtu's death. Slot 61 of 64. Seeded EMPTY. */
         case STATE_SEAL:              return 61;
         case STATE_HELL_HATH_NO_FURY: return 62;
+        /* SHARUR'S TRIAL, Chapter 4's second room, behind Hell Hath No
+           Fury's south-west door. >>> SLOT 63 OF 64: the LAST bit of the
+           uint64_t `visited` and `cribs_solved`. <<< The _Static_asserts
+           above fire on the next room added; widen both then. */
+        case STATE_SHARURS_TRIAL:     return 63;
         default:                   return 0;
     }
 }

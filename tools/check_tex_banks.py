@@ -248,7 +248,11 @@ AREAS = {
                   # volcanic.tim, borrows the Descent's lava and (through the
                   # sky, underworld_sky.c) its hell bg, cobble and the inner
                   # door (the Catacombs Entry's) and the seal (the Seal's).
-                  "hell_hath_no_fury_upload_textures"],
+                  "hell_hath_no_fury_upload_textures",
+                  # SHARUR'S TRIAL, behind its south-west door: owns rocks.tim,
+                  # borrows HHNF's volcanic, the Descent's lava, cobble and the
+                  # inner door (the Catacombs Entry's) and the sky's hell bg.
+                  "sharurs_trial_upload_textures"],
 }
 
 BIT = {"MANSION": 1 << 0, "GARDEN": 1 << 1, "RABISU": 1 << 2,

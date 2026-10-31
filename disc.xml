@@ -2011,6 +2011,13 @@
              the resident wooden door. -->
             <file name="HHNF.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\hell_hath_no_fury.smd"/>
             <file name="VOLCANIC.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\volcanic.tim"/>
+        <!-- SHARUR'S TRIAL (src/sharurs_trial.h), behind Hell Hath No Fury's
+             south-west door: a lava sea with volcanic paths, rocks and
+             ruins. Owns ROCKS.TIM (4bpp x512 y0, CLUT 960,502) and borrows
+             the volcanic, the lava, cobble, the inner door and the resident
+             wooden door. -->
+            <file name="SHARUR.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\sharurs_trial.smd"/>
+            <file name="ROCKS.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\rocks.tim"/>
         </dir>
 
         </directory_tree>

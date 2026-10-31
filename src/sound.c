@@ -336,7 +336,9 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
        empty (tools/spu_budget.py: 4,160 of 237,232). */
     [SFX_GLUG]       = SND_BANK_CATACOMBS | SND_BANK_UNDERWORLD,
     [SFX_CTCMBDR]    = SND_BANK_CATACOMBS | SND_BANK_KENNELS |  /* leaving the Kennels */
-                       SND_BANK_LAMASHTU,                      /* ...and the arena  */
+                       SND_BANK_LAMASHTU |                     /* ...and the arena  */
+                       SND_BANK_UNDERWORLD,  /* Hell Hath No Fury's SW door: 11.4 KB,
+                                                38,400 of 237,232 (spu_budget.py) */
     [SFX_CRWL_SCRM]  = SND_BANK_CATACOMBS,
     [SFX_CRWL_WHSP]  = SND_BANK_CATACOMBS,
     /* The Lumberer's two, CATACOMBS and nothing else: src/lumberer.c is their

@@ -228,9 +228,10 @@ A ROOM IN A NEW AREA (a new chapter, a new sealed pocket) additionally gets:
     the licence Asag's arena and the Catacombs both use. Register the sharing in
     KNOWN_STREAM_PAIRS so tools/vram_map.py can see the decision.
 
->>> A CHAPTER 4 (UNDERWORLD) ROOM HAS THREE RULES OF ITS OWN. <<< Copy
-src/hell_hath_no_fury.c, not master_bedroom.c: it is that room's loop with
-all three already in it.
+>>> A CHAPTER 4 (UNDERWORLD) ROOM HAS FOUR RULES OF ITS OWN. <<< Copy
+src/hell_hath_no_fury.c (or src/sharurs_trial.c, the same loop without the
+opening drop), not master_bedroom.c: it is that room's loop with the first
+three already in it.
   1. THE FOG IS THE CHAPTER'S, NOT THE ROOM'S. g_fog_near/g_fog_far and the
      mesh's fog maths come from UW_FOG_NEAR / UW_FOG_FAR / UW_FOG_R,G,B in
      src/underworld.h and nothing else - no light, no lantern ease, no
@@ -250,6 +251,25 @@ all three already in it.
      (wd_dr, x768 y256) a new room must not take without a restore. Ship to
      \TEXUNDW\. A Chapter 4 room may re-lay any page its neighbours use as long
      as each room uploads what it draws on entry.
+  4. A DOOR NEED NOT LOOK THE SAME FROM ITS TWO SIDES, SO NEITHER DOES ITS
+     TRANSITION. The Underworld is a distorted hellscape: walk through a door
+     and the one behind you may be a different door altogether. So the
+     transition is chosen PER DIRECTION, by the door the player is walking
+     up to on the side they are leaving - never once per doorway, and never
+     copied from the other room's trigger. The first case:
+         Hell Hath No Fury -> Sharur's Trial   DOOR_PANEL_CATACOMB  (its SW
+                                               door is a catacomb inner door)
+         Sharur's Trial -> Hell Hath No Fury   DOOR_PANEL_WOOD      (its NE
+                                               door is a wooden door)
+     Ask the user which way round each new pair goes rather than assuming it
+     matches. Two consequences to check for every panel you use:
+       - ITS SOUND must be in SND_BANK_UNDERWORLD. SFX_DOOR is resident, but
+         SFX_CTCMBDR is banked and had to be added to the chapter's mask
+         (src/sound.c) - a banked clip missing from it plays SILENCE.
+       - ITS TEXTURE must be in VRAM in the room being LEFT: the panel draws
+         before STATE_LOADING. DOOR_PANEL_WOOD's is the resident wd_dr at x768
+         y256 (never take that page); DOOR_PANEL_CATACOMB's is room art at x832
+         y0, so the room the catacomb panel plays FROM must upload it.
 
 >>> AND A NEW ROOM MOVES _end WHATEVER ELSE IT DOES. <<< Its code and its
 ~600-byte slot in world.c's RoomState array are static, so they come off the

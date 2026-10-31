@@ -210,6 +210,11 @@ TexBank area_bank_of(GameState area) {
        through the Seal's, so those three modules' masks carry this bank too -
        py tools/check_tex_banks.py walks the graph and proves it. */
     case STATE_HELL_HATH_NO_FURY:
+    /* SHARUR'S TRIAL owns ROCKS.TIM (4bpp x512 y0) and borrows the rest: the
+       volcanic paths from Hell Hath No Fury, the lava from the Descent, cobble
+       and the inner door from the Catacombs Entry, all through narrow
+       uploaders; wd_dr is resident. */
+    case STATE_SHARURS_TRIAL:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -268,7 +273,8 @@ int area_is_gaol(GameState area) {
 
 int area_is_underworld(GameState area) {
     return area == STATE_DESCENT_TO_HELL ||
-           area == STATE_HELL_HATH_NO_FURY;
+           area == STATE_HELL_HATH_NO_FURY ||
+           area == STATE_SHARURS_TRIAL;
 }
 
 /* ---- The prop models -------------------------------------------------------
