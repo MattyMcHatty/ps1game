@@ -155,6 +155,7 @@ void world_silence_monsters(void);
                                  — which is why crawlers_dead below is a
                                  uint16_t, the widening mushrooms_dead took. */
 #define WD_MAX_RABISUS    8
+#define WD_MAX_NESSIES    8   /* bits: one global area-tagged array, one byte */
 /* bits: likewise one global area-tagged array. 16 rather than 8 since The
    Shelf's two took the whole-game total to nine — which is why lumberers_dead
    below is a uint16_t, the widening crawlers_dead took (SAVE_VERSION 33). */
@@ -215,6 +216,13 @@ typedef struct {
        only reason it was ever narrower is that nobody needed it wider. */
     uint64_t  visited;
     uint8_t   spiders_dead;                       /* keyed by (area, ordinal) */
+    /* NESSIE (src/nessie.h), keyed like the spiders. >>> IT LIVES IN WHAT WAS
+       THE PADDING BYTE BEFORE crawlers_dead, AND THAT IS WHY THERE WAS NO
+       SAVE_VERSION BUMP. <<< sizeof and every other field's offset are
+       unchanged (world.c asserts both), and world_save_delta memsets the delta
+       before filling it, so every older save already holds 0 here — "no Nessie
+       dead", which is the truth for a save made before she existed. */
+    uint8_t   nessies_dead;                       /* likewise; see WD_MAX_NESSIES */
     uint16_t  crawlers_dead;                      /* likewise; 16 bits — see
                                                      WD_MAX_CRAWLERS           */
     uint8_t   rabisus_dead;                       /* likewise                 */

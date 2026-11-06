@@ -33,6 +33,7 @@
 #include "hatch_doors.h"       /* The Hatch's pit doors, solid at any pose  */
 #include "catacomb_doors.h"    /* Outside Catacombs' two door leaves        */
 #include "lumberer.h"          /* the Lumberer plugs a corridor (area-tagged) */
+#include "nessie.h"            /* ...and Nessie's head is solid (area-tagged) */
 #include "gula.h"              /* ...and Gula, rooted in the Kennels         */
 #include "asag.h"              /* ...and Asag, solid at any pose OR position */
 #include "lamashtu.h"          /* ...and Lamashtu, solid at any pose         */
@@ -928,6 +929,11 @@ void apply_collision_reception(void) {
        the module, so it never throws the player through a wall. See
        LMB_HOLD_DIST in lumberer.h. */
     lumberers_collide(&cam_x, cam_y, &cam_z, LMB_WALL_LIKE_PUSH);
+    /* Nessie (src/nessie.h), on the lumberers' terms: before the walls, capped
+       a frame, so a head pressed against an outcrop can never shove the player
+       into the rock. Its push is what keeps the billboard out of the player's
+       face when they walk out onto the lava at it. */
+    nessies_collide(&cam_x, cam_y, &cam_z, NSS_WALL_LIKE_PUSH);
     /* Gula, the Kennels' one-off (src/gula.h): rooted in open floor, but given
        the lumberers' place and radius all the same, so her push and the walls
        can never disagree about where the player ends up. */

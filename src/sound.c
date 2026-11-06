@@ -95,6 +95,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\LMSCHIME.VAG;1",
     "\\SND\\LMSCRY.VAG;1",
     "\\SND\\LMSSCRM.VAG;1",
+    "\\SND\\NSSDIE.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -180,7 +181,10 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
        Garden Courtyard alone, and the BOSS bank is in for the whole of that
        room. The bank was already making the guarantee the residency was paying
        for — 47 KB of permanent SPU RAM, charged twice over (see sound.h). */
-    [SFX_FIREBALL]   = SND_BANK_BOSS,
+    /* ...and a copy in the UNDERWORLD bank for NESSIE (src/nessie.h), whose
+       spit is this same clip. 6.8 KB; the chapter's bank had 199 KB of room
+       and is nowhere near the largest, so `spare` does not move. */
+    [SFX_FIREBALL]   = SND_BANK_BOSS | SND_BANK_UNDERWORLD,
     [SFX_BOOM]       = SND_BANK_BOSS,
     /* >>> BOTH BOSSES BLOW UP, SO EXPLODE IS IN BOTH BANKS. <<< Asag's death
        is the Rabisu's death — red glow, shaking, light pouring out of the body,
@@ -250,7 +254,9 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
        here, and this bit is what makes that no longer strictly true. It is
        still safe, and the note below says on what grounds. */
     [SFX_GAS]        = SND_BANK_GARDEN | SND_BANK_CATACOMBS,
-    [SFX_PULL]       = SND_BANK_GARDEN,  /* ...and its grab (fireball reversed) */
+    [SFX_PULL]       = SND_BANK_GARDEN |     /* ...and its grab (fireball reversed) */
+                       SND_BANK_UNDERWORLD,  /* ...and Nessie's wind-up, the breath
+                                                in before her spit (nessie.h) */
     /* The Mushroom Head's scream. GARDEN only — it is 12.3 KB and the house
        bank, which is the largest and so sets `spare`, has 6.6 KB free. The
        garden bank runs to 105 KB of the region's 185, so this is free there.
@@ -373,6 +379,9 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
     [SFX_LMS_CHIME]  = SND_BANK_LAMASHTU,
     [SFX_LMS_CRY]    = SND_BANK_LAMASHTU,
     [SFX_LMS_SCREAM] = SND_BANK_LAMASHTU,
+    /* Nessie's death, UNDERWORLD only: src/nessie.c is its one caller and she
+       is only ever in Chapter 4. Pool voice - see sound.h. */
+    [SFX_NSS_DIE]    = SND_BANK_UNDERWORLD,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -598,7 +607,15 @@ static int sfx_channel(SfxID id) {
        AND 14 IS NOT ONE OF THE POISONED THREE. Checked rather than assumed, with
        the script in STEP 6: ctcmbdr.vag carries its loop flag on block 2138 of
        2139, i.e. it is an ordinary one-shot and will not move that voice's
-       repeat address either. */
+       repeat address either.
+
+       >>> SINCE NESSIE, THE EVICTION ARGUMENT NO LONGER COVERS THE UNDERWORLD.
+       <<< SFX_PULL is UNDERWORLD too now (her wind-up), and so is this door, so
+       both are loaded in Chapter 4 at once. They still cannot cut each other,
+       on a ROOM argument instead: the door plays only on the way OUT of Hell
+       Hath No Fury, and the only Nessie is in Sharur's Trial, whose own way out
+       is the wooden door (SFX_DOOR). A Nessie placed in Hell Hath No Fury
+       would break that — give one of the two its own voice first. */
     if (id == SFX_CTCMBDR)     return 14;   /* SFX_PULL's (GARDEN)  one-shot   */
     /* ---- THE CRAWLER'S TWO CLIPS, AND THE CHAPTER HAS RUN OUT OF 13 AND 14.
        Both of the voices this chapter has been borrowing are now spoken for by

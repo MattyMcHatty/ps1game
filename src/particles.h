@@ -4,7 +4,13 @@
 #include <stdint.h>
 #include "render.h"
 
-#define MAX_PARTICLES 32
+/* The one-shot burst pool. It is SIZED for the largest burst, the lava burst
+   (LAVA_PARTICLES), and every other burst still writes its own BURST_PARTICLES
+   and sets particle_count to match, so raising the pool for Nessie changed
+   nothing about any crate, door, blood or rock burst. */
+#define BURST_PARTICLES 32
+#define LAVA_PARTICLES  (BURST_PARTICLES * 2)
+#define MAX_PARTICLES   LAVA_PARTICLES
 #define MAX_FIRE       32   /* continuous flame pool (e.g. the lit stove) */
 /* Continuous WATER pool. Sized for the Greenhouse's flood: SIX ceiling jets
    running at once, each emitting one droplet every SPRAY_EMIT_EVERY frames and
@@ -35,6 +41,11 @@ void spawn_wood_burst(int32_t x, int32_t y, int32_t z);
    are the only two things that differ. Like every burst here it OVERWRITES the
    whole pool, so two smashes on one frame show as one. */
 void spawn_rock_burst(int32_t x, int32_t y, int32_t z);
+/* A Nessie bursting (src/nessie.c): the blood burst DOUBLED - twice the
+   particles (LAVA_PARTICLES, the whole pool) at twice the size - in a mix of
+   molten orange and cooled black, alternating. Overwrites the pool like the
+   others. */
+void spawn_lava_burst(int32_t x, int32_t y, int32_t z);
 /* ---- A DIRECTIONAL PUFF OF SOOT (the Incinerator venting) ------------------
    The other four bursts here are EXPLOSIONS: they throw in every direction off
    a point, because something broke there. This one is a VENT - it leaves a hole

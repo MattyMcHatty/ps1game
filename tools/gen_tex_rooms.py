@@ -26,7 +26,7 @@ area:
   1. main.c's STATE_LOADING room chain says which uploader(s) each room runs
      (`pending_area == STATE_X` ... `x_upload_textures()`).
   2. main.c's bank-keyed enemy lines below that chain (spiders, flowers,
-     crawler, zombies, lumberer, maggots, Adapa) are mirrored in EXTRA_RULES
+     crawler, zombies, lumberer, maggots, Adapa, Nessie) are mirrored in EXTRA_RULES
      here - they are conditions, not a table, so they are restated.
   3. The walk follows every *_upload*/*_restore* call to the modules whose own
      registrations get uploaded, and each module's registered TIM names are
@@ -110,6 +110,8 @@ def room_uploaders(rooms):
 # main.c's enemy-sheet lines below the room chain, restated (see the head).
 FLOWER_ROOMS = {"STATE_OUTSIDE_CATACOMBS", "STATE_MAZE_ONE", "STATE_MAZE_TWO",
                 "STATE_STABLES", "STATE_GREENHOUSE"}
+# nessie_room_has_sheet() in src/nessie.c, restated.
+NESSIE_ROOMS = {"STATE_SHARURS_TRIAL"}
 
 
 def extra_rules(room, area):
@@ -128,6 +130,8 @@ def extra_rules(room, area):
         e += ["lumberers_upload_textures", "maggots_upload_textures"]
     if room in ("STATE_PIANO_ROOM", "STATE_LIBRARY"):
         e.append("adapas_upload_textures")
+    if room in NESSIE_ROOMS:
+        e.append("nessies_upload_textures")
     return e
 
 

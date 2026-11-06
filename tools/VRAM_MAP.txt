@@ -142,8 +142,10 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   zombie_alert.tim     4       768   128    64   128   128   0,499  <-- Voff>=128
   adapa_a.tim          4       832   128   256   128   128   80,480  <-- Voff>=128
   lumberer_b.tim       4       832   128   256   128   128   672,486  <-- Voff>=128
+  nessie_a.tim         4       832   128   256   128   128   80,480  <-- Voff>=128
   xt_dr_lft_hlf.tim    8       832   128    64   128   128   672,486  <-- Voff>=128
   adapa_b.tim          4       896   128   256   128   128   96,480  <-- Voff>=128
+  nessie_b.tim         4       896   128   256   128   128   96,480  <-- Voff>=128
   xt_dr_rt_hlf.tim     8       896   128    64   128   128   672,487  <-- Voff>=128
   shadow.tim           4       640   160    64    32   160   0,486  <-- Voff>=128
   chain_128.tim        4       320   256   128   128     0   288,511
@@ -208,6 +210,8 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=480  x[48,64)  mist.tim
   y=480  x[256,272)  rusty_fence.tim
   y=480  x[16,32)  trees_dl.tim
+  y=480  x[80,96)  nessie_a.tim
+  y=480  x[96,112)  nessie_b.tim
   y=480  x[112,128)  wd_dr.tim
   y=480  x[128,144)  wdcrate.tim
   y=481  x[512,528)  bld_prl.tim
@@ -367,7 +371,9 @@ OVERLAP CHECK
   Rabisu tex.tim                           ladder.tim           time-shared (streaming)
   Rabisu tex.tim                           vines.tim            time-shared (streaming)
   adapa_a.tim                              lumberer_b.tim       time-shared (streaming)
+  adapa_a.tim                              nessie_a.tim         time-shared (streaming)
   adapa_a.tim                              xt_dr_lft_hlf.tim    time-shared (streaming)
+  adapa_b.tim                              nessie_b.tim         time-shared (streaming)
   adapa_b.tim                              xt_dr_rt_hlf.tim     time-shared (streaming)
   anzu_tab.tim                             catacomb inner door.tim time-shared (streaming)
   anzu_tab.tim                             con_tile.tim         time-shared (streaming)
@@ -766,6 +772,7 @@ OVERLAP CHECK
   legs.tim                                 hell bg.tim          time-shared (streaming)
   loculus.tim                              rocks.tim            time-shared (streaming)
   lumberer_a.tim                           mansion.tim          time-shared (streaming)
+  lumberer_b.tim                           nessie_a.tim         time-shared (streaming)
   lumberer_b.tim                           xt_dr_lft_hlf.tim    time-shared (streaming)
   mud.tim                                  piano_keys.tim       time-shared (streaming)
   mud.tim                                  piano_keys_full.tim  time-shared (streaming)
@@ -824,6 +831,8 @@ OVERLAP CHECK
   trck_clue.tim                            trees.tim            time-shared (streaming)
   trck_clue.tim                            hell bg.tim          time-shared (streaming)
   trees.tim                                hell bg.tim          time-shared (streaming)
+  nessie_a.tim                             xt_dr_lft_hlf.tim    time-shared (streaming)
+  nessie_b.tim                             xt_dr_rt_hlf.tim     time-shared (streaming)
   xt_dr_cmplt.tim                          xt_dr_lckd.tim       time-shared (streaming)
   No unexpected pixel collisions.
 

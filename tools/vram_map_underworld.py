@@ -78,6 +78,8 @@ BANK = {
     "wd_dr.tim":               "HHNF, Sharur: doors - BORROWED RESIDENT, see head x768 y256",
     "rocks.tim":               "Sharur: the outcrops (owned)       x512 y0",
     "oil_container.tim":       "HHNF: the ruin's oil tank (the prop's) x896 y256",
+    "nessie_a.tim":            "Sharur: Nessie frames 0-2 (Adapa's) x832 y128",
+    "nessie_b.tim":            "Sharur: Nessie frames 3-5 (Adapa's) x896 y128",
 }
 
 tims = {}
@@ -139,8 +141,9 @@ for n in sorted(BANK):
     print("  %-26s %s" % (n, BANK[n]))
 print()
 
-print("THE SPRITE BAND  y[128,256)   (Voff 128: sprites only. No Chapter 4 enemy")
-print("exists yet, and no enemy sheet of Chapters 1-3 is uploaded down here.)")
+print("THE SPRITE BAND  y[128,256)   (Voff 128: sprites only. Chapter 4's one enemy,")
+print("Nessie, takes x[832,960) - Adapa's block - uploaded by main.c after the")
+print("door-panel restore; no enemy sheet of Chapters 1-3 is uploaded down here.)")
 print()
 for px in range(320, 960, 128):
     v, other = verdict(occupants(px, 128, 128, 128))

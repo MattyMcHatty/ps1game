@@ -28,6 +28,8 @@
 #include "creep.h"      /* ...and its Creeps are dropped on every room change */
 #include "lms_creep.h"  /* ...and so are Lamashtu's */
 #include "maggot.h"
+#include "nessie.h"     /* Chapter 4's lava monster: global, area-tagged */
+#include <stddef.h>     /* offsetof — the nessies_dead layout asserts     */
 #include "sound.h"
 
 /* A saved snapshot of one room's entities. Mirrors the live arrays below.
@@ -96,6 +98,8 @@ typedef struct {
     int       lumberer_count;
     Rabisu    rabisus[MAX_RABISUS];       /* the boss: same global area-tagged model */
     int       rabisu_count;
+    Nessie    nessies[MAX_NESSIES];       /* ditto: Chapter 4's lava monster */
+    int       nessie_count;
     Mushroom  mushrooms[MAX_MUSHROOMS];   /* ditto: the garden's pacing ambusher */
     int       mushroom_count;
     LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
@@ -127,6 +131,15 @@ _Static_assert(MAX_SPIDERS       <= WD_MAX_SPIDERS,  "spiders_dead too narrow");
 _Static_assert(MAX_CRAWLERS      <= WD_MAX_CRAWLERS, "crawlers_dead too narrow");
 _Static_assert(MAX_LUMBERERS     <= WD_MAX_LUMBERERS,"lumberers_dead too narrow");
 _Static_assert(MAX_RABISUS       <= WD_MAX_RABISUS,  "rabisus_dead too narrow");
+_Static_assert(MAX_NESSIES       <= WD_MAX_NESSIES,  "nessies_dead too narrow");
+/* nessies_dead took the padding byte after spiders_dead, so the delta's SHAPE
+   must not have moved — that is what lets every older save load without a
+   SAVE_VERSION bump (see the field in world.h). If either of these fires, the
+   byte did not fit where it was put: bump SAVE_VERSION instead. */
+_Static_assert(offsetof(WorldDelta, nessies_dead) == offsetof(WorldDelta, spiders_dead) + 1,
+               "nessies_dead is not in the byte after spiders_dead");
+_Static_assert(offsetof(WorldDelta, crawlers_dead) == offsetof(WorldDelta, spiders_dead) + 2,
+               "nessies_dead moved crawlers_dead — the save layout changed");
 _Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow");
 _Static_assert(MAX_LIVING_STATUES <= WD_MAX_LIVING_STATUES,
                "living_statues_dead too narrow");
@@ -157,6 +170,7 @@ extern Spider    spiders[MAX_SPIDERS];         extern int spider_count;
 extern Crawler   crawlers[MAX_CRAWLERS];       extern int crawler_count;
 extern Lumberer  lumberers[MAX_LUMBERERS];     extern int lumberer_count;
 extern Rabisu    rabisus[MAX_RABISUS];         extern int rabisu_count;
+extern Nessie    nessies[MAX_NESSIES];         extern int nessie_count;
 extern Mushroom  mushrooms[MAX_MUSHROOMS];     extern int mushroom_count;
 extern LivingStatue living_statues[MAX_LIVING_STATUES];
 extern int          living_statue_count;
@@ -473,6 +487,8 @@ static void snapshot_fatdoors(void) {
     world.lumberer_count = lumberer_count;
     memcpy(world.rabisus, rabisus, sizeof rabisus);
     world.rabisu_count = rabisu_count;
+    memcpy(world.nessies, nessies, sizeof nessies);
+    world.nessie_count = nessie_count;
     memcpy(world.mushrooms, mushrooms, sizeof mushrooms);
     world.mushroom_count = mushroom_count;
     memcpy(world.living_statues, living_statues, sizeof living_statues);
@@ -575,6 +591,7 @@ void world_leave(GameState area) {
     crawlers_rest();
     lumberers_rest();
     rabisus_rest();
+    nessies_rest();
     mushrooms_rest();
     living_statues_rest();
     /* NOT simply "back at his spawn": where Hadad starts a visit depends on the
@@ -2126,6 +2143,37 @@ void world_seed_room(GameState area) {
     /* THE NECK: a medipac in the aisle between the two pillars. */
     if (area == STATE_NECK)
         sml_med_spawn(1469, -149, 887);
+
+    /* ---- CHAPTER 4'S MONSTERS -------------------------------------------
+       SHARUR'S TRIAL: one Nessie in the WEST lava. That lava is two pools, not
+       one — a diagonal ridge of outcrops runs from the west rim (z -300..-500)
+       down to the south-east rim near (-370,-1900), touching only at its
+       corners — and she swims the NORTH-WEST one, which runs along the central
+       path (NSS_POOL_SHARUR_NW, tools/gen_nessie_pools.py). (-1300,200) is
+       open lava 400 east of the pool's one outcrop, x[-2300,-1900] z[100,500].
+       AUTHORED, not probed: this runs for rooms whose geometry is not resident.
+
+       ...and one in each of the other two lavas:
+         NORTH  (275,2150), the middle of the northern pool (its centroid is
+                (277,2158); NSS_POOL_SHARUR_N).
+         EAST   (1950,-200), inside the crevice of the east lava's cobble ruin:
+                the ruin is an L, solid x[1500,2300] z[-500,-300] with an arm
+                x[2100,2300] running north to z=-100, and the crevice is the
+                lava pocket in its inside corner, x[1500,2100] z[-300,-100]. The
+                spawn is 100 off its south face and 150 off its east one, clear
+                of NSS_BODY_RADIUS (80), so the walls never shove her on arrival
+                (NSS_POOL_SHARUR_E - the whole east lava; she swims out of the
+                crevice like any other part of it).
+
+       >>> THE ORDER IS THE SAVE FORMAT. <<< nessies_dead is keyed by
+       canonical_index (room, then seed order), so the north-west one stays
+       first and these two append: a save made with only her in the room still
+       means her by bit 0. */
+    if (area == STATE_SHARURS_TRIAL) {
+        nessie_add(-1300,  200, NSS_POOL_SHARUR_NW, STATE_SHARURS_TRIAL);
+        nessie_add(  275, 2150, NSS_POOL_SHARUR_N,  STATE_SHARURS_TRIAL);
+        nessie_add( 1950, -200, NSS_POOL_SHARUR_E,  STATE_SHARURS_TRIAL);
+    }
 }
 
 void world_enter(GameState area) {
@@ -2298,6 +2346,15 @@ void world_save_delta(WorldDelta *d) {
                     (1u << canonical_index(areas, world.lumberer_count, i));
     }
     {
+        /* Same canonical keying as the crawlers above, and for the same reason. */
+        GameState areas[MAX_NESSIES];
+        for (i = 0; i < world.nessie_count; i++) areas[i] = world.nessies[i].area;
+        for (i = 0; i < world.nessie_count; i++)
+            if (world.nessies[i].state == NSS_DEAD)
+                d->nessies_dead |= (uint8_t)
+                    (1u << canonical_index(areas, world.nessie_count, i));
+    }
+    {
         GameState areas[MAX_RABISUS];
         for (i = 0; i < world.rabisu_count; i++) areas[i] = world.rabisus[i].area;
         for (i = 0; i < world.rabisu_count; i++)
@@ -2352,6 +2409,7 @@ void world_load_delta(const WorldDelta *d) {
     crawlers_reset();
     lumberers_reset();
     rabisus_reset();
+    nessies_reset();
     mushrooms_reset();
     living_statues_reset();
     hadads_reset();
@@ -2430,6 +2488,8 @@ void world_load_delta(const WorldDelta *d) {
         if (d->crawlers_dead & (1u << i)) crawlers[i].state = CRW_DEAD;
     for (i = 0; i < lumberer_count; i++)
         if (d->lumberers_dead & (1u << i)) lumberers[i].state = LMB_DEAD;
+    for (i = 0; i < nessie_count; i++)
+        if (d->nessies_dead & (1u << i)) nessies[i].state = NSS_DEAD;
     for (i = 0; i < rabisu_count; i++)
         if (d->rabisus_dead & (1u << i)) { rabisus[i].dead = 1; rabisus[i].dying = 1; }
     for (i = 0; i < mushroom_count; i++)

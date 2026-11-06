@@ -41,6 +41,7 @@
 #include "spider.h"
 #include "crawler.h"
 #include "lumberer.h"
+#include "nessie.h"
 #include "web.h"
 #include "menu.h"
 #include "hud.h"
@@ -270,6 +271,7 @@ void reset_game(RenderContext *ctx) {
     spiders_reset();
     crawlers_reset();
     lumberers_reset();
+    nessies_reset();       /* ...and Chapter 4's lava monster, with its fireballs */
     lms_creeps_reset();    /* ...and every one Lamashtu poured, on the same terms */
     creeps_reset();        /* ...and every Creep a crib had poured out. There is
                               no creeps_rest() and nothing comes back: they are
@@ -3316,13 +3318,18 @@ static void update_current_area(GameState area) {
     } else if (area == STATE_SHARURS_TRIAL) {
         /* SHARUR'S TRIAL - Chapter 4's second room (src/sharurs_trial.c): a
            lava sea, the shared wall routine (the rim and the outcrops) and ONE
-           flat floor zone. No enemies, no props.
+           flat floor zone. No props.
+
+           ONE ENEMY: the NESSIE world_seed_room() puts in the north-west lava
+           (src/nessie.h). Its push-out is in apply_collision_reception and its
+           fireballs ride update_nessies.
 
            THE NORTH-EAST DOOR, back to Hell Hath No Fury: a WOODEN door on
            this side, so the wooden transition, though the far side is a
            catacomb door. The latch tells the far side which arrival this is. */
         apply_collision_reception();
         apply_height();
+        update_nessies();
         if (sharurs_trial_ne_door_triggered(lock)) {
             hhnf_from_sharur = 1;
             pending_area = STATE_HELL_HATH_NO_FURY;
@@ -4643,6 +4650,12 @@ int main(int argc, const char **argv) {
     loading_screen_pump(&ctx);
     lumberers_init();
     loading_screen_pump(&ctx);
+    nessies_load_textures();  /* CHAPTER 4's monster: REGISTERED here (one
+                                 256x256 sheet, six frames, two 256x128 halves
+                                 on Adapa's pages), uploaded on entry to
+                                 Sharur's Trial - see STATE_LOADING */
+    nessies_init();
+    loading_screen_pump(&ctx);
     creeps_load_textures();   /* Chapter 3's third monster, and the only one in
                                  the game that is SPAWNED rather than placed —
                                  the Room of Arms' crib pours ten of them out
@@ -5712,6 +5725,15 @@ int main(int argc, const char **argv) {
                LoadImage from RAM. */
             if (pending_area == STATE_PIANO_ROOM || pending_area == STATE_LIBRARY)
                 adapas_upload_textures();
+            /* NESSIE, on Adapa's exact pages (src/nessie.h), and on his terms:
+               AFTER the restore above, which would otherwise put the exit
+               door's leaves straight back over her on every Underworld entry
+               once she has been uploaded once. nessies_upload_textures() marks
+               the leaves taken, so the restore puts them back on the far side
+               of the title. Which rooms: nessie_room_has_sheet(), mirrored as
+               NESSIE_ROOMS in tools/gen_tex_rooms.py. */
+            if (nessie_room_has_sheet(pending_area))
+                nessies_upload_textures();
             {
                 /* WHITE, NOT BLACK, INTO DESCENT TO HELL: the Seal hands off in
                    full white and the room fades up out of it, so this one

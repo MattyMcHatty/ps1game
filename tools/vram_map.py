@@ -266,6 +266,19 @@ KNOWN_STREAM_PAIRS = [
     ("xt_dr_rt_hlf.tim",   "adapa_b.tim"),
     ("lumberer_b.tim",     "adapa_a.tim"),
     ("lumberer_b.tim",     "adapa_b.tim"),
+    # ...and NESSIE (src/nessie.c), Chapter 4's lava monster, on ADAPA's exact
+    # footprint: nessie_a over adapa_a at x[832,896), nessie_b over adapa_b at
+    # x[896,960), y128, and both of his CLUT lines (80,480)/(96,480). He is
+    # mansion-only and she is Underworld-only - a chapter the player reaches one
+    # way and leaves only through the title - so the two are never drawn in the
+    # same room. The exit door's leaves come back through door_anim's restore,
+    # which nessies_upload_textures() arms exactly as adapa's uploader does.
+    ("adapa_a.tim",        "nessie_a.tim"),
+    ("adapa_b.tim",        "nessie_b.tim"),
+    ("lumberer_b.tim",     "nessie_a.tim"),
+    ("lumberer_b.tim",     "nessie_b.tim"),
+    ("xt_dr_lft_hlf.tim",  "nessie_a.tim"),
+    ("xt_dr_rt_hlf.tim",   "nessie_b.tim"),
     # Maze One, east of Fountain Square through that room's east gate. It draws
     # hedge, grdn_gte and grss_gs from the Garden Courtyard's slots, drain from
     # Fountain Square's narrow upload and poison_flower_base from the Outside

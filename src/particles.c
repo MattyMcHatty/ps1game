@@ -30,7 +30,7 @@ static int32_t rng_range(int32_t range) {
 void spawn_burst(int32_t x, int32_t y, int32_t z,
                  uint8_t r, uint8_t g, uint8_t b) {
     int i;
-    for (i = 0; i < MAX_PARTICLES; i++) {
+    for (i = 0; i < BURST_PARTICLES; i++) {
         Particle *p = &particles[i];
         p->x        = x;
         p->y        = y;
@@ -46,16 +46,42 @@ void spawn_burst(int32_t x, int32_t y, int32_t z,
         p->g0       = g;
         p->b0       = b;
     }
-    particle_count = MAX_PARTICLES;
+    particle_count = BURST_PARTICLES;
 }
 
 void spawn_blood_burst(int32_t x, int32_t y, int32_t z) {
     spawn_burst(x, y, z, 220, 55, 0);
 }
 
+/* spawn_burst's motion and lifetimes exactly, over twice the particles at twice
+   the size (8-22 px against 4-11), and alternating between molten orange and
+   cooled black so the spray reads as lava rather than blood. draw_pool fades
+   every particle toward black over its life, so the orange cools into the
+   black ones as the burst settles. The black is a little above black so the
+   draw's r<8 floor never turns it red. */
+void spawn_lava_burst(int32_t x, int32_t y, int32_t z) {
+    int i;
+    for (i = 0; i < LAVA_PARTICLES; i++) {
+        Particle *p = &particles[i];
+        p->x        = x;
+        p->y        = y;
+        p->z        = z;
+        p->vx       = rng_range(40);
+        p->vy       = -rng_range(30) - 10;
+        p->vz       = rng_range(40);
+        p->life     = 45 + (int32_t)(rng_next() % 30);
+        p->max_life = p->life;
+        p->sw       = (uint8_t)((4 + (rng_next() % 8)) * 2);
+        p->sh       = p->sw;
+        if (i & 1) { p->r0 =  28; p->g0 =  20; p->b0 =  16; }   /* black  */
+        else       { p->r0 = 255; p->g0 = 120; p->b0 =  10; }   /* orange */
+    }
+    particle_count = LAVA_PARTICLES;
+}
+
 void spawn_wood_burst(int32_t x, int32_t y, int32_t z) {
     int i;
-    for (i = 0; i < MAX_PARTICLES; i++) {
+    for (i = 0; i < BURST_PARTICLES; i++) {
         Particle *p = &particles[i];
         p->x        = x;
         p->y        = y;
@@ -71,7 +97,7 @@ void spawn_wood_burst(int32_t x, int32_t y, int32_t z) {
         p->g0       = 85;
         p->b0       = 25;
     }
-    particle_count = MAX_PARTICLES;
+    particle_count = BURST_PARTICLES;
 }
 
 /* ---- A BOULDER SMASHING ON THE FLOOR (Asag's slam) -------------------------
@@ -95,13 +121,13 @@ void spawn_wood_burst(int32_t x, int32_t y, int32_t z) {
    the caller because the shape belongs to the material.
 
    >>> THE POOL IS ONE-SHOT AND IS OVERWRITTEN WHOLESALE. <<< Like every other
-   burst here, this fills all MAX_PARTICLES and resets particle_count, so two
+   burst here, this fills all BURST_PARTICLES and resets particle_count, so two
    smashes on the SAME FRAME show as one. Asag's two boulders are deliberately
    staggered by a few frames for that reason - see AF_T_BLD_STAGGER in
    src/asag_fight.c. */
 void spawn_rock_burst(int32_t x, int32_t y, int32_t z) {
     int i;
-    for (i = 0; i < MAX_PARTICLES; i++) {
+    for (i = 0; i < BURST_PARTICLES; i++) {
         Particle *p = &particles[i];
         p->x        = x;
         p->y        = y;
@@ -117,7 +143,7 @@ void spawn_rock_burst(int32_t x, int32_t y, int32_t z) {
         p->g0       = 112;
         p->b0       =  86;
     }
-    particle_count = MAX_PARTICLES;
+    particle_count = BURST_PARTICLES;
 }
 
 /* ---- THE INCINERATOR'S VENT ------------------------------------------------

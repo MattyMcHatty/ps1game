@@ -20,6 +20,7 @@
 #include "rafflesia.h"
 #include "mushroom.h"
 #include "lumberer.h"
+#include "nessie.h"
 #include "gula.h"
 #include "lamashtu.h"     /* the one spot on her back that can be hurt */
 #include "creep.h"
@@ -257,6 +258,13 @@ static void gun_hit(int kind, int idx) {
            table doubles DMG_FLAME) — so 20 or 10 shots to kill. */
         rabisu_damage(&rabisus[idx],
                       rabisu_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 18) {
+        /* NESSIE: 1 from a Standard or Scattershot round, so eight shots, and
+           NOTHING from a Flame Round - she is immune, and nessie_scale_damage
+           returns 0 for it (nessie.h). Any round wakes her, a flame one
+           included: being shot IS being found. */
+        nessie_damage(&nessies[idx],
+                      nessie_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (kind == 17) {
         /* A LAMASHTU CREEP: the Creep's one hit point, so any round. */
         lms_creep_damage(&lms_creeps[idx],
@@ -438,6 +446,14 @@ static void graveolver_fire(void) {
         int32_t cyc, hh, hw;
         lumberer_body(l, &cyc, &hh, &hw);
         consider(12, i, l->x, cyc, l->z, hw, hh, GUN_RANGE, CLR_LINE);
+    }
+    /* Chapter 4's Nessie, aimed through nessie_body() like the lumberer. */
+    for (i = 0; i < nessie_count; i++) {
+        Nessie *s = &nessies[i];
+        if (!s->active || s->state == NSS_DEAD || s->area != current_area) continue;
+        int32_t cyc, hh, hw;
+        nessie_body(s, &cyc, &hh, &hw);
+        consider(18, i, s->x, cyc, s->z, hw, hh, GUN_RANGE, CLR_LINE);
     }
     /* The Creeps the Room of Arms' crib pours out. The circle is built from the
        same half-extents the sprite is drawn at, centred on creep_body_y() —

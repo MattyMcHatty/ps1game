@@ -427,6 +427,14 @@
 #define TIM_TPAGE_MTSCK    0x000e
 #define TIM_CLUT_MTSCK     0x7861
 
+/* nessie_a.tim    4bpp  VRAM ( 832,128)  \TEXUNDW\NESSIEA.TIM */
+#define TIM_TPAGE_NESSIEA  0x000d
+#define TIM_CLUT_NESSIEA   0x7805
+
+/* nessie_b.tim    4bpp  VRAM ( 896,128)  \TEXUNDW\NESSIEB.TIM */
+#define TIM_TPAGE_NESSIEB  0x000e
+#define TIM_CLUT_NESSIEB   0x7806
+
 /* oil_container.tim  4bpp  VRAM ( 896,256)  \TEXCTCMB\OILCNTNR.TIM */
 #define TIM_TPAGE_OILCNTNR 0x001e
 #define TIM_CLUT_OILCNTNR  0x7e2a

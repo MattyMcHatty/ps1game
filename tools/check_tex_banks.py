@@ -252,7 +252,11 @@ AREAS = {
                   # SHARUR'S TRIAL, behind its south-west door: owns rocks.tim,
                   # borrows HHNF's volcanic, the Descent's lava, cobble and the
                   # inner door (the Catacombs Entry's) and the sky's hell bg.
-                  "sharurs_trial_upload_textures"],
+                  "sharurs_trial_upload_textures",
+                  # ...and NESSIE (src/nessie.c), which main.c uploads on entry
+                  # to the rooms nessie_room_has_sheet() names - Sharur's Trial
+                  # today. Underworld rooms only.
+                  "nessies_upload_textures"],
 }
 
 BIT = {"MANSION": 1 << 0, "GARDEN": 1 << 1, "RABISU": 1 << 2,

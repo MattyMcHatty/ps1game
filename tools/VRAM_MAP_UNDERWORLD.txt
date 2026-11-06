@@ -83,20 +83,23 @@ THIS BANK'S ART
   cobblestones.tim           HHNF: the ruin (Catacombs Entry's) x384 y0
   hell bg.tim                Descent: the backdrop (owned; the sky) x640 y0
   lava.tim                   Descent: the lava (owned; HHNF too) x320 y256
+  nessie_a.tim               Sharur: Nessie frames 0-2 (Adapa's) x832 y128
+  nessie_b.tim               Sharur: Nessie frames 3-5 (Adapa's) x896 y128
   oil_container.tim          HHNF: the ruin's oil tank (the prop's) x896 y256
   rocks.tim                  Sharur: the outcrops (owned)       x512 y0
   seal.tim                   HHNF: the floor seal (the Seal's)  x576 y0
   volcanic.tim               HHNF: the platform (owned)         x384 y256
   wd_dr.tim                  HHNF, Sharur: doors - BORROWED RESIDENT, see head x768 y256
 
-THE SPRITE BAND  y[128,256)   (Voff 128: sprites only. No Chapter 4 enemy
-exists yet, and no enemy sheet of Chapters 1-3 is uploaded down here.)
+THE SPRITE BAND  y[128,256)   (Voff 128: sprites only. Chapter 4's one enemy,
+Nessie, takes x[832,960) - Adapa's block - uploaded by main.c after the
+door-panel restore; no enemy sheet of Chapters 1-3 is uploaded down here.)
 
   x[320,448)  AVAILABLE, needs a way back first: spdr_rst.tim, spdr_wk.tim
   x[448,576)  AVAILABLE, needs a way back first: mansion.tim
   x[576,704)  BLOCKED - reserved: cppr_pt.tim, key.tim, shadow.tim
   x[704,832)  AVAILABLE, needs a way back first: zombie_alert.tim, zombie_sleep.tim
-  x[832,960)  FREE - costs nothing [over: adapa_a.tim, adapa_b.tim, lumberer_b.tim, xt_dr_lft_hlf.tim, xt_dr_rt_hlf.tim]
+  x[832,960)  IN USE by this bank: nessie_a.tim, nessie_b.tim
 
 MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x320  AVAILABLE, needs a way back first: tntcl_actv.tim, tntcl_idle.tim   [also on this page, all re-uploaded on room entry: bookshelf.tim, grss_gs.tim, stn_stl.tim, strs.tim]

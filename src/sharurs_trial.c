@@ -29,6 +29,7 @@
 #include "particles.h"
 #include "btn_glyph.h"
 #include "door.h"
+#include "nessie.h"             /* the north-west lava's monster              */
 
 /* Sharur's Trial - see sharurs_trial.h. The room half is src/hell_hath_no_
    fury.c's, cull keys, radius side cull and all, without its opening drop. */
@@ -456,11 +457,14 @@ void sharurs_trial_draw(RenderContext *ctx) {
     render_set_clear_colour(ctx, UW_FOG_R, UW_FOG_G, UW_FOG_B);
 
     /* 128x128 texture window so per-poly UVs wrap within each texture's page.
-       All six room textures sit at Voff 0, and so does the sky's. */
+       All six room textures sit at Voff 0, and so does the sky's. Nessie's
+       sheet does NOT (Voff 128), so she brackets herself and is told what to
+       restore. */
+    RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+    nessies_set_texwindow(&tw);
     {
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
         if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
-            RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             DR_TWIN *twin = (DR_TWIN *)ctx->next_packet;
             setTexWindow(twin, &tw);
             addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], twin);
@@ -478,10 +482,11 @@ void sharurs_trial_draw(RenderContext *ctx) {
         draw_st_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE DOOR SIGN AND ANY PICKUP a later seed puts down. No
-       enemies or props yet. */
+    /* >>> LEVEL 8 IS THE DOOR SIGN, ANY PICKUP a later seed puts down, AND
+       NESSIE with her fireballs (area-gated inside; src/nessie.h). No props. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
+        draw_nessies(ctx);
         st_ne_text(ctx);
     }
 }

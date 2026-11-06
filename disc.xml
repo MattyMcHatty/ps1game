@@ -290,6 +290,10 @@
                 <file name="LMSCHIME.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lms_chime.vag"/>
                 <file name="LMSCRY.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lms_crying.vag"/>
                 <file name="LMSSCRM.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lms_scream.vag"/>
+                <!-- Nessie's death (src/nessie.c), SND_BANK_UNDERWORLD only.
+                     11025 Hz mono one-shot, 2.58 s, 16,256 SPU bytes; pool
+                     voice 8 (sound.h says why that is safe). -->
+                <file name="NSSDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\nssdie.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -2018,6 +2022,20 @@
              wooden door. -->
             <file name="SHARUR.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\sharurs_trial.smd"/>
             <file name="ROCKS.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\rocks.tim"/>
+        <!-- NESSIE, the chapter's first monster (src/nessie.h): a lava-bound
+             head that swims its own pool and spits fireballs. Six frames, one
+             256x256 sheet (textures/underworld/nessie.png), shipped as two
+             4bpp 256x128 halves because a 256-row texture can only start at
+             VRAM y 0 or 256 - NESSIEA is frames 0-2 (the top row: the attack),
+             NESSIEB frames 3-5 (the spit and the two idle frames). Quantised
+             against ONE master palette; tools/split_nessie_sheet.py makes both
+             from the original (its tim switch runs the conversions).
+             ADAPA'S SLOTS, pixels and CLUTs: x[832,960) y128, CLUTs (80,480)
+             and (96,480). Adapa is mansion-only and this is Underworld-only, so
+             they never share a room; the pages are also the exit door's two
+             leaves, which door_anim's restore puts back on the way out. -->
+            <file name="NESSIEA.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\nessie_a.tim"/>
+            <file name="NESSIEB.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\nessie_b.tim"/>
         </dir>
 
         </directory_tree>

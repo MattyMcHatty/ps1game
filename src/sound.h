@@ -624,7 +624,14 @@ typedef enum {
     SFX_LMS_CHIME  = 60,  /* BANKED (lamashtu). lamashtu chime,  1.35 s         */
     SFX_LMS_CRY    = 61,  /* BANKED (lamashtu). lamashtu crying, 4.49 s         */
     SFX_LMS_SCREAM = 62,  /* BANKED (lamashtu). lamashtu scream, 2.79 s         */
-    SFX_COUNT      = 63,
+    /* Nessie's death (src/nessie.c), as the lava bursts. BANKED (underworld)
+       and nowhere else: she is Underworld-only. 2.58 s at 11025 Hz, 16.3 KB.
+       It stays in the one-shot POOL (FIRST_VOICE + 63 % 8 = voice 8) though it
+       is long, because nothing that shares that slot can sound in her room:
+       UNLOCK (resident) needs a lock and Sharur's Trial has none, and every
+       other id at % 8 == 7 is either off the pool or banked out down here. */
+    SFX_NSS_DIE    = 63,  /* BANKED (underworld). nessie die, 2.58 s            */
+    SFX_COUNT      = 64,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.
