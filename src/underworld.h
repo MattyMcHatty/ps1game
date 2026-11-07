@@ -30,6 +30,10 @@
       (src/cdaudio.h), from main.c's Chapter 4 music block - no music line
       of a room's own.
 
+   4. THE LAVA BURNS: 5 HP a second and an orange pulse wherever the lava
+      texture is underfoot (src/lava.h). No code in the room; a line in
+      tools/gen_lava_floors.py's ROOMS, which every Underworld room needs.
+
    Which rooms are in the chapter is area_is_underworld() in src/area_bank.h;
    their textures are TEXBANK_UNDERWORLD and their sounds SND_BANK_UNDERWORLD
    (src/sound.h), which is empty today: nothing in the chapter makes a sound

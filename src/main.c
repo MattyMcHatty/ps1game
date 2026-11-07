@@ -122,6 +122,7 @@
 #include "descent_to_hell.h"  /* CHAPTER 4: the fall the Seal's white lands in  */
 #include "hell_hath_no_fury.h"/* ...and the platform the Descent's white lands on */
 #include "sharurs_trial.h"    /* ...and the lava sea behind its south-west door  */
+#include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
 #include "underworld_sky.h"   /* ...and the sky over every room after it         */
 #include "kennels_puzzle.h"
 #include "arm_switch.h"     /* The Head's eight arm switches */
@@ -272,6 +273,7 @@ void reset_game(RenderContext *ctx) {
     crawlers_reset();
     lumberers_reset();
     nessies_reset();       /* ...and Chapter 4's lava monster, with its fireballs */
+    lava_reset();          /* ...and the burn of the lava it swims in */
     lms_creeps_reset();    /* ...and every one Lamashtu poured, on the same terms */
     creeps_reset();        /* ...and every Creep a crib had poured out. There is
                               no creeps_rest() and nothing comes back: they are
@@ -3745,6 +3747,10 @@ static void update_current_area(GameState area) {
        It is a MEASUREMENT switch and it makes the game unplayable while it is
        on — nothing chases, nothing bites. That is the point; do not leave it
        cycled on and wonder why the Greenhouse got easy. */
+    /* Chapter 4's burning lava (src/lava.h). Above the NO_AI switch: it is the
+       floor, not a monster. One call for every room - the mask is found by
+       area, so a room with none pays a table walk and nothing else. */
+    lava_update(area);
     if (DEBUG_EXPERIMENT() == DBG_EXP_NO_AI) {
         webs_update();
         player_status_update();
@@ -3936,6 +3942,7 @@ static void draw_player_systems(RenderContext *ctx) {
 #endif
     weapons_draw(ctx);
     player_draw_status_overlay(ctx);   /* poison wash: over the scene, under the HUD */
+    lava_draw_overlay(ctx);            /* ...and the lava's orange pulse, likewise   */
 #ifdef DEBUG_COLLISION
     debug_draw_coords(ctx);      /* 2D panel — screen space, so it goes last */
 #endif

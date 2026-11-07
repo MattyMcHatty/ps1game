@@ -228,10 +228,10 @@ A ROOM IN A NEW AREA (a new chapter, a new sealed pocket) additionally gets:
     the licence Asag's arena and the Catacombs both use. Register the sharing in
     KNOWN_STREAM_PAIRS so tools/vram_map.py can see the decision.
 
->>> A CHAPTER 4 (UNDERWORLD) ROOM HAS FOUR RULES OF ITS OWN. <<< Copy
+>>> A CHAPTER 4 (UNDERWORLD) ROOM HAS FIVE RULES OF ITS OWN. <<< Copy
 src/hell_hath_no_fury.c (or src/sharurs_trial.c, the same loop without the
 opening drop), not master_bedroom.c: it is that room's loop with the first
-three already in it.
+three already in it. Rule 5 is a line in a script, not code in the room.
   1. THE FOG IS THE CHAPTER'S, NOT THE ROOM'S. g_fog_near/g_fog_far and the
      mesh's fog maths come from UW_FOG_NEAR / UW_FOG_FAR / UW_FOG_R,G,B in
      src/underworld.h and nothing else - no light, no lantern ease, no
@@ -270,6 +270,31 @@ three already in it.
          before STATE_LOADING. DOOR_PANEL_WOOD's is the resident wd_dr at x768
          y256 (never take that page); DOOR_PANEL_CATACOMB's is room art at x832
          y0, so the room the catacomb panel plays FROM must upload it.
+  5. THE LAVA BURNS. Wherever the lava texture is on the floor, standing in it
+     costs 5 HP a second and the screen pulses orange (src/lava.h). The room
+     needs NO code for it - lava_update() runs for every area from
+     update_current_area and finds the room's mask by GameState - but the
+     mask has to exist, and a room without one has lava the player can wade
+     through for free, with no error anywhere. So, for EVERY Underworld room,
+     even one whose lava looks out of reach:
+       a. Add a line to ROOMS in tools/gen_lava_floors.py: the STATE_, the
+          VISUAL .smx (the drawn lava, not the proxy), the collision proxy
+          ("<Name> mesh.smx") and the lava's texture name in the visual mesh
+          (it is "lava" in both rooms so far; check STEP 3a's list).
+       b. py tools\gen_lava_floors.py -v and READ THE MAP it prints: '#' is
+          burning floor. Paths, slabs and the Seal drawn over the lava are
+          carved out automatically (any flat non-lava poly within 50 above
+          it), and so is anything outside the proxy's floor polys. Hell Hath
+          No Fury prints "0 cells" - its lava is all beyond the rim - and that
+          is correct; a room the player is MEANT to cross lava in printing 0
+          is not (wrong texture name, or the proxy has no floor over it).
+       c. Rebuild. src/lava_floors.c/.h are generated and committed, like
+          src/nessie_pools.c. Commit the script change with them.
+     Re-run it whenever a room's lava or its proxy floor changes. ONE lava
+     plane per room: the script fails a room whose lava is at two heights. A
+     bridge or upper floor over the lava needs nothing - the runtime only
+     burns feet at the lava's own plane. Each mask is static data (Sharur's
+     Trial's is 1.8 KB), so it comes off the heap like the rest of the room.
 
 >>> AND A NEW ROOM MOVES _end WHATEVER ELSE IT DOES. <<< Its code and its
 ~600-byte slot in world.c's RoomState array are static, so they come off the
