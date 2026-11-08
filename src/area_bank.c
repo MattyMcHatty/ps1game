@@ -215,6 +215,10 @@ TexBank area_bank_of(GameState area) {
        and the inner door from the Catacombs Entry, all through narrow
        uploaders; wd_dr is resident. */
     case STATE_SHARURS_TRIAL:
+    /* LAVA U owns nothing: volcanic from Hell Hath No Fury, lava from the
+       Descent, rocks from Sharur's Trial, all through narrow uploaders; wd_dr
+       is resident. */
+    case STATE_LAVA_U:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -274,7 +278,8 @@ int area_is_gaol(GameState area) {
 int area_is_underworld(GameState area) {
     return area == STATE_DESCENT_TO_HELL ||
            area == STATE_HELL_HATH_NO_FURY ||
-           area == STATE_SHARURS_TRIAL;
+           area == STATE_SHARURS_TRIAL ||
+           area == STATE_LAVA_U;
 }
 
 /* ---- The prop models -------------------------------------------------------

@@ -22,7 +22,7 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 64  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 65  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
@@ -43,7 +43,7 @@
                                because each keeps its own pickups - the
                                throat, room_of_guts, neck, the_head, kennels,
                                lamashtu_arena and seal, and Chapter 4's
-                               hell_hath_no_fury and sharurs_trial. (Descent to Hell has no
+                               hell_hath_no_fury, sharurs_trial and lava_u. (Descent to Hell has no
                                slot - see area_untracked in world.c.)
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
@@ -68,7 +68,11 @@
                                bytes of bitmap), so the delta_size check in
                                savegame.c rejects every older save cleanly, which
                                is what a room addition does anyway. Do not reach
-                               for a narrower trick when 64 fills up either. */
+                               for a narrower trick when 64 fills up either.
+                               >>> 64 FILLED WITH SHARUR'S TRIAL, AND LAVA U IS
+                               THE SIXTY-FIFTH. <<< `visited` and `cribs_solved`
+                               are RoomBits now (below), sized from this number,
+                               so there is no ceiling left to hit. */
 
 /* This area's slot number, 0..WORLD_NUM_ROOMS-1. The public face of world.c's
    room_index(), for anything outside that file that has to key persistent state
@@ -81,25 +85,28 @@
    GameState that is a real room. Menu and cutscene states are not. */
 int  world_room_index(GameState area);
 
-/* ---- One room's bit in a 64-bit room bitmap --------------------------------
- * WorldDelta.visited and WorldDelta.cribs_solved are uint64_t (The Pit is room 32
- * and the uint32_t they used to be held exactly 32), and every read and write of
- * them has to go through this rather than shifting directly.
+/* ---- A room bitmap: one bit per room, as wide as WORLD_NUM_ROOMS -----------
+ * WorldDelta.visited and WorldDelta.cribs_solved (and the crib module's live
+ * solved set) are RoomBits. They were a uint16_t, then a uint32_t, then a
+ * uint64_t, and each of those filled up exactly (Maze One, The Pit, then Lava U
+ * as room 65), so the width is now DERIVED from WORLD_NUM_ROOMS and adding a
+ * room never has to widen anything again.
  *
  * >>> A 64-BIT SHIFT BY A *VARIABLE* DOES NOT LINK IN THIS TOOLCHAIN. <<< It
  * compiles to a call to libgcc's __ashldi3 / __lshrdi3, and -nostdlib means there
- * is no libgcc to call: `1ull << r` for a variable r is two undefined references
- * at LINK time, which is exactly how widening these fields failed the first time.
- * (collision.c's walls_crossed() records the same constraint for 64-bit DIVIDE.)
- *
- * A shift by a CONSTANT is fine — it is a register move, not a helper call — so
- * this builds the word out of one 32-bit variable shift and one constant 32, and
- * the whole thing is a couple of instructions inline. `r` must be a valid room
- * index; anything from world_room_index() is.
+ * is no libgcc to call. Words of 32 bits sidestep that entirely: every shift
+ * here is a plain 32-bit one. (collision.c's walls_crossed() records the same
+ * constraint for 64-bit DIVIDE.) `r` must be a valid room index; anything from
+ * world_room_index() is.
  */
-static inline uint64_t world_room_bit(int r) {
-    return (r < 32) ? (uint64_t)(1u << r)
-                    : ((uint64_t)(1u << (r - 32)) << 32);
+#define WORLD_ROOM_WORDS ((WORLD_NUM_ROOMS + 31) / 32)
+typedef struct { uint32_t w[WORLD_ROOM_WORDS]; } RoomBits;
+
+static inline int room_bits_test(const RoomBits *b, int r) {
+    return (int)((b->w[r >> 5] >> (r & 31)) & 1u);
+}
+static inline void room_bits_set(RoomBits *b, int r) {
+    b->w[r >> 5] |= 1u << (r & 31);
 }
 
 void world_new_game(void);          /* reset all rooms; capture the starting room */
@@ -209,12 +216,10 @@ typedef struct {
 } RoomDelta;                  /* 10 bytes */
 
 typedef struct {
-    /* bit r: room r entered. uint64_t now: this is the field that caps
-       WORLD_NUM_ROOMS, and it has filled up TWICE — the sixteenth room filled the
-       uint16_t exactly and the thirty-second filled the uint32_t exactly.
-       Widening it costs four more bytes of a delta with thousands spare, so the
-       only reason it was ever narrower is that nobody needed it wider. */
-    uint64_t  visited;
+    /* bit r: room r entered. A RoomBits now: this is the field that used to cap
+       WORLD_NUM_ROOMS, and it filled up THREE times — the uint16_t, the uint32_t
+       and the uint64_t each exactly. Its width follows the room count now. */
+    RoomBits  visited;
     uint8_t   spiders_dead;                       /* keyed by (area, ordinal) */
     /* NESSIE (src/nessie.h), keyed like the spiders. >>> IT LIVES IN WHAT WAS
        THE PADDING BYTE BEFORE crawlers_dead, AND THAT IS WHY THERE WAS NO
@@ -253,17 +258,14 @@ typedef struct {
        keyed by, and the room is both the only stable identity available and the
        one the design cares about.
 
-       >>> IT IS A uint64_t FOR THE SAME REASON `visited` IS, AND IT IS CAPPED BY
-       THE SAME NUMBER. <<< One bit per room, WORLD_NUM_ROOMS is 40, and the
-       _Static_assert in world.c holds the two in step. That note used to say
-       "widening `visited` for a thirty-third room means widening this beside it",
-       and The Pit is that room, so both are 64 bits now.
+       >>> IT IS A RoomBits FOR THE SAME REASON `visited` IS. <<< One bit per
+       room, sized from WORLD_NUM_ROOMS, so it grows with the room count.
 
        >>> AND IT IS HERE RATHER THAN IN game_flags BECAUSE game_flags IS FULL.
        <<< That word is 32 bits in SaveData and 31 of them are spent
        (FLAG_ASAG_DEAD is bit 30). A mechanic that is going into several rooms
        needs a SET of bits and there was one left. See src/crib.h. */
-    uint64_t  cribs_solved;
+    RoomBits  cribs_solved;
 } WorldDelta;
 
 /* Encode the current world into `d`. Call after world_leave() has flushed the

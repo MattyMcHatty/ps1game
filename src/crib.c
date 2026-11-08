@@ -60,22 +60,21 @@ static int  crib_count = 0;
    cribs_update() re-reads it every frame, so the order of room init,
    world_enter() and savegame_apply_pending() cannot produce a cot that thinks
    it is unsolved because the save had not landed yet. */
-static uint64_t crib_solved_rooms = 0;
+static RoomBits crib_solved_rooms;
 
-uint64_t crib_solved_mask(void)            { return crib_solved_rooms; }
-void     crib_solved_mask_set(uint64_t m)  { crib_solved_rooms = m; }
+void crib_solved_mask_get(RoomBits *out)       { *out = crib_solved_rooms; }
+void crib_solved_mask_set(const RoomBits *m)   { crib_solved_rooms = *m; }
 
 int crib_room_solved(GameState area) {
-    /* world_room_bit(), not a shift of the mask: a 64-bit shift by a variable
-       needs libgcc and there is none — see the note in src/world.h. */
-    return (crib_solved_rooms & world_room_bit(world_room_index(area))) != 0;
+    /* room_bits_test(), not a hand shift: see RoomBits in src/world.h. */
+    return room_bits_test(&crib_solved_rooms, world_room_index(area));
 }
 
 /* The debug menu's grant (crib.h). A placed encounter cot still IDLE is put to
    SOLVED too, so a jump straight into its room cannot wake it. */
 void crib_room_mark_solved(GameState area) {
     int i;
-    crib_solved_rooms |= world_room_bit(world_room_index(area));
+    room_bits_set(&crib_solved_rooms, world_room_index(area));
     for (i = 0; i < crib_count; i++) {
         Crib *c = &cribs[i];
         if (c->active && c->area == area && c->encounter && c->state == CRIB_IDLE)
@@ -513,7 +512,7 @@ void cribs_update(void) {
                    >>> THE BIT GOES ON HERE, AT THE START OF THE OUTRO. <<< See
                    crib.h — a player who leaves during the one second of the
                    light going out has still beaten it. */
-                crib_solved_rooms |= world_room_bit(world_room_index(c->area));
+                room_bits_set(&crib_solved_rooms, world_room_index(c->area));
                 /* And the voice goes with the beam. sound_stop() keys 20 off
                    rather than letting the clip play out, so the room falls quiet
                    on the frame the tenth body drops instead of carrying up to

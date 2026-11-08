@@ -67,14 +67,48 @@ static void *st_buff = NULL;
 #define ST_NE_SPAWN_X     2823
 #define ST_NE_SPAWN_Z     2023
 #define ST_NE_SPAWN_ROT   2560
+
+/* ---- THE SOUTH DOOR, to Lava U's north-east door ---------------------------
+   The catacomb inner door polys span x[-121,100] at z=-1500: centre (0,-1500),
+   standing on the south ledge's edge (collision wall 47, inward normal
+   (0,+1)), so the player walks up to it from the north. Lava U calls this its
+   "south east" door: it is the eastern of this room's two southern doors.
+   Sign facing south (yaw 2048), 11 off toward the player; spawn 250 north,
+   facing north. */
+#define ST_S_X               0
+#define ST_S_Z          (-1500)
+#define ST_S_TEXT_X          0
+#define ST_S_TEXT_Z     (-1489)
+#define ST_S_TEXT_YAW     2048
+#define ST_S_SPAWN_X         0
+#define ST_S_SPAWN_Z    (-1250)
+#define ST_S_SPAWN_ROT       0
+
+/* ---- THE SOUTH-WEST DOOR, to Lava U's north-west door ----------------------
+   The wd_dr polys added in the November 2026 re-export lean on the 45-degree
+   rim x+z=-5400 (collision wall 44, inward normal (0.707,0.707)), foot
+   (-3100,-2300)-(-2900,-2500): centre (-3000,-2400), approached from the
+   north-east. Sign facing south-west (yaw 2560); spawn 250 in along the
+   normal (177 on each axis), facing north-east. */
+#define ST_SW_X          (-3000)
+#define ST_SW_Z          (-2400)
+#define ST_SW_TEXT_X     (-2992)
+#define ST_SW_TEXT_Z     (-2392)
+#define ST_SW_TEXT_YAW    2560
+#define ST_SW_SPAWN_X    (-2823)
+#define ST_SW_SPAWN_Z    (-2223)
+#define ST_SW_SPAWN_ROT    512
+
 #define ST_DOOR_TEXT_Y    (ST_FLOOR_Y - 200)
 #define ST_TEXT_RADIUS    1500
 #define ST_FADE_NEAR      1000
 #define ST_TRIGGER_RADIUS  500
 
-/* Circle edge-detect for the door. Seeded "held" by the arm so a press
+/* Circle edge-detect, one per door. Seeded "held" by the arm so a press
    carried in through the transition cannot fire on the arrival frame. */
 static int ne_circle_prev = 1;
+static int s_circle_prev  = 1;
+static int sw_circle_prev = 1;
 
 static void st_floor_zones_init(void) {
     floor_zones[0].type  = FLOOR_FLAT;
@@ -122,10 +156,15 @@ void sharurs_trial_load_assets(void) {
 void sharurs_trial_upload_textures(void) {
     hell_hath_no_fury_upload_volcanic();
     descent_to_hell_upload_lava();
-    if (rocks_tex >= 0) texmgr_upload(rocks_tex);
+    sharurs_trial_upload_rocks();
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
     underworld_sky_upload_textures();
+}
+
+/* The rocks alone - Lava U's rock island is the same art. */
+void sharurs_trial_upload_rocks(void) {
+    if (rocks_tex >= 0) texmgr_upload(rocks_tex);
 }
 
 /* ---- The cull key, and its RADIUS ------------------------------------------
@@ -185,27 +224,44 @@ void sharurs_trial_load_geometry(void) {
     underworld_sky_load();
 }
 
-/* ---- The north-east door ---------------------------------------------------*/
+/* ---- The three doors -------------------------------------------------------*/
 void sharurs_trial_doors_arm(void) {
-    ne_circle_prev = interact_tapped();
+    int held = interact_tapped();
+    ne_circle_prev = held;
+    s_circle_prev  = held;
+    sw_circle_prev = held;
+}
+
+/* The shared body: a fresh Circle within reach of (door_x, door_z) and facing
+   it. The edge state is kept up to date even while locked. */
+static int st_door_triggered(int32_t door_x, int32_t door_z,
+                             int *circle_prev, int lock) {
+    int held = interact_tapped();
+    int just = held && !*circle_prev;
+    int32_t dx, dz;
+    *circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - door_x;
+    dz = cam_z - door_z;
+    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= ST_TRIGGER_RADIUS)
+        return 0;
+    return interact_facing(door_x, door_z);
 }
 
 int sharurs_trial_ne_door_triggered(int lock) {
-    int held = interact_tapped();
-    int just = held && !ne_circle_prev;
-    int32_t dx, dz;
-    ne_circle_prev = held;
-    if (lock || !just) return 0;
-    dx = cam_x - ST_NE_X;
-    dz = cam_z - ST_NE_Z;
-    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= ST_TRIGGER_RADIUS)
-        return 0;
-    return interact_facing(ST_NE_X, ST_NE_Z);
+    return st_door_triggered(ST_NE_X, ST_NE_Z, &ne_circle_prev, lock);
+}
+int sharurs_trial_s_door_triggered(int lock) {
+    return st_door_triggered(ST_S_X, ST_S_Z, &s_circle_prev, lock);
+}
+int sharurs_trial_sw_door_triggered(int lock) {
+    return st_door_triggered(ST_SW_X, ST_SW_Z, &sw_circle_prev, lock);
 }
 
-static void st_ne_text(RenderContext *ctx) {
-    int32_t dx = cam_x - ST_NE_X;
-    int32_t dz = cam_z - ST_NE_Z;
+static void st_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
+                         int32_t text_x, int32_t text_z, int yaw) {
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - door_z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int fade = 256;
 
@@ -217,20 +273,30 @@ static void st_ne_text(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
     door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
-                            ST_NE_TEXT_X, ST_DOOR_TEXT_Y, ST_NE_TEXT_Z,
-                            50, 255, 50, fade, ST_NE_TEXT_YAW,
+                            text_x, ST_DOOR_TEXT_Y, text_z,
+                            50, 255, 50, fade, yaw,
                             DOOR_PIXEL_SIZE);
 }
 
-void sharurs_trial_spawn_ne(void) {
-    cam_x     = ST_NE_SPAWN_X;
+static void st_spawn_at(int32_t x, int32_t z, int rot) {
+    cam_x     = x;
     cam_y     = ST_EYE_Y;
     cam_vy    = 0;
-    cam_z     = ST_NE_SPAWN_Z;
-    cam_rot   = ST_NE_SPAWN_ROT;
+    cam_z     = z;
+    cam_rot   = rot;
     cam_pitch = 0;
     camera_look_cancel();
     sharurs_trial_doors_arm();
+}
+
+void sharurs_trial_spawn_ne(void) {
+    st_spawn_at(ST_NE_SPAWN_X, ST_NE_SPAWN_Z, ST_NE_SPAWN_ROT);
+}
+void sharurs_trial_spawn_s(void) {
+    st_spawn_at(ST_S_SPAWN_X, ST_S_SPAWN_Z, ST_S_SPAWN_ROT);
+}
+void sharurs_trial_spawn_sw(void) {
+    st_spawn_at(ST_SW_SPAWN_X, ST_SW_SPAWN_Z, ST_SW_SPAWN_ROT);
 }
 
 void sharurs_trial_init(void) {
@@ -238,7 +304,8 @@ void sharurs_trial_init(void) {
     collision_set_ceiling_y(ST_CEILING_Y);
     st_floor_zones_init();
 
-    /* The one way in today, and where a debug jump lands. */
+    /* The default arrival (main.c overrides it per door), and where a debug
+       jump lands. */
     sharurs_trial_spawn_ne();
 
     /* The global prop arrays, as Hell Hath No Fury clears them: its save point
@@ -482,11 +549,16 @@ void sharurs_trial_draw(RenderContext *ctx) {
         draw_st_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE DOOR SIGN, ANY PICKUP a later seed puts down, AND
+    /* >>> LEVEL 8 IS THE THREE DOOR SIGNS, ANY PICKUP a later seed puts down, AND
        NESSIE with her fireballs (area-gated inside; src/nessie.h). No props. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
         draw_nessies(ctx);
-        st_ne_text(ctx);
+        st_door_text(ctx, ST_NE_X, ST_NE_Z, ST_NE_TEXT_X, ST_NE_TEXT_Z,
+                     ST_NE_TEXT_YAW);
+        st_door_text(ctx, ST_S_X, ST_S_Z, ST_S_TEXT_X, ST_S_TEXT_Z,
+                     ST_S_TEXT_YAW);
+        st_door_text(ctx, ST_SW_X, ST_SW_Z, ST_SW_TEXT_X, ST_SW_TEXT_Z,
+                     ST_SW_TEXT_YAW);
     }
 }

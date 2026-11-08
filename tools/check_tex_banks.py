@@ -253,6 +253,10 @@ AREAS = {
                   # borrows HHNF's volcanic, the Descent's lava, cobble and the
                   # inner door (the Catacombs Entry's) and the sky's hell bg.
                   "sharurs_trial_upload_textures",
+                  # LAVA U, behind Sharur's south and south-west doors: owns
+                  # nothing - HHNF's volcanic, the Descent's lava, Sharur's
+                  # rocks (sharurs_trial_upload_rocks) and the sky's hell bg.
+                  "lava_u_upload_textures",
                   # ...and NESSIE (src/nessie.c), which main.c uploads on entry
                   # to the rooms nessie_room_has_sheet() names - Sharur's Trial
                   # today. Underworld rooms only.

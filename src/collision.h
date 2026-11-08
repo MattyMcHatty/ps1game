@@ -88,7 +88,7 @@ typedef struct {
        uint64_t since the Room of Heads, whose 37 low pile walls are indices
        0-36. Read it through collision_wall_shoot_over(), never with a variable
        shift of the whole word: a 64-bit shift by a variable needs libgcc and
-       there is none (the note beside world_room_bit() in src/world.h). */
+       there is none (the note beside RoomBits in src/world.h). */
     uint64_t shoot_over_mask;
     /* Height of this room's DRAWN ceiling in mesh Y, or 0 for "derive it from
        the wall tops". A room's collision data comes from a simplified proxy

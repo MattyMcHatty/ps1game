@@ -146,12 +146,10 @@ _Static_assert(MAX_LIVING_STATUES <= WD_MAX_LIVING_STATUES,
 _Static_assert(MAX_HADADS        <= WD_MAX_HADADS,  "hadads_state too narrow");
 _Static_assert(MAX_VINES         <= WD_MAX_VINES,   "vine_health too short");
 _Static_assert(MAX_VALVE_MOUNTS  <= 8,              "valve_present too narrow");
-/* The `visited` bitmap is what caps the room count — one bit per room. It was a
-   uint16_t and the sixteenth room filled it exactly; Maze One is the seventeenth
-   and widened it to 32 bits, which the Room of Arms then filled exactly in turn;
-   THE PIT is the thirty-third and widened it to 64. This assert is what makes
-   each overflow a compile error instead of rooms silently coming back unvisited
-   from a save, and it has now done that job twice. */
+/* The `visited` bitmap used to cap the room count — one bit per room. It was a
+   uint16_t, a uint32_t and a uint64_t, and each filled exactly (Maze One, The
+   Pit, Lava U). It is a RoomBits now, sized from WORLD_NUM_ROOMS, so this
+   assert can no longer fire; it stays as the statement of the invariant. */
 _Static_assert(WORLD_NUM_ROOMS <= 8 * sizeof(((WorldDelta *)0)->visited),
                "WorldDelta.visited too narrow for WORLD_NUM_ROOMS");
 /* The crib encounters are keyed by room_index() too — one bit per room, same
@@ -218,6 +216,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_THE_HEAD,        STATE_KENNELS,
     STATE_LAMASHTU_ARENA,  STATE_SEAL,
     STATE_HELL_HATH_NO_FURY, STATE_SHARURS_TRIAL,
+    STATE_LAVA_U,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -407,10 +406,14 @@ static int room_index(GameState area) {
         case STATE_SEAL:              return 61;
         case STATE_HELL_HATH_NO_FURY: return 62;
         /* SHARUR'S TRIAL, Chapter 4's second room, behind Hell Hath No
-           Fury's south-west door. >>> SLOT 63 OF 64: the LAST bit of the
-           uint64_t `visited` and `cribs_solved`. <<< The _Static_asserts
-           above fire on the next room added; widen both then. */
+           Fury's south-west door. Slot 63 - the last bit of the uint64_t
+           `visited` and `cribs_solved` that used to be. */
         case STATE_SHARURS_TRIAL:     return 63;
+        /* LAVA U, Chapter 4's third room, behind Sharur's Trial's south and
+           south-west doors. Slot 64: the sixty-fifth room, and the one that
+           turned both bitmaps into RoomBits (src/world.h), sized from
+           WORLD_NUM_ROOMS. Seeded EMPTY. */
+        case STATE_LAVA_U:            return 64;
         default:                   return 0;
     }
 }
@@ -504,7 +507,7 @@ static void snapshot_fatdoors(void) {
 /* Rooms whose sconce pearl a debug grant has taken (world_take_sconce_pearl).
    Outside `world` so it is plainly not part of any save; world_new_game clears
    it, so a later real New Game seeds every pearl again. */
-static uint64_t debug_pearls_taken = 0;
+static RoomBits debug_pearls_taken;
 
 static void take_pearls(ItemPickup *items, int count) {
     int i;
@@ -514,7 +517,7 @@ static void take_pearls(ItemPickup *items, int count) {
 
 void world_take_sconce_pearl(GameState area) {
     int r = room_index(area);
-    debug_pearls_taken |= world_room_bit(r);
+    room_bits_set(&debug_pearls_taken, r);
     if (area == current_area)
         take_pearls(item_pickups, item_pickup_count);
     else if (world.rooms[r].visited)
@@ -523,7 +526,7 @@ void world_take_sconce_pearl(GameState area) {
 
 void world_new_game(void) {
     memset(&world, 0, sizeof world);
-    debug_pearls_taken = 0;
+    memset(&debug_pearls_taken, 0, sizeof debug_pearls_taken);
     /* The starting room (delivery) already has its entities set up by the
        startup inits + reset_game, so capture that as its initial state. */
     int d = room_index(STATE_DELIVERY_AREA);
@@ -533,7 +536,11 @@ void world_new_game(void) {
     /* The crib encounters are module state rather than a WorldState field
        (src/crib.h says why), so the memset above does NOT reach them and a new
        game would otherwise inherit the last playthrough's solved rooms. */
-    crib_solved_mask_set(0);
+    {
+        RoomBits none;
+        memset(&none, 0, sizeof none);
+        crib_solved_mask_set(&none);
+    }
 }
 
 /* Cut every monster sound dead. Called the instant a room transition begins
@@ -2174,6 +2181,11 @@ void world_seed_room(GameState area) {
         nessie_add(  275, 2150, NSS_POOL_SHARUR_N,  STATE_SHARURS_TRIAL);
         nessie_add( 1950, -200, NSS_POOL_SHARUR_E,  STATE_SHARURS_TRIAL);
     }
+    /* LAVA U: one Nessie in the U's west arm, (-1934,-2831) (NSS_POOL_LAVA_U -
+       the whole U is one pool, so she can swim all of it). Its own room, so
+       canonical_index keys her apart from Sharur's Trial's three. */
+    if (area == STATE_LAVA_U)
+        nessie_add(-1934, -2831, NSS_POOL_LAVA_U, STATE_LAVA_U);
 }
 
 void world_enter(GameState area) {
@@ -2188,7 +2200,7 @@ void world_enter(GameState area) {
            snapshotted on the next world_leave() and persist (deaths stick). */
         world_seed_room(area);
         r->visited = 1;
-        if (debug_pearls_taken & world_room_bit(room_index(area)))
+        if (room_bits_test(&debug_pearls_taken, room_index(area)))
             take_pearls(item_pickups, item_pickup_count);
     }
 }
@@ -2254,7 +2266,7 @@ void world_save_delta(WorldDelta *d) {
         const RoomHostiles *hs = hostiles_of(r);
         RoomDelta          *rd = &d->rooms[r];
         if (!rs->visited) continue;
-        d->visited |= world_room_bit(r);
+        room_bits_set(&d->visited, r);
 
         /* Dead dogs and zombies and smashed crates: mansion rooms only. Every
            other room's three fields stay the zero the memset left, which is
@@ -2314,7 +2326,7 @@ void world_save_delta(WorldDelta *d) {
        and the crib module holds it that way already (src/crib.h). That also
        means it is correct for rooms the player has never entered and for the
        room they are standing in, without this function knowing which is which. */
-    d->cribs_solved = crib_solved_mask();
+    crib_solved_mask_get(&d->cribs_solved);
 
     {
         GameState areas[MAX_SPIDERS];
@@ -2424,7 +2436,7 @@ void world_load_delta(const WorldDelta *d) {
 
     for (r = 0; r < WORLD_NUM_ROOMS; r++) {
         const RoomDelta *rd = &d->rooms[r];
-        if (!(d->visited & world_room_bit(r))) continue;
+        if (!room_bits_test(&d->visited, r)) continue;
 
         /* Rebuild the room as its first visit left it, then subtract what the
            player did to it. Rooms are walked in room_index order so the global
@@ -2478,7 +2490,7 @@ void world_load_delta(const WorldDelta *d) {
        than OR-ing into it: world_load_delta is documented as rebuilding the
        whole world over a fresh world_new_game(), and a merge would let a crib
        beaten in the session before the load survive into the loaded one. */
-    crib_solved_mask_set(d->cribs_solved);
+    crib_solved_mask_set(&d->cribs_solved);
 
     /* The room walk placed these in canonical order, so the delta's bit i and
        array slot i now mean the same thing. */

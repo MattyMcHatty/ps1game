@@ -21,7 +21,7 @@ typedef struct {
     const uint8_t *bits;      /* row-major, bit (u & 7) of byte u >> 3  */
 } LavaFloor;
 
-#define LAVA_FLOOR_COUNT 2
+#define LAVA_FLOOR_COUNT 3
 
 extern const LavaFloor lava_floors[LAVA_FLOOR_COUNT];
 

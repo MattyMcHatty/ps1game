@@ -111,7 +111,7 @@ def room_uploaders(rooms):
 FLOWER_ROOMS = {"STATE_OUTSIDE_CATACOMBS", "STATE_MAZE_ONE", "STATE_MAZE_TWO",
                 "STATE_STABLES", "STATE_GREENHOUSE"}
 # nessie_room_has_sheet() in src/nessie.c, restated.
-NESSIE_ROOMS = {"STATE_SHARURS_TRIAL"}
+NESSIE_ROOMS = {"STATE_SHARURS_TRIAL", "STATE_LAVA_U"}
 
 
 def extra_rules(room, area):

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "render.h"
 #include "title.h"
+#include "world.h"   /* RoomBits */
 
 /* Crib: an iron cot, Chapter 3's fifth prop and the first thing in the
    Catacombs that is furniture rather than machinery. SIX stand in the game as
@@ -113,7 +114,7 @@
 
    Solving one sets its room's bit and nothing else; neither implies the other.
    A later crib in a new room gets a new bit by being in a new room. To count
-   them, count the set bits of crib_solved_mask().
+   them, count the set bits of crib_solved_mask_get().
 
    ---- THE NURSERY'S MIRRORS ------------------------------------------------
    The Nursery (src/nursery.c) stands SIX cots in a ring, and none of them is an
@@ -510,10 +511,9 @@ void cribs_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius);
  * live every frame rather than caching the answer in the instance, so the order
  * of room init, world_enter() and savegame_apply_pending() cannot matter.
  * See the long note at the top of this file for why this is not a GameFlag. */
-/* uint64_t since The Pit took room slot 32 and widened WorldDelta.visited and
- * cribs_solved beside it (src/world.h). One bit per room, ceiling 64. */
-uint64_t crib_solved_mask(void);
-void     crib_solved_mask_set(uint64_t mask);   /* load; replaces the whole set */
+/* A RoomBits (src/world.h): one bit per room, as wide as WORLD_NUM_ROOMS. */
+void     crib_solved_mask_get(RoomBits *out);
+void     crib_solved_mask_set(const RoomBits *mask); /* load; replaces the set */
 int      crib_room_solved(GameState area);
 
 /* Bank one room's bit as though its encounter had just been beaten — the debug

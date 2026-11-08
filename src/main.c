@@ -122,6 +122,7 @@
 #include "descent_to_hell.h"  /* CHAPTER 4: the fall the Seal's white lands in  */
 #include "hell_hath_no_fury.h"/* ...and the platform the Descent's white lands on */
 #include "sharurs_trial.h"    /* ...and the lava sea behind its south-west door  */
+#include "lava_u.h"           /* ...and the lava U behind its two southern doors */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
 #include "underworld_sky.h"   /* ...and the sky over every room after it         */
 #include "kennels_puzzle.h"
@@ -205,6 +206,17 @@ static int bedroom_door_west = 0;
    Descent's white and this door) and current_area cannot tell them apart on
    every route in (a debug jump or a title load leaves it stale). */
 static int hhnf_from_sharur = 0;
+
+/* Which of Sharur's Trial's doors the player is arriving through, and which of
+   Lava U's. Set at the trigger on the far side, read and cleared by the
+   arriving room's STATE_LOADING branch - never recovered from current_area.
+     sharur_arrival: 0 the north-east door (from Hell Hath No Fury, and the
+                     default), 1 the south door, 2 the south-west door (both
+                     from Lava U).
+     lava_u_from_sw: 0 the north-east door (from Sharur's south door, and the
+                     default), 1 the north-west door (from its south-west). */
+static int sharur_arrival = 0;
+static int lava_u_from_sw = 0;
 
 /* Debug/game-over font stream (opened in main() after FntLoad). The HUD's log
    box renders with FntSort straight into the OT, so it needs no stream. */
@@ -297,6 +309,8 @@ void reset_game(RenderContext *ctx) {
     descent_to_hell_reset();/* ...and the fall it ends in, and the tube's RAM */
     hell_hath_no_fury_reset();/* ...and the white the platform fades up out of */
     hhnf_from_sharur = 0;     /* ...and which door it was last entered by    */
+    sharur_arrival   = 0;     /* ...and Sharur's Trial's, and Lava U's       */
+    lava_u_from_sw   = 0;
     gula_death_reset();    /* ...and any half-played death of hers            */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
@@ -452,6 +466,7 @@ static void load_area_geometry(GameState area) {
         case STATE_DESCENT_TO_HELL:  descent_to_hell_load_geometry(); break;
         case STATE_HELL_HATH_NO_FURY:hell_hath_no_fury_load_geometry(); break;
         case STATE_SHARURS_TRIAL:    sharurs_trial_load_geometry(); break;
+        case STATE_LAVA_U:           lava_u_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -3339,6 +3354,55 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* THE SOUTH DOOR, to Lava U's north-east door: a CATACOMB inner door
+           on this side, so the catacomb transition (its texture is this
+           room's own, its sound banked for the chapter); the far side is
+           wooden and going back plays that. */
+        else if (sharurs_trial_s_door_triggered(lock)) {
+            lava_u_from_sw = 0;
+            pending_area = STATE_LAVA_U;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* THE SOUTH-WEST DOOR, to Lava U's north-west door: wooden both
+           sides. */
+        else if (sharurs_trial_sw_door_triggered(lock)) {
+            lava_u_from_sw = 1;
+            pending_area = STATE_LAVA_U;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_LAVA_U) {
+        /* LAVA U - Chapter 4's third room (src/lava_u.c): a U of lava round a
+           rock island, the shared wall routine and ONE flat floor zone. No
+           props, no enemies. The lava burns from lava_update(), like every
+           Chapter 4 room's.
+
+           ONE ENEMY: the NESSIE world_seed_room() puts in the U's west arm
+           (src/nessie.h), exactly as Sharur's Trial runs its three.
+
+           TWO DOORS, both WOODEN on this side, so both play the wooden
+           transition: the north-east to Sharur's Trial's south door (a
+           catacomb door over there), the north-west to its south-west door.
+           The latch tells Sharur's Trial which arrival this is. */
+        apply_collision_reception();
+        apply_height();
+        update_nessies();
+        if (lava_u_ne_door_triggered(lock)) {
+            sharur_arrival = 1;
+            pending_area = STATE_SHARURS_TRIAL;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (lava_u_nw_door_triggered(lock)) {
+            sharur_arrival = 2;
+            pending_area = STATE_SHARURS_TRIAL;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_ROOM_OF_TORSOS) {
         /* THE ROOM OF TORSOS - Chapter 3's eighteenth room: the shared wall
            routine, ONE flat floor zone and one door, the Room of Bones' shape.
@@ -3911,6 +3975,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         hell_hath_no_fury_draw(ctx);
     else if (area == STATE_SHARURS_TRIAL)
         sharurs_trial_draw(ctx);
+    else if (area == STATE_LAVA_U)
+        lava_u_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4451,6 +4517,8 @@ int main(int argc, const char **argv) {
                                      registration, header only. */
     sharurs_trial_load_assets();  /* ...and Sharur's Trial: ONE deferred
                                      registration, header only. */
+    lava_u_load_assets();         /* ...and Lava U: TIM_SLOTs only - every
+                                     texture is borrowed. */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
                                      registrations. Its model is read on entry
                                      to the first room that draws it. */
@@ -5511,6 +5579,12 @@ int main(int argc, const char **argv) {
                    door, and the sky's hell bg. The wooden door is resident
                    (src/sharurs_trial.c). */
                 sharurs_trial_upload_textures();
+            } else if (pending_area == STATE_LAVA_U) {
+                /* LAVA U. Owns nothing: Hell Hath No Fury's volcanic, the
+                   Descent's lava, Sharur's Trial's rocks and the sky's hell
+                   bg through narrow uploaders. The wooden door is resident
+                   (src/lava_u.c). */
+                lava_u_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -6476,11 +6550,23 @@ int main(int argc, const char **argv) {
                 else if (hhnf_from_sharur) hell_hath_no_fury_spawn_sw();
                 hhnf_from_sharur = 0;
             } else if (pending_area == STATE_SHARURS_TRIAL) {
-                /* ONE ARRIVAL today, through the north-east door from Hell
-                   Hath No Fury; the init's default spawn is that door's, and
-                   a debug jump lands there too. NO MUSIC LINE: the chapter's
+                /* THREE ARRIVALS: the north-east door from Hell Hath No Fury
+                   (the init's default, and where a debug jump lands), and the
+                   south and south-west doors from Lava U, told apart by the
+                   latch Lava U's doors set. NO MUSIC LINE: the chapter's
                    block below. */
                 sharurs_trial_init();
+                if (sharur_arrival == 1)      sharurs_trial_spawn_s();
+                else if (sharur_arrival == 2) sharurs_trial_spawn_sw();
+                sharur_arrival = 0;
+            } else if (pending_area == STATE_LAVA_U) {
+                /* TWO ARRIVALS, both from Sharur's Trial: the north-east door
+                   (the init's default, and where a debug jump lands) and the
+                   north-west, told by the latch Sharur's doors set. NO MUSIC
+                   LINE: the chapter's block below. */
+                lava_u_init();
+                if (lava_u_from_sw) lava_u_spawn_nw();
+                lava_u_from_sw = 0;
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -6915,7 +7001,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_SEAL ||
                    game_state == STATE_DESCENT_TO_HELL ||
                    game_state == STATE_HELL_HATH_NO_FURY ||
-                   game_state == STATE_SHARURS_TRIAL) {
+                   game_state == STATE_SHARURS_TRIAL ||
+                   game_state == STATE_LAVA_U) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

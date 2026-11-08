@@ -893,14 +893,13 @@ Touch these files, in this order:
                      enum. Saves store raw enum values, so inserting in the
                      middle silently corrupts old saves.
 
-  src/world.h        Bump WORLD_NUM_ROOMS (+1). >>> CHECK IT AGAINST THE
-                     `visited` BITMAP. <<< WorldDelta.visited is one bit per
-                     room and it is the real ceiling on the room count. It was a
-                     uint16_t and Maze One was the seventeenth room, so it is a
-                     uint32_t now and the ceiling is 32. There is a
-                     _Static_assert in world.c holding the two in step — if it
-                     fires, WIDEN THE FIELD, do not just bump the count, or
-                     rooms past the end come back unvisited from every save.
+  src/world.h        Bump WORLD_NUM_ROOMS (+1). That is all: WorldDelta's
+                     `visited` and `cribs_solved` bitmaps are RoomBits (one bit
+                     per room, sized from WORLD_NUM_ROOMS) since Lava U, the
+                     sixty-fifth room, filled the uint64_t they had been. They
+                     filled a uint16_t, a uint32_t and a uint64_t in turn; there
+                     is no fixed ceiling left. Read and write them only through
+                     room_bits_test() / room_bits_set().
 
   src/world.c        Add a `case STATE_<X>: return <n>;` to room_index() AND the
                      matching entry to room_areas[] — the two tables are

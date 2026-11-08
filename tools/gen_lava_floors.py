@@ -50,6 +50,7 @@ COVER_RISE = 50   # a flat floor this far above the lava (-y is up) covers it
 #        area                       visual mesh                                     collision proxy                                       lava tex
 ROOMS = [('STATE_HELL_HATH_NO_FURY', 'assets/underworld/Hell Hath No Fury.smx',      'assets/underworld/Hell Hath No Fury mesh.smx',      'lava'),
          ('STATE_SHARURS_TRIAL',     'assets/underworld/Sharurs Trial.smx',          'assets/underworld/Sharurs Trial mesh.smx',          'lava'),
+         ('STATE_LAVA_U',            'assets/underworld/Lava U.smx',                 'assets/underworld/Lava U mesh.smx',                 'lava'),
          ]
 
 

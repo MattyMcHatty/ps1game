@@ -80,7 +80,7 @@
  * door_anim_panels_taken() and the restore puts them back on the way out of
  * the chapter (main.c uploads this AFTER that restore, as it does Adapa).
  *
- * >>> ONLY SHARUR'S TRIAL UPLOADS THE SHEET TODAY. <<< Placing one in another
+ * >>> ONLY SHARUR'S TRIAL AND LAVA U UPLOAD THE SHEET TODAY. <<< Placing one in another
  * room means: a pool line in tools/gen_nessie_pools.py, the placement in
  * world.c, the room in nessie_room_has_sheet() (the .c) — which is what main.c
  * and tools/gen_tex_rooms.py key the upload on — and update_nessies() /
@@ -99,8 +99,8 @@
  * (nessie die, 2.58 s, UNDERWORLD only), played with the lava burst.
  * ----------------------------------------------------------------------- */
 
-#define MAX_NESSIES            8    /* WHOLE-GAME budget — see above. Three placed,
-                                       all in Sharur's Trial                      */
+#define MAX_NESSIES            8    /* WHOLE-GAME budget — see above. Four placed: three
+                                       in Sharur's Trial, one Lava U                */
 #define NSS_MAX_HEALTH         8    /* eight swings, eight non-flame rounds       */
 
 /* ---- Speed, in 1/256 units per frame. "Very slowly": 384 is 1.5 units a

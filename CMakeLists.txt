@@ -112,6 +112,7 @@ add_executable(horror_game
     src/descent_to_hell.c
     src/hell_hath_no_fury.c
     src/sharurs_trial.c
+    src/lava_u.c
     src/underworld_sky.c
     src/kennels_puzzle.c
     src/arm_switch.c

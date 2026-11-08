@@ -16,12 +16,16 @@
    (src/underworld_sky.h), which is centred on it. The collision proxy's rim
    and outcrops stop the player; one flat floor zone.
 
-   THREE DOORS, all in the rim:
+   FOUR DOORS:
      - NORTH-EAST, wooden, on the 45-degree rim (wall 38) at (3000,2200): back
-       to Hell Hath No Fury's south-west door. The ONLY door that leads
-       anywhere yet.
-     - NORTH-WEST, wooden, at (-2400,2400), and SOUTH, a catacomb inner door,
-       at (0,-1500): no prompt and no trigger until their rooms exist.
+       to Hell Hath No Fury's south-west door.
+     - SOUTH, a catacomb inner door on the south ledge (wall 47) at
+       (0,-1500): to LAVA U's north-east door (src/lava_u.h). The catacomb
+       transition out, the wooden one back.
+     - SOUTH-WEST, wooden, on the 45-degree rim (wall 44) at (-3000,-2400):
+       to LAVA U's north-west door. Wooden both ways.
+     - NORTH-WEST, wooden, at (-2400,2400): no prompt and no trigger until
+       its room exists.
 
    >>> THE TRANSITION DEPENDS ON THE DIRECTION, NOT THE DOORWAY. <<< The
    Underworld is a distorted hellscape: a door need not look the same from its
@@ -36,17 +40,22 @@
 void sharurs_trial_load_assets(void);     /* startup: one registration        */
 void sharurs_trial_load_geometry(void);   /* ROOM ENTRY: mesh + the sky       */
 void sharurs_trial_upload_textures(void); /* room entry: pure LoadImage       */
+void sharurs_trial_upload_rocks(void);    /* narrow: ROCKS.TIM alone (Lava U) */
 void sharurs_trial_init(void);            /* collision, floor, default spawn  */
 void sharurs_trial_draw(RenderContext *ctx);
 
-/* The NORTH-EAST door, back to Hell Hath No Fury. A fresh Circle within
-   reach and facing it. THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED,
+/* The doors: NORTH-EAST back to Hell Hath No Fury, SOUTH and SOUTH-WEST to
+   Lava U. A fresh Circle within reach and facing it. THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED,
    so a Circle held across a menu closing does not read as a fresh press when
    the lock lifts. */
 void sharurs_trial_doors_arm(void);
 int  sharurs_trial_ne_door_triggered(int lock);
+int  sharurs_trial_s_door_triggered(int lock);
+int  sharurs_trial_sw_door_triggered(int lock);
 
-/* Arrival through the north-east door (also the default spawn). */
+/* Arrivals, one per door. The north-east one is also the default spawn. */
 void sharurs_trial_spawn_ne(void);
+void sharurs_trial_spawn_s(void);
+void sharurs_trial_spawn_sw(void);
 
 #endif

@@ -331,6 +331,10 @@ typedef enum {
                                 south-west door - Chapter 4's second room: a
                                 lava sea with paths, rocks and ruins. See
                                 src/sharurs_trial.h. Appended, not inserted. */
+    STATE_LAVA_U,            /* LAVA U, behind Sharur's Trial's south and
+                                south-west doors - Chapter 4's third room: a
+                                U of lava round a rock island. See
+                                src/lava_u.h. Appended, not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

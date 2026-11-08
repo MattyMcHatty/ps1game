@@ -2022,6 +2022,11 @@
              wooden door. -->
             <file name="SHARUR.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\sharurs_trial.smd"/>
             <file name="ROCKS.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\rocks.tim"/>
+        <!-- LAVA U (src/lava_u.h), behind Sharur's Trial's south and
+             south-west doors: a U of lava round a rock island. Owns no
+             texture: the volcanic, the lava, Sharur's rocks and the resident
+             wooden door. -->
+            <file name="LAVAU.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\lava_u.smd"/>
         <!-- NESSIE, the chapter's first monster (src/nessie.h): a lava-bound
              head that swims its own pool and spits fireballs. Six frames, one
              256x256 sheet (textures/underworld/nessie.png), shipped as two

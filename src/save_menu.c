@@ -145,6 +145,7 @@ static const char *area_name(int area) {
         case STATE_DESCENT_TO_HELL:   return "DESCENT TO HELL";
         case STATE_HELL_HATH_NO_FURY: return "HELL HATH NO FURY";
         case STATE_SHARURS_TRIAL:     return "SHARUR'S TRIAL";
+        case STATE_LAVA_U:            return "LAVA U";
         case STATE_LIBRARY_DESTROYED: return "LIBRARY";
         default:                   return "MANSION";
     }

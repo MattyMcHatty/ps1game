@@ -21,6 +21,7 @@ typedef enum {
     NSS_POOL_SHARUR_NW,   /* Sharurs Trial.smx, seeded at (-1300,200): 2020 cells */
     NSS_POOL_SHARUR_N,   /* Sharurs Trial.smx, seeded at (250,2200): 1886 cells */
     NSS_POOL_SHARUR_E,   /* Sharurs Trial.smx, seeded at (1950,-200): 3070 cells */
+    NSS_POOL_LAVA_U,   /* Lava U.smx, seeded at (-1934,-2831): 5828 cells */
     NSS_POOL_COUNT
 } NessiePoolId;
 
