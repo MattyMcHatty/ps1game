@@ -21,6 +21,7 @@
 #include "mushroom.h"
 #include "lumberer.h"
 #include "nessie.h"
+#include "ahriman.h"
 #include "gula.h"
 #include "lamashtu.h"     /* the one spot on her back that can be hurt */
 #include "creep.h"
@@ -265,6 +266,13 @@ static void gun_hit(int kind, int idx) {
            included: being shot IS being found. */
         nessie_damage(&nessies[idx],
                       nessie_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 19) {
+        /* AN AHRIMAN: a whole hit point of its three from a Standard or
+           Scattershot round, HALF of one from a Flame Round - it takes them in
+           half-points, and ahriman_scale_damage is the conversion (ahriman.h).
+           Three rounds, or six Flame Rounds. */
+        ahriman_damage(&ahrimans[idx],
+                       ahriman_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (kind == 17) {
         /* A LAMASHTU CREEP: the Creep's one hit point, so any round. */
         lms_creep_damage(&lms_creeps[idx],
@@ -454,6 +462,15 @@ static void graveolver_fire(void) {
         int32_t cyc, hh, hw;
         nessie_body(s, &cyc, &hh, &hw);
         consider(18, i, s->x, cyc, s->z, hw, hh, GUN_RANGE, CLR_LINE);
+    }
+    /* Chapter 4's Ahriman, aimed at its FLOATING body through ahriman_body()
+       - the anchor is on the floor and the body hangs at the eye line. */
+    for (i = 0; i < ahriman_count; i++) {
+        Ahriman *s = &ahrimans[i];
+        if (!s->active || s->state == AHR_DEAD || s->area != current_area) continue;
+        int32_t cyc, hh, hw;
+        ahriman_body(s, &cyc, &hh, &hw);
+        consider(19, i, s->x, cyc, s->z, hw, hh, GUN_RANGE, CLR_LINE);
     }
     /* The Creeps the Room of Arms' crib pours out. The circle is built from the
        same half-extents the sprite is drawn at, centred on creep_body_y() —

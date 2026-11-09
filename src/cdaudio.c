@@ -122,8 +122,14 @@
  * if either WAV is replaced. */
 #define CD_MIX_GAOL        53   /* ~41% of CD_MIX_FULL                   */
 /* THE UNDERWORLD'S TRACK at full level overshadows Chapter 4's sound effects.
- * Halved by ear, at the user's request — not measured like the Gaol's. */
-#define CD_MIX_UNDERWORLD  64   /* 50% of CD_MIX_FULL                    */
+ * It was halved by ear first (64); that was not enough - the Ahriman's flash
+ * and wings were lost under it - and MEASURED it is the hottest track on the
+ * disc by far: RMS -11.1 dBFS (kulakovka-dark-synthwave) against the
+ * Catacombs' -27.2 (leberch-creepy-511957), so even halved it sat ~10 dB above
+ * Chapter 3's music. Now matched to the Catacombs exactly as the Gaol is:
+ * 128 * 10^(-16.1/20) = 20, so all three chapters' effects play against the
+ * same music level. Re-measure if either WAV is replaced. */
+#define CD_MIX_UNDERWORLD  20   /* ~16% of CD_MIX_FULL                   */
 
 static int           cd_audio_playing = 0;
 static int           cd_track_num     = 0;

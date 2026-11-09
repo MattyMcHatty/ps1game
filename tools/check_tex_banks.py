@@ -260,7 +260,10 @@ AREAS = {
                   # ...and NESSIE (src/nessie.c), which main.c uploads on entry
                   # to the rooms nessie_room_has_sheet() names - Sharur's Trial
                   # today. Underworld rooms only.
-                  "nessies_upload_textures"],
+                  "nessies_upload_textures",
+                  # ...and the AHRIMAN (src/ahriman.c), likewise, for the rooms
+                  # ahriman_room_has_sheet() names - Lava U today.
+                  "ahrimans_upload_textures"],
 }
 
 BIT = {"MANSION": 1 << 0, "GARDEN": 1 << 1, "RABISU": 1 << 2,

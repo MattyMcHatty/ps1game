@@ -464,6 +464,17 @@ STATUS EFFECTS belong to the player, in player.c, as a frame countdown:
     player-systems pass BEFORE draw_hud so the HUD stays untinted, at an OT
     index below SCENE_OT_MIN but above the HUD's (the Spider used 3).
 
+A STATUS THAT LASTS AS LONG AS AN ENEMY DOES, NOT A TIMER (the Ahriman's
+freeze, src/ahriman.h, Nov 2026). Do NOT add a player.c countdown for it. Give
+the module an area-gated query - ahrimans_hold_player(area) - and OR it into
+main.c's per-frame `player_rooted = ...` line. That flag is recomputed from the
+room every frame, so the status ends the frame the enemy dies, cannot follow the
+player through a door, and needs no reset_game or save handling of its own.
+player_rooted already means "turn, look, aim, attack - no walking", skips the
+sprint machine and zeroes knockback. If anything the enemy does PUSHES the
+player (a body push-out), the enemy must stop OUTSIDE that push, or the frozen
+player gets shoved along the floor - assert it, as AHR_STOP_DIST does.
+
 
 ##########################################################################
  STEP 5 — WEAPONS

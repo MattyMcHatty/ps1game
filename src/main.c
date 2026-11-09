@@ -42,6 +42,7 @@
 #include "crawler.h"
 #include "lumberer.h"
 #include "nessie.h"
+#include "ahriman.h"
 #include "web.h"
 #include "menu.h"
 #include "hud.h"
@@ -285,6 +286,7 @@ void reset_game(RenderContext *ctx) {
     crawlers_reset();
     lumberers_reset();
     nessies_reset();       /* ...and Chapter 4's lava monster, with its fireballs */
+    ahrimans_reset();      /* ...and its floating eyes, with their flash */
     lava_reset();          /* ...and the burn of the lava it swims in */
     lms_creeps_reset();    /* ...and every one Lamashtu poured, on the same terms */
     creeps_reset();        /* ...and every Creep a crib had poured out. There is
@@ -1222,9 +1224,13 @@ static void update_current_area(GameState area) {
     /* ROOTED (camera.h): turn and attack but no walking - the Lamashtu Arena's
        fade into the dark and the Seal's black second. Set on every frame, here,
        from the room the player is actually in. */
+    /* ...and an AHRIMAN's gaze (src/ahriman.h): from the flash until the one
+       that froze the player is dead. Area-gated inside, like everything else
+       here, so it cannot follow the player through a door. */
     player_rooted = (area == STATE_LAMASHTU_ARENA && lamashtu_boss_roots_player()) ||
                     (area == STATE_SEAL && seal_roots_player()) ||
-                    (area == STATE_HELL_HATH_NO_FURY && hell_hath_no_fury_fading());
+                    (area == STATE_HELL_HATH_NO_FURY && hell_hath_no_fury_fading()) ||
+                    ahrimans_hold_player(area);
     update_camera();
     /* Menu open: the area still ticks (enemies move, gravity applies) but every
        player-driven level interaction — doors, stairs, the drawer puzzle, save
@@ -3377,11 +3383,11 @@ static void update_current_area(GameState area) {
     } else if (area == STATE_LAVA_U) {
         /* LAVA U - Chapter 4's third room (src/lava_u.c): a U of lava round a
            rock island, the shared wall routine and ONE flat floor zone. No
-           props, no enemies. The lava burns from lava_update(), like every
+           props. The lava burns from lava_update(), like every
            Chapter 4 room's.
 
-           ONE ENEMY: the NESSIE world_seed_room() puts in the U's west arm
-           (src/nessie.h), exactly as Sharur's Trial runs its three.
+           ENEMIES: the three AHRIMANS world_seed_room() puts here
+           (src/ahriman.h). No Nessie.
 
            TWO DOORS, both WOODEN on this side, so both play the wooden
            transition: the north-east to Sharur's Trial's south door (a
@@ -3389,7 +3395,7 @@ static void update_current_area(GameState area) {
            The latch tells Sharur's Trial which arrival this is. */
         apply_collision_reception();
         apply_height();
-        update_nessies();
+        update_ahrimans();
         if (lava_u_ne_door_triggered(lock)) {
             sharur_arrival = 1;
             pending_area = STATE_SHARURS_TRIAL;
@@ -4009,6 +4015,7 @@ static void draw_player_systems(RenderContext *ctx) {
     weapons_draw(ctx);
     player_draw_status_overlay(ctx);   /* poison wash: over the scene, under the HUD */
     lava_draw_overlay(ctx);            /* ...and the lava's orange pulse, likewise   */
+    ahrimans_draw_flash(ctx);          /* ...and an Ahriman's white flash             */
 #ifdef DEBUG_COLLISION
     debug_draw_coords(ctx);      /* 2D panel — screen space, so it goes last */
 #endif
@@ -4730,6 +4737,11 @@ int main(int argc, const char **argv) {
                                  on Adapa's pages), uploaded on entry to
                                  Sharur's Trial - see STATE_LOADING */
     nessies_init();
+    ahrimans_load_textures(); /* CHAPTER 4's floating eye: REGISTERED here (one
+                                 256x256 sheet, four frames, two 256x128 halves
+                                 on the crawler's pages), uploaded on entry to
+                                 the rooms ahriman_room_has_sheet() names */
+    ahrimans_init();
     loading_screen_pump(&ctx);
     creeps_load_textures();   /* Chapter 3's third monster, and the only one in
                                  the game that is SPAWNED rather than placed —
@@ -5815,6 +5827,15 @@ int main(int argc, const char **argv) {
                NESSIE_ROOMS in tools/gen_tex_rooms.py. */
             if (nessie_room_has_sheet(pending_area))
                 nessies_upload_textures();
+            /* THE AHRIMAN, on the CRAWLER's two blocks x320 / x704 y128
+               (src/ahriman.h). No Underworld room draws anything there, and
+               nothing above writes them for an Underworld destination - the
+               crawler, flower, spider and zombie lines are all keyed to rooms
+               that hold their owners, and are what put those pages back on the
+               far side of the title. Which rooms: ahriman_room_has_sheet(),
+               mirrored as AHRIMAN_ROOMS in tools/gen_tex_rooms.py. */
+            if (ahriman_room_has_sheet(pending_area))
+                ahrimans_upload_textures();
             {
                 /* WHITE, NOT BLACK, INTO DESCENT TO HELL: the Seal hands off in
                    full white and the room fades up out of it, so this one

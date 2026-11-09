@@ -29,6 +29,7 @@
 #include "lms_creep.h"  /* ...and so are Lamashtu's */
 #include "maggot.h"
 #include "nessie.h"     /* Chapter 4's lava monster: global, area-tagged */
+#include "ahriman.h"    /* ...and its floating eye: likewise                */
 #include <stddef.h>     /* offsetof — the nessies_dead layout asserts     */
 #include "sound.h"
 
@@ -100,6 +101,8 @@ typedef struct {
     int       rabisu_count;
     Nessie    nessies[MAX_NESSIES];       /* ditto: Chapter 4's lava monster */
     int       nessie_count;
+    Ahriman   ahrimans[MAX_AHRIMANS];     /* ditto: Chapter 4's floating eye */
+    int       ahriman_count;
     Mushroom  mushrooms[MAX_MUSHROOMS];   /* ditto: the garden's pacing ambusher */
     int       mushroom_count;
     LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
@@ -140,6 +143,13 @@ _Static_assert(offsetof(WorldDelta, nessies_dead) == offsetof(WorldDelta, spider
                "nessies_dead is not in the byte after spiders_dead");
 _Static_assert(offsetof(WorldDelta, crawlers_dead) == offsetof(WorldDelta, spiders_dead) + 2,
                "nessies_dead moved crawlers_dead — the save layout changed");
+/* ...and ahrimans_dead took the padding byte after rabisus_dead, on the same
+   terms: if either of these fires, bump SAVE_VERSION instead. */
+_Static_assert(MAX_AHRIMANS      <= WD_MAX_AHRIMANS, "ahrimans_dead too narrow");
+_Static_assert(offsetof(WorldDelta, ahrimans_dead) == offsetof(WorldDelta, rabisus_dead) + 1,
+               "ahrimans_dead is not in the byte after rabisus_dead");
+_Static_assert(offsetof(WorldDelta, lumberers_dead) == offsetof(WorldDelta, rabisus_dead) + 2,
+               "ahrimans_dead moved lumberers_dead — the save layout changed");
 _Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow");
 _Static_assert(MAX_LIVING_STATUES <= WD_MAX_LIVING_STATUES,
                "living_statues_dead too narrow");
@@ -169,6 +179,7 @@ extern Crawler   crawlers[MAX_CRAWLERS];       extern int crawler_count;
 extern Lumberer  lumberers[MAX_LUMBERERS];     extern int lumberer_count;
 extern Rabisu    rabisus[MAX_RABISUS];         extern int rabisu_count;
 extern Nessie    nessies[MAX_NESSIES];         extern int nessie_count;
+extern Ahriman   ahrimans[MAX_AHRIMANS];       extern int ahriman_count;
 extern Mushroom  mushrooms[MAX_MUSHROOMS];     extern int mushroom_count;
 extern LivingStatue living_statues[MAX_LIVING_STATUES];
 extern int          living_statue_count;
@@ -492,6 +503,8 @@ static void snapshot_fatdoors(void) {
     world.rabisu_count = rabisu_count;
     memcpy(world.nessies, nessies, sizeof nessies);
     world.nessie_count = nessie_count;
+    memcpy(world.ahrimans, ahrimans, sizeof ahrimans);
+    world.ahriman_count = ahriman_count;
     memcpy(world.mushrooms, mushrooms, sizeof mushrooms);
     world.mushroom_count = mushroom_count;
     memcpy(world.living_statues, living_statues, sizeof living_statues);
@@ -599,6 +612,8 @@ void world_leave(GameState area) {
     lumberers_rest();
     rabisus_rest();
     nessies_rest();
+    ahrimans_rest();     /* ...and the freeze with them: a frozen player who
+                            reaches a door walks out free */
     mushrooms_rest();
     living_statues_rest();
     /* NOT simply "back at his spawn": where Hadad starts a visit depends on the
@@ -2181,11 +2196,35 @@ void world_seed_room(GameState area) {
         nessie_add(  275, 2150, NSS_POOL_SHARUR_N,  STATE_SHARURS_TRIAL);
         nessie_add( 1950, -200, NSS_POOL_SHARUR_E,  STATE_SHARURS_TRIAL);
     }
-    /* LAVA U: one Nessie in the U's west arm, (-1934,-2831) (NSS_POOL_LAVA_U -
-       the whole U is one pool, so she can swim all of it). Its own room, so
-       canonical_index keys her apart from Sharur's Trial's three. */
+    /* LAVA U has NO Nessie (one stood in the west arm's lava until Nov 2026 and
+       was removed with her pool, upload and update/draw calls). Removing her
+       shifted no one else's save bit: canonical_index keys Nessies by room.
+
+       ONE AHRIMAN (src/ahriman.h), HEIGHT B - at the eye line - in the
+       U's SOUTH-WEST corner. That corner is chamfered: the rim runs diagonally
+       from (-6900,-3900) to (-5699,-4845), then a short notch down to the south
+       wall at z=-5100. (-5500,-4650) is 278 in front of the diagonal, 450 off
+       the south wall and east of the notch - clear of AHR_BODY_RADIUS (100)
+       on every side, so no wall shoves it on arrival. It floats, so it does
+       not care that it is over the lava.
+       Same keying as the Nessies: canonical_index over the ahrimans' own areas,
+       so this is bit 0 and any later placement appends. */
     if (area == STATE_LAVA_U)
-        nessie_add(-1934, -2831, NSS_POOL_LAVA_U, STATE_LAVA_U);
+        ahriman_add(-5500, -4650, AHR_HEIGHT_B, STATE_LAVA_U);
+    /* TWO MORE, appended so the first keeps bit 0 (bits 1 and 2):
+         HEIGHT A - just below the eye line - 800 south of the NORTH-WEST door
+         (centre x=-4730, z=300), on the door's own line, in the head of the
+         west arm. 800 off the north rim, 1257 off the NW diagonal (wall 7):
+         a player arriving through that door faces south straight at it, so it
+         is already in range and in view - the gaze starts on arrival.
+         HEIGHT C - just above the eye line - in the SOUTH-EAST corner. That
+         corner is notched: the east rim steps in to x=1500 below z=-4500
+         (walls 2 and 9). (1100,-4700) is 400 off the x=1500 face, 400 off the
+         south wall and 447 off the notch's diagonal. */
+    if (area == STATE_LAVA_U) {
+        ahriman_add(-4730,  -500, AHR_HEIGHT_A, STATE_LAVA_U);
+        ahriman_add( 1100, -4700, AHR_HEIGHT_C, STATE_LAVA_U);
+    }
 }
 
 void world_enter(GameState area) {
@@ -2367,6 +2406,15 @@ void world_save_delta(WorldDelta *d) {
                     (1u << canonical_index(areas, world.nessie_count, i));
     }
     {
+        /* Same canonical keying as the crawlers above, and for the same reason. */
+        GameState areas[MAX_AHRIMANS];
+        for (i = 0; i < world.ahriman_count; i++) areas[i] = world.ahrimans[i].area;
+        for (i = 0; i < world.ahriman_count; i++)
+            if (world.ahrimans[i].state == AHR_DEAD)
+                d->ahrimans_dead |= (uint8_t)
+                    (1u << canonical_index(areas, world.ahriman_count, i));
+    }
+    {
         GameState areas[MAX_RABISUS];
         for (i = 0; i < world.rabisu_count; i++) areas[i] = world.rabisus[i].area;
         for (i = 0; i < world.rabisu_count; i++)
@@ -2422,6 +2470,7 @@ void world_load_delta(const WorldDelta *d) {
     lumberers_reset();
     rabisus_reset();
     nessies_reset();
+    ahrimans_reset();
     mushrooms_reset();
     living_statues_reset();
     hadads_reset();
@@ -2502,6 +2551,8 @@ void world_load_delta(const WorldDelta *d) {
         if (d->lumberers_dead & (1u << i)) lumberers[i].state = LMB_DEAD;
     for (i = 0; i < nessie_count; i++)
         if (d->nessies_dead & (1u << i)) nessies[i].state = NSS_DEAD;
+    for (i = 0; i < ahriman_count; i++)
+        if (d->ahrimans_dead & (1u << i)) ahrimans[i].state = AHR_DEAD;
     for (i = 0; i < rabisu_count; i++)
         if (d->rabisus_dead & (1u << i)) { rabisus[i].dead = 1; rabisus[i].dying = 1; }
     for (i = 0; i < mushroom_count; i++)

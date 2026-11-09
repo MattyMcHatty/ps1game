@@ -8,6 +8,7 @@
 #include "camera.h"   /* sprint_stamina, SPRINT_STAMINA_MAX, sprint_cooldown */
 #include "menu.h"     /* menu_draw_weapon_icon */
 #include "helluminator.h" /* helluminator_burning: the oil count's lit tell */
+#include "ahriman.h"   /* ahrimans_hold_player: the frozen stamina bar */
 
 /* ---- Where the panel sits ------------------------------------------------
    The art is authored at screen resolution, so a source-texture coordinate and
@@ -349,13 +350,24 @@ void hud_draw(RenderContext *ctx) {
     }
     {
         int sw = (sprint_stamina * BAR_W) / SPRINT_STAMINA_MAX;
+        /* Frozen: the WHOLE bar, whatever is in it - stamina is moot while you
+           cannot move, and an empty bar would show no change at all. */
+        if (ahrimans_hold_player(current_area)) sw = BAR_W;
         if (sw > 0) {
             /* Red while sprint is locked out — exhausted or poisoned; blue
-               when it is available, so it never reads as a second health bar. */
+               when it is available, so it never reads as a second health bar.
+               STONE GREY while an Ahriman has the player frozen (src/ahriman.h):
+               a different message from red - not "you cannot sprint" but "you
+               cannot move at all" - so it gets its own colour, and it wins over
+               red. current_area, not game_state: the menu does not thaw you. */
             int locked = sprint_cooldown || player_poisoned();
-            hud_rect(ctx, BAR_X, HUD_Y + STAMINA_Y, sw, BAR_H,
-                     locked ? 208 : 32, locked ? 0 : 96, locked ? 0 : 220,
-                     HUD_OT_FILL);
+            if (ahrimans_hold_player(current_area))
+                hud_rect(ctx, BAR_X, HUD_Y + STAMINA_Y, sw, BAR_H,
+                         170, 170, 180, HUD_OT_FILL);
+            else
+                hud_rect(ctx, BAR_X, HUD_Y + STAMINA_Y, sw, BAR_H,
+                         locked ? 208 : 32, locked ? 0 : 96, locked ? 0 : 220,
+                         HUD_OT_FILL);
         }
     }
 

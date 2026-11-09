@@ -1175,6 +1175,21 @@ KNOWN_STREAM_PAIRS = [
     ("grdn_gte.tim",                   "rocks.tim"),
     ("kchn_wl.tim",                    "rocks.tim"),
     ("loculus.tim",                    "rocks.tim"),
+    #   ahriman_a / ahriman_b -> the AHRIMAN (src/ahriman.c), the floating eye,
+    # 4bpp 256x128 halves on the CRAWLER's two blocks: ahriman_a (frames 0-1) at
+    # x[320,384) y128, ahriman_b (frames 2-3) at x[704,768) y128, CLUTs
+    # (144,480)/(160,480) of its own. Gula's terms one chapter on: nothing in the
+    # Underworld draws a crawler, spider, flower or zombie, and the Underworld
+    # is left only through the title, whose load passes through main.c's
+    # STATE_LOADING block - which puts the crawler / flowers / spiders back over
+    # x320 and the zombies over x704 on entry to every room that holds them.
+    ("crawler_a.tim",      "ahriman_a.tim"),
+    ("gula_a.tim",         "ahriman_a.tim"),
+    ("spdr_rst.tim",       "ahriman_a.tim"),
+    ("rafflesia1.tim",     "ahriman_a.tim"),
+    ("crawler_b.tim",      "ahriman_b.tim"),
+    ("gula_b.tim",         "ahriman_b.tim"),
+    ("zombie_sleep.tim",   "ahriman_b.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

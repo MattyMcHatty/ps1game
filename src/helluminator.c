@@ -21,6 +21,7 @@
 #include "mushroom.h"
 #include "lumberer.h"
 #include "nessie.h"
+#include "ahriman.h"
 #include "maggot.h"
 #include "rabisu.h"
 #include "asag.h"
@@ -327,6 +328,16 @@ static void hell_burn_tick(void) {
         nessie_body(s, &cyc, &hh, &hw);
         if (HIT(s->x, cyc, s->z, hw, hh))
             nessie_damage(s, nessie_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
+    }
+    /* THE AHRIMAN: holy fire is not a Flame Round, so the full tick - a whole
+       hit point a second of its three (ahriman.h, half-points). */
+    for (i = 0; i < ahriman_count; i++) {
+        Ahriman *s = &ahrimans[i];
+        if (!s->active || s->state == AHR_DEAD || s->area != current_area) continue;
+        int32_t cyc, hh, hw;
+        ahriman_body(s, &cyc, &hh, &hw);
+        if (HIT(s->x, cyc, s->z, hw, hh))
+            ahriman_damage(s, ahriman_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
     }
     /* The Maggots — in graveolver_fire's list, so they are here too (the rule
        above). Aimed through maggot_body_y(), where the floating body is. 1 a

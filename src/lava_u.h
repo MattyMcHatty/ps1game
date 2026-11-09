@@ -30,8 +30,11 @@
    south-west door DOOR_PANEL_WOOD. See the Chapter 4 block of
    tools/ADDING_A_ROOM.txt.
 
-   No enemies, no props. THE MUSIC is the chapter's (main.c's Chapter 4
-   block). Chapter rules (the fog, the sky): src/underworld.h. */
+   No props. One kind of enemy, placed by world.c: three AHRIMANS - height B
+   in the south-west corner, A by the north-west door, C in the south-east
+   corner. THE MUSIC is the
+   chapter's (main.c's Chapter 4 block). Chapter rules (the fog, the sky):
+   src/underworld.h. */
 
 void lava_u_load_assets(void);     /* startup: TIM_SLOTs only, no CD access */
 void lava_u_load_geometry(void);   /* ROOM ENTRY: mesh + the sky            */

@@ -96,6 +96,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\LMSCRY.VAG;1",
     "\\SND\\LMSSCRM.VAG;1",
     "\\SND\\NSSDIE.VAG;1",
+    "\\SND\\FLASH.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -151,9 +152,18 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
        (src/maggot.c). It takes catacombs 176,960 -> 188,800, still 1.5 KB
        under BOSS's 190,336, so `spare` stays 46,896 — but it is now within a
        whisker of being the largest bank, and the next Catacombs clip of any
-       size WILL move `spare`. */
+       size WILL move `spare`.
+
+       ...and in the UNDERWORLD bank, a fifth copy, as the AHRIMAN's death cry
+       (src/ahriman.c) - a borrowed stand-in until it has a clip of its own. It
+       takes underworld 68,352 -> 80,192, nowhere near HOUSE's 217,280, which
+       sizes `spare` now; `spare` stays 12,080 (tools/spu_budget.py, run with
+       SFX_TNTCL_DIE:UNDERWORLD before the tag went in). It plays on pool voice
+       7 alongside SFX_NSS_DIE; the two cut each other only if a Nessie and an
+       Ahriman die within 2.6 s of each other in Lava U, which is a clipped cry,
+       not a lost one. */
     [SFX_TNTCL_DIE]  = SND_BANK_HOUSE | SND_BANK_GARDEN | SND_BANK_ASAG |
-                       SND_BANK_CATACOMBS,
+                       SND_BANK_CATACOMBS | SND_BANK_UNDERWORLD,
     [SFX_STEP1]      = SND_RESIDENT,   /* the player walks in every room        */
     [SFX_STEP2]      = SND_RESIDENT,
     [SFX_SLAM]       = SND_RESIDENT,   /* the boss launching a shockwave        */
@@ -382,6 +392,11 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
     /* Nessie's death, UNDERWORLD only: src/nessie.c is its one caller and she
        is only ever in Chapter 4. Pool voice - see sound.h. */
     [SFX_NSS_DIE]    = SND_BANK_UNDERWORLD,
+    /* The Ahriman's flash, UNDERWORLD only: src/ahriman.c is its one caller
+       and it is only ever placed in Chapter 4. 3.7 KB, and the Underworld bank
+       is nowhere near the largest, so `spare` does not move
+       (tools/spu_budget.py). */
+    [SFX_AHR_FLASH]  = SND_BANK_UNDERWORLD,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -740,6 +755,21 @@ static int sfx_channel(SfxID id) {
     if (id == SFX_LMS_CHIME)   return 13;   /* SFX_GAS's     (GARDEN) one-shot */
     if (id == SFX_LMS_CRY)     return 15;   /* SFX_HISS's    (GARDEN) one-shot */
     if (id == SFX_LMS_SCREAM)  return 21;   /* SFX_EXPLODE's (BOSS)   one-shot */
+    /* ---- THE AHRIMAN'S FLASH, BORROWED ON THE EVICTION ARGUMENT, and CHECKED
+       against the whole Underworld bank, not assumed: the clips that can sound
+       in Chapter 4 are the residents (pool 1..8, the menu's 10..12 and the
+       RBS_SWING alias on 23) and the UNDERWORLD set - TNTCL_DIE, FIREBALL and
+       NSS_DIE on the pool, GLUG on 13, PULL and CTCMBDR on 14. So 0, 9, 15,
+       16, 20, 21 and 22 have no claimant down here (17..19 are poisoned).
+         (16 is free for a future Ahriman wing loop: SFX_ZOMBIE's (HOUSE)
+               and SFX_LMBR_MOAN's (CATACOMBS), neither loadable while UNDERWORLD
+               is. A wingflap clip took it once and was dropped.)
+         FLASH takes 20: its pool slot would be FIRST_VOICE + (64 % 8) = 1,
+               SFX_SWING's, and a player who has just been frozen is exactly a
+               player swinging the axe. 20's other claimants (DMNSPEAK, HAD_DIE,
+               CREEP, HOWL) are all outside UNDERWORLD. flash.vag's loop flag is
+               on its last block, 235 of 236. */
+    if (id == SFX_AHR_FLASH)   return 20;   /* SFX_DMNSPEAK's (BOSS)  one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;
@@ -915,6 +945,26 @@ void sound_init(void) {
 }
 
 void sound_play(SfxID id) {
+    sound_play_vol(id, SOUND_VOL_MAX);
+}
+
+static int sound_clamp_vol(int vol) {
+    if (vol < 0)             return 0;
+    if (vol > SOUND_VOL_MAX) return SOUND_VOL_MAX;
+    return vol;
+}
+
+/* Live re-level. Bit 15 clear on both registers is VOLUME mode (not sweep), the
+   same mode sound_play_vol keys on in, so the value is a plain level. */
+void sound_set_volume(SfxID id, int vol) {
+    if (id < 0 || id >= SFX_COUNT) return;
+    int ch = sfx_channel(id);
+    vol = sound_clamp_vol(vol);
+    SPU_CH_VOL_L(ch) = (uint16_t)vol;
+    SPU_CH_VOL_R(ch) = (uint16_t)vol;
+}
+
+void sound_play_vol(SfxID id, int vol) {
     if (id < 0 || id >= SFX_COUNT) return;
     SfxSlot *s = &sfx_slots[id];
     /* Not loaded means banked out (or missing from the disc). Silence is the
@@ -928,8 +978,9 @@ void sound_play(SfxID id) {
 
     SPU_CH_FREQ(ch)  = getSPUSampleRate(s->sample_rate);
     SPU_CH_ADDR(ch)  = getSPUAddr(s->spu_addr);
-    SPU_CH_VOL_L(ch) = 0x3fff;
-    SPU_CH_VOL_R(ch) = 0x3fff;
+    vol = sound_clamp_vol(vol);
+    SPU_CH_VOL_L(ch) = (uint16_t)vol;
+    SPU_CH_VOL_R(ch) = (uint16_t)vol;
     /* 0x00ff / 0x0000 disables ADSR envelope — sample plays at full volume */
     SPU_CH_ADSR1(ch) = 0x00ff;
     SPU_CH_ADSR2(ch) = 0x0000;

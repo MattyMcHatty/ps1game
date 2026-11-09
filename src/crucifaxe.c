@@ -29,6 +29,7 @@
 #include "mushroom.h"
 #include "lumberer.h"
 #include "nessie.h"
+#include "ahriman.h"
 #include "living_statue.h"
 #include "hadad.h"
 #include "creep.h"
@@ -59,6 +60,7 @@ static int crw_hit_this_swing   = 0;
 static int msh_hit_this_swing   = 0;
 static int lmb_hit_this_swing   = 0;
 static int nss_hit_this_swing   = 0;
+static int ahr_hit_this_swing   = 0;
 static int gula_hit_this_swing  = 0;
 static int lms_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
@@ -117,6 +119,7 @@ void update_crucifaxe(void) {
         msh_hit_this_swing     = 0;
         lmb_hit_this_swing     = 0;
         nss_hit_this_swing     = 0;
+        ahr_hit_this_swing     = 0;
         gula_hit_this_swing    = 0;
         lms_hit_this_swing     = 0;
         lst_hit_this_swing     = 0;
@@ -338,6 +341,14 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !nss_hit_this_swing) {
             if (nessies_try_hit())
                 nss_hit_this_swing = 1;
+        }
+
+        /* The Ahriman (src/ahriman.h): one whole hit point of its three, and a
+           KNOCKBACK - the axe is how a frozen player buys a second against its
+           charge. Measured radially to the body's surface, in the module. */
+        if (swing_timer <= SWING_DURATION && !ahr_hit_this_swing) {
+            if (ahrimans_try_hit())
+                ahr_hit_this_swing = 1;
         }
 
         /* Gula (src/gula.h). Measured to her push surface like the lumberer,

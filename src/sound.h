@@ -631,7 +631,18 @@ typedef enum {
        UNLOCK (resident) needs a lock and Sharur's Trial has none, and every
        other id at % 8 == 7 is either off the pool or banked out down here. */
     SFX_NSS_DIE    = 63,  /* BANKED (underworld). nessie die, 2.58 s            */
-    SFX_COUNT      = 64,
+    /* The AHRIMAN's (src/ahriman.c). BANKED (underworld) and nowhere else:
+       it is Underworld-only. An 11025 Hz mono ONE-SHOT.
+         FLASH     the eye going off, 0.59 s, 3,776 SPU bytes. Re-gained TWICE
+                   (gain_wav.py): x7 on the way in - the source peaked at
+                   -19.7 dBFS, twenty below every other clip - then x2.21 more
+                   (asked 2.5) when it was still lost under the music. RMS
+                   -39.2 -> -15.4 dBFS, peaks now AT full scale, so there is no
+                   headroom left: louder from here means a hotter source clip
+                   or quieter music (CD_MIX_UNDERWORLD). Voice 20, off the pool
+                   - see sound.c. */
+    SFX_AHR_FLASH  = 64,  /* BANKED (underworld). flash, 0.59 s                  */
+    SFX_COUNT      = 65,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.
@@ -830,6 +841,15 @@ void sound_splash_init(void);
 
 void sound_play(SfxID id);
 void sound_stop(SfxID id);
+/* As sound_play, keyed on at `vol` (0..SOUND_VOL_MAX) instead of full. */
+#define SOUND_VOL_MAX 0x3fff
+void sound_play_vol(SfxID id, int vol);
+/* Re-level a voice that is ALREADY playing, live: writes the effect's voice's
+   volume registers and nothing else, so it is safe every frame. The voice is
+   the EFFECT's (sfx_channel), so this also re-levels whatever else was last
+   keyed on it - only call it for an effect that owns its voice in the room it
+   plays in. */
+void sound_set_volume(SfxID id, int vol);
 
 /* Swap the shared region over to `bank`. A no-op if it is already loaded, so
    this can be called unconditionally on every room transition — which is what

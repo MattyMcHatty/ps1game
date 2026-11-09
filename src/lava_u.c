@@ -29,7 +29,7 @@
 #include "particles.h"
 #include "btn_glyph.h"
 #include "door.h"
-#include "nessie.h"             /* the west arm's lava monster               */
+#include "ahriman.h"            /* the south-west corner's floating eye      */
 
 /* Lava U - see lava_u.h. The room half is src/sharurs_trial.c's (itself Hell
    Hath No Fury's): cull keys, radius side cull and all. */
@@ -467,11 +467,11 @@ void lava_u_draw(RenderContext *ctx) {
     render_set_clear_colour(ctx, UW_FOG_R, UW_FOG_G, UW_FOG_B);
 
     /* 128x128 texture window so per-poly UVs wrap within each texture's page.
-       All four room textures sit at Voff 0, and so does the sky's. Nessie's
-       sheet does NOT (Voff 128), so she brackets herself and is told what to
-       restore. */
+       All four room textures sit at Voff 0, and so does the sky's. The
+       Ahriman's sheet does NOT (Voff 128), so it brackets itself and is told
+       what to restore. */
     RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
-    nessies_set_texwindow(&tw);
+    ahrimans_set_texwindow(&tw);
     {
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
         if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
@@ -493,10 +493,10 @@ void lava_u_draw(RenderContext *ctx) {
     }
 
     /* >>> LEVEL 8 IS THE TWO DOOR SIGNS, any pickup a later seed puts down,
-       and NESSIE with her fireballs (area-gated inside; src/nessie.h). */
+       and the AHRIMANS (area-gated inside; src/ahriman.h). */
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
-        draw_nessies(ctx);
+        draw_ahrimans(ctx);
         lu_door_text(ctx, LU_NE_X);
         lu_door_text(ctx, LU_NW_X);
     }

@@ -70,7 +70,7 @@ void nessies_upload_textures(void) {
    tools/gen_tex_rooms.py mirrors it as NESSIE_ROOMS — keep the two in step, or
    the texture late-loads (logged, still correct). */
 int nessie_room_has_sheet(GameState area) {
-    return area == STATE_SHARURS_TRIAL || area == STATE_LAVA_U;
+    return area == STATE_SHARURS_TRIAL;
 }
 
 /* Integer square root, lumberer.c's — including the `t > 0` seed (mistake 11 in

@@ -294,6 +294,10 @@
                      11025 Hz mono one-shot, 2.58 s, 16,256 SPU bytes; pool
                      voice 8 (sound.h says why that is safe). -->
                 <file name="NSSDIE.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\nssdie.vag"/>
+                <!-- The Ahriman's (src/ahriman.c), SND_BANK_UNDERWORLD only.
+                     11025 Hz mono one-shot. FLASH 0.59 s, 3,776 SPU bytes,
+                     voice 20 (re-gained ~x15 from the source mp3, peaks at full scale). -->
+                <file name="FLASH.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\flash.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -2041,6 +2045,19 @@
              leaves, which door_anim's restore puts back on the way out. -->
             <file name="NESSIEA.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\nessie_a.tim"/>
             <file name="NESSIEB.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\nessie_b.tim"/>
+        <!-- AHRIMAN, the floating eye (src/ahriman.h): four frames of wing-beat,
+             one 256x256 sheet (textures/underworld/ahriman.png), shipped as two
+             4bpp 256x128 halves for Nessie's reason (a 256-row texture can only
+             start at VRAM y 0 or 256) - AHRIMANA is frames 0-1, AHRIMANB frames
+             2-3. Quantised against ONE master palette; tools/split_ahriman_
+             sheet.py makes both from the original (its tim switch runs the
+             conversions). 4bpp because 16 colours was checked against the art
+             and is not visibly different at sprite size.
+             THE CRAWLER'S SLOTS, x[320,384) and x[704,768) y128, which nothing
+             in Chapter 4 draws and main.c restores on entry to every room that
+             can hold their owners. CLUTs (144,480) and (160,480), its own. -->
+            <file name="AHRIMANA.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\ahriman_a.tim"/>
+            <file name="AHRIMANB.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\ahriman_b.tim"/>
         </dir>
 
         </directory_tree>
