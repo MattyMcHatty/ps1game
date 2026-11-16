@@ -1,0 +1,152 @@
+PS1 HORROR GAME — ADDING A NEW PROP: THE RUNBOOK
+================================================
+The procedure for adding a static or puzzle prop (a mesh that stands in a
+room, collides, and may carry a "Press O to ..." sign). Written after Sharur's
+Tablet (Sharur's Trial, Nov 2026), whose first build shipped two mistakes this
+file now exists to stop: a standoff that let the eye inside the stone, and a
+sign that sat on the face and disappeared into it. Those two are STEP 4 and
+STEP 5, and they apply to EVERY prop, not only tablets.
+
+Reference implementations (copy the nearest one):
+  src/sharur_tablet.c   a slab at an ANGLE: oriented box measured at load,
+                        examine shot, hit counter, shatter, pickup spawn
+  src/gula_tablet.c     an axis-aligned slab, box measured off its mesh
+  src/crib.c            a breakable box prop, reach measured to its SURFACE
+  src/sconce.c, src/oil_dispenser.c   simple boxes measured off the SMD
+
+Companion docs:
+  tools/MESH_CONVERSION_NOTES.txt   smxlink, not python, for the visual mesh
+  tools/TEXTURE_BANKS.txt           a short bank mask is a SILENT wrong texture
+  tools/VRAM_MAP.txt / VRAM_MAP_UNDERWORLD.txt   where its textures may go
+  tools/ADDING_AN_ITEM.txt          if the prop leaves a collectible behind
+  tools/ADDING_A_SOUND.txt          if it needs a sound the room's bank lacks
+  LEVEL_POLYGON_GUIDELINES.txt      props against walls: depth-sort gaps
+  rebuild commands.txt              build + disc, after every change
+
+NOTE ON PYTHON: `python` on PATH is the Store stub. Use `py`.
+
+
+##########################################################################
+ STEP 1 — THE MESH
+##########################################################################
+Have the prop exported IN PLACE (world coordinates, from the room's .blend) to
+assets/props/<Name>.smx, and convert with smxlink:
+
+    smxlink -tp textures/<chapter dir> -o assets/props/<name>.smd "assets/props/<Name>.smx"
+
+Exported in place, the prop's position, facing and size are all IN the mesh:
+measure them at load from the vertices (sharur_tablet.c sh_measure) rather
+than typing coordinates in. Check the poly winding against the export's
+normals before trusting a cross product (Sharur's: outward = (v2-v0)x(v1-v0)).
+
+
+##########################################################################
+ STEP 2 — TEXTURES, VRAM, BANK
+##########################################################################
+4bpp TIMs via textures/png_to_tim.py, a FREE page from the chapter's VRAM map,
+a free CLUT line, and the right bank (texmgr_set_bank before texmgr_register).
+Upload them from the room's *_upload_textures() through a NARROW uploader so
+tools/gen_tex_rooms.py can see the call. Regenerate the VRAM map(s) and run
+py tools/check_tex_banks.py: "No unexpected pixel collisions" / "OK".
+
+
+##########################################################################
+ STEP 3 — DISC, BUILD, LOAD
+##########################################################################
+The .smd and .tims go in disc.xml under the chapter's directory; the .c in
+CMakeLists.txt. Load the SMD at startup (it is small) or with the room.
+Run py tools/heap_budget.py afterwards - a full heap crashes at boot.
+
+
+##########################################################################
+ STEP 4 — COLLISION OFF THE PROP'S OWN DIMENSIONS: THE STANDOFF
+##########################################################################
+>>> THE PROP'S OWN BOX IS NOT ENOUGH. HOW FAR THE PLAYER IS HELD OFF IT
+    (THE RADIUS PASSED TO *_collide) DECIDES WHETHER THEY CAN SEE INTO IT. <<<
+
+Measuring the box off the mesh gives the prop's SURFACE. The radius you push
+the player out by is the gap between that surface and the EYE. Most props get
+75 - fine for a waist-high crate, WRONG for anything tall and wide that the
+player can walk flat up against:
+
+  Sharur's Tablet, 1200 long x 600 tall x 100 thick, at 75: the face's
+  corners projected past the GTE's +/-1023 screen guard, those polys were
+  dropped by the draw loop's reject, and the player "poked through" - the
+  stone vanished from around them. Fixed by holding them 195 off it (the
+  wall standoff), which keeps the whole face on screen.
+
+RULE OF THUMB. With gte_SetGeomScreen(256), a vertex at depth D and sideways
+(or vertical) offset S lands S*256/D pixels off centre; past ~1023 its poly is
+rejected. So a face whose far corners are S from the eye needs
+
+        standoff  >=  S / 4      (S*256/D <= 1023)
+
+  - S is the larger of half the face's width and the face's height above or
+    below the eye (eye is at floor - GROUND_FLOOR_Y - 40 = 189 above the floor).
+  - 75 covers S up to ~300: crates, stands, small tanks. Fine.
+  - Anything with a face wider than ~600 or taller than ~500 the player can
+    stand square against: use the WALL standoff (195), as the Incinerator
+    and Sharur's Tablet do, or the prop's own as the Cleaver's does.
+
+CHECKLIST for a prop collided off its own dimensions:
+  [ ] Worked out S for its biggest face and picked the radius from it.
+  [ ] Passed a NAMED constant (SH_COLLIDE_RADIUS, CL_COLLIDE_RADIUS), with the
+      reason written next to it - not a bare 75 copied from the line above.
+  [ ] Re-checked every reach measured from the player against the new
+      standoff: interact reach, melee reach (measure to the SURFACE, the
+      crib's rule, or a long face is unreachable at its ends), pickup spawn.
+      Each must exceed the standoff with room to spare.
+  [ ] If the prop stands within ~2x the standoff of a wall or rock, collide
+      it BEFORE the wall loop in collision.c (the statues', Hadad's and
+      Sharur's Tablet's place), so the hard geometry has the last word and
+      the bigger push cannot shove the player into the wall behind.
+  [ ] Walked flat into every face, both ends, and the back, in the emulator.
+
+
+##########################################################################
+ STEP 5 — THE SIGN ("Press O to examine")
+##########################################################################
+>>> THE SIGN HOVERS IN FRONT OF THE FACE. IT NEVER SITS ON IT. <<<
+
+door_draw_string_3d_yaw places the text at the point you give it, in the
+plane of the yaw. Put that point on (or 20 off) the prop's face and the text
+lies flat on the texture at the stone's own depth: green on a busy carving,
+it read as part of the carving and was missed. Sharur's Tablet's first sign
+was at 20; it is now at 100.
+
+  [ ] Sign point = face centre + outward normal * ~100 (SH_SIGN_OUT), i.e.
+      clearly off the face (several times the prop's half-thickness)...
+  [ ] ...and still INSIDE the collision standoff (100 < 195), so the player
+      can never walk into or through the letters.
+  [ ] Yaw = the direction the READER faces, not the face normal.
+  [ ] Height: the room's door-sign height (door signs at -200 in Ch4).
+  [ ] Shown only while it can be acted on (standing, not being read, player
+      in front of the face), faded over the same 1000-1500 as door signs.
+
+
+##########################################################################
+ STEP 6 — WIRING
+##########################################################################
+  - room upload_textures:  the prop's narrow uploader
+  - room init:             *_arm() (per-visit state; flags are read live)
+  - room draw:             inside the DBG_EXP_NO_ENTITIES gate, BEFORE
+                           item_pickups_draw if the prop's draw leaves the
+                           view in the GTE for a sign
+  - collision.c:           *_collide (STEP 4 for the radius and the order)
+  - main.c:                *_update in the room's block; a cutscene branch at
+                           the top of update_current_area if it takes the
+                           camera; re-derive from flags after a load
+  - player.h:              game flags APPENDED at the end of their enum
+  - debug_opts / title.c:  a "<PUZZLE> SOLVED" grant if it is a puzzle
+
+
+##########################################################################
+ STEP 7 — VERIFY
+##########################################################################
+  [ ] cmake --build build --target horror_game, then mkpsxiso -y disc.xml
+      (kill pcsx-redux first; check the .cue is not empty).
+  [ ] py tools/check_tex_banks.py, py tools/heap_budget.py.
+  [ ] In the emulator: walk into every face (STEP 4), read the sign from the
+      front and from an angle (STEP 5), and watch the frame rate approaching
+      it from every side - a prop placed against the room's busiest geometry
+      can expose overdraw behind it (tools/DIAGNOSING_FRAME_RATE.txt).

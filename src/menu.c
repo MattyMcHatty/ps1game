@@ -159,6 +159,13 @@ static uint8_t  glky_u0, glky_v0, glky_u1, glky_v1;
 static uint16_t scat_tpage   = 0;
 static uint16_t scat_clut    = 0;
 static uint8_t  scat_u0, scat_v0, scat_u1, scat_v1;
+/* Ninurta's Arm. 32x32 4bpp at VRAM (856,320): Voff 64 (V 64..95) and U
+   96..127 of the x832 page, beside the flame rounds and the Helluminator -
+   inside the 128 window, so window-safe like the Blood Pearl. Downscaled from
+   the 64x64 art in textures/underworld/ninurtas arm.png. */
+static uint16_t nnrt_tpage   = 0;
+static uint16_t nnrt_clut    = 0;
+static uint8_t  nnrt_u0, nnrt_v0, nnrt_u1, nnrt_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -183,6 +190,7 @@ static const char *item_descriptions[] = {
     "Meat Sack\n\nMeat bound with\ntwine. It's\nsquishy",
     "Gaol Key\n\nIt's made of\nhuman bones...",
     "Scattershot Rounds\n\nA spread of\nshot. Hits all\nin its path",
+    "Ninurta's Arm\n\nA stone carving\nof Ninurta's arm\nwielding the\nlegendary mace,\nSharur",
 };
 
 static const char *weapon_descriptions[] = {
@@ -414,6 +422,7 @@ int menu_item_held(int slot) {
         case MENU_SLOT_MEAT_SACK:      return (player_items & (1 << ITEM_MEAT_SACK)) != 0;
         case MENU_SLOT_GAOL_KEY:       return (player_items & (1 << ITEM_GAOL_KEY)) != 0;
         case MENU_SLOT_SCATTER_ROUNDS: return player_ammo[AMMO_SCATTER] > 0;
+        case MENU_SLOT_NINURTAS_ARM:   return (player_items & (1 << ITEM_NINURTAS_ARM)) != 0;
         default: return 0;
     }
 }
@@ -436,6 +445,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_MEAT_SACK:      return "Meat Sack";
         case MENU_SLOT_GAOL_KEY:       return "Gaol Key";
         case MENU_SLOT_SCATTER_ROUNDS: return "Scattershot Rounds";
+        case MENU_SLOT_NINURTAS_ARM:   return "Ninurta's Arm";
         default: return "";
     }
 }
@@ -590,6 +600,10 @@ void menu_draw_item_icon_any(RenderContext *ctx, int slot, int x, int y,
             draw_icon(ctx, x, y, size, scat_tpage, scat_clut,
                       scat_u0, scat_v0, scat_u1, scat_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_NINURTAS_ARM:
+            draw_icon(ctx, x, y, size, nnrt_tpage, nnrt_clut,
+                      nnrt_u0, nnrt_v0, nnrt_u1, nnrt_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -657,6 +671,8 @@ void menu_init(void) {
                   &glky_u0, &glky_v0, &glky_u1, &glky_v1);
     load_icon_tim("\\TEX\\SCATRNDS.TIM;1", &scat_tpage, &scat_clut,
                   &scat_u0, &scat_v0, &scat_u1, &scat_v1);
+    load_icon_tim("\\TEX\\NNRTARM.TIM;1", &nnrt_tpage, &nnrt_clut,
+                  &nnrt_u0, &nnrt_v0, &nnrt_u1, &nnrt_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);

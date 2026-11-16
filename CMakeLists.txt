@@ -118,6 +118,7 @@ add_executable(horror_game
     src/arm_switch.c
     src/arm_puzzle.c
     src/gula_tablet.c
+    src/sharur_tablet.c
     src/ladder_anim.c
     src/sconce.c
     src/oil_dispenser.c

@@ -535,6 +535,14 @@
                      downscaled to textures/scat_rnds.png first. Ammo carries
                      across chapters, so it is RESERVED in every map. -->
                 <file name="SCATRNDS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\scat_rnds.tim"/>
+                <!-- Ninurta's Arm: pickup sprite AND menu icon, both loaded at
+                     startup. 32x32 4bpp at x856 y320 (Voff 64, V 64..95 and U
+                     96..127 of the x832 page - window-safe), CLUT (1008,502).
+                     Downscaled from textures/underworld/ninurtas arm.png
+                     (64x64) to textures/nnrt_arm.png, keeping VRAM's last free
+                     64x64 slot (x656 y256) for later. Sharur's Tablet leaves it
+                     when it shatters. RESERVED in the Underworld map. -->
+                <file name="NNRTARM.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\nnrt_arm.tim"/>
                 <!-- Garden Stairs: the caged switchback stairway behind the
                      Attic Exit's unlocked door. XTDRCG/XTDROUTR are its two new
                      mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the
@@ -2026,6 +2034,15 @@
              wooden door. -->
             <file name="SHARUR.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\sharurs_trial.smd"/>
             <file name="ROCKS.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\rocks.tim"/>
+        <!-- SHARUR'S TABLET (src/sharur_tablet.h), the room's one prop: a
+             1200 x 100 x 600 slab exported IN PLACE, so its mesh is its
+             position and its collision. Two textures of its own, both 4bpp on
+             page starts the Underworld map calls FREE: SHARTBLT.TIM (x704 y0,
+             CLUT 976,502) and SHARTBCR.TIM, the cracked front after the 4th
+             blow (x768 y0, CLUT 992,502). -->
+            <file name="SHARTBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\sharur_tablet.smd"/>
+            <file name="SHARTBLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\sharur tablet.tim"/>
+            <file name="SHARTBCR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\sharur tablet cracked.tim"/>
         <!-- LAVA U (src/lava_u.h), behind Sharur's Trial's south and
              south-west doors: a U of lava round a rock island. Owns no
              texture: the volcanic, the lava, Sharur's rocks and the resident

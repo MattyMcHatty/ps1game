@@ -1190,6 +1190,34 @@ KNOWN_STREAM_PAIRS = [
     ("crawler_b.tim",      "ahriman_b.tim"),
     ("gula_b.tim",         "ahriman_b.tim"),
     ("zombie_sleep.tim",   "ahriman_b.tim"),
+    #   sharur tablet.tim / sharur tablet cracked.tim -> SHARUR'S TRIAL's
+    # tablet prop (src/sharur_tablet.c), both 4bpp 128x128, CLUTs (976,502)
+    # and (992,502) of their own. Two page STARTS tools/VRAM_MAP_UNDERWORLD.txt
+    # calls FREE - x704 y0 and x768 y0 - so the room's 128 window serves both:
+    # every tenant is re-uploaded by its own Chapter 1-3 room on entry, none is
+    # drawn in Chapter 4, and the chapter is left only through the title. 4bpp,
+    # so each covers only the LEFT 32 columns of its page.
+    #   Two slots rather than one re-uploaded slot (piano_keys_full's trick)
+    # because the cracked art goes on the FRONT faces only; the back and the
+    # edges keep the plain art, so both are drawn in the same frame.
+    ("chain.tim",                 "sharur tablet.tim"),
+    ("gravel_gs.tim",             "sharur tablet.tim"),
+    ("poison_flower_base_gh.tim", "sharur tablet.tim"),
+    ("rusty.tim",                 "sharur tablet.tim"),
+    ("rusty_fence.tim",           "sharur tablet.tim"),
+    ("stable glyphs.tim",         "sharur tablet.tim"),
+    ("upstairs.tim",              "sharur tablet.tim"),
+    ("bed.tim",                   "sharur tablet cracked.tim"),
+    ("brick_wall.tim",            "sharur tablet cracked.tim"),
+    ("fountain.tim",              "sharur tablet cracked.tim"),
+    ("grss.tim",                  "sharur tablet cracked.tim"),
+    ("gula codes.tim",            "sharur tablet cracked.tim"),
+    ("lamashtu arm.tim",          "sharur tablet cracked.tim"),
+    ("lamashtu tablet.tim",       "sharur tablet cracked.tim"),
+    ("pipe.tim",                  "sharur tablet cracked.tim"),
+    ("plinth_diamond.tim",        "sharur tablet cracked.tim"),
+    ("xt_dr_cmplt.tim",           "sharur tablet cracked.tim"),
+    ("xt_dr_lckd.tim",            "sharur tablet cracked.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

@@ -123,6 +123,7 @@
 #include "descent_to_hell.h"  /* CHAPTER 4: the fall the Seal's white lands in  */
 #include "hell_hath_no_fury.h"/* ...and the platform the Descent's white lands on */
 #include "sharurs_trial.h"    /* ...and the lava sea behind its south-west door  */
+#include "sharur_tablet.h"    /* ...and the tablet standing in it                */
 #include "lava_u.h"           /* ...and the lava U behind its two southern doors */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
 #include "underworld_sky.h"   /* ...and the sky over every room after it         */
@@ -801,6 +802,19 @@ static void update_current_area(GameState area) {
     if (area == STATE_HELL_HATH_NO_FURY && hell_hath_no_fury_intro()) {
         hell_hath_no_fury_update(1);
         player_status_update();
+        update_particles();
+        return;
+    }
+    /* ...and SHARUR'S TABLET's examine (src/sharur_tablet.h): the camera on
+       the face of the slab and the inscription fading in under it. Cross is
+       the only input. The room's Nessies keep moving and spitting - enemies
+       act during a board (tools/ADDING_AN_ENEMY.txt STEP 7) - and hit the
+       ANCHORED player, not the camera. No collision or apply_height: the
+       shot is 1050 out in the air. */
+    if (area == STATE_SHARURS_TRIAL && sharur_tablet_examining()) {
+        update_nessies();
+        player_status_update();
+        sharur_tablet_update(1);
         update_particles();
         return;
     }
@@ -3353,6 +3367,15 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         update_nessies();
+        /* NINURTA'S ARM, once the tablet is down. This room had never held a
+           pickup, so it had neither this nor the draw - the Blood Pearl's trap
+           (tools/ADDING_AN_ITEM.txt STEP 8). The draw is in sharurs_trial.c. */
+        item_pickups_update();
+        /* SHARUR'S TABLET: the Circle trigger for its examine (from the next
+           frame the branch at the top of this function owns everything), and
+           its shards' fall once it is broken. Doors are 1300+ away from the
+           slab's face, so one Circle cannot do both. */
+        sharur_tablet_update(lock);
         if (sharurs_trial_ne_door_triggered(lock)) {
             hhnf_from_sharur = 1;
             pending_area = STATE_HELL_HATH_NO_FURY;
@@ -4524,6 +4547,9 @@ int main(int argc, const char **argv) {
                                      registration, header only. */
     sharurs_trial_load_assets();  /* ...and Sharur's Trial: ONE deferred
                                      registration, header only. */
+    sharur_tablet_load_assets();  /* ...and its tablet: a 2.8 KB mesh held for
+                                     the run (measured here into its box) and
+                                     TWO deferred registrations. */
     lava_u_load_assets();         /* ...and Lava U: TIM_SLOTs only - every
                                      texture is borrowed. */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
@@ -6897,6 +6923,15 @@ int main(int argc, const char **argv) {
                                                     item_pickups, which
                                                     world_enter above has only
                                                     just restored. */
+            if (pending_area == STATE_SHARURS_TRIAL)
+                sharur_tablet_apply_flags();     /* Ninurta's Arm back where the
+                                                    tablet stood, if it broke and
+                                                    the arm was never taken: a
+                                                    run-time spawn, so a load
+                                                    (which rebuilds the room from
+                                                    its seed) cannot restore it,
+                                                    and the flags it reads are a
+                                                    load's and a grant's */
             if (pending_area == STATE_INCINERATOR_ROOM)
                 incinerator_room_apply_flags();  /* the pearl / Gaol Key back
                                                     on the east tray: writes to
@@ -7156,7 +7191,14 @@ int main(int argc, const char **argv) {
                                   no HUD over either. */
                                (area == STATE_HELL_HATH_NO_FURY &&
                                 (hell_hath_no_fury_fading() ||
-                                 hell_hath_no_fury_intro()));
+                                 hell_hath_no_fury_intro())) ||
+                               /* ...and Sharur's Tablet's examine. The
+                                  CUTSCENE list: it posts no log line, and the
+                                  inscription is its own text at the foot of
+                                  the screen, where a stale log box would sit
+                                  over it. */
+                               (area == STATE_SHARURS_TRIAL &&
+                                sharur_tablet_examining());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();

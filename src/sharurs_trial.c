@@ -30,6 +30,7 @@
 #include "btn_glyph.h"
 #include "door.h"
 #include "nessie.h"             /* the north-west lava's monster              */
+#include "sharur_tablet.h"      /* the room's tablet, and Ninurta's Arm       */
 
 /* Sharur's Trial - see sharurs_trial.h. The room half is src/hell_hath_no_
    fury.c's, cull keys, radius side cull and all, without its opening drop. */
@@ -110,6 +111,64 @@ static int ne_circle_prev = 1;
 static int s_circle_prev  = 1;
 static int sw_circle_prev = 1;
 
+/* ---- THE SOUTH-WEST SECTION ------------------------------------------------
+   The south-west door opens into a pocket the rest of the room cannot reach:
+   the rock band (500 tall, the eye is at -189) runs stair-stepped from the
+   west rim at x=-3300 to x=-370, past the south-east rim wall, and the
+   tablet stands against its inside. Looking north-east from the pocket, the
+   whole room was queued behind that rock wall and drawn into it - lag from
+   exactly those angles (reported Nov 2026).
+
+   ENTERED BY THE SOUTH-WEST DOOR, the room is cut to the pocket: everything
+   in it at full chapter fog, and beyond the rocks' outer face only the next
+   ST_SECTION_FADE (two 200 floor polys), fading to the fog colour across
+   them; past that nothing is queued. Entered by either other door, the room
+   is drawn whole - the lag was never seen from that side. The door is the
+   switch, not where the player stands, because the pocket is sealed: no walk
+   can carry the player out of it without a door (and through one, the spawn
+   resets the flag).
+
+   >>> THE CHAPTER FOG ITSELF (src/underworld.h) IS UNTOUCHED: this only
+   fogs out what lies beyond the rocks, and only from inside them. <<<
+
+   THE POCKET is the rock band's outer (north-east) face swept down to the
+   south rim: a staircase of x-ranges, each taking every z below its step's
+   top. From "Sharurs Trial mesh.smx"'s rock walls; re-derive them if the
+   rocks move. A primitive's distance beyond it is Chebyshev (the larger of
+   the x and z overshoots), measured from its centroid, so "two polys" is two
+   200 floor tiles whichever way the step faces. */
+#define ST_SECTION_FADE    400
+#define ST_SECTION_Z_MIN (-2700)     /* the south rim: nothing lies beyond it */
+static const int16_t st_pocket[][3] = {   /* x0, x1, top z */
+    { -3300, -2100,  -300 },
+    { -2100, -1700,  -500 },
+    { -1700, -1500,  -700 },
+    { -1500, -1100,  -900 },
+    { -1100,  -900, -1300 },
+    {  -900,  -370, -1700 },
+};
+#define ST_POCKET_STEPS ((int)(sizeof st_pocket / sizeof st_pocket[0]))
+
+/* Per primitive, built with the cull keys: 255 inside the pocket, 1..254 the
+   fog factor across the fade, 0 beyond it (never queued). */
+static uint8_t st_section_fog[SHARURS_TRIAL_PRIM_COUNT];
+static int     st_section_on = 0;
+
+static int32_t st_pocket_dist(int32_t x, int32_t z) {
+    int32_t best = 0x7FFFFFFF;
+    int k;
+    for (k = 0; k < ST_POCKET_STEPS; k++) {
+        int32_t dx = 0, dz = 0, d;
+        if (x < st_pocket[k][0]) dx = st_pocket[k][0] - x;
+        else if (x > st_pocket[k][1]) dx = x - st_pocket[k][1];
+        if (z > st_pocket[k][2]) dz = z - st_pocket[k][2];
+        else if (z < ST_SECTION_Z_MIN) dz = ST_SECTION_Z_MIN - z;
+        d = dx > dz ? dx : dz;
+        if (d < best) best = d;
+    }
+    return best;
+}
+
 static void st_floor_zones_init(void) {
     floor_zones[0].type  = FLOOR_FLAT;
     floor_zones[0].min_x = -3300;  floor_zones[0].max_x = 3300;
@@ -160,6 +219,9 @@ void sharurs_trial_upload_textures(void) {
     catacombs_entry_upload_cobble();
     catacombs_entry_upload_inner_door();
     underworld_sky_upload_textures();
+    /* The tablet's two (plain and cracked), x704 y0 and x768 y0 - owned, and
+       both every time (src/sharur_tablet.h). */
+    sharur_tablet_upload_textures();
 }
 
 /* The rocks alone - Lava U's rock island is the same art. */
@@ -190,9 +252,12 @@ static void st_build_cull_keys(void) {
         int nv = (pt->type >= 2) ? 4 : 3;
         int16_t lo_x = v0->vx, hi_x = v0->vx;
         int16_t lo_z = v0->vz, hi_z = v0->vz;
+        int32_t sum_x = 0, sum_z = 0;
         int k;
         for (k = 0; k < nv; k++) {
             SVECTOR *vk = &st_smd->p_verts[vi[k]];
+            sum_x += vk->vx;
+            sum_z += vk->vz;
             if (vk->vx < lo_x) lo_x = vk->vx;
             if (vk->vx > hi_x) hi_x = vk->vx;
             if (vk->vz < lo_z) lo_z = vk->vz;
@@ -207,6 +272,18 @@ static void st_build_cull_keys(void) {
             int32_t rad = (hi_x - lo_x) + (hi_z - lo_z);   /* >= any |v - v0| */
             rad = (rad + 3) >> 2;
             cull_keys[i].pad = (uint8_t)(rad >= 255 ? 255 : rad);
+        }
+        {   /* The south-west section's fog, off the centroid. */
+            int32_t d = st_pocket_dist(sum_x / nv, sum_z / nv);
+            int32_t f;
+            if (d <= 0)                    f = 255;
+            else if (d >= ST_SECTION_FADE) f = 0;
+            else {
+                f = 256 - ((d << 8) / ST_SECTION_FADE);
+                if (f > 254) f = 254;
+                if (f < 1)   f = 1;
+            }
+            st_section_fog[i] = (uint8_t)f;
         }
         p += pt->len;
     }
@@ -278,7 +355,8 @@ static void st_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
                             DOOR_PIXEL_SIZE);
 }
 
-static void st_spawn_at(int32_t x, int32_t z, int rot) {
+static void st_spawn_at(int32_t x, int32_t z, int rot, int section) {
+    st_section_on = section;
     cam_x     = x;
     cam_y     = ST_EYE_Y;
     cam_vy    = 0;
@@ -290,13 +368,14 @@ static void st_spawn_at(int32_t x, int32_t z, int rot) {
 }
 
 void sharurs_trial_spawn_ne(void) {
-    st_spawn_at(ST_NE_SPAWN_X, ST_NE_SPAWN_Z, ST_NE_SPAWN_ROT);
+    st_spawn_at(ST_NE_SPAWN_X, ST_NE_SPAWN_Z, ST_NE_SPAWN_ROT, 0);
 }
 void sharurs_trial_spawn_s(void) {
-    st_spawn_at(ST_S_SPAWN_X, ST_S_SPAWN_Z, ST_S_SPAWN_ROT);
+    st_spawn_at(ST_S_SPAWN_X, ST_S_SPAWN_Z, ST_S_SPAWN_ROT, 0);
 }
+/* The one arrival inside the pocket: the section goes on (see above). */
 void sharurs_trial_spawn_sw(void) {
-    st_spawn_at(ST_SW_SPAWN_X, ST_SW_SPAWN_Z, ST_SW_SPAWN_ROT);
+    st_spawn_at(ST_SW_SPAWN_X, ST_SW_SPAWN_Z, ST_SW_SPAWN_ROT, 1);
 }
 
 void sharurs_trial_init(void) {
@@ -317,6 +396,11 @@ void sharurs_trial_init(void) {
     oil_dispensers_clear();
     bars_clear();
     reset_particles();
+
+    /* The tablet: whole again (the hit count is per visit), no shot, no
+       shards. Whether it is there at all is FLAG_SHARUR_TABLET_BROKEN, read
+       live, so a load or a debug grant landing after this needs nothing. */
+    sharur_tablet_arm();
 }
 
 /* ---- The mesh --------------------------------------------------------------
@@ -336,6 +420,8 @@ static void draw_st_smd(RenderContext *ctx) {
     int32_t fog_start = UW_FOG_NEAR < cull ? UW_FOG_NEAR : cull / 2;
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    /* The south-west section, when the player came in by that door. */
+    const uint8_t *section = st_section_on ? st_section_fog : NULL;
 
     /* ---- THE SIDE-PLANE CULL'S PER-FRAME TERMS ------------------------------
        Hell Hath No Fury's, unchanged: see draw_hhnf_smd for the derivation
@@ -358,6 +444,7 @@ static void draw_st_smd(RenderContext *ctx) {
     for (i = 0; i < n; i++) {
         /* >>> THE REJECT PATH READS cull_keys, NOT THE MESH. <<< */
         uint8_t stride = cull_keys[i].stride;
+        if (section && section[i] == 0) { p += stride; continue; }
         {
             int32_t dx = (int32_t)cull_keys[i].x - cam_x;
             int32_t dz = (int32_t)cull_keys[i].z - cam_z;
@@ -444,6 +531,9 @@ static void draw_st_smd(RenderContext *ctx) {
         int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
         int32_t fog = dist < fog_start ? fog_start : (dist > cull ? cull : dist);
         int32_t fog_factor = ((cull - fog) << 8) / (cull - fog_start);
+        /* Beyond the rocks, the section's own fade, if it is the deeper. */
+        if (section && section[i] != 255 && section[i] < fog_factor)
+            fog_factor = section[i];
 
         uint8_t tex_idx = (i < SHARURS_TRIAL_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
         int     textured = (tex_idx != 0xFF && tex_idx < ST_TEX_COUNT);
@@ -549,9 +639,12 @@ void sharurs_trial_draw(RenderContext *ctx) {
         draw_st_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE THREE DOOR SIGNS, ANY PICKUP a later seed puts down, AND
-       NESSIE with her fireballs (area-gated inside; src/nessie.h). No props. */
+    /* >>> LEVEL 8 IS THE THREE DOOR SIGNS, THE TABLET (its shards and its
+       sign), NINURTA'S ARM once it has shattered, AND NESSIE with her
+       fireballs (area-gated inside; src/nessie.h, src/sharur_tablet.h).
+       The tablet BEFORE the pickups: its sign leaves the view in the GTE. */
     if (exp != DBG_EXP_NO_ENTITIES) {
+        sharur_tablet_draw(ctx);
         item_pickups_draw(ctx);
         draw_nessies(ctx);
         st_door_text(ctx, ST_NE_X, ST_NE_Z, ST_NE_TEXT_X, ST_NE_TEXT_Z,
@@ -561,4 +654,8 @@ void sharurs_trial_draw(RenderContext *ctx) {
         st_door_text(ctx, ST_SW_X, ST_SW_Z, ST_SW_TEXT_X, ST_SW_TEXT_Z,
                      ST_SW_TEXT_YAW);
     }
+
+    /* The tablet's inscription, over the examine shot. Screen space and
+       outside the entity gate: it is a cutscene's content. */
+    sharur_tablet_draw_overlay(ctx);
 }

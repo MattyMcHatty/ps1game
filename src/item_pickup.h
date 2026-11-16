@@ -39,6 +39,10 @@ typedef enum {
                                 placed by world.c: the Incinerator leaves it on
                                 its east tray when it burns the Meat Sack      */
     PICKUP_SCATTER_ROUNDS,   /* scattershot rounds -> player_ammo[AMMO_SCATTER] */
+    PICKUP_NINURTAS_ARM,     /* ninurta's arm   -> ITEM_NINURTAS_ARM bit, and
+                                FLAG_NINURTAS_ARM_TAKEN. Never placed by
+                                world.c: Sharur's Tablet leaves it where it
+                                stood when it shatters (src/sharur_tablet.h) */
     PICKUP_KIND_COUNT
 } PickupKind;
 

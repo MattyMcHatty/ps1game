@@ -36,6 +36,7 @@
 #include "lms_creep.h"
 #include "maggot.h"
 #include "crib.h"
+#include "sharur_tablet.h"
 #include "gula.h"
 #include "lamashtu.h"
 
@@ -46,6 +47,7 @@ int swing_timer    = 0;
 static int square_prev          = 0;   /* Square state last frame, for edge-detect */
 static int hit_this_swing       = 0;
 static int crate_hit_this_swing = 0;
+static int shtab_hit_this_swing = 0;   /* Sharur's Tablet: one blow per swing */
 static int ddog_hit_this_swing  = 0;
 static int zomb_hit_this_swing  = 0;
 static int spdr_hit_this_swing  = 0;
@@ -108,6 +110,7 @@ void update_crucifaxe(void) {
         swing_timer            = 1;
         hit_this_swing         = 0;
         crate_hit_this_swing   = 0;
+        shtab_hit_this_swing   = 0;
         ddog_hit_this_swing    = 0;
         zomb_hit_this_swing    = 0;
         spdr_hit_this_swing    = 0;
@@ -521,6 +524,17 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !crib_hit_this_swing) {
             if (cribs_try_hit())
                 crib_hit_this_swing = 1;
+        }
+
+        /* SHARUR'S TABLET (src/sharur_tablet.h): five blows break it. The
+           crib's shape - reach measured to the slab's SURFACE in the module,
+           because a 1200-long face is out of SWING_RANGE of its own centre
+           from most of where the player can stand. It counts the blow and
+           plays its own sound (axehit, or the rumble on the 4th and 5th).
+           Not a weapon hit: the slab has no health, only a count. */
+        if (swing_timer <= SWING_DURATION && !shtab_hit_this_swing) {
+            if (sharur_tablet_try_hit())
+                shtab_hit_this_swing = 1;
         }
 
         /* Crate smash — checked independently of vampire hit */

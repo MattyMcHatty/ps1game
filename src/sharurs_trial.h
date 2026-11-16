@@ -34,8 +34,11 @@
    (this side is a wooden one). Each side's transition is the door the player
    actually walked up to. See the Chapter 4 block of tools/ADDING_A_ROOM.txt.
 
-   No enemies, no props. THE MUSIC is the chapter's (main.c's Chapter 4
-   block). Chapter rules (the fog, the sky): src/underworld.h. */
+   ONE PROP: SHARUR'S TABLET (src/sharur_tablet.h), standing on the
+   diagonal south-west of the middle - examine it, strike it five times, and
+   it shatters to leave NINURTA'S ARM. Its textures ride this room's
+   uploader. THE MUSIC is the chapter's (main.c's Chapter 4 block). Chapter
+   rules (the fog, the sky): src/underworld.h. */
 
 void sharurs_trial_load_assets(void);     /* startup: one registration        */
 void sharurs_trial_load_geometry(void);   /* ROOM ENTRY: mesh + the sky       */

@@ -199,6 +199,14 @@ typedef enum {
     DBG_PEARL_CLEAVER,       /* the Cleaver Corridor's sconce pearl              */
     DBG_PEARL_UP_DOWN,       /* the Up Down Maze's sconce pearl                  */
     DBG_PEARL_GAOL,          /* the Gaol Cells' sconce pearl                     */
+    /* SHARUR'S TABLET SOLVED (src/sharur_tablet.h): the slab already shattered
+       in Sharur's Trial and Ninurta's Arm in the inventory - the state a player
+       who struck it five times and picked the carving up would be in. Both
+       flags AND the item bit: the TAKEN flag is what keeps a second arm from
+       being laid out where the slab stood, so granting the bit alone would
+       put one on the floor as well as one in the pocket. A one-shot grant
+       like the items above. The first Chapter 4 option. */
+    DBG_SHARUR_TABLET_SOLVED,
     DEBUG_OPT_COUNT
 } DebugOpt;
 

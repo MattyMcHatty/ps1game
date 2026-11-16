@@ -75,6 +75,7 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   hall_2f.c                2         20480
   maze_one.c               2         20480
   rafflesia.c              2         20480
+  sharur_tablet.c          2         20480
   incinerator.c            1         18432
   rabisu.c                 1         18432
   sconce.c                 1         18432
@@ -114,8 +115,8 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   lms_creep.c              1          6144
   maggot.c                 1          6144
   creep.c                  1          4096
-  TOTAL                    100     1177600
-  TEXMGR_MAX               128               <- src/texmgr.c; 28 spare, checked at build time
+  TOTAL                    102     1198080
+  TEXMGR_MAX               128               <- src/texmgr.c; 26 spare, checked at build time
 
 DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)
   none
@@ -131,13 +132,14 @@ KEPT BUFFERS  (read once, pointer stashed, never freed)
   incinerator.c            INCINPRP.SMD       8192  -> inc_buf
   crib.c                   CRIB.SMD           4096  -> crib_buf
   sconce.c                 SCONCE.SMD         4096  -> sconce_buf
+  sharur_tablet.c          SHARTBLT.SMD       4096  -> sh_buf
   arm_switch.c             ARMSWTCH.SMD       2048  -> as_buf
   bars.c                   BARS.SMD           2048  -> bars_buf
   cleaver.c                CLEAVER.SMD        2048  -> cl_buf
   gula_tablet.c            GULATBLT.SMD       2048  -> gt_buf
   oil_dispenser.c          OILDISP.SMD        2048  -> oil_buf
   save_point.c             SAVEPT.SMD         2048  -> sp_buffer
-  TOTAL                                      28672
+  TOTAL                                      32768
 
 CHAPTER-SCOPED BUFFERS  (held through Chapters 1-2, freed at the catacomb mouth)
   concrete_props.c         CONBLOCK.SMD       4096  -> block_buf
@@ -181,18 +183,18 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x8014CFA8
+  _end (heap start)   0x80150638
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             585112 bytes (571 KB)
+  heap size             571144 bytes (558 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak bank      243712 bytes (238 KB)  41.7%   <- REAR_GATE (largest room set)
-  kept buffers           28672 bytes (28 KB)   4.9%
-  chapter-scoped         43008 bytes (42 KB)   7.4%
-  PERMANENT TOTAL       315392 bytes (308 KB)  53.9%
-  FREE AT REST          269720 bytes (263 KB)  46.1%   <- STACK ALREADY SUBTRACTED
-                                  (was 417872 before the stack was counted;
+  texmgr peak bank      243712 bytes (238 KB)  42.7%   <- REAR_GATE (largest room set)
+  kept buffers           32768 bytes (32 KB)   5.7%
+  chapter-scoped         43008 bytes (42 KB)   7.5%
+  PERMANENT TOTAL       319488 bytes (312 KB)  55.9%
+  FREE AT REST          251656 bytes (246 KB)  44.1%   <- STACK ALREADY SUBTRACTED
+                                  (was 399808 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -251,7 +253,7 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 263 KB printed above.
+  once read_file's margin comes off - against the 245 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

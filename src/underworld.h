@@ -18,6 +18,12 @@
       (DEBUG_CULL_DIST's isolation levels excepted, as in every room). The
       SKYBOX is not fogged at all; see src/underworld_sky.h.
 
+      ONE SANCTIONED ADDITION, NOT A CHANGE: a room may fog out a SECTION -
+      everything beyond a sealed pocket's walls, seen from inside it - on top
+      of the chapter fog, never instead of it. Sharur's Trial's south-west
+      pocket is the one (src/sharurs_trial.c, "THE SOUTH-WEST SECTION"), asked
+      for in Nov 2026 to cure lag from the room drawn behind its rock band.
+
       The fog COLOUR is the sky's: the average of the skybox's burning horizon,
       darkened, so a floor tile fading out at the cull line goes the colour
       of what is behind it rather than to black. It is also each room's

@@ -65,6 +65,8 @@ RESERVED = dict(ASAG.RESERVED)
 RESERVED["bld_prl.tim"] = "the Blood Pearl item (the Cleaver Corridor's sconce)"
 RESERVED["mt_sck.tim"]  = "the Meat Sack item (the Meat Plant's courtyard)"
 RESERVED["gl_ky.tim"]   = "the Gaol Key item (the Incinerator's east tray)"
+# ...and the Underworld's own: Ninurta's Arm, under Sharur's Tablet.
+RESERVED["nnrt_arm.tim"] = "the Ninurta's Arm item (under Sharur's Tablet)"
 
 # The chapter's art: what its rooms OWN, and what they BORROW from Chapter 3 or
 # from the startup set. A borrowed page is in use while that room is entered.
@@ -85,6 +87,10 @@ BANK = {
     # entry to any room that can hold them, so the way back already exists.
     "ahriman_a.tim":           "Lava U: Ahriman frames 0-1 (crawler's) x320 y128",
     "ahriman_b.tim":           "Lava U: Ahriman frames 2-3 (crawler's) x704 y128",
+    # SHARUR'S TABLET (src/sharur_tablet.h): the plain art and the cracked
+    # art the front faces switch to on the fourth blow. Two FREE page starts.
+    "sharur tablet.tim":         "Sharur: the tablet (owned)         x704 y0",
+    "sharur tablet cracked.tim": "Sharur: the tablet, cracked (owned) x768 y0",
 }
 
 tims = {}

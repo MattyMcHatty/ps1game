@@ -476,16 +476,18 @@ static const DebugOpt debug_opt_order[] = {
     DBG_CRIB_ARMS,  DBG_CRIB_HEADS,  DBG_CRIB_LEGS,
     DBG_CRIB_BONES, DBG_CRIB_TORSOS, DBG_CRIB_GUTS,
     DBG_PEARL_CLEAVER, DBG_PEARL_UP_DOWN, DBG_PEARL_GAOL,
+    /* CH4 - UNDERWORLD */
+    DBG_SHARUR_TABLET_SOLVED,
 };
 typedef char debug_opt_order_is_complete
     [(DBG_COUNT(debug_opt_order) == DEBUG_OPT_COUNT) ? 1 : -1];
 
-/* No Chapter 4 group: nothing in it has an option yet. */
 static const DebugGroup debug_opt_groups[] = {
-    {  0, "PLAYER"          },
-    {  4, "CH1 - MANSION"   },
-    {  8, "CH2 - GARDEN"    },
-    { 14, "CH3 - CATACOMBS" },
+    {  0, "PLAYER"           },
+    {  4, "CH1 - MANSION"    },
+    {  8, "CH2 - GARDEN"     },
+    { 14, "CH3 - CATACOMBS"  },
+    { 25, "CH4 - UNDERWORLD" },   /* Sharur's Tablet onwards */
 };
 
 static DebugTree debug_levels = {

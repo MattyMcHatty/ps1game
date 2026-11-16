@@ -36,6 +36,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "PEARL CLEAVER",
     "PEARL UP DOWN",
     "PEARL GAOL",
+    "SHARUR SOLVED",
 };
 
 static int grants_pending = 0;
@@ -390,5 +391,15 @@ void debug_opts_apply_grants(void) {
             if (player_blood_pearls < BLOOD_PEARLS_MAX) player_blood_pearls++;
             world_take_sconce_pearl(pearls[i].area);
         }
+    }
+
+    /* Sharur's Tablet: shattered, and its carving in the pocket. The room
+       reads BROKEN live, so a jump straight into Sharur's Trial arrives with
+       the slab already gone; TAKEN is what stops sharur_tablet_apply_flags()
+       (which runs after this) laying a second arm on the floor. */
+    if (debug_opts[DBG_SHARUR_TABLET_SOLVED]) {
+        game_flag_set(FLAG_SHARUR_TABLET_BROKEN);
+        game_flag_set(FLAG_NINURTAS_ARM_TAKEN);
+        player_items |= (1 << ITEM_NINURTAS_ARM);
     }
 }

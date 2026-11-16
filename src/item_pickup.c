@@ -44,6 +44,7 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\MTSCK.TIM;1",      /* PICKUP_MEAT_SACK         */
     "\\TEX\\GLKY.TIM;1",       /* PICKUP_GAOL_KEY          */
     "\\TEX\\SCATRNDS.TIM;1",   /* PICKUP_SCATTER_ROUNDS    */
+    "\\TEX\\NNRTARM.TIM;1",    /* PICKUP_NINURTAS_ARM      */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
@@ -59,6 +60,7 @@ static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Meat Sack",               /* PICKUP_MEAT_SACK         */
     "Gaol Key",                /* PICKUP_GAOL_KEY          */
     "Scattershot Rounds",      /* PICKUP_SCATTER_ROUNDS    */
+    "Ninurta's Arm",           /* PICKUP_NINURTAS_ARM      */
 };
 
 /* Load one TIM into VRAM and record its tpage/clut and UV rect. The UV's U0 is
@@ -124,7 +126,8 @@ void item_pickups_reset(void) {
        puzzle is what awards it, and that module clears it.) */
     player_items &= ~((1 << ITEM_PIANO_KEY) | (1 << ITEM_BLUE_KEY_STONE) |
                       (1 << ITEM_MAGENTA_KEY_STONE) |
-                      (1 << ITEM_MEAT_SACK) | (1 << ITEM_GAOL_KEY));
+                      (1 << ITEM_MEAT_SACK) | (1 << ITEM_GAOL_KEY) |
+                      (1 << ITEM_NINURTAS_ARM));
     player_hatch_keys   = 0;
     player_blood_pearls = 0;
     player_oil        = 0;   /* a new game holds no lantern and no oil */
@@ -218,6 +221,11 @@ static void collect(ItemPickup *p) {
         case PICKUP_MEAT_SACK:    player_items |= (1 << ITEM_MEAT_SACK);
                                   meat_plant_release_maggots();            break;
         case PICKUP_GAOL_KEY:     player_items |= (1 << ITEM_GAOL_KEY);    break;
+        /* The carving under Sharur's Tablet. The TAKEN flag as well as the
+           bit: it is what stops sharur_tablet_apply_flags() laying it out
+           again, and unlike the bit it survives the arm being spent. */
+        case PICKUP_NINURTAS_ARM: player_items |= (1 << ITEM_NINURTAS_ARM);
+                                  game_flag_set(FLAG_NINURTAS_ARM_TAKEN);  break;
         default: break;
     }
     sound_play(SFX_PICKUP);

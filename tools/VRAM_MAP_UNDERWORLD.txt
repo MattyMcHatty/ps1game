@@ -67,6 +67,7 @@ RESERVED  (a global; overwriting it breaks something)
   key.tim                door key
   mgn_ky_stn.tim         magenta key stone
   mt_sck.tim             the Meat Sack item (the Meat Plant's courtyard)
+  nnrt_arm.tim           the Ninurta's Arm item (under Sharur's Tablet)
   pno_key.tim            piano key item
   scat_rnds.tim          scattershot rounds
   shadow.tim             entity drop shadows
@@ -90,6 +91,8 @@ THIS BANK'S ART
   oil_container.tim          HHNF: the ruin's oil tank (the prop's) x896 y256
   rocks.tim                  Sharur: the outcrops (owned)       x512 y0
   seal.tim                   HHNF: the floor seal (the Seal's)  x576 y0
+  sharur tablet cracked.tim  Sharur: the tablet, cracked (owned) x768 y0
+  sharur tablet.tim          Sharur: the tablet (owned)         x704 y0
   volcanic.tim               HHNF: the platform (owned)         x384 y256
   wd_dr.tim                  HHNF, Sharur: doors - BORROWED RESIDENT, see head x768 y256
 
@@ -112,8 +115,8 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x512  IN USE by this bank: rocks.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim, loculus.tim]
   x576  IN USE by this bank: seal.tim   [also on this page, all re-uploaded on room entry: crib.tim, gaol_mud.tim, lamashtu.tim]
   x640  IN USE by this bank: hell bg.tim   [also on this page, all re-uploaded on room entry: arms2.tim, asag.tim, baby names.tim, bones.tim, chnlnk.tim, gaol door.tim, gravel_texture.tim, greenhouse.tim, gula tablet.tim, guts.tim, hatch.tim, heads.tim, lamashtu pearl.tim, legs.tim, plinth_rg.tim, poison_flower_base.tim, shelf_incinerator.tim, torsos.tim, trck_clue.tim, trees.tim]
-  x704  FREE - costs nothing   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
-  x768  FREE - costs nothing   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, gula codes.tim, lamashtu arm.tim, lamashtu tablet.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
+  x704  IN USE by this bank: sharur tablet.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
+  x768  IN USE by this bank: sharur tablet cracked.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, gula codes.tim, lamashtu arm.tim, lamashtu tablet.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
   x832  IN USE by this bank: catacomb inner door.tim   [also on this page, all re-uploaded on room entry: anzu_tab.tim, con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, stables wood.tim, xt_dr_cg.tim]
   x896  BLOCKED - reserved: bl_ky_stn.tim, bld_prl.tim, ghit.tim
 

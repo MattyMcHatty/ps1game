@@ -41,6 +41,9 @@ typedef enum {
     ITEM_GAOL_KEY,          /* what is left of the Meat Sack after the Incinerator
                                has had it: the machine drops it on its east tray
                                (src/incinerator.h, THE EAST TRAY). No lock yet */
+    ITEM_NINURTAS_ARM,      /* the carving left where Sharur's Tablet stood once
+                               it is shattered (src/sharur_tablet.h). Chapter 4's
+                               first item. One exists; no use yet */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */
@@ -471,6 +474,26 @@ typedef enum {
        killed. Set on the killing blow. From then on the arena is empty, open
        and has the chapter's music. Bit 9 of game_flags2. */
     FLAG_LAMASHTU_DEAD,
+    /* SHARUR'S TABLET (src/sharur_tablet.h), in Sharur's Trial, and what it
+       leaves behind. Two bits because they are two facts and neither can be
+       read off the other:
+
+         FLAG_SHARUR_TABLET_BROKEN  the fifth blow has landed: the slab is gone
+                                    for good and the room draws, collides and
+                                    prompts nothing in its place. Set on the
+                                    blow itself.
+         FLAG_NINURTAS_ARM_TAKEN    the carving it left has been COLLECTED. Not
+                                    read off ITEM_NINURTAS_ARM, for the reason
+                                    FLAG_POT_TAKEN exists: a later puzzle may
+                                    spend the arm, and the bit would then put
+                                    a second one back on the floor.
+
+       The pickup itself is a RUN-TIME spawn, so a load (which rebuilds the
+       room from its seed) cannot bring it back; sharur_tablet_apply_flags()
+       re-lays it from these two bits on every entry. Bits 10-11 of
+       game_flags2. */
+    FLAG_SHARUR_TABLET_BROKEN,
+    FLAG_NINURTAS_ARM_TAKEN,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

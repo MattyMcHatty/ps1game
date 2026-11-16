@@ -293,7 +293,12 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
        NOT tagged ASAG: they exist for the quake, which only runs in two HOUSE
        rooms, and tagging them would key four more voices off on every arena bank
        swap for no gain. */
-    [SFX_RUMBLE]     = SND_BANK_HOUSE | SND_BANK_GARDEN | SND_BANK_ASAG,
+    /* ...and UNDERWORLD: Sharur's Tablet rumbles on its fourth and fifth
+       blows (src/sharur_tablet.c). Free there: the chapter's bank is the
+       smallest in the region (84 KB of 237 KB), so `spare` does not move, and
+       voice 9 has no other claimant down here (sound.h's Ahriman audit). */
+    [SFX_RUMBLE]     = SND_BANK_HOUSE | SND_BANK_GARDEN | SND_BANK_ASAG |
+                       SND_BANK_UNDERWORLD,
     /* The Rear Gate grinders' travel, 10.9 KB. GARDEN only, and unlike HISS and
        RUMBLE above it could not have been resident even if the headroom were
        there: a resident clip is charged twice, pushing bank_base up by its own
@@ -309,7 +314,11 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
        unloaded, in a bank RUMBLE is not in). See sound.h. */
     [SFX_RUMBLE_2]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
     [SFX_RUMBLE_3]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
-    [SFX_RUMBLE_4]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
+    /* ...and the fourth is the tablet's FIFTH blow, in the Underworld, so the
+       shatter's rumble does not cut off the crack's still sounding on voice 9
+       (a swing is 41 frames, the clip 127). Voice 15 has no Underworld
+       claimant either: HISS is GARDEN and LMS_CRY is LAMASHTU. */
+    [SFX_RUMBLE_4]   = SND_BANK_HOUSE | SND_BANK_GARDEN | SND_BANK_UNDERWORLD,
     [SFX_RUMBLE_5]   = SND_BANK_HOUSE | SND_BANK_GARDEN,
     /* The death scene's roar and its spirit, 21.3 KB and 27.7 KB. GARDEN only —
        the Rear Gate is the only room either can sound in, and both are far too

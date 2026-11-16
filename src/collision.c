@@ -18,6 +18,7 @@
 #include "incinerator.h"
 #include "crib.h"
 #include "gula_tablet.h"
+#include "sharur_tablet.h"
 #include "bars.h"              /* The Pit's dropping portcullis           */
 #include "cleaver.h"           /* the Cleaver Corridor's slamming blades  */
 #include "rafflesia.h"
@@ -944,6 +945,14 @@ void apply_collision_reception(void) {
        the lumberers' place and radius all the same, so her push and the walls
        can never disagree about where the player ends up. */
     gula_collide(&cam_x, cam_y, &cam_z, GULA_WALL_LIKE_PUSH);
+    /* Sharur's Tablet, in an ORIENTED box (it stands at ~42 degrees), measured
+       in its own frame at load (src/sharur_tablet.h). Gated to Sharur's Trial
+       and to the slab still standing. THE WALL STANDOFF, not the prop 75: held
+       75 off its 600-tall face the player's eye saw through the stone (the
+       face's corners left the GTE's screen guard). And BEFORE the walls, as
+       the statues and Hadad: at 195 its back's push reaches the rock band
+       ~170 behind it, and the rocks must have the last word. */
+    sharur_tablet_collide(&cam_x, cam_y, &cam_z, SH_COLLIDE_RADIUS);
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly_y(&r->walls[i], &cam_x, &cam_z,
@@ -1011,6 +1020,7 @@ void apply_collision_reception(void) {
        bounds, measured at load, and it gates itself to its area. Prop radius:
        it is a 50-deep slab, not a wall run (src/gula_tablet.h). */
     gula_tablets_collide(&cam_x, cam_y, &cam_z, 75);
+    /* (Sharur's Tablet is collided BEFORE the walls, above.) */
     /* The Pit's bars, on the crib's terms: box and height out of its own mesh,
        gated to its area. The vertical gate reads the CURRENT lift, so while
        they hang over the alcove's mouth this is a no-op and once dropped it
