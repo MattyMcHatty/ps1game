@@ -345,6 +345,15 @@ static void ahr_step_toward(Ahriman *s, int32_t gx, int32_t gz, int32_t speed_q8
     ahr_move(s, (dx * speed_q8) / d, (dz * speed_q8) / d);
 }
 
+/* ---- "Is it untouched by the fog?" -------------------------------------------
+   The same Manhattan camera distance draw_ahriman fogs the sprite by, so
+   render_fog_scale gives full colour exactly when this says yes. A body that
+   is on screen but fogged at all does not count as seen. */
+static int ahr_unfogged(const Ahriman *s) {
+    int32_t dx = s->x - cam_x, dz = s->z - cam_z;
+    return (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) <= g_fog_near;
+}
+
 /* ---- "Is it in the camera's view?" -------------------------------------------
    The body's CENTRE projects inside the screen, and nothing solid stands
    between it and the camera (collision_hidden_from_camera). The projection is
@@ -430,15 +439,16 @@ void update_ahrimans(void) {
 
         switch (s->state) {
 
-        case AHR_HUNT:
-            if (d > AHR_HOLD_DIST) {
-                /* Out of range: follow. The gaze PAUSES here rather than
-                   resetting - only leaving the view resets it (ahriman.h). */
+        case AHR_HUNT: {
+            /* Out of range: follow. In range: hang. */
+            int in_range = d <= AHR_HOLD_DIST;
+            if (!in_range)
                 ahr_step_toward(s, s->goal_x, s->goal_z, AHR_SPEED_Q8);
-                break;
-            }
-            /* In range: hang, and watch to be watched. */
-            if (!ahr_in_view(s)) {
+            /* The countdown runs while it is in range OR in clear view (on
+               screen AND untouched by the fog) - so one that creeps up behind
+               or beside the player still goes off - and resets only when it is
+               neither (ahriman.h). */
+            if (!in_range && !(ahr_unfogged(s) && ahr_in_view(s))) {
                 s->gaze = 0;
                 break;
             }
@@ -452,6 +462,7 @@ void update_ahrimans(void) {
                 sound_play(SFX_AHR_FLASH);
             }
             break;
+        }
 
         case AHR_PRIMED:
             if (--s->timer <= 0) {
@@ -482,7 +493,7 @@ void update_ahrimans(void) {
     }
 
     /* Ahriman vs Ahriman, AFTER every body has moved, so two hanging at the
-       same 1500 cannot sit inside each other. */
+       same 750 cannot sit inside each other. */
     int a, b;
     for (a = 0; a < ahriman_count; a++) {
         Ahriman *sa = &ahrimans[a];

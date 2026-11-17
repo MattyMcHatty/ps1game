@@ -31,16 +31,19 @@
  *
  *   HUNT    From the moment it spawns, or the moment the player walks in - no
  *           dormant state. It floats at the player until it is within
- *           AHR_HOLD_DIST (1500, true radial) and then hangs there; the moment
- *           the player is beyond 1500 again it follows. Routed round the room's
+ *           AHR_HOLD_DIST (750, true radial) and then hangs there; the moment
+ *           the player is beyond 750 again it follows. Routed round the room's
  *           solid blocks (Lava U's rock island) through a few authored
  *           waypoints - see the .c.
  *
- *           In range and IN VIEW - the body's centre projects inside the
- *           screen AND nothing solid stands between it and the camera - a
- *           two-second countdown runs (AHR_GAZE_FRAMES). Out of view resets
- *           it to zero. Out of range only PAUSES it: nothing happens out of
- *           range, but backing off a step is not a way to wipe it.
+ *           In range OR IN CLEAR VIEW (the body's centre projects inside the
+ *           screen, nothing solid stands between it and the camera, AND it
+ *           is close enough to the camera to have no fog on it at all -
+ *           within g_fog_near, Manhattan, the sprite's own fog measure), a
+ *           1.5-second countdown runs (AHR_GAZE_FRAMES). Either one is enough,
+ *           so one that creeps up behind or beside the player still goes off.
+ *           One on screen but fogged, even slightly, is not seen. It resets
+ *           to zero only when it is BOTH out of range and out of clear view.
  *
  *   PRIMED  The countdown expires: the eye flashes, the screen goes white
  *           (ahrimans_draw_flash), and THE PLAYER IS FROZEN - turn, look, aim
@@ -119,10 +122,10 @@ typedef enum {
 #define AHR_CHARGE_Q8       (AHR_SPEED_Q8 * 3 / 2)        /* 9 a frame        */
 
 /* It hangs at this true radial distance and pursues past it. */
-#define AHR_HOLD_DIST       1500
+#define AHR_HOLD_DIST        750
 
 /* ---- The attack, in frames at 60 fps. */
-#define AHR_GAZE_FRAMES      120    /* 2 s in view before the flash            */
+#define AHR_GAZE_FRAMES       90    /* 1.5 s in range/view before the flash    */
 #define AHR_PRIME_FRAMES      60    /* 1 s frozen before it moves in           */
 #define AHR_BITE_DAMAGE       20
 #define AHR_BITE_COOLDOWN     60    /* 1 s between bites                       */
@@ -176,7 +179,7 @@ _Static_assert(AHR_STOP_DIST - AHR_AXE_SURFACE + AHR_HEIGHT_STEP < SWING_RANGE,
 #define AHR_BAR_TIMER_MAX    120
 
 typedef enum {
-    AHR_HUNT,      /* floating at the player / hanging at 1500; the gaze      */
+    AHR_HUNT,      /* floating at the player / hanging at 750; the gaze       */
     AHR_PRIMED,    /* the flash has gone off; frozen player, 1 s wait         */
     AHR_CHARGE,    /* coming in and biting - until one of them dies           */
     AHR_DEAD,
@@ -193,7 +196,7 @@ typedef struct {
     int           health;         /* half-points: AHR_MAX_HEALTH*AHR_HP_SCALE  */
     int           hit_timer;
     int           anim_tick;      /* always ticking while alive                */
-    int           gaze;           /* HUNT: frames in view, toward the flash    */
+    int           gaze;           /* HUNT: frames in range/view, to the flash  */
     int           timer;          /* PRIMED: wait; CHARGE: bite cooldown       */
     int           route_tick;     /* frames until the route is re-solved       */
 
