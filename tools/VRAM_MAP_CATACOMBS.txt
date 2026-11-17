@@ -258,9 +258,17 @@ WHAT COUNTS AS RESERVED HERE
 The same test the arena's map uses, because it is the same question: a texture
 is RESERVED if overwriting it would break something the player can still SEE
 while they are in Chapter 3, or during the transition out of it. That is the
-HUD, the weapons, healing, the drop shadow, the bullet-impact sprite and every
-collectible menu icon - the inventory opens down here like anywhere else, and an
-icon whose page was taken renders as a square of cobblestone.
+HUD, the weapons, healing, the drop shadow, the bullet-impact sprite and the
+menu icon of every collectible the player CAN BE HOLDING in Chapter 3 - the
+inventory opens down here like anywhere else, and an icon whose page was taken
+renders as a square of cobblestone.
+
+An item they cannot be holding here is NOT reserved (Nov 2026; the user's
+correction, after Ninurta's Arm was shrunk for space it never lacked). Nothing
+from Chapters 1/2 survives into the Catacombs, so their icons are never drawn
+down here. They are only startup-resident - uploaded once, at boot - which
+puts them in the NEEDS A WAY BACK grade below, like any other boot upload.
+See tools/ADDING_AN_ITEM.txt STEP 2.
 
 Everything else is reclaimable, but reclaimable comes in two grades and the
 difference is the whole point of this file:
@@ -329,7 +337,7 @@ its own window. Blocks are 128 words x 128 rows: one enemy sheet half.)
 
   x[320,448)  IN USE by this bank: crawler_a.tim, gula_a.tim
   x[448,576)  IN USE by this bank: lumberer_a.tim
-  x[576,704)  BLOCKED - reserved: cppr_pt.tim, key.tim, shadow.tim
+  x[576,704)  BLOCKED - reserved: shadow.tim
   x[704,832)  IN USE by this bank: crawler_b.tim, gula_b.tim
   x[832,960)  IN USE by this bank: lumberer_b.tim
 
@@ -337,24 +345,24 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x320  AVAILABLE, needs a way back first: tntcl_actv.tim, tntcl_idle.tim   [also on this page, all re-uploaded on room entry: bookshelf.tim, grss_gs.tim, stn_stl.tim, strs.tim]
   x384  IN USE by this bank: cobblestones.tim   [also on this page, all re-uploaded on room entry: chnlnk_dl.tim, clsd_drwr.tim, cncrte.tim, flowerbed.tim, hedge.tim, kchn_tile.tim, mud.tim, piano_keys.tim, piano_keys_full.tim, xt_dr_outr.tim]
   x448  IN USE by this bank: sconce.tim
-  x512  IN USE by this bank: loculus.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim]
+  x512  IN USE by this bank: loculus.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim, rocks.tim]
   x576  IN USE by this bank: crib.tim, gaol_mud.tim, lamashtu.tim, seal.tim
-  x640  IN USE by this bank: baby names.tim, bones.tim, gaol door.tim, gula tablet.tim, heads.tim, legs.tim, shelf_incinerator.tim, torsos.tim   [also on this page, all re-uploaded on room entry: arms2.tim, asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, guts.tim, hatch.tim, lamashtu pearl.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
-  x704  IN USE by this bank: rusty.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
-  x768  IN USE by this bank: lamashtu tablet.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, gula codes.tim, lamashtu arm.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
+  x640  IN USE by this bank: baby names.tim, bones.tim, gaol door.tim, gula tablet.tim, heads.tim, legs.tim, shelf_incinerator.tim, torsos.tim   [also on this page, all re-uploaded on room entry: arms2.tim, asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, guts.tim, hatch.tim, hell bg.tim, lamashtu pearl.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
+  x704  IN USE by this bank: rusty.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty_fence.tim, sharur tablet.tim, stable glyphs.tim, upstairs.tim]
+  x768  IN USE by this bank: lamashtu tablet.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, gula codes.tim, lamashtu arm.tim, pipe.tim, plinth_diamond.tim, sharur tablet cracked.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
   x832  IN USE by this bank: catacomb inner door.tim   [also on this page, all re-uploaded on room entry: anzu_tab.tim, con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, stables wood.tim, xt_dr_cg.tim]
-  x896  BLOCKED - reserved: bl_ky_stn.tim, bld_prl.tim, ghit.tim
+  x896  BLOCKED - reserved: bld_prl.tim, ghit.tim, gl_ky.tim
 
 MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
-  x320  FREE - costs nothing   [also on this page, all re-uploaded on room entry: chain_128.tim, dbl_dr_rg.tim, frnt_dr.tim, greenhouse door.tim, red_crpt.tim]
-  x384  FREE - costs nothing   [also on this page, all re-uploaded on room entry: pipe_gh.tim, prpl_wlppr.tim, stove.tim]
+  x320  FREE - costs nothing   [also on this page, all re-uploaded on room entry: chain_128.tim, dbl_dr_rg.tim, frnt_dr.tim, greenhouse door.tim, lava.tim, red_crpt.tim]
+  x384  FREE - costs nothing   [also on this page, all re-uploaded on room entry: pipe_gh.tim, prpl_wlppr.tim, stove.tim, volcanic.tim]
   x448  AVAILABLE, needs a way back first: din_cl.tim
   x512  IN USE by this bank: bars.tim   [also on this page, all re-uploaded on room entry: pipe_button_off.tim, pipe_button_on.tim]
-  x576  BLOCKED - reserved: vlv_hndl.tim
+  x576  AVAILABLE, needs a way back first: inr_dbl_dr.tim, vlv_hndl.tim
   x640  IN USE by this bank: lamashtu creep.tim, maggot.tim   [also on this page, all re-uploaded on room entry: creep.tim]
-  x704  IN USE by this bank: incinerator.tim, ladder.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, vines.tim]
+  x704  IN USE by this bank: incinerator.tim, ladder.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, nnrt_arm.tim, vines.tim]
   x768  AVAILABLE, needs a way back first: wd_dr.tim
-  x832  BLOCKED - reserved: flm_rnds.tim, helluminator.tim, mgn_ky_stn.tim
+  x832  BLOCKED - reserved: flm_rnds.tim, helluminator.tim, stnd_rnds.tim
   x896  IN USE by this bank: oil_container.tim
 
 Regenerate with:  py tools/vram_map_catacombs.py > tools/VRAM_MAP_CATACOMBS.txt

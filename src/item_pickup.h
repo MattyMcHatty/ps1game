@@ -100,6 +100,11 @@ extern int        item_pickup_count;
    only safe before the main render loop begins). */
 void item_pickups_load_textures(void);
 
+/* Chapter-scoped item art (see item_pickup.c): register at startup, among the
+   other *_load_assets; re-uploaded on entry to every room that can hold it. */
+void item_pickups_register_textures(void);
+void item_pickups_upload_underworld(void);   /* Ninurta's Arm, x704 y256 */
+
 /* Place a collectible into the live array. Returns its index, or -1 if full.
    The plain form grants the kind's default (ROUNDS_PER_PICKUP for rounds); the
    _amount form sets how many rounds this particular box carries, so a room can

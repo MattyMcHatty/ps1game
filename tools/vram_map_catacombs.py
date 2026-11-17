@@ -57,9 +57,17 @@ WHAT COUNTS AS RESERVED HERE
 The same test the arena's map uses, because it is the same question: a texture
 is RESERVED if overwriting it would break something the player can still SEE
 while they are in Chapter 3, or during the transition out of it. That is the
-HUD, the weapons, healing, the drop shadow, the bullet-impact sprite and every
-collectible menu icon - the inventory opens down here like anywhere else, and an
-icon whose page was taken renders as a square of cobblestone.
+HUD, the weapons, healing, the drop shadow, the bullet-impact sprite and the
+menu icon of every collectible the player CAN BE HOLDING in Chapter 3 - the
+inventory opens down here like anywhere else, and an icon whose page was taken
+renders as a square of cobblestone.
+
+An item they cannot be holding here is NOT reserved (Nov 2026; the user's
+correction, after Ninurta's Arm was shrunk for space it never lacked). Nothing
+from Chapters 1/2 survives into the Catacombs, so their icons are never drawn
+down here. They are only startup-resident - uploaded once, at boot - which
+puts them in the NEEDS A WAY BACK grade below, like any other boot upload.
+See tools/ADDING_AN_ITEM.txt STEP 2.
 
 Everything else is reclaimable, but reclaimable comes in two grades and the
 difference is the whole point of this file:
@@ -104,6 +112,34 @@ RESERVED = dict(ASAG.RESERVED)
 RESERVED["bld_prl.tim"] = "the Blood Pearl item (the Cleaver Corridor's sconce)"
 RESERVED["mt_sck.tim"]  = "the Meat Sack item (the Meat Plant's courtyard)"
 RESERVED["gl_ky.tim"]   = "the Gaol Key item (the Incinerator's east tray)"
+
+# ---------------------------------------------------------------------------
+# ...MINUS the Chapter 1/2 collectibles. AN ITEM'S ART IS ONLY RESERVED WHERE
+# THE PLAYER CAN BE HOLDING IT, and nothing from the Mansion or Garden survives
+# into the Catacombs (tools/ADDING_AN_ITEM.txt, trap 4: the front door key
+# breaks in its door, the stones go into their plinths, and so on). So their
+# icons and pickup sprites are never drawn down here.
+#
+# They are NOT free, though: menu_init() and item_pickups_load_textures()
+# upload every item's art ONCE, at boot. Overwrite one here, quit to the title
+# and load a Chapter 1/2 save, and its icon is gone for the run. That is
+# exactly the "NEEDS A WAY BACK" grade - so that is where they go: taking one
+# obliges you to re-upload it on entry to the rooms where it CAN be held.
+# ---------------------------------------------------------------------------
+EARLIER_CHAPTER_ITEMS = {
+    "key.tim", "cppr_pt.tim", "wx_cb.tim", "grn_ky_stn.tim", "ylw_ky_stn.tim",
+    "bl_ky_stn.tim", "mgn_ky_stn.tim", "pno_key.tim", "vlv_hndl.tim",
+    "hatch_key.tim",
+}
+for _n in EARLIER_CHAPTER_ITEMS:
+    RESERVED.pop(_n, None)
+# ...and LATER chapters' items: never held here (the Underworld is one way).
+# Empty today: Ninurta's Arm is re-stamped on entry to every Underworld room
+# (item_pickups_upload_underworld), so its page is simply re-uploaded art,
+# owing nothing. A later item that is only boot-uploaded goes in here.
+LATER_CHAPTER_ITEMS = set()
+NEEDS_RESTORE = (set(ASAG.NEEDS_RESTORE) | EARLIER_CHAPTER_ITEMS
+                 | LATER_CHAPTER_ITEMS)
 
 # ---------------------------------------------------------------------------
 # THE CHAPTER'S OWN ART. Eight room textures across five rooms, plus the two
@@ -221,9 +257,9 @@ for px in range(320, 960, 128):
     res  = sorted(n for n in occ if n in RESERVED)
     bank = sorted(n for n in occ if n in BANK)
     rest = sorted(n for n in occ if n not in RESERVED and n not in BANK
-                  and n in ASAG.NEEDS_RESTORE)
+                  and n in NEEDS_RESTORE)
     free = sorted(n for n in occ if n not in RESERVED and n not in BANK
-                  and n not in ASAG.NEEDS_RESTORE)
+                  and n not in NEEDS_RESTORE)
     if bank:
         v = "IN USE by this bank: " + ", ".join(bank)
     elif res:
@@ -245,14 +281,14 @@ for py, label in ((0, "y[0,128)"), (256, "y[256,384)")):
         res  = sorted(n for n in occ if n in RESERVED)
         bank = sorted(n for n in occ if n in BANK)
         rest = sorted(n for n in occ if n not in RESERVED and n not in BANK
-                      and n in ASAG.NEEDS_RESTORE)
+                      and n in NEEDS_RESTORE)
         # EVERY remaining occupant, and it is printed rather than dropped: an
         # 8bpp 128 texture takes all 64 columns of a page, so a page whose OTHER
         # half is a pile of 4bpp art is not the same proposition as an empty one,
         # however restorable that art is. Leaving this list out is what sent the
         # crib to x704 y0 first.
         other = sorted(n for n in occ if n not in RESERVED and n not in BANK
-                       and n not in ASAG.NEEDS_RESTORE)
+                       and n not in NEEDS_RESTORE)
         if bank:
             v = "IN USE by this bank: " + ", ".join(bank)
         elif res:

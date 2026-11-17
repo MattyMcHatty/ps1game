@@ -43,6 +43,14 @@
 #define TIM_TPAGE_ADAPAB   0x000e
 #define TIM_CLUT_ADAPAB    0x7806
 
+/* ahriman_a.tim   4bpp  VRAM ( 320,128)  \TEXUNDW\AHRIMANA.TIM */
+#define TIM_TPAGE_AHRIMANA 0x0005
+#define TIM_CLUT_AHRIMANA  0x7809
+
+/* ahriman_b.tim   4bpp  VRAM ( 704,128)  \TEXUNDW\AHRIMANB.TIM */
+#define TIM_TPAGE_AHRIMANB 0x000b
+#define TIM_CLUT_AHRIMANB  0x780a
+
 /* anzu_tab.tim    4bpp  VRAM ( 832,  0)  \TEX\ANZUTAB.TIM */
 #define TIM_TPAGE_ANZUTAB  0x000d
 #define TIM_CLUT_ANZUTAB   0x78d0
@@ -435,6 +443,10 @@
 #define TIM_TPAGE_NESSIEB  0x000e
 #define TIM_CLUT_NESSIEB   0x7806
 
+/* nnrt_arm.tim    4bpp  VRAM ( 704,256)  \TEX\NNRTARM.TIM */
+#define TIM_TPAGE_NNRTARM  0x001b
+#define TIM_CLUT_NNRTARM   0x7dbf
+
 /* oil_container.tim  4bpp  VRAM ( 896,256)  \TEXCTCMB\OILCNTNR.TIM */
 #define TIM_TPAGE_OILCNTNR 0x001e
 #define TIM_CLUT_OILCNTNR  0x7e2a
@@ -539,6 +551,14 @@
 #define TIM_TPAGE_SHADOW   0x000a
 #define TIM_CLUT_SHADOW    0x7980
 
+/* sharur tablet cracked.tim  4bpp  VRAM ( 768,  0)  \TEXUNDW\SHARTBCR.TIM */
+#define TIM_TPAGE_SHARTBCR 0x000c
+#define TIM_CLUT_SHARTBCR  0x7dbe
+
+/* sharur tablet.tim  4bpp  VRAM ( 704,  0)  \TEXUNDW\SHARTBLT.TIM */
+#define TIM_TPAGE_SHARTBLT 0x000b
+#define TIM_CLUT_SHARTBLT  0x7dbd
+
 /* shelf_incinerator.tim  8bpp  VRAM ( 640,  0)  \TEXCTCMB\SHLFINCN.TIM */
 #define TIM_TPAGE_SHLFINCN 0x008a
 #define TIM_CLUT_SHLFINCN  0x7d6a
@@ -638,6 +658,10 @@
 /* wd_flr.tim      4bpp  VRAM ( 448,  0)  \WDFLR.TIM */
 #define TIM_TPAGE_WDFLR    0x0007
 #define TIM_CLUT_WDFLR     0x7ac0
+
+/* wing tablet.tim  4bpp  VRAM ( 704,  0)  \TEXUNDW\WINGTBLT.TIM */
+#define TIM_TPAGE_WINGTBLT 0x000b
+#define TIM_CLUT_WINGTBLT  0x7dbd
 
 /* wx_cb.tim       4bpp  VRAM ( 544,256)  \TEX\WXCB.TIM */
 #define TIM_TPAGE_WXCB     0x0018

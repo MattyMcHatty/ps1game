@@ -20,10 +20,19 @@ this chapter runs on, and it is cheap: a few LoadImages behind the transition.
 
 WHAT COUNTS AS RESERVED HERE
 ----------------------------
-Exactly the Catacombs' test, and the same list: the HUD, the weapons, healing,
-the drop shadow, the bullet-impact sprite and every collectible's menu icon,
-including the three only Chapter 3 can put in the inventory - a save carried
-down here may hold any of them.
+The Catacombs' test: the HUD, the weapons and their rounds, healing, the drop
+shadow, the bullet-impact sprite - and the art of the collectibles the player
+CAN BE HOLDING down here, which today is Ninurta's Arm alone.
+
+>>> NO OTHER CHAPTER'S ITEM IS RESERVED HERE. <<< Nothing of Chapters 1/2
+survives into the Catacombs, and Chapter 3's three (the Blood Pearl, the Meat
+Sack, the Gaol Key) are spent on its own puzzles before the descent, so not one
+of their icons can be drawn in the Underworld. They used to be listed here,
+and that is how Ninurta's Arm came to be shrunk to 32x32 for want of a 64x64
+slot (Nov 2026) - space this chapter always had. Those icons are uploaded ONCE,
+at boot (menu_init, item_pickups_load_textures), so they sit in the NEEDS A
+WAY BACK grade: take one and you owe it a re-upload for the rooms where it CAN
+be held, or a title-screen load of an earlier save shows a wrong icon.
 
   FREE        every occupant is re-uploaded on entry by the room that needs it.
   NEEDS A WAY BACK
@@ -60,13 +69,16 @@ with contextlib.redirect_stdout(io.StringIO()):
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 TEXDIR = os.path.join(ROOT, "textures")
 
-# The Catacombs' list: the arena's, plus the three Chapter 3 items.
-RESERVED = dict(ASAG.RESERVED)
-RESERVED["bld_prl.tim"] = "the Blood Pearl item (the Cleaver Corridor's sconce)"
-RESERVED["mt_sck.tim"]  = "the Meat Sack item (the Meat Plant's courtyard)"
-RESERVED["gl_ky.tim"]   = "the Gaol Key item (the Incinerator's east tray)"
+# The player's own kit (the arena's list, less its Chapter 1/2 collectibles -
+# the Catacombs' map does the same), plus the Underworld's own items.
+with contextlib.redirect_stdout(io.StringIO()):
+    import vram_map_catacombs as CATA
+CHAPTER_3_ITEMS = {"bld_prl.tim", "mt_sck.tim", "gl_ky.tim"}
+RESERVED = {n: v for n, v in CATA.RESERVED.items() if n not in CHAPTER_3_ITEMS}
 # ...and the Underworld's own: Ninurta's Arm, under Sharur's Tablet.
 RESERVED["nnrt_arm.tim"] = "the Ninurta's Arm item (under Sharur's Tablet)"
+# Every earlier chapter's item: startup-resident, never drawn down here.
+NEEDS_RESTORE = set(CATA.NEEDS_RESTORE) | CHAPTER_3_ITEMS
 
 # The chapter's art: what its rooms OWN, and what they BORROW from Chapter 3 or
 # from the startup set. A borrowed page is in use while that room is entered.
@@ -91,6 +103,9 @@ BANK = {
     # art the front faces switch to on the fourth blow. Two FREE page starts.
     "sharur tablet.tim":         "Sharur: the tablet (owned)         x704 y0",
     "sharur tablet cracked.tim": "Sharur: the tablet, cracked (owned) x768 y0",
+    # THE WINGS TABLET (src/wings_tablet.h): Wingscape's terrace slab, on
+    # Sharur's Tablet's page and palette - neither room draws the other's.
+    "wing tablet.tim":           "Wingscape: the tablet (owned; Sharur's page) x704 y0",
 }
 
 tims = {}
@@ -112,9 +127,9 @@ def verdict(occ, limit=None):
     res  = sorted(n for n in occ if n in RESERVED)
     bank = sorted(n for n in occ if n in BANK)
     rest = sorted(n for n in occ if n not in RESERVED and n not in BANK
-                  and n in ASAG.NEEDS_RESTORE)
+                  and n in NEEDS_RESTORE)
     other = sorted(n for n in occ if n not in RESERVED and n not in BANK
-                   and n not in ASAG.NEEDS_RESTORE)
+                   and n not in NEEDS_RESTORE)
     if bank:
         v = "IN USE by this bank: " + ", ".join(bank)
     elif res:

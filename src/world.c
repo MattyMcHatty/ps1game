@@ -227,7 +227,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_THE_HEAD,        STATE_KENNELS,
     STATE_LAMASHTU_ARENA,  STATE_SEAL,
     STATE_HELL_HATH_NO_FURY, STATE_SHARURS_TRIAL,
-    STATE_LAVA_U,
+    STATE_LAVA_U,          STATE_WINGSCAPE,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -425,6 +425,9 @@ static int room_index(GameState area) {
            turned both bitmaps into RoomBits (src/world.h), sized from
            WORLD_NUM_ROOMS. Seeded EMPTY. */
         case STATE_LAVA_U:            return 64;
+        /* WINGSCAPE, Chapter 4's fourth room, behind Hell Hath No Fury's
+           north-west door. Slot 65. Seeded EMPTY. */
+        case STATE_WINGSCAPE:         return 65;
         default:                   return 0;
     }
 }

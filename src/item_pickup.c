@@ -107,6 +107,29 @@ void item_pickups_load_textures(void) {
         load_sprite(kind_tim[k], &sprites[k]);
 }
 
+/* ---- CHAPTER-SCOPED ITEM ART ------------------------------------------------
+   Every item above is uploaded once, at boot, and most own their slot for the
+   whole run. NINURTA'S ARM DOES NOT: it is 64x64 4bpp at x704 y256 (CLUT
+   1008,502), on a page Chapters 1-3 use for room art (the Rabisu's sheet, the
+   Incinerator, the ladder, the vines - each re-uploaded by its own rooms on
+   entry). The arm can only ever be held in the Underworld, so it only has to
+   be THERE in the Underworld: underworld_sky_upload_textures() - which every
+   Underworld room but the Descent calls, i.e. every room the arm can be held
+   in - calls item_pickups_upload_underworld() on entry. The boot upload still
+   sets the sprite's and the menu icon's tpage/clut/UVs, which never move.
+   tools/ADDING_AN_ITEM.txt STEP 2-0 is the rule; this is its first user. */
+#include "texmgr.h"
+static int nnrt_tex = -1;
+
+void item_pickups_register_textures(void) {
+    texmgr_set_bank(TEXBANK_UNDERWORLD);
+    nnrt_tex = texmgr_register("\\TEX\\NNRTARM.TIM;1");
+}
+
+void item_pickups_upload_underworld(void) {
+    if (nnrt_tex >= 0) texmgr_upload(nnrt_tex);
+}
+
 void item_pickups_reset(void) {
     int i;
     for (i = 0; i < MAX_ITEM_PICKUPS; i++)

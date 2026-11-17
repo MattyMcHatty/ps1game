@@ -19,6 +19,7 @@
 #include "crib.h"
 #include "gula_tablet.h"
 #include "sharur_tablet.h"
+#include "wings_tablet.h"
 #include "bars.h"              /* The Pit's dropping portcullis           */
 #include "cleaver.h"           /* the Cleaver Corridor's slamming blades  */
 #include "rafflesia.h"
@@ -953,6 +954,11 @@ void apply_collision_reception(void) {
        the statues and Hadad: at 195 its back's push reaches the rock band
        ~170 behind it, and the rocks must have the last word. */
     sharur_tablet_collide(&cam_x, cam_y, &cam_z, SH_COLLIDE_RADIUS);
+    /* The Wings Tablet (src/wings_tablet.h), on Sharur's terms: a slab of the
+       same size, so the wall standoff, and before the walls because its back
+       stands 120 off the alcove's rim. Axis-aligned, so a plain min/max box
+       measured off the mesh. Gated to Wingscape inside. */
+    wings_tablet_collide(&cam_x, cam_y, &cam_z, WT_COLLIDE_RADIUS);
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly_y(&r->walls[i], &cam_x, &cam_z,

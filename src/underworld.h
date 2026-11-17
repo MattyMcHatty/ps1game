@@ -40,6 +40,12 @@
       texture is underfoot (src/lava.h). No code in the room; a line in
       tools/gen_lava_floors.py's ROOMS, which every Underworld room needs.
 
+   5. THE CHAPTER'S ITEMS' ART is re-stamped on entry to every room, by
+      underworld_sky_upload_textures() (item_pickups_upload_underworld). Their
+      pages are Chapter 1-3 room art's (tools/ADDING_AN_ITEM.txt STEP 2-0), so
+      a new Underworld room that does not call the sky's uploader shows a
+      wrong icon in its inventory. Today: Ninurta's Arm, x704 y256.
+
    Which rooms are in the chapter is area_is_underworld() in src/area_bank.h;
    their textures are TEXBANK_UNDERWORLD and their sounds SND_BANK_UNDERWORLD
    (src/sound.h), which is empty today: nothing in the chapter makes a sound

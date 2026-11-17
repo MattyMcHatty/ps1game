@@ -1218,6 +1218,29 @@ KNOWN_STREAM_PAIRS = [
     ("plinth_diamond.tim",        "sharur tablet cracked.tim"),
     ("xt_dr_cmplt.tim",           "sharur tablet cracked.tim"),
     ("xt_dr_lckd.tim",            "sharur tablet cracked.tim"),
+    #   wing tablet.tim -> WINGSCAPE's tablet prop (src/wings_tablet.c), 4bpp
+    # 128x128 on SHARUR'S TABLET's page AND its CLUT (976,502): x704 y0. The
+    # two tablets stand in different rooms and each room uploads its own on
+    # entry, so they never share a frame; the page's Chapter 1-3 tenants are
+    # the same as Sharur's and are free down here for the same reason.
+    ("sharur tablet.tim",         "wing tablet.tim"),
+    ("chain.tim",                 "wing tablet.tim"),
+    ("gravel_gs.tim",             "wing tablet.tim"),
+    ("poison_flower_base_gh.tim", "wing tablet.tim"),
+    ("rusty.tim",                 "wing tablet.tim"),
+    ("rusty_fence.tim",           "wing tablet.tim"),
+    ("stable glyphs.tim",         "wing tablet.tim"),
+    ("upstairs.tim",              "wing tablet.tim"),
+    #   nnrt_arm.tim -> NINURTA'S ARM, the first CHAPTER-SCOPED item
+    # (tools/ADDING_AN_ITEM.txt STEP 2-0): 64x64 4bpp at x704 y256, CLUT
+    # (1008,502) of its own. Held only in the Underworld, so it shares a page
+    # with Chapter 1-3 room art, every tenant re-uploaded by its own room on
+    # entry; the arm is re-stamped on entry to every Underworld room by
+    # underworld_sky_upload_textures() -> item_pickups_upload_underworld().
+    ("Rabisu tex.tim",            "nnrt_arm.tim"),
+    ("incinerator.tim",           "nnrt_arm.tim"),
+    ("ladder.tim",                "nnrt_arm.tim"),
+    ("vines.tim",                 "nnrt_arm.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

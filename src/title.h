@@ -335,6 +335,11 @@ typedef enum {
                                 south-west doors - Chapter 4's third room: a
                                 U of lava round a rock island. See
                                 src/lava_u.h. Appended, not inserted. */
+    STATE_WINGSCAPE,         /* WINGSCAPE, behind Hell Hath No Fury's
+                                north-west door - Chapter 4's fourth room: a
+                                ground floor and a terrace up two ramps, with
+                                the Wings Tablet. See src/wingscape.h.
+                                Appended, not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

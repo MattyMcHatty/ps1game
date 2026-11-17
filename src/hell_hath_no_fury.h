@@ -25,8 +25,11 @@
        north-east, wooden doors south-east and north-west. Distortions of the
        chapters behind the player. The SOUTH-WEST one leads to SHARUR'S TRIAL
        (src/sharurs_trial.h), whose side of it is a WOODEN door: this side
-       plays DOOR_PANEL_CATACOMB, the way back DOOR_PANEL_WOOD. The other three
-       lead nowhere yet - no prompt and no trigger until their rooms exist.
+       plays DOOR_PANEL_CATACOMB, the way back DOOR_PANEL_WOOD. The NORTH-WEST
+       one leads to WINGSCAPE (src/wingscape.h), whose side of it is a
+       CATACOMB inner door: this side plays DOOR_PANEL_WOOD, the way back
+       DOOR_PANEL_CATACOMB. The other two lead nowhere yet - no prompt and no
+       trigger until their rooms exist.
    No wall is drawn round the edge; the collision proxy's eight edges stop the
    player at the rim. One flat floor zone.
 
@@ -81,5 +84,12 @@ int  hell_hath_no_fury_sw_door_triggered(int lock);
 /* Arrival back through the south-west door: just inside it, facing north-east.
    main.c calls it after hell_hath_no_fury_init(). */
 void hell_hath_no_fury_spawn_sw(void);
+
+/* The NORTH-WEST door, to Wingscape, on the south-west door's terms. */
+int  hell_hath_no_fury_nw_door_triggered(int lock);
+
+/* Arrival back through the north-west door: just inside it, facing
+   south-east. main.c calls it after hell_hath_no_fury_init(). */
+void hell_hath_no_fury_spawn_nw(void);
 
 #endif

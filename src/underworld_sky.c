@@ -10,6 +10,7 @@
 #include "cdaudio.h"
 #include "descent_to_hell.h"
 #include "underworld_sky.h"
+#include "item_pickup.h"        /* the chapter's item art, re-stamped on entry */
 
 /* The Underworld skybox - see underworld_sky.h. */
 
@@ -33,6 +34,12 @@ void underworld_sky_load_assets(void) {
    the transition (main's STATE_LOADING DrawSyncs first). */
 void underworld_sky_upload_textures(void) {
     descent_to_hell_upload_hell_bg();
+    /* ...and THE CHAPTER'S ITEM ART, which rides here because this is the one
+       uploader every room the player can carry an Underworld item into
+       already calls (all but the Descent, which is never re-entered). Its
+       page is Chapter 1-3 room art's, so it must be re-stamped on entry;
+       src/underworld.h rule 5. */
+    item_pickups_upload_underworld();
 }
 
 /* ---- The model -------------------------------------------------------------

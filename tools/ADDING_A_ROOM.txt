@@ -250,7 +250,10 @@ three already in it. Rule 5 is a line in a script, not code in the room.
      lists the pages free down here and the one borrowed-RESIDENT texture
      (wd_dr, x768 y256) a new room must not take without a restore. Ship to
      \TEXUNDW\. A Chapter 4 room may re-lay any page its neighbours use as long
-     as each room uploads what it draws on entry.
+     as each room uploads what it draws on entry. ITEM ART OF CHAPTERS 1-3 IS
+     NOT RESERVED DOWN HERE - none of those items can be carried this far -
+     so their pages show as "needs a way back" (boot-only uploads), not
+     blocked; tools/ADDING_AN_ITEM.txt STEP 2-0 says what taking one owes.
   4. A DOOR NEED NOT LOOK THE SAME FROM ITS TWO SIDES, SO NEITHER DOES ITS
      TRANSITION. The Underworld is a distorted hellscape: walk through a door
      and the one behind you may be a different door altogether. So the
@@ -330,8 +333,10 @@ spends; tools/HEAP_BUDGET.txt is where to watch it.
     *_upload_textures() re-stamps its own set on entry, so leaving a bank costs
     nothing for any page whose occupants are all streamed, which is nearly all
     room art. Only a startup-resident texture (the kitchen's wd_flr/red_wlppr/
-    din_cl/stn_gls, wd_dr, the Anzu tiles, the resident enemy sprites) obliges
-    you to write a restore, and the bank map marks those [RESTORE: ...].
+    din_cl/stn_gls, wd_dr, the Anzu tiles, the resident enemy sprites, and
+    the item icons of any chapter the bank cannot hold) obliges you to write
+    a restore, and the bank map marks those [RESTORE: ...]. An item the
+    player CAN be holding inside the bank is reserved, not restorable.
 
     If the room is NOT in a bank, the rest of this step applies as written.
 

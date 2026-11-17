@@ -271,6 +271,7 @@ static const char *const level_names[] = {
     "HELL HATH",
     "SHARURS TRIAL",
     "LAVA U",
+    "WINGSCAPE",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -343,6 +344,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* HELL HATH NO FURY */
     STATE_LOADING,        /* SHARURS TRIAL */
     STATE_LOADING,        /* LAVA U */
+    STATE_LOADING,        /* WINGSCAPE */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -413,6 +415,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_HELL_HATH_NO_FURY,
     STATE_SHARURS_TRIAL,
     STATE_LAVA_U,
+    STATE_WINGSCAPE,
 };
 
 /* ---- Collapsible groups, used by both columns -----------------------------

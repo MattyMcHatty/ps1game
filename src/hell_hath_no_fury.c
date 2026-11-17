@@ -96,8 +96,8 @@ static int oil_circle_prev = 1;
 /* ---- THE SOUTH-WEST DOOR, to Sharur's Trial --------------------------------
    The catacomb inner door polys span (400,200)-(200,400): centre (300,300), on
    the cut corner x+z=600 (collision wall 4, inward normal (+0.707,+0.707)), so
-   the player walks up to it from the north-east. The other three doors still
-   lead nowhere and have no prompt.
+   the player walks up to it from the north-east. The north-west door (below)
+   leads to Wingscape; the other two still lead nowhere and have no prompt.
 
    THE SIGN is on a free yaw facing the way the reader faces - 2560, south-west
    - 11 off the door toward the player, at the doorway's mid-height (the door
@@ -115,6 +115,26 @@ static int oil_circle_prev = 1;
 #define HHNF_SW_SPAWN_ROT    512
 
 static int sw_circle_prev = 1;
+
+/* ---- THE NORTH-WEST DOOR, to Wingscape -------------------------------------
+   The wooden door polys span (200,3800)-(400,4000): centre (300,3900), on the
+   cut corner z-x=3600 (collision wall 2, inward normal (+0.707,-0.707)), so
+   the player walks up to it from the south-east. The south-west door's
+   numbers mirrored in z: THE SIGN 11 off the door toward the player, on a
+   free yaw facing the way the reader faces - 3584, north-west - at the
+   doorway's mid-height; THE SPAWN 250 in along the normal, facing south-east
+   out across the platform. */
+#define HHNF_NW_X            300
+#define HHNF_NW_Z           3900
+#define HHNF_NW_TEXT_X       308
+#define HHNF_NW_TEXT_Z      3892
+#define HHNF_NW_TEXT_Y       (HHNF_FLOOR_Y - 200)
+#define HHNF_NW_TEXT_YAW     3584
+#define HHNF_NW_SPAWN_X      477
+#define HHNF_NW_SPAWN_Z     3723
+#define HHNF_NW_SPAWN_ROT   1536
+
+static int nw_circle_prev = 1;
 
 static void hhnf_floor_zones_init(void) {
     floor_zones[0].type  = FLOOR_FLAT;
@@ -380,6 +400,7 @@ void hell_hath_no_fury_init(void) {
 
     oil_circle_prev = interact_tapped();
     sw_circle_prev  = oil_circle_prev;
+    nw_circle_prev  = oil_circle_prev;
     save_point_arm();
 }
 
@@ -408,6 +429,51 @@ int hell_hath_no_fury_sw_door_triggered(int lock) {
     if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= HHNF_TRIGGER_RADIUS)
         return 0;
     return interact_facing(HHNF_SW_X, HHNF_SW_Z);
+}
+
+/* Back in through the north-west door, out of Wingscape. */
+void hell_hath_no_fury_spawn_nw(void) {
+    cam_x     = HHNF_NW_SPAWN_X;
+    cam_y     = HHNF_EYE_Y;
+    cam_vy    = 0;
+    cam_z     = HHNF_NW_SPAWN_Z;
+    cam_rot   = HHNF_NW_SPAWN_ROT;
+    cam_pitch = 0;
+    camera_look_cancel();
+    nw_circle_prev = interact_tapped();
+}
+
+/* The north-west door's press, on the south-west door's terms. */
+int hell_hath_no_fury_nw_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !nw_circle_prev;
+    int32_t dx, dz;
+    nw_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - HHNF_NW_X;
+    dz = cam_z - HHNF_NW_Z;
+    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= HHNF_TRIGGER_RADIUS)
+        return 0;
+    return interact_facing(HHNF_NW_X, HHNF_NW_Z);
+}
+
+static void hhnf_nw_text(RenderContext *ctx) {
+    int32_t dx = cam_x - HHNF_NW_X;
+    int32_t dz = cam_z - HHNF_NW_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= HHNF_TEXT_RADIUS) return;
+    if (xz > HHNF_FADE_NEAR) {
+        int range = HHNF_TEXT_RADIUS - HHNF_FADE_NEAR;
+        int prog  = xz - HHNF_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+    door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
+                            HHNF_NW_TEXT_X, HHNF_NW_TEXT_Y, HHNF_NW_TEXT_Z,
+                            50, 255, 50, fade, HHNF_NW_TEXT_YAW,
+                            DOOR_PIXEL_SIZE);
 }
 
 static void hhnf_sw_text(RenderContext *ctx) {
@@ -779,7 +845,8 @@ void hell_hath_no_fury_draw(RenderContext *ctx) {
     oil_dispensers_draw(ctx);
 
     /* >>> LEVEL 8 IS THE SAVE POINT, THE TANK'S SIGN AND BAR, THE SOUTH-WEST
-       DOOR'S SIGN AND ANY PICKUP a later seed puts down. No enemies. */
+       AND NORTH-WEST DOORS' SIGNS AND ANY PICKUP a later seed puts down. No
+       enemies. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         save_points_draw(ctx);
         hhnf_oil_text(ctx);
@@ -788,8 +855,10 @@ void hell_hath_no_fury_draw(RenderContext *ctx) {
         item_pickups_draw(ctx);
         /* Not while the white is up or the drop runs: the arrival is the
            Descent's, not a door's. */
-        if (!hell_hath_no_fury_intro() && !hell_hath_no_fury_fading())
+        if (!hell_hath_no_fury_intro() && !hell_hath_no_fury_fading()) {
             hhnf_sw_text(ctx);
+            hhnf_nw_text(ctx);
+        }
     }
 
     draw_white(ctx);

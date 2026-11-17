@@ -2048,6 +2048,18 @@
              texture: the volcanic, the lava, Sharur's rocks and the resident
              wooden door. -->
             <file name="LAVAU.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\lava_u.smd"/>
+        <!-- WINGSCAPE (src/wingscape.h), behind Hell Hath No Fury's
+             north-west door: a ground floor and a terrace up two ramps. Owns
+             no room texture: the volcanic, the lava, Sharur's rocks, the inner
+             door and the resident wooden door. -->
+            <file name="WINGSCP.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\wingscape.smd"/>
+        <!-- THE WINGS TABLET (src/wings_tablet.h), standing on Wingscape's
+             terrace: a 1200 x 100 x 600 slab exported IN PLACE, so its mesh
+             is its position and its collision. WINGTBLT.TIM is 4bpp on
+             SHARUR'S TABLET's page and palette (x704 y0, CLUT 976,502),
+             time-shared: neither room draws the other's tablet. -->
+            <file name="WINGTBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\wings_tablet.smd"/>
+            <file name="WINGTBLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\wing tablet.tim"/>
         <!-- NESSIE, the chapter's first monster (src/nessie.h): a lava-bound
              head that swims its own pool and spits fireballs. Six frames, one
              256x256 sheet (textures/underworld/nessie.png), shipped as two

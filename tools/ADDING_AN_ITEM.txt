@@ -24,6 +24,8 @@ To start an item addition, the user only needs to say:
      e.g. flm_rnds.png.
   4. What it DOES when collected (see STEP 1 for the three kinds).
   5. Where to place it: room + x/z coordinates, and a quantity if it stacks.
+     The ROOM fixes the CHAPTER, and the chapter decides where its art may
+     go in VRAM (STEP 2-0) - not the whole-disc map.
 
 Everything else — VRAM slot, CLUT line, menu slot, save wiring — is DERIVED by
 the steps below.
@@ -71,6 +73,58 @@ the usual 128x128 window must satisfy BOTH:
 Put a pickup sprite at Voff >= 128 and it silently samples another texture's
 art in every room that sets a window.
 
+2-0. FIRST: WHICH CHAPTER CAN HOLD IT? USE THAT CHAPTER'S MAP.
+    >>> VRAM IS RE-LAID ROOM BY ROOM. AN ITEM'S ART ONLY HAS TO SURVIVE IN
+        THE ROOMS WHERE THE PLAYER CAN BE HOLDING IT. <<<
+
+    Work out the chapters in which the item can be in the inventory: the one
+    it is found in, plus any it can be carried into (the chapters are one
+    way - nothing from Chapters 1/2 survives into the Catacombs, and Chapter
+    3's items are spent before the Underworld; see trap 4). Then find the slot
+    in THAT chapter's map, not in tools/VRAM_MAP.txt:
+
+        Chapters 1/2     tools/VRAM_MAP.txt (and VRAM_MAP_GARDEN_WEST.txt)
+        Asag's arena     tools/VRAM_MAP_ASAG.txt
+        Chapter 3        tools/VRAM_MAP_CATACOMBS.txt
+        Chapter 4        tools/VRAM_MAP_UNDERWORLD.txt
+
+    tools/VRAM_MAP.txt is the whole disc at once and says almost nothing is
+    free; it is the authority on COLLISIONS, not on space. The chapter maps
+    list only the items the player can hold in that chapter as RESERVED;
+    every other chapter's item art is "AVAILABLE, needs a way back first".
+
+    >>> NEVER ASK THE USER TO SHRINK OR DROP ITEM ART FOR LACK OF VRAM until
+        the chapter's map says there is no slot. <<< Ninurta's Arm (Nov 2026)
+    was cut to 32x32 because the whole-disc map had one 64x64 slot left - in
+    a chapter where every Chapter 1-3 item's page was available. (32x32 is a
+    fine CHOICE - many items are - but it is the user's, not VRAM's.)
+
+    WHAT TAKING A SHARED SLOT COSTS. Today every item's art - menu icon and
+    pickup sprite, one TIM - is uploaded ONCE, at boot (menu_init and
+    item_pickups_load_textures). That is a fact about the code, not about
+    VRAM (the same lesson as the Catacombs map's door panels), and it is the
+    whole of the cost. An item put on a page another chapter uses must:
+      - be uploaded by every room of the chapter(s) where it can be held, on
+        entry - a narrow uploader called from those rooms' *_upload_textures()
+        (texmgr_register its TIM so the RAM copy is there; gen_tex_rooms.py
+        follows the call). The menu's tpage/clut/UVs are computed once from
+        the TIM header and stay right, because the slot never moves.
+      - give the art it displaces the same courtesy if THAT art is boot-only:
+        the chapter map's "needs a way back" names it. An earlier chapter's
+        item icon is restored for the rooms of its own chapter, or a title
+        load of an earlier save shows the wrong icon.
+      - be added to KNOWN_STREAM_PAIRS in tools/vram_map.py with the art it
+        shares with, so the whole-disc map's collision check passes.
+    THE REFERENCE IS NINURTA'S ARM (Nov 2026), the first item to do it: 64x64
+    at x704 y256 over Chapter 1-3 room art. item_pickups_register_textures()
+    registers it (TEXBANK_UNDERWORLD) and item_pickups_upload_underworld()
+    re-stamps it, called from underworld_sky_upload_textures() - the one
+    uploader every room it can be held in already runs. A new chapter-scoped
+    item adds its texmgr_register/texmgr_upload pair to those two functions
+    (or a sibling pair for another chapter, hung off an uploader every room
+    of THAT chapter calls), and checks py tools/gen_tex_rooms.py --report
+    lists it in exactly the rooms that can hold it.
+
 2a. Check the source PNG. 64x64 8bpp is the norm for pickups (matches
     stnd_rnds/graveolver). The art should fill the frame.
 
@@ -87,7 +141,7 @@ art in every room that sets a window.
     re-run the grep first and confirm no room has since introduced a different
     window.
 
-2b. Find a slot in tools/VRAM_MAP.txt. A 64px 8bpp sprite is 32 WORDS wide by
+2b. Find a slot in the CHAPTER's map (STEP 2-0). A 64px 8bpp sprite is 32 WORDS wide by
     64 tall. Work the widths out yourself — the map's "wpx" column is in PIXELS,
     so words = wpx/4 (4bpp), wpx/2 (8bpp), wpx (16bpp). The pickup band is the
     y=256 row, where the other pickup sprites live. Flame Rounds took
@@ -122,9 +176,10 @@ art in every room that sets a window.
 
     Want "No unexpected pixel collisions." and your texture listed at Voff 0.
 
-Items claim their VRAM permanently (item_pickups_load_textures LoadImages every
-kind once at startup) — they are NOT time-shared like room art, so you do not
-owe anybody a restore.
+Items are uploaded once at startup (item_pickups_load_textures and menu_init
+LoadImage every kind and icon at boot). An item in a slot that NO other
+chapter's art uses owes nobody a restore. An item in a slot another chapter
+uses is time-shared like room art and owes the re-uploads in STEP 2-0.
 
 
 ##########################################################################

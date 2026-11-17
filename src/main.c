@@ -125,6 +125,8 @@
 #include "sharurs_trial.h"    /* ...and the lava sea behind its south-west door  */
 #include "sharur_tablet.h"    /* ...and the tablet standing in it                */
 #include "lava_u.h"           /* ...and the lava U behind its two southern doors */
+#include "wingscape.h"        /* ...and the terraced room behind HHNF's NW door  */
+#include "wings_tablet.h"     /* ...and the tablet standing on its terrace       */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
 #include "underworld_sky.h"   /* ...and the sky over every room after it         */
 #include "kennels_puzzle.h"
@@ -208,6 +210,9 @@ static int bedroom_door_west = 0;
    Descent's white and this door) and current_area cannot tell them apart on
    every route in (a debug jump or a title load leaves it stale). */
 static int hhnf_from_sharur = 0;
+/* ...and the same for its NORTH-WEST door, set by Wingscape's south-east door
+   (the only way into Wingscape and so its only way back). */
+static int hhnf_from_wingscape = 0;
 
 /* Which of Sharur's Trial's doors the player is arriving through, and which of
    Lava U's. Set at the trigger on the far side, read and cleared by the
@@ -312,6 +317,7 @@ void reset_game(RenderContext *ctx) {
     descent_to_hell_reset();/* ...and the fall it ends in, and the tube's RAM */
     hell_hath_no_fury_reset();/* ...and the white the platform fades up out of */
     hhnf_from_sharur = 0;     /* ...and which door it was last entered by    */
+    hhnf_from_wingscape = 0;
     sharur_arrival   = 0;     /* ...and Sharur's Trial's, and Lava U's       */
     lava_u_from_sw   = 0;
     gula_death_reset();    /* ...and any half-played death of hers            */
@@ -470,6 +476,7 @@ static void load_area_geometry(GameState area) {
         case STATE_HELL_HATH_NO_FURY:hell_hath_no_fury_load_geometry(); break;
         case STATE_SHARURS_TRIAL:    sharurs_trial_load_geometry(); break;
         case STATE_LAVA_U:           lava_u_load_geometry(); break;
+        case STATE_WINGSCAPE:        wingscape_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -3351,6 +3358,18 @@ static void update_current_area(GameState area) {
                 game_state   = STATE_DOOR_ANIM;
                 cdaudio_stop();
             }
+            /* THE NORTH-WEST DOOR, to Wingscape, on the same vetoes. A
+               WOODEN door on this side, so the wooden transition (wd_dr is
+               resident); the far side is a catacomb door and going back
+               plays that one. */
+            else if (hell_hath_no_fury_nw_door_triggered(
+                    (hf_saving || hf_oil || hell_hath_no_fury_intro() ||
+                     hell_hath_no_fury_fading()) ? 1 : lock)) {
+                pending_area = STATE_WINGSCAPE;
+                door_anim_start(DOOR_PANEL_WOOD);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
         }
     } else if (area == STATE_SHARURS_TRIAL) {
         /* SHARUR'S TRIAL - Chapter 4's second room (src/sharurs_trial.c): a
@@ -3429,6 +3448,30 @@ static void update_current_area(GameState area) {
             sharur_arrival = 2;
             pending_area = STATE_SHARURS_TRIAL;
             door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_WINGSCAPE) {
+        /* WINGSCAPE - Chapter 4's fourth room (src/wingscape.c): two storeys,
+           the y=0 ground and the y=-500 terrace up two ramps, the shared wall
+           routine (Y-gated: multi_level) and eight floor zones. The lava in
+           the south-west burns from lava_update(), like every Chapter 4
+           room's. No enemies.
+
+           ONE PROP: the WINGS TABLET on the terrace (src/wings_tablet.h),
+           collided from apply_collision_reception, nothing to update.
+
+           ONE DOOR, a CATACOMB inner door on this side, so the catacomb
+           transition (its texture is uploaded by this room, its sound
+           banked for the chapter): to Hell Hath No Fury's north-west door,
+           wooden over there. The latch tells that room which arrival this
+           is. */
+        apply_collision_reception();
+        apply_height();
+        if (wingscape_se_door_triggered(lock)) {
+            hhnf_from_wingscape = 1;
+            pending_area = STATE_HELL_HATH_NO_FURY;
+            door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -4006,6 +4049,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         sharurs_trial_draw(ctx);
     else if (area == STATE_LAVA_U)
         lava_u_draw(ctx);
+    else if (area == STATE_WINGSCAPE)
+        wingscape_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4550,8 +4595,16 @@ int main(int argc, const char **argv) {
     sharur_tablet_load_assets();  /* ...and its tablet: a 2.8 KB mesh held for
                                      the run (measured here into its box) and
                                      TWO deferred registrations. */
-    lava_u_load_assets();         /* ...and Lava U: TIM_SLOTs only - every
+    item_pickups_register_textures(); /* ...and Ninurta's Arm, re-stamped in
+                                     every Underworld room: ONE deferred
+                                     registration (src/item_pickup.c). */
+    lava_u_load_assets();        /* ...and Lava U: TIM_SLOTs only - every
                                      texture is borrowed. */
+    wingscape_load_assets();     /* ...and Wingscape: TIM_SLOTs only - every
+                                     room texture is borrowed. */
+    wings_tablet_load_assets();  /* ...and its tablet: a 2.6 KB mesh held for
+                                     the run (measured here into its box) and
+                                     ONE deferred registration. */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
                                      registrations. Its model is read on entry
                                      to the first room that draws it. */
@@ -5623,6 +5676,14 @@ int main(int argc, const char **argv) {
                    bg through narrow uploaders. The wooden door is resident
                    (src/lava_u.c). */
                 lava_u_upload_textures();
+            } else if (pending_area == STATE_WINGSCAPE) {
+                /* WINGSCAPE. Owns no room texture: Hell Hath No Fury's
+                   volcanic, the Descent's lava, Sharur's Trial's rocks, the
+                   Catacombs Entry's inner door (also the catacomb panel out
+                   of here) and the sky's hell bg through narrow uploaders,
+                   plus its tablet's own art. The wooden door is resident
+                   (src/wingscape.c). */
+                wingscape_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -6595,7 +6656,10 @@ int main(int argc, const char **argv) {
                 /* ...OR back through the south-west door from Sharur's Trial,
                    told by the latch its door set (never by current_area). */
                 else if (hhnf_from_sharur) hell_hath_no_fury_spawn_sw();
+                /* ...OR back through the north-west door from Wingscape. */
+                else if (hhnf_from_wingscape) hell_hath_no_fury_spawn_nw();
                 hhnf_from_sharur = 0;
+                hhnf_from_wingscape = 0;
             } else if (pending_area == STATE_SHARURS_TRIAL) {
                 /* THREE ARRIVALS: the north-east door from Hell Hath No Fury
                    (the init's default, and where a debug jump lands), and the
@@ -6614,6 +6678,11 @@ int main(int argc, const char **argv) {
                 lava_u_init();
                 if (lava_u_from_sw) lava_u_spawn_nw();
                 lava_u_from_sw = 0;
+            } else if (pending_area == STATE_WINGSCAPE) {
+                /* ONE ARRIVAL, the south-east door from Hell Hath No Fury -
+                   the init's spawn, and where a debug jump lands. NO MUSIC
+                   LINE: the chapter's block below. */
+                wingscape_init();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -7058,7 +7127,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_DESCENT_TO_HELL ||
                    game_state == STATE_HELL_HATH_NO_FURY ||
                    game_state == STATE_SHARURS_TRIAL ||
-                   game_state == STATE_LAVA_U) {
+                   game_state == STATE_LAVA_U ||
+                   game_state == STATE_WINGSCAPE) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {
