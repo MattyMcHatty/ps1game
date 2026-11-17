@@ -22,6 +22,7 @@
 #include "lumberer.h"
 #include "nessie.h"
 #include "ahriman.h"
+#include "golem.h"
 #include "maggot.h"
 #include "rabisu.h"
 #include "asag.h"
@@ -338,6 +339,17 @@ static void hell_burn_tick(void) {
         ahriman_body(s, &cyc, &hh, &hw);
         if (HIT(s->x, cyc, s->z, hw, hh))
             ahriman_damage(s, ahriman_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
+    }
+    /* THE GOLEM: holy fire is not a Flame Round (the user's answer), so the
+       full tick - a whole hit point a second of its ten (golem.h). It wakes
+       one, like any damage. */
+    for (i = 0; i < golem_count; i++) {
+        Golem *s = &golems[i];
+        if (!s->active || s->state == GLM_DEAD || s->area != current_area) continue;
+        int32_t cyc, hh, hw;
+        golem_body(s, &cyc, &hh, &hw);
+        if (HIT(s->x, cyc, s->z, hw, hh))
+            golem_damage(s, golem_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
     }
     /* The Maggots — in graveolver_fire's list, so they are here too (the rule
        above). Aimed through maggot_body_y(), where the floating body is. 1 a

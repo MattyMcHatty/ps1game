@@ -114,6 +114,8 @@ FLOWER_ROOMS = {"STATE_OUTSIDE_CATACOMBS", "STATE_MAZE_ONE", "STATE_MAZE_TWO",
 NESSIE_ROOMS = {"STATE_SHARURS_TRIAL"}
 # ahriman_room_has_sheet() in src/ahriman.c, restated.
 AHRIMAN_ROOMS = {"STATE_LAVA_U"}
+# golem_room_has_sheet() in src/golem.c, restated.
+GOLEM_ROOMS = {"STATE_WINGSCAPE"}
 
 
 def extra_rules(room, area):
@@ -136,6 +138,8 @@ def extra_rules(room, area):
         e.append("nessies_upload_textures")
     if room in AHRIMAN_ROOMS:
         e.append("ahrimans_upload_textures")
+    if room in GOLEM_ROOMS:
+        e.append("golems_upload_textures")
     return e
 
 

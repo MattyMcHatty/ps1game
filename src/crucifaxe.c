@@ -30,6 +30,7 @@
 #include "lumberer.h"
 #include "nessie.h"
 #include "ahriman.h"
+#include "golem.h"
 #include "living_statue.h"
 #include "hadad.h"
 #include "creep.h"
@@ -63,6 +64,7 @@ static int msh_hit_this_swing   = 0;
 static int lmb_hit_this_swing   = 0;
 static int nss_hit_this_swing   = 0;
 static int ahr_hit_this_swing   = 0;
+static int glm_hit_this_swing   = 0;
 static int gula_hit_this_swing  = 0;
 static int lms_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
@@ -123,6 +125,7 @@ void update_crucifaxe(void) {
         lmb_hit_this_swing     = 0;
         nss_hit_this_swing     = 0;
         ahr_hit_this_swing     = 0;
+        glm_hit_this_swing     = 0;
         gula_hit_this_swing    = 0;
         lms_hit_this_swing     = 0;
         lst_hit_this_swing     = 0;
@@ -352,6 +355,14 @@ void update_crucifaxe(void) {
         if (swing_timer <= SWING_DURATION && !ahr_hit_this_swing) {
             if (ahrimans_try_hit())
                 ahr_hit_this_swing = 1;
+        }
+
+        /* The Golem (src/golem.h): one whole hit point of its ten, measured to
+           its push surface like the lumberer's. No knockback - it never moves.
+           The first hit wakes it. */
+        if (swing_timer <= SWING_DURATION && !glm_hit_this_swing) {
+            if (golems_try_hit())
+                glm_hit_this_swing = 1;
         }
 
         /* Gula (src/gula.h). Measured to her push surface like the lumberer,

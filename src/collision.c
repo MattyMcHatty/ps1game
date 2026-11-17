@@ -37,6 +37,7 @@
 #include "lumberer.h"          /* the Lumberer plugs a corridor (area-tagged) */
 #include "nessie.h"            /* ...and Nessie's head is solid (area-tagged) */
 #include "ahriman.h"           /* ...and so is an Ahriman's body (area-tagged) */
+#include "golem.h"             /* ...and a Golem's (area-tagged)              */
 #include "gula.h"              /* ...and Gula, rooted in the Kennels         */
 #include "asag.h"              /* ...and Asag, solid at any pose OR position */
 #include "lamashtu.h"          /* ...and Lamashtu, solid at any pose         */
@@ -942,6 +943,10 @@ void apply_collision_reception(void) {
        tools/ADDING_AN_ENEMY.txt); its charge stops OUTSIDE this push so a
        frozen player is never shoved. */
     ahrimans_collide(&cam_x, cam_y, &cam_z, AHR_WALL_LIKE_PUSH);
+    /* The Golem (src/golem.h): the lumberers' plug on a wider radius, BEFORE
+       the walls like theirs, so a Golem planted near a wall can never shove
+       the player into it. */
+    golems_collide(&cam_x, cam_y, &cam_z, GLM_WALL_LIKE_PUSH);
     /* Gula, the Kennels' one-off (src/gula.h): rooted in open floor, but given
        the lumberers' place and radius all the same, so her push and the walls
        can never disagree about where the player ends up. */

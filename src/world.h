@@ -164,6 +164,7 @@ void world_silence_monsters(void);
 #define WD_MAX_RABISUS    8
 #define WD_MAX_NESSIES    8   /* bits: one global area-tagged array, one byte */
 #define WD_MAX_AHRIMANS   8   /* bits: likewise, one byte - see ahrimans_dead */
+#define WD_MAX_GOLEMS     8   /* bits: likewise, one byte - see golems_dead   */
 /* bits: likewise one global area-tagged array. 16 rather than 8 since The
    Shelf's two took the whole-game total to nine — which is why lumberers_dead
    below is a uint16_t, the widening crawlers_dead took (SAVE_VERSION 33). */
@@ -252,6 +253,10 @@ typedef struct {
        every other global area-tagged array when it arrives — a raw array index
        is not stable across playthroughs that took different routes. */
     uint8_t   asags_dead;                         /* likewise; see WD_MAX_ASAGS */
+    /* THE GOLEM (src/golem.h). In what was the padding byte after asags_dead,
+       before the uint16_t hadads_state - so no SAVE_VERSION bump; world.c
+       asserts the layout did not move. */
+    uint8_t   golems_dead;                        /* likewise; see WD_MAX_GOLEMS */
     uint16_t  hadads_state;                       /* 2 bits each: dead, spent */
     RoomDelta rooms[WORLD_NUM_ROOMS];
     uint8_t   fatdoor_health[WD_MAX_FATDOORS];    /* 0 = smashed              */

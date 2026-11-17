@@ -1190,6 +1190,18 @@ KNOWN_STREAM_PAIRS = [
     ("crawler_b.tim",      "ahriman_b.tim"),
     ("gula_b.tim",         "ahriman_b.tim"),
     ("zombie_sleep.tim",   "ahriman_b.tim"),
+    #   golem_a / golem_b -> the GOLEM (src/golem.c), 4bpp 256x128 halves on
+    # the SECOND halves of the same two blocks: golem_a (frames 1-3) at
+    # x[384,448) y128, golem_b (frames 4-6) at x[768,832) y128, CLUTs
+    # (176,480)/(192,480) of its own. The Ahriman's terms exactly: the tenants
+    # (spdr_wk, rafflesia2, gula_a/b, zombie_alert) are re-uploaded by main.c's
+    # destination-keyed lines on entry to every room that draws them, and the
+    # Underworld is left only through the title. Beside the Ahriman, not over it.
+    ("gula_a.tim",         "golem_a.tim"),
+    ("spdr_wk.tim",        "golem_a.tim"),
+    ("rafflesia2.tim",     "golem_a.tim"),
+    ("gula_b.tim",         "golem_b.tim"),
+    ("zombie_alert.tim",   "golem_b.tim"),
     #   sharur tablet.tim / sharur tablet cracked.tim -> SHARUR'S TRIAL's
     # tablet prop (src/sharur_tablet.c), both 4bpp 128x128, CLUTs (976,502)
     # and (992,502) of their own. Two page STARTS tools/VRAM_MAP_UNDERWORLD.txt

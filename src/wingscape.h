@@ -32,7 +32,8 @@
    The wooden door on the WEST wall (x=-3300, z~-1400) is DECORATION for now:
    no trigger, no sign. It is wired up when the room behind it exists.
 
-   No enemies. THE MUSIC is the chapter's (main.c's Chapter 4 block). Chapter
+   ONE ENEMY: a GOLEM in front of that west door, (-2800,-1400)
+   (src/golem.h, seeded in world.c). THE MUSIC is the chapter's (main.c's Chapter 4 block). Chapter
    rules (the fog, the sky): src/underworld.h. */
 
 void wingscape_load_assets(void);     /* startup: TIM_SLOTs only, no CD access */

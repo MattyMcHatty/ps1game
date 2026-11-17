@@ -43,6 +43,7 @@
 #include "lumberer.h"
 #include "nessie.h"
 #include "ahriman.h"
+#include "golem.h"
 #include "web.h"
 #include "menu.h"
 #include "hud.h"
@@ -293,6 +294,7 @@ void reset_game(RenderContext *ctx) {
     lumberers_reset();
     nessies_reset();       /* ...and Chapter 4's lava monster, with its fireballs */
     ahrimans_reset();      /* ...and its floating eyes, with their flash */
+    golems_reset();        /* ...and its rock giants, with their shards */
     lava_reset();          /* ...and the burn of the lava it swims in */
     lms_creeps_reset();    /* ...and every one Lamashtu poured, on the same terms */
     creeps_reset();        /* ...and every Creep a crib had poured out. There is
@@ -3456,7 +3458,11 @@ static void update_current_area(GameState area) {
            the y=0 ground and the y=-500 terrace up two ramps, the shared wall
            routine (Y-gated: multi_level) and eight floor zones. The lava in
            the south-west burns from lava_update(), like every Chapter 4
-           room's. No enemies.
+           room's.
+
+           ONE ENEMY: the GOLEM world_seed_room() plants in front of the west
+           wall's door (src/golem.h). It never moves; update_golems() runs
+           its breathing, its laser and its punch.
 
            ONE PROP: the WINGS TABLET on the terrace (src/wings_tablet.h),
            collided from apply_collision_reception, nothing to update.
@@ -3468,6 +3474,7 @@ static void update_current_area(GameState area) {
            is. */
         apply_collision_reception();
         apply_height();
+        update_golems();
         if (wingscape_se_door_triggered(lock)) {
             hhnf_from_wingscape = 1;
             pending_area = STATE_HELL_HATH_NO_FURY;
@@ -4821,6 +4828,11 @@ int main(int argc, const char **argv) {
                                  on the crawler's pages), uploaded on entry to
                                  the rooms ahriman_room_has_sheet() names */
     ahrimans_init();
+    golems_load_textures();   /* CHAPTER 4's rock giant: REGISTERED here (one
+                                 256x256 sheet, six frames, two 256x128 halves
+                                 beside the Ahriman's), uploaded on entry to
+                                 the rooms golem_room_has_sheet() names */
+    golems_init();
     loading_screen_pump(&ctx);
     creeps_load_textures();   /* Chapter 3's third monster, and the only one in
                                  the game that is SPAWNED rather than placed —
@@ -5923,6 +5935,13 @@ int main(int argc, const char **argv) {
                mirrored as AHRIMAN_ROOMS in tools/gen_tex_rooms.py. */
             if (ahriman_room_has_sheet(pending_area))
                 ahrimans_upload_textures();
+            /* THE GOLEM, on the SECOND halves of the same two blocks, x384 /
+               x768 y128 (src/golem.h) - beside the Ahriman's, never over it,
+               and put back on the far side of the title by the same lines.
+               Which rooms: golem_room_has_sheet(), mirrored as GOLEM_ROOMS in
+               tools/gen_tex_rooms.py. */
+            if (golem_room_has_sheet(pending_area))
+                golems_upload_textures();
             {
                 /* WHITE, NOT BLACK, INTO DESCENT TO HELL: the Seal hands off in
                    full white and the room fades up out of it, so this one

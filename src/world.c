@@ -30,6 +30,7 @@
 #include "maggot.h"
 #include "nessie.h"     /* Chapter 4's lava monster: global, area-tagged */
 #include "ahriman.h"    /* ...and its floating eye: likewise                */
+#include "golem.h"      /* ...and its rock giant: likewise                  */
 #include <stddef.h>     /* offsetof — the nessies_dead layout asserts     */
 #include "sound.h"
 
@@ -103,6 +104,8 @@ typedef struct {
     int       nessie_count;
     Ahriman   ahrimans[MAX_AHRIMANS];     /* ditto: Chapter 4's floating eye */
     int       ahriman_count;
+    Golem     golems[MAX_GOLEMS];         /* ditto: Chapter 4's rock giant  */
+    int       golem_count;
     Mushroom  mushrooms[MAX_MUSHROOMS];   /* ditto: the garden's pacing ambusher */
     int       mushroom_count;
     LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
@@ -150,6 +153,13 @@ _Static_assert(offsetof(WorldDelta, ahrimans_dead) == offsetof(WorldDelta, rabis
                "ahrimans_dead is not in the byte after rabisus_dead");
 _Static_assert(offsetof(WorldDelta, lumberers_dead) == offsetof(WorldDelta, rabisus_dead) + 2,
                "ahrimans_dead moved lumberers_dead — the save layout changed");
+/* ...and golems_dead took the padding byte after asags_dead, on the same
+   terms: if either of these fires, bump SAVE_VERSION instead. */
+_Static_assert(MAX_GOLEMS        <= WD_MAX_GOLEMS, "golems_dead too narrow");
+_Static_assert(offsetof(WorldDelta, golems_dead) == offsetof(WorldDelta, asags_dead) + 1,
+               "golems_dead is not in the byte after asags_dead");
+_Static_assert(offsetof(WorldDelta, hadads_state) == offsetof(WorldDelta, asags_dead) + 2,
+               "golems_dead moved hadads_state — the save layout changed");
 _Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow");
 _Static_assert(MAX_LIVING_STATUES <= WD_MAX_LIVING_STATUES,
                "living_statues_dead too narrow");
@@ -180,6 +190,7 @@ extern Lumberer  lumberers[MAX_LUMBERERS];     extern int lumberer_count;
 extern Rabisu    rabisus[MAX_RABISUS];         extern int rabisu_count;
 extern Nessie    nessies[MAX_NESSIES];         extern int nessie_count;
 extern Ahriman   ahrimans[MAX_AHRIMANS];       extern int ahriman_count;
+extern Golem     golems[MAX_GOLEMS];           extern int golem_count;
 extern Mushroom  mushrooms[MAX_MUSHROOMS];     extern int mushroom_count;
 extern LivingStatue living_statues[MAX_LIVING_STATUES];
 extern int          living_statue_count;
@@ -508,6 +519,8 @@ static void snapshot_fatdoors(void) {
     world.nessie_count = nessie_count;
     memcpy(world.ahrimans, ahrimans, sizeof ahrimans);
     world.ahriman_count = ahriman_count;
+    memcpy(world.golems, golems, sizeof golems);
+    world.golem_count = golem_count;
     memcpy(world.mushrooms, mushrooms, sizeof mushrooms);
     world.mushroom_count = mushroom_count;
     memcpy(world.living_statues, living_statues, sizeof living_statues);
@@ -617,6 +630,7 @@ void world_leave(GameState area) {
     nessies_rest();
     ahrimans_rest();     /* ...and the freeze with them: a frozen player who
                             reaches a door walks out free */
+    golems_rest();       /* ...full health and asleep again; deaths stick */
     mushrooms_rest();
     living_statues_rest();
     /* NOT simply "back at his spawn": where Hadad starts a visit depends on the
@@ -2228,6 +2242,18 @@ void world_seed_room(GameState area) {
         ahriman_add(-4730,  -500, AHR_HEIGHT_A, STATE_LAVA_U);
         ahriman_add( 1100, -4700, AHR_HEIGHT_C, STATE_LAVA_U);
     }
+    /* WINGSCAPE: ONE GOLEM (src/golem.h), in front of the WEST wall's door
+       (x=-3300, z[-1500,-1300] - decoration for now). (-2800,-1400) is on the
+       door's centre line, 500 off the wall: the player cannot get between it
+       and the door (425 hold + 195 wall standoff > 500), and is held 425 off
+       it on the open ground to the east, inside its 500 punch and the axe's
+       550. Solid rock there - the lava field's nearest cells are 600+ to the
+       south-west - and 900 south of the west ramp's foot (z=-500).
+       It stands in one place whichever way the player arrived (golem.h: a
+       route- or flag-dependent spot is the user's call, and none is asked
+       for yet). canonical_index keys it as bit 0. */
+    if (area == STATE_WINGSCAPE)
+        golem_add(-2800, -1400, STATE_WINGSCAPE);
 }
 
 void world_enter(GameState area) {
@@ -2418,6 +2444,15 @@ void world_save_delta(WorldDelta *d) {
                     (1u << canonical_index(areas, world.ahriman_count, i));
     }
     {
+        /* Same canonical keying as the Ahrimans above. */
+        GameState areas[MAX_GOLEMS];
+        for (i = 0; i < world.golem_count; i++) areas[i] = world.golems[i].area;
+        for (i = 0; i < world.golem_count; i++)
+            if (world.golems[i].state == GLM_DEAD)
+                d->golems_dead |= (uint8_t)
+                    (1u << canonical_index(areas, world.golem_count, i));
+    }
+    {
         GameState areas[MAX_RABISUS];
         for (i = 0; i < world.rabisu_count; i++) areas[i] = world.rabisus[i].area;
         for (i = 0; i < world.rabisu_count; i++)
@@ -2474,6 +2509,7 @@ void world_load_delta(const WorldDelta *d) {
     rabisus_reset();
     nessies_reset();
     ahrimans_reset();
+    golems_reset();
     mushrooms_reset();
     living_statues_reset();
     hadads_reset();
@@ -2556,6 +2592,8 @@ void world_load_delta(const WorldDelta *d) {
         if (d->nessies_dead & (1u << i)) nessies[i].state = NSS_DEAD;
     for (i = 0; i < ahriman_count; i++)
         if (d->ahrimans_dead & (1u << i)) ahrimans[i].state = AHR_DEAD;
+    for (i = 0; i < golem_count; i++)
+        if (d->golems_dead & (1u << i)) golems[i].state = GLM_DEAD;
     for (i = 0; i < rabisu_count; i++)
         if (d->rabisus_dead & (1u << i)) { rabisus[i].dead = 1; rabisus[i].dying = 1; }
     for (i = 0; i < mushroom_count; i++)

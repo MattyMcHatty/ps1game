@@ -2087,6 +2087,17 @@
              can hold their owners. CLUTs (144,480) and (160,480), its own. -->
             <file name="AHRIMANA.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\ahriman_a.tim"/>
             <file name="AHRIMANB.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\ahriman_b.tim"/>
+        <!-- GOLEM (src/golem.h): six frames, one 256x256 3x2 sheet
+             (textures/underworld/golem.png), shipped as two 4bpp 256x128 halves
+             for the Ahriman's reason - GOLEMA is frames 1-3 (top row), GOLEMB
+             frames 4-6. Quantised against ONE master palette (the idle loop is
+             frame 1 <-> 6, which crosses halves); tools/split_golem_sheet.py
+             makes both. 4bpp because the source art is already 15 colours.
+             The SECOND halves of the crawler's blocks, x[384,448) and
+             x[768,832) y128, beside the Ahriman's, on the same way back. CLUTs
+             (176,480) and (192,480), its own. -->
+            <file name="GOLEMA.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\golem_a.tim"/>
+            <file name="GOLEMB.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\golem_b.tim"/>
         </dir>
 
         </directory_tree>

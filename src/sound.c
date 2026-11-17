@@ -354,7 +354,12 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
        over as the largest and starts costing real headroom. */
     [SFX_VOMIT]      = SND_BANK_ASAG,
     [SFX_SLAM_ASAG]  = SND_BANK_ASAG,
-    [SFX_LASER]      = SND_BANK_ASAG,
+    /* ...and UNDERWORLD for the GOLEM's beam (src/golem.c), which is Asag's
+       laser by design. Free: the Underworld bank is the smallest in the region
+       and stays well under the largest, so `spare` does not move (run
+       tools/spu_budget.py). Voice 15: RUMBLE_4 (Sharur's Tablet's shatter) is
+       its only other Underworld claimant, in a room with no Golem. */
+    [SFX_LASER]      = SND_BANK_ASAG | SND_BANK_UNDERWORLD,
     /* CHAPTER 3, and CHAPTER 4: Hell Hath No Fury stands an oil tank in
        its ruin, and the Underworld's bank is the only one loaded there.
        The second bit costs a second 4 KB copy in a bank that was nearly

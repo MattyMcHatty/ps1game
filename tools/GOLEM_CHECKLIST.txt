@@ -1,0 +1,77 @@
+GOLEM - ADDING CHECKLIST (Nov 2026)
+====================================
+Following tools/ADDING_AN_ENEMY.txt. [x] = done, [ ] = to do.
+
+DESIGN (from the brief + answers)
+  - Sheet textures/underworld/golem.png, 3x2: 1 2 3 top row, 4 5 6 bottom.
+    Idle 1/6, laser 2/3, punch 4/5.
+  - 10 HP. Flame Round does half; Helluminator counts as full (not flame).
+  - Never moves. Placement may depend on entry door / flags (note in golem.h).
+  - Wider than tall, shorter than a Lumberer, Lumberer-sized collision radius.
+  - Idle until first damaged; idle frames 1/6 loop at breathing pace.
+    Leaving the room before it dies = full health and idle again.
+  - Active: PUNCH when in range (Lumberer's attack at half the duration and
+    half the shockwave radius, same damage, DARK RED shockwave, SFX_RUMBLE only
+    as the arm comes down). Otherwise LASER loop: 1.5 s idle -> 1 s sprite 2
+    (glow) -> 2 s sprite 3 beam. Laser always finishes before a punch.
+    Aim tracks the player until the beam starts, then is locked; the beam runs
+    from the chest centre to the first wall. 25 HP per hit, at most once a
+    second. Asag's laser look and sound.
+  - Death: SFX_RUMBLE + tablet-style cube burst, brown/red, smaller, tighter
+    (spans the golem's width).
+  - First placement: Wingscape, in front of the western door.
+
+STEPS
+  [x] 1. Read reference enemies (ahriman, lumberer, asag laser, web aim,
+         sharur tablet shatter)
+  [x] 2. Textures: VRAM slot on the Underworld map, split/convert the sheet,
+         disc.xml, tex-room/bank tools, VRAM map regenerated
+  [x] 3. src/golem.h / src/golem.c: states, idle anim, wake on damage,
+         punch + shockwave, laser charge/beam, death burst, body collision
+  [x] 4. Weapons: crucifaxe, graveolver (flame = half), helluminator
+  [x] 5. Persistence: world.c global area-tagged array, rest/reset, save codec
+  [x] 6. Sounds: SFX_RUMBLE and SFX_LASER into the Underworld bank,
+         SPU budget checked
+  [x] 7. Wiring: main.c (init/reset/update/upload), collision.c, Wingscape
+         draw + texwindow, CMakeLists.txt
+  [x] 8. Placement in Wingscape in front of the western door, reachability
+         checked against the room
+  [x] 9. Budgets: heap_budget.py, check_tex_banks.py, spu_budget.py
+  [x] 10. Build + disc (cmake --build, mkpsxiso)
+  [x] 11. Verify (headless emulator boot if possible)
+
+RESULTS
+  - VRAM: golem_a x384 y128 CLUT (176,480), golem_b x768 y128 CLUT (192,480);
+    "No unexpected pixel collisions."
+  - SPU: SFX_LASER tagged ASAG|UNDERWORLD; Underworld bank 97 KB -> 125 KB,
+    spare unchanged (12,080). SFX_RUMBLE was already in the Underworld bank.
+  - Save: golems_dead took the padding byte after asags_dead - asserts pass,
+    no SAVE_VERSION bump.
+  - Heap: 214 KB free at rest; Wingscape's room set 130 KB; texmgr 22 spare.
+  - Build: 0 warnings. check_tex_banks.py OK.
+  - Headless PCSX-Redux force-boot into Wingscape, 0 exceptions:
+      laser  wait 90 / charge 60 / fire 120 frames, beam locked on the player
+             and cut at the wall, 25 per hit, one hit a second (100 -> 50
+             over a 2 s beam);
+      punch  30-frame wind-up, wave lands for 35, repeats while in range;
+      death  shards spawn and settle on the floor.
+
+STILL TO CHECK IN-GAME (needs your eyes)
+  [ ] Looks right: size/stretch, idle breathing pace, frames 2/3/4/5.
+  [ ] Beam origin sits on the chest core; dark red shockwave reads as red.
+  [ ] Leave Wingscape with it hurt and come back: full health, idle.
+  [ ] Kill it, save, load: it stays dead.
+  [ ] Open the inventory mid-fight: it keeps attacking.
+
+ROUND 2 (play-test fixes)
+  [x] Wind-up 0.5 s -> 0.75 s (GLM_WINDUP_FRAMES 30 -> 45)
+  [x] Laser charge 1 s -> 1.5 s (GLM_LAS_CHARGE 60 -> 90)
+  [x] Aim locks 0.5 s before the beam fires (GLM_LAS_LOCK_LEAD), not on the
+      firing frame - the old lock made every beam a certain hit
+  [x] Beam now drawn: it was one quad running through the camera, which the
+      GPU drops whole; now short segments clipped in front of the camera
+  [x] SFX_LASER plays out in full (no cut at beam end or death); beam held
+      2 s -> 2.5 s (GLM_LAS_FIRE 120 -> 150)
+  [x] Build + disc
+  [ ] In-game: beam visible from the side AND when aimed straight at you;
+      the 0.5 s lock is dodgeable

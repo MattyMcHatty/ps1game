@@ -22,6 +22,7 @@
 #include "lumberer.h"
 #include "nessie.h"
 #include "ahriman.h"
+#include "golem.h"
 #include "gula.h"
 #include "lamashtu.h"     /* the one spot on her back that can be hurt */
 #include "creep.h"
@@ -273,6 +274,11 @@ static void gun_hit(int kind, int idx) {
            Three rounds, or six Flame Rounds. */
         ahriman_damage(&ahrimans[idx],
                        ahriman_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 20) {
+        /* A GOLEM: a whole hit point of its ten from a Standard or Scattershot
+           round, HALF of one from a Flame Round - half-points, the Ahriman's
+           model (golem.h). Any round wakes it. */
+        golem_damage(&golems[idx], golem_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (kind == 17) {
         /* A LAMASHTU CREEP: the Creep's one hit point, so any round. */
         lms_creep_damage(&lms_creeps[idx],
@@ -471,6 +477,14 @@ static void graveolver_fire(void) {
         int32_t cyc, hh, hw;
         ahriman_body(s, &cyc, &hh, &hw);
         consider(19, i, s->x, cyc, s->z, hw, hh, GUN_RANGE, CLR_LINE);
+    }
+    /* Chapter 4's Golem, through golem_body(). */
+    for (i = 0; i < golem_count; i++) {
+        Golem *s = &golems[i];
+        if (!s->active || s->state == GLM_DEAD || s->area != current_area) continue;
+        int32_t cyc, hh, hw;
+        golem_body(s, &cyc, &hh, &hw);
+        consider(20, i, s->x, cyc, s->z, hw, hh, GUN_RANGE, CLR_LINE);
     }
     /* The Creeps the Room of Arms' crib pours out. The circle is built from the
        same half-extents the sprite is drawn at, centred on creep_body_y() —

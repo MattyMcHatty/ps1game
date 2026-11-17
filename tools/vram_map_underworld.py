@@ -99,6 +99,11 @@ BANK = {
     # entry to any room that can hold them, so the way back already exists.
     "ahriman_a.tim":           "Lava U: Ahriman frames 0-1 (crawler's) x320 y128",
     "ahriman_b.tim":           "Lava U: Ahriman frames 2-3 (crawler's) x704 y128",
+    # The GOLEM (src/golem.h), on the SECOND halves of the same two blocks -
+    # the Ahriman only fills the first 64 words of each. Same owners, same
+    # way back (spiders, flowers, Gula, zombies).
+    "golem_a.tim":             "Wingscape: Golem frames 1-3 (crawler's) x384 y128",
+    "golem_b.tim":             "Wingscape: Golem frames 4-6 (crawler's) x768 y128",
     # SHARUR'S TABLET (src/sharur_tablet.h): the plain art and the cracked
     # art the front faces switch to on the fourth blow. Two FREE page starts.
     "sharur tablet.tim":         "Sharur: the tablet (owned)         x704 y0",
@@ -170,8 +175,9 @@ print()
 print("THE SPRITE BAND  y[128,256)   (Voff 128: sprites only. Nessie takes x[832,960)")
 print("- Adapa's block - uploaded by main.c after the door-panel restore; the Ahriman")
 print("takes x[320,384) and x[704,768) - the crawler's blocks, restored on the way out")
-print("by the same STATE_LOADING lines that restore them after the Catacombs. No enemy")
-print("sheet of Chapters 1-3 is uploaded down here.)")
+print("by the same STATE_LOADING lines that restore them after the Catacombs - and the")
+print("Golem their second halves, x[384,448) and x[768,832), on the same terms. No")
+print("enemy sheet of Chapters 1-3 is uploaded down here.)")
 print()
 for px in range(320, 960, 128):
     v, other = verdict(occupants(px, 128, 128, 128))

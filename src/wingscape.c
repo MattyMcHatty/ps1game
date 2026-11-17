@@ -31,6 +31,7 @@
 #include "particles.h"
 #include "btn_glyph.h"
 #include "door.h"
+#include "golem.h"              /* the rock giant by the west door          */
 
 /* Wingscape - see wingscape.h. The room half is src/lava_u.c's (itself Hell
    Hath No Fury's): cull keys, radius side cull and all. */
@@ -531,7 +532,13 @@ void wingscape_draw(RenderContext *ctx) {
     render_set_clear_colour(ctx, UW_FOG_R, UW_FOG_G, UW_FOG_B);
 
     /* 128x128 texture window so per-poly UVs wrap within each texture's page.
-       All five room textures, the tablet's and the sky's sit at Voff 0. */
+       All five room textures, the tablet's and the sky's sit at Voff 0. The
+       GOLEM's sheet does NOT (Voff 128), so it brackets itself and is told
+       what to restore. */
+    {
+        RECT gtw = { 0, 0, 128 >> 3, 128 >> 3 };
+        golems_set_texwindow(&gtw);
+    }
     {
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
         if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
@@ -553,11 +560,14 @@ void wingscape_draw(RenderContext *ctx) {
         draw_ws_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE WINGS TABLET, THE DOOR SIGN and any pickup a later
-       seed puts down. No enemies. */
+    /* >>> LEVEL 8 IS THE WINGS TABLET, THE DOOR SIGN, any pickup a later
+       seed puts down, and the GOLEM (area-gated inside; src/golem.h). The
+       tablet reloads the plain view itself, so the Golem after it still
+       projects through the camera. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         wings_tablet_draw(ctx);
         item_pickups_draw(ctx);
+        draw_golems(ctx);
         ws_se_text(ctx);
     }
 }
