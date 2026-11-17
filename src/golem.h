@@ -115,7 +115,9 @@
  * for a hit and SFX_HURT for the player's.
  * ----------------------------------------------------------------------- */
 
-#define MAX_GOLEMS             8    /* WHOLE-GAME budget. One placed: Wingscape */
+#define MAX_GOLEMS             8    /* WHOLE-GAME budget. Two seeded, both in
+                                       Wingscape: the west door's, and the
+                                       Wings Tablet's summoned guard */
 
 /* ---- Health, in half-points - see above. */
 #define GLM_MAX_HEALTH        10
@@ -259,6 +261,10 @@ typedef struct {
     int         on_upper_floor;
     int         on_ramp;
     GameState   area;
+    /* 1 = a SUMMONED Golem (the Wings Tablet's guard, src/wings_tablet.h):
+       planted ABSENT (GLM_DEAD) and brought in by golem_summon(). Survives
+       glm_spawn's wipe, so golems_rest() keeps it a guard. */
+    int         guard;
 } Golem;
 
 extern Golem golems[MAX_GOLEMS];
@@ -279,6 +285,25 @@ int  golem_add(int32_t x, int32_t z, GameState area);
 /* Re-plant a living Golem somewhere else (a route- or flag-dependent spot, see
    the head). Does nothing to a dead one. */
 void golem_set_spawn(int idx, int32_t x, int32_t z);
+
+/* ---- SUMMONED GOLEMS (the Wings Tablet's guard, src/wings_tablet.h) --------
+   A guard is a seeded slot like any other - so it costs one place in the
+   MAX_GOLEMS budget and one golems_dead bit however often it is summoned -
+   but it is planted ABSENT: GLM_DEAD, nothing drawn, nothing collided. A
+   summon puts it back at its spawn; a kill makes it absent again, ready for
+   the next summon. Its "is it standing" across a load is the owner's flag
+   (FLAG_WINGS_GUARD_UP), not its dead bit - see player.h.
+     golem_add_guard  plant one ABSENT at (x, z), standing on floor_y (the
+                      floor's height, not the anchor: -500 for a terrace).
+     golem_guard      the area's guard, or NULL.
+     golem_summon     bring it in at its spawn, AWAKE: it chooses its first
+                      attack on its next update, as a first hit would make it.
+     golem_revive     bring it in at its spawn, IDLE - the load path's, so a
+                      guard comes back after a load as one left behind does. */
+int    golem_add_guard(int32_t x, int32_t floor_y, int32_t z, GameState area);
+Golem *golem_guard(GameState area);
+void   golem_summon(Golem *s);
+void   golem_revive(Golem *s);
 
 void golems_init(void);
 void golems_reset(void);

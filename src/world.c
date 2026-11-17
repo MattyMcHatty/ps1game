@@ -31,6 +31,7 @@
 #include "nessie.h"     /* Chapter 4's lava monster: global, area-tagged */
 #include "ahriman.h"    /* ...and its floating eye: likewise                */
 #include "golem.h"      /* ...and its rock giant: likewise                  */
+#include "wings_tablet.h" /* where the tablet's summoned guard stands     */
 #include <stddef.h>     /* offsetof — the nessies_dead layout asserts     */
 #include "sound.h"
 
@@ -2254,6 +2255,15 @@ void world_seed_room(GameState area) {
        for yet). canonical_index keys it as bit 0. */
     if (area == STATE_WINGSCAPE)
         golem_add(-2800, -1400, STATE_WINGSCAPE);
+    /* ...and the WINGS TABLET's GUARD (src/wings_tablet.h): a second Golem,
+       planted ABSENT in front of the tablet on the terrace, which every wrong
+       answer to its puzzle summons. Seeded AFTER the west door's, so that one
+       keeps bit 0 (old saves) and this is bit 1. Whether it is standing after
+       a load is FLAG_WINGS_GUARD_UP, not its dead bit (player.h): this seed
+       always plants it absent, and wings_tablet_apply_flags() brings it back. */
+    if (area == STATE_WINGSCAPE)
+        golem_add_guard(WT_GUARD_X, WT_GUARD_FLOOR_Y, WT_GUARD_Z,
+                        STATE_WINGSCAPE);
 }
 
 void world_enter(GameState area) {

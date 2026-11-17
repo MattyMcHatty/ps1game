@@ -45,6 +45,7 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\GLKY.TIM;1",       /* PICKUP_GAOL_KEY          */
     "\\TEX\\SCATRNDS.TIM;1",   /* PICKUP_SCATTER_ROUNDS    */
     "\\TEX\\NNRTARM.TIM;1",    /* PICKUP_NINURTAS_ARM      */
+    "\\TEX\\NNRTWNGS.TIM;1",   /* PICKUP_NINURTAS_WINGS    */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
@@ -61,6 +62,7 @@ static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Gaol Key",                /* PICKUP_GAOL_KEY          */
     "Scattershot Rounds",      /* PICKUP_SCATTER_ROUNDS    */
     "Ninurta's Arm",           /* PICKUP_NINURTAS_ARM      */
+    "Ninurta's Wings",         /* PICKUP_NINURTAS_WINGS    */
 };
 
 /* Load one TIM into VRAM and record its tpage/clut and UV rect. The UV's U0 is
@@ -117,17 +119,23 @@ void item_pickups_load_textures(void) {
    Underworld room but the Descent calls, i.e. every room the arm can be held
    in - calls item_pickups_upload_underworld() on entry. The boot upload still
    sets the sprite's and the menu icon's tpage/clut/UVs, which never move.
-   tools/ADDING_AN_ITEM.txt STEP 2-0 is the rule; this is its first user. */
+   tools/ADDING_AN_ITEM.txt STEP 2-0 is the rule; this is its first user.
+   NINURTA'S WINGS is the second, on the same terms: 64x64 4bpp at x720 y256
+   (the right half of the arm's strip of the page, u 64..127), CLUT
+   (1008,503). */
 #include "texmgr.h"
 static int nnrt_tex = -1;
+static int nnwg_tex = -1;
 
 void item_pickups_register_textures(void) {
     texmgr_set_bank(TEXBANK_UNDERWORLD);
     nnrt_tex = texmgr_register("\\TEX\\NNRTARM.TIM;1");
+    nnwg_tex = texmgr_register("\\TEX\\NNRTWNGS.TIM;1");
 }
 
 void item_pickups_upload_underworld(void) {
     if (nnrt_tex >= 0) texmgr_upload(nnrt_tex);
+    if (nnwg_tex >= 0) texmgr_upload(nnwg_tex);
 }
 
 void item_pickups_reset(void) {
@@ -150,7 +158,7 @@ void item_pickups_reset(void) {
     player_items &= ~((1 << ITEM_PIANO_KEY) | (1 << ITEM_BLUE_KEY_STONE) |
                       (1 << ITEM_MAGENTA_KEY_STONE) |
                       (1 << ITEM_MEAT_SACK) | (1 << ITEM_GAOL_KEY) |
-                      (1 << ITEM_NINURTAS_ARM));
+                      (1 << ITEM_NINURTAS_ARM) | (1 << ITEM_NINURTAS_WINGS));
     player_hatch_keys   = 0;
     player_blood_pearls = 0;
     player_oil        = 0;   /* a new game holds no lantern and no oil */
@@ -249,6 +257,9 @@ static void collect(ItemPickup *p) {
            again, and unlike the bit it survives the arm being spent. */
         case PICKUP_NINURTAS_ARM: player_items |= (1 << ITEM_NINURTAS_ARM);
                                   game_flag_set(FLAG_NINURTAS_ARM_TAKEN);  break;
+        /* ...and the Wings Tablet's, on the same terms. */
+        case PICKUP_NINURTAS_WINGS: player_items |= (1 << ITEM_NINURTAS_WINGS);
+                                    game_flag_set(FLAG_NINURTAS_WINGS_TAKEN); break;
         default: break;
     }
     sound_play(SFX_PICKUP);

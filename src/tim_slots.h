@@ -227,6 +227,14 @@
 #define TIM_TPAGE_GLKY     0x000e
 #define TIM_CLUT_GLKY      0x7862
 
+/* golem_a.tim     4bpp  VRAM ( 384,128)  \TEXUNDW\GOLEMA.TIM */
+#define TIM_TPAGE_GOLEMA   0x0006
+#define TIM_CLUT_GOLEMA    0x780b
+
+/* golem_b.tim     4bpp  VRAM ( 768,128)  \TEXUNDW\GOLEMB.TIM */
+#define TIM_TPAGE_GOLEMB   0x000c
+#define TIM_CLUT_GOLEMB    0x780c
+
 /* gravel_texture.tim  4bpp  VRAM ( 640,  0)  \GRAVEL.TIM */
 #define TIM_TPAGE_GRAVEL   0x000a
 #define TIM_CLUT_GRAVEL    0x7800
@@ -447,6 +455,10 @@
 #define TIM_TPAGE_NNRTARM  0x001b
 #define TIM_CLUT_NNRTARM   0x7dbf
 
+/* nnrt_wngs.tim   4bpp  VRAM ( 720,256)  \TEX\NNRTWNGS.TIM */
+#define TIM_TPAGE_NNRTWNGS 0x001b
+#define TIM_CLUT_NNRTWNGS  0x7dff
+
 /* oil_container.tim  4bpp  VRAM ( 896,256)  \TEXCTCMB\OILCNTNR.TIM */
 #define TIM_TPAGE_OILCNTNR 0x001e
 #define TIM_CLUT_OILCNTNR  0x7e2a
@@ -662,6 +674,10 @@
 /* wing tablet.tim  4bpp  VRAM ( 704,  0)  \TEXUNDW\WINGTBLT.TIM */
 #define TIM_TPAGE_WINGTBLT 0x000b
 #define TIM_CLUT_WINGTBLT  0x7dbd
+
+/* wings tablet question and answers.tim  4bpp  VRAM ( 768,  0)  \TEXUNDW\WINGTBQA.TIM */
+#define TIM_TPAGE_WINGTBQA 0x000c
+#define TIM_CLUT_WINGTBQA  0x7dbe
 
 /* wx_cb.tim       4bpp  VRAM ( 544,256)  \TEX\WXCB.TIM */
 #define TIM_TPAGE_WXCB     0x0018

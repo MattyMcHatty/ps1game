@@ -37,6 +37,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "PEARL UP DOWN",
     "PEARL GAOL",
     "SHARUR SOLVED",
+    "WINGS SOLVED",
 };
 
 static int grants_pending = 0;
@@ -401,5 +402,14 @@ void debug_opts_apply_grants(void) {
         game_flag_set(FLAG_SHARUR_TABLET_BROKEN);
         game_flag_set(FLAG_NINURTAS_ARM_TAKEN);
         player_items |= (1 << ITEM_NINURTAS_ARM);
+    }
+
+    /* The Wings Tablet: answered, shattered, and its carving in the pocket -
+       on Sharur's terms. TAKEN stops wings_tablet_apply_flags() laying a
+       second pair of wings on the terrace. */
+    if (debug_opts[DBG_WINGS_TABLET_SOLVED]) {
+        game_flag_set(FLAG_WINGS_TABLET_BROKEN);
+        game_flag_set(FLAG_NINURTAS_WINGS_TAKEN);
+        player_items |= (1 << ITEM_NINURTAS_WINGS);
     }
 }

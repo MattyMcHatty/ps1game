@@ -1253,6 +1253,31 @@ KNOWN_STREAM_PAIRS = [
     ("incinerator.tim",           "nnrt_arm.tim"),
     ("ladder.tim",                "nnrt_arm.tim"),
     ("vines.tim",                 "nnrt_arm.tim"),
+    #   wings tablet question and answers.tim -> THE WINGS TABLET PUZZLE's
+    # cuneiform (src/wings_tablet.c), 4bpp 128x128 on SHARUR'S CRACKED
+    # TABLET's page AND CLUT (992,502): x768 y0. Sharur's Trial never draws
+    # the puzzle and Wingscape never draws the cracked tablet, and each room
+    # uploads its own on entry - the wing tablet's terms on the next page.
+    ("sharur tablet cracked.tim",  "wings tablet question and answers.tim"),
+    ("bed.tim",                    "wings tablet question and answers.tim"),
+    ("brick_wall.tim",             "wings tablet question and answers.tim"),
+    ("fountain.tim",               "wings tablet question and answers.tim"),
+    ("grss.tim",                   "wings tablet question and answers.tim"),
+    ("gula codes.tim",             "wings tablet question and answers.tim"),
+    ("lamashtu arm.tim",           "wings tablet question and answers.tim"),
+    ("lamashtu tablet.tim",        "wings tablet question and answers.tim"),
+    ("pipe.tim",                   "wings tablet question and answers.tim"),
+    ("plinth_diamond.tim",         "wings tablet question and answers.tim"),
+    ("xt_dr_cmplt.tim",            "wings tablet question and answers.tim"),
+    ("xt_dr_lckd.tim",             "wings tablet question and answers.tim"),
+    #   nnrt_wngs.tim -> NINURTA'S WINGS, the second chapter-scoped item: 64x64
+    # 4bpp at x720 y256 - the right half of Ninurta's Arm's 32-word strip of
+    # the page, u 64..127 - CLUT (1008,503) of its own. Ninurta's Arm's
+    # terms: re-stamped by item_pickups_upload_underworld().
+    ("Rabisu tex.tim",            "nnrt_wngs.tim"),
+    ("incinerator.tim",           "nnrt_wngs.tim"),
+    ("ladder.tim",                "nnrt_wngs.tim"),
+    ("vines.tim",                 "nnrt_wngs.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

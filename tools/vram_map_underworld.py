@@ -77,6 +77,7 @@ CHAPTER_3_ITEMS = {"bld_prl.tim", "mt_sck.tim", "gl_ky.tim"}
 RESERVED = {n: v for n, v in CATA.RESERVED.items() if n not in CHAPTER_3_ITEMS}
 # ...and the Underworld's own: Ninurta's Arm, under Sharur's Tablet.
 RESERVED["nnrt_arm.tim"] = "the Ninurta's Arm item (under Sharur's Tablet)"
+RESERVED["nnrt_wngs.tim"] = "the Ninurta's Wings item (under the Wings Tablet)"
 # Every earlier chapter's item: startup-resident, never drawn down here.
 NEEDS_RESTORE = set(CATA.NEEDS_RESTORE) | CHAPTER_3_ITEMS
 
@@ -111,6 +112,8 @@ BANK = {
     # THE WINGS TABLET (src/wings_tablet.h): Wingscape's terrace slab, on
     # Sharur's Tablet's page and palette - neither room draws the other's.
     "wing tablet.tim":           "Wingscape: the tablet (owned; Sharur's page) x704 y0",
+    # ...and the puzzle's cuneiform, on the CRACKED art's page and palette.
+    "wings tablet question and answers.tim": "Wingscape: the puzzle's cuneiform (owned; Sharur's cracked page) x768 y0",
 }
 
 tims = {}

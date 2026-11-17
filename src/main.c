@@ -827,6 +827,18 @@ static void update_current_area(GameState area) {
         update_particles();
         return;
     }
+    /* ...and the WINGS TABLET's puzzle (src/wings_tablet.h), on the same
+       terms: the camera on the face, the cuneiform question and answers,
+       Left/Right/Circle to answer and Cross to leave. The west door's Golem
+       keeps going if it is awake (the guard cannot be: the tablet is silent
+       while it stands). */
+    if (area == STATE_WINGSCAPE && wings_tablet_examining()) {
+        update_golems();
+        player_status_update();
+        wings_tablet_update(1);
+        update_particles();
+        return;
+    }
     if (area == STATE_KENNELS && gula_death_cutscene()) {
         update_gula();
         player_status_update();
@@ -3465,7 +3477,9 @@ static void update_current_area(GameState area) {
            its breathing, its laser and its punch.
 
            ONE PROP: the WINGS TABLET on the terrace (src/wings_tablet.h),
-           collided from apply_collision_reception, nothing to update.
+           collided from apply_collision_reception: Chapter 4's second
+           puzzle. A wrong answer summons the GUARD, Wingscape's second
+           Golem; the right one shatters it and leaves NINURTA'S WINGS.
 
            ONE DOOR, a CATACOMB inner door on this side, so the catacomb
            transition (its texture is uploaded by this room, its sound
@@ -3475,6 +3489,15 @@ static void update_current_area(GameState area) {
         apply_collision_reception();
         apply_height();
         update_golems();
+        /* NINURTA'S WINGS, once the tablet is down: the room's first pickup,
+           so this and the draw (in wingscape.c) are new with it - the Blood
+           Pearl's trap (tools/ADDING_AN_ITEM.txt STEP 8). */
+        item_pickups_update();
+        /* THE WINGS TABLET: the Circle trigger for its puzzle (from the next
+           frame the branch at the top of this function owns everything), the
+           guard's flag, and its shards' fall once it is broken. The door is
+           5000+ away, so one Circle cannot do both. */
+        wings_tablet_update(lock);
         if (wingscape_se_door_triggered(lock)) {
             hhnf_from_wingscape = 1;
             pending_area = STATE_HELL_HATH_NO_FURY;
@@ -7020,6 +7043,14 @@ int main(int argc, const char **argv) {
                                                     its seed) cannot restore it,
                                                     and the flags it reads are a
                                                     load's and a grant's */
+            if (pending_area == STATE_WINGSCAPE)
+                wings_tablet_apply_flags();      /* ...and Ninurta's Wings where
+                                                    the Wings Tablet stood, on
+                                                    the same terms; and its
+                                                    guard back on its feet if
+                                                    FLAG_WINGS_GUARD_UP says it
+                                                    was left standing (every
+                                                    seed plants it absent) */
             if (pending_area == STATE_INCINERATOR_ROOM)
                 incinerator_room_apply_flags();  /* the pearl / Gaol Key back
                                                     on the east tray: writes to
@@ -7287,7 +7318,12 @@ int main(int argc, const char **argv) {
                                   the screen, where a stale log box would sit
                                   over it. */
                                (area == STATE_SHARURS_TRIAL &&
-                                sharur_tablet_examining());
+                                sharur_tablet_examining()) ||
+                               /* ...and the Wings Tablet's puzzle: its
+                                  answers sit at the foot of the screen,
+                                  where a stale log box would cover them. */
+                               (area == STATE_WINGSCAPE &&
+                                wings_tablet_examining());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();

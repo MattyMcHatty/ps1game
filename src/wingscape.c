@@ -325,6 +325,11 @@ void wingscape_init(void) {
     oil_dispensers_clear();
     bars_clear();
     reset_particles();
+
+    /* The tablet's puzzle: no shot, no shards, and a NEW ANSWER ORDER - the
+       brief re-rolls it on every entry. Whether the slab stands at all is
+       FLAG_WINGS_TABLET_BROKEN, read live. */
+    wings_tablet_arm();
 }
 
 /* ---- The mesh --------------------------------------------------------------
@@ -560,8 +565,9 @@ void wingscape_draw(RenderContext *ctx) {
         draw_ws_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE WINGS TABLET, THE DOOR SIGN, any pickup a later
-       seed puts down, and the GOLEM (area-gated inside; src/golem.h). The
+    /* >>> LEVEL 8 IS THE WINGS TABLET (its shards and its sign), NINURTA'S
+       WINGS once it has shattered, the DOOR SIGN, and the GOLEMS - the west
+       door's and the tablet's guard (area-gated inside; src/golem.h). The
        tablet reloads the plain view itself, so the Golem after it still
        projects through the camera. */
     if (exp != DBG_EXP_NO_ENTITIES) {
@@ -570,4 +576,8 @@ void wingscape_draw(RenderContext *ctx) {
         draw_golems(ctx);
         ws_se_text(ctx);
     }
+
+    /* The tablet's question, answers and reticule, over the puzzle's shot.
+       Screen space and outside the entity gate: it is the puzzle. */
+    wings_tablet_draw_overlay(ctx);
 }

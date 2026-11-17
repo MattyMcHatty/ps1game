@@ -43,6 +43,10 @@ typedef enum {
                                 FLAG_NINURTAS_ARM_TAKEN. Never placed by
                                 world.c: Sharur's Tablet leaves it where it
                                 stood when it shatters (src/sharur_tablet.h) */
+    PICKUP_NINURTAS_WINGS,   /* ninurta's wings -> ITEM_NINURTAS_WINGS bit, and
+                                FLAG_NINURTAS_WINGS_TAKEN. Never placed by
+                                world.c: the Wings Tablet leaves it where it
+                                stood when it is answered (src/wings_tablet.h) */
     PICKUP_KIND_COUNT
 } PickupKind;
 
@@ -103,7 +107,7 @@ void item_pickups_load_textures(void);
 /* Chapter-scoped item art (see item_pickup.c): register at startup, among the
    other *_load_assets; re-uploaded on entry to every room that can hold it. */
 void item_pickups_register_textures(void);
-void item_pickups_upload_underworld(void);   /* Ninurta's Arm, x704 y256 */
+void item_pickups_upload_underworld(void);   /* Ninurta's Arm x704 + Wings x720, y256 */
 
 /* Place a collectible into the live array. Returns its index, or -1 if full.
    The plain form grants the kind's default (ROUNDS_PER_PICKUP for rounds); the

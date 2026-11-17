@@ -104,6 +104,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   pipe.tim             4       768     0   128   128     0   256,502
   plinth_diamond.tim   4       768     0   128   128     0   256,510
   sharur tablet cracked.tim 4       768     0   128   128     0   992,502
+  wings tablet question and answers.tim 4       768     0   128   128     0   992,502
   xt_dr_cmplt.tim      8       768     0   128   128     0   672,483
   xt_dr_lckd.tim       8       768     0   128   128     0   672,483
   anzu_tab.tim         4       832     0   128   128     0   256,483
@@ -180,6 +181,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   ladder.tim           4       704   256   128   128     0   304,511
   nnrt_arm.tim         4       704   256    64    64     0   1008,502
   vines.tim            4       704   256   128   128     0   672,509
+  nnrt_wngs.tim        4       720   256    64    64     0   1008,503
   wd_dr.tim            4       768   256   128   128     0   112,480
   stnd_rnds.tim        4       832   256    64    64     0   0,509
   flm_rnds.tim         4       848   256    64    64     0   256,481
@@ -321,7 +323,9 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=502  x[976,992)  sharur tablet.tim
   y=502  x[928,944)  volcanic.tim
   y=502  x[976,992)  wing tablet.tim
+  y=502  x[992,1008)  wings tablet question and answers.tim
   y=503  x[0,16)  kchn_wl.tim
+  y=503  x[1008,1024)  nnrt_wngs.tim
   y=503  x[256,272)  plinth.tim
   y=503  x[768,784)  vlv_hndl.tim
   y=504  x[256,272)  ls_idle.tim
@@ -386,6 +390,7 @@ OVERLAP CHECK
   Rabisu tex.tim                           incinerator.tim      time-shared (streaming)
   Rabisu tex.tim                           ladder.tim           time-shared (streaming)
   Rabisu tex.tim                           nnrt_arm.tim         time-shared (streaming)
+  Rabisu tex.tim                           nnrt_wngs.tim        time-shared (streaming)
   Rabisu tex.tim                           vines.tim            time-shared (streaming)
   adapa_a.tim                              lumberer_b.tim       time-shared (streaming)
   adapa_a.tim                              nessie_a.tim         time-shared (streaming)
@@ -469,6 +474,7 @@ OVERLAP CHECK
   bed.tim                                  pipe.tim             time-shared (streaming)
   bed.tim                                  plinth_diamond.tim   time-shared (streaming)
   bed.tim                                  sharur tablet cracked.tim time-shared (streaming)
+  bed.tim                                  wings tablet question and answers.tim time-shared (streaming)
   bed.tim                                  xt_dr_cmplt.tim      time-shared (streaming)
   bed.tim                                  xt_dr_lckd.tim       time-shared (streaming)
   bones.tim                                shelf_incinerator.tim time-shared (streaming)
@@ -499,6 +505,7 @@ OVERLAP CHECK
   brick_wall.tim                           pipe.tim             time-shared (streaming)
   brick_wall.tim                           plinth_diamond.tim   time-shared (streaming)
   brick_wall.tim                           sharur tablet cracked.tim time-shared (streaming)
+  brick_wall.tim                           wings tablet question and answers.tim time-shared (streaming)
   brick_wall.tim                           xt_dr_cmplt.tim      time-shared (streaming)
   brick_wall.tim                           xt_dr_lckd.tim       time-shared (streaming)
   catacomb inner door.tim                  con_tile.tim         time-shared (streaming)
@@ -526,6 +533,7 @@ OVERLAP CHECK
   gula_b.tim                               zombie_sleep.tim     time-shared (streaming)
   incinerator.tim                          ladder.tim           time-shared (streaming)
   incinerator.tim                          nnrt_arm.tim         time-shared (streaming)
+  incinerator.tim                          nnrt_wngs.tim        time-shared (streaming)
   incinerator.tim                          vines.tim            time-shared (streaming)
   shelf_incinerator.tim                    chnlnk.tim           time-shared (streaming)
   shelf_incinerator.tim                    gaol door.tim        time-shared (streaming)
@@ -656,6 +664,7 @@ OVERLAP CHECK
   fountain.tim                             pipe.tim             time-shared (streaming)
   fountain.tim                             plinth_diamond.tim   time-shared (streaming)
   fountain.tim                             sharur tablet cracked.tim time-shared (streaming)
+  fountain.tim                             wings tablet question and answers.tim time-shared (streaming)
   fountain.tim                             xt_dr_cmplt.tim      time-shared (streaming)
   fountain.tim                             xt_dr_lckd.tim       time-shared (streaming)
   frnt_dr.tim                              greenhouse door.tim  time-shared (streaming)
@@ -718,6 +727,7 @@ OVERLAP CHECK
   grss.tim                                 pipe.tim             time-shared (streaming)
   grss.tim                                 plinth_diamond.tim   time-shared (streaming)
   grss.tim                                 sharur tablet cracked.tim time-shared (streaming)
+  grss.tim                                 wings tablet question and answers.tim time-shared (streaming)
   grss.tim                                 xt_dr_cmplt.tim      time-shared (streaming)
   grss.tim                                 xt_dr_lckd.tim       time-shared (streaming)
   grss_gs.tim                              stn_stl.tim          time-shared (streaming)
@@ -727,6 +737,7 @@ OVERLAP CHECK
   gula codes.tim                           pipe.tim             time-shared (streaming)
   gula codes.tim                           plinth_diamond.tim   time-shared (streaming)
   gula codes.tim                           sharur tablet cracked.tim time-shared (streaming)
+  gula codes.tim                           wings tablet question and answers.tim time-shared (streaming)
   gula codes.tim                           xt_dr_cmplt.tim      time-shared (streaming)
   gula codes.tim                           xt_dr_lckd.tim       time-shared (streaming)
   gula tablet.tim                          guts.tim             time-shared (streaming)
@@ -779,11 +790,13 @@ OVERLAP CHECK
   kchn_wl.tim                              loculus.tim          time-shared (streaming)
   kchn_wl.tim                              rocks.tim            time-shared (streaming)
   ladder.tim                               nnrt_arm.tim         time-shared (streaming)
+  ladder.tim                               nnrt_wngs.tim        time-shared (streaming)
   ladder.tim                               vines.tim            time-shared (streaming)
   lamashtu arm.tim                         lamashtu tablet.tim  time-shared (streaming)
   lamashtu arm.tim                         pipe.tim             time-shared (streaming)
   lamashtu arm.tim                         plinth_diamond.tim   time-shared (streaming)
   lamashtu arm.tim                         sharur tablet cracked.tim time-shared (streaming)
+  lamashtu arm.tim                         wings tablet question and answers.tim time-shared (streaming)
   lamashtu arm.tim                         xt_dr_cmplt.tim      time-shared (streaming)
   lamashtu arm.tim                         xt_dr_lckd.tim       time-shared (streaming)
   lamashtu pearl.tim                       legs.tim             time-shared (streaming)
@@ -796,6 +809,7 @@ OVERLAP CHECK
   lamashtu tablet.tim                      pipe.tim             time-shared (streaming)
   lamashtu tablet.tim                      plinth_diamond.tim   time-shared (streaming)
   lamashtu tablet.tim                      sharur tablet cracked.tim time-shared (streaming)
+  lamashtu tablet.tim                      wings tablet question and answers.tim time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_cmplt.tim      time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_lckd.tim       time-shared (streaming)
   lamashtu.tim                             red_wlppr.tim        time-shared (streaming)
@@ -814,6 +828,7 @@ OVERLAP CHECK
   mud.tim                                  piano_keys_full.tim  time-shared (streaming)
   mud.tim                                  xt_dr_outr.tim       time-shared (streaming)
   nnrt_arm.tim                             vines.tim            time-shared (streaming)
+  nnrt_wngs.tim                            vines.tim            time-shared (streaming)
   oil_container.tim                        stn_gls.tim          time-shared (streaming)
   opn_drwr.tim                             plinth.tim           time-shared (streaming)
   opn_drwr.tim                             stables wood.tim     time-shared (streaming)
@@ -823,6 +838,7 @@ OVERLAP CHECK
   piano_keys_full.tim                      xt_dr_outr.tim       time-shared (streaming)
   pipe.tim                                 plinth_diamond.tim   time-shared (streaming)
   pipe.tim                                 sharur tablet cracked.tim time-shared (streaming)
+  pipe.tim                                 wings tablet question and answers.tim time-shared (streaming)
   pipe.tim                                 xt_dr_cmplt.tim      time-shared (streaming)
   pipe.tim                                 xt_dr_lckd.tim       time-shared (streaming)
   pipe_button_off.tim                      wd_dr_crk.tim        time-shared (streaming)
@@ -833,6 +849,7 @@ OVERLAP CHECK
   plinth.tim                               stables wood.tim     time-shared (streaming)
   plinth.tim                               xt_dr_cg.tim         time-shared (streaming)
   plinth_diamond.tim                       sharur tablet cracked.tim time-shared (streaming)
+  plinth_diamond.tim                       wings tablet question and answers.tim time-shared (streaming)
   plinth_diamond.tim                       xt_dr_cmplt.tim      time-shared (streaming)
   plinth_diamond.tim                       xt_dr_lckd.tim       time-shared (streaming)
   plinth_rg.tim                            poison_flower_base.tim time-shared (streaming)
@@ -886,11 +903,14 @@ OVERLAP CHECK
   golem_b.tim                              zombie_alert.tim     time-shared (streaming)
   nessie_a.tim                             xt_dr_lft_hlf.tim    time-shared (streaming)
   nessie_b.tim                             xt_dr_rt_hlf.tim     time-shared (streaming)
+  sharur tablet cracked.tim                wings tablet question and answers.tim time-shared (streaming)
   sharur tablet cracked.tim                xt_dr_cmplt.tim      time-shared (streaming)
   sharur tablet cracked.tim                xt_dr_lckd.tim       time-shared (streaming)
   sharur tablet.tim                        wing tablet.tim      time-shared (streaming)
   sharur tablet.tim                        upstairs.tim         time-shared (streaming)
   wing tablet.tim                          upstairs.tim         time-shared (streaming)
+  wings tablet question and answers.tim    xt_dr_cmplt.tim      time-shared (streaming)
+  wings tablet question and answers.tim    xt_dr_lckd.tim       time-shared (streaming)
   xt_dr_cmplt.tim                          xt_dr_lckd.tim       time-shared (streaming)
   No unexpected pixel collisions.
 

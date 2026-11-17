@@ -207,6 +207,11 @@ typedef enum {
        put one on the floor as well as one in the pocket. A one-shot grant
        like the items above. The first Chapter 4 option. */
     DBG_SHARUR_TABLET_SOLVED,
+    /* THE WINGS TABLET SOLVED (src/wings_tablet.h): its puzzle answered, the
+       slab already shattered in Wingscape and Ninurta's Wings in the
+       inventory - Sharur's option exactly, on the Wings Tablet's two flags
+       and its item bit. */
+    DBG_WINGS_TABLET_SOLVED,
     DEBUG_OPT_COUNT
 } DebugOpt;
 

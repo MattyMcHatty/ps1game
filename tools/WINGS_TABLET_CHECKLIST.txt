@@ -1,0 +1,81 @@
+WINGS TABLET PUZZLE - CHECKLIST (Nov 2026)
+==========================================
+Wingscape's terrace tablet becomes Chapter 4's second puzzle, on Sharur's
+Tablet's pattern (src/sharur_tablet.c). Item work follows
+tools/ADDING_AN_ITEM.txt. [x] = done, [ ] = to do.
+
+DESIGN (from the brief + answers)
+  - "Press O to interact" sign in front of the tablet's face.
+  - Circle: the camera flies to a fixed, face-on shot of the tablet.
+  - Then 'HAS WING' fades in at the very centre of the screen, then the
+    four answers (BIRD, DOG, CAT, SNAKE) fade in, in a row along the bottom,
+    evenly spaced, in a random order that is re-rolled on EVERY room entry.
+  - CUNEIFORM ONLY: each word is its line of "wings tablet question and
+    answers.png" (top to bottom: has wing, bird, dog, cat, snake). No English.
+  - Then the double blue outline reticule (the other puzzles') appears.
+    Left/Right move it, Circle answers, Cross leaves at any time.
+  - BIRD: the tablet shatters as Sharur's does and drops NINURTA'S WINGS,
+    a new collectible. Description: "The wings of a god, carved in stone."
+    (sentence case, like the other items).
+  - Anything else: the log says "YOU ARE NOT WORTHY", the puzzle closes at
+    once, and the player is put on the terrace's cliff edge behind them
+    (z~1340, on the tablet's centre line), facing the tablet. A GOLEM
+    appears directly in front of the tablet, already awake and attacking.
+    Every wrong answer does this.
+  - Summoned Golems are PERMANENT, like the placed one (saved; back idle on
+    re-entry until killed).
+  - GUARDED: while the summoned Golem lives, the tablet ignores Circle and
+    shows no sign - so only one is ever summoned at a time, and it can never
+    block the puzzle's camera shot.
+  - Debug option: puzzle solved, Ninurta's Wings in the inventory, tablet gone.
+
+STEPS
+  [x] 1. Read references: sharur_tablet.c, wings_tablet.c, golem.c/world.c
+         persistence, exit-door reticule, item runbook, Chapter 4 VRAM map
+  [x] 2. Textures: question/answer sheet 4bpp --stp at x768 y0 (Sharur's
+         cracked page + CLUT, time-shared); Ninurta's Wings 64x64 4bpp at
+         x720 y256 beside Ninurta's Arm; disc.xml, tim_slots, vram maps,
+         KNOWN_STREAM_PAIRS, gen_tex_rooms / check_tex_banks
+  [x] 3. Item: ITEM_NINURTAS_WINGS, PICKUP_NINURTAS_WINGS, MENU_SLOT, icon,
+         description, incinerator take/give, reset, Underworld re-upload
+  [x] 4. Flags: FLAG_WINGS_TABLET_BROKEN, FLAG_NINURTAS_WINGS_TAKEN
+  [x] 5. Puzzle in src/wings_tablet.c: sign, shot, fades, random order,
+         reticule, Cross, right answer (shatter + item), wrong answer
+         (log, kick to the cliff edge, summon the Golem), guard
+  [x] 6. The tablet's Golem: Wingscape's second seeded Golem, seeded absent
+         (dead); a wrong answer revives + wakes it in front of the tablet on
+         the terrace; FLAG_WINGS_GUARD_UP (not its dead bit - old saves) is
+         what stands it back up after a load, in wings_tablet_apply_flags
+  [x] 7. Wiring: main.c (examine branch, Wingscape block, apply_flags,
+         cutscene list), wingscape.c (draw, overlay, pickups), collision
+  [x] 8. Debug: "WINGS SOLVED" in the CH4 - UNDERWORLD group
+  [x] 9. Budgets: heap_budget.py, check_tex_banks.py, vram maps
+  [x] 10. Build + disc (cmake --build, mkpsxiso)
+  [x] 11. Verify (headless emulator self-test, then instrumentation removed)
+
+RESULTS
+  - VRAM: WINGTBQA.TIM x768 y0 CLUT (992,502), time-shared with Sharur's
+    cracked tablet; NNRTWNGS.TIM 64x64 x720 y256 CLUT (1008,503) beside
+    Ninurta's Arm. "No unexpected pixel collisions." "No CLUT collisions."
+  - Room sets: WINGTBQA rides Wingscape's set with WINGTBLT; NNRTWNGS every
+    Underworld room's with NNRTARM. check_tex_banks OK; texmgr 108/128.
+  - Heap: 202 KB free at rest. Wingscape's room set 144 KB.
+  - Save: three new flags in game_flags2 (bits 12-14), one new Golem slot
+    (bit 1 of golems_dead). No SAVE_VERSION bump: no field changed, and an
+    old save loads with the guard absent.
+  - Build: 0 warnings.
+  - Headless PCSX-Redux force-boot into Wingscape with a scripted run,
+    0 exceptions, no texmgr late loads:
+      boot     guard seeded absent at (432,-649,2480); 2 Golems; order shuffled
+      wrong    player to (432,1340) yaw 0; guard awake (laser), on the
+               terrace, FLAG_WINGS_GUARD_UP set, tablet guarded
+      kill     flag cleared, tablet answers again
+      right    slab broken, 10 shards settle on the terrace, wings spawned;
+               walked into: item + TAKEN set, slab collision gone
+
+STILL TO CHECK IN-GAME (needs your eyes)
+  [ ] The shot frames the slab; 'has wing' sits centred and legible.
+  [ ] Answers' size and spacing along the bottom; reticule hugs each word.
+  [ ] Fades feel right (question 0.7 s, answers 0.7 s after a 1 s gap).
+  [ ] Ninurta's Wings icon in the menu + pickup sprite look right.
+  [ ] Debug "WINGS SOLVED": tablet gone, wings in the inventory.

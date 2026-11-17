@@ -33,7 +33,9 @@
    no trigger, no sign. It is wired up when the room behind it exists.
 
    ONE ENEMY: a GOLEM in front of that west door, (-2800,-1400)
-   (src/golem.h, seeded in world.c). THE MUSIC is the chapter's (main.c's Chapter 4 block). Chapter
+   (src/golem.h, seeded in world.c) - and a second, the WINGS TABLET's
+   GUARD, seeded ABSENT in front of the tablet and summoned by every wrong
+   answer to its puzzle (src/wings_tablet.h). THE MUSIC is the chapter's (main.c's Chapter 4 block). Chapter
    rules (the fog, the sky): src/underworld.h. */
 
 void wingscape_load_assets(void);     /* startup: TIM_SLOTs only, no CD access */

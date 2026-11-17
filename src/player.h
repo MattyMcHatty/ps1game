@@ -44,6 +44,9 @@ typedef enum {
     ITEM_NINURTAS_ARM,      /* the carving left where Sharur's Tablet stood once
                                it is shattered (src/sharur_tablet.h). Chapter 4's
                                first item. One exists; no use yet */
+    ITEM_NINURTAS_WINGS,    /* the carving left where the Wings Tablet stood once
+                               its puzzle is answered (src/wings_tablet.h).
+                               Chapter 4's second item. One exists; no use yet */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */
@@ -494,6 +497,30 @@ typedef enum {
        game_flags2. */
     FLAG_SHARUR_TABLET_BROKEN,
     FLAG_NINURTAS_ARM_TAKEN,
+    /* THE WINGS TABLET (src/wings_tablet.h), in Wingscape, and what it leaves
+       behind - Sharur's pair, on the same reasoning:
+
+         FLAG_WINGS_TABLET_BROKEN   'bird' has been chosen: the slab is gone
+                                    for good. Set on the answer itself.
+         FLAG_NINURTAS_WINGS_TAKEN  the carving it left has been COLLECTED.
+
+       The pickup is a run-time spawn; wings_tablet_apply_flags() re-lays it
+       from these two bits on every entry. Bits 12-13 of game_flags2.
+
+         FLAG_WINGS_GUARD_UP        a wrong answer has summoned the tablet's
+                                    GOLEM and it has not been killed since.
+                                    The guard is Wingscape's second seeded
+                                    Golem, seeded ABSENT (dead); this bit,
+                                    not its golems_dead bit, is what brings it
+                                    back after a load - a save from before the
+                                    guard existed has that bit clear, and a
+                                    clear dead bit must not mean "standing".
+                                    Set on the summon, cleared by
+                                    wings_tablet_update() the frame it dies.
+                                    Bit 14 of game_flags2. */
+    FLAG_WINGS_TABLET_BROKEN,
+    FLAG_NINURTAS_WINGS_TAKEN,
+    FLAG_WINGS_GUARD_UP,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */
@@ -511,6 +538,12 @@ static inline int game_flag(GameFlag f) {
 static inline void game_flag_set(GameFlag f) {
     if (f < 32) game_flags  |= (1 << f);
     else        game_flags2 |= (1 << (f - 32));
+}
+/* Most flags are one-way. FLAG_WINGS_GUARD_UP is the exception ("a summoned
+   Golem is standing"), so it needs the way back. */
+static inline void game_flag_clear(GameFlag f) {
+    if (f < 32) game_flags  &= ~(1 << f);
+    else        game_flags2 &= ~(1 << (f - 32));
 }
 
 /* Weapons the player owns. The crucifaxe is always present (bit 0); other
