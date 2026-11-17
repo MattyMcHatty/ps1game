@@ -35,6 +35,21 @@ static int wt_tex = -1;
    for its own body span. */
 #define WT_PLAYER_HEAD 30
 
+/* ---- THE FOG TARGET --------------------------------------------------------
+   Fog here is a vertex colour lerped toward UW_FOG_*, and the GPU MULTIPLIES
+   the texel by it (128 = x1). That lands a texel of 128 exactly on the fog
+   colour, and the room's textures (volcanic, rocks) are almost all under 128,
+   so they sink into it. "wing tablet" is bright stone: median 112, 95th
+   percentile 195, max 250 - against the plain fog colour its light texels
+   stayed up to 2x the fog's red when "fully fogged", so the slab never faded
+   and simply appeared at its cull edge. It fades instead toward the fog
+   colour scaled by 128/WT_TEX_BRIGHT, which puts the 95th-percentile texel on
+   the fog colour and the median a little under it, as the room's rock is. */
+#define WT_TEX_BRIGHT 195
+#define WT_FOG_R (UW_FOG_R * 128 / WT_TEX_BRIGHT)
+#define WT_FOG_G (UW_FOG_G * 128 / WT_TEX_BRIGHT)
+#define WT_FOG_B (UW_FOG_B * 128 / WT_TEX_BRIGHT)
+
 static void *read_file(const char *name) {
     CdlFILE file;
     if (!CdSearchFile(&file, (char *)name)) return NULL;
@@ -150,7 +165,6 @@ void wings_tablet_draw(RenderContext *ctx) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
     uint16_t tp = texmgr_tpage(wt_tex);
     uint16_t cl = texmgr_clut(wt_tex);
-    int32_t  fog_factor = render_fog_scale(dist);
 
     uint8_t *p = (uint8_t *)wt_smd->p_prims;
     int pi;
@@ -164,6 +178,16 @@ void wings_tablet_draw(RenderContext *ctx) {
         SVECTOR *v0 = &wt_smd->p_verts[vi[0]];
         SVECTOR *v1 = &wt_smd->p_verts[vi[1]];
         SVECTOR *v2 = &wt_smd->p_verts[vi[2]];
+
+        /* PER FACE, AS THE ROOM IS (draw_ws_smd): each face is fogged and
+           culled at its own centre's Manhattan distance, so the slab fades
+           and drops out with the terrace and rim around it rather than as
+           one block judged from its middle. */
+        int32_t fdx = ((int32_t)v0->vx + v2->vx) / 2 - cam_x;
+        int32_t fdz = ((int32_t)v0->vz + v2->vz) / 2 - cam_z;
+        int32_t fdist = (fdx < 0 ? -fdx : fdx) + (fdz < 0 ? -fdz : fdz);
+        if (fdist > g_fog_far) { p += stride; continue; }
+        int32_t fog_factor = render_fog_scale(fdist);
 
         DVECTOR sv[4];
         int32_t sz[4], otz, nclip;
@@ -208,9 +232,14 @@ void wings_tablet_draw(RenderContext *ctx) {
         if (otz >= UW_SKY_OT)   otz = UW_SKY_OT - 1;
 
         uint8_t *col = p + 16;
-        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + UW_FOG_R * (256 - fog_factor)) >> 8);
-        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + UW_FOG_G * (256 - fog_factor)) >> 8);
-        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + UW_FOG_B * (256 - fog_factor)) >> 8);
+        /* Untextured faces show the vertex colour as-is, so they take the
+           true fog colour; textured ones the dimmed target above. */
+        int32_t fr = textured ? WT_FOG_R : UW_FOG_R;
+        int32_t fg = textured ? WT_FOG_G : UW_FOG_G;
+        int32_t fb = textured ? WT_FOG_B : UW_FOG_B;
+        uint8_t r = (uint8_t)(((int32_t)col[0] * fog_factor + fr * (256 - fog_factor)) >> 8);
+        uint8_t g = (uint8_t)(((int32_t)col[1] * fog_factor + fg * (256 - fog_factor)) >> 8);
+        uint8_t b = (uint8_t)(((int32_t)col[2] * fog_factor + fb * (256 - fog_factor)) >> 8);
 
         if (is_quad && textured) {
             if (ctx->next_packet + sizeof(POLY_FT4) > buf_end) { p += stride; continue; }
