@@ -642,7 +642,22 @@ typedef enum {
                    or quieter music (CD_MIX_UNDERWORLD). Voice 20, off the pool
                    - see sound.c. */
     SFX_AHR_FLASH  = 64,  /* BANKED (underworld). flash, 0.59 s                  */
-    SFX_COUNT      = 65,
+    /* DESTINY'S DOOR's jewel ceremony (src/heros_plinth.c). BANKED (plinth)
+       and nowhere else: the ceremony is its one caller. 11025 Hz mono
+       ONE-SHOTS, all with the loop flag on their last block.
+         SPIRIT_DESC  4.40 s (264 frames), 27,776 SPU bytes. The spirits'
+                      descent, then SFX_WOOSH straight after it; the pair is
+                      timed so the woosh ENDS on Adapa's hit. Voice 21,
+                      SFX_EXPLODE's (BOSS/ASAG/...), nothing of the plinth's.
+         TWINKLE1-3   0.94 s each, 5,952 SPU bytes. Adapa's, Hadad's and
+                      Gula's jewel catching. Pool voices 3/4/5 (ids 66-68),
+                      and the player is anchored while they play, so the
+                      footsteps (ids 16/17, voices 1/2) cannot cut them. */
+    SFX_SPIRIT_DESC = 65, /* BANKED (plinth). spirit_decend, 4.40 s            */
+    SFX_TWINKLE1   = 66,  /* BANKED (plinth). twinkle1, 0.94 s                 */
+    SFX_TWINKLE2   = 67,  /* BANKED (plinth). twinkle2, 0.94 s                 */
+    SFX_TWINKLE3   = 68,  /* BANKED (plinth). twinkle3, 0.94 s                 */
+    SFX_COUNT      = 69,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.
@@ -828,6 +843,16 @@ typedef enum {
        swap to this one is read under the Descent's white, on the way into
        Hell Hath No Fury. */
     SND_BANK_UNDERWORLD = 512,
+    /* HERO'S PLINTH - and, later, the room behind Destiny's Door - split off
+       the Underworld's so the two can have sounds of their own without
+       spending the chapter's. It holds ONLY what the room plays: the catacomb
+       door (its NE door is one, and a door's sound is the bank of the room
+       being LEFT), the spirits' woosh, and the ceremony's descent and three
+       twinkles. No Underworld monster or tablet sound: none of them can
+       sound here (no enemies, no props). Everything the player makes a noise
+       with - steps, axe, gun, hurt (the lava), die, the wooden door, the
+       menus - is SND_RESIDENT and plays regardless. */
+    SND_BANK_PLINTH     = 1024,
 } SoundBank;
 
 void sound_init(void);

@@ -521,6 +521,22 @@ typedef enum {
     FLAG_WINGS_TABLET_BROKEN,
     FLAG_NINURTAS_WINGS_TAKEN,
     FLAG_WINGS_GUARD_UP,
+    /* HADAD, the garden's mini-boss (src/hadad.h), has been killed - by the
+       grinder scene or any other way hadad_damage() empties his bar. He had
+       no such bit: his death lived only in his world placement's saved state
+       (hadads_state), which Destiny's Door could not ask directly across
+       chapters. Set in hadad_damage() on the killing blow, beside Adapa's
+       and Gula's. heros_plinth.c also accepts a placement already HAD_DEAD,
+       for a save made before this bit existed. Bit 15 of game_flags2. */
+    FLAG_HADAD_DEAD,
+    /* DESTINY'S DOOR's jewel ceremony (src/heros_plinth.c) has run: the
+       spirits of whichever of Adapa, Hadad and Gula were dead have flown into
+       their jewels. From then on those jewels glow, and the frame offers
+       "Press O to enter" if ALL THREE were, and nothing at all otherwise -
+       the ceremony is once only. Set as control returns. Never set when none
+       of the three were dead (Circle then only reads the marble line). Bit
+       16 of game_flags2. */
+    FLAG_DESTINY_CEREMONY,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

@@ -1,0 +1,77 @@
+DESTINY'S DOOR - THE JEWEL CEREMONY - CHECKLIST (Nov 2026)
+==========================================================
+Hero's Plinth's frame (west wall) resolves the three mini-boss flags. Code in
+src/heros_plinth.c; the spirit glow shared through src/spirit_glow.c.
+[x] = done, [ ] = to do.
+
+DESIGN (from the brief)
+  - Three jewels on the frame's face, each the vertex where four triangles
+    meet (x=-1700): LEFT (z=-600, y=-539) YELLOW, TOP (z=0, y=-970) GREEN,
+    RIGHT (z=+600, y=-539) BLUE. Left/right are as the player sees them
+    facing the door (west), so left is -z - the same sense as the frame's
+    "bottom left"/"bottom right" textures.
+  - Spirits: ADAPA blue -> right jewel, HADAD green -> top, GULA yellow ->
+    left.
+  - "Press O to interact" at the frame's centre. Circle:
+      * none of the three dead: the log says "A marble structure. It looks
+        important." Nothing else; the prompt stays.
+      * otherwise THE CEREMONY: the camera takes over, glides to the room's
+        centre and looks up into the sky away from the door (east). The
+        spirits of the DEAD bosses appear far off (the death scenes' glow,
+        number for number) and fly in slowly; the camera follows the three
+        (its path is the same whichever are dead). Each flies into its jewel:
+        a full-screen flash of its colour, the spirit goes, the jewel's glow
+        fades up from nothing. Adapa first, Hadad 1 s later, Gula 0.5 s
+        after that. Then the whole frame in shot, 1 s, and - ONLY IF ALL
+        THREE - Destiny's Door's texture fades up over the 30 recessed polys
+        (x=-1750). Control back at the room's centre.
+  - Afterwards (saved): the dead bosses' jewels keep glowing. All three: the
+    door stays, and "Press O to enter" -> "COMING SOON" in the log. Fewer:
+    no prompt at all, ever again.
+  - Debug option DESTINY DOOR: all three dead and the ceremony done.
+  - Then each death scene's rising spirit takes its colour here.
+
+STEPS
+  [x] 1. Read references: heros_plinth.c, the three death scenes' spirit,
+         the mini-boss flags, debug_opts, main.c's cutscene plumbing
+  [x] 2. Flags: FLAG_HADAD_DEAD (none existed - set on any Hadad death) and
+         FLAG_DESTINY_CEREMONY, at the end of the enum (game_flags2 bits
+         15-16; the save blob does not change shape)
+  [x] 3. Shared spirit glow (src/spirit_glow.c/.h): the death scenes'
+         three-ring additive glow + the three spirit colours
+  [x] 4. Destiny's Door TIM rebuilt with --stp (8bpp, same slot/CLUT) so it
+         can fade in additively over the frame
+  [x] 5. Draw: the recess crossfades frame -> door (UVs from the vertices);
+         jewel glows; the flash; the spirits
+  [x] 6. The prompt + Circle: interact / enter / marble line / nothing
+  [x] 7. The ceremony director: glide, appear, fly, hits, settle, wait,
+         door fade, return; sets FLAG_DESTINY_CEREMONY
+  [x] 8. main.c: cutscene branch, HUD/menu lock list
+  [x] 9. Debug option DBG_DESTINY_DOOR (enum, name, order table, group
+         offset, grant)
+  [x] 10. Death scenes recoloured: Adapa BLUE, Hadad GREEN (already),
+          Gula YELLOW
+  [x] 11. Build + disc; check_tex_banks; grep binary for the new strings
+  [x] 11b. Debug options ADAPA DEAD / HADAD DEAD / GULA DEAD (one dead
+          bit each, ceremony NOT run), in CH4 above DESTINY DOOR, so the
+          ceremony can be tested with any mix
+  [x] 11c. SND_BANK_PLINTH (1024): Hero's Plinth off the Underworld bank.
+          Holds CTCMBDR (its NE door, out), WOOSH, and the ceremony's new
+          SPIRIT_DESC / TWINKLE1-3. 102,272 of 237,232; spare unchanged
+          (tools/spu_budget.py). main.c selects it before the chapter test.
+  [x] 11d. Ceremony sound: descent then woosh, back-timed so the woosh ENDS
+          on the FIRST dead spirit's hit; twinkle1/2/3 on Adapa/Hadad/Gula's
+          hits. Both long cues stopped by heros_plinth_scene_reset().
+  [x] 11e. twinkle2 supplied later: converted at 11025 (0.94 s, 5,952 SPU
+          bytes), TWINKLE2.VAG on the disc, its sfx_files[] entry filled.
+  [ ] 12. Commit - waiting on the user's go-ahead
+
+VERIFIED (headless PCSX-Redux, force-booted into the room, all three dead)
+  - The scene ran start to finish, no exception: glide to (0,-189,0), yaw
+    1024 (east) pitch -409 (up); tracked through north (yaw ~0) to the door
+    (yaw 3072); hits at flight frames 480 / 540 / 570; door 0 -> 256; level
+    view, control back at the centre, FLAG_DESTINY_CEREMONY set, prompt
+    switched to "enter".
+  - NOT verified by eye (headless screenshots don't work here): jewel
+    positions on the art, the door's orientation in the recess, the
+    crossfade, the flash, the spirits' look in flight.

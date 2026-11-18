@@ -298,6 +298,13 @@
                      11025 Hz mono one-shot. FLASH 0.59 s, 3,776 SPU bytes,
                      voice 20 (re-gained ~x15 from the source mp3, peaks at full scale). -->
                 <file name="FLASH.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\flash.vag"/>
+                <!-- Destiny's Door's ceremony (src/heros_plinth.c), SND_BANK_PLINTH
+                     only. 11025 Hz mono one-shots. SPRTDESC 4.40 s (voice 21),
+                     TWINKLE1-3 0.94 s each (pool). -->
+                <file name="SPRTDESC.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\spirit_decend.vag"/>
+                <file name="TWINKLE1.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\twinkle1.vag"/>
+                <file name="TWINKLE2.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\twinkle2.vag"/>
+                <file name="TWINKLE3.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\twinkle3.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

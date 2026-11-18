@@ -13,6 +13,7 @@
 #include "grinder_puzzle.h"
 #include "hadad.h"
 #include "hadad_grinder.h"
+#include "spirit_glow.h"    /* the spirit's colour */
 
 /* The Rear Gate's grinder death. Read hadad_grinder.h first: the beat sheet and
    the reason this is not in hadad.c are both there. */
@@ -554,7 +555,7 @@ void hadad_grinder_update(void) {
    to — the same pattern lightswitch_puzzle.c's ls_quad uses. */
 #define HG_GLOW_WORLD        150   /* world half-size of the outermost square */
 #define HG_GLOW_RINGS          3
-static const uint8_t HG_GLOW_RGB[3] = { 40, 255, 120 };   /* the spirit's green */
+#define HG_GLOW_RGB SPIRIT_RGB_HADAD   /* green - src/spirit_glow.h, his jewel's */
 
 static void hg_glow(RenderContext *ctx, int32_t x, int32_t y, int32_t z,
                     int32_t bright) {

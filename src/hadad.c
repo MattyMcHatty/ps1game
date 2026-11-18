@@ -328,6 +328,8 @@ void hadad_damage(Hadad *h, int dmg) {
     if (h->health <= 0) {
         h->health = 0;
         h->state  = HAD_DEAD;
+        /* The mini-boss bit Destiny's Door reads (player.h). */
+        game_flag_set(FLAG_HADAD_DEAD);
         /* Grey, because what comes out of him is stone — the Living Statue's
            colours exactly, and the user asked for it by name. spawn_burst
            carries a per-burst RGB already. */

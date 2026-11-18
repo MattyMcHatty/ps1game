@@ -212,6 +212,25 @@ typedef enum {
        inventory - Sharur's option exactly, on the Wings Tablet's two flags
        and its item bit. */
     DBG_WINGS_TABLET_SOLVED,
+    /* DESTINY'S DOOR OPEN (src/heros_plinth.h): Adapa, Hadad and Gula all
+       dead and the jewel ceremony already run - the three jewels lit,
+       Destiny's Door in the frame's recess and "Press O to enter" in front
+       of it. Sets FLAG_ADAPA_DEAD, FLAG_HADAD_DEAD, FLAG_GULA_DEAD and
+       FLAG_DESTINY_CEREMONY; nothing else. Hero's Plinth reads those live,
+       so a jump straight into the room arrives with it done. It does not
+       kill the bodies in their own rooms beyond what the bits say (Hadad's
+       placements keep their saved state), the line the Hadad options draw. */
+    DBG_DESTINY_DOOR,
+    /* THE THREE MINI-BOSSES DEAD, one option each, so Destiny's Door's jewel
+       ceremony (src/heros_plinth.h) can be played with any mix of them - none,
+       some or all. Each sets only that boss's dead bit (FLAG_ADAPA_DEAD,
+       FLAG_HADAD_DEAD, FLAG_GULA_DEAD), the same bit his or her killing blow
+       sets; the ceremony is NOT run (that is DBG_DESTINY_DOOR). Listed in the
+       CH4 group above DESTINY DOOR through title.c's order table - the enum
+       is in the order options were added. */
+    DBG_ADAPA_DEAD,
+    DBG_HADAD_DEAD,
+    DBG_GULA_DEAD,
     DEBUG_OPT_COUNT
 } DebugOpt;
 

@@ -334,7 +334,8 @@ void reset_game(RenderContext *ctx) {
     lava_u_from_sw   = 0;
     plinth_from_wingscape = 0;/* ...and Hero's Plinth's, and Wingscape's     */
     wingscape_from_plinth = 0;
-    gula_death_reset();    /* ...and any half-played death of hers            */
+    heros_plinth_scene_reset();/* ...and any half-played jewel ceremony   */
+    gula_death_reset();   /* ...and any half-played death of hers            */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
     rabisus_reset();
@@ -856,6 +857,18 @@ static void update_current_area(GameState area) {
         update_gula();
         player_status_update();
         gula_death_update();
+        update_particles();
+        return;
+    }
+    /* ...and DESTINY'S DOOR's jewel ceremony (src/heros_plinth.h): the camera
+       glides to the room's centre and follows the mini-bosses' spirits into
+       the frame's jewels. Nothing else is in the room; the player is anchored
+       where they pressed Circle, so the glide cannot drag the lava's test
+       (which runs at the foot of this function, never reached) across a
+       pool. */
+    if (area == STATE_HEROS_PLINTH && heros_plinth_scene_active()) {
+        player_status_update();
+        heros_plinth_scene_update();
         update_particles();
         return;
     }
@@ -3552,6 +3565,11 @@ static void update_current_area(GameState area) {
            arrival this is. */
         apply_collision_reception();
         apply_height();
+        /* DESTINY'S DOOR's frame: its prompt and Circle. A ceremony it starts
+           owns the frame from the next one (the branch at the top of this
+           function). The doors are 2400+ away, so one Circle cannot do two
+           things. */
+        heros_plinth_frame_update(lock);
         if (heros_plinth_ne_door_triggered(lock)) {
             wingscape_from_plinth = 1;
             pending_area = STATE_WINGSCAPE;
@@ -5290,6 +5308,11 @@ int main(int argc, const char **argv) {
                    Catacombs' reason: the way in is one-way, and everything the
                    player makes a noise with is resident (SND_BANK_UNDERWORLD).
                    Read under the Descent's white. */
+                /* ...EXCEPT HERO'S PLINTH, split off the chapter's so it (and
+                   the room behind Destiny's Door) can have sounds of their own:
+                   SND_BANK_PLINTH in src/sound.h. Before the chapter test,
+                   which it would otherwise match. */
+                (pending_area == STATE_HEROS_PLINTH) ? SND_BANK_PLINTH :
                 area_is_underworld(pending_area) ? SND_BANK_UNDERWORLD :
                 area_is_catacombs(pending_area) ? SND_BANK_CATACOMBS :
                 SND_BANK_HOUSE);
@@ -7421,7 +7444,11 @@ int main(int argc, const char **argv) {
                                   answers sit at the foot of the screen,
                                   where a stale log box would cover them. */
                                (area == STATE_WINGSCAPE &&
-                                wings_tablet_examining());
+                                wings_tablet_examining()) ||
+                               /* ...and Destiny's Door's jewel ceremony: no
+                                  log line, no HUD, no weapon in shot. */
+                               (area == STATE_HEROS_PLINTH &&
+                                heros_plinth_scene_active());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();

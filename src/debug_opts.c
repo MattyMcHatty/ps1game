@@ -38,6 +38,10 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "PEARL GAOL",
     "SHARUR SOLVED",
     "WINGS SOLVED",
+    "DESTINY DOOR",
+    "ADAPA DEAD",
+    "HADAD DEAD",
+    "GULA DEAD",
 };
 
 static int grants_pending = 0;
@@ -412,4 +416,19 @@ void debug_opts_apply_grants(void) {
         game_flag_set(FLAG_NINURTAS_WINGS_TAKEN);
         player_items |= (1 << ITEM_NINURTAS_WINGS);
     }
+
+    /* Destiny's Door: the three mini-bosses dead and the jewel ceremony
+       run. Hero's Plinth reads all four bits live. */
+    if (debug_opts[DBG_DESTINY_DOOR]) {
+        game_flag_set(FLAG_ADAPA_DEAD);
+        game_flag_set(FLAG_HADAD_DEAD);
+        game_flag_set(FLAG_GULA_DEAD);
+        game_flag_set(FLAG_DESTINY_CEREMONY);
+    }
+
+    /* The three mini-bosses, one dead bit each - the jewel ceremony's inputs,
+       for testing it with any mix of them. */
+    if (debug_opts[DBG_ADAPA_DEAD]) game_flag_set(FLAG_ADAPA_DEAD);
+    if (debug_opts[DBG_HADAD_DEAD]) game_flag_set(FLAG_HADAD_DEAD);
+    if (debug_opts[DBG_GULA_DEAD])  game_flag_set(FLAG_GULA_DEAD);
 }

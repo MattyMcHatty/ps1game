@@ -14,6 +14,7 @@
 #include "library.h"        /* library_doors_arm */
 #include "adapa.h"
 #include "adapa_death.h"
+#include "spirit_glow.h"    /* the spirit's colour */
 
 /* Adapa's death. Read adapa_death.h first: the beat sheet is there. */
 
@@ -270,12 +271,13 @@ void adapa_death_update(void) {
 
 /* ---- The spirit's glow ------------------------------------------------------
    hadad_grinder.c's hg_glow verbatim: concentric additive squares around the
-   ball's projection, in the spirit's green, sorted at sz>>2 so it draws over
+   ball's projection, in Adapa's BLUE (src/spirit_glow.h - the colour of
+   his jewel on Destiny's Door, and set there, not here), sorted at sz>>2 so it draws over
    the room (a spirit is not an object, and being occluded by a ceiling would
    read as a bug rather than as depth). */
 #define AD_GLOW_WORLD        150
 #define AD_GLOW_RINGS          3
-static const uint8_t AD_GLOW_RGB[3] = { 40, 255, 120 };   /* Hadad's green */
+#define AD_GLOW_RGB SPIRIT_RGB_ADAPA                     /* blue          */
 
 static void ad_glow(RenderContext *ctx, int32_t x, int32_t y, int32_t z,
                     int32_t bright) {

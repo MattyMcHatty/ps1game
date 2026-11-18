@@ -24,7 +24,7 @@
  *      pitch - onto her body. From here it is FIXED on her.
  *   2. FADE, GULA_HOWL_FRAMES (3.38 s, the clip's length). She fades out where
  *      she stands, additively, over the howl that started on the blow.
- *   3. ORB, 1 s. The green spirit fades up out of where her body was.
+ *   3. ORB, 1 s. The yellow spirit fades up out of where her body was.
  *   4. RISE, 3 s. SFX_WOOSH, and the spirit climbs at a constant acceleration
  *      until it is gone, the camera's pitch solved each frame to follow it.
  *   5. BACK, 1 s. Home to the yaw the player had, pitch 0, control returned,

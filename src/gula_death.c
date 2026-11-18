@@ -13,6 +13,7 @@
 #include "kennels.h"        /* kennels_arm: the door, re-armed as the seal lifts */
 #include "gula.h"
 #include "gula_death.h"
+#include "spirit_glow.h"    /* the spirit's colour */
 
 /* Gula's death. Read gula_death.h first: the beat sheet is there. It is
    src/adapa_death.c with the names changed, the fade cut to her howl rather than
@@ -273,12 +274,13 @@ void gula_death_update(void) {
 
 /* ---- The spirit's glow ------------------------------------------------------
    hadad_grinder.c's hg_glow verbatim: concentric additive squares around the
-   ball's projection, in the spirit's green, sorted at sz>>2 so it draws over
+   ball's projection, in Gula's YELLOW (src/spirit_glow.h - the colour of
+   her jewel on Destiny's Door, and set there, not here), sorted at sz>>2 so it draws over
    the room (a spirit is not an object, and being occluded by a ceiling would
    read as a bug rather than as depth). */
 #define AD_GLOW_WORLD        150
 #define AD_GLOW_RINGS          3
-static const uint8_t AD_GLOW_RGB[3] = { 40, 255, 120 };   /* Hadad's green */
+#define AD_GLOW_RGB SPIRIT_RGB_GULA                      /* yellow        */
 
 static void ad_glow(RenderContext *ctx, int32_t x, int32_t y, int32_t z,
                     int32_t bright) {

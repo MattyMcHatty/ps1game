@@ -97,6 +97,10 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\LMSSCRM.VAG;1",
     "\\SND\\NSSDIE.VAG;1",
     "\\SND\\FLASH.VAG;1",
+    "\\SND\\SPRTDESC.VAG;1",
+    "\\SND\\TWINKLE1.VAG;1",
+    "\\SND\\TWINKLE2.VAG;1",
+    "\\SND\\TWINKLE3.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -112,7 +116,7 @@ static const char *sfx_files[SFX_COUNT] = {
    SND_RESIDENT: see the note on SoundBank. */
 #define SND_RESIDENT 0
 
-static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
+static const uint16_t sfx_bank[SFX_COUNT] = {   /* eleven banks: 16 bits */
     [SFX_SWING]      = SND_RESIDENT,   /* the boss's foot-slash windup uses it */
     [SFX_HURT]       = SND_RESIDENT,
     [SFX_PICKUP]     = SND_RESIDENT,
@@ -328,7 +332,8 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
        Library or the Piano Room ends on Hadad's own rise, woosh and all, and
        both rooms are on the house bank. A second copy at 28,352 SPU bytes. */
     [SFX_WOOSH]      = SND_BANK_GARDEN | SND_BANK_HOUSE |
-                       SND_BANK_KENNELS,   /* ...and GULA's spirit, src/gula_death.c */
+                       SND_BANK_KENNELS |  /* ...and GULA's spirit, src/gula_death.c */
+                       SND_BANK_PLINTH,    /* ...and Destiny's Door's ceremony      */
     /* The Greenhouse vine curtain's grind: SFX_MCHNE re-cut for this bank,
        because the original is HOUSE-only and too big to copy here. See the
        block on SFX_MCHNE_GH in sound.h — it is what makes GARDEN the
@@ -367,8 +372,9 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
     [SFX_GLUG]       = SND_BANK_CATACOMBS | SND_BANK_UNDERWORLD,
     [SFX_CTCMBDR]    = SND_BANK_CATACOMBS | SND_BANK_KENNELS |  /* leaving the Kennels */
                        SND_BANK_LAMASHTU |                     /* ...and the arena  */
-                       SND_BANK_UNDERWORLD,  /* Hell Hath No Fury's SW door: 11.4 KB,
+                       SND_BANK_UNDERWORLD | /* Hell Hath No Fury's SW door: 11.4 KB,
                                                 38,400 of 237,232 (spu_budget.py) */
+                       SND_BANK_PLINTH,      /* Hero's Plinth's NE door, out */
     [SFX_CRWL_SCRM]  = SND_BANK_CATACOMBS,
     [SFX_CRWL_WHSP]  = SND_BANK_CATACOMBS,
     /* The Lumberer's two, CATACOMBS and nothing else: src/lumberer.c is their
@@ -411,6 +417,12 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* nine banks: 16 bits */
        is nowhere near the largest, so `spare` does not move
        (tools/spu_budget.py). */
     [SFX_AHR_FLASH]  = SND_BANK_UNDERWORLD,
+    /* Destiny's Door's ceremony, PLINTH only: src/heros_plinth.c is the one
+       caller. See sound.h for lengths and voices. */
+    [SFX_SPIRIT_DESC] = SND_BANK_PLINTH,
+    [SFX_TWINKLE1]   = SND_BANK_PLINTH,
+    [SFX_TWINKLE2]   = SND_BANK_PLINTH,
+    [SFX_TWINKLE3]   = SND_BANK_PLINTH,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -784,6 +796,11 @@ static int sfx_channel(SfxID id) {
                CREEP, HOWL) are all outside UNDERWORLD. flash.vag's loop flag is
                on its last block, 235 of 236. */
     if (id == SFX_AHR_FLASH)   return 20;   /* SFX_DMNSPEAK's (BOSS)  one-shot */
+    /* The ceremony's descent, 4.40 s: off the pool. 21 is SFX_EXPLODE's, which
+       is not in SND_BANK_PLINTH; the bank's other off-pool voices are 14
+       (CTCMBDR) and 22 (WOOSH). spirit_decend.vag's loop flag is on its last
+       block. */
+    if (id == SFX_SPIRIT_DESC) return 21;   /* SFX_EXPLODE's (BOSS)  one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

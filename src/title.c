@@ -484,6 +484,8 @@ static const DebugOpt debug_opt_order[] = {
     DBG_PEARL_CLEAVER, DBG_PEARL_UP_DOWN, DBG_PEARL_GAOL,
     /* CH4 - UNDERWORLD */
     DBG_SHARUR_TABLET_SOLVED, DBG_WINGS_TABLET_SOLVED,
+    DBG_ADAPA_DEAD, DBG_HADAD_DEAD, DBG_GULA_DEAD,
+    DBG_DESTINY_DOOR,
 };
 typedef char debug_opt_order_is_complete
     [(DBG_COUNT(debug_opt_order) == DEBUG_OPT_COUNT) ? 1 : -1];

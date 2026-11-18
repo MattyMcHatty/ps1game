@@ -14,9 +14,10 @@
    pools in the west half (x[-1700,-500], z~+-1100..1700) that burn
    (src/lava.h, the mask from tools/gen_lava_floors.py), and on the WEST wall
    DESTINY'S DOOR's frame (x[-1900,-1700] z[-700,700], 1120 tall) at the top
-   of a 70-high ramp, x[-1700,-1500]. The frame is solid: what fills it,
-   DESTINY'S DOOR, is not modelled yet, but its texture is already uploaded
-   with the room (src/heros_plinth.c). Under the Underworld's sky
+   of a 70-high ramp, x[-1700,-1500]. The frame is solid: DESTINY'S DOOR is
+   its recessed centre, which takes the door's texture once the jewel
+   ceremony has run with all three mini-bosses dead (see the bottom of this
+   file). Under the Underworld's sky
    (src/underworld_sky.h), centred on the room.
 
    TWO DOORS:
@@ -52,5 +53,24 @@ int  heros_plinth_se_door_triggered(int lock);
 /* Arrivals, one per door. The south-east one is also the default spawn. */
 void heros_plinth_spawn_ne(void);
 void heros_plinth_spawn_se(void);
+
+/* DESTINY'S DOOR (src/heros_plinth.c, tools/DESTINYS_DOOR_CHECKLIST.txt).
+   The frame's three jewels resolve the mini-boss flags - Adapa's (blue,
+   right), Hadad's (green, top), Gula's (yellow, left). Circle at the frame's
+   centre plays the JEWEL CEREMONY if any of them is dead: their spirits fly
+   in from the sky, each lights its jewel, and - all three - Destiny's Door
+   fades up in the recess and then offers "Press O to enter" (COMING SOON).
+   Saved as FLAG_DESTINY_CEREMONY; once only.
+
+   heros_plinth_frame_update   the normal branch, every frame: the prompt's
+                               Circle (and the jewels' pulse).
+   heros_plinth_scene_active   1 while the ceremony owns the camera: main.c's
+                               cutscene branch, menu lock and HUD suppression.
+   heros_plinth_scene_update   that branch, every frame.
+   heros_plinth_scene_reset    new game / load: drop a half-played one. */
+void heros_plinth_frame_update(int lock);
+int  heros_plinth_scene_active(void);
+void heros_plinth_scene_update(void);
+void heros_plinth_scene_reset(void);
 
 #endif

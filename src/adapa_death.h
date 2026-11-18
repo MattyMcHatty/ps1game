@@ -22,7 +22,7 @@
  *      pitch — onto his body. From here it is FIXED on him.
  *   2. FADE, ADP_FADE_FRAMES (4.18 s, the clip's length). He fades out where
  *      he is, additively, over the sound that started on the blow.
- *   3. ORB, 1 s. The green spirit fades up out of where his body was and the
+ *   3. ORB, 1 s. The blue spirit fades up out of where his body was and the
  *      camera holds on it.
  *   4. RISE, 3 s. SFX_WOOSH, and the spirit climbs at a constant acceleration
  *      until it is gone, the camera's pitch solved each frame to follow it.
