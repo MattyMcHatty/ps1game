@@ -32,6 +32,14 @@
    2. THE SKY. Every room but the Descent draws src/underworld_sky.c's ring,
       centred on its own geometry.
 
+      ONE ROOM IS DIFFERENT, BY THE USER'S BRIEF (Nov 2026): THE CHAMBER OF
+      DESTINY, behind Destiny's Door, draws a night-sky DOME of its own
+      (underworld_sky_load_destiny) and its clear colour - and so its fog
+      COLOUR, the two being one - is BLACK, not the red below. Its fog FAR is
+      also its own, 2400 (the user's, "just far enough to see the tablet
+      from the top of the ramp"); its near is still UW_FOG_NEAR. See
+      src/chamber_of_destiny.h.
+
    3. THE MUSIC. Every room but the Descent plays CDAUDIO_UNDERWORLD_TRACK
       (src/cdaudio.h), from main.c's Chapter 4 music block - no music line
       of a room's own.

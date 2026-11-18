@@ -129,6 +129,7 @@
 #include "wingscape.h"        /* ...and the terraced room behind HHNF's NW door  */
 #include "wings_tablet.h"     /* ...and the tablet standing on its terrace       */
 #include "heros_plinth.h"     /* ...and Destiny's Door's room between the two    */
+#include "chamber_of_destiny.h" /* ...and the room behind Destiny's Door       */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
 #include "underworld_sky.h"   /* ...and the sky over every room after it         */
 #include "kennels_puzzle.h"
@@ -235,6 +236,9 @@ static int lava_u_from_sw = 0;
    cleared after the second. */
 static int plinth_from_wingscape = 0;
 static int wingscape_from_plinth = 0;
+/* ...and Hero's Plinth's THIRD arrival: 1 back out of Destiny's Door from the
+   Chamber of Destiny (set by that room's one door). */
+static int plinth_from_chamber = 0;
 
 /* Debug/game-over font stream (opened in main() after FntLoad). The HUD's log
    box renders with FntSort straight into the OT, so it needs no stream. */
@@ -333,6 +337,7 @@ void reset_game(RenderContext *ctx) {
     sharur_arrival   = 0;     /* ...and Sharur's Trial's, and Lava U's       */
     lava_u_from_sw   = 0;
     plinth_from_wingscape = 0;/* ...and Hero's Plinth's, and Wingscape's     */
+    plinth_from_chamber   = 0;
     wingscape_from_plinth = 0;
     heros_plinth_scene_reset();/* ...and any half-played jewel ceremony   */
     gula_death_reset();   /* ...and any half-played death of hers            */
@@ -493,6 +498,7 @@ static void load_area_geometry(GameState area) {
         case STATE_LAVA_U:           lava_u_load_geometry(); break;
         case STATE_WINGSCAPE:        wingscape_load_geometry(); break;
         case STATE_HEROS_PLINTH:     heros_plinth_load_geometry(); break;
+        case STATE_CHAMBER_OF_DESTINY: chamber_of_destiny_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -3568,9 +3574,17 @@ static void update_current_area(GameState area) {
         /* DESTINY'S DOOR's frame: its prompt and Circle. A ceremony it starts
            owns the frame from the next one (the branch at the top of this
            function). The doors are 2400+ away, so one Circle cannot do two
-           things. */
-        heros_plinth_frame_update(lock);
-        if (heros_plinth_ne_door_triggered(lock)) {
+           things.
+           DESTINY'S DOOR ITSELF, once open (all three dead, the ceremony run):
+           the frame's Circle returns 1 and the player goes through to the
+           Chamber of Destiny on the DESTINY transition (silent for now). Its
+           texture is this room's own, uploaded on entry. */
+        if (heros_plinth_frame_update(lock)) {
+            pending_area = STATE_CHAMBER_OF_DESTINY;
+            door_anim_start(DOOR_PANEL_DESTINY);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (heros_plinth_ne_door_triggered(lock)) {
             wingscape_from_plinth = 1;
             pending_area = STATE_WINGSCAPE;
             door_anim_start(DOOR_PANEL_CATACOMB);
@@ -3580,6 +3594,25 @@ static void update_current_area(GameState area) {
             sharur_arrival = 3;
             pending_area = STATE_SHARURS_TRIAL;
             door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_CHAMBER_OF_DESTINY) {
+        /* THE CHAMBER OF DESTINY - Chapter 4's sixth room, behind Destiny's
+           Door (src/chamber_of_destiny.c): two storeys, the y=0 floor and the
+           y=-200 dais up one ramp, the shared wall routine (Y-gated:
+           multi_level) and three floor zones. No enemies, no props, no lava.
+
+           ONE DOOR, Destiny's Door, back to the frame in Hero's Plinth: the
+           DESTINY transition (the door on this side is Destiny's Door too;
+           its texture is uploaded by this room). The latch tells Hero's
+           Plinth which arrival this is. */
+        apply_collision_reception();
+        apply_height();
+        if (chamber_of_destiny_door_triggered(lock)) {
+            plinth_from_chamber = 1;
+            pending_area = STATE_HEROS_PLINTH;
+            door_anim_start(DOOR_PANEL_DESTINY);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -4161,6 +4194,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         wingscape_draw(ctx);
     else if (area == STATE_HEROS_PLINTH)
         heros_plinth_draw(ctx);
+    else if (area == STATE_CHAMBER_OF_DESTINY)
+        chamber_of_destiny_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4718,6 +4753,10 @@ int main(int argc, const char **argv) {
     heros_plinth_load_assets();  /* ...and Hero's Plinth: FIVE deferred
                                      registrations (Destiny's Door and its
                                      frame); the rest is borrowed. */
+    chamber_of_destiny_load_assets(); /* ...and the Chamber of Destiny: SIX
+                                     deferred registrations (the marble, the
+                                     night sky, the tablet's four); the door
+                                     is Hero's Plinth's. */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
                                      registrations. Its model is read on entry
                                      to the first room that draws it. */
@@ -5312,7 +5351,8 @@ int main(int argc, const char **argv) {
                    the room behind Destiny's Door) can have sounds of their own:
                    SND_BANK_PLINTH in src/sound.h. Before the chapter test,
                    which it would otherwise match. */
-                (pending_area == STATE_HEROS_PLINTH) ? SND_BANK_PLINTH :
+                (pending_area == STATE_HEROS_PLINTH ||
+                 pending_area == STATE_CHAMBER_OF_DESTINY) ? SND_BANK_PLINTH :
                 area_is_underworld(pending_area) ? SND_BANK_UNDERWORLD :
                 area_is_catacombs(pending_area) ? SND_BANK_CATACOMBS :
                 SND_BANK_HOUSE);
@@ -5815,6 +5855,13 @@ int main(int argc, const char **argv) {
                    uploaders. The wooden door is resident
                    (src/heros_plinth.c). */
                 heros_plinth_upload_textures();
+            } else if (pending_area == STATE_CHAMBER_OF_DESTINY) {
+                /* THE CHAMBER OF DESTINY. Its six (the marble, the night sky -
+                   also its dome's - and the Ninurta tablet's four quarters),
+                   Destiny's Door through Hero's Plinth's narrow uploader (also
+                   the DESTINY panel out of here), and the sky's uploader for
+                   the chapter's item art (src/chamber_of_destiny.c). */
+                chamber_of_destiny_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -6833,8 +6880,17 @@ int main(int argc, const char **argv) {
                    Wingscape's door set. NO MUSIC LINE: the chapter's block
                    below. */
                 heros_plinth_init();
-                if (plinth_from_wingscape) heros_plinth_spawn_ne();
+                /* ...and a THIRD: back out of Destiny's Door from the Chamber
+                   of Destiny, in front of the frame. */
+                if (plinth_from_chamber)        heros_plinth_spawn_destiny();
+                else if (plinth_from_wingscape) heros_plinth_spawn_ne();
                 plinth_from_wingscape = 0;
+                plinth_from_chamber   = 0;
+            } else if (pending_area == STATE_CHAMBER_OF_DESTINY) {
+                /* ONE ARRIVAL, through Destiny's Door - the init's spawn, and
+                   where a debug jump lands. NO MUSIC LINE: the chapter's
+                   block below. */
+                chamber_of_destiny_init();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -7299,7 +7355,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_SHARURS_TRIAL ||
                    game_state == STATE_LAVA_U ||
                    game_state == STATE_WINGSCAPE ||
-                   game_state == STATE_HEROS_PLINTH) {
+                   game_state == STATE_HEROS_PLINTH ||
+                   game_state == STATE_CHAMBER_OF_DESTINY) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

@@ -247,7 +247,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_LAMASHTU_ARENA,  STATE_SEAL,
     STATE_HELL_HATH_NO_FURY, STATE_SHARURS_TRIAL,
     STATE_LAVA_U,          STATE_WINGSCAPE,
-    STATE_HEROS_PLINTH,
+    STATE_HEROS_PLINTH,    STATE_CHAMBER_OF_DESTINY,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -451,6 +451,9 @@ static int room_index(GameState area) {
         /* HERO'S PLINTH, Chapter 4's fifth room, between Sharur's Trial and
            Wingscape. Slot 66. Seeded EMPTY. */
         case STATE_HEROS_PLINTH:      return 66;
+        /* THE CHAMBER OF DESTINY, Chapter 4's sixth room, behind Destiny's
+           Door in Hero's Plinth. Slot 67. Seeded EMPTY. */
+        case STATE_CHAMBER_OF_DESTINY: return 67;
         default:                   return 0;
     }
 }

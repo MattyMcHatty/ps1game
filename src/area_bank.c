@@ -227,6 +227,10 @@ TexBank area_bank_of(GameState area) {
        five registrations of its own; the volcanic, the lava and the inner
        door through narrow uploaders; wd_dr is resident. */
     case STATE_HEROS_PLINTH:
+    /* THE CHAMBER OF DESTINY owns its six (marble, night sky, the tablet's
+       four quarters); Destiny's Door through Hero's Plinth's narrow
+       uploader. */
+    case STATE_CHAMBER_OF_DESTINY:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -289,7 +293,8 @@ int area_is_underworld(GameState area) {
            area == STATE_SHARURS_TRIAL ||
            area == STATE_LAVA_U ||
            area == STATE_WINGSCAPE ||
-           area == STATE_HEROS_PLINTH;
+           area == STATE_HEROS_PLINTH ||
+           area == STATE_CHAMBER_OF_DESTINY;
 }
 
 /* ---- The prop models -------------------------------------------------------

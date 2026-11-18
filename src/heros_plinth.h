@@ -53,22 +53,31 @@ int  heros_plinth_se_door_triggered(int lock);
 /* Arrivals, one per door. The south-east one is also the default spawn. */
 void heros_plinth_spawn_ne(void);
 void heros_plinth_spawn_se(void);
+/* ...and back out of Destiny's Door from the Chamber of Destiny: in front of
+   the frame, facing east. */
+void heros_plinth_spawn_destiny(void);
+
+/* Destiny's Door's art alone (8bpp x768 y0), for the Chamber of Destiny, whose
+   east wall is the same door and whose way out is DOOR_PANEL_DESTINY. */
+void heros_plinth_upload_destiny_door(void);
 
 /* DESTINY'S DOOR (src/heros_plinth.c, tools/DESTINYS_DOOR_CHECKLIST.txt).
    The frame's three jewels resolve the mini-boss flags - Adapa's (blue,
    right), Hadad's (green, top), Gula's (yellow, left). Circle at the frame's
    centre plays the JEWEL CEREMONY if any of them is dead: their spirits fly
    in from the sky, each lights its jewel, and - all three - Destiny's Door
-   fades up in the recess and then offers "Press O to enter" (COMING SOON).
-   Saved as FLAG_DESTINY_CEREMONY; once only.
+   fades up in the recess and then offers "Press O to enter": THROUGH it to
+   the Chamber of Destiny, on DOOR_PANEL_DESTINY. Saved as
+   FLAG_DESTINY_CEREMONY; once only.
 
    heros_plinth_frame_update   the normal branch, every frame: the prompt's
-                               Circle (and the jewels' pulse).
+                               Circle (and the jewels' pulse). Returns 1 when
+                               the player goes through the open door.
    heros_plinth_scene_active   1 while the ceremony owns the camera: main.c's
                                cutscene branch, menu lock and HUD suppression.
    heros_plinth_scene_update   that branch, every frame.
    heros_plinth_scene_reset    new game / load: drop a half-played one. */
-void heros_plinth_frame_update(int lock);
+int  heros_plinth_frame_update(int lock);
 int  heros_plinth_scene_active(void);
 void heros_plinth_scene_update(void);
 void heros_plinth_scene_reset(void);

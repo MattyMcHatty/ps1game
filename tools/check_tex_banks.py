@@ -265,6 +265,10 @@ AREAS = {
                   # Destiny's Door's frame and the door; borrows the volcanic,
                   # the lava and the inner door.
                   "heros_plinth_upload_textures",
+                  # THE CHAMBER OF DESTINY, behind Destiny's Door: owns the
+                  # marble, the night sky and the Ninurta tablet; borrows the
+                  # door through heros_plinth_upload_destiny_door.
+                  "chamber_of_destiny_upload_textures",
                   # ...and NESSIE (src/nessie.c), which main.c uploads on entry
                   # to the rooms nessie_room_has_sheet() names - Sharur's Trial
                   # today. Underworld rooms only.

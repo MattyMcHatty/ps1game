@@ -236,6 +236,9 @@ three already in it. Rule 5 is a line in a script, not code in the room.
      mesh's fog maths come from UW_FOG_NEAR / UW_FOG_FAR / UW_FOG_R,G,B in
      src/underworld.h and nothing else - no light, no lantern ease, no
      per-room value. The clear colour is the fog colour.
+     (EXCEPTION, the user's: the Chamber of Destiny's clear AND fog colour
+     are BLACK, and its fog far is 2400, the user's number (it began as 3000,
+     "just enough to see its tablet from the top of its ramp"). src/chamber_of_destiny.c.)
   2. EVERY ROOM DRAWS THE SKY: underworld_sky_draw(ctx, cx, cy, cz) with the
      centre of the room's own geometry (x/z mid-bounds, y half way up), inside
      the DBG_EXP_NO_MESH test, and the room's mesh clamps its far otz to
@@ -243,6 +246,15 @@ three already in it. Rule 5 is a line in a script, not code in the room.
      underworld_sky_upload_textures() from _upload_textures(). It has no
      collision. See src/underworld_sky.h. The sky draws the Descent's hell bg,
      so x640 y0 is taken in EVERY Underworld room: never put room art there.
+     A ROOM WITH ITS OWN SKY (the Chamber of Destiny, Nov 2026) is a second
+     model in the same module: a loader of its own (underworld_sky_load_
+     destiny), its texture set per model in sky_load_model, and drawn at
+     (0,0,0) if, like that dome, it was modelled in the room's coordinates.
+     Triangles are drawn. CHECK THE MODEL'S UVs FIRST: smxlink clamps any UV
+     past two tiles to 255, and the dome's were, so its UVs are generated at
+     draw time instead (a tiling starfield hides the seams; a picture would
+     not - get it re-UV'd in Blender then). The room still calls
+     underworld_sky_upload_textures(), for rule 5's item art.
   3. THE BOOKKEEPING: add the room to area_is_underworld() as well as
      area_bank_of() (TEXBANK_UNDERWORLD), which also gives it
      SND_BANK_UNDERWORLD and skips the spider sheets; its own VRAM is read off

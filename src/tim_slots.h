@@ -435,6 +435,10 @@
 #define TIM_TPAGE_MANSION  0x0087
 #define TIM_CLUT_MANSION   0x7bd0
 
+/* marble.tim      8bpp  VRAM ( 320,256)  \TEXUNDW\MARBLE.TIM */
+#define TIM_TPAGE_MARBLE   0x0095
+#define TIM_CLUT_MARBLE    0x7a90
+
 /* mgn_ky_stn.tim  4bpp  VRAM ( 848,320)  \TEX\MGNKYSTN.TIM */
 #define TIM_TPAGE_MGNKYSTN 0x001d
 #define TIM_CLUT_MGNKYSTN  0x7b90
@@ -471,6 +475,10 @@
 #define TIM_TPAGE_NESSIEB  0x000e
 #define TIM_CLUT_NESSIEB   0x7806
 
+/* night sky.tim   4bpp  VRAM ( 384,256)  \TEXUNDW\NIGHTSKY.TIM */
+#define TIM_TPAGE_NIGHTSKY 0x0016
+#define TIM_CLUT_NIGHTSKY  0x7dba
+
 /* nnrt_arm.tim    4bpp  VRAM ( 704,256)  \TEX\NNRTARM.TIM */
 #define TIM_TPAGE_NNRTARM  0x001b
 #define TIM_CLUT_NNRTARM   0x7dbf
@@ -478,6 +486,22 @@
 /* nnrt_wngs.tim   4bpp  VRAM ( 720,256)  \TEX\NNRTWNGS.TIM */
 #define TIM_TPAGE_NNRTWNGS 0x001b
 #define TIM_CLUT_NNRTWNGS  0x7dff
+
+/* ninurta tablet bottom left.tim  8bpp  VRAM ( 896,256)  \TEXUNDW\NTABBL.TIM */
+#define TIM_TPAGE_NTABBL   0x009e
+#define TIM_CLUT_NTABBL    0x7aaa
+
+/* ninurta tablet bottom right.tim  8bpp  VRAM ( 704,  0)  \TEXUNDW\NTABBR.TIM */
+#define TIM_TPAGE_NTABBR   0x008b
+#define TIM_CLUT_NTABBR    0x792a
+
+/* ninurta tablet top left.tim  8bpp  VRAM ( 384,  0)  \TEXUNDW\NTABTL.TIM */
+#define TIM_TPAGE_NTABTL   0x0086
+#define TIM_CLUT_NTABTL    0x7cea
+
+/* ninurta tablet top right.tim  8bpp  VRAM ( 512,  0)  \TEXUNDW\NTABTR.TIM */
+#define TIM_TPAGE_NTABTR   0x0088
+#define TIM_CLUT_NTABTR    0x7d2a
 
 /* oil_container.tim  4bpp  VRAM ( 896,256)  \TEXCTCMB\OILCNTNR.TIM */
 #define TIM_TPAGE_OILCNTNR 0x001e

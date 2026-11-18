@@ -17,6 +17,22 @@
 static void *sky_buff = NULL;
 static SMD  *sky_smd  = NULL;
 
+/* WHICH MODEL IS HELD. Two since the Chamber of Destiny (Nov 2026):
+     UW_SKY_RING  the chapter's ring, hell bg - every sky room but the one below
+     UW_SKY_DOME  the Chamber of Destiny's own dome, the night sky
+   A move between two rooms that draw the SAME model keeps it; a move onto the
+   other one frees this and reads that. */
+#define UW_SKY_NONE  (-1)
+#define UW_SKY_RING    0
+#define UW_SKY_DOME    1
+static int sky_model = UW_SKY_NONE;
+
+/* The dome's faces carry UVs the exporter CLAMPED at 255 (its Blender UVs run
+   past the two tiles an SMX can hold), so they are not used: each face is
+   tiled at draw time instead, the night sky being a plain starfield that
+   repeats without a seam worth seeing. See draw_face. */
+static int sky_gen_uv = 0;
+
 /* ---- The texture -----------------------------------------------------------
    ONE, and not ours: hell bg, the Descent's backdrop (4bpp x640 y0, CLUT
    576,502), uploaded through its narrow uploader rather than registered twice.
@@ -26,7 +42,7 @@ static uint16_t sky_tpage;
 static uint16_t sky_clut;
 
 void underworld_sky_load_assets(void) {
-    sky_tpage = TIM_TPAGE_HELLBG;
+    sky_tpage = TIM_TPAGE_HELLBG;   /* the ring's; sky_load_model sets each */
     sky_clut  = TIM_CLUT_HELLBG;
 }
 
@@ -48,27 +64,43 @@ void underworld_sky_upload_textures(void) {
    it back on the way into any room that does not draw it. */
 void underworld_sky_unload(void) {
     if (sky_buff) free(sky_buff);
-    sky_buff = NULL;
-    sky_smd  = NULL;
+    sky_buff  = NULL;
+    sky_smd   = NULL;
+    sky_model = UW_SKY_NONE;
 }
 
-void underworld_sky_load(void) {
-    if (sky_smd) return;
+static void sky_load_model(int model, const char *path) {
+    /* Each model brings its texture: the ring the Descent's hell bg, the dome
+       the Chamber of Destiny's night sky (owned and uploaded by that room). */
+    sky_tpage  = (model == UW_SKY_DOME) ? TIM_TPAGE_NIGHTSKY : TIM_TPAGE_HELLBG;
+    sky_clut   = (model == UW_SKY_DOME) ? TIM_CLUT_NIGHTSKY  : TIM_CLUT_HELLBG;
+    sky_gen_uv = (model == UW_SKY_DOME);
+    if (sky_smd && sky_model == model) return;
+    underworld_sky_unload();
     CdlFILE file;
     /* room_arena_load resumes CD-DA on its way out, so this read brackets
        itself (descent_to_hell_load_geometry's tube, the same note). */
     cdaudio_suspend();
-    if (CdSearchFile(&file, "\\TEXUNDW\\UWSKY.SMD;1")) {
+    if (CdSearchFile(&file, (char *)path)) {
         int sectors = (file.size + 2047) / 2048;
         sky_buff = malloc(sectors * 2048);
         if (sky_buff) {
             CdControl(CdlSetloc, &file.pos, NULL);
             CdRead(sectors, (uint32_t *)sky_buff, CdlModeSpeed);
             CdReadSync(0, NULL);
-            sky_smd = smdInitData(sky_buff);
+            sky_smd   = smdInitData(sky_buff);
+            sky_model = model;
         }
     }
     cdaudio_resume();
+}
+
+void underworld_sky_load(void) {
+    sky_load_model(UW_SKY_RING, "\\TEXUNDW\\UWSKY.SMD;1");
+}
+
+void underworld_sky_load_destiny(void) {
+    sky_load_model(UW_SKY_DOME, "\\TEXUNDW\\CDSKY.SMD;1");
 }
 
 /* ---- The draw --------------------------------------------------------------
@@ -103,8 +135,30 @@ static int on_screen(const DVECTOR *v) {
     return v->vx > -1023 && v->vx < 1023 && v->vy > -1023 && v->vy < 1023;
 }
 
+/* The dome's generated UVs: one 128 tile per UW_SKY_TILE world units along
+   each edge, at most two (255) - the room's 128 window wraps the second. */
+#define UW_SKY_TILE   1600
+
+static int32_t sky_edge_len(const SVECTOR *a, const SVECTOR *b) {
+    int32_t dx = a->vx - b->vx, dy = a->vy - b->vy, dz = a->vz - b->vz, t;
+    if (dx < 0) dx = -dx;
+    if (dy < 0) dy = -dy;
+    if (dz < 0) dz = -dz;
+    /* the largest plus half the other two: near enough, and no root */
+    if (dx < dy) { t = dx; dx = dy; dy = t; }
+    if (dx < dz) { t = dx; dx = dz; dz = t; }
+    return dx + ((dy + dz) >> 1);
+}
+
+static int32_t sky_tile_span(int32_t len) {
+    int32_t s = (len * 128) / UW_SKY_TILE;
+    if (s < 32)  s = 32;
+    if (s > 255) s = 255;
+    return s;
+}
+
 static void draw_face(RenderContext *ctx, uint8_t *p, uint8_t *buf_end,
-                      int32_t cx, int32_t cy, int32_t cz) {
+                      int32_t cx, int32_t cy, int32_t cz, int is_quad) {
     uint16_t *vi  = (uint16_t *)(p + 4);
     uint8_t  *col = p + 16;
     uint8_t  *uv  = p + 20;
@@ -112,13 +166,34 @@ static void draw_face(RenderContext *ctx, uint8_t *p, uint8_t *buf_end,
     int k, s, t, behind = 0;
     int left = 0, right = 0, above = 0, below = 0;
 
+    /* A TRIANGLE is drawn as a quad whose last corner is its third: the grid
+       below folds the v2-v3 edge to a point and so covers the triangle. */
+    int vk[4];
+    vk[0] = vi[0]; vk[1] = vi[1]; vk[2] = vi[2];
+    vk[3] = is_quad ? vi[3] : vi[2];
+
+    /* The dome's UVs, made here (sky_gen_uv): v0-v1 across, v0-v2 down. */
+    int32_t gu = 0, gv = 0;
+    if (sky_gen_uv) {
+        gu = sky_tile_span(sky_edge_len(&sky_smd->p_verts[vk[0]],
+                                        &sky_smd->p_verts[vk[1]]));
+        gv = sky_tile_span(sky_edge_len(&sky_smd->p_verts[vk[0]],
+                                        &sky_smd->p_verts[vk[2]]));
+    }
+
     for (k = 0; k < 4; k++) {
-        SVECTOR *v = &sky_smd->p_verts[vi[k]];
+        SVECTOR *v = &sky_smd->p_verts[vk[k]];
         qx[k] = v->vx + cx;
         qy[k] = v->vy + cy;
         qz[k] = v->vz + cz;
-        qu[k] = uv[k * 2];
-        qv[k] = uv[k * 2 + 1];
+        if (sky_gen_uv) {
+            qu[k] = (k & 1) ? gu : 0;
+            qv[k] = (k & 2) ? gv : 0;
+        } else {
+            int uk = (is_quad || k < 3) ? k : 2;
+            qu[k] = uv[uk * 2];
+            qv[k] = uv[uk * 2 + 1];
+        }
 
         SVECTOR w = { (int16_t)qx[k], (int16_t)qy[k], (int16_t)qz[k], 0 };
         DVECTOR sv;
@@ -224,8 +299,9 @@ void underworld_sky_draw(RenderContext *ctx, int32_t cx, int32_t cy, int32_t cz)
     int i, n = sky_smd->n_prims;
     for (i = 0; i < n; i++) {
         SMD_PRI_TYPE *pt = (SMD_PRI_TYPE *)p;
-        if (pt->type >= 2)
-            draw_face(ctx, p, buf_end, cx, cy, cz);
+        /* Quads, and since the Chamber of Destiny's dome triangles too: its
+           crown is twelve of them (the ring has none). */
+        draw_face(ctx, p, buf_end, cx, cy, cz, pt->type >= 2);
         p += pt->len;
     }
 }

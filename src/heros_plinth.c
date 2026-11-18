@@ -233,6 +233,13 @@ void heros_plinth_upload_textures(void) {
     underworld_sky_upload_textures();
 }
 
+/* DESTINY'S DOOR alone, for the Chamber of Destiny: the door is on its east
+   wall too, and DOOR_PANEL_DESTINY draws it on the way out. Narrow, so the
+   frame's four (whose pages the Chamber re-lays) are not stamped with it. */
+void heros_plinth_upload_destiny_door(void) {
+    if (owned_tex[4] >= 0) texmgr_upload(owned_tex[4]);
+}
+
 /* ---- The cull key, and its RADIUS ------------------------------------------
    ws_build_cull_keys() verbatim (src/wingscape.c, itself Hell Hath No Fury's;
    tools/DIAGNOSING_FRAME_RATE.txt STEP 3I for why the radius). Built on the
@@ -356,6 +363,12 @@ void heros_plinth_spawn_ne(void) {
 void heros_plinth_spawn_se(void) {
     hp_spawn_at(HP_SE_SPAWN_X, HP_SE_SPAWN_Z, HP_SE_SPAWN_ROT);
 }
+/* Back out of DESTINY'S DOOR from the Chamber of Destiny: 250 off the frame's
+   face (x=-1700) on its centre line, past the ramp's foot (x=-1500) so on the
+   y=0 floor, facing east into the room - the way through the door. */
+void heros_plinth_spawn_destiny(void) {
+    hp_spawn_at(-1450, 0, 1024);
+}
 
 /* ===========================================================================
    DESTINY'S DOOR - the jewels and the ceremony
@@ -377,7 +390,8 @@ void heros_plinth_spawn_se(void) {
        three dead reads the marble line and nothing else happens (the prompt
        stays - there is nothing to use up). With ANY of them dead it plays the
        ceremony.
-     - it has run with all three: "Press O to enter" -> COMING SOON for now.
+     - it has run with all three: "Press O to enter" -> through Destiny's
+       Door to the Chamber of Destiny (src/chamber_of_destiny.h).
      - it has run with fewer: no prompt at all, ever (FLAG_DESTINY_CEREMONY is
        once only; Chapter 4 cannot go back for the rest).
 
@@ -731,33 +745,33 @@ static void hp_scene_finish(void) {
 }
 
 /* Circle at the frame. Edge-detected like the doors, the state kept up to date
-   while locked. */
-void heros_plinth_frame_update(int lock) {
+   while locked. Returns 1 when the player goes THROUGH Destiny's Door (open:
+   all three dead and the ceremony run) - main.c takes it to the Chamber of
+   Destiny on DOOR_PANEL_DESTINY. */
+int heros_plinth_frame_update(int lock) {
     int held = interact_tapped();
     int just = held && !frame_circle_prev;
     int mode, dead;
     int32_t dx, dz;
     frame_circle_prev = held;
     hp_clock++;                       /* the lit jewels keep pulsing */
-    if (lock || !just) return;
+    if (lock || !just) return 0;
     mode = hp_frame_mode();
-    if (mode == HP_FRAME_NONE) return;
+    if (mode == HP_FRAME_NONE) return 0;
     dx = cam_x - HP_FRAME_X;
     dz = cam_z - HP_FRAME_Z;
-    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= HP_TRIGGER_RADIUS) return;
-    if (!interact_facing(HP_FRAME_X, HP_FRAME_Z)) return;
+    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= HP_TRIGGER_RADIUS) return 0;
+    if (!interact_facing(HP_FRAME_X, HP_FRAME_Z)) return 0;
 
-    if (mode == HP_FRAME_ENTER) {
-        /* The room beyond is not built yet. */
-        show_pickup_msg_raw("COMING SOON");
-        return;
-    }
+    if (mode == HP_FRAME_ENTER)
+        return 1;                     /* through, to the Chamber of Destiny */
     dead = hp_dead_mask();
     if (!dead) {
         show_pickup_msg_raw("A marble structure. It looks important.");
-        return;
+        return 0;
     }
     hp_scene_begin(dead);
+    return 0;
 }
 
 /* ---- The director ------------------------------------------------------------

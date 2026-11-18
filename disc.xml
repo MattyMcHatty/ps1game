@@ -2097,6 +2097,28 @@
             <file name="DDFRBL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\destinys door frame bottom left.tim"/>
             <file name="DDFRBR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\destinys door frame bottom right.tim"/>
             <file name="DSTNYDR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\destinys door.tim"/>
+        <!-- THE CHAMBER OF DESTINY (src/chamber_of_destiny.h), behind
+             Destiny's Door in Hero's Plinth: a corridor from the door into a
+             marble chamber, a dais and an altar, the Ninurta tablet on its far
+             wall. Borrows Destiny's Door itself (DSTNYDR above, through Hero's
+             Plinth's narrow uploader). Its OWN SKY, CDSKY.SMD - a dome tiled
+             with the night sky - instead of the chapter's ring. -->
+            <file name="CHMBDST.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\chamber_of_destiny.smd"/>
+            <file name="CDSKY.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\underworld\chamber_of_destiny_skybox.smd"/>
+        <!-- ...and its OWN six. The tablet's four quarters, 8bpp, on the four
+             pages AND CLUTs of Destiny's Door's frame (x384 y0, x512 y0,
+             x896 y256, x704 y0), which this room never draws and Hero's Plinth
+             re-uploads on entry; the marble, 8bpp, on the lava's page (x320
+             y256) with the closed drawer's CLUT line (256,490); the night sky,
+             4bpp as supplied (16 colours), on the volcanic's page and CLUT
+             (x384 y256, 928,502). Every displaced tenant is re-uploaded by its
+             own room on entry. -->
+            <file name="MARBLE.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\marble.tim"/>
+            <file name="NIGHTSKY.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\night sky.tim"/>
+            <file name="NTABTL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\ninurta tablet top left.tim"/>
+            <file name="NTABTR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\ninurta tablet top right.tim"/>
+            <file name="NTABBL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\ninurta tablet bottom left.tim"/>
+            <file name="NTABBR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\ninurta tablet bottom right.tim"/>
         <!-- NESSIE, the chapter's first monster (src/nessie.h): a lava-bound
              head that swims its own pool and spits fireballs. Six frames, one
              256x256 sheet (textures/underworld/nessie.png), shipped as two

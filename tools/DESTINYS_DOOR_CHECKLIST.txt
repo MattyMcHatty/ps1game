@@ -65,6 +65,13 @@ STEPS
   [x] 11e. twinkle2 supplied later: converted at 11025 (0.94 s, 5,952 SPU
           bytes), TWINKLE2.VAG on the disc, its sfx_files[] entry filled.
   [ ] 12. Commit - waiting on the user's go-ahead
+  [x] 13. "Press O to enter" now goes THROUGH: heros_plinth_frame_update
+          returns 1 and main.c takes the player to the Chamber of Destiny
+          (src/chamber_of_destiny.h) on DOOR_PANEL_DESTINY - both leaves
+          swinging, every stage of the double door's clock x3 (15 s), SILENT
+          until the user supplies its sound (DST_SFX_FRAME in door_anim.c; the
+          clip goes in SND_BANK_PLINTH, which both rooms load). Back out lands
+          in front of the frame, facing east.
 
 VERIFIED (headless PCSX-Redux, force-booted into the room, all three dead)
   - The scene ran start to finish, no exception: glide to (0,-189,0), yaw

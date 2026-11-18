@@ -120,7 +120,16 @@ BANK = {
     "destinys door frame top right.tim":    "Plinth: frame, top right (owned 8bpp; rocks' page) x512 y0",
     "destinys door frame bottom left.tim":  "Plinth: frame, bottom left (owned 8bpp; the oil tank's page) x896 y256",
     "destinys door frame bottom right.tim": "Plinth: frame, bottom right (owned 8bpp; the tablets' page) x704 y0",
-    "destinys door.tim":                    "Plinth: Destiny's Door, not modelled yet (owned 8bpp; cracked tablet's page) x768 y0",
+    "destinys door.tim":                    "Plinth: Destiny's Door (owned 8bpp; cracked tablet's page; the Chamber too) x768 y0",
+    # THE CHAMBER OF DESTINY (src/chamber_of_destiny.h): the tablet on the
+    # frame's pages and CLUTs, the marble on the lava's, the night sky (also
+    # its dome's) on the volcanic's.
+    "ninurta tablet top left.tim":      "Chamber: tablet, top left (owned 8bpp; the frame's page) x384 y0",
+    "ninurta tablet top right.tim":     "Chamber: tablet, top right (owned 8bpp; the frame's page) x512 y0",
+    "ninurta tablet bottom left.tim":   "Chamber: tablet, bottom left (owned 8bpp; the frame's page) x896 y256",
+    "ninurta tablet bottom right.tim":  "Chamber: tablet, bottom right (owned 8bpp; the frame's page) x704 y0",
+    "marble.tim":                       "Chamber: walls, corridor floor (owned 8bpp; lava's page) x320 y256",
+    "night sky.tim":                    "Chamber: floor, dais, the dome (owned 4bpp as supplied; volcanic's page) x384 y256",
 }
 
 tims = {}

@@ -372,7 +372,51 @@
 #define FALL_TOTAL_FRAMES    FALL_RUSH_FRAMES
 #define FALL_FADE_START      (FALL_TOTAL_FRAMES - FALL_FADE_OUT_FRAMES)  /* 105 */
 
-#define DOOR_PANEL_COUNT  9
+/* ==========================================================================
+   DOOR_PANEL_DESTINY — Destiny's Door. The double door, both leaves, x3.
+   ==========================================================================
+   THE CLOCK is the shared one with every stage tripled ("it will take 3 times
+   as long"), the dolly window too, so the camera pushes in at a third of the
+   speed over the last 6 seconds and still lands on the fade-out:
+
+       frame   0   fading up from black, both leaves shut
+       frame 180   fully up; held shut
+       frame 270   both leaves begin to swing
+       frame 630   wide open; held
+       frame 720   fade to black begins
+       frame 900   black; STATE_LOADING takes over (15 s)
+
+   THE GEOMETRY is the exit door's - both leaves swing away about their outer
+   hinges - with one image split down the middle (destinys door.tim, 8bpp
+   128x128 at x768 y0, Voff 0: left leaf U 0..63, right leaf U 64..127, V
+   0..127, checked against tools/VRAM_MAP.txt per the greenhouse door's
+   warning). 4:3, the door's own proportions in the Chamber of Destiny (800 x
+   600): 2 x 112 wide by 2 x 84 tall, so the final 1.4x dolly takes the hinges
+   to 157 from centre, inside the 320-wide screen. */
+#define DST_FADE_IN_FRAMES   (FADE_IN_FRAMES     * 3)   /* 180 */
+#define DST_HOLD_CLOSED      (HOLD_CLOSED_FRAMES * 3)   /*  90 */
+#define DST_SWING_FRAMES     (SWING_FRAMES       * 3)   /* 360 */
+#define DST_HOLD_OPEN        (HOLD_OPEN_FRAMES   * 3)   /*  90 */
+#define DST_FADE_FRAMES      (FADE_FRAMES        * 3)   /* 180 */
+#define DST_ZOOM_FRAMES      (ZOOM_FRAMES        * 3)   /* 360 */
+#define DST_SWING_START      (DST_FADE_IN_FRAMES + DST_HOLD_CLOSED)
+#define DST_FADE_START       (DST_SWING_START + DST_SWING_FRAMES + DST_HOLD_OPEN)
+#define DST_TOTAL_FRAMES     (DST_FADE_START + DST_FADE_FRAMES)
+/* THE SOUND, WHEN THERE IS ONE: the shared clock plays its door on the frame
+   the fade-in ends, and this is that frame. door_anim_update plays nothing
+   for this variant until the clip exists (a sound_play there, and the clip in
+   SND_BANK_PLINTH, which both rooms load). */
+#define DST_SFX_FRAME        DST_FADE_IN_FRAMES
+#define DST_PANEL_W         112
+#define DST_HALF_H           84
+#define DST_L_U_OUTER         0
+#define DST_L_U_SEAM         63
+#define DST_R_U_SEAM         64
+#define DST_R_U_OUTER       127
+#define DST_V_TOP             0
+#define DST_V_BOT           127
+
+#define DOOR_PANEL_COUNT 10
 
 static int32_t  anim_timer  = 0;
 static int      anim_active = 0;
@@ -551,6 +595,10 @@ void door_anim_load_assets(void) {
        takes turns on, and both rooms its transition joins put it up on entry. */
     panel_tpage[DOOR_PANEL_GAOL] = TIM_TPAGE_GAOLDOOR;
     panel_clut [DOOR_PANEL_GAOL] = TIM_CLUT_GAOLDOOR;
+    /* Destiny's Door: HEADER ONLY, on the same argument. Hero's Plinth's own
+       art at x768 y0, uploaded on entry to both rooms the transition joins. */
+    panel_tpage[DOOR_PANEL_DESTINY] = TIM_TPAGE_DSTNYDR;
+    panel_clut [DOOR_PANEL_DESTINY] = TIM_CLUT_DSTNYDR;
     /* The outer door is the default/fallback; require at least it to draw. */
     if (ok) tex_loaded = 1;
 }
@@ -633,18 +681,29 @@ static int is_fall(void)             { return anim_variant == DOOR_PANEL_FALL; }
    in geometry, which door_anim_draw's single-leaf branch decides by variant. */
 static int is_cat(void)              { return anim_variant == DOOR_PANEL_CATACOMB ||
                                               anim_variant == DOOR_PANEL_GAOL;     }
-static int32_t swing_start(void)     { return is_cat()  ? CAT_SWING_START   :
+/* FIVE CLOCKS: Destiny's Door is the shared one, every stage x3, so it brings
+   two more accessors - the fade-OUT length and the dolly window, the two the
+   other clocks all share. */
+static int is_destiny(void)          { return anim_variant == DOOR_PANEL_DESTINY; }
+static int32_t swing_start(void)     { return is_destiny() ? DST_SWING_START :
+                                              is_cat()  ? CAT_SWING_START   :
                                               is_gate() ? GATE_SWING_START  : SWING_START;  }
-static int32_t swing_frames(void)    { return is_cat()  ? CAT_SWING_FRAMES  :
+static int32_t swing_frames(void)    { return is_destiny() ? DST_SWING_FRAMES :
+                                              is_cat()  ? CAT_SWING_FRAMES  :
                                               is_gate() ? GATE_SWING_FRAMES : SWING_FRAMES; }
-static int32_t fade_in_frames(void)  { return is_cat()  ? CAT_FADE_IN_FRAMES
+static int32_t fade_in_frames(void)  { return is_destiny() ? DST_FADE_IN_FRAMES :
+                                              is_cat()  ? CAT_FADE_IN_FRAMES
                                                         : FADE_IN_FRAMES;                   }
-static int32_t fade_start(void)      { return is_fall() ? FALL_FADE_START   :
+static int32_t fade_start(void)      { return is_destiny() ? DST_FADE_START :
+                                              is_fall() ? FALL_FADE_START   :
                                               is_cat()  ? CAT_FADE_START    :
                                               is_gate() ? GATE_FADE_START   : FADE_START;   }
-static int32_t total_frames(void)    { return is_fall() ? FALL_TOTAL_FRAMES :
+static int32_t total_frames(void)    { return is_destiny() ? DST_TOTAL_FRAMES :
+                                              is_fall() ? FALL_TOTAL_FRAMES :
                                               is_cat()  ? CAT_TOTAL_FRAMES  :
                                               is_gate() ? GATE_TOTAL_FRAMES : TOTAL_FRAMES; }
+static int32_t fade_frames(void)     { return is_destiny() ? DST_FADE_FRAMES : FADE_FRAMES; }
+static int32_t zoom_frames(void)     { return is_destiny() ? DST_ZOOM_FRAMES : ZOOM_FRAMES; }
 
 void door_anim_update(void) {
     if (!anim_active) return;
@@ -653,6 +712,9 @@ void door_anim_update(void) {
        and the FALL has none: the drop in the yard that leads into it is silent
        too, and the brief asks for the rush of the plane and nothing over it. */
     if (is_fall()) return;
+    /* DESTINY'S DOOR IS SILENT UNTIL ITS OWN SOUND ARRIVES - the user is
+       supplying one. It goes here, on DST_SFX_FRAME. Never SFX_DOOR meanwhile. */
+    if (is_destiny()) return;
     /* THE CATACOMB DOOR'S SOUND FRAME IS NOT ITS FADE-IN FRAME. Every other
        variant plays on the frame the door becomes fully visible, because for
        those two that is the same frame; this one comes up out of black at 30,
@@ -702,11 +764,12 @@ static int32_t zoom_max(void) { return is_cat() ? CAT_ZOOM_MAX : ZOOM_MAX; }
  * to zoom_max() over the final ZOOM_FRAMES — measured back from whichever total
  * this variant runs to, so the dolly always lands on the fade-out. */
 static int32_t zoom_factor(void) {
-    int32_t zoom_start = total_frames() - ZOOM_FRAMES;
+    int32_t zf = zoom_frames();
+    int32_t zoom_start = total_frames() - zf;
     if (anim_timer <= zoom_start) return 256;
     int32_t zt = anim_timer - zoom_start;
-    if (zt > ZOOM_FRAMES) zt = ZOOM_FRAMES;
-    return 256 + (zoom_max() - 256) * zt / ZOOM_FRAMES;
+    if (zt > zf) zt = zf;
+    return 256 + (zoom_max() - 256) * zt / zf;
 }
 
 /* ----------------------------------------------------------------- rendering */
@@ -854,7 +917,7 @@ void door_anim_draw(RenderContext *ctx) {
     if (anim_timer < fade_in) {
         intensity = 128 * anim_timer / fade_in;          /* 0 -> 128 */
     } else if (anim_timer > fade_start()) {
-        int32_t fade = (anim_timer - fade_start()) * 256 / FADE_FRAMES;
+        int32_t fade = (anim_timer - fade_start()) * 256 / fade_frames();
         if (fade > 256) fade = 256;
         intensity = 128 * (256 - fade) / 256;            /* 128 -> 0 */
     } else {
@@ -991,6 +1054,46 @@ void door_anim_draw(RenderContext *ctx) {
                        free_x, DOOR_CENTER_Y + free_hh,  hinge_x, bot,
                        EXIT_R_U_SEAM, DOOR_V_TOP,  EXIT_R_U_OUTER, DOOR_V_TOP,
                        EXIT_R_U_SEAM, DOOR_V_BOT,  EXIT_R_U_OUTER, DOOR_V_BOT,
+                       intensity, zoom);
+        }
+        return;
+    }
+
+    /* Destiny's Door: BOTH leaves swing away about their outer hinges, the exit
+     * door's motion, on its own (tripled) clock and its own 4:3 panel, drawn
+     * from the two halves of one image. No inset: the halves meet exactly at
+     * the seam, as the house double door's do. */
+    if (anim_variant == DOOR_PANEL_DESTINY) {
+        int32_t swing  = swing_angle();
+        int32_t cos_t  = icos(swing);
+        int32_t sin_t  = isin(swing);
+        int32_t z      = DST_PANEL_W * sin_t / 4096;
+        int32_t persp  = PERSP_D * 256 / (PERSP_D + z);
+        int32_t free_hh = DST_HALF_H * persp / 256;
+        int32_t xoff    = (DST_PANEL_W * cos_t / 4096) * persp / 256;
+        int32_t dtop    = DOOR_CENTER_Y - DST_HALF_H;
+        int32_t dbot    = DOOR_CENTER_Y + DST_HALF_H;
+
+        /* Left leaf: hinge on the left, free (seam) edge swinging right. */
+        {
+            int32_t hinge_x = DOOR_CENTER_X - DST_PANEL_W;
+            int32_t free_x  = hinge_x + xoff;
+            emit_panel(ctx, buf_end,
+                       hinge_x, dtop,  free_x, DOOR_CENTER_Y - free_hh,
+                       hinge_x, dbot,  free_x, DOOR_CENTER_Y + free_hh,
+                       DST_L_U_OUTER, DST_V_TOP,  DST_L_U_SEAM, DST_V_TOP,
+                       DST_L_U_OUTER, DST_V_BOT,  DST_L_U_SEAM, DST_V_BOT,
+                       intensity, zoom);
+        }
+        /* Right leaf: hinge on the right, free (seam) edge swinging left. */
+        {
+            int32_t hinge_x = DOOR_CENTER_X + DST_PANEL_W;
+            int32_t free_x  = hinge_x - xoff;
+            emit_panel(ctx, buf_end,
+                       free_x, DOOR_CENTER_Y - free_hh,  hinge_x, dtop,
+                       free_x, DOOR_CENTER_Y + free_hh,  hinge_x, dbot,
+                       DST_R_U_SEAM, DST_V_TOP,  DST_R_U_OUTER, DST_V_TOP,
+                       DST_R_U_SEAM, DST_V_BOT,  DST_R_U_OUTER, DST_V_BOT,
                        intensity, zoom);
         }
         return;

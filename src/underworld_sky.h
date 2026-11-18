@@ -40,9 +40,24 @@
    LIFETIME: the model is ~1.2 KB read on entry to a sky room and handed
    back on the way into any other (main.c's load_area_geometry). */
 
+/* >>> ONE ROOM HAS A SKY OF ITS OWN: THE CHAMBER OF DESTINY. <<< Behind
+   Destiny's Door the sky is not the burning ring but a DOME of night sky,
+   "Chamber of Destiny Skybox.smx" (\TEXUNDW\CDSKY.SMD): 48 faces, twelve of
+   them triangles at the crown, modelled IN THE ROOM'S OWN COORDINATES, so
+   that room draws it centred on (0,0,0). Same draw - unfogged, unculled,
+   behind everything, cut into cells - with two differences:
+     - its texture is the room's own night sky (4bpp x384 y256), uploaded by
+       src/chamber_of_destiny.c, not hell bg;
+     - its UVs are MADE AT DRAW TIME, one 128 tile per ~1600 units of edge,
+       because the exporter clamped the model's own at 255.
+   The room loads it with underworld_sky_load_destiny() instead of
+   underworld_sky_load(). One model is held at a time: entering a room that
+   draws the other one frees this and reads that (~2.7 KB / ~1.2 KB). */
+
 void underworld_sky_load_assets(void);       /* startup: the texture's slot    */
 void underworld_sky_upload_textures(void);   /* room entry: pure LoadImage     */
-void underworld_sky_load(void);              /* room entry: the model (CD)     */
+void underworld_sky_load(void);              /* room entry: the ring (CD)      */
+void underworld_sky_load_destiny(void);      /* room entry: the dome (CD)      */
 void underworld_sky_unload(void);            /* every transition               */
 
 /* Queue the sky, centred on world (cx, cy, cz). Call from the room's draw

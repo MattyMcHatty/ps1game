@@ -158,6 +158,32 @@
                                  (the Cells through gaol_entry_upload_gaol_door).
                                  Its see-through texels are CLUT 0, so the black
                                  shows between the bars, like the garden gate. */
+#define DOOR_PANEL_DESTINY    9 /* DESTINY'S DOOR - between Hero's Plinth's
+                                 frame and the Chamber of Destiny, BOTH WAYS
+                                 (the door on either side is Destiny's Door).
+                                 The double door's transition with two
+                                 differences, both the user's (Nov 2026):
+
+                                 BOTH LEAVES SWING OPEN, each about its outer
+                                 hinge and away from the camera, the left half
+                                 of destinys door.tim on the left leaf and the
+                                 right half on the right.
+
+                                 AND IT TAKES THREE TIMES AS LONG: every stage
+                                 of the shared clock x3 - 3 s up from black,
+                                 1.5 s shut, a 6 s swing, 1.5 s open, 3 s to
+                                 black (15 s), the dolly over the last 6 s.
+
+                                 SILENT FOR NOW: it will get a sound of its own
+                                 (see DST_SFX_FRAME in door_anim.c). The panel is
+                                 4:3, the door's own shape in the Chamber.
+
+                                 ITS TEXTURE IS ROOM ART, on the catacomb
+                                 door's argument: destinys door.tim (8bpp x768
+                                 y0) is uploaded on entry by Hero's Plinth (its
+                                 owner) and the Chamber of Destiny (through
+                                 heros_plinth_upload_destiny_door), the only
+                                 two rooms this transition joins. */
 
 void door_anim_load_assets(void);   /* load the panel TIMs into VRAM (startup) */
 

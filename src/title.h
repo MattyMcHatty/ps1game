@@ -345,6 +345,11 @@ typedef enum {
                                 Chapter 4's fifth room, with Destiny's Door's
                                 frame. See src/heros_plinth.h. Appended, not
                                 inserted. */
+    STATE_CHAMBER_OF_DESTINY, /* THE CHAMBER OF DESTINY, behind Destiny's
+                                Door in Hero's Plinth - Chapter 4's sixth
+                                room, under a night-sky dome of its own. See
+                                src/chamber_of_destiny.h. Appended, not
+                                inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */
