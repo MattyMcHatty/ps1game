@@ -231,6 +231,12 @@ typedef enum {
     DBG_ADAPA_DEAD,
     DBG_HADAD_DEAD,
     DBG_GULA_DEAD,
+    /* THE CHAMBER OF DESTINY's two west plinths (src/destiny_plinths.h),
+       one option each: the prize in hand and the plinth already bare - the
+       TAKEN flag as well as the grant, so the room does not offer a second.
+       HAS SHARUR also puts it in the hand, as HAS GRAVE-OLVER does. */
+    DBG_HAS_SHARUR,
+    DBG_HAS_DESTINY_TABLET,
     DEBUG_OPT_COUNT
 } DebugOpt;
 

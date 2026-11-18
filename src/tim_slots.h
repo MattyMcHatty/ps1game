@@ -615,6 +615,10 @@
 #define TIM_TPAGE_SHARTBLT 0x000b
 #define TIM_CLUT_SHARTBLT  0x7dbd
 
+/* sharur.tim      8bpp  VRAM ( 736,256)  \TEX\SHARUR.TIM */
+#define TIM_TPAGE_SHARUR   0x009b
+#define TIM_CLUT_SHARUR    0x7891
+
 /* shelf_incinerator.tim  8bpp  VRAM ( 640,  0)  \TEXCTCMB\SHLFINCN.TIM */
 #define TIM_TPAGE_SHLFINCN 0x008a
 #define TIM_CLUT_SHLFINCN  0x7d6a
@@ -658,6 +662,10 @@
 /* strs.tim        4bpp  VRAM ( 320,  0)  \TEX\STRS.TIM */
 #define TIM_TPAGE_STRS     0x0005
 #define TIM_CLUT_STRS      0x7e00
+
+/* tblt_dst.tim    8bpp  VRAM ( 704,320)  \TEX\TBLTDST.TIM */
+#define TIM_TPAGE_TBLTDST  0x009b
+#define TIM_CLUT_TBLTDST   0x78d1
 
 /* tntcl_actv.tim  4bpp  VRAM ( 352,  0)  \TEX\TNTCLACT.TIM */
 #define TIM_TPAGE_TNTCLACT 0x0005

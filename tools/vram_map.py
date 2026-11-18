@@ -1278,6 +1278,19 @@ KNOWN_STREAM_PAIRS = [
     ("incinerator.tim",           "nnrt_wngs.tim"),
     ("ladder.tim",                "nnrt_wngs.tim"),
     ("vines.tim",                 "nnrt_wngs.tim"),
+    #   sharur.tim / tblt_dst.tim -> SHARUR's icon and the TABLET OF DESTINIES,
+    # the third and fourth chapter-scoped items: 64x64 8bpp on the rest of the
+    # arm's page - Sharur x736 y256 (u 64..127), the Tablet x704 y320 (Voff
+    # 64) - CLUTs (272,482) / (272,483), genuinely free runs. Ninurta's Arm's
+    # terms: re-stamped by item_pickups_upload_underworld().
+    ("Rabisu tex.tim",            "sharur.tim"),
+    ("incinerator.tim",           "sharur.tim"),
+    ("ladder.tim",                "sharur.tim"),
+    ("vines.tim",                 "sharur.tim"),
+    ("Rabisu tex.tim",            "tblt_dst.tim"),
+    ("incinerator.tim",           "tblt_dst.tim"),
+    ("ladder.tim",                "tblt_dst.tim"),
+    ("vines.tim",                 "tblt_dst.tim"),
     #   HERO'S PLINTH's five (src/heros_plinth.c): Destiny's Door's frame
     # (four quarters) and the door itself, all 8bpp 128x128 - FULL 256-colour
     # art, never cut to 16 without the user's say-so (tools/ADDING_A_ROOM.txt

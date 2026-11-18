@@ -489,6 +489,7 @@ static const DebugOpt debug_opt_order[] = {
     DBG_SHARUR_TABLET_SOLVED, DBG_WINGS_TABLET_SOLVED,
     DBG_ADAPA_DEAD, DBG_HADAD_DEAD, DBG_GULA_DEAD,
     DBG_DESTINY_DOOR,
+    DBG_HAS_SHARUR, DBG_HAS_DESTINY_TABLET,
 };
 typedef char debug_opt_order_is_complete
     [(DBG_COUNT(debug_opt_order) == DEBUG_OPT_COUNT) ? 1 : -1];

@@ -47,6 +47,12 @@ typedef enum {
                                 FLAG_NINURTAS_WINGS_TAKEN. Never placed by
                                 world.c: the Wings Tablet leaves it where it
                                 stood when it is answered (src/wings_tablet.h) */
+    PICKUP_TABLET_OF_DESTINIES, /* -> ITEM_TABLET_OF_DESTINIES bit. NEVER spawned
+                                as a pickup: the Chamber of Destiny's higher
+                                plinth draws it with item_pickup_draw_fixed and
+                                its Circle ceremony grants it
+                                (src/destiny_plinths.h). The kind exists for the
+                                sprite; collect() handles it anyway.           */
     PICKUP_KIND_COUNT
 } PickupKind;
 
@@ -107,7 +113,8 @@ void item_pickups_load_textures(void);
 /* Chapter-scoped item art (see item_pickup.c): register at startup, among the
    other *_load_assets; re-uploaded on entry to every room that can hold it. */
 void item_pickups_register_textures(void);
-void item_pickups_upload_underworld(void);   /* Ninurta's Arm x704 + Wings x720, y256 */
+void item_pickups_upload_underworld(void);   /* Ninurta's Arm x704 + Wings x720, y256;
+                                                Sharur x736 y256, the Tablet x704 y320 */
 
 /* Place a collectible into the live array. Returns its index, or -1 if full.
    The plain form grants the kind's default (ROUNDS_PER_PICKUP for rounds); the

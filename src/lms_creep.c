@@ -224,7 +224,7 @@ int lms_creeps_try_hit(void) {
         if (dot <= 0) continue;
 
         /* No knockback. One hit kills, so there is nothing left to shove. */
-        lms_creep_damage(c, 1);
+        lms_creep_damage(c, melee_damage);
         return 1;
     }
     return 0;

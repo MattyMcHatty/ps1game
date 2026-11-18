@@ -46,6 +46,7 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\SCATRNDS.TIM;1",   /* PICKUP_SCATTER_ROUNDS    */
     "\\TEX\\NNRTARM.TIM;1",    /* PICKUP_NINURTAS_ARM      */
     "\\TEX\\NNRTWNGS.TIM;1",   /* PICKUP_NINURTAS_WINGS    */
+    "\\TEX\\TBLTDST.TIM;1",    /* PICKUP_TABLET_OF_DESTINIES */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
@@ -63,7 +64,11 @@ static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Scattershot Rounds",      /* PICKUP_SCATTER_ROUNDS    */
     "Ninurta's Arm",           /* PICKUP_NINURTAS_ARM      */
     "Ninurta's Wings",         /* PICKUP_NINURTAS_WINGS    */
+    "Tablet of Destinies",     /* PICKUP_TABLET_OF_DESTINIES */
 };
+_Static_assert(sizeof(kind_tim) / sizeof(kind_tim[0]) == PICKUP_KIND_COUNT &&
+               sizeof(kind_name) / sizeof(kind_name[0]) == PICKUP_KIND_COUNT,
+               "kind_tim[] / kind_name[] must match PickupKind");
 
 /* Load one TIM into VRAM and record its tpage/clut and UV rect. The UV's U0 is
    derived from the texture's x WITHIN its 64-word tpage, so a sprite may sit in
@@ -126,16 +131,26 @@ void item_pickups_load_textures(void) {
 #include "texmgr.h"
 static int nnrt_tex = -1;
 static int nnwg_tex = -1;
+/* SHARUR's icon (a weapon's, menu + wheel + HUD) and the TABLET OF DESTINIES
+   are the third and fourth, on the rest of the same page: Sharur 64x64 8bpp
+   at x736 y256 (u 64..127), the Tablet 64x64 8bpp at x704 y320 (Voff 64),
+   CLUTs (272,482) / (272,483). */
+static int shrr_tex = -1;
+static int tbds_tex = -1;
 
 void item_pickups_register_textures(void) {
     texmgr_set_bank(TEXBANK_UNDERWORLD);
     nnrt_tex = texmgr_register("\\TEX\\NNRTARM.TIM;1");
     nnwg_tex = texmgr_register("\\TEX\\NNRTWNGS.TIM;1");
+    shrr_tex = texmgr_register("\\TEX\\SHARUR.TIM;1");
+    tbds_tex = texmgr_register("\\TEX\\TBLTDST.TIM;1");
 }
 
 void item_pickups_upload_underworld(void) {
     if (nnrt_tex >= 0) texmgr_upload(nnrt_tex);
     if (nnwg_tex >= 0) texmgr_upload(nnwg_tex);
+    if (shrr_tex >= 0) texmgr_upload(shrr_tex);
+    if (tbds_tex >= 0) texmgr_upload(tbds_tex);
 }
 
 void item_pickups_reset(void) {
@@ -158,7 +173,8 @@ void item_pickups_reset(void) {
     player_items &= ~((1 << ITEM_PIANO_KEY) | (1 << ITEM_BLUE_KEY_STONE) |
                       (1 << ITEM_MAGENTA_KEY_STONE) |
                       (1 << ITEM_MEAT_SACK) | (1 << ITEM_GAOL_KEY) |
-                      (1 << ITEM_NINURTAS_ARM) | (1 << ITEM_NINURTAS_WINGS));
+                      (1 << ITEM_NINURTAS_ARM) | (1 << ITEM_NINURTAS_WINGS) |
+                      (1 << ITEM_TABLET_OF_DESTINIES));
     player_hatch_keys   = 0;
     player_blood_pearls = 0;
     player_oil        = 0;   /* a new game holds no lantern and no oil */
@@ -260,6 +276,12 @@ static void collect(ItemPickup *p) {
         /* ...and the Wings Tablet's, on the same terms. */
         case PICKUP_NINURTAS_WINGS: player_items |= (1 << ITEM_NINURTAS_WINGS);
                                     game_flag_set(FLAG_NINURTAS_WINGS_TAKEN); break;
+        /* Never spawned (the plinth ceremony grants it directly), but a kind
+           that exists must not collect as nothing. */
+        case PICKUP_TABLET_OF_DESTINIES:
+            player_items |= (1 << ITEM_TABLET_OF_DESTINIES);
+            game_flag_set(FLAG_TABLET_OF_DESTINIES_TAKEN);
+            break;
         default: break;
     }
     sound_play(SFX_PICKUP);

@@ -422,6 +422,8 @@ void living_statue_damage(LivingStatue *s, int dmg);
    never came alive at all, is refused as silently as the axe is. The full
    reasoning is on the definition in living_statue.c. */
 void living_statue_burn(LivingStatue *s, int dmg);
+/* SHARUR (src/sharur.h): lands in any living state, waking it into ATTACK. */
+void living_statue_sharur(LivingStatue *s, int dmg);
 
 /* Scale a hit by this enemy's weaknesses — there are none, by design: what the
    lantern gets is the state gate above, not a multiplier. */

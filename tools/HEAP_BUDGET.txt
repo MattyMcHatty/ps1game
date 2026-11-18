@@ -76,6 +76,7 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   fountain_square.c        2         20480
   garden_courtyard.c       2         20480
   hall_2f.c                2         20480
+  item_pickup.c            4         20480
   maze_one.c               2         20480
   rafflesia.c              2         20480
   sharur_tablet.c          2         20480
@@ -116,12 +117,11 @@ TEXMGR REGISTRATIONS  (resident for the whole run)
   sharurs_trial.c          1         10240
   the_head.c               1         10240
   the_pit.c                1         10240
-  item_pickup.c            2          8192
   lms_creep.c              1          6144
   maggot.c                 1          6144
   creep.c                  1          4096
-  TOTAL                    119     1458176
-  TEXMGR_MAX               128               <- src/texmgr.c; 9 spare, checked at build time
+  TOTAL                    121     1470464
+  TEXMGR_MAX               128               <- src/texmgr.c; 7 spare, checked at build time
 
 DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)
   none
@@ -189,18 +189,18 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x801604A8
+  _end (heap start)   0x80164DF8
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             506008 bytes (494 KB)
+  heap size             487240 bytes (476 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak bank      243712 bytes (238 KB)  48.2%   <- REAR_GATE (largest room set)
-  kept buffers           36864 bytes (36 KB)   7.3%
-  chapter-scoped         43008 bytes (42 KB)   8.5%
-  PERMANENT TOTAL       323584 bytes (316 KB)  63.9%
-  FREE AT REST          182424 bytes (178 KB)  36.1%   <- STACK ALREADY SUBTRACTED
-                                  (was 330576 before the stack was counted;
+  texmgr peak bank      243712 bytes (238 KB)  50.0%   <- REAR_GATE (largest room set)
+  kept buffers           36864 bytes (36 KB)   7.6%
+  chapter-scoped         43008 bytes (42 KB)   8.8%
+  PERMANENT TOTAL       323584 bytes (316 KB)  66.4%
+  FREE AT REST          163656 bytes (160 KB)  33.6%   <- STACK ALREADY SUBTRACTED
+                                  (was 311808 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -259,7 +259,7 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 178 KB printed above.
+  once read_file's margin comes off - against the 159 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

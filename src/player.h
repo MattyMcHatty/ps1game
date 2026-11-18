@@ -47,6 +47,9 @@ typedef enum {
     ITEM_NINURTAS_WINGS,    /* the carving left where the Wings Tablet stood once
                                its puzzle is answered (src/wings_tablet.h).
                                Chapter 4's second item. One exists; no use yet */
+    ITEM_TABLET_OF_DESTINIES, /* on the Chamber of Destiny's higher west plinth,
+                               taken by its Circle ceremony (src/destiny_plinths.h).
+                               Chapter 4's third item. One exists; no use yet */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */
@@ -537,6 +540,13 @@ typedef enum {
        of the three were dead (Circle then only reads the marble line). Bit
        16 of game_flags2. */
     FLAG_DESTINY_CEREMONY,
+    /* THE CHAMBER OF DESTINY's two west plinths (src/destiny_plinths.h): the
+       ceremony on each has run and its prize is the player's. Not read off
+       player_weapons / ITEM_TABLET_OF_DESTINIES, FLAG_POT_TAKEN's reasoning -
+       a later beat may spend the tablet, and the plinth must stay empty.
+       Bits 17-18 of game_flags2. */
+    FLAG_SHARUR_TAKEN,
+    FLAG_TABLET_OF_DESTINIES_TAKEN,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */
@@ -568,6 +578,9 @@ typedef enum {
     WEAPON_CRUCIFAXE = 0,
     WEAPON_GRAVEOLVER,
     WEAPON_HELLUMINATOR,   /* the lantern, found in the Greenhouse's west annexe */
+    WEAPON_SHARUR,         /* the mace, on the Chamber of Destiny's lower plinth
+                              (src/sharur.c): the Crucifaxe's swing at twice the
+                              speed and damage, plus a charged blade of light */
     MAX_WEAPON_TYPES
 } WeaponType;
 

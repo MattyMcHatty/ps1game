@@ -390,7 +390,7 @@ int crawlers_try_hit(void) {
                        (int32_t)dz * icos(cam_rot)) >> 12;
         if (dot <= 0) continue;
 
-        crawler_damage(s, 1);
+        crawler_damage(s, melee_damage);
         return 1;
     }
     return 0;

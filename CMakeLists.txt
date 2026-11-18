@@ -116,6 +116,8 @@ add_executable(horror_game
     src/wingscape.c
     src/heros_plinth.c
     src/chamber_of_destiny.c
+    src/destiny_plinths.c
+    src/sharur.c
     src/spirit_glow.c
     src/wings_tablet.c
     src/underworld_sky.c

@@ -252,7 +252,9 @@ is left, Scattershot is right, down is waiting). Where the boxes sit and how
 they look is the shared selection wheel in src/weapon.c, which the WEAPON
 wheel (hold Triangle) also draws; a new WEAPON takes the next free box in
 weapon_wheel_slots[] there (Crucifaxe up, Grave-olver left, Helluminator
-right, down is waiting).
+right, Sharur down - the weapon wheel is FULL; a fifth weapon needs a wider
+wheel). A new weapon also takes the next cell of the menu's WEAPONS column
+(menu.c, slot 4 onward) and a case in menu_draw_weapon_icon().
 
 SWAPPING costs a full reload. The design that keeps this simple is ONE
 completion path for both cases (src/graveolver.c):

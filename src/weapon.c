@@ -13,6 +13,7 @@
 #include "crucifaxe.h"
 #include "graveolver.h"
 #include "helluminator.h"
+#include "sharur.h"
 #include "menu.h"        /* the weapon wheel's boxes show the menu's weapon icons */
 #include "sound.h"       /* SFX_CURSOR as a wheel's cursor moves */
 #include "weapon.h"
@@ -98,6 +99,7 @@ void weapons_init(void) {
     crucifaxe_init();
     graveolver_init();
     helluminator_init();
+    sharur_init();
 }
 
 /* Weapon-switch animation. Phase 1 lowers the outgoing weapon off the bottom;
@@ -223,7 +225,7 @@ static const int8_t weapon_wheel_slots[WHEEL_SLOTS] = {
     [WHEEL_UP]    = WEAPON_CRUCIFAXE,
     [WHEEL_LEFT]  = WEAPON_GRAVEOLVER,
     [WHEEL_RIGHT] = WEAPON_HELLUMINATOR,
-    [WHEEL_DOWN]  = -1,
+    [WHEEL_DOWN]  = WEAPON_SHARUR,
 };
 
 static int tri_frames   = -1;  /* frames Triangle has been down; -1 = not armed */
@@ -272,6 +274,8 @@ static void put_weapon_down(void) {
        oil is spent per second of burning, so releasing Square early and
        switching are the same act. */
     helluminator_cancel_burn();
+    /* ...and Sharur's glow drains: a charge is only ever in the hand. */
+    sharur_cancel();
 }
 
 static void start_switch(int target) {
@@ -294,6 +298,10 @@ void weapons_update(void) {
         tri_held = (~pad->btn & PAD_TRIANGLE) ? 1 : 0;
         dpad     = ~pad->btn & (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT);
     }
+    /* Sharur's blade is in the AIR, not the hand: it flies on through a
+       switch, the wheel, and whatever is equipped. */
+    sharur_blade_update();
+
     int tri_just  = tri_held && !tri_prev;
     int dpad_just = dpad & ~dpad_prev;
     tri_prev  = tri_held;
@@ -368,13 +376,21 @@ void weapons_update(void) {
         graveolver_update();
     else if (current_weapon == WEAPON_HELLUMINATOR)
         helluminator_update();
+    else if (current_weapon == WEAPON_SHARUR)
+        sharur_update();
 }
 
 void weapons_draw(RenderContext *ctx) {
+    /* The blade first: it is world-space and the camera's view matrix is
+       still up; every held weapon below replaces it. */
+    sharur_blade_draw(ctx);
+
     if (current_weapon == WEAPON_GRAVEOLVER)
         draw_graveolver(ctx);
     else if (current_weapon == WEAPON_HELLUMINATOR)
         draw_helluminator(ctx);
+    else if (current_weapon == WEAPON_SHARUR)
+        sharur_draw(ctx);
     else
         draw_crucifaxe(ctx);
 

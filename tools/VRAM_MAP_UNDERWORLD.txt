@@ -71,8 +71,10 @@ RESERVED  (a global; overwriting it breaks something)
   nnrt_wngs.tim          the Ninurta's Wings item (under the Wings Tablet)
   scat_rnds.tim          scattershot rounds
   shadow.tim             entity drop shadows
+  sharur.tim             Sharur, the weapon's icon (Chamber of Destiny's lower plinth)
   sml_med.tim            small medkit
   stnd_rnds.tim          standard rounds
+  tblt_dst.tim           the Tablet of Destinies item (Chamber's higher plinth)
 
 THIS BANK'S ART
   texture                    what it is
@@ -140,7 +142,7 @@ MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
   x512  AVAILABLE, needs a way back first: grn_ky_stn.tim, wd_dr_crk.tim, wx_cb.tim   [also on this page, all re-uploaded on room entry: bars.tim, pipe_button_off.tim, pipe_button_on.tim]
   x576  AVAILABLE, needs a way back first: inr_dbl_dr.tim, vlv_hndl.tim
   x640  BLOCKED - reserved: sml_med.tim   [also on this page, all re-uploaded on room entry: creep.tim, lamashtu creep.tim, maggot.tim]
-  x704  BLOCKED - reserved: nnrt_arm.tim, nnrt_wngs.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, incinerator.tim, ladder.tim, vines.tim]
+  x704  BLOCKED - reserved: nnrt_arm.tim, nnrt_wngs.tim, sharur.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, incinerator.tim, ladder.tim, vines.tim]
   x768  IN USE by this bank: wd_dr.tim
   x832  BLOCKED - reserved: flm_rnds.tim, helluminator.tim, stnd_rnds.tim
   x896  IN USE by this bank: destinys door frame bottom left.tim, ninurta tablet bottom left.tim, oil_container.tim

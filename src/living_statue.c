@@ -322,6 +322,19 @@ void living_statue_burn(LivingStatue *s, int dmg) {
     ls_wound(s, dmg);
 }
 
+/* ---- Sharur ----------------------------------------------------------------
+   SHARUR's door (src/sharur.h), the third, and the widest: Sharur affects
+   EVERY enemy in the game (the user's rule, Nov 2026 - it is meant to come
+   round again in a New Game +). It lands in ANY living state, even on a
+   statue still standing where it was authored, and wakes one that is not
+   striking into ATTACK first, as the lantern's door does. The axe's and the
+   lantern's own rules are untouched: they do not come through here. */
+void living_statue_sharur(LivingStatue *s, int dmg) {
+    if (!s->active || s->state == LST_DEAD) return;
+    if (s->state != LST_ATTACK) ls_enter_attack(s);
+    ls_wound(s, dmg);
+}
+
 /* ---- The landing search -----------------------------------------------------
    Find a spot BEHIND the player, no further from them than `range`, that a
    statue can actually stand on. Returns 1 and fills *ox/*oy/*oz, or 0 if none of
@@ -692,7 +705,7 @@ int living_statues_try_hit(void) {
                        (int32_t)dz * icos(cam_rot)) >> 12;
         if (dot <= 0) continue;
 
-        living_statue_damage(s, 1);
+        living_statue_damage(s, melee_damage);
         return 1;
     }
     return 0;

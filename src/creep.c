@@ -196,7 +196,7 @@ int creeps_try_hit(void) {
         if (dot <= 0) continue;
 
         /* No knockback. One hit kills, so there is nothing left to shove. */
-        creep_damage(c, 1);
+        creep_damage(c, melee_damage);
         return 1;
     }
     return 0;

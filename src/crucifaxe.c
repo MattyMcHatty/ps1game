@@ -45,6 +45,13 @@ static SMD  *crucifaxe_smd  = NULL;
 static void *crucifaxe_buff = NULL;
 
 int swing_timer    = 0;
+/* What one connected swing takes off an enemy, in that enemy's own swing units
+   (1 for most, AHR_HP_SCALE/GLM_HP_SCALE for the two that count half points).
+   1 for the Crucifaxe; SHARUR raises it to 2 for the length of its own tick
+   (src/sharur.c) - "double damage to every enemy" - and puts it back. Every
+   hit path below and every module's *_try_hit() reads it, so no enemy can be
+   missed by a Sharur that forgot one. */
+int melee_damage   = 1;
 static int square_prev          = 0;   /* Square state last frame, for edge-detect */
 static int hit_this_swing       = 0;
 static int crate_hit_this_swing = 0;
@@ -108,7 +115,20 @@ void update_crucifaxe(void) {
     square_prev = square_held;
 
     if (game_state != STATE_MENU && swing_timer == 0 &&
-        square_just) {
+        square_just)
+        melee_start_swing();
+    melee_swing_tick(1);
+}
+
+/* ---- The swing, shared with SHARUR ----------------------------------------
+   Split out of update_crucifaxe() when Sharur arrived (src/sharur.c): the same
+   swing, the same hit tests, the same latches. Sharur differs only in STEP -
+   swing_timer advances 2 a frame, so the hit window (1,3,5,7) and the return
+   both take half as long - and in melee_damage. Advancing the timer rather
+   than shortening SWING_DURATION keeps every reader of swing_timer (the
+   Rabisu's and Nessie's parry windows) right without touching them. */
+void melee_start_swing(void) {
+    {
         swing_timer            = 1;
         hit_this_swing         = 0;
         crate_hit_this_swing   = 0;
@@ -137,7 +157,9 @@ void update_crucifaxe(void) {
         asag_hit_this_swing    = 0;
         sound_play(SFX_SWING);
     }
+}
 
+void melee_swing_tick(int step) {
     if (swing_timer > 0) {
         if (swing_timer <= SWING_DURATION && !hit_this_swing && vampire_health > 0) {
             int32_t dx     = vampire_x - cam_x;
@@ -151,7 +173,7 @@ void update_crucifaxe(void) {
                 if (dot > 0) {
                     vampire_kb_vx    = dist2d > 0 ? (dx * KNOCKBACK_SPEED) / dist2d : 0;
                     vampire_kb_vz    = dist2d > 0 ? (dz * KNOCKBACK_SPEED) / dist2d : 0;
-                    vampire_health--;
+                    vampire_health -= melee_damage;
                     if (vampire_health <= 0)
                         spawn_blood_burst(vampire_x, vampire_y, vampire_z);
                     vampire_hit_timer = VAMPIRE_BAR_TIMER_MAX;
@@ -176,7 +198,7 @@ void update_crucifaxe(void) {
                     if (dot > 0) {
                         d->kb_vx = dist2d > 0 ? (dx * DDOG_KNOCKBACK) / dist2d : 0;
                         d->kb_vz = dist2d > 0 ? (dz * DDOG_KNOCKBACK) / dist2d : 0;
-                        d->health--;
+                        d->health -= melee_damage;
                         d->hit_timer = DDOG_BAR_TIMER_MAX;
                         if (d->health <= 0) {
                             d->state = DDOG_DEAD;
@@ -209,7 +231,7 @@ void update_crucifaxe(void) {
                     if (dot > 0) {
                         z->kb_vx = dist2d > 0 ? (dx * ZMB_KNOCKBACK) / dist2d : 0;
                         z->kb_vz = dist2d > 0 ? (dz * ZMB_KNOCKBACK) / dist2d : 0;
-                        z->health--;
+                        z->health -= melee_damage;
                         z->hit_timer = ZMB_BAR_TIMER_MAX;
                         if (z->health <= 0) {
                             z->state = ZMB_DEAD;
@@ -250,7 +272,7 @@ void update_crucifaxe(void) {
                             s->kb_vx = dist2d > 0 ? (dx * SPD_KNOCKBACK) / dist2d : 0;
                             s->kb_vz = dist2d > 0 ? (dz * SPD_KNOCKBACK) / dist2d : 0;
                         }
-                        spider_damage(s, 1);
+                        spider_damage(s, melee_damage);
                         spdr_hit_this_swing = 1;
                         break;
                     }
@@ -309,7 +331,7 @@ void update_crucifaxe(void) {
                             m->kb_vx = dist2d > 0 ? (dx * MSH_KNOCKBACK) / dist2d : 0;
                             m->kb_vz = dist2d > 0 ? (dz * MSH_KNOCKBACK) / dist2d : 0;
                         }
-                        mushroom_damage(m, 1);
+                        mushroom_damage(m, melee_damage);
                         msh_hit_this_swing = 1;
                         break;
                     }
@@ -473,7 +495,7 @@ void update_crucifaxe(void) {
                     int32_t dot = ((int32_t)dx * isin(cam_rot) +
                                    (int32_t)dz * icos(cam_rot)) >> 12;
                     if (dot > 0) {
-                        asag_damage(1);
+                        asag_damage(melee_damage);
                         asag_hit_this_swing = 1;
                     }
                 }
@@ -485,7 +507,9 @@ void update_crucifaxe(void) {
            rabisu.h). The axe is not useless against it — it is the PARRY, and
            rabisu.c reads swing_timer directly for both of its deflect windows,
            so a swing still counts for everything without ever landing a hit.
-           Adding a hit block back here would quietly undo the whole fight. */
+           Adding a hit block back here would quietly undo the whole fight.
+           (SHARUR does wound it - but from src/sharur.c's
+           sharur_swing_extras(), never from this shared pass.) */
 
         /* Creep hit. The tentacle's, the Rafflesia's and the Living Statue's
            shape — the whole test lives in the enemy's module — rather than the
@@ -515,7 +539,8 @@ void update_crucifaxe(void) {
 
         /* NO ADAPA BLOCK, AND THAT IS THE DESIGN, NOT AN OVERSIGHT. Only the
            Helluminator can hurt him (src/adapa.h); the axe passes through a
-           ghost. There is deliberately no adapas_try_hit() to call. */
+           ghost. There is deliberately no adapas_try_hit() to call.
+           SHARUR is the exception, in src/sharur.c's sharur_swing_extras(). */
 
         /* THE CRIB, and this one is not a weapon hit at all — it is the TRIGGER
            for the whole Room of Arms encounter (src/crib.h). A connected swing
@@ -573,14 +598,24 @@ void update_crucifaxe(void) {
                 vine_hit_this_swing = 1;
         }
 
-        if (++swing_timer > SWING_TOTAL) {
+        swing_timer += step;
+        if (swing_timer > SWING_TOTAL) {
             swing_timer = 0;
         }
     }
 }
 
 void draw_crucifaxe(RenderContext *ctx) {
-    if (!crucifaxe_smd) return;
+    melee_draw_model(ctx, crucifaxe_smd, 4096 /* 1.0x */, NULL);
+}
+
+/* The held melee weapon's pose, off swing_timer, and its flat-shaded draw.
+   Shared with Sharur, which hands in its own model, a GAIN that rises as it
+   charges, and wants the pose matrix back to hang its glow on (out_vs, may be
+   NULL). */
+void melee_draw_model(RenderContext *ctx, SMD *smd, int32_t gain,
+                      MATRIX *out_vs) {
+    if (!smd) return;
 
     int32_t t;
     if (swing_timer == 0) {
@@ -615,7 +650,9 @@ void draw_crucifaxe(RenderContext *ctx) {
     weapon_vs.t[1] = vs_y;
     weapon_vs.t[2] = vs_z;
 
+    if (out_vs) *out_vs = weapon_vs;
+
     /* Flat-shaded view-space render (shared with the grave-olver); restores the
        camera view matrix before returning. */
-    weapon_render_model(ctx, crucifaxe_smd, &weapon_vs, 4096 /* 1.0x */);
+    weapon_render_model(ctx, smd, &weapon_vs, gain);
 }

@@ -151,7 +151,7 @@ int maggots_try_hit(void) {
                        (int32_t)dz * icos(cam_rot)) >> 12;
         if (dot <= 0) continue;
 
-        maggot_damage(m, 1);
+        maggot_damage(m, melee_damage);
         return 1;
     }
     return 0;

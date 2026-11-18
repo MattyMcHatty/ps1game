@@ -1,0 +1,104 @@
+SHARUR + THE TABLET OF DESTINIES - CHECKLIST (Nov 2026)
+=======================================================
+Two new collectibles, both on the Chamber of Destiny's west plinths. Item work
+follows tools/ADDING_AN_ITEM.txt. [x] = done, [ ] = to do.
+
+DESIGN (from the brief + answers)
+  - TABLET OF DESTINIES: a flag item, Underworld only. Texture "tablet of
+    destinies.png". Description: "Holds the irrevocable decrees of fate. Its
+    owner has supreme authority."
+  - SHARUR: a new WEAPON (texture sharur.png for its icons; the held model is
+    assets/props/Sharur.smx -> SHARURWP.SMD). In the menu's weapon column, and
+    the BOTTOM box of the weapon wheel.
+      * The Crucifaxe's swing, twice as fast (swing AND cooldown).
+      * Double damage to every enemy (2 per connected swing, not 1).
+      * Charge: a tap swings at once, like the Crucifaxe. Keep holding after
+        the swing and it slowly glows, peak at 3 s. Release at full charge:
+        it swings and fires a large ')'-shaped blade of light forward, fast,
+        until it hits a wall. 4 damage + knockback to every enemy it passes
+        through; it ALSO breaks crates, breakable doors and vine curtains.
+        Release before full charge: nothing.
+  - PLACEMENT: Chamber of Destiny, the west plinths. Sharur on the centre of
+    the LOWER plinth, the Tablet on the centre of the HIGHER plinth.
+    Not collected by walking up. Each plinth has "Press O" in front of it.
+    Circle: the camera is fixed; after 1 s the item rises a little, glows
+    2 s, then moves toward the camera; the pickup sound plays and it goes
+    into the inventory.
+
+STEPS
+  [x] 1. Read references (item runbook, crucifaxe, weapon wheel, Chamber of
+         Destiny, Ninurta's Wings item path, menu weapons)
+  [x] 2. Sharur model: smxlink assets/props/Sharur.smx -> sharur.smd
+         (\TEXUNDW\SHARURWP.SMD - SHARUR.SMD is already Sharur's Trial's room)
+  [x] 3. Textures: both icons 64x64 8bpp on Ninurta's Arm's page - Sharur
+         x736 y256, the Tablet x704 y320 (Voff 64, window-safe) - CLUTs
+         (272,482) / (272,483), genuinely free runs. disc.xml, tim_slots,
+         both vram maps, KNOWN_STREAM_PAIRS, Underworld RESERVED;
+         gen_tex_rooms puts both in every Underworld room's set (Wings' mask)
+  [x] 4. Tablet item: ITEM_TABLET_OF_DESTINIES, PICKUP_TABLET_OF_DESTINIES
+         (sprite only, never spawned), MENU_SLOT 18, icon, description,
+         incinerator take/give, reset, Underworld re-upload
+  [x] 5. Sharur weapon: WEAPON_SHARUR, menu weapon icon (cell 3), wheel
+         bottom box, HUD box (via menu_draw_weapon_icon), update/draw
+         routing, save (player_weapons bit 3 - no format change)
+  [x] 6. Sharur swing: crucifaxe.c split into melee_start_swing /
+         melee_swing_tick(step) / melee_draw_model; swing_timer += 2 a frame
+         for Sharur; melee_damage (1 axe, 2 Sharur) through all 6 inline hit
+         blocks and all 14 module *_try_hit()s
+  [x] 7. Charge + glow + release (src/sharur.c), and the blade: ')' crescent,
+         70/frame, stops at walls (centre + upper half), 4 swings' damage
+         once per enemy (Ahriman shoved; Golem/Nessie never move), crates/
+         doors/vines through the axe's own smash tests run from the blade
+  [x] 8. Plinth ceremony (src/destiny_plinths.c): signs, Circle from the
+         dais, glide to a fixed shot, 1 s, rise, 2 s glow, fly to camera,
+         SFX_PICKUP + log + inventory; Sharur auto-equipped.
+         FLAG_SHARUR_TAKEN / FLAG_TABLET_OF_DESTINIES_TAKEN (game_flags2
+         bits 17-18, no format change). main.c cutscene branch + HUD-off list
+  [x] 9. Debug: HAS SHARUR, HAS DESTINY TAB (CH4 group)
+  [x] 10. Budgets: check_tex_banks OK; texmgr 121/128; heap 166 KB free at
+          rest (was 178 - the binary grew 12 KB); VRAM maps: no unexpected
+          pixel or CLUT collisions
+  [x] 11. Build (0 warnings) + disc (mkpsxiso)
+  [x] 12. Verify - headless PCSX-Redux force-boot into the Chamber, scripted,
+          0 exceptions; instrumentation removed and the binary scanned:
+            Sharur   camera glides in by frame 45, item rises 80 at 1 s, holds
+                     2 s, flies; ends weapons=9 (axe+Sharur), Sharur in hand,
+                     FLAG_SHARUR_TAKEN, camera back where the player stood
+            Tablet   same beats; item bit 13 set, both flags set
+            Blade    from the floor along z=0: stopped AT THE PLINTHS'
+                     FACE (x=-5370). First cut flew through them - fixed:
+                     collision_segment_blocked wants camera-offset Y.
+                     Along z=900: stopped at the dais step (x=-4740)
+
+ROUND 2 (the user's corrections, same day)
+  [x] Charge glow: the head's pale blue-white faces glow THEMSELVES - each
+      redrawn additively over the mace, plus a 1.25x halo copy - instead of
+      one ring on the head's centre. Head faces only (~a dozen, two passes).
+  [x] Ceremony glow rings shrunk: Sharur 150 -> 80, the Tablet 130 -> 70.
+  [x] Hold charges, only a TAP swings: the swing waits for the release
+      (< SHR_TAP_FRAMES = 15 frames), queued if the last swing is still out.
+      Released at full charge: swing + blade. Between: nothing.
+  [x] The blade is "()" - two crescents back to back - not ")".
+  [x] Sharur affects EVERY enemy (New Game + in mind):
+        swing  - the axe's tests at 2x, plus sharur_swing_extras(): Adapa
+                 (adapa_burn), the Rabisu (rabisu_damage; still parries) and
+                 non-striking Living Statues (new living_statue_sharur, wakes
+                 them).
+        blade  - a block for every family: the Helluminator's sweep list +
+                 Hadad + the crib's Creeps + the Rabisu/Adapa/Statues on
+                 Sharur's terms; one hit per enemy per blade.
+        Fight WINDOWS kept: Asag's head while exposed (boils whenever
+        standing), Lamashtu's back spot, Hadad only in his fight.
+  [x] Build 0 warnings; heap 160 KB free at rest; headless run: forced full
+      charge drawn 4 s, released -> swing over in ~21 frames, "()" flew and
+      stopped at the plinth face; 0 exceptions; instrumentation removed,
+      binary scanned.
+
+STILL TO CHECK IN-GAME (needs your eyes - headless screenshots don't work)
+  [ ] The ')' blade's look and size; the held mace's charge glow.
+  [ ] Sharur in the hand: pose/scale (same pose as the Crucifaxe).
+  [ ] Sharur standing on the lower plinth (1.6x the held size), the Tablet
+      sprite on the higher one; the "Press O" signs on the plinth fronts.
+  [ ] The ceremony's shot framing and the fly-to-camera ending.
+  [ ] Menu: Sharur in the 4th weapon cell, Tablet icon + description.
+  [ ] Sharur's swing speed and damage against Chapter 4's enemies.

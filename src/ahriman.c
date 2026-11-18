@@ -208,7 +208,7 @@ int ahrimans_try_hit(void) {
             s->kb_vx = (dx * AHR_KNOCKBACK) / d;
             s->kb_vz = (dz * AHR_KNOCKBACK) / d;
         }
-        ahriman_damage(s, AHR_HP_SCALE);   /* a swing is a whole hit point */
+        ahriman_damage(s, AHR_HP_SCALE * melee_damage);   /* a swing is a whole hit point (two for Sharur) */
         return 1;
     }
     return 0;

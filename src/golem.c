@@ -359,7 +359,7 @@ int golems_try_hit(void) {
         int32_t dot = ((int32_t)dx * isin(cam_rot) +
                        (int32_t)dz * icos(cam_rot)) >> 12;
         if (dot <= 0) continue;
-        golem_damage(s, GLM_HP_SCALE);   /* a swing is a whole hit point */
+        golem_damage(s, GLM_HP_SCALE * melee_damage);   /* a swing is a whole hit point (two for Sharur) */
         return 1;
     }
     return 0;

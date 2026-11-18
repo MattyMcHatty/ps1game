@@ -1007,7 +1007,7 @@ int rafflesias_try_hit(void) {
                        (int32_t)dz * icos(cam_rot)) >> 12;
         if (dot <= 0) continue;
 
-        rafflesia_take_damage(r, 1);
+        rafflesia_take_damage(r, melee_damage);
         return 1;
     }
     return 0;

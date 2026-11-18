@@ -42,6 +42,8 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "ADAPA DEAD",
     "HADAD DEAD",
     "GULA DEAD",
+    "HAS SHARUR",
+    "HAS DESTINY TAB",
 };
 
 static int grants_pending = 0;
@@ -431,4 +433,16 @@ void debug_opts_apply_grants(void) {
     if (debug_opts[DBG_ADAPA_DEAD]) game_flag_set(FLAG_ADAPA_DEAD);
     if (debug_opts[DBG_HADAD_DEAD]) game_flag_set(FLAG_HADAD_DEAD);
     if (debug_opts[DBG_GULA_DEAD])  game_flag_set(FLAG_GULA_DEAD);
+
+    /* The Chamber of Destiny's plinths: the prize, and the TAKEN flag that
+       leaves the plinth bare. */
+    if (debug_opts[DBG_HAS_SHARUR]) {
+        game_flag_set(FLAG_SHARUR_TAKEN);
+        player_weapons |= (1 << WEAPON_SHARUR);
+        current_weapon  = WEAPON_SHARUR;
+    }
+    if (debug_opts[DBG_HAS_DESTINY_TABLET]) {
+        game_flag_set(FLAG_TABLET_OF_DESTINIES_TAKEN);
+        player_items |= (1 << ITEM_TABLET_OF_DESTINIES);
+    }
 }

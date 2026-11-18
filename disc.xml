@@ -556,6 +556,16 @@
                      re-stamped in every Underworld room. The Wings Tablet
                      leaves it when it shatters. RESERVED in the Underworld map. -->
                 <file name="NNRTWNGS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\nnrt_wngs.tim"/>
+                <!-- Sharur (the weapon's menu/wheel icon) and the Tablet of
+                     Destinies (pickup sprite AND menu icon): 64x64 8bpp each on
+                     the rest of Ninurta's Arm's page - Sharur x736 y256 (U
+                     64..127, Voff 0), the Tablet x704 y320 (Voff 64, V 64..127,
+                     window-safe) - CLUTs (272,482) and (272,483), genuinely free
+                     runs. Re-stamped in every Underworld room like the arm. Both
+                     wait on the Chamber of Destiny's west plinths. RESERVED in
+                     the Underworld map. -->
+                <file name="SHARUR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\sharur.tim"/>
+                <file name="TBLTDST.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\tblt_dst.tim"/>
                 <!-- Garden Stairs: the caged switchback stairway behind the
                      Attic Exit's unlocked door. XTDRCG/XTDROUTR are its two new
                      mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the
@@ -2105,6 +2115,10 @@
              with the night sky - instead of the chapter's ring. -->
             <file name="CHMBDST.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\chamber_of_destiny.smd"/>
             <file name="CDSKY.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\underworld\chamber_of_destiny_skybox.smd"/>
+        <!-- SHARUR, the Underworld's weapon (src/sharur.c): the held model,
+             and the one standing on the Chamber's lower plinth. Flat-shaded
+             like CRFAXE.SMD, from assets/props/Sharur.smx by smxlink. -->
+            <file name="SHARURWP.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\sharur.smd"/>
         <!-- ...and its OWN six. The tablet's four quarters, 8bpp, on the four
              pages AND CLUTs of Destiny's Door's frame (x384 y0, x512 y0,
              x896 y256, x704 y0), which this room never draws and Hero's Plinth

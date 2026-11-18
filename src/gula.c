@@ -240,7 +240,7 @@ int gula_try_hit(void) {
     if (gh + dy >= SWING_RANGE) return 0;
     int32_t dot = ((int32_t)dx * isin(cam_rot) + (int32_t)dz * icos(cam_rot)) >> 12;
     if (dot <= 0) return 0;
-    gula_damage(1);
+    gula_damage(melee_damage);
     return 1;
 }
 

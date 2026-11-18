@@ -15,9 +15,25 @@
 #define KNOCKBACK_SPEED 80
 
 extern int swing_timer;
+/* Damage per connected melee swing, in each enemy's swing units: 1 for the
+   Crucifaxe, 2 while Sharur's tick runs (src/sharur.c). Read by every hit
+   path in crucifaxe.c and by every module's *_try_hit(). */
+extern int melee_damage;
 
 void crucifaxe_init(void);
 void update_crucifaxe(void);
 void draw_crucifaxe(RenderContext *ctx);
+
+/* The swing itself, shared with Sharur (src/sharur.c): start one (latches,
+   sound, swing_timer = 1), and run one frame of it - every hit test, then
+   swing_timer += step (1 = the Crucifaxe, 2 = Sharur, twice as fast). */
+void melee_start_swing(void);
+void melee_swing_tick(int step);
+/* The held pose off swing_timer, drawn flat-shaded at `gain` (4096 = 1.0x).
+   out_vs (may be NULL) receives the view-space pose matrix. */
+#include <psxgte.h>
+#include <smd/smd.h>
+void melee_draw_model(RenderContext *ctx, SMD *smd, int32_t gain,
+                      MATRIX *out_vs);
 
 #endif

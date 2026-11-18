@@ -308,7 +308,7 @@ int tentacles_try_hit(void) {
                        (int32_t)dz * icos(cam_rot)) >> 12;
         if (dot <= 0) continue;
 
-        tentacle_take_damage(t, 1);
+        tentacle_take_damage(t, melee_damage);
         return 1;
     }
     return 0;

@@ -78,6 +78,8 @@ RESERVED = {n: v for n, v in CATA.RESERVED.items() if n not in CHAPTER_3_ITEMS}
 # ...and the Underworld's own: Ninurta's Arm, under Sharur's Tablet.
 RESERVED["nnrt_arm.tim"] = "the Ninurta's Arm item (under Sharur's Tablet)"
 RESERVED["nnrt_wngs.tim"] = "the Ninurta's Wings item (under the Wings Tablet)"
+RESERVED["sharur.tim"] = "Sharur, the weapon's icon (Chamber of Destiny's lower plinth)"
+RESERVED["tblt_dst.tim"] = "the Tablet of Destinies item (Chamber's higher plinth)"
 # Every earlier chapter's item: startup-resident, never drawn down here.
 NEEDS_RESTORE = set(CATA.NEEDS_RESTORE) | CHAPTER_3_ITEMS
 

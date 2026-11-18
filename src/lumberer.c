@@ -346,7 +346,7 @@ int lumberers_try_hit(void) {
         if (dot <= 0) continue;
         l->kb_vx = d > 0 ? (dx * LMB_KNOCKBACK) / d : 0;
         l->kb_vz = d > 0 ? (dz * LMB_KNOCKBACK) / d : 0;
-        lumberer_damage(l, 1);
+        lumberer_damage(l, melee_damage);
         return 1;
     }
     return 0;

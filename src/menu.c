@@ -173,6 +173,16 @@ static uint8_t  nnrt_u0, nnrt_v0, nnrt_u1, nnrt_v1;
 static uint16_t nnwg_tpage   = 0;
 static uint16_t nnwg_clut    = 0;
 static uint8_t  nnwg_u0, nnwg_v0, nnwg_u1, nnwg_v1;
+/* SHARUR (a WEAPON icon) and the TABLET OF DESTINIES. 64x64 8bpp on the same
+   x704 page as Ninurta's Wings: Sharur at (736,256) - Voff 0, U 64..127 - and
+   the Tablet at (704,320) - Voff 64, V 64..127, U 0..63. Window-safe, and
+   re-stamped in every Underworld room like the Wings. */
+static uint16_t shrr_tpage   = 0;
+static uint16_t shrr_clut    = 0;
+static uint8_t  shrr_u0, shrr_v0, shrr_u1, shrr_v1;
+static uint16_t tbds_tpage   = 0;
+static uint16_t tbds_clut    = 0;
+static uint8_t  tbds_u0, tbds_v0, tbds_u1, tbds_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -199,12 +209,16 @@ static const char *item_descriptions[] = {
     "Scattershot Rounds\n\nA spread of\nshot. Hits all\nin its path",
     "Ninurta's Arm\n\nA stone carving\nof Ninurta's arm\nwielding the\nlegendary mace,\nSharur",
     "Ninurta's Wings\n\nThe wings of a\ngod, carved in\nstone",
+    "Tablet of Destinies\n\nHolds the\nirrevocable\ndecrees of\nfate. Its\nowner has\nsupreme\nauthority.",
 };
+_Static_assert(sizeof(item_descriptions) / sizeof(item_descriptions[0]) ==
+               MENU_ITEM_SLOTS, "item_descriptions[] must match MENU_SLOT_*");
 
 static const char *weapon_descriptions[] = {
     "Crucifaxe\n\nA crucifix\nforged into\nan axe head.\nThe quintessential\nweapon of a\nDemon Hunter",
     "Grave-olver\n\nA revolver\nforged to lay\nthe risen dead\nback in their\ngraves",
     "Helluminator\n\nA lantern to\nlight the way\nto hell. Burns\nholy anointing\noil",
+    "Sharur\n\nThe mace of\nNinurta. Hold\nto gather its\nlight; release\nto unleash it",
 };
 
 /* Load TIM from disc, computing tpage/clut and the UV rect within the tpage. */
@@ -432,6 +446,8 @@ int menu_item_held(int slot) {
         case MENU_SLOT_SCATTER_ROUNDS: return player_ammo[AMMO_SCATTER] > 0;
         case MENU_SLOT_NINURTAS_ARM:   return (player_items & (1 << ITEM_NINURTAS_ARM)) != 0;
         case MENU_SLOT_NINURTAS_WINGS: return (player_items & (1 << ITEM_NINURTAS_WINGS)) != 0;
+        case MENU_SLOT_TABLET_OF_DESTINIES:
+                                       return (player_items & (1 << ITEM_TABLET_OF_DESTINIES)) != 0;
         default: return 0;
     }
 }
@@ -456,6 +472,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_SCATTER_ROUNDS: return "Scattershot Rounds";
         case MENU_SLOT_NINURTAS_ARM:   return "Ninurta's Arm";
         case MENU_SLOT_NINURTAS_WINGS: return "Ninurta's Wings";
+        case MENU_SLOT_TABLET_OF_DESTINIES: return "Tablet of Destinies";
         default: return "";
     }
 }
@@ -618,6 +635,10 @@ void menu_draw_item_icon_any(RenderContext *ctx, int slot, int x, int y,
             draw_icon(ctx, x, y, size, nnwg_tpage, nnwg_clut,
                       nnwg_u0, nnwg_v0, nnwg_u1, nnwg_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_TABLET_OF_DESTINIES:
+            draw_icon(ctx, x, y, size, tbds_tpage, tbds_clut,
+                      tbds_u0, tbds_v0, tbds_u1, tbds_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -641,6 +662,10 @@ void menu_draw_weapon_icon(RenderContext *ctx, int weapon, int x, int y, int siz
         case WEAPON_HELLUMINATOR:
             draw_icon(ctx, x, y, size, hell_tpage, hell_clut,
                       hell_u0, hell_v0, hell_u1, hell_v1, 255, ot_idx);
+            break;
+        case WEAPON_SHARUR:
+            draw_icon(ctx, x, y, size, shrr_tpage, shrr_clut,
+                      shrr_u0, shrr_v0, shrr_u1, shrr_v1, 128, ot_idx);
             break;
         default: break;
     }
@@ -689,6 +714,10 @@ void menu_init(void) {
                   &nnrt_u0, &nnrt_v0, &nnrt_u1, &nnrt_v1);
     load_icon_tim("\\TEX\\NNRTWNGS.TIM;1", &nnwg_tpage, &nnwg_clut,
                   &nnwg_u0, &nnwg_v0, &nnwg_u1, &nnwg_v1);
+    load_icon_tim("\\TEX\\SHARUR.TIM;1", &shrr_tpage, &shrr_clut,
+                  &shrr_u0, &shrr_v0, &shrr_u1, &shrr_v1);
+    load_icon_tim("\\TEX\\TBLTDST.TIM;1", &tbds_tpage, &tbds_clut,
+                  &tbds_u0, &tbds_v0, &tbds_u1, &tbds_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);
@@ -949,6 +978,8 @@ void menu_draw(RenderContext *ctx) {
                                 player_oil, 2, OT_COUNT);
                 }
             }
+            if (i == 3 && (player_weapons & (1 << WEAPON_SHARUR)))
+                menu_draw_weapon_icon(ctx, WEAPON_SHARUR, wx, wy, ICON_SIZE, OT_ICON);
         }
     }
 
@@ -994,6 +1025,8 @@ void menu_draw(RenderContext *ctx) {
                 desc = weapon_descriptions[1];
             else if (slot == 2 && (player_weapons & (1 << WEAPON_HELLUMINATOR)))
                 desc = weapon_descriptions[2];
+            else if (slot == 3 && (player_weapons & (1 << WEAPON_SHARUR)))
+                desc = weapon_descriptions[3];
         }
         FntPrint(menu_fnt, desc);
         FntFlush(menu_fnt);

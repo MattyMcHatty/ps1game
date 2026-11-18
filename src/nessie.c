@@ -394,7 +394,7 @@ int nessies_try_hit(void) {
         int32_t dot = ((int32_t)dx * isin(cam_rot) +
                        (int32_t)dz * icos(cam_rot)) >> 12;
         if (dot <= 0) continue;
-        nessie_damage(s, 1);
+        nessie_damage(s, melee_damage);
         return 1;
     }
     return 0;

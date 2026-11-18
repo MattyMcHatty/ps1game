@@ -130,6 +130,8 @@
 #include "wings_tablet.h"     /* ...and the tablet standing on its terrace       */
 #include "heros_plinth.h"     /* ...and Destiny's Door's room between the two    */
 #include "chamber_of_destiny.h" /* ...and the room behind Destiny's Door       */
+#include "destiny_plinths.h"  /* ...and the two west plinths: Sharur, the Tablet */
+#include "sharur.h"           /* Sharur's reset                                  */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
 #include "underworld_sky.h"   /* ...and the sky over every room after it         */
 #include "kennels_puzzle.h"
@@ -271,6 +273,7 @@ void reset_game(RenderContext *ctx) {
     game_flags        = 0;   /* ...and no puzzle has happened yet */
     game_flags2       = 0;   /* ...in either word (player.h, "BIT 32 ON") */
     swing_timer    = 0;
+    sharur_reset();         /* ...and no charge or blade of light carried over */
     vampire_kb_vx    = 0;
     vampire_kb_vz    = 0;
     vampire_health   = VAMPIRE_MAX_HEALTH;
@@ -875,6 +878,16 @@ static void update_current_area(GameState area) {
     if (area == STATE_HEROS_PLINTH && heros_plinth_scene_active()) {
         player_status_update();
         heros_plinth_scene_update();
+        update_particles();
+        return;
+    }
+    /* ...and the CHAMBER OF DESTINY's plinth ceremony (src/destiny_plinths.h):
+       the camera fixed on a west plinth while Sharur or the Tablet rises,
+       glows and flies to it. No enemies in the room; the player is
+       anchored where Circle was pressed. */
+    if (area == STATE_CHAMBER_OF_DESTINY && destiny_plinths_active()) {
+        player_status_update();
+        destiny_plinths_update(1);
         update_particles();
         return;
     }
@@ -3609,6 +3622,10 @@ static void update_current_area(GameState area) {
            Plinth which arrival this is. */
         apply_collision_reception();
         apply_height();
+        /* THE WEST PLINTHS (src/destiny_plinths.h): Circle at either starts
+           its ceremony, which owns the frame from the next one (the branch
+           at the top of this function). The door is 5000 away. */
+        destiny_plinths_update(lock);
         if (chamber_of_destiny_door_triggered(lock)) {
             plinth_from_chamber = 1;
             pending_area = STATE_HEROS_PLINTH;
@@ -7505,7 +7522,11 @@ int main(int argc, const char **argv) {
                                /* ...and Destiny's Door's jewel ceremony: no
                                   log line, no HUD, no weapon in shot. */
                                (area == STATE_HEROS_PLINTH &&
-                                heros_plinth_scene_active());
+                                heros_plinth_scene_active()) ||
+                               /* ...and the Chamber of Destiny's plinth
+                                  ceremony: no HUD, no weapon in shot. */
+                               (area == STATE_CHAMBER_OF_DESTINY &&
+                                destiny_plinths_active());
                 if (!puzzle && !cutscene) handle_menu_open();
                 {
                     int t0 = perf_ticks_now();

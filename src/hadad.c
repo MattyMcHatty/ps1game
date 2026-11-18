@@ -1732,7 +1732,7 @@ int hadads_try_hit(void) {
                        (int32_t)dz * icos(cam_rot)) >> 12;
         if (dot <= 0) continue;
 
-        hadad_damage(h, 1);
+        hadad_damage(h, melee_damage);
         return 1;
     }
     return 0;

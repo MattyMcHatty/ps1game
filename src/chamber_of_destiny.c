@@ -26,6 +26,7 @@
 #include "particles.h"
 #include "btn_glyph.h"
 #include "door.h"
+#include "destiny_plinths.h"   /* the west plinths: Sharur, the Tablet */
 
 /* The Chamber of Destiny - see chamber_of_destiny.h. The room half is
    src/heros_plinth.c's (itself Wingscape's, itself Hell Hath No Fury's): cull
@@ -319,6 +320,9 @@ void chamber_of_destiny_init(void) {
     oil_dispensers_clear();
     bars_clear();
     reset_particles();
+
+    /* The west plinths: no ceremony carried in, Circle seeded "held". */
+    destiny_plinths_arm();
 }
 
 /* ---- The mesh --------------------------------------------------------------
@@ -551,6 +555,11 @@ void chamber_of_destiny_draw(RenderContext *ctx) {
     }
 
     /* >>> LEVEL 8 IS THE DOOR'S SIGN, the only thing standing in the room. */
-    if (exp != DBG_EXP_NO_ENTITIES)
+    if (exp != DBG_EXP_NO_ENTITIES) {
         cd_door_text(ctx);
+        /* ...and the west plinths: Sharur, the Tablet, their signs and the
+           ceremony (src/destiny_plinths.h). The tablet sprite sits at Voff 64,
+           inside the 128 window set above. */
+        destiny_plinths_draw(ctx);
+    }
 }
