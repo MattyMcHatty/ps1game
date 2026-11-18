@@ -223,6 +223,10 @@ TexBank area_bank_of(GameState area) {
        from the Catacombs Entry, all through narrow uploaders; wd_dr is
        resident. Its tablet's art is the Wings Tablet module's. */
     case STATE_WINGSCAPE:
+    /* HERO'S PLINTH owns Destiny's Door's frame (four) and the door itself:
+       five registrations of its own; the volcanic, the lava and the inner
+       door through narrow uploaders; wd_dr is resident. */
+    case STATE_HEROS_PLINTH:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -284,7 +288,8 @@ int area_is_underworld(GameState area) {
            area == STATE_HELL_HATH_NO_FURY ||
            area == STATE_SHARURS_TRIAL ||
            area == STATE_LAVA_U ||
-           area == STATE_WINGSCAPE;
+           area == STATE_WINGSCAPE ||
+           area == STATE_HEROS_PLINTH;
 }
 
 /* ---- The prop models -------------------------------------------------------

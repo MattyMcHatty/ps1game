@@ -22,7 +22,7 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 66  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 67  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
@@ -43,7 +43,7 @@
                                because each keeps its own pickups - the
                                throat, room_of_guts, neck, the_head, kennels,
                                lamashtu_arena and seal, and Chapter 4's
-                               hell_hath_no_fury, sharurs_trial, lava_u and wingscape. (Descent to Hell has no
+                               hell_hath_no_fury, sharurs_trial, lava_u, wingscape and heros_plinth. (Descent to Hell has no
                                slot - see area_untracked in world.c.)
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
@@ -112,6 +112,10 @@ static inline void room_bits_set(RoomBits *b, int r) {
 void world_new_game(void);          /* reset all rooms; capture the starting room */
 void world_leave(GameState area);   /* live entities  -> the area's saved slot */
 void world_enter(GameState area);   /* the area's saved slot -> live entities   */
+/* Wingscape's Golem in front of the door furthest from the way in: the
+   south-east door's if the player came from Hero's Plinth (from_plinth=1),
+   the west door's otherwise. Called by main.c after world_enter. */
+void world_place_wingscape_golem(int from_plinth);
 
 /* DEBUG (DBG_PEARL_*): mark the Blood Pearl on `area`'s sconce as already
    collected. Deactivated wherever the room's pickups live right now — the live

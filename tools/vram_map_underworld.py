@@ -114,6 +114,13 @@ BANK = {
     "wing tablet.tim":           "Wingscape: the tablet (owned; Sharur's page) x704 y0",
     # ...and the puzzle's cuneiform, on the CRACKED art's page and palette.
     "wings tablet question and answers.tim": "Wingscape: the puzzle's cuneiform (owned; Sharur's cracked page) x768 y0",
+    # HERO'S PLINTH (src/heros_plinth.h): Destiny's Door's frame and the door,
+    # 8bpp, each on a Voff-0 page whose tenant it never draws.
+    "destiny door frame top left.tim":      "Plinth: frame, top left (owned 8bpp; cobble's page) x384 y0",
+    "destinys door frame top right.tim":    "Plinth: frame, top right (owned 8bpp; rocks' page) x512 y0",
+    "destinys door frame bottom left.tim":  "Plinth: frame, bottom left (owned 8bpp; the oil tank's page) x896 y256",
+    "destinys door frame bottom right.tim": "Plinth: frame, bottom right (owned 8bpp; the tablets' page) x704 y0",
+    "destinys door.tim":                    "Plinth: Destiny's Door, not modelled yet (owned 8bpp; cracked tablet's page) x768 y0",
 }
 
 tims = {}

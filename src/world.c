@@ -32,6 +32,13 @@
 #include "ahriman.h"    /* ...and its floating eye: likewise                */
 #include "golem.h"      /* ...and its rock giant: likewise                  */
 #include "wings_tablet.h" /* where the tablet's summoned guard stands     */
+
+/* Wingscape's Golem: its two spots, one per arrival door. See
+   world_place_wingscape_golem() for the derivation. */
+#define WS_GOLEM_W_X   (-2800)   /* in front of the west door       */
+#define WS_GOLEM_W_Z   (-1400)
+#define WS_GOLEM_SE_X    2546    /* in front of the south-east door */
+#define WS_GOLEM_SE_Z  (-1946)
 #include <stddef.h>     /* offsetof — the nessies_dead layout asserts     */
 #include "sound.h"
 
@@ -240,6 +247,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_LAMASHTU_ARENA,  STATE_SEAL,
     STATE_HELL_HATH_NO_FURY, STATE_SHARURS_TRIAL,
     STATE_LAVA_U,          STATE_WINGSCAPE,
+    STATE_HEROS_PLINTH,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -440,6 +448,9 @@ static int room_index(GameState area) {
         /* WINGSCAPE, Chapter 4's fourth room, behind Hell Hath No Fury's
            north-west door. Slot 65. Seeded EMPTY. */
         case STATE_WINGSCAPE:         return 65;
+        /* HERO'S PLINTH, Chapter 4's fifth room, between Sharur's Trial and
+           Wingscape. Slot 66. Seeded EMPTY. */
+        case STATE_HEROS_PLINTH:      return 66;
         default:                   return 0;
     }
 }
@@ -2243,18 +2254,14 @@ void world_seed_room(GameState area) {
         ahriman_add(-4730,  -500, AHR_HEIGHT_A, STATE_LAVA_U);
         ahriman_add( 1100, -4700, AHR_HEIGHT_C, STATE_LAVA_U);
     }
-    /* WINGSCAPE: ONE GOLEM (src/golem.h), in front of the WEST wall's door
-       (x=-3300, z[-1500,-1300] - decoration for now). (-2800,-1400) is on the
-       door's centre line, 500 off the wall: the player cannot get between it
-       and the door (425 hold + 195 wall standoff > 500), and is held 425 off
-       it on the open ground to the east, inside its 500 punch and the axe's
-       550. Solid rock there - the lava field's nearest cells are 600+ to the
-       south-west - and 900 south of the west ramp's foot (z=-500).
-       It stands in one place whichever way the player arrived (golem.h: a
-       route- or flag-dependent spot is the user's call, and none is asked
-       for yet). canonical_index keys it as bit 0. */
+    /* WINGSCAPE: ONE GOLEM (src/golem.h), in front of the door FURTHEST FROM
+       THE ONE THE PLAYER CAME IN BY - the user's rule (Nov 2026). The seed
+       plants it at the WEST door's spot, the one for an arrival from Hell
+       Hath No Fury (and for a title load or a debug jump); main.c re-plants
+       it on every entry through world_place_wingscape_golem() below.
+       canonical_index keys it as bit 0, by seed order, never by position. */
     if (area == STATE_WINGSCAPE)
-        golem_add(-2800, -1400, STATE_WINGSCAPE);
+        golem_add(WS_GOLEM_W_X, WS_GOLEM_W_Z, STATE_WINGSCAPE);
     /* ...and the WINGS TABLET's GUARD (src/wings_tablet.h): a second Golem,
        planted ABSENT in front of the tablet on the terrace, which every wrong
        answer to its puzzle summons. Seeded AFTER the west door's, so that one
@@ -2264,6 +2271,31 @@ void world_seed_room(GameState area) {
     if (area == STATE_WINGSCAPE)
         golem_add_guard(WT_GUARD_X, WT_GUARD_FLOOR_Y, WT_GUARD_Z,
                         STATE_WINGSCAPE);
+}
+
+/* ---- Wingscape's Golem: where it stands depends on the way in --------------
+   Both spots are on their door's centre line, 500 in along the door's inward
+   normal: the player cannot get between it and the door (425 hold + 195 wall
+   standoff > 500), and is held 425 off it on the open side, inside its 500
+   punch and the axe's 550.
+     WEST door (x=-3300, z[-1500,-1300]), for an arrival from HELL HATH NO
+       FURY by the south-east door: (-2800,-1400). Solid rock - the nearest
+       lava is 600+ to the south-west - and 900 south of the west ramp's foot.
+     SOUTH-EAST door (2900,-2300) on the cut corner, normal (-0.707,+0.707),
+       for an arrival from HERO'S PLINTH by the west door: (2546,-1946). Solid
+       rock - the south lava pools stop ~800 to the west - and 1850 south of
+       the east ramp's foot (z=-100).
+   golem_set_spawn() moves the living, non-guard Golem and its spawn (so
+   golems_rest brings it back HERE until the next entry re-plants it); a dead
+   one stays dead wherever it fell. Called after world_enter. */
+void world_place_wingscape_golem(int from_plinth) {
+    int i;
+    for (i = 0; i < golem_count; i++) {
+        if (golems[i].area != STATE_WINGSCAPE || golems[i].guard) continue;
+        if (from_plinth) golem_set_spawn(i, WS_GOLEM_SE_X, WS_GOLEM_SE_Z);
+        else             golem_set_spawn(i, WS_GOLEM_W_X,  WS_GOLEM_W_Z);
+        return;
+    }
 }
 
 void world_enter(GameState area) {

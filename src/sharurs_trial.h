@@ -24,8 +24,9 @@
        transition out, the wooden one back.
      - SOUTH-WEST, wooden, on the 45-degree rim (wall 44) at (-3000,-2400):
        to LAVA U's north-west door. Wooden both ways.
-     - NORTH-WEST, wooden, at (-2400,2400): no prompt and no trigger until
-       its room exists.
+     - NORTH-WEST, wooden, on the 45-degree rim (wall 45) at (-2400,2400):
+       to HERO'S PLINTH's south-east door (src/heros_plinth.h). Wooden both
+       ways.
 
    >>> THE TRANSITION DEPENDS ON THE DIRECTION, NOT THE DOORWAY. <<< The
    Underworld is a distorted hellscape: a door need not look the same from its
@@ -48,17 +49,19 @@ void sharurs_trial_init(void);            /* collision, floor, default spawn  */
 void sharurs_trial_draw(RenderContext *ctx);
 
 /* The doors: NORTH-EAST back to Hell Hath No Fury, SOUTH and SOUTH-WEST to
-   Lava U. A fresh Circle within reach and facing it. THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED,
+   Lava U, NORTH-WEST to Hero's Plinth. A fresh Circle within reach and facing it. THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE LOCKED,
    so a Circle held across a menu closing does not read as a fresh press when
    the lock lifts. */
 void sharurs_trial_doors_arm(void);
 int  sharurs_trial_ne_door_triggered(int lock);
 int  sharurs_trial_s_door_triggered(int lock);
 int  sharurs_trial_sw_door_triggered(int lock);
+int  sharurs_trial_nw_door_triggered(int lock);
 
 /* Arrivals, one per door. The north-east one is also the default spawn. */
 void sharurs_trial_spawn_ne(void);
 void sharurs_trial_spawn_s(void);
 void sharurs_trial_spawn_sw(void);
+void sharurs_trial_spawn_nw(void);
 
 #endif

@@ -444,6 +444,21 @@ spends; tools/HEAP_BUDGET.txt is where to watch it.
     a 64x64 source sampled 0..128 reads past itself into neighbouring VRAM —
     stretch it first and save as <name>_128.png, as clsd_drwr/dresser did).
 
+    >>> NEVER DROP A TEXTURE TO 16 COLOURS (--bpp 4) UNLESS IT IS ABSOLUTELY
+    NECESSARY, AND THEN ONLY AFTER THE USER HAS CONFIRMED IT. <<< The user's
+    rule (Nov 2026). Convert new art at --bpp 8 (256 colours). 4bpp halves the
+    VRAM width and needs only a 16-word CLUT, which makes it the easy way
+    round a tight page or a missing 256-word CLUT - and that is exactly why
+    it must not be reached for silently. Hero's Plinth's five textures went
+    in at 4bpp to fit beside other 4bpp tenants and had to be redone at 8bpp:
+    the 8bpp versions needed one page moved (an 8bpp texture covers the WHOLE
+    64-word page, so a page whose right half holds something boot-resident is
+    not free) and borrowed 256-word CLUTs from Chapter 1-3 room art (3c). If
+    no 8bpp layout exists after a real search, stop and ASK - say which
+    textures, why 8bpp will not fit, and what 4bpp would cost them - before
+    converting anything. (An existing 4bpp texture, or one the user supplied
+    as 16 colours, is not affected by this rule.)
+
     >>> STRETCH IS NOT ALWAYS THE RIGHT WAY TO FILL THE TILE. <<< If the art is a
     small REPEATING unit (chain, mesh, grating) rather than one whole thing, the
     artist UV'd it expecting a 32- or 64-texel period, and stretching makes it
@@ -546,6 +561,14 @@ Two independent pipelines. Both are needed for a new room.
 
     -tp textures lets it resolve the per-poly texture references, so STEP 3d
     must already have produced the new .tim.
+
+    >>> -tp SEARCHES ONE DIRECTORY, NOT ITS SUBFOLDERS. <<< A room whose
+    materials live in textures\underworld\ (volcanic, lava, the Chapter 4
+    art) fails with "Unable to open texture file: textures/volcanic.tim".
+    Copy every TIM the mesh names (the Blender material name + .tim, from
+    wherever it lives) into one scratch folder and point -tp at that. smxlink
+    only reads them for UV sizing; the engine's tpage/clut come from
+    TIM_SLOT, so the copies are throwaway. Hero's Plinth (Nov 2026) did this.
 
     >>> IF tools\subpack\<slug>.json EXISTS, RUN THAT PASS FIRST AND LINK THE
     .packed.smx INSTEAD. <<< That is the table STEP 3d's sub-pack exception

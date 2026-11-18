@@ -74,6 +74,21 @@ static void *ws_buff = NULL;
 #define WS_SE_SPAWN_X      2723
 #define WS_SE_SPAWN_Z    (-2123)
 #define WS_SE_SPAWN_ROT    3584
+/* ---- THE WEST DOOR, to Hero's Plinth's north-east door ---------------------
+   The wd_dr polys stand in the west wall x=-3300, z[-1500,-1300] (leaning in
+   to z[-1436,-1374] at the top, y=-600): centre (-3300,-1400), approached
+   from the east. Sign facing west (yaw 3072), 11 off the wall toward the
+   player, at the doorway's mid-height; spawn 250 east, facing east. */
+#define WS_W_X           (-3300)
+#define WS_W_Z           (-1400)
+#define WS_W_TEXT_X      (-3289)
+#define WS_W_TEXT_Z      (-1400)
+#define WS_W_TEXT_Y       (WS_FLOOR_Y - 200)
+#define WS_W_TEXT_YAW      3072
+#define WS_W_SPAWN_X     (-3050)
+#define WS_W_SPAWN_Z     (-1400)
+#define WS_W_SPAWN_ROT     1024
+
 #define WS_TEXT_RADIUS     1500
 #define WS_FADE_NEAR       1000
 #define WS_TRIGGER_RADIUS   500
@@ -81,6 +96,7 @@ static void *ws_buff = NULL;
 /* Circle edge-detect. Seeded "held" by the arm so a press carried in through
    the transition cannot fire on the arrival frame. */
 static int se_circle_prev = 1;
+static int w_circle_prev  = 1;
 
 /* ---- THE FLOOR ZONES -------------------------------------------------------
    Two storeys sharing a footprint in places (the ground poly runs on under the
@@ -260,27 +276,41 @@ void wingscape_load_geometry(void) {
     underworld_sky_load();
 }
 
-/* ---- The south-east door ---------------------------------------------------*/
+/* ---- The two doors ---------------------------------------------------------*/
 void wingscape_doors_arm(void) {
-    se_circle_prev = interact_tapped();
+    int held = interact_tapped();
+    se_circle_prev = held;
+    w_circle_prev  = held;
+}
+
+/* The shared body: a fresh Circle within reach of (door_x, door_z) and facing
+   it. The edge state is kept up to date even while locked. */
+static int ws_door_triggered(int32_t door_x, int32_t door_z,
+                             int *circle_prev, int lock) {
+    int held = interact_tapped();
+    int just = held && !*circle_prev;
+    int32_t dx, dz;
+    *circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - door_x;
+    dz = cam_z - door_z;
+    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= WS_TRIGGER_RADIUS)
+        return 0;
+    return interact_facing(door_x, door_z);
 }
 
 int wingscape_se_door_triggered(int lock) {
-    int held = interact_tapped();
-    int just = held && !se_circle_prev;
-    int32_t dx, dz;
-    se_circle_prev = held;
-    if (lock || !just) return 0;
-    dx = cam_x - WS_SE_X;
-    dz = cam_z - WS_SE_Z;
-    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= WS_TRIGGER_RADIUS)
-        return 0;
-    return interact_facing(WS_SE_X, WS_SE_Z);
+    return ws_door_triggered(WS_SE_X, WS_SE_Z, &se_circle_prev, lock);
+}
+int wingscape_w_door_triggered(int lock) {
+    return ws_door_triggered(WS_W_X, WS_W_Z, &w_circle_prev, lock);
 }
 
-static void ws_se_text(RenderContext *ctx) {
-    int32_t dx = cam_x - WS_SE_X;
-    int32_t dz = cam_z - WS_SE_Z;
+static void ws_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
+                         int32_t text_x, int32_t text_y, int32_t text_z,
+                         int yaw) {
+    int32_t dx = cam_x - door_x;
+    int32_t dz = cam_z - door_z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int fade = 256;
 
@@ -292,20 +322,27 @@ static void ws_se_text(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
     door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
-                            WS_SE_TEXT_X, WS_SE_TEXT_Y, WS_SE_TEXT_Z,
-                            50, 255, 50, fade, WS_SE_TEXT_YAW,
+                            text_x, text_y, text_z,
+                            50, 255, 50, fade, yaw,
                             DOOR_PIXEL_SIZE);
 }
 
-void wingscape_spawn_se(void) {
-    cam_x     = WS_SE_SPAWN_X;
+static void ws_spawn_at(int32_t x, int32_t z, int rot) {
+    cam_x     = x;
     cam_y     = WS_EYE_Y;
     cam_vy    = 0;
-    cam_z     = WS_SE_SPAWN_Z;
-    cam_rot   = WS_SE_SPAWN_ROT;
+    cam_z     = z;
+    cam_rot   = rot;
     cam_pitch = 0;
     camera_look_cancel();
     wingscape_doors_arm();
+}
+
+void wingscape_spawn_se(void) {
+    ws_spawn_at(WS_SE_SPAWN_X, WS_SE_SPAWN_Z, WS_SE_SPAWN_ROT);
+}
+void wingscape_spawn_w(void) {
+    ws_spawn_at(WS_W_SPAWN_X, WS_W_SPAWN_Z, WS_W_SPAWN_ROT);
 }
 
 void wingscape_init(void) {
@@ -313,7 +350,8 @@ void wingscape_init(void) {
     collision_set_ceiling_y(WS_CEILING_Y);
     ws_floor_zones_init();
 
-    /* The only arrival, and where a debug jump lands. */
+    /* The default arrival (main.c overrides it per door), and where a debug
+       jump lands: the south-east door, from Hell Hath No Fury. */
     wingscape_spawn_se();
 
     /* The global prop arrays, as Lava U clears them: Hell Hath No Fury's save
@@ -566,7 +604,7 @@ void wingscape_draw(RenderContext *ctx) {
     }
 
     /* >>> LEVEL 8 IS THE WINGS TABLET (its shards and its sign), NINURTA'S
-       WINGS once it has shattered, the DOOR SIGN, and the GOLEMS - the west
+       WINGS once it has shattered, the TWO DOOR SIGNS, and the GOLEMS - the
        door's and the tablet's guard (area-gated inside; src/golem.h). The
        tablet reloads the plain view itself, so the Golem after it still
        projects through the camera. */
@@ -574,7 +612,10 @@ void wingscape_draw(RenderContext *ctx) {
         wings_tablet_draw(ctx);
         item_pickups_draw(ctx);
         draw_golems(ctx);
-        ws_se_text(ctx);
+        ws_door_text(ctx, WS_SE_X, WS_SE_Z, WS_SE_TEXT_X, WS_SE_TEXT_Y,
+                     WS_SE_TEXT_Z, WS_SE_TEXT_YAW);
+        ws_door_text(ctx, WS_W_X, WS_W_Z, WS_W_TEXT_X, WS_W_TEXT_Y,
+                     WS_W_TEXT_Z, WS_W_TEXT_YAW);
     }
 
     /* The tablet's question, answers and reticule, over the puzzle's shot.

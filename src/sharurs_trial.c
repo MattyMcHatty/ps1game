@@ -100,6 +100,21 @@ static void *st_buff = NULL;
 #define ST_SW_SPAWN_Z    (-2223)
 #define ST_SW_SPAWN_ROT    512
 
+/* ---- THE NORTH-WEST DOOR, to Hero's Plinth's south-east door ---------------
+   The wd_dr polys lean on the 45-degree rim z-x=4800 (collision wall 45,
+   inward normal (0.707,-0.707)), foot (-2500,2300)-(-2300,2500): centre
+   (-2400,2400), approached from the south-east along the volcanic path.
+   Sign facing north-west (yaw 3584), 11 off toward the player; spawn 250 in
+   along the normal (177 on each axis), on the path, facing south-east. */
+#define ST_NW_X          (-2400)
+#define ST_NW_Z            2400
+#define ST_NW_TEXT_X     (-2392)
+#define ST_NW_TEXT_Z       2392
+#define ST_NW_TEXT_YAW    3584
+#define ST_NW_SPAWN_X    (-2223)
+#define ST_NW_SPAWN_Z      2223
+#define ST_NW_SPAWN_ROT   1536
+
 #define ST_DOOR_TEXT_Y    (ST_FLOOR_Y - 200)
 #define ST_TEXT_RADIUS    1500
 #define ST_FADE_NEAR      1000
@@ -110,6 +125,7 @@ static void *st_buff = NULL;
 static int ne_circle_prev = 1;
 static int s_circle_prev  = 1;
 static int sw_circle_prev = 1;
+static int nw_circle_prev = 1;
 
 /* ---- THE SOUTH-WEST SECTION ------------------------------------------------
    The south-west door opens into a pocket the rest of the room cannot reach:
@@ -122,7 +138,7 @@ static int sw_circle_prev = 1;
    ENTERED BY THE SOUTH-WEST DOOR, the room is cut to the pocket: everything
    in it at full chapter fog, and beyond the rocks' outer face only the next
    ST_SECTION_FADE (two 200 floor polys), fading to the fog colour across
-   them; past that nothing is queued. Entered by either other door, the room
+   them; past that nothing is queued. Entered by any other door, the room
    is drawn whole - the lag was never seen from that side. The door is the
    switch, not where the player stands, because the pocket is sealed: no walk
    can carry the player out of it without a door (and through one, the spawn
@@ -301,12 +317,13 @@ void sharurs_trial_load_geometry(void) {
     underworld_sky_load();
 }
 
-/* ---- The three doors -------------------------------------------------------*/
+/* ---- The four doors --------------------------------------------------------*/
 void sharurs_trial_doors_arm(void) {
     int held = interact_tapped();
     ne_circle_prev = held;
     s_circle_prev  = held;
     sw_circle_prev = held;
+    nw_circle_prev = held;
 }
 
 /* The shared body: a fresh Circle within reach of (door_x, door_z) and facing
@@ -333,6 +350,9 @@ int sharurs_trial_s_door_triggered(int lock) {
 }
 int sharurs_trial_sw_door_triggered(int lock) {
     return st_door_triggered(ST_SW_X, ST_SW_Z, &sw_circle_prev, lock);
+}
+int sharurs_trial_nw_door_triggered(int lock) {
+    return st_door_triggered(ST_NW_X, ST_NW_Z, &nw_circle_prev, lock);
 }
 
 static void st_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
@@ -376,6 +396,9 @@ void sharurs_trial_spawn_s(void) {
 /* The one arrival inside the pocket: the section goes on (see above). */
 void sharurs_trial_spawn_sw(void) {
     st_spawn_at(ST_SW_SPAWN_X, ST_SW_SPAWN_Z, ST_SW_SPAWN_ROT, 1);
+}
+void sharurs_trial_spawn_nw(void) {
+    st_spawn_at(ST_NW_SPAWN_X, ST_NW_SPAWN_Z, ST_NW_SPAWN_ROT, 0);
 }
 
 void sharurs_trial_init(void) {
@@ -639,7 +662,7 @@ void sharurs_trial_draw(RenderContext *ctx) {
         draw_st_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE THREE DOOR SIGNS, THE TABLET (its shards and its
+    /* >>> LEVEL 8 IS THE FOUR DOOR SIGNS, THE TABLET (its shards and its
        sign), NINURTA'S ARM once it has shattered, AND NESSIE with her
        fireballs (area-gated inside; src/nessie.h, src/sharur_tablet.h).
        The tablet BEFORE the pickups: its sign leaves the view in the GTE. */
@@ -653,6 +676,8 @@ void sharurs_trial_draw(RenderContext *ctx) {
                      ST_S_TEXT_YAW);
         st_door_text(ctx, ST_SW_X, ST_SW_Z, ST_SW_TEXT_X, ST_SW_TEXT_Z,
                      ST_SW_TEXT_YAW);
+        st_door_text(ctx, ST_NW_X, ST_NW_Z, ST_NW_TEXT_X, ST_NW_TEXT_Z,
+                     ST_NW_TEXT_YAW);
     }
 
     /* The tablet's inscription, over the examine shot. Screen space and

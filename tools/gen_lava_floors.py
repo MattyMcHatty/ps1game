@@ -52,6 +52,7 @@ ROOMS = [('STATE_HELL_HATH_NO_FURY', 'assets/underworld/Hell Hath No Fury.smx', 
          ('STATE_SHARURS_TRIAL',     'assets/underworld/Sharurs Trial.smx',          'assets/underworld/Sharurs Trial mesh.smx',          'lava'),
          ('STATE_LAVA_U',            'assets/underworld/Lava U.smx',                 'assets/underworld/Lava U mesh.smx',                 'lava'),
          ('STATE_WINGSCAPE',         'assets/underworld/Wingscape.smx',              'assets/underworld/Wingscape mesh.smx',              'lava'),
+         ('STATE_HEROS_PLINTH',      'assets/underworld/Heros Plinth.smx',           'assets/underworld/Heros Plinth mesh.smx',           'lava'),
          ]
 
 

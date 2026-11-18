@@ -128,6 +128,7 @@
 #include "lava_u.h"           /* ...and the lava U behind its two southern doors */
 #include "wingscape.h"        /* ...and the terraced room behind HHNF's NW door  */
 #include "wings_tablet.h"     /* ...and the tablet standing on its terrace       */
+#include "heros_plinth.h"     /* ...and Destiny's Door's room between the two    */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
 #include "underworld_sky.h"   /* ...and the sky over every room after it         */
 #include "kennels_puzzle.h"
@@ -220,11 +221,20 @@ static int hhnf_from_wingscape = 0;
    arriving room's STATE_LOADING branch - never recovered from current_area.
      sharur_arrival: 0 the north-east door (from Hell Hath No Fury, and the
                      default), 1 the south door, 2 the south-west door (both
-                     from Lava U).
+                     from Lava U), 3 the north-west door (from Hero's
+                     Plinth).
      lava_u_from_sw: 0 the north-east door (from Sharur's south door, and the
                      default), 1 the north-west door (from its south-west). */
 static int sharur_arrival = 0;
 static int lava_u_from_sw = 0;
+/* ...and Hero's Plinth's (0 the south-east door from Sharur's Trial, and the
+   default; 1 the north-east door from Wingscape), and Wingscape's (0 the
+   south-east door from Hell Hath No Fury, and the default; 1 the west door
+   from Hero's Plinth). Wingscape's is read twice - by the spawn, and after
+   world_enter by the Golem's re-plant (world_place_wingscape_golem) - and
+   cleared after the second. */
+static int plinth_from_wingscape = 0;
+static int wingscape_from_plinth = 0;
 
 /* Debug/game-over font stream (opened in main() after FntLoad). The HUD's log
    box renders with FntSort straight into the OT, so it needs no stream. */
@@ -322,6 +332,8 @@ void reset_game(RenderContext *ctx) {
     hhnf_from_wingscape = 0;
     sharur_arrival   = 0;     /* ...and Sharur's Trial's, and Lava U's       */
     lava_u_from_sw   = 0;
+    plinth_from_wingscape = 0;/* ...and Hero's Plinth's, and Wingscape's     */
+    wingscape_from_plinth = 0;
     gula_death_reset();    /* ...and any half-played death of hers            */
     east_hall_quake_reset();/* ...and any half-played collapse in the East Hall */
     reception_hadad_reset();/* ...and any half-played one in the Reception   */
@@ -479,6 +491,7 @@ static void load_area_geometry(GameState area) {
         case STATE_SHARURS_TRIAL:    sharurs_trial_load_geometry(); break;
         case STATE_LAVA_U:           lava_u_load_geometry(); break;
         case STATE_WINGSCAPE:        wingscape_load_geometry(); break;
+        case STATE_HEROS_PLINTH:     heros_plinth_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -3436,6 +3449,15 @@ static void update_current_area(GameState area) {
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
+        /* THE NORTH-WEST DOOR, to Hero's Plinth's south-east door: wooden
+           both sides. */
+        else if (sharurs_trial_nw_door_triggered(lock)) {
+            plinth_from_wingscape = 0;
+            pending_area = STATE_HEROS_PLINTH;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
     } else if (area == STATE_LAVA_U) {
         /* LAVA U - Chapter 4's third room (src/lava_u.c): a U of lava round a
            rock island, the shared wall routine and ONE flat floor zone. No
@@ -3502,6 +3524,44 @@ static void update_current_area(GameState area) {
             hhnf_from_wingscape = 1;
             pending_area = STATE_HELL_HATH_NO_FURY;
             door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+        /* THE WEST DOOR, to Hero's Plinth's north-east door: a WOODEN door on
+           this side, so the wooden transition (wd_dr is resident); the far
+           side is a catacomb door and coming back plays that one. */
+        else if (wingscape_w_door_triggered(lock)) {
+            plinth_from_wingscape = 1;
+            pending_area = STATE_HEROS_PLINTH;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_HEROS_PLINTH) {
+        /* HERO'S PLINTH - Chapter 4's fifth room (src/heros_plinth.c): one
+           storey, the shared wall routine and four floor zones (the ramp up
+           to Destiny's Door's frame and its two corners, then the floor).
+           Its two lava pools burn from lava_update(), like every Chapter 4
+           room's. No enemies, no props.
+
+           THE NORTH-EAST DOOR, to Wingscape's west door: a CATACOMB inner
+           door on this side, so the catacomb transition (its texture is
+           uploaded by this room, its sound banked for the chapter); the far
+           side is wooden. THE SOUTH-EAST DOOR, to Sharur's Trial's north-west
+           door: wooden both sides. The latches tell the far room which
+           arrival this is. */
+        apply_collision_reception();
+        apply_height();
+        if (heros_plinth_ne_door_triggered(lock)) {
+            wingscape_from_plinth = 1;
+            pending_area = STATE_WINGSCAPE;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (heros_plinth_se_door_triggered(lock)) {
+            sharur_arrival = 3;
+            pending_area = STATE_SHARURS_TRIAL;
+            door_anim_start(DOOR_PANEL_WOOD);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -4081,6 +4141,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         lava_u_draw(ctx);
     else if (area == STATE_WINGSCAPE)
         wingscape_draw(ctx);
+    else if (area == STATE_HEROS_PLINTH)
+        heros_plinth_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4635,6 +4697,9 @@ int main(int argc, const char **argv) {
     wings_tablet_load_assets();  /* ...and its tablet: a 2.6 KB mesh held for
                                      the run (measured here into its box) and
                                      ONE deferred registration. */
+    heros_plinth_load_assets();  /* ...and Hero's Plinth: FIVE deferred
+                                     registrations (Destiny's Door and its
+                                     frame); the rest is borrowed. */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
                                      registrations. Its model is read on entry
                                      to the first room that draws it. */
@@ -5719,6 +5784,14 @@ int main(int argc, const char **argv) {
                    plus its tablet's own art. The wooden door is resident
                    (src/wingscape.c). */
                 wingscape_upload_textures();
+            } else if (pending_area == STATE_HEROS_PLINTH) {
+                /* HERO'S PLINTH. Its five (Destiny's Door's frame and the
+                   door), and Hell Hath No Fury's volcanic, the Descent's lava,
+                   the Catacombs Entry's inner door (also the catacomb panel
+                   out of here) and the sky's hell bg through narrow
+                   uploaders. The wooden door is resident
+                   (src/heros_plinth.c). */
+                heros_plinth_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -6711,6 +6784,7 @@ int main(int argc, const char **argv) {
                 sharurs_trial_init();
                 if (sharur_arrival == 1)      sharurs_trial_spawn_s();
                 else if (sharur_arrival == 2) sharurs_trial_spawn_sw();
+                else if (sharur_arrival == 3) sharurs_trial_spawn_nw();
                 sharur_arrival = 0;
             } else if (pending_area == STATE_LAVA_U) {
                 /* TWO ARRIVALS, both from Sharur's Trial: the north-east door
@@ -6721,10 +6795,23 @@ int main(int argc, const char **argv) {
                 if (lava_u_from_sw) lava_u_spawn_nw();
                 lava_u_from_sw = 0;
             } else if (pending_area == STATE_WINGSCAPE) {
-                /* ONE ARRIVAL, the south-east door from Hell Hath No Fury -
-                   the init's spawn, and where a debug jump lands. NO MUSIC
-                   LINE: the chapter's block below. */
+                /* TWO ARRIVALS: the south-east door from Hell Hath No Fury
+                   (the init's spawn, and where a debug jump lands) and the
+                   west door from Hero's Plinth, told by the latch that
+                   room's door set. The latch is NOT cleared here: the Golem's
+                   re-plant after world_enter reads it too. NO MUSIC LINE:
+                   the chapter's block below. */
                 wingscape_init();
+                if (wingscape_from_plinth) wingscape_spawn_w();
+            } else if (pending_area == STATE_HEROS_PLINTH) {
+                /* TWO ARRIVALS: the south-east door from Sharur's Trial (the
+                   init's spawn, and where a debug jump lands) and the
+                   north-east door from Wingscape, told by the latch
+                   Wingscape's door set. NO MUSIC LINE: the chapter's block
+                   below. */
+                heros_plinth_init();
+                if (plinth_from_wingscape) heros_plinth_spawn_ne();
+                plinth_from_wingscape = 0;
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -7043,6 +7130,16 @@ int main(int argc, const char **argv) {
                                                     its seed) cannot restore it,
                                                     and the flags it reads are a
                                                     load's and a grant's */
+            if (pending_area == STATE_WINGSCAPE) {
+                /* THE GOLEM stands in front of the door FURTHEST from the
+                   one the player came in by (src/world.c, beside its seed):
+                   re-planted here, after world_enter, because golems_rest
+                   left it at whichever spawn it had last. The latch is
+                   Hero's Plinth's door's, never current_area - a title load
+                   or a debug jump lands by the south-east door's rules. */
+                world_place_wingscape_golem(wingscape_from_plinth);
+                wingscape_from_plinth = 0;
+            }
             if (pending_area == STATE_WINGSCAPE)
                 wings_tablet_apply_flags();      /* ...and Ninurta's Wings where
                                                     the Wings Tablet stood, on
@@ -7178,7 +7275,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_HELL_HATH_NO_FURY ||
                    game_state == STATE_SHARURS_TRIAL ||
                    game_state == STATE_LAVA_U ||
-                   game_state == STATE_WINGSCAPE) {
+                   game_state == STATE_WINGSCAPE ||
+                   game_state == STATE_HEROS_PLINTH) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

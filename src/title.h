@@ -340,6 +340,11 @@ typedef enum {
                                 ground floor and a terrace up two ramps, with
                                 the Wings Tablet. See src/wingscape.h.
                                 Appended, not inserted. */
+    STATE_HEROS_PLINTH,      /* HERO'S PLINTH, between Sharur's Trial's
+                                north-west door and Wingscape's west door -
+                                Chapter 4's fifth room, with Destiny's Door's
+                                frame. See src/heros_plinth.h. Appended, not
+                                inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

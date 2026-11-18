@@ -1278,6 +1278,65 @@ KNOWN_STREAM_PAIRS = [
     ("incinerator.tim",           "nnrt_wngs.tim"),
     ("ladder.tim",                "nnrt_wngs.tim"),
     ("vines.tim",                 "nnrt_wngs.tim"),
+    #   HERO'S PLINTH's five (src/heros_plinth.c): Destiny's Door's frame
+    # (four quarters) and the door itself, all 8bpp 128x128 - FULL 256-colour
+    # art, never cut to 16 without the user's say-so (tools/ADDING_A_ROOM.txt
+    # 3d). Each takes a Voff-0 page whose Underworld tenant Hero's Plinth
+    # never draws and whose own room re-uploads it on entry: the cobblestones
+    # (x384 y0), Sharur's rocks (x512 y0), the two tablets (x704 y0), the
+    # cracked tablet / the puzzle's cuneiform (x768 y0) and HHNF's oil tank
+    # (x896 y256, whose stn_gls tenant the kitchen streams back - see the oil
+    # tank's note). x576 y0 (the Seal's) was NOT usable at 8bpp: its right
+    # half is hadad_idle_64, uploaded once at boot. Each 256-word CLUT is a
+    # Chapter 1-3 room texture's (mud, Boss Wall, cuneiform _symbols,
+    # xt_dr_outr, xt_dr_cmplt/lckd), all re-uploaded by their own rooms and
+    # none drawn down here. Every partner below is one of those, or one the
+    # displaced tenant was already paired with.
+    ("cobblestones.tim"                          , "destiny door frame top left.tim"),
+    ("chnlnk_dl.tim"                             , "destiny door frame top left.tim"),
+    ("clsd_drwr.tim"                             , "destiny door frame top left.tim"),
+    ("cncrte.tim"                                , "destiny door frame top left.tim"),
+    ("flowerbed.tim"                             , "destiny door frame top left.tim"),
+    ("hedge.tim"                                 , "destiny door frame top left.tim"),
+    ("kchn_tile.tim"                             , "destiny door frame top left.tim"),
+    ("mud.tim"                                   , "destiny door frame top left.tim"),
+    ("piano_keys.tim"                            , "destiny door frame top left.tim"),
+    ("piano_keys_full.tim"                       , "destiny door frame top left.tim"),
+    ("xt_dr_outr.tim"                            , "destiny door frame top left.tim"),
+    ("rocks.tim"                                 , "destinys door frame top right.tim"),
+    ("Boss Wall.tim"                             , "destinys door frame top right.tim"),
+    ("cuneiform _symbols.tim"                    , "destinys door frame top right.tim"),
+    ("dresser.tim"                               , "destinys door frame top right.tim"),
+    ("grdn_gte.tim"                              , "destinys door frame top right.tim"),
+    ("kchn_wl.tim"                               , "destinys door frame top right.tim"),
+    ("loculus.tim"                               , "destinys door frame top right.tim"),
+    ("oil_container.tim"                         , "destinys door frame bottom left.tim"),
+    ("stn_gls.tim"                               , "destinys door frame bottom left.tim"),
+    ("cuneiform _symbols.tim"                    , "destinys door frame bottom left.tim"),
+    ("grdn_gte.tim"                              , "destinys door frame bottom left.tim"),
+    ("sharur tablet.tim"                         , "destinys door frame bottom right.tim"),
+    ("wing tablet.tim"                           , "destinys door frame bottom right.tim"),
+    ("chain.tim"                                 , "destinys door frame bottom right.tim"),
+    ("gravel_gs.tim"                             , "destinys door frame bottom right.tim"),
+    ("poison_flower_base_gh.tim"                 , "destinys door frame bottom right.tim"),
+    ("rusty.tim"                                 , "destinys door frame bottom right.tim"),
+    ("rusty_fence.tim"                           , "destinys door frame bottom right.tim"),
+    ("stable glyphs.tim"                         , "destinys door frame bottom right.tim"),
+    ("upstairs.tim"                              , "destinys door frame bottom right.tim"),
+    ("xt_dr_outr.tim"                            , "destinys door frame bottom right.tim"),
+    ("sharur tablet cracked.tim"                 , "destinys door.tim"),
+    ("wings tablet question and answers.tim"     , "destinys door.tim"),
+    ("bed.tim"                                   , "destinys door.tim"),
+    ("brick_wall.tim"                            , "destinys door.tim"),
+    ("fountain.tim"                              , "destinys door.tim"),
+    ("grss.tim"                                  , "destinys door.tim"),
+    ("gula codes.tim"                            , "destinys door.tim"),
+    ("lamashtu arm.tim"                          , "destinys door.tim"),
+    ("lamashtu tablet.tim"                       , "destinys door.tim"),
+    ("pipe.tim"                                  , "destinys door.tim"),
+    ("plinth_diamond.tim"                        , "destinys door.tim"),
+    ("xt_dr_cmplt.tim"                           , "destinys door.tim"),
+    ("xt_dr_lckd.tim"                            , "destinys door.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

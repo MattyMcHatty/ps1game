@@ -14,8 +14,10 @@
  * >>> WHERE IT STANDS MAY DEPEND ON THE ROUTE IN, OR ON A FLAG. <<< A Golem is
  * planted, not placed-and-left: the design allows one to stand somewhere
  * different depending on which door the player came through, or on a game
- * flag. NONE DOES YET - the one in Wingscape stands in one place. The user
- * says when one should move; never invent a rule. When one does:
+ * flag. WINGSCAPE'S DOES (Nov 2026): it stands in front of the door furthest
+ * from the way in - world_place_wingscape_golem() in world.c, keyed on the
+ * wingscape_from_plinth latch in main.c. The user says when one should move;
+ * never invent a rule. The pattern:
  *   - the rule goes in world.c beside the placement, and golem_set_spawn()
  *     re-plants it (on room entry, AFTER world_enter - golems_rest has already
  *     put it back at the old spawn by then);

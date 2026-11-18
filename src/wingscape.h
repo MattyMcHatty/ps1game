@@ -21,19 +21,23 @@
        alcove at the north rim, z~2930.
    Under the Underworld's sky (src/underworld_sky.h), centred on the room.
 
-   ONE DOOR, a catacomb inner door on the cut south-east corner (2900,-2300):
-   to Hell Hath No Fury's NORTH-WEST door (wooden).
+   TWO DOORS:
+     - SOUTH-EAST, a catacomb inner door on the cut corner (2900,-2300): to
+       Hell Hath No Fury's NORTH-WEST door (wooden).
+     - WEST, a wooden door in the west wall (-3300,-1400): to HERO'S
+       PLINTH's NORTH-EAST door (a catacomb door over there).
 
    >>> THE TRANSITION DEPENDS ON THE DIRECTION, NOT THE DOORWAY. <<< Out of
    here through the catacomb door plays DOOR_PANEL_CATACOMB; into here from
-   Hell Hath No Fury through its wooden door plays DOOR_PANEL_WOOD. See the
-   Chapter 4 block of tools/ADDING_A_ROOM.txt.
+   Hell Hath No Fury through its wooden door plays DOOR_PANEL_WOOD. Out
+   through the west door is wooden; in from Hero's Plinth is the catacomb
+   one. See the Chapter 4 block of tools/ADDING_A_ROOM.txt.
 
-   The wooden door on the WEST wall (x=-3300, z~-1400) is DECORATION for now:
-   no trigger, no sign. It is wired up when the room behind it exists.
-
-   ONE ENEMY: a GOLEM in front of that west door, (-2800,-1400)
-   (src/golem.h, seeded in world.c) - and a second, the WINGS TABLET's
+   ONE ENEMY: a GOLEM in front of the door FURTHEST FROM WHERE THE PLAYER CAME
+   IN - the west door's (-2800,-1400) when entered from Hell Hath No Fury (and
+   by default), the south-east door's when entered from Hero's Plinth
+   (src/golem.h; seeded, and re-planted per arrival, in world.c) - and a
+   second, the WINGS TABLET's
    GUARD, seeded ABSENT in front of the tablet and summoned by every wrong
    answer to its puzzle (src/wings_tablet.h). THE MUSIC is the chapter's (main.c's Chapter 4 block). Chapter
    rules (the fog, the sky): src/underworld.h. */
@@ -44,14 +48,17 @@ void wingscape_upload_textures(void); /* room entry: pure LoadImage            *
 void wingscape_init(void);            /* collision, floors, default spawn      */
 void wingscape_draw(RenderContext *ctx);
 
-/* The south-east door, to Hell Hath No Fury's north-west door. A fresh Circle
-   within reach and facing it. THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE
+/* The doors: SOUTH-EAST to Hell Hath No Fury's north-west door, WEST to
+   Hero's Plinth's north-east door. A fresh Circle within reach and facing
+   it. THE EDGE STATE IS KEPT UP TO DATE EVEN WHILE
    LOCKED, so a Circle held across a menu closing does not read as a fresh
    press. */
 void wingscape_doors_arm(void);
 int  wingscape_se_door_triggered(int lock);
+int  wingscape_w_door_triggered(int lock);
 
-/* Arrival through the south-east door; also the default spawn. */
+/* Arrivals, one per door. The south-east one is also the default spawn. */
 void wingscape_spawn_se(void);
+void wingscape_spawn_w(void);
 
 #endif

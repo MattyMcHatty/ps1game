@@ -261,6 +261,10 @@ AREAS = {
                   # texture - Lava U's three plus the Catacombs Entry's inner
                   # door - and uploads the Wings Tablet's own art.
                   "wingscape_upload_textures",
+                  # HERO'S PLINTH, between Sharur's Trial and Wingscape: owns
+                  # Destiny's Door's frame and the door; borrows the volcanic,
+                  # the lava and the inner door.
+                  "heros_plinth_upload_textures",
                   # ...and NESSIE (src/nessie.c), which main.c uploads on entry
                   # to the rooms nessie_room_has_sheet() names - Sharur's Trial
                   # today. Underworld rooms only.

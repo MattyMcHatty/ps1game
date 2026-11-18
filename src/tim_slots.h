@@ -171,6 +171,22 @@
 #define TIM_TPAGE_DBLDRRG  0x0015
 #define TIM_CLUT_DBLDRRG   0x7ea0
 
+/* destinys door frame bottom left.tim  8bpp  VRAM ( 896,256)  \TEXUNDW\DDFRBL.TIM */
+#define TIM_TPAGE_DDFRBL   0x009e
+#define TIM_CLUT_DDFRBL    0x7aaa
+
+/* destinys door frame bottom right.tim  8bpp  VRAM ( 704,  0)  \TEXUNDW\DDFRBR.TIM */
+#define TIM_TPAGE_DDFRBR   0x008b
+#define TIM_CLUT_DDFRBR    0x792a
+
+/* destiny door frame top left.tim  8bpp  VRAM ( 384,  0)  \TEXUNDW\DDFRTL.TIM */
+#define TIM_TPAGE_DDFRTL   0x0086
+#define TIM_CLUT_DDFRTL    0x7cea
+
+/* destinys door frame top right.tim  8bpp  VRAM ( 512,  0)  \TEXUNDW\DDFRTR.TIM */
+#define TIM_TPAGE_DDFRTR   0x0088
+#define TIM_CLUT_DDFRTR    0x7d2a
+
 /* demon_dog.tim   8bpp  VRAM ( 640,384)  \DDOG.TIM */
 #define TIM_TPAGE_DDOG     0x009a
 #define TIM_CLUT_DDOG      0x78c0
@@ -186,6 +202,10 @@
 /* dresser.tim     4bpp  VRAM ( 512,  0)  \TEX\DRESSER.TIM */
 #define TIM_TPAGE_DRESSER  0x0008
 #define TIM_CLUT_DRESSER   0x7ec0
+
+/* destinys door.tim  8bpp  VRAM ( 768,  0)  \TEXUNDW\DSTNYDR.TIM */
+#define TIM_TPAGE_DSTNYDR  0x008c
+#define TIM_CLUT_DSTNYDR   0x78ea
 
 /* er_logo_128.tim  4bpp  VRAM ( 672,128)  \TEX\ERLOGO.TIM */
 #define TIM_TPAGE_ERLOGO   0x000a

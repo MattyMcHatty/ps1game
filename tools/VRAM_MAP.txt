@@ -48,6 +48,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   mud.tim              8       384     0   128   128     0   672,499
   piano_keys.tim       4       384     0   128   128     0   32,511
   piano_keys_full.tim  4       384     0   128   128     0   32,511
+  destiny door frame top left.tim 8       384     0   128   128     0   672,499
   xt_dr_outr.tim       8       384     0   128   128     0   672,484
   sconce.tim           8       448     0   128   128     0   672,502
   wd_flr.tim           4       448     0   128   128     0   0,491
@@ -57,6 +58,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   grdn_gte.tim         4       512     0   128   128     0   672,490
   kchn_wl.tim          4       512     0   128   128     0   0,503
   loculus.tim          4       512     0   128   128     0   672,500
+  destinys door frame top right.tim 8       512     0   128   128     0   672,500
   rocks.tim            4       512     0   128   128     0   960,502
   gaol_mud.tim         4       576     0   128   128     0   256,484
   crib.tim             4       576     0   128   128     0   256,484
@@ -91,6 +93,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   rusty.tim            4       704     0   128   128     0   256,485
   rusty_fence.tim      4       704     0   128   128     0   256,480
   stable glyphs.tim    4       704     0   128   128     0   256,511
+  destinys door frame bottom right.tim 8       704     0   128   128     0   672,484
   sharur tablet.tim    4       704     0   128   128     0   976,502
   wing tablet.tim      4       704     0   128   128     0   976,502
   upstairs.tim         4       704     0   128   128     0   64,511
@@ -103,6 +106,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   lamashtu tablet.tim  4       768     0   128   128     0   672,495
   pipe.tim             4       768     0   128   128     0   256,502
   plinth_diamond.tim   4       768     0   128   128     0   256,510
+  destinys door.tim    8       768     0   128   128     0   672,483
   sharur tablet cracked.tim 4       768     0   128   128     0   992,502
   wings tablet question and answers.tim 4       768     0   128   128     0   992,502
   xt_dr_cmplt.tim      8       768     0   128   128     0   672,483
@@ -187,6 +191,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   flm_rnds.tim         4       848   256    64    64     0   256,481
   oil_container.tim    4       896   256   128   128     0   672,504
   stn_gls.tim          4       896   256   128   128     0   0,488
+  destinys door frame bottom left.tim 8       896   256   128   128     0   672,490
   trees_dl.tim         4       960   256   128   128     0   16,480
   grinder.tim          8       992   256    64    64     0   768,507
   vlv_hndl.tim         4       608   288    64    64    32   768,503
@@ -240,10 +245,12 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=482  x[0,16)  sml_med.tim
   y=483  x[256,272)  anzu_tab.tim
   y=483  x[0,256)  demon_dog.tim
+  y=483  x[672,928)  destinys door.tim
   y=483  x[672,928)  xt_dr_cmplt.tim
   y=483  x[672,928)  xt_dr_lckd.tim
   y=484  x[256,272)  gaol_mud.tim
   y=484  x[256,272)  crib.tim
+  y=484  x[672,928)  destinys door frame bottom right.tim
   y=484  x[672,928)  xt_dr_outr.tim
   y=485  x[256,272)  rusty.tim
   y=485  x[672,928)  xt_dr_cg.tim
@@ -261,6 +268,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=490  x[672,928)  cuneiform _symbols.tim
   y=490  x[672,688)  grdn_gte.tim
   y=490  x[0,16)  kchn_tile.tim
+  y=490  x[672,928)  destinys door frame bottom left.tim
   y=491  x[672,688)  fountain.tim
   y=491  x[256,512)  opn_drwr.tim
   y=491  x[0,16)  wd_flr.tim
@@ -289,11 +297,13 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=499  x[672,688)  cobblestones.tim
   y=499  x[672,928)  mud.tim
   y=499  x[256,512)  mushy_behind.tim
+  y=499  x[672,928)  destiny door frame top left.tim
   y=499  x[0,16)  zombie_alert.tim
   y=500  x[672,928)  Boss Wall.tim
   y=500  x[0,16)  crucifaxe.tim
   y=500  x[672,688)  loculus.tim
   y=500  x[256,512)  mushy_closed.tim
+  y=500  x[672,928)  destinys door frame top right.tim
   y=501  x[672,688)  arms2.tim
   y=501  x[672,928)  asag.tim
   y=501  x[672,688)  bones.tim
@@ -386,6 +396,7 @@ OVERLAP CHECK
   Boss Wall.tim                            grdn_gte.tim         time-shared (streaming)
   Boss Wall.tim                            kchn_wl.tim          time-shared (streaming)
   Boss Wall.tim                            loculus.tim          time-shared (streaming)
+  Boss Wall.tim                            destinys door frame top right.tim time-shared (streaming)
   Boss Wall.tim                            rocks.tim            time-shared (streaming)
   Rabisu tex.tim                           incinerator.tim      time-shared (streaming)
   Rabisu tex.tim                           ladder.tim           time-shared (streaming)
@@ -473,6 +484,7 @@ OVERLAP CHECK
   bed.tim                                  lamashtu tablet.tim  time-shared (streaming)
   bed.tim                                  pipe.tim             time-shared (streaming)
   bed.tim                                  plinth_diamond.tim   time-shared (streaming)
+  bed.tim                                  destinys door.tim    time-shared (streaming)
   bed.tim                                  sharur tablet cracked.tim time-shared (streaming)
   bed.tim                                  wings tablet question and answers.tim time-shared (streaming)
   bed.tim                                  xt_dr_cmplt.tim      time-shared (streaming)
@@ -504,6 +516,7 @@ OVERLAP CHECK
   brick_wall.tim                           lamashtu tablet.tim  time-shared (streaming)
   brick_wall.tim                           pipe.tim             time-shared (streaming)
   brick_wall.tim                           plinth_diamond.tim   time-shared (streaming)
+  brick_wall.tim                           destinys door.tim    time-shared (streaming)
   brick_wall.tim                           sharur tablet cracked.tim time-shared (streaming)
   brick_wall.tim                           wings tablet question and answers.tim time-shared (streaming)
   brick_wall.tim                           xt_dr_cmplt.tim      time-shared (streaming)
@@ -556,6 +569,7 @@ OVERLAP CHECK
   chain.tim                                rusty.tim            time-shared (streaming)
   chain.tim                                rusty_fence.tim      time-shared (streaming)
   chain.tim                                stable glyphs.tim    time-shared (streaming)
+  chain.tim                                destinys door frame bottom right.tim time-shared (streaming)
   chain.tim                                sharur tablet.tim    time-shared (streaming)
   chain.tim                                wing tablet.tim      time-shared (streaming)
   chain.tim                                upstairs.tim         time-shared (streaming)
@@ -588,6 +602,7 @@ OVERLAP CHECK
   chnlnk_dl.tim                            mud.tim              time-shared (streaming)
   chnlnk_dl.tim                            piano_keys.tim       time-shared (streaming)
   chnlnk_dl.tim                            piano_keys_full.tim  time-shared (streaming)
+  chnlnk_dl.tim                            destiny door frame top left.tim time-shared (streaming)
   chnlnk_dl.tim                            xt_dr_outr.tim       time-shared (streaming)
   clsd_drwr.tim                            cncrte.tim           time-shared (streaming)
   clsd_drwr.tim                            cobblestones.tim     time-shared (streaming)
@@ -597,6 +612,7 @@ OVERLAP CHECK
   clsd_drwr.tim                            mud.tim              time-shared (streaming)
   clsd_drwr.tim                            piano_keys.tim       time-shared (streaming)
   clsd_drwr.tim                            piano_keys_full.tim  time-shared (streaming)
+  clsd_drwr.tim                            destiny door frame top left.tim time-shared (streaming)
   clsd_drwr.tim                            xt_dr_outr.tim       time-shared (streaming)
   cncrte.tim                               cobblestones.tim     time-shared (streaming)
   cncrte.tim                               flowerbed.tim        time-shared (streaming)
@@ -605,6 +621,7 @@ OVERLAP CHECK
   cncrte.tim                               mud.tim              time-shared (streaming)
   cncrte.tim                               piano_keys.tim       time-shared (streaming)
   cncrte.tim                               piano_keys_full.tim  time-shared (streaming)
+  cncrte.tim                               destiny door frame top left.tim time-shared (streaming)
   cncrte.tim                               xt_dr_outr.tim       time-shared (streaming)
   cobblestones.tim                         flowerbed.tim        time-shared (streaming)
   cobblestones.tim                         hedge.tim            time-shared (streaming)
@@ -612,6 +629,7 @@ OVERLAP CHECK
   cobblestones.tim                         mud.tim              time-shared (streaming)
   cobblestones.tim                         piano_keys.tim       time-shared (streaming)
   cobblestones.tim                         piano_keys_full.tim  time-shared (streaming)
+  cobblestones.tim                         destiny door frame top left.tim time-shared (streaming)
   cobblestones.tim                         xt_dr_outr.tim       time-shared (streaming)
   con_tile.tim                             double_door.tim      time-shared (streaming)
   con_tile.tim                             drain.tim            time-shared (streaming)
@@ -633,6 +651,7 @@ OVERLAP CHECK
   cuneiform _symbols.tim                   grdn_gte.tim         time-shared (streaming)
   cuneiform _symbols.tim                   kchn_wl.tim          time-shared (streaming)
   cuneiform _symbols.tim                   loculus.tim          time-shared (streaming)
+  cuneiform _symbols.tim                   destinys door frame top right.tim time-shared (streaming)
   cuneiform _symbols.tim                   rocks.tim            time-shared (streaming)
   dbl_dr_rg.tim                            frnt_dr.tim          time-shared (streaming)
   dbl_dr_rg.tim                            greenhouse door.tim  time-shared (streaming)
@@ -650,12 +669,14 @@ OVERLAP CHECK
   dresser.tim                              grdn_gte.tim         time-shared (streaming)
   dresser.tim                              kchn_wl.tim          time-shared (streaming)
   dresser.tim                              loculus.tim          time-shared (streaming)
+  dresser.tim                              destinys door frame top right.tim time-shared (streaming)
   dresser.tim                              rocks.tim            time-shared (streaming)
   flowerbed.tim                            hedge.tim            time-shared (streaming)
   flowerbed.tim                            kchn_tile.tim        time-shared (streaming)
   flowerbed.tim                            mud.tim              time-shared (streaming)
   flowerbed.tim                            piano_keys.tim       time-shared (streaming)
   flowerbed.tim                            piano_keys_full.tim  time-shared (streaming)
+  flowerbed.tim                            destiny door frame top left.tim time-shared (streaming)
   flowerbed.tim                            xt_dr_outr.tim       time-shared (streaming)
   fountain.tim                             grss.tim             time-shared (streaming)
   fountain.tim                             gula codes.tim       time-shared (streaming)
@@ -663,6 +684,7 @@ OVERLAP CHECK
   fountain.tim                             lamashtu tablet.tim  time-shared (streaming)
   fountain.tim                             pipe.tim             time-shared (streaming)
   fountain.tim                             plinth_diamond.tim   time-shared (streaming)
+  fountain.tim                             destinys door.tim    time-shared (streaming)
   fountain.tim                             sharur tablet cracked.tim time-shared (streaming)
   fountain.tim                             wings tablet question and answers.tim time-shared (streaming)
   fountain.tim                             xt_dr_cmplt.tim      time-shared (streaming)
@@ -688,6 +710,7 @@ OVERLAP CHECK
   gravel_gs.tim                            rusty.tim            time-shared (streaming)
   gravel_gs.tim                            rusty_fence.tim      time-shared (streaming)
   gravel_gs.tim                            stable glyphs.tim    time-shared (streaming)
+  gravel_gs.tim                            destinys door frame bottom right.tim time-shared (streaming)
   gravel_gs.tim                            sharur tablet.tim    time-shared (streaming)
   gravel_gs.tim                            wing tablet.tim      time-shared (streaming)
   gravel_gs.tim                            upstairs.tim         time-shared (streaming)
@@ -706,6 +729,7 @@ OVERLAP CHECK
   gravel_texture.tim                       hell bg.tim          time-shared (streaming)
   grdn_gte.tim                             kchn_wl.tim          time-shared (streaming)
   grdn_gte.tim                             loculus.tim          time-shared (streaming)
+  grdn_gte.tim                             destinys door frame top right.tim time-shared (streaming)
   grdn_gte.tim                             rocks.tim            time-shared (streaming)
   greenhouse door.tim                      red_crpt.tim         time-shared (streaming)
   greenhouse door.tim                      lava.tim             time-shared (streaming)
@@ -726,6 +750,7 @@ OVERLAP CHECK
   grss.tim                                 lamashtu tablet.tim  time-shared (streaming)
   grss.tim                                 pipe.tim             time-shared (streaming)
   grss.tim                                 plinth_diamond.tim   time-shared (streaming)
+  grss.tim                                 destinys door.tim    time-shared (streaming)
   grss.tim                                 sharur tablet cracked.tim time-shared (streaming)
   grss.tim                                 wings tablet question and answers.tim time-shared (streaming)
   grss.tim                                 xt_dr_cmplt.tim      time-shared (streaming)
@@ -736,6 +761,7 @@ OVERLAP CHECK
   gula codes.tim                           lamashtu tablet.tim  time-shared (streaming)
   gula codes.tim                           pipe.tim             time-shared (streaming)
   gula codes.tim                           plinth_diamond.tim   time-shared (streaming)
+  gula codes.tim                           destinys door.tim    time-shared (streaming)
   gula codes.tim                           sharur tablet cracked.tim time-shared (streaming)
   gula codes.tim                           wings tablet question and answers.tim time-shared (streaming)
   gula codes.tim                           xt_dr_cmplt.tim      time-shared (streaming)
@@ -782,12 +808,15 @@ OVERLAP CHECK
   hedge.tim                                mud.tim              time-shared (streaming)
   hedge.tim                                piano_keys.tim       time-shared (streaming)
   hedge.tim                                piano_keys_full.tim  time-shared (streaming)
+  hedge.tim                                destiny door frame top left.tim time-shared (streaming)
   hedge.tim                                xt_dr_outr.tim       time-shared (streaming)
   kchn_tile.tim                            mud.tim              time-shared (streaming)
   kchn_tile.tim                            piano_keys.tim       time-shared (streaming)
   kchn_tile.tim                            piano_keys_full.tim  time-shared (streaming)
+  kchn_tile.tim                            destiny door frame top left.tim time-shared (streaming)
   kchn_tile.tim                            xt_dr_outr.tim       time-shared (streaming)
   kchn_wl.tim                              loculus.tim          time-shared (streaming)
+  kchn_wl.tim                              destinys door frame top right.tim time-shared (streaming)
   kchn_wl.tim                              rocks.tim            time-shared (streaming)
   ladder.tim                               nnrt_arm.tim         time-shared (streaming)
   ladder.tim                               nnrt_wngs.tim        time-shared (streaming)
@@ -795,6 +824,7 @@ OVERLAP CHECK
   lamashtu arm.tim                         lamashtu tablet.tim  time-shared (streaming)
   lamashtu arm.tim                         pipe.tim             time-shared (streaming)
   lamashtu arm.tim                         plinth_diamond.tim   time-shared (streaming)
+  lamashtu arm.tim                         destinys door.tim    time-shared (streaming)
   lamashtu arm.tim                         sharur tablet cracked.tim time-shared (streaming)
   lamashtu arm.tim                         wings tablet question and answers.tim time-shared (streaming)
   lamashtu arm.tim                         xt_dr_cmplt.tim      time-shared (streaming)
@@ -808,6 +838,7 @@ OVERLAP CHECK
   lamashtu pearl.tim                       hell bg.tim          time-shared (streaming)
   lamashtu tablet.tim                      pipe.tim             time-shared (streaming)
   lamashtu tablet.tim                      plinth_diamond.tim   time-shared (streaming)
+  lamashtu tablet.tim                      destinys door.tim    time-shared (streaming)
   lamashtu tablet.tim                      sharur tablet cracked.tim time-shared (streaming)
   lamashtu tablet.tim                      wings tablet question and answers.tim time-shared (streaming)
   lamashtu tablet.tim                      xt_dr_cmplt.tim      time-shared (streaming)
@@ -820,23 +851,29 @@ OVERLAP CHECK
   legs.tim                                 trck_clue.tim        time-shared (streaming)
   legs.tim                                 trees.tim            time-shared (streaming)
   legs.tim                                 hell bg.tim          time-shared (streaming)
+  loculus.tim                              destinys door frame top right.tim time-shared (streaming)
   loculus.tim                              rocks.tim            time-shared (streaming)
   lumberer_a.tim                           mansion.tim          time-shared (streaming)
   lumberer_b.tim                           nessie_a.tim         time-shared (streaming)
   lumberer_b.tim                           xt_dr_lft_hlf.tim    time-shared (streaming)
   mud.tim                                  piano_keys.tim       time-shared (streaming)
   mud.tim                                  piano_keys_full.tim  time-shared (streaming)
+  mud.tim                                  destiny door frame top left.tim time-shared (streaming)
   mud.tim                                  xt_dr_outr.tim       time-shared (streaming)
   nnrt_arm.tim                             vines.tim            time-shared (streaming)
   nnrt_wngs.tim                            vines.tim            time-shared (streaming)
   oil_container.tim                        stn_gls.tim          time-shared (streaming)
+  oil_container.tim                        destinys door frame bottom left.tim time-shared (streaming)
   opn_drwr.tim                             plinth.tim           time-shared (streaming)
   opn_drwr.tim                             stables wood.tim     time-shared (streaming)
   opn_drwr.tim                             xt_dr_cg.tim         time-shared (streaming)
   piano_keys.tim                           piano_keys_full.tim  time-shared (streaming)
+  piano_keys.tim                           destiny door frame top left.tim time-shared (streaming)
   piano_keys.tim                           xt_dr_outr.tim       time-shared (streaming)
+  piano_keys_full.tim                      destiny door frame top left.tim time-shared (streaming)
   piano_keys_full.tim                      xt_dr_outr.tim       time-shared (streaming)
   pipe.tim                                 plinth_diamond.tim   time-shared (streaming)
+  pipe.tim                                 destinys door.tim    time-shared (streaming)
   pipe.tim                                 sharur tablet cracked.tim time-shared (streaming)
   pipe.tim                                 wings tablet question and answers.tim time-shared (streaming)
   pipe.tim                                 xt_dr_cmplt.tim      time-shared (streaming)
@@ -848,6 +885,7 @@ OVERLAP CHECK
   pipe_gh.tim                              volcanic.tim         time-shared (streaming)
   plinth.tim                               stables wood.tim     time-shared (streaming)
   plinth.tim                               xt_dr_cg.tim         time-shared (streaming)
+  plinth_diamond.tim                       destinys door.tim    time-shared (streaming)
   plinth_diamond.tim                       sharur tablet cracked.tim time-shared (streaming)
   plinth_diamond.tim                       wings tablet question and answers.tim time-shared (streaming)
   plinth_diamond.tim                       xt_dr_cmplt.tim      time-shared (streaming)
@@ -864,6 +902,7 @@ OVERLAP CHECK
   poison_flower_base_gh.tim                rusty.tim            time-shared (streaming)
   poison_flower_base_gh.tim                rusty_fence.tim      time-shared (streaming)
   poison_flower_base_gh.tim                stable glyphs.tim    time-shared (streaming)
+  poison_flower_base_gh.tim                destinys door frame bottom right.tim time-shared (streaming)
   poison_flower_base_gh.tim                sharur tablet.tim    time-shared (streaming)
   poison_flower_base_gh.tim                wing tablet.tim      time-shared (streaming)
   poison_flower_base_gh.tim                upstairs.tim         time-shared (streaming)
@@ -877,20 +916,24 @@ OVERLAP CHECK
   red_wlppr.tim                            seal.tim             time-shared (streaming)
   rusty.tim                                rusty_fence.tim      time-shared (streaming)
   rusty.tim                                stable glyphs.tim    time-shared (streaming)
+  rusty.tim                                destinys door frame bottom right.tim time-shared (streaming)
   rusty.tim                                sharur tablet.tim    time-shared (streaming)
   rusty.tim                                wing tablet.tim      time-shared (streaming)
   rusty.tim                                upstairs.tim         time-shared (streaming)
   rusty_fence.tim                          stable glyphs.tim    time-shared (streaming)
+  rusty_fence.tim                          destinys door frame bottom right.tim time-shared (streaming)
   rusty_fence.tim                          sharur tablet.tim    time-shared (streaming)
   rusty_fence.tim                          wing tablet.tim      time-shared (streaming)
   rusty_fence.tim                          upstairs.tim         time-shared (streaming)
   sconce.tim                               wd_flr.tim           time-shared (streaming)
   spdr_rst.tim                             ahriman_a.tim        time-shared (streaming)
   spdr_wk.tim                              golem_a.tim          time-shared (streaming)
+  stable glyphs.tim                        destinys door frame bottom right.tim time-shared (streaming)
   stable glyphs.tim                        sharur tablet.tim    time-shared (streaming)
   stable glyphs.tim                        wing tablet.tim      time-shared (streaming)
   stable glyphs.tim                        upstairs.tim         time-shared (streaming)
   stables wood.tim                         xt_dr_cg.tim         time-shared (streaming)
+  stn_gls.tim                              destinys door frame bottom left.tim time-shared (streaming)
   stn_stl.tim                              strs.tim             time-shared (streaming)
   stove.tim                                volcanic.tim         time-shared (streaming)
   torsos.tim                               trck_clue.tim        time-shared (streaming)
@@ -900,6 +943,15 @@ OVERLAP CHECK
   trck_clue.tim                            hell bg.tim          time-shared (streaming)
   trees.tim                                hell bg.tim          time-shared (streaming)
   ahriman_b.tim                            zombie_sleep.tim     time-shared (streaming)
+  destiny door frame top left.tim          xt_dr_outr.tim       time-shared (streaming)
+  destinys door frame bottom right.tim     sharur tablet.tim    time-shared (streaming)
+  destinys door frame bottom right.tim     wing tablet.tim      time-shared (streaming)
+  destinys door frame bottom right.tim     upstairs.tim         time-shared (streaming)
+  destinys door frame top right.tim        rocks.tim            time-shared (streaming)
+  destinys door.tim                        sharur tablet cracked.tim time-shared (streaming)
+  destinys door.tim                        wings tablet question and answers.tim time-shared (streaming)
+  destinys door.tim                        xt_dr_cmplt.tim      time-shared (streaming)
+  destinys door.tim                        xt_dr_lckd.tim       time-shared (streaming)
   golem_b.tim                              zombie_alert.tim     time-shared (streaming)
   nessie_a.tim                             xt_dr_lft_hlf.tim    time-shared (streaming)
   nessie_b.tim                             xt_dr_rt_hlf.tim     time-shared (streaming)

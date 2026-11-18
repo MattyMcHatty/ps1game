@@ -114,6 +114,7 @@ add_executable(horror_game
     src/sharurs_trial.c
     src/lava_u.c
     src/wingscape.c
+    src/heros_plinth.c
     src/wings_tablet.c
     src/underworld_sky.c
     src/kennels_puzzle.c

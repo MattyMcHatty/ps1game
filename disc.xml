@@ -2071,6 +2071,25 @@
              SHARUR'S CRACKED TABLET's page and palette (x768 y0, CLUT
              992,502), time-shared as the tablet's own art is. -->
             <file name="WINGTBQA.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\wings tablet question and answers.tim"/>
+        <!-- HERO'S PLINTH (src/heros_plinth.h), between Sharur's Trial's
+             north-west door and Wingscape's west door, with DESTINY'S DOOR's
+             frame on its west wall. Borrows the volcanic, the lava and the
+             inner door; the wooden door is resident. -->
+            <file name="HEROPLN.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\heros_plinth.smd"/>
+        <!-- ...and its OWN five, all 8bpp (full 256-colour art - never cut
+             to 16 colours without asking the user), each on a Voff-0 page
+             whose tenant Hero's Plinth never draws and whose own room
+             re-uploads it on entry: the frame's four quarters on the
+             cobblestones' (x384 y0), Sharur's rocks' (x512 y0), HHNF's oil
+             tank's (x896 y256) and the two tablets' (x704 y0); DESTINY'S DOOR
+             itself, not modelled yet but uploaded with the room, on the
+             cracked tablet's / the puzzle's (x768 y0). The 256-word CLUTs are
+             Chapter 1-3 room textures' (src/heros_plinth.c). -->
+            <file name="DDFRTL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\destiny door frame top left.tim"/>
+            <file name="DDFRTR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\destinys door frame top right.tim"/>
+            <file name="DDFRBL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\destinys door frame bottom left.tim"/>
+            <file name="DDFRBR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\destinys door frame bottom right.tim"/>
+            <file name="DSTNYDR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\destinys door.tim"/>
         <!-- NESSIE, the chapter's first monster (src/nessie.h): a lava-bound
              head that swims its own pool and spits fireballs. Six frames, one
              256x256 sheet (textures/underworld/nessie.png), shipped as two
