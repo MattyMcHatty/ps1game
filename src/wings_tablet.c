@@ -235,8 +235,7 @@ static int wt_standing(void) {
 
 /* The guard is standing: the tablet is silent (the header). */
 static int wt_guarded(void) {
-    Golem *g = golem_guard(STATE_WINGSCAPE);
-    return g && g->active && g->state != GLM_DEAD;
+    return golem_blocks(STATE_WINGSCAPE, GLM_BLOCKS_WINGS_TABLET);
 }
 
 /* ---- Load ---------------------------------------------------------------------- */

@@ -208,8 +208,10 @@ static void glm_clear_shards(void) {
    the wipe. */
 static void glm_spawn(Golem *s, int32_t x, int32_t y, int32_t z, GameState area) {
     int guard = s->guard;          /* a summoned Golem stays one (golem.h) */
+    GolemBlock blocks = s->blocks; /* ...and keeps what it blocks          */
     *s = (Golem){0};
-    s->guard = guard;
+    s->guard  = guard;
+    s->blocks = blocks;
     s->x = x; s->y = y; s->z = z;
     s->spawn_x = x; s->spawn_z = z; s->spawn_y = y;
     s->health  = GLM_MAX_HEALTH * GLM_HP_SCALE;
@@ -224,7 +226,8 @@ int golem_add(int32_t x, int32_t z, GameState area) {
     /* The standing anchor of a y=0 floor (ahriman_add's reasoning): authored,
        and apply_ddog_height corrects it on the first frame if the floor is not
        at 0. */
-    golems[i].guard = 0;           /* a reused slot may have been a guard */
+    golems[i].guard  = 0;          /* a reused slot may have been a guard */
+    golems[i].blocks = GLM_BLOCKS_NOTHING;
     glm_spawn(&golems[i], x, -GROUND_FLOOR_Y, z, area);
     /* Out of step with each other, so two in a room do not breathe as one. */
     golems[i].anim_tick = i * 17;
@@ -239,6 +242,24 @@ void golem_set_spawn(int idx, int32_t x, int32_t z) {
     s->anim_tick = idx * 17;
 }
 
+/* ---- Blocking (golem.h) ---------------------------------------------------- */
+void golem_set_blocks(int idx, GolemBlock what) {
+    if (idx < 0 || idx >= golem_count) return;
+    golems[idx].blocks = what;
+}
+
+int golem_blocks(GameState area, GolemBlock what) {
+    int i;
+    if (what == GLM_BLOCKS_NOTHING) return 0;
+    for (i = 0; i < golem_count; i++) {
+        const Golem *s = &golems[i];
+        if (s->blocks == what && s->area == area &&
+            s->active && s->state != GLM_DEAD)
+            return 1;
+    }
+    return 0;
+}
+
 /* ---- Summoned Golems (golem.h) ---------------------------------------------
    Planted at the FLOOR's anchor, not y=0's: apply_ddog_height takes the first
    zone not above the body, so one planted at the ground's anchor under a
@@ -248,7 +269,8 @@ static void glm_decide(Golem *s);
 int golem_add_guard(int32_t x, int32_t floor_y, int32_t z, GameState area) {
     if (golem_count >= MAX_GOLEMS) return -1;
     int i = golem_count++;
-    golems[i].guard = 1;
+    golems[i].guard  = 1;
+    golems[i].blocks = GLM_BLOCKS_NOTHING;   /* the caller tags it */
     glm_spawn(&golems[i], x, floor_y - GROUND_FLOOR_Y, z, area);
     golems[i].anim_tick = i * 17;
     golems[i].state     = GLM_DEAD;      /* ABSENT until summoned */

@@ -284,14 +284,16 @@ void wingscape_doors_arm(void) {
 }
 
 /* The shared body: a fresh Circle within reach of (door_x, door_z) and facing
-   it. The edge state is kept up to date even while locked. */
+   it. The edge state is kept up to date even while locked. A door a living
+   Golem stands in front of is `blocked` (src/golem.h, BLOCKING): no Circle,
+   and no sign, until it dies. */
 static int ws_door_triggered(int32_t door_x, int32_t door_z,
-                             int *circle_prev, int lock) {
+                             int *circle_prev, int lock, int blocked) {
     int held = interact_tapped();
     int just = held && !*circle_prev;
     int32_t dx, dz;
     *circle_prev = held;
-    if (lock || !just) return 0;
+    if (lock || !just || blocked) return 0;
     dx = cam_x - door_x;
     dz = cam_z - door_z;
     if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= WS_TRIGGER_RADIUS)
@@ -300,10 +302,12 @@ static int ws_door_triggered(int32_t door_x, int32_t door_z,
 }
 
 int wingscape_se_door_triggered(int lock) {
-    return ws_door_triggered(WS_SE_X, WS_SE_Z, &se_circle_prev, lock);
+    return ws_door_triggered(WS_SE_X, WS_SE_Z, &se_circle_prev, lock,
+               golem_blocks(STATE_WINGSCAPE, GLM_BLOCKS_WINGSCAPE_SE_DOOR));
 }
 int wingscape_w_door_triggered(int lock) {
-    return ws_door_triggered(WS_W_X, WS_W_Z, &w_circle_prev, lock);
+    return ws_door_triggered(WS_W_X, WS_W_Z, &w_circle_prev, lock,
+               golem_blocks(STATE_WINGSCAPE, GLM_BLOCKS_WINGSCAPE_W_DOOR));
 }
 
 static void ws_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
@@ -612,10 +616,12 @@ void wingscape_draw(RenderContext *ctx) {
         wings_tablet_draw(ctx);
         item_pickups_draw(ctx);
         draw_golems(ctx);
-        ws_door_text(ctx, WS_SE_X, WS_SE_Z, WS_SE_TEXT_X, WS_SE_TEXT_Y,
-                     WS_SE_TEXT_Z, WS_SE_TEXT_YAW);
-        ws_door_text(ctx, WS_W_X, WS_W_Z, WS_W_TEXT_X, WS_W_TEXT_Y,
-                     WS_W_TEXT_Z, WS_W_TEXT_YAW);
+        if (!golem_blocks(STATE_WINGSCAPE, GLM_BLOCKS_WINGSCAPE_SE_DOOR))
+            ws_door_text(ctx, WS_SE_X, WS_SE_Z, WS_SE_TEXT_X, WS_SE_TEXT_Y,
+                         WS_SE_TEXT_Z, WS_SE_TEXT_YAW);
+        if (!golem_blocks(STATE_WINGSCAPE, GLM_BLOCKS_WINGSCAPE_W_DOOR))
+            ws_door_text(ctx, WS_W_X, WS_W_Z, WS_W_TEXT_X, WS_W_TEXT_Y,
+                         WS_W_TEXT_Z, WS_W_TEXT_YAW);
     }
 
     /* The tablet's question, answers and reticule, over the puzzle's shot.

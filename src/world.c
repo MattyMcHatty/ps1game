@@ -2264,7 +2264,8 @@ void world_seed_room(GameState area) {
        it on every entry through world_place_wingscape_golem() below.
        canonical_index keys it as bit 0, by seed order, never by position. */
     if (area == STATE_WINGSCAPE)
-        golem_add(WS_GOLEM_W_X, WS_GOLEM_W_Z, STATE_WINGSCAPE);
+        golem_set_blocks(golem_add(WS_GOLEM_W_X, WS_GOLEM_W_Z, STATE_WINGSCAPE),
+                         GLM_BLOCKS_WINGSCAPE_W_DOOR);
     /* ...and the WINGS TABLET's GUARD (src/wings_tablet.h): a second Golem,
        planted ABSENT in front of the tablet on the terrace, which every wrong
        answer to its puzzle summons. Seeded AFTER the west door's, so that one
@@ -2272,8 +2273,10 @@ void world_seed_room(GameState area) {
        a load is FLAG_WINGS_GUARD_UP, not its dead bit (player.h): this seed
        always plants it absent, and wings_tablet_apply_flags() brings it back. */
     if (area == STATE_WINGSCAPE)
-        golem_add_guard(WT_GUARD_X, WT_GUARD_FLOOR_Y, WT_GUARD_Z,
-                        STATE_WINGSCAPE);
+        golem_set_blocks(golem_add_guard(WT_GUARD_X, WT_GUARD_FLOOR_Y,
+                                         WT_GUARD_Z, STATE_WINGSCAPE),
+                         GLM_BLOCKS_WINGS_TABLET);   /* the tablet is silent
+                                                        while it stands */
 }
 
 /* ---- Wingscape's Golem: where it stands depends on the way in --------------
@@ -2290,13 +2293,21 @@ void world_seed_room(GameState area) {
        the east ramp's foot (z=-100).
    golem_set_spawn() moves the living, non-guard Golem and its spawn (so
    golems_rest brings it back HERE until the next entry re-plants it); a dead
-   one stays dead wherever it fell. Called after world_enter. */
+   one stays dead wherever it fell. Called after world_enter.
+   >>> IT BLOCKS THE DOOR IT STANDS IN FRONT OF <<< (src/golem.h, BLOCKING):
+   the tag is re-set with every re-plant, and wingscape.c's door triggers and
+   signs ask golem_blocks() - so that door cannot be used until it dies. */
 void world_place_wingscape_golem(int from_plinth) {
     int i;
     for (i = 0; i < golem_count; i++) {
         if (golems[i].area != STATE_WINGSCAPE || golems[i].guard) continue;
-        if (from_plinth) golem_set_spawn(i, WS_GOLEM_SE_X, WS_GOLEM_SE_Z);
-        else             golem_set_spawn(i, WS_GOLEM_W_X,  WS_GOLEM_W_Z);
+        if (from_plinth) {
+            golem_set_spawn (i, WS_GOLEM_SE_X, WS_GOLEM_SE_Z);
+            golem_set_blocks(i, GLM_BLOCKS_WINGSCAPE_SE_DOOR);
+        } else {
+            golem_set_spawn (i, WS_GOLEM_W_X,  WS_GOLEM_W_Z);
+            golem_set_blocks(i, GLM_BLOCKS_WINGSCAPE_W_DOOR);
+        }
         return;
     }
 }

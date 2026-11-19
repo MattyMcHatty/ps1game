@@ -311,6 +311,10 @@
                 <file name="DESTINY1.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\destiny1.vag"/>
                 <file name="DESTINY2.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\destiny2.vag"/>
                 <file name="DESTINY3.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\destiny3.vag"/>
+                <!-- Sharur's charge hum (src/sharur.c), RESIDENT: Sharur can be
+                     in hand in any room. 11025 Hz mono, 1.76 s, re-keyed from C
+                     while Square is held (voice 0). -->
+                <file name="SHARUR.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\sharur.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

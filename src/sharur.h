@@ -50,6 +50,10 @@
 #define SHR_DAMAGE            2     /* melee_damage while Sharur swings          */
 #define SHR_CHARGE_FRAMES   180     /* 3 s of holding to a full glow             */
 #define SHR_TAP_FRAMES       15     /* released sooner than this = a tap: swing  */
+#define SHR_HUM_FRAMES      105     /* SFX_SHARUR re-key period: the clip is
+                                       1.763 s = 105.8 frames; re-keyed a hair
+                                       early, inside its faded tail, so the
+                                       loop never drops to silence           */
 
 #define SHR_BLADE_DAMAGE      4     /* per enemy passed through, swing units     */
 #define SHR_BLADE_SPEED      70     /* world units a frame (4200 a second)       */

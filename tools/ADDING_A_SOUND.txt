@@ -62,9 +62,23 @@ From an mp3:
     py mp3_to_wav.py mysound.mp3 --rate 11025
     py wav_to_vag.py mysound.wav --rate 11025
 
-11025 Hz MONO is the house standard and what every clip but swing.vag uses.
-22050 doubles the SPU cost for very little on a PS1's output; do not use it
-without a reason. Check what you got:
+11025 Hz MONO is the house standard for NEW clips. 22050 doubles the SPU cost
+for very little on a PS1's output; do not use it without a reason.
+
+>>> CORRECTION (Nov 2026): THIS LINE USED TO SAY "every clip but swing.vag"
+USES 11025, AND IT WAS WRONG. <<< Measured from the VAG headers, and checked
+against the source wavs and sound.c (which takes each voice's pitch from the
+header rate, so the header is the truth), 15 clips are at 22050:
+
+    RESIDENT  swing hurt pickup smash axehit unlock dropen DIE gr_shot
+              gr_reload step1 step2 slam          (13 of the 16 residents;
+                                                   only the menu blips aren't)
+    HOUSE     dogbark spit                         (dogbark is also in
+                                                   CATACOMBS and KENNELS)
+
+The early clips were all cut at 22050, and the later "standard" was only
+ever checked against the banked clips. STEP 3 has what this means for the
+budget. Check what you got:
 
     py -c "import struct;d=open('mysound.vag','rb').read(48);
     print(d[:4], struct.unpack('>I',d[12:16])[0], struct.unpack('>I',d[16:20])[0])"
@@ -109,8 +123,10 @@ STEP 3 budget does not move.
 TRAP: a shared clip is shared. HURT, AXEHIT, SWING, DIE, SLAM, the gun and
 the footsteps all play in the boss fight AND everywhere else, so re-gaining
 one for one fight re-gains it for the whole game. The five clips that are
-genuinely boss-only are FIREBALL, BOOM, EXPLODE, EMERGE and DMNSPEAK; those
-were the five taken up 50% in August 2026.
+genuinely boss-only were FIREBALL, BOOM, EXPLODE, EMERGE and DMNSPEAK; those
+were the five taken up 50% in August 2026. FIREBALL IS NO LONGER ONE OF THEM:
+Nessie's spit and Sharur's blade of light play it too, and it is resident
+again (Nov 2026), so re-gaining it now re-gains all three.
 
 TRAP: EXPLODE's length is load-bearing. RBE_T_D_BURN + RBE_T_D_FADE in
 rabisu_boss.c is cut to exactly its 322 frames. Re-gaining does not change
@@ -136,6 +152,51 @@ worked example: 8000 Hz, 6-bit, drive 2.5.
 The SAMPLE RATE is not crush_wav's business — set it in mp3_to_wav.py, since
 it is also what decides the clip's SPU cost. Note that dropping to 8000 Hz is
 itself most of the effect, and it is the only part of it that saves RAM.
+
+
+##########################################################################
+ STEP 1D — TRIM THE SILENCE (the cheapest SPU bytes there are)
+##########################################################################
+A clip costs its LENGTH, and silence costs exactly what sound costs. Several
+clips ended in a second or more of decay sitting more than 34 dB under their
+own peak, which can't be heard on a TV but is paid for in full. trim_wav.py
+cuts it, with the same in-place contract as gain_wav.py:
+
+    py trim_wav.py gr_shot.wav               # the tail only
+    py trim_wav.py DIE.wav --lead            # the tail AND the lead
+    py wav_to_vag.py gr_shot.wav --rate 22050   # at the clip's OWN rate
+
+"Silent" is relative to the clip's own peak (--thresh 0.02 = -34 dB). The cut
+lands --pad 0.05 s after the last loud sample, and the last --fade 0.08 s
+ramp to zero, so the end is a fade and never a click. It prints the SPU bytes
+saved.
+
+--lead IS OPT-IN FOR A REASON: cutting a silent lead moves the clip's attack
+EARLIER relative to whatever fires it. That is usually an improvement (DIE
+had 0.47 s of nothing before the cry), but check the call site first if the
+clip is timed to an animation.
+
+TRIM A RESIDENT AND EVERY BANK GETS THE BYTES. A resident clip is charged
+against `spare` directly (STEP 3), so a byte off a resident is a byte added
+to every bank at once. Trimming a banked clip helps only its own banks.
+
+>>> CHECK FOR A LOAD-BEARING LENGTH FIRST. <<< EXPLODE (rabisu_boss.c),
+RUMBLE (hadad.h) and MCHNE (piano_props.c) all have code timed to their
+exact length. Grep the clip's SFX_ name and look for a frame count before
+cutting.
+
+WORKED EXAMPLE (Nov 2026, paying for Sharur's two clips). Five residents,
+tails only except DIE:
+
+    gr_shot  2.50 -> 0.81 s   31,488 -> 10,176
+    unlock   2.11 -> 1.25 s   26,688 -> 15,744
+    DIE      1.68 -> 0.51 s   21,184 ->  6,464   (--lead)
+    swing    1.22 -> 0.40 s   15,488 ->  5,120
+    axehit   1.07 -> 0.41 s   13,568 ->  5,120
+                                   freed 65,664 bytes in EVERY bank
+
+None of the five had a load-bearing length (grepped). The pre-trim wavs are
+in git.
 
 
 ##########################################################################
@@ -169,6 +230,25 @@ clip in sound.c first, or ask "what if" without editing anything:
 
     py tools\spu_budget.py
     py tools\spu_budget.py SFX_TNTCL_DIE:CATACOMBS
+
+As of SHARUR'S CHARGE HUM AND FIREBALL (Nov 2026), both made RESIDENT:
+
+    bank_base 0x3A710   region 284912
+    house 217280   boss 183488   garden 177216   intro 22080   asag 170240
+    catacombs 225152   kennels 133248   lamashtu 213376   seal 104064
+    underworld 118528   plinth 149696   spare 59760
+
+  BEFORE IT, spare WAS 12,080 AND THE TWO CLIPS WERE 17,984. Sharur can be
+  in hand in any room, so it needed every bank or residency, and those cost
+  the same: both take the clip's size straight off `spare`. Residency is the
+  simpler one, so that's what was done. It also covers the title screen and
+  drops fireball's two banked copies. Only CATACOMBS overflowed (by 5,904);
+  HOUSE and LAMASHTU would have been left under 6 KB.
+
+  IT WAS PAID FOR BY STEP 1D, not by cutting Sharur's own clip: five
+  residents' near-silent tails freed 65,664 bytes in every bank (spare 12,080
+  -> 77,744), then the two clips took 17,984 of it. CATACOMBS is still the
+  largest bank and so still sets `spare`.
 
 As of GULA'S HOWL (Oct 2026), which needed a SEVENTH bank:
 
@@ -296,17 +376,36 @@ GARDEN IS THE LARGEST BANK AND HAS BEEN SINCE mchne_gh, so it is still the
 garden list that sets `spare` — but BOSS is now within 13 KB of it and would
 take over if the Rabisu gained another clip.
 
->>> THE RE-SAMPLING TRICK IS SPENT. THERE IS NOTHING LEFT OFF THE STANDARD. <<<
-Twice now a bank has been paid for by finding a clip running at 22050 Hz for no
-recorded reason and re-cutting it to the house 11025:
+>>> THE RE-SAMPLING TRICK IS *NOT* SPENT, WHATEVER THE NEXT PARAGRAPHS SAY.
+<<< (Corrected Nov 2026, see STEP 1.) It is spent for the clips those
+paragraphs checked, which were banked ones. But 13 of the 16 RESIDENTS are
+still at 22050, as are dogbark and spit, and a resident re-cut to 11025 halves
+its cost in EVERY bank at once:
+
+    dropen 63,872   gr_reload 42,496   smash 23,936   unlock 15,744 (trimmed)
+    slam 15,744   gr_shot 10,176 (trimmed)   DIE 6,464 (trimmed)
+    step2 5,632   step1 5,312   swing 5,120 (trimmed)   axehit 5,120 (trimmed)
+    pickup 4,096   hurt 3,648
+                  -> about 103 KB back if all thirteen were re-cut
+
+THE PRICE IS THE TOP OCTAVE OF THE PLAYER'S OWN SOUNDS, EVERYWHERE, so it is
+the user's call every time; ask before spending one. Prefer STEP 1D's tail
+trims first: they are inaudible and they come before this in the queue.
+dropen has no .wav in sounds/ (dr_open_close.wav is the likely source), so
+confirm where it came from before re-cutting it, and check door_anim.c's
+timing against its length.
+
+What follows is the original note, accurate for the clips it lists. Twice now
+a bank has been paid for by finding a clip running at 22050 Hz for no recorded
+reason and re-cutting it to the house 11025:
 
     dogdie        (house)          re-cut for SFX_RUMBLE      freed  9.8 KB
     spdr_wlk      (house + garden) re-cut for SFX_WATER       freed 11.7 KB
     tntcl_die     (house + garden) re-cut for SFX_WATER       freed 11.8 KB
 
-That was ALL of them. Every clip in the game is now at 11025 or below, so the
-next effect that does not fit has to be TRIMMED, BANKED or refused — there is no
-third copy of this trick. And note what the last two cost: both are shared with
+That was all of the BANKED ones that were checked (dogbark and spit were
+wrongly reported as standard; see STEP 1). The residents were never checked,
+and they are where the rest of this trick still lives (the note above). And note what the last two cost: both are shared with
 the HOUSE bank, so re-cutting them for a garden sound took the top octave off
 the spider's scuttle and the tentacle's death everywhere in the game, not just
 in the garden. That is the user's call every time; ask before spending one.
@@ -323,8 +422,8 @@ trimming rumble — hadad.h's HAD_RUMBLE_FRAMES is cut to that clip's exact leng
 dogdie.vag was 22050 Hz, and re-cutting it to 11025 freed 9.8 KB. That note
 used to say four more clips were still at 22050 and the trick had ~42 KB left in
 it; tntcl_die and spdr_wlk have since been spent on SFX_WATER, and dogbark and
-spit turned out to be at the standard already. See the list above: the trick is
-finished.)
+spit were thought to be at the standard already. They are not: both are 22050,
+see STEP 1.)
 
 (A DOOR SOUND'S BANK IS THE BANK OF THE ROOM BEING LEFT, not of the room being
 entered, and it is worth knowing before you reason about either. A transition
@@ -411,7 +510,7 @@ sfx_bank[], its own line in sfx_channel(), and one copy in sound_init():
 ##########################################################################
 The SPU has 24 (0..23). The scheme:
 
-    0        unused
+    0        SFX_GRIND        ...and SFX_SHARUR (RESIDENT, C-looped charge hum)
     1..8     the one-shot POOL, FIRST_VOICE + (id % 8)
     9        SFX_NINURTA      (the intro's voice line)
     10       SFX_CURSOR       (the menu blips: off the pool because a menu is
@@ -429,6 +528,19 @@ The SPU has 24 (0..23). The scheme:
     21       SFX_EXPLODE
     22       SFX_BOOM         ...and SFX_WOOSH, and SFX_BUZZ   (borrowed)
     23       SFX_RBS_SWING
+
+(That list is the original scheme. The full, current assignment is
+sfx_channel() in sound.c, and it is the one to read: many more effects borrow
+voices 13-16 and 20-23.)
+
+>>> THERE IS NO FREE VOICE LEFT, AND A RESIDENT LONG CLIP IS THE HARD CASE.
+<<< A banked clip can borrow a voice from a bank that can't be loaded at the
+same time. A resident clip is in every room, so it collides with EVERY
+claimant of its voice, and the only question is which claimant is rarest.
+Sharur's hum (Nov 2026) took voice 0, the grind's: GARDEN only, one 5.3 s
+sequence in one room. 10..12 look free but are not: graveolver.c and weapon.c
+play the menu blips mid-game. A voice shared this way must be keyed off only
+by its own caller (sharur.c's hum_on guard), never blind.
 
 Leave it in the pool unless one of these is true:
 
@@ -539,9 +651,15 @@ transition, behind the door animation's black screen, with CD-DA suspended —
 a CdRead issued while the drive is streaming audio HANGS IT. sound_bank_
 select() does the suspend/resume itself; never call it from inside a room.
 
-TRAP: anything that must play DURING a fight has to be RESIDENT. There is no
-way to swap a bank in mid-room. This is why the Rabisu's fireball, boom and
-explode are resident and only its two reveal clips are banked.
+TRAP: anything that must play DURING a fight has to be RESIDENT or in the bank
+that fight's room loads. There is no way to swap a bank in mid-room. (This
+used to say the Rabisu's fireball, boom and explode are resident; STEP 3
+explains why they moved onto SND_BANK_BOSS. Fireball is resident again, for
+Sharur.)
+
+TRAP, THE OTHER WAY ROUND: anything the PLAYER can do in any room (a weapon,
+an item) has to be RESIDENT, or tagged into every bank, which costs the same.
+Sharur's two clips are the worked example (STEP 3).
 
 
 ##########################################################################

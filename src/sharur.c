@@ -166,6 +166,31 @@ static int charge        = 0;   /* frames held, 0..SHR_CHARGE_FRAMES            
 static int tap_queued    = 0;   /* a tap released mid-swing: swing at rest      */
 static int glow_clock    = 0;
 
+/* THE CHARGE HUM (SFX_SHARUR, voice 0). A one-shot re-keyed from C every
+   SHR_HUM_FRAMES while Square is held past the tap threshold - never a
+   hardware loop, which would poison voice 0 (tools/ADDING_A_SOUND.txt STEP
+   6). It starts at SHR_TAP_FRAMES, not on the press, so a tap's swing does
+   not carry a blip of hum, and it runs on past full charge for as long as
+   Square stays down. Keyed off on release, in the menu, and by
+   sharur_cancel() - which every put-down, pickup and reset goes through. */
+static int hum_on        = 0;
+static int hum_clock     = 0;
+
+static void shr_hum_stop(void) {
+    if (!hum_on) return;    /* voice 0 is the grind's too: never key it off blind */
+    sound_stop(SFX_SHARUR);
+    hum_on    = 0;
+    hum_clock = 0;
+}
+
+static void shr_hum_tick(void) {
+    if (!hum_on || ++hum_clock >= SHR_HUM_FRAMES) {
+        sound_play(SFX_SHARUR);
+        hum_on    = 1;
+        hum_clock = 0;
+    }
+}
+
 /* Sharur's own swing latches - the three enemies the AXE cannot touch at all
    (see sharur_swing_extras). The axe's own latches live in crucifaxe.c and
    reset with melee_start_swing(); these reset with shr_start_swing(). */
@@ -227,9 +252,11 @@ static void shr_blade_throw(void) {
     blade.hit_lcr  = 0;
     blade.hit_boss = 0;
     blade.crate_blows = blade.door_blows = blade.vine_blows = 0;
+    sound_play(SFX_FIREBALL);   /* resident: the throw can happen in any room */
 }
 
 void sharur_cancel(void) {
+    shr_hum_stop();
     charge_armed = 0;
     charge       = 0;
     tap_queued   = 0;
@@ -319,15 +346,19 @@ void sharur_update(void) {
     glow_clock++;
 
     if (game_state == STATE_MENU) {
+        shr_hum_stop();
         charge_armed = 0;
         charge       = 0;
         tap_queued   = 0;
     } else if (sq_just) {
+        shr_hum_stop();
         charge_armed = 1;
         charge       = 0;
     } else if (charge_armed && sq_held) {
         if (charge < SHR_CHARGE_FRAMES) charge++;
+        if (charge >= SHR_TAP_FRAMES) shr_hum_tick();
     } else if (charge_armed) {
+        shr_hum_stop();         /* released: the hum ends whatever happens next */
         if (charge >= SHR_CHARGE_FRAMES) {
             shr_start_swing();
             shr_blade_throw();

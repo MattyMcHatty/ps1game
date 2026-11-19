@@ -132,10 +132,13 @@ typedef enum {
     SFX_MCHNE      = 21, /* grinding machinery — the piano room's sinking bookcase.
                             2.80 s at 11025 Hz; piano_props.c plays it twice back
                             to back and times the descent to match. */
-    /* ---- The Rabisu. ALL FIVE are SND_BANK_BOSS; three of them used to be
-       resident and did not need to be. See the bank note above. ---- */
-    SFX_FIREBALL   = 22, /* BANKED (boss). A fireball leaves the boss's chest
-                            (1.1 s)                                             */
+    /* ---- The Rabisu. FOUR of the five are SND_BANK_BOSS; three of them used
+       to be resident and did not need to be. See the bank note above. ---- */
+    SFX_FIREBALL   = 22, /* RESIDENT AGAIN (Nov 2026), and this time it must be:
+                            SHARUR's blade of light (src/sharur.c) plays it on
+                            the throw, and Sharur can be in hand in any room.
+                            The Rabisu's fireball and Nessie's spit share it.
+                            1.08 s, 6,848 SPU bytes, pool voice 7.              */
     SFX_BOOM       = 23, /* BANKED (boss). One poly of the light-beam path erupting (1.1 s).
                             Retriggered every RBS_BEAM_STEP (0.3 s) as the beam
                             walks, so each one is cut short by the next and the
@@ -671,7 +674,17 @@ typedef enum {
     SFX_DESTINY1   = 69,  /* BANKED (plinth). destiny1, 1.50 s                 */
     SFX_DESTINY2   = 70,  /* BANKED (plinth). destiny2, 1.80 s                 */
     SFX_DESTINY3   = 71,  /* BANKED (plinth). destiny3, 3.27 s                 */
-    SFX_COUNT      = 72,
+    /* SHARUR'S CHARGE HUM (src/sharur.c). RESIDENT: Sharur can be in hand in
+       any room, and a New Game+ carries it through every chapter. 1.76 s
+       (SHR_HUM_FRAMES), 11025 Hz mono, 11,136 SPU bytes, loop flag on its
+       LAST block (695 of 696) - a one-shot, RE-KEYED FROM C every
+       SHR_HUM_FRAMES while Square is held past the tap threshold, and keyed
+       off on release. Voice 0, SFX_GRIND's (GARDEN): see sound.c.
+       Paid for by trimming the near-silent tails off five residents (gr_shot,
+       unlock, swing, axehit, DIE; sounds/trim_wav.py), which freed 65,664
+       bytes in every bank - tools/ADDING_A_SOUND.txt STEP 3. */
+    SFX_SHARUR     = 72,  /* RESIDENT. sharur, 1.76 s, C-looped, voice 0       */
+    SFX_COUNT      = 73,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

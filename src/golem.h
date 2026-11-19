@@ -27,6 +27,23 @@
  *   - the save keys deaths by canonical_index, not by position, so moving a
  *     living Golem costs the save nothing.
  *
+ * >>> EVERY GOLEM MAY BLOCK SOMETHING. <<< (the user's rule, Nov 2026) A Golem
+ * carries a `blocks` tag (GolemBlock, below): the one thing in its room the
+ * player cannot use while it stands - a door, a tablet. It is NOT a wall: the
+ * Golem's plug already holds the player off; the tag is what the THING asks,
+ * through golem_blocks(area, what), before it answers a Circle or shows its
+ * prompt. A dead Golem (or an absent guard) blocks nothing, so killing it is
+ * the way through. Today:
+ *   - the Wings Tablet's guard blocks GLM_BLOCKS_WINGS_TABLET (tagged beside
+ *     its seed in world.c);
+ *   - Wingscape's door Golem blocks whichever door it is planted in front of
+ *     (GLM_BLOCKS_WINGSCAPE_W_DOOR / _SE_DOOR), re-tagged beside each re-plant
+ *     in world_place_wingscape_golem() - the tag moves with the Golem.
+ * A new Golem that guards something: a new GolemBlock value, golem_set_blocks()
+ * where it is placed, and a golem_blocks() test in the thing's own trigger AND
+ * its prompt. The tag survives golems_rest and every re-plant (glm_spawn keeps
+ * it, as it keeps `guard`); golem_add / golem_add_guard clear it.
+ *
  * THE FIGHT, in order:
  *
  *   IDLE    Until the player DAMAGES it, with anything. It breathes - frames 1
@@ -239,6 +256,15 @@ typedef enum {
     GLM_DEAD,
 } GolemState;
 
+/* What a Golem stops the player using while it stands (see the head). One
+   value per guarded thing, in any room; NOTHING is the default. */
+typedef enum {
+    GLM_BLOCKS_NOTHING = 0,
+    GLM_BLOCKS_WINGS_TABLET,       /* Wingscape: the tablet's summoned guard   */
+    GLM_BLOCKS_WINGSCAPE_W_DOOR,   /* Wingscape: the door Golem, west spot     */
+    GLM_BLOCKS_WINGSCAPE_SE_DOOR,  /* Wingscape: the door Golem, south-east    */
+} GolemBlock;
+
 typedef struct {
     int32_t     x, y, z;        /* y is the standing anchor (floor - 149)      */
     int32_t     spawn_x, spawn_z, spawn_y;
@@ -267,6 +293,9 @@ typedef struct {
        planted ABSENT (GLM_DEAD) and brought in by golem_summon(). Survives
        glm_spawn's wipe, so golems_rest() keeps it a guard. */
     int         guard;
+    /* What it stops the player using while it stands (GolemBlock; the head).
+       Survives glm_spawn's wipe like `guard`. */
+    GolemBlock  blocks;
 } Golem;
 
 extern Golem golems[MAX_GOLEMS];
@@ -287,6 +316,13 @@ int  golem_add(int32_t x, int32_t z, GameState area);
 /* Re-plant a living Golem somewhere else (a route- or flag-dependent spot, see
    the head). Does nothing to a dead one. */
 void golem_set_spawn(int idx, int32_t x, int32_t z);
+
+/* ---- BLOCKING (see the head) -----------------------------------------------
+     golem_set_blocks  tag Golem idx with what it blocks (alive or not).
+     golem_blocks      1 while any STANDING Golem in `area` blocks `what` -
+                       the guarded thing's own trigger and prompt ask this. */
+void golem_set_blocks(int idx, GolemBlock what);
+int  golem_blocks(GameState area, GolemBlock what);
 
 /* ---- SUMMONED GOLEMS (the Wings Tablet's guard, src/wings_tablet.h) --------
    A guard is a seeded slot like any other - so it costs one place in the

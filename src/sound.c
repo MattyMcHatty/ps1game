@@ -104,6 +104,7 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\DESTINY1.VAG;1",
     "\\SND\\DESTINY2.VAG;1",
     "\\SND\\DESTINY3.VAG;1",
+    "\\SND\\SHARUR.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -198,10 +199,15 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* eleven banks: 16 bits */
        Garden Courtyard alone, and the BOSS bank is in for the whole of that
        room. The bank was already making the guarantee the residency was paying
        for — 47 KB of permanent SPU RAM, charged twice over (see sound.h). */
-    /* ...and a copy in the UNDERWORLD bank for NESSIE (src/nessie.h), whose
-       spit is this same clip. 6.8 KB; the chapter's bank had 199 KB of room
-       and is nowhere near the largest, so `spare` does not move. */
-    [SFX_FIREBALL]   = SND_BANK_BOSS | SND_BANK_UNDERWORLD,
+    /* (It then gained a copy in the UNDERWORLD bank for NESSIE, src/nessie.h,
+       whose spit is this same clip.)
+       >>> AND THEN FIREBALL WENT BACK TO RESIDENT, FOR A REASON THE ABOVE
+       DOES NOT COVER (Nov 2026). <<< SHARUR's blade of light (src/sharur.c)
+       plays it on the throw, and Sharur can be in hand in ANY room, so no set
+       of banks can promise it. Resident costs what a copy in every bank
+       would, and drops the two banked copies. The Rabisu and Nessie get it
+       from here too. Paid for by the tail trims noted at SFX_SHARUR. */
+    [SFX_FIREBALL]   = SND_RESIDENT,
     [SFX_BOOM]       = SND_BANK_BOSS,
     /* >>> BOTH BOSSES BLOW UP, SO EXPLODE IS IN BOTH BANKS. <<< Asag's death
        is the Rabisu's death — red glow, shaking, light pouring out of the body,
@@ -435,6 +441,8 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* eleven banks: 16 bits */
     [SFX_DESTINY1]   = SND_BANK_PLINTH,
     [SFX_DESTINY2]   = SND_BANK_PLINTH,
     [SFX_DESTINY3]   = SND_BANK_PLINTH,
+    /* Sharur's charge hum: in hand anywhere, so RESIDENT (see sound.h). */
+    [SFX_SHARUR]     = SND_RESIDENT,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -450,7 +458,10 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* eleven banks: 16 bits */
      - BOOM gets one so the beam's detonations are cut only by the NEXT
        detonation, which is the intended read (see sound.h).
    FIREBALL stays in the pool deliberately: it is a 1.1 s one-shot, and the
-   only other id in its slot (DOGDIE) is banked out wherever a Rabisu is. */
+   only other id in its slot (DOGDIE) is banked out wherever a Rabisu is.
+   (Since Sharur throws it too, it CAN now meet a dog's death on voice 7 in
+   the house or the Kennels; two 1 s one-shots, one cutting the other, which
+   was judged not worth a voice.) */
 static int sfx_channel(SfxID id) {
     if (id == SFX_ZOMBIE)      return 16;
     if (id == SFX_TNTCL_WRTH)  return 17;   /* continuous loop; own voice too */
@@ -514,6 +525,16 @@ static int sfx_channel(SfxID id) {
        Living Statue — and the statue is GARDEN too, so it could sound in this
        very room the day one is placed here. */
     if (id == SFX_GRIND)       return 0;
+    /* SHARUR'S CHARGE HUM shares voice 0 with the grind, and it is the
+       least-bad voice in the game, not a free one: NO voice is unclaimed.
+       The hum is resident and wanted in every room, so a voice is only as
+       good as its rarest claimant, and GRIND (GARDEN, the grinders' 5.3 s
+       sequence in one room) is the rarest. 10..12 looked free - they are
+       the menu blips - but graveolver.c and weapon.c play those mid-game.
+       Not poisoned: sharur.vag's loop flag is on its last block (695 of
+       696), and sharur.c re-keys it from C rather than looping it in
+       hardware, so it must stay that way (STEP 6 of tools/ADDING_A_SOUND). */
+    if (id == SFX_SHARUR)      return 0;    /* SFX_GRIND's (GARDEN)   one-shot */
     /* The death scene's two clips, both off the pool: they are 3.45 s and
        4.49 s, they are the whole soundtrack of the moment, and nothing may cut
        either. Their pool slots would be FIRST_VOICE + (42 % 8) = 3 and
