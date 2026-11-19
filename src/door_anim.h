@@ -174,8 +174,10 @@
                                  1.5 s shut, a 6 s swing, 1.5 s open, 3 s to
                                  black (15 s), the dolly over the last 6 s.
 
-                                 SILENT FOR NOW: it will get a sound of its own
-                                 (see DST_SFX_FRAME in door_anim.c). The panel is
+                                 THREE SOUNDS OF ITS OWN, never SFX_DOOR:
+                                 DESTINY1 as it appears, DESTINY2 as it opens,
+                                 DESTINY3 once the camera is through (see
+                                 DST_SFX1..3_FRAME in door_anim.c). The panel is
                                  4:3, the door's own shape in the Chamber.
 
                                  ITS TEXTURE IS ROOM ART, on the catacomb

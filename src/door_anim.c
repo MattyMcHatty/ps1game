@@ -402,11 +402,18 @@
 #define DST_SWING_START      (DST_FADE_IN_FRAMES + DST_HOLD_CLOSED)
 #define DST_FADE_START       (DST_SWING_START + DST_SWING_FRAMES + DST_HOLD_OPEN)
 #define DST_TOTAL_FRAMES     (DST_FADE_START + DST_FADE_FRAMES)
-/* THE SOUND, WHEN THERE IS ONE: the shared clock plays its door on the frame
-   the fade-in ends, and this is that frame. door_anim_update plays nothing
-   for this variant until the clip exists (a sound_play there, and the clip in
-   SND_BANK_PLINTH, which both rooms load). */
-#define DST_SFX_FRAME        DST_FADE_IN_FRAMES
+/* THE SOUNDS, three of them, per the brief (all SND_BANK_PLINTH, which both
+   rooms load - see sound.h):
+     DESTINY1 "when the door first appears"   - frame 1, the first tick of the
+              fade up from black (door_anim_update increments before testing,
+              so frame 0 is never seen there).
+     DESTINY2 "as it opens"                    - the frame the leaves start.
+     DESTINY3 "after the camera has moved through it, but before the room
+              loads" - the dolly runs out on the last frame, together with the
+              fade, and door_anim_finished hands that frame to STATE_LOADING. */
+#define DST_SFX1_FRAME       1                     /*   0.0 s */
+#define DST_SFX2_FRAME       DST_SWING_START       /* 270, 4.5 s */
+#define DST_SFX3_FRAME       DST_TOTAL_FRAMES      /* 900, 15 s  */
 #define DST_PANEL_W         112
 #define DST_HALF_H           84
 #define DST_L_U_OUTER         0
@@ -712,9 +719,18 @@ void door_anim_update(void) {
        and the FALL has none: the drop in the yard that leads into it is silent
        too, and the brief asks for the rush of the plane and nothing over it. */
     if (is_fall()) return;
-    /* DESTINY'S DOOR IS SILENT UNTIL ITS OWN SOUND ARRIVES - the user is
-       supplying one. It goes here, on DST_SFX_FRAME. Never SFX_DOOR meanwhile. */
-    if (is_destiny()) return;
+    /* DESTINY'S DOOR HAS THREE CUES OF ITS OWN, never SFX_DOOR (see DST_SFX_*):
+       DESTINY1 as the door first appears, DESTINY2 as the leaves begin to
+       open, DESTINY3 once the camera is through - the dolly and the fade both
+       end on DST_TOTAL_FRAMES, the frame door_anim_finished hands over to
+       STATE_LOADING, so it rings out before the room loads. All three are
+       SND_BANK_PLINTH, the bank of both rooms this door joins. */
+    if (is_destiny()) {
+        if      (anim_timer == DST_SFX1_FRAME) sound_play(SFX_DESTINY1);
+        else if (anim_timer == DST_SFX2_FRAME) sound_play(SFX_DESTINY2);
+        else if (anim_timer == DST_SFX3_FRAME) sound_play(SFX_DESTINY3);
+        return;
+    }
     /* THE CATACOMB DOOR'S SOUND FRAME IS NOT ITS FADE-IN FRAME. Every other
        variant plays on the frame the door becomes fully visible, because for
        those two that is the same frame; this one comes up out of black at 30,

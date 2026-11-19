@@ -68,10 +68,11 @@ STEPS
   [x] 13. "Press O to enter" now goes THROUGH: heros_plinth_frame_update
           returns 1 and main.c takes the player to the Chamber of Destiny
           (src/chamber_of_destiny.h) on DOOR_PANEL_DESTINY - both leaves
-          swinging, every stage of the double door's clock x3 (15 s), SILENT
-          until the user supplies its sound (DST_SFX_FRAME in door_anim.c; the
-          clip goes in SND_BANK_PLINTH, which both rooms load). Back out lands
-          in front of the frame, facing east.
+          swinging, every stage of the double door's clock x3 (15 s), with
+          three cues of its own: DESTINY1 as it appears (frame 1), DESTINY2 as
+          it opens (270), DESTINY3 once the camera is through, before the load
+          (900) - DST_SFX1..3_FRAME in door_anim.c, all SND_BANK_PLINTH, which
+          both rooms load. Back out lands in front of the frame, facing east.
 
 VERIFIED (headless PCSX-Redux, force-booted into the room, all three dead)
   - The scene ran start to finish, no exception: glide to (0,-189,0), yaw

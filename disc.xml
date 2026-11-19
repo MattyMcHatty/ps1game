@@ -305,6 +305,12 @@
                 <file name="TWINKLE1.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\twinkle1.vag"/>
                 <file name="TWINKLE2.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\twinkle2.vag"/>
                 <file name="TWINKLE3.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\twinkle3.vag"/>
+                <!-- Destiny's Door's transition (src/door_anim.c), SND_BANK_PLINTH
+                     only. 11025 Hz mono one-shots. DESTINY1 1.50 s and DESTINY2
+                     1.80 s (pool), DESTINY3 3.27 s (voice 20). -->
+                <file name="DESTINY1.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\destiny1.vag"/>
+                <file name="DESTINY2.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\destiny2.vag"/>
+                <file name="DESTINY3.VAG" type="data" source="C:\Users\virtu\Documents\ps1game\sounds\destiny3.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one

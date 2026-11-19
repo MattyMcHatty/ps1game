@@ -101,6 +101,9 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\TWINKLE1.VAG;1",
     "\\SND\\TWINKLE2.VAG;1",
     "\\SND\\TWINKLE3.VAG;1",
+    "\\SND\\DESTINY1.VAG;1",
+    "\\SND\\DESTINY2.VAG;1",
+    "\\SND\\DESTINY3.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -423,6 +426,15 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* eleven banks: 16 bits */
     [SFX_TWINKLE1]   = SND_BANK_PLINTH,
     [SFX_TWINKLE2]   = SND_BANK_PLINTH,
     [SFX_TWINKLE3]   = SND_BANK_PLINTH,
+    /* Destiny's Door's transition (src/door_anim.c, DOOR_PANEL_DESTINY),
+       PLINTH only. A door sound's bank is the bank of the room being LEFT,
+       and the door runs both ways between Hero's Plinth and the Chamber of
+       Destiny - both of which main.c puts on SND_BANK_PLINTH - so one tag
+       covers both directions, and sound_bank_select is a no-op across it
+       (same bank), which is what lets DESTINY3 ring on through the load. */
+    [SFX_DESTINY1]   = SND_BANK_PLINTH,
+    [SFX_DESTINY2]   = SND_BANK_PLINTH,
+    [SFX_DESTINY3]   = SND_BANK_PLINTH,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -801,6 +813,17 @@ static int sfx_channel(SfxID id) {
        (CTCMBDR) and 22 (WOOSH). spirit_decend.vag's loop flag is on its last
        block. */
     if (id == SFX_SPIRIT_DESC) return 21;   /* SFX_EXPLODE's (BOSS)  one-shot */
+    /* Destiny's Door's last cue, 3.27 s: off the pool, because it starts on
+       the door animation's final frame and rings on through STATE_LOADING into
+       the arrival, where the player is free to walk (footsteps, voices 1/2)
+       and swing. Its pool slot would be FIRST_VOICE + (71 % 8) = 8, UNLOCK's.
+       20's claimants - DMNSPEAK (BOSS|ASAG), HAD_DIE (GARDEN), CREEP
+       (CATACOMBS), HOWL (KENNELS), AHR_FLASH (UNDERWORLD) - are all outside
+       SND_BANK_PLINTH, and all one-shots, so 20 is not poisoned. destiny3.vag's
+       loop flag is on its last block, 1287 of 1288. DESTINY1/2 (1.50 s,
+       1.80 s) stay in the pool, voices 6/7: the player is anchored for the
+       whole animation and nothing else sounds over it. */
+    if (id == SFX_DESTINY3)    return 20;   /* SFX_DMNSPEAK's (BOSS)  one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

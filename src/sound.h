@@ -657,7 +657,21 @@ typedef enum {
     SFX_TWINKLE1   = 66,  /* BANKED (plinth). twinkle1, 0.94 s                 */
     SFX_TWINKLE2   = 67,  /* BANKED (plinth). twinkle2, 0.94 s                 */
     SFX_TWINKLE3   = 68,  /* BANKED (plinth). twinkle3, 0.94 s                 */
-    SFX_COUNT      = 69,
+    /* DESTINY'S DOOR's transition (src/door_anim.c, DOOR_PANEL_DESTINY), both
+       ways between Hero's Plinth and the Chamber of Destiny. BANKED (plinth)
+       and nowhere else - both rooms load it. 11025 Hz mono ONE-SHOTS, loop
+       flag on the last block.
+         DESTINY1  1.50 s, 9,472 SPU bytes. The door first appears: frame 1,
+                   as the fade up from black begins. Pool voice 6.
+         DESTINY2  1.80 s, 11,392 SPU bytes. The leaves begin to open:
+                   DST_SWING_START (270). Pool voice 7.
+         DESTINY3  3.27 s, 20,608 SPU bytes. The camera is through: the last
+                   frame of the dolly/fade (DST_TOTAL_FRAMES, 900), before
+                   STATE_LOADING. Voice 20, off the pool - see sound.c. */
+    SFX_DESTINY1   = 69,  /* BANKED (plinth). destiny1, 1.50 s                 */
+    SFX_DESTINY2   = 70,  /* BANKED (plinth). destiny2, 1.80 s                 */
+    SFX_DESTINY3   = 71,  /* BANKED (plinth). destiny3, 3.27 s                 */
+    SFX_COUNT      = 72,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.
