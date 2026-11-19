@@ -44,6 +44,8 @@ POOL_CELL = 50
 POOLS = [('SHARUR_NW', 'assets/underworld/Sharurs Trial.smx',        'lava',    (-1300, 200)),
          ('SHARUR_N',  'assets/underworld/Sharurs Trial.smx',        'lava',    (250, 2200)),
          ('SHARUR_E',  'assets/underworld/Sharurs Trial.smx',        'lava',    (1950, -200)),
+         ('AWS_N',     'assets/underworld/A Woman Scorned.smx',      'lava',    (3400, 3600)),
+         ('AWS_SE',    'assets/underworld/A Woman Scorned.smx',      'lava',    (4830, 120)),
          ]
 
 

@@ -30,6 +30,9 @@
 #include "particles.h"
 #include "btn_glyph.h"
 #include "door.h"
+#include "golem.h"              /* the two free-standing Golems              */
+#include "nessie.h"             /* a Nessie in each lava pool                */
+#include "ahriman.h"            /* the two Ahrimans                          */
 
 /* A Woman Scorned - see a_woman_scorned.h. The room half is src/wingscape.c's
    (itself Lava U's, itself Hell Hath No Fury's): cull keys, radius side cull
@@ -478,11 +481,16 @@ void a_woman_scorned_draw(RenderContext *ctx) {
     render_set_clear_colour(ctx, UW_FOG_R, UW_FOG_G, UW_FOG_B);
 
     /* 128x128 texture window so per-poly UVs wrap within each texture's page.
-       All five room textures and the sky's sit at Voff 0. */
+       All five room textures and the sky's sit at Voff 0. The three enemy
+       sheets do NOT (Voff 128), so each brackets itself and is told what to
+       restore. */
+    RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+    golems_set_texwindow(&tw);
+    nessies_set_texwindow(&tw);
+    ahrimans_set_texwindow(&tw);
     {
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
         if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
-            RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
             DR_TWIN *twin = (DR_TWIN *)ctx->next_packet;
             setTexWindow(twin, &tw);
             addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_LENGTH - 1], twin);
@@ -500,10 +508,14 @@ void a_woman_scorned_draw(RenderContext *ctx) {
         draw_aws_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE SOUTH-WEST DOOR'S SIGN and any pickup a later seed
-       puts down. No props, no enemies. */
+    /* >>> LEVEL 8 IS THE ENEMIES - two Golems, two Nessies with their
+       fireballs, two Ahrimans (all area-gated inside) - the SOUTH-WEST
+       DOOR'S SIGN and any pickup a later seed puts down. No props. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
+        draw_golems(ctx);
+        draw_nessies(ctx);
+        draw_ahrimans(ctx);
         aws_sw_text(ctx);
     }
 }

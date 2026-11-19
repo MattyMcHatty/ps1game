@@ -75,7 +75,7 @@
  * y128), CLUTs (144,480)/(160,480): tools/split_ahriman_sheet.py, disc.xml.
  * Voff 128, so every sprite brackets its own texture window.
  *
- * >>> ONLY LAVA U UPLOADS THE SHEET TODAY. <<< Placing one in another room
+ * >>> ONLY LAVA U AND A WOMAN SCORNED UPLOAD THE SHEET TODAY. <<< Placing one in another room
  * means: the placement in world.c (with its height), the room in
  * ahriman_room_has_sheet() (the .c) - which main.c and tools/gen_tex_rooms.py
  * key the upload on - update_ahrimans() / draw_ahrimans() /
@@ -99,7 +99,8 @@
  * UNDERWORLD copy for this).
  * ----------------------------------------------------------------------- */
 
-#define MAX_AHRIMANS           8    /* WHOLE-GAME budget. Three placed: Lava U */
+#define MAX_AHRIMANS           8    /* WHOLE-GAME budget. Five placed: three in
+                                       Lava U, two in A Woman Scorned */
 
 /* ---- Health, in half-points - see above. */
 #define AHR_MAX_HEALTH         3

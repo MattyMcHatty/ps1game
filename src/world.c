@@ -456,7 +456,8 @@ static int room_index(GameState area) {
            Door in Hero's Plinth. Slot 67. Seeded EMPTY. */
         case STATE_CHAMBER_OF_DESTINY: return 67;
         /* A WOMAN SCORNED, Chapter 4's seventh room, behind Hell Hath No
-           Fury's north-east door. Slot 68. Seeded EMPTY. */
+           Fury's north-east door. Slot 68. Seeded with two Golems, two
+           Nessies and two Ahrimans (world_seed_room). */
         case STATE_A_WOMAN_SCORNED:   return 68;
         default:                   return 0;
     }
@@ -2281,6 +2282,38 @@ void world_seed_room(GameState area) {
                                          WT_GUARD_Z, STATE_WINGSCAPE),
                          GLM_BLOCKS_WINGS_TABLET);   /* the tablet is silent
                                                         while it stands */
+
+    /* A WOMAN SCORNED (the user's placements, Nov 2026). Every one APPENDS to
+       its kind's seed order, so no existing save bit moves.
+
+       TWO GOLEMS, guarding nothing (no golem_set_blocks) and only ever at
+       these spots - no re-plant:
+         (6260,672)  the east side, 339 off the east rim (x=6599) and 460
+                     east of the pillar block x[5400,5800].
+         (310,3122)  the west side, 310 off the west rim (x=0) and 290 west
+                     of the pillar block x[600,1400] z[3000,4000].
+       Neither is over lava.
+
+       TWO NESSIES, one at the middle of each lava pool (each pool's area
+       centroid, from the visual mesh), each confined to its own pool
+       (NSS_POOL_AWS_*, tools/gen_nessie_pools.py):
+         (3400,3600) the NORTH pool, x[3000,3800] z[3200,4000];
+         (4830,120)  the SOUTH-EAST pool, x[4200,5600] z[-600,1000], 187 off
+                     the nearest corner of the pillar block standing in it.
+
+       TWO AHRIMANS: (4485,3082) at HEIGHT B, 314 off the x=4799 wall; and
+       (1559,4510) at HEIGHT C, by the north rim - 241 off the x=1800 wall
+       and ~190 off the diagonal above it. Both clear of AHR_BODY_RADIUS
+       (100). No route table entry: they fly straight and slide along the
+       pillars. */
+    if (area == STATE_A_WOMAN_SCORNED) {
+        golem_add(6260,  672, STATE_A_WOMAN_SCORNED);
+        golem_add( 310, 3122, STATE_A_WOMAN_SCORNED);
+        nessie_add(3400, 3600, NSS_POOL_AWS_N,  STATE_A_WOMAN_SCORNED);
+        nessie_add(4830,  120, NSS_POOL_AWS_SE, STATE_A_WOMAN_SCORNED);
+        ahriman_add(4485, 3082, AHR_HEIGHT_B, STATE_A_WOMAN_SCORNED);
+        ahriman_add(1559, 4510, AHR_HEIGHT_C, STATE_A_WOMAN_SCORNED);
+    }
 }
 
 /* ---- Wingscape's Golem: where it stands depends on the way in --------------

@@ -474,7 +474,7 @@ static const DebugGroup debug_chapters[] = {
    size check under it fails the build if a new option has not been placed. */
 static const DebugOpt debug_opt_order[] = {
     /* PLAYER */
-    DBG_HAS_GRAVEOLVER, DBG_HAS_HELLUMINATOR,
+    DBG_HAS_GRAVEOLVER, DBG_HAS_HELLUMINATOR, DBG_HAS_SHARUR,
     DBG_INFINITE_LIFE,  DBG_INFINITE_STAMINA,
     /* CH1 - MANSION: the house's items and the Attic Exit's door */
     DBG_HAS_WAX_AND_POT, DBG_HAS_PIANO_KEY,
@@ -492,17 +492,17 @@ static const DebugOpt debug_opt_order[] = {
     DBG_SHARUR_TABLET_SOLVED, DBG_WINGS_TABLET_SOLVED,
     DBG_ADAPA_DEAD, DBG_HADAD_DEAD, DBG_GULA_DEAD,
     DBG_DESTINY_DOOR,
-    DBG_HAS_SHARUR, DBG_HAS_DESTINY_TABLET,
+    DBG_HAS_DESTINY_TABLET,
 };
 typedef char debug_opt_order_is_complete
     [(DBG_COUNT(debug_opt_order) == DEBUG_OPT_COUNT) ? 1 : -1];
 
 static const DebugGroup debug_opt_groups[] = {
     {  0, "PLAYER"           },
-    {  4, "CH1 - MANSION"    },
-    {  8, "CH2 - GARDEN"     },
-    { 14, "CH3 - CATACOMBS"  },
-    { 25, "CH4 - UNDERWORLD" },   /* Sharur's Tablet onwards */
+    {  5, "CH1 - MANSION"    },
+    {  9, "CH2 - GARDEN"     },
+    { 15, "CH3 - CATACOMBS"  },
+    { 26, "CH4 - UNDERWORLD" },   /* Sharur's Tablet onwards */
 };
 
 static DebugTree debug_levels = {

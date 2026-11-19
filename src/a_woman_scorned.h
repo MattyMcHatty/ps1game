@@ -12,10 +12,15 @@
    THE SHAPE. One storey of volcanic ground at y=0, x[0,6600] z[-600,4800],
    with an irregular rim (the collision proxy's outer walls, 774 tall), square
    rock pillars standing about the floor (600 tall) and two lava pools - the
-   south-west and the south-east - that burn like every Chapter 4 floor's
-   (its ROOMS line in tools/gen_lava_floors.py). It hangs in the chapter's
-   sky (src/underworld_sky.h), centred on it. One flat floor zone. No props,
-   no enemies.
+   north, x[3000,3800] z[3200,4000], and the south-east, x[4200,5600]
+   z[-600,1000] - that burn like every Chapter 4 floor's (its ROOMS line in
+   tools/gen_lava_floors.py). It hangs in the chapter's sky
+   (src/underworld_sky.h), centred on it. One flat floor zone. No props.
+
+   ENEMIES (world.c's world_seed_room, the user's placements): two GOLEMS
+   standing free at (6260,672) and (310,3122), guarding nothing; a NESSIE in
+   the middle of each lava pool, confined to it; two AHRIMANS, (4485,3082)
+   at height B and (1559,4510) at height C.
 
    TWO DOORS, in the south corners:
      - SOUTH-WEST: a catacomb inner door, distorted - narrow at the floor and

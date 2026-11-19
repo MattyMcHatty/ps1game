@@ -3661,9 +3661,17 @@ static void update_current_area(GameState area) {
            a CATACOMB inner door on both sides, so the catacomb transition
            (its texture is uploaded by this room, its sound banked for the
            chapter). The latch tells HHNF which arrival this is. The
-           south-east double door leads nowhere yet. */
+           south-east double door leads nowhere yet. No props.
+
+           ENEMIES (world_seed_room): two free-standing GOLEMS, a NESSIE in
+           each lava pool and two AHRIMANS. Their pushes ride
+           apply_collision_reception; all three updates are area-gated
+           inside. */
         apply_collision_reception();
         apply_height();
+        update_golems();
+        update_nessies();
+        update_ahrimans();
         if (a_woman_scorned_sw_door_triggered(lock)) {
             hhnf_from_aws = 1;
             pending_area = STATE_HELL_HATH_NO_FURY;

@@ -69,7 +69,7 @@ void ahrimans_upload_textures(void) {
    tools/gen_tex_rooms.py mirrors it as AHRIMAN_ROOMS - keep the two in step, or
    the texture late-loads (logged, still correct). */
 int ahriman_room_has_sheet(GameState area) {
-    return area == STATE_LAVA_U;
+    return area == STATE_LAVA_U || area == STATE_A_WOMAN_SCORNED;
 }
 
 /* Integer square root, nessie.c's - including the `t > 0` seed (mistake 11 in

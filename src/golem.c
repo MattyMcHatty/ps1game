@@ -78,7 +78,7 @@ void golems_upload_textures(void) {
 /* The rooms whose entry uploads the sheet. main.c keys the upload on this, and
    tools/gen_tex_rooms.py mirrors it as GOLEM_ROOMS - keep the two in step. */
 int golem_room_has_sheet(GameState area) {
-    return area == STATE_WINGSCAPE;
+    return area == STATE_WINGSCAPE || area == STATE_A_WOMAN_SCORNED;
 }
 
 /* Integer square root, ahriman.c's - including the `t > 0` seed (mistake 11 in
