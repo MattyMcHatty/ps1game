@@ -7084,9 +7084,13 @@ int main(int argc, const char **argv) {
             /* CHAPTER 4 MUSIC, the Catacombs' rule above: every Underworld
                room plays the chapter's track (src/cdaudio.h) from its first
                frame, by every route in. DESCENT TO HELL is the exception: a
-               cutscene that started its own wind in the chain above. */
-            if (area_is_underworld(pending_area) &&
-                pending_area != STATE_DESCENT_TO_HELL)
+               cutscene that started its own wind in the chain above.
+               THE CHAMBER OF DESTINY plays its own track instead
+               (CDAUDIO_DESTINY_TRACK, src/cdaudio.h). */
+            if (pending_area == STATE_CHAMBER_OF_DESTINY)
+                cdaudio_play(CDAUDIO_DESTINY_TRACK, 1);
+            else if (area_is_underworld(pending_area) &&
+                     pending_area != STATE_DESCENT_TO_HELL)
                 cdaudio_play(CDAUDIO_UNDERWORLD_TRACK, 1);
 
             /* The room is built; it draws itself from the bottom of this frame

@@ -49,12 +49,12 @@
 
    THAT IS A PLACEHOLDER AND THE TWO FIGHTS CURRENTLY SOUND THE SAME. Giving
    Asag his own track is ONE line appended to the foot of disc.xml and CHANGING
-   THE 6 BELOW TO 13. Nothing else: no call site mentions a number, they all go
+   THE 6 BELOW TO 14. Nothing else: no call site mentions a number, they all go
    through this name, which is why the name exists.
 
-   >>> THE RESERVED SLOT IS NOW 13. <<< The Catacombs took 9 in September 2026,
+   >>> THE RESERVED SLOT IS NOW 14. <<< The Catacombs took 9 in September 2026,
    Descent to Hell's wind took 10, the Gaol 11 and the Underworld 12 in
-   October, which cost this nothing: the
+   October, the Chamber of Destiny 13 in November, which cost this nothing: the
    reservation was never about a number, it was about the track being APPENDED. The track NUMBER is a line's position
    in disc.xml and nothing else, so Asag's must go after the Catacombs' at the
    foot of that file — inserted anywhere else it renumbers every track after it
@@ -74,7 +74,7 @@
    would arrive with The Hatch's music still playing. */
 #define CDAUDIO_ASAG_TRACK      6   /* BORROWED from the courtyard — see above.
                                        Append his track to disc.xml and change
-                                       this 6 to a 13.                        */
+                                       this 6 to a 14.                        */
 /* CHAPTER 4: DESCENT TO HELL's wind, 16.8 s - longer than the scene, so it is
    played ONCE (no loop) from the first frame of the fade in, and the sign-off
    screen's own track replaces it (src/descent_to_hell.c). */
@@ -85,6 +85,12 @@
    which is a cutscene with its own wind. A new Chapter 4 room inherits it by
    being added to area_is_underworld(); one that should differ says so there. */
 #define CDAUDIO_UNDERWORLD_TRACK 12 /* the Underworld (139.2 s)               */
+/* CHAPTER 4: megis-music-cinematic-heaven-430573, 174.1 s. The CHAMBER OF
+   DESTINY plays this INSTEAD of CDAUDIO_UNDERWORLD_TRACK - for now the only
+   room that does. Same one-place rule: main.c's Chapter 4 music block. Its
+   drive-mixer level is matched to the Underworld track's (CD_MIX_DESTINY in
+   cdaudio.c), so the two sit at the same loudness. */
+#define CDAUDIO_DESTINY_TRACK   13  /* the Chamber of Destiny (174.1 s)       */
 
 void cdaudio_init(void);
 /* loop = 1 repeats the track for as long as the room lasts; loop = 0 plays it

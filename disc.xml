@@ -2264,5 +2264,11 @@
          ffmpeg -y -i kulakovka-dark-synthwave-624644.mp3 -ar 44100 -ac 2 -c:a pcm_s16le -->
     <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\kulakovka-dark-synthwave-624644.wav"/>
 
+    <!-- Track 13: THE CHAMBER OF DESTINY. 174.1 s, that room's own music in
+         place of the chapter's (main.c's Chapter 4 music block). APPENDED, for
+         the reason Track 9 gives. 44100 Hz 16-bit stereo:
+         ffmpeg -y -i megis-music-cinematic-heaven-430573.mp3 -ar 44100 -ac 2 -c:a pcm_s16le -->
+    <track type="audio" source="C:\Users\virtu\Documents\ps1game\music\megis-music-cinematic-heaven-430573.wav"/>
+
 
 </iso_project>

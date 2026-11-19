@@ -130,6 +130,11 @@
  * 128 * 10^(-16.1/20) = 20, so all three chapters' effects play against the
  * same music level. Re-measure if either WAV is replaced. */
 #define CD_MIX_UNDERWORLD  20   /* ~16% of CD_MIX_FULL                   */
+/* THE CHAMBER OF DESTINY'S TRACK, matched to the Underworld's as it plays,
+ * the Gaol's way: megis-music-cinematic-heaven is RMS -15.6 dBFS against
+ * kulakovka-dark-synthwave's -11.1, 4.4 dB quieter, so it gets 4.4 dB more
+ * mixer: 20 * 10^(4.44/20) = 33. Re-measure if either WAV is replaced. */
+#define CD_MIX_DESTINY     33   /* ~26% of CD_MIX_FULL                   */
 
 static int           cd_audio_playing = 0;
 static int           cd_track_num     = 0;
@@ -361,6 +366,7 @@ void cdaudio_play(int track, int loop) {
         uint8_t v = (track == CDAUDIO_COURTYARD_TRACK) ? CD_MIX_BOSS :
                     (track == CDAUDIO_GAOL_TRACK)      ? CD_MIX_GAOL :
                     (track == CDAUDIO_UNDERWORLD_TRACK) ? CD_MIX_UNDERWORLD :
+                    (track == CDAUDIO_DESTINY_TRACK)    ? CD_MIX_DESTINY :
                                                          CD_MIX_FULL;
         CdlATV mix = { v, 0, v, 0 };
         CdMix(&mix);

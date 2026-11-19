@@ -39,7 +39,7 @@
 
    THE TRANSITION both ways is DOOR_PANEL_DESTINY (src/door_anim.h): the door
    on each side is Destiny's Door. No enemies, no props, no lava. THE MUSIC
-   is the chapter's; THE SOUND BANK is Hero's Plinth's (SND_BANK_PLINTH), so
+   is its own (CDAUDIO_DESTINY_TRACK), not the chapter's; THE SOUND BANK is Hero's Plinth's (SND_BANK_PLINTH), so
    the door's sound, when it comes, plays from either side. */
 
 void chamber_of_destiny_load_assets(void);     /* startup: six registrations */
