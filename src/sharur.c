@@ -166,6 +166,18 @@ static int charge        = 0;   /* frames held, 0..SHR_CHARGE_FRAMES            
 static int tap_queued    = 0;   /* a tap released mid-swing: swing at rest      */
 static int glow_clock    = 0;
 
+/* THE FULL-CHARGE FLASH (the user's ask, Nov 2026 - the head's glow alone did
+   not say "ready" clearly enough). The frame the charge tops out, the whole
+   screen washes in SHR_GLOW_RGB: an ADDITIVE full-screen tile, as Ahriman's
+   white flash (ahrimans_draw_flash) but tinted and weaker, held
+   SHR_FLASH_HOLD frames then faded over SHR_FLASH_FADE. Same OT slot (3):
+   over the scene, under the HUD. */
+#define SHR_FLASH_HOLD    3
+#define SHR_FLASH_FADE   24
+#define SHR_FLASH_PEAK  176          /* of 256: a wash, not a white-out          */
+#define OT_SHR_FLASH      3
+static int flash_left    = 0;
+
 /* THE CHARGE HUM (SFX_SHARUR, voice 0). A one-shot re-keyed from C every
    SHR_HUM_FRAMES while Square is held past the tap threshold - never a
    hardware loop, which would poison voice 0 (tools/ADDING_A_SOUND.txt STEP
@@ -260,6 +272,7 @@ void sharur_cancel(void) {
     charge_armed = 0;
     charge       = 0;
     tap_queued   = 0;
+    flash_left   = 0;
     sq_prev      = 1;   /* the next swing needs a fresh press */
 }
 
@@ -334,7 +347,8 @@ static void sharur_swing_extras(void) {
      released before SHR_TAP_FRAMES   a tap: the swing (queued if the last
                                       one is still out, so quick taps chain)
      released at a full charge        the swing AND the blade
-     released anywhere between        nothing; the charge drains */
+     released anywhere between        the swing alone, no blade (the user's
+                                      change, Nov 2026 - it used to do nothing) */
 void sharur_update(void) {
     int sq_held = 0, sq_just;
     if (pad_buff_len[0]) {
@@ -344,18 +358,21 @@ void sharur_update(void) {
     sq_just = sq_held && !sq_prev;
     sq_prev = sq_held;
     glow_clock++;
+    if (flash_left > 0) flash_left--;
 
     if (game_state == STATE_MENU) {
         shr_hum_stop();
         charge_armed = 0;
         charge       = 0;
         tap_queued   = 0;
+        flash_left   = 0;
     } else if (sq_just) {
         shr_hum_stop();
         charge_armed = 1;
         charge       = 0;
     } else if (charge_armed && sq_held) {
-        if (charge < SHR_CHARGE_FRAMES) charge++;
+        if (charge < SHR_CHARGE_FRAMES && ++charge == SHR_CHARGE_FRAMES)
+            flash_left = SHR_FLASH_HOLD + SHR_FLASH_FADE;   /* charged: flash once */
         if (charge >= SHR_TAP_FRAMES) shr_hum_tick();
     } else if (charge_armed) {
         shr_hum_stop();         /* released: the hum ends whatever happens next */
@@ -363,8 +380,8 @@ void sharur_update(void) {
             shr_start_swing();
             shr_blade_throw();
             tap_queued = 0;
-        } else if (charge < SHR_TAP_FRAMES) {
-            tap_queued = 1;
+        } else {
+            tap_queued = 1;     /* a tap or a part charge: the swing, no blade */
         }
         charge_armed = 0;
         charge       = 0;
@@ -476,9 +493,38 @@ static void shr_draw_head_glow(RenderContext *ctx, const MATRIX *vs, int32_t lev
     sharur_camera_view();
 }
 
+static void shr_draw_flash(RenderContext *ctx) {
+    int32_t k;
+    uint8_t *buf_end;
+    TILE *t;
+    DR_TPAGE *dp;
+    if (flash_left <= 0) return;
+    k = flash_left >= SHR_FLASH_FADE ? SHR_FLASH_PEAK
+                                     : (flash_left * SHR_FLASH_PEAK) / SHR_FLASH_FADE;
+    buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+    if (ctx->next_packet + sizeof(TILE) + sizeof(DR_TPAGE) > buf_end) return;
+
+    t = (TILE *)ctx->next_packet;
+    setTile(t);
+    setSemiTrans(t, 1);
+    setRGB0(t, (uint8_t)((SHR_GLOW_RGB[0] * k) >> 8),
+               (uint8_t)((SHR_GLOW_RGB[1] * k) >> 8),
+               (uint8_t)((SHR_GLOW_RGB[2] * k) >> 8));
+    setXY0(t, 0, 0);
+    setWH(t, SCREEN_XRES, SCREEN_YRES);
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_SHR_FLASH], t);
+    ctx->next_packet += sizeof(TILE);
+
+    dp = (DR_TPAGE *)ctx->next_packet;
+    setDrawTPage(dp, 0, 0, getTPage(0, 1 /* ABR=1: additive */, 320, 0));
+    addPrim(&ctx->buffers[ctx->active_buffer].ot[OT_SHR_FLASH], dp);
+    ctx->next_packet += sizeof(DR_TPAGE);
+}
+
 void sharur_draw(RenderContext *ctx) {
     MATRIX  vs;
     int32_t level;
+    shr_draw_flash(ctx);
     melee_draw_model(ctx, shr_smd, 4096, &vs);
     if (charge <= 0) return;
     level = (charge * 256) / SHR_CHARGE_FRAMES;

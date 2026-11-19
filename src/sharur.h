@@ -37,7 +37,8 @@
  * HOLD and the head's pale blue-white faces start to glow, peaking after
  * SHR_CHARGE_FRAMES (3 s). Released at full charge it swings and throws THE
  * BLADE: a large "()" of light - two crescents back to back - shot forward at
- * SHR_BLADE_SPEED until it meets a wall. Released between the two: nothing.
+ * SHR_BLADE_SPEED until it meets a wall. Released between the two: the
+ * swing alone, no blade.
  *
  * THE BLADE deals SHR_BLADE_DAMAGE (4, in sword-swing units) once to every
  * enemy it passes through, and shoves (at twice the axe's shove) everything

@@ -33,6 +33,33 @@ static int sky_model = UW_SKY_NONE;
    repeats without a seam worth seeing. See draw_face. */
 static int sky_gen_uv = 0;
 
+/* THE DOME TURNS (the user's ask, Nov 2026: the stars should be seen to move).
+   Only the dome - the ring stays still. Every vertex is turned about the
+   vertical axis through the dome's own XZ centre (its bounding box, found on
+   load, so the turn never swings it off the room), by sky_spin_clock >>
+   UW_SKY_SPIN_SHIFT in isin units: 4096 << 3 frames a full turn, ~9 minutes.
+   The angle is drawn-frame based, and the generated UVs come from edge
+   lengths, which a turn leaves alone - so the stars ride on their faces. */
+#define UW_SKY_SPIN_SHIFT  3
+static int     sky_spin       = 0;     /* set per draw: this model turns   */
+static int32_t sky_spin_clock = 0;
+static int32_t spin_cx = 0, spin_cz = 0;
+static int32_t spin_s = 0, spin_c = 4096;
+
+static void sky_find_spin_centre(void) {
+    int i;
+    int32_t x0 = 32767, x1 = -32768, z0 = 32767, z1 = -32768;
+    for (i = 0; i < sky_smd->n_verts; i++) {
+        const SVECTOR *v = &sky_smd->p_verts[i];
+        if (v->vx < x0) x0 = v->vx;
+        if (v->vx > x1) x1 = v->vx;
+        if (v->vz < z0) z0 = v->vz;
+        if (v->vz > z1) z1 = v->vz;
+    }
+    spin_cx = (x0 + x1) / 2;
+    spin_cz = (z0 + z1) / 2;
+}
+
 /* ---- The texture -----------------------------------------------------------
    ONE, and not ours: hell bg, the Descent's backdrop (4bpp x640 y0, CLUT
    576,502), uploaded through its narrow uploader rather than registered twice.
@@ -90,6 +117,7 @@ static void sky_load_model(int model, const char *path) {
             CdReadSync(0, NULL);
             sky_smd   = smdInitData(sky_buff);
             sky_model = model;
+            sky_find_spin_centre();
         }
     }
     cdaudio_resume();
@@ -183,9 +211,15 @@ static void draw_face(RenderContext *ctx, uint8_t *p, uint8_t *buf_end,
 
     for (k = 0; k < 4; k++) {
         SVECTOR *v = &sky_smd->p_verts[vk[k]];
-        qx[k] = v->vx + cx;
+        if (sky_spin) {
+            int32_t dx = v->vx - spin_cx, dz = v->vz - spin_cz;
+            qx[k] = spin_cx + ((dx * spin_c - dz * spin_s) >> 12) + cx;
+            qz[k] = spin_cz + ((dx * spin_s + dz * spin_c) >> 12) + cz;
+        } else {
+            qx[k] = v->vx + cx;
+            qz[k] = v->vz + cz;
+        }
         qy[k] = v->vy + cy;
-        qz[k] = v->vz + cz;
         if (sky_gen_uv) {
             qu[k] = (k & 1) ? gu : 0;
             qv[k] = (k & 2) ? gv : 0;
@@ -294,6 +328,13 @@ static void draw_face(RenderContext *ctx, uint8_t *p, uint8_t *buf_end,
 void underworld_sky_draw(RenderContext *ctx, int32_t cx, int32_t cy, int32_t cz) {
     if (!sky_smd) return;
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
+
+    sky_spin = (sky_model == UW_SKY_DOME);
+    if (sky_spin) {
+        int32_t a = (++sky_spin_clock >> UW_SKY_SPIN_SHIFT) & 4095;
+        spin_s = isin(a);
+        spin_c = icos(a);
+    }
 
     uint8_t *p = (uint8_t *)sky_smd->p_prims;
     int i, n = sky_smd->n_prims;
