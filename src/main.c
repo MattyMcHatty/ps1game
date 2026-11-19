@@ -130,6 +130,7 @@
 #include "wings_tablet.h"     /* ...and the tablet standing on its terrace       */
 #include "heros_plinth.h"     /* ...and Destiny's Door's room between the two    */
 #include "chamber_of_destiny.h" /* ...and the room behind Destiny's Door       */
+#include "a_woman_scorned.h"  /* ...and the room behind HHNF's north-east door   */
 #include "destiny_plinths.h"  /* ...and the two west plinths: Sharur, the Tablet */
 #include "sharur.h"           /* Sharur's reset                                  */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
@@ -218,6 +219,9 @@ static int hhnf_from_sharur = 0;
 /* ...and the same for its NORTH-WEST door, set by Wingscape's south-east door
    (the only way into Wingscape and so its only way back). */
 static int hhnf_from_wingscape = 0;
+/* ...and its NORTH-EAST door, set by A Woman Scorned's south-west door (that
+   room's only way back). */
+static int hhnf_from_aws = 0;
 
 /* Which of Sharur's Trial's doors the player is arriving through, and which of
    Lava U's. Set at the trigger on the far side, read and cleared by the
@@ -337,6 +341,7 @@ void reset_game(RenderContext *ctx) {
     hell_hath_no_fury_reset();/* ...and the white the platform fades up out of */
     hhnf_from_sharur = 0;     /* ...and which door it was last entered by    */
     hhnf_from_wingscape = 0;
+    hhnf_from_aws    = 0;
     sharur_arrival   = 0;     /* ...and Sharur's Trial's, and Lava U's       */
     lava_u_from_sw   = 0;
     plinth_from_wingscape = 0;/* ...and Hero's Plinth's, and Wingscape's     */
@@ -502,6 +507,7 @@ static void load_area_geometry(GameState area) {
         case STATE_WINGSCAPE:        wingscape_load_geometry(); break;
         case STATE_HEROS_PLINTH:     heros_plinth_load_geometry(); break;
         case STATE_CHAMBER_OF_DESTINY: chamber_of_destiny_load_geometry(); break;
+        case STATE_A_WOMAN_SCORNED:  a_woman_scorned_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -3429,6 +3435,17 @@ static void update_current_area(GameState area) {
                 game_state   = STATE_DOOR_ANIM;
                 cdaudio_stop();
             }
+            /* THE NORTH-EAST DOOR, to A Woman Scorned, on the same vetoes.
+               A CATACOMB door on this side and on the far side too, so the
+               catacomb transition both ways (the user's choice). */
+            else if (hell_hath_no_fury_ne_door_triggered(
+                    (hf_saving || hf_oil || hell_hath_no_fury_intro() ||
+                     hell_hath_no_fury_fading()) ? 1 : lock)) {
+                pending_area = STATE_A_WOMAN_SCORNED;
+                door_anim_start(DOOR_PANEL_CATACOMB);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
         }
     } else if (area == STATE_SHARURS_TRIAL) {
         /* SHARUR'S TRIAL - Chapter 4's second room (src/sharurs_trial.c): a
@@ -3630,6 +3647,27 @@ static void update_current_area(GameState area) {
             plinth_from_chamber = 1;
             pending_area = STATE_HEROS_PLINTH;
             door_anim_start(DOOR_PANEL_DESTINY);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_A_WOMAN_SCORNED) {
+        /* A WOMAN SCORNED - Chapter 4's seventh room, behind Hell Hath No
+           Fury's north-east door (src/a_woman_scorned.c): one storey, the
+           shared wall routine (the rim and the pillars) and ONE flat floor
+           zone. Its two lava pools burn from lava_update(), like every
+           Chapter 4 room's. No enemies, no props.
+
+           THE SOUTH-WEST DOOR, back to Hell Hath No Fury's north-east door:
+           a CATACOMB inner door on both sides, so the catacomb transition
+           (its texture is uploaded by this room, its sound banked for the
+           chapter). The latch tells HHNF which arrival this is. The
+           south-east double door leads nowhere yet. */
+        apply_collision_reception();
+        apply_height();
+        if (a_woman_scorned_sw_door_triggered(lock)) {
+            hhnf_from_aws = 1;
+            pending_area = STATE_HELL_HATH_NO_FURY;
+            door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -4213,6 +4251,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         heros_plinth_draw(ctx);
     else if (area == STATE_CHAMBER_OF_DESTINY)
         chamber_of_destiny_draw(ctx);
+    else if (area == STATE_A_WOMAN_SCORNED)
+        a_woman_scorned_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4774,6 +4814,8 @@ int main(int argc, const char **argv) {
                                      deferred registrations (the marble, the
                                      night sky, the tablet's four); the door
                                      is Hero's Plinth's. */
+    a_woman_scorned_load_assets(); /* ...and A Woman Scorned: TIM_SLOTs only -
+                                     every texture is borrowed. */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
                                      registrations. Its model is read on entry
                                      to the first room that draws it. */
@@ -5879,6 +5921,14 @@ int main(int argc, const char **argv) {
                    the DESTINY panel out of here), and the sky's uploader for
                    the chapter's item art (src/chamber_of_destiny.c). */
                 chamber_of_destiny_upload_textures();
+            } else if (pending_area == STATE_A_WOMAN_SCORNED) {
+                /* A WOMAN SCORNED. Owns nothing: Hell Hath No Fury's
+                   volcanic, the Descent's lava, Sharur's Trial's rocks, the
+                   Catacombs Entry's inner door (also the catacomb panel out
+                   of here) and the sky's hell bg through narrow uploaders.
+                   The double door (inr_dbl_dr) is resident
+                   (src/a_woman_scorned.c). */
+                a_woman_scorned_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -6860,8 +6910,12 @@ int main(int argc, const char **argv) {
                 else if (hhnf_from_sharur) hell_hath_no_fury_spawn_sw();
                 /* ...OR back through the north-west door from Wingscape. */
                 else if (hhnf_from_wingscape) hell_hath_no_fury_spawn_nw();
+                /* ...OR back through the north-east door from A Woman
+                   Scorned. */
+                else if (hhnf_from_aws) hell_hath_no_fury_spawn_ne();
                 hhnf_from_sharur = 0;
                 hhnf_from_wingscape = 0;
+                hhnf_from_aws = 0;
             } else if (pending_area == STATE_SHARURS_TRIAL) {
                 /* THREE ARRIVALS: the north-east door from Hell Hath No Fury
                    (the init's default, and where a debug jump lands), and the
@@ -6908,6 +6962,11 @@ int main(int argc, const char **argv) {
                    where a debug jump lands. NO MUSIC LINE: the chapter's
                    block below. */
                 chamber_of_destiny_init();
+            } else if (pending_area == STATE_A_WOMAN_SCORNED) {
+                /* ONE ARRIVAL, through the south-west door from Hell Hath No
+                   Fury - the init's spawn, and where a debug jump lands. NO
+                   MUSIC LINE: the chapter's block below. */
+                a_woman_scorned_init();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -7377,7 +7436,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_LAVA_U ||
                    game_state == STATE_WINGSCAPE ||
                    game_state == STATE_HEROS_PLINTH ||
-                   game_state == STATE_CHAMBER_OF_DESTINY) {
+                   game_state == STATE_CHAMBER_OF_DESTINY ||
+                   game_state == STATE_A_WOMAN_SCORNED) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

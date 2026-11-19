@@ -350,6 +350,10 @@ typedef enum {
                                 room, under a night-sky dome of its own. See
                                 src/chamber_of_destiny.h. Appended, not
                                 inserted. */
+    STATE_A_WOMAN_SCORNED,   /* A WOMAN SCORNED, behind Hell Hath No Fury's
+                                north-east door - Chapter 4's seventh room.
+                                See src/a_woman_scorned.h. Appended, not
+                                inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

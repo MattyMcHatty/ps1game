@@ -248,6 +248,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_HELL_HATH_NO_FURY, STATE_SHARURS_TRIAL,
     STATE_LAVA_U,          STATE_WINGSCAPE,
     STATE_HEROS_PLINTH,    STATE_CHAMBER_OF_DESTINY,
+    STATE_A_WOMAN_SCORNED,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -454,6 +455,9 @@ static int room_index(GameState area) {
         /* THE CHAMBER OF DESTINY, Chapter 4's sixth room, behind Destiny's
            Door in Hero's Plinth. Slot 67. Seeded EMPTY. */
         case STATE_CHAMBER_OF_DESTINY: return 67;
+        /* A WOMAN SCORNED, Chapter 4's seventh room, behind Hell Hath No
+           Fury's north-east door. Slot 68. Seeded EMPTY. */
+        case STATE_A_WOMAN_SCORNED:   return 68;
         default:                   return 0;
     }
 }

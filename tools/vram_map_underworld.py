@@ -39,12 +39,15 @@ be held, or a title-screen load of an earlier save shows a wrong icon.
               the occupant is startup-resident and no room's entry path puts it
               back. Taking one obliges you to write the restore first.
 
->>> ONE BORROW HERE RELIES ON A STARTUP UPLOAD STAYING PUT. <<< Hell Hath No
+>>> TWO BORROWS HERE RELY ON A STARTUP UPLOAD STAYING PUT. <<< Hell Hath No
 Fury's two wooden doors (and Sharur's Trial's two) draw wd_dr at x768 y256,
 which src/fatdoor.c uploads ONCE at boot and nothing streams - and it is ALSO
-DOOR_PANEL_WOOD's panel, the transition out of Sharur's Trial. It is listed in
-THIS BANK'S ART below as borrowed-resident: a future Underworld room that takes
-x768 y256 must give both rooms, and the wooden transition, a way to put wd_dr
+DOOR_PANEL_WOOD's panel, the transition out of Sharur's Trial. A Woman
+Scorned's south-east double door draws inr_dbl_dr at x576 y256, which the
+kitchen streams ONCE at boot (kitchen_stream_textures) and only the kitchen's
+own entry re-stamps. Both are listed in THIS BANK'S ART below as
+borrowed-resident: a future Underworld room that takes either page must give
+the rooms that draw it (and, for wd_dr, the wooden transition) a way to put it
 back first.
 
 THE SKY owns no texture: src/underworld_sky.c draws the Descent's hell bg. Every
@@ -93,6 +96,7 @@ BANK = {
     "catacomb inner door.tim": "HHNF: two doors (Catacombs Entry's) x832 y0",
     "seal.tim":                "HHNF: the floor seal (the Seal's)  x576 y0",
     "wd_dr.tim":               "HHNF, Sharur: doors - BORROWED RESIDENT, see head x768 y256",
+    "inr_dbl_dr.tim":          "A Woman Scorned: SE double door - BORROWED RESIDENT (the kitchen's boot stream) x576 y256",
     "rocks.tim":               "Sharur: the outcrops (owned)       x512 y0",
     "oil_container.tim":       "HHNF: the ruin's oil tank (the prop's) x896 y256",
     "nessie_a.tim":            "Sharur: Nessie frames 0-2 (Adapa's) x832 y128",

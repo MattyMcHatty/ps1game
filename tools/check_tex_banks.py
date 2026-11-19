@@ -269,6 +269,10 @@ AREAS = {
                   # marble, the night sky and the Ninurta tablet; borrows the
                   # door through heros_plinth_upload_destiny_door.
                   "chamber_of_destiny_upload_textures",
+                  # A WOMAN SCORNED, behind HHNF's north-east door: owns
+                  # nothing - Lava U's three plus the Catacombs Entry's inner
+                  # door; inr_dbl_dr is the kitchen's, resident.
+                  "a_woman_scorned_upload_textures",
                   # ...and NESSIE (src/nessie.c), which main.c uploads on entry
                   # to the rooms nessie_room_has_sheet() names - Sharur's Trial
                   # today. Underworld rooms only.

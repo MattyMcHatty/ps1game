@@ -231,6 +231,11 @@ TexBank area_bank_of(GameState area) {
        four quarters); Destiny's Door through Hero's Plinth's narrow
        uploader. */
     case STATE_CHAMBER_OF_DESTINY:
+    /* A WOMAN SCORNED owns nothing: volcanic from Hell Hath No Fury, lava
+       from the Descent, rocks from Sharur's Trial and the inner door from
+       the Catacombs Entry, all through narrow uploaders; inr_dbl_dr is the
+       kitchen's, resident. */
+    case STATE_A_WOMAN_SCORNED:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -294,7 +299,8 @@ int area_is_underworld(GameState area) {
            area == STATE_LAVA_U ||
            area == STATE_WINGSCAPE ||
            area == STATE_HEROS_PLINTH ||
-           area == STATE_CHAMBER_OF_DESTINY;
+           area == STATE_CHAMBER_OF_DESTINY ||
+           area == STATE_A_WOMAN_SCORNED;
 }
 
 /* ---- The prop models -------------------------------------------------------

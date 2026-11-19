@@ -2125,6 +2125,11 @@
              with the night sky - instead of the chapter's ring. -->
             <file name="CHMBDST.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\chamber_of_destiny.smd"/>
             <file name="CDSKY.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\underworld\chamber_of_destiny_skybox.smd"/>
+        <!-- A WOMAN SCORNED (src/a_woman_scorned.h), behind Hell Hath No
+             Fury's north-east door: one storey of volcanic ground among rock
+             pillars, two lava pools. Owns no texture: the volcanic, the lava,
+             Sharur's rocks, the inner door and the resident inr_dbl_dr. -->
+            <file name="AWSCORN.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\a_woman_scorned.smd"/>
         <!-- SHARUR, the Underworld's weapon (src/sharur.c): the held model,
              and the one standing on the Chamber's lower plinth. Flat-shaded
              like CRFAXE.SMD, from assets/props/Sharur.smx by smxlink. -->
