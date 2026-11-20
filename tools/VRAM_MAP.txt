@@ -67,6 +67,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   lamashtu.tim         4       576     0   128   128     0   640,502
   red_wlppr.tim        4       576     0   128   128     0   0,492
   seal.tim             4       576     0   128   128     0   640,502
+  double_door_uw.tim   4       576     0   128   128     0   768,480
   hadad_idle_64.tim    4       608     0   128   128     0   256,507
   arms2.tim            4       640     0   128   128     0   672,501
   asag.tim             8       640     0   128   128     0   672,501
@@ -235,6 +236,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=480  x[16,32)  trees_dl.tim
   y=480  x[144,160)  ahriman_a.tim
   y=480  x[160,176)  ahriman_b.tim
+  y=480  x[768,784)  double_door_uw.tim
   y=480  x[176,192)  golem_a.tim
   y=480  x[192,208)  golem_b.tim
   y=480  x[80,96)  nessie_a.tim
@@ -551,6 +553,7 @@ OVERLAP CHECK
   gaol_mud.tim                             lamashtu.tim         time-shared (streaming)
   gaol_mud.tim                             red_wlppr.tim        time-shared (streaming)
   gaol_mud.tim                             seal.tim             time-shared (streaming)
+  gaol_mud.tim                             double_door_uw.tim   time-shared (streaming)
   gula_a.tim                               crawler_a.tim        time-shared (streaming)
   gula_a.tim                               rafflesia1.tim       time-shared (streaming)
   gula_a.tim                               rafflesia2.tim       time-shared (streaming)
@@ -674,6 +677,7 @@ OVERLAP CHECK
   crib.tim                                 lamashtu.tim         time-shared (streaming)
   crib.tim                                 red_wlppr.tim        time-shared (streaming)
   crib.tim                                 seal.tim             time-shared (streaming)
+  crib.tim                                 double_door_uw.tim   time-shared (streaming)
   cuneiform _symbols.tim                   dresser.tim          time-shared (streaming)
   cuneiform _symbols.tim                   grdn_gte.tim         time-shared (streaming)
   cuneiform _symbols.tim                   kchn_wl.tim          time-shared (streaming)
@@ -884,6 +888,7 @@ OVERLAP CHECK
   lamashtu tablet.tim                      xt_dr_lckd.tim       time-shared (streaming)
   lamashtu.tim                             red_wlppr.tim        time-shared (streaming)
   lamashtu.tim                             seal.tim             time-shared (streaming)
+  lamashtu.tim                             double_door_uw.tim   time-shared (streaming)
   legs.tim                                 plinth_rg.tim        time-shared (streaming)
   legs.tim                                 poison_flower_base.tim time-shared (streaming)
   legs.tim                                 torsos.tim           time-shared (streaming)
@@ -962,6 +967,7 @@ OVERLAP CHECK
   red_crpt.tim                             lava.tim             time-shared (streaming)
   red_crpt.tim                             marble.tim           time-shared (streaming)
   red_wlppr.tim                            seal.tim             time-shared (streaming)
+  red_wlppr.tim                            double_door_uw.tim   time-shared (streaming)
   rusty.tim                                rusty_fence.tim      time-shared (streaming)
   rusty.tim                                stable glyphs.tim    time-shared (streaming)
   rusty.tim                                destinys door frame bottom right.tim time-shared (streaming)
@@ -976,6 +982,7 @@ OVERLAP CHECK
   rusty_fence.tim                          wing tablet.tim      time-shared (streaming)
   rusty_fence.tim                          upstairs.tim         time-shared (streaming)
   sconce.tim                               wd_flr.tim           time-shared (streaming)
+  seal.tim                                 double_door_uw.tim   time-shared (streaming)
   spdr_rst.tim                             ahriman_a.tim        time-shared (streaming)
   spdr_wk.tim                              golem_a.tim          time-shared (streaming)
   stable glyphs.tim                        destinys door frame bottom right.tim time-shared (streaming)
@@ -1032,6 +1039,6 @@ OVERLAP CHECK
   No unexpected pixel collisions.
 
 CLUT OVERLAP CHECK  (CLUT words landing in pixel data, or on each other)
-  No CLUT collisions.
+  !! double_door.tim's CLUT overlaps double_door_uw.tim's CLUT (both at y=480)
 
 Regenerate with:  python tools/vram_map.py > tools/VRAM_MAP.txt

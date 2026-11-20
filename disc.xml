@@ -2130,6 +2130,15 @@
              pillars, two lava pools. Owns no texture: the volcanic, the lava,
              Sharur's rocks, the inner door and the resident inr_dbl_dr. -->
             <file name="AWSCORN.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\a_woman_scorned.smd"/>
+        <!-- RIBCAGE (src/ribcage.h), behind Hell Hath No Fury's south-east
+             door: one storey of volcanic ground among the ribs, with lava.
+             Owns one texture, DBLDRUW.TIM: a byte-identical copy of the
+             Delivery Area's double_door moved to x576 y0 (the seal's page),
+             because its own x832 y0 is the catacomb inner door's and Ribcage
+             draws both. Borrows the volcanic, the lava, Sharur's rocks, the
+             inner door and the resident wd_dr. -->
+            <file name="RIBCAGE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\ribcage.smd"/>
+            <file name="DBLDRUW.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\double_door_uw.tim"/>
         <!-- SHARUR, the Underworld's weapon (src/sharur.c): the held model,
              and the one standing on the Chamber's lower plinth. Flat-shaded
              like CRFAXE.SMD, from assets/props/Sharur.smx by smxlink. -->

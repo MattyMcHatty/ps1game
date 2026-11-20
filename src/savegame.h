@@ -17,7 +17,14 @@
    almost none of that carried any information. */
 
 #define SAVE_MAGIC     0x47524F56u   /* 'VORG' — our save signature */
-#define SAVE_VERSION   39            /* v39: a third tank, Hell Hath No
+#define SAVE_VERSION   40            /* v40: nessies_dead is a uint16_t.
+                                        Ribcage's four Nessies took the
+                                        whole-game total to nine, past the
+                                        byte; widening it moves every later
+                                        WorldDelta field, so the bump
+                                        rejects a v39 save rather than
+                                        misreading it.
+                                        v39: a third tank, Hell Hath No
                                         Fury's (OD_TANK_HHNF). Same layout,
                                         but a v38 save holds 0 in that byte
                                         and would load the tank dry, so the

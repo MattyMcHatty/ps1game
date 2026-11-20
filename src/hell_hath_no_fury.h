@@ -30,14 +30,16 @@
        CATACOMB inner door: this side plays DOOR_PANEL_WOOD, the way back
        DOOR_PANEL_CATACOMB. The NORTH-EAST one leads to A WOMAN SCORNED
        (src/a_woman_scorned.h), whose side of it is a catacomb inner door
-       too: DOOR_PANEL_CATACOMB both ways. The south-east one leads nowhere
-       yet - no prompt and no trigger until its room exists.
+       too: DOOR_PANEL_CATACOMB both ways. The SOUTH-EAST one leads to
+       RIBCAGE (src/ribcage.h), whose side of it is a wooden door too:
+       DOOR_PANEL_WOOD both ways.
    No wall is drawn round the edge; the collision proxy's eight edges stop the
    player at the rim. One flat floor zone.
 
    THE ARRIVALS. Back through a door - the south-west from Sharur's Trial
    (hell_hath_no_fury_spawn_sw), the north-west from Wingscape (_spawn_nw),
-   the north-east from A Woman Scorned (_spawn_ne) - just inside it, facing
+   the north-east from A Woman Scorned (_spawn_ne), the south-east from
+   Ribcage (_spawn_se) - just inside it, facing
    out across the platform. And the
    Descent's white, into the CENTRE of the room (on the seal), facing north -
    by THE OPENING DROP: under the fade the camera hangs
@@ -102,5 +104,12 @@ int  hell_hath_no_fury_ne_door_triggered(int lock);
 /* Arrival back through the north-east door: just inside it, facing
    south-west. main.c calls it after hell_hath_no_fury_init(). */
 void hell_hath_no_fury_spawn_ne(void);
+
+/* The SOUTH-EAST door, to Ribcage, on the south-west door's terms. */
+int  hell_hath_no_fury_se_door_triggered(int lock);
+
+/* Arrival back through the south-east door: just inside it, facing
+   north-west. main.c calls it after hell_hath_no_fury_init(). */
+void hell_hath_no_fury_spawn_se(void);
 
 #endif

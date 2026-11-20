@@ -978,6 +978,16 @@ KNOWN_STREAM_PAIRS = [
     ("crib.tim",                    "seal.tim"),
     ("gaol_mud.tim",                "seal.tim"),
     ("red_wlppr.tim",               "seal.tim"),
+    #   double_door_uw.tim -> x576 y0, RIBCAGE's copy of double_door (Chapter
+    # 4), on the seal's page with double_door's own CLUT (768,480). Drawn only
+    # in Ribcage, which has no seal, crib, mud, Lamashtu or wallpaper; Hell
+    # Hath No Fury puts the seal back on every entry, and the rest are put
+    # back exactly as they are after the seal.
+    ("seal.tim",                    "double_door_uw.tim"),
+    ("crib.tim",                    "double_door_uw.tim"),
+    ("gaol_mud.tim",                "double_door_uw.tim"),
+    ("red_wlppr.tim",               "double_door_uw.tim"),
+    ("lamashtu.tim",                "double_door_uw.tim"),
     ("anzu2.tim",                   "seal.tim"),
     ("anzu5.tim",                   "seal.tim"),
     #   gula tablet.tim -> x640 y0, THE NURSERY's floor tiles and the Gula

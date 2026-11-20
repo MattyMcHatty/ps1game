@@ -80,7 +80,7 @@
  * door_anim_panels_taken() and the restore puts them back on the way out of
  * the chapter (main.c uploads this AFTER that restore, as it does Adapa).
  *
- * >>> ONLY SHARUR'S TRIAL AND A WOMAN SCORNED UPLOAD THE SHEET TODAY. <<< Placing one in another
+ * >>> ONLY SHARUR'S TRIAL, A WOMAN SCORNED AND RIBCAGE UPLOAD THE SHEET TODAY. <<< Placing one in another
  * room means: a pool line in tools/gen_nessie_pools.py, the placement in
  * world.c, the room in nessie_room_has_sheet() (the .c) — which is what main.c
  * and tools/gen_tex_rooms.py key the upload on — and update_nessies() /
@@ -99,8 +99,11 @@
  * (nessie die, 2.58 s, UNDERWORLD only), played with the lava burst.
  * ----------------------------------------------------------------------- */
 
-#define MAX_NESSIES            8    /* WHOLE-GAME budget — see above. Five placed: three
-                                       in Sharur's Trial, two in A Woman Scorned    */
+#define MAX_NESSIES           12    /* WHOLE-GAME budget — see above. Nine placed: three
+                                       in Sharur's Trial, two in A Woman Scorned,
+                                       four in Ribcage. 12, not 9, so the next
+                                       pool or two needs no change; the save
+                                       field (nessies_dead) is 16 bits wide.      */
 #define NSS_MAX_HEALTH         8    /* eight swings, eight non-flame rounds       */
 
 /* ---- Speed, in 1/256 units per frame. "Very slowly": 384 is 1.5 units a

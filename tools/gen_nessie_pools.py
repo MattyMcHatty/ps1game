@@ -46,6 +46,10 @@ POOLS = [('SHARUR_NW', 'assets/underworld/Sharurs Trial.smx',        'lava',    
          ('SHARUR_E',  'assets/underworld/Sharurs Trial.smx',        'lava',    (1950, -200)),
          ('AWS_N',     'assets/underworld/A Woman Scorned.smx',      'lava',    (3400, 3600)),
          ('AWS_SE',    'assets/underworld/A Woman Scorned.smx',      'lava',    (4830, 120)),
+         ('RC_NW',     'assets/underworld/Ribcage.smx',              'lava',    (2100, 2050)),
+         ('RC_NE',     'assets/underworld/Ribcage.smx',              'lava',    (4400, 2050)),
+         ('RC_SW',     'assets/underworld/Ribcage.smx',              'lava',    (2700, -800)),
+         ('RC_SE',     'assets/underworld/Ribcage.smx',              'lava',    (6000, -800)),
          ]
 
 

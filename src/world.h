@@ -22,7 +22,7 @@
  * Adding a room: add it to room_index(), bump WORLD_NUM_ROOMS below, and add
  * its spawns to world_seed_room().
  */
-#define WORLD_NUM_ROOMS 69  /* delivery_area, kitchen_dining, reception, piano_room,
+#define WORLD_NUM_ROOMS 70  /* delivery_area, kitchen_dining, reception, piano_room,
                                conservatory, hall_2f, master_bedroom, east_hall,
                                library, east_stairwell, attic_stairwell,
                                attic_exit, garden_stairs, garden_courtyard,
@@ -43,7 +43,7 @@
                                because each keeps its own pickups - the
                                throat, room_of_guts, neck, the_head, kennels,
                                lamashtu_arena and seal, and Chapter 4's
-                               hell_hath_no_fury, sharurs_trial, lava_u, wingscape, heros_plinth, chamber_of_destiny and a_woman_scorned. (Descent to Hell has no
+                               hell_hath_no_fury, sharurs_trial, lava_u, wingscape, heros_plinth, chamber_of_destiny, a_woman_scorned and ribcage. (Descent to Hell has no
                                slot - see area_untracked in world.c.)
                                library_destroyed gets a slot of its own even
                                though it stands in the Library's place: the two
@@ -166,7 +166,10 @@ void world_silence_monsters(void);
                                  — which is why crawlers_dead below is a
                                  uint16_t, the widening mushrooms_dead took. */
 #define WD_MAX_RABISUS    8
-#define WD_MAX_NESSIES    8   /* bits: one global area-tagged array, one byte */
+#define WD_MAX_NESSIES   16   /* bits: one global area-tagged array. 16 rather
+                                 than 8 since Ribcage's four took the whole-game
+                                 total to nine - which is why nessies_dead below
+                                 is a uint16_t (SAVE_VERSION 40). */
 #define WD_MAX_AHRIMANS   8   /* bits: likewise, one byte - see ahrimans_dead */
 #define WD_MAX_GOLEMS     8   /* bits: likewise, one byte - see golems_dead   */
 /* bits: likewise one global area-tagged array. 16 rather than 8 since The
@@ -227,13 +230,13 @@ typedef struct {
        and the uint64_t each exactly. Its width follows the room count now. */
     RoomBits  visited;
     uint8_t   spiders_dead;                       /* keyed by (area, ordinal) */
-    /* NESSIE (src/nessie.h), keyed like the spiders. >>> IT LIVES IN WHAT WAS
-       THE PADDING BYTE BEFORE crawlers_dead, AND THAT IS WHY THERE WAS NO
-       SAVE_VERSION BUMP. <<< sizeof and every other field's offset are
-       unchanged (world.c asserts both), and world_save_delta memsets the delta
-       before filling it, so every older save already holds 0 here — "no Nessie
-       dead", which is the truth for a save made before she existed. */
-    uint8_t   nessies_dead;                       /* likewise; see WD_MAX_NESSIES */
+    /* NESSIE (src/nessie.h), keyed like the spiders. It used to be a byte in
+       the padding before crawlers_dead (no version bump then). Ribcage's four
+       took the whole-game total to nine, so it is a uint16_t now: the byte
+       after spiders_dead is padding again, every later field moved, and
+       SAVE_VERSION 40 is what rejects an older save rather than misreading
+       it. */
+    uint16_t  nessies_dead;                       /* likewise; see WD_MAX_NESSIES */
     uint16_t  crawlers_dead;                      /* likewise; 16 bits — see
                                                      WD_MAX_CRAWLERS           */
     uint8_t   rabisus_dead;                       /* likewise                 */

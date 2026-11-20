@@ -131,6 +131,7 @@
 #include "heros_plinth.h"     /* ...and Destiny's Door's room between the two    */
 #include "chamber_of_destiny.h" /* ...and the room behind Destiny's Door       */
 #include "a_woman_scorned.h"  /* ...and the room behind HHNF's north-east door   */
+#include "ribcage.h"          /* ...and the room behind HHNF's south-east door   */
 #include "destiny_plinths.h"  /* ...and the two west plinths: Sharur, the Tablet */
 #include "sharur.h"           /* Sharur's reset                                  */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
@@ -222,6 +223,9 @@ static int hhnf_from_wingscape = 0;
 /* ...and its NORTH-EAST door, set by A Woman Scorned's south-west door (that
    room's only way back). */
 static int hhnf_from_aws = 0;
+/* ...and its SOUTH-EAST door, set by Ribcage's west door (that room's only way
+   back). */
+static int hhnf_from_ribcage = 0;
 
 /* Which of Sharur's Trial's doors the player is arriving through, and which of
    Lava U's. Set at the trigger on the far side, read and cleared by the
@@ -342,6 +346,7 @@ void reset_game(RenderContext *ctx) {
     hhnf_from_sharur = 0;     /* ...and which door it was last entered by    */
     hhnf_from_wingscape = 0;
     hhnf_from_aws    = 0;
+    hhnf_from_ribcage = 0;
     sharur_arrival   = 0;     /* ...and Sharur's Trial's, and Lava U's       */
     lava_u_from_sw   = 0;
     plinth_from_wingscape = 0;/* ...and Hero's Plinth's, and Wingscape's     */
@@ -508,6 +513,7 @@ static void load_area_geometry(GameState area) {
         case STATE_HEROS_PLINTH:     heros_plinth_load_geometry(); break;
         case STATE_CHAMBER_OF_DESTINY: chamber_of_destiny_load_geometry(); break;
         case STATE_A_WOMAN_SCORNED:  a_woman_scorned_load_geometry(); break;
+        case STATE_RIBCAGE:          ribcage_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -3446,6 +3452,17 @@ static void update_current_area(GameState area) {
                 game_state   = STATE_DOOR_ANIM;
                 cdaudio_stop();
             }
+            /* THE SOUTH-EAST DOOR, to Ribcage, on the same vetoes. A WOODEN
+               door on this side and on the far side too, so the wooden
+               transition both ways (the user's choice). */
+            else if (hell_hath_no_fury_se_door_triggered(
+                    (hf_saving || hf_oil || hell_hath_no_fury_intro() ||
+                     hell_hath_no_fury_fading()) ? 1 : lock)) {
+                pending_area = STATE_RIBCAGE;
+                door_anim_start(DOOR_PANEL_WOOD);
+                game_state   = STATE_DOOR_ANIM;
+                cdaudio_stop();
+            }
         }
     } else if (area == STATE_SHARURS_TRIAL) {
         /* SHARUR'S TRIAL - Chapter 4's second room (src/sharurs_trial.c): a
@@ -3676,6 +3693,32 @@ static void update_current_area(GameState area) {
             hhnf_from_aws = 1;
             pending_area = STATE_HELL_HATH_NO_FURY;
             door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_RIBCAGE) {
+        /* RIBCAGE - Chapter 4's eighth room, behind Hell Hath No Fury's
+           south-east door (src/ribcage.c): one storey, the shared wall
+           routine and ONE flat floor zone. Its lava burns from lava_update(),
+           like every Chapter 4 room's. No props.
+
+           ENEMIES (world_seed_room): a NESSIE in each of the four lava pools
+           and a GOLEM in front of the east double door (blocking nothing
+           yet). Their pushes ride apply_collision_reception; both updates
+           are area-gated inside.
+
+           THE WEST DOOR, back to Hell Hath No Fury's south-east door: a
+           WOODEN door on both sides, so the wooden transition (wd_dr is
+           resident). The latch tells HHNF which arrival this is. The east
+           double door and the north catacomb door lead nowhere yet. */
+        apply_collision_reception();
+        apply_height();
+        update_golems();
+        update_nessies();
+        if (ribcage_w_door_triggered(lock)) {
+            hhnf_from_ribcage = 1;
+            pending_area = STATE_HELL_HATH_NO_FURY;
+            door_anim_start(DOOR_PANEL_WOOD);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -4261,6 +4304,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         chamber_of_destiny_draw(ctx);
     else if (area == STATE_A_WOMAN_SCORNED)
         a_woman_scorned_draw(ctx);
+    else if (area == STATE_RIBCAGE)
+        ribcage_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4824,6 +4869,9 @@ int main(int argc, const char **argv) {
                                      is Hero's Plinth's. */
     a_woman_scorned_load_assets(); /* ...and A Woman Scorned: TIM_SLOTs only -
                                      every texture is borrowed. */
+    ribcage_load_assets();        /* ...and Ribcage: one deferred registration
+                                     (its double door's copy), the rest
+                                     TIM_SLOTs. */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
                                      registrations. Its model is read on entry
                                      to the first room that draws it. */
@@ -5937,6 +5985,14 @@ int main(int argc, const char **argv) {
                    The double door (inr_dbl_dr) is resident
                    (src/a_woman_scorned.c). */
                 a_woman_scorned_upload_textures();
+            } else if (pending_area == STATE_RIBCAGE) {
+                /* RIBCAGE. Owns one texture, its copy of the double door
+                   (x576 y0, the seal's page); Hell Hath No Fury's volcanic,
+                   the Descent's lava, Sharur's Trial's rocks, the Catacombs
+                   Entry's inner door and the sky's hell bg through narrow
+                   uploaders. The wooden door (wd_dr, also the panel out of
+                   here) is resident (src/ribcage.c). */
+                ribcage_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -6921,9 +6977,12 @@ int main(int argc, const char **argv) {
                 /* ...OR back through the north-east door from A Woman
                    Scorned. */
                 else if (hhnf_from_aws) hell_hath_no_fury_spawn_ne();
+                /* ...OR back through the south-east door from Ribcage. */
+                else if (hhnf_from_ribcage) hell_hath_no_fury_spawn_se();
                 hhnf_from_sharur = 0;
                 hhnf_from_wingscape = 0;
                 hhnf_from_aws = 0;
+                hhnf_from_ribcage = 0;
             } else if (pending_area == STATE_SHARURS_TRIAL) {
                 /* THREE ARRIVALS: the north-east door from Hell Hath No Fury
                    (the init's default, and where a debug jump lands), and the
@@ -6975,6 +7034,11 @@ int main(int argc, const char **argv) {
                    Fury - the init's spawn, and where a debug jump lands. NO
                    MUSIC LINE: the chapter's block below. */
                 a_woman_scorned_init();
+            } else if (pending_area == STATE_RIBCAGE) {
+                /* ONE ARRIVAL, through the west door from Hell Hath No Fury -
+                   the init's spawn, and where a debug jump lands. NO MUSIC
+                   LINE: the chapter's block below. */
+                ribcage_init();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -7445,7 +7509,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_WINGSCAPE ||
                    game_state == STATE_HEROS_PLINTH ||
                    game_state == STATE_CHAMBER_OF_DESTINY ||
-                   game_state == STATE_A_WOMAN_SCORNED) {
+                   game_state == STATE_A_WOMAN_SCORNED ||
+                   game_state == STATE_RIBCAGE) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

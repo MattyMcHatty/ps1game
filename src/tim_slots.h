@@ -171,6 +171,10 @@
 #define TIM_TPAGE_DBLDRRG  0x0015
 #define TIM_CLUT_DBLDRRG   0x7ea0
 
+/* double_door_uw.tim  4bpp  VRAM ( 576,  0)  \TEXUNDW\DBLDRUW.TIM */
+#define TIM_TPAGE_DBLDRUW  0x0009
+#define TIM_CLUT_DBLDRUW   0x7830
+
 /* destinys door frame bottom left.tim  8bpp  VRAM ( 896,256)  \TEXUNDW\DDFRBL.TIM */
 #define TIM_TPAGE_DDFRBL   0x009e
 #define TIM_CLUT_DDFRBL    0x7aaa

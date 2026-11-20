@@ -91,6 +91,7 @@ THIS BANK'S ART
   destinys door frame bottom right.tim Plinth: frame, bottom right (owned 8bpp; the tablets' page) x704 y0
   destinys door frame top right.tim Plinth: frame, top right (owned 8bpp; rocks' page) x512 y0
   destinys door.tim          Plinth: Destiny's Door (owned 8bpp; cracked tablet's page; the Chamber too) x768 y0
+  double_door_uw.tim         Ribcage: E double door (owned copy of double_door; seal's page) x576 y0
   golem_a.tim                Wingscape: Golem frames 1-3 (crawler's) x384 y128
   golem_b.tim                Wingscape: Golem frames 4-6 (crawler's) x768 y128
   hell bg.tim                Descent: the backdrop (owned; the sky) x640 y0
@@ -110,7 +111,7 @@ THIS BANK'S ART
   sharur tablet cracked.tim  Sharur: the tablet, cracked (owned) x768 y0
   sharur tablet.tim          Sharur: the tablet (owned)         x704 y0
   volcanic.tim               HHNF: the platform (owned)         x384 y256
-  wd_dr.tim                  HHNF, Sharur: doors - BORROWED RESIDENT, see head x768 y256
+  wd_dr.tim                  HHNF, Sharur, Ribcage: doors - BORROWED RESIDENT, see head x768 y256
   wing tablet.tim            Wingscape: the tablet (owned; Sharur's page) x704 y0
   wings tablet question and answers.tim Wingscape: the puzzle's cuneiform (owned; Sharur's cracked page) x768 y0
 
@@ -132,7 +133,7 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x384  IN USE by this bank: cobblestones.tim, destiny door frame top left.tim, ninurta tablet top left.tim   [also on this page, all re-uploaded on room entry: chnlnk_dl.tim, clsd_drwr.tim, cncrte.tim, flowerbed.tim, hedge.tim, kchn_tile.tim, mud.tim, piano_keys.tim, piano_keys_full.tim, xt_dr_outr.tim]
   x448  AVAILABLE, needs a way back first: wd_flr.tim   [also on this page, all re-uploaded on room entry: sconce.tim]
   x512  IN USE by this bank: destinys door frame top right.tim, ninurta tablet top right.tim, rocks.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim, loculus.tim]
-  x576  IN USE by this bank: seal.tim   [also on this page, all re-uploaded on room entry: crib.tim, gaol_mud.tim, lamashtu.tim]
+  x576  IN USE by this bank: double_door_uw.tim, seal.tim   [also on this page, all re-uploaded on room entry: crib.tim, gaol_mud.tim, lamashtu.tim]
   x640  IN USE by this bank: hell bg.tim   [also on this page, all re-uploaded on room entry: arms2.tim, asag.tim, baby names.tim, bones.tim, chnlnk.tim, gaol door.tim, gravel_texture.tim, greenhouse.tim, gula tablet.tim, guts.tim, hatch.tim, heads.tim, lamashtu pearl.tim, legs.tim, plinth_rg.tim, poison_flower_base.tim, shelf_incinerator.tim, torsos.tim, trck_clue.tim, trees.tim]
   x704  IN USE by this bank: destinys door frame bottom right.tim, ninurta tablet bottom right.tim, sharur tablet.tim, wing tablet.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
   x768  IN USE by this bank: destinys door.tim, sharur tablet cracked.tim, wings tablet question and answers.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, gula codes.tim, lamashtu arm.tim, lamashtu tablet.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]

@@ -54,6 +54,7 @@ ROOMS = [('STATE_HELL_HATH_NO_FURY', 'assets/underworld/Hell Hath No Fury.smx', 
          ('STATE_WINGSCAPE',         'assets/underworld/Wingscape.smx',              'assets/underworld/Wingscape mesh.smx',              'lava'),
          ('STATE_HEROS_PLINTH',      'assets/underworld/Heros Plinth.smx',           'assets/underworld/Heros Plinth mesh.smx',           'lava'),
          ('STATE_A_WOMAN_SCORNED',   'assets/underworld/A Woman Scorned.smx',        'assets/underworld/A Woman Scorned mesh.smx',        'lava'),
+         ('STATE_RIBCAGE',           'assets/underworld/Ribcage.smx',                'assets/underworld/Ribcage mesh.smx',                'lava'),
          ]
 
 

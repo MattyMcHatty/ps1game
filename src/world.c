@@ -146,14 +146,10 @@ _Static_assert(MAX_CRAWLERS      <= WD_MAX_CRAWLERS, "crawlers_dead too narrow")
 _Static_assert(MAX_LUMBERERS     <= WD_MAX_LUMBERERS,"lumberers_dead too narrow");
 _Static_assert(MAX_RABISUS       <= WD_MAX_RABISUS,  "rabisus_dead too narrow");
 _Static_assert(MAX_NESSIES       <= WD_MAX_NESSIES,  "nessies_dead too narrow");
-/* nessies_dead took the padding byte after spiders_dead, so the delta's SHAPE
-   must not have moved — that is what lets every older save load without a
-   SAVE_VERSION bump (see the field in world.h). If either of these fires, the
-   byte did not fit where it was put: bump SAVE_VERSION instead. */
-_Static_assert(offsetof(WorldDelta, nessies_dead) == offsetof(WorldDelta, spiders_dead) + 1,
-               "nessies_dead is not in the byte after spiders_dead");
-_Static_assert(offsetof(WorldDelta, crawlers_dead) == offsetof(WorldDelta, spiders_dead) + 2,
-               "nessies_dead moved crawlers_dead — the save layout changed");
+/* nessies_dead used to take the padding byte after spiders_dead, asserted
+   here. It is a uint16_t now (Ribcage's four Nessies made nine), the delta's
+   shape moved, and SAVE_VERSION 40 rejects an older save - see the field in
+   world.h. */
 /* ...and ahrimans_dead took the padding byte after rabisus_dead, on the same
    terms: if either of these fires, bump SAVE_VERSION instead. */
 _Static_assert(MAX_AHRIMANS      <= WD_MAX_AHRIMANS, "ahrimans_dead too narrow");
@@ -248,7 +244,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_HELL_HATH_NO_FURY, STATE_SHARURS_TRIAL,
     STATE_LAVA_U,          STATE_WINGSCAPE,
     STATE_HEROS_PLINTH,    STATE_CHAMBER_OF_DESTINY,
-    STATE_A_WOMAN_SCORNED,
+    STATE_A_WOMAN_SCORNED, STATE_RIBCAGE,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -459,6 +455,10 @@ static int room_index(GameState area) {
            Fury's north-east door. Slot 68. Seeded with two Golems, two
            Nessies and two Ahrimans (world_seed_room). */
         case STATE_A_WOMAN_SCORNED:   return 68;
+        /* RIBCAGE, Chapter 4's eighth room, behind Hell Hath No Fury's
+           south-east door. Slot 69. Seeded with four Nessies and a Golem
+           (world_seed_room). */
+        case STATE_RIBCAGE:           return 69;
         default:                   return 0;
     }
 }
@@ -2314,6 +2314,36 @@ void world_seed_room(GameState area) {
         ahriman_add(4485, 3082, AHR_HEIGHT_B, STATE_A_WOMAN_SCORNED);
         ahriman_add(1559, 4510, AHR_HEIGHT_C, STATE_A_WOMAN_SCORNED);
     }
+
+    /* RIBCAGE (the user's placements, Nov 2026). Every one APPENDS to its
+       kind's seed order, so no existing save bit moves.
+
+       FOUR NESSIES, one per lava pool, each confined to its own
+       (NSS_POOL_RC_*, tools/gen_nessie_pools.py). The two pools that reach the
+       NORTH rim (z=2400) have theirs towards the north, the two that reach the
+       SOUTH rim (z=-1200) towards the south:
+         (2100,2050)  the NORTH-WEST pool, x[1400,2400] z[800,2400]: 300 off
+                      its x=1800 wall, 350 off the north rim;
+         (4400,2050)  the NORTH-EAST pool, x[4200,5350] z[800,2400]: 350 off
+                      the north rim, 210 off the nearest rock in it;
+         (2700,-800)  the SOUTH-WEST pool, x[2400,3550] z[-1200,400]: 300 off
+                      its x=3000 wall, 400 off the south rim;
+         (6000,-800)  the SOUTH-EAST pool, x[5400,6600] z[-1200,400]: 400 off
+                      the south rim.
+       All clear of NSS_BODY_RADIUS (80), so no wall shoves one on arrival.
+
+       ONE GOLEM in front of the EAST double door (x=7800, z[200,1000]), on
+       its centre line 500 in - Wingscape's door-Golem standoff (see below).
+       >>> IT BLOCKS NOTHING YET. <<< The door leads nowhere; once it does,
+       tag this one with golem_set_blocks() and a new GLM_BLOCKS_* (the
+       Wingscape doors are the model). */
+    if (area == STATE_RIBCAGE) {
+        nessie_add(2100, 2050, NSS_POOL_RC_NW, STATE_RIBCAGE);
+        nessie_add(4400, 2050, NSS_POOL_RC_NE, STATE_RIBCAGE);
+        nessie_add(2700, -800, NSS_POOL_RC_SW, STATE_RIBCAGE);
+        nessie_add(6000, -800, NSS_POOL_RC_SE, STATE_RIBCAGE);
+        golem_add (7300,  600, STATE_RIBCAGE);
+    }
 }
 
 /* ---- Wingscape's Golem: where it stands depends on the way in --------------
@@ -2524,7 +2554,7 @@ void world_save_delta(WorldDelta *d) {
         for (i = 0; i < world.nessie_count; i++) areas[i] = world.nessies[i].area;
         for (i = 0; i < world.nessie_count; i++)
             if (world.nessies[i].state == NSS_DEAD)
-                d->nessies_dead |= (uint8_t)
+                d->nessies_dead |= (uint16_t)
                     (1u << canonical_index(areas, world.nessie_count, i));
     }
     {

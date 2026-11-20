@@ -119,7 +119,7 @@
  * CLUTs (176,480)/(192,480): tools/split_golem_sheet.py, disc.xml. Voff 128,
  * so every sprite brackets its own texture window.
  *
- * >>> ONLY WINGSCAPE AND A WOMAN SCORNED UPLOAD THE SHEET TODAY. <<< Placing one in another room
+ * >>> ONLY WINGSCAPE, A WOMAN SCORNED AND RIBCAGE UPLOAD THE SHEET TODAY. <<< Placing one in another room
  * means: the placement in world.c, the room in golem_room_has_sheet() (the .c)
  * - which main.c and tools/gen_tex_rooms.py key the upload on - and
  * update_golems() / draw_golems() / golems_set_texwindow() in that room. The
@@ -134,10 +134,11 @@
  * for a hit and SFX_HURT for the player's.
  * ----------------------------------------------------------------------- */
 
-#define MAX_GOLEMS             8    /* WHOLE-GAME budget. Four seeded: two in
+#define MAX_GOLEMS             8    /* WHOLE-GAME budget. Five seeded: two in
                                        Wingscape (the west door's, and the
-                                       Wings Tablet's summoned guard) and two
-                                       free-standing in A Woman Scorned */
+                                       Wings Tablet's summoned guard), two
+                                       free-standing in A Woman Scorned, and
+                                       Ribcage's in front of its east door */
 
 /* ---- Health, in half-points - see above. */
 #define GLM_MAX_HEALTH        10

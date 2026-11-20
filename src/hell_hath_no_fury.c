@@ -97,8 +97,8 @@ static int oil_circle_prev = 1;
    The catacomb inner door polys span (400,200)-(200,400): centre (300,300), on
    the cut corner x+z=600 (collision wall 4, inward normal (+0.707,+0.707)), so
    the player walks up to it from the north-east. The north-west door (below)
-   leads to Wingscape and the north-east one to A Woman Scorned; the
-   south-east one still leads nowhere and has no prompt.
+   leads to Wingscape, the north-east one to A Woman Scorned and the
+   south-east one to Ribcage.
 
    THE SIGN is on a free yaw facing the way the reader faces - 2560, south-west
    - 11 off the door toward the player, at the doorway's mid-height (the door
@@ -156,6 +156,26 @@ static int nw_circle_prev = 1;
 #define HHNF_NE_SPAWN_ROT   2560
 
 static int ne_circle_prev = 1;
+
+/* ---- THE SOUTH-EAST DOOR, to Ribcage ---------------------------------------
+   The wooden door polys span (3800,200)-(4000,400): centre (3900,300), on the
+   cut corner z-x=-3600 (collision wall 0, inward normal (-0.707,+0.707)), so
+   the player walks up to it from the north-west. The north-west door's
+   numbers mirrored in x: THE SIGN 11 off the door toward the player, on a
+   free yaw facing the way the reader faces - 1536, south-east - at the
+   doorway's mid-height; THE SPAWN 250 in along the normal, facing north-west
+   out across the platform. */
+#define HHNF_SE_X           3900
+#define HHNF_SE_Z            300
+#define HHNF_SE_TEXT_X      3892
+#define HHNF_SE_TEXT_Z       308
+#define HHNF_SE_TEXT_Y       (HHNF_FLOOR_Y - 200)
+#define HHNF_SE_TEXT_YAW    1536
+#define HHNF_SE_SPAWN_X     3723
+#define HHNF_SE_SPAWN_Z      477
+#define HHNF_SE_SPAWN_ROT   3584
+
+static int se_circle_prev = 1;
 
 static void hhnf_floor_zones_init(void) {
     floor_zones[0].type  = FLOOR_FLAT;
@@ -423,6 +443,7 @@ void hell_hath_no_fury_init(void) {
     sw_circle_prev  = oil_circle_prev;
     nw_circle_prev  = oil_circle_prev;
     ne_circle_prev  = oil_circle_prev;
+    se_circle_prev  = oil_circle_prev;
     save_point_arm();
 }
 
@@ -521,6 +542,51 @@ static void hhnf_ne_text(RenderContext *ctx) {
     door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
                             HHNF_NE_TEXT_X, HHNF_NE_TEXT_Y, HHNF_NE_TEXT_Z,
                             50, 255, 50, fade, HHNF_NE_TEXT_YAW,
+                            DOOR_PIXEL_SIZE);
+}
+
+/* Back in through the south-east door, out of Ribcage. */
+void hell_hath_no_fury_spawn_se(void) {
+    cam_x     = HHNF_SE_SPAWN_X;
+    cam_y     = HHNF_EYE_Y;
+    cam_vy    = 0;
+    cam_z     = HHNF_SE_SPAWN_Z;
+    cam_rot   = HHNF_SE_SPAWN_ROT;
+    cam_pitch = 0;
+    camera_look_cancel();
+    se_circle_prev = interact_tapped();
+}
+
+/* The south-east door's press, on the south-west door's terms. */
+int hell_hath_no_fury_se_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !se_circle_prev;
+    int32_t dx, dz;
+    se_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - HHNF_SE_X;
+    dz = cam_z - HHNF_SE_Z;
+    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= HHNF_TRIGGER_RADIUS)
+        return 0;
+    return interact_facing(HHNF_SE_X, HHNF_SE_Z);
+}
+
+static void hhnf_se_text(RenderContext *ctx) {
+    int32_t dx = cam_x - HHNF_SE_X;
+    int32_t dz = cam_z - HHNF_SE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= HHNF_TEXT_RADIUS) return;
+    if (xz > HHNF_FADE_NEAR) {
+        int range = HHNF_TEXT_RADIUS - HHNF_FADE_NEAR;
+        int prog  = xz - HHNF_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+    door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
+                            HHNF_SE_TEXT_X, HHNF_SE_TEXT_Y, HHNF_SE_TEXT_Z,
+                            50, 255, 50, fade, HHNF_SE_TEXT_YAW,
                             DOOR_PIXEL_SIZE);
 }
 
@@ -911,9 +977,8 @@ void hell_hath_no_fury_draw(RenderContext *ctx) {
        past one tile and only land on the art because the window wraps them. */
     oil_dispensers_draw(ctx);
 
-    /* >>> LEVEL 8 IS THE SAVE POINT, THE TANK'S SIGN AND BAR, THE SOUTH-WEST,
-       NORTH-WEST AND NORTH-EAST DOORS' SIGNS AND ANY PICKUP a later seed puts
-       down. No enemies. */
+    /* >>> LEVEL 8 IS THE SAVE POINT, THE TANK'S SIGN AND BAR, ALL FOUR
+       DOORS' SIGNS AND ANY PICKUP a later seed puts down. No enemies. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         save_points_draw(ctx);
         hhnf_oil_text(ctx);
@@ -926,6 +991,7 @@ void hell_hath_no_fury_draw(RenderContext *ctx) {
             hhnf_sw_text(ctx);
             hhnf_nw_text(ctx);
             hhnf_ne_text(ctx);
+            hhnf_se_text(ctx);
         }
     }
 

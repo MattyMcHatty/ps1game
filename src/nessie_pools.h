@@ -23,6 +23,10 @@ typedef enum {
     NSS_POOL_SHARUR_E,   /* Sharurs Trial.smx, seeded at (1950,-200): 3070 cells */
     NSS_POOL_AWS_N,   /* A Woman Scorned.smx, seeded at (3400,3600): 224 cells */
     NSS_POOL_AWS_SE,   /* A Woman Scorned.smx, seeded at (4830,120): 554 cells */
+    NSS_POOL_RC_NW,   /* Ribcage.smx, seeded at (2100,2050): 410 cells */
+    NSS_POOL_RC_NE,   /* Ribcage.smx, seeded at (4400,2050): 376 cells */
+    NSS_POOL_RC_SW,   /* Ribcage.smx, seeded at (2700,-800): 396 cells */
+    NSS_POOL_RC_SE,   /* Ribcage.smx, seeded at (6000,-800): 656 cells */
     NSS_POOL_COUNT
 } NessiePoolId;
 

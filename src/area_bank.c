@@ -236,6 +236,11 @@ TexBank area_bank_of(GameState area) {
        the Catacombs Entry, all through narrow uploaders; inr_dbl_dr is the
        kitchen's, resident. */
     case STATE_A_WOMAN_SCORNED:
+    /* RIBCAGE owns one, its copy of the double door (DBLDRUW, x576 y0);
+       volcanic from Hell Hath No Fury, lava from the Descent, rocks from
+       Sharur's Trial and the inner door from the Catacombs Entry come
+       through narrow uploaders; wd_dr is the fat door's, resident. */
+    case STATE_RIBCAGE:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -300,7 +305,8 @@ int area_is_underworld(GameState area) {
            area == STATE_WINGSCAPE ||
            area == STATE_HEROS_PLINTH ||
            area == STATE_CHAMBER_OF_DESTINY ||
-           area == STATE_A_WOMAN_SCORNED;
+           area == STATE_A_WOMAN_SCORNED ||
+           area == STATE_RIBCAGE;
 }
 
 /* ---- The prop models -------------------------------------------------------
