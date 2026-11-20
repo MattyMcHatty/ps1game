@@ -82,9 +82,23 @@ static void *rc_buff = NULL;
    The double_door polys in the plane x=7800, z[200,1000] (wall 25). It leads
    nowhere yet: no prompt and no trigger until its room exists.
 
-   ---- THE NORTH DOOR --------------------------------------------------------
-   The catacomb inner door polys in the plane z=2400, x[5800,6200]. It leads
-   nowhere yet either: no prompt and no trigger until its room exists. */
+   ---- THE NORTH DOOR, to the Lava Maze --------------------------------------
+   The catacomb inner door polys in the plane z=2400, x[5800,6200] (collision
+   wall 69, inward normal -Z), at the head of the north-east corridor
+   (x[5400,6600] z[1400,2400]), so the player walks up to it from the south.
+   Distorted like the west door - a stepped outline peaking at y=-800 - so
+   the press point is the middle of its foot, (6000,2400); the sign is 11 off
+   it at y=-200 (Hell Hath No Fury's height for the same door) facing north
+   (yaw 0); the spawn is 250 in, clear of the push radius, facing south. */
+#define RC_N_X           6000
+#define RC_N_Z           2400
+#define RC_N_TEXT_X      6000
+#define RC_N_TEXT_Z      2389
+#define RC_N_TEXT_Y      (RC_FLOOR_Y - 200)
+#define RC_N_TEXT_YAW       0
+#define RC_N_SPAWN_X     6000
+#define RC_N_SPAWN_Z     2150
+#define RC_N_SPAWN_ROT   2048
 
 #define RC_TEXT_RADIUS    1500
 #define RC_FADE_NEAR      1000
@@ -93,6 +107,7 @@ static void *rc_buff = NULL;
 /* Circle edge-detect. Seeded "held" by the arm so a press carried in through
    the transition cannot fire on the arrival frame. */
 static int w_circle_prev = 1;
+static int n_circle_prev = 1;
 
 /* ---- THE FLOOR -------------------------------------------------------------
    One storey: the proxy has one floor plane, y=0, wider than the walls, so
@@ -126,7 +141,8 @@ static void rc_floor_zones_init(void) {
                      of here. Never take that page.
      5  catacomb inner door  the Catacombs Entry's, its narrow uploader (x832
                      y0), the north door - and DOOR_PANEL_CATACOMB's panel,
-                     should that door ever play it out of here.
+                     the transition out of here to the Lava Maze, so it MUST
+                     be uploaded here (the panel draws before STATE_LOADING).
    The sky's texture is src/underworld_sky.c's business. */
 #define RC_TEX_COUNT 6
 
@@ -219,6 +235,52 @@ void ribcage_load_geometry(void) {
 /* ---- The door --------------------------------------------------------------*/
 void ribcage_doors_arm(void) {
     w_circle_prev = interact_tapped();
+    n_circle_prev = w_circle_prev;
+}
+
+/* The north door, to the Lava Maze: the west door's test on its own point
+   and edge state. */
+int ribcage_n_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !n_circle_prev;
+    int32_t dx, dz;
+    n_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - RC_N_X;
+    dz = cam_z - RC_N_Z;
+    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= RC_TRIGGER_RADIUS)
+        return 0;
+    return interact_facing(RC_N_X, RC_N_Z);
+}
+
+static void rc_n_text(RenderContext *ctx) {
+    int32_t dx = cam_x - RC_N_X;
+    int32_t dz = cam_z - RC_N_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= RC_TEXT_RADIUS) return;
+    if (xz > RC_FADE_NEAR) {
+        int range = RC_TEXT_RADIUS - RC_FADE_NEAR;
+        int prog  = xz - RC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+    door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
+                            RC_N_TEXT_X, RC_N_TEXT_Y, RC_N_TEXT_Z,
+                            50, 255, 50, fade, RC_N_TEXT_YAW,
+                            DOOR_PIXEL_SIZE);
+}
+
+void ribcage_spawn_n(void) {
+    cam_x     = RC_N_SPAWN_X;
+    cam_y     = RC_EYE_Y;
+    cam_vy    = 0;
+    cam_z     = RC_N_SPAWN_Z;
+    cam_rot   = RC_N_SPAWN_ROT;
+    cam_pitch = 0;
+    camera_look_cancel();
+    ribcage_doors_arm();
 }
 
 /* A fresh Circle within reach of the west door and facing it. The edge
@@ -518,12 +580,13 @@ void ribcage_draw(RenderContext *ctx) {
     }
 
     /* >>> LEVEL 8 IS THE ENEMIES - the east door's Golem and four Nessies
-       with their fireballs (both area-gated inside) - the WEST DOOR'S SIGN
-       and any pickup a later seed puts down. No props. */
+       with their fireballs (both area-gated inside) - the WEST and NORTH
+       DOORS' SIGNS and any pickup a later seed puts down. No props. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
         draw_golems(ctx);
         draw_nessies(ctx);
         rc_w_text(ctx);
+        rc_n_text(ctx);
     }
 }

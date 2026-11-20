@@ -357,6 +357,10 @@ typedef enum {
     STATE_RIBCAGE,           /* RIBCAGE, behind Hell Hath No Fury's
                                 south-east door - Chapter 4's eighth room.
                                 See src/ribcage.h. Appended, not inserted. */
+    STATE_LAVA_MAZE,         /* THE LAVA MAZE, between Ribcage's north door
+                                and A Woman Scorned's south-east door -
+                                Chapter 4's ninth room. See src/lava_maze.h.
+                                Appended, not inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

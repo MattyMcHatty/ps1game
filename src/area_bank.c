@@ -241,6 +241,11 @@ TexBank area_bank_of(GameState area) {
        Sharur's Trial and the inner door from the Catacombs Entry come
        through narrow uploaders; wd_dr is the fat door's, resident. */
     case STATE_RIBCAGE:
+    /* THE LAVA MAZE owns one, its copy of the gaol door (GAOLDRUW, x576 y0);
+       cobble and the inner door from the Catacombs Entry and lava from the
+       Descent come through narrow uploaders; wd_dr is the fat door's,
+       resident. */
+    case STATE_LAVA_MAZE:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -306,7 +311,8 @@ int area_is_underworld(GameState area) {
            area == STATE_HEROS_PLINTH ||
            area == STATE_CHAMBER_OF_DESTINY ||
            area == STATE_A_WOMAN_SCORNED ||
-           area == STATE_RIBCAGE;
+           area == STATE_RIBCAGE ||
+           area == STATE_LAVA_MAZE;
 }
 
 /* ---- The prop models -------------------------------------------------------

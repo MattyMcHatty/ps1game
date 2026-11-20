@@ -186,6 +186,15 @@
                                  owner) and the Chamber of Destiny (through
                                  heros_plinth_upload_destiny_door), the only
                                  two rooms this transition joins. */
+#define DOOR_PANEL_GAOL_UW   10 /* THE GAOL DOOR, IN THE UNDERWORLD - the Lava
+                                 Maze's west door, out to Ribcage. A REQUEST
+                                 id, not a variant of its own: door_anim_start
+                                 plays DOOR_PANEL_GAOL (same clock, geometry
+                                 and sound) on the Lava Maze's copy of the art,
+                                 GAOLDRUW.TIM at x576 y0 - the original's x640
+                                 y0 and CLUT line are the chapter sky's hell bg.
+                                 The Lava Maze uploads the copy on entry, so
+                                 it is in VRAM when the panel draws. */
 
 void door_anim_load_assets(void);   /* load the panel TIMs into VRAM (startup) */
 

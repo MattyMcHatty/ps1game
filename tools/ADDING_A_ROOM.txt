@@ -286,6 +286,14 @@ three already in it. Rule 5 is a line in a script, not code in the room.
          before STATE_LOADING. DOOR_PANEL_WOOD's is the resident wd_dr at x768
          y256 (never take that page); DOOR_PANEL_CATACOMB's is room art at x832
          y0, so the room the catacomb panel plays FROM must upload it.
+         DOOR_PANEL_INNER's is door_anim's own boot copy (x576 y128), always
+         there. THE GAOL DOOR CANNOT BE DRAWN AT ITS OWN ADDRESS DOWN HERE:
+         its page (x640 y0) and its CLUT line (576,502) are both the sky's
+         hell bg. The Lava Maze (Nov 2026) ships GAOLDRUW.TIM, a copy at x576
+         y0 on the seal's CLUT, and plays DOOR_PANEL_GAOL_UW, which
+         door_anim_start turns into the gaol transition on that copy. A
+         later room with a gaol door borrows that copy (a narrow uploader on
+         src/lava_maze.c) rather than making another.
   5. THE LAVA BURNS. Wherever the lava texture is on the floor, standing in it
      costs 5 HP a second and the screen pulses orange (src/lava.h). The room
      needs NO code for it - lava_update() runs for every area from

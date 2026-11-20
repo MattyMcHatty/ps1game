@@ -132,6 +132,7 @@
 #include "chamber_of_destiny.h" /* ...and the room behind Destiny's Door       */
 #include "a_woman_scorned.h"  /* ...and the room behind HHNF's north-east door   */
 #include "ribcage.h"          /* ...and the room behind HHNF's south-east door   */
+#include "lava_maze.h"        /* ...and the room behind Ribcage's north door     */
 #include "destiny_plinths.h"  /* ...and the two west plinths: Sharur, the Tablet */
 #include "sharur.h"           /* Sharur's reset                                  */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
@@ -226,6 +227,18 @@ static int hhnf_from_aws = 0;
 /* ...and its SOUTH-EAST door, set by Ribcage's west door (that room's only way
    back). */
 static int hhnf_from_ribcage = 0;
+/* The three rooms round the Lava Maze, each with two doors in: set at the
+   trigger on the far side, read and cleared by the arriving room's
+   STATE_LOADING branch - never recovered from current_area.
+     ribcage_from_lm: Ribcage's NORTH door (from the Lava Maze's west door);
+                      0 is its west door, from Hell Hath No Fury.
+     aws_from_lm:     A Woman Scorned's SOUTH-EAST door (from the Lava Maze's
+                      north door); 0 is its south-west door, from HHNF.
+     lm_from_aws:     the Lava Maze's NORTH door (from A Woman Scorned's
+                      south-east door); 0 is its west door, from Ribcage. */
+static int ribcage_from_lm = 0;
+static int aws_from_lm     = 0;
+static int lm_from_aws     = 0;
 
 /* Which of Sharur's Trial's doors the player is arriving through, and which of
    Lava U's. Set at the trigger on the far side, read and cleared by the
@@ -347,6 +360,9 @@ void reset_game(RenderContext *ctx) {
     hhnf_from_wingscape = 0;
     hhnf_from_aws    = 0;
     hhnf_from_ribcage = 0;
+    ribcage_from_lm  = 0;     /* ...and the three round the Lava Maze        */
+    aws_from_lm      = 0;
+    lm_from_aws      = 0;
     sharur_arrival   = 0;     /* ...and Sharur's Trial's, and Lava U's       */
     lava_u_from_sw   = 0;
     plinth_from_wingscape = 0;/* ...and Hero's Plinth's, and Wingscape's     */
@@ -514,6 +530,7 @@ static void load_area_geometry(GameState area) {
         case STATE_CHAMBER_OF_DESTINY: chamber_of_destiny_load_geometry(); break;
         case STATE_A_WOMAN_SCORNED:  a_woman_scorned_load_geometry(); break;
         case STATE_RIBCAGE:          ribcage_load_geometry(); break;
+        case STATE_LAVA_MAZE:        lava_maze_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -3677,8 +3694,14 @@ static void update_current_area(GameState area) {
            THE SOUTH-WEST DOOR, back to Hell Hath No Fury's north-east door:
            a CATACOMB inner door on both sides, so the catacomb transition
            (its texture is uploaded by this room, its sound banked for the
-           chapter). The latch tells HHNF which arrival this is. The
-           south-east double door leads nowhere yet. No props.
+           chapter). The latch tells HHNF which arrival this is.
+
+           THE SOUTH-EAST DOOR, to the Lava Maze's north door: an inner
+           double door on this side, so DOOR_PANEL_INNER (its panel is
+           door_anim's own boot copy); the far side is a catacomb door, so
+           the way back plays the catacomb transition (the user's choice,
+           per direction). The latch tells the Lava Maze which arrival this
+           is.
 
            ENEMIES (world_seed_room): two free-standing GOLEMS, a NESSIE in
            each lava pool and two AHRIMANS. Their pushes ride
@@ -3695,6 +3718,12 @@ static void update_current_area(GameState area) {
             door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
+        } else if (a_woman_scorned_se_door_triggered(lock)) {
+            lm_from_aws  = 1;
+            pending_area = STATE_LAVA_MAZE;
+            door_anim_start(DOOR_PANEL_INNER);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
         }
     } else if (area == STATE_RIBCAGE) {
         /* RIBCAGE - Chapter 4's eighth room, behind Hell Hath No Fury's
@@ -3709,8 +3738,13 @@ static void update_current_area(GameState area) {
 
            THE WEST DOOR, back to Hell Hath No Fury's south-east door: a
            WOODEN door on both sides, so the wooden transition (wd_dr is
-           resident). The latch tells HHNF which arrival this is. The east
-           double door and the north catacomb door lead nowhere yet. */
+           resident). The latch tells HHNF which arrival this is.
+
+           THE NORTH DOOR, to the Lava Maze's west door: a CATACOMB inner
+           door on this side, so the catacomb transition (this room uploads
+           its texture); the far side is a gaol door, so the way back plays
+           the gaol transition (the user's choice, per direction). The east
+           double door leads nowhere yet. */
         apply_collision_reception();
         apply_height();
         update_golems();
@@ -3719,6 +3753,40 @@ static void update_current_area(GameState area) {
             hhnf_from_ribcage = 1;
             pending_area = STATE_HELL_HATH_NO_FURY;
             door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (ribcage_n_door_triggered(lock)) {
+            pending_area = STATE_LAVA_MAZE;
+            door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_LAVA_MAZE) {
+        /* THE LAVA MAZE - Chapter 4's ninth room, between Ribcage's north
+           door and A Woman Scorned's south-east door (src/lava_maze.c): one
+           storey, the shared wall routine (the rim alone) and ONE flat floor
+           zone. The maze is the lava either side of its cobblestone path,
+           which burns from lava_update(). No enemies, no props.
+
+           THE WEST DOOR, back to Ribcage's north door: a GAOL door on this
+           side, so the gaol transition on this room's copy of the art
+           (DOOR_PANEL_GAOL_UW; its sound is the catacomb door's, banked for
+           the chapter). THE NORTH DOOR, to A Woman Scorned's south-east
+           door: a CATACOMB door, so the catacomb transition. Each latch
+           tells the far room which arrival this is. The east wooden door
+           leads nowhere yet. */
+        apply_collision_reception();
+        apply_height();
+        if (lava_maze_w_door_triggered(lock)) {
+            ribcage_from_lm = 1;
+            pending_area = STATE_RIBCAGE;
+            door_anim_start(DOOR_PANEL_GAOL_UW);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (lava_maze_n_door_triggered(lock)) {
+            aws_from_lm  = 1;
+            pending_area = STATE_A_WOMAN_SCORNED;
+            door_anim_start(DOOR_PANEL_CATACOMB);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -4306,6 +4374,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         a_woman_scorned_draw(ctx);
     else if (area == STATE_RIBCAGE)
         ribcage_draw(ctx);
+    else if (area == STATE_LAVA_MAZE)
+        lava_maze_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4872,6 +4942,9 @@ int main(int argc, const char **argv) {
     ribcage_load_assets();        /* ...and Ribcage: one deferred registration
                                      (its double door's copy), the rest
                                      TIM_SLOTs. */
+    lava_maze_load_assets();      /* ...and the Lava Maze: one deferred
+                                     registration (its gaol door's copy),
+                                     the rest TIM_SLOTs. */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
                                      registrations. Its model is read on entry
                                      to the first room that draws it. */
@@ -5993,6 +6066,14 @@ int main(int argc, const char **argv) {
                    uploaders. The wooden door (wd_dr, also the panel out of
                    here) is resident (src/ribcage.c). */
                 ribcage_upload_textures();
+            } else if (pending_area == STATE_LAVA_MAZE) {
+                /* THE LAVA MAZE. Owns one texture, its copy of the gaol door
+                   (x576 y0, the seal's page; also the gaol panel out of
+                   here); the Catacombs Entry's cobble and inner door (also
+                   the catacomb panel out of here), the Descent's lava and the
+                   sky's hell bg through narrow uploaders. The east wooden
+                   door (wd_dr) is resident (src/lava_maze.c). */
+                lava_maze_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -7030,15 +7111,29 @@ int main(int argc, const char **argv) {
                    block below. */
                 chamber_of_destiny_init();
             } else if (pending_area == STATE_A_WOMAN_SCORNED) {
-                /* ONE ARRIVAL, through the south-west door from Hell Hath No
-                   Fury - the init's spawn, and where a debug jump lands. NO
-                   MUSIC LINE: the chapter's block below. */
+                /* TWO ARRIVALS: the south-west door from Hell Hath No Fury -
+                   the init's spawn, and where a debug jump lands - and the
+                   south-east door from the Lava Maze. NO MUSIC LINE: the
+                   chapter's block below. */
                 a_woman_scorned_init();
+                if (aws_from_lm) a_woman_scorned_spawn_se();
+                aws_from_lm = 0;
             } else if (pending_area == STATE_RIBCAGE) {
-                /* ONE ARRIVAL, through the west door from Hell Hath No Fury -
-                   the init's spawn, and where a debug jump lands. NO MUSIC
-                   LINE: the chapter's block below. */
+                /* TWO ARRIVALS: the west door from Hell Hath No Fury - the
+                   init's spawn, and where a debug jump lands - and the north
+                   door from the Lava Maze. NO MUSIC LINE: the chapter's
+                   block below. */
                 ribcage_init();
+                if (ribcage_from_lm) ribcage_spawn_n();
+                ribcage_from_lm = 0;
+            } else if (pending_area == STATE_LAVA_MAZE) {
+                /* TWO ARRIVALS: the west door from Ribcage - the init's
+                   spawn, and where a debug jump lands - and the north door
+                   from A Woman Scorned. NO MUSIC LINE: the chapter's block
+                   below. */
+                lava_maze_init();
+                if (lm_from_aws) lava_maze_spawn_n();
+                lm_from_aws = 0;
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -7510,7 +7605,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_HEROS_PLINTH ||
                    game_state == STATE_CHAMBER_OF_DESTINY ||
                    game_state == STATE_A_WOMAN_SCORNED ||
-                   game_state == STATE_RIBCAGE) {
+                   game_state == STATE_RIBCAGE ||
+                   game_state == STATE_LAVA_MAZE) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

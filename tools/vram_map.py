@@ -988,6 +988,18 @@ KNOWN_STREAM_PAIRS = [
     ("gaol_mud.tim",                "double_door_uw.tim"),
     ("red_wlppr.tim",               "double_door_uw.tim"),
     ("lamashtu.tim",                "double_door_uw.tim"),
+    #   gaol_door_uw.tim -> x576 y0, the LAVA MAZE's copy of gaol door
+    # (Chapter 4), on the seal's page AND the seal's CLUT (640,502): the
+    # original's x640 y0 and CLUT (576,502) are hell bg's down here. Drawn
+    # only in the Lava Maze (and by the gaol panel out of it), which has no
+    # seal, double door copy, crib, mud, Lamashtu or wallpaper; Hell Hath No
+    # Fury and Ribcage put theirs back on every entry.
+    ("seal.tim",                    "gaol_door_uw.tim"),
+    ("double_door_uw.tim",          "gaol_door_uw.tim"),
+    ("crib.tim",                    "gaol_door_uw.tim"),
+    ("gaol_mud.tim",                "gaol_door_uw.tim"),
+    ("red_wlppr.tim",               "gaol_door_uw.tim"),
+    ("lamashtu.tim",                "gaol_door_uw.tim"),
     ("anzu2.tim",                   "seal.tim"),
     ("anzu5.tim",                   "seal.tim"),
     #   gula tablet.tim -> x640 y0, THE NURSERY's floor tiles and the Gula

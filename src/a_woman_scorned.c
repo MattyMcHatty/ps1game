@@ -83,9 +83,23 @@ static void *aws_buff = NULL;
 #define AWS_SW_SPAWN_Z      515
 #define AWS_SW_SPAWN_ROT    512
 
-/* ---- THE SOUTH-EAST DOOR ---------------------------------------------------
-   The inr_dbl_dr polys on the cut corner (6000,-600)-(6600,0) (wall 61). It
-   leads nowhere yet: no prompt and no trigger until its room exists. */
+/* ---- THE SOUTH-EAST DOOR, to the Lava Maze ---------------------------------
+   The inr_dbl_dr polys on the cut corner (6000,-600)-(6600,0) (wall 61,
+   inward normal (-0.707,+0.707)), square and 300 tall, so the player walks up
+   to it from the north-west. The press point is its centre at the foot,
+   (6300,-300); the sign is 11 toward the player (8 on each axis) at y=-200
+   on a free yaw facing the way the reader faces - 1536, south-east; the
+   spawn is 250 in along the normal (177 on each axis), clear of the 195
+   push radius, facing north-west into the room. */
+#define AWS_SE_X           6300
+#define AWS_SE_Z           (-300)
+#define AWS_SE_TEXT_X      6292
+#define AWS_SE_TEXT_Z      (-292)
+#define AWS_SE_TEXT_Y      (AWS_FLOOR_Y - 200)
+#define AWS_SE_TEXT_YAW    1536
+#define AWS_SE_SPAWN_X     6123
+#define AWS_SE_SPAWN_Z     (-123)
+#define AWS_SE_SPAWN_ROT   3584
 
 #define AWS_TEXT_RADIUS    1500
 #define AWS_FADE_NEAR      1000
@@ -94,6 +108,7 @@ static void *aws_buff = NULL;
 /* Circle edge-detect. Seeded "held" by the arm so a press carried in through
    the transition cannot fire on the arrival frame. */
 static int sw_circle_prev = 1;
+static int se_circle_prev = 1;
 
 /* ---- THE FLOOR -------------------------------------------------------------
    One storey: the proxy has one floor plane, y=0, wider than the walls, so
@@ -126,7 +141,10 @@ static void aws_floor_zones_init(void) {
                              (VRAM_MAP_UNDERWORLD.txt: "needs a way back
                              first"), so, like wd_dr, it is borrowed as it
                              stands. A future Underworld room that takes x576
-                             y256 owes this room a restore.
+                             y256 owes this room a restore. The transition
+                             out through it, DOOR_PANEL_INNER, does not read
+                             this page: its panel is door_anim's own boot
+                             copy at x576 y128, which nothing re-lays.
    The sky's texture is src/underworld_sky.c's business. */
 #define AWS_TEX_COUNT 5
 
@@ -209,6 +227,52 @@ void a_woman_scorned_load_geometry(void) {
 /* ---- The door --------------------------------------------------------------*/
 void a_woman_scorned_doors_arm(void) {
     sw_circle_prev = interact_tapped();
+    se_circle_prev = sw_circle_prev;
+}
+
+/* The south-east door, to the Lava Maze: the south-west door's test on its
+   own point and edge state. */
+int a_woman_scorned_se_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !se_circle_prev;
+    int32_t dx, dz;
+    se_circle_prev = held;
+    if (lock || !just) return 0;
+    dx = cam_x - AWS_SE_X;
+    dz = cam_z - AWS_SE_Z;
+    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= AWS_TRIGGER_RADIUS)
+        return 0;
+    return interact_facing(AWS_SE_X, AWS_SE_Z);
+}
+
+static void aws_se_text(RenderContext *ctx) {
+    int32_t dx = cam_x - AWS_SE_X;
+    int32_t dz = cam_z - AWS_SE_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= AWS_TEXT_RADIUS) return;
+    if (xz > AWS_FADE_NEAR) {
+        int range = AWS_TEXT_RADIUS - AWS_FADE_NEAR;
+        int prog  = xz - AWS_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+    door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
+                            AWS_SE_TEXT_X, AWS_SE_TEXT_Y, AWS_SE_TEXT_Z,
+                            50, 255, 50, fade, AWS_SE_TEXT_YAW,
+                            DOOR_PIXEL_SIZE);
+}
+
+void a_woman_scorned_spawn_se(void) {
+    cam_x     = AWS_SE_SPAWN_X;
+    cam_y     = AWS_EYE_Y;
+    cam_vy    = 0;
+    cam_z     = AWS_SE_SPAWN_Z;
+    cam_rot   = AWS_SE_SPAWN_ROT;
+    cam_pitch = 0;
+    camera_look_cancel();
+    a_woman_scorned_doors_arm();
 }
 
 /* A fresh Circle within reach of the south-west door and facing it. The edge
@@ -509,13 +573,15 @@ void a_woman_scorned_draw(RenderContext *ctx) {
     }
 
     /* >>> LEVEL 8 IS THE ENEMIES - two Golems, two Nessies with their
-       fireballs, two Ahrimans (all area-gated inside) - the SOUTH-WEST
-       DOOR'S SIGN and any pickup a later seed puts down. No props. */
+       fireballs, two Ahrimans (all area-gated inside) - the SOUTH-WEST and
+       SOUTH-EAST DOORS' SIGNS and any pickup a later seed puts down. No
+       props. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
         draw_golems(ctx);
         draw_nessies(ctx);
         draw_ahrimans(ctx);
         aws_sw_text(ctx);
+        aws_se_text(ctx);
     }
 }

@@ -28,11 +28,14 @@
        HELL HATH NO FURY's north-east door, whose side is a catacomb inner
        door too: DOOR_PANEL_CATACOMB both ways (the user's choice, Nov 2026).
      - SOUTH-EAST: an inner double door (the mansion's inr_dbl_dr, resident).
-       Leads nowhere yet - no prompt and no trigger until its room exists.
+       It leads to the LAVA MAZE's north door, a catacomb inner door: out of
+       here DOOR_PANEL_INNER (its panel is the same resident inr_dbl_dr),
+       back DOOR_PANEL_CATACOMB (the user's choice, Nov 2026, per direction).
 
-   THE ARRIVAL. One: through the south-west door, just inside it facing
+   THE ARRIVALS. Two: through the south-west door, just inside it facing
    north-east (a_woman_scorned_spawn_sw, also the init's default and where a
-   debug jump lands).
+   debug jump lands), and through the south-east door from the Lava Maze,
+   facing north-west (a_woman_scorned_spawn_se, main.c's override).
 
    THE MUSIC is the chapter's (CDAUDIO_UNDERWORLD_TRACK, main.c's Chapter 4
    block).
@@ -56,5 +59,10 @@ int  a_woman_scorned_sw_door_triggered(int lock);
 
 /* Arrival through the south-west door: just inside it, facing north-east. */
 void a_woman_scorned_spawn_sw(void);
+
+/* The SOUTH-EAST door, to the Lava Maze, on the south-west door's terms, and
+   the arrival through it: just inside it, facing north-west. */
+int  a_woman_scorned_se_door_triggered(int lock);
+void a_woman_scorned_spawn_se(void);
 
 #endif

@@ -30,10 +30,14 @@
        (the user's choice, Nov 2026).
      - EAST: a double door (a copy of the Delivery Area's double_door).
        Leads nowhere yet - no prompt and no trigger until its room exists.
-     - NORTH: a catacomb inner door. Leads nowhere yet either.
+     - NORTH: a catacomb inner door. It leads to the LAVA MAZE's west door, a
+       gaol door: out of here DOOR_PANEL_CATACOMB, back DOOR_PANEL_GAOL_UW
+       (the user's choice, Nov 2026, per direction).
 
-   THE ARRIVAL. One: through the west door, just inside it facing east
-   (ribcage_spawn_w, also the init's default and where a debug jump lands).
+   THE ARRIVALS. Two: through the west door, just inside it facing east
+   (ribcage_spawn_w, also the init's default and where a debug jump lands),
+   and through the north door from the Lava Maze, facing south
+   (ribcage_spawn_n, main.c's override).
 
    THE MUSIC is the chapter's (CDAUDIO_UNDERWORLD_TRACK, main.c's Chapter 4
    block).
@@ -57,5 +61,10 @@ int  ribcage_w_door_triggered(int lock);
 
 /* Arrival through the west door: just inside it, facing east. */
 void ribcage_spawn_w(void);
+
+/* The NORTH door, to the Lava Maze, on the west door's terms, and the
+   arrival through it: just inside it, facing south. */
+int  ribcage_n_door_triggered(int lock);
+void ribcage_spawn_n(void);
 
 #endif

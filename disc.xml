@@ -2139,6 +2139,16 @@
              inner door and the resident wd_dr. -->
             <file name="RIBCAGE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\ribcage.smd"/>
             <file name="DBLDRUW.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\double_door_uw.tim"/>
+        <!-- LAVA MAZE (src/lava_maze.h), between Ribcage's north door and A
+             Woman Scorned's south-east door: a cobblestone path through a
+             floor of lava, one storey. Owns one texture, GAOLDRUW.TIM: a
+             byte-identical copy of the Gaol Entry's GAOLDOOR.TIM moved to
+             x576 y0 (the seal's page) with the seal's CLUT (640,502), because
+             the original's x640 y0 and its CLUT (576,502) are the sky's hell
+             bg in every Chapter 4 room. Borrows the cobble, the lava, the
+             inner door and the resident wd_dr. -->
+            <file name="LAVAMAZE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\lava_maze.smd"/>
+            <file name="GAOLDRUW.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\gaol_door_uw.tim"/>
         <!-- SHARUR, the Underworld's weapon (src/sharur.c): the held model,
              and the one standing on the Chamber's lower plinth. Flat-shaded
              like CRFAXE.SMD, from assets/props/Sharur.smx by smxlink. -->

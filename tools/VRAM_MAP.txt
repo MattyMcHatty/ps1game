@@ -68,6 +68,7 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   red_wlppr.tim        4       576     0   128   128     0   0,492
   seal.tim             4       576     0   128   128     0   640,502
   double_door_uw.tim   4       576     0   128   128     0   768,480
+  gaol_door_uw.tim     4       576     0   128   128     0   640,502
   hadad_idle_64.tim    4       608     0   128   128     0   256,507
   arms2.tim            4       640     0   128   128     0   672,501
   asag.tim             8       640     0   128   128     0   672,501
@@ -343,6 +344,7 @@ CLUT SLOTS  (8bpp = 256 words wide, 4bpp = 16)
   y=502  x[512,528)  pipe_gh.tim
   y=502  x[672,928)  sconce.tim
   y=502  x[640,656)  seal.tim
+  y=502  x[640,656)  gaol_door_uw.tim
   y=502  x[576,592)  hell bg.tim
   y=502  x[944,960)  lava.tim
   y=502  x[928,944)  night sky.tim
@@ -554,6 +556,7 @@ OVERLAP CHECK
   gaol_mud.tim                             red_wlppr.tim        time-shared (streaming)
   gaol_mud.tim                             seal.tim             time-shared (streaming)
   gaol_mud.tim                             double_door_uw.tim   time-shared (streaming)
+  gaol_mud.tim                             gaol_door_uw.tim     time-shared (streaming)
   gula_a.tim                               crawler_a.tim        time-shared (streaming)
   gula_a.tim                               rafflesia1.tim       time-shared (streaming)
   gula_a.tim                               rafflesia2.tim       time-shared (streaming)
@@ -678,6 +681,7 @@ OVERLAP CHECK
   crib.tim                                 red_wlppr.tim        time-shared (streaming)
   crib.tim                                 seal.tim             time-shared (streaming)
   crib.tim                                 double_door_uw.tim   time-shared (streaming)
+  crib.tim                                 gaol_door_uw.tim     time-shared (streaming)
   cuneiform _symbols.tim                   dresser.tim          time-shared (streaming)
   cuneiform _symbols.tim                   grdn_gte.tim         time-shared (streaming)
   cuneiform _symbols.tim                   kchn_wl.tim          time-shared (streaming)
@@ -889,6 +893,7 @@ OVERLAP CHECK
   lamashtu.tim                             red_wlppr.tim        time-shared (streaming)
   lamashtu.tim                             seal.tim             time-shared (streaming)
   lamashtu.tim                             double_door_uw.tim   time-shared (streaming)
+  lamashtu.tim                             gaol_door_uw.tim     time-shared (streaming)
   legs.tim                                 plinth_rg.tim        time-shared (streaming)
   legs.tim                                 poison_flower_base.tim time-shared (streaming)
   legs.tim                                 torsos.tim           time-shared (streaming)
@@ -968,6 +973,7 @@ OVERLAP CHECK
   red_crpt.tim                             marble.tim           time-shared (streaming)
   red_wlppr.tim                            seal.tim             time-shared (streaming)
   red_wlppr.tim                            double_door_uw.tim   time-shared (streaming)
+  red_wlppr.tim                            gaol_door_uw.tim     time-shared (streaming)
   rusty.tim                                rusty_fence.tim      time-shared (streaming)
   rusty.tim                                stable glyphs.tim    time-shared (streaming)
   rusty.tim                                destinys door frame bottom right.tim time-shared (streaming)
@@ -983,6 +989,7 @@ OVERLAP CHECK
   rusty_fence.tim                          upstairs.tim         time-shared (streaming)
   sconce.tim                               wd_flr.tim           time-shared (streaming)
   seal.tim                                 double_door_uw.tim   time-shared (streaming)
+  seal.tim                                 gaol_door_uw.tim     time-shared (streaming)
   spdr_rst.tim                             ahriman_a.tim        time-shared (streaming)
   spdr_wk.tim                              golem_a.tim          time-shared (streaming)
   stable glyphs.tim                        destinys door frame bottom right.tim time-shared (streaming)
@@ -1017,6 +1024,7 @@ OVERLAP CHECK
   destinys door.tim                        wings tablet question and answers.tim time-shared (streaming)
   destinys door.tim                        xt_dr_cmplt.tim      time-shared (streaming)
   destinys door.tim                        xt_dr_lckd.tim       time-shared (streaming)
+  double_door_uw.tim                       gaol_door_uw.tim     time-shared (streaming)
   golem_b.tim                              zombie_alert.tim     time-shared (streaming)
   lava.tim                                 marble.tim           time-shared (streaming)
   nessie_a.tim                             xt_dr_lft_hlf.tim    time-shared (streaming)

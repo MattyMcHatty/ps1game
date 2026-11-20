@@ -637,6 +637,16 @@ void door_anim_restore_panels(void) {
 
 /* ------------------------------------------------------------- state machine */
 void door_anim_start(int variant) {
+    /* THE GAOL DOOR'S TWO HOMES. DOOR_PANEL_GAOL_UW is a request, not a
+       variant: the gaol transition on the Lava Maze's copy of the art (x576
+       y0), because in Chapter 4 the original's page is the sky's. The pair is
+       re-picked on EVERY start so neither home can leak into the other's
+       transition. */
+    int gaol_uw = (variant == DOOR_PANEL_GAOL_UW);
+    if (gaol_uw) variant = DOOR_PANEL_GAOL;
+    panel_tpage[DOOR_PANEL_GAOL] = gaol_uw ? TIM_TPAGE_GAOLDRUW : TIM_TPAGE_GAOLDOOR;
+    panel_clut [DOOR_PANEL_GAOL] = gaol_uw ? TIM_CLUT_GAOLDRUW  : TIM_CLUT_GAOLDOOR;
+
     anim_timer   = 0;
     anim_active  = 1;
     anim_variant = (variant >= 0 && variant < DOOR_PANEL_COUNT) ? variant

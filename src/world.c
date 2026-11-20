@@ -245,6 +245,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_LAVA_U,          STATE_WINGSCAPE,
     STATE_HEROS_PLINTH,    STATE_CHAMBER_OF_DESTINY,
     STATE_A_WOMAN_SCORNED, STATE_RIBCAGE,
+    STATE_LAVA_MAZE,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -459,6 +460,10 @@ static int room_index(GameState area) {
            south-east door. Slot 69. Seeded with four Nessies and a Golem
            (world_seed_room). */
         case STATE_RIBCAGE:           return 69;
+        /* THE LAVA MAZE, Chapter 4's ninth room, between Ribcage's north
+           door and A Woman Scorned's south-east door. Slot 70. Seeded
+           EMPTY. */
+        case STATE_LAVA_MAZE:         return 70;
         default:                   return 0;
     }
 }
