@@ -23,6 +23,7 @@
 #include "nessie.h"
 #include "ahriman.h"
 #include "golem.h"
+#include "column.h"
 #include "maggot.h"
 #include "rabisu.h"
 #include "asag.h"
@@ -350,6 +351,14 @@ static void hell_burn_tick(void) {
         golem_body(s, &cyc, &hh, &hw);
         if (HIT(s->x, cyc, s->z, hw, hh))
             golem_damage(s, golem_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
+    }
+    /* THE COLUMN: its orb square only (column.h), a whole hit point a second
+       of its two. Static Columns offer no box. */
+    for (i = 0; i < column_count; i++) {
+        int32_t ox, oy, oz, ohw, ohh;
+        if (!column_orb_box(&columns[i], &ox, &oy, &oz, &ohw, &ohh)) continue;
+        if (HIT(ox, oy, oz, ohw, ohh))
+            column_damage(&columns[i], column_scale_damage(HELL_TICK_DAMAGE, DMG_HOLY));
     }
     /* The Maggots — in graveolver_fire's list, so they are here too (the rule
        above). Aimed through maggot_body_y(), where the floating body is. 1 a

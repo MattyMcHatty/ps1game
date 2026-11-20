@@ -28,6 +28,7 @@
 #include "particles.h"
 #include "btn_glyph.h"
 #include "door.h"
+#include "column.h"             /* the middle pool's living column           */
 
 /* Lava Maze - see lava_maze.h. The room half is src/a_woman_scorned.c's
    (itself Wingscape's, Lava U's and Hell Hath No Fury's): cull keys, radius
@@ -520,9 +521,11 @@ void lava_maze_draw(RenderContext *ctx) {
     render_set_clear_colour(ctx, UW_FOG_R, UW_FOG_G, UW_FOG_B);
 
     /* 128x128 texture window so per-poly UVs wrap within each texture's page.
-       All five room textures and the sky's sit at Voff 0. No enemy sheet is
-       drawn here. */
+       All five room textures and the sky's sit at Voff 0. The Column's sheet
+       does NOT (Voff 128), so each of its quads brackets itself and is told
+       what to restore. */
     RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+    columns_set_texwindow(&tw);
     {
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
         if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
@@ -543,10 +546,12 @@ void lava_maze_draw(RenderContext *ctx) {
         draw_lm_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE TWO DOOR SIGNS <<< - no enemies, no props - and any
-       pickup a later seed puts down. */
+    /* >>> LEVEL 8 IS THE COLUMN <<< (with its orbs and shards; area-gated
+       inside), THE TWO DOOR SIGNS - no props - and any pickup a later seed
+       puts down. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
+        draw_columns(ctx);
         lm_door_text(ctx, LM_W_X, LM_W_Z, LM_W_TEXT_X, LM_W_TEXT_Y,
                      LM_W_TEXT_Z, LM_W_TEXT_YAW);
         lm_door_text(ctx, LM_N_X, LM_N_Z, LM_N_TEXT_X, LM_N_TEXT_Y,

@@ -38,6 +38,7 @@
 #include "nessie.h"            /* ...and Nessie's head is solid (area-tagged) */
 #include "ahriman.h"           /* ...and so is an Ahriman's body (area-tagged) */
 #include "golem.h"             /* ...and a Golem's (area-tagged)              */
+#include "column.h"            /* ...and a Column's (area-tagged)             */
 #include "gula.h"              /* ...and Gula, rooted in the Kennels         */
 #include "asag.h"              /* ...and Asag, solid at any pose OR position */
 #include "lamashtu.h"          /* ...and Lamashtu, solid at any pose         */
@@ -947,6 +948,10 @@ void apply_collision_reception(void) {
        the walls like theirs, so a Golem planted near a wall can never shove
        the player into it. */
     golems_collide(&cam_x, cam_y, &cam_z, GLM_WALL_LIKE_PUSH);
+    /* The Column (src/column.h): a two-sided wall the length of its pose, at
+       the walls' own standoff, BEFORE the walls on the Golem's terms so one
+       stepping beside a rim can never shove the player into it. */
+    columns_collide(&cam_x, cam_y, &cam_z, COL_WALL_LIKE_PUSH);
     /* Gula, the Kennels' one-off (src/gula.h): rooted in open floor, but given
        the lumberers' place and radius all the same, so her push and the walls
        can never disagree about where the player ends up. */

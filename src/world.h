@@ -172,6 +172,7 @@ void world_silence_monsters(void);
                                  is a uint16_t (SAVE_VERSION 40). */
 #define WD_MAX_AHRIMANS   8   /* bits: likewise, one byte - see ahrimans_dead */
 #define WD_MAX_GOLEMS     8   /* bits: likewise, one byte - see golems_dead   */
+#define WD_MAX_COLUMNS    8   /* bits: ALIVE Columns only - see columns_dead  */
 /* bits: likewise one global area-tagged array. 16 rather than 8 since The
    Shelf's two took the whole-game total to nine — which is why lumberers_dead
    below is a uint16_t, the widening crawlers_dead took (SAVE_VERSION 33). */
@@ -230,6 +231,11 @@ typedef struct {
        and the uint64_t each exactly. Its width follows the room count now. */
     RoomBits  visited;
     uint8_t   spiders_dead;                       /* keyed by (area, ordinal) */
+    /* THE COLUMN (src/column.h). In the padding byte after spiders_dead that
+       nessies_dead's widening left behind - so no SAVE_VERSION bump; world.c
+       asserts the layout did not move. Keyed by canonical index AMONG THE
+       ALIVE Columns only: a static one can never die, so it spends no bit. */
+    uint8_t   columns_dead;                       /* see WD_MAX_COLUMNS */
     /* NESSIE (src/nessie.h), keyed like the spiders. It used to be a byte in
        the padding before crawlers_dead (no version bump then). Ribcage's four
        took the whole-game total to nine, so it is a uint16_t now: the byte

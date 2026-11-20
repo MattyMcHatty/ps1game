@@ -31,6 +31,7 @@
 #include "nessie.h"     /* Chapter 4's lava monster: global, area-tagged */
 #include "ahriman.h"    /* ...and its floating eye: likewise                */
 #include "golem.h"      /* ...and its rock giant: likewise                  */
+#include "column.h"     /* ...and its living (and static) columns: likewise */
 #include "wings_tablet.h" /* where the tablet's summoned guard stands     */
 
 /* Wingscape's Golem: its two spots, one per arrival door. See
@@ -114,6 +115,8 @@ typedef struct {
     int       ahriman_count;
     Golem     golems[MAX_GOLEMS];         /* ditto: Chapter 4's rock giant  */
     int       golem_count;
+    Column    columns[MAX_COLUMNS];       /* ditto: Chapter 4's columns     */
+    int       column_count;
     Mushroom  mushrooms[MAX_MUSHROOMS];   /* ditto: the garden's pacing ambusher */
     int       mushroom_count;
     LivingStatue living_statues[MAX_LIVING_STATUES]; /* ditto: the maze's stalker */
@@ -164,6 +167,14 @@ _Static_assert(offsetof(WorldDelta, golems_dead) == offsetof(WorldDelta, asags_d
                "golems_dead is not in the byte after asags_dead");
 _Static_assert(offsetof(WorldDelta, hadads_state) == offsetof(WorldDelta, asags_dead) + 2,
                "golems_dead moved hadads_state — the save layout changed");
+/* ...and columns_dead took the padding byte after spiders_dead, on the same
+   terms: if either of these fires, bump SAVE_VERSION instead. Its bits count
+   ALIVE Columns only (column.h), so the budget asserted is theirs. */
+_Static_assert(MAX_ALIVE_COLUMNS <= WD_MAX_COLUMNS, "columns_dead too narrow");
+_Static_assert(offsetof(WorldDelta, columns_dead) == offsetof(WorldDelta, spiders_dead) + 1,
+               "columns_dead is not in the byte after spiders_dead");
+_Static_assert(offsetof(WorldDelta, nessies_dead) == offsetof(WorldDelta, spiders_dead) + 2,
+               "columns_dead moved nessies_dead — the save layout changed");
 _Static_assert(MAX_MUSHROOMS     <= WD_MAX_MUSHROOMS,"mushrooms_dead too narrow");
 _Static_assert(MAX_LIVING_STATUES <= WD_MAX_LIVING_STATUES,
                "living_statues_dead too narrow");
@@ -195,6 +206,7 @@ extern Rabisu    rabisus[MAX_RABISUS];         extern int rabisu_count;
 extern Nessie    nessies[MAX_NESSIES];         extern int nessie_count;
 extern Ahriman   ahrimans[MAX_AHRIMANS];       extern int ahriman_count;
 extern Golem     golems[MAX_GOLEMS];           extern int golem_count;
+extern Column    columns[MAX_COLUMNS];         extern int column_count;
 extern Mushroom  mushrooms[MAX_MUSHROOMS];     extern int mushroom_count;
 extern LivingStatue living_statues[MAX_LIVING_STATUES];
 extern int          living_statue_count;
@@ -546,6 +558,8 @@ static void snapshot_fatdoors(void) {
     world.ahriman_count = ahriman_count;
     memcpy(world.golems, golems, sizeof golems);
     world.golem_count = golem_count;
+    memcpy(world.columns, columns, sizeof columns);
+    world.column_count = column_count;
     memcpy(world.mushrooms, mushrooms, sizeof mushrooms);
     world.mushroom_count = mushroom_count;
     memcpy(world.living_statues, living_statues, sizeof living_statues);
@@ -656,6 +670,7 @@ void world_leave(GameState area) {
     ahrimans_rest();     /* ...and the freeze with them: a frozen player who
                             reaches a door walks out free */
     golems_rest();       /* ...full health and asleep again; deaths stick */
+    columns_rest();      /* ...back where they were planted, calm and whole */
     mushrooms_rest();
     living_statues_rest();
     /* NOT simply "back at his spawn": where Hadad starts a visit depends on the
@@ -2349,6 +2364,18 @@ void world_seed_room(GameState area) {
         nessie_add(6000, -800, NSS_POOL_RC_SE, STATE_RIBCAGE);
         golem_add (7300,  600, STATE_RIBCAGE);
     }
+
+    /* THE LAVA MAZE (the user's placement, Nov 2026). ONE ALIVE COLUMN
+       (src/column.h) in the rectangular lava pool all the paths run round -
+       x[4000,5800] z[600,2000], mined from the visual mesh - at its middle,
+       FACING NORTH/SOUTH (its plane along X, so it faces the south path the
+       player arrives along) and stepping east/west. It is not kept to the
+       pool (the user's answer): along z=1300 nothing stands between the west
+       rim (x=0) and the east rim (x=7800), so it may walk out across the
+       paths either side. Its first step from here lands at x=4600 or 5200. */
+    if (area == STATE_LAVA_MAZE) {
+        column_add(4900, 1300, COL_AXIS_X, 1, STATE_LAVA_MAZE);
+    }
 }
 
 /* ---- Wingscape's Golem: where it stands depends on the way in --------------
@@ -2581,6 +2608,20 @@ void world_save_delta(WorldDelta *d) {
                     (1u << canonical_index(areas, world.golem_count, i));
     }
     {
+        /* THE COLUMNS: canonical keying over the ALIVE ones only (a static
+           Column cannot die and spends no bit). The room walk on load seeds
+           them in canonical order, so the decode counts alive ones in array
+           order. */
+        GameState areas[MAX_COLUMNS];
+        int       slot[MAX_COLUMNS];
+        int       n = 0;
+        for (i = 0; i < world.column_count; i++)
+            if (world.columns[i].alive) { areas[n] = world.columns[i].area; slot[n++] = i; }
+        for (i = 0; i < n; i++)
+            if (world.columns[slot[i]].state == COL_DEAD)
+                d->columns_dead |= (uint8_t)(1u << canonical_index(areas, n, i));
+    }
+    {
         GameState areas[MAX_RABISUS];
         for (i = 0; i < world.rabisu_count; i++) areas[i] = world.rabisus[i].area;
         for (i = 0; i < world.rabisu_count; i++)
@@ -2638,6 +2679,7 @@ void world_load_delta(const WorldDelta *d) {
     nessies_reset();
     ahrimans_reset();
     golems_reset();
+    columns_reset();
     mushrooms_reset();
     living_statues_reset();
     hadads_reset();
@@ -2722,6 +2764,14 @@ void world_load_delta(const WorldDelta *d) {
         if (d->ahrimans_dead & (1u << i)) ahrimans[i].state = AHR_DEAD;
     for (i = 0; i < golem_count; i++)
         if (d->golems_dead & (1u << i)) golems[i].state = GLM_DEAD;
+    {
+        int n = 0;   /* the ALIVE ones' ordinal - see the encode */
+        for (i = 0; i < column_count; i++) {
+            if (!columns[i].alive) continue;
+            if (d->columns_dead & (1u << n)) columns[i].state = COL_DEAD;
+            n++;
+        }
+    }
     for (i = 0; i < rabisu_count; i++)
         if (d->rabisus_dead & (1u << i)) { rabisus[i].dead = 1; rabisus[i].dying = 1; }
     for (i = 0; i < mushroom_count; i++)

@@ -86,6 +86,7 @@ THIS BANK'S ART
   ahriman_b.tim              Lava U: Ahriman frames 2-3 (crawler's) x704 y128
   catacomb inner door.tim    HHNF: two doors (Catacombs Entry's) x832 y0
   cobblestones.tim           HHNF: the ruin (Catacombs Entry's) x384 y0
+  column.tim                 Lava Maze: Column, idle + arch (intro still's) x448 y128
   destiny door frame top left.tim Plinth: frame, top left (owned 8bpp; cobble's page) x384 y0
   destinys door frame bottom left.tim Plinth: frame, bottom left (owned 8bpp; the oil tank's page) x896 y256
   destinys door frame bottom right.tim Plinth: frame, bottom right (owned 8bpp; the tablets' page) x704 y0
@@ -124,7 +125,7 @@ Golem their second halves, x[384,448) and x[768,832), on the same terms. No
 enemy sheet of Chapters 1-3 is uploaded down here.)
 
   x[320,448)  IN USE by this bank: ahriman_a.tim, golem_a.tim
-  x[448,576)  AVAILABLE, needs a way back first: mansion.tim
+  x[448,576)  IN USE by this bank: column.tim
   x[576,704)  BLOCKED - reserved: shadow.tim
   x[704,832)  IN USE by this bank: ahriman_b.tim, golem_b.tim
   x[832,960)  IN USE by this bank: nessie_a.tim, nessie_b.tim

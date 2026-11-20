@@ -44,6 +44,7 @@
 #include "nessie.h"
 #include "ahriman.h"
 #include "golem.h"
+#include "column.h"
 #include "web.h"
 #include "menu.h"
 #include "hud.h"
@@ -333,6 +334,7 @@ void reset_game(RenderContext *ctx) {
     nessies_reset();       /* ...and Chapter 4's lava monster, with its fireballs */
     ahrimans_reset();      /* ...and its floating eyes, with their flash */
     golems_reset();        /* ...and its rock giants, with their shards */
+    columns_reset();       /* ...and its columns, with their orbs and shards */
     lava_reset();          /* ...and the burn of the lava it swims in */
     lms_creeps_reset();    /* ...and every one Lamashtu poured, on the same terms */
     creeps_reset();        /* ...and every Creep a crib had poured out. There is
@@ -3774,9 +3776,14 @@ static void update_current_area(GameState area) {
            the chapter). THE NORTH DOOR, to A Woman Scorned's south-east
            door: a CATACOMB door, so the catacomb transition. Each latch
            tells the far room which arrival this is. The east wooden door
-           leads nowhere yet. */
+           leads nowhere yet.
+
+           ONE ENEMY (world_seed_room): an ALIVE COLUMN in the middle lava
+           pool (src/column.h). Its body rides apply_collision_reception; its
+           update is area-gated inside. */
         apply_collision_reception();
         apply_height();
+        update_columns();
         if (lava_maze_w_door_triggered(lock)) {
             ribcage_from_lm = 1;
             pending_area = STATE_RIBCAGE;
@@ -5166,6 +5173,11 @@ int main(int argc, const char **argv) {
                                  beside the Ahriman's), uploaded on entry to
                                  the rooms golem_room_has_sheet() names */
     golems_init();
+    columns_load_textures();  /* CHAPTER 4's column: REGISTERED here (one
+                                 128x128 8bpp sheet, idle + arch), uploaded on
+                                 entry to the rooms column_room_has_sheet()
+                                 names */
+    columns_init();
     loading_screen_pump(&ctx);
     creeps_load_textures();   /* Chapter 3's third monster, and the only one in
                                  the game that is SPAWNED rather than placed —
@@ -6320,6 +6332,14 @@ int main(int argc, const char **argv) {
                tools/gen_tex_rooms.py. */
             if (golem_room_has_sheet(pending_area))
                 golems_upload_textures();
+            /* THE COLUMN, on the intro still's / lumberer_a's block x448 y128
+               (src/column.h). No Underworld room draws anything there; the
+               intro re-reads its still and the Catacombs re-upload
+               lumberer_a, which is the way back. Which rooms:
+               column_room_has_sheet(), mirrored as COLUMN_ROOMS in
+               tools/gen_tex_rooms.py. */
+            if (column_room_has_sheet(pending_area))
+                columns_upload_textures();
             {
                 /* WHITE, NOT BLACK, INTO DESCENT TO HELL: the Seal hands off in
                    full white and the room fades up out of it, so this one

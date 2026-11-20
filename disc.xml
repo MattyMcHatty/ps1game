@@ -2205,6 +2205,14 @@
              (176,480) and (192,480), its own. -->
             <file name="GOLEMA.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\golem_a.tim"/>
             <file name="GOLEMB.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\golem_b.tim"/>
+        <!-- COLUMN (src/column.h): ONE 128x128 8bpp sheet
+             (textures/underworld/column.png) - the idle column on the top
+             half, the arch's five pieces on the bottom. 8bpp, never 4bpp
+             (the user's standing rule). x[448,512) y[128,256): the intro
+             still's (MANSION.TIM, which intro_start() reads itself) and
+             lumberer_a's (re-uploaded on entry to every Catacombs room) -
+             nothing in Chapter 4 draws there. CLUT (256,487), its own. -->
+            <file name="COLUMN.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\column.tim"/>
         </dir>
 
         </directory_tree>

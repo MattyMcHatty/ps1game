@@ -26,6 +26,7 @@
 #include "lumberer.h"
 #include "ahriman.h"
 #include "golem.h"
+#include "column.h"
 #include "nessie.h"
 #include "maggot.h"
 #include "creep.h"
@@ -225,7 +226,7 @@ typedef struct {
     GameState area;
     uint32_t hit_ddog, hit_zmb, hit_spd, hit_crw, hit_tnt, hit_raf, hit_msh,
              hit_lmb, hit_nss, hit_ahr, hit_glm, hit_mgt, hit_rbs, hit_lst,
-             hit_had, hit_crp, hit_lcr;
+             hit_had, hit_crp, hit_lcr, hit_col;
     uint32_t hit_boss;         /* BOSS_* bits, the one-of-a-kind targets      */
     uint8_t  crate_blows, door_blows, vine_blows;
 } Blade;
@@ -243,7 +244,7 @@ _Static_assert(MAX_DEMON_DOGS <= 32 && MAX_ZOMBIES <= 32 && MAX_SPIDERS <= 32 &&
                MAX_MUSHROOMS <= 32 && MAX_LUMBERERS <= 32 && MAX_NESSIES <= 32 &&
                MAX_AHRIMANS <= 32 && MAX_GOLEMS <= 32 && MAX_MAGGOTS <= 32 &&
                MAX_RABISUS <= 32 && MAX_LIVING_STATUES <= 32 && MAX_HADADS <= 32 &&
-               MAX_CREEPS <= 32 && MAX_LMS_CREEPS <= 32,
+               MAX_CREEPS <= 32 && MAX_LMS_CREEPS <= 32 && MAX_COLUMNS <= 32,
                "Blade's hit masks are one 32-bit word per family");
 
 static void shr_blade_throw(void) {
@@ -261,7 +262,7 @@ static void shr_blade_throw(void) {
     blade.hit_tnt  = blade.hit_raf = blade.hit_msh = blade.hit_lmb = 0;
     blade.hit_nss  = blade.hit_ahr = blade.hit_glm = blade.hit_mgt = 0;
     blade.hit_rbs  = blade.hit_lst = blade.hit_had = blade.hit_crp = 0;
-    blade.hit_lcr  = 0;
+    blade.hit_lcr  = blade.hit_col = 0;
     blade.hit_boss = 0;
     blade.crate_blows = blade.door_blows = blade.vine_blows = 0;
     sound_play(SFX_FIREBALL);   /* resident: the throw can happen in any room */
@@ -668,6 +669,15 @@ static void sharur_blade_hits(void) {
         if (!blade_covers(s->x, cy, s->z, hw, hh)) continue;
         MARK(blade.hit_glm, i);
         golem_damage(s, GLM_HP_SCALE * BLADE_DMG);
+    }
+    /* THE COLUMN: its orb square only (column.h). No shove - it is a wall. */
+    for (i = 0; i < column_count; i++) {
+        int32_t ox, oy, oz, ohw, ohh;
+        if (SEEN(blade.hit_col, i) ||
+            !column_orb_box(&columns[i], &ox, &oy, &oz, &ohw, &ohh)) continue;
+        if (!blade_covers(ox, oy, oz, ohw, ohh)) continue;
+        MARK(blade.hit_col, i);
+        column_damage(&columns[i], BLADE_DMG);
     }
     for (i = 0; i < maggot_count; i++) {
         Maggot *mg = &maggots[i];

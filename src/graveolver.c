@@ -23,6 +23,7 @@
 #include "nessie.h"
 #include "ahriman.h"
 #include "golem.h"
+#include "column.h"
 #include "gula.h"
 #include "lamashtu.h"     /* the one spot on her back that can be hurt */
 #include "creep.h"
@@ -279,6 +280,10 @@ static void gun_hit(int kind, int idx) {
            round, HALF of one from a Flame Round - half-points, the Ahriman's
            model (golem.h). Any round wakes it. */
         golem_damage(&golems[idx], golem_scale_damage(GUN_DAMAGE, dmg_type));
+    } else if (kind == 21) {
+        /* A COLUMN's orb (src/column.h): 1 from any round, so two to kill.
+           The first one enrages it. */
+        column_damage(&columns[idx], column_scale_damage(GUN_DAMAGE, dmg_type));
     } else if (kind == 17) {
         /* A LAMASHTU CREEP: the Creep's one hit point, so any round. */
         lms_creep_damage(&lms_creeps[idx],
@@ -485,6 +490,15 @@ static void graveolver_fire(void) {
         int32_t cyc, hh, hw;
         golem_body(s, &cyc, &hh, &hw);
         consider(20, i, s->x, cyc, s->z, hw, hh, GUN_RANGE, CLR_LINE);
+    }
+    /* Chapter 4's Column: ONLY its orb square (column_orb_box) - a round into
+       the other four squares goes through as if they were not there, the way
+       Lamashtu's body lets one through (column.h). Static Columns offer no
+       box at all. */
+    for (i = 0; i < column_count; i++) {
+        int32_t ox, oy, oz, ohw, ohh;
+        if (!column_orb_box(&columns[i], &ox, &oy, &oz, &ohw, &ohh)) continue;
+        consider(21, i, ox, oy, oz, ohw, ohh, GUN_RANGE, CLR_LINE);
     }
     /* The Creeps the Room of Arms' crib pours out. The circle is built from the
        same half-extents the sprite is drawn at, centred on creep_body_y() —

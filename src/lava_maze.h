@@ -14,8 +14,11 @@
    a cobblestone path through it on the same plane: there are no walls to
    find the way by, only the burn (its ROOMS line in tools/gen_lava_floors.py,
    whose map is the maze). It hangs in the chapter's sky
-   (src/underworld_sky.h), centred on it. One flat floor zone. No props, no
-   enemies.
+   (src/underworld_sky.h), centred on it. One flat floor zone. No props.
+
+   ONE ENEMY: an ALIVE COLUMN (src/column.h) in the rectangular lava pool all
+   the paths run round, x[4000,5800] z[600,2000] - seeded in world.c's
+   world_seed_room, facing north/south and stepping east/west.
 
    THREE DOORS:
      - WEST: a gaol door, distorted - it leans as it rises. It leads back to

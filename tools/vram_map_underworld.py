@@ -113,6 +113,9 @@ BANK = {
     # way back (spiders, flowers, Gula, zombies).
     "golem_a.tim":             "Wingscape: Golem frames 1-3 (crawler's) x384 y128",
     "golem_b.tim":             "Wingscape: Golem frames 4-6 (crawler's) x768 y128",
+    # The COLUMN (src/column.h), on the intro still's / lumberer_a's block -
+    # the intro reads its still itself and the Catacombs re-upload lumberer_a.
+    "column.tim":              "Lava Maze: Column, idle + arch (intro still's) x448 y128",
     # SHARUR'S TABLET (src/sharur_tablet.h): the plain art and the cracked
     # art the front faces switch to on the fourth blow. Two FREE page starts.
     "sharur tablet.tim":         "Sharur: the tablet (owned)         x704 y0",

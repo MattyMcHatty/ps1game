@@ -127,6 +127,10 @@
 #define TIM_TPAGE_COBBLE   0x0006
 #define TIM_CLUT_COBBLE    0x7cea
 
+/* column.tim      8bpp  VRAM ( 448,128)  \TEXUNDW\COLUMN.TIM */
+#define TIM_TPAGE_COLUMN   0x0087
+#define TIM_CLUT_COLUMN    0x79d0
+
 /* con_tile.tim    4bpp  VRAM ( 832,  0)  \TEX\CONTILE.TIM */
 #define TIM_TPAGE_CONTILE  0x000d
 #define TIM_CLUT_CONTILE   0x7fc6

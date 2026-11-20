@@ -1,0 +1,96 @@
+COLUMN - ADDING CHECKLIST (Nov 2026)
+=====================================
+Following tools/ADDING_AN_ENEMY.txt. [x] = done, [ ] = to do.
+
+DESIGN (from the brief + answers)
+  - Texture textures/underworld/column.png, 128x128. Top half = IDLE frame
+    (a squashed column, the purple star orb in its middle band); bottom half
+    = MOVING frame (base, tilted drum, orb, tilted drum, base - an arch).
+  - NOT a billboard: world-fixed like a level wall, DOUBLE-SIDED (no backface
+    cull). Each placement picks its facing (plane along X or along Z).
+  - Scale 100 units to the metre (the user's answer).
+      IDLE    1 m x 5 m: five 100x100 squares stacked, orb in the middle one.
+      MOVING  five 100x100 squares in an arch, laid out like the painted one
+              (each piece cut from the texture and drawn as its own square).
+              The foot stays put; the head lands 3 m (300) along the plane.
+  - STATIC: a wall. Collides, draws idle, no AI, cannot be hurt.
+  - ALIVE:  idle 2 s -> (only while HIDDEN: off camera or past the fog) arch
+            for 2 s -> idle again where the head landed. A blue orb is fired
+            at the player as the arch frame starts. The player can only tell
+            it is alive by catching it mid-step.
+  - Orb: half a Nessie fireball's speed (32 -> 16 a frame), 25 HP damage,
+    dissipates on the player or a wall.
+  - Only the ORB square can be hurt (any weapon); the other four squares
+    do nothing. 2 HP.
+  - Once hurt: ENRAGED - 4x faster (0.5 s a phase), steps toward the player
+    whether seen or not, an orb every 2 s, until it dies.
+  - Death: the Golem's sound (SFX_RUMBLE) and its shard burst, in greys and
+    purples.
+  - Walks wherever walls allow (the user's answer: may leave the pool).
+  - Placement: ONE alive Column in the Lava Maze's middle lava pool
+    (x[4000,5800] z[600,2000], where the paths meet), centre (4900,1300),
+    facing north/south, walking east/west.
+
+STEPS
+  [x] 1. Read reference enemies (golem, nessie fireball, ahriman wiring)
+  [x] 2. Texture: VRAM slot (mansion/lumberer_a's x448 y128, 8bpp, CLUT
+         256,487), convert, disc.xml, texmgr bank, tex-room tools, VRAM maps
+  [x] 3. src/column.h / src/column.c: static + alive, idle/arch draw,
+         hidden test, slinky step, orb projectile, enrage, death shards,
+         collision
+  [x] 4. Weapons: crucifaxe, graveolver, helluminator, Sharur - orb only
+  [x] 5. Persistence: world.c global area-tagged array, rest/reset, save
+         codec (deaths)
+  [x] 6. Wiring: main.c (init/reset/update/upload), collision.c, Lava Maze
+         draw + texwindow + update, CMakeLists.txt
+  [x] 7. Placement in the Lava Maze's middle pool
+  [x] 8. Budgets: heap_budget.py, check_tex_banks.py, VRAM map
+  [x] 9. Build + disc (cmake --build, mkpsxiso)
+  [x] 10. Verify (headless emulator boot if possible)
+
+RESULTS
+  - VRAM: column.tim 8bpp at x448 y128 (intro still / lumberer_a, both of
+    which put themselves back), CLUT (256,487); "No unexpected pixel
+    collisions." tim_slots.h, VRAM_MAP.txt, VRAM_MAP_UNDERWORLD.txt
+    regenerated.
+  - Save: columns_dead took the padding byte after spiders_dead - asserts
+    pass, no SAVE_VERSION bump. Bits count ALIVE Columns only.
+  - Heap: column.c is 13.0 KB code + 1.8 KB BSS (+1 KB world copy). FREE AT
+    REST 132 -> 115 KB, under heap_budget.py's 128 KB warning line - in line
+    with the Golem (18 KB) and the Asag fight (16 KB). MEASURED at the
+    tightest door (headless force-boot into Asag's arena): all six boss reads
+    succeed, the last (the faint) with 201 KB of headroom.
+  - check_tex_banks.py OK. The Lava Maze room set is 108 KB (peak is still
+    REAR_GATE at 238 KB). Build: 0 warnings.
+  - Headless PCSX-Redux force-boot into the Lava Maze, 0 exceptions:
+      calm     idle 2 s, steps 300 only while hidden (fog), one orb per step;
+      orb      16/frame, 25 per hit, dies on the rim wall;
+      enraged  steps toward the player every 1 s in plain view, orb every 2 s;
+      death    second hit, SFX_RUMBLE, shards settle on the floor.
+  - BUG FOUND AND FIXED: whole-unit orb velocity truncated (-15.6 -> -15) and
+    missed a STANDING player by ~125 from 4,700 away. The orb now flies in
+    1/256ths (COL_ORB_FRAC); re-run: 4 orbs fired, 4 hits (100 -> 0).
+
+STILL TO CHECK IN-GAME (needs your eyes)
+  [ ] Looks right from both sides: 1x5 idle, the arch, the orb square.
+  [ ] It only steps while you are looking away; catching it mid-arch.
+  [ ] Orb speed/visibility; 25 damage; dies on a wall.
+  [ ] Shooting the shaft does nothing; the orb hurts it; enraged pace.
+  [ ] Death burst grey/purple with the Golem's rumble.
+
+ROUND 2 (the user's re-laid texture + width)
+  [x] New column.png: bottom half is a 3x2 grid of equal cells (left drum,
+      orb, right drum / left base, blank, right base). COL_ARCH_SQ now cuts
+      at u 0/43/85/128 and rows 64/96/128 - no more alpha-island boxes. The
+      left base's flare spills 2 texels into the blank cell and is clipped.
+  [x] Idle frame 20% wider: 100 -> 120 (COL_IDLE_HALF_W 60). Body, hidden
+      test, step reach and the orb's hit box follow it; the arch is unchanged.
+  [x] column.tim reconverted (same slot/CLUT), build 0 warnings, disc made.
+  [ ] In-game: the arch pieces read right; the idle width looks right.
+
+ROUND 3
+  [x] Idle frame 20% shorter: 500 -> 400 (five 120 x 80 pieces,
+      COL_IDLE_PIECE_H). The orb piece's centre drops 250 -> 200; its hit box,
+      the body and the hidden test follow. The arch is unchanged.
+  [x] Build 0 warnings, disc made.
+  [ ] In-game: the idle proportions look right.

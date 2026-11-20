@@ -290,7 +290,10 @@ AREAS = {
                   "ahrimans_upload_textures",
                   # ...and the GOLEM (src/golem.c), likewise, for the rooms
                   # golem_room_has_sheet() names - Wingscape today.
-                  "golems_upload_textures"],
+                  "golems_upload_textures",
+                  # ...and the COLUMN (src/column.c), likewise, for the rooms
+                  # column_room_has_sheet() names - the Lava Maze today.
+                  "columns_upload_textures"],
 }
 
 BIT = {"MANSION": 1 << 0, "GARDEN": 1 << 1, "RABISU": 1 << 2,

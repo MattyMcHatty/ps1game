@@ -1224,6 +1224,12 @@ KNOWN_STREAM_PAIRS = [
     ("rafflesia2.tim",     "golem_a.tim"),
     ("gula_b.tim",         "golem_b.tim"),
     ("zombie_alert.tim",   "golem_b.tim"),
+    #   column.tim -> the COLUMN (src/column.c), 8bpp 128x128 at x[448,512)
+    # y128, CLUT (256,487) of its own. The intro still (mansion.tim) is read by
+    # intro_start() itself and lumberer_a is re-uploaded on entry to every
+    # Catacombs room; the Underworld is left only through the title.
+    ("mansion.tim",        "column.tim"),
+    ("lumberer_a.tim",     "column.tim"),
     #   sharur tablet.tim / sharur tablet cracked.tim -> SHARUR'S TRIAL's
     # tablet prop (src/sharur_tablet.c), both 4bpp 128x128, CLUTs (976,502)
     # and (992,502) of their own. Two page STARTS tools/VRAM_MAP_UNDERWORLD.txt

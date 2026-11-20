@@ -31,6 +31,7 @@
 #include "nessie.h"
 #include "ahriman.h"
 #include "golem.h"
+#include "column.h"
 #include "living_statue.h"
 #include "hadad.h"
 #include "creep.h"
@@ -72,6 +73,7 @@ static int lmb_hit_this_swing   = 0;
 static int nss_hit_this_swing   = 0;
 static int ahr_hit_this_swing   = 0;
 static int glm_hit_this_swing   = 0;
+static int col_hit_this_swing   = 0;
 static int gula_hit_this_swing  = 0;
 static int lms_hit_this_swing   = 0;
 static int lst_hit_this_swing   = 0;
@@ -146,6 +148,7 @@ void melee_start_swing(void) {
         nss_hit_this_swing     = 0;
         ahr_hit_this_swing     = 0;
         glm_hit_this_swing     = 0;
+        col_hit_this_swing     = 0;
         gula_hit_this_swing    = 0;
         lms_hit_this_swing     = 0;
         lst_hit_this_swing     = 0;
@@ -385,6 +388,13 @@ void melee_swing_tick(int step) {
         if (swing_timer <= SWING_DURATION && !glm_hit_this_swing) {
             if (golems_try_hit())
                 glm_hit_this_swing = 1;
+        }
+
+        /* The Column (src/column.h): its ORB square and nothing else, measured
+           to the orb's surface. A static Column has no orb to hit. */
+        if (swing_timer <= SWING_DURATION && !col_hit_this_swing) {
+            if (columns_try_hit())
+                col_hit_this_swing = 1;
         }
 
         /* Gula (src/gula.h). Measured to her push surface like the lumberer,
