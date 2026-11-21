@@ -106,6 +106,17 @@ static int load_list_fnt    = -1;            /* wider stream for save titles */
    old single asterisk, which keeps the block sitting where it always did. */
 #define TMENU_MARK(sel)  ((sel) ? "-" : " ")
 
+/* >>> EVERY NAME HERE IS 14 CHARACTERS AT MOST. <<< The debug menu prints a
+   room as " * NAME" in a 17-character column (debug_fnt, see title_init), so a
+   15th character wraps onto a second line and pushes every row below it down.
+   When adding a room, shorten an over-long name AS YOU ADD IT - don't wait for
+   it to be reported. Cut it the way the rows below already are: drop a leading
+   "THE"/"A"/"ROOM OF" or a trailing "ROOM", then abbreviate a word
+   ("CORRIDOR" -> "CORR", "CATACOMBS" -> "CCOMBS", "CHAMBER" -> "CHMBR"),
+   keeping the word that tells the rooms apart. Leave a comment giving the full
+   name, as the long ones below do. This only applies to the debug list: the
+   save screen's full name lives in area_name() (src/save_menu.c), which has
+   room for it. */
 static const char *const level_names[] = {
     "DELIVERY AREA",
     "KITCHEN DINING",
@@ -273,11 +284,13 @@ static const char *const level_names[] = {
     "LAVA U",
     "WINGSCAPE",
     "HEROS PLINTH",
-    "CHAMBER OF DESTINY",
-    "A WOMAN SCORNED",
+    /* CHAMBER OF DESTINY, A WOMAN SCORNED and LIGHTNINGS EDGE, cut to fit the
+       14-character column (18, 15 and 15 in full). */
+    "CHMBR DESTINY",
+    "WOMAN SCORNED",
     "RIBCAGE",
     "LAVA MAZE",
-    "LIGHTNINGS EDGE",
+    "LIGHTNING EDGE",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 

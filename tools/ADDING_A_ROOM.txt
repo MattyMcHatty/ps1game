@@ -1045,6 +1045,10 @@ Touch these files, in this order:
   src/title.c        Add the room to level_names[], level_states[] (STATE_LOADING)
                      and level_pending[] (STATE_<X>) so debug level select can
                      jump straight in. All three arrays must stay the same length.
+                     The level_names[] entry is 14 CHARACTERS AT MOST - a longer
+                     one wraps onto a second line in the debug menu. Shorten it
+                     yourself when adding the room (see the note above the
+                     array for how); save_menu.c keeps the full name.
 
   src/save_menu.c    Add a `case STATE_<X>: return "<NAME>";` to area_name().
 
