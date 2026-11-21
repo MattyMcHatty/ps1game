@@ -175,7 +175,9 @@ Voff >= 128. That is where the free space is.
     inside the house.
 
     Sharing means neither sprite may be a plain startup LoadImage any more.
-    Both enemies register their sprites with texmgr (a resident RAM copy) and
+    Both enemies register their sprites with texmgr (header only; since Nov
+    2026 texmgr reads the pixels off the disc AT the upload, inside
+    STATE_LOADING, and frees them again - src/texmgr.h STREAMING) and
     expose a <slug>s_upload_textures(); main.c then streams exactly one of the
     two pairs in on EVERY room entry, in the STATE_LOADING block beside the
     room uploads and keyed on pending_area:

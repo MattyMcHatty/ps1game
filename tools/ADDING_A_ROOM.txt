@@ -15,7 +15,8 @@ Companion docs (read them for the *why*; this file is the *how*):
   tools/check_tex_banks.py          - WHICH AREA'S BANK each module's textures are
                                       in, derived from the uploader call graph.
                                       Run it after touching any *_upload_* fn;
-                                      a short mask is a SILENT wrong texture
+                                      since texmgr streams (Nov 2026) a short
+                                      mask only misplaces a PINNED texture
   tools/DIAGNOSING_FRAME_RATE.txt   - when a room drops to 30fps: the perf
                                       meter, the isolation switches, and the
                                       four optimisations that did not work.
@@ -430,7 +431,8 @@ spends; tools/HEAP_BUDGET.txt is where to watch it.
     below: the way to spend no slot at all is the one Fountain Square and the
     Garden Courtyard both take — if another room already uploads the slot you
     need, call ITS narrow *_upload_x() from yours and use TIM_SLOT() for the
-    header, instead of registering a second RAM copy of the same file.
+    header, instead of registering the same file a second time (a second
+    texmgr slot, and - since texmgr streams - a second read at every door).
 
     >>> AND WATCH WHAT THE BORROWED UPLOADER ALSO STAMPS. <<< A full
     *_upload_textures() puts up every slot that room owns, not just the one you
@@ -550,7 +552,20 @@ spends; tools/HEAP_BUDGET.txt is where to watch it.
         peak         456 KB   against a 937 KB heap
         free at rest 437 KB   (was 145 KB)
 
-    SO: A NEW TEXTURE COSTS ITS OWN SIZE IN ONE BANK, not in the whole game.
+    >>> AND SINCE NOVEMBER 2026 NOT EVEN THAT. <<< texmgr STREAMS: a room's
+    texmgr_upload() calls, inside STATE_LOADING, read each TIM off the disc,
+    LoadImage it and free it, one at a time (src/texmgr.h STREAMING,
+    tools/RAM_AB_CHECKLIST.txt PART A). A room holds NO texture RAM at rest
+    except texmgr_pin()ned ones - the four re-uploaded mid-room (Attic Exit's
+    door, the piano's keys). The bank figures above are history; FREE AT REST
+    went 93 KB -> 371 KB. What a new texture costs now is its read time at
+    the door (each door logs "TEXMGR: room N streamed X TIMs ... B") and one
+    TIM of transient heap. If the room re-uploads art MID-ROOM (a puzzle swap),
+    texmgr_pin() that id after registering it and add it to PINNED_TIMS in
+    tools/heap_budget.py, or the upload logs "TEXMGR: missed upload" and draws
+    nothing new.
+
+    (Before streaming:) A NEW TEXTURE COST ITS OWN SIZE IN ONE BANK, not in the whole game.
     18 KB into a 456 KB bank with 437 KB spare is not a decision that needs
     making. The old tricks — a narrow *_upload_x() on the owning module, or
     streaming into a scratch buffer — are still GOOD for avoiding duplicate RAM
@@ -578,10 +593,13 @@ spends; tools/HEAP_BUDGET.txt is where to watch it.
     because delivery_restore_textures() calls garden_stairs_upload_grss_gs().
     check_tex_banks.py walks that graph and fails if a mask is short.
 
-    GETTING IT WRONG IS SILENT: texmgr_upload() on an entry whose bank is out
-    does nothing, and the room draws with whatever the last room left in that
-    VRAM page. It looks like a texturing bug and tools/VRAM_MAP.txt will tell
-    you everything is fine.
+    GETTING IT WRONG USED TO BE SILENT: texmgr_upload() on an entry whose bank
+    was out did nothing, and the room drew with whatever the last room left in
+    that VRAM page. Since streaming (Nov 2026) an entry upload inside
+    STATE_LOADING reads the TIM whatever its mask says, so a short mask now
+    only bites a PINNED texture (it is held in the wrong rooms - "late load"
+    in the log). Declare the bank and run the checker anyway: the masks are
+    still the fallback for any TIM tools/gen_tex_rooms.py gives no row.
 
 
 ##########################################################################
@@ -781,7 +799,10 @@ Copy src/master_bedroom.c and rename. The parts that need real thought:
           (kitchen) and wd_dr (fatdoor).
         - textures in a time-shared slot -> texmgr_register() at startup +
           texmgr_upload() in <slug>_upload_textures(). Put them in the
-          new_tex[] table with their slot index.
+          new_tex[] table with their slot index. The upload reads the TIM off
+          the disc there and frees it (texmgr streams, Nov 2026), so it only
+          works inside STATE_LOADING; one called from the room's update must
+          be texmgr_pin()ned (src/texmgr.h STREAMING).
         - a texture whose upload another module owns (e.g. the dresser prop's)
           -> TIM_SLOT() for the tpage/clut, and call that module's
           upload fn from <slug>_upload_textures().
@@ -798,11 +819,13 @@ Copy src/master_bedroom.c and rename. The parts that need real thought:
       reintroduce it: there is nothing about a tpage that has to be discovered
       at runtime.
 
-      Upload rules: CD reads (texmgr_register, load_file_from_cd) are STARTUP
-      ONLY. LoadImage (texmgr_upload) is safe on the transition because main's
-      STATE_LOADING does DrawSync(0) first. A mid-game CdRead is possible but
-      MUST be bracketed by cdaudio_suspend()/cdaudio_resume() — see sound.c's
-      sound_bank_select(), the one place that does it today.
+      Upload rules: texmgr_register() and load_file_from_cd are STARTUP reads.
+      texmgr_upload() on the transition is a CD read + LoadImage (it streams,
+      Nov 2026) and is safe because main's STATE_LOADING does DrawSync(0)
+      first and texmgr brackets each read with cdaudio_suspend()/resume()
+      itself. Any OTHER mid-game CdRead MUST be bracketed the same way and
+      happen only in STATE_LOADING - see sound.c's sound_bank_select() and
+      room_arena_load(). Never in a room's update or draw.
 
   ---- THE PERFORMANCE LIST. ALL FOUR, IN EVERY ROOM, FROM THE START. --------
       These are not optimisations to reach for when a room turns out slow. They
@@ -1098,9 +1121,11 @@ Touch these files, in this order:
 
                      So the thing to check before adding a room is the HEAP,
                      not the TEX directory: run py tools/heap_budget.py and
-                     read FREE AT REST. The measured boot cliff is ~234 KB.
-                     A room costs BSS whether or not it ships any file at
-                     all. See tools/DIAGNOSING_A_BOOT_CRASH.txt.
+                     read FREE AT REST: the script warns under 128 KB, and
+                     it was 371 KB after the Nov 2026 reclaim. (The old
+                     "~234 KB cliff" was a units bug - section 1A of
+                     tools/DIAGNOSING_A_BOOT_CRASH.txt.) A room costs BSS
+                     whether or not it ships any file at all.
 
                      A related trap when a material name has no TIM: smxlink
                      resolves a Blender material NAME to textures/<name>.tim, so

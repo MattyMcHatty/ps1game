@@ -109,6 +109,15 @@ The header is 24 bytes: id[3], version, flags, n_verts, n_norms, n_prims, then
 three uint32 OFFSETS (verts, norms, prims). Do not assume prims follow the
 vertices contiguously; read the offset.
 
+  >>> THE DISC COPY HAS NO NORMALS (since Nov 2026). <<< Run the check above on
+  assets\bosses\<Name>.smd, the smxlink output. The copy mkpsxiso ships is
+  build\models\bosses\<Name>.smd, written by tools/pack_models.py with
+  n_norms = 0 and the prims moved up to where the normals were (~28% smaller;
+  per-prim layout and offsets 16/20/28 unchanged). So the draw must NOT read
+  p_norms or the normal index at prim offset 12, and must not call
+  smdSortModel. RABISU / LAMASHTU / ASGBODY are all stripped; light a model from
+  the face's own vertices if it needs shading. STEP 8 has the wiring.
+
 
 ##########################################################################
  STEP 3 — TEXTURES
@@ -133,7 +142,10 @@ so it does not read as a leftover.
 TEXTURED — it costs VRAM like any room art and STEP 3 of ADDING_AN_ENEMY.txt
 applies in full, with these changes:
   - register through texmgr (texmgr_register / texmgr_upload), as
-    concrete_props.c does, NOT a private RAM copy. texmgr has a hard
+    concrete_props.c does, NOT a private RAM copy (texmgr streams it at the
+    door and holds nothing at rest; texmgr_upload() it from the room's entry
+    uploads, never from the enemy's update - a mid-room upload must
+    texmgr_pin() it, see src/texmgr.h STREAMING). texmgr has a hard
     TEXMGR_MAX and a registration past it fails SILENTLY — so hold the id in
     a variable that starts at -1 and branch the DRAW on it, or a failed
     registration draws the model in whatever art sits at tpage 0.
@@ -453,6 +465,18 @@ empty copies of it in RAM.
                    symptom. As of this writing the root has THIRTY-SIX BYTES of
                    slack, less than one directory record — treat it as closed.
                    A file in TEX costs nothing but a "\\TEX\\" in its load path.
+
+                   >>> AND POINT IT AT build\models\, NOT assets\. <<< Add the
+                   disc name to ALLOWLIST in tools/pack_models.py and give the
+                   entry source="...\ps1game\build\models\<path below assets\>"
+                   (e.g. build\models\bosses\Rabisu.smd). The build writes that
+                   copy with its normals stripped; pack_models.py fails if an
+                   allowlisted name is missing from disc.xml or sourced from
+                   anywhere else. Only a model whose draw really reads normals
+                   stays on assets\ - list it in NEEDS_NORMALS, and add its
+                   source file to NORMAL_READERS, which the build checks.
+                   Re-run py tools/gen_room_arena.py if the model is read into
+                   the room arena's tail (room_arena_load_extra).
 
                    VERIFY IT, do not eyeball it. Estimating the record sizes by
                    hand said the root still fit; it did not. Read the real ISO

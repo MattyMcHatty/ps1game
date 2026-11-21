@@ -116,7 +116,9 @@ art in every room that sets a window.
     whole of the cost. An item put on a page another chapter uses must:
       - be uploaded by every room of the chapter(s) where it can be held, on
         entry - a narrow uploader called from those rooms' *_upload_textures()
-        (texmgr_register its TIM so the RAM copy is there; gen_tex_rooms.py
+        (texmgr_register its TIM; since Nov 2026 texmgr reads it off the
+        disc at that upload and frees it, so the uploader MUST run inside
+        STATE_LOADING - a room's *_upload_textures() does. gen_tex_rooms.py
         follows the call). The menu's tpage/clut/UVs are computed once from
         the TIM header and stay right, because the slot never moves.
       - give the art it displaces the same courtesy if THAT art is boot-only:

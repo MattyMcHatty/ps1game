@@ -344,19 +344,19 @@ its own window. Blocks are 128 words x 128 rows: one enemy sheet half.)
 
 MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x320  AVAILABLE, needs a way back first: tntcl_actv.tim, tntcl_idle.tim   [also on this page, all re-uploaded on room entry: bookshelf.tim, grss_gs.tim, stn_stl.tim, strs.tim]
-  x384  IN USE by this bank: cobblestones.tim   [also on this page, all re-uploaded on room entry: chnlnk_dl.tim, clsd_drwr.tim, cncrte.tim, destiny door frame top left.tim, flowerbed.tim, hedge.tim, kchn_tile.tim, mud.tim, ninurta tablet top left.tim, piano_keys.tim, piano_keys_full.tim, xt_dr_outr.tim]
+  x384  IN USE by this bank: cobblestones.tim   [also on this page, all re-uploaded on room entry: chnlnk_dl.tim, clsd_drwr.tim, cncrte.tim, destiny door frame top left.tim, flowerbed.tim, heavens bricks.tim, hedge.tim, kchn_tile.tim, mud.tim, ninurta tablet top left.tim, piano_keys.tim, piano_keys_full.tim, xt_dr_outr.tim]
   x448  IN USE by this bank: sconce.tim
-  x512  IN USE by this bank: loculus.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, destinys door frame top right.tim, dresser.tim, grdn_gte.tim, kchn_wl.tim, ninurta tablet top right.tim, rocks.tim]
-  x576  IN USE by this bank: crib.tim, gaol_mud.tim, lamashtu.tim, seal.tim   [also on this page, all re-uploaded on room entry: double_door_uw.tim, gaol_door_uw.tim]
+  x512  IN USE by this bank: loculus.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, destinys door frame top right.tim, dresser.tim, grdn_gte.tim, heavens stairs.tim, kchn_wl.tim, ninurta tablet top right.tim, rocks.tim]
+  x576  IN USE by this bank: crib.tim, gaol_mud.tim, lamashtu.tim, seal.tim   [also on this page, all re-uploaded on room entry: double_door_uw.tim, gaol_door_uw.tim, heavens gate left.tim]
   x640  IN USE by this bank: baby names.tim, bones.tim, gaol door.tim, gula tablet.tim, heads.tim, legs.tim, shelf_incinerator.tim, torsos.tim   [also on this page, all re-uploaded on room entry: arms2.tim, asag.tim, chnlnk.tim, gravel_texture.tim, greenhouse.tim, guts.tim, hatch.tim, hell bg.tim, lamashtu pearl.tim, plinth_rg.tim, poison_flower_base.tim, trck_clue.tim, trees.tim]
-  x704  IN USE by this bank: rusty.tim   [also on this page, all re-uploaded on room entry: chain.tim, destinys door frame bottom right.tim, gravel_gs.tim, lightning tablet puzzle.tim, ninurta tablet bottom right.tim, poison_flower_base_gh.tim, rusty_fence.tim, sharur tablet.tim, stable glyphs.tim, upstairs.tim, wing tablet.tim]
+  x704  IN USE by this bank: rusty.tim   [also on this page, all re-uploaded on room entry: chain.tim, destinys door frame bottom right.tim, gravel_gs.tim, heavens gate right.tim, lightning tablet puzzle.tim, ninurta tablet bottom right.tim, poison_flower_base_gh.tim, rusty_fence.tim, sharur tablet.tim, stable glyphs.tim, upstairs.tim, wing tablet.tim]
   x768  IN USE by this bank: lamashtu tablet.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, destinys door.tim, fountain.tim, grss.tim, gula codes.tim, lamashtu arm.tim, lightning tablet ninurta.tim, pipe.tim, plinth_diamond.tim, sharur tablet cracked.tim, wings tablet question and answers.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
   x832  IN USE by this bank: catacomb inner door.tim   [also on this page, all re-uploaded on room entry: anzu_tab.tim, con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, stables wood.tim, xt_dr_cg.tim]
   x896  BLOCKED - reserved: bld_prl.tim, ghit.tim, gl_ky.tim
 
 MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
   x320  FREE - costs nothing   [also on this page, all re-uploaded on room entry: chain_128.tim, dbl_dr_rg.tim, frnt_dr.tim, greenhouse door.tim, lava.tim, marble.tim, red_crpt.tim]
-  x384  FREE - costs nothing   [also on this page, all re-uploaded on room entry: night sky.tim, pipe_gh.tim, prpl_wlppr.tim, stove.tim, volcanic.tim]
+  x384  FREE - costs nothing   [also on this page, all re-uploaded on room entry: greenhouse door_128.tim, night sky.tim, pipe_gh.tim, prpl_wlppr.tim, stove.tim, volcanic.tim]
   x448  AVAILABLE, needs a way back first: din_cl.tim
   x512  IN USE by this bank: bars.tim   [also on this page, all re-uploaded on room entry: pipe_button_off.tim, pipe_button_on.tim]
   x576  AVAILABLE, needs a way back first: inr_dbl_dr.tim, vlv_hndl.tim

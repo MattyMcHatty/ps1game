@@ -49,6 +49,14 @@ THE FIX:
   >>> RULE: every new level needs a <level>_load_textures() called at startup in
       main(). Do NOT call LoadImage mid-game.
 
+  >>> SUPERSEDED - this was the June 2026 rule. <<< LoadImage is fine on a
+  transition once main's STATE_LOADING has done DrawSync(0), and since
+  Nov 2026 texmgr reads each TIM off the disc at its upload there (CD-DA
+  suspended around the read) and frees it. Registration is still at startup
+  (header only). What is still forbidden is a LoadImage or CdRead from a
+  room's update or draw while a frame may be in flight - except a pinned
+  texmgr texture's re-upload, which is RAM -> VRAM. src/texmgr.h STREAMING.
+
 
 PROBLEM B: Textures didn't match the Blender UV mapping (looked wrong/smeared).
 -------------------------------------------------------------------------------

@@ -9,13 +9,16 @@
    NOT, once the render loop is running).
 
    Each registered texture has its TIM HEADER read once at startup, so its
-   tpage/clut are known for the life of the run. Its PIXELS are held in RAM only
-   while a bank that contains it is loaded; from that RAM copy the entry-time
-   re-upload is a pure LoadImage with no CD access.
+   tpage/clut are known for the life of the run. Its PIXELS are read off the
+   disc at its upload on the transition and freed straight after (STREAMING,
+   below - November 2026); only a texmgr_pin()ned texture keeps a RAM copy,
+   for a pure LoadImage mid-room. The two sections after this one (BANKS,
+   TEXTURES BY ROOM) describe what came before streaming; where they disagree
+   with STREAMING, STREAMING is what the code does.
 
    Adding a new streamed prop/room texture is: texmgr_set_bank() + texmgr_register()
    at startup, texmgr_upload() on the transition, texmgr_tpage()/texmgr_clut()
-   when drawing.
+   when drawing - plus texmgr_pin() if it is ever uploaded mid-room.
 
    ===========================================================================
    BANKS — WHY THE WHOLE MAP IS NO LONGER IN RAM AT ONCE
@@ -45,8 +48,9 @@
        never freed. Nothing uses it today and nothing should without a reason
        written down — a resident texture is charged to every area at once,
        which is the cost this whole mechanism exists to stop paying.
-     - THE FAILURE MODE IS SILENCE. texmgr_upload() on an entry whose bank is
-       not loaded does nothing, so the room draws with whatever the previous
+     - THE FAILURE MODE WAS SILENCE (before STREAMING; today a short mask only
+       misplaces a PINNED texture). texmgr_upload() on an entry whose bank is
+       not loaded did nothing, so the room drew with whatever the previous
        room left in that VRAM page: no crash, no message, and it looks like a
        texturing bug rather than a banking one. That is exactly sound_play()'s
        behaviour on an evicted clip and it has the same remedy — do not reason
@@ -169,6 +173,9 @@ void texmgr_pin(int id);
    generator's table is short for that room: fix tools/gen_tex_rooms.py. Outside
    that window an unheld upload is still the silent no-op described above,
    which is why the generator must cover the few MID-ROOM uploads too.
+   (Since STREAMING: every in-window upload reads, so "late load" now fires
+   only for a PINNED texture outside its rows, and an unheld upload outside the
+   window logs "TEXMGR: missed upload" instead of being silent.)
 
    The AREA masks (texmgr_set_bank) are kept: they are the fallback above,
    tools/check_tex_banks.py still checks them, and main.c's per-area lines
@@ -193,9 +200,10 @@ typedef struct {
    window that texmgr_loading_done() closes. */
 void texmgr_room_select(int room, TexBank area_bank);
 
-/* Close the late-load window: from here texmgr_upload() of an unheld entry is
-   a silent no-op again (no CD reads mid-room). Call when the room's entry
-   uploads are done. */
+/* Close the streaming window and print the door's "TEXMGR: room N streamed"
+   line: from here texmgr_upload() of an unheld (unpinned) entry is a no-op
+   that logs "TEXMGR: missed upload" (no CD reads mid-room). Call when the
+   room's entry uploads are done. */
 void texmgr_loading_done(void);
 
 /* How many textures were late-loaded (see above). Zero in a correct build. */

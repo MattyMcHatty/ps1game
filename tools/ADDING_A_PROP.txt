@@ -16,7 +16,9 @@ Reference implementations (copy the nearest one):
 
 Companion docs:
   tools/MESH_CONVERSION_NOTES.txt   smxlink, not python, for the visual mesh
-  tools/TEXTURE_BANKS.txt           a short bank mask is a SILENT wrong texture
+  tools/TEXTURE_BANKS.txt           declare the bank (since streaming a short
+                                    mask only misplaces a PINNED texture)
+  src/texmgr.h STREAMING            a mid-room texmgr_upload() must texmgr_pin()
   tools/VRAM_MAP.txt / VRAM_MAP_UNDERWORLD.txt   where its textures may go
   tools/ADDING_AN_ITEM.txt          if the prop leaves a collectible behind
   tools/ADDING_A_SOUND.txt          if it needs a sound the room's bank lacks

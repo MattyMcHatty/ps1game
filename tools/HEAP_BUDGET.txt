@@ -53,7 +53,9 @@ tools/ADDING_THE_ASAG_FIGHT.txt PART 6.
 The transient allocations still have to FIT in whatever is left, so treat the
 "free at rest" figure as the budget, not as slack.
 
-TEXMGR REGISTRATIONS  (resident for the whole run)
+TEXMGR REGISTRATIONS  (bytes READ at a door - since Nov 2026 texmgr streams
+                       each one and frees it; only PINNED ones are held,
+                       charged as 'texmgr peak held' below)
   module                   regs      bytes
   --------------------------------------------
   chamber_of_destiny.c     6        102400

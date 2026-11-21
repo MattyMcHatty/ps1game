@@ -62,6 +62,17 @@ only ever LoadImage from RAM. Never CdRead while CD-DA is playing.
   load no longer restarts the music. That matters for the delivery <-> kitchen
   door, the one pair that shares a track and does not stop it on the transition.
 
+  *** AND SINCE 2026-11-21 texmgr ITSELF READS AT EVERY DOOR. ***
+  The "preload to RAM, pure LoadImage on entry" fix above is gone for every
+  texture but four. texmgr_upload() inside STATE_LOADING now does
+  cdaudio_suspend -> CdRead the TIM -> cdaudio_resume -> LoadImage -> free, one
+  TIM at a time (src/texmgr.h STREAMING). Only the four textures re-uploaded
+  MID-ROOM (XTDRLCKD/XTDRCMPL, PIANOKEY/PIANOFUL) are texmgr_pin()ned and keep
+  the RAM copy. So every door now does many short bracketed reads: if the
+  delivery <-> kitchen door ever stutters its music or slows down, the per-door
+  line "TEXMGR: room N streamed X TIMs (R repeats, F failed) B" in the emulator
+  log is the first thing to read.
+
 --------------------------------------------------------------------------
 Original mid-debug handoff notes follow (kept for history; the leading
 hypothesis in CRASH #2 is now known to be WRONG — see RESOLVED above).

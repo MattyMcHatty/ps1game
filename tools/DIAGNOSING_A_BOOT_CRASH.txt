@@ -65,9 +65,19 @@ So "the console would not boot with 226 KB free at rest" was really ~81 KB, and
 mysterious threshold: the heap was simply full.
 
 tools/heap_budget.py now subtracts a MEASURED stack floor and prints it as its
-own line. TODAY'S REAL NUMBERS: 208 KB free at rest, ~171 KB at the tightest
+own line. THE NUMBERS THEN: 208 KB free at rest, ~171 KB at the tightest
 door measured (Asag's arena). If you are comparing against an older figure,
 subtract 145 KB from it first.
+
+NOVEMBER 2026: free at rest had fallen to 93 KB, and a cold boot straight
+into the Rear Gate crashed with exactly section 2's signature (an unaligned JR
+out of CdReadSync). The A+B reclaim (tools/RAM_AB_CHECKLIST.txt) took it to
+371 KB: texmgr streams textures instead of holding each room's set (243,712 B
+held -> 36,864 B of pins), the packed room meshes and 36 prop/boss/sky models
+ship without normals (room arena 124,928 -> 90,112 B), and prop models are
+read through cd_read_file(), which trims the sector tail. Measured contiguous
+free under $sp after a load: Rear Gate 330 KB, Courtyard 250 KB, Lamashtu
+Arena 269 KB. Re-measure before trusting any of these.
 
 The same bug bit Asag's arena in September 2026 - 229 KB of boss meshes and
 clips sized against a reported 361 KB - and produced exactly the signature in

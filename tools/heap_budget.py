@@ -275,7 +275,9 @@ print("=" * 78)
 print(__doc__.split('WHY THIS EXISTS')[1].split('THE TWO WAYS')[0].rstrip())
 print()
 
-print("TEXMGR REGISTRATIONS  (resident for the whole run)")
+print("TEXMGR REGISTRATIONS  (bytes READ at a door - since Nov 2026 texmgr streams")
+print("                       each one and frees it; only PINNED ones are held,")
+print("                       charged as 'texmgr peak held' below)")
 print("  %-24s %-5s %9s" % ("module", "regs", "bytes"))
 print("  " + "-" * 44)
 by_mod = {}

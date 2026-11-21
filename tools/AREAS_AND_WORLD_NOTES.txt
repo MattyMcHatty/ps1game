@@ -49,7 +49,10 @@ PART 2 — HOW A TRANSITION WORKS
                                            //     destination is in another area
        load_area_geometry(pending_area);   // CD: read the target room's MESH
        sound_bank_select(...);             // CD: swap the SPU bank if needed
-       <upload the target area's textures> // RAM -> VRAM, pure LoadImage
+       <upload the target area's textures> // CD -> VRAM, one TIM at a time:
+                                           //     texmgr streams (Nov 2026), so
+                                           //     each upload reads, LoadImages
+                                           //     and frees; pinned ones are held
        world_leave(current_area);          // snapshot the room we're leaving
        <set up the target area>            // collision room, floor zones, spawn
        world_enter(pending_area);          // restore the target room's entities
@@ -172,11 +175,21 @@ TEXTURES — HEADERS AT STARTUP, PIXELS PER AREA.
   must declare its bank with texmgr_set_bank() and the declaration is checked by
   tools/check_tex_banks.py, because getting it wrong is silent.
 
+  >>> AND SINCE NOVEMBER 2026 THE PIXELS ARE NOT HELD AT ALL. <<< texmgr
+  STREAMS: each texmgr_upload() inside STATE_LOADING reads its TIM, LoadImages
+  it and frees it. Only texmgr_pin()ned textures - the few re-uploaded
+  mid-room - stay in RAM, and only in the rooms that want them. A mid-room
+  upload of an unpinned texture uploads nothing and logs "TEXMGR: missed
+  upload". src/texmgr.h STREAMING has the rule; tools/RAM_AB_CHECKLIST.txt the
+  measurements.
+
   tpage/clut never need loading at all: they are compile-time constants in the
   generated src/tim_slots.h — use TIM_SLOT().
 
 GEOMETRY — ROOM ENTRY.
-  Room meshes are NOT resident. One shared 64 KB arena (src/room_arena.c) holds
+  Room meshes are NOT resident. One shared arena (src/room_arena.c; 90,112 B
+  since Nov 2026, sized by tools/gen_room_arena.py from the PACKED files,
+  which ship without normals) holds
   the room the player is standing in; <room>_load_geometry() reads the incoming
   room into it from STATE_LOADING. Keeping all fourteen resident cost ~518 KB of
   a ~1.5 MB heap to hold thirteen rooms nobody was in.
