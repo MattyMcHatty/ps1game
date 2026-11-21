@@ -258,7 +258,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_HEROS_PLINTH,    STATE_CHAMBER_OF_DESTINY,
     STATE_A_WOMAN_SCORNED, STATE_RIBCAGE,
     STATE_LAVA_MAZE,       STATE_LIGHTNINGS_EDGE,
-    STATE_HEAVENS_GATE,
+    STATE_HEAVENS_GATE,    STATE_THE_TUBE,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -483,6 +483,10 @@ static int room_index(GameState area) {
         /* HEAVENS GATE, Chapter 4's eleventh room, behind the Lava Maze's
            south-east door. Slot 72. Seeded EMPTY. */
         case STATE_HEAVENS_GATE:      return 72;
+        /* THE TUBE, Chapter 4's twelfth room, behind Heavens Gate's east
+           door. Slot 73. Seeded with one ALERT Golem, in front of the
+           north door. */
+        case STATE_THE_TUBE:          return 73;
         default:                   return 0;
     }
 }
@@ -2372,6 +2376,24 @@ void world_seed_room(GameState area) {
         nessie_add(6000, -800, NSS_POOL_RC_SE, STATE_RIBCAGE);
         golem_set_blocks(golem_add(7300, 600, STATE_RIBCAGE),
                          GLM_BLOCKS_RIBCAGE_E_DOOR);
+    }
+
+    /* THE TUBE (the user's placement, Nov 2026). ONE GOLEM in front of the
+       NORTH door (z=2400, its post at x[-28,28]), on the tube's centre line
+       500 in - Wingscape's door-Golem standoff. The walls leave the player
+       x[-105,105] and the Golem holds them 425 off its centre, so nobody
+       gets past it to the door.
+       >>> IT IS ALERT <<< (golem_set_alert, the user's brief: "alert and
+       attacking as soon as the player enters the room") - no IDLE, its laser
+       cycle starts on entry. >>> AND IT BLOCKS THAT DOOR <<<
+       (GLM_BLOCKS_TUBE_N_DOOR): the door leads nowhere yet, so today the tag
+       has nothing to ask it; the trigger and sign must test golem_blocks()
+       when the door is wired. Both marks are set here, so a title load's
+       re-seed sets them again. */
+    if (area == STATE_THE_TUBE) {
+        int g = golem_add(0, 1900, STATE_THE_TUBE);
+        golem_set_blocks(g, GLM_BLOCKS_TUBE_N_DOOR);
+        golem_set_alert(g);
     }
 
     /* THE LAVA MAZE (the user's placement, Nov 2026). ONE ALIVE COLUMN

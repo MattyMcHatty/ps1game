@@ -255,6 +255,9 @@ TexBank area_bank_of(GameState area) {
        the Catacombs Entry and the greenhouse door (the panel out) from the
        Stables come through narrow uploaders. */
     case STATE_HEAVENS_GATE:
+    /* THE TUBE owns nothing: Sharur's Trial's rocks and the Catacombs
+       Entry's inner door through narrow uploaders, wd_dr resident. */
+    case STATE_THE_TUBE:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -323,7 +326,8 @@ int area_is_underworld(GameState area) {
            area == STATE_RIBCAGE ||
            area == STATE_LAVA_MAZE ||
            area == STATE_LIGHTNINGS_EDGE ||
-           area == STATE_HEAVENS_GATE;
+           area == STATE_HEAVENS_GATE ||
+           area == STATE_THE_TUBE;
 }
 
 /* ---- The prop models -------------------------------------------------------

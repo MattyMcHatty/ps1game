@@ -123,7 +123,8 @@ NESSIE_ROOMS = {"STATE_SHARURS_TRIAL", "STATE_A_WOMAN_SCORNED", "STATE_RIBCAGE"}
 # ahriman_room_has_sheet() in src/ahriman.c, restated.
 AHRIMAN_ROOMS = {"STATE_LAVA_U", "STATE_A_WOMAN_SCORNED"}
 # golem_room_has_sheet() in src/golem.c, restated.
-GOLEM_ROOMS = {"STATE_WINGSCAPE", "STATE_A_WOMAN_SCORNED", "STATE_RIBCAGE"}
+GOLEM_ROOMS = {"STATE_WINGSCAPE", "STATE_A_WOMAN_SCORNED", "STATE_RIBCAGE",
+               "STATE_THE_TUBE"}
 # column_room_has_sheet() in src/column.c, restated.
 COLUMN_ROOMS = {"STATE_LAVA_MAZE"}
 

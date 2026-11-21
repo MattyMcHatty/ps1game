@@ -624,6 +624,21 @@ Two independent pipelines. Both are needed for a new room.
     only reads them for UV sizing; the engine's tpage/clut come from
     TIM_SLOT, so the copies are throwaway. Hero's Plinth (Nov 2026) did this.
 
+    >>> A ROOM FROM SEVERAL EXPORTS IS MERGED FIRST, INTO ONE SMD. <<< The
+    room arena holds one mesh, and its tables ride on that one file. The Tube
+    (Nov 2026) is a spinning cylinder plus doors that stay put, exported as
+    "The Tube.smx" and "The Tube doors.smx":
+      & <python> tools\merge_smx.py "assets\underworld\The Tube.merged.smx" `
+            "assets\underworld\The Tube.smx" "assets\underworld\The Tube doors.smx"
+    and the .merged.smx (gitignored) is what smxlink links. The ORDER IS THE
+    CONTRACT: the first file's polys come first, so its gen_<slug>_tex_map.py
+    emits THE_TUBE_SPIN_PRIMS (counted from The Tube.smx and checked against
+    the merge) and the draw turns prims [0, that) under a model matrix and
+    the rest under the view. Load every matrix through a ctc2 loader like
+    src/arm_switch.c's as_set_view, not the SDK macros (two loads mid-draw),
+    and key a moving prim's cull on the part of it that does not move (the
+    tube's Z) with the culls widened by how far the rest can travel.
+
     >>> IF tools\subpack\<slug>.json EXISTS, RUN THAT PASS FIRST AND LINK THE
     .packed.smx INSTEAD. <<< That is the table STEP 3d's sub-pack exception
     wrote, and it is not optional afterwards — the raw .smx UVs still span a

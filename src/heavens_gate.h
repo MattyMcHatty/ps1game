@@ -23,12 +23,14 @@
        door. Per direction (the user's choice, Nov 2026: the transition is
        the door on the side being left): out of here DOOR_PANEL_GREENHOUSE,
        out of the Lava Maze DOOR_PANEL_WOOD.
-     - EAST: a catacomb inner door, 150 tall, at x=5600. It leads nowhere
-       yet - no prompt and no trigger until its room exists.
+     - EAST: a catacomb inner door, 150 tall, at x=5600. It leads to THE
+       TUBE's south door, a wooden door. Out of here DOOR_PANEL_CATACOMB,
+       out of The Tube DOOR_PANEL_WOOD (per direction, as above).
 
-   THE ARRIVAL. One: through the north-west door from the Lava Maze, just
+   THE ARRIVALS. Two: through the north-west door from the Lava Maze, just
    inside it facing south-east, towards the gate (heavens_gate_spawn_nw, the
-   init's spawn and where a debug jump lands).
+   init's spawn and where a debug jump lands); and through the east door
+   from The Tube, facing west (heavens_gate_spawn_e, main.c's override).
 
    THE MUSIC is the chapter's (CDAUDIO_UNDERWORLD_TRACK, main.c's Chapter 4
    block).
@@ -50,7 +52,13 @@ void heavens_gate_doors_arm(void);
    facing it. The edge state is kept current while locked. */
 int  heavens_gate_nw_door_triggered(int lock);
 
+/* The EAST door, to The Tube. Likewise. */
+int  heavens_gate_e_door_triggered(int lock);
+
 /* Arrival through the north-west door: just inside it, facing south-east. */
 void heavens_gate_spawn_nw(void);
+
+/* Arrival through the east door, from The Tube: just inside it, facing west. */
+void heavens_gate_spawn_e(void);
 
 #endif

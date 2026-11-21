@@ -121,6 +121,7 @@ add_executable(horror_game
     src/lava_maze.c
     src/lightnings_edge.c
     src/heavens_gate.c
+    src/the_tube.c
     src/destiny_plinths.c
     src/sharur.c
     src/spirit_glow.c

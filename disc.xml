@@ -2189,6 +2189,12 @@
             <file name="HVNGTL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\heavens gate left.tim"/>
             <file name="HVNGTR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\heavens gate right.tim"/>
             <file name="GRNHDR12.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\greenhouse door_128.tim"/>
+        <!-- THE TUBE (src/the_tube.h), behind Heavens Gate's east door: a
+             rock cylinder that spins about its long axis. One SMD, two
+             exports merged by tools/merge_smx.py (the tube first, then its
+             doors). Owns nothing: Sharur's ROCKS, the Catacombs Entry's
+             inner door and the resident wd_dr. -->
+            <file name="THETUBE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\the_tube.smd"/>
         <!-- SHARUR, the Underworld's weapon (src/sharur.c): the held model,
              and the one standing on the Chamber's lower plinth. Flat-shaded
              like CRFAXE.SMD, from assets/props/Sharur.smx by smxlink. -->

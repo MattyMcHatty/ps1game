@@ -292,6 +292,7 @@ static const char *const level_names[] = {
     "LAVA MAZE",
     "LIGHTNING EDGE",
     "HEAVENS GATE",
+    "THE TUBE",
 };
 #define LEVEL_SELECT_COUNT ((int)(sizeof(level_names) / sizeof(level_names[0])))
 
@@ -372,6 +373,7 @@ static const GameState level_states[LEVEL_SELECT_COUNT] = {
     STATE_LOADING,        /* LAVA MAZE */
     STATE_LOADING,        /* LIGHTNINGS EDGE */
     STATE_LOADING,        /* HEAVENS GATE */
+    STATE_LOADING,        /* THE TUBE */
 };
 
 /* For STATE_LOADING entries, the area STATE_LOADING should switch to. */
@@ -450,6 +452,7 @@ static const GameState level_pending[LEVEL_SELECT_COUNT] = {
     STATE_LAVA_MAZE,
     STATE_LIGHTNINGS_EDGE,
     STATE_HEAVENS_GATE,
+    STATE_THE_TUBE,
 };
 
 /* ---- Collapsible groups, used by both columns -----------------------------

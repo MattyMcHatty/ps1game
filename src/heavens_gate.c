@@ -89,10 +89,27 @@ static void *hg_buff = NULL;
 #define HG_NW_SPAWN_Z     4823
 #define HG_NW_SPAWN_ROT   1536
 
-/* ---- THE EAST DOOR ---------------------------------------------------------
+/* ---- THE EAST DOOR, to The Tube ---------------------------------------------
    The catacomb inner door polys stand in the plane x=5600, z[1600,2800], only
-   150 tall (collision wall 6, inward normal -X). It leads nowhere yet: no
-   prompt and no trigger until its room exists (the user's call, Nov 2026). */
+   150 tall (collision wall 6, x=5599, inward normal -X). So:
+     - the PRESS point is the middle of its foot, (5600,2200);
+     - THE SIGN is 11 off it along the normal at y=-75, the middle of the
+       face, on a free yaw facing the way the reader faces - 1024, east;
+     - THE SPAWN, for an arrival through it, is 250 in along the normal
+       ((5350,2200)), clear of the 195 push radius, facing west (3072).
+   Out of here plays DOOR_PANEL_CATACOMB: its art (CTCMBDR, x832 y0) is
+   already up - this room draws that door - and SFX_CTCMBDR is in
+   SND_BANK_UNDERWORLD. The far side is a wooden door, so the way in plays
+   DOOR_PANEL_WOOD (per direction, the chapter's rule 4). */
+#define HG_E_X            5600
+#define HG_E_Z            2200
+#define HG_E_TEXT_X       5589
+#define HG_E_TEXT_Z       2200
+#define HG_E_TEXT_Y      (HG_FLOOR_Y - 75)
+#define HG_E_TEXT_YAW     1024
+#define HG_E_SPAWN_X      5350
+#define HG_E_SPAWN_Z      2200
+#define HG_E_SPAWN_ROT    3072
 
 #define HG_TEXT_RADIUS    1500
 #define HG_FADE_NEAR      1000
@@ -101,6 +118,7 @@ static void *hg_buff = NULL;
 /* Circle edge-detect. Seeded "held" by the arm so a press carried in through
    the transition cannot fire on the arrival frame. */
 static int nw_circle_prev = 1;
+static int e_circle_prev  = 1;
 
 /* ---- THE FLOOR -------------------------------------------------------------
    One storey: the proxy has one floor plane, y=0, wider than the walls, so
@@ -254,26 +272,37 @@ void heavens_gate_load_geometry(void) {
 /* ---- The north-west door ---------------------------------------------------*/
 void heavens_gate_doors_arm(void) {
     nw_circle_prev = interact_tapped();
+    e_circle_prev  = nw_circle_prev;
 }
 
-/* A fresh Circle within reach of the door and facing it. The edge state is
+/* A fresh Circle within reach of a door and facing it. The edge state is
    kept up to date even while locked. */
-int heavens_gate_nw_door_triggered(int lock) {
+static int hg_door_triggered(int lock, int32_t x, int32_t z, int *prev) {
     int held = interact_tapped();
-    int just = held && !nw_circle_prev;
+    int just = held && !*prev;
     int32_t dx, dz;
-    nw_circle_prev = held;
+    *prev = held;
     if (lock || !just) return 0;
-    dx = cam_x - HG_NW_X;
-    dz = cam_z - HG_NW_Z;
+    dx = cam_x - x;
+    dz = cam_z - z;
     if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= HG_TRIGGER_RADIUS)
         return 0;
-    return interact_facing(HG_NW_X, HG_NW_Z);
+    return interact_facing(x, z);
 }
 
-static void hg_nw_text(RenderContext *ctx) {
-    int32_t dx = cam_x - HG_NW_X;
-    int32_t dz = cam_z - HG_NW_Z;
+int heavens_gate_nw_door_triggered(int lock) {
+    return hg_door_triggered(lock, HG_NW_X, HG_NW_Z, &nw_circle_prev);
+}
+
+int heavens_gate_e_door_triggered(int lock) {
+    return hg_door_triggered(lock, HG_E_X, HG_E_Z, &e_circle_prev);
+}
+
+/* A door's floating sign, faded in from HG_TEXT_RADIUS to HG_FADE_NEAR. */
+static void hg_door_text(RenderContext *ctx, int32_t x, int32_t z,
+                         int32_t tx, int32_t ty, int32_t tz, int yaw) {
+    int32_t dx = cam_x - x;
+    int32_t dz = cam_z - z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int fade = 256;
 
@@ -285,8 +314,7 @@ static void hg_nw_text(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
     door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
-                            HG_NW_TEXT_X, HG_NW_TEXT_Y, HG_NW_TEXT_Z,
-                            50, 255, 50, fade, HG_NW_TEXT_YAW,
+                            tx, ty, tz, 50, 255, 50, fade, yaw,
                             DOOR_PIXEL_SIZE);
 }
 
@@ -301,13 +329,25 @@ void heavens_gate_spawn_nw(void) {
     heavens_gate_doors_arm();
 }
 
+void heavens_gate_spawn_e(void) {
+    cam_x     = HG_E_SPAWN_X;
+    cam_y     = HG_EYE_Y;
+    cam_vy    = 0;
+    cam_z     = HG_E_SPAWN_Z;
+    cam_rot   = HG_E_SPAWN_ROT;
+    cam_pitch = 0;
+    camera_look_cancel();
+    heavens_gate_doors_arm();
+}
+
 void heavens_gate_init(void) {
     room_data_collision(&current_collision_room);
     collision_set_ceiling_y(HG_CEILING_Y);
     hg_floor_zones_init();
 
-    /* The one arrival, and where a debug jump lands: the north-west door,
-       from the Lava Maze's south-east door. */
+    /* The default arrival, and where a debug jump lands: the north-west
+       door, from the Lava Maze's south-east door. main.c overrides it with
+       heavens_gate_spawn_e() for an arrival from The Tube. */
     heavens_gate_spawn_nw();
 
     /* The global prop arrays, as every Chapter 4 room clears them: Hell Hath
@@ -549,10 +589,13 @@ void heavens_gate_draw(RenderContext *ctx) {
         draw_hg_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE DOOR SIGN <<< - no props, no enemies - and any
+    /* >>> LEVEL 8 IS THE DOOR SIGNS <<< - no props, no enemies - and any
        pickup a later seed puts down. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
-        hg_nw_text(ctx);
+        hg_door_text(ctx, HG_NW_X, HG_NW_Z, HG_NW_TEXT_X, HG_NW_TEXT_Y,
+                     HG_NW_TEXT_Z, HG_NW_TEXT_YAW);
+        hg_door_text(ctx, HG_E_X, HG_E_Z, HG_E_TEXT_X, HG_E_TEXT_Y,
+                     HG_E_TEXT_Z, HG_E_TEXT_YAW);
     }
 }

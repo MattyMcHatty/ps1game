@@ -291,6 +291,9 @@ AREAS = {
                   # HEAVENS GATE, behind the Lava Maze's south-east door: owns
                   # five; borrows grss, the inner door and the greenhouse door.
                   "heavens_gate_upload_textures",
+                  # THE TUBE, behind Heavens Gate's east door: owns nothing;
+                  # borrows the rocks and the inner door.
+                  "the_tube_upload_textures",
                   # ...and NESSIE (src/nessie.c), which main.c uploads on entry
                   # to the rooms nessie_room_has_sheet() names - Sharur's Trial
                   # today. Underworld rooms only.

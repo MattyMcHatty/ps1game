@@ -40,13 +40,24 @@
  *     (GLM_BLOCKS_WINGSCAPE_W_DOOR / _SE_DOOR), re-tagged beside each re-plant
  *     in world_place_wingscape_golem() - the tag moves with the Golem;
  *   - Ribcage's Golem blocks its east door, to Lightnings Edge
- *     (GLM_BLOCKS_RIBCAGE_E_DOOR, tagged beside its seed in world.c).
+ *     (GLM_BLOCKS_RIBCAGE_E_DOOR, tagged beside its seed in world.c);
+ *   - The Tube's Golem blocks its north door (GLM_BLOCKS_TUBE_N_DOOR, tagged
+ *     beside its seed in world.c). That door leads nowhere yet: the tag is
+ *     set now so its trigger and prompt only have to ASK when it is wired.
  * A new Golem that guards something: a new GolemBlock value, golem_set_blocks()
  * where it is placed, and a golem_blocks() test in the thing's own trigger AND
  * its prompt. The tag survives golems_rest and every re-plant (glm_spawn keeps
  * it, as it keeps `guard`); golem_add / golem_add_guard clear it.
  *
  * THE FIGHT, in order:
+ *
+ * >>> AN ALERT GOLEM HAS NO IDLE. <<< (the user's rule for The Tube's, Nov
+ * 2026: "alert and attacking as soon as the player enters the room".)
+ * golem_set_alert() marks one; every spawn of it - the seed, golems_rest on
+ * the way out, a re-plant, a revive - puts it straight into LAS_WAITING
+ * instead of IDLE, so its first beam is one laser cycle (~3 s) after the
+ * player walks in, and it never breathes waiting to be hit. The mark
+ * survives glm_spawn's wipe like `guard` and `blocks`.
  *
  *   IDLE    Until the player DAMAGES it, with anything. It breathes - frames 1
  *           and 6 in turn, GLM_BREATH_RATE each - and does nothing else, at any
@@ -121,7 +132,8 @@
  * CLUTs (176,480)/(192,480): tools/split_golem_sheet.py, disc.xml. Voff 128,
  * so every sprite brackets its own texture window.
  *
- * >>> ONLY WINGSCAPE, A WOMAN SCORNED AND RIBCAGE UPLOAD THE SHEET TODAY. <<< Placing one in another room
+ * >>> ONLY WINGSCAPE, A WOMAN SCORNED, RIBCAGE AND THE TUBE UPLOAD THE SHEET
+ * TODAY. <<< Placing one in another room
  * means: the placement in world.c, the room in golem_room_has_sheet() (the .c)
  * - which main.c and tools/gen_tex_rooms.py key the upload on - and
  * update_golems() / draw_golems() / golems_set_texwindow() in that room. The
@@ -136,11 +148,13 @@
  * for a hit and SFX_HURT for the player's.
  * ----------------------------------------------------------------------- */
 
-#define MAX_GOLEMS             8    /* WHOLE-GAME budget. Five seeded: two in
+#define MAX_GOLEMS             8    /* WHOLE-GAME budget. Six seeded: two in
                                        Wingscape (the west door's, and the
                                        Wings Tablet's summoned guard), two
-                                       free-standing in A Woman Scorned, and
-                                       Ribcage's in front of its east door */
+                                       free-standing in A Woman Scorned,
+                                       Ribcage's in front of its east door,
+                                       and The Tube's in front of its north
+                                       door */
 
 /* ---- Health, in half-points - see above. */
 #define GLM_MAX_HEALTH        10
@@ -268,6 +282,7 @@ typedef enum {
     GLM_BLOCKS_WINGSCAPE_W_DOOR,   /* Wingscape: the door Golem, west spot     */
     GLM_BLOCKS_WINGSCAPE_SE_DOOR,  /* Wingscape: the door Golem, south-east    */
     GLM_BLOCKS_RIBCAGE_E_DOOR,     /* Ribcage: the east door, to Lightnings Edge */
+    GLM_BLOCKS_TUBE_N_DOOR,        /* The Tube: the north door (not wired yet) */
 } GolemBlock;
 
 typedef struct {
@@ -301,6 +316,9 @@ typedef struct {
     /* What it stops the player using while it stands (GolemBlock; the head).
        Survives glm_spawn's wipe like `guard`. */
     GolemBlock  blocks;
+    /* 1 = ALERT: every spawn starts it attacking, never IDLE (the head).
+       Survives glm_spawn's wipe like `guard`. */
+    int         alert;
 } Golem;
 
 extern Golem golems[MAX_GOLEMS];
@@ -328,6 +346,10 @@ void golem_set_spawn(int idx, int32_t x, int32_t z);
                        the guarded thing's own trigger and prompt ask this. */
 void golem_set_blocks(int idx, GolemBlock what);
 int  golem_blocks(GameState area, GolemBlock what);
+
+/* Mark Golem idx ALERT (see the head): awake now, and on every spawn after.
+   Set beside its seed in world.c, so a title load's re-seed sets it again. */
+void golem_set_alert(int idx);
 
 /* ---- SUMMONED GOLEMS (the Wings Tablet's guard, src/wings_tablet.h) --------
    A guard is a seeded slot like any other - so it costs one place in the

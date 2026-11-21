@@ -79,7 +79,7 @@ void golems_upload_textures(void) {
    tools/gen_tex_rooms.py mirrors it as GOLEM_ROOMS - keep the two in step. */
 int golem_room_has_sheet(GameState area) {
     return area == STATE_WINGSCAPE || area == STATE_A_WOMAN_SCORNED ||
-           area == STATE_RIBCAGE;
+           area == STATE_RIBCAGE || area == STATE_THE_TUBE;
 }
 
 /* Integer square root, ahriman.c's - including the `t > 0` seed (mistake 11 in
@@ -210,13 +210,20 @@ static void glm_clear_shards(void) {
 static void glm_spawn(Golem *s, int32_t x, int32_t y, int32_t z, GameState area) {
     int guard = s->guard;          /* a summoned Golem stays one (golem.h) */
     GolemBlock blocks = s->blocks; /* ...and keeps what it blocks          */
+    int alert = s->alert;          /* ...and whether it is ALERT           */
     *s = (Golem){0};
     s->guard  = guard;
     s->blocks = blocks;
+    s->alert  = alert;
     s->x = x; s->y = y; s->z = z;
     s->spawn_x = x; s->spawn_z = z; s->spawn_y = y;
     s->health  = GLM_MAX_HEALTH * GLM_HP_SCALE;
-    s->state   = GLM_IDLE;
+    /* An ALERT Golem has no IDLE: it starts a laser cycle, which aims at the
+       player as it waits. Not glm_decide - the player may not be in the room
+       yet (golems_rest runs on the way OUT), so its punch test would read
+       another room's position. A player who walks up close is punched at the
+       cycle's end, as after any laser. */
+    s->state   = alert ? GLM_LAS_WAITING : GLM_IDLE;
     s->active  = 1;
     s->area    = area;
 }
@@ -229,6 +236,7 @@ int golem_add(int32_t x, int32_t z, GameState area) {
        at 0. */
     golems[i].guard  = 0;          /* a reused slot may have been a guard */
     golems[i].blocks = GLM_BLOCKS_NOTHING;
+    golems[i].alert  = 0;          /* ...or alert; the caller marks it    */
     glm_spawn(&golems[i], x, -GROUND_FLOOR_Y, z, area);
     /* Out of step with each other, so two in a room do not breathe as one. */
     golems[i].anim_tick = i * 17;
@@ -247,6 +255,13 @@ void golem_set_spawn(int idx, int32_t x, int32_t z) {
 void golem_set_blocks(int idx, GolemBlock what) {
     if (idx < 0 || idx >= golem_count) return;
     golems[idx].blocks = what;
+}
+
+void golem_set_alert(int idx) {
+    if (idx < 0 || idx >= golem_count) return;
+    Golem *s = &golems[idx];
+    s->alert = 1;
+    if (s->active && s->state == GLM_IDLE) { s->state = GLM_LAS_WAITING; s->timer = 0; }
 }
 
 int golem_blocks(GameState area, GolemBlock what) {
@@ -272,6 +287,7 @@ int golem_add_guard(int32_t x, int32_t floor_y, int32_t z, GameState area) {
     int i = golem_count++;
     golems[i].guard  = 1;
     golems[i].blocks = GLM_BLOCKS_NOTHING;   /* the caller tags it */
+    golems[i].alert  = 0;
     glm_spawn(&golems[i], x, floor_y - GROUND_FLOOR_Y, z, area);
     golems[i].anim_tick = i * 17;
     golems[i].state     = GLM_DEAD;      /* ABSENT until summoned */
