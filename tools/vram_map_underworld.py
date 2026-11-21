@@ -81,7 +81,8 @@ RESERVED = {n: v for n, v in CATA.RESERVED.items() if n not in CHAPTER_3_ITEMS}
 # ...and the Underworld's own: Ninurta's Arm, under Sharur's Tablet.
 RESERVED["nnrt_arm.tim"] = "the Ninurta's Arm item (under Sharur's Tablet)"
 RESERVED["nnrt_wngs.tim"] = "the Ninurta's Wings item (under the Wings Tablet)"
-RESERVED["sharur.tim"] = "Sharur, the weapon's icon (Chamber of Destiny's lower plinth)"
+# sharur.tim comes in through CATA.RESERVED (from the arena's list): since
+# Nov 2026 it is a global, held in every chapter under New Game+.
 RESERVED["tblt_dst.tim"] = "the Tablet of Destinies item (Chamber's higher plinth)"
 RESERVED["ltng_bolt.tim"] = "the Lightning Bolt item (under the Lightning Tablet)"
 # Every earlier chapter's item: startup-resident, never drawn down here.

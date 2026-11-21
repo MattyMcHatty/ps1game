@@ -75,7 +75,7 @@ RESERVED  (a global; overwriting it breaks something)
   nnrt_wngs.tim          the Ninurta's Wings item (under the Wings Tablet)
   scat_rnds.tim          scattershot rounds
   shadow.tim             entity drop shadows
-  sharur.tim             Sharur, the weapon's icon (Chamber of Destiny's lower plinth)
+  sharur.tim             Sharur's icon - New Game+ carries it into every room
   sml_med.tim            small medkit
   stnd_rnds.tim          standard rounds
   tblt_dst.tim           the Tablet of Destinies item (Chamber's higher plinth)
@@ -155,7 +155,7 @@ MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
   x640  BLOCKED - reserved: sml_med.tim   [also on this page, all re-uploaded on room entry: creep.tim, lamashtu creep.tim, maggot.tim]
   x704  BLOCKED - reserved: ltng_bolt.tim, nnrt_arm.tim, nnrt_wngs.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, incinerator.tim, ladder.tim, vines.tim]
   x768  IN USE by this bank: wd_dr.tim
-  x832  BLOCKED - reserved: flm_rnds.tim, helluminator.tim, stnd_rnds.tim
+  x832  BLOCKED - reserved: flm_rnds.tim, helluminator.tim, sharur.tim
   x896  IN USE by this bank: destinys door frame bottom left.tim, ninurta tablet bottom left.tim, oil_container.tim
 
 Regenerate with:  py tools/vram_map_underworld.py > tools/VRAM_MAP_UNDERWORLD.txt

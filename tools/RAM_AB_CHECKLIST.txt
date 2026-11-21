@@ -1,0 +1,184 @@
+RAM A+B — TEXTURE STREAMING AND SMD SLIMMING   (started 2026-11-21)
+==============================================================
+Why: FREE AT REST was 93 KB (tools/HEAP_BUDGET.txt), under heap_budget.py's
+128 KB warning line, and the Garden Courtyard door had ~2 KB of slack. The
+21 Nov 2026 RAM audit found two safe, frame-rate-neutral reclaims:
+
+  A  texmgr kept every texture the current room uses in main RAM AFTER it had
+     been uploaded to VRAM - up to 238 KB (Rear Gate) - although only two
+     textures in the whole game are ever re-uploaded mid-room.
+  B  every .smd carries a normals array (~28% of the file) that no room, prop or
+     boss draw reads, and the 25 resident prop models were read into whole
+     2048-byte sectors (79,872 B allocated for 54,548 B of files).
+
+Baseline (before any of this):
+    _end            0x80175860
+    room arena      124,928 B   (ROOM_ARENA_SECTORS 61, Lamashtu Arena)
+    texmgr peak     243,712 B   (Rear Gate's room set)
+    kept + chapter   79,872 B   (11 kept + 14 chapter-scoped prop buffers)
+    FREE AT REST     95,456 B   (93 KB)
+
+Order: PART A, then PART B. Each part builds, makes a disc and boot-tests on
+its own.
+
+Legend:  [ ] to do   [~] in progress   [x] done   [!] problem, see note
+
+
+##########################################################################
+ PART A — TEXMGR STREAMS ITS TEXTURES INSTEAD OF HOLDING THEM
+##########################################################################
+What changes: a texture's pixels are read from the CD AT ITS UPLOAD (inside
+the STATE_LOADING window, where a CD read is legal), DMA'd to VRAM, and freed
+straight away. The peak is one TIM instead of the room's whole set.
+What does NOT change: registration (header only), the generated per-room
+table (tools/gen_tex_rooms.py), every caller of texmgr_upload(), VRAM layout.
+
+The only uploads outside the loading window (call-graph walk from every
+texmgr_upload caller, 21 Nov 2026):
+    attic_exit.c   attic_exit_unlock_door / relock_door  <- exit_door_puzzle_update
+    piano_props.c  piano_props_repair_keys               <- piano_puzzle_update
+Those four TIMs are PINNED: held in RAM while a room that wants them is loaded,
+which is exactly the old behaviour.
+    XTDRLCKD.TIM  XTDRCMPL.TIM  PIANOKEY.TIM  PIANOFUL.TIM
+
+  [x] A1  texmgr_pin(id) in src/texmgr.h/.c. Called after the registrations
+          in attic_exit_load_assets() and piano_props' load_assets.
+  [x] A2  texmgr_room_select(): free every entry that is not (pinned AND
+          wanted by the destination); read only the pinned+wanted ones.
+          Still frees before it reads. Remembers the area bank for A3.
+  [x] A3  texmgr_upload() inside the window, entry not held: suspend CD-DA,
+          read, LoadImage (+CLUT), resume, then FREE unless pinned. Counts
+          reads, bytes and repeats (same entry streamed twice in one load).
+          A read the generated table says the room does not need is still
+          counted and logged as a late load: the table is wrong.
+  [x] A4  texmgr_loading_done() prints one line per door:
+              TEXMGR: room <n> streamed <reads> TIMs (<repeats> repeats) <bytes> B
+  [x] A5  An upload outside the window of an entry that is not held (the
+          silent wrong texture) now logs "TEXMGR: missed upload <file>",
+          the first 16 times only, so a regression cannot hide.
+  [x] A6  tools/heap_budget.py: the texmgr charge becomes the largest room's
+          PINNED bytes, and the streaming transient (largest single TIM) is
+          named next to the other transients.
+  [x] A7  Docs: texmgr.h (a STREAMING section on top of BANKS / TEXTURES BY
+          ROOM; mid-room uploads must pin), gen_tex_rooms.py docstring.
+  [x] A8  Verify:
+            [x] build clean; check_tex_banks.py and check_texmgr_cap.py pass
+            [x] mkpsxiso + check_disc_root.py OK
+            [x] headless boot to the title: zero exceptions in the log
+            [x] FORCE-BOOT (temporary, from a git-clean main.c) into the Rear
+                Gate (largest set), the Garden Courtyard (tightest door) and
+                the Attic Exit (pinned): log shows the per-door line, zero
+                late loads, zero misses. Instrumentation removed and
+                HORROR2.BIN checked free of it.
+            [x] heap_budget.py regenerated into tools/HEAP_BUDGET.txt
+            RESULT (headless force-boot, then seven REAL transitions in one
+            run: Rear Gate -> Garden Courtyard -> Attic Exit -> Piano Room ->
+            Kitchen -> Delivery -> Lamashtu Arena -> Lightnings Edge):
+                every door: 0 repeats, 0 failed, 0 late loads, 0 misses,
+                            0 exceptions
+                Rear Gate streamed 14 TIMs / 192,512 B (the largest set)
+                largest contiguous malloc under $sp after each load, A only:
+                    Rear Gate 249 KB   Courtyard (Rabisu in) 161 KB
+                    Attic Exit 213 KB  Piano 229 KB
+            [!] THE SAME BOOT ON THE OLD texmgr CRASHED before the Rear Gate
+                finished loading: "unaligned JR" returning from CdReadSync,
+                i.e. a CD read DMA'd over the stack - the documented heap-
+                into-stack failure (DIAGNOSING_A_BOOT_CRASH.txt). A cold boot
+                straight into the room, not a real transition, so it proves
+                the old margin was ~nil there rather than that the shipped
+                game crashes - but it is the room the old peak was set by.
+            [ ] YOU, in the emulator:
+                  - any five rooms across the chapters: textures as before
+                  - Attic Exit: solve the keystone door, then pull the stones
+                    (unlocked / relocked art changes mid-room)
+                  - Piano Room: repair the keys (art changes mid-room)
+                  - delivery <-> kitchen with the music playing: how long the
+                    door takes and whether the music stutters - every texture
+                    is re-read now, and that pair keeps CD-DA running
+                  - title -> Load Game into a saved room
+
+
+##########################################################################
+ PART B — STRIP THE UNUSED NORMALS, SIZE PROP BUFFERS EXACTLY
+##########################################################################
+What changes: the packed copies on the disc lose their normals array
+(n_norms = 0, offsets rebased; the per-prim normal index stays, unread), and
+prop models are allocated at file size instead of whole sectors.
+What does NOT change: assets/*.smd (smxlink output stays the source), the
+per-prim layout (32 bytes; every hard-coded p+16 / p+20 / p+28 still holds),
+any draw loop.
+
+WHO READS NORMALS (21 Nov 2026) - and so must NOT be stripped:
+    weapon.c weapon_render_model   CRFAXE.SMD (crucifaxe), GRAVOLVR.SMD,
+                                   SHARURWP.SMD (via melee_draw_model)
+    helluminator.c                 HELLUM.SMD
+    crate.c smdSortModel (NCDS)    CRATE.SMD
+smdInitData() only rebases the three offsets, so n_norms = 0 is safe.
+
+  [x] B1  tools/pack_rooms.py: strip_normals() applied before the room-data
+          block is appended; the prim bytes are checked identical afterwards.
+          Fails the build on a section order it does not expect.
+  [x] B2  tools/pack_models.py (new): an explicit ALLOWLIST of non-room disc
+          SMDs -> build/models/<same path below assets\>, stripped. Fails the
+          build on an allowlisted name disc.xml does not have, on one sourced
+          from neither assets\ nor build\models\, and on any name in the
+          NEEDS-NORMALS list above.
+            props   ARMSWTCH BARS BOOKCSE CHNLNKDR CLEAVER CONBLOCK CONCHAIR
+                    CRIB DINTABLE DRESSER FATDOOR GRINDER GULATBLT INCINPRP
+                    LEVER OILDISP PIANO SAVEPT SCONCE SHARTBLT TABLETS
+                    TRKDRWR VALVEH VINES WINGTBLT LTNGTBLT
+                    HATCHDL HATCHDR CTCMBDL CTCMBDR
+            bosses  RABISU ASGBODY LAMASHTU
+            sky     DSCTUBE UWSKY CDSKY
+  [x] B3  CMakeLists.txt: pack_models.py runs in the room_data target.
+  [x] B4  disc.xml: the allowlisted entries read build\models\ instead of
+          assets\. Same disc names.
+  [x] B5  py tools/gen_room_arena.py -> src/room_arena_size.h.
+          Check the Lightning Tablet still fits behind Lightnings Edge
+          (room_arena_load_extra).
+  [x] B6  src/cd_file.c/.h (new): cd_read_file(path) - whole-sector read,
+          then realloc() down to the file size. PSn00bSDK's allocator keeps
+          free space as gaps between blocks, so a shrink is in place and the
+          tail is reusable (disassembled 21 Nov 2026).
+  [x] B7  The 22 prop modules' private read_file()/load_file() become
+          one-line wrappers round cd_read_file() (names kept, so
+          heap_budget.py's scan still finds every load).
+  [x] B8  tools/heap_budget.py: those modules join EXACT_SIZE_MODULES.
+  [x] B9  Docs: MESH_CONVERSION_NOTES.txt, ADDING_A_PROP.txt (a new prop goes
+          on pack_models.py's allowlist unless its draw reads normals; read
+          through cd_read_file), ADDING_A_ROOM.txt where the packed SMD is
+          described.
+  [x] B10 Verify:
+            [x] packers pass; every stripped file's prim bytes identical
+            [x] build clean, mkpsxiso + check_disc_root.py OK
+            [x] headless boot to the title: zero exceptions
+            [x] FORCE-BOOT into Lamashtu Arena (largest mesh, now the arena
+                max) and Lightnings Edge (arena extra): both load
+            [x] heap_budget.py regenerated
+            RESULT: room arena 61 -> 44 sectors (124,928 -> 90,112 B);
+                    36 models stripped, 37,872 B of normals off the disc;
+                    kept + chapter-scoped 79,872 -> 38,316 B;
+                    .text -2,292 B (22 private readers became one).
+                    Same tour as A8, A+B together: 0 exceptions; Rabisu loaded
+                    (496 verts, 19-frame clip, pose buffer), Lamashtu (156
+                    verts), the Lightning Tablet extra (92 prims / 82 verts,
+                    = the asset); contiguous free under $sp: Rear Gate 330 KB,
+                    Courtyard 250 KB, Lamashtu Arena 269 KB.
+                    Clean build: no "ZZ:" strings in HORROR2.BIN, title boot
+                    0 exceptions, pcsx.json put back.
+            [ ] YOU, in the emulator: a prop room per chapter (kitchen
+                table, piano + bookcase, crib, sconces, a tablet), the
+                Rabisu fight, Lamashtu, Asag - all draw as before
+
+
+##########################################################################
+ AT THE END
+##########################################################################
+  [x] Final _end / room arena / FREE AT REST against the baseline above
+          _end          0x80175860 -> 0x8016CA20   (-36,416 B)
+          room arena       124,928 -> 90,112
+          texmgr held      243,712 -> 36,864     (Attic Exit's two pins)
+          kept + chapter    79,872 -> 38,316
+          FREE AT REST      95,456 -> 380,276 B  (93 KB -> 371 KB)
+  [x] Memory note updated (ram-audit-nov-2026)
+  [ ] Nothing committed until you say so

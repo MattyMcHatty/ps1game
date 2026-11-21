@@ -118,6 +118,7 @@ RESERVED = {
     "flm_rnds.tim":       "flame rounds",
     "scat_rnds.tim":      "scattershot rounds",
     "helluminator.tim":   "the Helluminator (menu icon in every room)",
+    "sharur.tim":         "Sharur's icon - New Game+ carries it into every room",
     # --- Healing, which the player may use mid-fight -----------------------
     "sml_med.tim":        "small medkit",
     # --- Collectible menu icons: the inventory opens in this room like any

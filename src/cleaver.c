@@ -13,6 +13,7 @@
 #include "tim_slots.h"      /* TIM_TPAGE_RUSTY / TIM_CLUT_RUSTY */
 #include "sound.h"          /* SFX_SLAM, SFX_HURT */
 #include "cleaver.h"
+#include "cd_file.h"
 
 /* Cleaver — see cleaver.h for the cycle, the hit, and why the draw skips
    whatever is above the ceiling. */
@@ -53,16 +54,10 @@ static int32_t cl_auth_x = 0, cl_auth_z = 0, cl_auth_lift = 0;
 /* The player's head, relative to cam_y — the bars' BR_PLAYER_HEAD. */
 #define CL_PLAYER_HEAD 30
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* Startup. One sector of geometry held for the run, and nothing else: the

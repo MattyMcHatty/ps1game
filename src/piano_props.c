@@ -18,6 +18,7 @@
 #include "piano_puzzle.h"   /* piano_puzzle_active: hide the sign during the shot */
 #include "anzu_tex.h"       /* the Tablets prop's face is the anzu3 tile */
 #include "piano_props.h"
+#include "cd_file.h"
 
 #define PPROP_COUNT        4
 #define PPROP_PUSH_MARGIN 30   /* extra gap between player and prop edge (as tables) */
@@ -103,16 +104,10 @@ static int32_t sink_off   = 0;
 static int     sinking    = 0;
 static int32_t sink_t     = 0;   /* frames into the descent */
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* Startup: load geometry and register both textures with the texture manager
@@ -131,6 +126,11 @@ void piano_props_load_assets(void) {
     piano_tex      = texmgr_register("\\TEX\\PIANOKEY.TIM;1");
     piano_full_tex = texmgr_register("\\TEX\\PIANOFUL.TIM;1");
     bookcase_tex   = texmgr_register("\\TEX\\BOOKSHLF.TIM;1");
+    /* PINNED (src/texmgr.h, STREAMING): piano_props_repair_keys swaps the
+       keyboard art MID-ROOM, where a CD read is not legal, so both keyboard
+       TIMs are held rather than streamed. The bookshelf is entry-only. */
+    texmgr_pin(piano_tex);
+    texmgr_pin(piano_full_tex);
 }
 
 /* The keyboard art the piano should be showing right now. Falls back to the

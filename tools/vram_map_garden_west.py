@@ -77,6 +77,7 @@ RESERVED = {
     "pno_key.tim":        "piano key item",
     "helluminator.tim":   "the Helluminator (menu icon in every room)",
     "vlv_hndl.tim":       "the Valve Handle item (menu icon in every room)",
+    "sharur.tim":         "Sharur's icon - New Game+ carries it into every room",
     # --- The door-transition panels ----------------------------------------
     "grdngtl.tim":        "GATE panel, left half - THIS bank's own transition",
     "grdngtr.tim":        "GATE panel, right half - THIS bank's own transition",

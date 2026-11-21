@@ -196,10 +196,10 @@ TEXTURE PIXEL SLOTS  (Voff = y %% 256; Voff>=128 is window-sensitive)
   nnrt_arm.tim         4       704   256    64    64     0   1008,502
   vines.tim            4       704   256   128   128     0   672,509
   nnrt_wngs.tim        4       720   256    64    64     0   1008,503
-  sharur.tim           8       736   256    64    64     0   272,482
   wd_dr.tim            4       768   256   128   128     0   112,480
   stnd_rnds.tim        4       832   256    64    64     0   0,509
   flm_rnds.tim         4       848   256    64    64     0   256,481
+  sharur.tim           8       864   256    64    64     0   272,482
   oil_container.tim    4       896   256   128   128     0   672,504
   stn_gls.tim          4       896   256   128   128     0   0,488
   destinys door frame bottom left.tim 8       896   256   128   128     0   672,490
@@ -432,7 +432,6 @@ OVERLAP CHECK
   Rabisu tex.tim                           ltng_bolt.tim        time-shared (streaming)
   Rabisu tex.tim                           nnrt_arm.tim         time-shared (streaming)
   Rabisu tex.tim                           nnrt_wngs.tim        time-shared (streaming)
-  Rabisu tex.tim                           sharur.tim           time-shared (streaming)
   Rabisu tex.tim                           tblt_dst.tim         time-shared (streaming)
   Rabisu tex.tim                           vines.tim            time-shared (streaming)
   adapa_a.tim                              lumberer_b.tim       time-shared (streaming)
@@ -584,7 +583,6 @@ OVERLAP CHECK
   incinerator.tim                          ltng_bolt.tim        time-shared (streaming)
   incinerator.tim                          nnrt_arm.tim         time-shared (streaming)
   incinerator.tim                          nnrt_wngs.tim        time-shared (streaming)
-  incinerator.tim                          sharur.tim           time-shared (streaming)
   incinerator.tim                          tblt_dst.tim         time-shared (streaming)
   incinerator.tim                          vines.tim            time-shared (streaming)
   shelf_incinerator.tim                    chnlnk.tim           time-shared (streaming)

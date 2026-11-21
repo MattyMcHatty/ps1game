@@ -16,6 +16,7 @@
 #include "sound.h"          /* SFX_MCHNE, SFX_GAS, SND_BANK_CATACOMBS */
 #include "particles.h"      /* spawn_soot_spurt: the vent at cycle end   */
 #include "incinerator.h"
+#include "cd_file.h"
 
 /* The Incinerator — see incinerator.h for what it is, for why its collision
    comes out of its own mesh, and for why the mesh is in ROOM WORLD COORDINATES
@@ -477,16 +478,10 @@ void incinerator_cycle_update(void) {
 
 /* ---- Assets ---------------------------------------------------------------- */
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* Startup. The CD read is the geometry; the texture is a registration only —

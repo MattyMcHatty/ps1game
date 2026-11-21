@@ -11,6 +11,7 @@
 #include "tim_slots.h"
 #include "grinder.h"
 #include "grinder_tex_map.h"
+#include "cd_file.h"
 #include "title.h"          /* GameState / current_area — see grinder_add */
 
 Grinder grinders[MAX_GRINDERS];
@@ -98,16 +99,10 @@ static inline int32_t gr_model_cut(const Grinder *g) {
     return ((g->cut_x - g->x) * icos(g->rot_y)) >> 12;
 }
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* Startup: load geometry and put the grinder texture into VRAM for good. ALL CD

@@ -17,7 +17,8 @@ THE SOURCES DO NOT CHANGE, AND THEY STAY THE SOURCE OF TRUTH:
                                   edited (multi_level, shoot_over_mask, ...)
     assets/<Name>.smd             written by smxlink
 This script reads all three and writes build/rooms/<Name>.smd = the SMD bytes
-unchanged + one appended block. disc.xml points at build\\rooms\\<Name>.smd.
+minus their normals array (strip_normals, below: no room draw reads normals)
++ one appended block. disc.xml points at build\\rooms\\<Name>.smd.
 The packed file has the SAME basename as the asset, which is how the input is
 found again on the next run: build\\rooms\\X  <-  assets\\X.
 
@@ -229,6 +230,37 @@ def disc_file(slug, disc_xml):
     return name, os.path.join(ROOT, 'assets', rel), os.path.join(OUT_DIR, rel)
 
 
+def strip_normals(smd, where):
+    """The SMD with its normals array cut out: n_norms = 0, p_norms and p_prims
+    rebased onto where the prims now start. Nothing else moves - the per-prim
+    normal index stays in every 32-byte record (unread), so every hard-coded
+    p+16 / p+20 / p+28 in a draw loop still holds. smdInitData() only adds the
+    base address to the three offsets, so n_norms = 0 is all it sees.
+
+    NO ROOM DRAW READS NORMALS - only weapon.c, helluminator.c, sharur.c and
+    crate.c's smdSortModel do (tools/pack_models.py checks that set on every
+    build). The normals were ~28% of every room: 35 KB of Lamashtu Arena's
+    120 KB, which is what sets the room arena. tools/RAM_AB_CHECKLIST.txt B1.
+
+    Fails rather than guess on a layout it does not recognise: header, verts,
+    normals, prims, in that order and back to back, as smxlink writes them."""
+    if smd[:3] != b'SMD':
+        die(f'{where}: not an SMD')
+    nv, nn = struct.unpack_from('<HH', smd, 6)
+    pv, pn, pp = struct.unpack_from('<III', smd, 12)
+    if nn == 0:
+        return smd
+    if not (pv == 24 and pn == pv + nv * 8 and pp == pn + nn * 8 and pp <= len(smd)):
+        die(f'{where}: unexpected SMD layout (verts@{pv} x{nv}, norms@{pn} x{nn}, '
+            f'prims@{pp}) - not stripping a file this script does not understand')
+    out = bytearray(smd[:pn] + smd[pp:])
+    struct.pack_into('<H', out, 8, 0)
+    struct.pack_into('<II', out, 16, pn, pn)
+    if bytes(out[pn:]) != smd[pp:] or bytes(out[24:pn]) != smd[24:pn]:
+        die(f'{where}: strip_normals self-check failed')
+    return bytes(out)
+
+
 def pack(slug, disc_xml):
     count, tex, nocull = parse_tex_map(slug)
     room, walls = parse_collision(slug)
@@ -237,6 +269,7 @@ def pack(slug, disc_xml):
         smd = f.read()
     if smd[:3] != b'SMD':
         die(f'{smd_path}: not an SMD')
+    smd = strip_normals(smd, smd_path)
     n_prims = struct.unpack_from('<H', smd, 10)[0]
     if n_prims != count:
         die(f'{slug}: {smd_path} has {n_prims} prims but {slug}_tex_map.h says '

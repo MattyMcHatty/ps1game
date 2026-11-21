@@ -11,6 +11,7 @@
 #include "texmgr.h"
 #include "dresser.h"
 #include "dresser_tex_map.h"
+#include "cd_file.h"
 
 Dresser dressers[MAX_DRESSERS];
 int     dresser_count = 0;
@@ -23,16 +24,10 @@ static void *dresser_buffer = NULL;
    with NO mid-game CD read). */
 static int dresser_tex = -1;
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* Startup: load geometry and preload the dresser texture into resident RAM,

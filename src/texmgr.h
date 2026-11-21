@@ -97,11 +97,50 @@ void texmgr_set_bank(TexBank banks);
    Returns a texture id (>= 0), or -1 on failure. */
 int texmgr_register(const char *filename);
 
-/* Upload a registered texture's pixels (+CLUT if any) from its RAM copy. Pure
-   LoadImage, no CD access — safe during a room transition once the GPU is idle
-   (the caller DrawSyncs first, as main's STATE_LOADING does).
-   A no-op, silently, if this texture's bank is not loaded. See the note above. */
+/* Upload a registered texture's pixels (+CLUT if any). Inside the loading
+   window (texmgr_room_select .. texmgr_loading_done) that READS THE TIM OFF
+   THE DISC, uploads it and frees it again - see STREAMING below. Outside it,
+   only a PINNED texture can be uploaded; anything else is a no-op that logs
+   "TEXMGR: missed upload". The caller DrawSyncs first, as STATE_LOADING does. */
 void texmgr_upload(int id);
+
+/* Mark a texture as re-uploaded MID-ROOM (outside the loading window), so its
+   pixels are HELD in RAM while a room the generated table gives it to is
+   loaded. Call once, right after its texmgr_register(). Without a pin, a
+   mid-room texmgr_upload() finds nothing to upload. See STREAMING below. */
+void texmgr_pin(int id);
+
+/* ===========================================================================
+   STREAMING — WHY A ROOM NO LONGER HOLDS ITS TEXTURES (November 2026)
+   ===========================================================================
+   Holding a room's set (TEXTURES BY ROOM, below) still cost up to 238 KB of
+   heap for the whole time the player stood in the Rear Gate - for pixels that
+   were already in VRAM and that nothing would ever read again until the next
+   door. The 21 Nov 2026 RAM audit walked the call graph from every
+   texmgr_upload() caller: only TWO places in the game upload outside
+   STATE_LOADING -
+
+       attic_exit.c   the exit door's locked/unlocked art  (exit_door_puzzle)
+       piano_props.c  the repaired piano keys              (piano_puzzle)
+
+   so texmgr now STREAMS everything else: texmgr_upload() inside the loading
+   window reads the TIM, LoadImages it and frees it, one texture at a time.
+   The heap pays one TIM at the door instead of the whole set, and nothing at
+   rest. Those four TIMs are texmgr_pin()ned and keep the old behaviour.
+
+   THE COST IS DRIVE TIME AT THE DOOR: a set two rooms share is now read twice
+   rather than kept. texmgr_loading_done() prints, per door,
+       TEXMGR: room <n> streamed <reads> TIMs (<repeats> repeats, <f> failed) <bytes> B
+   and that line is the number to look at before anyone argues about it.
+
+   >>> A NEW MID-ROOM UPLOAD MUST PIN ITS TEXTURE. <<< Anything that calls
+   texmgr_upload() from a room's update - a puzzle that swaps art, a door that
+   changes - and is not pinned uploads NOTHING, and the log says
+   "TEXMGR: missed upload <file>". The generated table still decides WHERE a
+   pinned texture is held, so the room must be in its row
+   (tools/gen_tex_rooms.py; a pinned miss prints "late load").
+   See tools/RAM_AB_CHECKLIST.txt PART A.
+   =========================================================================== */
 
 /* ===========================================================================
    TEXTURES BY ROOM — WHAT REPLACED THE AREA AS THE UNIT (October 2026)

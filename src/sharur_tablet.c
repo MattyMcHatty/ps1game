@@ -21,6 +21,7 @@
 #include "underworld.h"     /* the chapter's fog                 */
 #include "underworld_sky.h" /* UW_SKY_OT                         */
 #include "sharur_tablet.h"
+#include "cd_file.h"
 
 /* Sharur's Tablet - see sharur_tablet.h for the puzzle and why the box is
    measured off the mesh. */
@@ -238,16 +239,10 @@ static inline void sh_set_view(const MATRIX *m) {
         : : "r"(m->t[0]), "r"(m->t[1]), "r"(m->t[2]));
 }
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* ---- Load: read the slab and measure it ------------------------------------- */

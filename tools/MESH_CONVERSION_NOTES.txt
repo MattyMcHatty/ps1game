@@ -118,7 +118,11 @@ The script:
 IMPORTANT — copy the generated files into src\ (that is the copy the build
 uses — since October 2026 it is READ by tools/pack_rooms.py and packed onto
 the end of the room's .SMD rather than compiled; see src/room_data.h and
-tools/ADDING_A_ROOM.txt STEP 4c. Hand edits stay literal assignments):
+tools/ADDING_A_ROOM.txt STEP 4c. Hand edits stay literal assignments.
+Since November 2026 that packed copy, and the prop/boss/sky copies
+tools/pack_models.py writes to build\models\, also have their NORMALS
+stripped - smxlink's assets\*.smd keep them, the disc does not, except for
+the models pack_models.py lists as NEEDS_NORMALS):
       copy assets\Reception_mesh_collision.c  src\reception_mesh_collision.c
       copy assets\Reception_mesh_collision.h  src\reception_mesh_collision.h
   (src\ uses lowercase filenames; contents are byte-identical to assets\.)

@@ -15,6 +15,7 @@
 #include "crucifaxe.h"      /* SWING_RANGE, for cribs_try_hit                   */
 #include "sound.h"          /* SFX_CREEP — the encounter's loop                 */
 #include "crib.h"
+#include "cd_file.h"
 
 /* Crib — see crib.h for what it is, for the whole encounter timeline, for why
    its collision comes out of its own mesh, and for why the solved set is a
@@ -115,16 +116,10 @@ static int crib_tex = -1;
    Feet are cam_y + GROUND_FLOOR_Y. */
 #define CR_PLAYER_HEAD 30
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* Startup. The CD read is the geometry; the texture is a registration only —

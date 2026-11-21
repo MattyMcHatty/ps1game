@@ -30,17 +30,17 @@
             <file name="CRATE.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\props\wdcrate.smd"/>
             <file name="FATDOOR.SMD" type="data"
-                source="C:\Users\virtu\Documents\ps1game\assets\props\fat_door.smd"/>
+                source="C:\Users\virtu\Documents\ps1game\build\models\props\fat_door.smd"/>
             <file name="CRFAXE.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\props\Crucifaxe.smd"/>
             <file name="GRAVOLVR.SMD" type="data"
                 source="C:\Users\virtu\Documents\ps1game\assets\props\grave-olver.smd"/>
             <file name="DINTABLE.SMD" type="data"
-                source="C:\Users\virtu\Documents\ps1game\assets\props\dining_table.smd"/>
+                source="C:\Users\virtu\Documents\ps1game\build\models\props\dining_table.smd"/>
             <file name="SAVEPT.SMD" type="data"
-                source="C:\Users\virtu\Documents\ps1game\assets\props\save_point.smd"/>
+                source="C:\Users\virtu\Documents\ps1game\build\models\props\save_point.smd"/>
             <file name="DRESSER.SMD" type="data"
-                source="C:\Users\virtu\Documents\ps1game\assets\props\dresser.smd"/>
+                source="C:\Users\virtu\Documents\ps1game\build\models\props\dresser.smd"/>
             <file name="WCRATE.TIM" type="data"
                 source="C:\Users\virtu\Documents\ps1game\textures\wdcrate.tim"/>
             <file name="WDDR.TIM" type="data"
@@ -333,7 +333,7 @@
                      to the root pushed SYSTEM.CNF past the 2048-byte first-sector
                      boundary and the console hung at the PlayStation logo. The
                      root list is full — see the comment above it. -->
-                <file name="RABISU.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Rabisu-tex.smd"/>
+                <file name="RABISU.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\models\bosses\Rabisu-tex.smd"/>
                 <!-- THE GREENHOUSE'S TWO PROP MESHES, AND THEY ARE IN HERE FOR
                      THE REASON RABISU.SMD IS. Both are read once at startup like
                      every other prop's (CD access is unsafe after the render loop
@@ -348,8 +348,8 @@
                      Their TEXTURES are not here: the vines' is streamed with the
                      Greenhouse's own set (VINES.TIM, below) and the valve handle
                      reuses whichever pipe art the room it is in already put up. -->
-                <file name="VINES.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\vines.smd"/>
-                <file name="VALVEH.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\valve_handle.smd"/>
+                <file name="VINES.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\vines.smd"/>
+                <file name="VALVEH.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\valve_handle.smd"/>
                 <!-- The HELLUMINATOR's model. In \TEX\ rather than at the
                      disc root for the same reason VINES.SMD and VALVEH.SMD are:
                      check_disc_root.py reports 36 free bytes in the root's first
@@ -370,8 +370,8 @@
                      9 KB - see the budget note in src/hatch_doors.c.
                      No texture of their own: the leaves are UV'd against `hatch`,
                      which The Hatch already streams on entry (HATCH.TIM). -->
-                <file name="HATCHDL.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\hatch_door_left.smd"/>
-                <file name="HATCHDR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\hatch_door_right.smd"/>
+                <file name="HATCHDL.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\hatch_door_left.smd"/>
+                <file name="HATCHDR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\hatch_door_right.smd"/>
                 <!-- The opening clips, 10 frames each: frame 1 shut, 2-9 the
                      swing, 10 open. Re-bake BOTH whenever the leaves' topology
                      changes, or the positions stop matching the .smd indices. -->
@@ -407,8 +407,8 @@
                      root directory stays within one sector; loaded by our own
                      code (piano_room_load_assets) via the \TEX\ path. -->
                 <file name="PIANORM.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\Piano_Room.smd"/>
-                <file name="PIANO.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Piano.smd"/>
-                <file name="BOOKCSE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Bookcase.smd"/>
+                <file name="PIANO.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\Piano.smd"/>
+                <file name="BOOKCSE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\Bookcase.smd"/>
                 <file name="PIANOKEY.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\piano_keys.tim"/>
                 <!-- The repaired keyboard: same VRAM slot and CLUT slot as
                      PIANOKEY.TIM, so solving the piano puzzle just re-uploads
@@ -417,7 +417,7 @@
                 <file name="BOOKSHLF.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\bookshelf.tim"/>
                 <file name="CONSRV.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\Conservatory.smd"/>
                 <file name="HALL2F.SMD"   type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\2f_hall.smd"/>
-                <file name="TRKDRWR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\trick_drawers.smd"/>
+                <file name="TRKDRWR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\trick_drawers.smd"/>
                 <file name="CLSDDRWR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\clsd_drwr.tim"/>
                 <file name="OPNDRWR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\opn_drwr.tim"/>
                 <file name="WXCB.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\wx_cb.tim"/>
@@ -426,8 +426,8 @@
                 <file name="TREES.TIM"    type="data" source="C:\Users\virtu\Documents\ps1game\textures\trees.tim"/>
                 <file name="GRSS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\grss.tim"/>
                 <file name="UPSTAIRS.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\upstairs.tim"/>
-                <file name="CONBLOCK.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Concrete Block.smd"/>
-                <file name="CONCHAIR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Concrete Chair.smd"/>
+                <file name="CONBLOCK.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\Concrete Block.smd"/>
+                <file name="CONCHAIR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\Concrete Chair.smd"/>
                 <file name="CNCRTE.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\cncrte.tim"/>
                 <file name="CPPRPOT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\cppr_pt.tim"/>
                 <file name="TNTCLIDL.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\tntcl_idle.tim"/>
@@ -479,15 +479,15 @@
                 <file name="TRCKCLUE.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\trck_clue.tim"/>
                 <file name="ATTCEXIT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\attic_exit.smd"/>
                 <file name="XTDRLCKD.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\xt_dr_lckd.tim"/>
-                <file name="CHNLNKDR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\chainlink_door.smd"/>
-                <file name="LEVER.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\lever.smd"/>
+                <file name="CHNLNKDR.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\chainlink_door.smd"/>
+                <file name="LEVER.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\lever.smd"/>
                 <file name="PNOKEY.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\pno_key.tim"/>
                 <file name="BLKYSTN.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\bl_ky_stn.tim"/>
                 <!-- The Anzu Tablet puzzle (piano room). ANZUTAB is the whole
                      tablet relief in one 4bpp texture; src/anzu_tex.c cuts the
                      six puzzle tiles out of it by UV, and its top-right tile
                      doubles as the Tablets prop's face texture. -->
-                <file name="TABLETS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\tablets.smd"/>
+                <file name="TABLETS.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\tablets.smd"/>
                 <file name="ANZUTAB.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\anzu_tab.tim"/>
                 <file name="YLKYSTN.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\ylw_ky_stn.tim"/>
                 <!-- The Attic Exit's exit-door puzzle. XTDRCMPL.TIM is the
@@ -648,8 +648,8 @@
                      to carry it in the room mesh is the untextured backing at
                      z=3850. Their .smx exports live in assets/garden/ with the
                      room's, the .smd in assets/props/ with the other props'. -->
-                <file name="CTCMBDL.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\catacomb_door_left.smd"/>
-                <file name="CTCMBDR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\catacomb_door_right.smd"/>
+                <file name="CTCMBDL.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\catacomb_door_left.smd"/>
+                <file name="CTCMBDR.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\catacomb_door_right.smd"/>
                 <file name="PSNFLWR.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\poison_flower_base.tim"/>
 
                 <!-- Maze One: the hedge maze east of Fountain Square, through
@@ -791,7 +791,7 @@
                      UVs assume; grinders_draw halves them to suit. No detail is
                      lost - grinder.png is 64x64 to begin with. See the note
                      there. -->
-                <file name="GRINDER.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\Grinder.smd"/>
+                <file name="GRINDER.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\Grinder.smd"/>
                 <file name="GRINDER.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\grinder.tim"/>
 
                 <!-- Opening sequence (src/intro.c): the mansion still that fades
@@ -1050,7 +1050,7 @@
             <file name="ASGMUD.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\mud.tim"/>
             <file name="ASGWALL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\Boss Wall.tim"/>
             <file name="ASGSKIN.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\asag.tim"/>
-            <file name="ASGBODY.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag Version Two_Boss.smd"/>
+            <file name="ASGBODY.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\bosses\Asag Version Two\Asag Version Two_Boss.smd"/>
             <file name="ASGHIDLE.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag_head_idle.pva"/>
             <file name="ASGHLAS.PVA"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag_head_laser.pva"/>
             <file name="ASGHSLAM.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Asag Version Two\Asag_head_slam.pva"/>
@@ -1635,7 +1635,7 @@
                  Catacombs, and both put it back on entry; the page's mansion
                  and garden occupants are re-uploaded by their own rooms. Its
                  CLUT is its OWN, at (720,480). See tools/vram_map.py. -->
-            <file name="ARMSWTCH.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\arm_switch.smd"/>
+            <file name="ARMSWTCH.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\arm_switch.smd"/>
             <file name="LMSHARM.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu arm.tim"/>
 
             <!-- THE KENNELS, the chapter's THIRTY-THIRD room, through the
@@ -1666,7 +1666,7 @@
                  room-scoped like Asag's. Her skin, 128x128 4bpp on the crib's
                  page x576 y0 with its CLUT at (640,502), is registered through
                  texmgr and uploaded by the arena's own uploader. -->
-            <file name="LAMASHTU.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Lamashtu\Lamashtu.smd"/>
+            <file name="LAMASHTU.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\bosses\Lamashtu\Lamashtu.smd"/>
             <file name="LMSIDLE.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Lamashtu\Lamashtu_idle.pva"/>
             <file name="LMSSHRK.PVA" type="data" source="C:\Users\virtu\Documents\ps1game\assets\bosses\Lamashtu\Lamashtu_shriek.pva"/>
             <file name="LAMASHTU.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\lamashtu.tim"/>
@@ -1708,7 +1708,7 @@
                  page puts its own art back on entry, and none of them is drawn
                  in the Nursery. Its CLUT is its OWN, at (592,502), beside the
                  gaol door's. See tools/vram_map.py. -->
-            <file name="GULATBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\gula_tablet.smd"/>
+            <file name="GULATBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\gula_tablet.smd"/>
             <file name="GULATBLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\gula tablet.tim"/>
 
             <!-- THE SCONCE, the chapter's first prop: a floor-standing brass
@@ -1725,7 +1725,7 @@
 
                  SCONCE.SMD is the ONLY collision data this prop has — see the
                  note at the head of src/sconce.h. -->
-            <file name="SCONCE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\sconce.smd"/>
+            <file name="SCONCE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\sconce.smd"/>
             <file name="SCONCE.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\sconce.tim"/>
 
             <!-- THE OIL DISPENSER, the chapter's second prop: a wall tank with a
@@ -1745,7 +1745,7 @@
 
                  OILDISP.SMD IS THE ONLY COLLISION DATA THIS PROP HAS — see the
                  note at the head of src/oil_dispenser.h. -->
-            <file name="OILDISP.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\oil_dispenser.smd"/>
+            <file name="OILDISP.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\oil_dispenser.smd"/>
             <file name="OILCNTNR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\oil_container.tim"/>
 
             <!-- THE INCINERATOR, the chapter's third prop and the machine the
@@ -1774,7 +1774,7 @@
                  IS ALSO THE ONLY RECORD OF WHERE IT STANDS - the model is
                  authored in room coordinates. See the head of
                  src/incinerator.h. -->
-            <file name="INCINPRP.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\incinerator.smd"/>
+            <file name="INCINPRP.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\incinerator.smd"/>
             <file name="INCINPRP.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\catacombs\incinerator.tim"/>
 
             <!-- THE CRIB, the chapter's fifth prop and its first piece of
@@ -1812,7 +1812,7 @@
 
                  CRIB.SMD IS THE ONLY COLLISION DATA THIS PROP HAS - see the note
                  at the head of src/crib.h. -->
-            <file name="CRIB.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\crib.smd"/>
+            <file name="CRIB.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\crib.smd"/>
             <file name="CRIB.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\crib.tim"/>
 
             <!-- THE BARS, The Pit's portcullis: hung over the north alcove's
@@ -1831,7 +1831,7 @@
                  BARS.SMD WAS EXPORTED IN THE PIT'S WORLD COORDINATES and is
                  re-centred in RAM at load; it is also the prop's only collision
                  data. -->
-            <file name="BARS.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\bars.smd"/>
+            <file name="BARS.SMD"     type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\bars.smd"/>
             <file name="BARS.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\bars.tim"/>
 
             <!-- THE CLEAVER, the chapter's third moving prop: a guillotine blade
@@ -1846,7 +1846,7 @@
                  COORDINATES, like BARS.SMD in The Pit's, and is re-centred in RAM
                  at load; the offset it removes is the first blade's placement,
                  and the mesh is the prop's only collision data. -->
-            <file name="CLEAVER.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\cleaver.smd"/>
+            <file name="CLEAVER.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\cleaver.smd"/>
 
             <!-- THE CRAWLER, the chapter's first MONSTER (src/crawler.c). Four
                  animation frames, read in the order top-left, top-right,
@@ -2054,14 +2054,14 @@
              line (576,502). Every room that draws either page puts its own art
              back on entry. -->
             <file name="DESCENT.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\descent_to_hell.smd"/>
-            <file name="DSCTUBE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\assets\underworld\descent_tube.smd"/>
+            <file name="DSCTUBE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\underworld\descent_tube.smd"/>
             <file name="LAVA.TIM"     type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\lava.tim"/>
             <file name="HELLBG.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\hell bg.tim"/>
         <!-- THE SKYBOX, drawn in every Chapter 4 room but the Descent
              (src/underworld_sky.h): a sixteen-sided ring from "Underworld
              Skybox.smx", textured with the Descent's HELLBG.TIM above, so it
              ships no texture of its own. -->
-            <file name="UWSKY.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\underworld\underworld_skybox.smd"/>
+            <file name="UWSKY.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\build\models\underworld\underworld_skybox.smd"/>
         <!-- HELL HATH NO FURY (src/hell_hath_no_fury.h), where the Descent's
              white lands: an open octagonal platform of volcanic rock over
              lava. Owns VOLCANIC.TIM (4bpp x384 y256, CLUT 928,502) and borrows
@@ -2082,7 +2082,7 @@
              page starts the Underworld map calls FREE: SHARTBLT.TIM (x704 y0,
              CLUT 976,502) and SHARTBCR.TIM, the cracked front after the 4th
              blow (x768 y0, CLUT 992,502). -->
-            <file name="SHARTBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\sharur_tablet.smd"/>
+            <file name="SHARTBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\sharur_tablet.smd"/>
             <file name="SHARTBLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\sharur tablet.tim"/>
             <file name="SHARTBCR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\sharur tablet cracked.tim"/>
         <!-- LAVA U (src/lava_u.h), behind Sharur's Trial's south and
@@ -2100,7 +2100,7 @@
              is its position and its collision. WINGTBLT.TIM is 4bpp on
              SHARUR'S TABLET's page and palette (x704 y0, CLUT 976,502),
              time-shared: neither room draws the other's tablet. -->
-            <file name="WINGTBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\wings_tablet.smd"/>
+            <file name="WINGTBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\wings_tablet.smd"/>
             <file name="WINGTBLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\wing tablet.tim"/>
         <!-- ...and THE WINGS TABLET PUZZLE's cuneiform: five lines (has wing,
              bird, dog, cat, snake), 4bpp with STP so it fades additively, on
@@ -2114,7 +2114,7 @@
              272,484, LTNGNNRT (Ninurta) x768 y0 CLUT 272,486. Lightnings Edge
              draws none of those pages' other tenants, and their rooms
              re-upload their own. -->
-            <file name="LTNGTBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\lightning_tablet.smd"/>
+            <file name="LTNGTBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\lightning_tablet.smd"/>
             <file name="LTNGPZL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\lightning tablet puzzle.tim"/>
             <file name="LTNGNNRT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\lightning tablet ninurta.tim"/>
         <!-- HERO'S PLINTH (src/heros_plinth.h), between Sharur's Trial's
@@ -2143,7 +2143,7 @@
              Plinth's narrow uploader). Its OWN SKY, CDSKY.SMD - a dome tiled
              with the night sky - instead of the chapter's ring. -->
             <file name="CHMBDST.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\chamber_of_destiny.smd"/>
-            <file name="CDSKY.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\assets\underworld\chamber_of_destiny_skybox.smd"/>
+            <file name="CDSKY.SMD"    type="data" source="C:\Users\virtu\Documents\ps1game\build\models\underworld\chamber_of_destiny_skybox.smd"/>
         <!-- A WOMAN SCORNED (src/a_woman_scorned.h), behind Hell Hath No
              Fury's north-east door: one storey of volcanic ground among rock
              pillars, two lava pools. Owns no texture: the volcanic, the lava,

@@ -13,6 +13,7 @@
 #include "texmgr.h"
 #include "title.h"          /* current_area gate: the prop only lives in the 2F hall */
 #include "trick_drawers.h"
+#include "cd_file.h"
 #include "player.h"         /* player_items, show_pickup_msg_raw */
 #include "sound.h"          /* SFX_UNLOCK */
 #include "door.h"           /* door_draw_string_billboard */
@@ -105,16 +106,10 @@ static int      interact_prev = 1;     /* interact-Circle edge-detect */
 /* Reticule screen rect, refreshed by the projector in trick_drawers_draw. */
 static int ret_sx, ret_sy, ret_sw, ret_sh, ret_valid = 0;
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* Startup: load the model SMD and register the closed-drawer texture (RAM-

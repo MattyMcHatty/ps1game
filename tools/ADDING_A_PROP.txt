@@ -67,6 +67,24 @@ room's load overwrites it. Zero heap. The Lightning Tablet
 startup read_file would have held forever. A startup load is still right for
 a prop several rooms draw (the save point, the sconce).
 
+>>> A HEAP-HELD PROP READS THROUGH cd_read_file() (src/cd_file.h). <<< Not a
+private malloc(sectors * 2048) + CdRead: that holds the tail of the last
+sector for as long as the model is held - a quarter of every prop buffer,
+25 KB across the game, until November 2026. Keep the module's static
+read_file()/load_file() as a one-line wrapper round it (copy src/crib.c's):
+tools/heap_budget.py finds the loads by those names and recognises the
+wrapper as exact-size.
+
+>>> AND ITS SMD SHIPS WITHOUT NORMALS. <<< Add its disc name to ALLOWLIST in
+tools/pack_models.py and point its disc.xml source= at
+...\ps1game\build\models\<path below assets\> instead of assets\ (the build
+writes it). That drops the normals array (~28% of the file) that no prop draw
+reads. ONLY IF ITS DRAW READS NORMALS - it calls smdSortModel (crate.c), or
+reads p_norms / the p+12 normal index (weapon.c, helluminator.c, sharur.c) -
+does it stay on assets\ and go in NEEDS_NORMALS instead. pack_models.py fails
+the build if a new source file starts reading normals, so the two lists cannot
+quietly drift. tools/RAM_AB_CHECKLIST.txt PART B.
+
 
 ##########################################################################
  STEP 4 — COLLISION OFF THE PROP'S OWN DIMENSIONS: THE STANDOFF

@@ -12,6 +12,7 @@
 #include "damage.h"
 #include "title.h"
 #include "vines.h"
+#include "cd_file.h"
 
 /* The room the player is in; curtains of other areas are skipped. NOT
    game_state — with the inventory menu open that is STATE_MENU and no curtain
@@ -32,15 +33,10 @@ static void *vine_buffer = NULL;
    in that room and nowhere else (see greenhouse_upload_textures). smxlink baked
    its tpage/clut into the mesh from the same .tim, so the draw loop below reads
    them straight out of the primitive the way the fat door reads wd_dr's. */
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void load_file(const char *name, void **buf_out) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) { *buf_out = NULL; return; }
-    int sectors = (file.size + 2047) / 2048;
-    *buf_out = malloc(sectors * 2048);
-    if (!*buf_out) return;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)*buf_out, CdlModeSpeed);
-    CdReadSync(0, NULL);
+    *buf_out = cd_read_file(name);
 }
 
 void vines_load_assets(void) {

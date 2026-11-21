@@ -124,6 +124,11 @@ void attic_exit_load_assets(void) {
         tex_clut[slot]  = texmgr_clut(new_tex_id[i]);
     }
     cmplt_tex_id = texmgr_register("\\TEX\\XTDRCMPL.TIM;1");
+    /* PINNED (src/texmgr.h, STREAMING): exit_door_puzzle swaps between these
+       two MID-ROOM - attic_exit_unlock_door / attic_exit_relock_door - where
+       a CD read is not legal, so their pixels have to be held, not streamed. */
+    texmgr_pin(new_tex_id[0]);
+    texmgr_pin(cmplt_tex_id);
 
     /* Owned by the East Stairwell, whose narrow upload attic_exit_upload_textures
        calls. Header only — no LoadImage, no second RAM copy. */

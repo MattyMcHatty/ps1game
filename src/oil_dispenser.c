@@ -13,6 +13,7 @@
 #include "player.h"         /* player_oil, HELL_OIL_MAX, the weapon bitmask */
 #include "sound.h"          /* SFX_GLUG — the pour, SND_BANK_CATACOMBS */
 #include "oil_dispenser.h"
+#include "cd_file.h"
 
 /* Oil Dispenser — see oil_dispenser.h for what it is, and for why its collision
    comes out of its own mesh and is measured as min/max rather than as the
@@ -157,16 +158,10 @@ void oil_dispenser_press(int tank) {
     }
 }
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* Startup. The CD read is the geometry; the texture is a registration only —

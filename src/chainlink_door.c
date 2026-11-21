@@ -11,6 +11,7 @@
 #include "title.h"          /* current_area gate */
 #include "sound.h"          /* SFX_MCHNE: the gate's winch */
 #include "chainlink_door.h"
+#include "cd_file.h"
 
 #define MAX_CHAINLINK_DOORS  4
 #define CLDOOR_PUSH_MARGIN  30   /* extra gap between player and prop edge (as tables) */
@@ -57,16 +58,10 @@ static SMD  *cldoor_smd = NULL;
 static void *cldoor_buf = NULL;
 static uint16_t cldoor_tpage = 0, cldoor_clut = 0;
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* Startup: load the model, and take chnlnk's tpage/clut from its TIM HEADER —

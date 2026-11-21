@@ -59,7 +59,8 @@
 #define TEXMGR_MAX 128
 
 typedef struct {
-    uint8_t  *buf;    /* pixels: held only while a bank containing this is in  */
+    uint8_t  *buf;    /* pixels: pinned entries only, while a room wants them;
+                         a streamed entry has one only inside texmgr_upload() */
     TIM_IMAGE tim;    /* parsed header; prect/paddr/crect/caddr point into buf  */
     uint16_t  tpage;  /* captured from the header at startup; never changes     */
     uint16_t  clut;
@@ -74,6 +75,13 @@ typedef struct {
        table has no row for it - then `banks` decides, the old way. */
     uint32_t  rooms[TEX_ROOM_WORDS];
     int       has_rooms;
+    /* texmgr_pin(): this entry is re-uploaded MID-ROOM, so its pixels are held
+       while a room that wants it is loaded - the pre-streaming behaviour.
+       Every other entry is read at its upload and freed straight after. */
+    uint8_t   pinned;
+    /* load_seq at this entry's last streamed read, so a second read of it in
+       the same loading window is counted as a repeat (texmgr.h, STREAMING). */
+    uint8_t   streamed_in;
 } TexEntry;
 
 /* The generated table, build/tex_rooms_gen.c. */
@@ -84,10 +92,20 @@ static TexEntry entries[TEXMGR_MAX];
 static int      entry_count   = 0;
 static TexBank  current_bank  = TEXBANK_MANSION;   /* what registrations get tagged */
 static int      loaded_room   = -1;                /* nothing is loaded at boot     */
-static int      loading_room  = -1;                /* >= 0: late loads allowed      */
+static int      loading_room  = -1;                /* >= 0: uploads may read the CD */
+static TexBank  loading_bank  = 0;                 /* that room's area, for the late test */
 static uint32_t missed        = 0;
 static uint32_t late          = 0;
 static int      refused       = 0;   /* registrations past TEXMGR_MAX */
+
+/* Per loading window: what streaming cost at this door (texmgr_loading_done
+   prints it). load_seq tells one window's reads from the last one's; 0 is
+   never used, so a fresh entry's streamed_in of 0 never matches. */
+static uint8_t  load_seq      = 0;
+static int      load_reads    = 0;
+static int      load_repeats  = 0;
+static int      load_bytes    = 0;
+static int      load_failed   = 0;
 
 void texmgr_set_bank(TexBank banks) {
     current_bank = banks;
@@ -166,6 +184,8 @@ int texmgr_register(const char *filename) {
     e->buf      = NULL;
     e->valid    = 0;
     e->has_rooms = 0;
+    e->pinned   = 0;
+    e->streamed_in = 0;
     {
         int r, w;
         for (r = 0; r < tex_rooms_count; r++) {
@@ -192,12 +212,13 @@ int texmgr_register(const char *filename) {
    cannot have changed. */
 static int entry_load(TexEntry *e) {
     if (e->buf || !e->file) return 0;
-    uint8_t *buf = read_sectors(e->file, 0, NULL);
+    int sectors = 0;
+    uint8_t *buf = read_sectors(e->file, 0, &sectors);
     if (!buf) return 0;
     e->buf = buf;
     GetTimInfo((uint32_t *)buf, &e->tim);
     e->valid = 1;
-    return 1;
+    return sectors;
 }
 
 static void entry_free(TexEntry *e) {
@@ -214,9 +235,22 @@ static int entry_wanted(const TexEntry *e, int room, TexBank area_bank) {
     return e->banks != TEXBANK_RESIDENT && (e->banks & area_bank);
 }
 
+void texmgr_pin(int id) {
+    if (id >= 0 && id < entry_count) entries[id].pinned = 1;
+}
+
+/* What a room HOLDS between uploads: only its pinned entries. Everything else
+   it wants is streamed by texmgr_upload() (texmgr.h, STREAMING). */
+static int entry_held_for(const TexEntry *e, int room, TexBank area_bank) {
+    return e->pinned && entry_wanted(e, room, area_bank);
+}
+
 void texmgr_room_select(int room, TexBank area_bank) {
     int i;
-    loading_room = room;   /* the late-load window opens (texmgr.h) */
+    loading_room = room;   /* the streaming window opens (texmgr.h) */
+    loading_bank = area_bank;
+    if (++load_seq == 0) load_seq = 1;   /* 0 is "never streamed" */
+    load_reads = load_repeats = load_bytes = load_failed = 0;
     if (room == loaded_room) return;
 
     /* >>> FREE EVERYTHING GOING OUT BEFORE READING ANYTHING COMING IN. <<<
@@ -225,12 +259,12 @@ void texmgr_room_select(int room, TexBank area_bank) {
        through a return address (tools/DIAGNOSING_A_BOOT_CRASH.txt section 2).
        Two passes for exactly that reason; do not merge them.
 
-       An entry both rooms want is skipped by both passes - never given up and
-       re-read - which is what makes most doors free: the rooms of one chunk of
-       the map share most of what they draw. */
+       Since streaming, the only entries either pass touches are PINNED ones
+       (texmgr_pin); anything else still held here is a leftover and goes. A
+       pinned entry both rooms want is skipped by both passes. */
     for (i = 0; i < entry_count; i++)
         if (entries[i].banks != TEXBANK_RESIDENT &&
-            !entry_wanted(&entries[i], room, area_bank))
+            !entry_held_for(&entries[i], room, area_bank))
             entry_free(&entries[i]);
 
     /* The drive cannot do a data read while CD-DA streams — it hangs
@@ -238,7 +272,7 @@ void texmgr_room_select(int room, TexBank area_bank) {
        nothing is playing, and resume restores the playback position. */
     cdaudio_suspend();
     for (i = 0; i < entry_count; i++)
-        if (entry_wanted(&entries[i], room, area_bank))
+        if (entry_held_for(&entries[i], room, area_bank))
             entry_load(&entries[i]);
     cdaudio_resume();
 
@@ -246,32 +280,72 @@ void texmgr_room_select(int room, TexBank area_bank) {
 }
 
 void texmgr_loading_done(void) {
+    /* One line per door, so the cost of streaming is read off the emulator log
+       rather than argued about: how many TIMs this room's entry read, how many
+       of those were a texture already read once in this same window (some
+       restore lists stamp a slot twice), and how many bytes crossed the drive. */
+    if (loading_room >= 0)
+        printf("TEXMGR: room %d streamed %d TIMs (%d repeats, %d failed) %d B\n",
+               loading_room, load_reads, load_repeats, load_failed, load_bytes);
     loading_room = -1;
 }
 
-void texmgr_upload(int id) {
-    if (id < 0 || id >= entry_count) return;
-    TexEntry *e = &entries[id];
-    if (!e->valid && loading_room >= 0 && e->file) {
-        /* THE SAFETY NET (texmgr.h): a room's entry asked for a texture its
-           generated set does not hold. Read it now - this is STATE_LOADING -
-           and say so, so the table gets fixed. It stays held until the next
-           room select decides it is not wanted. */
-        cdaudio_suspend();
-        int ok = entry_load(e);
-        cdaudio_resume();
-        if (ok) {
-            late++;
-            printf("TEXMGR: late load %s for room %d\n", e->file, loading_room);
-        }
-    }
-    if (!e->valid) { missed++; return; }
+static void upload_pixels(const TexEntry *e) {
     LoadImage(e->tim.prect, e->tim.paddr);
     DrawSync(0);
     if (e->tim.mode & 0x8) {
         LoadImage(e->tim.crect, e->tim.caddr);
         DrawSync(0);
     }
+}
+
+void texmgr_upload(int id) {
+    if (id < 0 || id >= entry_count) return;
+    TexEntry *e = &entries[id];
+
+    /* Held (pinned, or the leftover of one): a pure LoadImage, as ever. */
+    if (e->valid) { upload_pixels(e); return; }
+
+    if (loading_room >= 0 && e->file) {
+        /* >>> STREAMING (texmgr.h). <<< Inside the loading window a CD read is
+           legal, so the pixels come off the disc now, go to VRAM, and are freed
+           again before the next texture is read: one TIM at a time instead of
+           the room's whole set. Bracketed per read for the same reason
+           texmgr_room_select is - CD-DA must be halted under a data read. */
+        cdaudio_suspend();
+        int sectors = entry_load(e);
+        cdaudio_resume();
+        if (!sectors) {
+            /* Out of heap or off the disc: the slot keeps whatever it held.
+               Counted, so the per-door line shows it. */
+            load_failed++;
+            missed++;
+            printf("TEXMGR: stream failed %s for room %d\n", e->file, loading_room);
+            return;
+        }
+        load_reads++;
+        load_bytes += sectors * 2048;
+        if (e->streamed_in == load_seq) load_repeats++;
+        e->streamed_in = load_seq;
+        /* A PINNED texture the table does not give this room means
+           tools/gen_tex_rooms.py is short: the pin is only honoured where the
+           table says, so a mid-room re-upload there would find nothing held.
+           Unpinned ones no longer care - the table only decides what is held. */
+        if (e->pinned && !entry_wanted(e, loading_room, loading_bank)) {
+            late++;
+            printf("TEXMGR: late load %s for room %d\n", e->file, loading_room);
+        }
+        upload_pixels(e);
+        if (!e->pinned) entry_free(e);
+        return;
+    }
+
+    /* Outside the window and not held: the silent wrong texture. No longer
+       silent - but only the first few, so a per-frame caller cannot flood the
+       log (a flooded PCSX capture buffer loses everything after it). */
+    missed++;
+    if (missed <= 16)
+        printf("TEXMGR: missed upload %s\n", e->file ? e->file : "?");
 }
 
 uint16_t texmgr_tpage(int id) {

@@ -25,9 +25,12 @@ recompiler" at whatever PC it last had.
 
 WHAT COUNTS AS PERMANENT
 ------------------------
-  texmgr_register()  keeps the WHOLE TIM in RAM for the life of the run so a room
-                     entry can be a pure LoadImage. Never freed. This is by far
-                     the biggest consumer and the one that grows per room.
+  texmgr pins        since November 2026 texmgr STREAMS a room's textures at
+                     its door (src/texmgr.h, STREAMING) and holds only the
+                     texmgr_pin()ned ones - the four re-uploaded mid-room -
+                     while a room that wants them is loaded. Charged as the
+                     largest room's pinned bytes. (Before that it held the
+                     room's WHOLE set, up to 238 KB: the biggest consumer here.)
   kept buffers       a model or clip read once at startup whose pointer is stashed
                      in a file-scope variable (the prop SMDs). Never freed.
   NOT counted        loads that are freed again - listed separately as ROOM-SCOPED
@@ -114,6 +117,16 @@ disc = disc_files()
 # the heap - the faint clip was being refused by 936 of them. See read_file()
 # there. Anything else added to this set must do the same thing in the source.
 EXACT_SIZE_MODULES = {'asag.c'}
+# ...and since November 2026 every prop module whose read_file()/load_file() is
+# a wrapper round src/cd_file.c's cd_read_file(), which reads whole sectors and
+# then realloc()s the block down to the file (in place - see cd_file.h). Found
+# by looking, not listed, so a module converted later joins automatically and
+# one that goes back to malloc(sectors * 2048) leaves again.
+for _c in glob.glob('src/*.c'):
+    _s = open(_c, encoding='utf-8', errors='replace').read()
+    if re.search(r'static void \*?\s*(?:read_file|load_file)\([^)]*\)\s*\{\s*'
+                 r'(?:return\s+|\*buf_out\s*=\s*)cd_read_file\(name\);\s*\}', _s):
+        EXACT_SIZE_MODULES.add(os.path.basename(_c))
 
 def rounded(name, mod=None):
     """What the allocation actually costs: whole sectors, unless the module
@@ -379,8 +392,34 @@ peak_bank = bank_sizes[peak_bank_area]
 # tools/check_tex_banks.py - they are the fallback for a texture the generated
 # table does not name - but they no longer say what is resident.
 import gen_tex_rooms as GTR
-peak_bank, _peak_room = GTR.peak_room_bytes()
-peak_bank_area = _peak_room[6:] + " (largest room set)"
+stream_set, _peak_room = GTR.peak_room_bytes()
+# ...AND SINCE NOVEMBER 2026 A ROOM HOLDS ONLY ITS PINNED TEXTURES (src/texmgr.h,
+# STREAMING). texmgr_upload() reads every other TIM at its upload and frees it
+# again, so the room set above is what a door STREAMS, one TIM at a time, and
+# what is HELD is the four mid-room TIMs in the rooms the table gives them to.
+# The pins are listed here by name and checked against the source by count, so
+# a fifth texmgr_pin() fails this script instead of going uncounted.
+PINNED_TIMS = {'XTDRLCKD.TIM', 'XTDRCMPL.TIM', 'PIANOKEY.TIM', 'PIANOFUL.TIM'}
+_pins = 0
+for _c in glob.glob('src/*.c'):
+    if os.path.basename(_c) == 'texmgr.c':
+        continue
+    _s = re.sub(r'/\*.*?\*/', '', open(_c, encoding='utf-8', errors='replace').read(), flags=re.S)
+    _pins += len(re.findall(r'\btexmgr_pin\s*\(', _s))
+assert _pins == len(PINNED_TIMS), \
+    'texmgr_pin() is called %d times but PINNED_TIMS names %d - update it' % (_pins, len(PINNED_TIMS))
+_tim_rooms = GTR.build()[4]
+_held = {}
+for _t in PINNED_TIMS:
+    for _r in _tim_rooms.get(_t, ()):
+        _held[_r] = _held.get(_r, 0) + rounded(_t)
+if _held:
+    _pr = max(_held, key=lambda r: _held[r])
+    peak_bank, peak_bank_area = _held[_pr], _pr[6:] + " (largest PINNED set)"
+else:
+    peak_bank, peak_bank_area = 0, "nothing pinned"
+# The streaming transient: the largest single registered TIM, read whole.
+stream_tim = max((rounded(n) for n, _m in regs), default=0)
 
 out = subprocess.run([NM, ELF], capture_output=True, text=True).stdout
 end = [int(l.split()[0], 16) & 0xFFFFFFFF for l in out.splitlines()
@@ -401,7 +440,10 @@ print("  stack floor         0x%08X   <- MEASURED $sp; main()'s RenderContext"
 print("  stack reserve       %8d bytes (%.0f KB)  <- NOT usable heap"
       % (HEAP_TOP - STACK_FLOOR, (HEAP_TOP - STACK_FLOOR) / 1024.0))
 print()
-print("  texmgr peak bank    %8d bytes (%.0f KB)  %4.1f%%   <- %s" % (peak_bank, peak_bank / 1024.0, 100.0 * peak_bank / heap, peak_bank_area))
+print("  texmgr peak held    %8d bytes (%.0f KB)  %4.1f%%   <- %s" % (peak_bank, peak_bank / 1024.0, 100.0 * peak_bank / heap, peak_bank_area))
+print("  (streamed, not held: largest room set %d bytes, %s; one TIM at a"
+      % (stream_set, _peak_room[6:]))
+print("   time, so the door's transient is the largest TIM, %d bytes)" % stream_tim)
 print("  kept buffers        %8d bytes (%.0f KB)  %4.1f%%" % (kept_total, kept_total / 1024.0, 100.0 * kept_total / heap))
 print("  chapter-scoped      %8d bytes (%.0f KB)  %4.1f%%"
       % (chapter_total, chapter_total / 1024.0, 100.0 * chapter_total / heap))

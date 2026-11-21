@@ -639,8 +639,8 @@
 #define TIM_TPAGE_SHARTBLT 0x000b
 #define TIM_CLUT_SHARTBLT  0x7dbd
 
-/* sharur.tim      8bpp  VRAM ( 736,256)  \TEX\SHARUR.TIM */
-#define TIM_TPAGE_SHARUR   0x009b
+/* sharur.tim      8bpp  VRAM ( 864,256)  \TEX\SHARUR.TIM */
+#define TIM_TPAGE_SHARUR   0x009d
 #define TIM_CLUT_SHARUR    0x7891
 
 /* shelf_incinerator.tim  8bpp  VRAM ( 640,  0)  \TEXCTCMB\SHLFINCN.TIM */

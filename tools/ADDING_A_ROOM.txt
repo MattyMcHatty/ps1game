@@ -1069,6 +1069,13 @@ Touch these files, in this order:
                      it at assets\ instead and the room boots with NO tables:
                      room_data_bind() fails, the mesh goes NULL and the room
                      draws empty with no walls — loud, by design.
+                     The packed copy also has NO NORMALS (strip_normals in
+                     tools/pack_rooms.py): no room draw reads them, and they
+                     were ~28% of every room - the arena dropped from 61 to
+                     44 sectors on that alone. So a new room's draw loop must
+                     not read p_norms either; tools/pack_models.py fails the
+                     build if a new source file does. Re-run
+                     py tools/gen_room_arena.py with the PACKED size, as ever.
 
                      >>> THE TEX-SECTOR WARNING THAT USED TO BE HERE WAS
                      WRONG. <<< It claimed the August 2026 Chain Room boot

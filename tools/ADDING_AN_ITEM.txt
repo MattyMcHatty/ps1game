@@ -93,6 +93,16 @@ art in every room that sets a window.
     list only the items the player can hold in that chapter as RESERVED;
     every other chapter's item art is "AVAILABLE, needs a way back first".
 
+    >>> NEW GAME+ BREAKS "THE CHAPTERS ARE ONE WAY" FOR ANYTHING IT CARRIES. <<<
+    Sharur is kept into New Game+, so it can be held in EVERY room. Its icon
+    was chapter-scoped under Rabisu (x736 y256) and the Garden Courtyard wiped
+    it for the rest of the run (Nov 2026). It now sits at x864 y256 - a slot
+    no TIM in any chapter touches - and is RESERVED in every chapter map.
+    Anything else New Game+ carries needs the same: a whole-disc free slot
+    (tools/VRAM_MAP.txt, not a chapter map) and a RESERVED line in
+    vram_map_garden_west.py and vram_map_asag.py (Catacombs and Underworld
+    inherit it). Ask the user whether a new late-game item carries over.
+
     >>> NEVER ASK THE USER TO SHRINK OR DROP ITEM ART FOR LACK OF VRAM until
         the chapter's map says there is no slot. <<< Ninurta's Arm (Nov 2026)
     was cut to 32x32 because the whole-disc map had one 64x64 slot left - in

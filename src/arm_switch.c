@@ -11,6 +11,7 @@
 #include "title.h"          /* current_area gate */
 #include "item_pickup.h"    /* item_pickup_draw_fixed: the pearl in the hand */
 #include "arm_switch.h"
+#include "cd_file.h"
 
 /* The Arm Switches — see arm_switch.h for why the export fixes X and Y and
    every switch is the same mesh slid along Z. */
@@ -54,16 +55,10 @@ static uint8_t as_pearl[ARM_SWITCH_MAX];
 #define AS_PEARL_X      (2240 - (AS_PEARL_HALF * 35) / 100)
 #define AS_PEARL_Y      (-176 - (AS_PEARL_HALF * 94) / 100)
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void *read_file(const char *name) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) return NULL;
-    int sectors = (file.size + 2047) / 2048;
-    void *buf = malloc(sectors * 2048);
-    if (!buf) return NULL;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)buf, CdlModeSpeed);
-    CdReadSync(0, NULL);
-    return buf;
+    return cd_read_file(name);
 }
 
 /* Startup. One sector of geometry held for the run, and a texture registration

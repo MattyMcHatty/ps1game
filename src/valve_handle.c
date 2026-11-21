@@ -10,6 +10,7 @@
 #include "tim_slots.h"
 #include "title.h"
 #include "valve_handle.h"
+#include "cd_file.h"
 
 /* The room the player is in; mounts of other areas are skipped. NOT game_state
    — see the same note in src/fatdoor.c. */
@@ -22,15 +23,10 @@ static ValveMount valve_defaults[MAX_VALVE_MOUNTS];
 static SMD       *valve_smd    = NULL;
 static void      *valve_buffer = NULL;
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void load_file(const char *name, void **buf_out) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, (char *)name)) { *buf_out = NULL; return; }
-    int sectors = (file.size + 2047) / 2048;
-    *buf_out = malloc(sectors * 2048);
-    if (!*buf_out) return;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)*buf_out, CdlModeSpeed);
-    CdReadSync(0, NULL);
+    *buf_out = cd_read_file(name);
 }
 
 void valve_handles_load_assets(void) {

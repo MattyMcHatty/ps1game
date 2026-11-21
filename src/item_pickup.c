@@ -133,22 +133,27 @@ void item_pickups_load_textures(void) {
 #include "texmgr.h"
 static int nnrt_tex = -1;
 static int nnwg_tex = -1;
-/* SHARUR's icon (a weapon's, menu + wheel + HUD) and the TABLET OF DESTINIES
-   are the third and fourth, on the rest of the same page: Sharur 64x64 8bpp
-   at x736 y256 (u 64..127), the Tablet 64x64 8bpp at x704 y320 (Voff 64),
-   CLUTs (272,482) / (272,483). */
-static int shrr_tex = -1;
+/* The TABLET OF DESTINIES is the fourth, on the rest of the same page: 64x64
+   8bpp at x704 y320 (Voff 64), CLUT (272,483).
+   SHARUR's icon was the third (x736 y256) until Nov 2026, when it stopped
+   being chapter-scoped: New Game+ carries Sharur into every room, and the
+   Garden Courtyard's Rabisu streamed straight over it. It now has a slot no
+   texture in any chapter touches - x864 y256 (u 64..127 of the page the
+   Helluminator and Flame Rounds icons already hold resident in every
+   chapter, so it cost no bank a page), CLUT (272,482) - so menu_init's
+   boot upload is the only one it needs and it is not re-stamped here. Every
+   chapter map lists it RESERVED; tools/vram_map.py fails on anything that
+   lands on it. */
 static int tbds_tex = -1;
 /* THE LIGHTNING BOLT (src/lightning_tablet.h) is the fifth: 64x64 8bpp at
-   x736 y320 (Voff 64, u 64..127 - beside the Tablet of Destinies, under
-   Sharur), CLUT (272,485), a genuinely free run. */
+   x736 y320 (Voff 64, u 64..127 - beside the Tablet of Destinies), CLUT
+   (272,485), a genuinely free run. */
 static int ltbl_tex = -1;
 
 void item_pickups_register_textures(void) {
     texmgr_set_bank(TEXBANK_UNDERWORLD);
     nnrt_tex = texmgr_register("\\TEX\\NNRTARM.TIM;1");
     nnwg_tex = texmgr_register("\\TEX\\NNRTWNGS.TIM;1");
-    shrr_tex = texmgr_register("\\TEX\\SHARUR.TIM;1");
     tbds_tex = texmgr_register("\\TEX\\TBLTDST.TIM;1");
     ltbl_tex = texmgr_register("\\TEX\\LTNGBOLT.TIM;1");
 }
@@ -156,7 +161,6 @@ void item_pickups_register_textures(void) {
 void item_pickups_upload_underworld(void) {
     if (nnrt_tex >= 0) texmgr_upload(nnrt_tex);
     if (nnwg_tex >= 0) texmgr_upload(nnwg_tex);
-    if (shrr_tex >= 0) texmgr_upload(shrr_tex);
     if (tbds_tex >= 0) texmgr_upload(tbds_tex);
     if (ltbl_tex >= 0) texmgr_upload(ltbl_tex);
 }

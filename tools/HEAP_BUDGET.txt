@@ -22,9 +22,12 @@ recompiler" at whatever PC it last had.
 
 WHAT COUNTS AS PERMANENT
 ------------------------
-  texmgr_register()  keeps the WHOLE TIM in RAM for the life of the run so a room
-                     entry can be a pure LoadImage. Never freed. This is by far
-                     the biggest consumer and the one that grows per room.
+  texmgr pins        since November 2026 texmgr STREAMS a room's textures at
+                     its door (src/texmgr.h, STREAMING) and holds only the
+                     texmgr_pin()ned ones - the four re-uploaded mid-room -
+                     while a room that wants them is loaded. Charged as the
+                     largest room's pinned bytes. (Before that it held the
+                     room's WHOLE set, up to 238 KB: the biggest consumer here.)
   kept buffers       a model or clip read once at startup whose pointer is stashed
                      in a file-scope variable (the prop SMDs). Never freed.
   NOT counted        loads that are freed again - listed separately as ROOM-SCOPED
@@ -138,35 +141,35 @@ DUPLICATE REGISTRATIONS  (the same TIM held in RAM more than once)
        the header and a call to the owner's narrow upload function.
 
 KEPT BUFFERS  (read once, pointer stashed, never freed)
-  incinerator.c            INCINPRP.SMD       8192  -> inc_buf
-  crib.c                   CRIB.SMD           4096  -> crib_buf
-  sconce.c                 SCONCE.SMD         4096  -> sconce_buf
-  sharur_tablet.c          SHARTBLT.SMD       4096  -> sh_buf
-  wings_tablet.c           WINGTBLT.SMD       4096  -> wt_buf
-  arm_switch.c             ARMSWTCH.SMD       2048  -> as_buf
-  bars.c                   BARS.SMD           2048  -> bars_buf
-  cleaver.c                CLEAVER.SMD        2048  -> cl_buf
-  gula_tablet.c            GULATBLT.SMD       2048  -> gt_buf
-  oil_dispenser.c          OILDISP.SMD        2048  -> oil_buf
-  save_point.c             SAVEPT.SMD         2048  -> sp_buffer
-  TOTAL                                      36864
+  incinerator.c            INCINPRP.SMD       4412  -> inc_buf
+  crib.c                   CRIB.SMD           2556  -> crib_buf
+  sharur_tablet.c          SHARTBLT.SMD       2012  -> sh_buf
+  sconce.c                 SCONCE.SMD         1840  -> sconce_buf
+  wings_tablet.c           WINGTBLT.SMD       1820  -> wt_buf
+  bars.c                   BARS.SMD           1436  -> bars_buf
+  oil_dispenser.c          OILDISP.SMD        1436  -> oil_buf
+  arm_switch.c             ARMSWTCH.SMD       1392  -> as_buf
+  gula_tablet.c            GULATBLT.SMD       1244  -> gt_buf
+  cleaver.c                CLEAVER.SMD        1020  -> cl_buf
+  save_point.c             SAVEPT.SMD          332  -> sp_buffer
+  TOTAL                                      19500
 
 CHAPTER-SCOPED BUFFERS  (held through Chapters 1-2, freed at the catacomb mouth)
-  concrete_props.c         CONBLOCK.SMD       4096  -> block_buf
-  concrete_props.c         CONCHAIR.SMD       4096  -> chair_buf
-  dining_table.c           DINTABLE.SMD       4096  -> table_buffer
-  piano_props.c            BOOKCSE.SMD        4096  -> bookcase_buf
-  trick_drawers.c          TRKDRWR.SMD        4096  -> drawer_buf
-  valve_handle.c           VALVEH.SMD         4096  -> valve_buffer
-  vines.c                  VINES.SMD          4096  -> vine_buffer
-  chainlink_door.c         CHNLNKDR.SMD       2048  -> cldoor_buf
-  dresser.c                DRESSER.SMD        2048  -> dresser_buffer
-  fatdoor.c                FATDOOR.SMD        2048  -> fatdoor_buffer
-  grinder.c                GRINDER.SMD        2048  -> grinder_buffer
-  lever.c                  LEVER.SMD          2048  -> lever_buf
-  piano_props.c            PIANO.SMD          2048  -> piano_buf
-  piano_props.c            TABLETS.SMD        2048  -> tablets_buf
-  TOTAL                                      43008   <- COUNTED AS PERMANENT
+  valve_handle.c           VALVEH.SMD         2776  -> valve_buffer
+  piano_props.c            BOOKCSE.SMD        2172  -> bookcase_buf
+  concrete_props.c         CONCHAIR.SMD       2076  -> chair_buf
+  concrete_props.c         CONBLOCK.SMD       1964  -> block_buf
+  vines.c                  VINES.SMD          1564  -> vine_buffer
+  dining_table.c           DINTABLE.SMD       1468  -> table_buffer
+  trick_drawers.c          TRKDRWR.SMD        1412  -> drawer_buf
+  dresser.c                DRESSER.SMD        1404  -> dresser_buffer
+  piano_props.c            PIANO.SMD          1156  -> piano_buf
+  grinder.c                GRINDER.SMD         812  -> grinder_buffer
+  chainlink_door.c         CHNLNKDR.SMD        780  -> cldoor_buf
+  fatdoor.c                FATDOOR.SMD         684  -> fatdoor_buffer
+  lever.c                  LEVER.SMD           324  -> lever_buf
+  piano_props.c            TABLETS.SMD         224  -> tablets_buf
+  TOTAL                                      18816   <- COUNTED AS PERMANENT
 
   Prop models, resident from startup for all of Chapters 1 and 2 and
   freed in one go by area_bank_sync() (src/area_bank.h). They are counted in
@@ -175,36 +178,38 @@ CHAPTER-SCOPED BUFFERS  (held through Chapters 1-2, freed at the catacomb mouth)
 
 ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   rabisu.c                 RBSIDLE.PVA       57344  -> p
-  rabisu.c                 RABISU.SMD        28672  -> rabisu_buff
   asag.c                   ASGHSLAM.PVA      24012  -> asags_free_model()
   asag.c                   ASGHLAS.PVA       20652  -> asags_free_model()
+  rabisu.c                 RABISU.SMD        20480  -> rabisu_buff
   asag.c                   ASGHVOM.PVA       19212  -> asags_free_model()
   asag.c                   ASGHFNT.PVA       19212  -> asags_free_model()
-  chainlink_door.c         CHNLNK.TIM        10240  -> tim
-  fatdoor.c                WDDR.TIM          10240  -> tim_buf
-  fatdoor.c                WDDRCRK.TIM       10240  -> crk_buf
-  grinder.c                GRINDER.TIM        6144  -> tbuf
+  chainlink_door.c         CHNLNK.TIM         8256  -> tim
+  fatdoor.c                WDDR.TIM           8256  -> tim_buf
+  fatdoor.c                WDDRCRK.TIM        8256  -> crk_buf
   asag.c                   ASGHIDLE.PVA       4812  -> asags_free_model()
-  asag.c                   ASGBODY.SMD        4468  -> asags_free_model()
-  TOTAL                                     215248   <- PEAK, not a resting cost
+  grinder.c                GRINDER.TIM        4640  -> tbuf
+  asag.c                   ASGBODY.SMD        3196  -> asags_free_model()
+  TOTAL                                     198328   <- PEAK, not a resting cost
 
   These cost nothing at rest and everything at the moment they are in.
   The transition that loads them is the peak this heap has to survive,
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x80175830
+  _end (heap start)   0x8016CA20
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             419088 bytes (409 KB)
+  heap size             455456 bytes (445 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak bank      243712 bytes (238 KB)  58.2%   <- REAR_GATE (largest room set)
-  kept buffers           36864 bytes (36 KB)   8.8%
-  chapter-scoped         43008 bytes (42 KB)  10.3%
-  PERMANENT TOTAL       323584 bytes (316 KB)  77.2%
-  FREE AT REST           95504 bytes (93 KB)  22.8%   <- STACK ALREADY SUBTRACTED
-                                  (was 243656 before the stack was counted;
+  texmgr peak held       36864 bytes (36 KB)   8.1%   <- ATTIC_EXIT (largest PINNED set)
+  (streamed, not held: largest room set 243712 bytes, REAR_GATE; one TIM at a
+   time, so the door's transient is the largest TIM, 18432 bytes)
+  kept buffers           19500 bytes (19 KB)   4.3%
+  chapter-scoped         18816 bytes (18 KB)   4.1%
+  PERMANENT TOTAL        75180 bytes (73 KB)  16.5%
+  FREE AT REST          380276 bytes (371 KB)  83.5%   <- STACK ALREADY SUBTRACTED
+                                  (was 528428 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -263,13 +268,10 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 93 KB printed above.
+  once read_file's margin comes off - against the 371 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 
-  *** WARNING: under 128 KB free at rest, with the stack already
-      subtracted. Do not add a registration without reclaiming one
-      first. See the two no-cost patterns in the docstring at the
-      top of this file. ***
+  OK: comfortable margin.
 
 Regenerate with:  python tools/heap_budget.py > tools/HEAP_BUDGET.txt

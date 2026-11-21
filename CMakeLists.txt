@@ -171,6 +171,7 @@ add_executable(horror_game
     src/texmgr.c
     src/room_arena.c
     src/room_data.c
+    src/cd_file.c
     src/cull_arena.c
     src/key.c
     src/item_pickup.c
@@ -267,6 +268,7 @@ set_source_files_properties(
     src/world.c
     src/room_arena.c
     src/room_data.c
+    src/cd_file.c
     src/cull_arena.c
     src/texmgr.c
     src/cdaudio.c
@@ -387,10 +389,16 @@ set_target_properties(horror_game PROPERTIES
 # named; override with -DROOM_PACK_PYTHON=... on another machine.
 set(ROOM_PACK_PYTHON "C:/Users/virtu/AppData/Local/Python/bin/python.exe"
     CACHE FILEPATH "Python interpreter that runs tools/pack_rooms.py")
+#
+# The same target also writes build/models/: the prop, boss and sky .smd files
+# minus the normals array none of their draws read (tools/pack_models.py, and
+# pack_rooms.py strips the rooms' the same way). disc.xml reads those from
+# build\models\. tools/RAM_AB_CHECKLIST.txt PART B.
 add_custom_target(room_data ALL
     COMMAND "${ROOM_PACK_PYTHON}" "${CMAKE_SOURCE_DIR}/tools/pack_rooms.py"
+    COMMAND "${ROOM_PACK_PYTHON}" "${CMAKE_SOURCE_DIR}/tools/pack_models.py"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "Packing room data into build/rooms"
+    COMMENT "Packing room data into build/rooms and models into build/models"
 )
 add_dependencies(horror_game room_data)
 

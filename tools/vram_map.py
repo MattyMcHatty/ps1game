@@ -1306,15 +1306,18 @@ KNOWN_STREAM_PAIRS = [
     ("incinerator.tim",           "nnrt_wngs.tim"),
     ("ladder.tim",                "nnrt_wngs.tim"),
     ("vines.tim",                 "nnrt_wngs.tim"),
-    #   sharur.tim / tblt_dst.tim -> SHARUR's icon and the TABLET OF DESTINIES,
-    # the third and fourth chapter-scoped items: 64x64 8bpp on the rest of the
-    # arm's page - Sharur x736 y256 (u 64..127), the Tablet x704 y320 (Voff
-    # 64) - CLUTs (272,482) / (272,483), genuinely free runs. Ninurta's Arm's
-    # terms: re-stamped by item_pickups_upload_underworld().
-    ("Rabisu tex.tim",            "sharur.tim"),
-    ("incinerator.tim",           "sharur.tim"),
-    ("ladder.tim",                "sharur.tim"),
-    ("vines.tim",                 "sharur.tim"),
+    #   tblt_dst.tim -> the TABLET OF DESTINIES, the fourth chapter-scoped
+    # item: 64x64 8bpp on the rest of the arm's page, x704 y320 (Voff 64),
+    # CLUT (272,483), a genuinely free run. Ninurta's Arm's terms: re-stamped
+    # by item_pickups_upload_underworld().
+    #   >>> sharur.tim IS NOT IN THIS LIST, AND MUST NEVER BE. <<< It was the
+    # third chapter-scoped item (x736 y256, under Rabisu) until Nov 2026. New
+    # Game+ carries Sharur into EVERY room, and Rabisu's upload in the Garden
+    # Courtyard wrecked its icon for the rest of the run. It now sits at
+    # x864 y256 (CLUT 272,482) - the right half of the page the Helluminator
+    # and Flame Rounds icons already reserve in every chapter, so no bank lost
+    # a page to it - a slot no TIM in any chapter touches, uploaded
+    # once by menu_init(). Anything that overlaps it is a real collision.
     ("Rabisu tex.tim",            "tblt_dst.tim"),
     ("incinerator.tim",           "tblt_dst.tim"),
     ("ladder.tim",                "tblt_dst.tim"),

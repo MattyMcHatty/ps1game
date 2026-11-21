@@ -9,6 +9,7 @@
 #include "camera.h"
 #include "collision.h"      /* GROUND_FLOOR_Y */
 #include "dining_table.h"
+#include "cd_file.h"
 #include "title.h"          /* game_state / STATE_KITCHEN_DINING */
 
 DiningTable dining_tables[MAX_DINING_TABLES];
@@ -17,15 +18,10 @@ int         dining_table_count = 0;
 static SMD  *table_smd    = NULL;
 static void *table_buffer = NULL;
 
+/* The read itself is cd_read_file() (src/cd_file.h): whole sectors for the
+   CdRead, then the buffer shrunk to the file - tools/RAM_AB_CHECKLIST.txt B7. */
 static void load_file(const char *name, void **buf_out) {
-    CdlFILE file;
-    if (!CdSearchFile(&file, name)) { *buf_out = NULL; return; }
-    int sectors = (file.size + 2047) / 2048;
-    *buf_out = malloc(sectors * 2048);
-    if (!*buf_out) return;
-    CdControl(CdlSetloc, &file.pos, NULL);
-    CdRead(sectors, (uint32_t *)*buf_out, CdlModeSpeed);
-    CdReadSync(0, NULL);
+    *buf_out = cd_read_file(name);
 }
 
 void dining_tables_init(void) {

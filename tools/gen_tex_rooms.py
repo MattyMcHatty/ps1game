@@ -40,6 +40,14 @@ prints "TEXMGR: late load <file> for room <n>" to the emulator log. A late load
 is a bug in this file, not in the game; fix it here. Mid-room uploads (the
 Attic Exit's door, the piano's repaired keys) have no such net, but both are in
 modules their own room's entry already uploads, so the walk covers them.
+
+SINCE NOVEMBER 2026 THIS TABLE DECIDES LESS (src/texmgr.h, STREAMING): texmgr
+streams every texture at its upload and HOLDS only the texmgr_pin()ned ones -
+the four mid-room TIMs above - so the table now matters for exactly those: a
+pinned TIM is held in the rooms its row names and nowhere else, and a pinned
+read in a room the row does not name prints the "late load" line. For every
+unpinned texture a short row costs nothing any more. The per-room totals
+--report prints are what each room's door STREAMS, not what it holds.
 """
 import os
 import re

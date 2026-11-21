@@ -75,6 +75,7 @@ RESERVED  (a global; overwriting it breaks something)
   ylw_ky_stn.tim       4     648   256    32    32     0  256,489     yellow key stone
   stnd_rnds.tim        4     832   256    64    64     0  0,509       standard rounds
   flm_rnds.tim         4     848   256    64    64     0  256,481     flame rounds
+  sharur.tim           8     864   256    64    64     0  272,482     Sharur's icon - New Game+ carries it into every room
   vlv_hndl.tim         4     608   288    64    64    32  768,503     the Valve Handle item (menu icon in every room)
   helluminator.tim     4     832   320    64    64    64  672,510     the Helluminator (menu icon in every room)
   mgn_ky_stn.tim       4     848   320    32    32    64  256,494     magenta key stone
