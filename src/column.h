@@ -64,7 +64,7 @@
  *           back at its spawn, calm and whole (columns_rest).
  *
  * THE ORB (the projectile): straight-line, aimed once at the player as it is
- * fired, at HALF a Nessie fireball's speed (COL_ORB_SPEED). COL_ORB_DAMAGE (25)
+ * fired, at HALF a Nessie fireball's speed (COL_ORB_SPEED). COL_ORB_DAMAGE (12)
  * on contact, and it is gone - into the player or into the first wall.
  *
  * DAMAGE. 2 HP, a plain hit point a hit from any weapon (no weakness table
@@ -91,8 +91,8 @@
  * budget, MAX_COLUMNS the whole-game one.
  * ----------------------------------------------------------------------- */
 
-#define MAX_COLUMNS           16   /* WHOLE-GAME budget, static + alive. One
-                                      seeded: the Lava Maze's middle pool    */
+#define MAX_COLUMNS           16   /* WHOLE-GAME budget, static + alive. Nine
+                                      seeded, all in the Lava Maze (3 alive) */
 #define MAX_ALIVE_COLUMNS      8   /* ...of which alive (one save bit each)  */
 
 #define COL_MAX_HEALTH         2
@@ -136,7 +136,7 @@
 /* ---- The orb. Half a Nessie fireball's speed (NSS_FB_SPEED, 32 - column.c
    asserts it): 16 a frame, 960 a second - from 1500 away about 1.6 s. */
 #define COL_ORB_SPEED         16
-#define COL_ORB_DAMAGE        25
+#define COL_ORB_DAMAGE        12
 #define COL_ORB_HIT_RADIUS   110   /* contact sphere round the aim point     */
 #define COL_ORB_AIM_DROP      70   /* aim below the eye, as NSS_FB_AIM_DROP  */
 #define COL_ORB_HALF          36   /* the glow's world half-size             */

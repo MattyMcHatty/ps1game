@@ -18,7 +18,9 @@
 
    ONE ENEMY: an ALIVE COLUMN (src/column.h) in the rectangular lava pool all
    the paths run round, x[4000,5800] z[600,2000] - seeded in world.c's
-   world_seed_room, facing north/south and stepping east/west.
+   world_seed_room, facing north/south and stepping east/west. Plus eight
+   more Columns round the maze (two alive, six static walls) - the list is
+   in world_seed_room.
 
    THREE DOORS:
      - WEST: a gaol door, distorted - it leans as it rises. It leads back to

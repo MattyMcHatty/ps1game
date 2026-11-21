@@ -2372,9 +2372,23 @@ void world_seed_room(GameState area) {
        player arrives along) and stepping east/west. It is not kept to the
        pool (the user's answer): along z=1300 nothing stands between the west
        rim (x=0) and the east rim (x=7800), so it may walk out across the
-       paths either side. Its first step from here lands at x=4600 or 5200. */
+       paths either side. Its first step from here lands at x=4600 or 5200.
+
+       EIGHT MORE (the user's second placement, Nov 2026): six STATIC (walls:
+       no AI, no save bit) and two ALIVE. "Facing north/south" = COL_AXIS_X,
+       "facing east/west" = COL_AXIS_Z. Whole room: 9 of MAX_COLUMNS, 3 of
+       MAX_ALIVE_COLUMNS. Keep the order - the alive ones' save bits are
+       their canonical order among the alive. */
     if (area == STATE_LAVA_MAZE) {
         column_add(4900, 1300, COL_AXIS_X, 1, STATE_LAVA_MAZE);
+        column_add(5060, 3379, COL_AXIS_X, 0, STATE_LAVA_MAZE);
+        column_add(1997, 3003, COL_AXIS_Z, 0, STATE_LAVA_MAZE);
+        column_add(1974, 1055, COL_AXIS_Z, 1, STATE_LAVA_MAZE);
+        column_add(1192, -846, COL_AXIS_X, 0, STATE_LAVA_MAZE);
+        column_add(3590, -960, COL_AXIS_X, 0, STATE_LAVA_MAZE);
+        column_add(5493, -960, COL_AXIS_X, 0, STATE_LAVA_MAZE);
+        column_add(7346,  844, COL_AXIS_Z, 0, STATE_LAVA_MAZE);
+        column_add(7111, 2934, COL_AXIS_Z, 1, STATE_LAVA_MAZE);
     }
 }
 
