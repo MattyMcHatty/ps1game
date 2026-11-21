@@ -2174,6 +2174,21 @@
              Courtyard's GRDNGTE, at its own address (rocks' page down
              here). -->
             <file name="LGHTEDGE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\lightnings_edge.smd"/>
+        <!-- HEAVENS GATE (src/heavens_gate.h), behind the Lava Maze's
+             south-east door: a lawn in the sky with a shut brick gate. Owns
+             five, all 4bpp (the four heavens textures were supplied as 16
+             colours; the door is greenhouse door.tim doubled to 128x128), on
+             page starts this room never draws whose own rooms re-upload them,
+             with CLUTs (928..992,511): HVNBRCK x384 y0, HVNSTRS x512 y0,
+             HVNGTL x576 y0, HVNGTR x704 y0, GRNHDR12 x384 y256. Borrows the
+             Conservatory's grss, the inner door, and the Stables' greenhouse
+             door (for the panel out of here). -->
+            <file name="HVNGATE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\heavens_gate.smd"/>
+            <file name="HVNBRCK.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\heavens bricks.tim"/>
+            <file name="HVNSTRS.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\heavens stairs.tim"/>
+            <file name="HVNGTL.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\heavens gate left.tim"/>
+            <file name="HVNGTR.TIM"   type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\heavens gate right.tim"/>
+            <file name="GRNHDR12.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\greenhouse door_128.tim"/>
         <!-- SHARUR, the Underworld's weapon (src/sharur.c): the held model,
              and the one standing on the Chamber's lower plinth. Flat-shaded
              like CRFAXE.SMD, from assets/props/Sharur.smx by smxlink. -->

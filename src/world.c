@@ -258,6 +258,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_HEROS_PLINTH,    STATE_CHAMBER_OF_DESTINY,
     STATE_A_WOMAN_SCORNED, STATE_RIBCAGE,
     STATE_LAVA_MAZE,       STATE_LIGHTNINGS_EDGE,
+    STATE_HEAVENS_GATE,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -479,6 +480,9 @@ static int room_index(GameState area) {
         /* LIGHTNINGS EDGE, Chapter 4's tenth room, behind Ribcage's east
            door. Slot 71. Seeded EMPTY. */
         case STATE_LIGHTNINGS_EDGE:   return 71;
+        /* HEAVENS GATE, Chapter 4's eleventh room, behind the Lava Maze's
+           south-east door. Slot 72. Seeded EMPTY. */
+        case STATE_HEAVENS_GATE:      return 72;
         default:                   return 0;
     }
 }

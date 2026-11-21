@@ -135,6 +135,7 @@
 #include "ribcage.h"          /* ...and the room behind HHNF's south-east door   */
 #include "lava_maze.h"        /* ...and the room behind Ribcage's north door     */
 #include "lightnings_edge.h"  /* ...and the room behind Ribcage's east door      */
+#include "heavens_gate.h"     /* ...and the one behind the Lava Maze's SE door   */
 #include "lightning_tablet.h" /* ...and the tablet standing against its north wall */
 #include "destiny_plinths.h"  /* ...and the two west plinths: Sharur, the Tablet */
 #include "sharur.h"           /* Sharur's reset                                  */
@@ -245,6 +246,9 @@ static int ribcage_from_lm = 0;
 static int ribcage_from_le = 0;
 static int aws_from_lm     = 0;
 static int lm_from_aws     = 0;
+/* ...and the Lava Maze's SOUTH-EAST door (from Heavens Gate's north-west
+   door), on the same terms. Heavens Gate has one door, so it needs no latch. */
+static int lm_from_hg      = 0;
 
 /* Which of Sharur's Trial's doors the player is arriving through, and which of
    Lava U's. Set at the trigger on the far side, read and cleared by the
@@ -371,6 +375,7 @@ void reset_game(RenderContext *ctx) {
     ribcage_from_le  = 0;     /* ...and Ribcage's east door                  */
     aws_from_lm      = 0;
     lm_from_aws      = 0;
+    lm_from_hg       = 0;     /* ...and the Lava Maze's south-east door      */
     sharur_arrival   = 0;     /* ...and Sharur's Trial's, and Lava U's       */
     lava_u_from_sw   = 0;
     plinth_from_wingscape = 0;/* ...and Hero's Plinth's, and Wingscape's     */
@@ -540,6 +545,7 @@ static void load_area_geometry(GameState area) {
         case STATE_RIBCAGE:          ribcage_load_geometry(); break;
         case STATE_LAVA_MAZE:        lava_maze_load_geometry(); break;
         case STATE_LIGHTNINGS_EDGE:  lightnings_edge_load_geometry(); break;
+        case STATE_HEAVENS_GATE:     heavens_gate_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -3828,9 +3834,12 @@ static void update_current_area(GameState area) {
            side, so the gaol transition on this room's copy of the art
            (DOOR_PANEL_GAOL_UW; its sound is the catacomb door's, banked for
            the chapter). THE NORTH DOOR, to A Woman Scorned's south-east
-           door: a CATACOMB door, so the catacomb transition. Each latch
-           tells the far room which arrival this is. The east wooden door
-           leads nowhere yet.
+           door: a CATACOMB door, so the catacomb transition. THE
+           SOUTH-EAST DOOR, to Heavens Gate's north-west door: a WOODEN door
+           on this side, so the wooden transition (wd_dr is resident); the far
+           side is a greenhouse door, so the way back plays the greenhouse
+           transition (the user's choice, per direction). Each latch tells the
+           far room which arrival this is.
 
            ONE ENEMY (world_seed_room): an ALIVE COLUMN in the middle lava
            pool (src/column.h). Its body rides apply_collision_reception; its
@@ -3848,6 +3857,32 @@ static void update_current_area(GameState area) {
             aws_from_lm  = 1;
             pending_area = STATE_A_WOMAN_SCORNED;
             door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (lava_maze_se_door_triggered(lock)) {
+            pending_area = STATE_HEAVENS_GATE;
+            door_anim_start(DOOR_PANEL_WOOD);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_HEAVENS_GATE) {
+        /* HEAVENS GATE - Chapter 4's eleventh room, behind the Lava Maze's
+           south-east door (src/heavens_gate.c): one storey, the shared wall
+           routine and ONE flat floor zone. No lava, no enemies, no props;
+           the gate is shut and boxed in by the proxy.
+
+           THE NORTH-WEST DOOR, back to the Lava Maze's south-east door: a
+           GREENHOUSE door on this side, so the greenhouse transition (this
+           room uploads its art; SFX_DOOR is resident). The latch tells the
+           Lava Maze which arrival this is. The east catacomb door leads
+           nowhere yet. */
+        apply_collision_reception();
+        apply_height();
+        item_pickups_update();
+        if (heavens_gate_nw_door_triggered(lock)) {
+            lm_from_hg   = 1;
+            pending_area = STATE_LAVA_MAZE;
+            door_anim_start(DOOR_PANEL_GREENHOUSE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -4439,6 +4474,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         lava_maze_draw(ctx);
     else if (area == STATE_LIGHTNINGS_EDGE)
         lightnings_edge_draw(ctx);
+    else if (area == STATE_HEAVENS_GATE)
+        heavens_gate_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -5009,6 +5046,8 @@ int main(int argc, const char **argv) {
                                      registration (its gaol door's copy),
                                      the rest TIM_SLOTs. */
     lightnings_edge_load_assets();/* ...and Lightnings Edge: TIM_SLOTs only. */
+    heavens_gate_load_assets();   /* ...and Heavens Gate: five deferred
+                                     registrations, the rest TIM_SLOTs. */
     lightning_tablet_load_assets(); /* ...and its tablet: ONE deferred
                                      registration. Its mesh is ROOM-SCOPED,
                                      read into the room arena's tail on
@@ -6152,6 +6191,13 @@ int main(int argc, const char **argv) {
                    the Garden Courtyard's gate and the sky's hell bg through
                    narrow uploaders (src/lightnings_edge.c). */
                 lightnings_edge_upload_textures();
+            } else if (pending_area == STATE_HEAVENS_GATE) {
+                /* HEAVENS GATE. Owns five (the four heavens textures and its
+                   128 copy of the greenhouse door); the Conservatory's grss,
+                   the Catacombs Entry's inner door, the Stables' greenhouse
+                   door (the greenhouse panel out of here) and the sky's hell
+                   bg through narrow uploaders (src/heavens_gate.c). */
+                heavens_gate_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -7220,13 +7266,21 @@ int main(int argc, const char **argv) {
                    from A Woman Scorned. NO MUSIC LINE: the chapter's block
                    below. */
                 lava_maze_init();
-                if (lm_from_aws) lava_maze_spawn_n();
+                /* ...and a THIRD: the south-east door from Heavens Gate. */
+                if (lm_from_aws)     lava_maze_spawn_n();
+                else if (lm_from_hg) lava_maze_spawn_se();
                 lm_from_aws = 0;
+                lm_from_hg  = 0;
             } else if (pending_area == STATE_LIGHTNINGS_EDGE) {
                 /* ONE ARRIVAL, through the south gate from Ribcage - the
                    init's spawn, and where a debug jump lands. NO MUSIC LINE:
                    the chapter's block below. */
                 lightnings_edge_init();
+            } else if (pending_area == STATE_HEAVENS_GATE) {
+                /* ONE ARRIVAL, through the north-west door from the Lava
+                   Maze - the init's spawn, and where a debug jump lands. NO
+                   MUSIC LINE: the chapter's block below. */
+                heavens_gate_init();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -7704,7 +7758,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_A_WOMAN_SCORNED ||
                    game_state == STATE_RIBCAGE ||
                    game_state == STATE_LAVA_MAZE ||
-                   game_state == STATE_LIGHTNINGS_EDGE) {
+                   game_state == STATE_LIGHTNINGS_EDGE ||
+                   game_state == STATE_HEAVENS_GATE) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

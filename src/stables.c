@@ -230,7 +230,10 @@ void stables_load_geometry(void) {
 void stables_load_assets(void) {
     /* BANK: the stable yard and the glasshouse behind it. Derived, not guessed - py tools/check_tex_banks.py
        walks the uploader call graph and fails the build if this is short. */
-    texmgr_set_bank(TEXBANK_WEST_GARDEN);
+    /* ...and UNDERWORLD: Heavens Gate's north-west door plays the greenhouse
+       door panel, whose art it puts up through stables_upload_greenhouse_door()
+       below. */
+    texmgr_set_bank(TEXBANK_WEST_GARDEN | TEXBANK_UNDERWORLD);
     /* Borrowed: header only — no LoadImage, no second RAM copy. All four are put
        in VRAM by garden_courtyard_upload_textures() on the way in. */
     TIM_SLOT(0, HEDGE);
@@ -265,6 +268,13 @@ void stables_upload_textures(void) {
     for (int i = 0; i < STABLES_NEW_TEX; i++)
         texmgr_upload(new_tex_id[i]);     /* greenhouse -> chnlnk, wood -> xt_dr_cg,
                                              glyphs -> gravel_gs, door -> frnt_dr */
+}
+
+/* The greenhouse door alone (slot 7, GRNHSDR at x320 y256), for a room that
+   needs it and none of the rest: Heavens Gate, in Chapter 4, whose north-west
+   door plays DOOR_PANEL_GREENHOUSE on this art. Pure LoadImage. */
+void stables_upload_greenhouse_door(void) {
+    texmgr_upload(new_tex_id[3]);
 }
 
 /* ---- The east-wall gate back to the Rear Gate -------------------------------

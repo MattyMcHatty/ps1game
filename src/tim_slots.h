@@ -287,6 +287,10 @@
 #define TIM_TPAGE_GRINDER  0x009f
 #define TIM_CLUT_GRINDER   0x7ef0
 
+/* greenhouse door_128.tim  4bpp  VRAM ( 384,256)  \TEXUNDW\GRNHDR12.TIM */
+#define TIM_TPAGE_GRNHDR12 0x0016
+#define TIM_CLUT_GRNHDR12  0x7ffe
+
 /* greenhouse.tim  4bpp  VRAM ( 640,  0)  \TEX\GRNHOUSE.TIM */
 #define TIM_TPAGE_GRNHOUSE 0x000a
 #define TIM_CLUT_GRNHOUSE  0x7c6a
@@ -366,6 +370,22 @@
 /* hud.tim         4bpp  VRAM ( 384,384)  \TEX\HUD.TIM */
 #define TIM_TPAGE_HUD      0x0016
 #define TIM_CLUT_HUD       0x7fcb
+
+/* heavens bricks.tim  4bpp  VRAM ( 384,  0)  \TEXUNDW\HVNBRCK.TIM */
+#define TIM_TPAGE_HVNBRCK  0x0006
+#define TIM_CLUT_HVNBRCK   0x7ffa
+
+/* heavens gate left.tim  4bpp  VRAM ( 576,  0)  \TEXUNDW\HVNGTL.TIM */
+#define TIM_TPAGE_HVNGTL   0x0009
+#define TIM_CLUT_HVNGTL    0x7ffc
+
+/* heavens gate right.tim  4bpp  VRAM ( 704,  0)  \TEXUNDW\HVNGTR.TIM */
+#define TIM_TPAGE_HVNGTR   0x000b
+#define TIM_CLUT_HVNGTR    0x7ffd
+
+/* heavens stairs.tim  4bpp  VRAM ( 512,  0)  \TEXUNDW\HVNSTRS.TIM */
+#define TIM_TPAGE_HVNSTRS  0x0008
+#define TIM_CLUT_HVNSTRS   0x7ffb
 
 /* incinerator.tim  8bpp  VRAM ( 704,256)  \TEXCTCMB\INCINPRP.TIM */
 #define TIM_TPAGE_INCINPRP 0x009b

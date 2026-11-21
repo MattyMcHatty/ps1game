@@ -250,6 +250,11 @@ TexBank area_bank_of(GameState area) {
        garden gate from the Garden Courtyard, both through narrow
        uploaders. */
     case STATE_LIGHTNINGS_EDGE:
+    /* HEAVENS GATE owns five (the four heavens textures and its 128 copy of
+       the greenhouse door); grss from the Conservatory, the inner door from
+       the Catacombs Entry and the greenhouse door (the panel out) from the
+       Stables come through narrow uploaders. */
+    case STATE_HEAVENS_GATE:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -317,7 +322,8 @@ int area_is_underworld(GameState area) {
            area == STATE_A_WOMAN_SCORNED ||
            area == STATE_RIBCAGE ||
            area == STATE_LAVA_MAZE ||
-           area == STATE_LIGHTNINGS_EDGE;
+           area == STATE_LIGHTNINGS_EDGE ||
+           area == STATE_HEAVENS_GATE;
 }
 
 /* ---- The prop models -------------------------------------------------------

@@ -299,6 +299,16 @@ three already in it. Rule 5 is a line in a script, not code in the room.
          SFX_GATE was added to SND_BANK_UNDERWORLD for Lightnings Edge (Nov
          2026); a gate ROOM texture borrows grdn_gte at its own address
          through garden_courtyard_upload_gate().
+         DOOR_PANEL_GREENHOUSE's art is room art (greenhouse door.tim, x320
+         y256 - lava's page down here), so the room it plays FROM uploads it:
+         Heavens Gate (Nov 2026) calls stables_upload_greenhouse_door().
+         >>> A MATERIAL NAMED <tex>_128 IS A STRETCHED COPY, NOT THE TEXTURE.
+         <<< Heavens Gate's door material is "greenhouse door_128": the SMX's
+         UVs are in texels of a 128x128 stretch, while greenhouse door.tim is
+         64x64, so drawing it with the original's tpage samples past the art.
+         Check the SMX's tu/tv range against the TIM's real size; if they
+         disagree, ship an owned copy at the UV'd size (GRNHDR12.TIM is the
+         64x64 4bpp pixels doubled - same 16 colours, nothing lost).
   5. THE LAVA BURNS. Wherever the lava texture is on the floor, standing in it
      costs 5 HP a second and the screen pulses orange (src/lava.h). The room
      needs NO code for it - lava_update() runs for every area from

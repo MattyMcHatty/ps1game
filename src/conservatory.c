@@ -100,7 +100,9 @@ void conservatory_load_geometry(void) {
 void conservatory_load_assets(void) {
     /* BANK: con_tile is borrowed by the Outside Catacombs and the Attic Stairwell. Derived, not guessed - py tools/check_tex_banks.py
        walks the uploader call graph and fails the build if this is short. */
-    texmgr_set_bank(TEXBANK_MANSION | TEXBANK_GARDEN);
+    /* ...and UNDERWORLD: Heavens Gate's lawn draws grss through
+       conservatory_upload_grss() below. */
+    texmgr_set_bank(TEXBANK_MANSION | TEXBANK_GARDEN | TEXBANK_UNDERWORLD);
     /* Streamed slots: RAM-resident via the texture manager, uploaded on entry. */
     for (int i = 0; i < CONSERVATORY_NEW_TEX; i++) {
         int slot = new_tex[i].slot;
@@ -146,6 +148,10 @@ void conservatory_upload_textures(void) {
    second one, because texmgr has a hard TEXMGR_MAX and overruns fail
    SILENTLY. */
 void conservatory_upload_con_tile(void) { texmgr_upload(new_tex_id[0]); }
+
+/* grss alone (slot 6, x768 y0), for a room that draws it and none of the rest:
+   Heavens Gate's lawn, in Chapter 4. Pure LoadImage. */
+void conservatory_upload_grss(void) { texmgr_upload(new_tex_id[2]); }
 
 /* ---- Door back to reception -----------------------------------------------
    The single wooden door on the east wall (x=0), centred on z~10 (from the

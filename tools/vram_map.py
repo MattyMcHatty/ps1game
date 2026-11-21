@@ -1476,6 +1476,63 @@ KNOWN_STREAM_PAIRS = [
     # re-stamped by item_pickups_upload_underworld().
     ("Rabisu tex.tim"                             , "ltng_bolt.tim"),
     ("incinerator.tim"                            , "ltng_bolt.tim"),
+    #   HEAVENS GATE (src/heavens_gate.c), Nov 2026: five owned 4bpp textures,
+    # each on a Voff-0 page start in the Underworld bank whose every other
+    # tenant is re-uploaded by its own room on entry (tools/VRAM_MAP_UNDERWORLD.txt
+    # calls all five pages IN USE by this bank, not reserved), and Heavens Gate
+    # draws none of them, so taking them costs no restore. CLUTs are free
+    # 16-word runs on y=511 (928..992). The pages:
+    #     heavens bricks.tim       x384 y0
+    #     heavens stairs.tim       x512 y0
+    #     heavens gate left.tim    x576 y0
+    #     heavens gate right.tim   x704 y0
+    #     greenhouse door_128.tim  x384 y256
+    ("chnlnk_dl.tim"                               , "heavens bricks.tim"),
+    ("clsd_drwr.tim"                               , "heavens bricks.tim"),
+    ("cncrte.tim"                                  , "heavens bricks.tim"),
+    ("cobblestones.tim"                            , "heavens bricks.tim"),
+    ("destiny door frame top left.tim"             , "heavens bricks.tim"),
+    ("flowerbed.tim"                               , "heavens bricks.tim"),
+    ("hedge.tim"                                   , "heavens bricks.tim"),
+    ("kchn_tile.tim"                               , "heavens bricks.tim"),
+    ("mud.tim"                                     , "heavens bricks.tim"),
+    ("ninurta tablet top left.tim"                 , "heavens bricks.tim"),
+    ("piano_keys.tim"                              , "heavens bricks.tim"),
+    ("piano_keys_full.tim"                         , "heavens bricks.tim"),
+    ("xt_dr_outr.tim"                              , "heavens bricks.tim"),
+    ("Boss Wall.tim"                               , "heavens stairs.tim"),
+    ("cuneiform _symbols.tim"                      , "heavens stairs.tim"),
+    ("destinys door frame top right.tim"           , "heavens stairs.tim"),
+    ("dresser.tim"                                 , "heavens stairs.tim"),
+    ("grdn_gte.tim"                                , "heavens stairs.tim"),
+    ("kchn_wl.tim"                                 , "heavens stairs.tim"),
+    ("loculus.tim"                                 , "heavens stairs.tim"),
+    ("ninurta tablet top right.tim"                , "heavens stairs.tim"),
+    ("rocks.tim"                                   , "heavens stairs.tim"),
+    ("crib.tim"                                    , "heavens gate left.tim"),
+    ("double_door_uw.tim"                          , "heavens gate left.tim"),
+    ("gaol_door_uw.tim"                            , "heavens gate left.tim"),
+    ("gaol_mud.tim"                                , "heavens gate left.tim"),
+    ("lamashtu.tim"                                , "heavens gate left.tim"),
+    ("red_wlppr.tim"                               , "heavens gate left.tim"),
+    ("seal.tim"                                    , "heavens gate left.tim"),
+    ("chain.tim"                                   , "heavens gate right.tim"),
+    ("destinys door frame bottom right.tim"        , "heavens gate right.tim"),
+    ("gravel_gs.tim"                               , "heavens gate right.tim"),
+    ("lightning tablet puzzle.tim"                 , "heavens gate right.tim"),
+    ("ninurta tablet bottom right.tim"             , "heavens gate right.tim"),
+    ("poison_flower_base_gh.tim"                   , "heavens gate right.tim"),
+    ("rusty.tim"                                   , "heavens gate right.tim"),
+    ("rusty_fence.tim"                             , "heavens gate right.tim"),
+    ("sharur tablet.tim"                           , "heavens gate right.tim"),
+    ("stable glyphs.tim"                           , "heavens gate right.tim"),
+    ("upstairs.tim"                                , "heavens gate right.tim"),
+    ("wing tablet.tim"                             , "heavens gate right.tim"),
+    ("night sky.tim"                               , "greenhouse door_128.tim"),
+    ("pipe_gh.tim"                                 , "greenhouse door_128.tim"),
+    ("prpl_wlppr.tim"                              , "greenhouse door_128.tim"),
+    ("stove.tim"                                   , "greenhouse door_128.tim"),
+    ("volcanic.tim"                                , "greenhouse door_128.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

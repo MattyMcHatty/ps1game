@@ -47,6 +47,9 @@
    against ~280 KB free at rest. The checks above are what make the number safe
    to leave alone; py tools/heap_budget.py still prints the live count.
 
+   128 -> 144 with HEAVENS GATE (Nov 2026), whose five registrations would
+   have been the 127th..131st of 128. 16 more slots, ~0.8 KB of BSS.
+
    >>> THE REAL CEILING USED TO BE MAIN RAM AND IS NOT ANY MORE. <<< Until
    September 2026 every registration held its whole TIM for the life of the run
    — 59 of them, 820 KB of a 937 KB heap — and this file's old comment said at
@@ -56,7 +59,7 @@
    texmgr.h, and tools/check_tex_banks.py, which is what stops a mis-tagged
    texture becoming a silent rendering bug. */
 
-#define TEXMGR_MAX 128
+#define TEXMGR_MAX 144
 
 typedef struct {
     uint8_t  *buf;    /* pixels: pinned entries only, while a room wants them;

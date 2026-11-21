@@ -91,10 +91,32 @@ static void *lm_buff = NULL;
 #define LM_N_SPAWN_Z     3950
 #define LM_N_SPAWN_ROT   2048
 
-/* ---- THE EAST DOOR ---------------------------------------------------------
-   The wd_dr polys round the corner at (7800,-1800), in the planes z=-1800
-   and x=7800. It leads nowhere yet: no prompt and no trigger until its room
-   exists. */
+/* ---- THE SOUTH-EAST DOOR, to Heavens Gate ---------------------------------
+   The wd_dr polys are BENT round the corner at (7800,-1800), 600 tall: one
+   leg in the plane x=7800, z[-1800,-1400] (collision wall 42, inward normal
+   -X), the other in z=-1800, x[7600,7800] (wall 35, inward normal +Z). The
+   cobblestone path runs right up into that corner, so the player walks up to
+   it from the north-west. So:
+     - the PRESS point is (7750,-1700), just inside the corner: a player held
+       195 off either wall anywhere in front of either leg is inside the 500
+       trigger ((7605,-1400) is 445 off it, (7400,-1605) is 445);
+     - THE SIGN stands 150 out of the corner along its bisector, at y=-300
+       (the middle of the door's face), on a free yaw facing the way the
+       reader faces - 1536, south-east, into the corner;
+     - THE SPAWN, for an arrival through it, is (7550,-1550): 250 off both
+       walls, on the path, facing north-west, away from the door.
+   Out of here plays DOOR_PANEL_WOOD (wd_dr is resident); the far side is a
+   greenhouse door, so the way back plays DOOR_PANEL_GREENHOUSE - the user's
+   choice, per direction. */
+#define LM_SE_X          7750
+#define LM_SE_Z         (-1700)
+#define LM_SE_TEXT_X     7694
+#define LM_SE_TEXT_Z    (-1694)
+#define LM_SE_TEXT_Y     (LM_FLOOR_Y - 300)
+#define LM_SE_TEXT_YAW   1536
+#define LM_SE_SPAWN_X    7550
+#define LM_SE_SPAWN_Z   (-1550)
+#define LM_SE_SPAWN_ROT  3584
 
 #define LM_TEXT_RADIUS    1500
 #define LM_FADE_NEAR      1000
@@ -104,6 +126,7 @@ static void *lm_buff = NULL;
    carried in through the transition cannot fire on the arrival frame. */
 static int w_circle_prev = 1;
 static int n_circle_prev = 1;
+static int se_circle_prev = 1;
 
 /* ---- THE FLOOR -------------------------------------------------------------
    One storey: the proxy has one floor plane, y=0, wider than the walls, so
@@ -229,8 +252,9 @@ void lava_maze_load_geometry(void) {
 /* ---- The doors -------------------------------------------------------------*/
 void lava_maze_doors_arm(void) {
     int held = interact_tapped();
-    w_circle_prev = held;
-    n_circle_prev = held;
+    w_circle_prev  = held;
+    n_circle_prev  = held;
+    se_circle_prev = held;
 }
 
 /* The shared body: a fresh Circle within reach of (door_x, door_z) and facing
@@ -255,6 +279,10 @@ int lava_maze_w_door_triggered(int lock) {
 
 int lava_maze_n_door_triggered(int lock) {
     return lm_door_triggered(lock, LM_N_X, LM_N_Z, &n_circle_prev);
+}
+
+int lava_maze_se_door_triggered(int lock) {
+    return lm_door_triggered(lock, LM_SE_X, LM_SE_Z, &se_circle_prev);
 }
 
 static void lm_door_text(RenderContext *ctx, int32_t door_x, int32_t door_z,
@@ -295,6 +323,10 @@ void lava_maze_spawn_n(void) {
     lm_spawn_at(LM_N_SPAWN_X, LM_N_SPAWN_Z, LM_N_SPAWN_ROT);
 }
 
+void lava_maze_spawn_se(void) {
+    lm_spawn_at(LM_SE_SPAWN_X, LM_SE_SPAWN_Z, LM_SE_SPAWN_ROT);
+}
+
 void lava_maze_init(void) {
     room_data_collision(&current_collision_room);
     collision_set_ceiling_y(LM_CEILING_Y);
@@ -302,7 +334,7 @@ void lava_maze_init(void) {
 
     /* The default arrival, and where a debug jump lands: the west door, from
        Ribcage. main.c moves it to the north door for an arrival from A Woman
-       Scorned. */
+       Scorned, and to the south-east door for one from Heavens Gate. */
     lava_maze_spawn_w();
 
     /* The global prop arrays, as Ribcage clears them: Hell Hath No Fury's
@@ -547,7 +579,7 @@ void lava_maze_draw(RenderContext *ctx) {
     }
 
     /* >>> LEVEL 8 IS THE COLUMN <<< (with its orbs and shards; area-gated
-       inside), THE TWO DOOR SIGNS - no props - and any pickup a later seed
+       inside), THE THREE DOOR SIGNS - no props - and any pickup a later seed
        puts down. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
@@ -556,5 +588,7 @@ void lava_maze_draw(RenderContext *ctx) {
                      LM_W_TEXT_Z, LM_W_TEXT_YAW);
         lm_door_text(ctx, LM_N_X, LM_N_Z, LM_N_TEXT_X, LM_N_TEXT_Y,
                      LM_N_TEXT_Z, LM_N_TEXT_YAW);
+        lm_door_text(ctx, LM_SE_X, LM_SE_Z, LM_SE_TEXT_X, LM_SE_TEXT_Y,
+                     LM_SE_TEXT_Z, LM_SE_TEXT_YAW);
     }
 }

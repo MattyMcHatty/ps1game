@@ -284,6 +284,9 @@ AREAS = {
                   # LIGHTNINGS EDGE, behind Ribcage's east door: owns
                   # nothing; borrows volcanic and the garden gate.
                   "lightnings_edge_upload_textures",
+                  # HEAVENS GATE, behind the Lava Maze's south-east door: owns
+                  # five; borrows grss, the inner door and the greenhouse door.
+                  "heavens_gate_upload_textures",
                   # ...and NESSIE (src/nessie.c), which main.c uploads on entry
                   # to the rooms nessie_room_has_sheet() names - Sharur's Trial
                   # today. Underworld rooms only.

@@ -31,12 +31,15 @@
      - NORTH: a catacomb inner door. It leads to A WOMAN SCORNED's south-east
        door, an inner double door. Out of here DOOR_PANEL_CATACOMB; out of A
        Woman Scorned DOOR_PANEL_INNER.
-     - EAST: a wooden door (wd_dr, resident) round the south-east corner.
-       Leads nowhere yet - no prompt and no trigger until its room exists.
+     - SOUTH-EAST: a wooden door (wd_dr, resident) bent round the south-east
+       corner. It leads to HEAVENS GATE's north-west door, a greenhouse
+       door. Out of here DOOR_PANEL_WOOD; out of Heavens Gate
+       DOOR_PANEL_GREENHOUSE (the user's choice, per direction).
 
-   THE ARRIVALS. Two: through the west door from Ribcage (lava_maze_spawn_w,
-   also the init's default and where a debug jump lands), and through the
-   north door from A Woman Scorned (lava_maze_spawn_n, main.c's override).
+   THE ARRIVALS. Three: through the west door from Ribcage (lava_maze_spawn_w,
+   also the init's default and where a debug jump lands), through the north
+   door from A Woman Scorned (lava_maze_spawn_n), and through the south-east
+   door from Heavens Gate (lava_maze_spawn_se) - main.c's overrides.
 
    THE MUSIC is the chapter's (CDAUDIO_UNDERWORLD_TRACK, main.c's Chapter 4
    block).
@@ -59,10 +62,12 @@ void lava_maze_doors_arm(void);
    locked. */
 int  lava_maze_w_door_triggered(int lock);
 int  lava_maze_n_door_triggered(int lock);
+int  lava_maze_se_door_triggered(int lock);   /* ...and the SE door, to Heavens Gate */
 
 /* Arrival through the west door (just inside it, facing east) and the north
    door (just inside it, facing south). */
 void lava_maze_spawn_w(void);
 void lava_maze_spawn_n(void);
+void lava_maze_spawn_se(void);   /* just inside the SE door, facing north-west */
 
 #endif

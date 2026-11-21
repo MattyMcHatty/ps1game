@@ -365,6 +365,10 @@ typedef enum {
                                 Chapter 4's tenth room. See
                                 src/lightnings_edge.h. Appended, not
                                 inserted. */
+    STATE_HEAVENS_GATE,      /* HEAVENS GATE, behind the Lava Maze's
+                                south-east door - Chapter 4's eleventh
+                                room. See src/heavens_gate.h. Appended, not
+                                inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */
