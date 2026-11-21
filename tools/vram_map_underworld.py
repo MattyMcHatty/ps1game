@@ -100,6 +100,7 @@ BANK = {
     "double_door_uw.tim":      "Ribcage: E double door (owned copy of double_door; seal's page) x576 y0",
     "inr_dbl_dr.tim":          "A Woman Scorned: SE double door - BORROWED RESIDENT (the kitchen's boot stream) x576 y256",
     "rocks.tim":               "Sharur: the outcrops (owned)       x512 y0",
+    "grdn_gte.tim":            "Lightnings Edge: S gate (the Garden Courtyard's; rocks' page) x512 y0",
     "oil_container.tim":       "HHNF: the ruin's oil tank (the prop's) x896 y256",
     "nessie_a.tim":            "Sharur: Nessie frames 0-2 (Adapa's) x832 y128",
     "nessie_b.tim":            "Sharur: Nessie frames 3-5 (Adapa's) x896 y128",

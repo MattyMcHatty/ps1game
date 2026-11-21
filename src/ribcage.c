@@ -78,11 +78,29 @@ static void *rc_buff = NULL;
 #define RC_W_SPAWN_Z      600
 #define RC_W_SPAWN_ROT   1024
 
-/* ---- THE EAST DOOR ---------------------------------------------------------
-   The double_door polys in the plane x=7800, z[200,1000] (wall 25). It leads
-   nowhere yet: no prompt and no trigger until its room exists.
+/* ---- THE EAST DOOR, to Lightnings Edge ------------------------------------
+   The double_door polys stand in the plane x=7800, z[200,1000] (collision
+   wall 25, inward normal -X), at the end of the east corridor, so the player
+   walks up to it from the west. Square to y=-400, its top rising to a peak
+   of -965. So the press point is the middle of its foot, (7800,600); the sign
+   is 11 off it at y=-300 (the west door's height, the middle of the square
+   part) on a free yaw facing east (1024); the spawn is 250 in, facing west.
 
-   ---- THE NORTH DOOR, to the Lava Maze --------------------------------------
+   >>> THE GOLEM BLOCKS IT. <<< The Golem seeded 500 in front of this door
+   (world.c, world_seed_room) is tagged GLM_BLOCKS_RIBCAGE_E_DOOR: while it
+   stands, the trigger refuses and the sign is not drawn (src/golem.h,
+   BLOCKING). Killing it opens the way, and the death sticks. */
+#define RC_E_X           7800
+#define RC_E_Z            600
+#define RC_E_TEXT_X      7789
+#define RC_E_TEXT_Z       600
+#define RC_E_TEXT_Y      (RC_FLOOR_Y - 300)
+#define RC_E_TEXT_YAW    1024
+#define RC_E_SPAWN_X     7550
+#define RC_E_SPAWN_Z      600
+#define RC_E_SPAWN_ROT   3072
+
+/* ---- THE NORTH DOOR, to the Lava Maze --------------------------------------
    The catacomb inner door polys in the plane z=2400, x[5800,6200] (collision
    wall 69, inward normal -Z), at the head of the north-east corridor
    (x[5400,6600] z[1400,2400]), so the player walks up to it from the south.
@@ -108,6 +126,7 @@ static void *rc_buff = NULL;
    the transition cannot fire on the arrival frame. */
 static int w_circle_prev = 1;
 static int n_circle_prev = 1;
+static int e_circle_prev = 1;
 
 /* ---- THE FLOOR -------------------------------------------------------------
    One storey: the proxy has one floor plane, y=0, wider than the walls, so
@@ -236,6 +255,7 @@ void ribcage_load_geometry(void) {
 void ribcage_doors_arm(void) {
     w_circle_prev = interact_tapped();
     n_circle_prev = w_circle_prev;
+    e_circle_prev = w_circle_prev;
 }
 
 /* The north door, to the Lava Maze: the west door's test on its own point
@@ -278,6 +298,54 @@ void ribcage_spawn_n(void) {
     cam_vy    = 0;
     cam_z     = RC_N_SPAWN_Z;
     cam_rot   = RC_N_SPAWN_ROT;
+    cam_pitch = 0;
+    camera_look_cancel();
+    ribcage_doors_arm();
+}
+
+/* The east door, to Lightnings Edge: the north door's test on its own point
+   and edge state - and REFUSED while the Golem in front of it stands. The
+   edge state is still kept current while it is. */
+int ribcage_e_door_triggered(int lock) {
+    int held = interact_tapped();
+    int just = held && !e_circle_prev;
+    int32_t dx, dz;
+    e_circle_prev = held;
+    if (lock || !just) return 0;
+    if (golem_blocks(STATE_RIBCAGE, GLM_BLOCKS_RIBCAGE_E_DOOR)) return 0;
+    dx = cam_x - RC_E_X;
+    dz = cam_z - RC_E_Z;
+    if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= RC_TRIGGER_RADIUS)
+        return 0;
+    return interact_facing(RC_E_X, RC_E_Z);
+}
+
+/* ...and its sign, which the caller does not draw while the Golem stands. */
+static void rc_e_text(RenderContext *ctx) {
+    int32_t dx = cam_x - RC_E_X;
+    int32_t dz = cam_z - RC_E_Z;
+    int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
+    int fade = 256;
+
+    if (xz >= RC_TEXT_RADIUS) return;
+    if (xz > RC_FADE_NEAR) {
+        int range = RC_TEXT_RADIUS - RC_FADE_NEAR;
+        int prog  = xz - RC_FADE_NEAR;
+        if (prog > range) prog = range;
+        fade = 256 - ((prog * 256) / range);
+    }
+    door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
+                            RC_E_TEXT_X, RC_E_TEXT_Y, RC_E_TEXT_Z,
+                            50, 255, 50, fade, RC_E_TEXT_YAW,
+                            DOOR_PIXEL_SIZE);
+}
+
+void ribcage_spawn_e(void) {
+    cam_x     = RC_E_SPAWN_X;
+    cam_y     = RC_EYE_Y;
+    cam_vy    = 0;
+    cam_z     = RC_E_SPAWN_Z;
+    cam_rot   = RC_E_SPAWN_ROT;
     cam_pitch = 0;
     camera_look_cancel();
     ribcage_doors_arm();
@@ -333,8 +401,9 @@ void ribcage_init(void) {
     collision_set_ceiling_y(RC_CEILING_Y);
     rc_floor_zones_init();
 
-    /* The one arrival, and where a debug jump lands: the west door, from
-       Hell Hath No Fury. */
+    /* The default arrival, and where a debug jump lands: the west door, from
+       Hell Hath No Fury. main.c moves it to the north door (from the Lava
+       Maze) or the east door (from Lightnings Edge). */
     ribcage_spawn_w();
 
     /* The global prop arrays, as Wingscape clears them: Hell Hath No Fury's
@@ -580,13 +649,16 @@ void ribcage_draw(RenderContext *ctx) {
     }
 
     /* >>> LEVEL 8 IS THE ENEMIES - the east door's Golem and four Nessies
-       with their fireballs (both area-gated inside) - the WEST and NORTH
-       DOORS' SIGNS and any pickup a later seed puts down. No props. */
+       with their fireballs (both area-gated inside) - the THREE DOORS' SIGNS
+       (the east one only once its Golem is dead) and any pickup a later seed
+       puts down. No props. */
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
         draw_golems(ctx);
         draw_nessies(ctx);
         rc_w_text(ctx);
         rc_n_text(ctx);
+        if (!golem_blocks(STATE_RIBCAGE, GLM_BLOCKS_RIBCAGE_E_DOOR))
+            rc_e_text(ctx);
     }
 }

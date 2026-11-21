@@ -361,6 +361,10 @@ typedef enum {
                                 and A Woman Scorned's south-east door -
                                 Chapter 4's ninth room. See src/lava_maze.h.
                                 Appended, not inserted. */
+    STATE_LIGHTNINGS_EDGE,   /* LIGHTNINGS EDGE, behind Ribcage's east door -
+                                Chapter 4's tenth room. See
+                                src/lightnings_edge.h. Appended, not
+                                inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

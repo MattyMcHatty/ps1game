@@ -20,7 +20,8 @@
    ENEMIES (world.c's world_seed_room): a NESSIE in each of the four lava
    pools - towards the north in the two that reach the north rim, towards the
    south in the two that reach the south - and a GOLEM in front of the east
-   double door. It blocks nothing until that door leads somewhere.
+   double door. IT BLOCKS THAT DOOR (GLM_BLOCKS_RIBCAGE_E_DOOR): no prompt
+   and no trigger until it is dead.
 
    THREE DOORS, two at the ends of the corridors and one in the north
    wall:
@@ -28,16 +29,20 @@
        its top rising lopsided to a peak. It leads back to HELL HATH NO
        FURY's south-east door, a wooden door too: DOOR_PANEL_WOOD both ways
        (the user's choice, Nov 2026).
-     - EAST: a double door (a copy of the Delivery Area's double_door).
-       Leads nowhere yet - no prompt and no trigger until its room exists.
+     - EAST: a double door (a copy of the Delivery Area's double_door). It
+       leads to LIGHTNINGS EDGE's south gate, a garden gate: out of here
+       DOOR_PANEL_OUTER (the double door's own panel), back DOOR_PANEL_GATE
+       (the user's rule, Nov 2026: the transition is the door on the side
+       being left). Blocked by the Golem until it dies.
      - NORTH: a catacomb inner door. It leads to the LAVA MAZE's west door, a
        gaol door: out of here DOOR_PANEL_CATACOMB, back DOOR_PANEL_GAOL_UW
        (the user's choice, Nov 2026, per direction).
 
-   THE ARRIVALS. Two: through the west door, just inside it facing east
+   THE ARRIVALS. Three: through the west door, just inside it facing east
    (ribcage_spawn_w, also the init's default and where a debug jump lands),
-   and through the north door from the Lava Maze, facing south
-   (ribcage_spawn_n, main.c's override).
+   through the north door from the Lava Maze, facing south
+   (ribcage_spawn_n), and through the east door from Lightnings Edge, facing
+   west (ribcage_spawn_e) - the last two main.c's overrides.
 
    THE MUSIC is the chapter's (CDAUDIO_UNDERWORLD_TRACK, main.c's Chapter 4
    block).
@@ -66,5 +71,11 @@ void ribcage_spawn_w(void);
    arrival through it: just inside it, facing south. */
 int  ribcage_n_door_triggered(int lock);
 void ribcage_spawn_n(void);
+
+/* The EAST door, to Lightnings Edge, on the same terms - except that it
+   answers nothing while the Golem in front of it stands - and the arrival
+   through it: just inside it, facing west. */
+int  ribcage_e_door_triggered(int lock);
+void ribcage_spawn_e(void);
 
 #endif

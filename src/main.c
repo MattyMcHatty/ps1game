@@ -134,6 +134,7 @@
 #include "a_woman_scorned.h"  /* ...and the room behind HHNF's north-east door   */
 #include "ribcage.h"          /* ...and the room behind HHNF's south-east door   */
 #include "lava_maze.h"        /* ...and the room behind Ribcage's north door     */
+#include "lightnings_edge.h"  /* ...and the room behind Ribcage's east door      */
 #include "destiny_plinths.h"  /* ...and the two west plinths: Sharur, the Tablet */
 #include "sharur.h"           /* Sharur's reset                                  */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
@@ -238,6 +239,9 @@ static int hhnf_from_ribcage = 0;
      lm_from_aws:     the Lava Maze's NORTH door (from A Woman Scorned's
                       south-east door); 0 is its west door, from Ribcage. */
 static int ribcage_from_lm = 0;
+/* ...and Ribcage's EAST door (from Lightnings Edge's south gate), on the
+   same terms. Lightnings Edge has one door, so it needs no latch. */
+static int ribcage_from_le = 0;
 static int aws_from_lm     = 0;
 static int lm_from_aws     = 0;
 
@@ -363,6 +367,7 @@ void reset_game(RenderContext *ctx) {
     hhnf_from_aws    = 0;
     hhnf_from_ribcage = 0;
     ribcage_from_lm  = 0;     /* ...and the three round the Lava Maze        */
+    ribcage_from_le  = 0;     /* ...and Ribcage's east door                  */
     aws_from_lm      = 0;
     lm_from_aws      = 0;
     sharur_arrival   = 0;     /* ...and Sharur's Trial's, and Lava U's       */
@@ -533,6 +538,7 @@ static void load_area_geometry(GameState area) {
         case STATE_A_WOMAN_SCORNED:  a_woman_scorned_load_geometry(); break;
         case STATE_RIBCAGE:          ribcage_load_geometry(); break;
         case STATE_LAVA_MAZE:        lava_maze_load_geometry(); break;
+        case STATE_LIGHTNINGS_EDGE:  lightnings_edge_load_geometry(); break;
         default: break;   /* title, menu, transitions: no room to build */
     }
 }
@@ -3734,8 +3740,8 @@ static void update_current_area(GameState area) {
            like every Chapter 4 room's. No props.
 
            ENEMIES (world_seed_room): a NESSIE in each of the four lava pools
-           and a GOLEM in front of the east double door (blocking nothing
-           yet). Their pushes ride apply_collision_reception; both updates
+           and a GOLEM in front of the east double door, which it BLOCKS
+           until it dies (GLM_BLOCKS_RIBCAGE_E_DOOR; the trigger asks). Their pushes ride apply_collision_reception; both updates
            are area-gated inside.
 
            THE WEST DOOR, back to Hell Hath No Fury's south-east door: a
@@ -3745,8 +3751,13 @@ static void update_current_area(GameState area) {
            THE NORTH DOOR, to the Lava Maze's west door: a CATACOMB inner
            door on this side, so the catacomb transition (this room uploads
            its texture); the far side is a gaol door, so the way back plays
-           the gaol transition (the user's choice, per direction). The east
-           double door leads nowhere yet. */
+           the gaol transition (the user's choice, per direction).
+
+           THE EAST DOOR, to Lightnings Edge's south gate: a DOUBLE door on
+           this side, so DOOR_PANEL_OUTER (door_anim's own boot copy of
+           double_door; SFX_DOOR is resident); the far side is a garden
+           gate, so the way back plays the gate transition (the user's rule:
+           the door on the side being left). */
         apply_collision_reception();
         apply_height();
         update_golems();
@@ -3760,6 +3771,29 @@ static void update_current_area(GameState area) {
         } else if (ribcage_n_door_triggered(lock)) {
             pending_area = STATE_LAVA_MAZE;
             door_anim_start(DOOR_PANEL_CATACOMB);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        } else if (ribcage_e_door_triggered(lock)) {
+            pending_area = STATE_LIGHTNINGS_EDGE;
+            door_anim_start(DOOR_PANEL_OUTER);
+            game_state   = STATE_DOOR_ANIM;
+            cdaudio_stop();
+        }
+    } else if (area == STATE_LIGHTNINGS_EDGE) {
+        /* LIGHTNINGS EDGE - Chapter 4's tenth room, behind Ribcage's east
+           door (src/lightnings_edge.c): one storey, the shared wall routine
+           and ONE flat floor zone. No lava, no enemies, no props.
+
+           THE SOUTH GATE, back to Ribcage's east door: a GARDEN GATE on this
+           side, so the gate transition (door_anim's own boot copy of
+           grdn_gte; SFX_GATE is banked for the chapter). The latch tells
+           Ribcage which arrival this is. */
+        apply_collision_reception();
+        apply_height();
+        if (lightnings_edge_s_gate_triggered(lock)) {
+            ribcage_from_le = 1;
+            pending_area = STATE_RIBCAGE;
+            door_anim_start(DOOR_PANEL_GATE);
             game_state   = STATE_DOOR_ANIM;
             cdaudio_stop();
         }
@@ -4383,6 +4417,8 @@ static void draw_current_area(RenderContext *ctx, GameState area) {
         ribcage_draw(ctx);
     else if (area == STATE_LAVA_MAZE)
         lava_maze_draw(ctx);
+    else if (area == STATE_LIGHTNINGS_EDGE)
+        lightnings_edge_draw(ctx);
     else if (area == STATE_REAR_GATE)
         rear_gate_draw(ctx);
     else if (area == STATE_WEST_CORRIDOR)
@@ -4952,6 +4988,7 @@ int main(int argc, const char **argv) {
     lava_maze_load_assets();      /* ...and the Lava Maze: one deferred
                                      registration (its gaol door's copy),
                                      the rest TIM_SLOTs. */
+    lightnings_edge_load_assets();/* ...and Lightnings Edge: TIM_SLOTs only. */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
                                      registrations. Its model is read on entry
                                      to the first room that draws it. */
@@ -6086,6 +6123,11 @@ int main(int argc, const char **argv) {
                    sky's hell bg through narrow uploaders. The east wooden
                    door (wd_dr) is resident (src/lava_maze.c). */
                 lava_maze_upload_textures();
+            } else if (pending_area == STATE_LIGHTNINGS_EDGE) {
+                /* LIGHTNINGS EDGE. Owns nothing: Hell Hath No Fury's volcanic,
+                   the Garden Courtyard's gate and the sky's hell bg through
+                   narrow uploaders (src/lightnings_edge.c). */
+                lightnings_edge_upload_textures();
             } else if (pending_area == STATE_TOMB) {
                 /* THE TOMB. The two pages the two branches above stamp, plus a
                    THIRD - the loculus - through a third narrow uploader added
@@ -7139,13 +7181,15 @@ int main(int argc, const char **argv) {
                 if (aws_from_lm) a_woman_scorned_spawn_se();
                 aws_from_lm = 0;
             } else if (pending_area == STATE_RIBCAGE) {
-                /* TWO ARRIVALS: the west door from Hell Hath No Fury - the
-                   init's spawn, and where a debug jump lands - and the north
-                   door from the Lava Maze. NO MUSIC LINE: the chapter's
-                   block below. */
+                /* THREE ARRIVALS: the west door from Hell Hath No Fury - the
+                   init's spawn, and where a debug jump lands - the north
+                   door from the Lava Maze and the east door from Lightnings
+                   Edge. NO MUSIC LINE: the chapter's block below. */
                 ribcage_init();
                 if (ribcage_from_lm) ribcage_spawn_n();
+                else if (ribcage_from_le) ribcage_spawn_e();
                 ribcage_from_lm = 0;
+                ribcage_from_le = 0;
             } else if (pending_area == STATE_LAVA_MAZE) {
                 /* TWO ARRIVALS: the west door from Ribcage - the init's
                    spawn, and where a debug jump lands - and the north door
@@ -7154,6 +7198,11 @@ int main(int argc, const char **argv) {
                 lava_maze_init();
                 if (lm_from_aws) lava_maze_spawn_n();
                 lm_from_aws = 0;
+            } else if (pending_area == STATE_LIGHTNINGS_EDGE) {
+                /* ONE ARRIVAL, through the south gate from Ribcage - the
+                   init's spawn, and where a debug jump lands. NO MUSIC LINE:
+                   the chapter's block below. */
+                lightnings_edge_init();
             } else if (pending_area == STATE_ASAG_ARENA) {
                 asag_arena_init();   /* one arrival — the drop — so its spawn is
                                         not a default but the only one. Nothing
@@ -7626,7 +7675,8 @@ int main(int argc, const char **argv) {
                    game_state == STATE_CHAMBER_OF_DESTINY ||
                    game_state == STATE_A_WOMAN_SCORNED ||
                    game_state == STATE_RIBCAGE ||
-                   game_state == STATE_LAVA_MAZE) {
+                   game_state == STATE_LAVA_MAZE ||
+                   game_state == STATE_LIGHTNINGS_EDGE) {
             if (game_over) {
                 draw_lose_screen(&ctx);
             } else if (trial_end_active()) {

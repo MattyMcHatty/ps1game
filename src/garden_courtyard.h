@@ -44,6 +44,7 @@
 void garden_courtyard_load_assets(void);     /* startup: register streamed textures */
 void garden_courtyard_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void garden_courtyard_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
+void garden_courtyard_upload_gate(void);     /* ...grdn_gte alone (Lightnings Edge's gate) */
 void garden_courtyard_init(void);            /* set collision/floor zones + spawn */
 void garden_courtyard_draw(RenderContext *ctx);
 

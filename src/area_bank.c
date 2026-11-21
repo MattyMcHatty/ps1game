@@ -246,6 +246,10 @@ TexBank area_bank_of(GameState area) {
        Descent come through narrow uploaders; wd_dr is the fat door's,
        resident. */
     case STATE_LAVA_MAZE:
+    /* LIGHTNINGS EDGE owns none: volcanic from Hell Hath No Fury and the
+       garden gate from the Garden Courtyard, both through narrow
+       uploaders. */
+    case STATE_LIGHTNINGS_EDGE:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -312,7 +316,8 @@ int area_is_underworld(GameState area) {
            area == STATE_CHAMBER_OF_DESTINY ||
            area == STATE_A_WOMAN_SCORNED ||
            area == STATE_RIBCAGE ||
-           area == STATE_LAVA_MAZE;
+           area == STATE_LAVA_MAZE ||
+           area == STATE_LIGHTNINGS_EDGE;
 }
 
 /* ---- The prop models -------------------------------------------------------

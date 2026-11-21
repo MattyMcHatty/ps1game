@@ -2149,6 +2149,12 @@
              inner door and the resident wd_dr. -->
             <file name="LAVAMAZE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\lava_maze.smd"/>
             <file name="GAOLDRUW.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\gaol_door_uw.tim"/>
+        <!-- LIGHTNINGS EDGE (src/lightnings_edge.h), behind Ribcage's east
+             door: an octagon of volcanic rock, one storey. Owns no texture:
+             volcanic is Hell Hath No Fury's and its south gate is the Garden
+             Courtyard's GRDNGTE, at its own address (rocks' page down
+             here). -->
+            <file name="LGHTEDGE.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\lightnings_edge.smd"/>
         <!-- SHARUR, the Underworld's weapon (src/sharur.c): the held model,
              and the one standing on the Chamber's lower plinth. Flat-shaded
              like CRFAXE.SMD, from assets/props/Sharur.smx by smxlink. -->

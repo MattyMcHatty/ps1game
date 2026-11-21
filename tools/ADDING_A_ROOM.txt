@@ -294,6 +294,11 @@ three already in it. Rule 5 is a line in a script, not code in the room.
          door_anim_start turns into the gaol transition on that copy. A
          later room with a gaol door borrows that copy (a narrow uploader on
          src/lava_maze.c) rather than making another.
+         DOOR_PANEL_OUTER and DOOR_PANEL_GATE are door_anim's own boot
+         copies (x512 / x544 y128), always there, like the inner door's.
+         SFX_GATE was added to SND_BANK_UNDERWORLD for Lightnings Edge (Nov
+         2026); a gate ROOM texture borrows grdn_gte at its own address
+         through garden_courtyard_upload_gate().
   5. THE LAVA BURNS. Wherever the lava texture is on the floor, standing in it
      costs 5 HP a second and the screen pulses orange (src/lava.h). The room
      needs NO code for it - lava_update() runs for every area from

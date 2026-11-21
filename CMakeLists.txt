@@ -119,6 +119,7 @@ add_executable(horror_game
     src/a_woman_scorned.c
     src/ribcage.c
     src/lava_maze.c
+    src/lightnings_edge.c
     src/destiny_plinths.c
     src/sharur.c
     src/spirit_glow.c

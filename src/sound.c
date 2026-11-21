@@ -264,8 +264,11 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* eleven banks: 16 bits */
        the Garden Courtyard (boss bank) and out of Fountain Square and the
        Outside Catacombs (garden bank). It fits in neither the resident headroom
        nor the house bank — 17.9 KB against 6.6 KB spare in each — so two copies
-       is what it takes. Full reasoning in sound.h. */
-    [SFX_GATE]       = SND_BANK_BOSS | SND_BANK_GARDEN,
+       is what it takes. Full reasoning in sound.h.
+       ...AND A THIRD, IN THE UNDERWORLD: DOOR_PANEL_GATE plays it on the way
+       out of Lightnings Edge through its south gate, back to Ribcage. A
+       banked clip missing from the chapter's mask would play SILENCE. */
+    [SFX_GATE]       = SND_BANK_BOSS | SND_BANK_GARDEN | SND_BANK_UNDERWORLD,
     /* GARDEN for the Rafflesia's spore puff; CATACOMBS because the Incinerator
        vents with it at the end of its cycle (src/incinerator.c). Borrowed
        rather than re-cut - it is 0.80 s of pressurised hiss and costs 4800

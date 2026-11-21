@@ -281,6 +281,9 @@ AREAS = {
                   # of the gaol door (GAOLDRUW); borrows cobble, lava and the
                   # inner door; wd_dr is the fat door's, resident.
                   "lava_maze_upload_textures",
+                  # LIGHTNINGS EDGE, behind Ribcage's east door: owns
+                  # nothing; borrows volcanic and the garden gate.
+                  "lightnings_edge_upload_textures",
                   # ...and NESSIE (src/nessie.c), which main.c uploads on entry
                   # to the rooms nessie_room_has_sheet() names - Sharur's Trial
                   # today. Underworld rooms only.

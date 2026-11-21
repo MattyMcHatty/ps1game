@@ -257,7 +257,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_LAVA_U,          STATE_WINGSCAPE,
     STATE_HEROS_PLINTH,    STATE_CHAMBER_OF_DESTINY,
     STATE_A_WOMAN_SCORNED, STATE_RIBCAGE,
-    STATE_LAVA_MAZE,
+    STATE_LAVA_MAZE,       STATE_LIGHTNINGS_EDGE,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -476,6 +476,9 @@ static int room_index(GameState area) {
            door and A Woman Scorned's south-east door. Slot 70. Seeded
            EMPTY. */
         case STATE_LAVA_MAZE:         return 70;
+        /* LIGHTNINGS EDGE, Chapter 4's tenth room, behind Ribcage's east
+           door. Slot 71. Seeded EMPTY. */
+        case STATE_LIGHTNINGS_EDGE:   return 71;
         default:                   return 0;
     }
 }
@@ -2354,15 +2357,17 @@ void world_seed_room(GameState area) {
 
        ONE GOLEM in front of the EAST double door (x=7800, z[200,1000]), on
        its centre line 500 in - Wingscape's door-Golem standoff (see below).
-       >>> IT BLOCKS NOTHING YET. <<< The door leads nowhere; once it does,
-       tag this one with golem_set_blocks() and a new GLM_BLOCKS_* (the
-       Wingscape doors are the model). */
+       >>> IT BLOCKS THAT DOOR <<< (GLM_BLOCKS_RIBCAGE_E_DOOR, the user's
+       rule, Nov 2026): the way to Lightnings Edge has no prompt and no
+       trigger until it is dead. The tag is set here, so a title load's
+       re-seed sets it again; a dead one blocks nothing. */
     if (area == STATE_RIBCAGE) {
         nessie_add(2100, 2050, NSS_POOL_RC_NW, STATE_RIBCAGE);
         nessie_add(4400, 2050, NSS_POOL_RC_NE, STATE_RIBCAGE);
         nessie_add(2700, -800, NSS_POOL_RC_SW, STATE_RIBCAGE);
         nessie_add(6000, -800, NSS_POOL_RC_SE, STATE_RIBCAGE);
-        golem_add (7300,  600, STATE_RIBCAGE);
+        golem_set_blocks(golem_add(7300, 600, STATE_RIBCAGE),
+                         GLM_BLOCKS_RIBCAGE_E_DOOR);
     }
 
     /* THE LAVA MAZE (the user's placement, Nov 2026). ONE ALIVE COLUMN

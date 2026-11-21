@@ -218,7 +218,10 @@ void garden_courtyard_load_geometry(void) {
 void garden_courtyard_load_assets(void) {
     /* BANK: every garden room runs this room uploader. Derived, not guessed - py tools/check_tex_banks.py
        walks the uploader call graph and fails the build if this is short. */
-    texmgr_set_bank(TEXBANK_GARDEN | TEXBANK_RABISU | TEXBANK_WEST_GARDEN);
+    /* ...and UNDERWORLD: Lightnings Edge's south gate draws grdn_gte through
+       garden_courtyard_upload_gate() below. */
+    texmgr_set_bank(TEXBANK_GARDEN | TEXBANK_RABISU | TEXBANK_WEST_GARDEN |
+                    TEXBANK_UNDERWORLD);
     /* Every one of these is uploaded by another module; header only — no
        LoadImage, no second RAM copy. */
     TIM_SLOT(0, BRIKWLL);
@@ -255,6 +258,12 @@ void garden_courtyard_upload_textures(void) {
        it a moment later, exactly as every other time-shared slot in this bank
        behaves. */
     rabisus_restore_texture();
+}
+
+/* The gate alone (slot 7, grdn_gte at x512 y0), for a room that draws it and
+   none of the rest: Lightnings Edge, in Chapter 4. Pure LoadImage. */
+void garden_courtyard_upload_gate(void) {
+    texmgr_upload(new_tex_id[1]);
 }
 
 /* ---- The east-wall door back to the Garden Stairs --------------------------

@@ -38,7 +38,9 @@
  *     its seed in world.c);
  *   - Wingscape's door Golem blocks whichever door it is planted in front of
  *     (GLM_BLOCKS_WINGSCAPE_W_DOOR / _SE_DOOR), re-tagged beside each re-plant
- *     in world_place_wingscape_golem() - the tag moves with the Golem.
+ *     in world_place_wingscape_golem() - the tag moves with the Golem;
+ *   - Ribcage's Golem blocks its east door, to Lightnings Edge
+ *     (GLM_BLOCKS_RIBCAGE_E_DOOR, tagged beside its seed in world.c).
  * A new Golem that guards something: a new GolemBlock value, golem_set_blocks()
  * where it is placed, and a golem_blocks() test in the thing's own trigger AND
  * its prompt. The tag survives golems_rest and every re-plant (glm_spawn keeps
@@ -265,6 +267,7 @@ typedef enum {
     GLM_BLOCKS_WINGS_TABLET,       /* Wingscape: the tablet's summoned guard   */
     GLM_BLOCKS_WINGSCAPE_W_DOOR,   /* Wingscape: the door Golem, west spot     */
     GLM_BLOCKS_WINGSCAPE_SE_DOOR,  /* Wingscape: the door Golem, south-east    */
+    GLM_BLOCKS_RIBCAGE_E_DOOR,     /* Ribcage: the east door, to Lightnings Edge */
 } GolemBlock;
 
 typedef struct {
