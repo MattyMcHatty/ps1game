@@ -1431,6 +1431,48 @@ KNOWN_STREAM_PAIRS = [
     ("kchn_wl.tim"                                , "ninurta tablet top right.tim"),
     ("loculus.tim"                                , "ninurta tablet top right.tim"),
     ("rocks.tim"                                  , "ninurta tablet top right.tim"),
+    #   lightning tablet puzzle.tim -> LIGHTNINGS EDGE's tablet prop, its grid half
+    # (src/lightning_tablet.c), 8bpp 128x128 on THE TABLETS' PAGE, x704 y0,
+    # with a CLUT of its own (272,484), a genuinely free run. Every tenant of
+    # the page is re-uploaded by its own room on entry - Sharur's Tablet, the
+    # Wings Tablet, Destiny's Door's frame, the Chamber's tablet and the
+    # Chapter 1-3 art they already displace - and Lightnings Edge draws none
+    # of them, so taking it costs no restore.
+    ("chain.tim"                                  , "lightning tablet puzzle.tim"),
+    ("gravel_gs.tim"                              , "lightning tablet puzzle.tim"),
+    ("poison_flower_base_gh.tim"                  , "lightning tablet puzzle.tim"),
+    ("rusty.tim"                                  , "lightning tablet puzzle.tim"),
+    ("rusty_fence.tim"                            , "lightning tablet puzzle.tim"),
+    ("stable glyphs.tim"                          , "lightning tablet puzzle.tim"),
+    ("upstairs.tim"                               , "lightning tablet puzzle.tim"),
+    ("sharur tablet.tim"                          , "lightning tablet puzzle.tim"),
+    ("wing tablet.tim"                            , "lightning tablet puzzle.tim"),
+    ("destinys door frame bottom right.tim"       , "lightning tablet puzzle.tim"),
+    ("ninurta tablet bottom right.tim"            , "lightning tablet puzzle.tim"),
+    #   lightning tablet ninurta.tim -> the same tablet's Ninurta half, 8bpp
+    # 128x128 on the CRACKED TABLET's page, x768 y0, CLUT (272,486) of its own
+    # (a free run). Sharur's Trial, Wingscape, Hero's Plinth and the Chamber
+    # re-upload their art here on entry; Lightnings Edge draws none of it.
+    ("bed.tim"                                     , "lightning tablet ninurta.tim"),
+    ("brick_wall.tim"                              , "lightning tablet ninurta.tim"),
+    ("fountain.tim"                                , "lightning tablet ninurta.tim"),
+    ("grss.tim"                                    , "lightning tablet ninurta.tim"),
+    ("gula codes.tim"                              , "lightning tablet ninurta.tim"),
+    ("lamashtu arm.tim"                            , "lightning tablet ninurta.tim"),
+    ("lamashtu tablet.tim"                         , "lightning tablet ninurta.tim"),
+    ("pipe.tim"                                    , "lightning tablet ninurta.tim"),
+    ("plinth_diamond.tim"                          , "lightning tablet ninurta.tim"),
+    ("destinys door.tim"                           , "lightning tablet ninurta.tim"),
+    ("sharur tablet cracked.tim"                   , "lightning tablet ninurta.tim"),
+    ("wings tablet question and answers.tim"       , "lightning tablet ninurta.tim"),
+    ("xt_dr_cmplt.tim"                             , "lightning tablet ninurta.tim"),
+    ("xt_dr_lckd.tim"                              , "lightning tablet ninurta.tim"),
+    #   ltng_bolt.tim -> THE LIGHTNING BOLT, the fifth chapter-scoped item:
+    # 64x64 8bpp at x736 y320 (Voff 64, u 64..127 - beside the Tablet of
+    # Destinies), CLUT (272,485), a genuinely free run. Ninurta's Arm's terms:
+    # re-stamped by item_pickups_upload_underworld().
+    ("Rabisu tex.tim"                             , "ltng_bolt.tim"),
+    ("incinerator.tim"                            , "ltng_bolt.tim"),
 ]
 
 # VRAM the hardware or the SDK owns, which no TIM may be placed in. Checked, not

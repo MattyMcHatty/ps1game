@@ -431,6 +431,18 @@
 #define TIM_TPAGE_LSIDLE   0x001f
 #define TIM_CLUT_LSIDLE    0x7e10
 
+/* ltng_bolt.tim   8bpp  VRAM ( 736,320)  \TEX\LTNGBOLT.TIM */
+#define TIM_TPAGE_LTNGBOLT 0x009b
+#define TIM_CLUT_LTNGBOLT  0x7951
+
+/* lightning tablet ninurta.tim  8bpp  VRAM ( 768,  0)  \TEXUNDW\LTNGNNRT.TIM */
+#define TIM_TPAGE_LTNGNNRT 0x008c
+#define TIM_CLUT_LTNGNNRT  0x7991
+
+/* lightning tablet puzzle.tim  8bpp  VRAM ( 704,  0)  \TEXUNDW\LTNGPZL.TIM */
+#define TIM_TPAGE_LTNGPZL  0x008b
+#define TIM_CLUT_LTNGPZL   0x7911
+
 /* lumberer_a.tim  4bpp  VRAM ( 448,128)  \TEXCTCMB\LUMBERA.TIM */
 #define TIM_TPAGE_LUMBERA  0x0007
 #define TIM_CLUT_LUMBERA   0x7bd0

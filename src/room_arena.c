@@ -14,12 +14,14 @@ static uint8_t arena[ROOM_ARENA_BYTES] __attribute__((aligned(16)));
 
 static int arena_used = 0;
 static int arena_file_size = 0;   /* exact bytes of the file last loaded */
+static int arena_gen = 0;         /* room_arena_generation()             */
 
 void *room_arena_load(const char *filename) {
     CdlFILE file;
 
     arena_used = 0;
     arena_file_size = 0;
+    arena_gen++;          /* every extra read into the old room is now stale */
     room_data_unbind();   /* the bound block is in the bytes about to go */
     if (!CdSearchFile(&file, (char *)filename)) return NULL;
 
@@ -51,3 +53,24 @@ void *room_arena_load(const char *filename) {
 int room_arena_used(void) { return arena_used; }
 int room_arena_file_size(void) { return arena_file_size; }
 void *room_arena_base(void) { return arena; }
+int room_arena_generation(void) { return arena_gen; }
+
+void *room_arena_load_extra(const char *filename) {
+    CdlFILE file;
+    uint8_t *dst;
+    int sectors;
+    if (arena_used <= 0) return NULL;          /* no room to sit behind */
+    if (!CdSearchFile(&file, (char *)filename)) return NULL;
+    sectors = (file.size + 2047) / 2048;
+    if (arena_used + sectors * 2048 > ROOM_ARENA_BYTES) return NULL;
+
+    dst = arena + arena_used;                  /* sector-aligned: arena_used is */
+    cdaudio_suspend();
+    CdControl(CdlSetloc, &file.pos, NULL);
+    CdRead(sectors, (uint32_t *)dst, CdlModeSpeed);
+    CdReadSync(0, NULL);
+    cdaudio_resume();
+
+    arena_used += sectors * 2048;
+    return dst;
+}

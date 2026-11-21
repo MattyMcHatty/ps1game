@@ -684,7 +684,24 @@ typedef enum {
        unlock, swing, axehit, DIE; sounds/trim_wav.py), which freed 65,664
        bytes in every bank - tools/ADDING_A_SOUND.txt STEP 3. */
     SFX_SHARUR     = 72,  /* RESIDENT. sharur, 1.76 s, C-looped, voice 0       */
-    SFX_COUNT      = 73,
+    /* THE LIGHTNING TABLET's scene (src/lightning_tablet.c), BANKED
+       (underworld): Lightnings Edge is the only room that plays them, and it
+       loads SND_BANK_UNDERWORLD. 24,448 bytes between them, which leaves the
+       bank at 161,280 - still under CATACOMBS, the largest, so `spare` did
+       not move (tools/spu_budget.py).
+         FUSE      the lit line burning along the carving. A one-shot (loop
+                   flag on its LAST block, 465 of 466) RE-KEYED FROM C every
+                   LT_FUSE_FRAMES for as long as the line is burning - never a
+                   hardware loop, so its voice is not poisoned (ADDING_A_SOUND
+                   STEP 6). Seamless: the clip has no silent lead or tail.
+                   Voice 16, SFX_ZOMBIE's (HOUSE) / SFX_LMBR_MOAN's (CATACOMBS).
+         LIGHTNING the line reaching the bolt. Voice 21, SFX_EXPLODE's
+                   (BOSS|ASAG|LAMASHTU|SEAL): off the pool, because it rings on
+                   past the return of control, when footsteps and the pickup
+                   chime start. Loop flag on its last block, 1057 of 1058. */
+    SFX_FUSE       = 73,  /* BANKED (underworld). fuse, 1.18 s, C-looped, v16 */
+    SFX_LIGHTNING  = 74,  /* BANKED (underworld). lightning, 2.68 s, voice 21  */
+    SFX_COUNT      = 75,
 } SfxID;
 
 /* Which set of effects the shared SPU region currently holds.

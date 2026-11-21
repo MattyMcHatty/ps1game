@@ -35,7 +35,8 @@ void menu_draw(RenderContext *ctx);
 #define MENU_SLOT_NINURTAS_ARM     16
 #define MENU_SLOT_NINURTAS_WINGS   17
 #define MENU_SLOT_TABLET_OF_DESTINIES 18
-#define MENU_ITEM_SLOTS           19   /* number of item IDs that exist */
+#define MENU_SLOT_LIGHTNING_BOLT   19
+#define MENU_ITEM_SLOTS           20   /* number of item IDs that exist */
 
 /* ---- Inventory order ------------------------------------------------------
    The ITEMS column is 3x4 = 12 CELLS, and which item ID lives in which cell is

@@ -53,6 +53,10 @@ typedef enum {
                                 its Circle ceremony grants it
                                 (src/destiny_plinths.h). The kind exists for the
                                 sprite; collect() handles it anyway.           */
+    PICKUP_LIGHTNING_BOLT,   /* lightning bolt -> ITEM_LIGHTNING_BOLT bit, and
+                                FLAG_LIGHTNING_BOLT_TAKEN. Never placed by
+                                world.c: the Lightning Tablet leaves it where it
+                                stood when it shatters (src/lightning_tablet.h) */
     PICKUP_KIND_COUNT
 } PickupKind;
 

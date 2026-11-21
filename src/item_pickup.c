@@ -47,6 +47,7 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\NNRTARM.TIM;1",    /* PICKUP_NINURTAS_ARM      */
     "\\TEX\\NNRTWNGS.TIM;1",   /* PICKUP_NINURTAS_WINGS    */
     "\\TEX\\TBLTDST.TIM;1",    /* PICKUP_TABLET_OF_DESTINIES */
+    "\\TEX\\LTNGBOLT.TIM;1",   /* PICKUP_LIGHTNING_BOLT    */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
@@ -65,6 +66,7 @@ static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Ninurta's Arm",           /* PICKUP_NINURTAS_ARM      */
     "Ninurta's Wings",         /* PICKUP_NINURTAS_WINGS    */
     "Tablet of Destinies",     /* PICKUP_TABLET_OF_DESTINIES */
+    "Lightning Bolt",          /* PICKUP_LIGHTNING_BOLT    */
 };
 _Static_assert(sizeof(kind_tim) / sizeof(kind_tim[0]) == PICKUP_KIND_COUNT &&
                sizeof(kind_name) / sizeof(kind_name[0]) == PICKUP_KIND_COUNT,
@@ -137,6 +139,10 @@ static int nnwg_tex = -1;
    CLUTs (272,482) / (272,483). */
 static int shrr_tex = -1;
 static int tbds_tex = -1;
+/* THE LIGHTNING BOLT (src/lightning_tablet.h) is the fifth: 64x64 8bpp at
+   x736 y320 (Voff 64, u 64..127 - beside the Tablet of Destinies, under
+   Sharur), CLUT (272,485), a genuinely free run. */
+static int ltbl_tex = -1;
 
 void item_pickups_register_textures(void) {
     texmgr_set_bank(TEXBANK_UNDERWORLD);
@@ -144,6 +150,7 @@ void item_pickups_register_textures(void) {
     nnwg_tex = texmgr_register("\\TEX\\NNRTWNGS.TIM;1");
     shrr_tex = texmgr_register("\\TEX\\SHARUR.TIM;1");
     tbds_tex = texmgr_register("\\TEX\\TBLTDST.TIM;1");
+    ltbl_tex = texmgr_register("\\TEX\\LTNGBOLT.TIM;1");
 }
 
 void item_pickups_upload_underworld(void) {
@@ -151,6 +158,7 @@ void item_pickups_upload_underworld(void) {
     if (nnwg_tex >= 0) texmgr_upload(nnwg_tex);
     if (shrr_tex >= 0) texmgr_upload(shrr_tex);
     if (tbds_tex >= 0) texmgr_upload(tbds_tex);
+    if (ltbl_tex >= 0) texmgr_upload(ltbl_tex);
 }
 
 void item_pickups_reset(void) {
@@ -174,7 +182,8 @@ void item_pickups_reset(void) {
                       (1 << ITEM_MAGENTA_KEY_STONE) |
                       (1 << ITEM_MEAT_SACK) | (1 << ITEM_GAOL_KEY) |
                       (1 << ITEM_NINURTAS_ARM) | (1 << ITEM_NINURTAS_WINGS) |
-                      (1 << ITEM_TABLET_OF_DESTINIES));
+                      (1 << ITEM_TABLET_OF_DESTINIES) |
+                      (1 << ITEM_LIGHTNING_BOLT));
     player_hatch_keys   = 0;
     player_blood_pearls = 0;
     player_oil        = 0;   /* a new game holds no lantern and no oil */
@@ -282,6 +291,9 @@ static void collect(ItemPickup *p) {
             player_items |= (1 << ITEM_TABLET_OF_DESTINIES);
             game_flag_set(FLAG_TABLET_OF_DESTINIES_TAKEN);
             break;
+        /* ...and the Lightning Tablet's, on the Wings' terms. */
+        case PICKUP_LIGHTNING_BOLT: player_items |= (1 << ITEM_LIGHTNING_BOLT);
+                                    game_flag_set(FLAG_LIGHTNING_BOLT_TAKEN); break;
         default: break;
     }
     sound_play(SFX_PICKUP);

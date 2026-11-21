@@ -44,6 +44,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "GULA DEAD",
     "HAS SHARUR",
     "HAS DESTINY TAB",
+    "LIGHTNING SOLVED",
 };
 
 static int grants_pending = 0;
@@ -444,5 +445,14 @@ void debug_opts_apply_grants(void) {
     if (debug_opts[DBG_HAS_DESTINY_TABLET]) {
         game_flag_set(FLAG_TABLET_OF_DESTINIES_TAKEN);
         player_items |= (1 << ITEM_TABLET_OF_DESTINIES);
+    }
+
+    /* The Lightning Tablet: every square turned true, shattered, and its
+       carving in the pocket - the Wings Tablet's option exactly. TAKEN stops
+       lightning_tablet_apply_flags() laying a second bolt on the floor. */
+    if (debug_opts[DBG_LIGHTNING_TABLET_SOLVED]) {
+        game_flag_set(FLAG_LIGHTNING_TABLET_BROKEN);
+        game_flag_set(FLAG_LIGHTNING_BOLT_TAKEN);
+        player_items |= (1 << ITEM_LIGHTNING_BOLT);
     }
 }

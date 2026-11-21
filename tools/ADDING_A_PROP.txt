@@ -54,8 +54,18 @@ py tools/check_tex_banks.py: "No unexpected pixel collisions" / "OK".
  STEP 3 — DISC, BUILD, LOAD
 ##########################################################################
 The .smd and .tims go in disc.xml under the chapter's directory; the .c in
-CMakeLists.txt. Load the SMD at startup (it is small) or with the room.
-Run py tools/heap_budget.py afterwards - a full heap crashes at boot.
+CMakeLists.txt. Run py tools/heap_budget.py afterwards - a full heap crashes
+at boot.
+
+WHERE THE SMD LIVES. A prop only ONE room draws should not sit on the heap
+for the whole run: read it on room entry into the ROOM ARENA's tail with
+room_arena_load_extra() (src/room_arena.h), from the room's *_load_geometry
+AFTER its room_data_bind, and trust the pointer only while
+room_arena_generation() still matches the one noted at the load - the next
+room's load overwrites it. Zero heap. The Lightning Tablet
+(src/lightning_tablet.c) is the reference; it handed back 6 KB that a
+startup read_file would have held forever. A startup load is still right for
+a prop several rooms draw (the save point, the sconce).
 
 
 ##########################################################################

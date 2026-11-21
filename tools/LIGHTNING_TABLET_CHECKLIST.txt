@@ -1,0 +1,176 @@
+LIGHTNING TABLET PUZZLE - CHECKLIST (Nov 2026)
+==============================================
+Lightnings Edge's tablet becomes Chapter 4's third tablet puzzle, built on the
+Wings Tablet's module (src/wings_tablet.c) with Sharur's/Wings' collision.
+Prop work follows tools/ADDING_A_PROP.txt, item work tools/ADDING_AN_ITEM.txt.
+[x] = done, [ ] = to do.
+
+DESIGN (from the brief)
+  - The slab: assets/props/Lightning Tablet.smx, exported in place in
+    Lightnings Edge: 1200 long x 700 tall x 100 thick, x[-600,600]
+    y[-700,0] z[2450,2550]. The FRONT is the z=2450 face (faces -Z, the
+    reader looks +Z, yaw 0 - the Wings Tablet's orientation).
+  - Face layout (texture "lightning tablet.png"): a cloud frieze along the
+    top (y -700..-600), Ninurta on the right (x 200..600), and a 4 x 3 grid
+    of 200 x 200 squares (x -600..200, y -600..0). Each front square is a
+    fan of 4 triangles round its centre; each back square one quad.
+  - Every room entry: all 12 squares dealt a random quarter turn, never the
+    correct one.
+  - "Press O to interact" sign; Circle flies the camera to a face-on shot.
+    A cursor picks any of the 12 squares (d-pad); SQUARE turns the square
+    under it 90 degrees clockwise (the Anzu Tablet's button - round 2); Cross leaves at any time (the turns stay
+    as they are for the rest of the visit).
+  - Only the 8 squares carrying YELLOW lightning have to be upright:
+        row 0 (top): cols 0, 1, 3     row 1: cols 1, 2, 3     row 2: cols 1, 2
+    The 4 blue-only squares never matter.
+  - ONE AMBIGUITY in the art, measured: row 1 col 1's yellow enters at the
+    top and leaves at the bottom at points that swap exactly under a 180
+    degree turn, so upside down it LOOKS connected. Accepted at 0 or 180
+    (snapped upright as the scene starts), and never dealt at 180.
+  - Solved: a short scene in the same shot. The yellow lights up as a fuse
+    from the cloud to the bolt in Ninurta's hand (the Seal's lines: additive
+    halo + core + a spark on the front), then Ninurta glows briefly, then the
+    slab shatters as the others do and leaves the LIGHTNING BOLT.
+  - Lightning Bolt: a new collectible, texture "Lightning Bolt.png".
+    Description: "The life force of the Gods, carved in stone."
+  - Debug option: puzzle solved, Lightning Bolt in the inventory, slab gone.
+
+STEPS
+  [x] 1. Read references: wings_tablet.c, sharur_tablet.c, anzu_puzzle.c
+         (quarter turns), seal.c (the lines lighting), lightnings_edge.c,
+         item + prop runbooks, Chapter 4 VRAM map
+  [x] 2. Art analysis: which squares carry yellow (above); trace the fuse
+         path cloud -> bolt tip off the PNG (offline, like the Seal's lines)
+  [x] 3. Textures: tablet 128x128 8bpp at x704 y0 (the tablets' page) CLUT
+         (272,484); Lightning Bolt 64x64 8bpp at x736 y320 (Voff 64) CLUT
+         (272,485). disc.xml, tim_slots, vram maps, KNOWN_STREAM_PAIRS,
+         gen_tex_rooms / check_tex_banks
+  [x] 4. Mesh: smxlink -> assets/props/lightning_tablet.smd (\TEXUNDW\LTNGTBLT.SMD)
+  [x] 5. Item: ITEM_LIGHTNING_BOLT, PICKUP_LIGHTNING_BOLT, MENU_SLOT, icon,
+         description, incinerator take/give, reset, Underworld re-upload
+  [x] 6. Flags: FLAG_LIGHTNING_TABLET_BROKEN, FLAG_LIGHTNING_BOLT_TAKEN
+  [x] 7. Puzzle in src/lightning_tablet.c: load + measure, per-square UV
+         rotation (front fans + back quads), random deal, sign, shot,
+         cursor, turn, Cross, solve check, fuse, Ninurta's glow, shatter,
+         item spawn
+  [x] 8. Wiring: main.c (examine branch, Lightnings Edge block, load,
+         apply_flags, cutscene list), lightnings_edge.c (upload, arm, draw,
+         overlay, pickups), collision.c
+  [x] 9. Debug: "LIGHTNING SOLVED" in the CH4 - UNDERWORLD group (+ title.c)
+  [x] 10. Budgets: heap_budget.py, check_tex_banks.py, vram maps
+  [x] 11. Build + disc (cmake --build, mkpsxiso)
+  [x] 12. Verify (headless emulator if possible)
+
+RESULTS
+  - VRAM: "lightning tablet.tim" 8bpp 128x128 at x704 y0 (the tablets'
+    page), CLUT (272,484); "ltng_bolt.tim" 64x64 8bpp at x736 y320 (Voff 64,
+    u 64..127), CLUT (272,485) - both CLUTs genuinely free runs. "No
+    unexpected pixel collisions."; tim_slots.h, VRAM_MAP.txt and
+    VRAM_MAP_UNDERWORLD.txt regenerated; the bolt is RESERVED in the
+    Underworld map. The tablet's art was supplied 256x256; the exporter's
+    UVs are on the 128 tile, so it ships downscaled (source kept as
+    textures/underworld/lightning tablet 128.png). 256 colours, not 16.
+  - Room sets: LTNGTBLT rides Lightnings Edge's set only; LTNGBOLT every
+    Underworld room's (item_pickups_upload_underworld). check_tex_banks OK.
+    texmgr 126/128 - TWO SPARE.
+  - Heap: the mesh is ROOM-SCOPED - read into the room arena's tail on entry
+    (new room_arena_load_extra), not held on the heap. The module is built
+    -Os (a puzzle; 13.2 KB). FREE AT REST 109 -> 93 KB, in line with the
+    Column (132 -> 115) and the Golem; under heap_budget.py's 128 KB line,
+    as it already was.
+  - Save: two flags in game_flags2 (bits 19-20), one item bit (14). No
+    SaveData change, no SAVE_VERSION bump.
+  - Build: 0 warnings.
+  - Headless PCSX-Redux force-boot into Lightnings Edge, scripted, 0
+    exceptions, no texmgr late loads; instrumentation removed and the binary
+    scanned clean:
+      load    92 prims, 144 corner UVs indexed, all 12 squares' art corners
+              read right (cell 0 TL (0,18) .. cell 11 BR (83,127)), 6 of
+              Ninurta's faces found
+      deal    no square dealt true; the flip square dealt 90
+      solve   16 turns; the flip square accepted at 180 and snapped upright
+      scene   glow 0 until the fuse is home (t 180), full at 215, out by
+              270; FLAG set at the shatter (t 270), 10 shards, the bolt
+              spawned at the slab's centre (0,-150,2500); camera back where
+              the player stood at t 340
+      pickup  walked into: ITEM_LIGHTNING_BOLT + FLAG_LIGHTNING_BOLT_TAKEN
+
+STILL TO CHECK IN-GAME (needs your eyes - headless screenshots don't work)
+  [ ] The shot frames the whole face; the cursor's outline hugs each square.
+  [ ] The squares turn cleanly (each a quarter turn, the art intact).
+  [ ] The lit lines sit on the yellow carving, cloud to bolt tip, in front
+      of the stone (not hidden by it); the spark rides the front.
+  [ ] Ninurta's glow reads as his carving lighting up, not a wash.
+  [ ] The shatter, and the Lightning Bolt's sprite + menu icon/description.
+  [ ] The 128-downscaled tablet art is legible enough on the face.
+  [ ] Debug "LIGHTNING SOLVED": tablet gone, bolt in the inventory.
+
+ROUND 2 (the user's report, same day)
+  [x] BUG: on entering the room the face showed the SOLVED art and the puzzle
+      could never be solved. Cause: the deal (lightning_tablet_arm, from the
+      room's init) wrote the random turns into lt_rot but skipped writing
+      them into the mesh, because it was gated on lt_live(), which tests
+      current_area - and main.c only sets current_area to the room AFTER the
+      init (STATE_LOADING, main.c ~7435). So the art said "solved" while the
+      puzzle believed every square was turned: straightening the picture put
+      each square back on its random value. Not a memory problem. The first
+      headless run missed it because the force boot pre-sets current_area.
+      Fix: lt_loaded() (mesh read this visit, still in the arena) for the
+      deal and apply_flags; lt_live() (also in the room) for per-frame paths.
+  [x] Square turns the squares (was Circle); the hint reads "[] - Turn".
+  [x] Re-verified headless WITHOUT pre-setting current_area (a real
+      STATE_LOADING order).
+
+ROUND 3 (the user's changes, same day)
+  [x] The leading glow (the spark riding the front) removed: the path lights
+      as a trail and nothing runs ahead of it.
+  [x] Straight lines with corners, like a lightning bolt: the traced centre
+      line is straightened (Douglas-Peucker, 3 texels) to 21 points, and each
+      corner is MITRED so the two runs meeting there share an edge - sharp,
+      no gap, no doubled-up overlap. The burning front is cut square.
+  [x] Half as fast: the fuse burns over 300 frames (5 s), was 150. Ninurta's
+      glow, the shatter (t 420) and the return (t 490) move with it.
+  [x] New export of the prop: the face split into two textures at x=200.
+        "lightning tablet puzzle"  LTNGPZL.TIM  8bpp x704 y0 CLUT (272,484)
+        "lightning tablet ninurta" LTNGNNRT.TIM 8bpp x768 y0 CLUT (272,486)
+      (x768 y0 is the cracked tablet's / Wings cuneiform's / Destiny's
+      Door's page - each re-uploaded by its own room; CLUT a free run.)
+      Each face's texture is read off the palette smxlink baked into its
+      prim (16 faces Ninurta's, 76 the puzzle's) - not off its position: the
+      x=600 end face is puzzle art. Same geometry, same squares.
+  [x] Re-derived off the new art: the yellow squares (unchanged: r0 c0,1,3 /
+      r1 c1,2,3 / r2 c1,2), the 180-degree ambiguity (still only r1 c1), and
+      the fuse path (the bolt is now at the left edge of Ninurta's panel).
+  [x] Old texture removed from the game: LTNGTBLT.TIM gone from disc.xml,
+      the code and both VRAM maps; "lightning tablet.tim" and the downscaled
+      "lightning tablet 128.png" deleted. (The user's own source art -
+      "lightning tablet.png" and the "Lightning Tablet" PSD - left in place.)
+  [x] texmgr 127/128 - ONE SPARE. Lightnings Edge's room set 112 KB (peak
+      still REAR_GATE, 238 KB). FREE AT REST 94 KB, unchanged.
+  [x] Headless force boot, scripted solve: 92 prims, 144 corner UVs, 16
+      Ninurta-texture faces, scene timings as above, shards + bolt, 0
+      exceptions, no late texture loads. Instrumentation removed, binary
+      scanned clean, disc rebuilt.
+
+ROUND 4 (sound effects, same day) - tools/ADDING_A_SOUND.txt followed
+  [x] sounds/fuse.mp3 + lightning.mp3 -> .wav -> .vag at 11025 Hz mono:
+        fuse       1.18 s   7,488 SPU bytes  (no silent lead/tail: loops clean)
+        lightning  2.68 s  16,960 SPU bytes
+      Both one-shots (loop flag on the LAST block), so no voice is poisoned.
+  [x] SFX_FUSE (73) / SFX_LIGHTNING (74), SND_BANK_UNDERWORLD only (Lightnings
+      Edge is the only room that plays them). Bank 136,832 -> 161,280, still
+      under CATACOMBS (225,152): spare unchanged at 59,760 (spu_budget.py OK).
+  [x] Voices off the pool: FUSE 16, LIGHTNING 21 - unclaimed in Chapter 4
+      (checked against every claimant's bank). Lightning rings on past the
+      return of control, clear of the footsteps' and pickup's pool voices.
+  [x] Disc: SND\FUSE.VAG, SND\LIGHTNG.VAG (not the root; check_disc_root OK).
+  [x] Cues (lightning_tablet.c, lt_scene_tick):
+        t 30..329  FUSE re-keyed from C every 70 frames (Sharur's hum's
+                   scheme) while the line burns - replaces the old RUMBLE
+        t 330      FUSE keyed off, LIGHTNING as the line meets the bolt
+        t 420      RUMBLE_4 as it shatters (unchanged)
+      arm() keys the fuse off if a load cut a scene short.
+  [x] Headless scripted solve: every cue loaded=1, on its voice, on its
+      frame; 0 exceptions. Instrumentation removed, binary scanned clean.
+  [ ] Levels, by ear: fuse peaks at -15 dBFS against lightning's -4 - it
+      may sit low under the scene. (sounds/gain_wav.py if so.)

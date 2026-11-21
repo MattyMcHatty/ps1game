@@ -83,6 +83,7 @@ RESERVED["nnrt_arm.tim"] = "the Ninurta's Arm item (under Sharur's Tablet)"
 RESERVED["nnrt_wngs.tim"] = "the Ninurta's Wings item (under the Wings Tablet)"
 RESERVED["sharur.tim"] = "Sharur, the weapon's icon (Chamber of Destiny's lower plinth)"
 RESERVED["tblt_dst.tim"] = "the Tablet of Destinies item (Chamber's higher plinth)"
+RESERVED["ltng_bolt.tim"] = "the Lightning Bolt item (under the Lightning Tablet)"
 # Every earlier chapter's item: startup-resident, never drawn down here.
 NEEDS_RESTORE = set(CATA.NEEDS_RESTORE) | CHAPTER_3_ITEMS
 
@@ -142,6 +143,10 @@ BANK = {
     "ninurta tablet bottom right.tim":  "Chamber: tablet, bottom right (owned 8bpp; the frame's page) x704 y0",
     "marble.tim":                       "Chamber: walls, corridor floor (owned 8bpp; lava's page) x320 y256",
     "night sky.tim":                    "Chamber: floor, dais, the dome (owned 4bpp as supplied; volcanic's page) x384 y256",
+    # THE LIGHTNING TABLET (src/lightning_tablet.h): Lightnings Edge's slab,
+    # 8bpp on the tablets' page with a free CLUT of its own.
+    "lightning tablet puzzle.tim":      "Lightnings Edge: the tablet, the grid (owned 8bpp; the tablets' page) x704 y0",
+    "lightning tablet ninurta.tim":     "Lightnings Edge: the tablet, Ninurta (owned 8bpp; the cracked tablet's page) x768 y0",
 }
 
 tims = {}

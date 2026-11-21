@@ -70,6 +70,7 @@ RESERVED  (a global; overwriting it breaks something)
   graveolver.tim         the Grave-olver
   helluminator.tim       the Helluminator (menu icon in every room)
   hud.tim                the HUD panel
+  ltng_bolt.tim          the Lightning Bolt item (under the Lightning Tablet)
   nnrt_arm.tim           the Ninurta's Arm item (under Sharur's Tablet)
   nnrt_wngs.tim          the Ninurta's Wings item (under the Wings Tablet)
   scat_rnds.tim          scattershot rounds
@@ -100,6 +101,8 @@ THIS BANK'S ART
   hell bg.tim                Descent: the backdrop (owned; the sky) x640 y0
   inr_dbl_dr.tim             A Woman Scorned: SE double door - BORROWED RESIDENT (the kitchen's boot stream) x576 y256
   lava.tim                   Descent: the lava (owned; HHNF too) x320 y256
+  lightning tablet ninurta.tim Lightnings Edge: the tablet, Ninurta (owned 8bpp; the cracked tablet's page) x768 y0
+  lightning tablet puzzle.tim Lightnings Edge: the tablet, the grid (owned 8bpp; the tablets' page) x704 y0
   marble.tim                 Chamber: walls, corridor floor (owned 8bpp; lava's page) x320 y256
   nessie_a.tim               Sharur: Nessie frames 0-2 (Adapa's) x832 y128
   nessie_b.tim               Sharur: Nessie frames 3-5 (Adapa's) x896 y128
@@ -138,8 +141,8 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x512  IN USE by this bank: destinys door frame top right.tim, grdn_gte.tim, ninurta tablet top right.tim, rocks.tim   [also on this page, all re-uploaded on room entry: Boss Wall.tim, cuneiform _symbols.tim, dresser.tim, kchn_wl.tim, loculus.tim]
   x576  IN USE by this bank: double_door_uw.tim, gaol_door_uw.tim, seal.tim   [also on this page, all re-uploaded on room entry: crib.tim, gaol_mud.tim, lamashtu.tim]
   x640  IN USE by this bank: hell bg.tim   [also on this page, all re-uploaded on room entry: arms2.tim, asag.tim, baby names.tim, bones.tim, chnlnk.tim, gaol door.tim, gravel_texture.tim, greenhouse.tim, gula tablet.tim, guts.tim, hatch.tim, heads.tim, lamashtu pearl.tim, legs.tim, plinth_rg.tim, poison_flower_base.tim, shelf_incinerator.tim, torsos.tim, trck_clue.tim, trees.tim]
-  x704  IN USE by this bank: destinys door frame bottom right.tim, ninurta tablet bottom right.tim, sharur tablet.tim, wing tablet.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
-  x768  IN USE by this bank: destinys door.tim, sharur tablet cracked.tim, wings tablet question and answers.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, gula codes.tim, lamashtu arm.tim, lamashtu tablet.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
+  x704  IN USE by this bank: destinys door frame bottom right.tim, lightning tablet puzzle.tim, ninurta tablet bottom right.tim, sharur tablet.tim, wing tablet.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
+  x768  IN USE by this bank: destinys door.tim, lightning tablet ninurta.tim, sharur tablet cracked.tim, wings tablet question and answers.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, grss.tim, gula codes.tim, lamashtu arm.tim, lamashtu tablet.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
   x832  IN USE by this bank: catacomb inner door.tim   [also on this page, all re-uploaded on room entry: anzu_tab.tim, con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, stables wood.tim, xt_dr_cg.tim]
   x896  BLOCKED - reserved: ghit.tim, graveolver.tim, scat_rnds.tim
 
@@ -150,7 +153,7 @@ MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)
   x512  AVAILABLE, needs a way back first: grn_ky_stn.tim, wd_dr_crk.tim, wx_cb.tim   [also on this page, all re-uploaded on room entry: bars.tim, pipe_button_off.tim, pipe_button_on.tim]
   x576  IN USE by this bank: inr_dbl_dr.tim
   x640  BLOCKED - reserved: sml_med.tim   [also on this page, all re-uploaded on room entry: creep.tim, lamashtu creep.tim, maggot.tim]
-  x704  BLOCKED - reserved: nnrt_arm.tim, nnrt_wngs.tim, sharur.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, incinerator.tim, ladder.tim, vines.tim]
+  x704  BLOCKED - reserved: ltng_bolt.tim, nnrt_arm.tim, nnrt_wngs.tim   [also on this page, all re-uploaded on room entry: Rabisu tex.tim, incinerator.tim, ladder.tim, vines.tim]
   x768  IN USE by this bank: wd_dr.tim
   x832  BLOCKED - reserved: flm_rnds.tim, helluminator.tim, stnd_rnds.tim
   x896  IN USE by this bank: destinys door frame bottom left.tim, ninurta tablet bottom left.tim, oil_container.tim

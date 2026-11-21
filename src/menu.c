@@ -183,6 +183,9 @@ static uint8_t  shrr_u0, shrr_v0, shrr_u1, shrr_v1;
 static uint16_t tbds_tpage   = 0;
 static uint16_t tbds_clut    = 0;
 static uint8_t  tbds_u0, tbds_v0, tbds_u1, tbds_v1;
+static uint16_t ltbl_tpage   = 0;
+static uint16_t ltbl_clut    = 0;
+static uint8_t  ltbl_u0, ltbl_v0, ltbl_u1, ltbl_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -210,6 +213,7 @@ static const char *item_descriptions[] = {
     "Ninurta's Arm\n\nA stone carving\nof Ninurta's arm\nwielding the\nlegendary mace,\nSharur",
     "Ninurta's Wings\n\nThe wings of a\ngod, carved in\nstone",
     "Tablet of Destinies\n\nHolds the\nirrevocable\ndecrees of\nfate. Its\nowner has\nsupreme\nauthority.",
+    "Lightning Bolt\n\nThe life force\nof the Gods,\ncarved in\nstone.",
 };
 _Static_assert(sizeof(item_descriptions) / sizeof(item_descriptions[0]) ==
                MENU_ITEM_SLOTS, "item_descriptions[] must match MENU_SLOT_*");
@@ -448,6 +452,7 @@ int menu_item_held(int slot) {
         case MENU_SLOT_NINURTAS_WINGS: return (player_items & (1 << ITEM_NINURTAS_WINGS)) != 0;
         case MENU_SLOT_TABLET_OF_DESTINIES:
                                        return (player_items & (1 << ITEM_TABLET_OF_DESTINIES)) != 0;
+        case MENU_SLOT_LIGHTNING_BOLT: return (player_items & (1 << ITEM_LIGHTNING_BOLT)) != 0;
         default: return 0;
     }
 }
@@ -473,6 +478,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_NINURTAS_ARM:   return "Ninurta's Arm";
         case MENU_SLOT_NINURTAS_WINGS: return "Ninurta's Wings";
         case MENU_SLOT_TABLET_OF_DESTINIES: return "Tablet of Destinies";
+        case MENU_SLOT_LIGHTNING_BOLT: return "Lightning Bolt";
         default: return "";
     }
 }
@@ -639,6 +645,10 @@ void menu_draw_item_icon_any(RenderContext *ctx, int slot, int x, int y,
             draw_icon(ctx, x, y, size, tbds_tpage, tbds_clut,
                       tbds_u0, tbds_v0, tbds_u1, tbds_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_LIGHTNING_BOLT:
+            draw_icon(ctx, x, y, size, ltbl_tpage, ltbl_clut,
+                      ltbl_u0, ltbl_v0, ltbl_u1, ltbl_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -718,6 +728,8 @@ void menu_init(void) {
                   &shrr_u0, &shrr_v0, &shrr_u1, &shrr_v1);
     load_icon_tim("\\TEX\\TBLTDST.TIM;1", &tbds_tpage, &tbds_clut,
                   &tbds_u0, &tbds_v0, &tbds_u1, &tbds_v1);
+    load_icon_tim("\\TEX\\LTNGBOLT.TIM;1", &ltbl_tpage, &ltbl_clut,
+                  &ltbl_u0, &ltbl_v0, &ltbl_u1, &ltbl_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);

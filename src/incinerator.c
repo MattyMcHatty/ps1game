@@ -275,6 +275,7 @@ static int slot_take(int slot) {
     case MENU_SLOT_NINURTAS_ARM:      if (!(player_items & (1 << ITEM_NINURTAS_ARM)))      return 0; player_items &= ~(1 << ITEM_NINURTAS_ARM);      return 1;
     case MENU_SLOT_NINURTAS_WINGS:    if (!(player_items & (1 << ITEM_NINURTAS_WINGS)))    return 0; player_items &= ~(1 << ITEM_NINURTAS_WINGS);    return 1;
     case MENU_SLOT_TABLET_OF_DESTINIES: if (!(player_items & (1 << ITEM_TABLET_OF_DESTINIES))) return 0; player_items &= ~(1 << ITEM_TABLET_OF_DESTINIES); return 1;
+    case MENU_SLOT_LIGHTNING_BOLT:    if (!(player_items & (1 << ITEM_LIGHTNING_BOLT)))    return 0; player_items &= ~(1 << ITEM_LIGHTNING_BOLT);    return 1;
     default: return 0;
     }
 }
@@ -300,6 +301,7 @@ static void slot_give(int slot, int count) {
     case MENU_SLOT_NINURTAS_ARM:      player_items |= (1 << ITEM_NINURTAS_ARM);     break;
     case MENU_SLOT_NINURTAS_WINGS:    player_items |= (1 << ITEM_NINURTAS_WINGS);   break;
     case MENU_SLOT_TABLET_OF_DESTINIES: player_items |= (1 << ITEM_TABLET_OF_DESTINIES); break;
+    case MENU_SLOT_LIGHTNING_BOLT:    player_items |= (1 << ITEM_LIGHTNING_BOLT);   break;
     default: break;
     }
 }

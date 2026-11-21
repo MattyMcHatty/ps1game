@@ -315,6 +315,11 @@
                      in hand in any room. 11025 Hz mono, 1.76 s, re-keyed from C
                      while Square is held (voice 0). -->
                 <file name="SHARUR.VAG"   type="data" source="C:\Users\virtu\Documents\ps1game\sounds\sharur.vag"/>
+                <!-- The Lightning Tablet's scene (src/lightning_tablet.c):
+                     the fuse while the line burns, lightning as it reaches
+                     the bolt. SND_BANK_UNDERWORLD. -->
+                <file name="FUSE.VAG"     type="data" source="C:\Users\virtu\Documents\ps1game\sounds\fuse.vag"/>
+                <file name="LIGHTNG.VAG"  type="data" source="C:\Users\virtu\Documents\ps1game\sounds\lightning.vag"/>
             </dir>
             <!-- Room textures live in a subdirectory too (same reason as SND):
                  adding them to the ROOT pushed its directory records past one
@@ -576,6 +581,10 @@
                      the Underworld map. -->
                 <file name="SHARUR.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\sharur.tim"/>
                 <file name="TBLTDST.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\tblt_dst.tim"/>
+                <!-- THE LIGHTNING BOLT (src/lightning_tablet.h): 64x64 8bpp
+                     at x736 y320 (Voff 64) beside the Tablet of Destinies,
+                     CLUT (272,485). RESERVED in the Underworld map. -->
+                <file name="LTNGBOLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\ltng_bolt.tim"/>
                 <!-- Garden Stairs: the caged switchback stairway behind the
                      Attic Exit's unlocked door. XTDRCG/XTDROUTR are its two new
                      mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the
@@ -2098,6 +2107,16 @@
              SHARUR'S CRACKED TABLET's page and palette (x768 y0, CLUT
              992,502), time-shared as the tablet's own art is. -->
             <file name="WINGTBQA.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\wings tablet question and answers.tim"/>
+        <!-- THE LIGHTNING TABLET (src/lightning_tablet.h), against
+             Lightnings Edge's north wall: a 1200 x 100 x 700 slab exported IN
+             PLACE. Its art is split in two at x=200, both 8bpp 128x128 on
+             tablets' pages, time-shared: LTNGPZL (the grid) x704 y0 CLUT
+             272,484, LTNGNNRT (Ninurta) x768 y0 CLUT 272,486. Lightnings Edge
+             draws none of those pages' other tenants, and their rooms
+             re-upload their own. -->
+            <file name="LTNGTBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\assets\props\lightning_tablet.smd"/>
+            <file name="LTNGPZL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\lightning tablet puzzle.tim"/>
+            <file name="LTNGNNRT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\lightning tablet ninurta.tim"/>
         <!-- HERO'S PLINTH (src/heros_plinth.h), between Sharur's Trial's
              north-west door and Wingscape's west door, with DESTINY'S DOOR's
              frame on its west wall. Borrows the volcanic, the lava and the

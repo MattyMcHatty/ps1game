@@ -105,6 +105,8 @@ static const char *sfx_files[SFX_COUNT] = {
     "\\SND\\DESTINY2.VAG;1",
     "\\SND\\DESTINY3.VAG;1",
     "\\SND\\SHARUR.VAG;1",
+    "\\SND\\FUSE.VAG;1",
+    "\\SND\\LIGHTNG.VAG;1",
 };
 
 /* Which bank(s) each effect belongs to — a MASK of SoundBank bits, so an effect
@@ -446,6 +448,9 @@ static const uint16_t sfx_bank[SFX_COUNT] = {   /* eleven banks: 16 bits */
     [SFX_DESTINY3]   = SND_BANK_PLINTH,
     /* Sharur's charge hum: in hand anywhere, so RESIDENT (see sound.h). */
     [SFX_SHARUR]     = SND_RESIDENT,
+    /* The Lightning Tablet's scene: Lightnings Edge only (sound.h). */
+    [SFX_FUSE]       = SND_BANK_UNDERWORLD,
+    [SFX_LIGHTNING]  = SND_BANK_UNDERWORLD,
 };
 
 /* Which SPU voice a sound plays on. Short one-shot effects share a small pool
@@ -848,6 +853,15 @@ static int sfx_channel(SfxID id) {
        1.80 s) stay in the pool, voices 6/7: the player is anchored for the
        whole animation and nothing else sounds over it. */
     if (id == SFX_DESTINY3)    return 20;   /* SFX_DMNSPEAK's (BOSS)  one-shot */
+    /* THE LIGHTNING TABLET's two (sound.h), on two of the voices the Ahriman's
+       note above found unclaimed in Chapter 4: 16's other claimants are
+       ZOMBIE (HOUSE) and LMBR_MOAN (CATACOMBS), 21's EXPLODE, LMBR_YELL,
+       ADAPA, LMS_SCREAM and SPIRIT_DESC - none of them in SND_BANK_UNDERWORLD,
+       all one-shots, so neither voice is poisoned. The fuse is re-keyed from
+       C on 16 and keyed off by its one caller; lightning rings on 21 past the
+       return of control, clear of the footsteps' and the pickup's pool voices. */
+    if (id == SFX_FUSE)        return 16;   /* SFX_ZOMBIE's   (HOUSE) one-shot */
+    if (id == SFX_LIGHTNING)   return 21;   /* SFX_EXPLODE's  (BOSS)  one-shot */
     if (id == SFX_CURSOR)      return 10;
     if (id == SFX_SELECT)      return 11;
     if (id == SFX_BACK)        return 12;

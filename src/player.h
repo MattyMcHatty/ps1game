@@ -50,6 +50,10 @@ typedef enum {
     ITEM_TABLET_OF_DESTINIES, /* on the Chamber of Destiny's higher west plinth,
                                taken by its Circle ceremony (src/destiny_plinths.h).
                                Chapter 4's third item. One exists; no use yet */
+    ITEM_LIGHTNING_BOLT,    /* the carving left where the Lightning Tablet stood
+                               once its squares are turned true
+                               (src/lightning_tablet.h). Chapter 4's fourth item.
+                               One exists; no use yet */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */
@@ -547,6 +551,21 @@ typedef enum {
        Bits 17-18 of game_flags2. */
     FLAG_SHARUR_TAKEN,
     FLAG_TABLET_OF_DESTINIES_TAKEN,
+    /* THE LIGHTNING TABLET (src/lightning_tablet.h), in Lightnings Edge, and
+       what it leaves behind - the Wings Tablet's pair, on the same reasoning:
+
+         FLAG_LIGHTNING_TABLET_BROKEN  every yellow square has been turned
+                                       true: the slab is gone for good. Set
+                                       the frame it shatters, at the end of
+                                       the solve's scene - which nothing can
+                                       interrupt (no Cross, no enemies, no
+                                       lava in the room).
+         FLAG_LIGHTNING_BOLT_TAKEN     the carving it left has been COLLECTED.
+
+       The pickup is a run-time spawn; lightning_tablet_apply_flags() re-lays
+       it from these two bits on every entry. Bits 19-20 of game_flags2. */
+    FLAG_LIGHTNING_TABLET_BROKEN,
+    FLAG_LIGHTNING_BOLT_TAKEN,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

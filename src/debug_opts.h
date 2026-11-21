@@ -237,6 +237,12 @@ typedef enum {
        HAS SHARUR also puts it in the hand, as HAS GRAVE-OLVER does. */
     DBG_HAS_SHARUR,
     DBG_HAS_DESTINY_TABLET,
+    /* THE LIGHTNING TABLET SOLVED (src/lightning_tablet.h): its squares
+       turned true, the slab already shattered in Lightnings Edge and the
+       Lightning Bolt in the inventory - the Wings Tablet's option exactly,
+       on the Lightning Tablet's two flags and its item bit. Listed after
+       WINGS SOLVED through title.c's order table. */
+    DBG_LIGHTNING_TABLET_SOLVED,
     DEBUG_OPT_COUNT
 } DebugOpt;
 

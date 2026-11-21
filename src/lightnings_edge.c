@@ -28,6 +28,7 @@
 #include "particles.h"
 #include "btn_glyph.h"
 #include "door.h"
+#include "lightning_tablet.h"  /* the north wall's tablet                   */
 
 /* Lightnings Edge - see lightnings_edge.h. The room half is src/lava_maze.c's
    (itself A Woman Scorned's, Wingscape's, Lava U's and Hell Hath No Fury's):
@@ -124,6 +125,7 @@ void lightnings_edge_upload_textures(void) {
     hell_hath_no_fury_upload_volcanic();
     garden_courtyard_upload_gate();
     underworld_sky_upload_textures();
+    lightning_tablet_upload_texture();   /* the tablet (owned, the tablets' page) */
 }
 
 /* ---- The cull key, and its RADIUS ------------------------------------------
@@ -177,6 +179,9 @@ void lightnings_edge_load_geometry(void) {
        same file (src/room_data.h). No block, no room. */
     if (le_smd && !room_data_bind(le_smd->n_prims)) le_smd = NULL;
     le_build_cull_keys();
+    /* The tablet's mesh, into the arena's tail behind the room's own file -
+       after room_data_bind, which reads that file's end (src/room_arena.h). */
+    lightning_tablet_load_geometry();
     /* The sky: kept across Chapter 4's rooms (a no-op when already held). */
     underworld_sky_load();
 }
@@ -249,6 +254,11 @@ void lightnings_edge_init(void) {
     oil_dispensers_clear();
     bars_clear();
     reset_particles();
+
+    /* THE LIGHTNING TABLET (src/lightning_tablet.h): no shot, no shards, and
+       a fresh deal of its twelve squares on every entry. Its broken flag is
+       read live. */
+    lightning_tablet_arm();
 }
 
 /* ---- The mesh --------------------------------------------------------------
@@ -478,10 +488,16 @@ void lightnings_edge_draw(RenderContext *ctx) {
         draw_le_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE GATE'S SIGN <<< - no props, no enemies - and any
-       pickup a later seed puts down. */
+    /* >>> LEVEL 8 IS THE LIGHTNING TABLET (its slab, lit lines, shards and
+       sign), the LIGHTNING BOLT once it has shattered, and the GATE'S SIGN.
+       The tablet reloads the plain view itself. */
     if (exp != DBG_EXP_NO_ENTITIES) {
+        lightning_tablet_draw(ctx);
         item_pickups_draw(ctx);
         le_s_text(ctx);
     }
+
+    /* The tablet's cursor and controls, over the puzzle's shot. Screen space
+       and outside the entity gate: it is the puzzle. */
+    lightning_tablet_draw_overlay(ctx);
 }

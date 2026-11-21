@@ -124,6 +124,7 @@ add_executable(horror_game
     src/sharur.c
     src/spirit_glow.c
     src/wings_tablet.c
+    src/lightning_tablet.c
     src/underworld_sky.c
     src/kennels_puzzle.c
     src/arm_switch.c
@@ -284,6 +285,13 @@ set_source_files_properties(
     src/greenhouse_flood.c
     src/valve_puzzle.c
     src/hatch_puzzle.c
+    # THE LIGHTNING TABLET (src/lightning_tablet.c), on the puzzles' terms
+    # above: it owns the screen while its board and its scene run. Its one
+    # per-frame job outside that is the slab itself - a 92-prim prop, not a
+    # room mesh - so it is cold by this list's measure. Measured: -O2 14,991
+    # bytes of text, -Os 13,195 - 1.8 KB handed straight back to free-at-rest
+    # (with its mesh moved into the room arena: 109 KB before it, 93 KB now).
+    src/lightning_tablet.c
     # ASAG'S ENDING, beats 2 and 3: the catacomb doors sliding apart and the
     # drop off the well. Scene directors, in this list beside delivery_intro.c
     # and east_hall_quake.c for their reason -- each runs for about ten seconds

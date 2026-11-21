@@ -135,6 +135,7 @@
 #include "ribcage.h"          /* ...and the room behind HHNF's south-east door   */
 #include "lava_maze.h"        /* ...and the room behind Ribcage's north door     */
 #include "lightnings_edge.h"  /* ...and the room behind Ribcage's east door      */
+#include "lightning_tablet.h" /* ...and the tablet standing against its north wall */
 #include "destiny_plinths.h"  /* ...and the two west plinths: Sharur, the Tablet */
 #include "sharur.h"           /* Sharur's reset                                  */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
@@ -896,6 +897,16 @@ static void update_current_area(GameState area) {
         update_golems();
         player_status_update();
         wings_tablet_update(1);
+        update_particles();
+        return;
+    }
+    /* ...and the LIGHTNING TABLET's puzzle (src/lightning_tablet.h): the
+       camera on the face, the cursor over its twelve squares, and once they
+       are true the scene - the lines lighting, Ninurta's glow, the shatter.
+       Nothing else lives in Lightnings Edge. */
+    if (area == STATE_LIGHTNINGS_EDGE && lightning_tablet_examining()) {
+        player_status_update();
+        lightning_tablet_update(1);
         update_particles();
         return;
     }
@@ -3787,9 +3798,18 @@ static void update_current_area(GameState area) {
            THE SOUTH GATE, back to Ribcage's east door: a GARDEN GATE on this
            side, so the gate transition (door_anim's own boot copy of
            grdn_gte; SFX_GATE is banked for the chapter). The latch tells
-           Ribcage which arrival this is. */
+           Ribcage which arrival this is.
+
+           ONE PROP: the LIGHTNING TABLET against the north wall
+           (src/lightning_tablet.h), collided from apply_collision_reception:
+           Chapter 4's third tablet puzzle. Solved, it shatters and leaves the
+           LIGHTNING BOLT - the room's first pickup, so item_pickups_update()
+           is new with it (tools/ADDING_AN_ITEM.txt STEP 8). The gate is
+           3600 away, so one Circle cannot do both. */
         apply_collision_reception();
         apply_height();
+        item_pickups_update();
+        lightning_tablet_update(lock);
         if (lightnings_edge_s_gate_triggered(lock)) {
             ribcage_from_le = 1;
             pending_area = STATE_RIBCAGE;
@@ -4989,6 +5009,10 @@ int main(int argc, const char **argv) {
                                      registration (its gaol door's copy),
                                      the rest TIM_SLOTs. */
     lightnings_edge_load_assets();/* ...and Lightnings Edge: TIM_SLOTs only. */
+    lightning_tablet_load_assets(); /* ...and its tablet: ONE deferred
+                                     registration. Its mesh is ROOM-SCOPED,
+                                     read into the room arena's tail on
+                                     entry (no heap). */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
                                      registrations. Its model is read on entry
                                      to the first room that draws it. */
@@ -7543,6 +7567,10 @@ int main(int argc, const char **argv) {
                                                     FLAG_WINGS_GUARD_UP says it
                                                     was left standing (every
                                                     seed plants it absent) */
+            if (pending_area == STATE_LIGHTNINGS_EDGE)
+                lightning_tablet_apply_flags();  /* ...and the Lightning Bolt
+                                                    where the Lightning Tablet
+                                                    stood, on the same terms */
             if (pending_area == STATE_INCINERATOR_ROOM)
                 incinerator_room_apply_flags();  /* the pearl / Gaol Key back
                                                     on the east tray: writes to
@@ -7822,6 +7850,10 @@ int main(int argc, const char **argv) {
                                   where a stale log box would cover them. */
                                (area == STATE_WINGSCAPE &&
                                 wings_tablet_examining()) ||
+                               /* ...and the Lightning Tablet's: its cursor
+                                  over the squares, then the solve's scene. */
+                               (area == STATE_LIGHTNINGS_EDGE &&
+                                lightning_tablet_examining()) ||
                                /* ...and Destiny's Door's jewel ceremony: no
                                   log line, no HUD, no weapon in shot. */
                                (area == STATE_HEROS_PLINTH &&

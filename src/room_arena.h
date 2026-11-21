@@ -73,4 +73,22 @@ int room_arena_file_size(void);
 /* The arena itself, i.e. what the last successful room_arena_load() returned. */
 void *room_arena_base(void);
 
+/* A SECOND, SMALL FILE IN THE ARENA'S TAIL - a prop mesh that only one room
+ * draws, so it need not sit on the heap for the whole run (the Lightning
+ * Tablet, src/lightning_tablet.h, is the first: 6 KB of heap handed back).
+ * Reads `filename` into the sector-aligned space after whatever the last
+ * room_arena_load() (and any earlier extra) put there, and returns its
+ * address, or NULL if no room is loaded or it does not fit. It does NOT touch
+ * room_arena_file_size(), so call it AFTER the room's room_data_bind().
+ *
+ * It lives exactly as long as the room's own mesh: the next room_arena_load()
+ * overwrites it. A module holding such a pointer must not trust it once the
+ * arena has moved on, which is what room_arena_generation() is for - note it
+ * at the load and compare before every use. Same CD rule as room_arena_load:
+ * STATE_LOADING only. Same smdInitData trap: rebase the fresh read once. */
+void *room_arena_load_extra(const char *filename);
+
+/* Bumped by every room_arena_load(), successful or not. */
+int room_arena_generation(void);
+
 #endif /* ROOM_ARENA_H */
