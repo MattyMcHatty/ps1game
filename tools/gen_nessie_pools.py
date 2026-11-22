@@ -50,6 +50,8 @@ POOLS = [('SHARUR_NW', 'assets/underworld/Sharurs Trial.smx',        'lava',    
          ('RC_NE',     'assets/underworld/Ribcage.smx',              'lava',    (4400, 2050)),
          ('RC_SW',     'assets/underworld/Ribcage.smx',              'lava',    (2700, -800)),
          ('RC_SE',     'assets/underworld/Ribcage.smx',              'lava',    (6000, -800)),
+         ('DC_N',      'assets/underworld/Destinys Cabin.smx',       'lava',    (2700, 6700)),
+         ('DC_S',      'assets/underworld/Destinys Cabin.smx',       'lava',    (2700, 300)),
          ]
 
 

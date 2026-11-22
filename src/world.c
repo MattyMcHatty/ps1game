@@ -489,7 +489,8 @@ static int room_index(GameState area) {
            north door. */
         case STATE_THE_TUBE:          return 73;
         /* DESTINYS CABIN, Chapter 4's thirteenth room, behind The Tube's
-           north door. Slot 74. Seeded EMPTY. */
+           north door. Slot 74. Seeded with four Nessies and two Ahrimans
+           (world_seed_room). */
         case STATE_DESTINYS_CABIN:    return 74;
         default:                   return 0;
     }
@@ -2397,6 +2398,36 @@ void world_seed_room(GameState area) {
         int g = golem_add(0, 1900, STATE_THE_TUBE);
         golem_set_blocks(g, GLM_BLOCKS_TUBE_N_DOOR);
         golem_set_alert(g);
+    }
+
+    /* DESTINYS CABIN (the user's placements, Nov 2026). Every one APPENDS to
+       its kind's seed order, so no existing save bit moves.
+
+       FOUR NESSIES, two in each lava pool at opposite ends of it, each
+       confined to its own (NSS_POOL_DC_*, tools/gen_nessie_pools.py):
+         (950,6550) / (4250,6550)  the NORTH pool, x[600,4600] z[6400,7000] -
+                      a trapezoid narrowing northward; 275 / 275 off its
+                      slanted end walls, 150 into it from z=6400;
+         (400,300) / (5000,300)    the SOUTH pool, x[0,5400] z[-200,800] -
+                      in its two end lobes, 500 off the south rim (z=-199)
+                      and 400 off the room's side walls.
+       All clear of NSS_BODY_RADIUS (80), so no wall shoves one on arrival.
+
+       TWO AHRIMANS inside the cabin in front of the Destiny Tablet, 650
+       south of its face (z=4750), side by side 400 apart:
+         (2700,4100)  HEIGHT B (the eye line), on the tablet's centre line;
+         (2300,4100)  HEIGHT A (just below it), beside it to the west.
+       Both DORMANT until the player steps into the WAKE ZONE in front of the
+       cabin's south door (ahr_wake_zones[], src/ahriman.c - the user's
+       call: an area, not a sightline), then both hunt, out of the doorway
+       and round the cabin by the room's waypoints (ahr_routes[]). */
+    if (area == STATE_DESTINYS_CABIN) {
+        nessie_add( 950, 6550, NSS_POOL_DC_N, STATE_DESTINYS_CABIN);
+        nessie_add(4250, 6550, NSS_POOL_DC_N, STATE_DESTINYS_CABIN);
+        nessie_add( 400,  300, NSS_POOL_DC_S, STATE_DESTINYS_CABIN);
+        nessie_add(5000,  300, NSS_POOL_DC_S, STATE_DESTINYS_CABIN);
+        ahriman_add(2700, 4100, AHR_HEIGHT_B, STATE_DESTINYS_CABIN);
+        ahriman_add(2300, 4100, AHR_HEIGHT_A, STATE_DESTINYS_CABIN);
     }
 
     /* THE LAVA MAZE (the user's placement, Nov 2026). ONE ALIVE COLUMN

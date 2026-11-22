@@ -243,6 +243,12 @@ typedef enum {
        on the Lightning Tablet's two flags and its item bit. Listed after
        WINGS SOLVED through title.c's order table. */
     DBG_LIGHTNING_TABLET_SOLVED,
+    /* THE DESTINY TABLET SOLVED (src/destiny_tablet.h): its words set, the
+       slab shattered in Destinys Cabin and the Fake Tablet of Destinies in
+       the inventory - the Lightning Tablet's option on the Destiny Tablet's
+       two flags and its item bit. "CABIN SOLVED", not "DESTINY ...": the
+       Chamber's DESTINY DOOR and HAS DESTINY TAB already use the word. */
+    DBG_DESTINY_TABLET_SOLVED,
     DEBUG_OPT_COUNT
 } DebugOpt;
 

@@ -99,6 +99,8 @@ static const uint8_t door_glyphs[][7] = {
     {0x00,0x00,0x00,0x00,0x00,0x01,0x00}, /* . */
     {0x00,0x00,0x00,0x00,0x00,0x00,0x04}, /* ' */
     {0x0E,0x11,0x0D,0x15,0x0D,0x01,0x0E}, /* @ */
+    {0x06,0x09,0x05,0x02,0x15,0x09,0x16}, /* & (the Destiny Tablet's
+                                              "DEFIED & STOLE") */
 };
 
 static int char_to_glyph(char c) {
@@ -112,6 +114,7 @@ static int char_to_glyph(char c) {
     if (c == '.')  return 66;
     if (c == '\'') return 67;
     if (c == '@')  return 68;
+    if (c == '&')  return 69;
     return 36;
 }
 
@@ -275,23 +278,26 @@ void door_draw_string_2d(
     int            ot_idx
 ) {
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
-    int i, row, col;
+    int i, k;
 
+    /* ONE TILE PER RECTANGLE of the glyph, not per lit pixel: the same pixels
+       (every lit one is in exactly one rectangle, glyph_decompose), at about a
+       third of the packets. The Destiny Tablet's board draws ~150 letters a
+       frame through here. */
+    glyph_rects_build();
     for (i = 0; str[i]; i++) {
-        const uint8_t *glyph = door_glyphs[char_to_glyph(str[i])];
-        for (row = 0; row < 7; row++) {
-            for (col = 0; col < 5; col++) {
-                if (!(glyph[row] & (0x01 << col))) continue;
-                if (ctx->next_packet + sizeof(TILE) > buf_end) return;
+        int slot = char_to_glyph(str[i]);
+        for (k = 0; k < glyph_rect_n[slot]; k++) {
+            const GlyphRect *gr = &glyph_rects[slot][k];
+            if (ctx->next_packet + sizeof(TILE) > buf_end) return;
 
-                TILE *t = (TILE *)ctx->next_packet;
-                setTile(t);
-                setXY0(t, sx + i * DOOR_SMALL_CELL_W + col, sy + row);
-                setWH(t, 1, 1);
-                setRGB0(t, r, g, b);
-                addPrim(&ctx->buffers[ctx->active_buffer].ot[ot_idx], t);
-                ctx->next_packet += sizeof(TILE);
-            }
+            TILE *t = (TILE *)ctx->next_packet;
+            setTile(t);
+            setXY0(t, sx + i * DOOR_SMALL_CELL_W + gr->c0, sy + gr->r0);
+            setWH(t, gr->c1 - gr->c0, gr->r1 - gr->r0);
+            setRGB0(t, r, g, b);
+            addPrim(&ctx->buffers[ctx->active_buffer].ot[ot_idx], t);
+            ctx->next_packet += sizeof(TILE);
         }
     }
 }

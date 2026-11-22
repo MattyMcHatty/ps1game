@@ -48,6 +48,7 @@ static const char * const kind_tim[PICKUP_KIND_COUNT] = {
     "\\TEX\\NNRTWNGS.TIM;1",   /* PICKUP_NINURTAS_WINGS    */
     "\\TEX\\TBLTDST.TIM;1",    /* PICKUP_TABLET_OF_DESTINIES */
     "\\TEX\\LTNGBOLT.TIM;1",   /* PICKUP_LIGHTNING_BOLT    */
+    "\\TEX\\FKTBLDST.TIM;1",   /* PICKUP_FAKE_TABLET_OF_DESTINIES */
 };
 static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Grave-olver",             /* PICKUP_GRAVEOLVER     */
@@ -67,6 +68,7 @@ static const char * const kind_name[PICKUP_KIND_COUNT] = {
     "Ninurta's Wings",         /* PICKUP_NINURTAS_WINGS    */
     "Tablet of Destinies",     /* PICKUP_TABLET_OF_DESTINIES */
     "Lightning Bolt",          /* PICKUP_LIGHTNING_BOLT    */
+    "Tablet of Destinies",     /* PICKUP_FAKE_TABLET_OF_DESTINIES - never "Fake" */
 };
 _Static_assert(sizeof(kind_tim) / sizeof(kind_tim[0]) == PICKUP_KIND_COUNT &&
                sizeof(kind_name) / sizeof(kind_name[0]) == PICKUP_KIND_COUNT,
@@ -149,6 +151,10 @@ static int tbds_tex = -1;
    x736 y320 (Voff 64, u 64..127 - beside the Tablet of Destinies), CLUT
    (272,485), a genuinely free run. */
 static int ltbl_tex = -1;
+/* THE FAKE TABLET OF DESTINIES (src/destiny_tablet.h) is the sixth: 64x64
+   8bpp at x736 y256 (Voff 0, u 64..127 - Sharur's old chapter-scoped slot,
+   over Rabisu's sheet), CLUT (272,489), a genuinely free run. */
+static int fktb_tex = -1;
 
 void item_pickups_register_textures(void) {
     texmgr_set_bank(TEXBANK_UNDERWORLD);
@@ -156,6 +162,7 @@ void item_pickups_register_textures(void) {
     nnwg_tex = texmgr_register("\\TEX\\NNRTWNGS.TIM;1");
     tbds_tex = texmgr_register("\\TEX\\TBLTDST.TIM;1");
     ltbl_tex = texmgr_register("\\TEX\\LTNGBOLT.TIM;1");
+    fktb_tex = texmgr_register("\\TEX\\FKTBLDST.TIM;1");
 }
 
 void item_pickups_upload_underworld(void) {
@@ -163,6 +170,7 @@ void item_pickups_upload_underworld(void) {
     if (nnwg_tex >= 0) texmgr_upload(nnwg_tex);
     if (tbds_tex >= 0) texmgr_upload(tbds_tex);
     if (ltbl_tex >= 0) texmgr_upload(ltbl_tex);
+    if (fktb_tex >= 0) texmgr_upload(fktb_tex);
 }
 
 void item_pickups_reset(void) {
@@ -187,7 +195,8 @@ void item_pickups_reset(void) {
                       (1 << ITEM_MEAT_SACK) | (1 << ITEM_GAOL_KEY) |
                       (1 << ITEM_NINURTAS_ARM) | (1 << ITEM_NINURTAS_WINGS) |
                       (1 << ITEM_TABLET_OF_DESTINIES) |
-                      (1 << ITEM_LIGHTNING_BOLT));
+                      (1 << ITEM_LIGHTNING_BOLT) |
+                      (1 << ITEM_FAKE_TABLET_OF_DESTINIES));
     player_hatch_keys   = 0;
     player_blood_pearls = 0;
     player_oil        = 0;   /* a new game holds no lantern and no oil */
@@ -298,6 +307,11 @@ static void collect(ItemPickup *p) {
         /* ...and the Lightning Tablet's, on the Wings' terms. */
         case PICKUP_LIGHTNING_BOLT: player_items |= (1 << ITEM_LIGHTNING_BOLT);
                                     game_flag_set(FLAG_LIGHTNING_BOLT_TAKEN); break;
+        /* ...and the Destiny Tablet's, on the same terms. */
+        case PICKUP_FAKE_TABLET_OF_DESTINIES:
+            player_items |= (1 << ITEM_FAKE_TABLET_OF_DESTINIES);
+            game_flag_set(FLAG_FAKE_TABLET_TAKEN);
+            break;
         default: break;
     }
     sound_play(SFX_PICKUP);

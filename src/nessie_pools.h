@@ -27,6 +27,8 @@ typedef enum {
     NSS_POOL_RC_NE,   /* Ribcage.smx, seeded at (4400,2050): 376 cells */
     NSS_POOL_RC_SW,   /* Ribcage.smx, seeded at (2700,-800): 396 cells */
     NSS_POOL_RC_SE,   /* Ribcage.smx, seeded at (6000,-800): 656 cells */
+    NSS_POOL_DC_N,   /* Destinys Cabin.smx, seeded at (2700,6700): 864 cells */
+    NSS_POOL_DC_S,   /* Destinys Cabin.smx, seeded at (2700,300): 1746 cells */
     NSS_POOL_COUNT
 } NessiePoolId;
 

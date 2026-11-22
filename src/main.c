@@ -139,6 +139,7 @@
 #include "the_tube.h"         /* ...and the spinning one behind its east door    */
 #include "destinys_cabin.h"   /* ...and the cabin behind the Tube's north door   */
 #include "lightning_tablet.h" /* ...and the tablet standing against its north wall */
+#include "destiny_tablet.h"   /* ...and the tablet inside Destinys Cabin */
 #include "destiny_plinths.h"  /* ...and the two west plinths: Sharur, the Tablet */
 #include "sharur.h"           /* Sharur's reset                                  */
 #include "lava.h"             /* ...whose lava burns, as every Chapter 4 floor's */
@@ -924,6 +925,19 @@ static void update_current_area(GameState area) {
     if (area == STATE_LIGHTNINGS_EDGE && lightning_tablet_examining()) {
         player_status_update();
         lightning_tablet_update(1);
+        update_particles();
+        return;
+    }
+    /* ...and the DESTINY TABLET's (src/destiny_tablet.h): the camera on the
+       face, the word board over it, and once the four words are right the
+       scene - the words glowing in turn, the shatter. The room's Nessies and
+       Ahriman keep going, as the Wings Tablet's Golem does: the board is not
+       a safe room. */
+    if (area == STATE_DESTINYS_CABIN && destiny_tablet_examining()) {
+        update_nessies();
+        update_ahrimans();
+        player_status_update();
+        destiny_tablet_update(1);
         update_particles();
         return;
     }
@@ -3952,15 +3966,30 @@ static void update_current_area(GameState area) {
            north door (src/destinys_cabin.c): a wooden cabin on a field of
            rock and grass, one storey, the shared wall routine and ONE flat
            floor zone. Lava along the north and south edges, which burns
-           (lava_update, by area - no code here). No enemies, no props.
+           (lava_update, by area - no code here). No enemies.
 
            THE WEST GATE, back to The Tube's north door: a GARDEN GATE on
            this side, so the gate transition (door_anim's own boot copy;
            SFX_GATE is in SND_BANK_UNDERWORLD). The latch tells The Tube
-           which arrival this is. */
+           which arrival this is.
+
+           ONE PROP: the DESTINY TABLET inside the cabin against its north
+           wall (src/destiny_tablet.h), collided from apply_collision_reception:
+           Chapter 4's fourth tablet puzzle. Solved, it shatters and leaves the
+           FAKE TABLET OF DESTINIES. The gate is ~2900 away, so one Circle
+           cannot do both.
+
+           ENEMIES (world_seed_room): two NESSIES in each lava pool, at its
+           ends, and two AHRIMANS (heights B and A) in front of the tablet,
+           DORMANT until the player enters the zone in front of the door,
+           then routed out of the cabin by its waypoints (ahr_routes[]). Their pushes ride
+           apply_collision_reception; both updates are area-gated inside. */
         apply_collision_reception();
         apply_height();
         item_pickups_update();
+        update_nessies();
+        update_ahrimans();
+        destiny_tablet_update(lock);
         if (destinys_cabin_w_gate_triggered(lock)) {
             tube_from_dc = 1;
             pending_area = STATE_THE_TUBE;
@@ -5140,6 +5169,8 @@ int main(int argc, const char **argv) {
                                      registration. Its mesh is ROOM-SCOPED,
                                      read into the room arena's tail on
                                      entry (no heap). */
+    destiny_tablet_load_assets();   /* ...and Destinys Cabin's tablet, on the
+                                     same terms. */
     underworld_sky_load_assets(); /* ...and the chapter's sky: THREE deferred
                                      registrations. Its model is read on entry
                                      to the first room that draws it. */
@@ -7739,6 +7770,10 @@ int main(int argc, const char **argv) {
                 lightning_tablet_apply_flags();  /* ...and the Lightning Bolt
                                                     where the Lightning Tablet
                                                     stood, on the same terms */
+            if (pending_area == STATE_DESTINYS_CABIN)
+                destiny_tablet_apply_flags();    /* ...and the Fake Tablet of
+                                                    Destinies where the Destiny
+                                                    Tablet stood, likewise */
             if (pending_area == STATE_INCINERATOR_ROOM)
                 incinerator_room_apply_flags();  /* the pearl / Gaol Key back
                                                     on the east tray: writes to
@@ -7962,7 +7997,16 @@ int main(int argc, const char **argv) {
                              /* ...and the Reception's, which is the same quake
                                 with the same log line and belongs in the same
                                 list for the same reason. */
-                             (area == STATE_RECEPTION && reception_hadad_active());
+                             (area == STATE_RECEPTION && reception_hadad_active()) ||
+                             /* The Destiny Tablet's flight and word board. In
+                                THIS list, not the cutscene one with its
+                                siblings: a wrong answer's whole payload is the
+                                log line "That doesn't make sense", and only
+                                `puzzle` keeps the log box up (the board keeps
+                                clear of it). Its solve scene is a cutscene,
+                                below. */
+                             (area == STATE_DESTINYS_CABIN &&
+                              destiny_tablet_examining() && !destiny_tablet_scene());
                 int cutscene = (area == STATE_GARDEN_COURTYARD && rabisu_boss_cutscene()) ||
                                /* Asag's opening: the faint, the pan, the boils
                                   and the two lines of speech. In the CUTSCENE
@@ -8025,6 +8069,10 @@ int main(int argc, const char **argv) {
                                   over the squares, then the solve's scene. */
                                (area == STATE_LIGHTNINGS_EDGE &&
                                 lightning_tablet_examining()) ||
+                               /* ...and the Destiny Tablet's solve: the words
+                                  glowing in turn, then the shatter. */
+                               (area == STATE_DESTINYS_CABIN &&
+                                destiny_tablet_scene()) ||
                                /* ...and Destiny's Door's jewel ceremony: no
                                   log line, no HUD, no weapon in shot. */
                                (area == STATE_HEROS_PLINTH &&

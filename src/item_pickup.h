@@ -57,6 +57,12 @@ typedef enum {
                                 FLAG_LIGHTNING_BOLT_TAKEN. Never placed by
                                 world.c: the Lightning Tablet leaves it where it
                                 stood when it shatters (src/lightning_tablet.h) */
+    PICKUP_FAKE_TABLET_OF_DESTINIES, /* -> ITEM_FAKE_TABLET_OF_DESTINIES bit,
+                                and FLAG_FAKE_TABLET_TAKEN. Its log line is
+                                "Tablet of Destinies": the player must not
+                                learn it is fake. Never placed by world.c: the
+                                Destiny Tablet leaves it where it stood when it
+                                shatters (src/destiny_tablet.h) */
     PICKUP_KIND_COUNT
 } PickupKind;
 

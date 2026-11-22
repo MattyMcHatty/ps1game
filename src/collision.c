@@ -21,6 +21,7 @@
 #include "sharur_tablet.h"
 #include "wings_tablet.h"
 #include "lightning_tablet.h"
+#include "destiny_tablet.h"
 #include "bars.h"              /* The Pit's dropping portcullis           */
 #include "cleaver.h"           /* the Cleaver Corridor's slamming blades  */
 #include "rafflesia.h"
@@ -974,6 +975,11 @@ void apply_collision_reception(void) {
        again: a 1200 x 700 face, so the wall standoff, and before the walls -
        its back stands 49 off Lightnings Edge's north wall. Gated inside. */
     lightning_tablet_collide(&cam_x, cam_y, &cam_z, LT_COLLIDE_RADIUS);
+    /* The Destiny Tablet (src/destiny_tablet.h), the Lightning Tablet's
+       terms: a 1200 x 700 face, so the wall standoff, and before the walls -
+       its back stands 150 off Destinys Cabin's inner north wall. Gated
+       inside. */
+    destiny_tablet_collide(&cam_x, cam_y, &cam_z, DT_COLLIDE_RADIUS);
     for (pass = 0; pass < 2; pass++)
         for (i = 0; i < r->wall_count; i++)
             collide_wall_frontonly_y(&r->walls[i], &cam_x, &cam_z,

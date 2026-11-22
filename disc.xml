@@ -585,6 +585,11 @@
                      at x736 y320 (Voff 64) beside the Tablet of Destinies,
                      CLUT (272,485). RESERVED in the Underworld map. -->
                 <file name="LTNGBOLT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\ltng_bolt.tim"/>
+                <!-- THE FAKE TABLET OF DESTINIES (src/destiny_tablet.h): 64x64
+                     8bpp at x736 y256 (Voff 0, u 64..127 - Sharur's old slot
+                     under Rabisu), CLUT (272,489). RESERVED in the Underworld
+                     map; re-stamped in every Underworld room. -->
+                <file name="FKTBLDST.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\fk_tblt_dst.tim"/>
                 <!-- Garden Stairs: the caged switchback stairway behind the
                      Attic Exit's unlocked door. XTDRCG/XTDROUTR are its two new
                      mesh textures; XTDRLHLF/XTDRRHLF are the two leaves of the
@@ -2117,6 +2122,13 @@
             <file name="LTNGTBLT.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\lightning_tablet.smd"/>
             <file name="LTNGPZL.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\lightning tablet puzzle.tim"/>
             <file name="LTNGNNRT.TIM" type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\lightning tablet ninurta.tim"/>
+        <!-- THE DESTINY TABLET (src/destiny_tablet.h), inside Destinys Cabin
+             against its north wall: a 1200 x 100 x 700 slab exported IN
+             PLACE, the Lightning Tablet's size. One texture, 8bpp 128x128 on
+             the tablets' page, x704 y0, CLUT 272,488 of its own. Destinys
+             Cabin draws none of that page's other tenants. -->
+            <file name="DSTTBLT.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\models\props\destiny_tablet.smd"/>
+            <file name="DSTTBLT.TIM"  type="data" source="C:\Users\virtu\Documents\ps1game\textures\underworld\destiny tablet.tim"/>
         <!-- HERO'S PLINTH (src/heros_plinth.h), between Sharur's Trial's
              north-west door and Wingscape's west door, with DESTINY'S DOOR's
              frame on its west wall. Borrows the volcanic, the lava and the

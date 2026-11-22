@@ -31,6 +31,9 @@
 #include "particles.h"
 #include "btn_glyph.h"
 #include "door.h"
+#include "destiny_tablet.h"     /* the room's one prop                       */
+#include "nessie.h"             /* two Nessies in each lava pool             */
+#include "ahriman.h"            /* the two Ahrimans in front of the tablet   */
 
 /* Destinys Cabin - see destinys_cabin.h. The room half is src/heavens_gate.c's
    (itself Lightnings Edge's, the Lava Maze's and Hell Hath No Fury's): cull
@@ -84,6 +87,14 @@ static void *dc_buff = NULL;
 #define DC_W_SPAWN_Z      5800
 #define DC_W_SPAWN_ROT    1024
 
+/* ---- THIS ROOM'S FOG ---------------------------------------------------------
+   The chapter's near (UW_FOG_NEAR, 800), and its own far: the chapter's 3500
+   cut by 25% to 2625 (the user's call, Nov 2026 - the Chamber of Destiny's
+   kind of exception, CD_FOG_FAR). The far is also the mesh's cull distance,
+   the distance a Nessie wakes at, and every sprite's fog. */
+#define DC_FOG_NEAR      UW_FOG_NEAR
+#define DC_FOG_FAR       ((UW_FOG_FAR * 3) / 4)   /* 2625 */
+
 #define DC_TEXT_RADIUS    1500
 #define DC_FADE_NEAR      1000
 #define DC_TRIGGER_RADIUS  500
@@ -107,7 +118,8 @@ static void dc_floor_zones_init(void) {
 }
 
 /* ---- Textures --------------------------------------------------------------
-   FIVE mesh textures, NONE owned (the user's brief: no new textures), each
+   FIVE mesh textures, NONE owned by the room (the Destiny Tablet owns its
+   own, src/destiny_tablet.c, uploaded from the list below), each
    put up at its own address by its owner's narrow uploader. All 4bpp at
    Voff 0, on pages tools/VRAM_MAP_UNDERWORLD.txt lets a room re-lay:
      0  lava          the Descent's LAVA.TIM (x320 y256, CLUT 944,502),
@@ -148,6 +160,7 @@ void destinys_cabin_upload_textures(void) {
     conservatory_upload_grss();
     garden_courtyard_upload_gate();
     underworld_sky_upload_textures();
+    destiny_tablet_upload_texture();     /* the tablet (owned, the tablets' page) */
 }
 
 /* ---- The cull key, and its RADIUS ------------------------------------------
@@ -201,6 +214,10 @@ void destinys_cabin_load_geometry(void) {
        same file (src/room_data.h). No block, no room. */
     if (dc_smd && !room_data_bind(dc_smd->n_prims)) dc_smd = NULL;
     dc_build_cull_keys();
+    /* The Destiny Tablet's mesh, into the arena's tail behind the room's own
+       file - after room_data_bind, which reads that file's end
+       (src/room_arena.h). */
+    destiny_tablet_load_geometry();
     /* The sky: kept across Chapter 4's rooms (a no-op when already held). */
     underworld_sky_load();
 }
@@ -275,6 +292,10 @@ void destinys_cabin_init(void) {
     oil_dispensers_clear();
     bars_clear();
     reset_particles();
+
+    /* THE DESTINY TABLET (src/destiny_tablet.h): no shot, no shards, an empty
+       board. Its broken flag is read live. */
+    destiny_tablet_arm();
 }
 
 /* ---- The mesh --------------------------------------------------------------
@@ -290,8 +311,8 @@ static void draw_dc_smd(RenderContext *ctx) {
     /* HOISTED OUT OF THE LOOP (STEP 3C fix 1): none of these can change while
        a frame is being queued. */
     int32_t cull = DEBUG_CULL_DIST();
-    if (!cull) cull = UW_FOG_FAR;
-    int32_t fog_start = UW_FOG_NEAR < cull ? UW_FOG_NEAR : cull / 2;
+    if (!cull) cull = DC_FOG_FAR;
+    int32_t fog_start = DC_FOG_NEAR < cull ? DC_FOG_NEAR : cull / 2;
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
@@ -473,17 +494,22 @@ static void draw_dc_smd(RenderContext *ctx) {
 void destinys_cabin_draw(RenderContext *ctx) {
     int exp = DEBUG_EXPERIMENT();
 
-    /* THE CHAPTER'S FOG, and nothing else's (src/underworld.h). */
-    g_fog_near = UW_FOG_NEAR;
-    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : UW_FOG_FAR;
+    /* THIS ROOM'S FOG (DC_FOG_NEAR/FAR, above): the chapter's colour and near,
+       a quarter shorter far. */
+    g_fog_near = DC_FOG_NEAR;
+    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : DC_FOG_FAR;
 
     /* The clear colour, not a full-screen TILE (wrong turn #3). The sky is an
        open ring, so this is what shows above and below it. */
     render_set_clear_colour(ctx, UW_FOG_R, UW_FOG_G, UW_FOG_B);
 
     /* 128x128 texture window so per-poly UVs wrap within each texture's page.
-       All five room textures and the sky's sit at Voff 0. No enemy sheet. */
+       All five room textures, the tablet's and the sky's sit at Voff 0. The
+       two enemy sheets do NOT (Voff 128), so each brackets itself and is told
+       what to restore. */
     RECT tw = { 0, 0, 128 >> 3, 128 >> 3 };
+    nessies_set_texwindow(&tw);
+    ahrimans_set_texwindow(&tw);
     {
         uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
         if (ctx->next_packet + sizeof(DR_TWIN) <= buf_end) {
@@ -504,10 +530,21 @@ void destinys_cabin_draw(RenderContext *ctx) {
         draw_dc_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE GATE'S SIGN <<< - no props, no enemies - and any
-       pickup a later seed puts down. */
+    /* >>> LEVEL 8 IS THE DESTINY TABLET (its slab, shards and sign), the
+       FAKE TABLET OF DESTINIES once it has shattered, the ENEMIES - four
+       Nessies with their fireballs and two Ahrimans (area-gated inside) - and
+       the GATE'S SIGN. <<< The tablet reloads the plain view itself; the
+       pickups draw before the enemies, whose brackets restore the window
+       (tools/ADDING_AN_ITEM.txt STEP 8). */
     if (exp != DBG_EXP_NO_ENTITIES) {
+        destiny_tablet_draw(ctx);
         item_pickups_draw(ctx);
+        draw_nessies(ctx);
+        draw_ahrimans(ctx);
         dc_w_text(ctx);
     }
+
+    /* The tablet's word board, over the puzzle's shot. Screen space and
+       outside the entity gate: it is the puzzle. */
+    destiny_tablet_draw_overlay(ctx);
 }

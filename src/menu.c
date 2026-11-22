@@ -186,6 +186,11 @@ static uint8_t  tbds_u0, tbds_v0, tbds_u1, tbds_v1;
 static uint16_t ltbl_tpage   = 0;
 static uint16_t ltbl_clut    = 0;
 static uint8_t  ltbl_u0, ltbl_v0, ltbl_u1, ltbl_v1;
+/* THE FAKE TABLET OF DESTINIES: 64x64 8bpp at (736,256) - Voff 0, U 64..127,
+   Sharur's old slot - re-stamped in every Underworld room like the Wings. */
+static uint16_t fktb_tpage   = 0;
+static uint16_t fktb_clut    = 0;
+static uint8_t  fktb_u0, fktb_v0, fktb_u1, fktb_v1;
 
 /* Font handles */
 static int menu_fnt    = -1;   /* description box */
@@ -214,6 +219,8 @@ static const char *item_descriptions[] = {
     "Ninurta's Wings\n\nThe wings of a\ngod, carved in\nstone",
     "Tablet of Destinies\n\nHolds the\nirrevocable\ndecrees of\nfate. Its\nowner has\nsupreme\nauthority.",
     "Lightning Bolt\n\nThe life force\nof the Gods,\ncarved in\nstone.",
+    /* The FAKE one: never let the word reach the screen. */
+    "Tablet of Destinies\n\nThe irrevocable\ndecrees of fate,\ncarved in stone",
 };
 _Static_assert(sizeof(item_descriptions) / sizeof(item_descriptions[0]) ==
                MENU_ITEM_SLOTS, "item_descriptions[] must match MENU_SLOT_*");
@@ -453,6 +460,8 @@ int menu_item_held(int slot) {
         case MENU_SLOT_TABLET_OF_DESTINIES:
                                        return (player_items & (1 << ITEM_TABLET_OF_DESTINIES)) != 0;
         case MENU_SLOT_LIGHTNING_BOLT: return (player_items & (1 << ITEM_LIGHTNING_BOLT)) != 0;
+        case MENU_SLOT_FAKE_TABLET_OF_DESTINIES:
+                                       return (player_items & (1 << ITEM_FAKE_TABLET_OF_DESTINIES)) != 0;
         default: return 0;
     }
 }
@@ -479,6 +488,7 @@ const char *menu_item_name(int slot) {
         case MENU_SLOT_NINURTAS_WINGS: return "Ninurta's Wings";
         case MENU_SLOT_TABLET_OF_DESTINIES: return "Tablet of Destinies";
         case MENU_SLOT_LIGHTNING_BOLT: return "Lightning Bolt";
+        case MENU_SLOT_FAKE_TABLET_OF_DESTINIES: return "Tablet of Destinies";
         default: return "";
     }
 }
@@ -649,6 +659,10 @@ void menu_draw_item_icon_any(RenderContext *ctx, int slot, int x, int y,
             draw_icon(ctx, x, y, size, ltbl_tpage, ltbl_clut,
                       ltbl_u0, ltbl_v0, ltbl_u1, ltbl_v1, 128, ot_idx);
             break;
+        case MENU_SLOT_FAKE_TABLET_OF_DESTINIES:
+            draw_icon(ctx, x, y, size, fktb_tpage, fktb_clut,
+                      fktb_u0, fktb_v0, fktb_u1, fktb_v1, 128, ot_idx);
+            break;
         default: break;
     }
 }
@@ -730,6 +744,8 @@ void menu_init(void) {
                   &tbds_u0, &tbds_v0, &tbds_u1, &tbds_v1);
     load_icon_tim("\\TEX\\LTNGBOLT.TIM;1", &ltbl_tpage, &ltbl_clut,
                   &ltbl_u0, &ltbl_v0, &ltbl_u1, &ltbl_v1);
+    load_icon_tim("\\TEX\\FKTBLDST.TIM;1", &fktb_tpage, &fktb_clut,
+                  &fktb_u0, &fktb_v0, &fktb_u1, &fktb_v1);
 
     /* Font streams — opened after main's FntLoad so they aren't clobbered. */
     items_fnt   = FntOpen(COL_ITEMS_X,   HEADER_Y, CELL_W * ITEM_COLS,   14, 0, 64);

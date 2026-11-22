@@ -71,7 +71,7 @@ void nessies_upload_textures(void) {
    the texture late-loads (logged, still correct). */
 int nessie_room_has_sheet(GameState area) {
     return area == STATE_SHARURS_TRIAL || area == STATE_A_WOMAN_SCORNED ||
-           area == STATE_RIBCAGE;
+           area == STATE_RIBCAGE || area == STATE_DESTINYS_CABIN;
 }
 
 /* Integer square root, lumberer.c's — including the `t > 0` seed (mistake 11 in

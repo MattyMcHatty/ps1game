@@ -215,6 +215,10 @@
 #define TIM_TPAGE_DSTNYDR  0x008c
 #define TIM_CLUT_DSTNYDR   0x78ea
 
+/* destiny tablet.tim  8bpp  VRAM ( 704,  0)  \TEXUNDW\DSTTBLT.TIM */
+#define TIM_TPAGE_DSTTBLT  0x008b
+#define TIM_CLUT_DSTTBLT   0x7a11
+
 /* er_logo_128.tim  4bpp  VRAM ( 672,128)  \TEX\ERLOGO.TIM */
 #define TIM_TPAGE_ERLOGO   0x000a
 #define TIM_CLUT_ERLOGO    0x7f20
@@ -222,6 +226,10 @@
 /* rusty_fence.tim  4bpp  VRAM ( 704,  0)  \FENCE.TIM */
 #define TIM_TPAGE_FENCE    0x000b
 #define TIM_CLUT_FENCE     0x7810
+
+/* fk_tblt_dst.tim  8bpp  VRAM ( 736,256)  \TEX\FKTBLDST.TIM */
+#define TIM_TPAGE_FKTBLDST 0x009b
+#define TIM_CLUT_FKTBLDST  0x7a51
 
 /* flm_rnds.tim    4bpp  VRAM ( 848,256)  \TEX\FLMRNDS.TIM */
 #define TIM_TPAGE_FLMRNDS  0x001d

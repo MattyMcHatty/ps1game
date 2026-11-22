@@ -69,7 +69,8 @@ void ahrimans_upload_textures(void) {
    tools/gen_tex_rooms.py mirrors it as AHRIMAN_ROOMS - keep the two in step, or
    the texture late-loads (logged, still correct). */
 int ahriman_room_has_sheet(GameState area) {
-    return area == STATE_LAVA_U || area == STATE_A_WOMAN_SCORNED;
+    return area == STATE_LAVA_U || area == STATE_A_WOMAN_SCORNED ||
+           area == STATE_DESTINYS_CABIN;
 }
 
 /* Integer square root, nessie.c's - including the `t > 0` seed (mistake 11 in
@@ -101,6 +102,59 @@ void ahriman_body(const Ahriman *s, int32_t *cyc, int32_t *hh, int32_t *hw) {
     *hw  = AHR_HIT_HALF_W;
 }
 
+/* ---- Wake zones -----------------------------------------------------------
+   A room listed here starts its Ahrimans DORMANT (ahriman.h): they hold their
+   placements until the player's position - not a sightline, the user's call -
+   enters one of the room's rectangles, and then all of them hunt together.
+   Half-open boxes in world x/z. A room with no entry hunts from the moment
+   the player walks in, as before.
+
+   DESTINYS CABIN (Nov 2026). Its Ahrimans wait inside the cabin, in front of
+   the Destiny Tablet. The cabin's one way in is the south doorway, x[3600,
+   4200] in the wall at z[1800,2000], so:
+     0  IN FRONT OF THE DOOR: x[3200,4600] z[900,2000] - the doorway's width
+        plus 400 either side, from 900 south of the outer face (the south
+        lava starts below ~800) up through the doorway itself.
+     1  THE CABIN'S INSIDE, x[1000,4399] z[2000,5000] - unreachable without
+        crossing zone 0 today; it is there so a player who is somehow inside
+        (a future spawn or save point) is never ignored by the two in front
+        of them. */
+typedef struct { GameState area; int32_t x0, x1, z0, z1; } AhrWakeZone;
+static const AhrWakeZone ahr_wake_zones[] = {
+    { STATE_DESTINYS_CABIN, 3200, 4600,  900, 2000 },
+    { STATE_DESTINYS_CABIN, 1000, 4399, 2000, 5000 },
+};
+#define AHR_WAKE_ZONE_COUNT ((int)(sizeof ahr_wake_zones / sizeof ahr_wake_zones[0]))
+
+static int ahr_room_sleeps(GameState area) {
+    int k;
+    for (k = 0; k < AHR_WAKE_ZONE_COUNT; k++)
+        if (ahr_wake_zones[k].area == area) return 1;
+    return 0;
+}
+
+static int ahr_in_wake_zone(GameState area, int32_t x, int32_t z) {
+    int k;
+    for (k = 0; k < AHR_WAKE_ZONE_COUNT; k++) {
+        const AhrWakeZone *w = &ahr_wake_zones[k];
+        if (w->area == area && x >= w->x0 && x < w->x1 && z >= w->z0 && z < w->z1)
+            return 1;
+    }
+    return 0;
+}
+
+/* Every dormant Ahriman of `area` to HUNT, with a fresh gaze. */
+static void ahr_wake_room(GameState area) {
+    int i;
+    for (i = 0; i < ahriman_count; i++) {
+        Ahriman *s = &ahrimans[i];
+        if (s->active && s->area == area && s->state == AHR_DORMANT) {
+            s->state = AHR_HUNT;
+            s->gaze  = 0;
+        }
+    }
+}
+
 /* Rebuild exactly as ahriman_add leaves one. Only the spawn, the height and the
    area survive the wipe. */
 static void ahr_spawn(Ahriman *s, int32_t x, int32_t y, int32_t z,
@@ -112,7 +166,7 @@ static void ahr_spawn(Ahriman *s, int32_t x, int32_t y, int32_t z,
     s->goal_x  = x; s->goal_z  = z;
     s->height  = h;
     s->health  = AHR_MAX_HEALTH * AHR_HP_SCALE;
-    s->state   = AHR_HUNT;
+    s->state   = ahr_room_sleeps(area) ? AHR_DORMANT : AHR_HUNT;
     s->active  = 1;
     s->area    = area;
 }
@@ -174,6 +228,9 @@ int32_t ahriman_scale_damage(int32_t base, DamageType type) {
 
 void ahriman_damage(Ahriman *s, int dmg) {
     if (!s->active || s->state == AHR_DEAD || dmg <= 0) return;
+    /* A hit wakes a sleeping room: a round through the doorway from outside
+       the zone must not let the player pick them off one by one. */
+    if (s->state == AHR_DORMANT) ahr_wake_room(s->area);
     s->health   -= dmg;
     s->hit_timer = AHR_BAR_TIMER_MAX;
     if (s->health <= 0) {
@@ -254,7 +311,7 @@ void ahrimans_collide(int32_t *px, int32_t py, int32_t *pz, int32_t radius) {
    segment tests and the answer only changes as fast as the bodies move.
 
    A room with no entry here simply goes straight and slides along walls. */
-#define AHR_MAX_WP        4
+#define AHR_MAX_WP        6     /* Destinys Cabin's six; adj[] is a byte, so <= 8 */
 #define AHR_ROUTE_EVERY  10
 #define AHR_WP_ARRIVE   150     /* a waypoint this close is "reached"        */
 #define AHR_NO_ROUTE    0x7fffffff
@@ -272,8 +329,29 @@ typedef struct {
      0  (-4500,-3900)  the foot of the WEST arm
      1  ( -300,-3900)  the foot of the EAST arm
    and they see each other along z=-3900. */
+/* DESTINYS CABIN. The Ahriman starts INSIDE the cabin, in front of the
+   Destiny Tablet, and the player arrives OUTSIDE it, at the west gate. The
+   cabin's walls are a box x[800,4599] z[1800,5200] (inside x[1000,4399]
+   z[2000,5000]) whose one way through is the south doorway, x[3600,4200].
+   Six waypoints, each 400+ off every wall (the body is 100):
+     0  (3900,2400)  inside the doorway
+     1  (3900,1300)  outside it, on the rock between the cabin and the lava
+     2  ( 400,1300)  the south-west corner      3  ( 400,5800)  the north-west
+     4  (5000,1300)  the south-east corner      5  (5000,5800)  the north-east
+   0-1 through the doorway; 1-2, 1-4 and 2-4 along z=1300; 2-3 down the west
+   side; 4-5 down the east; 3-5 across the north, z=5800 - north of the cabin
+   (5200) and south of the north lava's walls (6400). */
 static const AhrRoute ahr_routes[] = {
     { STATE_LAVA_U, 2, { -4500, -300 }, { -3900, -3900 }, { 0x2, 0x1 } },
+    { STATE_DESTINYS_CABIN, 6,
+      { 3900, 3900,  400,  400, 5000, 5000 },
+      { 2400, 1300, 1300, 5800, 1300, 5800 },
+      { 0x02,                 /* 0: 1          */
+        0x15,                 /* 1: 0, 2, 4    */
+        0x1A,                 /* 2: 1, 3, 4    */
+        0x24,                 /* 3: 2, 5       */
+        0x26,                 /* 4: 1, 2, 5    */
+        0x18 } },             /* 5: 3, 4       */
 };
 #define AHR_ROUTE_COUNT ((int)(sizeof ahr_routes / sizeof ahr_routes[0]))
 
@@ -419,6 +497,15 @@ void update_ahrimans(void) {
         int32_t px = player_x(), py = player_y(), pz = player_z();
         int32_t dx = px - s->x, dz = pz - s->z;
         int32_t d  = ahr_len(dx, dz);
+
+        /* DORMANT: the player's POSITION in the room's wake zone wakes them
+           all (no sightline - the user's call). Until then it only hovers:
+           no route, no gaze, nothing below. A shove from a hit has already
+           woken it (ahriman_damage). */
+        if (s->state == AHR_DORMANT) {
+            if (ahr_in_wake_zone(s->area, px, pz)) ahr_wake_room(s->area);
+            else continue;
+        }
 
         if (--s->route_tick <= 0) {
             s->route_tick = AHR_ROUTE_EVERY;
@@ -657,7 +744,8 @@ void draw_ahrimans(RenderContext *ctx) {
         if (wdist >= g_fog_far) continue;
         /* Behind the island: skip the fill (collision.h). Never once it has
            the player - an attacker must not be invisible (mistake 10). */
-        if (s->state == AHR_HUNT && wdist > AHR_STOP_DIST * 2 &&
+        if ((s->state == AHR_HUNT || s->state == AHR_DORMANT) &&
+            wdist > AHR_STOP_DIST * 2 &&
             collision_hidden_from_camera(s->x, ahriman_body_y(s), s->z))
             continue;
 

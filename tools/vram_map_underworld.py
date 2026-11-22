@@ -85,6 +85,7 @@ RESERVED["nnrt_wngs.tim"] = "the Ninurta's Wings item (under the Wings Tablet)"
 # Nov 2026 it is a global, held in every chapter under New Game+.
 RESERVED["tblt_dst.tim"] = "the Tablet of Destinies item (Chamber's higher plinth)"
 RESERVED["ltng_bolt.tim"] = "the Lightning Bolt item (under the Lightning Tablet)"
+RESERVED["fk_tblt_dst.tim"] = "the Fake Tablet of Destinies item (under the Destiny Tablet)"
 # Every earlier chapter's item: startup-resident, never drawn down here.
 NEEDS_RESTORE = set(CATA.NEEDS_RESTORE) | CHAPTER_3_ITEMS
 
@@ -156,6 +157,9 @@ BANK = {
     # 8bpp on the tablets' page with a free CLUT of its own.
     "lightning tablet puzzle.tim":      "Lightnings Edge: the tablet, the grid (owned 8bpp; the tablets' page) x704 y0",
     "lightning tablet ninurta.tim":     "Lightnings Edge: the tablet, Ninurta (owned 8bpp; the cracked tablet's page) x768 y0",
+    # THE DESTINY TABLET (src/destiny_tablet.h): Destinys Cabin's slab, on the
+    # Lightning Tablet's grid footprint with a free CLUT of its own.
+    "destiny tablet.tim":               "Destinys Cabin: the tablet (owned 8bpp; the tablets' page) x704 y0",
 }
 
 tims = {}

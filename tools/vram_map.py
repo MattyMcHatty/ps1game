@@ -1476,6 +1476,30 @@ KNOWN_STREAM_PAIRS = [
     # re-stamped by item_pickups_upload_underworld().
     ("Rabisu tex.tim"                             , "ltng_bolt.tim"),
     ("incinerator.tim"                            , "ltng_bolt.tim"),
+    #   destiny tablet.tim -> DESTINYS CABIN's tablet prop (src/destiny_tablet.c),
+    # 8bpp 128x128 on THE TABLETS' PAGE, x704 y0 - the Lightning Tablet's grid
+    # footprint exactly - with a CLUT of its own (272,488), a genuinely free
+    # run. Every tenant of the page is re-uploaded by its own room on entry,
+    # and Destinys Cabin draws none of them, so taking it costs no restore.
+    ("chain.tim"                                  , "destiny tablet.tim"),
+    ("gravel_gs.tim"                              , "destiny tablet.tim"),
+    ("poison_flower_base_gh.tim"                  , "destiny tablet.tim"),
+    ("rusty.tim"                                  , "destiny tablet.tim"),
+    ("rusty_fence.tim"                            , "destiny tablet.tim"),
+    ("stable glyphs.tim"                          , "destiny tablet.tim"),
+    ("upstairs.tim"                               , "destiny tablet.tim"),
+    ("destiny tablet.tim"                         , "destinys door frame bottom right.tim"),
+    ("destiny tablet.tim"                         , "heavens gate right.tim"),
+    ("destiny tablet.tim"                         , "lightning tablet puzzle.tim"),
+    ("destiny tablet.tim"                         , "ninurta tablet bottom right.tim"),
+    ("destiny tablet.tim"                         , "sharur tablet.tim"),
+    ("destiny tablet.tim"                         , "wing tablet.tim"),
+    #   fk_tblt_dst.tim -> THE FAKE TABLET OF DESTINIES, the sixth chapter-scoped
+    # item: 64x64 8bpp at x736 y256 (Voff 0, u 64..127 - Sharur's old slot,
+    # beside Ninurta's Arm and Wings), CLUT (272,489), a genuinely free run.
+    # Ninurta's Arm's terms: re-stamped by item_pickups_upload_underworld().
+    ("Rabisu tex.tim"                             , "fk_tblt_dst.tim"),
+    ("incinerator.tim"                            , "fk_tblt_dst.tim"),
     #   HEAVENS GATE (src/heavens_gate.c), Nov 2026: five owned 4bpp textures,
     # each on a Voff-0 page start in the Underworld bank whose every other
     # tenant is re-uploaded by its own room on entry (tools/VRAM_MAP_UNDERWORLD.txt

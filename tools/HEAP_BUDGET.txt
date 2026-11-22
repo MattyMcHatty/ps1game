@@ -79,16 +79,17 @@ TEXMGR REGISTRATIONS  (bytes READ at a door - since Nov 2026 texmgr streams
   conservatory.c           3         30720
   piano_props.c            3         30720
   rear_gate.c              2         28672
+  item_pickup.c            5         26624
   descent_to_hell.c        2         20480
   fountain_square.c        2         20480
   garden_courtyard.c       2         20480
   hall_2f.c                2         20480
-  item_pickup.c            4         20480
   maze_one.c               2         20480
   rafflesia.c              2         20480
   sharur_tablet.c          2         20480
   wings_tablet.c           2         20480
   column.c                 1         18432
+  destiny_tablet.c         1         18432
   incinerator.c            1         18432
   rabisu.c                 1         18432
   sconce.c                 1         18432
@@ -130,8 +131,8 @@ TEXMGR REGISTRATIONS  (bytes READ at a door - since Nov 2026 texmgr streams
   lms_creep.c              1          6144
   maggot.c                 1          6144
   creep.c                  1          4096
-  TOTAL                    131     1597440
-  TEXMGR_MAX               144               <- src/texmgr.c; 13 spare, checked at build time
+  TOTAL                    133     1622016
+  TEXMGR_MAX               144               <- src/texmgr.c; 11 spare, checked at build time
 
 DEFERRED REGISTRATIONS  (registered at startup, NOT read until a chapter door)
   none
@@ -199,20 +200,20 @@ ROOM-SCOPED LOADS  (read on entry, freed again - NOT permanent)
   so FREE AT REST must stay comfortably above the largest of them.
 
 THE HEAP
-  _end (heap start)   0x8017220C
+  _end (heap start)   0x80175CA4
   heap top            0x801FFFF8   <- InitHeap; the STACK starts at 0x801FFF00
-  heap size             432948 bytes (423 KB)
+  heap size             417948 bytes (408 KB)
   stack floor         0x801DBD40   <- MEASURED $sp; main()'s RenderContext
   stack reserve         148152 bytes (145 KB)  <- NOT usable heap
 
-  texmgr peak held       36864 bytes (36 KB)   8.5%   <- ATTIC_EXIT (largest PINNED set)
-  (streamed, not held: largest room set 243712 bytes, REAR_GATE; one TIM at a
+  texmgr peak held       36864 bytes (36 KB)   8.8%   <- ATTIC_EXIT (largest PINNED set)
+  (streamed, not held: largest room set 260096 bytes, CHAMBER_OF_DESTINY; one TIM at a
    time, so the door's transient is the largest TIM, 18432 bytes)
-  kept buffers           19500 bytes (19 KB)   4.5%
-  chapter-scoped         18816 bytes (18 KB)   4.3%
-  PERMANENT TOTAL        75180 bytes (73 KB)  17.4%
-  FREE AT REST          357768 bytes (349 KB)  82.6%   <- STACK ALREADY SUBTRACTED
-                                  (was 505920 before the stack was counted;
+  kept buffers           19500 bytes (19 KB)   4.7%
+  chapter-scoped         18816 bytes (18 KB)   4.5%
+  PERMANENT TOTAL        75180 bytes (73 KB)  18.0%
+  FREE AT REST          342768 bytes (335 KB)  82.0%   <- STACK ALREADY SUBTRACTED
+                                  (was 490920 before the stack was counted;
                                    THAT figure is what the old cliff was measured in)
 
   >>> THIS IS A RESTING TOTAL AND IT DOES NOT MODEL A TRANSITION'S PEAK.
@@ -271,7 +272,7 @@ THE HEAP
   hand: permanent, plus everything live at that one instant.
   MEASURED at the tightest door in the game (Asag's arena, where the
   boss model is read): about 101 KB contiguous under the stack, 93 KB
-  once read_file's margin comes off - against the 349 KB printed above.
+  once read_file's margin comes off - against the 334 KB printed above.
   The difference is other transients and holes too small to reuse.
   Treat anything under 128 KB free at rest as already in trouble.
 

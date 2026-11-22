@@ -16,7 +16,8 @@
    above 6400), and it BURNS (tools/gen_lava_floors.py). In the middle, a
    wooden CABIN (stables wood), x[800,4600] z[1800,5200], 1000 tall, that
    the player can walk into through the doorway in its south side. One flat
-   floor zone. No props, no enemies.
+   floor zone. No enemies. One prop: the DESTINY TABLET inside the cabin
+   against its north wall (src/destiny_tablet.h).
 
    ONE GATE:
      - WEST (x=0, z[5400,6200]): a garden gate (grdn_gte), 500 tall. It

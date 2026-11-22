@@ -54,6 +54,13 @@ typedef enum {
                                once its squares are turned true
                                (src/lightning_tablet.h). Chapter 4's fourth item.
                                One exists; no use yet */
+    ITEM_FAKE_TABLET_OF_DESTINIES, /* the stone left where the Destiny Tablet
+                               stood once its words are set
+                               (src/destiny_tablet.h). >>> THE PLAYER NEVER
+                               LEARNS IT IS FAKE: <<< every name it shows is
+                               "Tablet of Destinies". A different item from
+                               ITEM_TABLET_OF_DESTINIES, with its own art.
+                               Chapter 4's fifth item. One exists; no use yet */
     MAX_ITEM_TYPES
 } ItemType;
 extern int     player_items;   /* bitmask — bit ItemType set means it is held */
@@ -566,6 +573,20 @@ typedef enum {
        it from these two bits on every entry. Bits 19-20 of game_flags2. */
     FLAG_LIGHTNING_TABLET_BROKEN,
     FLAG_LIGHTNING_BOLT_TAKEN,
+    /* THE DESTINY TABLET (src/destiny_tablet.h), in Destinys Cabin, and the
+       Fake Tablet of Destinies it leaves - the Lightning Tablet's pair, on the
+       same reasoning:
+
+         FLAG_DESTINY_TABLET_BROKEN  the four words are set right: the slab is
+                                     gone for good. Set the frame it shatters,
+                                     at the end of the solve's scene, which
+                                     nothing can interrupt.
+         FLAG_FAKE_TABLET_TAKEN      the stone it left has been COLLECTED.
+
+       destiny_tablet_apply_flags() re-lays the pickup from these two bits on
+       every entry. Bits 21-22 of game_flags2. */
+    FLAG_DESTINY_TABLET_BROKEN,
+    FLAG_FAKE_TABLET_TAKEN,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

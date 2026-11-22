@@ -50,7 +50,7 @@ ALLOWLIST = [
     'OILDISP.SMD', 'PIANO.SMD', 'SAVEPT.SMD', 'SCONCE.SMD', 'SHARTBLT.SMD',
     'TABLETS.SMD', 'TRKDRWR.SMD', 'VALVEH.SMD', 'VINES.SMD', 'WINGTBLT.SMD',
     # room-scoped props: the arena extra and the door pairs
-    'LTNGTBLT.SMD', 'HATCHDL.SMD', 'HATCHDR.SMD', 'CTCMBDL.SMD', 'CTCMBDR.SMD',
+    'LTNGTBLT.SMD', 'DSTTBLT.SMD', 'HATCHDL.SMD', 'HATCHDR.SMD', 'CTCMBDL.SMD', 'CTCMBDR.SMD',
     # bosses: read at the door of the room they fight in
     'RABISU.SMD', 'ASGBODY.SMD', 'LAMASHTU.SMD',
     # skies and set dressing

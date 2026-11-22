@@ -45,6 +45,7 @@ const char *const debug_opt_names[DEBUG_OPT_COUNT] = {
     "HAS SHARUR",
     "HAS DESTINY TAB",
     "LIGHTNING SOLVED",
+    "CABIN SOLVED",
 };
 
 static int grants_pending = 0;
@@ -454,5 +455,13 @@ void debug_opts_apply_grants(void) {
         game_flag_set(FLAG_LIGHTNING_TABLET_BROKEN);
         game_flag_set(FLAG_LIGHTNING_BOLT_TAKEN);
         player_items |= (1 << ITEM_LIGHTNING_BOLT);
+    }
+
+    /* The Destiny Tablet, on the same terms: TAKEN stops
+       destiny_tablet_apply_flags() laying a second tablet on the floor. */
+    if (debug_opts[DBG_DESTINY_TABLET_SOLVED]) {
+        game_flag_set(FLAG_DESTINY_TABLET_BROKEN);
+        game_flag_set(FLAG_FAKE_TABLET_TAKEN);
+        player_items |= (1 << ITEM_FAKE_TABLET_OF_DESTINIES);
     }
 }

@@ -119,9 +119,10 @@ def room_uploaders(rooms):
 FLOWER_ROOMS = {"STATE_OUTSIDE_CATACOMBS", "STATE_MAZE_ONE", "STATE_MAZE_TWO",
                 "STATE_STABLES", "STATE_GREENHOUSE"}
 # nessie_room_has_sheet() in src/nessie.c, restated.
-NESSIE_ROOMS = {"STATE_SHARURS_TRIAL", "STATE_A_WOMAN_SCORNED", "STATE_RIBCAGE"}
+NESSIE_ROOMS = {"STATE_SHARURS_TRIAL", "STATE_A_WOMAN_SCORNED", "STATE_RIBCAGE",
+                "STATE_DESTINYS_CABIN"}
 # ahriman_room_has_sheet() in src/ahriman.c, restated.
-AHRIMAN_ROOMS = {"STATE_LAVA_U", "STATE_A_WOMAN_SCORNED"}
+AHRIMAN_ROOMS = {"STATE_LAVA_U", "STATE_A_WOMAN_SCORNED", "STATE_DESTINYS_CABIN"}
 # golem_room_has_sheet() in src/golem.c, restated.
 GOLEM_ROOMS = {"STATE_WINGSCAPE", "STATE_A_WOMAN_SCORNED", "STATE_RIBCAGE",
                "STATE_THE_TUBE"}

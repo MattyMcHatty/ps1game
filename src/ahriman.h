@@ -29,8 +29,13 @@
  *
  * THE FIGHT, in order:
  *
- *   HUNT    From the moment it spawns, or the moment the player walks in - no
- *           dormant state. It floats at the player until it is within
+ *   (DORMANT  Only in a room with a WAKE ZONE - Destinys Cabin today, see
+ *           ahr_wake_zones[] in the .c. It hovers where it was placed until
+ *           the player's POSITION enters the zone, or one is hit, and then
+ *           every dormant one in the room hunts at once.)
+ *
+ *   HUNT    From the moment it spawns, or the moment the player walks in - in
+ *           every room without a wake zone. It floats at the player until it is within
  *           AHR_HOLD_DIST (750, true radial) and then hangs there; the moment
  *           the player is beyond 750 again it follows. Routed round the room's
  *           solid blocks (Lava U's rock island) through a few authored
@@ -75,7 +80,8 @@
  * y128), CLUTs (144,480)/(160,480): tools/split_ahriman_sheet.py, disc.xml.
  * Voff 128, so every sprite brackets its own texture window.
  *
- * >>> ONLY LAVA U AND A WOMAN SCORNED UPLOAD THE SHEET TODAY. <<< Placing one in another room
+ * >>> ONLY LAVA U, A WOMAN SCORNED AND DESTINYS CABIN UPLOAD THE SHEET TODAY. <<<
+ * Placing one in another room
  * means: the placement in world.c (with its height), the room in
  * ahriman_room_has_sheet() (the .c) - which main.c and tools/gen_tex_rooms.py
  * key the upload on - update_ahrimans() / draw_ahrimans() /
@@ -99,8 +105,9 @@
  * UNDERWORLD copy for this).
  * ----------------------------------------------------------------------- */
 
-#define MAX_AHRIMANS           8    /* WHOLE-GAME budget. Five placed: three in
-                                       Lava U, two in A Woman Scorned */
+#define MAX_AHRIMANS           8    /* WHOLE-GAME budget. Seven placed: three in
+                                       Lava U, two in A Woman Scorned, two in
+                                       Destinys Cabin */
 
 /* ---- Health, in half-points - see above. */
 #define AHR_MAX_HEALTH         3
@@ -184,6 +191,12 @@ typedef enum {
     AHR_PRIMED,    /* the flash has gone off; frozen player, 1 s wait         */
     AHR_CHARGE,    /* coming in and biting - until one of them dies           */
     AHR_DEAD,
+    AHR_DORMANT,   /* ONLY in a room with a WAKE ZONE (ahr_wake_zones[], the
+                      .c): hovering where it was placed - no pursuit, no gaze -
+                      until the player steps into the zone or something hits
+                      one, when EVERY dormant one in the room goes to HUNT at
+                      once. Back to dormant when the room is left
+                      (ahrimans_rest). Appended, so no value above moves. */
 } AhrimanState;
 
 typedef struct {
