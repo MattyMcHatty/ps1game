@@ -205,11 +205,14 @@ static void *read_file(const char *name) {
    one sector of TIM header, no pixels — so Chapters 1 and 2 pay nothing for it
    (src/texmgr.h). */
 void sconce_load_assets(void) {
-    /* BANK: Chapter 3 and nothing else. Derived, not guessed — py
+    /* BANK: Chapters 3 AND 4. Derived, not guessed — py
        tools/check_tex_banks.py walks the uploader call graph (this module is
-       reached from catacombs_entry_upload_textures) and fails the build if this
-       mask is short. */
-    texmgr_set_bank(TEXBANK_CATACOMBS);
+       reached from catacombs_entry_upload_textures, and since Nov 2026 from
+       chamber_of_destiny_upload_textures: the four lit corner sconces) and
+       fails the build if this mask is short. Its page, x448 y0, is free in the
+       Underworld (tools/VRAM_MAP_UNDERWORLD.txt) and its CLUT line (672,502)
+       is clear of the Chamber's own. */
+    texmgr_set_bank(TEXBANK_CATACOMBS | TEXBANK_UNDERWORLD);
 
     sconce_buf = read_file("\\TEXCTCMB\\SCONCE.SMD;1");
     if (sconce_buf) sconce_smd = smdInitData(sconce_buf);

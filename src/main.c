@@ -953,6 +953,7 @@ static void update_current_area(GameState area) {
     if (area == STATE_CHAMBER_OF_DESTINY && destiny_plinths_active()) {
         player_status_update();
         destiny_plinths_update(1);
+        sconces_update();       /* the corner flames keep burning in the shot */
         update_particles();
         return;
     }
@@ -3701,12 +3702,15 @@ static void update_current_area(GameState area) {
         /* THE CHAMBER OF DESTINY - Chapter 4's sixth room, behind Destiny's
            Door (src/chamber_of_destiny.c): two storeys, the y=0 floor and the
            y=-200 dais up one ramp, the shared wall routine (Y-gated:
-           multi_level) and three floor zones. No enemies, no props, no lava.
+           multi_level) and three floor zones. No enemies, no lava; four lit
+           corner sconces (sconces_collide, area-tagged, in the reception
+           routine).
 
            ONE DOOR, Destiny's Door, back to the frame in Hero's Plinth: the
            DESTINY transition (the door on this side is Destiny's Door too;
            its texture is uploaded by this room). The latch tells Hero's
            Plinth which arrival this is. */
+        sconces_update();       /* flicker the four corner flames */
         apply_collision_reception();
         apply_height();
         /* THE WEST PLINTHS (src/destiny_plinths.h): Circle at either starts

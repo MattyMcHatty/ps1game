@@ -196,7 +196,21 @@ void chamber_of_destiny_upload_textures(void) {
     for (i = 0; i < CD_OWNED; i++)
         if (owned_tex[i] >= 0) texmgr_upload(owned_tex[i]);
     underworld_sky_upload_textures();
+    /* The four corner sconces' own page (x448 y0, Voff 0 - the 128 window in
+       the draw serves it), through the prop's narrow uploader. */
+    sconce_upload_texture();
 }
+
+/* ---- THE SCONCES, one in each corner of the square chamber -----------------
+   The chamber is x[-6600,-3000] z[-1800,1800]; each stand is centred 200 in
+   from both walls of its corner. The stand is 120 wide and the player is held
+   75 off it, so the 140 gap to each wall is too narrow to walk behind. The
+   corners are clear of everything else (the only raised geometry is the dais,
+   x[-6000,-4800] z[-1200,1200]), and four is exactly RENDER_MAX_LIGHTS. */
+#define CD_SCONCE_INSET   200
+#define CD_SCONCE_X_E   (-3000 - CD_SCONCE_INSET)
+#define CD_SCONCE_X_W   (-6600 + CD_SCONCE_INSET)
+#define CD_SCONCE_Z     (1800 - CD_SCONCE_INSET)
 
 /* ---- The cull key, and its RADIUS ------------------------------------------
    hp_build_cull_keys() verbatim (src/heros_plinth.c, Wingscape's, Hell Hath
@@ -320,6 +334,13 @@ void chamber_of_destiny_init(void) {
     oil_dispensers_clear();
     bars_clear();
     reset_particles();
+
+    /* ...then this room's four LIT sconces, bases on the y=0 floor (the model
+       is authored base-at-origin, so y is the floor less GROUND_FLOOR_Y). */
+    sconce_place(STATE_CHAMBER_OF_DESTINY, CD_SCONCE_X_E, CD_FLOOR_Y - GROUND_FLOOR_Y,  CD_SCONCE_Z, 0, 1);
+    sconce_place(STATE_CHAMBER_OF_DESTINY, CD_SCONCE_X_E, CD_FLOOR_Y - GROUND_FLOOR_Y, -CD_SCONCE_Z, 0, 1);
+    sconce_place(STATE_CHAMBER_OF_DESTINY, CD_SCONCE_X_W, CD_FLOOR_Y - GROUND_FLOOR_Y,  CD_SCONCE_Z, 0, 1);
+    sconce_place(STATE_CHAMBER_OF_DESTINY, CD_SCONCE_X_W, CD_FLOOR_Y - GROUND_FLOOR_Y, -CD_SCONCE_Z, 0, 1);
 
     /* The west plinths: no ceremony carried in, Circle seeded "held". */
     destiny_plinths_arm();
@@ -448,8 +469,7 @@ static void draw_cd_smd(RenderContext *ctx) {
         int32_t face_cz = ((int32_t)v0->vz + v2->vz) / 2;
         int32_t dx = face_cx - cam_x;
         int32_t dz = face_cz - cam_z;
-        int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
-        int32_t fog = dist < fog_start ? fog_start : (dist > cull ? cull : dist);
+        int32_t dist = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);        int32_t fog = dist < fog_start ? fog_start : (dist > cull ? cull : dist);
         int32_t fog_factor = ((cull - fog) << 8) / (cull - fog_start);
 
         uint8_t tex_idx = (i < CHAMBER_OF_DESTINY_PRIM_COUNT) ? room_tex_map[i] : 0xFF;
@@ -526,6 +546,11 @@ void chamber_of_destiny_draw(RenderContext *ctx) {
     g_fog_near = CD_FOG_NEAR;
     g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : CD_FOG_FAR;
 
+    /* >>> NO sconces_publish_lights() HERE, BY THE USER'S ORDER (Nov 2026):
+       the corner sconces must not touch the fog at all. With no light
+       registered, render_light_dist is the raw distance, so the stands fog
+       and cull like any prop and the room keeps its 2400 black fog exactly. */
+
     /* The clear colour, not a full-screen TILE (wrong turn #3): BLACK here,
        the user's, where the chapter's is red. It shows below the dome's rim. */
     render_set_clear_colour(ctx, CD_FOG_R, CD_FOG_G, CD_FOG_B);
@@ -554,8 +579,11 @@ void chamber_of_destiny_draw(RenderContext *ctx) {
         draw_cd_smd(ctx);
     }
 
-    /* >>> LEVEL 8 IS THE DOOR'S SIGN, the only thing standing in the room. */
+    /* >>> LEVEL 8 IS THE DOOR'S SIGN, the sconces and the plinths. */
     if (exp != DBG_EXP_NO_ENTITIES) {
+        /* The four corner sconces. Their texture sits at Voff 0, inside the
+           128 window set above; the draw leaves the plain view matrix loaded. */
+        sconces_draw(ctx);
         cd_door_text(ctx);
         /* ...and the west plinths: Sharur, the Tablet, their signs and the
            ceremony (src/destiny_plinths.h). The tablet sprite sits at Voff 64,

@@ -38,7 +38,10 @@
        chapter's 800.
 
    THE TRANSITION both ways is DOOR_PANEL_DESTINY (src/door_anim.h): the door
-   on each side is Destiny's Door. No enemies, no props, no lava. THE MUSIC
+   on each side is Destiny's Door. No enemies, no lava; FOUR LIT SCONCES
+   (src/sconce.h), one 200 in from each corner of the square chamber. They
+   publish NO point light here (the user's order): the fog is untouched, and
+   the stands fog and cull like any other prop. THE MUSIC
    is its own (CDAUDIO_DESTINY_TRACK), not the chapter's; THE SOUND BANK is Hero's Plinth's (SND_BANK_PLINTH), so
    the door's sound, when it comes, plays from either side. */
 
