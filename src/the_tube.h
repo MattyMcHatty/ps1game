@@ -48,7 +48,11 @@ void the_tube_load_assets(void);     /* startup: TIM_SLOTs only            */
 void the_tube_load_geometry(void);   /* ROOM ENTRY: mesh + the sky         */
 void the_tube_upload_textures(void); /* room entry: narrow uploaders       */
 void the_tube_init(void);            /* collision, floor, spawn            */
-void the_tube_update(void);          /* the spin                           */
+void the_tube_update(void);          /* the spin; the south Golem's death  */
+/* ROOM ENTRY, after world_enter: stand the south door's Golem up if the
+   Destiny Tablet is broken and it has not been killed (player.h,
+   FLAG_TUBE_S_GOLEM_KILLED). */
+void the_tube_apply_flags(void);
 void the_tube_draw(RenderContext *ctx);
 
 /* Seed the door's Circle edge state "held", so a press carried in through

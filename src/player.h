@@ -587,6 +587,19 @@ typedef enum {
        every entry. Bits 21-22 of game_flags2. */
     FLAG_DESTINY_TABLET_BROKEN,
     FLAG_FAKE_TABLET_TAKEN,
+    /* THE TUBE'S SOUTH-DOOR GOLEM (src/the_tube.c, world.c's seed) - the
+       Destiny Tablet's second consequence: once FLAG_DESTINY_TABLET_BROKEN is
+       set it stands in front of The Tube's south door, to Heavens Gate, until
+       it is killed. It is The Tube's second seeded Golem, seeded ABSENT
+       (dead) as the Wings Tablet's guard is, so its golems_dead bit cannot
+       tell "not yet arrived" from "killed" - this bit does:
+
+         FLAG_TUBE_S_GOLEM_KILLED  it has stood and been killed. Set by
+                                   the_tube_update() the frame it dies.
+
+       the_tube_apply_flags() stands it up on every entry while BROKEN is set
+       and this is clear. Bit 23 of game_flags2. */
+    FLAG_TUBE_S_GOLEM_KILLED,
     MAX_GAME_FLAGS
 } GameFlag;
 extern int     game_flags;     /* bitmask — GameFlags 0..31                     */

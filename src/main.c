@@ -7770,6 +7770,11 @@ int main(int argc, const char **argv) {
                 lightning_tablet_apply_flags();  /* ...and the Lightning Bolt
                                                     where the Lightning Tablet
                                                     stood, on the same terms */
+            if (pending_area == STATE_THE_TUBE)
+                the_tube_apply_flags();          /* ...and the Golem the Destiny
+                                                    Tablet's solve puts in front
+                                                    of the south door, until it
+                                                    is killed */
             if (pending_area == STATE_DESTINYS_CABIN)
                 destiny_tablet_apply_flags();    /* ...and the Fake Tablet of
                                                     Destinies where the Destiny

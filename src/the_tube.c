@@ -29,6 +29,7 @@
 #include "btn_glyph.h"
 #include "door.h"
 #include "golem.h"              /* the north door's Golem             */
+#include "player.h"             /* game_flag: the south door's Golem  */
 
 /* The Tube - see the_tube.h. The room half is src/heavens_gate.c's (cull
    keys, the chapter's fog, the sky), with the mesh drawn in TWO PASSES: the
@@ -236,7 +237,13 @@ static int tt_door_triggered(int lock, int32_t x, int32_t z, int *prev) {
     return interact_facing(x, z);
 }
 
+/* The south door, REFUSED while the Destiny Tablet's Golem stands in front
+   of it (the north door's rule). */
 int the_tube_s_door_triggered(int lock) {
+    if (golem_blocks(STATE_THE_TUBE, GLM_BLOCKS_TUBE_S_DOOR)) {
+        s_circle_prev = interact_tapped();
+        return 0;
+    }
     return tt_door_triggered(lock, TT_S_X, TT_S_Z, &s_circle_prev);
 }
 
@@ -314,8 +321,34 @@ void the_tube_init(void) {
     reset_particles();
 }
 
+/* ---- THE SOUTH DOOR'S GOLEM (world.c's second Tube seed) ---------------------
+   The Destiny Tablet's second consequence. Seeded ABSENT; stood up here on
+   every entry once the tablet is broken, until it has been killed.
+   tt_s_golem_up is "it was stood up this visit", so the update only reads a
+   GLM_DEAD as a kill after a revive - never the absent state it starts in. */
+static int tt_s_golem_up = 0;
+
+void the_tube_apply_flags(void) {
+    Golem *g = golem_guard(STATE_THE_TUBE);
+    tt_s_golem_up = 0;
+    if (!g) return;
+    if (game_flag(FLAG_DESTINY_TABLET_BROKEN) &&
+        !game_flag(FLAG_TUBE_S_GOLEM_KILLED)) {
+        if (g->state == GLM_DEAD) golem_revive(g);   /* alert: attacking */
+        tt_s_golem_up = 1;
+    }
+}
+
 void the_tube_update(void) {
     tt_spin = (tt_spin + TT_SPIN_STEP) & 4095;
+
+    if (tt_s_golem_up) {
+        Golem *g = golem_guard(STATE_THE_TUBE);
+        if (!g || g->state == GLM_DEAD) {
+            game_flag_set(FLAG_TUBE_S_GOLEM_KILLED);
+            tt_s_golem_up = 0;
+        }
+    }
 }
 
 /* >>> EVERY MATRIX LOAD IN THIS FILE GOES THROUGH HERE, NOT THE SDK MACROS. <<<
@@ -589,8 +622,9 @@ void the_tube_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
         draw_golems(ctx);
-        tt_door_text(ctx, TT_S_X, TT_S_Z, TT_S_TEXT_X, TT_S_TEXT_Y,
-                     TT_S_TEXT_Z, TT_S_TEXT_YAW);
+        if (!golem_blocks(STATE_THE_TUBE, GLM_BLOCKS_TUBE_S_DOOR))
+            tt_door_text(ctx, TT_S_X, TT_S_Z, TT_S_TEXT_X, TT_S_TEXT_Y,
+                         TT_S_TEXT_Z, TT_S_TEXT_YAW);
         if (!golem_blocks(STATE_THE_TUBE, GLM_BLOCKS_TUBE_N_DOOR))
             tt_door_text(ctx, TT_N_X, TT_N_Z, TT_N_TEXT_X, TT_N_TEXT_Y,
                          TT_N_TEXT_Z, TT_N_TEXT_YAW);

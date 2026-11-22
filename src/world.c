@@ -2399,6 +2399,21 @@ void world_seed_room(GameState area) {
         golem_set_blocks(g, GLM_BLOCKS_TUBE_N_DOOR);
         golem_set_alert(g);
     }
+    /* ...and THE TUBE'S SECOND GOLEM (the user's call, Nov 2026): the Destiny
+       Tablet's second consequence. In front of the SOUTH door (z=0), on the
+       centre line 500 in - the north one's standoff, mirrored. ALERT, and it
+       BLOCKS that door (GLM_BLOCKS_TUBE_S_DOOR), so the way back to Heavens
+       Gate is shut until it dies.
+       Planted ABSENT, as the Wings Tablet's guard is (golem_add_guard): it
+       stands only once FLAG_DESTINY_TABLET_BROKEN is set and
+       FLAG_TUBE_S_GOLEM_KILLED is not - the_tube_apply_flags() on every
+       entry. Seeded AFTER the north one, so that keeps its golems_dead bit;
+       The Tube is the last room with Golems, so no other room's bit moves. */
+    if (area == STATE_THE_TUBE) {
+        int g = golem_add_guard(0, 0, 500, STATE_THE_TUBE);
+        golem_set_blocks(g, GLM_BLOCKS_TUBE_S_DOOR);
+        golem_set_alert(g);
+    }
 
     /* DESTINYS CABIN (the user's placements, Nov 2026). Every one APPENDS to
        its kind's seed order, so no existing save bit moves.

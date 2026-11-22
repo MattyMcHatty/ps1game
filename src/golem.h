@@ -44,6 +44,10 @@
  *   - The Tube's Golem blocks its north door (GLM_BLOCKS_TUBE_N_DOOR, tagged
  *     beside its seed in world.c), to Destinys Cabin; the_tube.c's trigger
  *     and prompt ask.
+ *   - The Tube's SECOND Golem blocks its south door (GLM_BLOCKS_TUBE_S_DOOR),
+ *     to Heavens Gate. Seeded ABSENT as a guard; it only stands once the
+ *     Destiny Tablet is solved (the_tube_apply_flags, FLAG_TUBE_S_GOLEM_KILLED
+ *     in player.h).
  * A new Golem that guards something: a new GolemBlock value, golem_set_blocks()
  * where it is placed, and a golem_blocks() test in the thing's own trigger AND
  * its prompt. The tag survives golems_rest and every re-plant (glm_spawn keeps
@@ -148,13 +152,14 @@
  * for a hit and SFX_HURT for the player's.
  * ----------------------------------------------------------------------- */
 
-#define MAX_GOLEMS             8    /* WHOLE-GAME budget. Six seeded: two in
+#define MAX_GOLEMS             8    /* WHOLE-GAME budget. Seven seeded: two in
                                        Wingscape (the west door's, and the
                                        Wings Tablet's summoned guard), two
                                        free-standing in A Woman Scorned,
                                        Ribcage's in front of its east door,
-                                       and The Tube's in front of its north
-                                       door */
+                                       and two in The Tube - in front of its
+                                       north door, and (absent until the
+                                       Destiny Tablet is solved) its south */
 
 /* ---- Health, in half-points - see above. */
 #define GLM_MAX_HEALTH        10
@@ -283,6 +288,8 @@ typedef enum {
     GLM_BLOCKS_WINGSCAPE_SE_DOOR,  /* Wingscape: the door Golem, south-east    */
     GLM_BLOCKS_RIBCAGE_E_DOOR,     /* Ribcage: the east door, to Lightnings Edge */
     GLM_BLOCKS_TUBE_N_DOOR,        /* The Tube: the north door, to Destinys Cabin */
+    GLM_BLOCKS_TUBE_S_DOOR,        /* The Tube: the south door, to Heavens Gate -
+                                      the Golem the Destiny Tablet's solve brings */
 } GolemBlock;
 
 typedef struct {
