@@ -89,13 +89,35 @@ static int32_t tt_spin = 0;
 /* ---- THE NORTH DOOR --------------------------------------------------------
    The catacomb inner door polys stand in the plane z=2400 (collision wall 3,
    inward normal -Z): a 56-wide post x[-28,28], 400 tall, with an arm out to
-   x=-151 at the top. It leads nowhere yet: no prompt and no trigger until
-   its room exists.
+   x=-151 at the top. It leads to DESTINYS CABIN's west gate. So, the south
+   door's mirror image:
+     - the PRESS point is (0,2400), under it;
+     - THE SIGN is 11 off it along the normal, at (0,-200,2389), on a free
+       yaw facing the way the reader faces - 0, north;
+     - THE SPAWN, for an arrival through it, is 250 in along the normal
+       ((0,2150)), clear of the 195 push radius, facing south (2048), down
+       the tube.
+   Out of here plays DOOR_PANEL_CATACOMB: its art (CTCMBDR, x832 y0) is
+   already up - this room draws that door - and SFX_CTCMBDR is in
+   SND_BANK_UNDERWORLD. The far side is a garden gate, so the way in plays
+   DOOR_PANEL_GATE (per direction, the chapter's rule 4).
    >>> A GOLEM STANDS IN FRONT OF IT, 500 in at (0,1900) <<< (world.c's
    seed), ALERT from the moment the player arrives, and tagged
-   GLM_BLOCKS_TUBE_N_DOOR. WHEN THIS DOOR IS WIRED its trigger must refuse
-   and its sign must not draw while golem_blocks(STATE_THE_TUBE,
-   GLM_BLOCKS_TUBE_N_DOOR) - Ribcage's east door is the pattern. */
+   GLM_BLOCKS_TUBE_N_DOOR: the trigger refuses and the sign does not draw
+   while golem_blocks(STATE_THE_TUBE, GLM_BLOCKS_TUBE_N_DOOR) - Ribcage's
+   east door is the pattern. Only a DEBUG JUMP into the Cabin can bring the
+   player back through this door with the Golem still standing; the arrival
+   spawn is then 250 off its centre, inside its 425 hold, and its push
+   settles them against the door wall. */
+#define TT_N_X               0
+#define TT_N_Z            2400
+#define TT_N_TEXT_X          0
+#define TT_N_TEXT_Z       2389
+#define TT_N_TEXT_Y       (TT_FLOOR_Y - 200)
+#define TT_N_TEXT_YAW        0
+#define TT_N_SPAWN_X         0
+#define TT_N_SPAWN_Z      2150
+#define TT_N_SPAWN_ROT    2048
 
 #define TT_TEXT_RADIUS    1500
 #define TT_FADE_NEAR      1000
@@ -104,6 +126,7 @@ static int32_t tt_spin = 0;
 /* Circle edge-detect. Seeded "held" by the arm so a press carried in through
    the transition cannot fire on the arrival frame. */
 static int s_circle_prev = 1;
+static int n_circle_prev = 1;
 
 /* ---- THE FLOOR -------------------------------------------------------------
    One storey: the proxy has one floor plane, y=0, so one FLOOR_FLAT zone over
@@ -192,29 +215,46 @@ void the_tube_load_geometry(void) {
     underworld_sky_load();
 }
 
-/* ---- The south door ----------------------------------------------------------*/
+/* ---- The doors ---------------------------------------------------------------*/
 void the_tube_doors_arm(void) {
     s_circle_prev = interact_tapped();
+    n_circle_prev = s_circle_prev;
 }
 
-/* A fresh Circle within reach of the door and facing it. The edge state is
+/* A fresh Circle within reach of a door and facing it. The edge state is
    kept up to date even while locked. */
-int the_tube_s_door_triggered(int lock) {
+static int tt_door_triggered(int lock, int32_t x, int32_t z, int *prev) {
     int held = interact_tapped();
-    int just = held && !s_circle_prev;
+    int just = held && !*prev;
     int32_t dx, dz;
-    s_circle_prev = held;
+    *prev = held;
     if (lock || !just) return 0;
-    dx = cam_x - TT_S_X;
-    dz = cam_z - TT_S_Z;
+    dx = cam_x - x;
+    dz = cam_z - z;
     if ((dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) >= TT_TRIGGER_RADIUS)
         return 0;
-    return interact_facing(TT_S_X, TT_S_Z);
+    return interact_facing(x, z);
 }
 
-static void tt_s_text(RenderContext *ctx) {
-    int32_t dx = cam_x - TT_S_X;
-    int32_t dz = cam_z - TT_S_Z;
+int the_tube_s_door_triggered(int lock) {
+    return tt_door_triggered(lock, TT_S_X, TT_S_Z, &s_circle_prev);
+}
+
+/* The north door, REFUSED while the Golem in front of it stands. The edge
+   state is still kept current while it is. */
+int the_tube_n_door_triggered(int lock) {
+    if (golem_blocks(STATE_THE_TUBE, GLM_BLOCKS_TUBE_N_DOOR)) {
+        n_circle_prev = interact_tapped();
+        return 0;
+    }
+    return tt_door_triggered(lock, TT_N_X, TT_N_Z, &n_circle_prev);
+}
+
+/* A door's floating sign, faded in from TT_TEXT_RADIUS to TT_FADE_NEAR. */
+static void tt_door_text(RenderContext *ctx, int32_t x, int32_t z,
+                         int32_t tx, int32_t ty, int32_t tz, int yaw) {
+    int32_t dx = cam_x - x;
+    int32_t dz = cam_z - z;
     int32_t xz = (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz);
     int fade = 256;
 
@@ -226,8 +266,7 @@ static void tt_s_text(RenderContext *ctx) {
         fade = 256 - ((prog * 256) / range);
     }
     door_draw_string_3d_yaw(ctx, "Press " BTN_CIRCLE " to enter",
-                            TT_S_TEXT_X, TT_S_TEXT_Y, TT_S_TEXT_Z,
-                            50, 255, 50, fade, TT_S_TEXT_YAW,
+                            tx, ty, tz, 50, 255, 50, fade, yaw,
                             DOOR_PIXEL_SIZE);
 }
 
@@ -242,13 +281,25 @@ void the_tube_spawn_s(void) {
     the_tube_doors_arm();
 }
 
+void the_tube_spawn_n(void) {
+    cam_x     = TT_N_SPAWN_X;
+    cam_y     = TT_EYE_Y;
+    cam_vy    = 0;
+    cam_z     = TT_N_SPAWN_Z;
+    cam_rot   = TT_N_SPAWN_ROT;
+    cam_pitch = 0;
+    camera_look_cancel();
+    the_tube_doors_arm();
+}
+
 void the_tube_init(void) {
     room_data_collision(&current_collision_room);
     collision_set_ceiling_y(TT_CEILING_Y);
     tt_floor_zones_init();
 
-    /* The one arrival, and where a debug jump lands: the south door, from
-       Heavens Gate's east door. */
+    /* The default arrival, and where a debug jump lands: the south door,
+       from Heavens Gate's east door. main.c overrides it with
+       the_tube_spawn_n() for an arrival from Destinys Cabin. */
     the_tube_spawn_s();
 
     /* The global prop arrays, as every Chapter 4 room clears them: Hell Hath
@@ -538,6 +589,10 @@ void the_tube_draw(RenderContext *ctx) {
     if (exp != DBG_EXP_NO_ENTITIES) {
         item_pickups_draw(ctx);
         draw_golems(ctx);
-        tt_s_text(ctx);
+        tt_door_text(ctx, TT_S_X, TT_S_Z, TT_S_TEXT_X, TT_S_TEXT_Y,
+                     TT_S_TEXT_Z, TT_S_TEXT_YAW);
+        if (!golem_blocks(STATE_THE_TUBE, GLM_BLOCKS_TUBE_N_DOOR))
+            tt_door_text(ctx, TT_N_X, TT_N_Z, TT_N_TEXT_X, TT_N_TEXT_Y,
+                         TT_N_TEXT_Z, TT_N_TEXT_YAW);
     }
 }

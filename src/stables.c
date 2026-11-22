@@ -277,6 +277,13 @@ void stables_upload_greenhouse_door(void) {
     texmgr_upload(new_tex_id[3]);
 }
 
+/* The stable wood alone (slot 5, STBLWOOD at x832 y0), for Destinys Cabin in
+   Chapter 4, whose cabin is built of it. Pure LoadImage, inside
+   STATE_LOADING. */
+void stables_upload_wood(void) {
+    texmgr_upload(new_tex_id[1]);
+}
+
 /* ---- The east-wall gate back to the Rear Gate -------------------------------
    The grdn_gte polys on this side span z[-400,400] at x=100, y[-600,0]. It is
    the same gate leaf as the one in the Rear Gate's west hedge, which stands at

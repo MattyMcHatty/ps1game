@@ -259,6 +259,7 @@ static const GameState room_areas[WORLD_NUM_ROOMS] = {
     STATE_A_WOMAN_SCORNED, STATE_RIBCAGE,
     STATE_LAVA_MAZE,       STATE_LIGHTNINGS_EDGE,
     STATE_HEAVENS_GATE,    STATE_THE_TUBE,
+    STATE_DESTINYS_CABIN,
 };
 
 /* A room with NO SLOT in room_areas[]: today only DESCENT TO HELL, Chapter 4's
@@ -487,6 +488,9 @@ static int room_index(GameState area) {
            door. Slot 73. Seeded with one ALERT Golem, in front of the
            north door. */
         case STATE_THE_TUBE:          return 73;
+        /* DESTINYS CABIN, Chapter 4's thirteenth room, behind The Tube's
+           north door. Slot 74. Seeded EMPTY. */
+        case STATE_DESTINYS_CABIN:    return 74;
         default:                   return 0;
     }
 }
@@ -2386,10 +2390,9 @@ void world_seed_room(GameState area) {
        >>> IT IS ALERT <<< (golem_set_alert, the user's brief: "alert and
        attacking as soon as the player enters the room") - no IDLE, its laser
        cycle starts on entry. >>> AND IT BLOCKS THAT DOOR <<<
-       (GLM_BLOCKS_TUBE_N_DOOR): the door leads nowhere yet, so today the tag
-       has nothing to ask it; the trigger and sign must test golem_blocks()
-       when the door is wired. Both marks are set here, so a title load's
-       re-seed sets them again. */
+       (GLM_BLOCKS_TUBE_N_DOOR): the door, to Destinys Cabin, has no trigger
+       and no sign while it stands (the_tube_n_door_triggered asks). Both
+       marks are set here, so a title load's re-seed sets them again. */
     if (area == STATE_THE_TUBE) {
         int g = golem_add(0, 1900, STATE_THE_TUBE);
         golem_set_blocks(g, GLM_BLOCKS_TUBE_N_DOOR);

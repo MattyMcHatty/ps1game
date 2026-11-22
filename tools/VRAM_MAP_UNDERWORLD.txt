@@ -123,6 +123,7 @@ THIS BANK'S ART
   seal.tim                   HHNF: the floor seal (the Seal's)  x576 y0
   sharur tablet cracked.tim  Sharur: the tablet, cracked (owned) x768 y0
   sharur tablet.tim          Sharur: the tablet (owned)         x704 y0
+  stables wood.tim           Destinys Cabin: the cabin (the Stables'; the inner door's page + CLUT) x832 y0
   volcanic.tim               HHNF: the platform (owned)         x384 y256
   wd_dr.tim                  HHNF, Sharur, Ribcage, Lava Maze: doors - BORROWED RESIDENT, see head x768 y256
   wing tablet.tim            Wingscape: the tablet (owned; Sharur's page) x704 y0
@@ -150,7 +151,7 @@ MESH-ART PAGES  y[0,128)   (Voff 0: a room's texture window is safe here)
   x640  IN USE by this bank: hell bg.tim   [also on this page, all re-uploaded on room entry: arms2.tim, asag.tim, baby names.tim, bones.tim, chnlnk.tim, gaol door.tim, gravel_texture.tim, greenhouse.tim, gula tablet.tim, guts.tim, hatch.tim, heads.tim, lamashtu pearl.tim, legs.tim, plinth_rg.tim, poison_flower_base.tim, shelf_incinerator.tim, torsos.tim, trck_clue.tim, trees.tim]
   x704  IN USE by this bank: destinys door frame bottom right.tim, heavens gate right.tim, lightning tablet puzzle.tim, ninurta tablet bottom right.tim, sharur tablet.tim, wing tablet.tim   [also on this page, all re-uploaded on room entry: chain.tim, gravel_gs.tim, poison_flower_base_gh.tim, rusty.tim, rusty_fence.tim, stable glyphs.tim, upstairs.tim]
   x768  IN USE by this bank: destinys door.tim, grss.tim, lightning tablet ninurta.tim, sharur tablet cracked.tim, wings tablet question and answers.tim   [also on this page, all re-uploaded on room entry: bed.tim, brick_wall.tim, fountain.tim, gula codes.tim, lamashtu arm.tim, lamashtu tablet.tim, pipe.tim, plinth_diamond.tim, xt_dr_cmplt.tim, xt_dr_lckd.tim]
-  x832  IN USE by this bank: catacomb inner door.tim   [also on this page, all re-uploaded on room entry: anzu_tab.tim, con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, stables wood.tim, xt_dr_cg.tim]
+  x832  IN USE by this bank: catacomb inner door.tim, stables wood.tim   [also on this page, all re-uploaded on room entry: anzu_tab.tim, con_tile.tim, double_door.tim, drain.tim, opn_drwr.tim, plinth.tim, xt_dr_cg.tim]
   x896  BLOCKED - reserved: ghit.tim, graveolver.tim, scat_rnds.tim
 
 MESH-ART PAGES  y[256,384)   (Voff 0: a room's texture window is safe here)

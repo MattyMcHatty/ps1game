@@ -294,6 +294,10 @@ AREAS = {
                   # THE TUBE, behind Heavens Gate's east door: owns nothing;
                   # borrows the rocks and the inner door.
                   "the_tube_upload_textures",
+                  # DESTINYS CABIN, behind The Tube's north door: owns
+                  # nothing; borrows the lava, volcanic, the stable wood,
+                  # grss and the garden gate.
+                  "destinys_cabin_upload_textures",
                   # ...and NESSIE (src/nessie.c), which main.c uploads on entry
                   # to the rooms nessie_room_has_sheet() names - Sharur's Trial
                   # today. Underworld rooms only.

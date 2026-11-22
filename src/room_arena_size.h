@@ -18,9 +18,9 @@
  *     66168 bytes   33 sectors  gaol_cells.smd
  *     61444 bytes   31 sectors  keystone_maze.smd
  *     59824 bytes   30 sectors  meat_plant.smd
+ *     59592 bytes   30 sectors  destinys_cabin.smd
  *     53236 bytes   26 sectors  zig_zag_tomb.smd
  *     53056 bytes   26 sectors  north_chamber.smd
- *     50644 bytes   25 sectors  rear_gate.smd
  *
  */
 #ifndef ROOM_ARENA_SIZE_H

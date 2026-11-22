@@ -42,8 +42,8 @@
  *   - Ribcage's Golem blocks its east door, to Lightnings Edge
  *     (GLM_BLOCKS_RIBCAGE_E_DOOR, tagged beside its seed in world.c);
  *   - The Tube's Golem blocks its north door (GLM_BLOCKS_TUBE_N_DOOR, tagged
- *     beside its seed in world.c). That door leads nowhere yet: the tag is
- *     set now so its trigger and prompt only have to ASK when it is wired.
+ *     beside its seed in world.c), to Destinys Cabin; the_tube.c's trigger
+ *     and prompt ask.
  * A new Golem that guards something: a new GolemBlock value, golem_set_blocks()
  * where it is placed, and a golem_blocks() test in the thing's own trigger AND
  * its prompt. The tag survives golems_rest and every re-plant (glm_spawn keeps
@@ -282,7 +282,7 @@ typedef enum {
     GLM_BLOCKS_WINGSCAPE_W_DOOR,   /* Wingscape: the door Golem, west spot     */
     GLM_BLOCKS_WINGSCAPE_SE_DOOR,  /* Wingscape: the door Golem, south-east    */
     GLM_BLOCKS_RIBCAGE_E_DOOR,     /* Ribcage: the east door, to Lightnings Edge */
-    GLM_BLOCKS_TUBE_N_DOOR,        /* The Tube: the north door (not wired yet) */
+    GLM_BLOCKS_TUBE_N_DOOR,        /* The Tube: the north door, to Destinys Cabin */
 } GolemBlock;
 
 typedef struct {

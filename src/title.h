@@ -372,6 +372,10 @@ typedef enum {
     STATE_THE_TUBE,          /* THE TUBE, behind Heavens Gate's east door -
                                 Chapter 4's twelfth room. See src/the_tube.h.
                                 Appended, not inserted. */
+    STATE_DESTINYS_CABIN,    /* DESTINYS CABIN, behind The Tube's north door
+                                - Chapter 4's thirteenth room. See
+                                src/destinys_cabin.h. Appended, not
+                                inserted. */
 } GameState;
 
 /* Is `a` one of the five Dead Ends? See the note on STATE_DEAD_END_BENJ. */

@@ -110,6 +110,7 @@ BANK = {
     "greenhouse door_128.tim": "Heavens Gate: NW door (owned 128 copy of greenhouse door; volcanic's page) x384 y256",
     "grss.tim":                "Heavens Gate: the lawn (the Conservatory's; the cracked tablet's page) x768 y0",
     "greenhouse door.tim":     "Heavens Gate: the greenhouse panel out (the Stables'; lava's page) x320 y256",
+    "stables wood.tim":        "Destinys Cabin: the cabin (the Stables'; the inner door's page + CLUT) x832 y0",
     "oil_container.tim":       "HHNF: the ruin's oil tank (the prop's) x896 y256",
     "nessie_a.tim":            "Sharur: Nessie frames 0-2 (Adapa's) x832 y128",
     "nessie_b.tim":            "Sharur: Nessie frames 3-5 (Adapa's) x896 y128",

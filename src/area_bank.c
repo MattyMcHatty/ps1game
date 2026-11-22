@@ -258,6 +258,9 @@ TexBank area_bank_of(GameState area) {
     /* THE TUBE owns nothing: Sharur's Trial's rocks and the Catacombs
        Entry's inner door through narrow uploaders, wd_dr resident. */
     case STATE_THE_TUBE:
+    /* DESTINYS CABIN owns nothing either: the lava, the volcanic rock, the
+       Stables' wood, the lawn and the garden gate through narrow uploaders. */
+    case STATE_DESTINYS_CABIN:
         return TEXBANK_UNDERWORLD;
 
     default:
@@ -327,7 +330,8 @@ int area_is_underworld(GameState area) {
            area == STATE_LAVA_MAZE ||
            area == STATE_LIGHTNINGS_EDGE ||
            area == STATE_HEAVENS_GATE ||
-           area == STATE_THE_TUBE;
+           area == STATE_THE_TUBE ||
+           area == STATE_DESTINYS_CABIN;
 }
 
 /* ---- The prop models -------------------------------------------------------

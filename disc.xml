@@ -2195,6 +2195,11 @@
              doors). Owns nothing: Sharur's ROCKS, the Catacombs Entry's
              inner door and the resident wd_dr. -->
             <file name="THETUBE.SMD"  type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\the_tube.smd"/>
+        <!-- DESTINYS CABIN (src/destinys_cabin.h), behind The Tube's north
+             door: a wooden cabin on a lava-edged field. Owns nothing: the
+             lava, the volcanic rock, the Stables' wood, the lawn and the
+             garden gate, all through their owners' narrow uploaders. -->
+            <file name="DSTCABIN.SMD" type="data" source="C:\Users\virtu\Documents\ps1game\build\rooms\underworld\destinys_cabin.smd"/>
         <!-- SHARUR, the Underworld's weapon (src/sharur.c): the held model,
              and the one standing on the Chamber's lower plinth. Flat-shaded
              like CRFAXE.SMD, from assets/props/Sharur.smx by smxlink. -->

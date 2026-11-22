@@ -88,6 +88,7 @@ void stables_load_assets(void);     /* startup: register this room's textures */
 void stables_load_geometry(void);   /* ROOM ENTRY: read the mesh into the arena */
 void stables_upload_textures(void); /* room entry: pure LoadImage from RAM (no CD) */
 void stables_upload_greenhouse_door(void); /* ...the greenhouse door alone (Heavens Gate's panel) */
+void stables_upload_wood(void);            /* ...the stable wood alone (Destinys Cabin's cabin) */
 void stables_init(void);            /* set collision/floor zones + spawn */
 void stables_draw(RenderContext *ctx);
 

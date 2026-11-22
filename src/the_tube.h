@@ -29,15 +29,17 @@
        direction (the transition is the door on the side being left): out of
        here DOOR_PANEL_WOOD, out of Heavens Gate DOOR_PANEL_CATACOMB.
      - NORTH (z=2400): a catacomb inner door, likewise distorted. It leads
-       nowhere yet - no prompt and no trigger until its room exists.
+       to DESTINYS CABIN's west gate, a garden gate. Out of here
+       DOOR_PANEL_CATACOMB, out of the Cabin DOOR_PANEL_GATE.
 
-   THE ARRIVAL. One: through the south door from Heavens Gate, just inside
+   THE ARRIVALS. Two: through the south door from Heavens Gate, just inside
    it facing north, down the tube (the_tube_spawn_s, the init's spawn and
-   where a debug jump lands).
+   where a debug jump lands); and through the north door from Destinys
+   Cabin, facing south (the_tube_spawn_n, main.c's override).
 
    ONE ENEMY: an ALERT GOLEM in front of the north door (src/golem.h),
-   attacking from the moment the player arrives; it will block that door
-   once the door is wired. No lava, no props. THE MUSIC is the chapter's
+   attacking from the moment the player arrives, and BLOCKING that door -
+   no prompt, no trigger - until it dies. No lava, no props. THE MUSIC is the chapter's
    (CDAUDIO_UNDERWORLD_TRACK, main.c's Chapter 4 block). Textures: three,
    all borrowed - see the_tube.c. Chapter rules (the fog, the sky):
    src/underworld.h. */
@@ -57,7 +59,14 @@ void the_tube_doors_arm(void);
    it. The edge state is kept current while locked. */
 int  the_tube_s_door_triggered(int lock);
 
+/* The NORTH door, to Destinys Cabin. Likewise, and refused while the Golem
+   in front of it stands (GLM_BLOCKS_TUBE_N_DOOR). */
+int  the_tube_n_door_triggered(int lock);
+
 /* Arrival through the south door: just inside it, facing north. */
 void the_tube_spawn_s(void);
+
+/* Arrival through the north door, from Destinys Cabin: facing south. */
+void the_tube_spawn_n(void);
 
 #endif
