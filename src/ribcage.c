@@ -54,6 +54,13 @@ static void *rc_buff = NULL;
    reach -798. */
 #define RC_CEILING_Y     (-966)
 
+/* ---- THE FOG: a named exception to the chapter rule ------------------------
+   The user cut Ribcage's fog distance by 25% (2026-11-22). Destinys Cabin's
+   pattern: only FAR moves, near stays the chapter's. Mesh cull and every
+   sprite's fog follow it. */
+#define RC_FOG_NEAR      UW_FOG_NEAR
+#define RC_FOG_FAR       ((UW_FOG_FAR * 3) / 4)   /* 2625 */
+
 /* ---- THE WEST DOOR, to Hell Hath No Fury -----------------------------------
    The wd_dr polys stand in the plane x=0, z[400,800] (collision wall 48,
    inward normal +X), so the player walks up to it from the east, down the
@@ -430,8 +437,8 @@ static void draw_rc_smd(RenderContext *ctx) {
     /* HOISTED OUT OF THE LOOP (STEP 3C fix 1): none of these can change while
        a frame is being queued. */
     int32_t cull = DEBUG_CULL_DIST();
-    if (!cull) cull = UW_FOG_FAR;
-    int32_t fog_start = UW_FOG_NEAR < cull ? UW_FOG_NEAR : cull / 2;
+    if (!cull) cull = RC_FOG_FAR;
+    int32_t fog_start = RC_FOG_NEAR < cull ? RC_FOG_NEAR : cull / 2;
     int32_t sn = isin(cam_rot), cs = icos(cam_rot);
     uint8_t *buf_end = ctx->buffers[ctx->active_buffer].buffer + BUFFER_LENGTH;
 
@@ -613,9 +620,10 @@ static void draw_rc_smd(RenderContext *ctx) {
 void ribcage_draw(RenderContext *ctx) {
     int exp = DEBUG_EXPERIMENT();
 
-    /* THE CHAPTER'S FOG, and nothing else's (src/underworld.h). */
-    g_fog_near = UW_FOG_NEAR;
-    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : UW_FOG_FAR;
+    /* Ribcage's own fog (see RC_FOG_FAR): the chapter's near, a quarter
+       shorter far. */
+    g_fog_near = RC_FOG_NEAR;
+    g_fog_far  = DEBUG_CULL_DIST() ? DEBUG_CULL_DIST() : RC_FOG_FAR;
 
     /* The clear colour, not a full-screen TILE (wrong turn #3). The sky is an
        open ring, so this is what shows above and below it. */
